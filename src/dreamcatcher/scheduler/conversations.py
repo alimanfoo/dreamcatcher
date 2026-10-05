@@ -24,7 +24,7 @@ from dreamcatcher.github import (
 from dreamcatcher.harness_adapters import AgentRoundLaunchRequest, AgentWorkKind
 from dreamcatcher.issue_conversations import (
     Conversation,
-    ConversationInput,
+    ConversationRoundInput,
     compose_conversation_identifier,
     create_conversation,
     is_conversation_ready_for_input,
@@ -33,7 +33,7 @@ from dreamcatcher.issue_conversations import (
     prepare_conversation_input,
     read_conversation_input,
     read_conversations,
-    read_issue_comment_delivery_cursor,
+    read_issue_comment_delivery_position,
 )
 from dreamcatcher.prompts import (
     CONVERSATION_RECOVERY_PROMPT,
@@ -45,9 +45,9 @@ from dreamcatcher.scheduler.faults import derive_agent_work_fault
 from dreamcatcher.scheduler.models import (
     AgentWorkInspection,
     ConversationObservation,
-    IssueFact,
-    IssueFactValue,
+    ObservedFact,
     SchedulerRecord,
+    Truth,
 )
 from dreamcatcher.words import describe_count
 
@@ -204,11 +204,11 @@ class ConversationScheduler(
         *,
         conversation: Conversation,
         next_round_prompt: str,
-        plan: AgentRoundPlan[ConversationInput],
+        plan: AgentRoundPlan[ConversationRoundInput],
     ) -> AgentRoundStartRequest:
         paths = conversation.compose_round_paths(number=conversation.next_round_number)
         first_round_prompt = compose_conversation_prompt(
-            template=conversation.record.prompt,
+            instructions=conversation.record.prompt,
             issue=conversation.record.issue,
             round_input=paths.round_input,
         )
@@ -279,8 +279,7 @@ class ConversationScheduler(
                 candidates.append(inspection.candidate)
             elif (
                 is_conversation_ready_for_input(conversation=conversation)
-                and inspection.observation.requires_round.value
-                is IssueFactValue.UNKNOWN
+                and inspection.observation.requires_round.value is Truth.UNKNOWN
             ):
                 failures.append(inspection.observation.requires_round.evidence)
         return candidates, observations, fault_count, failures
@@ -311,12 +310,12 @@ class ConversationScheduler(
                 identifier=compose_conversation_identifier(issue=issue.number),
                 issue=issue.number,
                 title=issue.title,
-                requires_round=IssueFact(
-                    value=IssueFactValue.FALSE,
+                requires_round=ObservedFact(
+                    value=Truth.FALSE,
                     evidence="no round required",
                 ),
-                routing_conflict=IssueFact(
-                    value=IssueFactValue.TRUE,
+                routing_conflict=ObservedFact(
+                    value=Truth.TRUE,
                     evidence=f"carries more than one conversation label: {labels}",
                 ),
             ),
@@ -364,7 +363,7 @@ class ConversationScheduler(
         *,
         issue: int,
         conversation: Conversation | None,
-    ) -> tuple[list[ConversationComment], IssueFact]:
+    ) -> tuple[list[ConversationComment], ObservedFact]:
         try:
             comments = _list_comments_to_answer(
                 repository=self.repository,
@@ -373,17 +372,17 @@ class ConversationScheduler(
                 conversation=conversation,
             )
         except ReportableError as failure:
-            return [], IssueFact(value=IssueFactValue.UNKNOWN, evidence=str(failure))
+            return [], ObservedFact(value=Truth.UNKNOWN, evidence=str(failure))
         return comments, (
-            IssueFact(
-                value=IssueFactValue.TRUE,
+            ObservedFact(
+                value=Truth.TRUE,
                 evidence=(
                     f"{describe_count(number=len(comments), noun='comment')} to answer"
                 ),
             )
             if comments
-            else IssueFact(
-                value=IssueFactValue.FALSE,
+            else ObservedFact(
+                value=Truth.FALSE,
                 evidence="no round required",
             )
         )
@@ -406,10 +405,10 @@ def _list_comments_to_answer(
             f"could not read comments for GH{issue}: {comment_response.reason}"
         )
     try:
-        cursor = (
+        delivery_position = (
             None
             if conversation is None
-            else read_issue_comment_delivery_cursor(conversation=conversation)
+            else read_issue_comment_delivery_position(conversation=conversation)
         )
     except ReportableError as failure:
         raise ReportableError(
@@ -418,7 +417,7 @@ def _list_comments_to_answer(
     return list_undelivered_issue_comments(
         comments=comment_response,
         account=account,
-        cursor=cursor,
+        delivery_position=delivery_position,
     )
 
 
@@ -429,9 +428,7 @@ def _carry_forward_unlisted_observations(
 ) -> list[ConversationObservation]:
     if not listing.failures or previous_record is None:
         return []
-    unknown = IssueFact(
-        value=IssueFactValue.UNKNOWN, evidence="; ".join(listing.failures)
-    )
+    unknown = ObservedFact(value=Truth.UNKNOWN, evidence="; ".join(listing.failures))
     listed_issues = {issue.number for issue in listing.issues}
     return [
         observation.model_copy(
@@ -461,8 +458,8 @@ def _inspect_conversation_recovery(
                 identifier=conversation.identifier,
                 issue=issue.number,
                 title=issue.title,
-                requires_round=IssueFact(
-                    value=IssueFactValue.FALSE,
+                requires_round=ObservedFact(
+                    value=Truth.FALSE,
                     evidence="in fault",
                 ),
             ),
@@ -480,8 +477,8 @@ def _inspect_conversation_recovery(
                 identifier=conversation.identifier,
                 issue=issue.number,
                 title=issue.title,
-                requires_round=IssueFact(
-                    value=IssueFactValue.TRUE,
+                requires_round=ObservedFact(
+                    value=Truth.TRUE,
                     evidence=(
                         f"round {conversation.rounds[-1].number} "
                         f"{conversation.rounds[-1].outcome}, to recover"

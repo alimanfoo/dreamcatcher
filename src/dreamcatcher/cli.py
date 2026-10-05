@@ -79,10 +79,10 @@ def _build_cli_parser() -> argparse.ArgumentParser:
         help="run the dreamcatcher daemon",
         description=(
             "Watch this repository for labelled issue conversations and agent "
-            "assignments, and carry every assignment on until its pull request "
-            "is ready for you to review. One daemon watches one "
-            "repo, so a second run on this one refuses while the first is "
-            "alive."
+            "assignments, and carry every assignment through review until its "
+            "pull request is merged or closed and its wrap-up round succeeds. "
+            "One daemon runs per checkout, so a second daemon here refuses while "
+            "the first is alive."
         ),
     )
     run_parser.add_argument(
@@ -91,14 +91,16 @@ def _build_cli_parser() -> argparse.ArgumentParser:
         # The names, not the members. Some Python versions render a rejected
         # choice with repr(), which turns a member into <AgentHarness.CLAUDE: ...>.
         choices=[harness.value for harness in AgentHarness],
-        help="the harness to run this repo's rounds with",
+        help=(
+            "the preferred harness, used by every label whose route has a recipe for it"
+        ),
     )
     run_parser.add_argument(
         "--interval",
         type=_parse_interval,
         default=DEFAULT_INTERVAL_SECONDS,
         metavar="SECONDS",
-        help=f"seconds between scheduler ticks (default: {DEFAULT_INTERVAL_SECONDS})",
+        help=f"seconds between scheduler updates (default: {DEFAULT_INTERVAL_SECONDS})",
     )
     run_parser.add_argument(
         "--max-agents",
@@ -114,7 +116,7 @@ def _build_cli_parser() -> argparse.ArgumentParser:
         description=(
             "Clear the current faults of the newest assignment and issue "
             "conversation after you have fixed what caused their rounds to "
-            "fail. The daemon may recover them on the next scheduler tick "
+            "fail. The daemon may recover them on the next scheduler update "
             "outside a global cooldown."
         ),
     )
@@ -239,14 +241,14 @@ def _add_agent_work_selector(*, parser: argparse.ArgumentParser) -> None:
     owner_group = parser.add_mutually_exclusive_group(required=True)
     owner_group.add_argument(
         "--assignment",
-        dest="owner_kind",
+        dest="work_kind",
         action="store_const",
         const=AgentWorkKind.ASSIGNMENT,
         help="select the newest assignment at the issue",
     )
     owner_group.add_argument(
         "--conversation",
-        dest="owner_kind",
+        dest="work_kind",
         action="store_const",
         const=AgentWorkKind.CONVERSATION,
         help="select the issue conversation",
@@ -343,7 +345,7 @@ def _retry_agent_work(*, arguments: argparse.Namespace) -> None:
             except ReportableError as failure:
                 recovered = ", ".join(retried)
                 raise ReportableError(
-                    f"{recovered} can recover on the next scheduler tick, but "
+                    f"{recovered} can recover on a later scheduler update, but "
                     f"{conversation.identifier} could not be retried: {failure}"
                 ) from failure
         else:
@@ -351,14 +353,14 @@ def _retry_agent_work(*, arguments: argparse.Namespace) -> None:
         retried.append(conversation.identifier)
     if not retried:
         raise ReportableError(f"GH{arguments.issue} has no agent work in fault.")
-    print(f"{', '.join(retried)} can recover on the next scheduler tick.")
+    print(f"{', '.join(retried)} can recover on a later scheduler update.")
 
 
 def _stop_agent_work(*, arguments: argparse.Namespace) -> None:
     """Request a stop for the selected agent work's live round."""
     state = _find_state_directory(root=Path.cwd())
     daemon = read_dreamcatcher_daemon_status(state=state)
-    if arguments.owner_kind is AgentWorkKind.ASSIGNMENT:
+    if arguments.work_kind is AgentWorkKind.ASSIGNMENT:
         statuses = read_assignment_statuses_for_issue(
             state=state, issue=arguments.issue, daemon=daemon
         )
@@ -429,7 +431,7 @@ def _show_feed(*, arguments: argparse.Namespace) -> None:
     tui.show_feed_view(
         state=_find_state_directory(root=Path.cwd()),
         issue=arguments.issue,
-        owner_kind=arguments.owner_kind,
+        work_kind=arguments.work_kind,
         console=tui.open_tui_console(),
         round_number=arguments.round,
     )

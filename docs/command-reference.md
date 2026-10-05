@@ -36,21 +36,21 @@ dreamcatcher run --harness {claude,codex} [--interval SECONDS] [--max-agents N]
 ```
 
 Run the daemon in the foreground for the repository whose main checkout is the
-current directory. A second daemon refuses to start while one already holds that
-repository. Interrupting the command stops its running agent rounds and ends the
-daemon.
+current directory. A second daemon refuses to start while one already runs in
+that checkout. Interrupting the command stops its running agent rounds and ends
+the daemon.
 
 The command reads `dreamcatcher.toml`, identifies the repository and the account
 authenticated through `gh`, checks the required harness programs, and then runs
-one scheduler tick per interval. See the
+one scheduler update per interval. See the
 [configuration reference](configuration-reference.md) for the file format and
 harness-selection rules.
 
-| Option               | Required | Default | Accepted value and effect                                                                                                                           |
-| -------------------- | -------- | ------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `--harness`          | Yes      | None    | `claude` or `codex`. This is the preferred harness for routes that configure both. A route with only one harness block uses that harness instead.   |
-| `--interval SECONDS` | No       | `120`   | A positive integer number of seconds between checks for work. The maximum is platform-dependent; an out-of-range value reports the allowed maximum. |
-| `--max-agents N`     | No       | `1`     | A positive integer. This is the shared maximum number of assignment and conversation rounds that may run at once.                                   |
+| Option               | Required | Default | Accepted value and effect                                                                                                                                    |
+| -------------------- | -------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `--harness`          | Yes      | None    | `claude` or `codex`. This is the preferred harness for routes that configure both. A route with only one dispatch recipe uses that recipe's harness instead. |
+| `--interval SECONDS` | No       | `120`   | A positive integer number of seconds between checks for work. The maximum is platform-dependent; an out-of-range value reports the allowed maximum.          |
+| `--max-agents N`     | No       | `1`     | A positive integer. This is the shared maximum number of assignment and conversation rounds that may run at once.                                            |
 
 The named harness and every harness configured on any route must be installed on
 `PATH`, even when a single-harness route would override the command's preferred
@@ -70,7 +70,7 @@ round records.
 
 At least one of those two items must currently be in fault. Otherwise the
 command reports that the issue has no agent work in fault. A successful request
-makes the named work available for recovery on a later scheduler tick, outside
+makes the named work available for recovery on a later scheduler update, outside
 any active global cooldown; it does not start a round itself. The web page's
 retry control writes the same request for the one assignment or conversation it
 shows.
@@ -102,8 +102,9 @@ command asks it to stop, without the conditions that `stop` requires.
 
 Dreamcatcher leaves the pull request as it is, and while it is open it claims
 the issue as work outside Dreamcatcher. The worktree and branch stay in place,
-so you can carry on in the assignment's worktree. The cancelled assignment stays
-in every status view.
+so you can carry on in the assignment's worktree. The cancelled assignment shows
+as **cancelled** on the web home page and in `dreamcatcher assignment`, and
+`dreamcatcher status` counts it among the ended assignments.
 
 The issue must have an assignment, and that assignment must not have ended. A
 cancel cannot be undone. The command writes only local state, does not contact

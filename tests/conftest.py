@@ -161,7 +161,7 @@ def inline_comment(**fields: object) -> dict:
         "id": 3,
         "user": {"login": POSTED_BY},
         "created_at": POSTED_AT,
-        "body": "this reads the delivery cursor twice",
+        "body": "this reads the delivery position twice",
         "path": "src/dreamcatcher/relay.py",
         "subject_type": "line",
         "side": "RIGHT",

@@ -208,7 +208,7 @@ def test_retry_clears_the_newest_assignments_fault(monkeypatch, faulted, capsys)
         retry_requested_at=assignment.retry_requested_at,
         most_recent_cooldown_ended=PINNED - timedelta(minutes=1),
     )
-    assert "next scheduler tick" in capsys.readouterr().out
+    assert "later scheduler update" in capsys.readouterr().out
 
 
 def test_retry_clears_a_conversations_fault(monkeypatch, tmp_path, capsys):

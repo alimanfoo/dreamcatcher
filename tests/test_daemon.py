@@ -44,9 +44,9 @@ from dreamcatcher.scheduler import AssignmentScheduler, ConversationScheduler, S
 from dreamcatcher.scheduler.models import (
     AgentWorkObservation,
     GlobalCooldown,
-    IssueFact,
-    IssueFactValue,
+    ObservedFact,
     SchedulerRecord,
+    Truth,
 )
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.version import DREAMCATCHER_VERSION
@@ -254,8 +254,8 @@ def test_a_successful_scheduler_tick_is_recorded_and_reported(
             AgentWorkObservation(
                 identifier=ASSIGNMENT_ID,
                 issue=13,
-                requires_round=IssueFact(
-                    value=IssueFactValue.TRUE,
+                requires_round=ObservedFact(
+                    value=Truth.TRUE,
                     evidence="waiting",
                 ),
             )
@@ -654,7 +654,7 @@ def test_a_failed_tick_preserves_the_last_scheduler_record(ready_repo, capsys):
 
     assert recorded(daemon=daemon) == previous
     output = capsys.readouterr().out
-    assert "tick failed:" in output
+    assert "update failed:" in output
     assert "assignment.json is not valid" in output
 
 

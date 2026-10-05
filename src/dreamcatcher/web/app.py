@@ -530,7 +530,7 @@ def _missing_conversation_response(*, issue: int) -> tuple[str, int]:
     """Render the response for an issue with no conversation.
 
     An issue has a conversation once it has a saved conversation or the latest
-    tick observed it as eligible.
+    tick observed it through a configured conversation route.
     """
     return (
         render_template(
@@ -547,7 +547,7 @@ def _invalid_feed_cursor_response() -> tuple[str, int]:
 
 
 def _show_reportable_error(error: ReportableError, /) -> tuple[str, int]:
-    """Render a named read failure for Flask, which passes the error by position."""
+    """Render a reportable failure for Flask, which passes the error by position."""
     return render_template("error.html", message=str(error)), 500
 
 

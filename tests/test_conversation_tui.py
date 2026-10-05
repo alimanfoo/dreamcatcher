@@ -27,10 +27,10 @@ from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import FeedLine
 from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.issue_conversations import (
-    ConversationInput,
+    ConversationRoundInput,
     InitialConversationIssue,
 )
-from dreamcatcher.scheduler.models import IssueFactValue, SchedulerRecord
+from dreamcatcher.scheduler.models import SchedulerRecord, Truth
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.tui import (
     show_conversation_view,
@@ -67,7 +67,7 @@ def conversation_state(
         ),
     )
     write_json(
-        document=ConversationInput(
+        document=ConversationRoundInput(
             issue=8,
             initial_issue=InitialConversationIssue(
                 title="Issue 8",
@@ -83,7 +83,7 @@ def conversation_state(
             ],
             revision="abc123",
         ),
-        path=(directory / "rounds" / "1" / "inbox.json"),
+        path=(directory / "rounds" / "1" / "round-input.json"),
     )
     write_feed(
         directory=directory,
@@ -148,7 +148,7 @@ def test_conversation_detail_shows_settings_revision_session_and_round(tmp_path)
         ),
     )
     write_json(
-        document=ConversationInput(
+        document=ConversationRoundInput(
             issue=8,
             initial_issue=InitialConversationIssue(
                 title="Issue 8",
@@ -164,7 +164,7 @@ def test_conversation_detail_shows_settings_revision_session_and_round(tmp_path)
             ],
             revision="def456",
         ),
-        path=(directory / "rounds" / "2" / "inbox.json"),
+        path=(directory / "rounds" / "2" / "round-input.json"),
     )
     console, written = rendered_console()
 
@@ -220,7 +220,7 @@ def test_conversation_detail_shows_two_errors_as_a_fault(tmp_path):
         ),
     )
     write_json(
-        document=ConversationInput(
+        document=ConversationRoundInput(
             issue=8,
             comments=[
                 {
@@ -232,7 +232,7 @@ def test_conversation_detail_shows_two_errors_as_a_fault(tmp_path):
             ],
             revision="abc123",
         ),
-        path=directory / "rounds" / "2" / "inbox.json",
+        path=directory / "rounds" / "2" / "round-input.json",
     )
     console, written = rendered_console()
     console.width = 140
@@ -256,7 +256,7 @@ def test_conversation_feed_shows_its_saved_activity(tmp_path):
     show_feed_view(
         state=state,
         issue=8,
-        owner_kind=AgentWorkKind.CONVERSATION,
+        work_kind=AgentWorkKind.CONVERSATION,
         console=console,
     )
 
@@ -294,7 +294,7 @@ def test_conversation_feed_follows_a_later_round_without_repeating_the_first(
             ),
         )
         write_json(
-            document=ConversationInput(
+            document=ConversationRoundInput(
                 issue=8,
                 initial_issue=InitialConversationIssue(
                     title="Issue 8",
@@ -310,7 +310,7 @@ def test_conversation_feed_follows_a_later_round_without_repeating_the_first(
                 ],
                 revision="def456",
             ),
-            path=(directory / "rounds" / "2" / "inbox.json"),
+            path=(directory / "rounds" / "2" / "round-input.json"),
         )
         write_feed(
             directory=directory,
@@ -328,7 +328,7 @@ def test_conversation_feed_follows_a_later_round_without_repeating_the_first(
     show_feed_view(
         state=state,
         issue=8,
-        owner_kind=AgentWorkKind.CONVERSATION,
+        work_kind=AgentWorkKind.CONVERSATION,
         console=console,
         wait=wait,
     )
@@ -348,7 +348,7 @@ def test_conversation_feed_can_select_one_round(tmp_path):
     show_feed_view(
         state=state,
         issue=8,
-        owner_kind=AgentWorkKind.CONVERSATION,
+        work_kind=AgentWorkKind.CONVERSATION,
         console=console,
         round_number=1,
     )
@@ -375,7 +375,7 @@ def test_a_missing_conversation_round_says_how_many_exist(tmp_path):
         show_feed_view(
             state=state,
             issue=8,
-            owner_kind=AgentWorkKind.CONVERSATION,
+            work_kind=AgentWorkKind.CONVERSATION,
             console=console,
             round_number=2,
         )
@@ -390,7 +390,7 @@ def unsaved_conversation_state(*, root) -> StateDirectory:
             at=PINNED,
             conversation_observations=[
                 observed_conversation(
-                    issue=9, value=IssueFactValue.TRUE, evidence="1 comment to answer"
+                    issue=9, value=Truth.TRUE, evidence="1 comment to answer"
                 )
             ],
         ),
@@ -439,7 +439,7 @@ def test_a_conversation_feed_before_its_first_round_says_so(tmp_path):
         show_feed_view(
             state=state,
             issue=9,
-            owner_kind=AgentWorkKind.CONVERSATION,
+            work_kind=AgentWorkKind.CONVERSATION,
             console=console,
         )
 
@@ -456,11 +456,11 @@ def test_conversations_are_listed_in_attention_order(tmp_path):
                 observed_conversation(issue=8),
                 observed_conversation(issue=9),
                 observed_conversation(
-                    issue=10, value=IssueFactValue.TRUE, evidence="1 comment to answer"
+                    issue=10, value=Truth.TRUE, evidence="1 comment to answer"
                 ),
                 observed_conversation(issue=11),
                 observed_conversation(
-                    issue=12, value=IssueFactValue.UNKNOWN, evidence="cannot tell"
+                    issue=12, value=Truth.UNKNOWN, evidence="cannot tell"
                 ),
             ],
         ),
@@ -555,7 +555,7 @@ def test_a_conversation_view_with_a_routing_conflict_keeps_watching(tmp_path):
         tick=SchedulerRecord(
             at=PINNED,
             conversation_observations=[
-                observed_conversation(routing_conflict=IssueFactValue.TRUE)
+                observed_conversation(routing_conflict=Truth.TRUE)
             ],
         ),
     )
@@ -583,7 +583,7 @@ def assert_conversation_views_keep_watching(*, state: StateDirectory) -> None:
     show_feed_view(
         state=state,
         issue=8,
-        owner_kind=AgentWorkKind.CONVERSATION,
+        work_kind=AgentWorkKind.CONVERSATION,
         console=console,
         wait=interrupting,
     )

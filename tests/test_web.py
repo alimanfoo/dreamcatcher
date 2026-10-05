@@ -47,8 +47,8 @@ from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import FeedLine
 from dreamcatcher.scheduler.models import (
     GlobalCooldown,
-    IssueFactValue,
     SchedulerRecord,
+    Truth,
 )
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.web import serve_web
@@ -1330,7 +1330,7 @@ def test_an_assignment_label_that_looks_like_an_issue_reference_remains_text():
     observation = observed_issue(
         issue=53,
         assignment_labels=("dream:smith", "GH123"),
-        values={"routing_conflict": IssueFactValue.TRUE},
+        values={"routing_conflict": Truth.TRUE},
         evidence={"routing_conflict": evidence},
     )
 

@@ -34,16 +34,16 @@ from dreamcatcher.feed import FeedLine
 from dreamcatcher.github import PullRequestState
 from dreamcatcher.harness_adapters import HarnessSessionIdentifier
 from dreamcatcher.issue_conversations import (
-    ConversationInput,
+    ConversationRoundInput,
     InitialConversationIssue,
 )
 from dreamcatcher.scheduler.models import (
     NO_ROUND_HAS_RUN,
     AgentWorkObservation,
     ConversationObservation,
-    IssueFact,
-    IssueFactValue,
+    ObservedFact,
     SchedulerRecord,
+    Truth,
 )
 from dreamcatcher.state import StateDirectory
 
@@ -57,12 +57,12 @@ def _observed_assignment(
     identifier: str,
     issue: int,
     evidence: str,
-    value: IssueFactValue = IssueFactValue.TRUE,
+    value: Truth = Truth.TRUE,
 ) -> AgentWorkObservation:
     return AgentWorkObservation(
         identifier=identifier,
         issue=issue,
-        requires_round=IssueFact(value=value, evidence=evidence),
+        requires_round=ObservedFact(value=value, evidence=evidence),
     )
 
 
@@ -131,7 +131,7 @@ def fabricate_conversation(
         ),
     )
     write_json(
-        document=ConversationInput(
+        document=ConversationRoundInput(
             issue=8,
             initial_issue=InitialConversationIssue(
                 title="Issue 8",
@@ -147,7 +147,7 @@ def fabricate_conversation(
             ],
             revision="abc123",
         ),
-        path=(directory / "rounds" / "1" / "inbox.json"),
+        path=(directory / "rounds" / "1" / "round-input.json"),
     )
     write_feed(
         directory=directory,
@@ -295,21 +295,21 @@ def fabricate_everything(
                 observed_issue(issue=51),
                 observed_issue(
                     issue=52,
-                    values={"blocked": IssueFactValue.TRUE},
+                    values={"blocked": Truth.TRUE},
                     evidence={"blocked": "blocked by GH50"},
                 ),
                 observed_issue(
                     issue=53,
                     assignment_labels=(ASSIGNMENT_LABEL, "dream:less"),
-                    values={"routing_conflict": IssueFactValue.TRUE},
+                    values={"routing_conflict": Truth.TRUE},
                     evidence={"routing_conflict": DOUBLE_LABELLED},
                 ),
                 observed_issue(
                     issue=54,
                     assignment_labels=(ASSIGNMENT_LABEL, "dream:less"),
                     values={
-                        "routing_conflict": IssueFactValue.TRUE,
-                        "blocked": IssueFactValue.TRUE,
+                        "routing_conflict": Truth.TRUE,
+                        "blocked": Truth.TRUE,
                     },
                     evidence={
                         "routing_conflict": DOUBLE_LABELLED,
@@ -327,7 +327,7 @@ def fabricate_everything(
                     identifier=f"GH20-{ASSIGNMENT_TIMESTAMP}",
                     issue=20,
                     evidence="no round required",
-                    value=IssueFactValue.FALSE,
+                    value=Truth.FALSE,
                 ),
                 _observed_assignment(
                     identifier=f"GH35-{ASSIGNMENT_TIMESTAMP}",
@@ -338,7 +338,7 @@ def fabricate_everything(
                     identifier=f"GH9-{ASSIGNMENT_TIMESTAMP}",
                     issue=9,
                     evidence="in fault",
-                    value=IssueFactValue.FALSE,
+                    value=Truth.FALSE,
                 ),
                 _observed_assignment(
                     identifier=f"GH44-{ASSIGNMENT_TIMESTAMP}",
@@ -381,8 +381,8 @@ def fabricate_a_failed_setup(*, state):
                     issue=20,
                     assignment_labels=(ASSIGNMENT_LABEL, "dream:less"),
                     values={
-                        "claimed_elsewhere": IssueFactValue.UNKNOWN,
-                        "routing_conflict": IssueFactValue.TRUE,
+                        "claimed_elsewhere": Truth.UNKNOWN,
+                        "routing_conflict": Truth.TRUE,
                     },
                     evidence={
                         "claimed_elsewhere": failure,
@@ -471,7 +471,7 @@ def fabricate_repeat_assignments(*, state):
                     identifier=f"GH13-{ASSIGNMENT_TIMESTAMP}",
                     issue=13,
                     evidence="no round required",
-                    value=IssueFactValue.FALSE,
+                    value=Truth.FALSE,
                 )
             ],
         ),
@@ -558,7 +558,7 @@ def fabricate_titles_and_pull_request_states(*, state):
                 observed_issue(
                     issue=21,
                     title="Blocked issue",
-                    values={"blocked": IssueFactValue.TRUE},
+                    values={"blocked": Truth.TRUE},
                     evidence={"blocked": "blocked by GH20"},
                 ),
                 observed_issue(
@@ -566,7 +566,7 @@ def fabricate_titles_and_pull_request_states(*, state):
                     title="Failed setup issue",
                     created_at=PINNED,
                     assignment_labels=[ASSIGNMENT_LABEL],
-                    values={"claimed_elsewhere": IssueFactValue.UNKNOWN},
+                    values={"claimed_elsewhere": Truth.UNKNOWN},
                     evidence={"claimed_elsewhere": "assignment setup failed"},
                 ).model_copy(
                     update={

@@ -28,8 +28,8 @@ from dreamcatcher.config import AgentHarness, DreamcatcherConfig
 from dreamcatcher.scheduler.assignments import AssignmentScheduler
 from dreamcatcher.scheduler.issues import observe_issues
 from dreamcatcher.scheduler.models import (
-    IssueFact,
-    IssueFactValue,
+    ObservedFact,
+    Truth,
     derive_issue_availability,
 )
 from dreamcatcher.state import StateDirectory
@@ -43,10 +43,10 @@ INDEPENDENT_FACTS = (
 )
 
 
-@pytest.mark.parametrize("value", IssueFactValue)
-def test_every_issue_fact_requires_evidence(value):
+@pytest.mark.parametrize("value", Truth)
+def test_every_observed_fact_requires_evidence(value):
     with pytest.raises(ValidationError, match="evidence"):
-        IssueFact.model_validate({"value": value})
+        ObservedFact.model_validate({"value": value})
 
 
 def config_with_routes(*, labels: Sequence[str]) -> DreamcatcherConfig:
@@ -113,7 +113,7 @@ def create_assignment_scheduler(
 
 @pytest.mark.parametrize(
     "values",
-    list(product(IssueFactValue, repeat=len(INDEPENDENT_FACTS))),
+    list(product(Truth, repeat=len(INDEPENDENT_FACTS))),
 )
 def test_availability_follows_the_independent_fact_truth_table(values):
     facts = dict(zip(INDEPENDENT_FACTS, values, strict=True))
@@ -122,44 +122,44 @@ def test_availability_follows_the_independent_fact_truth_table(values):
         observation=observed_issue(issue=8, values=facts)
     )
 
-    if IssueFactValue.TRUE in values:
-        expected = IssueFactValue.FALSE
-    elif IssueFactValue.UNKNOWN in values:
-        expected = IssueFactValue.UNKNOWN
+    if Truth.TRUE in values:
+        expected = Truth.FALSE
+    elif Truth.UNKNOWN in values:
+        expected = Truth.UNKNOWN
     else:
-        expected = IssueFactValue.TRUE
+        expected = Truth.TRUE
     assert availability.value is expected
 
 
 @pytest.mark.parametrize(
     ("change", "expected"),
     [
-        ({"is_open": IssueFactValue.FALSE}, IssueFactValue.FALSE),
-        ({"is_assigned_to_user": IssueFactValue.FALSE}, IssueFactValue.FALSE),
-        ({"assignment_labels": ()}, IssueFactValue.FALSE),
-        ({"is_open": IssueFactValue.UNKNOWN}, IssueFactValue.UNKNOWN),
-        ({"is_assigned_to_user": IssueFactValue.UNKNOWN}, IssueFactValue.UNKNOWN),
-        ({"assignment_labels": None}, IssueFactValue.UNKNOWN),
+        ({"is_open": Truth.FALSE}, Truth.FALSE),
+        ({"is_assigned_to_user": Truth.FALSE}, Truth.FALSE),
+        ({"assignment_labels": ()}, Truth.FALSE),
+        ({"is_open": Truth.UNKNOWN}, Truth.UNKNOWN),
+        ({"is_assigned_to_user": Truth.UNKNOWN}, Truth.UNKNOWN),
+        ({"assignment_labels": None}, Truth.UNKNOWN),
         (
             {
-                "is_open": IssueFactValue.FALSE,
-                "claimed_elsewhere": IssueFactValue.UNKNOWN,
+                "is_open": Truth.FALSE,
+                "claimed_elsewhere": Truth.UNKNOWN,
             },
-            IssueFactValue.FALSE,
+            Truth.FALSE,
         ),
         (
             {
-                "is_assigned_to_user": IssueFactValue.FALSE,
-                "blocked": IssueFactValue.UNKNOWN,
+                "is_assigned_to_user": Truth.FALSE,
+                "blocked": Truth.UNKNOWN,
             },
-            IssueFactValue.FALSE,
+            Truth.FALSE,
         ),
         (
             {
                 "assignment_labels": (),
-                "routing_conflict": IssueFactValue.UNKNOWN,
+                "routing_conflict": Truth.UNKNOWN,
             },
-            IssueFactValue.FALSE,
+            Truth.FALSE,
         ),
     ],
 )
@@ -181,7 +181,7 @@ def test_an_issue_with_no_preventing_fact_is_available(gh):
     assert len(found) == 1
     assert found[0].details is not None
     assert found[0].details.title == "Issue 8"
-    assert derive_issue_availability(observation=found[0]).value is IssueFactValue.TRUE
+    assert derive_issue_availability(observation=found[0]).value is Truth.TRUE
 
 
 def test_observed_issues_are_ordered_oldest_first(gh):
@@ -234,7 +234,7 @@ def test_a_later_route_failure_preserves_earlier_issue_observations(gh):
     assert len(found.failures) == 1
     assert "could not connect" in found.failures[0]
     assert [observation.issue for observation in found.observations] == [8]
-    assert found.observations[0].is_open.value is IssueFactValue.TRUE
+    assert found.observations[0].is_open.value is Truth.TRUE
 
 
 def test_the_signed_in_account_is_matched_without_case_sensitivity(gh):
@@ -243,7 +243,7 @@ def test_the_signed_in_account_is_matched_without_case_sensitivity(gh):
         account=POSTED_BY.upper(),
     )[0]
 
-    assert found.is_assigned_to_user.value is IssueFactValue.TRUE
+    assert found.is_assigned_to_user.value is Truth.TRUE
 
 
 def test_routing_conflict_is_independent_of_external_claims_and_blockers(gh):
@@ -257,9 +257,9 @@ def test_routing_conflict_is_independent_of_external_claims_and_blockers(gh):
 
     assert found.details is not None
     assert found.details.assignment_labels == ["dream:less", ASSIGNMENT_LABEL]
-    assert found.routing_conflict.value is IssueFactValue.TRUE
-    assert found.claimed_elsewhere.value is IssueFactValue.FALSE
-    assert found.blocked.value is IssueFactValue.FALSE
+    assert found.routing_conflict.value is Truth.TRUE
+    assert found.claimed_elsewhere.value is Truth.FALSE
+    assert found.blocked.value is Truth.FALSE
 
 
 def test_local_and_external_claims_can_both_be_true(gh, tmp_path):
@@ -288,8 +288,8 @@ def test_local_and_external_claims_can_both_be_true(gh, tmp_path):
         assignments=read_assignments(state=state),
     )[0]
 
-    assert found.claimed_here.value is IssueFactValue.TRUE
-    assert found.claimed_elsewhere.value is IssueFactValue.TRUE
+    assert found.claimed_here.value is Truth.TRUE
+    assert found.claimed_elsewhere.value is Truth.TRUE
     assert found.claimed_elsewhere.evidence == "a pull request is open on it: #28"
 
 
@@ -319,12 +319,12 @@ def test_a_cancelled_assignments_pull_request_claims_its_issue_elsewhere(gh, tmp
         assignments=read_assignments(state=state),
     )[0]
 
-    assert found.claimed_here.value is IssueFactValue.FALSE
-    assert found.claimed_elsewhere.value is IssueFactValue.TRUE
+    assert found.claimed_here.value is Truth.FALSE
+    assert found.claimed_elsewhere.value is Truth.TRUE
     assert found.claimed_elsewhere.evidence == (
         f"a pull request is open on it: #{PULL_REQUEST}"
     )
-    assert found.availability.value is IssueFactValue.FALSE
+    assert found.availability.value is Truth.FALSE
 
 
 def test_a_recoverable_setup_is_not_treated_as_an_external_claim(gh):
@@ -333,7 +333,7 @@ def test_a_recoverable_setup_is_not_treated_as_an_external_claim(gh):
         incomplete_setups={8: None},
     )[0]
 
-    assert found.claimed_elsewhere.value is IssueFactValue.FALSE
+    assert found.claimed_elsewhere.value is Truth.FALSE
     assert found.setup_failure is None
 
 
@@ -343,7 +343,7 @@ def test_a_setup_that_cannot_be_recovered_leaves_the_claim_unknown(gh):
         incomplete_setups={8: "assignment setup failed"},
     )[0]
 
-    assert found.claimed_elsewhere.value is IssueFactValue.UNKNOWN
+    assert found.claimed_elsewhere.value is Truth.UNKNOWN
     assert found.claimed_elsewhere.evidence == "assignment setup failed"
     assert found.setup_failure == "assignment setup failed"
 
@@ -356,7 +356,7 @@ def test_a_setup_failure_survives_a_failed_linked_pull_request_read(gh):
         incomplete_setups={8: "assignment setup failed"},
     )[0]
 
-    assert found.claimed_elsewhere.value is IssueFactValue.UNKNOWN
+    assert found.claimed_elsewhere.value is Truth.UNKNOWN
     assert found.claimed_elsewhere.evidence == "assignment setup failed"
     assert found.setup_failure == "assignment setup failed"
 
@@ -382,7 +382,7 @@ def test_a_setup_failure_keeps_a_proven_external_claim(gh):
         incomplete_setups={8: "assignment setup failed"},
     )[0]
 
-    assert found.claimed_elsewhere.value is IssueFactValue.TRUE
+    assert found.claimed_elsewhere.value is Truth.TRUE
     assert found.claimed_elsewhere.evidence == "a pull request is open on it: #52"
     assert found.setup_failure == "assignment setup failed"
 
@@ -392,7 +392,7 @@ def test_a_failed_linked_pull_request_read_preserves_unknown_evidence(gh):
 
     found = observe(config=config_with_routes(labels=[ASSIGNMENT_LABEL]))[0]
 
-    assert found.claimed_elsewhere.value is IssueFactValue.UNKNOWN
+    assert found.claimed_elsewhere.value is Truth.UNKNOWN
     assert found.claimed_elsewhere.evidence is not None
     assert (
         "cannot tell whether a pull request claims it"
@@ -414,7 +414,7 @@ def test_open_blockers_are_observed_independently(gh):
 
     found = observe(config=config_with_routes(labels=[ASSIGNMENT_LABEL]))[0]
 
-    assert found.blocked.value is IssueFactValue.TRUE
+    assert found.blocked.value is Truth.TRUE
     assert found.blocked.evidence == "blocked by GH9"
 
 
@@ -423,7 +423,7 @@ def test_a_failed_blocker_read_preserves_unknown_evidence(gh):
 
     found = observe(config=config_with_routes(labels=[ASSIGNMENT_LABEL]))[0]
 
-    assert found.blocked.value is IssueFactValue.UNKNOWN
+    assert found.blocked.value is Truth.UNKNOWN
     assert found.blocked.evidence is not None
     assert "cannot tell what blocks it" in found.blocked.evidence
 
@@ -455,13 +455,13 @@ def test_an_open_local_assignment_is_observed_outside_the_listing(gh, tmp_path):
     )
 
     assert [observation.issue for observation in found] == [13]
-    assert found[0].is_open.value is IssueFactValue.FALSE
+    assert found[0].is_open.value is Truth.FALSE
     assert found[0].is_open.evidence == "issue is closed"
-    assert found[0].is_assigned_to_user.value is IssueFactValue.FALSE
+    assert found[0].is_assigned_to_user.value is Truth.FALSE
     assert found[0].is_assigned_to_user.evidence == "is not assigned to alimanfoo"
     assert found[0].details is not None
     assert found[0].details.assignment_labels == []
-    assert found[0].claimed_here.value is IssueFactValue.TRUE
+    assert found[0].claimed_here.value is Truth.TRUE
 
 
 def test_a_local_assignment_remains_observed_when_the_listing_and_issue_read_fail(
@@ -485,10 +485,10 @@ def test_a_local_assignment_remains_observed_when_the_listing_and_issue_read_fai
     assert "could not connect" in found.failures[0]
     assert [observation.issue for observation in found.observations] == [13]
     observation = found.observations[0]
-    assert observation.is_open.value is IssueFactValue.UNKNOWN
-    assert observation.is_assigned_to_user.value is IssueFactValue.UNKNOWN
-    assert observation.routing_conflict.value is IssueFactValue.UNKNOWN
-    assert observation.claimed_here.value is IssueFactValue.TRUE
+    assert observation.is_open.value is Truth.UNKNOWN
+    assert observation.is_assigned_to_user.value is Truth.UNKNOWN
+    assert observation.routing_conflict.value is Truth.UNKNOWN
+    assert observation.claimed_here.value is Truth.TRUE
 
 
 def test_an_incomplete_setup_is_observed_outside_the_listing(gh):
@@ -516,5 +516,5 @@ def test_an_incomplete_setup_is_observed_outside_the_listing(gh):
     )
 
     assert [observation.issue for observation in found] == [13]
-    assert found[0].claimed_elsewhere.value is IssueFactValue.UNKNOWN
+    assert found[0].claimed_elsewhere.value is Truth.UNKNOWN
     assert found[0].claimed_elsewhere.evidence == "assignment setup failed"

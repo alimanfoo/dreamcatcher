@@ -1,7 +1,6 @@
 """Represent and summarize the derived status of issue conversations."""
 
 from dataclasses import dataclass
-from datetime import datetime
 from enum import StrEnum
 from functools import cached_property
 
@@ -21,7 +20,7 @@ from dreamcatcher.issue_conversations import (
 )
 from dreamcatcher.scheduler.models import (
     ConversationObservation,
-    IssueFactValue,
+    Truth,
 )
 from dreamcatcher.status.agent_work import (
     AgentWorkStatusReader,
@@ -81,7 +80,6 @@ class ConversationStatus:
     value: ConversationStatusValue
     detail: str
     latest_output: str | None
-    observed_at: datetime | None
     is_listed: bool
 
     @cached_property
@@ -167,7 +165,7 @@ class ConversationStatus:
                     ),
                     outcome_description=describe_round_outcome(
                         record=record,
-                        is_running=(
+                        is_working=(
                             self.value is ConversationStatusValue.WORKING
                             and record.number == conversation.rounds[-1].number
                         ),
@@ -305,12 +303,12 @@ class ConversationStatusReader(AgentWorkStatusReader[ConversationStatus]):
                 "issue is not eligible for conversation",
             )
         routing_conflict = observation.routing_conflict
-        if routing_conflict.value is IssueFactValue.UNKNOWN:
+        if routing_conflict.value is Truth.UNKNOWN:
             return ConversationStatusValue.UNKNOWN, routing_conflict.evidence
-        if routing_conflict.value is IssueFactValue.TRUE:
+        if routing_conflict.value is Truth.TRUE:
             return ConversationStatusValue.ROUTING_CONFLICT, routing_conflict.evidence
         requires_round = observation.requires_round
-        if requires_round.value is IssueFactValue.UNKNOWN:
+        if requires_round.value is Truth.UNKNOWN:
             return ConversationStatusValue.UNKNOWN, requires_round.evidence
         return None
 
@@ -386,7 +384,7 @@ class ConversationStatusReader(AgentWorkStatusReader[ConversationStatus]):
                     detail=f"round {latest.number} ended, awaiting next update",
                 )
         requires_round = self.observations[issue].requires_round
-        if requires_round.value is IssueFactValue.TRUE:
+        if requires_round.value is Truth.TRUE:
             return self._compose(
                 issue=issue,
                 title=title,
@@ -419,7 +417,6 @@ class ConversationStatusReader(AgentWorkStatusReader[ConversationStatus]):
             value=value,
             detail=detail,
             latest_output=latest_output,
-            observed_at=self.observed_at,
             is_listed=(
                 value is ConversationStatusValue.WORKING
                 or self.scheduler_record is None

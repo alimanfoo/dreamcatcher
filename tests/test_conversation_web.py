@@ -25,11 +25,11 @@ from dreamcatcher.agent_rounds import (
 from dreamcatcher.documents import append_text, write_json, write_text
 from dreamcatcher.feed import FeedLine
 from dreamcatcher.issue_conversations import (
-    ConversationInput,
+    ConversationRoundInput,
     InitialConversationIssue,
     read_conversation,
 )
-from dreamcatcher.scheduler.models import IssueFactValue, SchedulerRecord
+from dreamcatcher.scheduler.models import SchedulerRecord, Truth
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.web.app import _create_app
 
@@ -106,7 +106,7 @@ def test_conversation_page_shows_settings_revision_round_and_feed(tmp_path):
         ),
     )
     write_json(
-        document=ConversationInput(
+        document=ConversationRoundInput(
             issue=8,
             initial_issue=InitialConversationIssue(
                 title="Issue 8",
@@ -122,7 +122,7 @@ def test_conversation_page_shows_settings_revision_round_and_feed(tmp_path):
             ],
             revision=revision,
         ),
-        path=(directory / "rounds" / "2" / "inbox.json"),
+        path=(directory / "rounds" / "2" / "round-input.json"),
     )
 
     response = application(state=state).test_client().get("/conversations/8")
@@ -373,7 +373,7 @@ def _fabricate_faulted_conversation(*, state: StateDirectory) -> None:
         ),
     )
     write_json(
-        document=ConversationInput(
+        document=ConversationRoundInput(
             issue=8,
             comments=[
                 {
@@ -385,7 +385,7 @@ def _fabricate_faulted_conversation(*, state: StateDirectory) -> None:
             ],
             revision="abc123",
         ),
-        path=directory / "rounds" / "2" / "inbox.json",
+        path=directory / "rounds" / "2" / "round-input.json",
     )
 
 
@@ -493,7 +493,7 @@ def test_a_routing_conflict_keeps_empty_conversation_tail_polling(tmp_path):
         tick=SchedulerRecord(
             at=PINNED,
             conversation_observations=[
-                observed_conversation(routing_conflict=IssueFactValue.TRUE)
+                observed_conversation(routing_conflict=Truth.TRUE)
             ],
         ),
     )
@@ -534,7 +534,7 @@ def test_conversation_tail_adds_a_later_round_without_repeating_the_first(tmp_pa
         ),
     )
     write_json(
-        document=ConversationInput(
+        document=ConversationRoundInput(
             issue=8,
             initial_issue=InitialConversationIssue(
                 title="Issue 8",
@@ -550,7 +550,7 @@ def test_conversation_tail_adds_a_later_round_without_repeating_the_first(tmp_pa
             ],
             revision="def456",
         ),
-        path=(directory / "rounds" / "2" / "inbox.json"),
+        path=(directory / "rounds" / "2" / "round-input.json"),
     )
     write_feed(
         directory=directory,
@@ -618,7 +618,7 @@ def fabricate_unsaved_conversation(*, state: StateDirectory) -> None:
             at=PINNED,
             conversation_observations=[
                 observed_conversation(
-                    issue=9, value=IssueFactValue.TRUE, evidence="1 comment to answer"
+                    issue=9, value=Truth.TRUE, evidence="1 comment to answer"
                 )
             ],
         ),
@@ -671,11 +671,11 @@ def test_home_lists_conversations_in_attention_order(tmp_path):
                 observed_conversation(issue=8),
                 observed_conversation(issue=9),
                 observed_conversation(
-                    issue=10, value=IssueFactValue.TRUE, evidence="1 comment to answer"
+                    issue=10, value=Truth.TRUE, evidence="1 comment to answer"
                 ),
                 observed_conversation(issue=11),
                 observed_conversation(
-                    issue=12, value=IssueFactValue.UNKNOWN, evidence="cannot tell"
+                    issue=12, value=Truth.UNKNOWN, evidence="cannot tell"
                 ),
             ],
         ),

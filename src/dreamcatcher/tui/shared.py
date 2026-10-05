@@ -46,15 +46,14 @@ def open_tui_console() -> Console:
 
 @dataclass(frozen=True, kw_only=True)
 class ViewSnapshot:
-    """Capture one rendered view and whether more output can reach it.
+    """Capture one rendered view and whether to stop refreshing it.
 
-    A view is over when nothing more can reach it. That is not the same as the
-    final snapshot, because an active view refreshes once more after first
-    reporting that it is over.
+    An active view refreshes once more after first reaching its stopping
+    condition, so that output following a round's terminal record can arrive.
     """
 
     renderable: RenderableType
-    is_over: bool
+    should_stop_refreshing: bool
 
 
 def refresh_live_view(
@@ -73,20 +72,20 @@ def refresh_live_view(
     if not console.is_terminal or console.is_dumb_terminal:
         console.print(read_snapshot().renderable)
         return
-    last_snapshot = ViewSnapshot(renderable="", is_over=False)
+    last_snapshot = ViewSnapshot(renderable="", should_stop_refreshing=False)
     with Live(console=console, auto_refresh=False, screen=True) as live:
 
         def refresh_live_display() -> bool:
-            """Draw the current snapshot and return whether the view is over."""
+            """Draw the current snapshot and return whether refreshing should stop."""
             nonlocal last_snapshot
             last_snapshot = read_snapshot()
             live.update(last_snapshot.renderable, refresh=True)
-            return last_snapshot.is_over
+            return last_snapshot.should_stop_refreshing
 
         refresh_until_view_ends(
             console=console, refresh_view=refresh_live_display, wait=wait
         )
-    if last_snapshot.is_over:
+    if last_snapshot.should_stop_refreshing:
         console.print(last_snapshot.renderable)
 
 
@@ -100,13 +99,15 @@ def refresh_until_view_ends(
     non-terminal console always takes one refresh. KeyboardInterrupt ends an
     active view quietly.
     """
-    was_over_on_previous_refresh = True
+    should_stop_after_previous_refresh = True
     with suppress(KeyboardInterrupt):
         while True:
-            is_over = refresh_view()
-            if (is_over and was_over_on_previous_refresh) or not console.is_terminal:
+            should_stop_refreshing = refresh_view()
+            if (
+                should_stop_refreshing and should_stop_after_previous_refresh
+            ) or not console.is_terminal:
                 return
-            was_over_on_previous_refresh = is_over
+            should_stop_after_previous_refresh = should_stop_refreshing
             wait(_VIEW_REFRESH_INTERVAL)
 
 

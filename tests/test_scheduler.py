@@ -58,9 +58,9 @@ from dreamcatcher.scheduler import AssignmentScheduler, ConversationScheduler, S
 from dreamcatcher.scheduler.models import (
     AgentWorkObservation,
     GlobalCooldown,
-    IssueFact,
-    IssueFactValue,
+    ObservedFact,
     SchedulerRecord,
+    Truth,
     derive_issue_availability,
 )
 from dreamcatcher.state import StateDirectory
@@ -79,12 +79,12 @@ def observed_assignment(
     identifier: str,
     issue: int,
     evidence: str,
-    value: IssueFactValue = IssueFactValue.TRUE,
+    value: Truth = Truth.TRUE,
 ) -> AgentWorkObservation:
     return AgentWorkObservation(
         identifier=identifier,
         issue=issue,
-        requires_round=IssueFact(value=value, evidence=evidence),
+        requires_round=ObservedFact(value=value, evidence=evidence),
     )
 
 
@@ -150,7 +150,7 @@ def observed_issues(*, tick: SchedulerRecord) -> list[int]:
     return [observation.issue for observation in tick.issue_observations]
 
 
-def availability_values(*, tick: SchedulerRecord) -> list[IssueFactValue]:
+def availability_values(*, tick: SchedulerRecord) -> list[Truth]:
     """Return each observed issue's availability in dispatch order."""
     return [
         derive_issue_availability(observation=observation).value
@@ -323,9 +323,9 @@ def test_a_tick_fills_free_capacity_with_available_issues(ready_repo, offered):
 
     assert observed_issues(tick=observed) == [8, 9, 10]
     assert availability_values(tick=observed) == [
-        IssueFactValue.TRUE,
-        IssueFactValue.TRUE,
-        IssueFactValue.TRUE,
+        Truth.TRUE,
+        Truth.TRUE,
+        Truth.TRUE,
     ]
     assert observed.launched_agent_work_identifiers == [
         CREATED_ASSIGNMENT_ID,
@@ -374,8 +374,8 @@ def test_a_second_tick_judges_an_assigned_issue_handled(ready_repo):
 
     assert observed.launched_agent_work_identifiers == []
     assert observed_issues(tick=observed) == [8]
-    assert observed.issue_observations[0].claimed_here.value is IssueFactValue.TRUE
-    assert availability_values(tick=observed) == [IssueFactValue.FALSE]
+    assert observed.issue_observations[0].claimed_here.value is Truth.TRUE
+    assert availability_values(tick=observed) == [Truth.FALSE]
 
 
 def test_a_completed_assignment_releases_its_issue(ready_repo):
@@ -402,7 +402,7 @@ def test_a_completed_assignment_releases_its_issue(ready_repo):
     observed = scheduler.tick(at=clock())
 
     assert observed_issues(tick=observed) == [8]
-    assert availability_values(tick=observed) == [IssueFactValue.TRUE]
+    assert availability_values(tick=observed) == [Truth.TRUE]
     assert observed.launched_agent_work_identifiers == [CREATED_ASSIGNMENT_ID]
 
 
@@ -477,8 +477,8 @@ def test_a_tick_at_the_cap_refreshes_the_candidates(ready_repo, offered, harness
     assert scheduler.is_at_capacity
     assert observed_issues(tick=observed) == [8, 9]
     assert availability_values(tick=observed) == [
-        IssueFactValue.FALSE,
-        IssueFactValue.TRUE,
+        Truth.FALSE,
+        Truth.TRUE,
     ]
 
 
@@ -509,11 +509,11 @@ def test_a_tick_at_the_cap_records_a_candidate_listing_failure(
     assert "could not connect" in failure
     assert observed_issues(tick=observed) == [8, 13]
     assert all(
-        observation.claimed_here.value is IssueFactValue.TRUE
+        observation.claimed_here.value is Truth.TRUE
         for observation in observed.issue_observations
     )
     assert all(
-        observation.is_open.value is IssueFactValue.UNKNOWN
+        observation.is_open.value is Truth.UNKNOWN
         for observation in observed.issue_observations
     )
     assert observed.assignment_observations == [
@@ -521,7 +521,7 @@ def test_a_tick_at_the_cap_records_a_candidate_listing_failure(
             identifier=ASSIGNMENT_ID,
             issue=13,
             evidence="no round required",
-            value=IssueFactValue.FALSE,
+            value=Truth.FALSE,
         )
     ]
 
@@ -537,8 +537,8 @@ def test_a_tick_with_nothing_eligible_starts_no_assignment(ready_repo, offered):
 
     assert observed.launched_agent_work_identifiers == []
     assert observed_issues(tick=observed) == [8]
-    assert observed.issue_observations[0].blocked.value is IssueFactValue.TRUE
-    assert availability_values(tick=observed) == [IssueFactValue.FALSE]
+    assert observed.issue_observations[0].blocked.value is Truth.TRUE
+    assert availability_values(tick=observed) == [Truth.FALSE]
     assert not scheduler.assignments.state.worktrees.exists()
 
 
@@ -576,13 +576,13 @@ def test_one_faulted_assignment_does_not_block_unrelated_work(ready_repo):
             identifier=ASSIGNMENT_ID,
             issue=13,
             evidence="in fault",
-            value=IssueFactValue.FALSE,
+            value=Truth.FALSE,
         ),
         observed_assignment(
             identifier=CREATED_ASSIGNMENT_ID,
             issue=8,
             evidence="round 1 started",
-            value=IssueFactValue.FALSE,
+            value=Truth.FALSE,
         ),
     ]
 
@@ -602,7 +602,7 @@ def test_a_user_retry_clears_one_fault_and_starts_recovery(ready_repo):
             identifier=ASSIGNMENT_ID,
             issue=13,
             evidence="round 3 started",
-            value=IssueFactValue.FALSE,
+            value=Truth.FALSE,
         )
     ]
 
@@ -719,7 +719,7 @@ def test_an_assignment_with_an_open_pull_request_and_nothing_new_is_not_waiting(
             identifier=ASSIGNMENT_ID,
             issue=13,
             evidence="no round required",
-            value=IssueFactValue.FALSE,
+            value=Truth.FALSE,
         )
     ]
     assignment = read_assignments(state=scheduler.assignments.state)[0]
@@ -767,7 +767,7 @@ def test_a_dispatch_whose_round_will_not_start_retries_the_prepared_assignment(
 
     assert "cannot write" in sole_failure(observed=observed)
     assert observed_issues(tick=observed) == [8]
-    assert availability_values(tick=observed) == [IssueFactValue.TRUE]
+    assert availability_values(tick=observed) == [Truth.TRUE]
     assert (scheduler.assignments.state.worktrees / CREATED_ASSIGNMENT_ID).exists()
     branch = f"dreamcatcher-{CREATED_ASSIGNMENT_ID}"
     assert branch in git(arguments=["branch", "--list", branch], cwd=ready_repo)
@@ -883,7 +883,7 @@ def test_an_assignment_with_a_round_that_has_no_ending_starts_nothing(resuming):
         / ASSIGNMENT_ID
         / "rounds"
         / "2"
-        / "inbox.json"
+        / "round-input.json"
     ).exists()
 
 
@@ -978,7 +978,7 @@ def test_a_recovery_without_a_harness_session_starts_a_new_first_round(
             identifier=ASSIGNMENT_ID,
             issue=13,
             evidence="in fault",
-            value=IssueFactValue.FALSE,
+            value=Truth.FALSE,
         )
     ]
 
@@ -1019,12 +1019,14 @@ def test_a_terminal_recovery_without_a_session_receives_wrap_up_input(
 
     assert observed.launched_agent_work_identifiers == [ASSIGNMENT_ID]
     prompt = written_round(scheduler=scheduler, number=2, name="prompt.txt")
-    assert prompt.startswith("/dream:smith GH13\n\nPR-inbox prompt")
-    inbox = json.loads(written_round(scheduler=scheduler, number=2, name="inbox.json"))
-    assert inbox["pull_request_state"] == PullRequestState.MERGED
+    assert prompt.startswith("/dream:smith GH13\n\nUser-posts prompt")
+    round_input = json.loads(
+        written_round(scheduler=scheduler, number=2, name="round-input.json")
+    )
+    assert round_input["pull_request_state"] == PullRequestState.MERGED
     assert "--resume" not in harnesses["claude"].calls[-1].arguments
     assignment = read_assignments(state=scheduler.assignments.state)[0]
-    assert assignment.user_post_delivery_cursor == POSTED_AT
+    assert assignment.user_post_delivery_position == POSTED_AT
 
 
 def test_a_failed_replacement_session_does_not_redeliver_recorded_feedback(
@@ -1042,7 +1044,7 @@ def test_a_failed_replacement_session_does_not_redeliver_recorded_feedback(
     scheduler.tick(at=clock())
     finish_rounds(scheduler=scheduler)
     assignment = read_assignments(state=scheduler.assignments.state)[0]
-    assert assignment.user_post_delivery_cursor == POSTED_AT
+    assert assignment.user_post_delivery_position == POSTED_AT
     ending = assignment.rounds[-1].ending
     assert isinstance(ending, ErroredAgentRoundEnding)
     request_agent_work_retry(work=assignment, at=ending.at + timedelta(seconds=1))
@@ -1051,8 +1053,10 @@ def test_a_failed_replacement_session_does_not_redeliver_recorded_feedback(
     finish_rounds(scheduler=scheduler)
 
     assert observed.launched_agent_work_identifiers == [ASSIGNMENT_ID]
-    inbox = json.loads(written_round(scheduler=scheduler, number=3, name="inbox.json"))
-    assert inbox["user_posts"] == []
+    round_input = json.loads(
+        written_round(scheduler=scheduler, number=3, name="round-input.json")
+    )
+    assert round_input["user_posts"] == []
 
 
 def test_a_carried_on_round_records_recovery_independently(resuming):
@@ -1092,15 +1096,17 @@ def test_an_assignment_the_user_has_posted_on_is_told_what_they_said(resuming, g
     feedback = record_of(scheduler=scheduler, number=2)
     assert feedback.purpose is AssignmentRoundPurpose.ADDRESS_FEEDBACK
     assert not feedback.is_recovery
-    inbox = json.loads(written_round(scheduler=scheduler, number=2, name="inbox.json"))
-    assert inbox["pull_request_state"] == "OPEN"
-    assert [post["kind"] for post in inbox["user_posts"]] == ["comment"]
+    round_input = json.loads(
+        written_round(scheduler=scheduler, number=2, name="round-input.json")
+    )
+    assert round_input["pull_request_state"] == "OPEN"
+    assert [post["kind"] for post in round_input["user_posts"]] == ["comment"]
     assert str(
         scheduler.assignments.state.assignments
         / ASSIGNMENT_ID
         / "rounds"
         / "2"
-        / "inbox.json"
+        / "round-input.json"
     ) in (written_round(scheduler=scheduler, number=2, name="prompt.txt"))
 
 
@@ -1164,7 +1170,7 @@ def test_a_pull_request_that_is_finished_gets_one_last_round(resuming, gh, state
     assert wrap_up.purpose is AssignmentRoundPurpose.WRAP_UP
     assert not wrap_up.is_recovery
     assert json.loads(
-        written_round(scheduler=scheduler, number=2, name="inbox.json")
+        written_round(scheduler=scheduler, number=2, name="round-input.json")
     ) == {
         "pull_request_state": state_name,
         "user_posts": [],
@@ -1236,7 +1242,7 @@ def test_open_work_is_carried_on_before_a_new_issue_is_assigned(resuming, gh, of
     assert observed.launched_agent_work_identifiers == [ASSIGNMENT_ID]
     assert not (scheduler.assignments.state.worktrees / CREATED_ASSIGNMENT_ID).exists()
     assert observed_issues(tick=observed) == [8, 13]
-    assert observed.issue_observations[1].claimed_here.value is IssueFactValue.TRUE
+    assert observed.issue_observations[1].claimed_here.value is Truth.TRUE
 
 
 def test_a_failed_issue_listing_prevents_new_assignments_but_not_recovery(
@@ -1260,8 +1266,8 @@ def test_a_failed_issue_listing_prevents_new_assignments_but_not_recovery(
     assert "could not list issues for dream:less" in sole_failure(observed=observed)
     assert observed_issues(tick=observed) == [8, 13]
     assert availability_values(tick=observed) == [
-        IssueFactValue.TRUE,
-        IssueFactValue.FALSE,
+        Truth.TRUE,
+        Truth.FALSE,
     ]
     assert observed.launched_agent_work_identifiers == [ASSIGNMENT_ID]
     assert not (scheduler.assignments.state.worktrees / CREATED_ASSIGNMENT_ID).exists()
@@ -1339,7 +1345,7 @@ def test_the_cooldown_boundary_clears_faults_and_permits_recovery(ready_repo):
             identifier=ASSIGNMENT_ID,
             issue=13,
             evidence="round 3 started",
-            value=IssueFactValue.FALSE,
+            value=Truth.FALSE,
         ),
         observed_assignment(
             identifier=SECOND_ASSIGNMENT_ID,

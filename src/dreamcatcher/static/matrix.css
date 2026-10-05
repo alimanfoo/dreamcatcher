@@ -138,7 +138,7 @@ body::after {
   color: var(--phosphor);
 }
 
-.daemon-stopped {
+.daemon-not-running {
   color: var(--amber);
 }
 

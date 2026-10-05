@@ -16,8 +16,8 @@ from dreamcatcher.status import (
     ConversationStatus,
     DreamcatcherDaemonStatus,
     DreamcatcherStatusReport,
-    IssueFactValue,
     IssueObservation,
+    Truth,
     read_repository,
 )
 from dreamcatcher.web.feed import read_agent_feed
@@ -77,7 +77,7 @@ def compose_home_view(
         github_repository_url=_compose_github_repository_url(
             repository=report.repository
         ),
-        daemon_state="running" if daemon.is_running else "stopped",
+        daemon_state="running" if daemon.is_running else "not-running",
         daemon_summary=_describe_daemon(daemon=daemon),
         instance_facts=_compose_instance_facts(report=report),
         cooldown_message=(
@@ -213,7 +213,7 @@ def compose_assignment_view(
     return WebAssignmentView(
         repository=repository or "repository unknown",
         github_repository_url=_compose_github_repository_url(repository=repository),
-        daemon_state="running" if daemon.is_running else "stopped",
+        daemon_state="running" if daemon.is_running else "not-running",
         daemon_summary=_describe_daemon(daemon=daemon),
         identifier=assignment.identifier,
         issue=record.issue,
@@ -245,7 +245,7 @@ def compose_conversation_view(
     return WebConversationView(
         repository=repository or "repository unknown",
         github_repository_url=_compose_github_repository_url(repository=repository),
-        daemon_state="running" if daemon.is_running else "stopped",
+        daemon_state="running" if daemon.is_running else "not-running",
         daemon_summary=_describe_daemon(daemon=daemon),
         issue=status.issue,
         title=status.title,
@@ -305,9 +305,9 @@ def _shorten_git_revisions(*, text: str) -> str:
 
 
 def _compose_issue_row(*, observation: IssueObservation) -> WebIssueRow:
-    if observation.routing_conflict.value is IssueFactValue.TRUE:
+    if observation.routing_conflict.value is Truth.TRUE:
         status = "routing-conflict"
-    elif observation.blocked.value is IssueFactValue.TRUE:
+    elif observation.blocked.value is Truth.TRUE:
         status = "blocked"
     else:
         status = "available"
@@ -333,10 +333,10 @@ def _compose_observed_issue_row(
     leading_evidence: tuple[str, ...],
 ) -> WebIssueRow:
     plain_evidence = list(leading_evidence)
-    if observation.routing_conflict.value is IssueFactValue.TRUE:
+    if observation.routing_conflict.value is Truth.TRUE:
         plain_evidence.append(observation.routing_conflict.evidence)
     evidence: list[str | int] = ["; ".join(plain_evidence)] if plain_evidence else []
-    if observation.blocked.value is IssueFactValue.TRUE:
+    if observation.blocked.value is Truth.TRUE:
         if evidence:
             evidence.append("; ")
         evidence.extend(
@@ -362,7 +362,7 @@ def _compose_issue_references(*, evidence: str) -> tuple[str | int, ...]:
 
 def _describe_daemon(*, daemon: DreamcatcherDaemonStatus) -> str:
     if not daemon.is_running:
-        return "daemon stopped"
+        return "daemon not running"
     version = (
         None
         if daemon.dreamcatcher_version is None
@@ -376,7 +376,7 @@ def _compose_instance_facts(*, report: DreamcatcherStatusReport) -> tuple[WebFac
     daemon = report.daemon
     values: tuple[tuple[str, str | None, bool], ...] = (
         (
-            "harness",
+            "preferred harness",
             None if daemon.agent_harness is None else str(daemon.agent_harness),
             False,
         ),

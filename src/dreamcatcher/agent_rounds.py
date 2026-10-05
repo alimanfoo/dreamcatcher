@@ -93,7 +93,7 @@ class AgentRoundPaths:
     @property
     def round_input(self) -> Path:
         """The file holding the input that the round's owner delivered."""
-        return self.directory / "inbox.json"
+        return self.directory / "round-input.json"
 
     @property
     def stop_request(self) -> Path:
@@ -133,7 +133,7 @@ class _AgentRoundHarness:
     record_harness_session_identifier: HarnessSessionIdentifierRecorder
 
     def read(self, *, line: str) -> HarnessOutput:
-        """Record the harness session that one line reports, and return the line."""
+        """Return the output one line reports, recording any harness session in it."""
         output = self.adapter.read_output(line=line)
         identifier = output.harness_session_identifier
         if identifier is not None:
@@ -255,7 +255,7 @@ class AgentRoundRecord(DreamcatcherDocument):
 def record_agent_round_interruption(
     *, record: AgentRoundRecord, path: Path
 ) -> AgentRoundRecord:
-    """Record interruption when a formerly running round has stopped.
+    """Record an interruption when a formerly running round has ended.
 
     A terminal record is already reconciled, so repeating the operation keeps
     that record unchanged.
