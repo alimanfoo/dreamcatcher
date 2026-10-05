@@ -29,6 +29,7 @@ from dreamcatcher.issue_conversations import (
     ConversationInput,
     InitialConversationIssue,
     read_conversation,
+    request_conversation_retry,
 )
 from dreamcatcher.scheduler.models import (
     ConversationObservation,
@@ -408,26 +409,80 @@ def test_two_current_errors_put_a_conversation_in_fault(conversation_state):
     assert found.is_over
 
 
-def test_an_unknown_observation_takes_precedence_over_a_conversation_fault(
+@pytest.mark.parametrize(
+    "observations",
+    [
+        [
+            observed_conversation(
+                routing_conflict=IssueFactValue.TRUE,
+                routing_conflict_evidence=(
+                    "carries more than one conversation label: discuss, scout"
+                ),
+            )
+        ],
+        [
+            observed_conversation(
+                value=IssueFactValue.UNKNOWN,
+                evidence="could not read comments for GH8: network unavailable",
+            )
+        ],
+    ],
+    ids=["routing conflict", "unknown"],
+)
+def test_a_conversation_fault_takes_precedence_over_its_issue_eligibility(
+    conversation_state, observations
+):
+    conversation_round(state=conversation_state, status=2)
+    write_second_conversation_error(state=conversation_state)
+    observe(state=conversation_state, observations=observations)
+
+    found = status(state=conversation_state)
+
+    assert found.value is ConversationStatusValue.FAULT
+    assert found.detail == "round 2 errored (exit 2)"
+    assert found.faulted_round_number == 2
+
+
+def test_a_conversation_fault_shows_before_any_tick_observes_it(conversation_state):
+    conversation_round(state=conversation_state, status=2)
+    write_second_conversation_error(state=conversation_state)
+    conversation_state.scheduler_record.unlink()
+
+    found = status(state=conversation_state)
+
+    assert found.value is ConversationStatusValue.FAULT
+    assert found.faulted_round_number == 2
+
+
+def test_a_faulted_conversation_at_an_ineligible_issue_leaves_the_report(
     conversation_state,
 ):
     conversation_round(state=conversation_state, status=2)
     write_second_conversation_error(state=conversation_state)
-    evidence = "could not read comments for GH8: network unavailable"
-    observe(
-        state=conversation_state,
-        observations=[
-            observed_conversation(
-                value=IssueFactValue.UNKNOWN,
-                evidence=evidence,
-            )
-        ],
+    observe(state=conversation_state, observations=[])
+
+    found = status(state=conversation_state)
+    report = read_status_report(state=conversation_state, clock=lambda: LOOKED_AT)
+
+    assert found.value is ConversationStatusValue.FAULT
+    assert found.faulted_round_number == 2
+    assert report.conversation_statuses == []
+
+
+def test_a_retry_clears_a_conversation_fault(conversation_state):
+    conversation_round(state=conversation_state, status=2)
+    write_second_conversation_error(state=conversation_state)
+    observe(state=conversation_state, observations=[])
+    conversation = read_conversation(state=conversation_state, issue=8)
+    assert conversation is not None
+    request_conversation_retry(
+        conversation=conversation, at=PINNED + timedelta(minutes=9)
     )
 
     found = status(state=conversation_state)
 
-    assert found.value is ConversationStatusValue.UNKNOWN
-    assert found.detail == evidence
+    assert found.value is ConversationStatusValue.IDLE
+    assert found.detail == "issue is not eligible for conversation"
 
 
 @pytest.mark.parametrize(
