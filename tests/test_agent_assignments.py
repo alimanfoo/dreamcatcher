@@ -35,6 +35,7 @@ from dreamcatcher.agent_rounds import (
     InterruptedAgentRoundEnding,
     _compose_agent_round_ending,
 )
+from dreamcatcher.agent_work import request_agent_work_retry
 from dreamcatcher.commands import CommandError
 from dreamcatcher.config import (
     _DREAMCATCHER_CONFIG_NAME,
@@ -156,7 +157,7 @@ def test_an_assignment_records_its_settled_dispatch_recipe(state, route):
     assert assignment.record.title == "The issue title"
     assert assignment.record.dispatch_label == "dream:smith"
     assert assignment.record.pull_request == PULL_REQUEST
-    assert assignment.record.pull_request_observation == PullRequestObservation(
+    assert assignment.pull_request_observation == PullRequestObservation(
         state=PullRequestState.OPEN,
         is_draft=True,
         observed_at=PINNED,
@@ -386,15 +387,27 @@ def test_a_cancelled_assignment_records_when_and_is_no_longer_open(fabricated):
     assert find_open_assignments_by_issue(assignments=[cancelled]) == {}
 
 
-def test_a_cancel_leaves_the_assignment_record_as_it_was(fabricated):
-    # Nothing rewrites the record, so no writer can erase the cancel.
+def test_recording_later_facts_leaves_the_assignment_record_as_it_was(fabricated):
+    # Nothing rewrites the record, so no writer can erase another's fact.
     assignment = standing(state=fabricated, rounds=[ended(status=0)])
     record = assignment.directory / "assignment.json"
     created = record.read_bytes()
 
+    record_pull_request_observation(
+        assignment=assignment,
+        pull_request=PullRequest(
+            number=PULL_REQUEST, state=PullRequestState.MERGED, is_draft=False
+        ),
+        observed_at=PINNED,
+    )
+    request_agent_work_retry(work=assignment, at=PINNED)
     cancel_assignment(assignment=assignment, at=PINNED)
 
     assert record.read_bytes() == created
+    recorded = read_assignments(state=fabricated)[0]
+    assert recorded.pull_request_observation.state is PullRequestState.MERGED
+    assert recorded.retry_requested_at == PINNED
+    assert recorded.cancelled_at == PINNED
 
 
 def test_cancelling_asks_a_round_with_no_ending_to_stop(fabricated):
@@ -997,24 +1010,6 @@ def test_an_assignment_reads_back_with_its_settled_dispatch_recipe(state, route)
     assert read_assignments(state=state) == [created]
 
 
-def test_an_assignment_record_from_before_pull_request_observations_reads(
-    fabricated,
-):
-    directory = write_assignment(
-        state=fabricated,
-        identifier=ASSIGNMENT_ID,
-        issue=12,
-    )
-    path = directory / "assignment.json"
-    document = json.loads(path.read_text(encoding="utf-8"))
-    del document["pull_request_observation"]
-    path.write_bytes((json.dumps(document) + "\n").encode())
-
-    record = read_assignments(state=fabricated)[0].record
-
-    assert record.pull_request_observation is None
-
-
 def test_an_assignment_recovers_a_session_reported_by_a_later_round(fabricated):
     directory = write_assignment(
         state=fabricated,
@@ -1078,14 +1073,14 @@ def test_an_assignment_records_a_changed_pull_request_observation(fabricated):
     )
 
     recorded = read_assignments(state=fabricated)[0]
-    assert recorded.record.pull_request_observation == PullRequestObservation(
+    assert recorded.pull_request_observation == PullRequestObservation(
         state=PullRequestState.OPEN,
         is_draft=False,
         observed_at=PINNED + timedelta(minutes=1),
     )
 
 
-def test_an_unchanged_pull_request_observation_leaves_the_record_untouched(fabricated):
+def test_an_unchanged_pull_request_observation_is_not_written_again(fabricated):
     directory = write_assignment(
         state=fabricated,
         identifier=ASSIGNMENT_ID,
@@ -1102,7 +1097,7 @@ def test_an_unchanged_pull_request_observation_leaves_the_record_untouched(fabri
         pull_request=pull_request,
         observed_at=PINNED,
     )
-    path = directory / "assignment.json"
+    path = directory / "pull-request.json"
     before = path.read_bytes()
 
     record_pull_request_observation(

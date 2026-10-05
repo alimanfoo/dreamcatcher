@@ -77,6 +77,10 @@ _ASSIGNMENT_BRANCH_PREFIX = "dreamcatcher-"
 # with.
 _ASSIGNMENT_RECORD_NAME = "assignment.json"
 
+# The file in an assignment's directory holding its latest pull request
+# observation.
+_PULL_REQUEST_OBSERVATION_RECORD_NAME = "pull-request.json"
+
 # The file in an assignment's directory saying when the user cancelled it.
 _CANCEL_RECORD_NAME = "cancel.json"
 
@@ -92,7 +96,10 @@ class AssignmentRoundInput(DreamcatcherDocument):
 
 
 class PullRequestObservation(DreamcatcherDocument):
-    """Model the latest pull request state observed for reporting."""
+    """Model the latest pull request state observed for reporting.
+
+    Scheduling reads the pull request from GitHub, not from this observation.
+    """
 
     state: PullRequestState
     is_draft: bool
@@ -107,10 +114,9 @@ class PullRequestObservation(DreamcatcherDocument):
 class AssignmentRecord(DreamcatcherDocument):
     """Model the identities and settled settings of an agent assignment.
 
-    The assignment dispatch settles the recipe and identities. Every round
-    reads this record, so later config edits do not change an assignment in
-    progress. The latest pull request observation supports reporting;
-    scheduling still reads GitHub.
+    The assignment dispatch settles the recipe and identities, and nothing
+    writes the record again. Every round reads this record, so later config
+    edits do not change an assignment in progress.
     """
 
     issue: int
@@ -119,7 +125,6 @@ class AssignmentRecord(DreamcatcherDocument):
     branch: str
     worktree: Path
     pull_request: int
-    pull_request_observation: PullRequestObservation | None = None
     harness: AgentHarness
     model: str
     effort: str
@@ -131,8 +136,10 @@ class Assignment:
     """Represent an agent assignment as its persisted state currently reads.
 
     The directory name is the assignment identifier. The record holds the
-    assignment dispatch settings, the facts recorded since sit beside it, and
-    the rounds are ordered from oldest to newest.
+    settings that the assignment dispatch settled. Every fact that changes
+    later, such as the latest pull request observation or a cancel, is read
+    from a file of its own beside the record. The rounds are ordered from
+    oldest to newest.
 
     The user-post delivery cursor is read from the newest recorded round input
     that delivered posts. An assignment that has received none has the beginning
@@ -141,6 +148,7 @@ class Assignment:
 
     directory: Path
     record: AssignmentRecord
+    pull_request_observation: PullRequestObservation
     harness_session_identifier: HarnessSessionIdentifier | None = None
     retry_requested_at: datetime | None = None
     cancelled_at: datetime | None = None
@@ -462,19 +470,28 @@ class AssignmentCreator:
             branch=branch,
             worktree=worktree,
             pull_request=pull_request.number,
-            pull_request_observation=PullRequestObservation(
-                state=pull_request.state,
-                is_draft=pull_request.is_draft,
-                observed_at=at,
-            ),
             harness=selected_harness,
             model=recipe.model,
             effort=recipe.effort,
             prompt=compose_first_round_prompt(template=recipe.prompt, issue=issue),
         )
+        observation = PullRequestObservation(
+            state=pull_request.state,
+            is_draft=pull_request.is_draft,
+            observed_at=at,
+        )
         directory = self.state.assignments / identifier
+
+        # The record marks the setup complete, so every complete assignment
+        # has an observation.
+        write_json(
+            document=observation,
+            path=directory / _PULL_REQUEST_OBSERVATION_RECORD_NAME,
+        )
         write_json(document=record, path=directory / _ASSIGNMENT_RECORD_NAME)
-        return Assignment(directory=directory, record=record)
+        return Assignment(
+            directory=directory, record=record, pull_request_observation=observation
+        )
 
 
 def _find_incomplete_assignment(*, state: StateDirectory, issue: int) -> str | None:
@@ -506,6 +523,10 @@ def _read_assignment(*, state: StateDirectory, directory: Path) -> Assignment:
         directory=directory,
         record=read_json(
             model=AssignmentRecord, path=directory / _ASSIGNMENT_RECORD_NAME
+        ),
+        pull_request_observation=read_json(
+            model=PullRequestObservation,
+            path=directory / _PULL_REQUEST_OBSERVATION_RECORD_NAME,
         ),
         harness_session_identifier=read_harness_session_identifier(directory=directory),
         retry_requested_at=read_retry_requested_at(directory=directory),
@@ -542,26 +563,19 @@ def record_pull_request_observation(
     *, assignment: Assignment, pull_request: PullRequest, observed_at: datetime
 ) -> None:
     """Record a pull request state when it differs from the latest observation."""
-    path = assignment.directory / _ASSIGNMENT_RECORD_NAME
-    record = read_json(model=AssignmentRecord, path=path)
-    recorded = record.pull_request_observation
+    recorded = assignment.pull_request_observation
     if (
-        recorded is not None
-        and recorded.state is pull_request.state
+        recorded.state is pull_request.state
         and recorded.is_draft == pull_request.is_draft
     ):
         return
     write_json(
-        document=record.model_copy(
-            update={
-                "pull_request_observation": PullRequestObservation(
-                    state=pull_request.state,
-                    is_draft=pull_request.is_draft,
-                    observed_at=observed_at,
-                )
-            }
+        document=PullRequestObservation(
+            state=pull_request.state,
+            is_draft=pull_request.is_draft,
+            observed_at=observed_at,
         ),
-        path=path,
+        path=assignment.directory / _PULL_REQUEST_OBSERVATION_RECORD_NAME,
     )
 
 

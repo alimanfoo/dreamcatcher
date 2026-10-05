@@ -724,7 +724,7 @@ def test_an_assignment_with_an_open_pull_request_and_nothing_new_is_not_waiting(
     ]
     assignment = read_assignments(state=scheduler.assignments.state)[0]
     assert assignment.record.title == "Issue 13"
-    assert assignment.record.pull_request_observation == PullRequestObservation(
+    assert assignment.pull_request_observation == PullRequestObservation(
         state=PullRequestState.OPEN,
         is_draft=False,
         observed_at=PINNED,

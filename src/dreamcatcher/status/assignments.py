@@ -87,9 +87,9 @@ class AssignmentStatus:
         request once the user has taken it over.
         """
         assignment = self.assignment
-        observation = assignment.record.pull_request_observation
-        if observation is None or assignment.cancelled_at is not None:
+        if assignment.cancelled_at is not None:
             return None
+        observation = assignment.pull_request_observation
         if observation.is_open:
             return "draft" if observation.is_draft else "ready"
         return observation.state.value.lower()
@@ -340,14 +340,10 @@ class AssignmentStatusReader(AgentWorkStatusReader[AssignmentStatus]):
 
     def _describe_next_round(self, *, assignment: Assignment) -> str:
         record = assignment.rounds[-1]
-        pull_request = assignment.record.pull_request_observation
-        purpose = (
-            record.purpose
-            if pull_request is None
-            else derive_round_purpose(pull_request=pull_request)
-        )
         description = describe_agent_round_start(
-            purpose=purpose,
+            purpose=derive_round_purpose(
+                pull_request=assignment.pull_request_observation
+            ),
             is_recovery=(
                 record.ending is None
                 or assignment.describe_unfinished_round() is not None
