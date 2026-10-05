@@ -19,12 +19,13 @@ effort = "high"
 prompt = "$dream:smith GH{issue}"
 model = "gpt-5.6-sol"
 effort = "high"
+# TODO configure 1M context for codex
 
 [[assignment]]
 label = "dream:less"
 [assignment.claude]
 prompt = "/dream:less GH{issue}"
-model = "opus[1m]"
+model = "opus"
 effort = "high"
 [assignment.codex]
 prompt = "$dream:less GH{issue}"
