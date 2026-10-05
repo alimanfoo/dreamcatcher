@@ -22,6 +22,7 @@ from dreamcatcher.status import (
 )
 from dreamcatcher.web.feed import read_agent_feed
 from dreamcatcher.web.models import (
+    WebAgentLiveState,
     WebAgentRound,
     WebAgentWorkControl,
     WebAssignmentCard,
@@ -42,11 +43,11 @@ _GIT_REVISION_PATTERN = re.compile(r"\b[0-9a-f]{40}\b")
 def _compose_hand_resume(
     *,
     state: StateDirectory,
-    worktree: Path,
+    worktree: Path | None,
     command: list[str] | None,
 ) -> WebHandResume | None:
     """Return the web values for a manual session resume, when available."""
-    if command is None:
+    if worktree is None or command is None:
         return None
     return WebHandResume(
         worktree=state.describe_path(path=worktree),
@@ -142,7 +143,6 @@ def _compose_assignment_card(*, status: AssignmentStatus) -> WebAssignmentCard:
         issue=assignment.record.issue,
         title=assignment.record.title,
         status=str(status.value),
-        status_label=str(status.value),
         detail=status.detail,
         dispatch_label=assignment.record.dispatch_label,
         harness=str(assignment.record.harness),
@@ -180,20 +180,39 @@ def _compose_conversation_card(*, status: ConversationStatus) -> WebConversation
     )
 
 
+def compose_agent_live_state(
+    *,
+    state: StateDirectory,
+    status: AssignmentStatus | ConversationStatus,
+    worktree: Path | None,
+    zone: tzinfo | None,
+    controls: tuple[WebAgentWorkControl, ...],
+) -> WebAgentLiveState:
+    """Return the values of an agent page that its tail refreshes."""
+    return WebAgentLiveState(
+        status=str(status.value),
+        detail=status.detail,
+        rounds=_compose_agent_rounds(round_statuses=status.round_statuses, zone=zone),
+        controls=controls,
+        hand_resume=_compose_hand_resume(
+            state=state, worktree=worktree, command=status.hand_resume_command
+        ),
+    )
+
+
 def compose_assignment_view(
     *,
     state: StateDirectory,
     status: AssignmentStatus,
+    live: WebAgentLiveState,
     zone: tzinfo | None,
-    controls: tuple[WebAgentWorkControl, ...] = (),
 ) -> WebAssignmentView:
     """Return the values shown on one assignment page."""
     assignment = status.assignment
     record = assignment.record
     repository = read_repository(state=state)
     daemon = read_dreamcatcher_daemon_status(state=state)
-    hand_resume_command = status.hand_resume_command
-    feed = read_agent_feed(owner=assignment, zone=zone)
+    feed = read_agent_feed(owner=assignment, zone=zone, rounds=live.rounds)
     return WebAssignmentView(
         repository=repository or "repository unknown",
         github_repository_url=_compose_github_repository_url(repository=repository),
@@ -205,22 +224,13 @@ def compose_assignment_view(
         identifier=assignment.identifier,
         issue=record.issue,
         title=record.title,
-        status=str(status.value),
-        status_label=str(status.value),
-        detail=status.detail,
         pull_request=record.pull_request,
         pull_request_state=status.pull_request_state,
         dispatch_label=record.dispatch_label,
         harness=str(record.harness),
         model=record.model,
         effort=record.effort,
-        rounds=compose_agent_rounds(round_statuses=status.round_statuses, zone=zone),
-        controls=controls,
-        hand_resume=_compose_hand_resume(
-            state=state,
-            worktree=record.worktree,
-            command=hand_resume_command,
-        ),
+        live=live,
         feed_rounds=feed.rounds,
         feed_cursor=feed.cursor,
     )
@@ -230,15 +240,14 @@ def compose_conversation_view(
     *,
     state: StateDirectory,
     status: ConversationStatus,
+    live: WebAgentLiveState,
     zone: tzinfo | None,
-    controls: tuple[WebAgentWorkControl, ...] = (),
 ) -> WebConversationView:
     """Return the values shown on one issue-conversation page."""
     conversation = status.conversation
     repository = read_repository(state=state)
     daemon = read_dreamcatcher_daemon_status(state=state)
-    rounds = compose_agent_rounds(round_statuses=status.round_statuses, zone=zone)
-    feed = read_agent_feed(owner=conversation, zone=zone, rounds=rounds)
+    feed = read_agent_feed(owner=conversation, zone=zone, rounds=live.rounds)
     return WebConversationView(
         repository=repository or "repository unknown",
         github_repository_url=_compose_github_repository_url(repository=repository),
@@ -249,24 +258,12 @@ def compose_conversation_view(
         ),
         issue=status.issue,
         title=status.title,
-        status=str(status.value),
-        detail=status.detail,
         facts=(
             ()
             if conversation is None
             else _compose_conversation_facts(conversation=conversation)
         ),
-        rounds=rounds,
-        controls=controls,
-        hand_resume=(
-            None
-            if conversation is None
-            else _compose_hand_resume(
-                state=state,
-                worktree=conversation.worktree,
-                command=status.hand_resume_command,
-            )
-        ),
+        live=live,
         feed_rounds=feed.rounds,
         feed_cursor=feed.cursor,
     )
@@ -282,7 +279,7 @@ def _compose_conversation_facts(*, conversation: Conversation) -> tuple[WebFact,
     )
 
 
-def compose_agent_rounds(
+def _compose_agent_rounds(
     *, round_statuses: list[AgentRoundStatus], zone: tzinfo | None
 ) -> tuple[WebAgentRound, ...]:
     """Return the round rows shown for one piece of agent work."""

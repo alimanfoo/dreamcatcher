@@ -2,7 +2,7 @@
   <div class="card-heading">
     <div>{{ issue_reference(assignment.issue) }} <span class="{% if assignment.title %}title{% else %}identifier{% endif %}">{{ assignment.title or assignment.identifier }}</span></div>
     <span class="card-heading-actions">
-      <span class="chip status-{{ assignment.status|replace(' ', '-') }}">{{ assignment.status_label }}</span>
+      <span class="chip status-{{ assignment.status|replace(' ', '-') }}">{{ assignment.status }}</span>
       <a class="assignment-open" href="{{ url_for('show_assignment', identifier=assignment.identifier) }}" target="_blank" rel="noopener noreferrer" aria-label="Open assignment {{ assignment.identifier }} (opens in new tab)">&gt;</a>
     </span>
   </div>

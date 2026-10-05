@@ -24,7 +24,6 @@ class WebAssignmentCard:
     issue: int
     title: str | None
     status: str
-    status_label: str
     detail: str
     dispatch_label: str
     harness: str
@@ -113,28 +112,24 @@ class WebAgentWorkControl:
 
 
 @dataclass(frozen=True, kw_only=True)
+class WebAgentLiveState:
+    """Represent the values of an agent page that its tail refreshes."""
+
+    status: str
+    detail: str
+    rounds: tuple[WebAgentRound, ...]
+    controls: tuple[WebAgentWorkControl, ...]
+    hand_resume: WebHandResume | None
+
+
+@dataclass(frozen=True, kw_only=True)
 class WebAgentTail:
     """Represent one incremental agent-feed response."""
 
     cursor: str
     feed_rounds: tuple[WebFeedRound, ...]
-    status: str
-    status_label: str
-    detail: str | None
-    rounds: tuple[WebAgentRound, ...]
-    controls: tuple[WebAgentWorkControl, ...]
+    live: WebAgentLiveState
     has_empty_feed_placeholder: bool
-
-
-@dataclass(frozen=True, kw_only=True)
-class WebAgentTailContext:
-    """Provide status values alongside one incremental feed read."""
-
-    status: str
-    status_label: str
-    rounds: tuple[WebAgentRound, ...]
-    controls: tuple[WebAgentWorkControl, ...]
-    detail: str | None = None
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -148,18 +143,13 @@ class WebAssignmentView:
     identifier: str
     issue: int
     title: str | None
-    status: str
-    status_label: str
-    detail: str
     pull_request: int
     pull_request_state: str | None
     dispatch_label: str
     harness: str
     model: str
     effort: str
-    rounds: tuple[WebAgentRound, ...]
-    controls: tuple[WebAgentWorkControl, ...]
-    hand_resume: WebHandResume | None
+    live: WebAgentLiveState
     feed_rounds: tuple[WebFeedRound, ...]
     feed_cursor: str
 
@@ -185,12 +175,8 @@ class WebConversationView:
     daemon_summary: str
     issue: int
     title: str
-    status: str
-    detail: str
     facts: tuple[WebFact, ...]
-    rounds: tuple[WebAgentRound, ...]
-    controls: tuple[WebAgentWorkControl, ...]
-    hand_resume: WebHandResume | None
+    live: WebAgentLiveState
     feed_rounds: tuple[WebFeedRound, ...]
     feed_cursor: str
 
