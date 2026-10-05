@@ -1,12 +1,12 @@
 alimanfoo/dreamcatcher
 
 instance
-  daemon           running dreamcatcher v3.0.0.beta1 as pid 4242
-  harness          claude                                       
-  next update in   0s                                           
-  agent capacity   1 of 1 working                               
-  global cooldown  none                                         
-  scheduler hold   at cap: 1 of 1 agents running                
+  daemon              running dreamcatcher v3.0.0.beta1 as pid 4242          
+  harness             claude                                                 
+  next update in      0s                                                     
+  agent capacity      1 of 1 working                                         
+  global cooldown     none                                                   
+  scheduler failures  could not list issues for dream:less: could not connect
 
 assignments
   GH13-20260819-184158  working  round 1, implement, running 1h 30m, last output 1h 29m ago

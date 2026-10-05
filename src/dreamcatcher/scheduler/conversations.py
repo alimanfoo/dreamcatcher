@@ -48,7 +48,6 @@ from dreamcatcher.scheduler.models import (
     IssueFact,
     IssueFactValue,
     SchedulerRecord,
-    combine_scheduler_failures,
 )
 from dreamcatcher.words import describe_count
 
@@ -95,7 +94,7 @@ class ConversationScheduler(
         """Observe matching issues and return conversation work ready to run."""
         if not self.config.conversation:
             return AgentWorkInspection(
-                candidates=[], observations=[], fault_count=0, failure=None
+                candidates=[], observations=[], fault_count=0, failures=[]
             )
         listing = self.list_route_issues(routes=self.config.conversation)
         conversations = read_conversations(state=self.state)
@@ -123,8 +122,7 @@ class ConversationScheduler(
             conversations_by_issue=conversations_by_issue,
             most_recent_cooldown_ended=most_recent_cooldown_ended,
         )
-        failure = combine_scheduler_failures(failures=failures)
-        if failure is not None:
+        if failures:
             candidates = [
                 candidate
                 for candidate in candidates
@@ -134,7 +132,7 @@ class ConversationScheduler(
             candidates=sorted(candidates, key=self.rank),
             observations=observations,
             fault_count=fault_count,
-            failure=failure,
+            failures=failures,
         )
 
     def rank(self, candidate: ConversationCandidate, /) -> tuple[int, str, int]:
@@ -259,12 +257,12 @@ class ConversationScheduler(
         list[ConversationCandidate],
         list[ConversationObservation],
         int,
-        list[str | None],
+        list[str],
     ]:
         candidates: list[ConversationCandidate] = []
         observations: list[ConversationObservation] = []
         fault_count = 0
-        failures: list[str | None] = [listing.failure]
+        failures = list(listing.failures)
         for issue in listing.issues:
             conversation = conversations_by_issue.get(issue.number)
             inspection = self._inspect_listed_issue(
@@ -428,9 +426,11 @@ def _carry_forward_unlisted_observations(
     listing: RouteIssueListing,
     previous_record: SchedulerRecord | None,
 ) -> list[ConversationObservation]:
-    if listing.failure is None or previous_record is None:
+    if not listing.failures or previous_record is None:
         return []
-    unknown = IssueFact(value=IssueFactValue.UNKNOWN, evidence=listing.failure)
+    unknown = IssueFact(
+        value=IssueFactValue.UNKNOWN, evidence="; ".join(listing.failures)
+    )
     listed_issues = {issue.number for issue in listing.issues}
     return [
         observation.model_copy(

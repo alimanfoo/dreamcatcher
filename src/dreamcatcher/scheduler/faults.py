@@ -56,7 +56,6 @@ def read_scheduler_record(
     if cooldown is not None and at >= cooldown.ends:
         return record.model_copy(
             update={
-                "hold": None,
                 "cooldown": None,
                 "most_recent_cooldown_ended": cooldown.ends,
             }

@@ -23,7 +23,6 @@ from dreamcatcher.scheduler.faults import (
 from dreamcatcher.scheduler.models import (
     DEFAULT_MAX_AGENTS,
     SchedulerRecord,
-    combine_scheduler_failures,
     mark_round_started,
 )
 from dreamcatcher.state import StateDirectory
@@ -78,6 +77,11 @@ class Scheduler:
         default=None, init=False, repr=False
     )
 
+    @property
+    def is_at_capacity(self) -> bool:
+        """Whether every agent slot has a round running in it."""
+        return len(self.rounds) >= self.max_agents
+
     def tick(self, *, at: datetime) -> SchedulerRecord:
         """Inspect current work and fill every free agent slot.
 
@@ -108,15 +112,12 @@ class Scheduler:
             ),
             at=at,
         )
-        scheduler_failure = combine_scheduler_failures(
-            failures=[
-                assignment_inspection.failure,
-                conversation_inspection.failure,
-            ]
-        )
         record = SchedulerRecord(
             at=at,
-            hold=scheduler_failure,
+            failures=[
+                *assignment_inspection.failures,
+                *conversation_inspection.failures,
+            ],
             cooldown=cooldown,
             most_recent_cooldown_ended=(
                 None
@@ -128,10 +129,7 @@ class Scheduler:
             conversation_observations=conversation_inspection.observations,
         )
         if cooldown is not None:
-            hold = combine_scheduler_failures(
-                failures=["global cooldown", scheduler_failure]
-            )
-            return record.model_copy(update={"hold": hold})
+            return record
         return self._launch_ready_candidates(
             record=record,
             candidates=_ReadyAgentWork(
@@ -156,9 +154,8 @@ class Scheduler:
         candidates: _ReadyAgentWork,
     ) -> SchedulerRecord:
         """Fill free capacity while alternating between ready work kinds."""
-        was_at_capacity = len(self.rounds) >= self.max_agents
         launched_identifiers: list[str] = []
-        while len(self.rounds) < self.max_agents:
+        while not self.is_at_capacity:
             work_kind = _choose_next_work_kind(
                 candidates=candidates,
                 last_selected_work_kind=self._last_selected_work_kind,
@@ -177,7 +174,9 @@ class Scheduler:
                     at=record.at,
                 )
             except ReportableError as failure:
-                record = self._record_launch_failure(record=record, failure=failure)
+                record = record.model_copy(
+                    update={"failures": [*record.failures, str(failure)]}
+                )
                 self._clear_candidates(work_kind=work_kind, candidates=candidates)
                 continue
             identifier = launched_round.agent_work_identifier
@@ -189,9 +188,6 @@ class Scheduler:
                 work_kind=work_kind,
             )
             launched_identifiers.append(identifier)
-        record = self._record_capacity_hold(
-            record=record, was_at_capacity=was_at_capacity, candidates=candidates
-        )
         return record.model_copy(
             update={"launched_agent_work_identifiers": launched_identifiers}
         )
@@ -265,35 +261,3 @@ class Scheduler:
             candidates.assignments.clear()
         else:
             candidates.conversations.clear()
-
-    def _record_launch_failure(
-        self, *, record: SchedulerRecord, failure: ReportableError
-    ) -> SchedulerRecord:
-        return record.model_copy(
-            update={
-                "hold": combine_scheduler_failures(failures=[record.hold, str(failure)])
-            }
-        )
-
-    def _record_capacity_hold(
-        self,
-        *,
-        record: SchedulerRecord,
-        was_at_capacity: bool,
-        candidates: _ReadyAgentWork,
-    ) -> SchedulerRecord:
-        """Hold at capacity unless this tick filled it and nothing waits."""
-        if len(self.rounds) < self.max_agents or not (
-            was_at_capacity or candidates.assignments or candidates.conversations
-        ):
-            return record
-        return record.model_copy(
-            update={
-                "hold": combine_scheduler_failures(
-                    failures=[self._describe_capacity(), record.hold]
-                )
-            }
-        )
-
-    def _describe_capacity(self) -> str:
-        return f"at cap: {len(self.rounds)} of {self.max_agents} agents running"

@@ -194,15 +194,17 @@ class DreamcatcherDaemon:
         except ReportableError as failure:
             reason = " ".join(str(failure).split())
             _write_output(
-                line=f"{describe_time(at=at, zone=self.zone)}  held: {reason}"
+                line=f"{describe_time(at=at, zone=self.zone)}  tick failed: {reason}"
             )
             return
         write_json(document=scheduler_record, path=self.state.scheduler_record)
+        outcome = _describe_tick_outcome(
+            record=scheduler_record,
+            is_at_capacity=scheduler.is_at_capacity,
+            zone=self.zone,
+        )
         _write_output(
-            line=(
-                f"{describe_time(at=scheduler_record.at, zone=self.zone)}  "
-                f"{_describe_tick_outcome(record=scheduler_record, zone=self.zone)}"
-            )
+            line=f"{describe_time(at=scheduler_record.at, zone=self.zone)}  {outcome}"
         )
 
     def _locate_harnesses(self) -> None:
@@ -252,26 +254,26 @@ class DreamcatcherDaemon:
                         )
 
 
-def _describe_tick_outcome(*, record: SchedulerRecord, zone: tzinfo | None) -> str:
-    """Say what the tick launched, and why it held if it did."""
-    launched_identifiers = record.launched_agent_work_identifiers
-    if launched_identifiers:
-        round_noun = "round" if len(launched_identifiers) == 1 else "rounds"
-        launched = f"launched {round_noun} for {', '.join(launched_identifiers)}"
-        if record.hold is None:
-            return launched
-        return f"{launched}; held: {' '.join(record.hold.split())}"
-    if record.hold is None:
-        return "nothing launched"
-    hold_description = " ".join(record.hold.split())
-    if record.cooldown is not None and hold_description.startswith("global cooldown"):
-        cooldown_end = describe_time(at=record.cooldown.ends, zone=zone)
-        hold_description = hold_description.replace(
-            "global cooldown",
-            f"global cooldown — next attempt at {cooldown_end}",
-            1,
+def _describe_tick_outcome(
+    *, record: SchedulerRecord, is_at_capacity: bool, zone: tzinfo | None
+) -> str:
+    """Say what the tick launched, then the cooldown, capacity and failures."""
+    facts = [_describe_launches(identifiers=record.launched_agent_work_identifiers)]
+    if record.cooldown is not None:
+        facts.append(
+            f"global cooldown ends {describe_time(at=record.cooldown.ends, zone=zone)}"
         )
-    return f"held: {hold_description}"
+    if is_at_capacity:
+        facts.append("agent capacity full")
+    facts.extend(" ".join(failure.split()) for failure in record.failures)
+    return "; ".join(facts)
+
+
+def _describe_launches(*, identifiers: list[str]) -> str:
+    if not identifiers:
+        return "nothing launched"
+    round_noun = "round" if len(identifiers) == 1 else "rounds"
+    return f"launched {round_noun} for {', '.join(identifiers)}"
 
 
 def _require_known_github_value(

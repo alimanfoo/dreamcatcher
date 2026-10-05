@@ -388,10 +388,9 @@ These statuses are derived reporting projections, not persisted lifecycle state.
 
 A status report may include operational facts such as the repository identity,
 whether the daemon is running, when the last scheduler tick occurred, current
-capacity, whether a global cooldown is active, and the scheduler hold. The
-scheduler hold says why the latest tick could not start some or all ready work,
-such as a cooldown, full capacity, a failed issue listing, or a failed launch.
-Its issue observations, issue conversation statuses and agent assignment
+capacity, whether a global cooldown is active, and the scheduler failures. A
+scheduler failure is a failed issue listing or a failed launch in the latest
+tick. Its issue observations, issue conversation statuses and agent assignment
 statuses are projections derived for a person to read.
 
 The status report never schedules work and is never an input to scheduling.

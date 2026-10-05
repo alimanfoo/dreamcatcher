@@ -1359,14 +1359,15 @@ def test_dashboard_groups_issues_with_assignments(tmp_path, daemon):
     assert 'id="conversations-heading"' not in page
 
 
-def test_capacity_does_not_repeat_as_a_scheduler_hold(tmp_path, daemon):
+def test_a_failure_at_capacity_shows_beside_the_capacity(tmp_path, daemon):
     state = StateDirectory(root=tmp_path)
     WEB_STATUS_REPORTS["at-cap"](state=state)
 
     page = render_home(state=state)
 
     assert "<dt>agent capacity</dt>" in page
-    assert "<dt>scheduler hold</dt>" not in page
+    assert "<dt>scheduler failures</dt>" in page
+    assert "could not list issues for dream:less: could not connect" in page
 
 
 def test_next_update_is_left_out_when_no_daemon_is_running(tmp_path, daemon):
@@ -1385,7 +1386,6 @@ def test_active_cooldown_uses_the_display_zone(tmp_path, daemon):
         state=state,
         tick=SchedulerRecord(
             at=PINNED,
-            hold="global cooldown",
             cooldown=GlobalCooldown(
                 started=LOOKED_AT, ends=LOOKED_AT + timedelta(minutes=15)
             ),
@@ -1396,6 +1396,7 @@ def test_active_cooldown_uses_the_display_zone(tmp_path, daemon):
 
     assert "Global cooldown ends 2026-08-20 04:56:58" in page
     assert "<dt>global cooldown</dt>" not in page
+    assert "<dt>scheduler failures</dt>" not in page
     assert "2026-08-19 20:56:58" not in page
 
 

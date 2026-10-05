@@ -67,13 +67,12 @@ A scheduler tick that fails before returning one is reported in daemon output
 and leaves the last complete scheduler record in place. An invalid scheduler
 record ends the daemon because retrying cannot repair the document.
 
-If an issue read fails, the tick records the failure as its hold and prevents
-only the launches that depend on those facts. A later tick retries the failed
-read.
+If an issue read fails, the tick records the failure and prevents only the
+launches that depend on those facts. A later tick retries the failed read.
 
 If a launch fails, the tick keeps every round that it already started and
-records the failure as its hold. It starts no lower-priority candidate of the
-same kind during that tick, but it may still start ready work of the other kind.
+records the failure. It starts no lower-priority candidate of the same kind
+during that tick, but it may still start ready work of the other kind.
 
 The scheduler uses two distinct lower-level operations: creating an agent
 assignment and starting an agent round. When it selects an available issue, it
@@ -521,12 +520,12 @@ accepted for delivery; the first also persists the issue title and body.
 
 Instance records persist the repository identity and the most recent daemon
 run's harness, Dreamcatcher version, and capacity. An instance-wide scheduler
-record persists the last tick's result, including its hold, issue, assignment
-and conversation observations, active global cooldown, and the time at which the
-most recent cooldown ended. Its per-work observations preserve operational
-evidence of the tick's interpretation rather than authoritative state.
-Assignment and conversation records persist the time of their latest user retry
-request. These boundaries allow fault to remain a derived status: ending a
+record persists the last tick's result, including its failures, issue,
+assignment and conversation observations, active global cooldown, and the time
+at which the most recent cooldown ended. Its per-work observations preserve
+operational evidence of the tick's interpretation rather than authoritative
+state. Assignment and conversation records persist the time of their latest user
+retry request. These boundaries allow fault to remain a derived status: ending a
 cooldown or requesting a retry changes which round errors count towards fault
 rather than writing a lifecycle status.
 

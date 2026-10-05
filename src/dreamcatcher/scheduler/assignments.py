@@ -144,13 +144,13 @@ class AssignmentScheduler(
         candidates = [
             item.candidate for item in inspected if item.candidate is not None
         ]
-        if issue_result.failure is None:
+        if not issue_result.failures:
             candidates.extend(self._compose_new_candidates(issue_observations))
         return AssignmentInspection(
             candidates=sorted(candidates, key=self.rank),
             observations=[item.observation for item in inspected],
             fault_count=sum(item.is_fault for item in inspected),
-            failure=issue_result.failure,
+            failures=issue_result.failures,
             issue_observations=issue_observations,
         )
 

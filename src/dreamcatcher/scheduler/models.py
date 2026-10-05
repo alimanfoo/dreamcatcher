@@ -17,12 +17,12 @@ NO_ROUND_HAS_RUN = "no round has run yet"
 
 @dataclass(frozen=True, kw_only=True)
 class AgentWorkInspection[CandidateT, ObservationT]:
-    """Collect one kind's ranked candidates, observations, faults and failure."""
+    """Collect one kind's ranked candidates, observations, faults and failures."""
 
     candidates: list[CandidateT]
     observations: list[ObservationT]
     fault_count: int
-    failure: str | None
+    failures: list[str]
 
 
 def _normalize_utc(at: datetime, /) -> datetime:
@@ -156,7 +156,7 @@ class SchedulerRecord(DreamcatcherDocument):
     """Record what one scheduler tick observed and decided."""
 
     at: _UtcDateTime
-    hold: str | None = None
+    failures: list[str] = Field(default_factory=list)
     launched_agent_work_identifiers: list[str] = Field(default_factory=list)
     issue_observations: list[IssueObservation] = Field(default_factory=list)
     assignment_observations: list[AgentWorkObservation] = Field(default_factory=list)
@@ -245,9 +245,3 @@ def derive_round_purpose(
     if pull_request.is_draft:
         return AssignmentRoundPurpose.IMPLEMENT
     return AssignmentRoundPurpose.ADDRESS_FEEDBACK
-
-
-def combine_scheduler_failures(*, failures: list[str | None]) -> str | None:
-    """Join independent scheduler failures."""
-    present = [failure for failure in failures if failure is not None]
-    return "; ".join(present) if present else None

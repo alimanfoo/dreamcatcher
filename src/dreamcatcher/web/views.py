@@ -384,9 +384,6 @@ def _describe_daemon(
 
 def _compose_instance_facts(*, report: DreamcatcherStatusReport) -> tuple[WebFact, ...]:
     daemon = report.daemon
-    scheduler_hold = report.scheduler_hold
-    if scheduler_hold is not None and scheduler_hold.startswith("at cap:"):
-        scheduler_hold = None
     values: tuple[tuple[str, str | None, bool], ...] = (
         (
             "harness",
@@ -415,7 +412,11 @@ def _compose_instance_facts(*, report: DreamcatcherStatusReport) -> tuple[WebFac
             ),
             False,
         ),
-        ("scheduler hold", scheduler_hold, scheduler_hold is not None),
+        (
+            "scheduler failures",
+            report.scheduler_failure_summary,
+            report.scheduler_failure_summary is not None,
+        ),
     )
     return tuple(
         WebFact(label=label, value=value, is_warning=is_warning)
