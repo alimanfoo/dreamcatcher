@@ -40,8 +40,10 @@ from dreamcatcher.scheduler.models import (
 )
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.status import (
+    DreamcatcherDaemonStatus,
     read_assignment_status,
     read_assignment_statuses_for_issue,
+    read_dreamcatcher_daemon_status,
     read_status_report,
 )
 from dreamcatcher.status.assignments import AssignmentStatusValue
@@ -870,6 +872,7 @@ def test_reading_one_assignment_uses_its_exact_identifier(state):
     status = read_assignment_status(
         state=state,
         identifier=other_identifier,
+        daemon=read_dreamcatcher_daemon_status(state=state),
         clock=lambda: LOOKED_AT,
     )
 
@@ -877,11 +880,26 @@ def test_reading_one_assignment_uses_its_exact_identifier(state):
     assert status.assignment.identifier == other_identifier
 
 
+def test_reading_one_assignment_uses_the_daemon_status_it_is_given(state):
+    ran(state=state, number=1, status=None)
+
+    status = read_assignment_status(
+        state=state,
+        identifier=ASSIGNMENT_ID,
+        daemon=DreamcatcherDaemonStatus(is_running=True, run=None),
+        clock=lambda: LOOKED_AT,
+    )
+
+    assert status is not None
+    assert status.round_statuses[0].outcome_description == "running"
+
+
 def test_reading_an_unknown_assignment_finds_nothing(state):
     assert (
         read_assignment_status(
             state=state,
             identifier="GH99-20260820-090000",
+            daemon=read_dreamcatcher_daemon_status(state=state),
             clock=lambda: LOOKED_AT,
         )
         is None
@@ -896,6 +914,7 @@ def test_reading_an_incomplete_assignment_finds_nothing(state):
         read_assignment_status(
             state=state,
             identifier=identifier,
+            daemon=read_dreamcatcher_daemon_status(state=state),
             clock=lambda: LOOKED_AT,
         )
         is None
@@ -915,11 +934,13 @@ def test_reading_one_assignment_does_not_read_an_unrelated_assignment(state):
     status = read_assignment_status(
         state=state,
         identifier=ASSIGNMENT_ID,
+        daemon=read_dreamcatcher_daemon_status(state=state),
         clock=lambda: LOOKED_AT,
     )
     unknown = read_assignment_status(
         state=state,
         identifier="GH100-20260820-090000",
+        daemon=read_dreamcatcher_daemon_status(state=state),
         clock=lambda: LOOKED_AT,
     )
 

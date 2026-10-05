@@ -32,6 +32,7 @@ from dreamcatcher.status import (
     ConversationStatus,
     read_assignment_statuses_for_issue,
     read_conversation_status,
+    read_dreamcatcher_daemon_status,
 )
 from dreamcatcher.tui.shared import (
     ASSIGNMENT_STATUS_STYLES,
@@ -434,7 +435,12 @@ def _find_conversation_status_for_issue(
     clock: Callable[[], datetime] = read_current_time,
 ) -> ConversationStatus:
     """Return the issue's conversation status, or refuse if none."""
-    status = read_conversation_status(state=state, issue=issue, clock=clock)
+    status = read_conversation_status(
+        state=state,
+        issue=issue,
+        daemon=read_dreamcatcher_daemon_status(state=state),
+        clock=clock,
+    )
     if status is None:
         raise ReportableError(f"No conversation here for GH{issue}.")
     return status

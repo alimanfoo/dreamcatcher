@@ -24,6 +24,7 @@ from dreamcatcher.status import (
     ConversationStatus,
     read_assignment_status,
     read_conversation_status,
+    read_dreamcatcher_daemon_status,
     read_status_report,
 )
 from dreamcatcher.web.feed import (
@@ -173,10 +174,9 @@ def _show_assignment(
     identifier: str,
 ) -> str | tuple[str, int]:
     """Render one assignment page, or a missing response."""
+    daemon = read_dreamcatcher_daemon_status(state=state)
     status = read_assignment_status(
-        state=state,
-        identifier=identifier,
-        clock=clock,
+        state=state, identifier=identifier, daemon=daemon, clock=clock
     )
     if status is None:
         return _missing_assignment_response(identifier=identifier)
@@ -185,6 +185,7 @@ def _show_assignment(
         view=compose_assignment_view(
             state=state,
             status=status,
+            daemon=daemon,
             live=_compose_assignment_live_state(state=state, status=status, zone=zone),
             zone=zone,
         ),
@@ -252,6 +253,7 @@ def _show_assignment_tail(
     status = read_assignment_status(
         state=state,
         identifier=identifier,
+        daemon=read_dreamcatcher_daemon_status(state=state),
         clock=clock,
     )
     if status is None:
@@ -272,7 +274,10 @@ def _show_conversation(
     issue: int,
 ) -> str | tuple[str, int]:
     """Render one issue-conversation page, or a missing response."""
-    status = read_conversation_status(state=state, issue=issue, clock=clock)
+    daemon = read_dreamcatcher_daemon_status(state=state)
+    status = read_conversation_status(
+        state=state, issue=issue, daemon=daemon, clock=clock
+    )
     if status is None:
         return _missing_conversation_response(issue=issue)
     return render_template(
@@ -280,6 +285,7 @@ def _show_conversation(
         view=compose_conversation_view(
             state=state,
             status=status,
+            daemon=daemon,
             live=_compose_conversation_live_state(
                 state=state, status=status, zone=zone
             ),
@@ -338,7 +344,12 @@ def _show_conversation_tail(
     issue: int,
 ) -> str | tuple[str, int]:
     """Render conversation feed output written after the requested cursor."""
-    status = read_conversation_status(state=state, issue=issue, clock=clock)
+    status = read_conversation_status(
+        state=state,
+        issue=issue,
+        daemon=read_dreamcatcher_daemon_status(state=state),
+        clock=clock,
+    )
     if status is None:
         return _missing_conversation_response(issue=issue)
     return _show_agent_tail(
@@ -359,7 +370,12 @@ def _request_assignment_stop(
     """Request a stop for one assignment's live round."""
     if not _is_same_origin_request():
         return _CROSS_ORIGIN_POST_RESPONSE
-    status = read_assignment_status(state=state, identifier=identifier, clock=clock)
+    status = read_assignment_status(
+        state=state,
+        identifier=identifier,
+        daemon=read_dreamcatcher_daemon_status(state=state),
+        clock=clock,
+    )
     if status is None:
         return _missing_assignment_response(identifier=identifier)
     paths = status.stoppable_round_paths
@@ -378,7 +394,12 @@ def _request_conversation_stop(
     """Request a stop for one issue conversation's live round."""
     if not _is_same_origin_request():
         return _CROSS_ORIGIN_POST_RESPONSE
-    status = read_conversation_status(state=state, issue=issue, clock=clock)
+    status = read_conversation_status(
+        state=state,
+        issue=issue,
+        daemon=read_dreamcatcher_daemon_status(state=state),
+        clock=clock,
+    )
     if status is None:
         return _missing_conversation_response(issue=issue)
     paths = status.stoppable_round_paths
@@ -400,7 +421,12 @@ def _request_assignment_retry(
     """
     if not _is_same_origin_request():
         return _CROSS_ORIGIN_POST_RESPONSE
-    status = read_assignment_status(state=state, identifier=identifier, clock=clock)
+    status = read_assignment_status(
+        state=state,
+        identifier=identifier,
+        daemon=read_dreamcatcher_daemon_status(state=state),
+        clock=clock,
+    )
     if status is None:
         return _missing_assignment_response(identifier=identifier)
     if status.faulted_round_number == number:
@@ -421,7 +447,12 @@ def _request_conversation_retry(
     """
     if not _is_same_origin_request():
         return _CROSS_ORIGIN_POST_RESPONSE
-    status = read_conversation_status(state=state, issue=issue, clock=clock)
+    status = read_conversation_status(
+        state=state,
+        issue=issue,
+        daemon=read_dreamcatcher_daemon_status(state=state),
+        clock=clock,
+    )
     if status is None:
         return _missing_conversation_response(issue=issue)
     conversation = status.conversation

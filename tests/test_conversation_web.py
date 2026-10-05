@@ -1,6 +1,7 @@
 """Render issue conversations in the local web interface."""
 
 from datetime import timedelta
+from unittest.mock import MagicMock
 
 from clocks import DISPLAY_TIME_ZONE, PINNED
 from conftest import REPOSITORY
@@ -15,6 +16,7 @@ from records import (
 )
 from status_fabrications import fabricate_conversation, fabricate_everything
 
+import dreamcatcher.status.report as report_module
 from dreamcatcher.agent_rounds import (
     AgentRoundRecord,
     ConversationRoundPurpose,
@@ -64,6 +66,18 @@ def test_home_lists_a_conversation_and_links_to_its_page(tmp_path):
     assert conversation_link in page
     assert '<span class="chip status-idle">idle</span>' in page
     assert "round 1, answered, ran 4m" in page
+
+
+def test_conversation_page_asks_once_whether_the_daemon_runs(tmp_path, monkeypatch):
+    state = StateDirectory(root=tmp_path)
+    fabricate_conversation(state=state)
+    probe = MagicMock(wraps=report_module.is_daemon_lock_held)
+    monkeypatch.setattr(report_module, "is_daemon_lock_held", probe)
+
+    response = application(state=state).test_client().get("/conversations/8")
+
+    assert response.status_code == 200
+    probe.assert_called_once_with(path=state.lock)
 
 
 def test_conversation_page_shows_settings_revision_round_and_feed(tmp_path):
