@@ -115,6 +115,16 @@ class DreamcatcherDaemon:
         self._locate_harnesses()
         with hold_daemon_lock(path=self.state.lock) as pid:
             self.state.bootstrap()
+            write_json(
+                document=DaemonRunRecord(
+                    pid=pid,
+                    harness=self.harness,
+                    version=DREAMCATCHER_VERSION,
+                    max_agents=self.max_agents,
+                    interval_seconds=self.interval,
+                ),
+                path=self.state.daemon_run_record,
+            )
             repository = _require_known_github_value(
                 value=identify_github_repository(root=self.state.root),
                 question="which repository this is",
@@ -148,16 +158,6 @@ class DreamcatcherDaemon:
                 max_agents=self.max_agents,
             )
             self._sweep_orphans()
-            write_json(
-                document=DaemonRunRecord(
-                    pid=pid,
-                    harness=self.harness,
-                    version=DREAMCATCHER_VERSION,
-                    max_agents=self.max_agents,
-                    interval_seconds=self.interval,
-                ),
-                path=self.state.daemon_run_record,
-            )
             at = self.clock()
             _write_output(
                 line=f"{describe_time(at=at, zone=self.zone)}  dreamcatcher is running"
