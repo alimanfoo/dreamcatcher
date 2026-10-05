@@ -45,7 +45,7 @@ adds the input and publication instructions itself.
 ## Decide which harness runs a route
 
 Each route needs a `claude` recipe, a `codex` recipe, or both. The recipe fixes
-the prompt, model and effort used when new work is created.
+what new work runs with when it is created.
 
 The `--harness` value on `dreamcatcher run` is the preference for a route that
 offers both harnesses. A route that offers only Claude always uses Claude; a

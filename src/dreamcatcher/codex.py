@@ -78,7 +78,7 @@ def _refuse_unpassable_codex_config(
         )
     for key, value in config.items():
         try:
-            refuse_unquotable(_compose_config_override(key=key, value=value))
+            refuse_unquotable(_compose_config_argument(key=key, value=value))
         except ValueError as error:
             raise ValueError(f"{key} {error}") from error
     return config
@@ -114,13 +114,13 @@ class _CodexHarnessAdapter(HarnessAdapter):
         round_arguments = (
             [
                 *_build_round_settings(request=request),
-                *_build_config_overrides(settings=_CONVERSATION_PERMISSION_SETTINGS),
+                *_build_config_arguments(settings=_CONVERSATION_PERMISSION_SETTINGS),
             ]
             if request.work_kind is AgentWorkKind.CONVERSATION
             else [
                 "--approve-for-me",
                 *_build_round_settings(request=request),
-                *_build_config_overrides(settings=_NETWORK_ACCESS_SETTING),
+                *_build_config_arguments(settings=_NETWORK_ACCESS_SETTING),
             ]
         )
         return HarnessInvocation(
@@ -161,7 +161,7 @@ class _CodexHarnessAdapter(HarnessAdapter):
                 "resume",
                 "--json",
                 *_build_round_settings(request=request),
-                *_build_config_overrides(settings=permission_settings),
+                *_build_config_arguments(settings=permission_settings),
                 *_build_final_output_arguments(
                     request=request, final_output_path=final_output_path
                 ),
@@ -241,21 +241,21 @@ def _build_round_settings(*, request: AgentRoundLaunchRequest) -> list[str]:
     return [
         "--model",
         request.model,
-        *_build_config_overrides(
+        *_build_config_arguments(
             settings={_EFFORT_KEY: request.effort, **request.codex_config}
         ),
     ]
 
 
-def _build_config_overrides(*, settings: Mapping[str, CodexConfigValue]) -> list[str]:
+def _build_config_arguments(*, settings: Mapping[str, CodexConfigValue]) -> list[str]:
     return [
         part
         for key, value in settings.items()
-        for part in ("-c", _compose_config_override(key=key, value=value))
+        for part in ("-c", _compose_config_argument(key=key, value=value))
     ]
 
 
-def _compose_config_override(*, key: str, value: CodexConfigValue) -> str:
+def _compose_config_argument(*, key: str, value: CodexConfigValue) -> str:
     """Return the setting as `-c` takes it, with the value written as TOML.
 
     JSON writes a boolean, an integer and a string as TOML does, except that

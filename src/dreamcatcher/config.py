@@ -66,10 +66,14 @@ class DispatchRoute(DreamcatcherDocument):
 
     @property
     def recipes(self) -> dict[AgentHarness, DispatchRecipe]:
-        """The recipe of each harness that can run this route."""
-        recipes = {AgentHarness.CLAUDE: self.claude, AgentHarness.CODEX: self.codex}
+        """The recipe of each harness that can run this route.
+
+        Each harness's block is the field that the harness's value names.
+        """
         return {
-            harness: recipe for harness, recipe in recipes.items() if recipe is not None
+            harness: recipe
+            for harness in AgentHarness
+            if (recipe := getattr(self, harness.value)) is not None
         }
 
     def choose_harness(self, *, requested_harness: AgentHarness) -> AgentHarness:

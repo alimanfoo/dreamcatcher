@@ -422,8 +422,8 @@ class AssignmentCreator:
         """Create and publish the issue's assignment with no rounds run yet.
 
         The route selects a recipe in response to the requested
-        agent harness. The recipe supplies the model, effort, and prompt
-        template. Creation fetches main, makes the branch and worktree, adds and
+        agent harness. The recipe supplies the settings that the record
+        keeps. Creation fetches main, makes the branch and worktree, adds and
         pushes an empty commit, and opens the linked draft pull request. It then
         writes the pull request observation, and last the record, which marks
         the setup complete.
