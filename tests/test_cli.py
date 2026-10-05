@@ -617,15 +617,21 @@ def test_every_verb_describes_itself_in_its_own_help(verb, capsys):
     assert not described.startswith(("positional arguments:", "options:"))
 
 
-@pytest.mark.parametrize("verb", ["conversation", "feed"])
-def test_conversation_view_help_explains_that_routing_conflicts_end_the_view(
-    verb, capsys
-):
+@pytest.mark.parametrize(
+    ("verb", "description"),
+    [
+        ("assignment", "until the assignment ends"),
+        ("conversation", "while the status report lists the conversation"),
+        ("feed", "until an assignment ends"),
+        ("feed", "status report stops listing a conversation"),
+    ],
+)
+def test_live_view_help_explains_what_ends_each_view(verb, description, capsys):
     with pytest.raises(SystemExit) as exit_info:
         main(argv=[verb, "--help"])
 
     assert exit_info.value.code == 0
-    assert "routing conflict" in " ".join(capsys.readouterr().out.split())
+    assert description in " ".join(capsys.readouterr().out.split())
 
 
 def test_status_help_names_assignment_routing_conflicts(capsys):

@@ -58,7 +58,7 @@ def show_assignment_view(
     wait: WaitForSeconds = sleep,
     zone: tzinfo | None = None,
 ) -> None:
-    """Show the issue's newest assignment until it ends or enters fault.
+    """Show the issue's newest assignment until it ends.
 
     The view remains open between rounds. A non-terminal or dumb terminal
     renders one snapshot and returns.
@@ -82,10 +82,8 @@ def show_conversation_view(
     wait: WaitForSeconds = sleep,
     zone: tzinfo | None = None,
 ) -> None:
-    """Show one issue conversation until nothing more can happen without the user.
+    """Show one issue conversation while the status report lists it.
 
-    That is once it enters fault, has a routing conflict, or the status report
-    no longer lists it.
     A non-terminal or dumb terminal renders one snapshot and returns.
     """
     refresh_live_view(
@@ -108,7 +106,7 @@ def _read_conversation_snapshot(
     status = _find_conversation_status_for_issue(state=state, issue=issue, clock=clock)
     return ViewSnapshot(
         renderable=_render_conversation(state=state, status=status, zone=zone),
-        is_over=status.is_over,
+        is_over=not status.is_listed,
     )
 
 
@@ -200,7 +198,7 @@ def _read_assignment_snapshot(
         renderable=_render_assignment(
             state=state, assignment_statuses=assignment_statuses, zone=zone
         ),
-        is_over=assignment_statuses[0].is_over,
+        is_over=assignment_statuses[0].has_ended,
     )
 
 
@@ -468,7 +466,7 @@ def _find_feed_owner(
             )
         return _FeedOwnerSnapshot(
             owner=status.conversation,
-            is_over=status.is_over,
+            is_over=not status.is_listed,
             round_details={
                 round_status.record.number: round_status.revision.description
                 for round_status in status.round_statuses
@@ -478,7 +476,7 @@ def _find_feed_owner(
     status = _find_assignment_statuses_for_issue(state=state, issue=issue)[0]
     return _FeedOwnerSnapshot(
         owner=status.assignment,
-        is_over=status.is_over,
+        is_over=status.has_ended,
         round_details={},
     )
 

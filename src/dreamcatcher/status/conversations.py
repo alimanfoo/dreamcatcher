@@ -84,23 +84,6 @@ class ConversationStatus:
     observed_at: datetime | None
     is_listed: bool
 
-    @property
-    def is_over(self) -> bool:
-        """Whether nothing more can happen until the user acts.
-
-        A faulted or conflicted conversation waits for the user to act, and one
-        that the status report no longer lists waits for its issue to be eligible
-        again.
-        """
-        return (
-            self.value
-            in {
-                ConversationStatusValue.FAULT,
-                ConversationStatusValue.ROUTING_CONFLICT,
-            }
-            or not self.is_listed
-        )
-
     @cached_property
     def harness_session_identifier(self) -> HarnessSessionIdentifier | None:
         """The recorded or recoverable harness session identifier."""

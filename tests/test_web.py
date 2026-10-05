@@ -1023,7 +1023,7 @@ def test_a_terminal_tail_returns_late_output_before_it_stops(tmp_path):
     assert stopped.status_code == 286
 
 
-def test_a_faulted_tail_stops_when_it_reads_nothing_new(tmp_path):
+def test_a_faulted_tail_keeps_polling_when_it_reads_nothing_new(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
     feed = _feed_path(state=state, identifier="GH9-20260819-184158", number=2)
@@ -1034,7 +1034,7 @@ def test_a_faulted_tail_stops_when_it_reads_nothing_new(tmp_path):
         cursor=f"2:{feed.stat().st_size}",
     )
 
-    assert response.status_code == 286
+    assert response.status_code == 200
 
 
 def test_a_tail_fragment_matches_its_golden(tmp_path, pytestconfig):

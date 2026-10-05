@@ -11,6 +11,10 @@ tagged. From v5.0.0 on, each entry links the pull request that made the change.
 
 ## Unreleased (v5.0.0)
 
+- Terminal and web live views now keep following faulted assignments and faulted
+  or routing-conflicted conversations, so recovery appears without reopening the
+  view. They stop only when an assignment ends or a conversation leaves the
+  status report. ([#415](https://github.com/alimanfoo/dreamcatcher/pull/415))
 - The web pages and the terminal status view no longer report a running daemon
   as stopped, or its running rounds as interrupted, after the system clock is
   corrected. The daemon now holds an operating-system lock on

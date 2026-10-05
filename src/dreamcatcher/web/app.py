@@ -261,7 +261,7 @@ def _show_assignment_tail(
     return _show_agent_tail(
         owner=status.assignment,
         live=_compose_assignment_live_state(state=state, status=status, zone=zone),
-        is_terminal=status.is_over,
+        should_stop_polling=status.has_ended,
         zone=zone,
     )
 
@@ -355,7 +355,7 @@ def _show_conversation_tail(
     return _show_agent_tail(
         owner=status.conversation,
         live=_compose_conversation_live_state(state=state, status=status, zone=zone),
-        is_terminal=status.is_over,
+        should_stop_polling=not status.is_listed,
         zone=zone,
     )
 
@@ -490,7 +490,7 @@ def _show_agent_tail(
     *,
     owner: WebFeedOwner | None,
     live: WebAgentLiveState,
-    is_terminal: bool,
+    should_stop_polling: bool,
     zone: tzinfo | None,
 ) -> str | tuple[str, int]:
     """Render incremental feed output for an assignment or conversation."""
@@ -505,7 +505,9 @@ def _show_agent_tail(
     except InvalidFeedCursorError:
         return _invalid_feed_cursor_response()
     response_status = (
-        _HTMX_STOP_POLLING_STATUS if not tail.feed_rounds and is_terminal else 200
+        _HTMX_STOP_POLLING_STATUS
+        if not tail.feed_rounds and should_stop_polling
+        else 200
     )
     return (
         render_template("tail.html", tail=tail),

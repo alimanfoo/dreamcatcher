@@ -153,10 +153,9 @@ Show the newest assignment at the issue. The view includes its settled route and
 harness settings, its rounds, a hand-resume command when one is available, and
 older assignments at the same issue.
 
-In an interactive terminal it refreshes while another round may be required. It
-ends when the assignment completes a successful wrap-up, is cancelled or enters
-fault; an ended assignment remains on screen. When output is piped, redirected
-or captured, it prints one snapshot and returns.
+In an interactive terminal it refreshes until the assignment ends, after a
+successful wrap-up or a cancel. An ended assignment remains on screen. When
+output is piped, redirected or captured, it prints one snapshot and returns.
 
 ## `conversation`
 
@@ -167,9 +166,9 @@ dreamcatcher conversation GH<n>
 Show the issue conversation's settings, harness session, worktree, code revision
 and rounds, with a hand-resume command when one is available.
 
-In an interactive terminal it refreshes until the conversation enters fault, has
-a routing conflict, or leaves the status report. When output is piped,
-redirected or captured, it prints one snapshot and returns.
+In an interactive terminal it refreshes while the status report lists the
+conversation. When output is piped, redirected or captured, it prints one
+snapshot and returns.
 
 ## `feed`
 
@@ -184,11 +183,10 @@ Exactly one owner selector is required:
 - `--conversation` selects the issue conversation.
 
 Without `--round`, the command shows all of that work's rounds and follows later
-output until the work completes, is cancelled, enters fault or leaves the status
-report. A conversation's routing conflict also ends its feed view. `--round N`
-selects one exact integer round number and ends when that round ends. The
-corresponding `assignment` or `conversation` view lists the available round
-numbers; requesting a round that does not exist is an error.
+output until an assignment ends or the status report stops listing a
+conversation. `--round N` selects one exact integer round number and ends when
+that round ends. The corresponding `assignment` or `conversation` view lists the
+available round numbers; requesting a round that does not exist is an error.
 
 A feed prints incrementally so terminal scrollback is preserved. When its output
 is piped, redirected or captured, it prints the currently recorded output once

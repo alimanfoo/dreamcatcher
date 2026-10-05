@@ -75,11 +75,6 @@ class AssignmentStatus:
         }
 
     @property
-    def is_over(self) -> bool:
-        """Whether nothing more can happen until the user acts."""
-        return self.has_ended or self.value is AssignmentStatusValue.FAULT
-
-    @property
     def pull_request_state(self) -> str | None:
         """The latest observed pull-request state in status-report words.
 
