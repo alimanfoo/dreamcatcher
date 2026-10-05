@@ -208,9 +208,11 @@ class ConversationScheduler(
     ) -> AgentRoundStartRequest:
         paths = conversation.compose_round_paths(number=conversation.next_round_number)
         first_round_prompt = compose_conversation_prompt(
-            template=conversation.record.prompt,
-            issue=conversation.record.issue,
-            round_input=paths.round_input,
+            instructions=conversation.record.prompt,
+            round_prompt=compose_conversation_round_prompt(
+                issue=conversation.record.issue,
+                round_input=paths.round_input,
+            ),
         )
         resumption = self.resolve_harness_session(
             agent_work_identifier=conversation.identifier,

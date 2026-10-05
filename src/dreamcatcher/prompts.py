@@ -100,7 +100,13 @@ def compose_first_round_prompt(*, template: str, issue: int) -> str:
     number replaces the placeholder in it. Anything else that the template
     holds in braces reaches the first round as it was written.
     """
-    return template.replace(_ISSUE_PLACEHOLDER, str(issue)) + _AGENT_POST_INSTRUCTIONS
+    instructions = compose_issue_instructions(template=template, issue=issue)
+    return instructions + _AGENT_POST_INSTRUCTIONS
+
+
+def compose_issue_instructions(*, template: str, issue: int) -> str:
+    """Fill the issue placeholder in a recipe's prompt instructions."""
+    return template.replace(_ISSUE_PLACEHOLDER, str(issue))
 
 
 def compose_user_posts_prompt(
@@ -120,12 +126,8 @@ def compose_user_posts_prompt(
     return _prefix_stopped_round_feedback(prompt=prompt) if was_stopped else prompt
 
 
-def compose_conversation_prompt(*, template: str, issue: int, round_input: Path) -> str:
-    """Return the first prompt that directs a conversation to its saved input."""
-    instructions = template.replace(_ISSUE_PLACEHOLDER, str(issue))
-    round_prompt = compose_conversation_round_prompt(
-        issue=issue, round_input=round_input
-    )
+def compose_conversation_prompt(*, instructions: str, round_prompt: str) -> str:
+    """Add a conversation round prompt to the saved recipe instructions."""
     return f"{instructions}\n\n{round_prompt}"
 
 

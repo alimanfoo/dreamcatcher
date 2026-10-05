@@ -436,7 +436,7 @@ def test_each_conversation_label_selects_its_own_route(
     conversation = read_conversation(state=scheduler.assignments.state, issue=8)
     assert conversation is not None
     assert conversation.record.dispatch_label == "dream:scout"
-    assert conversation.record.prompt == "/dream:scout GH{issue}"
+    assert conversation.record.prompt == "/dream:scout GH8"
     assert conversation.record.effort == "high"
 
 

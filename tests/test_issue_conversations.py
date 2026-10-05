@@ -80,7 +80,7 @@ def write_conversation(*, state: StateDirectory, number: int = 8) -> Conversatio
         harness=AgentHarness.CLAUDE,
         model="opus[1m]",
         effort="xhigh",
-        prompt=PROMPT_TEMPLATE,
+        prompt=f"/dream:conversation GH{number}",
     )
     write_json(document=record, path=directory / _CONVERSATION_RECORD_NAME)
     conversation = read_conversation(state=state, issue=number)
@@ -166,7 +166,7 @@ def test_a_new_conversation_records_the_requested_harness_recipe(cloned):
     )
 
     assert created.record.harness == AgentHarness.CODEX
-    assert created.record.prompt == CODEX_PROMPT_TEMPLATE
+    assert created.record.prompt == "$dream:conversation GH8"
     assert created.record.model == "gpt-5.6-sol"
     assert created.record.effort == "high"
 
