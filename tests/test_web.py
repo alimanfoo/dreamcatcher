@@ -324,7 +324,7 @@ def test_assignment_page_cancels_its_assignment(tmp_path, daemon):
     assert response.location == f"/assignments/{identifier}"
     assignment = read_assignment(state=state, identifier=identifier)
     assert assignment is not None
-    assert assignment.record.cancelled_at == LOOKED_AT
+    assert assignment.cancelled_at == LOOKED_AT
     assert assignment.compose_round_paths(number=2).stop_request.is_file()
 
 
@@ -384,7 +384,7 @@ def test_a_stale_assignment_cancel_changes_nothing(tmp_path, daemon):
     assert response.status_code == 303
     assignment = read_assignment(state=state, identifier=identifier)
     assert assignment is not None
-    assert assignment.record.cancelled_at == PINNED + timedelta(minutes=10)
+    assert assignment.cancelled_at == PINNED + timedelta(minutes=10)
 
 
 def test_an_unknown_assignment_cannot_be_cancelled(tmp_path):

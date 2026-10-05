@@ -86,9 +86,9 @@ class AssignmentStatus:
         A cancelled assignment has none, because nothing observes its pull
         request once the user has taken it over.
         """
-        record = self.assignment.record
-        observation = record.pull_request_observation
-        if observation is None or record.cancelled_at is not None:
+        assignment = self.assignment
+        observation = assignment.record.pull_request_observation
+        if observation is None or assignment.cancelled_at is not None:
             return None
         if observation.is_open:
             return "draft" if observation.is_draft else "ready"
@@ -221,7 +221,7 @@ class AssignmentStatusReader(AgentWorkStatusReader[AssignmentStatus]):
             assignment=assignment,
             value=(
                 AssignmentStatusValue.COMPLETE
-                if assignment.record.cancelled_at is None
+                if assignment.cancelled_at is None
                 else AssignmentStatusValue.CANCELLED
             ),
             detail=describe_count(number=len(assignment.rounds), noun="round"),

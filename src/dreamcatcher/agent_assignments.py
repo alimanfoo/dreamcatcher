@@ -33,6 +33,7 @@ from dreamcatcher.agent_rounds import (
     request_agent_round_stop,
 )
 from dreamcatcher.agent_work import (
+    UserRequestRecord,
     read_harness_session_identifier,
     read_retry_requested_at,
 )
@@ -42,6 +43,7 @@ from dreamcatcher.documents import (
     DocumentCache,
     DreamcatcherDocument,
     read_json,
+    read_json_if_exists,
     write_json,
 )
 from dreamcatcher.errors import ReportableError
@@ -75,6 +77,9 @@ _ASSIGNMENT_BRANCH_PREFIX = "dreamcatcher-"
 # with.
 _ASSIGNMENT_RECORD_NAME = "assignment.json"
 
+# The file in an assignment's directory saying when the user cancelled it.
+_CANCEL_RECORD_NAME = "cancel.json"
+
 # The directory in an assignment's directory holding a directory per round.
 _AGENT_ROUNDS_DIRECTORY_NAME = "rounds"
 
@@ -104,8 +109,8 @@ class AssignmentRecord(DreamcatcherDocument):
 
     The assignment dispatch settles the recipe and identities. Every round
     reads this record, so later config edits do not change an assignment in
-    progress. A cancel records its time. The latest pull request observation
-    supports reporting; scheduling still reads GitHub.
+    progress. The latest pull request observation supports reporting;
+    scheduling still reads GitHub.
     """
 
     issue: int
@@ -116,7 +121,6 @@ class AssignmentRecord(DreamcatcherDocument):
     pull_request: int
     pull_request_observation: PullRequestObservation | None = None
     harness: AgentHarness
-    cancelled_at: AwareDatetime | None = None
     model: str
     effort: str
     prompt: str
@@ -139,6 +143,7 @@ class Assignment:
     record: AssignmentRecord
     harness_session_identifier: HarnessSessionIdentifier | None = None
     retry_requested_at: datetime | None = None
+    cancelled_at: datetime | None = None
     rounds: list[AgentRoundRecord] = field(default_factory=list)
 
     @property
@@ -165,8 +170,8 @@ class Assignment:
     @property
     def ended_at(self) -> datetime | None:
         """When the assignment was cancelled or completed, if it has ended."""
-        if self.record.cancelled_at is not None:
-            return self.record.cancelled_at
+        if self.cancelled_at is not None:
+            return self.cancelled_at
         if not self.is_complete:
             return None
         return cast("SuccessfulAgentRoundEnding", self.rounds[-1].ending).at
@@ -296,16 +301,17 @@ def cancel_assignment(*, assignment: Assignment, at: datetime) -> None:
     """Record that the user has taken an open assignment over.
 
     A round with no ending is asked to stop, so it does not go on pushing to the
-    branch. The record is written before the rounds are read again, so a round
+    branch. The cancel is written before the rounds are read again, so a round
     that starts at the same moment is either asked to stop here or finds the
     cancel through stop_round_if_cancelled. An assignment that has already
     ended raises ReportableError.
     """
     if not assignment.is_open:
         raise ReportableError(f"{assignment.identifier} has already ended.")
-    path = assignment.directory / _ASSIGNMENT_RECORD_NAME
-    record = read_json(model=AssignmentRecord, path=path)
-    write_json(document=record.model_copy(update={"cancelled_at": at}), path=path)
+    write_json(
+        document=UserRequestRecord(at=at),
+        path=assignment.directory / _CANCEL_RECORD_NAME,
+    )
     rounds = read_agent_round_records(
         cache=DocumentCache(),
         directory=assignment.directory / _AGENT_ROUNDS_DIRECTORY_NAME,
@@ -322,10 +328,7 @@ def stop_round_if_cancelled(*, assignment: Assignment, paths: AgentRoundPaths) -
     Call this once the round's record exists, so that a cancel either lands
     before this read or finds the round itself.
     """
-    record = read_json(
-        model=AssignmentRecord, path=assignment.directory / _ASSIGNMENT_RECORD_NAME
-    )
-    if record.cancelled_at is not None:
+    if _read_cancelled_at(directory=assignment.directory) is not None:
         request_agent_round_stop(paths=paths)
 
 
@@ -506,11 +509,19 @@ def _read_assignment(*, state: StateDirectory, directory: Path) -> Assignment:
         ),
         harness_session_identifier=read_harness_session_identifier(directory=directory),
         retry_requested_at=read_retry_requested_at(directory=directory),
+        cancelled_at=_read_cancelled_at(directory=directory),
         rounds=read_agent_round_records(
             cache=state.document_cache,
             directory=directory / _AGENT_ROUNDS_DIRECTORY_NAME,
         ),
     )
+
+
+def _read_cancelled_at(*, directory: Path) -> datetime | None:
+    record = read_json_if_exists(
+        model=UserRequestRecord, path=directory / _CANCEL_RECORD_NAME
+    )
+    return None if record is None else record.at
 
 
 def read_user_post_delivery_cursor(*, assignment: Assignment) -> str:

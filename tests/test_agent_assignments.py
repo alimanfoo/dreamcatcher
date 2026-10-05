@@ -381,9 +381,20 @@ def test_a_cancelled_assignment_records_when_and_is_no_longer_open(fabricated):
     cancel_assignment(assignment=assignment, at=PINNED + timedelta(hours=1))
 
     cancelled = read_assignments(state=fabricated)[0]
-    assert cancelled.record.cancelled_at == PINNED + timedelta(hours=1)
+    assert cancelled.cancelled_at == PINNED + timedelta(hours=1)
     assert not cancelled.is_open
     assert find_open_assignments_by_issue(assignments=[cancelled]) == {}
+
+
+def test_a_cancel_leaves_the_assignment_record_as_it_was(fabricated):
+    # Nothing rewrites the record, so no writer can erase the cancel.
+    assignment = standing(state=fabricated, rounds=[ended(status=0)])
+    record = assignment.directory / "assignment.json"
+    created = record.read_bytes()
+
+    cancel_assignment(assignment=assignment, at=PINNED)
+
+    assert record.read_bytes() == created
 
 
 def test_cancelling_asks_a_round_with_no_ending_to_stop(fabricated):
@@ -425,7 +436,7 @@ def test_an_assignment_that_has_ended_cannot_be_cancelled(fabricated):
             at=PINNED + timedelta(hours=1),
         )
 
-    assert read_assignments(state=fabricated)[0].record.cancelled_at == PINNED
+    assert read_assignments(state=fabricated)[0].cancelled_at == PINNED
 
 
 @pytest.mark.parametrize(
