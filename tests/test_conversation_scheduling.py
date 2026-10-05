@@ -327,7 +327,7 @@ def write_faulted_conversation(
                 comments=[ask()],
                 revision=revision,
             ),
-            path=directory / "rounds" / str(number) / "inbox.json",
+            path=directory / "rounds" / str(number) / "round-input.json",
         )
 
 
@@ -1721,8 +1721,8 @@ def test_a_recovery_whose_saved_input_cannot_be_read_is_a_scheduler_failure(
 
     observed = scheduler.tick(at=clock())
 
-    inbox = directory / "rounds" / "1" / "inbox.json"
-    assert observed.failures == [f"{inbox} does not exist."]
+    round_input = directory / "rounds" / "1" / "round-input.json"
+    assert observed.failures == [f"{round_input} does not exist."]
     assert observed.launched_agent_work_identifiers == []
     assert harnesses["claude"].calls == []
 

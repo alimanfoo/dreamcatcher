@@ -883,7 +883,7 @@ def test_an_assignment_with_a_round_that_has_no_ending_starts_nothing(resuming):
         / ASSIGNMENT_ID
         / "rounds"
         / "2"
-        / "inbox.json"
+        / "round-input.json"
     ).exists()
 
 
@@ -1019,9 +1019,11 @@ def test_a_terminal_recovery_without_a_session_receives_wrap_up_input(
 
     assert observed.launched_agent_work_identifiers == [ASSIGNMENT_ID]
     prompt = written_round(scheduler=scheduler, number=2, name="prompt.txt")
-    assert prompt.startswith("/dream:smith GH13\n\nPR-inbox prompt")
-    inbox = json.loads(written_round(scheduler=scheduler, number=2, name="inbox.json"))
-    assert inbox["pull_request_state"] == PullRequestState.MERGED
+    assert prompt.startswith("/dream:smith GH13\n\nUser-posts prompt")
+    round_input = json.loads(
+        written_round(scheduler=scheduler, number=2, name="round-input.json")
+    )
+    assert round_input["pull_request_state"] == PullRequestState.MERGED
     assert "--resume" not in harnesses["claude"].calls[-1].arguments
     assignment = read_assignments(state=scheduler.assignments.state)[0]
     assert assignment.user_post_delivery_position == POSTED_AT
@@ -1051,8 +1053,10 @@ def test_a_failed_replacement_session_does_not_redeliver_recorded_feedback(
     finish_rounds(scheduler=scheduler)
 
     assert observed.launched_agent_work_identifiers == [ASSIGNMENT_ID]
-    inbox = json.loads(written_round(scheduler=scheduler, number=3, name="inbox.json"))
-    assert inbox["user_posts"] == []
+    round_input = json.loads(
+        written_round(scheduler=scheduler, number=3, name="round-input.json")
+    )
+    assert round_input["user_posts"] == []
 
 
 def test_a_carried_on_round_records_recovery_independently(resuming):
@@ -1092,15 +1096,17 @@ def test_an_assignment_the_user_has_posted_on_is_told_what_they_said(resuming, g
     feedback = record_of(scheduler=scheduler, number=2)
     assert feedback.purpose is AssignmentRoundPurpose.ADDRESS_FEEDBACK
     assert not feedback.is_recovery
-    inbox = json.loads(written_round(scheduler=scheduler, number=2, name="inbox.json"))
-    assert inbox["pull_request_state"] == "OPEN"
-    assert [post["kind"] for post in inbox["user_posts"]] == ["comment"]
+    round_input = json.loads(
+        written_round(scheduler=scheduler, number=2, name="round-input.json")
+    )
+    assert round_input["pull_request_state"] == "OPEN"
+    assert [post["kind"] for post in round_input["user_posts"]] == ["comment"]
     assert str(
         scheduler.assignments.state.assignments
         / ASSIGNMENT_ID
         / "rounds"
         / "2"
-        / "inbox.json"
+        / "round-input.json"
     ) in (written_round(scheduler=scheduler, number=2, name="prompt.txt"))
 
 
@@ -1164,7 +1170,7 @@ def test_a_pull_request_that_is_finished_gets_one_last_round(resuming, gh, state
     assert wrap_up.purpose is AssignmentRoundPurpose.WRAP_UP
     assert not wrap_up.is_recovery
     assert json.loads(
-        written_round(scheduler=scheduler, number=2, name="inbox.json")
+        written_round(scheduler=scheduler, number=2, name="round-input.json")
     ) == {
         "pull_request_state": state_name,
         "user_posts": [],

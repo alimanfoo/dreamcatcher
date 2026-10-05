@@ -62,7 +62,7 @@ finished. The new input says what to do next.
 # pull request has got to, which is what tells a round that answers the user
 # from a round that wraps a merged or closed pull request up, so one prompt
 # serves both.
-_USER_POSTS_PROMPT = """PR-inbox prompt for pull request #{pull_request}:
+_USER_POSTS_PROMPT = """User-posts prompt for pull request #{pull_request}:
 
   {round_input}
 
