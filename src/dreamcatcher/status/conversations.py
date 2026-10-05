@@ -248,12 +248,12 @@ class ConversationStatusReader(AgentWorkStatusReader[ConversationStatus]):
         )
         if status is not None:
             return status
+        status = self._derive_fault(issue=issue, title=title, conversation=conversation)
+        if status is not None:
+            return status
         status = self._derive_eligibility(
             issue=issue, title=title, conversation=conversation
         )
-        if status is not None:
-            return status
-        status = self._derive_fault(issue=issue, title=title, conversation=conversation)
         if status is not None:
             return status
         status = self._derive_unfinished(
