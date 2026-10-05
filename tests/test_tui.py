@@ -510,7 +510,7 @@ def followed(*, state, issue: int, wait=refusing) -> str:
     show_feed_view(
         state=state,
         issue=issue,
-        owner_kind=AgentWorkKind.ASSIGNMENT,
+        work_kind=AgentWorkKind.ASSIGNMENT,
         console=pinned(written_to=written_to, is_terminal=True),
         wait=wait,
         zone=DISPLAY_TIME_ZONE,
@@ -528,7 +528,7 @@ def test_a_feed_nobody_is_watching_shows_what_is_there_and_returns(tmp_path):
     show_feed_view(
         state=state,
         issue=13,
-        owner_kind=AgentWorkKind.ASSIGNMENT,
+        work_kind=AgentWorkKind.ASSIGNMENT,
         console=pinned(written_to=written_to),
         wait=refusing,
         zone=DISPLAY_TIME_ZONE,
@@ -777,7 +777,7 @@ def viewed_round(
     show_feed_view(
         state=state,
         issue=issue,
-        owner_kind=AgentWorkKind.ASSIGNMENT,
+        work_kind=AgentWorkKind.ASSIGNMENT,
         console=pinned(written_to=written_to, is_terminal=is_terminal),
         round_number=number,
         wait=wait,

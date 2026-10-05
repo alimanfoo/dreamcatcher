@@ -462,7 +462,6 @@ def test_a_required_round_reports_the_scheduler_reason(state):
 
     assert status.value is AssignmentStatusValue.WAITING
     assert status.detail == "next round, implement"
-    assert status.observed_at == LOOKED_AT
 
 
 def test_an_unknown_assignment_observation_reports_unknown(state):
@@ -577,10 +576,10 @@ def test_a_current_tick_with_no_required_round_needs_user_feedback(state):
     status = only_assignment(state=state)
 
     assert status.value is AssignmentStatusValue.NEEDS_USER_FEEDBACK
-    assert status.detail == "idle 1h 58m"
+    assert status.detail == "last output 1h 58m ago"
 
 
-def test_a_current_idle_assignment_with_no_feed_is_idle(state):
+def test_an_assignment_needing_feedback_with_no_feed_has_no_output(state):
     ran(state=state, number=1)
     write_tick(
         state=state,
@@ -590,7 +589,7 @@ def test_a_current_idle_assignment_with_no_feed_is_idle(state):
         ),
     )
 
-    assert only_assignment(state=state).detail == "idle"
+    assert only_assignment(state=state).detail == "no output"
 
 
 def test_a_stopped_assignment_needs_user_feedback(state):

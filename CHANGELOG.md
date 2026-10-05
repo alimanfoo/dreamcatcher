@@ -33,11 +33,11 @@ tagged. From v5.0.0 on, each entry links the pull request that made the change.
   something about the same assignment or conversation at the same moment.
   ([#395](https://github.com/alimanfoo/dreamcatcher/pull/395))
 - The web home page and the terminal status view show capacity, a global
-  cooldown and the latest tick's failures once each. Failures, such as a failed
-  issue listing, appear on a **scheduler failures** row, and the web home page
-  no longer hides them while capacity is full. The daemon's line for each tick
-  says what it launched, then any global cooldown, full capacity and failures.
-  ([#389](https://github.com/alimanfoo/dreamcatcher/pull/389))
+  cooldown and the latest update's failures once each. Failures, such as a
+  failed issue listing, appear on a **scheduler failures** row, and the web home
+  page no longer hides them while capacity is full. The daemon's line for each
+  update says what it launched, then any global cooldown, full capacity and
+  failures. ([#389](https://github.com/alimanfoo/dreamcatcher/pull/389))
 - Reshaped the documentation around reader tasks: a start-to-finish tutorial,
   focused task guides, complete command and configuration references, this
   changelog, compatibility guidance and a testing account.

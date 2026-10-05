@@ -90,7 +90,7 @@ body::after {
 }
 
 .daemon-running,
-.daemon-stopped {
+.daemon-not-running {
   color: var(--dim);
 }
 
@@ -104,7 +104,7 @@ body::after {
   content: "";
 }
 
-.daemon-stopped::before {
+.daemon-not-running::before {
   background: #a65a3c;
 }
 

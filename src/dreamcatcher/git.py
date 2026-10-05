@@ -1,4 +1,4 @@
-"""Run the Git commands that create and remove assignment worktrees.
+"""Run the Git commands that create, refresh and remove worktrees for agent work.
 
 Every one of these raises CommandError when git refuses, carrying git's own
 words, so no caller has to guess what went wrong. What to do about a creation

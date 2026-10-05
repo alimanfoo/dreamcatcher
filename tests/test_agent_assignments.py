@@ -374,7 +374,7 @@ def test_an_assignment_whose_last_round_failed_says_the_status_it_failed_with(
 ):
     assignment = standing(state=fabricated, rounds=[ended(status=2)])
 
-    assert assignment.describe_unfinished_round() == "the last round failed (exit 2)"
+    assert assignment.describe_unfinished_round() == "the last round errored (exit 2)"
 
 
 def test_an_assignment_whose_last_round_ended_well_has_left_nothing_unfinished(
@@ -1168,7 +1168,7 @@ def test_an_unchanged_pull_request_observation_is_not_written_again(fabricated):
     assert path.read_bytes() == before
 
 
-def test_an_assignment_no_round_has_delivered_a_user_post_has_an_empty_cursor(
+def test_an_assignment_with_no_delivered_user_post_has_an_empty_delivery_position(
     state, route
 ):
     create_assignment(
@@ -1179,10 +1179,10 @@ def test_an_assignment_no_round_has_delivered_a_user_post_has_an_empty_cursor(
         at=PINNED,
     )
 
-    assert read_assignments(state=state)[0].user_post_delivery_cursor == ""
+    assert read_assignments(state=state)[0].user_post_delivery_position == ""
 
 
-def test_an_assignment_reads_back_its_user_post_delivery_cursor(state, route):
+def test_an_assignment_reads_back_its_user_post_delivery_position(state, route):
     created = create_assignment(
         state=state,
         route=route,
@@ -1214,12 +1214,14 @@ def test_an_assignment_reads_back_its_user_post_delivery_cursor(state, route):
     )
 
     assert (
-        read_assignments(state=state)[0].user_post_delivery_cursor
+        read_assignments(state=state)[0].user_post_delivery_position
         == "2026-09-03T22:31:51Z"
     )
 
 
-def test_the_user_post_cursor_scans_past_an_input_that_delivered_no_posts(state, route):
+def test_the_user_post_delivery_position_scans_past_an_input_that_delivered_no_posts(
+    state, route
+):
     created = create_assignment(
         state=state,
         route=route,
@@ -1259,7 +1261,7 @@ def test_the_user_post_cursor_scans_past_an_input_that_delivered_no_posts(state,
         )
 
     assert (
-        read_assignments(state=state)[0].user_post_delivery_cursor
+        read_assignments(state=state)[0].user_post_delivery_position
         == "2026-09-03T22:31:51Z"
     )
 
