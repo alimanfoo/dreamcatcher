@@ -30,6 +30,7 @@ from dreamcatcher.state import StateDirectory
 from dreamcatcher.status import (
     read_assignment_statuses_for_issue,
     read_conversation_status,
+    read_dreamcatcher_daemon_status,
 )
 from dreamcatcher.version import DREAMCATCHER_VERSION
 
@@ -357,14 +358,17 @@ def _retry_agent_work(*, arguments: argparse.Namespace) -> None:
 def _stop_agent_work(*, arguments: argparse.Namespace) -> None:
     """Request a stop for the selected agent work's live round."""
     state = _find_state_directory(root=Path.cwd())
+    daemon = read_dreamcatcher_daemon_status(state=state)
     if arguments.owner_kind is AgentWorkKind.ASSIGNMENT:
         statuses = read_assignment_statuses_for_issue(
-            state=state, issue=arguments.issue
+            state=state, issue=arguments.issue, daemon=daemon
         )
         paths = None if not statuses else statuses[0].stoppable_round_paths
         work_description = "newest assignment"
     else:
-        status = read_conversation_status(state=state, issue=arguments.issue)
+        status = read_conversation_status(
+            state=state, issue=arguments.issue, daemon=daemon
+        )
         paths = None if status is None else status.stoppable_round_paths
         work_description = "issue conversation"
     if paths is None:

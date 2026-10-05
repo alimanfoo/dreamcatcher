@@ -99,21 +99,20 @@ def read_status_report(
     *, state: StateDirectory, clock: Callable[[], datetime] = read_current_time
 ) -> DreamcatcherStatusReport:
     """Read a status report from the instance's local state."""
-    at, is_daemon_running, scheduler_record = _read_status_facts(
-        state=state, clock=clock
-    )
+    daemon = read_dreamcatcher_daemon_status(state=state)
+    at, scheduler_record = _read_status_facts(state=state, clock=clock)
     assignments = read_assignments(state=state)
     assignment_statuses = AssignmentStatusReader(
         state=state,
         at=at,
-        is_daemon_running=is_daemon_running,
+        is_daemon_running=daemon.is_running,
         scheduler_record=scheduler_record,
         assignments=assignments,
     ).list_statuses()
     conversation_statuses = _list_reported_conversation_statuses(
         state=state,
         at=at,
-        is_daemon_running=is_daemon_running,
+        is_daemon_running=daemon.is_running,
         scheduler_record=scheduler_record,
     )
     issue_observations = _refresh_issue_observations(
@@ -123,15 +122,13 @@ def read_status_report(
     return DreamcatcherStatusReport(
         at=at,
         repository=read_repository(state=state),
-        daemon=_read_dreamcatcher_daemon_status(
-            state=state, is_daemon_running=is_daemon_running
-        ),
+        daemon=daemon,
         latest_scheduler_tick=(
             None if scheduler_record is None else scheduler_record.at
         ),
         scheduler_failure_summary=(
             None
-            if scheduler_record is None or not is_daemon_running
+            if scheduler_record is None or not daemon.is_running
             else "; ".join(scheduler_record.failures) or None
         ),
         running_agents=_count_running_agents(
@@ -150,10 +147,9 @@ def read_status_report(
 
 def _read_status_facts(
     *, state: StateDirectory, clock: Callable[[], datetime]
-) -> tuple[datetime, bool, SchedulerRecord | None]:
+) -> tuple[datetime, SchedulerRecord | None]:
     at = clock()
-    is_daemon_running = is_daemon_lock_held(path=state.lock)
-    return at, is_daemon_running, read_scheduler_record(state=state, at=at)
+    return at, read_scheduler_record(state=state, at=at)
 
 
 def _list_reported_conversation_statuses(
@@ -272,17 +268,8 @@ def read_dreamcatcher_daemon_status(
     *, state: StateDirectory
 ) -> DreamcatcherDaemonStatus:
     """Read whether a daemon is running, and the current or most recent run."""
-    return _read_dreamcatcher_daemon_status(
-        state=state,
-        is_daemon_running=is_daemon_lock_held(path=state.lock),
-    )
-
-
-def _read_dreamcatcher_daemon_status(
-    *, state: StateDirectory, is_daemon_running: bool
-) -> DreamcatcherDaemonStatus:
     return DreamcatcherDaemonStatus(
-        is_running=is_daemon_running,
+        is_running=is_daemon_lock_held(path=state.lock),
         run=read_json_if_exists(model=DaemonRunRecord, path=state.daemon_run_record),
     )
 
@@ -291,16 +278,19 @@ def read_assignment_statuses_for_issue(
     *,
     state: StateDirectory,
     issue: int,
+    daemon: DreamcatcherDaemonStatus,
     clock: Callable[[], datetime] = read_current_time,
 ) -> list[AssignmentStatus]:
-    """Read the statuses at one issue, newest agent assignment first."""
-    at, is_daemon_running, scheduler_record = _read_status_facts(
-        state=state, clock=clock
-    )
+    """Read the statuses at one issue, newest agent assignment first.
+
+    The caller reads the daemon status, so a view that also shows it shows the
+    same answer that its round statuses came from.
+    """
+    at, scheduler_record = _read_status_facts(state=state, clock=clock)
     return AssignmentStatusReader(
         state=state,
         at=at,
-        is_daemon_running=is_daemon_running,
+        is_daemon_running=daemon.is_running,
         scheduler_record=scheduler_record,
         assignments=read_assignments_for_issue(state=state, issue=issue),
     ).list_statuses()
@@ -310,19 +300,22 @@ def read_assignment_status(
     *,
     state: StateDirectory,
     identifier: str,
+    daemon: DreamcatcherDaemonStatus,
     clock: Callable[[], datetime] = read_current_time,
 ) -> AssignmentStatus | None:
-    """Read one agent assignment's status by its exact identifier."""
+    """Read one agent assignment's status by its exact identifier.
+
+    The caller reads the daemon status, so a view that also shows it shows the
+    same answer that its round statuses came from.
+    """
     assignment = read_assignment(state=state, identifier=identifier)
     if assignment is None:
         return None
-    at, is_daemon_running, scheduler_record = _read_status_facts(
-        state=state, clock=clock
-    )
+    at, scheduler_record = _read_status_facts(state=state, clock=clock)
     return AssignmentStatusReader(
         state=state,
         at=at,
-        is_daemon_running=is_daemon_running,
+        is_daemon_running=daemon.is_running,
         scheduler_record=scheduler_record,
         assignments=[assignment],
     ).derive(assignment=assignment)
@@ -332,21 +325,22 @@ def read_conversation_status(
     *,
     state: StateDirectory,
     issue: int,
+    daemon: DreamcatcherDaemonStatus,
     clock: Callable[[], datetime] = read_current_time,
 ) -> ConversationStatus | None:
     """Read one issue conversation's status by its issue number.
 
     An issue has a conversation once it has a saved conversation or the latest
-    tick observed it through a configured conversation route.
+    tick observed it through a configured conversation route. The caller reads
+    the daemon status, so a view that also shows it shows the same answer that
+    its round statuses came from.
     """
     conversation = read_conversation(state=state, issue=issue)
-    at, is_daemon_running, scheduler_record = _read_status_facts(
-        state=state, clock=clock
-    )
+    at, scheduler_record = _read_status_facts(state=state, clock=clock)
     statuses = ConversationStatusReader(
         state=state,
         at=at,
-        is_daemon_running=is_daemon_running,
+        is_daemon_running=daemon.is_running,
         scheduler_record=scheduler_record,
         conversations=[] if conversation is None else [conversation],
     ).list_statuses()

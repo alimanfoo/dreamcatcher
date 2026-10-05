@@ -37,7 +37,11 @@ from dreamcatcher.scheduler.models import (
     SchedulerRecord,
 )
 from dreamcatcher.state import StateDirectory
-from dreamcatcher.status import read_conversation_status, read_status_report
+from dreamcatcher.status import (
+    read_conversation_status,
+    read_dreamcatcher_daemon_status,
+    read_status_report,
+)
 from dreamcatcher.status.conversations import ConversationStatusValue
 
 LOOKED_AT = PINNED + timedelta(hours=2)
@@ -154,14 +158,24 @@ def observe(
 
 def status(*, state: StateDirectory):
     """Return the fixture conversation's status at the pinned time."""
-    found = read_conversation_status(state=state, issue=8, clock=lambda: LOOKED_AT)
+    found = read_conversation_status(
+        state=state,
+        issue=8,
+        daemon=read_dreamcatcher_daemon_status(state=state),
+        clock=lambda: LOOKED_AT,
+    )
     assert found is not None
     return found
 
 
 def test_a_missing_conversation_has_no_status(tmp_path):
+    state = StateDirectory(root=tmp_path)
+
     assert (
-        read_conversation_status(state=StateDirectory(root=tmp_path), issue=8) is None
+        read_conversation_status(
+            state=state, issue=8, daemon=read_dreamcatcher_daemon_status(state=state)
+        )
+        is None
     )
 
 
@@ -616,7 +630,9 @@ def test_an_eligible_issue_is_a_conversation_before_its_record_exists(tmp_path):
     )
 
     report = read_status_report(state=state, clock=lambda: LOOKED_AT)
-    found = read_conversation_status(state=state, issue=9)
+    found = read_conversation_status(
+        state=state, issue=9, daemon=read_dreamcatcher_daemon_status(state=state)
+    )
 
     assert found is not None
     assert report.conversation_statuses == [found]
@@ -634,7 +650,9 @@ def test_an_eligible_issue_nobody_has_commented_on_is_idle(tmp_path):
     state = StateDirectory(root=tmp_path)
     observe(state=state, observations=[observed_conversation(issue=9)])
 
-    found = read_conversation_status(state=state, issue=9)
+    found = read_conversation_status(
+        state=state, issue=9, daemon=read_dreamcatcher_daemon_status(state=state)
+    )
 
     assert found is not None
     assert found.value is ConversationStatusValue.IDLE
@@ -655,7 +673,9 @@ def test_an_unsaved_conversation_with_two_routes_reports_its_conflict(tmp_path):
         ],
     )
 
-    found = read_conversation_status(state=state, issue=9)
+    found = read_conversation_status(
+        state=state, issue=9, daemon=read_dreamcatcher_daemon_status(state=state)
+    )
 
     assert found is not None
     assert found.value is ConversationStatusValue.ROUTING_CONFLICT
@@ -684,4 +704,11 @@ def test_a_saved_conversation_with_two_routes_reports_its_conflict(
 
 
 def test_an_unobserved_issue_with_no_record_has_no_conversation(conversation_state):
-    assert read_conversation_status(state=conversation_state, issue=9) is None
+    assert (
+        read_conversation_status(
+            state=conversation_state,
+            issue=9,
+            daemon=read_dreamcatcher_daemon_status(state=conversation_state),
+        )
+        is None
+    )

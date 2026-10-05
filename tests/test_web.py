@@ -30,6 +30,7 @@ from status_fabrications import (
 )
 from werkzeug.test import TestResponse
 
+import dreamcatcher.status.report as report_module
 import dreamcatcher.web.server as web_server_module
 from dreamcatcher.agent_assignments import (
     cancel_assignment,
@@ -152,6 +153,17 @@ def test_assignment_page_shows_the_common_agent_work_facts(tmp_path):
     assert "<dt>model</dt><dd>opus[1m] · xhigh</dd>" in page
     assert "<dt>assignment</dt>" not in page
     assert "<dt>session</dt>" not in page
+
+
+def test_assignment_page_asks_once_whether_the_daemon_runs(tmp_path, monkeypatch):
+    state = StateDirectory(root=tmp_path)
+    fabricate_everything(state=state)
+    probe = MagicMock(wraps=report_module.is_daemon_lock_held)
+    monkeypatch.setattr(report_module, "is_daemon_lock_held", probe)
+
+    render_assignment(state=state, identifier="GH13-20260819-184158")
+
+    probe.assert_called_once_with(path=state.lock)
 
 
 def test_assignment_page_requests_a_stop_for_its_running_round(tmp_path):

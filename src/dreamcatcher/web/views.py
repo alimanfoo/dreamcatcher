@@ -18,7 +18,6 @@ from dreamcatcher.status import (
     DreamcatcherStatusReport,
     IssueFactValue,
     IssueObservation,
-    read_dreamcatcher_daemon_status,
     read_repository,
 )
 from dreamcatcher.web.feed import read_agent_feed
@@ -202,6 +201,7 @@ def compose_assignment_view(
     *,
     state: StateDirectory,
     status: AssignmentStatus,
+    daemon: DreamcatcherDaemonStatus,
     live: WebAgentLiveState,
     zone: tzinfo | None,
 ) -> WebAssignmentView:
@@ -209,7 +209,6 @@ def compose_assignment_view(
     assignment = status.assignment
     record = assignment.record
     repository = read_repository(state=state)
-    daemon = read_dreamcatcher_daemon_status(state=state)
     feed = read_agent_feed(owner=assignment, zone=zone, rounds=live.rounds)
     return WebAssignmentView(
         repository=repository or "repository unknown",
@@ -235,13 +234,13 @@ def compose_conversation_view(
     *,
     state: StateDirectory,
     status: ConversationStatus,
+    daemon: DreamcatcherDaemonStatus,
     live: WebAgentLiveState,
     zone: tzinfo | None,
 ) -> WebConversationView:
     """Return the values shown on one issue-conversation page."""
     conversation = status.conversation
     repository = read_repository(state=state)
-    daemon = read_dreamcatcher_daemon_status(state=state)
     feed = read_agent_feed(owner=conversation, zone=zone, rounds=live.rounds)
     return WebConversationView(
         repository=repository or "repository unknown",
