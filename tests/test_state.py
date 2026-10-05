@@ -36,7 +36,7 @@ def test_the_daemon_files_use_the_versioned_root_and_shared_lock(tmp_path):
     state = StateDirectory(root=tmp_path)
 
     assert state.path == tmp_path / ".dreamcatcher" / "v5"
-    assert state.lock == state.path.parent / "daemon.pid"
+    assert state.lock == state.path.parent / "daemon.lock"
     assert state.repository == state.path / "repository"
     assert state.daemon_run_record == state.path / "daemon.json"
     assert state.scheduler_record == state.path / "scheduler.json"

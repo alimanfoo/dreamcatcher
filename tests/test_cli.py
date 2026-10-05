@@ -5,9 +5,9 @@ import pytest
 from clocks import PINNED
 from conftest import configure
 from records import (
+    hold_daemon_lock_for_test,
     write_assignment,
     write_conversation,
-    write_daemon_lock,
     write_feed,
     write_round,
 )
@@ -60,7 +60,7 @@ def watching(tmp_path):
     configure(root=tmp_path)
     state = StateDirectory(root=tmp_path)
     state.bootstrap()
-    write_daemon_lock(path=state.lock)
+    hold_daemon_lock_for_test(path=state.lock)
     directory = write_assignment(state=state, identifier=ASSIGNMENT_ID, issue=13)
     write_round(
         directory=directory,
@@ -339,7 +339,7 @@ def test_stop_requests_an_issue_conversations_running_round(
 ):
     state = StateDirectory(root=tmp_path)
     state.bootstrap()
-    write_daemon_lock(path=state.lock)
+    hold_daemon_lock_for_test(path=state.lock)
     directory = write_conversation(state=state, issue=13)
     write_round(
         directory=directory,
@@ -428,7 +428,7 @@ def test_stop_refuses_a_round_without_a_resumable_session(
 ):
     state = StateDirectory(root=tmp_path)
     state.bootstrap()
-    write_daemon_lock(path=state.lock)
+    hold_daemon_lock_for_test(path=state.lock)
     directory = write_assignment(
         state=state,
         identifier=ASSIGNMENT_ID,
@@ -460,7 +460,7 @@ def test_stop_refuses_a_conversation_round_without_a_resumable_session(
 ):
     state = StateDirectory(root=tmp_path)
     state.bootstrap()
-    write_daemon_lock(path=state.lock)
+    hold_daemon_lock_for_test(path=state.lock)
     directory = write_conversation(
         state=state,
         issue=13,
@@ -736,11 +736,11 @@ def test_a_failure_the_user_must_read_is_a_message_not_a_traceback(
     assert "main checkout" in capsys.readouterr().err
 
 
-def test_a_write_the_daemon_cannot_make_is_a_message_not_a_traceback(
+def test_a_lock_the_daemon_cannot_take_is_a_message_not_a_traceback(
     monkeypatch, watched, capsys, harnesses
 ):
     monkeypatch.chdir(watched)
     (watched / ".dreamcatcher").write_text("not a directory\n", encoding="utf-8")
 
     assert main(argv=["run", "--harness", "claude"]) == 1
-    assert "cannot write" in capsys.readouterr().err
+    assert "cannot lock" in capsys.readouterr().err

@@ -21,7 +21,6 @@ from fakes import Line
 from records import (
     write_assignment,
     write_conversation,
-    write_daemon_lock,
     write_daemon_run,
     write_round,
 )
@@ -40,6 +39,7 @@ from dreamcatcher.daemon import DreamcatcherDaemon
 from dreamcatcher.daemon_runs import DaemonRunRecord
 from dreamcatcher.documents import read_json, write_json, write_text
 from dreamcatcher.errors import ReportableError
+from dreamcatcher.lock import hold_daemon_lock, is_daemon_lock_held
 from dreamcatcher.scheduler import AssignmentScheduler, ConversationScheduler, Scheduler
 from dreamcatcher.scheduler.models import (
     AgentWorkObservation,
@@ -357,7 +357,7 @@ def test_the_daemon_bootstraps_the_state_directory_and_releases_the_lock(
         max_agents=1,
         interval_seconds=300,
     )
-    assert not daemon.state.lock.exists()
+    assert not is_daemon_lock_held(path=daemon.state.lock)
 
 
 def test_a_second_daemon_refuses_while_the_first_holds_the_repo(
@@ -367,9 +367,11 @@ def test_a_second_daemon_refuses_while_the_first_holds_the_repo(
     daemon.state.bootstrap()
     write_daemon_run(state=daemon.state, pid=os.getpid(), max_agents=2)
     (daemon.state.path.parent / "repository").write_bytes(b"legacy\n")
-    write_daemon_lock(path=daemon.state.lock)
 
-    with pytest.raises(ReportableError, match=f"pid {os.getpid()}"):
+    with (
+        hold_daemon_lock(path=daemon.state.lock),
+        pytest.raises(ReportableError, match="already running"),
+    ):
         daemon.run()
 
     assert (

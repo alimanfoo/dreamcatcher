@@ -106,9 +106,7 @@ def _read_cursor(*, response: TestResponse) -> str:
 
 
 @pytest.mark.parametrize("name", sorted(WEB_STATUS_REPORTS))
-def test_a_state_directory_renders_as_its_golden_home(
-    name, tmp_path, daemon, pytestconfig
-):
+def test_a_state_directory_renders_as_its_golden_home(name, tmp_path, pytestconfig):
     state = StateDirectory(root=tmp_path)
     WEB_STATUS_REPORTS[name](state=state)
 
@@ -122,7 +120,7 @@ def test_a_state_directory_renders_as_its_golden_home(
 
 
 @pytest.mark.parametrize("name", sorted(WEB_ASSIGNMENT_PAGES))
-def test_an_assignment_renders_as_its_golden_page(name, tmp_path, daemon, pytestconfig):
+def test_an_assignment_renders_as_its_golden_page(name, tmp_path, pytestconfig):
     state = StateDirectory(root=tmp_path)
     fabricate, identifier = WEB_ASSIGNMENT_PAGES[name]
     fabricate(state=state)
@@ -136,7 +134,7 @@ def test_an_assignment_renders_as_its_golden_page(name, tmp_path, daemon, pytest
     )
 
 
-def test_assignment_page_shows_the_common_agent_work_facts(tmp_path, daemon):
+def test_assignment_page_shows_the_common_agent_work_facts(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
 
@@ -150,7 +148,7 @@ def test_assignment_page_shows_the_common_agent_work_facts(tmp_path, daemon):
     assert "<dt>session</dt>" not in page
 
 
-def test_assignment_page_requests_a_stop_for_its_running_round(tmp_path, daemon):
+def test_assignment_page_requests_a_stop_for_its_running_round(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
     identifier = "GH13-20260819-184158"
@@ -181,7 +179,7 @@ def test_assignment_page_requests_a_stop_for_its_running_round(tmp_path, daemon)
     )
 
 
-def test_an_old_assignment_stop_submission_cannot_stop_the_next_round(tmp_path, daemon):
+def test_an_old_assignment_stop_submission_cannot_stop_the_next_round(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
     identifier = "GH13-20260819-184158"
@@ -199,7 +197,7 @@ def test_an_old_assignment_stop_submission_cannot_stop_the_next_round(tmp_path, 
 
 
 @pytest.mark.parametrize("origin", [None, "https://example.com"])
-def test_assignment_stop_requests_must_come_from_the_page(tmp_path, daemon, origin):
+def test_assignment_stop_requests_must_come_from_the_page(tmp_path, origin):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
     identifier = "GH13-20260819-184158"
@@ -214,7 +212,7 @@ def test_assignment_stop_requests_must_come_from_the_page(tmp_path, daemon, orig
     assert not assignment.compose_round_paths(number=2).stop_request.exists()
 
 
-def test_assignment_stop_control_needs_a_daemon_and_harness_session(tmp_path, daemon):
+def test_assignment_stop_control_needs_a_daemon_and_harness_session(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
     identifier = "GH60-20260819-184158"
@@ -236,7 +234,7 @@ def test_assignment_stop_control_needs_a_daemon_and_harness_session(tmp_path, da
     assert 'action="/assignments/GH13-20260819-184158/stop/2"' not in without_daemon
 
 
-def test_assignment_tail_updates_the_stop_and_cancel_controls(tmp_path, daemon):
+def test_assignment_tail_updates_the_stop_and_cancel_controls(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
     identifier = "GH13-20260819-184158"
@@ -254,9 +252,7 @@ def test_assignment_tail_updates_the_stop_and_cancel_controls(tmp_path, daemon):
     assert f'action="/assignments/{identifier}/cancel"' in response.text
 
 
-def test_assignment_tail_offers_a_hand_resume_only_while_no_round_runs(
-    tmp_path, daemon
-):
+def test_assignment_tail_offers_a_hand_resume_only_while_no_round_runs(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
     identifier = "GH13-20260819-184158"
@@ -276,7 +272,7 @@ def test_assignment_tail_offers_a_hand_resume_only_while_no_round_runs(
     assert "claude --resume abc-123" in without_daemon.text
 
 
-def test_a_stale_assignment_stop_request_is_already_done(tmp_path, daemon):
+def test_a_stale_assignment_stop_request_is_already_done(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
     identifier = "GH12-20260819-184158"
@@ -305,7 +301,7 @@ def test_an_unknown_assignment_cannot_receive_a_stop_request(tmp_path):
     assert response.status_code == 404
 
 
-def test_assignment_page_cancels_its_assignment(tmp_path, daemon):
+def test_assignment_page_cancels_its_assignment(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
     identifier = "GH13-20260819-184158"
@@ -329,7 +325,7 @@ def test_assignment_page_cancels_its_assignment(tmp_path, daemon):
 
 
 @pytest.mark.parametrize("identifier", ["GH12-20260819-184158", "GH70-20260819-184158"])
-def test_an_ended_assignment_offers_no_cancel_control(tmp_path, daemon, identifier):
+def test_an_ended_assignment_offers_no_cancel_control(tmp_path, identifier):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
 
@@ -338,9 +334,7 @@ def test_an_ended_assignment_offers_no_cancel_control(tmp_path, daemon, identifi
     assert "/cancel" not in page
 
 
-def test_a_cancelled_assignment_still_working_offers_no_cancel_control(
-    tmp_path, daemon
-):
+def test_a_cancelled_assignment_still_working_offers_no_cancel_control(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
     identifier = "GH13-20260819-184158"
@@ -355,7 +349,7 @@ def test_a_cancelled_assignment_still_working_offers_no_cancel_control(
 
 
 @pytest.mark.parametrize("origin", [None, "https://example.com"])
-def test_assignment_cancels_must_come_from_the_page(tmp_path, daemon, origin):
+def test_assignment_cancels_must_come_from_the_page(tmp_path, origin):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
     identifier = "GH13-20260819-184158"
@@ -370,7 +364,7 @@ def test_assignment_cancels_must_come_from_the_page(tmp_path, daemon, origin):
     assert assignment.is_open
 
 
-def test_a_stale_assignment_cancel_changes_nothing(tmp_path, daemon):
+def test_a_stale_assignment_cancel_changes_nothing(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
     identifier = "GH70-20260819-184158"
@@ -486,7 +480,7 @@ def test_an_unknown_assignment_cannot_receive_a_retry_request(tmp_path):
     assert response.status_code == 404
 
 
-def test_a_stopped_round_is_shown_as_stopped(tmp_path, daemon):
+def test_a_stopped_round_is_shown_as_stopped(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
     written(
@@ -508,7 +502,7 @@ def test_a_stopped_round_is_shown_as_stopped(tmp_path, daemon):
     assert 'class="round-outcome outcome-stopped">stopped</span>' in page
 
 
-def test_a_home_card_links_to_its_exact_assignment(tmp_path, daemon):
+def test_a_home_card_links_to_its_exact_assignment(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
 
@@ -527,7 +521,7 @@ def test_a_home_card_links_to_its_exact_assignment(tmp_path, daemon):
     assert card.index('class="pr-chip"') > card.index('class="assignment-detail"')
 
 
-def test_feedback_card_keeps_its_compact_actions_inside_the_heading(tmp_path, daemon):
+def test_feedback_card_keeps_its_compact_actions_inside_the_heading(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
 
@@ -557,7 +551,7 @@ def test_feedback_card_keeps_its_compact_actions_inside_the_heading(tmp_path, da
     )
 
 
-def test_assignment_feedback_status_uses_the_status_wording(tmp_path, daemon):
+def test_assignment_feedback_status_uses_the_status_wording(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
 
@@ -573,7 +567,7 @@ def test_assignment_feedback_status_uses_the_status_wording(tmp_path, daemon):
     assert "[NEEDS USER FEEDBACK]" not in page
 
 
-def test_assignment_page_polls_its_tail_from_the_last_complete_line(tmp_path, daemon):
+def test_assignment_page_polls_its_tail_from_the_last_complete_line(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
     identifier = "GH13-20260819-184158"
@@ -589,9 +583,7 @@ def test_assignment_page_polls_its_tail_from_the_last_complete_line(tmp_path, da
     )
 
 
-def test_assignment_page_before_its_first_round_starts_at_the_first_cursor(
-    tmp_path, daemon
-):
+def test_assignment_page_before_its_first_round_starts_at_the_first_cursor(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
 
@@ -604,7 +596,7 @@ def test_assignment_page_before_its_first_round_starts_at_the_first_cursor(
     assert '<p id="empty-feed" class="empty">-- no feed yet --</p>' in page
 
 
-def test_assignment_page_ids_are_unique(tmp_path, daemon):
+def test_assignment_page_ids_are_unique(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
 
@@ -643,7 +635,7 @@ def test_assignment_script_follows_only_when_the_feed_was_at_its_end(tmp_path):
     assert "focusedRoundLink?.focus({ preventScroll: true })" in script
 
 
-def test_ended_assignment_cards_have_space_between_them(tmp_path, daemon):
+def test_ended_assignment_cards_have_space_between_them(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
 
@@ -727,7 +719,7 @@ def test_home_page_types_replaced_assignment_output(tmp_path):
     )
 
 
-def test_assignment_page_shares_the_home_page_top_bar(tmp_path, daemon):
+def test_assignment_page_shares_the_home_page_top_bar(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
 
@@ -744,9 +736,7 @@ def test_assignment_page_shares_the_home_page_top_bar(tmp_path, daemon):
     assert assignment_headers == home_headers
 
 
-def test_every_complete_page_uses_the_dreamcatcher_mark_as_its_favicon(
-    tmp_path, daemon
-):
+def test_every_complete_page_uses_the_dreamcatcher_mark_as_its_favicon(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
     app = _create_app(state=state)
@@ -797,7 +787,7 @@ def test_an_unknown_theme_uses_matrix_without_being_remembered(tmp_path):
     assert "Set-Cookie" not in response.headers
 
 
-def test_github_links_open_in_a_new_tab(tmp_path, daemon):
+def test_github_links_open_in_a_new_tab(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
 
@@ -993,7 +983,7 @@ def test_an_ended_round_moves_to_the_next_round_after_an_empty_read(tmp_path):
     assert _read_cursor(response=response).startswith("2:")
 
 
-def test_a_terminal_tail_returns_late_output_before_it_stops(tmp_path, daemon):
+def test_a_terminal_tail_returns_late_output_before_it_stops(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
     identifier = "GH12-20260819-184158"
@@ -1015,7 +1005,7 @@ def test_a_terminal_tail_returns_late_output_before_it_stops(tmp_path, daemon):
     assert stopped.status_code == 286
 
 
-def test_a_faulted_tail_stops_when_it_reads_nothing_new(tmp_path, daemon):
+def test_a_faulted_tail_stops_when_it_reads_nothing_new(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
     feed = _feed_path(state=state, identifier="GH9-20260819-184158", number=2)
@@ -1029,7 +1019,7 @@ def test_a_faulted_tail_stops_when_it_reads_nothing_new(tmp_path, daemon):
     assert response.status_code == 286
 
 
-def test_a_tail_fragment_matches_its_golden(tmp_path, daemon, pytestconfig):
+def test_a_tail_fragment_matches_its_golden(tmp_path, pytestconfig):
     state = StateDirectory(root=tmp_path)
     fabricate_a_silent_round(state=state)
     identifier = "GH13-20260819-184158"
@@ -1071,7 +1061,7 @@ def test_a_quiet_tail_has_no_appendable_text_nodes(tmp_path):
     assert response.text.endswith("</div>")
 
 
-def test_an_assignment_page_links_its_title_and_pull_request(tmp_path, daemon):
+def test_an_assignment_page_links_its_title_and_pull_request(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_titles_and_pull_request_states(state=state)
 
@@ -1115,7 +1105,7 @@ def test_assignment_heading_keeps_its_chips_in_the_top_right(tmp_path):
     )
 
 
-def test_assignment_rounds_link_to_the_feed_in_ascending_order(tmp_path, daemon):
+def test_assignment_rounds_link_to_the_feed_in_ascending_order(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
 
@@ -1132,7 +1122,7 @@ def test_assignment_rounds_link_to_the_feed_in_ascending_order(tmp_path, daemon)
     assert 'src="/static/assignment.js"' in page
 
 
-def test_an_errored_rounds_style_uses_its_outcome_alone(tmp_path, daemon):
+def test_an_errored_rounds_style_uses_its_outcome_alone(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
 
@@ -1141,7 +1131,7 @@ def test_an_errored_rounds_style_uses_its_outcome_alone(tmp_path, daemon):
     assert 'class="round-outcome outcome-errored">errored (exit 2)</span>' in page
 
 
-def test_hand_resume_command_is_collapsed(tmp_path, daemon):
+def test_hand_resume_command_is_collapsed(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
 
@@ -1160,7 +1150,7 @@ def test_hand_resume_command_is_collapsed(tmp_path, daemon):
     assert "font-size: 0.9em;" in stylesheet
 
 
-def test_assignment_page_offers_a_control_that_jumps_to_the_feed_tail(tmp_path, daemon):
+def test_assignment_page_offers_a_control_that_jumps_to_the_feed_tail(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
 
@@ -1223,7 +1213,7 @@ def test_round_headings_are_separated_from_the_feed_content(tmp_path):
     )
 
 
-def test_assignment_reporting_remains_without_a_repository_record(tmp_path, daemon):
+def test_assignment_reporting_remains_without_a_repository_record(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_titles_and_pull_request_states(state=state)
     state.repository.unlink()
@@ -1234,9 +1224,7 @@ def test_assignment_reporting_remains_without_a_repository_record(tmp_path, daem
     assert '<span class="pr-chip">PR #52 draft</span>' in page
 
 
-def test_an_assignment_page_reports_a_repository_record_that_will_not_read(
-    tmp_path, daemon
-):
+def test_an_assignment_page_reports_a_repository_record_that_will_not_read(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
     state.repository.unlink()
@@ -1251,9 +1239,7 @@ def test_an_assignment_page_reports_a_repository_record_that_will_not_read(
     assert "cannot read" in response.get_data(as_text=True)
 
 
-def test_the_assignment_page_preserves_and_escapes_an_unparseable_feed_line(
-    tmp_path, daemon
-):
+def test_the_assignment_page_preserves_and_escapes_an_unparseable_feed_line(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
     feed = state.assignments / "GH13-20260819-184158" / "rounds" / "2" / "feed.txt"
@@ -1265,7 +1251,7 @@ def test_the_assignment_page_preserves_and_escapes_an_unparseable_feed_line(
     assert "<script>alert('no')</script>" not in page
 
 
-def test_the_same_state_renders_as_the_same_home_page(tmp_path, daemon):
+def test_the_same_state_renders_as_the_same_home_page(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
 
@@ -1275,7 +1261,7 @@ def test_the_same_state_renders_as_the_same_home_page(tmp_path, daemon):
     assert second_page == first_page
 
 
-def test_every_home_page_id_is_unique(tmp_path, daemon):
+def test_every_home_page_id_is_unique(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
 
@@ -1285,7 +1271,7 @@ def test_every_home_page_id_is_unique(tmp_path, daemon):
     assert len(identifiers) == len(set(identifiers))
 
 
-def test_the_home_page_autoescapes_feed_output(tmp_path, daemon):
+def test_the_home_page_autoescapes_feed_output(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
     feed = state.assignments / "GH13-20260819-184158" / "rounds" / "2" / "feed.txt"
@@ -1298,7 +1284,7 @@ def test_the_home_page_autoescapes_feed_output(tmp_path, daemon):
     assert "<script>alert('no')</script>" not in page
 
 
-def test_issue_references_link_to_github_with_hash_notation(tmp_path, daemon):
+def test_issue_references_link_to_github_with_hash_notation(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
 
@@ -1335,7 +1321,7 @@ def test_an_assignment_label_that_looks_like_an_issue_reference_remains_text():
     assert row.evidence == (evidence,)
 
 
-def test_a_pull_request_links_to_github_before_its_state_is_observed(tmp_path, daemon):
+def test_a_pull_request_links_to_github_before_its_state_is_observed(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
 
@@ -1348,7 +1334,7 @@ def test_a_pull_request_links_to_github_before_its_state_is_observed(tmp_path, d
     )
 
 
-def test_dashboard_groups_issues_with_assignments(tmp_path, daemon):
+def test_dashboard_groups_issues_with_assignments(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
 
@@ -1359,7 +1345,7 @@ def test_dashboard_groups_issues_with_assignments(tmp_path, daemon):
     assert 'id="conversations-heading"' not in page
 
 
-def test_a_failure_at_capacity_shows_beside_the_capacity(tmp_path, daemon):
+def test_a_failure_at_capacity_shows_beside_the_capacity(tmp_path):
     state = StateDirectory(root=tmp_path)
     WEB_STATUS_REPORTS["at-cap"](state=state)
 
@@ -1370,7 +1356,7 @@ def test_a_failure_at_capacity_shows_beside_the_capacity(tmp_path, daemon):
     assert "could not list issues for dream:less: could not connect" in page
 
 
-def test_next_update_is_left_out_when_no_daemon_is_running(tmp_path, daemon):
+def test_next_update_is_left_out_when_no_daemon_is_running(tmp_path):
     state = StateDirectory(root=tmp_path)
     WEB_STATUS_REPORTS["nothing"](state=state)
 
@@ -1379,7 +1365,7 @@ def test_next_update_is_left_out_when_no_daemon_is_running(tmp_path, daemon):
     assert "<dt>next update in</dt>" not in page
 
 
-def test_active_cooldown_uses_the_display_zone(tmp_path, daemon):
+def test_active_cooldown_uses_the_display_zone(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
     write_tick(
@@ -1400,7 +1386,7 @@ def test_active_cooldown_uses_the_display_zone(tmp_path, daemon):
     assert "2026-08-19 20:56:58" not in page
 
 
-def test_an_inactive_cooldown_is_not_shown(tmp_path, daemon):
+def test_an_inactive_cooldown_is_not_shown(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
 
@@ -1409,7 +1395,7 @@ def test_an_inactive_cooldown_is_not_shown(tmp_path, daemon):
     assert "global cooldown" not in page
 
 
-def test_pull_request_state_remains_without_a_repository_record(tmp_path, daemon):
+def test_pull_request_state_remains_without_a_repository_record(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_titles_and_pull_request_states(state=state)
     state.repository.unlink()
@@ -1420,7 +1406,7 @@ def test_pull_request_state_remains_without_a_repository_record(tmp_path, daemon
         assert f'<span class="pr-chip">PR #52 {pull_request_state}</span>' in page
 
 
-def test_a_record_that_will_not_read_renders_an_error_page(tmp_path, daemon):
+def test_a_record_that_will_not_read_renders_an_error_page(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
     record = state.assignments / "GH13-20260819-184158" / "assignment.json"

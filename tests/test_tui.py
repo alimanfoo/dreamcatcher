@@ -145,9 +145,7 @@ def render_status_view(*, state, width: int = WIDTH) -> str:
 
 
 @pytest.mark.parametrize("name", sorted(STATUS_REPORTS))
-def test_a_state_directory_renders_as_its_golden_status(
-    name, tmp_path, daemon, pytestconfig
-):
+def test_a_state_directory_renders_as_its_golden_status(name, tmp_path, pytestconfig):
     state = StateDirectory(root=tmp_path)
     STATUS_REPORTS[name](state=state)
 
@@ -181,7 +179,7 @@ def test_identifiers_remain_whole_when_the_assignment_table_folds(tmp_path):
     assert "2endedassignments" in compact
 
 
-def test_assignments_are_rendered_in_attention_order(tmp_path, daemon):
+def test_assignments_are_rendered_in_attention_order(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
 
@@ -203,9 +201,7 @@ def test_assignments_are_rendered_in_attention_order(tmp_path, daemon):
 
 
 @pytest.mark.parametrize("width", [60, 80])
-def test_status_output_fits_one_line_without_hiding_later_assignments(
-    width, tmp_path, daemon
-):
+def test_status_output_fits_one_line_without_hiding_later_assignments(width, tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_status_everything(state=state)
 
@@ -217,7 +213,7 @@ def test_status_output_fits_one_line_without_hiding_later_assignments(
     assert f"GH31-{ASSIGNMENT_TIMESTAMP}" in rendered
 
 
-def test_ended_assignments_are_summarized(tmp_path, daemon):
+def test_ended_assignments_are_summarized(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_repeat_assignments(state=state)
 
@@ -244,7 +240,7 @@ def test_only_ended_assignments_are_summarized(tmp_path):
     assert "GH13-20260819-184158" not in rendered
 
 
-def test_status_nobody_is_watching_is_drawn_once_and_returns(tmp_path, daemon):
+def test_status_nobody_is_watching_is_drawn_once_and_returns(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
     written_to = StringIO()
@@ -260,7 +256,7 @@ def test_status_nobody_is_watching_is_drawn_once_and_returns(tmp_path, daemon):
     assert "running dreamcatcher v3.0.0.beta1 as pid 4242" in written_to.getvalue()
 
 
-def test_status_a_reader_watches_keeps_up_with_what_the_daemon_writes(tmp_path, daemon):
+def test_status_a_reader_watches_keeps_up_with_what_the_daemon_writes(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_nothing(state=state)
     written_to = StringIO()
@@ -294,7 +290,7 @@ def test_status_a_reader_watches_keeps_up_with_what_the_daemon_writes(tmp_path, 
     assert f"GH13-{ASSIGNMENT_TIMESTAMP}" in status
 
 
-def test_status_a_reader_watches_takes_the_screen_and_hands_it_back(tmp_path, daemon):
+def test_status_a_reader_watches_takes_the_screen_and_hands_it_back(tmp_path):
     """The reader gets the terminal back as it was, and their scrollback with it."""
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
@@ -317,7 +313,7 @@ def test_status_a_reader_watches_takes_the_screen_and_hands_it_back(tmp_path, da
     assert status.endswith(SCREEN_HANDED_BACK)
 
 
-def test_status_on_a_dumb_terminal_is_drawn_once_and_returns(tmp_path, daemon):
+def test_status_on_a_dumb_terminal_is_drawn_once_and_returns(tmp_path):
     """A dumb terminal takes no control code, so rich draws no picture into one."""
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
@@ -352,7 +348,7 @@ def viewed(*, state, issue: int, width: int = WIDTH) -> str:
     return written_to.getvalue()
 
 
-def test_assignment_latest_output_is_indented_on_one_line(tmp_path, daemon):
+def test_assignment_latest_output_is_indented_on_one_line(tmp_path):
     state = StateDirectory(root=tmp_path)
     holding(state=state)
     directory = written(
@@ -382,7 +378,7 @@ def test_assignment_latest_output_is_indented_on_one_line(tmp_path, daemon):
     assert output[0].endswith("…")
 
 
-def test_assignment_status_alone_is_coloured_and_latest_output_is_dim(tmp_path, daemon):
+def test_assignment_status_alone_is_coloured_and_latest_output_is_dim(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
     written_to = StringIO()
@@ -415,7 +411,7 @@ def test_assignment_status_alone_is_coloured_and_latest_output_is_dim(tmp_path, 
 
 
 @pytest.mark.parametrize("name", sorted(ASSIGNMENTS))
-def test_an_assignment_renders_as_its_golden_view(name, tmp_path, daemon, pytestconfig):
+def test_an_assignment_renders_as_its_golden_view(name, tmp_path, pytestconfig):
     state = StateDirectory(root=tmp_path)
     fabricate, issue = ASSIGNMENTS[name]
     fabricate(state=state)
@@ -429,9 +425,7 @@ def test_an_assignment_renders_as_its_golden_view(name, tmp_path, daemon, pytest
     )
 
 
-def test_an_assignment_view_shows_the_round_that_starts_while_it_is_open(
-    tmp_path, daemon
-):
+def test_an_assignment_view_shows_the_round_that_starts_while_it_is_open(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
     written_to = StringIO()
@@ -468,9 +462,7 @@ def test_an_assignment_view_shows_the_round_that_starts_while_it_is_open(
 
 
 @pytest.mark.parametrize("issue", [12, 9])
-def test_an_assignment_view_of_an_assignment_that_is_over_never_waits(
-    issue, tmp_path, daemon
-):
+def test_an_assignment_view_of_an_assignment_that_is_over_never_waits(issue, tmp_path):
     """GH12 completed its wrap-up, and GH9 is in fault, so neither has one coming."""
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
@@ -489,7 +481,7 @@ def test_an_assignment_view_of_an_assignment_that_is_over_never_waits(
 
 
 def test_an_assignment_view_of_an_assignment_that_is_over_keeps_its_last_picture(
-    tmp_path, daemon
+    tmp_path,
 ):
     """GH12 completed its wrap-up, so the view ends and its picture stays."""
     state = StateDirectory(root=tmp_path)
@@ -526,7 +518,7 @@ def followed(*, state, issue: int, wait=refusing) -> str:
     return written_to.getvalue()
 
 
-def test_a_feed_nobody_is_watching_shows_what_is_there_and_returns(tmp_path, daemon):
+def test_a_feed_nobody_is_watching_shows_what_is_there_and_returns(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
     written_to = StringIO()
@@ -546,7 +538,7 @@ def test_a_feed_nobody_is_watching_shows_what_is_there_and_returns(tmp_path, dae
 
 
 @pytest.mark.parametrize("name", sorted(FEEDS))
-def test_a_feed_renders_as_its_golden_view(name, tmp_path, daemon, pytestconfig):
+def test_a_feed_renders_as_its_golden_view(name, tmp_path, pytestconfig):
     state = StateDirectory(root=tmp_path)
     fabricate, issue = FEEDS[name]
     fabricate(state=state)
@@ -584,9 +576,7 @@ def test_only_a_feed_lines_stamp_is_dim():
     assert not boundary.get_style_at_offset(console, boundary_text).dim
 
 
-def test_a_following_view_waits_for_the_round_an_assignment_has_yet_to_run(
-    tmp_path, daemon
-):
+def test_a_following_view_waits_for_the_round_an_assignment_has_yet_to_run(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
     waits = []
@@ -603,7 +593,7 @@ def test_a_following_view_waits_for_the_round_an_assignment_has_yet_to_run(
     assert waits == [_VIEW_REFRESH_INTERVAL]
 
 
-def test_a_following_view_looks_once_more_when_the_last_round_stops(tmp_path, daemon):
+def test_a_following_view_looks_once_more_when_the_last_round_stops(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
     directory = state.assignments / f"GH13-{ASSIGNMENT_TIMESTAMP}"
@@ -624,7 +614,7 @@ def test_a_following_view_looks_once_more_when_the_last_round_stops(tmp_path, da
     assert waits == [_VIEW_REFRESH_INTERVAL, _VIEW_REFRESH_INTERVAL]
 
 
-def test_a_round_that_starts_while_the_view_is_going_arrives_in_it(tmp_path, daemon):
+def test_a_round_that_starts_while_the_view_is_going_arrives_in_it(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
     directory = state.assignments / f"GH20-{ASSIGNMENT_TIMESTAMP}"
@@ -661,7 +651,7 @@ def test_a_round_that_starts_while_the_view_is_going_arrives_in_it(tmp_path, dae
     assert feed.count("round 1: implement") == 1
 
 
-def test_a_view_of_an_assignment_that_is_over_never_waits(tmp_path, daemon):
+def test_a_view_of_an_assignment_that_is_over_never_waits(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
 
@@ -685,14 +675,14 @@ def test_a_following_view_waits_for_the_next_daemon(tmp_path):
     assert waits == [_VIEW_REFRESH_INTERVAL]
 
 
-def test_a_view_of_a_faulted_assignment_never_waits(tmp_path, daemon):
+def test_a_view_of_a_faulted_assignment_never_waits(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
 
     assert "round 2: implement" in followed(state=state, issue=9)
 
 
-def test_a_following_view_reads_a_round_on_from_where_it_stopped(tmp_path, daemon):
+def test_a_following_view_reads_a_round_on_from_where_it_stopped(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
     directory = state.assignments / f"GH13-{ASSIGNMENT_TIMESTAMP}"
@@ -725,9 +715,7 @@ def test_a_following_view_reads_a_round_on_from_where_it_stopped(tmp_path, daemo
     assert "id 000000" not in feed
 
 
-def test_a_write_that_never_landed_waits_for_the_look_that_shows_it_whole(
-    tmp_path, daemon
-):
+def test_a_write_that_never_landed_waits_for_the_look_that_shows_it_whole(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
     feed = (
@@ -752,9 +740,7 @@ def test_a_write_that_never_landed_waits_for_the_look_that_shows_it_whole(
     assert shown.count("[Grep] pyproject.toml") == 1
 
 
-def test_a_line_the_view_cannot_read_reaches_the_reader_as_it_was_written(
-    tmp_path, daemon
-):
+def test_a_line_the_view_cannot_read_reaches_the_reader_as_it_was_written(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
     write_text(
@@ -771,7 +757,7 @@ def test_a_line_the_view_cannot_read_reaches_the_reader_as_it_was_written(
     assert "the harness said something else" in feed
 
 
-def test_a_reader_who_has_seen_enough_interrupts_the_view(tmp_path, daemon):
+def test_a_reader_who_has_seen_enough_interrupts_the_view(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
 
@@ -800,7 +786,7 @@ def viewed_round(
     return written_to.getvalue()
 
 
-def test_a_round_view_uses_the_number_persisted_by_the_round(tmp_path, daemon):
+def test_a_round_view_uses_the_number_persisted_by_the_round(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
     directory = state.assignments / f"GH12-{ASSIGNMENT_TIMESTAMP}"
@@ -819,7 +805,7 @@ def test_a_round_view_uses_the_number_persisted_by_the_round(tmp_path, daemon):
         viewed_round(state=state, issue=12, number=3)
 
 
-def test_one_round_of_an_assignment_reads_on_its_own(tmp_path, daemon):
+def test_one_round_of_an_assignment_reads_on_its_own(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
 
@@ -829,7 +815,7 @@ def test_one_round_of_an_assignment_reads_on_its_own(tmp_path, daemon):
     )
 
 
-def test_a_round_that_wrote_no_feed_shows_the_line_that_opens_it(tmp_path, daemon):
+def test_a_round_that_wrote_no_feed_shows_the_line_that_opens_it(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
 
@@ -839,7 +825,7 @@ def test_a_round_that_wrote_no_feed_shows_the_line_that_opens_it(tmp_path, daemo
     )
 
 
-def test_a_view_of_a_round_that_has_ended_never_waits(tmp_path, daemon):
+def test_a_view_of_a_round_that_has_ended_never_waits(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
 
@@ -850,7 +836,7 @@ def test_a_view_of_a_round_that_has_ended_never_waits(tmp_path, daemon):
     assert "round 1: implement" in shown
 
 
-def test_a_view_of_a_running_round_ends_when_that_round_does(tmp_path, daemon):
+def test_a_view_of_a_running_round_ends_when_that_round_does(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
     directory = state.assignments / f"GH13-{ASSIGNMENT_TIMESTAMP}"
@@ -870,7 +856,7 @@ def test_a_view_of_a_running_round_ends_when_that_round_does(tmp_path, daemon):
     assert "[Bash] pytest" in shown
 
 
-def test_a_round_the_assignment_never_ran_says_how_many_it_did(tmp_path, daemon):
+def test_a_round_the_assignment_never_ran_says_how_many_it_did(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
 

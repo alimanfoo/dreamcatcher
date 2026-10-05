@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import sys
 from contextlib import suppress
 from time import sleep
@@ -113,11 +114,11 @@ class DreamcatcherDaemon:
         posts.
         """
         self._locate_harnesses()
-        with hold_daemon_lock(path=self.state.lock) as pid:
+        with hold_daemon_lock(path=self.state.lock):
             self.state.bootstrap()
             write_json(
                 document=DaemonRunRecord(
-                    pid=pid,
+                    pid=os.getpid(),
                     harness=self.harness,
                     version=DREAMCATCHER_VERSION,
                     max_agents=self.max_agents,

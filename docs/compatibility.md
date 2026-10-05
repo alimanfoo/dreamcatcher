@@ -56,8 +56,10 @@ several releases may share one state format.
 
 Dreamcatcher reads and writes only the directory for its own format, such as
 `.dreamcatcher/v5/`, and ignores other format directories without changing them.
-The daemon lock at `.dreamcatcher/daemon.pid` is shared across formats, so two
-versions still cannot run against the same checkout at once.
+The daemon lock at `.dreamcatcher/daemon.lock` is shared across formats, so two
+versions still cannot run against the same checkout at once. v4.0.0 and earlier
+use `.dreamcatcher/daemon.pid` instead, so stop an older daemon before you start
+v5.0.0.
 
 A different format starts with empty local state. No migration is promised.
 

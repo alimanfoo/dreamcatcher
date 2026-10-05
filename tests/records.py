@@ -5,12 +5,11 @@ writes them here, rather than creating them through the scheduler. So it reaches
 the state it is about without a GitHub, an origin to cut from, or a harness to run.
 """
 
-import os
 from collections.abc import Sequence
-from datetime import UTC, datetime
+from contextlib import ExitStack
+from datetime import datetime
 from pathlib import Path
 
-import psutil
 from clocks import PINNED
 
 from dreamcatcher import (
@@ -25,9 +24,12 @@ from dreamcatcher.daemon_runs import DaemonRunRecord
 from dreamcatcher.documents import write_json, write_text
 from dreamcatcher.feed import FeedLine
 from dreamcatcher.github import PullRequestState
-from dreamcatcher.lock import DaemonLockRecord
+from dreamcatcher.lock import hold_daemon_lock
 from dreamcatcher.scheduler.models import SchedulerRecord
 from dreamcatcher.state import StateDirectory
+
+# The daemon locks that the running test holds, by path.
+_HELD_DAEMON_LOCKS: dict[Path, ExitStack] = {}
 
 # What a fabricated assignment saw of its pull request, unless a test says.
 _OPEN_DRAFT = agent_assignments.PullRequestObservation(
@@ -56,26 +58,23 @@ def write_daemon_run(
     )
 
 
-def write_daemon_lock(
-    *,
-    path: Path,
-    pid: int | None = None,
-    process_started_at: datetime | None = None,
-) -> None:
-    """Write the identity of the process that holds the daemon lock."""
-    lock_pid = os.getpid() if pid is None else pid
-    lock_process_started_at = (
-        datetime.fromtimestamp(psutil.Process(lock_pid).create_time(), tz=UTC)
-        if process_started_at is None
-        else process_started_at
-    )
-    write_json(
-        document=DaemonLockRecord(
-            pid=lock_pid,
-            process_started_at=lock_process_started_at,
-        ),
-        path=path,
-    )
+def hold_daemon_lock_for_test(*, path: Path) -> None:
+    """Hold the daemon lock, as a running daemon would, until the test ends."""
+    held = ExitStack()
+    held.enter_context(hold_daemon_lock(path=path))
+    _HELD_DAEMON_LOCKS[path] = held
+
+
+def release_daemon_lock(*, path: Path) -> None:
+    """Release a lock that the test holds, as a daemon that dies would."""
+    _HELD_DAEMON_LOCKS.pop(path).close()
+
+
+def release_daemon_locks() -> None:
+    """Release every lock that the test still holds."""
+    while _HELD_DAEMON_LOCKS:
+        _, held = _HELD_DAEMON_LOCKS.popitem()
+        held.close()
 
 
 def write_assignment(
