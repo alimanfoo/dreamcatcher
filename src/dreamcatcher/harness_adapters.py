@@ -158,8 +158,8 @@ class HarnessAdapter(ABC):
     ) -> list[str]:
         """Return the command that resumes the harness session interactively.
 
-        It sets again whatever settings a resumed round sets, so a person
-        resumes with the agent work's model, effort and harness config. It
+        It sets the model, the effort and the harness config wherever a resumed
+        round sets them, so a person resumes with the agent work's settings. It
         carries no prompt: this invocation is interactive, and whoever ran it
         does the talking.
         """
