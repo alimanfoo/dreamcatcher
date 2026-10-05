@@ -49,6 +49,11 @@ class DreamcatcherDaemonStatus:
     run: DaemonRunRecord | None
 
     @property
+    def is_running(self) -> bool:
+        """Whether a daemon is running."""
+        return self.pid is not None
+
+    @property
     def agent_harness(self) -> AgentHarness | None:
         """The harness selected for the current or most recent run."""
         return None if self.run is None else self.run.harness
@@ -95,14 +100,14 @@ def read_status_report(
     assignment_statuses = AssignmentStatusReader(
         state=state,
         at=at,
-        daemon_pid=daemon_pid,
+        is_daemon_running=daemon_pid is not None,
         scheduler_record=scheduler_record,
         assignments=assignments,
     ).list_statuses()
     conversation_statuses = _list_reported_conversation_statuses(
         state=state,
         at=at,
-        daemon_pid=daemon_pid,
+        is_daemon_running=daemon_pid is not None,
         scheduler_record=scheduler_record,
     )
     issue_observations = _refresh_issue_observations(
@@ -147,7 +152,7 @@ def _list_reported_conversation_statuses(
     *,
     state: StateDirectory,
     at: datetime,
-    daemon_pid: int | None,
+    is_daemon_running: bool,
     scheduler_record: SchedulerRecord | None,
 ) -> list[ConversationStatus]:
     return [
@@ -155,7 +160,7 @@ def _list_reported_conversation_statuses(
         for status in ConversationStatusReader(
             state=state,
             at=at,
-            daemon_pid=daemon_pid,
+            is_daemon_running=is_daemon_running,
             scheduler_record=scheduler_record,
             conversations=read_conversations(state=state),
         ).list_statuses()
@@ -298,7 +303,7 @@ def read_assignment_statuses_for_issue(
     return AssignmentStatusReader(
         state=state,
         at=at,
-        daemon_pid=daemon_pid,
+        is_daemon_running=daemon_pid is not None,
         scheduler_record=scheduler_record,
         assignments=read_assignments_for_issue(state=state, issue=issue),
     ).list_statuses()
@@ -318,7 +323,7 @@ def read_assignment_status(
     return AssignmentStatusReader(
         state=state,
         at=at,
-        daemon_pid=daemon_pid,
+        is_daemon_running=daemon_pid is not None,
         scheduler_record=scheduler_record,
         assignments=[assignment],
     ).derive(assignment=assignment)
@@ -340,7 +345,7 @@ def read_conversation_status(
     statuses = ConversationStatusReader(
         state=state,
         at=at,
-        daemon_pid=daemon_pid,
+        is_daemon_running=daemon_pid is not None,
         scheduler_record=scheduler_record,
         conversations=[] if conversation is None else [conversation],
     ).list_statuses()

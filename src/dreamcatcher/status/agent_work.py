@@ -38,7 +38,7 @@ class AgentWorkStatusReader[AgentWorkStatus](ABC):
 
     state: StateDirectory
     at: datetime
-    daemon_pid: int | None
+    is_daemon_running: bool
     scheduler_record: SchedulerRecord | None
 
     @abstractmethod
@@ -54,7 +54,7 @@ class AgentWorkStatusReader[AgentWorkStatus](ABC):
 
     def is_round_working(self, *, record: AgentRoundRecord) -> bool:
         """Return whether the latest round is still running under a daemon."""
-        return record.ending is None and self.daemon_pid is not None
+        return record.ending is None and self.is_daemon_running
 
     def has_fault(
         self,
