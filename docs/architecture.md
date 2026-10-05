@@ -441,14 +441,14 @@ required to bootstrap that directory. The modules that own assignments,
 conversations and rounds name the files within their own directories. A
 state-format constant selects the versioned root, currently `.dreamcatcher/v5/`,
 so one format never reads another format's files. The shared
-`.dreamcatcher/daemon.lock` lock stays outside that root, so daemons using
-different formats still cannot run against one checkout together. The daemon
-holds an operating-system lock on that empty file for as long as it runs, and a
-reader asks whether the lock is held. The kernel releases the lock when the
-daemon's process ends, so neither a reused PID nor a clock change can make a
-dead daemon look live or a live one look dead. The module should remain
-deliberately small. It must not contain collections of issues or assignments
-selected for work, scheduling decisions, or status projections.
+`.dreamcatcher/daemon.lock` stays outside that root, so daemons using different
+formats still cannot run against one checkout together. The daemon holds an
+operating-system lock on that empty file for as long as it runs, and a reader
+asks whether the lock is held. The kernel releases the lock when the daemon's
+process ends, so neither a reused PID nor a clock change can make a dead daemon
+look live or a live one look dead. The module should remain deliberately small.
+It must not contain collections of issues or assignments selected for work,
+scheduling decisions, or status projections.
 
 The on-disk layout follows ownership:
 
