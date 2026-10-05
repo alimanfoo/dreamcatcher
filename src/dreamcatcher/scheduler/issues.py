@@ -5,7 +5,6 @@ from dataclasses import dataclass
 from dreamcatcher.agent_assignments import (
     Assignment,
     find_open_assignments_by_issue,
-    record_assignment_title,
 )
 from dreamcatcher.github import (
     Issue,
@@ -78,20 +77,6 @@ def observe_issues(
         ),
         failures=listing.failures,
     )
-
-
-def record_missing_assignment_titles(
-    *, assignments: list[Assignment], observations: list[IssueObservation]
-) -> None:
-    """Record titles first learned after legacy assignments were created."""
-    open_assignments = find_open_assignments_by_issue(assignments=assignments)
-    for observation in observations:
-        assignment = open_assignments.get(observation.issue)
-        if assignment is not None and observation.details is not None:
-            record_assignment_title(
-                assignment=assignment,
-                title=observation.details.title,
-            )
 
 
 def _observe_issue(

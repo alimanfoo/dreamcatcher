@@ -35,7 +35,6 @@ from dreamcatcher.issue_conversations import (
     read_conversation_input,
     read_conversations,
     read_issue_comment_delivery_cursor,
-    record_conversation_harness_session_identifier,
 )
 from dreamcatcher.prompts import AGENT_POST_MARKER
 from dreamcatcher.state import StateDirectory
@@ -361,18 +360,10 @@ def test_a_follow_up_from_an_earlier_version_can_keep_issue_text(tmp_path):
     )
 
 
-def test_a_conversation_records_its_session_and_round_paths(tmp_path):
+def test_a_conversation_numbers_its_rounds_by_their_records(tmp_path):
     state = StateDirectory(root=tmp_path)
     conversation = write_conversation(state=state)
 
-    record_conversation_harness_session_identifier(
-        conversation=conversation, identifier="abc-123"
-    )
-    record_conversation_harness_session_identifier(
-        conversation=conversation, identifier="abc-123"
-    )
-
-    assert conversation.record.harness_session_identifier == "abc-123"
     assert conversation.next_round_number == 1
     paths = conversation.compose_round_paths(number=1)
     write_json(
@@ -387,12 +378,6 @@ def test_a_conversation_records_its_session_and_round_paths(tmp_path):
     reread = read_conversation(state=StateDirectory(root=tmp_path), issue=8)
     assert reread is not None
     assert reread.next_round_number == 2
-
-    with pytest.raises(ReportableError) as error:
-        record_conversation_harness_session_identifier(
-            conversation=conversation, identifier="other-456"
-        )
-    assert "after it already reported abc-123" in str(error.value)
 
 
 def test_a_conversation_recovers_a_session_reported_by_a_later_round(tmp_path):

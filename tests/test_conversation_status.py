@@ -22,6 +22,7 @@ from dreamcatcher.agent_rounds import (
     StoppedAgentRoundEnding,
     _compose_agent_round_ending,
 )
+from dreamcatcher.agent_work import request_agent_work_retry
 from dreamcatcher.config import AgentHarness
 from dreamcatcher.documents import read_json, write_json
 from dreamcatcher.feed import FeedLine
@@ -29,7 +30,6 @@ from dreamcatcher.issue_conversations import (
     ConversationInput,
     InitialConversationIssue,
     read_conversation,
-    request_conversation_retry,
 )
 from dreamcatcher.scheduler.models import (
     ConversationObservation,
@@ -475,9 +475,7 @@ def test_a_retry_clears_a_conversation_fault(conversation_state):
     observe(state=conversation_state, observations=[])
     conversation = read_conversation(state=conversation_state, issue=8)
     assert conversation is not None
-    request_conversation_retry(
-        conversation=conversation, at=PINNED + timedelta(minutes=9)
-    )
+    request_agent_work_retry(work=conversation, at=PINNED + timedelta(minutes=9))
 
     found = status(state=conversation_state)
 

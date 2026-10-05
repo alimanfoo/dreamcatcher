@@ -7,7 +7,6 @@ from clocks import PINNED
 from conftest import ASSIGNMENT_LABEL, DAEMON_PID, REPOSITORY, configure
 from observations import observed_conversation, observed_issue
 from records import (
-    AssignmentReporting,
     write_assignment,
     write_conversation,
     write_daemon_lock,
@@ -521,13 +520,11 @@ def fabricate_titles_and_pull_request_states(*, state):
             state=state,
             identifier=f"GH{issue}-{ASSIGNMENT_TIMESTAMP}",
             issue=issue,
-            reporting=AssignmentReporting(
-                title=title,
-                pull_request_observation=PullRequestObservation(
-                    state=pull_request_state,
-                    is_draft=is_draft,
-                    observed_at=PINNED,
-                ),
+            title=title,
+            pull_request_observation=PullRequestObservation(
+                state=pull_request_state,
+                is_draft=is_draft,
+                observed_at=PINNED,
             ),
             harness_session_identifier=None,
         )

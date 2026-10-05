@@ -169,11 +169,12 @@ of an agent assignment. It should provide cohesive operations to:
 - read existing assignments;
 - find the open assignment for an issue;
 - allocate the next round number within an assignment;
-- update the harness session identifier;
-- read the user-post delivery position from recorded round inputs;
-- record when the user requests another recovery attempt after resolving a
-  fault; and
+- read the user-post delivery position from recorded round inputs; and
 - recognize completion after a successful wrap-up round.
+
+`agent_work.py` records the facts that both kinds of agent work share: the
+harness session identifier, and when the user requests another recovery attempt
+after resolving a fault.
 
 Assignment setup coordinates lower-level Git, GitHub, configuration, and
 document operations. As one recoverable workflow it:
@@ -183,7 +184,8 @@ document operations. As one recoverable workflow it:
 3. creates the assignment branch and worktree;
 4. makes an empty commit and pushes the branch;
 5. opens a linked draft pull request;
-6. writes the complete assignment record atomically;
+6. writes the first pull request observation, then the assignment record, whose
+   presence marks the setup complete;
 7. returns the newly created assignment to the scheduler so it can start the
    first round immediately.
 
@@ -393,16 +395,16 @@ daemon still owns the live process and lifecycle transition: the round watches
 the request, kills its harness process tree, and records its stopped ending.
 
 The web process and the `cancel` command can cancel an assignment. A cancel goes
-through the agent-assignment boundary, which records the time of the cancel in
-the assignment record and then writes a stop request for any round that has no
-ending. The scheduler starts no further rounds for the assignment. A round that
-it starts as the cancel lands is stopped too, because the scheduler reads the
-record again once that round's record exists.
+through the agent-assignment boundary, which records the time of the cancel in a
+file of its own and then writes a stop request for any round that has no ending.
+The scheduler starts no further rounds for the assignment. A round that it
+starts as the cancel lands is stopped too, because the scheduler reads the
+cancel again once that round's record exists.
 
 The web process can also request a retry for agent work that status derives as
-in fault. It writes the retry request time through the assignment or
-conversation boundary, into that work's own record. The scheduler reads the
-request on a later tick, so the daemon still decides when recovery starts.
+in fault. It writes the retry request time into the directory of the assignment
+or conversation. The scheduler reads the request on a later tick, so the daemon
+still decides when recovery starts.
 
 ### Configuration, dispatch labels, and routes
 
@@ -447,8 +449,10 @@ assignments selected for work, scheduling decisions, or status projections.
 The on-disk layout follows ownership:
 
 - instance-wide operational records live at the versioned root;
-- each assignment owns its durable record and numbered round records;
-- each conversation owns its durable record and numbered round records;
+- each assignment owns its durable record, a file for each fact that changes
+  after its creation, and numbered round records;
+- each conversation owns its durable record, a file for each fact that changes
+  after its creation, and numbered round records;
 - each round owns its prompt, raw output, rendered feed, final output when the
   harness reports one, and any delivered input; and
 - assignment and conversation worktrees live in separate collections under the
@@ -456,8 +460,9 @@ The on-disk layout follows ownership:
 
 `documents.py` remains the only way Dreamcatcher reads and writes documents it
 owns. Every structured document has a strict model and every replacement write
-is atomic. A one-value process file may remain simple text where a model would
-add no meaning.
+is atomic. Each write stages in a file that no other write shares, so writes
+that race each other each land whole. A one-value process file may remain simple
+text where a model would add no meaning.
 
 State-directory objects provide paths and document access. They do not answer
 domain questions such as whether an assignment is complete or an issue is
@@ -485,17 +490,25 @@ TUI boundary.
 The architecture persists facts needed to recover identity, ownership, and
 acknowledged work.
 
-An assignment record persists:
+Assignment setup writes the assignment record once, and nothing writes it again.
+The record persists:
 
 - the issue identifier, while the assignment identifier names the directory that
   holds the record;
 - the issue title captured during assignment setup;
-- the dispatch label and selected harness, model, effort and prompt, plus its
-  harness session identifier once known;
+- the dispatch label and selected harness, model, effort and prompt;
 - branch and worktree identity;
-- pull-request identity;
+- pull-request identity.
+
+Every fact that changes later has a file of its own beside the record. Each
+write replaces that file whole and merges nothing into it, so the daemon, the
+web process and a command can each record a fact at the same moment without
+erasing another's. These files persist:
+
 - the latest observed pull-request state, draft flag, and observation time;
-- the time of the user's latest retry request, when one has been made.
+- the harness session identifier, once known;
+- the time of the user's latest retry request, when one has been made;
+- the time of the cancel, when the user has cancelled the assignment.
 
 A round record persists:
 
@@ -512,11 +525,13 @@ position at its newest post. The assignment reads that position by scanning its
 recorded round inputs from newest to oldest.
 
 A conversation record persists its issue and title, chosen dispatch label and
-harness settings, harness session identifier and latest user retry request. The
-route and recipe remain frozen when a different configured conversation label
-later makes the issue eligible. The issue derives the managed worktree path.
-Each round input persists its investigated revision and the trusted comments
-accepted for delivery; the first also persists the issue title and body.
+harness settings, and nothing writes it again after its creation. Its harness
+session identifier and latest user retry request each have a file of their own
+beside the record, as an assignment's do. The route and recipe remain frozen
+when a different configured conversation label later makes the issue eligible.
+The issue derives the managed worktree path. Each round input persists its
+investigated revision and the trusted comments accepted for delivery; the first
+also persists the issue title and body.
 
 Instance records persist the repository identity and the most recent daemon
 run's harness, Dreamcatcher version, and capacity. An instance-wide scheduler
@@ -524,8 +539,8 @@ record persists the last tick's result, including its failures, issue,
 assignment and conversation observations, active global cooldown, and the time
 at which the most recent cooldown ended. Its per-work observations preserve
 operational evidence of the tick's interpretation rather than authoritative
-state. Assignment and conversation records persist the time of their latest user
-retry request. These boundaries allow fault to remain a derived status: ending a
+state. Assignments and conversations persist the time of their latest user retry
+request. These boundaries allow fault to remain a derived status: ending a
 cooldown or requesting a retry changes which round errors count towards fault
 rather than writing a lifecycle status.
 

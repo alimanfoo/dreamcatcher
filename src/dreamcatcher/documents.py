@@ -2,17 +2,19 @@
 
 import tomllib
 from collections.abc import Callable, Iterator
-from contextlib import contextmanager
+from contextlib import contextmanager, suppress
 from io import SEEK_END, BytesIO
 from pathlib import Path
 from typing import IO
+from uuid import uuid4
 
 from pydantic import BaseModel, ConfigDict, ValidationError
 
 from dreamcatcher.errors import ReportableError
 
-# What a whole write is written to before it takes its target's place.
-_ATOMIC_WRITE_SUFFIX = ".writing"
+# What ends the name of the file that a whole write stages in before it takes
+# its target's place.
+_STAGED_WRITE_SUFFIX = ".writing"
 
 # How much of the end of a file each read of a backward search takes. A last
 # line longer than this takes another read to find, and nothing else turns on
@@ -115,7 +117,7 @@ class DocumentCache:
 def read_text(*, path: Path) -> str:
     """Return the text the file at path holds, read as UTF-8.
 
-    The line endings come as the file holds them, which is how `_write` leaves
+    The line endings come as the file holds them, which is how every write leaves
     them. Left to itself Python turns each of them into a newline, and then a
     read and a write of one file would not agree on what is in it.
 
@@ -222,29 +224,45 @@ def read_last_line(*, path: Path) -> str | None:
 def write_text(*, text: str, path: Path) -> None:
     """Write text to path as UTF-8, over whatever was there before.
 
-    The write lands whole. The text goes to a file beside the target and then
-    takes the target's place in one step, so a reader of the target reads the
-    document that was there or the one that replaced it, and never a partial
-    document.
+    The write lands whole. The text goes to a file of its own beside the target
+    and then takes the target's place in one step, so a reader of the target
+    reads the document that was there or the one that replaced it, and never a
+    partial document. No two writes share that file, so writes that race each
+    other each land whole, and the target holds whichever landed last.
+
+    The line endings are the caller's, for the reason append_text keeps them.
 
     Raise ReportableError when the write fails. A full disk or a read-only
     directory is not a bug in the tool, and the user can act on either, so it
     reads as a message.
     """
-    beside = path.with_name(f"{path.name}{_ATOMIC_WRITE_SUFFIX}")
-    _write(text=text, path=beside, mode="w")
+    staged = path.with_name(f"{path.name}.{uuid4().hex}{_STAGED_WRITE_SUFFIX}")
     try:
-        beside.replace(path)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with staged.open("x", encoding="utf-8", newline="") as opened:
+            opened.write(text)
+        staged.replace(path)
     except OSError as error:
+        with suppress(OSError):
+            staged.unlink(missing_ok=True)
         raise ReportableError(f"cannot write {path}: {error}.") from error
 
 
 def append_text(*, text: str, path: Path) -> None:
     """Append UTF-8 text without translating line endings.
 
+    The line endings are the caller's. Left to itself Python turns every line
+    ending into the one the platform prefers, which would put a carriage return
+    into a round's copy of what a harness streamed.
+
     Raise ReportableError when the write fails, for the reason write_text does.
     """
-    _write(text=text, path=path, mode="a")
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with path.open("a", encoding="utf-8", newline="") as opened:
+            opened.write(text)
+    except OSError as error:
+        raise ReportableError(f"cannot write {path}: {error}.") from error
 
 
 def write_json(*, document: DreamcatcherDocument, path: Path) -> None:
@@ -267,7 +285,7 @@ def _open_bytes(*, path: Path) -> Iterator[IO[bytes]]:
     Finding one part of a file takes more than one read of it, so whoever
     reads holds the file open across them.
 
-    The bytes come as the file holds them, which is how `_write` leaves them.
+    The bytes come as the file holds them, which is how every write leaves them.
     A text-mode read turns each line ending into a newline, and then a
     position that a reader kept and the position the file itself agrees with
     are different numbers.
@@ -308,21 +326,6 @@ def _decode(*, contents: bytes, path: Path) -> str:
         return contents.decode("utf-8")
     except UnicodeDecodeError as error:
         raise ReportableError(f"{path} is not UTF-8 text.") from error
-
-
-def _write(*, text: str, path: Path, mode: str) -> None:
-    """Write UTF-8 text with fixed line endings, creating parent directories.
-
-    The line endings are the caller's. Left to itself Python turns every line
-    ending into the one the platform prefers, which would put a carriage return
-    into a round's copy of what a harness streamed.
-    """
-    try:
-        path.parent.mkdir(parents=True, exist_ok=True)
-        with path.open(mode, encoding="utf-8", newline="") as opened:
-            opened.write(text)
-    except OSError as error:
-        raise ReportableError(f"cannot write {path}: {error}.") from error
 
 
 def _describe_validation_error(*, path: Path, error: ValidationError) -> str:

@@ -93,6 +93,7 @@ FORBIDDEN_REACH = {
     "agent_assignments": SCHEDULING,
     "agent_assignment_pull_requests": SCHEDULING,
     "agent_rounds": SCHEDULING,
+    "agent_work": SCHEDULING,
     "issue_conversations": SCHEDULING,
     "status": PRESENTATION,
     "feed": PRESENTATION,

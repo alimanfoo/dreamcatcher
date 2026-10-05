@@ -7,29 +7,32 @@ the state it is about without a GitHub, an origin to cut from, or a harness to r
 
 import os
 from collections.abc import Sequence
-from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
 import psutil
+from clocks import PINNED
 
-from dreamcatcher import agent_assignments, agent_rounds, issue_conversations
+from dreamcatcher import (
+    agent_assignments,
+    agent_rounds,
+    agent_work,
+    issue_conversations,
+)
 from dreamcatcher.config import AgentHarness
 from dreamcatcher.daemon import DEFAULT_INTERVAL_SECONDS
 from dreamcatcher.daemon_runs import DaemonRunRecord
 from dreamcatcher.documents import write_json, write_text
 from dreamcatcher.feed import FeedLine
+from dreamcatcher.github import PullRequestState
 from dreamcatcher.lock import DaemonLockRecord
 from dreamcatcher.scheduler.models import SchedulerRecord
 from dreamcatcher.state import StateDirectory
 
-
-@dataclass(frozen=True, kw_only=True)
-class AssignmentReporting:
-    """Provide the optional reporting facts for a fabricated assignment."""
-
-    title: str
-    pull_request_observation: agent_assignments.PullRequestObservation
+# What a fabricated assignment saw of its pull request, unless a test says.
+_OPEN_DRAFT = agent_assignments.PullRequestObservation(
+    state=PullRequestState.OPEN, is_draft=True, observed_at=PINNED
+)
 
 
 def write_daemon_run(
@@ -81,30 +84,35 @@ def write_assignment(
     identifier: str,
     issue: int,
     harness_session_identifier: str | None = "abc-123",
-    reporting: AssignmentReporting | None = None,
+    title: str | None = None,
+    pull_request_observation: agent_assignments.PullRequestObservation = _OPEN_DRAFT,
 ) -> Path:
-    """Write an assignment's worktree and its record, and return its own directory."""
+    """Write an assignment's worktree and its records, and return its own directory.
+
+    The title is `Issue <n>` unless the test gives one.
+    """
     (state.worktrees / identifier).mkdir(parents=True)
     directory = state.assignments / identifier
     write_json(
         document=agent_assignments.AssignmentRecord(
             issue=issue,
-            title=None if reporting is None else reporting.title,
+            title=f"Issue {issue}" if title is None else title,
             dispatch_label="dream:smith",
             branch=f"{agent_assignments._ASSIGNMENT_BRANCH_PREFIX}{identifier}",
             worktree=state.worktrees / identifier,
             pull_request=52,
-            pull_request_observation=(
-                None if reporting is None else reporting.pull_request_observation
-            ),
             harness=AgentHarness.CLAUDE,
-            harness_session_identifier=harness_session_identifier,
             model="opus[1m]",
             effort="xhigh",
             prompt=f"/dream:smith GH{issue}",
         ),
         path=directory / agent_assignments._ASSIGNMENT_RECORD_NAME,
     )
+    write_json(
+        document=pull_request_observation,
+        path=directory / agent_assignments._PULL_REQUEST_OBSERVATION_RECORD_NAME,
+    )
+    _write_harness_session(directory=directory, identifier=harness_session_identifier)
     return directory
 
 
@@ -125,14 +133,23 @@ def write_conversation(
             title=f"Issue {issue}",
             dispatch_label="dream:conversation",
             harness=harness,
-            harness_session_identifier=harness_session_identifier,
             model="opus[1m]",
             effort="xhigh",
             prompt=f"/dream:conversation GH{issue}",
         ),
         path=directory / issue_conversations._CONVERSATION_RECORD_NAME,
     )
+    _write_harness_session(directory=directory, identifier=harness_session_identifier)
     return directory
+
+
+def _write_harness_session(*, directory: Path, identifier: str | None) -> None:
+    """Write the harness session of the work at this directory, when it has one."""
+    if identifier is not None:
+        write_json(
+            document=agent_work._HarnessSessionRecord(identifier=identifier),
+            path=directory / agent_work._HARNESS_SESSION_RECORD_NAME,
+        )
 
 
 def write_round(

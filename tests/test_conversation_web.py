@@ -273,7 +273,7 @@ def test_conversation_page_requests_a_retry_for_its_fault(tmp_path):
     assert response.location == "/conversations/8"
     conversation = read_conversation(state=state, issue=8)
     assert conversation is not None
-    assert conversation.record.retry_requested_at == LOOKED_AT
+    assert conversation.retry_requested_at == LOOKED_AT
     assert (
         'action="/conversations/8/retry/2"' not in client.get("/conversations/8").text
     )
@@ -291,7 +291,7 @@ def test_an_old_conversation_retry_submission_cannot_clear_a_newer_fault(tmp_pat
     assert response.status_code == 303
     conversation = read_conversation(state=state, issue=8)
     assert conversation is not None
-    assert conversation.record.retry_requested_at is None
+    assert conversation.retry_requested_at is None
 
 
 def test_an_unknown_conversation_cannot_receive_a_retry_request(tmp_path):
@@ -317,7 +317,7 @@ def test_conversation_retry_requests_must_come_from_the_page(tmp_path):
     assert response.status_code == 403
     conversation = read_conversation(state=state, issue=8)
     assert conversation is not None
-    assert conversation.record.retry_requested_at is None
+    assert conversation.retry_requested_at is None
 
 
 def test_conversation_page_with_an_unreadable_input_still_renders(tmp_path):

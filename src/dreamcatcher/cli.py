@@ -12,18 +12,15 @@ from dreamcatcher import tui, web
 from dreamcatcher.agent_assignments import (
     cancel_assignment,
     read_assignments_for_issue,
-    request_assignment_retry,
 )
 from dreamcatcher.agent_rounds import request_agent_round_stop
+from dreamcatcher.agent_work import request_agent_work_retry
 from dreamcatcher.clock import read_current_time
 from dreamcatcher.config import AgentHarness
 from dreamcatcher.daemon import DEFAULT_INTERVAL_SECONDS, DreamcatcherDaemon
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.harness_adapters import AgentWorkKind
-from dreamcatcher.issue_conversations import (
-    read_conversation,
-    request_conversation_retry,
-)
+from dreamcatcher.issue_conversations import read_conversation
 from dreamcatcher.scheduler import (
     DEFAULT_MAX_AGENTS,
     derive_agent_work_fault,
@@ -330,22 +327,19 @@ def _retry_agent_work(*, arguments: argparse.Namespace) -> None:
     retried: list[str] = []
     if assignment is not None and derive_agent_work_fault(
         rounds=assignment.rounds,
-        retry_requested_at=assignment.record.retry_requested_at,
+        retry_requested_at=assignment.retry_requested_at,
         most_recent_cooldown_ended=most_recent_cooldown_ended,
     ):
-        request_assignment_retry(assignment=assignment, at=current_time)
+        request_agent_work_retry(work=assignment, at=current_time)
         retried.append(assignment.identifier)
     if conversation is not None and derive_agent_work_fault(
         rounds=conversation.rounds,
-        retry_requested_at=conversation.record.retry_requested_at,
+        retry_requested_at=conversation.retry_requested_at,
         most_recent_cooldown_ended=most_recent_cooldown_ended,
     ):
         if retried:
             try:
-                request_conversation_retry(
-                    conversation=conversation,
-                    at=current_time,
-                )
+                request_agent_work_retry(work=conversation, at=current_time)
             except ReportableError as failure:
                 recovered = ", ".join(retried)
                 raise ReportableError(
@@ -353,10 +347,7 @@ def _retry_agent_work(*, arguments: argparse.Namespace) -> None:
                     f"{conversation.identifier} could not be retried: {failure}"
                 ) from failure
         else:
-            request_conversation_retry(
-                conversation=conversation,
-                at=current_time,
-            )
+            request_agent_work_retry(work=conversation, at=current_time)
         retried.append(conversation.identifier)
     if not retried:
         raise ReportableError(f"GH{arguments.issue} has no agent work in fault.")

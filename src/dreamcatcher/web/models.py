@@ -22,7 +22,7 @@ class WebAssignmentCard:
 
     identifier: str
     issue: int
-    title: str | None
+    title: str
     status: str
     detail: str
     dispatch_label: str
@@ -142,7 +142,7 @@ class WebAssignmentView:
     daemon_summary: str
     identifier: str
     issue: int
-    title: str | None
+    title: str
     pull_request: int
     pull_request_state: str | None
     dispatch_label: str

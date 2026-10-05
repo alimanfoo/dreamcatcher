@@ -340,7 +340,7 @@ class ConversationStatusReader(AgentWorkStatusReader[ConversationStatus]):
     ) -> ConversationStatus | None:
         if conversation is not None and self.has_fault(
             records=conversation.rounds,
-            retry_requested_at=conversation.record.retry_requested_at,
+            retry_requested_at=conversation.retry_requested_at,
         ):
             latest = conversation.rounds[-1]
             detail, latest_output = describe_round_ending(

@@ -12,6 +12,7 @@ from dreamcatcher.agent_rounds import (
     ConversationRoundPurpose,
     start_agent_round,
 )
+from dreamcatcher.agent_work import record_harness_session_identifier
 from dreamcatcher.config import ConversationRoute
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.github import (
@@ -33,7 +34,6 @@ from dreamcatcher.issue_conversations import (
     read_conversation_input,
     read_conversations,
     read_issue_comment_delivery_cursor,
-    record_conversation_harness_session_identifier,
 )
 from dreamcatcher.prompts import (
     CONVERSATION_RECOVERY_PROMPT,
@@ -235,8 +235,8 @@ class ConversationScheduler(
             ),
             harness_session_identifier=resumption.identifier,
             record_harness_session_identifier=partial(
-                record_conversation_harness_session_identifier,
-                conversation=conversation,
+                record_harness_session_identifier,
+                work=conversation,
             ),
             finish_round=partial(
                 post_conversation_answer,
@@ -452,7 +452,7 @@ def _inspect_conversation_recovery(
 ) -> _ConversationInspection | None:
     if conversation is not None and derive_agent_work_fault(
         rounds=conversation.rounds,
-        retry_requested_at=conversation.record.retry_requested_at,
+        retry_requested_at=conversation.retry_requested_at,
         most_recent_cooldown_ended=most_recent_cooldown_ended,
     ):
         return _ConversationInspection(
@@ -504,7 +504,7 @@ def _count_carried_conversation_faults(
     return sum(
         derive_agent_work_fault(
             rounds=conversation.rounds,
-            retry_requested_at=conversation.record.retry_requested_at,
+            retry_requested_at=conversation.retry_requested_at,
             most_recent_cooldown_ended=most_recent_cooldown_ended,
         )
         for observation in observations

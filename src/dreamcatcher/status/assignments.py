@@ -86,10 +86,10 @@ class AssignmentStatus:
         A cancelled assignment has none, because nothing observes its pull
         request once the user has taken it over.
         """
-        record = self.assignment.record
-        observation = record.pull_request_observation
-        if observation is None or record.cancelled_at is not None:
+        assignment = self.assignment
+        if assignment.cancelled_at is not None:
             return None
+        observation = assignment.pull_request_observation
         if observation.is_open:
             return "draft" if observation.is_draft else "ready"
         return observation.state.value.lower()
@@ -224,7 +224,7 @@ class AssignmentStatusReader(AgentWorkStatusReader[AssignmentStatus]):
             assignment=assignment,
             value=(
                 AssignmentStatusValue.COMPLETE
-                if assignment.record.cancelled_at is None
+                if assignment.cancelled_at is None
                 else AssignmentStatusValue.CANCELLED
             ),
             detail=describe_count(number=len(assignment.rounds), noun="round"),
@@ -233,7 +233,7 @@ class AssignmentStatusReader(AgentWorkStatusReader[AssignmentStatus]):
     def _derive_fault(self, *, assignment: Assignment) -> AssignmentStatus | None:
         if self.has_fault(
             records=assignment.rounds,
-            retry_requested_at=assignment.record.retry_requested_at,
+            retry_requested_at=assignment.retry_requested_at,
         ):
             latest = assignment.rounds[-1]
             detail, latest_output = describe_round_ending(
@@ -346,14 +346,10 @@ class AssignmentStatusReader(AgentWorkStatusReader[AssignmentStatus]):
 
     def _describe_next_round(self, *, assignment: Assignment) -> str:
         record = assignment.rounds[-1]
-        pull_request = assignment.record.pull_request_observation
-        purpose = (
-            record.purpose
-            if pull_request is None
-            else derive_round_purpose(pull_request=pull_request)
-        )
         description = describe_agent_round_start(
-            purpose=purpose,
+            purpose=derive_round_purpose(
+                pull_request=assignment.pull_request_observation
+            ),
             is_recovery=(
                 record.ending is None
                 or assignment.describe_unfinished_round() is not None

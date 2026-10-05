@@ -7,9 +7,9 @@
       <section class="assignment-overview" aria-labelledby="assignment-heading">
         <div class="assignment-heading">
           {% if view.github_repository_url %}
-            <h1 id="assignment-heading"><a class="assignment-issue" href="{{ view.github_repository_url }}/issues/{{ view.issue }}" target="_blank" rel="noopener noreferrer">#{{ view.issue }}{% if view.title %} <span>{{ view.title }}</span>{% endif %}</a></h1>
+            <h1 id="assignment-heading"><a class="assignment-issue" href="{{ view.github_repository_url }}/issues/{{ view.issue }}" target="_blank" rel="noopener noreferrer">#{{ view.issue }} <span>{{ view.title }}</span></a></h1>
           {% else %}
-            <h1 id="assignment-heading"><strong class="assignment-issue">#{{ view.issue }}{% if view.title %} <span>{{ view.title }}</span>{% endif %}</strong></h1>
+            <h1 id="assignment-heading"><strong class="assignment-issue">#{{ view.issue }} <span>{{ view.title }}</span></strong></h1>
           {% endif %}
           <div class="assignment-heading-actions">
             {% include "partials/agent-work-controls.html" %}

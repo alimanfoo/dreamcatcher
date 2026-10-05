@@ -4,15 +4,18 @@ from contextlib import suppress
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from threading import Lock
 
-from pydantic import AwareDatetime, Field
+from pydantic import Field
 
 from dreamcatcher.agent_rounds import (
     AgentRoundOutcome,
     AgentRoundPaths,
     AgentRoundRecord,
     read_agent_round_records,
+)
+from dreamcatcher.agent_work import (
+    read_harness_session_identifier,
+    read_retry_requested_at,
 )
 from dreamcatcher.commands import CommandError
 from dreamcatcher.config import (
@@ -35,10 +38,7 @@ from dreamcatcher.github import (
     UnknownGitHubResponse,
     post_issue_comment,
 )
-from dreamcatcher.harness_adapters import (
-    HarnessSessionIdentifier,
-    refuse_reportable_harness_session_identifier,
-)
+from dreamcatcher.harness_adapters import HarnessSessionIdentifier
 from dreamcatcher.harnesses import find_harness_session_identifier
 from dreamcatcher.prompts import AGENT_POST_MARKER
 from dreamcatcher.state import StateDirectory
@@ -79,14 +79,15 @@ class IssueCommentCursor(DreamcatcherDocument):
 
 
 class ConversationRecord(DreamcatcherDocument):
-    """Model one issue conversation's identity, settings, and retry boundary."""
+    """Model one issue conversation's identity and settings.
+
+    Creation writes the record once, and nothing writes it again.
+    """
 
     issue: int
     title: str
     dispatch_label: str
     harness: AgentHarness
-    harness_session_identifier: HarnessSessionIdentifier | None = None
-    retry_requested_at: AwareDatetime | None = None
     model: QuotableText
     effort: QuotableText
     prompt: str
@@ -94,15 +95,18 @@ class ConversationRecord(DreamcatcherDocument):
 
 @dataclass(frozen=True, kw_only=True)
 class Conversation:
-    """Represent one persisted issue conversation as it currently reads."""
+    """Represent one persisted issue conversation as it currently reads.
+
+    The record holds the conversation's settings, and the facts recorded since
+    sit beside it.
+    """
 
     directory: Path
     worktree: Path
     record: ConversationRecord
+    harness_session_identifier: HarnessSessionIdentifier | None = None
+    retry_requested_at: datetime | None = None
     rounds: list[AgentRoundRecord] = field(default_factory=list)
-    _record_lock: Lock = field(
-        default_factory=Lock, init=False, repr=False, compare=False
-    )
 
     @property
     def identifier(self) -> str:
@@ -119,7 +123,7 @@ class Conversation:
         return find_harness_session_identifier(
             harness=self.record.harness,
             agent_work_identifier=self.identifier,
-            recorded=self.record.harness_session_identifier,
+            recorded=self.harness_session_identifier,
             raw_outputs=(
                 self.compose_round_paths(number=round_record.number).raw_output
                 for round_record in reversed(self.rounds)
@@ -321,36 +325,6 @@ def read_issue_comment_delivery_cursor(
     )
 
 
-def record_conversation_harness_session_identifier(
-    *, conversation: Conversation, identifier: str
-) -> None:
-    """Record the harness session identifier reported by the first round."""
-    validated = refuse_reportable_harness_session_identifier(
-        agent_work_identifier=conversation.identifier, identifier=identifier
-    )
-    with conversation._record_lock:
-        recorded = conversation.record.harness_session_identifier
-        if recorded is not None and recorded != validated:
-            raise ReportableError(
-                f"Conversation {conversation.identifier} reported harness session "
-                f"{validated}, after it already reported {recorded}."
-            )
-        if recorded is None:
-            _update_conversation_record(
-                conversation=conversation,
-                updates={"harness_session_identifier": validated},
-            )
-
-
-def request_conversation_retry(*, conversation: Conversation, at: datetime) -> None:
-    """Record when the user asked a faulted conversation to recover again."""
-    with conversation._record_lock:
-        _update_conversation_record(
-            conversation=conversation,
-            updates={"retry_requested_at": at},
-        )
-
-
 def is_no_reply(*, final_output: str) -> bool:
     """Return whether a round's final output declines to post an answer."""
     return final_output.strip() == NO_REPLY
@@ -395,22 +369,10 @@ def _read_conversation(*, state: StateDirectory, directory: Path) -> Conversatio
         directory=directory,
         worktree=state.conversation_worktrees / directory.name,
         record=record,
+        harness_session_identifier=read_harness_session_identifier(directory=directory),
+        retry_requested_at=read_retry_requested_at(directory=directory),
         rounds=read_agent_round_records(
             cache=state.document_cache,
             directory=directory / _CONVERSATION_ROUNDS_DIRECTORY_NAME,
         ),
     )
-
-
-def _update_conversation_record(
-    *,
-    conversation: Conversation,
-    updates: dict[str, object],
-) -> None:
-    """Apply field updates while the caller holds the conversation's record lock."""
-    updated = conversation.record.model_copy(update=updates)
-    write_json(
-        document=updated,
-        path=conversation.directory / _CONVERSATION_RECORD_NAME,
-    )
-    object.__setattr__(conversation, "record", updated)

@@ -7,7 +7,6 @@ from clocks import PINNED
 from conftest import REPOSITORY, configure
 from observations import observed_issue
 from records import (
-    AssignmentReporting,
     write_assignment,
     write_daemon_lock,
     write_daemon_run,
@@ -18,7 +17,6 @@ from records import (
 
 from dreamcatcher.agent_assignments import (
     Assignment,
-    PullRequestObservation,
     cancel_assignment,
     read_assignments,
 )
@@ -33,7 +31,6 @@ from dreamcatcher.config import AgentHarness
 from dreamcatcher.daemon import DEFAULT_INTERVAL_SECONDS
 from dreamcatcher.documents import write_text
 from dreamcatcher.feed import FeedLine
-from dreamcatcher.github import PullRequestState
 from dreamcatcher.scheduler.models import (
     AgentWorkObservation,
     GlobalCooldown,
@@ -427,12 +424,7 @@ def test_a_cancelled_assignment_stops_reporting_its_pull_request_state(tmp_path)
         state=state,
         identifier=ASSIGNMENT_ID,
         issue=13,
-        reporting=AssignmentReporting(
-            title="The issue title",
-            pull_request_observation=PullRequestObservation(
-                state=PullRequestState.OPEN, is_draft=True, observed_at=PINNED
-            ),
-        ),
+        title="The issue title",
     )
     assert only_assignment(state=state).pull_request_state == "draft"
 

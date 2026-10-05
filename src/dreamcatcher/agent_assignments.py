@@ -32,6 +32,12 @@ from dreamcatcher.agent_rounds import (
     read_agent_round_records,
     request_agent_round_stop,
 )
+from dreamcatcher.agent_work import (
+    read_harness_session_identifier,
+    read_retry_requested_at,
+    read_user_request_time,
+    record_user_request,
+)
 from dreamcatcher.commands import CommandError
 from dreamcatcher.config import AgentHarness, AssignmentRoute
 from dreamcatcher.documents import (
@@ -57,10 +63,7 @@ from dreamcatcher.github import (
     PullRequestState,
     UserPost,
 )
-from dreamcatcher.harness_adapters import (
-    HarnessSessionIdentifier,
-    refuse_reportable_harness_session_identifier,
-)
+from dreamcatcher.harness_adapters import HarnessSessionIdentifier
 from dreamcatcher.harnesses import find_harness_session_identifier
 from dreamcatcher.prompts import compose_first_round_prompt
 from dreamcatcher.state import StateDirectory
@@ -74,6 +77,13 @@ _ASSIGNMENT_BRANCH_PREFIX = "dreamcatcher-"
 # with.
 _ASSIGNMENT_RECORD_NAME = "assignment.json"
 
+# The file in an assignment's directory holding its latest pull request
+# observation.
+_PULL_REQUEST_OBSERVATION_RECORD_NAME = "pull-request-observation.json"
+
+# The file in an assignment's directory saying when the user cancelled it.
+_CANCEL_RECORD_NAME = "cancel.json"
+
 # The directory in an assignment's directory holding a directory per round.
 _AGENT_ROUNDS_DIRECTORY_NAME = "rounds"
 
@@ -86,7 +96,10 @@ class AssignmentRoundInput(DreamcatcherDocument):
 
 
 class PullRequestObservation(DreamcatcherDocument):
-    """Model the latest pull request state observed for reporting."""
+    """Model the latest pull request state observed for reporting.
+
+    Scheduling reads the pull request from GitHub, not from this observation.
+    """
 
     state: PullRequestState
     is_draft: bool
@@ -99,26 +112,20 @@ class PullRequestObservation(DreamcatcherDocument):
 
 
 class AssignmentRecord(DreamcatcherDocument):
-    """Model the identities and settled settings of an agent assignment.
+    """Model the identities and dispatch settings of an agent assignment.
 
-    The assignment dispatch settles the recipe and identities. The first round
-    adds the harness session identifier when the harness reports it, and a retry
-    request or a cancel records its time. Every round reads this record, so
-    later config edits do not change an assignment in progress. The latest pull
-    request observation supports reporting; scheduling still reads GitHub.
+    Assignment setup writes the record once, and nothing writes it again. Every
+    round reads this record, so later config edits do not change an assignment
+    in progress.
     """
 
     issue: int
-    title: str | None = None
+    title: str
     dispatch_label: str
     branch: str
     worktree: Path
     pull_request: int
-    pull_request_observation: PullRequestObservation | None = None
     harness: AgentHarness
-    harness_session_identifier: HarnessSessionIdentifier | None = None
-    retry_requested_at: AwareDatetime | None = None
-    cancelled_at: AwareDatetime | None = None
     model: str
     effort: str
     prompt: str
@@ -129,8 +136,10 @@ class Assignment:
     """Represent an agent assignment as its persisted state currently reads.
 
     The directory name is the assignment identifier. The record holds the
-    assignment dispatch settings, and the rounds are ordered from oldest to
-    newest.
+    settings that the assignment dispatch chose. Every fact that changes
+    later, such as the latest pull request observation or a cancel, is read
+    from a file of its own beside the record. The rounds are ordered from
+    oldest to newest.
 
     The user-post delivery cursor is read from the newest recorded round input
     that delivered posts. An assignment that has received none has the beginning
@@ -139,6 +148,10 @@ class Assignment:
 
     directory: Path
     record: AssignmentRecord
+    pull_request_observation: PullRequestObservation
+    harness_session_identifier: HarnessSessionIdentifier | None = None
+    retry_requested_at: datetime | None = None
+    cancelled_at: datetime | None = None
     rounds: list[AgentRoundRecord] = field(default_factory=list)
 
     @property
@@ -165,8 +178,8 @@ class Assignment:
     @property
     def ended_at(self) -> datetime | None:
         """When the assignment was cancelled or completed, if it has ended."""
-        if self.record.cancelled_at is not None:
-            return self.record.cancelled_at
+        if self.cancelled_at is not None:
+            return self.cancelled_at
         if not self.is_complete:
             return None
         return cast("SuccessfulAgentRoundEnding", self.rounds[-1].ending).at
@@ -196,7 +209,7 @@ class Assignment:
         return find_harness_session_identifier(
             harness=self.record.harness,
             agent_work_identifier=self.identifier,
-            recorded=self.record.harness_session_identifier,
+            recorded=self.harness_session_identifier,
             raw_outputs=(
                 self.compose_round_paths(number=round_record.number).raw_output
                 for round_record in reversed(self.rounds)
@@ -292,30 +305,18 @@ def find_open_assignments_by_issue(
     }
 
 
-def request_assignment_retry(*, assignment: Assignment, at: datetime) -> None:
-    """Record when the user asked a faulted assignment to recover again."""
-    path = assignment.directory / _ASSIGNMENT_RECORD_NAME
-    record = read_json(model=AssignmentRecord, path=path)
-    write_json(
-        document=record.model_copy(update={"retry_requested_at": at}),
-        path=path,
-    )
-
-
 def cancel_assignment(*, assignment: Assignment, at: datetime) -> None:
     """Record that the user has taken an open assignment over.
 
     A round with no ending is asked to stop, so it does not go on pushing to the
-    branch. The record is written before the rounds are read again, so a round
+    branch. The cancel is written before the rounds are read again, so a round
     that starts at the same moment is either asked to stop here or finds the
     cancel through stop_round_if_cancelled. An assignment that has already
     ended raises ReportableError.
     """
     if not assignment.is_open:
         raise ReportableError(f"{assignment.identifier} has already ended.")
-    path = assignment.directory / _ASSIGNMENT_RECORD_NAME
-    record = read_json(model=AssignmentRecord, path=path)
-    write_json(document=record.model_copy(update={"cancelled_at": at}), path=path)
+    record_user_request(path=assignment.directory / _CANCEL_RECORD_NAME, at=at)
     rounds = read_agent_round_records(
         cache=DocumentCache(),
         directory=assignment.directory / _AGENT_ROUNDS_DIRECTORY_NAME,
@@ -332,10 +333,10 @@ def stop_round_if_cancelled(*, assignment: Assignment, paths: AgentRoundPaths) -
     Call this once the round's record exists, so that a cancel either lands
     before this read or finds the round itself.
     """
-    record = read_json(
-        model=AssignmentRecord, path=assignment.directory / _ASSIGNMENT_RECORD_NAME
+    cancelled_at = read_user_request_time(
+        path=assignment.directory / _CANCEL_RECORD_NAME
     )
-    if record.cancelled_at is not None:
+    if cancelled_at is not None:
         request_agent_round_stop(paths=paths)
 
 
@@ -421,8 +422,9 @@ class AssignmentCreator:
         The route selects a recipe in response to the requested
         agent harness. The recipe supplies the model, effort, and prompt
         template. Creation fetches main, makes the branch and worktree, adds and
-        pushes an empty commit, opens the linked draft pull request, then writes
-        the record.
+        pushes an empty commit, and opens the linked draft pull request. It then
+        writes the pull request observation, and last the record, which marks
+        the setup complete.
 
         A retry reuses an incomplete setup that has the expected worktree and
         branch. A failed worktree creation is removed; failures after that point
@@ -469,19 +471,28 @@ class AssignmentCreator:
             branch=branch,
             worktree=worktree,
             pull_request=pull_request.number,
-            pull_request_observation=PullRequestObservation(
-                state=pull_request.state,
-                is_draft=pull_request.is_draft,
-                observed_at=at,
-            ),
             harness=selected_harness,
             model=recipe.model,
             effort=recipe.effort,
             prompt=compose_first_round_prompt(template=recipe.prompt, issue=issue),
         )
+        observation = PullRequestObservation(
+            state=pull_request.state,
+            is_draft=pull_request.is_draft,
+            observed_at=at,
+        )
         directory = self.state.assignments / identifier
+
+        # The record marks the setup complete, so every complete assignment
+        # has an observation.
+        write_json(
+            document=observation,
+            path=directory / _PULL_REQUEST_OBSERVATION_RECORD_NAME,
+        )
         write_json(document=record, path=directory / _ASSIGNMENT_RECORD_NAME)
-        return Assignment(directory=directory, record=record)
+        return Assignment(
+            directory=directory, record=record, pull_request_observation=observation
+        )
 
 
 def _find_incomplete_assignment(*, state: StateDirectory, issue: int) -> str | None:
@@ -514,6 +525,13 @@ def _read_assignment(*, state: StateDirectory, directory: Path) -> Assignment:
         record=read_json(
             model=AssignmentRecord, path=directory / _ASSIGNMENT_RECORD_NAME
         ),
+        pull_request_observation=read_json(
+            model=PullRequestObservation,
+            path=directory / _PULL_REQUEST_OBSERVATION_RECORD_NAME,
+        ),
+        harness_session_identifier=read_harness_session_identifier(directory=directory),
+        retry_requested_at=read_retry_requested_at(directory=directory),
+        cancelled_at=read_user_request_time(path=directory / _CANCEL_RECORD_NAME),
         rounds=read_agent_round_records(
             cache=state.document_cache,
             directory=directory / _AGENT_ROUNDS_DIRECTORY_NAME,
@@ -535,64 +553,23 @@ def read_user_post_delivery_cursor(*, assignment: Assignment) -> str:
     return ""
 
 
-def record_assignment_harness_session_identifier(
-    *, assignment: Assignment, identifier: str
-) -> None:
-    """Record the harness session that every round of the assignment continues."""
-    safe_identifier = refuse_reportable_harness_session_identifier(
-        agent_work_identifier=assignment.identifier, identifier=identifier
-    )
-    path = assignment.directory / _ASSIGNMENT_RECORD_NAME
-    record = read_json(model=AssignmentRecord, path=path)
-    recorded_identifier = record.harness_session_identifier
-    if recorded_identifier is not None and recorded_identifier != safe_identifier:
-        raise ReportableError(
-            f"{assignment.identifier} reported harness session {safe_identifier}, "
-            f"but its record names {recorded_identifier}."
-        )
-    if recorded_identifier == safe_identifier:
-        return
-    write_json(
-        document=record.model_copy(
-            update={"harness_session_identifier": safe_identifier}
-        ),
-        path=path,
-    )
-
-
-def record_assignment_title(*, assignment: Assignment, title: str) -> None:
-    """Record the first issue title known for a legacy assignment."""
-    path = assignment.directory / _ASSIGNMENT_RECORD_NAME
-    record = read_json(model=AssignmentRecord, path=path)
-    if record.title is not None:
-        return
-    write_json(document=record.model_copy(update={"title": title}), path=path)
-
-
 def record_pull_request_observation(
     *, assignment: Assignment, pull_request: PullRequest, observed_at: datetime
 ) -> None:
     """Record a pull request state when it differs from the latest observation."""
-    path = assignment.directory / _ASSIGNMENT_RECORD_NAME
-    record = read_json(model=AssignmentRecord, path=path)
-    recorded = record.pull_request_observation
+    recorded = assignment.pull_request_observation
     if (
-        recorded is not None
-        and recorded.state is pull_request.state
+        recorded.state is pull_request.state
         and recorded.is_draft == pull_request.is_draft
     ):
         return
     write_json(
-        document=record.model_copy(
-            update={
-                "pull_request_observation": PullRequestObservation(
-                    state=pull_request.state,
-                    is_draft=pull_request.is_draft,
-                    observed_at=observed_at,
-                )
-            }
+        document=PullRequestObservation(
+            state=pull_request.state,
+            is_draft=pull_request.is_draft,
+            observed_at=observed_at,
         ),
-        path=path,
+        path=assignment.directory / _PULL_REQUEST_OBSERVATION_RECORD_NAME,
     )
 
 

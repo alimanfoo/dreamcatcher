@@ -26,8 +26,6 @@ from dreamcatcher.agent_assignments import (
     inspect_incomplete_assignment_setups,
     read_assignments,
     read_assignments_for_issue,
-    record_assignment_harness_session_identifier,
-    record_assignment_title,
     record_pull_request_observation,
 )
 from dreamcatcher.agent_rounds import (
@@ -36,6 +34,10 @@ from dreamcatcher.agent_rounds import (
     AssignmentRoundPurpose,
     InterruptedAgentRoundEnding,
     _compose_agent_round_ending,
+)
+from dreamcatcher.agent_work import (
+    record_harness_session_identifier,
+    request_agent_work_retry,
 )
 from dreamcatcher.commands import CommandError
 from dreamcatcher.config import (
@@ -158,7 +160,7 @@ def test_an_assignment_records_its_settled_dispatch_recipe(state, route):
     assert assignment.record.title == "The issue title"
     assert assignment.record.dispatch_label == "dream:smith"
     assert assignment.record.pull_request == PULL_REQUEST
-    assert assignment.record.pull_request_observation == PullRequestObservation(
+    assert assignment.pull_request_observation == PullRequestObservation(
         state=PullRequestState.OPEN,
         is_draft=True,
         observed_at=PINNED,
@@ -169,6 +171,32 @@ def test_an_assignment_records_its_settled_dispatch_recipe(state, route):
     assert assignment.record.prompt.startswith("/dream:smith GH12\n")
     record = state.assignments / ASSIGNMENT_ID / "assignment.json"
     assert '"dispatch_label": "dream:smith"' in record.read_text(encoding="utf-8")
+
+
+def test_setup_writes_the_pull_request_observation_before_the_record(
+    state, route, monkeypatch
+):
+    # The record marks the setup complete, so a setup that stops at the record
+    # is incomplete and has its observation already.
+    def stop_at_the_record(*, document, path):
+        if path.name == "assignment.json":
+            raise ReportableError("the disk is full")
+        write_json(document=document, path=path)
+
+    monkeypatch.setattr("dreamcatcher.agent_assignments.write_json", stop_at_the_record)
+
+    with pytest.raises(ReportableError, match="the disk is full"):
+        create_assignment(
+            state=state,
+            route=route,
+            requested_harness=AgentHarness.CLAUDE,
+            issue=12,
+            at=PINNED,
+        )
+
+    assert read_assignments(state=state) == []
+    directory = state.assignments / ASSIGNMENT_ID
+    assert (directory / "pull-request-observation.json").is_file()
 
 
 def test_an_assignment_titles_its_pull_request_after_its_issue(state, route, gh):
@@ -383,9 +411,40 @@ def test_a_cancelled_assignment_records_when_and_is_no_longer_open(fabricated):
     cancel_assignment(assignment=assignment, at=PINNED + timedelta(hours=1))
 
     cancelled = read_assignments(state=fabricated)[0]
-    assert cancelled.record.cancelled_at == PINNED + timedelta(hours=1)
+    assert cancelled.cancelled_at == PINNED + timedelta(hours=1)
     assert not cancelled.is_open
     assert find_open_assignments_by_issue(assignments=[cancelled]) == {}
+
+
+def test_recording_later_facts_leaves_the_assignment_record_as_it_was(fabricated):
+    # Nothing rewrites the record, so no writer can erase another's fact.
+    write_assignment(
+        state=fabricated,
+        identifier=ASSIGNMENT_ID,
+        issue=12,
+        harness_session_identifier=None,
+    )
+    assignment = read_assignments(state=fabricated)[0]
+    record = assignment.directory / "assignment.json"
+    created = record.read_bytes()
+
+    record_pull_request_observation(
+        assignment=assignment,
+        pull_request=PullRequest(
+            number=PULL_REQUEST, state=PullRequestState.MERGED, is_draft=False
+        ),
+        observed_at=PINNED,
+    )
+    record_harness_session_identifier(work=assignment, identifier="abc-123")
+    request_agent_work_retry(work=assignment, at=PINNED)
+    cancel_assignment(assignment=assignment, at=PINNED)
+
+    assert record.read_bytes() == created
+    recorded = read_assignments(state=fabricated)[0]
+    assert recorded.pull_request_observation.state is PullRequestState.MERGED
+    assert recorded.retry_requested_at == PINNED
+    assert recorded.cancelled_at == PINNED
+    assert recorded.harness_session_identifier == "abc-123"
 
 
 def test_cancelling_asks_a_round_with_no_ending_to_stop(fabricated):
@@ -427,7 +486,7 @@ def test_an_assignment_that_has_ended_cannot_be_cancelled(fabricated):
             at=PINNED + timedelta(hours=1),
         )
 
-    assert read_assignments(state=fabricated)[0].record.cancelled_at == PINNED
+    assert read_assignments(state=fabricated)[0].cancelled_at == PINNED
 
 
 @pytest.mark.parametrize(
@@ -988,46 +1047,6 @@ def test_an_assignment_reads_back_with_its_settled_dispatch_recipe(state, route)
     assert read_assignments(state=state) == [created]
 
 
-def test_an_assignment_record_from_before_titles_and_pull_request_observations_reads(
-    fabricated,
-):
-    directory = write_assignment(
-        state=fabricated,
-        identifier=ASSIGNMENT_ID,
-        issue=12,
-    )
-    path = directory / "assignment.json"
-    document = json.loads(path.read_text(encoding="utf-8"))
-    del document["title"]
-    del document["pull_request_observation"]
-    path.write_bytes((json.dumps(document) + "\n").encode())
-
-    record = read_assignments(state=fabricated)[0].record
-
-    assert record.title is None
-    assert record.pull_request_observation is None
-
-
-def test_an_assignment_records_the_harness_session_its_first_round_reports(fabricated):
-    write_assignment(
-        state=fabricated,
-        identifier=ASSIGNMENT_ID,
-        issue=12,
-        harness_session_identifier=None,
-    )
-    assignment = read_assignments(state=fabricated)[0]
-
-    record_assignment_harness_session_identifier(
-        assignment=assignment, identifier="abc-123"
-    )
-    record_assignment_harness_session_identifier(
-        assignment=assignment, identifier="abc-123"
-    )
-
-    recorded = read_assignments(state=fabricated)[0]
-    assert recorded.record.harness_session_identifier == "abc-123"
-
-
 def test_an_assignment_recovers_a_session_reported_by_a_later_round(fabricated):
     directory = write_assignment(
         state=fabricated,
@@ -1067,25 +1086,6 @@ def test_an_assignment_recovers_a_session_reported_by_a_later_round(fabricated):
     assert recovered == "replacement-session"
 
 
-def test_a_legacy_assignment_records_only_the_first_issue_title(fabricated):
-    directory = write_assignment(
-        state=fabricated,
-        identifier=ASSIGNMENT_ID,
-        issue=12,
-    )
-    assignment = read_assignments(state=fabricated)[0]
-
-    record_assignment_title(assignment=assignment, title="First title")
-    assignment = read_assignments(state=fabricated)[0]
-    path = directory / "assignment.json"
-    first_recording = path.read_bytes()
-    record_assignment_title(assignment=assignment, title="Later title")
-
-    recorded = read_assignments(state=fabricated)[0]
-    assert recorded.record.title == "First title"
-    assert path.read_bytes() == first_recording
-
-
 def test_an_assignment_records_a_changed_pull_request_observation(fabricated):
     write_assignment(state=fabricated, identifier=ASSIGNMENT_ID, issue=12)
     assignment = read_assignments(state=fabricated)[0]
@@ -1110,14 +1110,14 @@ def test_an_assignment_records_a_changed_pull_request_observation(fabricated):
     )
 
     recorded = read_assignments(state=fabricated)[0]
-    assert recorded.record.pull_request_observation == PullRequestObservation(
+    assert recorded.pull_request_observation == PullRequestObservation(
         state=PullRequestState.OPEN,
         is_draft=False,
         observed_at=PINNED + timedelta(minutes=1),
     )
 
 
-def test_an_unchanged_pull_request_observation_leaves_the_record_untouched(fabricated):
+def test_an_unchanged_pull_request_observation_is_not_written_again(fabricated):
     directory = write_assignment(
         state=fabricated,
         identifier=ASSIGNMENT_ID,
@@ -1134,7 +1134,7 @@ def test_an_unchanged_pull_request_observation_leaves_the_record_untouched(fabri
         pull_request=pull_request,
         observed_at=PINNED,
     )
-    path = directory / "assignment.json"
+    path = directory / "pull-request-observation.json"
     before = path.read_bytes()
 
     record_pull_request_observation(
@@ -1144,42 +1144,6 @@ def test_an_unchanged_pull_request_observation_leaves_the_record_untouched(fabri
     )
 
     assert path.read_bytes() == before
-
-
-def test_an_assignment_refuses_a_different_harness_session(fabricated):
-    write_assignment(
-        state=fabricated,
-        identifier=ASSIGNMENT_ID,
-        issue=12,
-        harness_session_identifier="abc-123",
-    )
-    assignment = read_assignments(state=fabricated)[0]
-
-    with pytest.raises(ReportableError, match="but its record names abc-123"):
-        record_assignment_harness_session_identifier(
-            assignment=assignment, identifier="another-session"
-        )
-
-
-@pytest.mark.parametrize(
-    ("identifier", "message"),
-    [
-        ("", "identifier is empty"),
-        ("bad%identifier", "cannot hold a percent sign"),
-        ("--last", "must begin with a letter or digit"),
-        ("abc; touch another-file", "contain only ASCII letters"),
-    ],
-)
-def test_an_assignment_refuses_an_invalid_harness_session_identifier(
-    fabricated, identifier, message
-):
-    write_assignment(state=fabricated, identifier=ASSIGNMENT_ID, issue=12)
-    assignment = read_assignments(state=fabricated)[0]
-
-    with pytest.raises(ReportableError, match=message):
-        record_assignment_harness_session_identifier(
-            assignment=assignment, identifier=identifier
-        )
 
 
 def test_an_assignment_no_round_has_delivered_a_user_post_has_an_empty_cursor(
