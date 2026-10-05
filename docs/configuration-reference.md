@@ -98,7 +98,8 @@ Codex table also accepts a `config` table, described in
 
 Dreamcatcher does not prescribe the harness-specific model and effort names; the
 selected harness must accept the configured strings. Unknown settings at any
-level are errors, so a misspelling is reported rather than ignored.
+level are errors, so a misspelling is reported rather than ignored. The keys of
+a Codex `config` table are the exception, because they belong to Codex.
 
 Assignment prompts normally invoke an assignment skill that follows the
 [agent-facing contract](../CONTRACT.md). Conversation prompts may be plain
@@ -122,12 +123,18 @@ Write a nested setting as one quoted key, such as
 `"features.web_search_request" = true`. A dotted key without quotes makes a
 table in TOML, and Dreamcatcher refuses a table as a value.
 
-Dreamcatcher sets `model`, `model_reasoning_effort`, `sandbox_mode`,
-`approval_policy`, `approvals_reviewer` and
-`sandbox_workspace_write.network_access` itself, so that every round runs with
-the recipe's model and effort and with the permissions that unattended work
-needs. A `config` table that sets one of these is an error. Dreamcatcher does
-not check that Codex knows a setting.
+Dreamcatcher keeps these settings for itself, so that every round runs with the
+recipe's model and effort and with the permissions that unattended work needs:
+
+- `model` and `model_reasoning_effort`;
+- `sandbox_mode`, `approval_policy`, `approvals_reviewer` and
+  `sandbox_workspace_write.network_access`;
+- `default_permissions` and the `permissions` table, which would choose a
+  permissions profile in place of the sandbox settings.
+
+A `config` table that sets one of these, or a key inside one, is an error.
+Dreamcatcher does not check that Codex knows a setting, so a misspelt key in a
+`config` table is not reported.
 
 ## Harness selection
 

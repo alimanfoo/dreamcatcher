@@ -241,10 +241,20 @@ def test_a_label_one_harness_can_run_runs_on_that_one_whatever_the_run_named(tmp
             "assignment.0.claude.config: Extra inputs are not permitted",
         ),
         (
-            "a Codex config that sets what Dreamcatcher sets",
+            "a Codex config that sets what Dreamcatcher keeps",
             CONFIG + 'config = { sandbox_mode = "danger-full-access", model = "o3" }\n',
             "assignment.0.codex.config: Value error, cannot set model or "
-            "sandbox_mode, which Dreamcatcher sets for every round",
+            "sandbox_mode, which Dreamcatcher keeps for itself",
+        ),
+        (
+            "a Codex config value that is a float",
+            CONFIG + "config = { model_context_window = 1.0 }\n",
+            "assignment.0.codex.config.model_context_window.bool: Input should be "
+            "a valid boolean\n"
+            "  assignment.0.codex.config.model_context_window.int: Input should be "
+            "a valid integer\n"
+            "  assignment.0.codex.config.model_context_window.str: Input should be "
+            "a valid string",
         ),
         (
             "a Codex config key that is not a dotted path",
@@ -299,6 +309,32 @@ def test_a_config_mistake_names_the_setting_and_the_fault(
     assert (
         str(error.value)
         == f"{tmp_path / _DREAMCATCHER_CONFIG_NAME} is not valid:\n  {fault}"
+    )
+
+
+@pytest.mark.parametrize(
+    "key",
+    [
+        "model",
+        "model_reasoning_effort",
+        "sandbox_mode",
+        "approval_policy",
+        "approvals_reviewer",
+        "sandbox_workspace_write.network_access",
+        "default_permissions",
+        "permissions.unattended.network.enabled",
+    ],
+)
+def test_a_codex_config_cannot_set_what_dreamcatcher_keeps(tmp_path, key):
+    write_config(root=tmp_path, text=CONFIG + f'config = {{ "{key}" = "x" }}\n')
+
+    with pytest.raises(ReportableError) as error:
+        read_dreamcatcher_config(root=tmp_path)
+
+    assert str(error.value) == (
+        f"{tmp_path / _DREAMCATCHER_CONFIG_NAME} is not valid:\n"
+        f"  assignment.0.codex.config: Value error, cannot set {key}, which "
+        "Dreamcatcher keeps for itself"
     )
 
 

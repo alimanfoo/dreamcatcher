@@ -49,15 +49,18 @@ _CONVERSATION_PERMISSION_SETTINGS = {
 
 _EFFORT_KEY = "model_reasoning_effort"
 
-# Every setting that Dreamcatcher gives Codex itself. A recipe's own setting of
-# one would compete with the model, the effort or the permissions that an
-# unattended round needs.
+# Every setting that Dreamcatcher keeps for itself: those it gives Codex, and a
+# permissions profile, which Codex would apply in place of the sandbox settings.
+# A recipe's own setting of one, or of a key inside one, would compete with the
+# model, the effort or the permissions that an unattended round needs.
 _DREAMCATCHER_SETTING_KEYS = frozenset(
     {
         "model",
         _EFFORT_KEY,
         *_ASSIGNMENT_RESUME_PERMISSION_SETTINGS,
         *_CONVERSATION_PERMISSION_SETTINGS,
+        "default_permissions",
+        "permissions",
     }
 )
 
@@ -70,11 +73,18 @@ def _refuse_unpassable_codex_config(
     pydantic is what calls this, as the validator behind `CodexConfig`, and it
     passes the config positionally, so the parameter is positional-only.
     """
-    claimed_keys = sorted(config.keys() & _DREAMCATCHER_SETTING_KEYS)
+    claimed_keys = [
+        key
+        for key in sorted(config)
+        if any(
+            key == claimed or key.startswith(f"{claimed}.")
+            for claimed in _DREAMCATCHER_SETTING_KEYS
+        )
+    ]
     if claimed_keys:
         raise ValueError(
-            f"cannot set {' or '.join(claimed_keys)}, which Dreamcatcher sets "
-            "for every round"
+            f"cannot set {' or '.join(claimed_keys)}, which Dreamcatcher keeps "
+            "for itself"
         )
     for key, value in config.items():
         try:
