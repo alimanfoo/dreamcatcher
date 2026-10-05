@@ -141,7 +141,8 @@ not progress towards the standard. Meeting the criteria is.
 - Measure: whether the state format and the agent-facing contract each carry a
   version and a [compatibility statement](compatibility.md).
 - Bar: each does. Dreamcatcher reads and writes only its own state-format
-  directory and ignores other format directories. A breaking change to the state
+  directory, apart from the daemon lock and the `.gitignore` that every format
+  shares, and ignores other format directories. A breaking change to the state
   format or agent-facing contract receives a new version and a changelog entry
   saying what the user must do.
 - Check: review.

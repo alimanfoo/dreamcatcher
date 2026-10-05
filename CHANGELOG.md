@@ -9,7 +9,7 @@ A change that users would notice gets an entry here. Released changes stay under
 their release; development changes stay under **Unreleased** until they are
 tagged. From v5.0.0 on, each entry links the pull request that made the change.
 
-## Unreleased (v5.0.0)
+## [v5.0.0](https://github.com/alimanfoo/dreamcatcher/releases/tag/v5.0.0) — 2026-10-06
 
 - Terminal and web live views now keep following faulted assignments and
   conversations in fault or with a routing conflict, so recovery appears without
@@ -82,6 +82,22 @@ tagged. From v5.0.0 on, each entry links the pull request that made the change.
   Prompt and skill authors should check their assumptions against the contract.
   ([#364](https://github.com/alimanfoo/dreamcatcher/pull/364),
   [#370](https://github.com/alimanfoo/dreamcatcher/pull/370))
+- The prompt that hands an assignment new pull request posts now opens with
+  "User-posts prompt for pull request #N:" rather than "PR-inbox prompt", and
+  each round's input file is `round-input.json` rather than `inbox.json`. A
+  skill that recognises the old words should follow [the contract](CONTRACT.md)
+  instead. ([#411](https://github.com/alimanfoo/dreamcatcher/pull/411))
+- Added a **Retry** button to the web assignment and conversation pages while
+  the work is in fault. It records the same retry request as
+  `dreamcatcher retry` for the work the page shows.
+  ([#386](https://github.com/alimanfoo/dreamcatcher/pull/386))
+- A conversation in fault now shows **fault** even when its issue has a routing
+  conflict, is no longer eligible, or has no scheduler observation yet, so its
+  page offers **Retry**. Before, it could show idle, unknown or routing
+  conflict. ([#394](https://github.com/alimanfoo/dreamcatcher/pull/394))
+- The "resume by hand" command for a Codex session now sets the work's model,
+  effort and harness config, as every other Codex round does.
+  ([#408](https://github.com/alimanfoo/dreamcatcher/pull/408))
 
 ## [v4.0.0](https://github.com/alimanfoo/dreamcatcher/releases/tag/v4.0.0) — 2026-10-01
 

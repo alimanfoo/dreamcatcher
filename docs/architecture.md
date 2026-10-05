@@ -71,9 +71,9 @@ record ends the daemon because retrying cannot repair the document.
 If an issue read fails, the tick records the failure and prevents only the
 launches that depend on those facts. A later tick retries the failed read. New
 conversation rounds launch in order of their oldest waiting comment across all
-issues, so a failed read for any one conversation prevents every new
-conversation round in that tick. Recovery rounds do not depend on that order, so
-they still launch.
+issues, so a failed read for any conversation that awaits new comments prevents
+every new conversation round in that tick. Recovery rounds do not depend on that
+order, so they still launch.
 
 If a launch fails, the tick keeps every round that it already started and
 records the failure. It starts no lower-priority candidate of the same kind
@@ -143,9 +143,9 @@ commands and `gh api` while denying direct editing and Git mutations. Codex runs
 in a networked workspace-write sandbox without approval escalation. Each prompt
 that delivers a comment batch forbids source changes, Git mutations,
 pull-request changes and direct reply posting. A recovery prompt resumes the
-harness session that already received those instructions, or follows the first
-prompt in a replacement session. Every prompt requires the agent marker on every
-other GitHub post that the agent makes.
+harness session that already received those instructions. A replacement session
+receives the first prompt again instead, which carries them. Every prompt
+requires the agent marker on every other GitHub post that the agent makes.
 
 A conversation round posts its own answer. The conversation launcher gives the
 round a finisher that posts to the issue, so the shared round runner knows

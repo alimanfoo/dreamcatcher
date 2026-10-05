@@ -5,6 +5,6 @@ class ReportableError(Exception):
     """Mark a failure that the user can act on.
 
     Every failure the tool raises for the user to act on derives from this. The
-    The command line catches these failures and prints their messages. Other
+    command line catches these failures and prints their messages. Other
     exceptions reach the user as tracebacks because they indicate bugs.
     """

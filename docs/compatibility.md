@@ -1,8 +1,7 @@
 # Compatibility and upgrades
 
-The latest tagged release, v4.0.0, uses state format 4. Current development code
-uses state format 5, which will be released as v5.0.0. The state-format change
-means saved work does not carry across automatically.
+The latest tagged release, v5.0.0, uses state format 5. v4.0.0 used state format
+4, and saved work does not carry across from one format to the next.
 
 ## Upgrade from v4.0.0 to v5.0.0
 
