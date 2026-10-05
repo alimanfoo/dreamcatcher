@@ -10,9 +10,9 @@ from dreamcatcher.documents import is_complete_line_position, read_lines_from
 from dreamcatcher.feed import compose_agent_round_boundary, read_feed_line
 from dreamcatcher.web.models import (
     WebAgentFeed,
+    WebAgentLiveState,
     WebAgentRound,
     WebAgentTail,
-    WebAgentTailContext,
     WebFeedCursor,
     WebFeedLine,
     WebFeedOwner,
@@ -62,7 +62,7 @@ def decode_feed_cursor(*, value: str) -> WebFeedCursor:
 def read_agent_tail(
     *,
     owner: WebFeedOwner | None,
-    context: WebAgentTailContext,
+    live: WebAgentLiveState,
     cursor: WebFeedCursor,
     zone: tzinfo | None,
 ) -> WebAgentTail:
@@ -80,7 +80,7 @@ def read_agent_tail(
             number=number,
             position=position,
             is_opening_round=is_opening_round,
-            context=context,
+            rounds=live.rounds,
             zone=zone,
         )
         if feed_round is not None:
@@ -94,11 +94,7 @@ def read_agent_tail(
     return WebAgentTail(
         cursor=_encode_feed_cursor(cursor=next_cursor),
         feed_rounds=tuple(feed_rounds),
-        status=context.status,
-        status_label=context.status_label,
-        detail=context.detail,
-        rounds=context.rounds,
-        controls=context.controls,
+        live=live,
         has_empty_feed_placeholder=cursor.round_number == 0,
     )
 
@@ -109,7 +105,7 @@ def _read_tail_round(
     number: int,
     position: int,
     is_opening_round: bool,
-    context: WebAgentTailContext,
+    rounds: tuple[WebAgentRound, ...],
     zone: tzinfo | None,
 ) -> tuple[WebFeedRound | None, int, bool]:
     record = round_feed.record
@@ -129,7 +125,7 @@ def _read_tail_round(
                 record=record,
                 zone=zone,
                 detail=_find_round_revision_description(
-                    rounds=context.rounds, number=record.number
+                    rounds=rounds, number=record.number
                 ),
             ),
             *lines,
@@ -187,7 +183,7 @@ def read_agent_feed(
     *,
     owner: WebFeedOwner | None,
     zone: tzinfo | None,
-    rounds: tuple[WebAgentRound, ...] = (),
+    rounds: tuple[WebAgentRound, ...],
 ) -> WebAgentFeed:
     """Read the complete saved feed for any agent work."""
     feed_rounds = []

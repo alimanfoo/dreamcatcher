@@ -9,6 +9,7 @@
 
     <script src="/static/vendor/htmx-2.0.10.min.js" defer></script>
     <script src="/static/vendor/idiomorph-ext-0.7.4.min.js" defer></script>
+    <script src="/static/base.js" defer></script>
   </head>
   <body hx-ext="morph">
     
@@ -35,11 +36,11 @@
           
           <div class="assignment-heading-actions">
             <div id="agent-work-controls"><form class="agent-work-control-form" method="post" action="/assignments/GH13-20260819-184158/stop/2"><button class="agent-work-control stop-control" type="submit">stop</button></form><form class="agent-work-control-form" method="post" action="/assignments/GH13-20260819-184158/cancel" data-confirmation="Cancel this assignment? Dreamcatcher will stop working on it so that you can finish its pull request by hand. This cannot be undone."><button class="agent-work-control cancel-control" type="submit">cancel</button></form></div>
-            <span id="assignment-status" class="chip status-working">working</span>
+            <span id="agent-work-status" class="chip status-working">working</span>
             <a class="pr-chip" href="https://github.com/alimanfoo/dreamcatcher/pull/52" target="_blank" rel="noopener noreferrer">PR #52</a>
           </div>
         </div>
-        <p id="assignment-detail" class="assignment-detail">round 2, address feedback (recovery), running 1h 30m, last output 1h 29m ago</p>
+        <p id="agent-work-detail" class="assignment-detail">round 2, address feedback (recovery), running 1h 30m, last output 1h 29m ago</p>
         <dl class="assignment-facts">
           <div><dt>label</dt><dd>dream:smith</dd></div>
           <div><dt>harness</dt><dd>claude</dd></div>
@@ -114,6 +115,7 @@
           </div>
         </section>
       </div>
+      <div id="hand-resume" class="hand-resume"></div>
     </div>
   </main>
   <script src="/static/assignment.js"></script>

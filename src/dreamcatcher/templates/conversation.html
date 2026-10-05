@@ -13,10 +13,10 @@
           {% endif %}
           <div class="assignment-heading-actions">
             {% include "partials/agent-work-controls.html" %}
-            {% with status_id="conversation-status" %}{% include "partials/agent-work-status.html" %}{% endwith %}
+            {% include "partials/agent-work-status.html" %}
           </div>
         </div>
-        <p id="conversation-detail" class="assignment-detail">{{ view.detail }}</p>
+        {% include "partials/agent-work-detail.html" %}
         {% if view.facts %}
           <dl class="assignment-facts">
             {% for fact in view.facts %}
@@ -42,7 +42,7 @@
           </div>
         </section>
       </div>
-      {%- include "partials/hand-resume.html" %}
+      {% include "partials/hand-resume.html" %}
     </div>
   </main>
   <script src="{{ url_for('static', filename='assignment.js') }}"></script>

@@ -21,6 +21,9 @@ tagged.
 - Reshaped the documentation around reader tasks: a start-to-finish tutorial,
   focused task guides, complete command and configuration references, this
   changelog, compatibility guidance and a testing account.
+- The web assignment and conversation pages now show the "resume by hand"
+  section only while no round is running, and update it without a reload when a
+  round starts or ends. An open section stays open across refreshes.
 - Corrected CLI help to include routing conflicts among the conditions that end
   live conversation and conversation-feed views.
 - Ending a round on macOS no longer fails with a permission error when its
