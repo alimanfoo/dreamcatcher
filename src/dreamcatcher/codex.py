@@ -121,13 +121,21 @@ class _CodexHarnessAdapter(HarnessAdapter):
         """
         round_arguments = (
             [
-                *_build_round_settings(request=request),
+                *_build_round_settings(
+                    model=request.model,
+                    effort=request.effort,
+                    harness_config=request.harness_config,
+                ),
                 *_build_config_arguments(settings=_CONVERSATION_PERMISSION_SETTINGS),
             ]
             if request.work_kind is AgentWorkKind.CONVERSATION
             else [
                 "--approve-for-me",
-                *_build_round_settings(request=request),
+                *_build_round_settings(
+                    model=request.model,
+                    effort=request.effort,
+                    harness_config=request.harness_config,
+                ),
                 *_build_config_arguments(settings=_NETWORK_ACCESS_SETTING),
             ]
         )
@@ -154,8 +162,9 @@ class _CodexHarnessAdapter(HarnessAdapter):
     ) -> HarnessInvocation:
         """Return how to resume the identified harness session.
 
-        Codex forgets the model and the effort when it resumes, so this sets
-        both again.
+        `codex exec resume` takes the model from the current config, not from
+        the session, so this sets the model, the effort and the harness config
+        again.
         """
         permission_settings = (
             _CONVERSATION_PERMISSION_SETTINGS
@@ -168,7 +177,11 @@ class _CodexHarnessAdapter(HarnessAdapter):
                 "exec",
                 "resume",
                 "--json",
-                *_build_round_settings(request=request),
+                *_build_round_settings(
+                    model=request.model,
+                    effort=request.effort,
+                    harness_config=request.harness_config,
+                ),
                 *_build_config_arguments(settings=permission_settings),
                 *_build_final_output_arguments(
                     request=request, final_output_path=final_output_path
@@ -180,14 +193,28 @@ class _CodexHarnessAdapter(HarnessAdapter):
         )
 
     def build_hand_resume(
-        self, *, harness_session_identifier: HarnessSessionIdentifier
+        self,
+        *,
+        model: str,
+        effort: str,
+        harness_config: Mapping[str, HarnessConfigValue],
+        harness_session_identifier: HarnessSessionIdentifier,
     ) -> list[str]:
         """Return the command that resumes the harness session interactively.
 
         `codex resume` is Codex's interactive resume, where `codex exec resume`
-        is the headless command that resumed assignment rounds use.
+        is the headless command that resumed rounds use. Like a resumed round,
+        this sets the model, the effort and the harness config, so the command
+        does not depend on what Codex restores from the session.
         """
-        return [self.program, "resume", harness_session_identifier]
+        return [
+            self.program,
+            "resume",
+            *_build_round_settings(
+                model=model, effort=effort, harness_config=harness_config
+            ),
+            harness_session_identifier,
+        ]
 
     def _read(self, *, harness_event: dict) -> HarnessOutput:
         """Return what one parsed Codex event says.
@@ -244,14 +271,14 @@ def _build_final_output_arguments(
 CODEX_ADAPTER = _CodexHarnessAdapter()
 
 
-def _build_round_settings(*, request: AgentRoundLaunchRequest) -> list[str]:
+def _build_round_settings(
+    *, model: str, effort: str, harness_config: Mapping[str, HarnessConfigValue]
+) -> list[str]:
     """Return the model, effort and Codex config flags that every round uses."""
     return [
         "--model",
-        request.model,
-        *_build_config_arguments(
-            settings={_EFFORT_KEY: request.effort, **request.harness_config}
-        ),
+        model,
+        *_build_config_arguments(settings={_EFFORT_KEY: effort, **harness_config}),
     ]
 
 

@@ -183,12 +183,18 @@ def test_a_conversation_refuses_a_final_output_path_windows_cannot_carry():
         )
 
 
-def test_a_person_continues_the_harness_session_with_codexs_interactive_resume():
+def test_a_person_continues_the_harness_session_with_the_work_settings():
     assert CODEX_ADAPTER.build_hand_resume(
-        harness_session_identifier="01a0213c-9c67"
+        model="gpt-5.6-sol",
+        effort="xhigh",
+        harness_config={"model_context_window": 1000000},
+        harness_session_identifier="01a0213c-9c67",
     ) == [
         "codex",
         "resume",
+        *CODEX_ROUND_SETTINGS,
+        "-c",
+        "model_context_window=1000000",
         "01a0213c-9c67",
     ]
 

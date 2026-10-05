@@ -117,7 +117,7 @@ class ConversationStatus:
             return None
         return compose_hand_resume_command(
             is_working=self.value is ConversationStatusValue.WORKING,
-            harness=conversation.record.harness,
+            record=conversation.record,
             harness_session_identifier=self.harness_session_identifier,
         )
 
