@@ -19,7 +19,7 @@ effort = "high"
 prompt = "$dream:smith GH{issue}"
 model = "gpt-5.6-sol"
 effort = "high"
-# TODO configure 1M context for codex
+config = { model_context_window = 1000000, model_auto_compact_token_limit = 900000 }
 
 [[assignment]]
 label = "dream:less"
