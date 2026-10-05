@@ -11,6 +11,14 @@ tagged. From v5.0.0 on, each entry links the pull request that made the change.
 
 ## Unreleased (v5.0.0)
 
+- Brought the words in the status views, CLI help and messages, and guides into
+  line with each other. An assignment that needs your feedback shows how long
+  since its last output rather than "idle". The terminal and web views share
+  their labels and say "preferred harness" for the daemon's `--harness`. A
+  scheduler tick is called an update wherever you read about one, so the daemon
+  now reports "update failed". A route's per-harness settings are a dispatch
+  recipe throughout, and the `run` help says one daemon runs per checkout.
+  ([#416](https://github.com/alimanfoo/dreamcatcher/pull/416))
 - The web pages and the terminal status view no longer report a running daemon
   as stopped, or its running rounds as interrupted, after the system clock is
   corrected. The daemon now holds an operating-system lock on
