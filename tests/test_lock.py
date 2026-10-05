@@ -4,6 +4,7 @@ import time
 from threading import Event, Thread
 
 import pytest
+from filelock import BaseFileLock
 
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.lock import hold_daemon_lock, is_daemon_lock_held
@@ -115,3 +116,18 @@ def test_a_lock_that_cannot_be_probed_says_so(tmp_path):
 
     with pytest.raises(ReportableError, match=r"cannot probe .*daemon\.lock"):
         is_daemon_lock_held(path=lock)
+
+
+def test_a_release_that_cannot_happen_leaves_the_failure_that_ended_the_run(
+    tmp_path, monkeypatch
+):
+    def refuse_release(self, /, *, force=False):
+        raise PermissionError("the lock cannot be released")
+
+    monkeypatch.setattr(BaseFileLock, "release", refuse_release)
+
+    with (
+        pytest.raises(ReportableError, match="the tick"),
+        hold_daemon_lock(path=tmp_path / "daemon.lock"),
+    ):
+        raise ReportableError("the tick could not write what it decided")
