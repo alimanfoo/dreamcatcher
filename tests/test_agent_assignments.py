@@ -146,7 +146,7 @@ def test_an_assignment_cuts_a_branch_of_its_own_from_origins_main_as_it_is_now(
     assert (assignment.record.worktree / "later.txt").exists()
 
 
-def test_a_codex_assignment_records_its_recipes_codex_config(state, route):
+def test_a_codex_assignment_records_its_recipes_config(state, route):
     codex = route.recipes[AgentHarness.CODEX]
     configured = route.model_copy(
         update={
@@ -164,7 +164,7 @@ def test_a_codex_assignment_records_its_recipes_codex_config(state, route):
         at=PINNED,
     )
 
-    assert written(state=state).codex_config == {"model_context_window": 1000000}
+    assert written(state=state).harness_config == {"model_context_window": 1000000}
 
 
 def test_an_assignment_records_its_settled_dispatch_recipe(state, route):
@@ -189,7 +189,7 @@ def test_an_assignment_records_its_settled_dispatch_recipe(state, route):
     assert assignment.record.harness == AgentHarness.CLAUDE
     assert assignment.record.model == "opus[1m]"
     assert assignment.record.effort == "xhigh"
-    assert assignment.record.codex_config == {}
+    assert assignment.record.harness_config == {}
     assert assignment.record.prompt.startswith("/dream:smith GH12\n")
     record = state.assignments / ASSIGNMENT_ID / "assignment.json"
     assert '"dispatch_label": "dream:smith"' in record.read_text(encoding="utf-8")

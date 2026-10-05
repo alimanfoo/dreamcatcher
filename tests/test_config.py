@@ -6,22 +6,22 @@ from conftest import CONFIG, SMITH_CLAUDE, SMITH_CODEX
 from dreamcatcher.config import (
     _DREAMCATCHER_CONFIG_NAME,
     AgentHarness,
+    ClaudeRecipe,
     CodexRecipe,
     ConversationRoute,
-    DispatchRecipe,
     read_dreamcatcher_config,
 )
 from dreamcatcher.errors import ReportableError
 
 WITHOUT_CODEX = SMITH_CLAUDE
 
-CLAUDE_RECIPE = DispatchRecipe(
+CLAUDE_RECIPE = ClaudeRecipe(
     prompt="/dream:smith GH{issue}", model="opus[1m]", effort="xhigh"
 )
 CODEX_RECIPE = CodexRecipe(
     prompt="$dream:smith GH{issue}", model="gpt-5.6-sol", effort="xhigh"
 )
-CLAUDE_CONVERSATION_RECIPE = DispatchRecipe(
+CLAUDE_CONVERSATION_RECIPE = ClaudeRecipe(
     prompt="/dream:conversation GH{issue}", model="opus[1m]", effort="xhigh"
 )
 CODEX_CONVERSATION_RECIPE = CodexRecipe(
@@ -120,22 +120,24 @@ def test_a_conversation_either_harness_can_run_uses_the_requested_one(tmp_path):
     )
 
 
-def test_a_codex_recipe_carries_the_settings_its_config_table_gives_codex(tmp_path):
+def test_each_recipe_carries_the_config_its_harness_takes(tmp_path):
     write_config(
         root=tmp_path,
-        text=CONFIG
+        text=SMITH_CLAUDE
+        + "config = {}\n"
+        + SMITH_CODEX
         + 'config = { model_context_window = 1000000, model_verbosity = "low", '
         '"features.web_search_request" = true }\n',
     )
 
     recipes = read_dreamcatcher_config(root=tmp_path).assignment[0].recipes
 
-    assert recipes[AgentHarness.CODEX].codex_config == {
+    assert recipes[AgentHarness.CODEX].config == {
         "model_context_window": 1000000,
         "model_verbosity": "low",
         "features.web_search_request": True,
     }
-    assert recipes[AgentHarness.CLAUDE].codex_config == {}
+    assert recipes[AgentHarness.CLAUDE].config == {}
 
 
 def test_a_label_one_harness_can_run_carries_that_block_alone(tmp_path):
@@ -233,12 +235,13 @@ def test_a_label_one_harness_can_run_runs_on_that_one_whatever_the_run_named(tmp
             "a recipe block that is not a block",
             '[[assignment]]\nlabel = "dream:smith"\nclaude = "opus"\n',
             "assignment.0.claude: Input should be a valid dictionary or instance of "
-            "DispatchRecipe",
+            "ClaudeRecipe",
         ),
         (
-            "a Codex config in a Claude block",
+            "a config that Claude cannot take",
             SMITH_CLAUDE + "config = { model_context_window = 1000000 }\n",
-            "assignment.0.claude.config: Extra inputs are not permitted",
+            "assignment.0.claude.config: Value error, Claude takes no settings "
+            "beyond the model and the effort",
         ),
         (
             "a Codex config that sets what Dreamcatcher keeps",

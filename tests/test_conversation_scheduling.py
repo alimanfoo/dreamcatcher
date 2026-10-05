@@ -585,7 +585,7 @@ def test_codex_first_and_resumed_rounds_capture_and_publish_final_messages(
     ]
 
 
-def test_a_codex_conversation_round_passes_its_recipes_codex_config(
+def test_a_codex_conversation_round_passes_its_recipes_config(
     codex_conversation_scheduler, harnesses
 ):
     scheduler, clock, gh = codex_conversation_scheduler
@@ -598,7 +598,7 @@ def test_a_codex_conversation_round_passes_its_recipes_codex_config(
 
     conversation = read_conversation(state=scheduler.assignments.state, issue=8)
     assert conversation is not None
-    assert conversation.record.codex_config == {"model_context_window": 1000000}
+    assert conversation.record.harness_config == {"model_context_window": 1000000}
     [call] = harnesses["codex"].calls
     setting = call.arguments.index("model_context_window=1000000")
     assert call.arguments[setting - 1] == "-c"

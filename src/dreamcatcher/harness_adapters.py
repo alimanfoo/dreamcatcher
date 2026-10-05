@@ -57,9 +57,14 @@ HarnessSessionIdentifier = Annotated[
 ]
 
 
-# The value of one Codex setting, as TOML gives it. Each type is strict, so a
-# float such as 1.0 is refused rather than read as an integer.
-CodexConfigValue = StrictBool | StrictInt | StrictStr
+# The value of one harness config setting, as TOML gives it. Each type is
+# strict, so a float such as 1.0 is refused rather than read as an integer.
+HarnessConfigValue = StrictBool | StrictInt | StrictStr
+
+# Settings that a recipe gives its harness beyond the model and the effort. Each
+# adapter types the config it accepts, so a recipe can hold only what its
+# harness can be given.
+HarnessConfig = dict[str, HarnessConfigValue]
 
 
 class AgentWorkKind(StrEnum):
@@ -73,7 +78,7 @@ class AgentWorkKind(StrEnum):
 class AgentRoundLaunchRequest:
     """Describe the settled agent-work settings and prompt for one round.
 
-    The work owner fixes the identifier, model, effort and Codex settings.
+    The work owner fixes the identifier, model, effort and harness config.
     Every round for that owner runs with them. The prompt is this round's own.
     """
 
@@ -81,7 +86,7 @@ class AgentRoundLaunchRequest:
     model: str
     effort: str
     prompt: str
-    codex_config: Mapping[str, CodexConfigValue] = field(default_factory=dict)
+    harness_config: Mapping[str, HarnessConfigValue] = field(default_factory=dict)
     work_kind: AgentWorkKind = AgentWorkKind.ASSIGNMENT
 
 

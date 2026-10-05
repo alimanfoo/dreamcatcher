@@ -398,7 +398,7 @@ class AssignmentScheduler(
                     agent_work_identifier=assignment.identifier,
                     model=assignment.record.model,
                     effort=assignment.record.effort,
-                    codex_config=assignment.record.codex_config,
+                    harness_config=assignment.record.harness_config,
                     prompt=resumption.prompt,
                 ),
                 harness_session_identifier=resumption.identifier,

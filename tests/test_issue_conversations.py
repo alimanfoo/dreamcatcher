@@ -10,9 +10,9 @@ from dreamcatcher.agent_rounds import (
 )
 from dreamcatcher.config import (
     AgentHarness,
+    ClaudeRecipe,
     CodexRecipe,
     ConversationRoute,
-    DispatchRecipe,
 )
 from dreamcatcher.documents import write_json, write_text
 from dreamcatcher.errors import ReportableError
@@ -51,7 +51,7 @@ CODEX_PROMPT_TEMPLATE = "$dream:conversation GH" + "{issue}"
 def conversation_route() -> ConversationRoute:
     return ConversationRoute(
         label="dream:conversation",
-        claude=DispatchRecipe(
+        claude=ClaudeRecipe(
             prompt=PROMPT_TEMPLATE,
             model="opus[1m]",
             effort="xhigh",
@@ -150,7 +150,7 @@ def test_a_new_conversation_records_the_requested_harness_recipe(cloned):
     state = StateDirectory(root=cloned)
     route = ConversationRoute(
         label="dream:conversation",
-        claude=conversation_route().recipes[AgentHarness.CLAUDE],
+        claude=conversation_route().claude,
         codex=CodexRecipe(
             prompt=CODEX_PROMPT_TEMPLATE,
             model="gpt-5.6-sol",

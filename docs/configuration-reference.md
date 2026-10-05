@@ -86,9 +86,11 @@ and recovery rounds, though a round already running may finish.
 ## Harness recipes
 
 Each `[assignment.claude]`, `[assignment.codex]`, `[conversation.claude]` or
-`[conversation.codex]` table requires three settings, which have no defaults. A
-Codex table also accepts a `config` table, described in
-[Codex config](#codex-config).
+`[conversation.codex]` table requires three settings, which have no defaults.
+Each table also accepts a `config` table, the harness config, which holds
+settings for the harness beyond its model and effort. Codex takes the settings
+described in [Codex config](#codex-config). Claude takes none, so a Claude
+table's `config` must be empty.
 
 | Setting  | Value  | Effect and constraint                                                                                                                                                                            |
 | -------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -148,7 +150,7 @@ harness for newly created work:
 The option is therefore a preference, not a repository-wide pin. At startup,
 Dreamcatcher requires the named harness and every harness present in any route
 to be installed on `PATH`. An existing assignment or conversation keeps the
-label, harness, prompt, model, effort and Codex config chosen when it was
+label, harness, prompt, model, effort and harness config chosen when it was
 created; later configuration changes do not rewrite that record.
 
 A saved conversation may become eligible through any one configured conversation

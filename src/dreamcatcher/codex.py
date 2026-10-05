@@ -13,8 +13,9 @@ from dreamcatcher.feed import FeedEvent, FeedNote, FeedProse
 from dreamcatcher.harness_adapters import (
     AgentRoundLaunchRequest,
     AgentWorkKind,
-    CodexConfigValue,
     HarnessAdapter,
+    HarnessConfig,
+    HarnessConfigValue,
     HarnessInvocation,
     HarnessOutput,
     HarnessSessionIdentifier,
@@ -65,9 +66,7 @@ _DREAMCATCHER_SETTING_KEYS = frozenset(
 )
 
 
-def _refuse_unusable_codex_config(
-    config: dict[str, CodexConfigValue], /
-) -> dict[str, CodexConfigValue]:
+def _refuse_unusable_codex_config(config: HarnessConfig, /) -> HarnessConfig:
     """Return config, or raise ValueError naming a setting no round can use.
 
     pydantic is what calls this, as the validator behind `CodexConfig`, and it
@@ -102,7 +101,7 @@ _CodexConfigKey = Annotated[
 # Settings that every round of one piece of agent work passes to Codex, each
 # with `-c`.
 CodexConfig = Annotated[
-    dict[_CodexConfigKey, CodexConfigValue],
+    dict[_CodexConfigKey, HarnessConfigValue],
     AfterValidator(_refuse_unusable_codex_config),
 ]
 
@@ -251,12 +250,12 @@ def _build_round_settings(*, request: AgentRoundLaunchRequest) -> list[str]:
         "--model",
         request.model,
         *_build_config_arguments(
-            settings={_EFFORT_KEY: request.effort, **request.codex_config}
+            settings={_EFFORT_KEY: request.effort, **request.harness_config}
         ),
     ]
 
 
-def _build_config_arguments(*, settings: Mapping[str, CodexConfigValue]) -> list[str]:
+def _build_config_arguments(*, settings: Mapping[str, HarnessConfigValue]) -> list[str]:
     return [
         part
         for key, value in settings.items()
@@ -264,7 +263,7 @@ def _build_config_arguments(*, settings: Mapping[str, CodexConfigValue]) -> list
     ]
 
 
-def _compose_config_argument(*, key: str, value: CodexConfigValue) -> str:
+def _compose_config_argument(*, key: str, value: HarnessConfigValue) -> str:
     """Return the setting as `-c` takes it, with the value written as TOML.
 
     JSON writes a boolean, an integer and a string as TOML does, except that

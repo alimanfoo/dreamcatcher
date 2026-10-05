@@ -100,10 +100,10 @@ def test_a_resume_replays_the_settings_and_the_permissions_codex_forgets():
         ),
     ],
 )
-def test_every_round_passes_the_recipes_codex_config_as_toml(build_round):
+def test_every_round_passes_the_harness_config_as_toml(build_round):
     request = replace(
         ROUND_LAUNCH_REQUEST,
-        codex_config={
+        harness_config={
             "model_context_window": 1000000,
             "features.web_search_request": True,
             "model_verbosity": 'a "quoted"\x7fword',

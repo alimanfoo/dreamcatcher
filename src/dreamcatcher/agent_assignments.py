@@ -38,7 +38,6 @@ from dreamcatcher.agent_work import (
     read_user_request_time,
     record_user_request,
 )
-from dreamcatcher.codex import CodexConfig
 from dreamcatcher.commands import CommandError
 from dreamcatcher.config import AgentHarness, AssignmentRoute, QuotableText
 from dreamcatcher.documents import (
@@ -64,7 +63,7 @@ from dreamcatcher.github import (
     PullRequestState,
     UserPost,
 )
-from dreamcatcher.harness_adapters import HarnessSessionIdentifier
+from dreamcatcher.harness_adapters import HarnessConfig, HarnessSessionIdentifier
 from dreamcatcher.harnesses import find_harness_session_identifier
 from dreamcatcher.prompts import compose_first_round_prompt
 from dreamcatcher.state import StateDirectory
@@ -129,7 +128,7 @@ class AssignmentRecord(DreamcatcherDocument):
     harness: AgentHarness
     model: QuotableText
     effort: QuotableText
-    codex_config: CodexConfig = Field(default_factory=dict)
+    harness_config: HarnessConfig = Field(default_factory=dict)
     prompt: str
 
 
@@ -476,7 +475,7 @@ class AssignmentCreator:
             harness=selected_harness,
             model=recipe.model,
             effort=recipe.effort,
-            codex_config=recipe.codex_config,
+            harness_config=recipe.config,
             prompt=compose_first_round_prompt(template=recipe.prompt, issue=issue),
         )
         observation = PullRequestObservation(

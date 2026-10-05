@@ -928,14 +928,16 @@ def test_a_resume_recovers_the_harness_session_from_the_first_rounds_raw_stream(
     ]
 
 
-def test_a_codex_assignment_round_passes_its_recorded_codex_config(resuming, harnesses):
+def test_a_codex_assignment_round_passes_its_recorded_harness_config(
+    resuming, harnesses
+):
     state = StateDirectory(root=resuming)
     record = read_assignments(state=state)[0].record
     write_json(
         document=record.model_copy(
             update={
                 "harness": AgentHarness.CODEX,
-                "codex_config": {"model_context_window": 1000000},
+                "harness_config": {"model_context_window": 1000000},
             }
         ),
         path=state.assignments / ASSIGNMENT_ID / "assignment.json",
