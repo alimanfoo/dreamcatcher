@@ -286,10 +286,6 @@ body::after {
   text-shadow: var(--shadow);
 }
 
-.identifier {
-  font-weight: 600;
-}
-
 .title {
   color: var(--bright);
   font-weight: 600;

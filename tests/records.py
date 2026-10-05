@@ -89,7 +89,7 @@ def write_assignment(
     write_json(
         document=agent_assignments.AssignmentRecord(
             issue=issue,
-            title=None if reporting is None else reporting.title,
+            title=f"Issue {issue}" if reporting is None else reporting.title,
             dispatch_label="dream:smith",
             branch=f"{agent_assignments._ASSIGNMENT_BRANCH_PREFIX}{identifier}",
             worktree=state.worktrees / identifier,

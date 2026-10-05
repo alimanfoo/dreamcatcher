@@ -27,7 +27,6 @@ from dreamcatcher.agent_assignments import (
     read_assignments,
     read_assignments_for_issue,
     record_assignment_harness_session_identifier,
-    record_assignment_title,
     record_pull_request_observation,
 )
 from dreamcatcher.agent_rounds import (
@@ -988,7 +987,7 @@ def test_an_assignment_reads_back_with_its_settled_dispatch_recipe(state, route)
     assert read_assignments(state=state) == [created]
 
 
-def test_an_assignment_record_from_before_titles_and_pull_request_observations_reads(
+def test_an_assignment_record_from_before_pull_request_observations_reads(
     fabricated,
 ):
     directory = write_assignment(
@@ -998,13 +997,11 @@ def test_an_assignment_record_from_before_titles_and_pull_request_observations_r
     )
     path = directory / "assignment.json"
     document = json.loads(path.read_text(encoding="utf-8"))
-    del document["title"]
     del document["pull_request_observation"]
     path.write_bytes((json.dumps(document) + "\n").encode())
 
     record = read_assignments(state=fabricated)[0].record
 
-    assert record.title is None
     assert record.pull_request_observation is None
 
 
@@ -1065,25 +1062,6 @@ def test_an_assignment_recovers_a_session_reported_by_a_later_round(fabricated):
     recovered = assignment.find_harness_session_identifier()
 
     assert recovered == "replacement-session"
-
-
-def test_a_legacy_assignment_records_only_the_first_issue_title(fabricated):
-    directory = write_assignment(
-        state=fabricated,
-        identifier=ASSIGNMENT_ID,
-        issue=12,
-    )
-    assignment = read_assignments(state=fabricated)[0]
-
-    record_assignment_title(assignment=assignment, title="First title")
-    assignment = read_assignments(state=fabricated)[0]
-    path = directory / "assignment.json"
-    first_recording = path.read_bytes()
-    record_assignment_title(assignment=assignment, title="Later title")
-
-    recorded = read_assignments(state=fabricated)[0]
-    assert recorded.record.title == "First title"
-    assert path.read_bytes() == first_recording
 
 
 def test_an_assignment_records_a_changed_pull_request_observation(fabricated):

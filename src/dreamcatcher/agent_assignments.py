@@ -109,7 +109,7 @@ class AssignmentRecord(DreamcatcherDocument):
     """
 
     issue: int
-    title: str | None = None
+    title: str
     dispatch_label: str
     branch: str
     worktree: Path
@@ -558,15 +558,6 @@ def record_assignment_harness_session_identifier(
         ),
         path=path,
     )
-
-
-def record_assignment_title(*, assignment: Assignment, title: str) -> None:
-    """Record the first issue title known for a legacy assignment."""
-    path = assignment.directory / _ASSIGNMENT_RECORD_NAME
-    record = read_json(model=AssignmentRecord, path=path)
-    if record.title is not None:
-        return
-    write_json(document=record.model_copy(update={"title": title}), path=path)
 
 
 def record_pull_request_observation(

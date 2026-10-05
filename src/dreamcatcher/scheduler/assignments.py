@@ -37,10 +37,7 @@ from dreamcatcher.prompts import RECOVERY_PROMPT, compose_user_posts_prompt
 from dreamcatcher.relay import list_undelivered_user_posts
 from dreamcatcher.scheduler.agent_work import AgentWorkScheduler
 from dreamcatcher.scheduler.faults import derive_agent_work_fault
-from dreamcatcher.scheduler.issues import (
-    observe_issues,
-    record_missing_assignment_titles,
-)
+from dreamcatcher.scheduler.issues import observe_issues
 from dreamcatcher.scheduler.models import (
     NO_ROUND_HAS_RUN,
     AgentWorkInspection,
@@ -128,10 +125,6 @@ class AssignmentScheduler(
             observation.model_copy(update={"observed_at": at})
             for observation in issue_result.observations
         ]
-        record_missing_assignment_titles(
-            assignments=assignments,
-            observations=issue_observations,
-        )
         inspected = self._inspect_assignments(
             assignments=assignments,
             most_recent_cooldown_ended=(
