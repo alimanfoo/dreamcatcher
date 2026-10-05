@@ -1097,7 +1097,7 @@ def test_an_unchanged_pull_request_observation_is_not_written_again(fabricated):
         pull_request=pull_request,
         observed_at=PINNED,
     )
-    path = directory / "pull-request.json"
+    path = directory / "pull-request-observation.json"
     before = path.read_bytes()
 
     record_pull_request_observation(

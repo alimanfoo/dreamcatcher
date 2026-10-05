@@ -169,11 +169,12 @@ of an agent assignment. It should provide cohesive operations to:
 - read existing assignments;
 - find the open assignment for an issue;
 - allocate the next round number within an assignment;
-- update the harness session identifier;
-- read the user-post delivery position from recorded round inputs;
-- record when the user requests another recovery attempt after resolving a
-  fault; and
+- read the user-post delivery position from recorded round inputs; and
 - recognize completion after a successful wrap-up round.
+
+`agent_work.py` records the facts that both kinds of agent work share: the
+harness session identifier, and when the user requests another recovery attempt
+after resolving a fault.
 
 Assignment setup coordinates lower-level Git, GitHub, configuration, and
 document operations. As one recoverable workflow it:
@@ -401,9 +402,9 @@ starts as the cancel lands is stopped too, because the scheduler reads the
 cancel again once that round's record exists.
 
 The web process can also request a retry for agent work that status derives as
-in fault. It writes the retry request time through the assignment or
-conversation boundary, into that work's own record. The scheduler reads the
-request on a later tick, so the daemon still decides when recovery starts.
+in fault. It writes the retry request time into the work's own directory. The
+scheduler reads the request on a later tick, so the daemon still decides when
+recovery starts.
 
 ### Configuration, dispatch labels, and routes
 

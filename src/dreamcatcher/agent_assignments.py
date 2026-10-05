@@ -33,9 +33,10 @@ from dreamcatcher.agent_rounds import (
     request_agent_round_stop,
 )
 from dreamcatcher.agent_work import (
-    UserRequestRecord,
     read_harness_session_identifier,
     read_retry_requested_at,
+    read_user_request_time,
+    record_user_request,
 )
 from dreamcatcher.commands import CommandError
 from dreamcatcher.config import AgentHarness, AssignmentRoute
@@ -43,7 +44,6 @@ from dreamcatcher.documents import (
     DocumentCache,
     DreamcatcherDocument,
     read_json,
-    read_json_if_exists,
     write_json,
 )
 from dreamcatcher.errors import ReportableError
@@ -79,7 +79,7 @@ _ASSIGNMENT_RECORD_NAME = "assignment.json"
 
 # The file in an assignment's directory holding its latest pull request
 # observation.
-_PULL_REQUEST_OBSERVATION_RECORD_NAME = "pull-request.json"
+_PULL_REQUEST_OBSERVATION_RECORD_NAME = "pull-request-observation.json"
 
 # The file in an assignment's directory saying when the user cancelled it.
 _CANCEL_RECORD_NAME = "cancel.json"
@@ -316,10 +316,7 @@ def cancel_assignment(*, assignment: Assignment, at: datetime) -> None:
     """
     if not assignment.is_open:
         raise ReportableError(f"{assignment.identifier} has already ended.")
-    write_json(
-        document=UserRequestRecord(at=at),
-        path=assignment.directory / _CANCEL_RECORD_NAME,
-    )
+    record_user_request(path=assignment.directory / _CANCEL_RECORD_NAME, at=at)
     rounds = read_agent_round_records(
         cache=DocumentCache(),
         directory=assignment.directory / _AGENT_ROUNDS_DIRECTORY_NAME,
@@ -336,7 +333,10 @@ def stop_round_if_cancelled(*, assignment: Assignment, paths: AgentRoundPaths) -
     Call this once the round's record exists, so that a cancel either lands
     before this read or finds the round itself.
     """
-    if _read_cancelled_at(directory=assignment.directory) is not None:
+    cancelled_at = read_user_request_time(
+        path=assignment.directory / _CANCEL_RECORD_NAME
+    )
+    if cancelled_at is not None:
         request_agent_round_stop(paths=paths)
 
 
@@ -530,19 +530,12 @@ def _read_assignment(*, state: StateDirectory, directory: Path) -> Assignment:
         ),
         harness_session_identifier=read_harness_session_identifier(directory=directory),
         retry_requested_at=read_retry_requested_at(directory=directory),
-        cancelled_at=_read_cancelled_at(directory=directory),
+        cancelled_at=read_user_request_time(path=directory / _CANCEL_RECORD_NAME),
         rounds=read_agent_round_records(
             cache=state.document_cache,
             directory=directory / _AGENT_ROUNDS_DIRECTORY_NAME,
         ),
     )
-
-
-def _read_cancelled_at(*, directory: Path) -> datetime | None:
-    record = read_json_if_exists(
-        model=UserRequestRecord, path=directory / _CANCEL_RECORD_NAME
-    )
-    return None if record is None else record.at
 
 
 def read_user_post_delivery_cursor(*, assignment: Assignment) -> str:

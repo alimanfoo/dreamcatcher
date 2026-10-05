@@ -29,12 +29,12 @@ Every fact that changes after creation lives in a file of its own in the work's
 directory. A write replaces the file whole, from what the writer knows, and
 merges nothing into it.
 
-| File                   | Holds                             | Kept by                    |
-| ---------------------- | --------------------------------- | -------------------------- |
-| `pull-request.json`    | the latest pull request state     | assignments                |
-| `cancel.json`          | when the user cancelled           | assignments                |
-| `harness-session.json` | the session every round continues | assignments, conversations |
-| `retry-request.json`   | when the user last asked to retry | assignments, conversations |
+| File                            | Holds                             | Kept by                    |
+| ------------------------------- | --------------------------------- | -------------------------- |
+| `pull-request-observation.json` | the latest pull request state     | assignments                |
+| `cancel.json`                   | when the user cancelled           | assignments                |
+| `harness-session.json`          | the session every round continues | assignments, conversations |
+| `retry-request.json`            | when the user last asked to retry | assignments, conversations |
 
 The stop request already worked this way, as a file in the round's directory.
 
@@ -45,9 +45,9 @@ nothing. A different session is refused, as before.
 
 ### Creation writes the observation first
 
-Assignment setup writes `pull-request.json` before `assignment.json`. A written
-record marks the setup complete, so every complete assignment has an
-observation, and readers need no case for one without it.
+Assignment setup writes `pull-request-observation.json` before
+`assignment.json`. A written record marks the setup complete, so every complete
+assignment has an observation, and readers need no case for one without it.
 
 ### No two writes share a staging file
 

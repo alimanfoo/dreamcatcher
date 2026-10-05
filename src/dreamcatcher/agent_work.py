@@ -48,7 +48,7 @@ class AgentWork(Protocol):
         ...
 
 
-class UserRequestRecord(DreamcatcherDocument):
+class _UserRequestRecord(DreamcatcherDocument):
     """Model when the user asked something of agent work."""
 
     at: AwareDatetime
@@ -94,17 +94,22 @@ def record_harness_session_identifier(*, work: AgentWork, identifier: str) -> No
     )
 
 
+def read_user_request_time(*, path: Path) -> datetime | None:
+    """Return when the user made the request that the file at path records."""
+    record = read_json_if_exists(model=_UserRequestRecord, path=path)
+    return None if record is None else record.at
+
+
+def record_user_request(*, path: Path, at: datetime) -> None:
+    """Record at path when the user made a request, over any earlier one."""
+    write_json(document=_UserRequestRecord(at=at), path=path)
+
+
 def read_retry_requested_at(*, directory: Path) -> datetime | None:
     """Return when the user last asked the work in this directory to recover."""
-    record = read_json_if_exists(
-        model=UserRequestRecord, path=directory / _RETRY_REQUEST_RECORD_NAME
-    )
-    return None if record is None else record.at
+    return read_user_request_time(path=directory / _RETRY_REQUEST_RECORD_NAME)
 
 
 def request_agent_work_retry(*, work: AgentWork, at: datetime) -> None:
     """Record when the user asked faulted work to recover again."""
-    write_json(
-        document=UserRequestRecord(at=at),
-        path=work.directory / _RETRY_REQUEST_RECORD_NAME,
-    )
+    record_user_request(path=work.directory / _RETRY_REQUEST_RECORD_NAME, at=at)
