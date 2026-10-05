@@ -60,7 +60,7 @@ of them failed. One fact can have two writers, so this applies to every write.
 
 ### Every assignment has a title
 
-Every state-format-5 assignment is created with its title. The backfill that
+Every state format v5 assignment is created with its title. The backfill that
 recorded a title for older records is removed, and the title is required.
 
 ## Why not a lock
