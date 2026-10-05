@@ -39,7 +39,7 @@ from dreamcatcher.agent_work import (
     record_user_request,
 )
 from dreamcatcher.commands import CommandError
-from dreamcatcher.config import AgentHarness, AssignmentRoute
+from dreamcatcher.config import AgentHarness, AssignmentRoute, QuotableText
 from dreamcatcher.documents import (
     DocumentCache,
     DreamcatcherDocument,
@@ -126,8 +126,8 @@ class AssignmentRecord(DreamcatcherDocument):
     worktree: Path
     pull_request: int
     harness: AgentHarness
-    model: str
-    effort: str
+    model: QuotableText
+    effort: QuotableText
     prompt: str
 
 
