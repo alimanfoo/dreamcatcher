@@ -2,7 +2,7 @@
 label = "dream:scout"
 [conversation.claude]
 prompt = "/dream:scout GH{issue}"
-model = "opus[1m]"
+model = "opus"
 effort = "high"
 #[conversation.codex]
 #prompt = "$dream:scout GH{issue}"
