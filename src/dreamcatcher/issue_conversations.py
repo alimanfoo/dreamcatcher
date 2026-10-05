@@ -38,7 +38,7 @@ from dreamcatcher.github import (
     UnknownGitHubResponse,
     post_issue_comment,
 )
-from dreamcatcher.harness_adapters import HarnessSessionIdentifier
+from dreamcatcher.harness_adapters import HarnessConfig, HarnessSessionIdentifier
 from dreamcatcher.harnesses import find_harness_session_identifier
 from dreamcatcher.prompts import AGENT_POST_MARKER
 from dreamcatcher.state import StateDirectory
@@ -90,6 +90,7 @@ class ConversationRecord(DreamcatcherDocument):
     harness: AgentHarness
     model: QuotableText
     effort: QuotableText
+    harness_config: HarnessConfig = Field(default_factory=dict)
     prompt: str
 
 
@@ -198,6 +199,7 @@ def create_conversation(
             harness=selected_harness,
             model=recipe.model,
             effort=recipe.effort,
+            harness_config=recipe.config,
             prompt=recipe.prompt,
         )
         write_json(document=record, path=directory / _CONVERSATION_RECORD_NAME)

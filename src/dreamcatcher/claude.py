@@ -2,17 +2,35 @@
 
 import json
 from pathlib import Path
-from typing import ClassVar, Protocol
+from typing import Annotated, ClassVar, Protocol
+
+from pydantic import AfterValidator
 
 from dreamcatcher.feed import FeedEvent, FeedNote, FeedProse
 from dreamcatcher.harness_adapters import (
     AgentRoundLaunchRequest,
     AgentWorkKind,
     HarnessAdapter,
+    HarnessConfig,
     HarnessInvocation,
     HarnessOutput,
     HarnessSessionIdentifier,
 )
+
+
+def _refuse_claude_config(config: HarnessConfig, /) -> HarnessConfig:
+    """Return config, or raise ValueError if it holds any setting.
+
+    pydantic is what calls this, as the validator behind `ClaudeConfig`, and it
+    passes the config positionally, so the parameter is positional-only.
+    """
+    if config:
+        raise ValueError("Claude takes no settings beyond the model and the effort")
+    return config
+
+
+# The config a Claude recipe may hold, which is none.
+ClaudeConfig = Annotated[HarnessConfig, AfterValidator(_refuse_claude_config)]
 
 # What an unattended assignment round may do without being asked. The round
 # runs under `--permission-mode auto`, so this list keeps the port from

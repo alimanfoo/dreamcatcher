@@ -230,6 +230,7 @@ class ConversationScheduler(
                 agent_work_identifier=conversation.identifier,
                 model=conversation.record.model,
                 effort=conversation.record.effort,
+                harness_config=conversation.record.harness_config,
                 prompt=resumption.prompt,
                 work_kind=AgentWorkKind.CONVERSATION,
             ),

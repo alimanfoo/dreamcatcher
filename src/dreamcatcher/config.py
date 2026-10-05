@@ -4,8 +4,10 @@ from enum import StrEnum
 from pathlib import Path
 from typing import Annotated, Self
 
-from pydantic import AfterValidator, ConfigDict, Field, model_validator
+from pydantic import AfterValidator, Field, model_validator
 
+from dreamcatcher.claude import ClaudeConfig
+from dreamcatcher.codex import CodexConfig
 from dreamcatcher.commands import refuse_unquotable
 from dreamcatcher.documents import DreamcatcherDocument, read_toml
 
@@ -37,24 +39,39 @@ class DispatchRecipe(DreamcatcherDocument):
     effort: QuotableText
 
 
+class ClaudeRecipe(DispatchRecipe):
+    """Describe how Claude runs one kind of agent work."""
+
+    config: ClaudeConfig = Field(default_factory=dict)
+
+
+class CodexRecipe(DispatchRecipe):
+    """Describe how Codex runs one kind of agent work."""
+
+    config: CodexConfig = Field(default_factory=dict)
+
+
 class DispatchRoute(DreamcatcherDocument):
     """Map one dispatch label to its available harness recipes.
 
     The label is the route's identity, so no two routes carry the same one.
-
-    Harness blocks sit beside the label as extra keys. Their declared key type
-    is `AgentHarness`, so an unknown harness is a validation error.
     """
 
-    model_config = ConfigDict(extra="allow")
-    __pydantic_extra__: dict[AgentHarness, DispatchRecipe]
-
     label: str
+    claude: ClaudeRecipe | None = None
+    codex: CodexRecipe | None = None
 
     @property
-    def recipes(self) -> dict[AgentHarness, DispatchRecipe]:
-        """The recipe of each harness that can run this route."""
-        return self.__pydantic_extra__
+    def recipes(self) -> dict[AgentHarness, ClaudeRecipe | CodexRecipe]:
+        """The recipe of each harness that can run this route.
+
+        Each harness's block is the field that the harness's value names.
+        """
+        return {
+            harness: recipe
+            for harness in AgentHarness
+            if (recipe := getattr(self, harness.value)) is not None
+        }
 
     def choose_harness(self, *, requested_harness: AgentHarness) -> AgentHarness:
         """Return the harness that runs this label, given what the run named.

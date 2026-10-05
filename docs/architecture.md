@@ -290,7 +290,8 @@ adapter knows:
 
 - how to start a new harness session;
 - how to resume an identified harness session;
-- which model and effort arguments its harness needs;
+- which model and effort arguments its harness needs, and which harness config
+  it takes;
 - how to recover the harness session identifier from output; and
 - how to parse the harness's event stream.
 
@@ -410,8 +411,9 @@ still decides when recovery starts.
 
 `config.py` owns the strict model for `dreamcatcher.toml`. A `DispatchRecipe`
 supplies the model, effort, and initial prompt used to start agent work through
-one harness. A `DispatchRoute` maps one dispatch label to one recipe per harness
-that the route configures.
+one harness. A `ClaudeRecipe` and a `CodexRecipe` each add the harness config
+that their adapter takes, which is none for Claude. A `DispatchRoute` maps one
+dispatch label to one recipe per harness that the route configures.
 
 An `AssignmentRoute` specializes a dispatch route for assignments, and its
 prompt normally invokes an assignment skill. A `ConversationRoute` specializes a
@@ -496,7 +498,8 @@ The record persists:
 - the issue identifier, while the assignment identifier names the directory that
   holds the record;
 - the issue title captured during assignment setup;
-- the dispatch label and selected harness, model, effort and prompt;
+- the dispatch label and selected harness, model, effort, harness config and
+  prompt;
 - branch and worktree identity;
 - pull-request identity.
 

@@ -6,24 +6,25 @@ from conftest import CONFIG, SMITH_CLAUDE, SMITH_CODEX
 from dreamcatcher.config import (
     _DREAMCATCHER_CONFIG_NAME,
     AgentHarness,
+    ClaudeRecipe,
+    CodexRecipe,
     ConversationRoute,
-    DispatchRecipe,
     read_dreamcatcher_config,
 )
 from dreamcatcher.errors import ReportableError
 
 WITHOUT_CODEX = SMITH_CLAUDE
 
-CLAUDE_RECIPE = DispatchRecipe(
+CLAUDE_RECIPE = ClaudeRecipe(
     prompt="/dream:smith GH{issue}", model="opus[1m]", effort="xhigh"
 )
-CODEX_RECIPE = DispatchRecipe(
+CODEX_RECIPE = CodexRecipe(
     prompt="$dream:smith GH{issue}", model="gpt-5.6-sol", effort="xhigh"
 )
-CLAUDE_CONVERSATION_RECIPE = DispatchRecipe(
+CLAUDE_CONVERSATION_RECIPE = ClaudeRecipe(
     prompt="/dream:conversation GH{issue}", model="opus[1m]", effort="xhigh"
 )
-CODEX_CONVERSATION_RECIPE = DispatchRecipe(
+CODEX_CONVERSATION_RECIPE = CodexRecipe(
     prompt="$dream:conversation GH{issue}", model="gpt-5.6-sol", effort="xhigh"
 )
 
@@ -119,6 +120,26 @@ def test_a_conversation_either_harness_can_run_uses_the_requested_one(tmp_path):
     )
 
 
+def test_each_recipe_carries_the_config_its_harness_takes(tmp_path):
+    write_config(
+        root=tmp_path,
+        text=SMITH_CLAUDE
+        + "config = {}\n"
+        + SMITH_CODEX
+        + 'config = { model_context_window = 1000000, model_verbosity = "low", '
+        '"features.web_search_request" = true }\n',
+    )
+
+    recipes = read_dreamcatcher_config(root=tmp_path).assignment[0].recipes
+
+    assert recipes[AgentHarness.CODEX].config == {
+        "model_context_window": 1000000,
+        "model_verbosity": "low",
+        "features.web_search_request": True,
+    }
+    assert recipes[AgentHarness.CLAUDE].config == {}
+
+
 def test_a_label_one_harness_can_run_carries_that_block_alone(tmp_path):
     write_config(root=tmp_path, text=WITHOUT_CODEX)
 
@@ -208,13 +229,48 @@ def test_a_label_one_harness_can_run_runs_on_that_one_whatever_the_run_named(tmp
         (
             "a block for a harness that does not exist",
             CONFIG.replace("[assignment.codex]", "[assignment.gemini]"),
-            "assignment.0.gemini: Input should be 'claude' or 'codex'",
+            "assignment.0.gemini: Extra inputs are not permitted",
         ),
         (
             "a recipe block that is not a block",
             '[[assignment]]\nlabel = "dream:smith"\nclaude = "opus"\n',
             "assignment.0.claude: Input should be a valid dictionary or instance of "
-            "DispatchRecipe",
+            "ClaudeRecipe",
+        ),
+        (
+            "a config that Claude cannot take",
+            SMITH_CLAUDE + "config = { model_context_window = 1000000 }\n",
+            "assignment.0.claude.config: Value error, Claude takes no settings "
+            "beyond the model and the effort",
+        ),
+        (
+            "a Codex config that sets what Dreamcatcher keeps",
+            CONFIG + 'config = { sandbox_mode = "danger-full-access", model = "o3" }\n',
+            "assignment.0.codex.config: Value error, cannot set model or "
+            "sandbox_mode, which Dreamcatcher keeps for itself",
+        ),
+        (
+            "a Codex config value that is a float",
+            CONFIG + "config = { model_context_window = 1.0 }\n",
+            "assignment.0.codex.config.model_context_window.bool: Input should be "
+            "a valid boolean\n"
+            "  assignment.0.codex.config.model_context_window.int: Input should be "
+            "a valid integer\n"
+            "  assignment.0.codex.config.model_context_window.str: Input should be "
+            "a valid string",
+        ),
+        (
+            "a Codex config key that is not a dotted path",
+            CONFIG + 'config = { "model " = "o3" }\n',
+            "assignment.0.codex.config.model .[key]: String should match pattern "
+            "'^[A-Za-z0-9_-]+(\\.[A-Za-z0-9_-]+)*$'",
+        ),
+        (
+            "a Codex config value no command line could carry",
+            CONFIG + 'config = { model_verbosity = "50%" }\n',
+            "assignment.0.codex.config: Value error, model_verbosity cannot hold a "
+            "percent sign, because on Windows cmd.exe acts on the text rather than "
+            "passing it to the harness",
         ),
         (
             "one label routed twice",
@@ -256,6 +312,32 @@ def test_a_config_mistake_names_the_setting_and_the_fault(
     assert (
         str(error.value)
         == f"{tmp_path / _DREAMCATCHER_CONFIG_NAME} is not valid:\n  {fault}"
+    )
+
+
+@pytest.mark.parametrize(
+    "key",
+    [
+        "model",
+        "model_reasoning_effort",
+        "sandbox_mode",
+        "approval_policy",
+        "approvals_reviewer",
+        "sandbox_workspace_write.network_access",
+        "default_permissions",
+        "permissions.unattended.network.enabled",
+    ],
+)
+def test_a_codex_config_cannot_set_what_dreamcatcher_keeps(tmp_path, key):
+    write_config(root=tmp_path, text=CONFIG + f'config = {{ "{key}" = "x" }}\n')
+
+    with pytest.raises(ReportableError) as error:
+        read_dreamcatcher_config(root=tmp_path)
+
+    assert str(error.value) == (
+        f"{tmp_path / _DREAMCATCHER_CONFIG_NAME} is not valid:\n"
+        f"  assignment.0.codex.config: Value error, cannot set {key}, which "
+        "Dreamcatcher keeps for itself"
     )
 
 

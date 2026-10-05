@@ -1,8 +1,11 @@
 """Run Codex, and read what it streams back."""
 
-from collections.abc import Sequence
+import json
+from collections.abc import Mapping
 from pathlib import Path
-from typing import ClassVar
+from typing import Annotated, ClassVar
+
+from pydantic import AfterValidator, StringConstraints
 
 from dreamcatcher.commands import refuse_unquotable
 from dreamcatcher.errors import ReportableError
@@ -11,6 +14,8 @@ from dreamcatcher.harness_adapters import (
     AgentRoundLaunchRequest,
     AgentWorkKind,
     HarnessAdapter,
+    HarnessConfig,
+    HarnessConfigValue,
     HarnessInvocation,
     HarnessOutput,
     HarnessSessionIdentifier,
@@ -18,7 +23,7 @@ from dreamcatcher.harness_adapters import (
 
 # Let the round reach the network from inside its sandbox, so it can talk to
 # GitHub.
-_NETWORK_ACCESS_OVERRIDE = "sandbox_workspace_write.network_access=true"
+_NETWORK_ACCESS_SETTING = {"sandbox_workspace_write.network_access": True}
 
 # What Codex takes where a prompt would go, to read the prompt from stdin
 # instead. Claude reads stdin as soon as its command names no prompt, so it
@@ -28,20 +33,77 @@ _STDIN_ARGUMENT = "-"
 # What an unattended assignment resume may do without being asked. Its first
 # round gets this from `--approve-for-me`, but a resume does not keep it, so the
 # resumed command has to set the same permissions again itself.
-_ASSIGNMENT_RESUME_PERMISSION_OVERRIDES = (
-    'sandbox_mode="workspace-write"',
-    _NETWORK_ACCESS_OVERRIDE,
-    'approval_policy="on-request"',
-    'approvals_reviewer="auto_review"',
-)
+_ASSIGNMENT_RESUME_PERMISSION_SETTINGS = {
+    "sandbox_mode": "workspace-write",
+    **_NETWORK_ACCESS_SETTING,
+    "approval_policy": "on-request",
+    "approvals_reviewer": "auto_review",
+}
 
 # A conversation may write scratch files and make issue changes on GitHub, but
 # it must not ask a person to approve wider access.
-_CONVERSATION_PERMISSION_OVERRIDES = (
-    'sandbox_mode="workspace-write"',
-    _NETWORK_ACCESS_OVERRIDE,
-    'approval_policy="never"',
+_CONVERSATION_PERMISSION_SETTINGS = {
+    "sandbox_mode": "workspace-write",
+    **_NETWORK_ACCESS_SETTING,
+    "approval_policy": "never",
+}
+
+_EFFORT_KEY = "model_reasoning_effort"
+
+# Every setting that Dreamcatcher keeps for itself: those it gives Codex, and a
+# permissions profile, which Codex would apply in place of the sandbox settings.
+# A recipe's own setting of one, or of a key inside one, would compete with the
+# model, the effort or the permissions that an unattended round needs.
+_DREAMCATCHER_SETTING_KEYS = frozenset(
+    {
+        "model",
+        _EFFORT_KEY,
+        *_ASSIGNMENT_RESUME_PERMISSION_SETTINGS,
+        *_CONVERSATION_PERMISSION_SETTINGS,
+        "default_permissions",
+        "permissions",
+    }
 )
+
+
+def _refuse_unusable_codex_config(config: HarnessConfig, /) -> HarnessConfig:
+    """Return config, or raise ValueError naming a setting no round can use.
+
+    pydantic is what calls this, as the validator behind `CodexConfig`, and it
+    passes the config positionally, so the parameter is positional-only.
+    """
+    kept_keys = [
+        key
+        for key in sorted(config)
+        if any(
+            key == kept or key.startswith(f"{kept}.")
+            for kept in _DREAMCATCHER_SETTING_KEYS
+        )
+    ]
+    if kept_keys:
+        raise ValueError(
+            f"cannot set {' or '.join(kept_keys)}, which Dreamcatcher keeps for itself"
+        )
+    for key, value in config.items():
+        try:
+            refuse_unquotable(_compose_config_argument(key=key, value=value))
+        except ValueError as error:
+            raise ValueError(f"{key} {error}") from error
+    return config
+
+
+# A dotted path of TOML bare keys, as `-c` reads it. Any other text could name
+# one of Dreamcatcher's own settings in a form that the refusal does not match.
+_CodexConfigKey = Annotated[
+    str, StringConstraints(pattern=r"^[A-Za-z0-9_-]+(\.[A-Za-z0-9_-]+)*$")
+]
+
+# Settings that every round of one piece of agent work passes to Codex, each
+# with `-c`.
+CodexConfig = Annotated[
+    dict[_CodexConfigKey, HarnessConfigValue],
+    AfterValidator(_refuse_unusable_codex_config),
+]
 
 
 class _CodexHarnessAdapter(HarnessAdapter):
@@ -60,13 +122,13 @@ class _CodexHarnessAdapter(HarnessAdapter):
         round_arguments = (
             [
                 *_build_round_settings(request=request),
-                *_build_config_overrides(settings=_CONVERSATION_PERMISSION_OVERRIDES),
+                *_build_config_arguments(settings=_CONVERSATION_PERMISSION_SETTINGS),
             ]
             if request.work_kind is AgentWorkKind.CONVERSATION
             else [
                 "--approve-for-me",
                 *_build_round_settings(request=request),
-                *_build_config_overrides(settings=[_NETWORK_ACCESS_OVERRIDE]),
+                *_build_config_arguments(settings=_NETWORK_ACCESS_SETTING),
             ]
         )
         return HarnessInvocation(
@@ -95,10 +157,10 @@ class _CodexHarnessAdapter(HarnessAdapter):
         Codex forgets the model and the effort when it resumes, so this sets
         both again.
         """
-        permission_overrides = (
-            _CONVERSATION_PERMISSION_OVERRIDES
+        permission_settings = (
+            _CONVERSATION_PERMISSION_SETTINGS
             if request.work_kind is AgentWorkKind.CONVERSATION
-            else _ASSIGNMENT_RESUME_PERMISSION_OVERRIDES
+            else _ASSIGNMENT_RESUME_PERMISSION_SETTINGS
         )
         return HarnessInvocation(
             program=self.program,
@@ -107,7 +169,7 @@ class _CodexHarnessAdapter(HarnessAdapter):
                 "resume",
                 "--json",
                 *_build_round_settings(request=request),
-                *_build_config_overrides(settings=permission_overrides),
+                *_build_config_arguments(settings=permission_settings),
                 *_build_final_output_arguments(
                     request=request, final_output_path=final_output_path
                 ),
@@ -183,18 +245,32 @@ CODEX_ADAPTER = _CodexHarnessAdapter()
 
 
 def _build_round_settings(*, request: AgentRoundLaunchRequest) -> list[str]:
-    """Return the model and effort flags that every agent round uses."""
+    """Return the model, effort and Codex config flags that every round uses."""
     return [
         "--model",
         request.model,
-        *_build_config_overrides(
-            settings=[f'model_reasoning_effort="{request.effort}"']
+        *_build_config_arguments(
+            settings={_EFFORT_KEY: request.effort, **request.harness_config}
         ),
     ]
 
 
-def _build_config_overrides(*, settings: Sequence[str]) -> list[str]:
-    return [part for setting in settings for part in ("-c", setting)]
+def _build_config_arguments(*, settings: Mapping[str, HarnessConfigValue]) -> list[str]:
+    return [
+        part
+        for key, value in settings.items()
+        for part in ("-c", _compose_config_argument(key=key, value=value))
+    ]
+
+
+def _compose_config_argument(*, key: str, value: HarnessConfigValue) -> str:
+    """Return the setting as `-c` takes it, with the value written as TOML.
+
+    JSON writes a boolean, an integer and a string as TOML does, except that
+    TOML refuses a delete character inside a string.
+    """
+    toml_value = json.dumps(value, ensure_ascii=False).replace("\x7f", "\\u007f")
+    return f"{key}={toml_value}"
 
 
 def _read_completed_item(*, item: dict) -> list[FeedEvent]:

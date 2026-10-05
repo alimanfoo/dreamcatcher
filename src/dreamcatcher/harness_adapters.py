@@ -12,12 +12,13 @@ line that will not parse. Each adapter says what its own events mean.
 import json
 import re
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
+from collections.abc import Mapping
+from dataclasses import dataclass, field
 from enum import StrEnum
 from pathlib import Path
 from typing import Annotated, ClassVar
 
-from pydantic import AfterValidator
+from pydantic import AfterValidator, StrictBool, StrictInt, StrictStr
 
 from dreamcatcher.commands import refuse_unquotable
 from dreamcatcher.errors import ReportableError
@@ -56,6 +57,16 @@ HarnessSessionIdentifier = Annotated[
 ]
 
 
+# The value of one harness config setting, as TOML gives it. Each type is
+# strict, so a float such as 1.0 is refused rather than read as an integer.
+HarnessConfigValue = StrictBool | StrictInt | StrictStr
+
+# Settings that a recipe gives its harness beyond the model and the effort. Each
+# adapter types the config it accepts, so a recipe can hold only what its
+# harness can be given.
+HarnessConfig = dict[str, HarnessConfigValue]
+
+
 class AgentWorkKind(StrEnum):
     """Identify the contract and permissions for one kind of agent work."""
 
@@ -67,14 +78,15 @@ class AgentWorkKind(StrEnum):
 class AgentRoundLaunchRequest:
     """Describe the settled agent-work settings and prompt for one round.
 
-    The work owner fixes the identifier, model, and effort. Every round for
-    that owner runs with them. The prompt is this round's own.
+    The work owner fixes the identifier, model, effort and harness config.
+    Every round for that owner runs with them. The prompt is this round's own.
     """
 
     agent_work_identifier: str
     model: str
     effort: str
     prompt: str
+    harness_config: Mapping[str, HarnessConfigValue] = field(default_factory=dict)
     work_kind: AgentWorkKind = AgentWorkKind.ASSIGNMENT
 
 

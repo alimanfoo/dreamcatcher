@@ -11,6 +11,10 @@ tagged. From v5.0.0 on, each entry links the pull request that made the change.
 
 ## Unreleased (v5.0.0)
 
+- Added a `config` table to a Codex recipe in `dreamcatcher.toml`. Dreamcatcher
+  passes each entry to every Codex round as `-c key=value`, so that a label can
+  run Codex with settings such as a larger context window.
+  ([#402](https://github.com/alimanfoo/dreamcatcher/pull/402))
 - Added `dreamcatcher stop` to request a stop for the running round of a
   selected assignment or issue conversation.
   ([#374](https://github.com/alimanfoo/dreamcatcher/pull/374))

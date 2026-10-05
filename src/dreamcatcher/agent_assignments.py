@@ -15,7 +15,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import cast
 
-from pydantic import AwareDatetime
+from pydantic import AwareDatetime, Field
 
 from dreamcatcher.agent_assignment_pull_requests import (
     find_or_create_assignment_pull_request,
@@ -39,7 +39,7 @@ from dreamcatcher.agent_work import (
     record_user_request,
 )
 from dreamcatcher.commands import CommandError
-from dreamcatcher.config import AgentHarness, AssignmentRoute
+from dreamcatcher.config import AgentHarness, AssignmentRoute, QuotableText
 from dreamcatcher.documents import (
     DocumentCache,
     DreamcatcherDocument,
@@ -63,7 +63,7 @@ from dreamcatcher.github import (
     PullRequestState,
     UserPost,
 )
-from dreamcatcher.harness_adapters import HarnessSessionIdentifier
+from dreamcatcher.harness_adapters import HarnessConfig, HarnessSessionIdentifier
 from dreamcatcher.harnesses import find_harness_session_identifier
 from dreamcatcher.prompts import compose_first_round_prompt
 from dreamcatcher.state import StateDirectory
@@ -126,8 +126,9 @@ class AssignmentRecord(DreamcatcherDocument):
     worktree: Path
     pull_request: int
     harness: AgentHarness
-    model: str
-    effort: str
+    model: QuotableText
+    effort: QuotableText
+    harness_config: HarnessConfig = Field(default_factory=dict)
     prompt: str
 
 
@@ -420,8 +421,8 @@ class AssignmentCreator:
         """Create and publish the issue's assignment with no rounds run yet.
 
         The route selects a recipe in response to the requested
-        agent harness. The recipe supplies the model, effort, and prompt
-        template. Creation fetches main, makes the branch and worktree, adds and
+        agent harness. The recipe supplies the settings that the record
+        keeps. Creation fetches main, makes the branch and worktree, adds and
         pushes an empty commit, and opens the linked draft pull request. It then
         writes the pull request observation, and last the record, which marks
         the setup complete.
@@ -474,6 +475,7 @@ class AssignmentCreator:
             harness=selected_harness,
             model=recipe.model,
             effort=recipe.effort,
+            harness_config=recipe.config,
             prompt=compose_first_round_prompt(template=recipe.prompt, issue=issue),
         )
         observation = PullRequestObservation(

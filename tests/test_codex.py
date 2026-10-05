@@ -1,3 +1,4 @@
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -84,6 +85,43 @@ def test_a_resume_replays_the_settings_and_the_permissions_codex_forgets():
         ],
         prompt="$dream:smith GH9",
     )
+
+
+@pytest.mark.parametrize(
+    "build_round",
+    [
+        lambda request: CODEX_ADAPTER.build_first_round(
+            request=request, final_output_path=FINAL_OUTPUT_PATH
+        ),
+        lambda request: CODEX_ADAPTER.build_resumed_round(
+            request=request,
+            harness_session_identifier="01a0213c-9c67",
+            final_output_path=FINAL_OUTPUT_PATH,
+        ),
+    ],
+)
+def test_every_round_passes_the_harness_config_as_toml(build_round):
+    request = replace(
+        ROUND_LAUNCH_REQUEST,
+        harness_config={
+            "model_context_window": 1000000,
+            "features.web_search_request": True,
+            "model_verbosity": 'a "quoted"\x7fword',
+        },
+    )
+
+    arguments = build_round(request).arguments
+
+    settings_start = arguments.index("--model")
+    assert arguments[settings_start : settings_start + 10] == [
+        *CODEX_ROUND_SETTINGS,
+        "-c",
+        "model_context_window=1000000",
+        "-c",
+        "features.web_search_request=true",
+        "-c",
+        'model_verbosity="a \\"quoted\\"\\u007fword"',
+    ]
 
 
 def test_a_first_conversation_round_can_write_with_network_without_approval():

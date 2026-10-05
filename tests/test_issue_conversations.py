@@ -8,7 +8,12 @@ from dreamcatcher.agent_rounds import (
     AgentRoundRecord,
     ConversationRoundPurpose,
 )
-from dreamcatcher.config import AgentHarness, ConversationRoute, DispatchRecipe
+from dreamcatcher.config import (
+    AgentHarness,
+    ClaudeRecipe,
+    CodexRecipe,
+    ConversationRoute,
+)
 from dreamcatcher.documents import write_json, write_text
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.git import add_detached_worktree, is_linked_worktree
@@ -46,7 +51,7 @@ CODEX_PROMPT_TEMPLATE = "$dream:conversation GH" + "{issue}"
 def conversation_route() -> ConversationRoute:
     return ConversationRoute(
         label="dream:conversation",
-        claude=DispatchRecipe(
+        claude=ClaudeRecipe(
             prompt=PROMPT_TEMPLATE,
             model="opus[1m]",
             effort="xhigh",
@@ -127,7 +132,7 @@ def test_a_conversation_gets_a_detached_worktree_at_fetched_main(cloned):
             state=state,
             route=ConversationRoute(
                 label="dream:scout",
-                codex=DispatchRecipe(
+                codex=CodexRecipe(
                     prompt="$dream:conversation GH{issue}",
                     model="gpt-5.6-sol",
                     effort="high",
@@ -145,8 +150,8 @@ def test_a_new_conversation_records_the_requested_harness_recipe(cloned):
     state = StateDirectory(root=cloned)
     route = ConversationRoute(
         label="dream:conversation",
-        claude=conversation_route().recipes[AgentHarness.CLAUDE],
-        codex=DispatchRecipe(
+        claude=conversation_route().claude,
+        codex=CodexRecipe(
             prompt=CODEX_PROMPT_TEMPLATE,
             model="gpt-5.6-sol",
             effort="high",
