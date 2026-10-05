@@ -52,7 +52,7 @@ class CodexRecipe(DispatchRecipe):
 
 
 class DispatchRoute(DreamcatcherDocument):
-    """Map one dispatch label to its available harness recipes.
+    """Map one dispatch label to its available dispatch recipes.
 
     The label is the route's identity, so no two routes carry the same one.
     """
@@ -65,7 +65,7 @@ class DispatchRoute(DreamcatcherDocument):
     def recipes(self) -> dict[AgentHarness, ClaudeRecipe | CodexRecipe]:
         """The recipe of each harness that can run this route.
 
-        Each harness's block is the field that the harness's value names.
+        Each harness's recipe is the field that the harness's value names.
         """
         return {
             harness: recipe
@@ -74,12 +74,12 @@ class DispatchRoute(DreamcatcherDocument):
         }
 
     def choose_harness(self, *, requested_harness: AgentHarness) -> AgentHarness:
-        """Return the harness that runs this label, given what the run named.
+        """Return the harness that runs this label, given the preferred harness.
 
-        A label carrying a block for the named harness runs on that one. There
-        are two harnesses, so a label with no block for the named one carries a
-        block for the other alone, and runs on that one whatever the run named.
-        So which harnesses can run a label is already in the blocks that the
+        A label carrying a recipe for the preferred harness runs on that one. There
+        are two harnesses, so a label with no recipe for the preferred one carries
+        a recipe for the other alone, and runs on that one whatever the preference.
+        So which harnesses can run a label is already in the recipes that the
         label carries, and the config needs no pin of its own.
         """
         recipes = self.recipes
@@ -91,7 +91,7 @@ class DispatchRoute(DreamcatcherDocument):
     def _require_recipe(self) -> Self:
         """Refuse a label with no harness able to run it."""
         if not self.recipes:
-            raise ValueError(f"label {self.label} has no harness block")
+            raise ValueError(f"label {self.label} has no dispatch recipe")
         return self
 
 

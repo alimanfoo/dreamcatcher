@@ -60,7 +60,7 @@ def describe_round_ending(
         if ending.reason is not None:
             detail = f"{detail}: {ending.reason}"
     else:
-        outcome = describe_round_outcome(record=record, is_running=False)
+        outcome = describe_round_outcome(record=record, is_working=False)
         detail = f"round {record.number} {outcome}"
     line = read_last_feed_line(path=paths.feed)
     return detail, None if line is None else line.text.strip()
@@ -91,7 +91,7 @@ def compose_round_duration_description(*, record: AgentRoundRecord) -> str:
     return f"ran {describe_span(span=ending.at - record.started)}"
 
 
-def describe_round_outcome(*, record: AgentRoundRecord, is_running: bool) -> str:
+def describe_round_outcome(*, record: AgentRoundRecord, is_working: bool) -> str:
     """Return how the round ended, or what it is doing instead.
 
     A round that recorded no ending never finished. It is running when a daemon
@@ -104,6 +104,6 @@ def describe_round_outcome(*, record: AgentRoundRecord, is_running: bool) -> str
         if record.ending.reason is not None:
             return str(AgentRoundOutcome.ERRORED)
         return f"errored (exit {record.ending.status})"
-    if record.ending is None and not is_running:
+    if record.ending is None and not is_working:
         return str(AgentRoundOutcome.INTERRUPTED)
     return str(record.outcome)

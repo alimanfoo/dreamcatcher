@@ -29,15 +29,15 @@ domain phrase into a class. In particular, it should:
 
 `daemon.py` owns the lifetime of the daemon that runs a Dreamcatcher instance:
 
-- acquire and release the repository lock;
-- record the daemon process identifier in the run record as soon as it holds the
-  lock;
+- acquire and release the checkout's daemon lock;
+- record the daemon process identifier in the daemon run record as soon as it
+  holds the lock;
 - reconcile round records that an earlier daemon left without an ending by
   ending their recorded process trees at startup, then asking the round boundary
   to record them as stopped when the user asked to stop them, and otherwise as
   interrupted;
 - call the scheduler repeatedly;
-- wait for the run's requested interval between ticks; and
+- wait for the daemon run's requested interval between ticks; and
 - stop active child processes during shutdown.
 
 The daemon does not decide which issue, assignment or conversation deserves
@@ -59,8 +59,8 @@ One scheduler tick:
    nothing while a cooldown is active;
 5. alternates between the two kinds when both have candidates, without changing
    either kind's internal order;
-6. performs scheduling actions until the run's requested capacity is full or no
-   candidate remains; and
+6. performs scheduling actions until the daemon run's requested capacity is full
+   or no candidate remains; and
 7. returns a `SchedulerRecord` for operational reporting.
 
 The daemon persists the returned `SchedulerRecord` and reports it in its output.
@@ -69,7 +69,11 @@ and leaves the last complete scheduler record in place. An invalid scheduler
 record ends the daemon because retrying cannot repair the document.
 
 If an issue read fails, the tick records the failure and prevents only the
-launches that depend on those facts. A later tick retries the failed read.
+launches that depend on those facts. A later tick retries the failed read. New
+conversation rounds launch in order of their oldest waiting comment across all
+issues, so a failed read for any one conversation prevents every new
+conversation round in that tick. Recovery rounds do not depend on that order, so
+they still launch.
 
 If a launch fails, the tick keeps every round that it already started and
 records the failure. It starts no lower-priority candidate of the same kind
@@ -80,9 +84,9 @@ assignment and starting an agent round. When it selects an available issue, it
 performs both operations in one scheduling action, starting the first round as
 soon as assignment setup succeeds. Keeping the operations separate preserves
 clear ownership. If the combined action is interrupted between the operations,
-the complete assignment record shows that its first round is missing, and the
-scheduler ranks finishing the action ahead of every other assignment candidate.
-This does not create a separate class of normally scheduled work.
+the assignment record shows that its first round is missing, and the scheduler
+ranks finishing the action ahead of every other assignment candidate. This does
+not create a separate class of normally scheduled work.
 
 For every new round, the scheduler derives purpose and recovery independently. A
 terminal pull request requires wrap up; otherwise a draft pull request calls for
@@ -199,9 +203,9 @@ assignment identifier determines the branch and worktree identities, and the
 pull request identifies that branch as its head. Recovery can therefore
 recognize artifacts belonging to the same assignment. Repeating or recovering
 the assignment setup must reuse or remove those artifacts as appropriate and
-must not create a second branch or pull request. If the complete assignment
-record already exists, the scheduler continues to the first round instead of
-recreating the assignment.
+must not create a second branch or pull request. If the assignment record
+already exists, the scheduler continues to the first round instead of recreating
+the assignment.
 
 The assignment remains open until the module recognizes a successful wrap-up
 round. A merged or closed pull request calls for wrap up but does not by itself
@@ -231,7 +235,7 @@ operations to:
 
 `agent_assignments.py` owns `AssignmentRoundInput`, the pull request state and
 relayed user posts that a resumed assignment round receives beside its prompt.
-`issue_conversations.py` owns `ConversationInput`, which freezes the issue,
+`issue_conversations.py` owns `ConversationRoundInput`, which freezes the issue,
 trusted comments and investigated revision for a conversation round. The round
 runner writes whichever input the owner delivers without reading it, and it
 hands the final output to the owner's finisher without knowing what the owner

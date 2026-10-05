@@ -11,6 +11,14 @@ tagged. From v5.0.0 on, each entry links the pull request that made the change.
 
 ## Unreleased (v5.0.0)
 
+- Brought the words in the status views, CLI help and messages, and guides into
+  line with each other. An assignment that needs your feedback shows how long
+  since its last output rather than "idle". The terminal and web views share
+  their labels and say "preferred harness" for the daemon's `--harness`. A
+  scheduler tick is called an update wherever you read about one, so the daemon
+  now reports "update failed". A route's per-harness settings are a dispatch
+  recipe throughout, and the `run` help says one daemon runs per checkout.
+  ([#416](https://github.com/alimanfoo/dreamcatcher/pull/416))
 - The web pages and the terminal status view no longer report a running daemon
   as stopped, or its running rounds as interrupted, after the system clock is
   corrected. The daemon now holds an operating-system lock on
@@ -33,11 +41,11 @@ tagged. From v5.0.0 on, each entry links the pull request that made the change.
   something about the same assignment or conversation at the same moment.
   ([#395](https://github.com/alimanfoo/dreamcatcher/pull/395))
 - The web home page and the terminal status view show capacity, a global
-  cooldown and the latest tick's failures once each. Failures, such as a failed
-  issue listing, appear on a **scheduler failures** row, and the web home page
-  no longer hides them while capacity is full. The daemon's line for each tick
-  says what it launched, then any global cooldown, full capacity and failures.
-  ([#389](https://github.com/alimanfoo/dreamcatcher/pull/389))
+  cooldown and the latest update's failures once each. Failures, such as a
+  failed issue listing, appear on a **scheduler failures** row, and the web home
+  page no longer hides them while capacity is full. The daemon's line for each
+  update says what it launched, then any global cooldown, full capacity and
+  failures. ([#389](https://github.com/alimanfoo/dreamcatcher/pull/389))
 - Reshaped the documentation around reader tasks: a start-to-finish tutorial,
   focused task guides, complete command and configuration references, this
   changelog, compatibility guidance and a testing account.

@@ -27,7 +27,7 @@ from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import FeedLine
 from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.issue_conversations import (
-    ConversationInput,
+    ConversationRoundInput,
     InitialConversationIssue,
 )
 from dreamcatcher.scheduler.models import IssueFactValue, SchedulerRecord
@@ -67,7 +67,7 @@ def conversation_state(
         ),
     )
     write_json(
-        document=ConversationInput(
+        document=ConversationRoundInput(
             issue=8,
             initial_issue=InitialConversationIssue(
                 title="Issue 8",
@@ -148,7 +148,7 @@ def test_conversation_detail_shows_settings_revision_session_and_round(tmp_path)
         ),
     )
     write_json(
-        document=ConversationInput(
+        document=ConversationRoundInput(
             issue=8,
             initial_issue=InitialConversationIssue(
                 title="Issue 8",
@@ -220,7 +220,7 @@ def test_conversation_detail_shows_two_errors_as_a_fault(tmp_path):
         ),
     )
     write_json(
-        document=ConversationInput(
+        document=ConversationRoundInput(
             issue=8,
             comments=[
                 {
@@ -256,7 +256,7 @@ def test_conversation_feed_shows_its_saved_activity(tmp_path):
     show_feed_view(
         state=state,
         issue=8,
-        owner_kind=AgentWorkKind.CONVERSATION,
+        work_kind=AgentWorkKind.CONVERSATION,
         console=console,
     )
 
@@ -294,7 +294,7 @@ def test_conversation_feed_follows_a_later_round_without_repeating_the_first(
             ),
         )
         write_json(
-            document=ConversationInput(
+            document=ConversationRoundInput(
                 issue=8,
                 initial_issue=InitialConversationIssue(
                     title="Issue 8",
@@ -328,7 +328,7 @@ def test_conversation_feed_follows_a_later_round_without_repeating_the_first(
     show_feed_view(
         state=state,
         issue=8,
-        owner_kind=AgentWorkKind.CONVERSATION,
+        work_kind=AgentWorkKind.CONVERSATION,
         console=console,
         wait=wait,
     )
@@ -348,7 +348,7 @@ def test_conversation_feed_can_select_one_round(tmp_path):
     show_feed_view(
         state=state,
         issue=8,
-        owner_kind=AgentWorkKind.CONVERSATION,
+        work_kind=AgentWorkKind.CONVERSATION,
         console=console,
         round_number=1,
     )
@@ -375,7 +375,7 @@ def test_a_missing_conversation_round_says_how_many_exist(tmp_path):
         show_feed_view(
             state=state,
             issue=8,
-            owner_kind=AgentWorkKind.CONVERSATION,
+            work_kind=AgentWorkKind.CONVERSATION,
             console=console,
             round_number=2,
         )
@@ -439,7 +439,7 @@ def test_a_conversation_feed_before_its_first_round_says_so(tmp_path):
         show_feed_view(
             state=state,
             issue=9,
-            owner_kind=AgentWorkKind.CONVERSATION,
+            work_kind=AgentWorkKind.CONVERSATION,
             console=console,
         )
 

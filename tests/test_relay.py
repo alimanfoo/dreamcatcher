@@ -27,13 +27,13 @@ from dreamcatcher.relay import list_undelivered_user_posts
 BEFORE = "2026-09-03T16:49:35Z"
 
 
-def undelivered(*, delivery_cursor: str = "") -> list[UserPost]:
+def undelivered(*, delivery_position: str = "") -> list[UserPost]:
     """What the user newly posted, given that gh answered every post list."""
     found = list_undelivered_user_posts(
         repository=REPOSITORY,
         pull_request=PULL_REQUEST,
         account=POSTED_BY,
-        delivery_cursor=delivery_cursor,
+        delivery_position=delivery_position,
     )
     assert not isinstance(found, UnknownGitHubResponse)
     return found
@@ -43,7 +43,7 @@ def test_a_pull_request_nobody_has_posted_on_has_nothing_to_relay(gh_with_no_pos
     assert undelivered() == []
 
 
-def test_an_assignment_with_an_empty_delivery_cursor_receives_the_whole_history(
+def test_an_assignment_with_an_empty_delivery_position_receives_the_whole_history(
     gh_with_no_posts,
 ):
     gh_with_no_posts.replies(
@@ -53,14 +53,14 @@ def test_an_assignment_with_an_empty_delivery_cursor_receives_the_whole_history(
     assert [post.id for post in undelivered()] == [1]
 
 
-def test_a_post_at_the_assignment_delivery_cursor_does_not_come_back(
+def test_a_post_at_the_assignment_delivery_position_does_not_come_back(
     gh_with_no_posts,
 ):
     gh_with_no_posts.replies(
         stdout=pages(items=[comment()]), to=f"api {POST_LIST_PATHS['conversation']}"
     )
 
-    assert undelivered(delivery_cursor=POSTED_AT) == []
+    assert undelivered(delivery_position=POSTED_AT) == []
 
 
 def test_the_posts_come_back_oldest_first_whichever_list_each_came_from(
@@ -196,7 +196,7 @@ def test_a_read_that_failed_says_so_rather_than_reading_as_nothing_posted(
         repository=REPOSITORY,
         pull_request=PULL_REQUEST,
         account=POSTED_BY,
-        delivery_cursor=POSTED_AT,
+        delivery_position=POSTED_AT,
     )
 
     assert isinstance(found, UnknownGitHubResponse)

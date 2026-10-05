@@ -224,7 +224,7 @@ def test_a_label_one_harness_can_run_runs_on_that_one_whatever_the_run_named(tmp
         (
             "a label no harness can run",
             '[[assignment]]\nlabel = "dream:smith"\n',
-            "assignment.0: Value error, label dream:smith has no harness block",
+            "assignment.0: Value error, label dream:smith has no dispatch recipe",
         ),
         (
             "a block for a harness that does not exist",
