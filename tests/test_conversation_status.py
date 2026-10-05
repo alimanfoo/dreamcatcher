@@ -29,6 +29,7 @@ from dreamcatcher.issue_conversations import (
     ConversationInput,
     InitialConversationIssue,
     read_conversation,
+    request_conversation_retry,
 )
 from dreamcatcher.scheduler.models import (
     ConversationObservation,
@@ -467,6 +468,24 @@ def test_a_faulted_conversation_at_an_ineligible_issue_leaves_the_report(
     assert found.value is ConversationStatusValue.FAULT
     assert not found.is_listed
     assert report.conversation_statuses == []
+
+
+def test_a_retry_returns_a_faulted_conversation_to_its_eligibility(
+    conversation_state,
+):
+    conversation_round(state=conversation_state, status=2)
+    write_second_conversation_error(state=conversation_state)
+    observe(state=conversation_state, observations=[])
+    conversation = read_conversation(state=conversation_state, issue=8)
+    assert conversation is not None
+    request_conversation_retry(
+        conversation=conversation, at=PINNED + timedelta(minutes=9)
+    )
+
+    found = status(state=conversation_state)
+
+    assert found.value is ConversationStatusValue.IDLE
+    assert found.detail == "issue is not eligible for conversation"
 
 
 @pytest.mark.parametrize(

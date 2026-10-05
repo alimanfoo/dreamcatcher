@@ -382,9 +382,10 @@ A running round remains working when its issue gains a second conversation
 label, because eligibility does not cancel work already in progress. Its routing
 conflict becomes the summary status after that round ends.
 
-A conversation in fault shows fault whether or not its issue is eligible, so the
-user can see the fault and retry. At an ineligible issue, a faulted conversation
-still leaves the status report, but its own view shows the fault.
+Fault outranks every conversation status except working, whatever the issue's
+eligibility, so the user can always see the fault and retry. At an ineligible
+issue, the status report still stops listing a faulted conversation, but its own
+view shows the fault.
 
 These statuses are derived reporting projections, not persisted lifecycle state.
 
