@@ -93,9 +93,9 @@ def _observe_issue(
     claimed_here = IssueFact(
         value=IssueFactValue.TRUE if is_claimed_here else IssueFactValue.FALSE,
         evidence=(
-            "an assignment in this checkout is working on it"
+            "this checkout has an open assignment for it"
             if is_claimed_here
-            else "no assignment in this checkout is working on it"
+            else "this checkout has no open assignment for it"
         ),
     )
     return IssueObservation(

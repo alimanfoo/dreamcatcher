@@ -332,7 +332,7 @@ class AssignmentScheduler(
             repository=self.repository,
             pull_request=pull_request.number,
             account=self.account,
-            delivery_cursor=assignment.user_post_delivery_cursor,
+            delivery_position=assignment.user_post_delivery_position,
         )
         if isinstance(undelivered_posts, UnknownGitHubResponse):
             return _compose_assignment_observation(

@@ -1024,7 +1024,7 @@ def test_a_terminal_recovery_without_a_session_receives_wrap_up_input(
     assert inbox["pull_request_state"] == PullRequestState.MERGED
     assert "--resume" not in harnesses["claude"].calls[-1].arguments
     assignment = read_assignments(state=scheduler.assignments.state)[0]
-    assert assignment.user_post_delivery_cursor == POSTED_AT
+    assert assignment.user_post_delivery_position == POSTED_AT
 
 
 def test_a_failed_replacement_session_does_not_redeliver_recorded_feedback(
@@ -1042,7 +1042,7 @@ def test_a_failed_replacement_session_does_not_redeliver_recorded_feedback(
     scheduler.tick(at=clock())
     finish_rounds(scheduler=scheduler)
     assignment = read_assignments(state=scheduler.assignments.state)[0]
-    assert assignment.user_post_delivery_cursor == POSTED_AT
+    assert assignment.user_post_delivery_position == POSTED_AT
     ending = assignment.rounds[-1].ending
     assert isinstance(ending, ErroredAgentRoundEnding)
     request_agent_work_retry(work=assignment, at=ending.at + timedelta(seconds=1))

@@ -99,17 +99,17 @@ class DreamcatcherDaemon:
         self.rounds: dict[str, AgentRound] = {}
 
     def run(self) -> None:
-        """Hold the repository and run scheduler cycles until interrupted.
+        """Hold the daemon lock and run scheduler cycles until interrupted.
 
-        Everything a run cannot do without is settled before the loop: the
+        Everything a daemon run cannot do without is settled before the loop: the
         harness CLIs, the state directory, the repository's name, the account
-        gh is signed in as, the lock, and the assignments the sweep reads. A run
-        refuses when any of those will not answer, rather than starting a loop
+        gh is signed in as, the lock, and the assignments the sweep reads. A daemon
+        run refuses when any of those will not answer, rather than starting a loop
         that could never dispatch. Once the loop is going, a tick that fails
         reports the failure and the next tick tries again. An invalid scheduler
-        record ends the run because retrying cannot change the document it reads.
+        record ends the daemon run because retrying cannot change the document it reads.
 
-        The repository and signed-in account are fixed for the run. The account
+        The repository and signed-in account are fixed for the daemon run. The account
         identifies user posts before the marker excludes the assignment's own
         posts.
         """
@@ -171,7 +171,7 @@ class DreamcatcherDaemon:
                         at = self.clock()
             finally:
                 # Rounds die with the daemon by design, so this happens however
-                # the run ends: on the user's interrupt, and on a failure the
+                # the daemon run ends: on the user's interrupt, and on a failure the
                 # daemon could not carry on from. A round that already ended
                 # keeps the ending it recorded for itself.
                 for agent_round in self.rounds.values():
@@ -195,7 +195,7 @@ class DreamcatcherDaemon:
         except ReportableError as failure:
             reason = " ".join(str(failure).split())
             _write_output(
-                line=f"{describe_time(at=at, zone=self.zone)}  tick failed: {reason}"
+                line=f"{describe_time(at=at, zone=self.zone)}  update failed: {reason}"
             )
             return
         write_json(document=scheduler_record, path=self.state.scheduler_record)
@@ -209,11 +209,11 @@ class DreamcatcherDaemon:
         )
 
     def _locate_harnesses(self) -> None:
-        """Refuse the run when a harness it could dispatch to is not installed.
+        """Refuse the daemon run when a harness it could dispatch to is missing.
 
         Every harness a route can settle a label on is looked up, not just
-        the one the run named, because a label carrying one harness block runs
-        on that harness whatever the run named.
+        the preferred one, because a label carrying one dispatch recipe runs on
+        that harness whatever the preference.
         """
         for harness in sorted({self.harness, *self.config.routed_harnesses}):
             locate_program(program=HARNESS_ADAPTERS[harness].program)
@@ -280,7 +280,7 @@ def _describe_launches(*, identifiers: list[str]) -> str:
 def _require_known_github_value(
     *, value: str | UnknownGitHubResponse, question: str
 ) -> str:
-    """Return what gh named, or refuse the run saying what it could not tell."""
+    """Return what gh named, or refuse the daemon run saying what it could not tell."""
     if isinstance(value, UnknownGitHubResponse):
         raise ReportableError(f"dreamcatcher cannot tell {question}: {value.reason}")
     return value

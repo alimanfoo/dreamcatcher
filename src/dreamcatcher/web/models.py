@@ -70,7 +70,7 @@ class WebHandResume:
 
 @dataclass(frozen=True, kw_only=True)
 class WebFeedLine:
-    """Represent one stored feed line on an assignment page."""
+    """Represent one stored feed line on an agent work page."""
 
     timestamp: str | None
     label: str | None
@@ -97,7 +97,7 @@ class WebAgentFeed:
 
 @dataclass(frozen=True, kw_only=True)
 class WebFeedCursor:
-    """Identify the next feed byte to read within an assignment round."""
+    """Identify the next feed byte to read within an agent round."""
 
     round_number: int
     position: int
