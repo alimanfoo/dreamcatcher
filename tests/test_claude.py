@@ -114,7 +114,12 @@ def test_a_conversation_round_allows_issue_tools_and_denies_implementation_tools
 
 
 def test_a_person_continues_the_harness_session_where_it_ran():
-    assert CLAUDE_ADAPTER.build_hand_resume(harness_session_identifier="abc-123") == [
+    assert CLAUDE_ADAPTER.build_hand_resume(
+        model="opus[1m]",
+        effort="xhigh",
+        harness_config={},
+        harness_session_identifier="abc-123",
+    ) == [
         "claude",
         "--resume",
         "abc-123",

@@ -208,7 +208,15 @@ def test_an_idle_codex_conversation_has_a_codex_hand_resume_command(tmp_path):
 
     found = status(state=state)
 
-    assert found.hand_resume_command == ["codex", "resume", "conversation-session"]
+    assert found.hand_resume_command == [
+        "codex",
+        "resume",
+        "--model",
+        "opus[1m]",
+        "-c",
+        'model_reasoning_effort="xhigh"',
+        "conversation-session",
+    ]
 
 
 def test_a_conversation_with_comments_to_answer_is_waiting(conversation_state):

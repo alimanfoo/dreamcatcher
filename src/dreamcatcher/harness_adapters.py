@@ -149,12 +149,19 @@ class HarnessAdapter(ABC):
 
     @abstractmethod
     def build_hand_resume(
-        self, *, harness_session_identifier: HarnessSessionIdentifier
+        self,
+        *,
+        model: str,
+        effort: str,
+        harness_config: Mapping[str, HarnessConfigValue],
+        harness_session_identifier: HarnessSessionIdentifier,
     ) -> list[str]:
         """Return the command that resumes the harness session interactively.
 
-        It carries no prompt: this invocation is interactive, and whoever ran
-        it does the talking.
+        It sets the model, the effort and the harness config wherever a resumed
+        round sets them, so a person resumes with the agent work's settings. It
+        carries no prompt: this invocation is interactive, and whoever ran it
+        does the talking.
         """
 
     def read(self, *, line: str) -> list[FeedEvent]:

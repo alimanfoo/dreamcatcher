@@ -1,5 +1,6 @@
 import json
 import sys
+from collections.abc import Mapping
 from contextlib import suppress
 from datetime import datetime
 from pathlib import Path
@@ -60,6 +61,7 @@ from dreamcatcher.harness_adapters import (
     AgentRoundLaunchRequest,
     AgentWorkKind,
     HarnessAdapter,
+    HarnessConfigValue,
     HarnessInvocation,
     HarnessOutput,
 )
@@ -156,7 +158,14 @@ class Unrenderable(HarnessAdapter):
             program=self.program, arguments=[], prompt=request.prompt
         )
 
-    def build_hand_resume(self, *, harness_session_identifier: str) -> list[str]:
+    def build_hand_resume(
+        self,
+        *,
+        model: str,
+        effort: str,
+        harness_config: Mapping[str, HarnessConfigValue],
+        harness_session_identifier: str,
+    ) -> list[str]:
         return [self.program]
 
     def _read(self, *, harness_event: dict) -> HarnessOutput:

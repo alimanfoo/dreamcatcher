@@ -1,6 +1,7 @@
 """Run Claude Code, and read what it streams back."""
 
 import json
+from collections.abc import Mapping
 from pathlib import Path
 from typing import Annotated, ClassVar, Protocol
 
@@ -12,6 +13,7 @@ from dreamcatcher.harness_adapters import (
     AgentWorkKind,
     HarnessAdapter,
     HarnessConfig,
+    HarnessConfigValue,
     HarnessInvocation,
     HarnessOutput,
     HarnessSessionIdentifier,
@@ -155,9 +157,18 @@ class _ClaudeHarnessAdapter(HarnessAdapter):
         )
 
     def build_hand_resume(
-        self, *, harness_session_identifier: HarnessSessionIdentifier
+        self,
+        *,
+        model: str,
+        effort: str,
+        harness_config: Mapping[str, HarnessConfigValue],
+        harness_session_identifier: HarnessSessionIdentifier,
     ) -> list[str]:
-        """Return the command that resumes the harness session interactively."""
+        """Return the command that resumes the harness session interactively.
+
+        Claude recovers the model and the effort itself, and takes no harness
+        config, so the command sets none of them.
+        """
         return [self.program, "--resume", harness_session_identifier]
 
     def _read(self, *, harness_event: dict) -> HarnessOutput:

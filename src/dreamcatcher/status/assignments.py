@@ -123,7 +123,7 @@ class AssignmentStatus:
         """The hand-resume command when nobody is running the session."""
         return compose_hand_resume_command(
             is_working=self.value is AssignmentStatusValue.WORKING,
-            harness=self.assignment.record.harness,
+            record=self.assignment.record,
             harness_session_identifier=self.harness_session_identifier,
         )
 
