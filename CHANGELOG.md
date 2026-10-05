@@ -18,6 +18,8 @@ tagged.
   assignment runs no further rounds and shows as **cancelled**. The web home
   page and the terminal status view now group complete and cancelled assignments
   as **ended**.
+- A cancel or a retry request is no longer lost when the daemon records
+  something about the same assignment or conversation at the same moment.
 - The web home page and the terminal status view show capacity, a global
   cooldown and the latest tick's failures once each. Failures, such as a failed
   issue listing, appear on a **scheduler failures** row, and the web home page
