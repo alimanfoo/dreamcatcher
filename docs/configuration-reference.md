@@ -27,6 +27,7 @@ effort = "xhigh"
 prompt = "$dream:smith GH{issue}"
 model = "gpt-5.6-sol"
 effort = "xhigh"
+config = { model_context_window = 1000000, model_auto_compact_token_limit = 900000 }
 
 [[conversation]]
 label = "dream:conversation"
@@ -85,8 +86,9 @@ and recovery rounds, though a round already running may finish.
 ## Harness recipes
 
 Each `[assignment.claude]`, `[assignment.codex]`, `[conversation.claude]` or
-`[conversation.codex]` table accepts exactly three settings. All three are
-required and have no defaults.
+`[conversation.codex]` table requires three settings, which have no defaults. A
+Codex table also accepts a `config` table, described in
+[Codex config](#codex-config).
 
 | Setting  | Value  | Effect and constraint                                                                                                                                                                            |
 | -------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -104,6 +106,29 @@ instructions or invoke a suitable skill, but they must follow the
 [issue-conversation contract](../CONTRACT.md#issue-conversation-instructions).
 Dreamcatcher adds its operational instructions to either prompt.
 
+## Codex config
+
+A Codex recipe's `config` table gives Codex settings of its own, such as a
+larger context window. Dreamcatcher passes each entry to every round of the
+work, first and resumed, as `-c key=value`, with the value written as TOML. The
+table is optional, and an absent table passes nothing.
+
+| Part  | Constraint                                                                                                                                    |
+| ----- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| Key   | A Codex setting's name, as `codex -c` takes it. A name is ASCII letters, digits, `_` and `-`, and a dot separates the parts of a nested name. |
+| Value | A boolean, an integer or a string. A string may not contain `%`. Dreamcatcher refuses a float, an array and a table.                          |
+
+Write a nested setting as one quoted key, such as
+`"features.web_search_request" = true`. A dotted key without quotes makes a
+table in TOML, and Dreamcatcher refuses a table as a value.
+
+Dreamcatcher sets `model`, `model_reasoning_effort`, `sandbox_mode`,
+`approval_policy`, `approvals_reviewer` and
+`sandbox_workspace_write.network_access` itself, so that every round runs with
+the recipe's model and effort and with the permissions that unattended work
+needs. A `config` table that sets one of these is an error. Dreamcatcher does
+not check that Codex knows a setting.
+
 ## Harness selection
 
 `dreamcatcher run --harness claude` or `--harness codex` supplies the preferred
@@ -116,8 +141,8 @@ harness for newly created work:
 The option is therefore a preference, not a repository-wide pin. At startup,
 Dreamcatcher requires the named harness and every harness present in any route
 to be installed on `PATH`. An existing assignment or conversation keeps the
-label, harness, prompt, model and effort settled when it was created; later
-configuration changes do not rewrite that record.
+label, harness, prompt, model, effort and Codex config settled when it was
+created; later configuration changes do not rewrite that record.
 
 A saved conversation may become eligible through any one configured conversation
 label on its issue, but it still keeps its original route and recipe. Changing

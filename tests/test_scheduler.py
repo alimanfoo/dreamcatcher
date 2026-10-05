@@ -928,6 +928,30 @@ def test_a_resume_recovers_the_harness_session_from_the_first_rounds_raw_stream(
     ]
 
 
+def test_a_codex_assignment_round_passes_its_recorded_codex_config(resuming, harnesses):
+    state = StateDirectory(root=resuming)
+    record = read_assignments(state=state)[0].record
+    write_json(
+        document=record.model_copy(
+            update={
+                "harness": AgentHarness.CODEX,
+                "codex_config": {"model_context_window": 1000000},
+            }
+        ),
+        path=state.assignments / ASSIGNMENT_ID / "assignment.json",
+    )
+    harnesses["codex"].streams(lines=[])
+    scheduler, clock = create_scheduler(root=resuming)
+
+    observed = scheduler.tick(at=clock())
+    finish_rounds(scheduler=scheduler)
+
+    assert observed.launched_agent_work_identifiers == [ASSIGNMENT_ID]
+    arguments = harnesses["codex"].calls[-1].arguments
+    setting = arguments.index("model_context_window=1000000")
+    assert arguments[setting - 1] == "-c"
+
+
 def test_a_recovery_without_a_harness_session_starts_a_new_first_round(
     resuming, harnesses
 ):

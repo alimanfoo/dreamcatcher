@@ -17,6 +17,7 @@ from dreamcatcher.agent_work import (
     read_harness_session_identifier,
     read_retry_requested_at,
 )
+from dreamcatcher.codex import CodexConfig
 from dreamcatcher.commands import CommandError
 from dreamcatcher.config import (
     AgentHarness,
@@ -90,6 +91,7 @@ class ConversationRecord(DreamcatcherDocument):
     harness: AgentHarness
     model: QuotableText
     effort: QuotableText
+    codex_config: CodexConfig = Field(default_factory=dict)
     prompt: str
 
 
@@ -198,6 +200,7 @@ def create_conversation(
             harness=selected_harness,
             model=recipe.model,
             effort=recipe.effort,
+            codex_config=recipe.codex_config,
             prompt=recipe.prompt,
         )
         write_json(document=record, path=directory / _CONVERSATION_RECORD_NAME)

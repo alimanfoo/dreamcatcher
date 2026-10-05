@@ -3,7 +3,9 @@
 import json
 from collections.abc import Mapping
 from pathlib import Path
-from typing import ClassVar
+from typing import Annotated, ClassVar
+
+from pydantic import AfterValidator, StringConstraints
 
 from dreamcatcher.commands import refuse_unquotable
 from dreamcatcher.errors import ReportableError
@@ -11,6 +13,7 @@ from dreamcatcher.feed import FeedEvent, FeedNote, FeedProse
 from dreamcatcher.harness_adapters import (
     AgentRoundLaunchRequest,
     AgentWorkKind,
+    CodexConfigValue,
     HarnessAdapter,
     HarnessInvocation,
     HarnessOutput,
@@ -43,6 +46,56 @@ _CONVERSATION_PERMISSION_SETTINGS = {
     **_NETWORK_ACCESS_SETTING,
     "approval_policy": "never",
 }
+
+_EFFORT_KEY = "model_reasoning_effort"
+
+# Every setting that Dreamcatcher gives Codex itself. A recipe's own setting of
+# one would compete with the model, the effort or the permissions that an
+# unattended round needs.
+_DREAMCATCHER_SETTING_KEYS = frozenset(
+    {
+        "model",
+        _EFFORT_KEY,
+        *_ASSIGNMENT_RESUME_PERMISSION_SETTINGS,
+        *_CONVERSATION_PERMISSION_SETTINGS,
+    }
+)
+
+
+def _refuse_unpassable_codex_config(
+    config: dict[str, CodexConfigValue], /
+) -> dict[str, CodexConfigValue]:
+    """Return config, or raise ValueError naming a setting no round can pass on.
+
+    pydantic is what calls this, as the validator behind `CodexConfig`, and it
+    passes the config positionally, so the parameter is positional-only.
+    """
+    claimed_keys = sorted(config.keys() & _DREAMCATCHER_SETTING_KEYS)
+    if claimed_keys:
+        raise ValueError(
+            f"cannot set {' or '.join(claimed_keys)}, which Dreamcatcher sets "
+            "for every round"
+        )
+    for key, value in config.items():
+        try:
+            refuse_unquotable(_compose_config_override(key=key, value=value))
+        except ValueError as error:
+            raise ValueError(f"{key} {error}") from error
+    return config
+
+
+# A dotted path of TOML bare keys, as `-c` reads it. Any other text could name
+# one of Dreamcatcher's own settings in a form that the refusal does not match.
+_CodexConfigKey = Annotated[
+    str, StringConstraints(pattern=r"^[A-Za-z0-9_-]+(\.[A-Za-z0-9_-]+)*$")
+]
+
+# Settings that every round of one piece of agent work passes to Codex, each
+# with `-c`.
+CodexConfig = Annotated[
+    dict[_CodexConfigKey, CodexConfigValue],
+    AfterValidator(_refuse_unpassable_codex_config),
+]
 
 
 class _CodexHarnessAdapter(HarnessAdapter):
@@ -184,29 +237,32 @@ CODEX_ADAPTER = _CodexHarnessAdapter()
 
 
 def _build_round_settings(*, request: AgentRoundLaunchRequest) -> list[str]:
-    """Return the model and effort flags that every agent round uses."""
+    """Return the model, effort and Codex config flags that every round uses."""
     return [
         "--model",
         request.model,
-        *_build_config_overrides(settings={"model_reasoning_effort": request.effort}),
+        *_build_config_overrides(
+            settings={_EFFORT_KEY: request.effort, **request.codex_config}
+        ),
     ]
 
 
-def _build_config_overrides(*, settings: Mapping[str, bool | str]) -> list[str]:
+def _build_config_overrides(*, settings: Mapping[str, CodexConfigValue]) -> list[str]:
     return [
         part
         for key, value in settings.items()
-        for part in ("-c", f"{key}={_write_toml_value(value=value)}")
+        for part in ("-c", _compose_config_override(key=key, value=value))
     ]
 
 
-def _write_toml_value(*, value: bool | str) -> str:
-    """Return value written as TOML.
+def _compose_config_override(*, key: str, value: CodexConfigValue) -> str:
+    """Return the setting as `-c` takes it, with the value written as TOML.
 
-    JSON writes a boolean and a string as TOML does, except that TOML refuses a
-    delete character inside a string.
+    JSON writes a boolean, an integer and a string as TOML does, except that
+    TOML refuses a delete character inside a string.
     """
-    return json.dumps(value, ensure_ascii=False).replace("\x7f", "\\u007f")
+    toml_value = json.dumps(value, ensure_ascii=False).replace("\x7f", "\\u007f")
+    return f"{key}={toml_value}"
 
 
 def _read_completed_item(*, item: dict) -> list[FeedEvent]:

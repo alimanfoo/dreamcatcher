@@ -6,6 +6,7 @@ from typing import Annotated, Self
 
 from pydantic import AfterValidator, Field, model_validator
 
+from dreamcatcher.codex import CodexConfig
 from dreamcatcher.commands import refuse_unquotable
 from dreamcatcher.documents import DreamcatcherDocument, read_toml
 
@@ -36,6 +37,22 @@ class DispatchRecipe(DreamcatcherDocument):
     model: QuotableText
     effort: QuotableText
 
+    @property
+    def codex_config(self) -> CodexConfig:
+        """The Codex settings that every round adds, which only Codex takes."""
+        return {}
+
+
+class CodexRecipe(DispatchRecipe):
+    """Describe how Codex runs one kind of agent work."""
+
+    config: CodexConfig = Field(default_factory=dict)
+
+    @property
+    def codex_config(self) -> CodexConfig:
+        """The Codex settings that every round adds."""
+        return self.config
+
 
 class DispatchRoute(DreamcatcherDocument):
     """Map one dispatch label to its available harness recipes.
@@ -45,7 +62,7 @@ class DispatchRoute(DreamcatcherDocument):
 
     label: str
     claude: DispatchRecipe | None = None
-    codex: DispatchRecipe | None = None
+    codex: CodexRecipe | None = None
 
     @property
     def recipes(self) -> dict[AgentHarness, DispatchRecipe]:

@@ -82,6 +82,7 @@ BOTH_CONVERSATION_CONFIG = (
 prompt = "$dream:conversation GH{issue}"
 model = "gpt-5.6-sol"
 effort = "xhigh"
+config = { model_context_window = 1000000 }
 """
 )
 SECOND_CONVERSATION_CONFIG = """
@@ -582,6 +583,25 @@ def test_codex_first_and_resumed_rounds_capture_and_publish_final_messages(
         f"The first answer.\n\n> written by an agent\n\n{AGENT_POST_MARKER}",
         f"The follow-up answer.\n\n> written by an agent\n\n{AGENT_POST_MARKER}",
     ]
+
+
+def test_a_codex_conversation_round_passes_its_recipes_codex_config(
+    codex_conversation_scheduler, harnesses
+):
+    scheduler, clock, gh = codex_conversation_scheduler
+    offer_conversation(gh=gh, comments=[ask()])
+    codex_answer(harnesses=harnesses, body="The answer.")
+    gh.replies(stdout=json.dumps({"id": 99}), to=POST_PATH)
+
+    scheduler.tick(at=clock())
+    finish(scheduler=scheduler)
+
+    conversation = read_conversation(state=scheduler.assignments.state, issue=8)
+    assert conversation is not None
+    assert conversation.record.codex_config == {"model_context_window": 1000000}
+    [call] = harnesses["codex"].calls
+    setting = call.arguments.index("model_context_window=1000000")
+    assert call.arguments[setting - 1] == "-c"
 
 
 @pytest.mark.parametrize(

@@ -53,6 +53,21 @@ route that offers only Codex always uses Codex. At startup Dreamcatcher checks
 that the preferred harness and every harness mentioned anywhere in the file is
 installed.
 
+A `codex` recipe can also give Codex settings of its own, such as a larger
+context window:
+
+```toml
+[assignment.codex]
+prompt = "$dream:smith GH{issue}"
+model = "gpt-5.6-sol"
+effort = "high"
+config = { model_context_window = 1000000, model_auto_compact_token_limit = 900000 }
+```
+
+Dreamcatcher passes each entry to every Codex round. The
+[configuration reference](configuration-reference.md#codex-config) says which
+values it accepts and which settings it keeps for itself.
+
 Existing assignments keep the label, harness and recipe they started with.
 Conversations also keep their saved recipe and session, but their issue must
 still match exactly one current conversation route. Removing its only matching

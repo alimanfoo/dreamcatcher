@@ -15,7 +15,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import cast
 
-from pydantic import AwareDatetime
+from pydantic import AwareDatetime, Field
 
 from dreamcatcher.agent_assignment_pull_requests import (
     find_or_create_assignment_pull_request,
@@ -38,6 +38,7 @@ from dreamcatcher.agent_work import (
     read_user_request_time,
     record_user_request,
 )
+from dreamcatcher.codex import CodexConfig
 from dreamcatcher.commands import CommandError
 from dreamcatcher.config import AgentHarness, AssignmentRoute, QuotableText
 from dreamcatcher.documents import (
@@ -128,6 +129,7 @@ class AssignmentRecord(DreamcatcherDocument):
     harness: AgentHarness
     model: QuotableText
     effort: QuotableText
+    codex_config: CodexConfig = Field(default_factory=dict)
     prompt: str
 
 
@@ -474,6 +476,7 @@ class AssignmentCreator:
             harness=selected_harness,
             model=recipe.model,
             effort=recipe.effort,
+            codex_config=recipe.codex_config,
             prompt=compose_first_round_prompt(template=recipe.prompt, issue=issue),
         )
         observation = PullRequestObservation(
