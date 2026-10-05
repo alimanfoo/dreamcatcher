@@ -188,7 +188,7 @@ class _UserPostProjection(GitHubResponseProjection):
 
     The time stays as GitHub's ISO-8601 string. Every populated value ends in
     `Z`, so the relay can sort and compare values as text. An unsubmitted review
-    has no time and therefore sorts before every delivery cursor.
+    has no time and therefore sorts before every delivery position.
 
     A post whose author GitHub no longer knows, one from a deleted account, is
     likewise authored by nobody, and so is nobody's to relay.

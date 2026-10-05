@@ -142,7 +142,7 @@ class Assignment:
     from a file of its own beside the record. The rounds are ordered from
     oldest to newest.
 
-    The user-post delivery cursor is read from the newest recorded round input
+    The user-post delivery position is read from the newest recorded round input
     that delivered posts. An assignment that has received none has the beginning
     of time, so the first relay from its pull request returns the whole history.
     """
@@ -156,9 +156,9 @@ class Assignment:
     rounds: list[AgentRoundRecord] = field(default_factory=list)
 
     @property
-    def user_post_delivery_cursor(self) -> str:
+    def user_post_delivery_position(self) -> str:
         """The time of the newest user post delivered in a recorded round input."""
-        return read_user_post_delivery_cursor(assignment=self)
+        return read_user_post_delivery_position(assignment=self)
 
     @property
     def identifier(self) -> str:
@@ -202,7 +202,7 @@ class Assignment:
         if isinstance(ending, InterruptedAgentRoundEnding):
             return "the last round was interrupted"
         if isinstance(ending, ErroredAgentRoundEnding):
-            return f"the last round failed (exit {ending.status})"
+            return f"the last round errored (exit {ending.status})"
         return None
 
     def find_harness_session_identifier(self) -> HarnessSessionIdentifier | None:
@@ -265,7 +265,7 @@ def read_assignments(*, state: StateDirectory) -> list[Assignment]:
 
 
 def read_assignment(*, state: StateDirectory, identifier: str) -> Assignment | None:
-    """Return the complete assignment with this exact identifier, if it exists."""
+    """Return the assignment with this exact identifier, if its setup finished."""
     if not state.worktrees.is_dir():
         return None
     worktree = next(
@@ -485,8 +485,8 @@ class AssignmentCreator:
         )
         directory = self.state.assignments / identifier
 
-        # The record marks the setup complete, so every complete assignment
-        # has an observation.
+        # The record marks the setup complete, so every assignment whose setup
+        # finished has an observation.
         write_json(
             document=observation,
             path=directory / _PULL_REQUEST_OBSERVATION_RECORD_NAME,
@@ -541,7 +541,7 @@ def _read_assignment(*, state: StateDirectory, directory: Path) -> Assignment:
     )
 
 
-def read_user_post_delivery_cursor(*, assignment: Assignment) -> str:
+def read_user_post_delivery_position(*, assignment: Assignment) -> str:
     """Return the newest user-post time found in recorded round inputs."""
     for round_record in reversed(assignment.rounds):
         round_input_path = assignment.compose_round_paths(

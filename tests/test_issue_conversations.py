@@ -27,10 +27,10 @@ from dreamcatcher.github import (
 from dreamcatcher.issue_conversations import (
     _CONVERSATION_RECORD_NAME,
     Conversation,
-    ConversationInput,
     ConversationRecord,
+    ConversationRoundInput,
     InitialConversationIssue,
-    IssueCommentCursor,
+    IssueCommentDeliveryPosition,
     create_conversation,
     describe_conversation_revision,
     list_undelivered_issue_comments,
@@ -39,7 +39,7 @@ from dreamcatcher.issue_conversations import (
     read_conversation,
     read_conversation_input,
     read_conversations,
-    read_issue_comment_delivery_cursor,
+    read_issue_comment_delivery_position,
 )
 from dreamcatcher.prompts import AGENT_POST_MARKER
 from dreamcatcher.state import StateDirectory
@@ -236,25 +236,27 @@ def test_a_non_object_conversation_record_is_reportable(tmp_path):
 
 
 def test_only_new_unmarked_comments_from_the_account_are_delivered():
-    cursor = IssueCommentCursor(written_at="2026-09-23T01:00:00Z", id=2)
+    delivery_position = IssueCommentDeliveryPosition(
+        written_at="2026-09-23T01:00:00Z", id=2
+    )
     comments = [
         comment(identifier=4, body="later in the list"),
-        comment(identifier=1, body="before the cursor"),
-        comment(identifier=3, body="first after the cursor"),
+        comment(identifier=1, body="before the delivery position"),
+        comment(identifier=3, body="first after the delivery position"),
         comment(identifier=5, body="somebody else", author="mallory"),
         comment(identifier=6, body=f"agent answer\n{AGENT_POST_MARKER}"),
         comment(identifier=7, body="  "),
     ]
 
     delivered = list_undelivered_issue_comments(
-        comments=comments, account="ALIMANFOO", cursor=cursor
+        comments=comments, account="ALIMANFOO", delivery_position=delivery_position
     )
 
     assert [item.id for item in delivered] == [3, 4]
     assert [
         item.id
         for item in list_undelivered_issue_comments(
-            comments=comments, account="alimanfoo", cursor=None
+            comments=comments, account="alimanfoo", delivery_position=None
         )
     ] == [1, 3, 4]
 
@@ -309,7 +311,7 @@ def test_an_initial_round_requires_the_issue_text(tmp_path):
     conversation = write_conversation(state=state)
     path = conversation.compose_round_paths(number=1).round_input
     write_json(
-        document=ConversationInput(
+        document=ConversationRoundInput(
             issue=8,
             comments=[comment(identifier=1, body="Question")],
             revision="abc123",
@@ -326,7 +328,7 @@ def test_a_follow_up_can_omit_the_issue_text(tmp_path):
     conversation = write_conversation(state=state)
     path = conversation.compose_round_paths(number=2).round_input
     write_json(
-        document=ConversationInput(
+        document=ConversationRoundInput(
             issue=8,
             comments=[comment(identifier=2, body="Question")],
             revision="def456",
@@ -345,7 +347,7 @@ def test_a_follow_up_from_an_earlier_version_can_keep_issue_text(tmp_path):
     conversation = write_conversation(state=state)
     path = conversation.compose_round_paths(number=2).round_input
     write_json(
-        document=ConversationInput(
+        document=ConversationRoundInput(
             issue=8,
             initial_issue=InitialConversationIssue(
                 title="Why does this happen?",
@@ -414,13 +416,13 @@ def test_a_conversation_recovers_a_session_reported_by_a_later_round(tmp_path):
     assert recovered == "replacement-session"
 
 
-def test_the_delivery_cursor_comes_from_the_latest_round_input(tmp_path):
+def test_the_delivery_position_comes_from_the_latest_round_input(tmp_path):
     state = StateDirectory(root=tmp_path)
     conversation = write_conversation(state=state)
     for number, identifier in ((1, 3), (2, 4)):
         paths = conversation.compose_round_paths(number=number)
         write_json(
-            document=ConversationInput(
+            document=ConversationRoundInput(
                 issue=8,
                 initial_issue=InitialConversationIssue(
                     title="Why does this happen?",
@@ -443,17 +445,19 @@ def test_the_delivery_cursor_comes_from_the_latest_round_input(tmp_path):
     reread = read_conversation(state=state, issue=8)
     assert reread is not None
 
-    cursor = read_issue_comment_delivery_cursor(conversation=reread)
+    delivery_position = read_issue_comment_delivery_position(conversation=reread)
 
-    assert cursor == IssueCommentCursor(written_at="2026-09-23T01:00:00Z", id=4)
+    assert delivery_position == IssueCommentDeliveryPosition(
+        written_at="2026-09-23T01:00:00Z", id=4
+    )
 
 
-def test_the_delivery_cursor_refuses_a_round_without_comments(tmp_path):
+def test_the_delivery_position_refuses_a_round_without_comments(tmp_path):
     state = StateDirectory(root=tmp_path)
     conversation = write_conversation(state=state)
     paths = conversation.compose_round_paths(number=1)
     write_json(
-        document=ConversationInput(
+        document=ConversationRoundInput(
             issue=8,
             initial_issue=InitialConversationIssue(
                 title="Why does this happen?",
@@ -477,7 +481,7 @@ def test_the_delivery_cursor_refuses_a_round_without_comments(tmp_path):
     assert reread is not None
 
     with pytest.raises(ReportableError, match="has no delivered issue comments"):
-        read_issue_comment_delivery_cursor(conversation=reread)
+        read_issue_comment_delivery_position(conversation=reread)
 
 
 @pytest.mark.parametrize(
@@ -487,14 +491,14 @@ def test_the_delivery_cursor_refuses_a_round_without_comments(tmp_path):
         (8, [4, 3], "comments are not strictly ordered"),
     ],
 )
-def test_the_delivery_cursor_refuses_inconsistent_round_input(
+def test_the_delivery_position_refuses_inconsistent_round_input(
     tmp_path, input_issue, comment_identifiers, message
 ):
     state = StateDirectory(root=tmp_path)
     conversation = write_conversation(state=state)
     paths = conversation.compose_round_paths(number=1)
     write_json(
-        document=ConversationInput(
+        document=ConversationRoundInput(
             issue=input_issue,
             initial_issue=InitialConversationIssue(
                 title="Why does this happen?",
@@ -521,7 +525,7 @@ def test_the_delivery_cursor_refuses_inconsistent_round_input(
     assert reread is not None
 
     with pytest.raises(ReportableError, match=message):
-        read_issue_comment_delivery_cursor(conversation=reread)
+        read_issue_comment_delivery_position(conversation=reread)
 
 
 def test_an_answer_is_posted_trimmed_and_marked(fake):

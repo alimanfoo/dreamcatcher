@@ -123,7 +123,7 @@ def _compose_instance_rows(
             "daemon",
             _describe_daemon(daemon=daemon_status),
         ),
-        ("harness", daemon_status.agent_harness),
+        ("preferred harness", daemon_status.agent_harness),
         ("next update in", tick),
         (
             "agent capacity",
@@ -172,7 +172,7 @@ def _render_assignments(
     )
     rows = _render_assignment_rows(assignments=ordered)
     rows += _render_failed_setups(failed_setups=failed_setups)
-    rows += _render_open_issues(issues=issues)
+    rows += _render_issue_observations(issues=issues)
     if ended:
         rows.append(Text(describe_count(number=len(ended), noun="ended assignment")))
     return render_section(heading="assignments", body=Group(*rows))
@@ -188,14 +188,16 @@ def _render_failed_setups(
     for setup in failed_setups:
         evidence = [
             cast("str", setup.setup_failure),
-            *_describe_issue_failures(observation=setup),
+            *_describe_issue_evidence(observation=setup),
         ]
         table.add_row(Text(f"GH{setup.issue}"), Text("; ".join(evidence)))
     return [table]
 
 
-def _render_open_issues(*, issues: Sequence[IssueObservation]) -> list[RenderableType]:
-    """Render unassigned issues as one table, status inline per row."""
+def _render_issue_observations(
+    *, issues: Sequence[IssueObservation]
+) -> list[RenderableType]:
+    """Render the issue observations as one table, status inline per row."""
     rows = [
         (
             issue,
@@ -213,11 +215,11 @@ def _render_open_issues(*, issues: Sequence[IssueObservation]) -> list[Renderabl
 
 
 def _describe_issue_observation(*, observation: IssueObservation) -> str:
-    evidence = _describe_issue_failures(observation=observation)
+    evidence = _describe_issue_evidence(observation=observation)
     return "; ".join(evidence) if evidence else "available"
 
 
-def _describe_issue_failures(*, observation: IssueObservation) -> list[str]:
+def _describe_issue_evidence(*, observation: IssueObservation) -> list[str]:
     return [
         fact.evidence
         for fact in (observation.routing_conflict, observation.blocked)

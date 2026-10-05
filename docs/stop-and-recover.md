@@ -52,7 +52,9 @@ cannot be undone.
 
 Dreamcatcher asks a running round to stop, runs no further rounds for the
 assignment, and stops relaying your comments and reviews on its pull request.
-The assignment stays in the status views as **cancelled**.
+The assignment shows as **cancelled** on the web home page and in
+`dreamcatcher assignment`, and `dreamcatcher status` counts it among the ended
+assignments.
 
 Carry on in the assignment's worktree, which still has the branch checked out.
 Once no round is running, and when Dreamcatcher has learned the agent's harness
@@ -74,11 +76,11 @@ dreamcatcher run --harness claude
 ```
 
 Repeat any non-default `--interval` and `--max-agents` values you want; those
-are options for each run, not saved configuration. On startup Dreamcatcher also
-detects rounds orphaned by an earlier daemon. It records them as interrupted and
-schedules the next required recovery or wrap-up when the work is eligible.
-Recovery normally resumes the recorded harness session; you do not need to use
-the hand-resume command.
+are options for each daemon run, not saved configuration. On startup
+Dreamcatcher also detects rounds orphaned by an earlier daemon. It records them
+as interrupted and schedules the next required recovery or wrap-up when the work
+is eligible. Recovery normally resumes the recorded harness session; you do not
+need to use the hand-resume command.
 
 ## Recover from errors and faults
 
@@ -107,7 +109,7 @@ dreamcatcher retry GH123
 `retry` preserves the failed rounds for diagnosis and requests recovery for the
 newest faulted assignment and faulted conversation at that issue. It does not
 start an agent itself; the daemon may recover the work on a later scheduler
-tick.
+update.
 
 You can instead run `dreamcatcher web`, open the faulted assignment or
 conversation, and select **Retry**. The control is available while the page

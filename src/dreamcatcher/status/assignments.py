@@ -1,7 +1,6 @@
 """Represent the derived status of agent assignments."""
 
 from dataclasses import dataclass
-from datetime import datetime
 from enum import StrEnum
 from functools import cached_property
 from typing import cast
@@ -64,7 +63,6 @@ class AssignmentStatus:
     value: AssignmentStatusValue
     detail: str
     latest_output: str | None
-    observed_at: datetime | None
 
     @property
     def has_ended(self) -> bool:
@@ -76,7 +74,7 @@ class AssignmentStatus:
 
     @property
     def is_over(self) -> bool:
-        """Whether nothing more can happen until the user acts."""
+        """Whether the work has ended or is stuck, so a live view stops following it."""
         return self.has_ended or self.value is AssignmentStatusValue.FAULT
 
     @property
@@ -104,7 +102,7 @@ class AssignmentStatus:
                 duration_description=compose_round_duration_description(record=record),
                 outcome_description=describe_round_outcome(
                     record=record,
-                    is_running=(
+                    is_working=(
                         self.value is AssignmentStatusValue.WORKING
                         and record.number == assignment.rounds[-1].number
                     ),
@@ -315,7 +313,7 @@ class AssignmentStatusReader(AgentWorkStatusReader[AssignmentStatus]):
         return self._compose(
             assignment=assignment,
             value=AssignmentStatusValue.NEEDS_USER_FEEDBACK,
-            detail=self._describe_idle(assignment=assignment),
+            detail=self._describe_last_output(assignment=assignment),
         )
 
     def _compose(
@@ -331,18 +329,17 @@ class AssignmentStatusReader(AgentWorkStatusReader[AssignmentStatus]):
             value=value,
             detail=detail,
             latest_output=latest_output,
-            observed_at=self.observed_at,
         )
 
-    def _describe_idle(self, *, assignment: Assignment) -> str:
+    def _describe_last_output(self, *, assignment: Assignment) -> str:
         line = read_last_feed_line(
             path=assignment.compose_round_paths(
                 number=assignment.rounds[-1].number
             ).feed
         )
         if line is None:
-            return "idle"
-        return f"idle {describe_span(span=self.at - line.at)}"
+            return "no output"
+        return f"last output {describe_span(span=self.at - line.at)} ago"
 
     def _describe_next_round(self, *, assignment: Assignment) -> str:
         record = assignment.rounds[-1]

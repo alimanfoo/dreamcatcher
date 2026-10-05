@@ -162,9 +162,9 @@ def _render_conversation_summary(
         record = conversation.record
         facts.extend(
             [
-                ("dispatch label", record.dispatch_label),
+                ("label", record.dispatch_label),
                 ("worktree", state.describe_path(path=conversation.worktree)),
-                ("agent harness", record.harness),
+                ("harness", record.harness),
                 (
                     "harness session identifier",
                     status.harness_session_identifier or "not recorded",
@@ -254,10 +254,10 @@ def _render_assignment_summary(
         ("issue identifier", f"GH{record.issue}"),
         ("agent assignment identifier", assignment.identifier),
         ("pull request", f"#{record.pull_request}"),
-        ("dispatch label", record.dispatch_label),
+        ("label", record.dispatch_label),
         ("branch", record.branch),
         ("worktree", state.describe_path(path=record.worktree)),
-        ("agent harness", record.harness),
+        ("harness", record.harness),
         (
             "harness session identifier",
             status.harness_session_identifier or "not recorded",
@@ -342,7 +342,7 @@ def show_feed_view(
     *,
     state: StateDirectory,
     issue: int,
-    owner_kind: AgentWorkKind,
+    work_kind: AgentWorkKind,
     console: Console,
     round_number: int | None = None,
     wait: WaitForSeconds = sleep,
@@ -353,7 +353,7 @@ def show_feed_view(
         _show_one_round(
             state=state,
             issue=issue,
-            owner_kind=owner_kind,
+            work_kind=work_kind,
             number=round_number,
             console=console,
             wait=wait,
@@ -364,7 +364,7 @@ def show_feed_view(
 
     def refresh_feed() -> bool:
         """Show output since the previous refresh and return whether it is over."""
-        snapshot = _find_feed_owner(state=state, issue=issue, owner_kind=owner_kind)
+        snapshot = _find_feed_owner(state=state, issue=issue, work_kind=work_kind)
         view.show_new_output(
             owner=snapshot.owner,
             records=snapshot.owner.rounds,
@@ -379,7 +379,7 @@ def _show_one_round(
     *,
     state: StateDirectory,
     issue: int,
-    owner_kind: AgentWorkKind,
+    work_kind: AgentWorkKind,
     number: int,
     console: Console,
     wait: WaitForSeconds,
@@ -390,7 +390,7 @@ def _show_one_round(
 
     def refresh_round_feed() -> bool:
         """Show output since the previous refresh and return whether it has ended."""
-        snapshot = _find_feed_owner(state=state, issue=issue, owner_kind=owner_kind)
+        snapshot = _find_feed_owner(state=state, issue=issue, work_kind=work_kind)
         owner = snapshot.owner
         record = next(
             (record for record in owner.rounds if record.number == number), None
@@ -457,10 +457,10 @@ class _FeedOwnerSnapshot:
 
 
 def _find_feed_owner(
-    *, state: StateDirectory, issue: int, owner_kind: AgentWorkKind
+    *, state: StateDirectory, issue: int, work_kind: AgentWorkKind
 ) -> _FeedOwnerSnapshot:
     """Return the selected feed owner and whether more output can reach it."""
-    if owner_kind is AgentWorkKind.CONVERSATION:
+    if work_kind is AgentWorkKind.CONVERSATION:
         status = _find_conversation_status_for_issue(state=state, issue=issue)
         if status.conversation is None:
             raise ReportableError(

@@ -2,11 +2,11 @@
 
 from pathlib import Path
 
-# The line that every post that an assignment makes on GitHub ends with. The daemon
-# and the assignment share one GitHub account, so this is what tells the two
-# apart: a post carrying it is the assignment's own, and the relay leaves it
-# alone. It is a fixed literal with nothing in it to vary, and an HTML comment,
-# so a reader of the post never sees it.
+# The line that every post an agent makes on GitHub ends with. The daemon and the
+# agent share one GitHub account, so this is what tells the two apart: a post
+# carrying it is the agent's own, and the relay leaves it alone. It is a fixed
+# literal with nothing in it to vary, and an HTML comment, so a reader of the post
+# never sees it.
 AGENT_POST_MARKER = "<!-- dreamcatcher -->"
 
 # The word that a label's prompt template holds where the issue's number goes.
@@ -14,7 +14,7 @@ AGENT_POST_MARKER = "<!-- dreamcatcher -->"
 _ISSUE_PLACEHOLDER = "{issue}"
 
 # What every prompt that the daemon composes ends with, whichever harness runs
-# the assignment and whatever woke it. The daemon adds this itself, so a skill it
+# the round and whatever woke it. The daemon adds this itself, so a skill it
 # dispatches needs no knowledge of the marker.
 _AGENT_POST_INSTRUCTIONS = f"""
 
@@ -31,7 +31,7 @@ description, a comment, a reply on a line of the diff, and an issue you file."""
 # What a round that carries on from an unfinished one asks for. The transcript
 # that the harness resumes carries the work itself, so the words say only that
 # the round before this one stopped short. A round somebody interrupted and a
-# round that failed both read that way, and either is recovered from where it
+# round that errored both read that way, and either is recovered from where it
 # stopped.
 RECOVERY_PROMPT = (
     """Your previous round did not finish. Carry on from where it stopped, and
@@ -62,7 +62,7 @@ finished. The new input says what to do next.
 # pull request has got to, which is what tells a round that answers the user
 # from a round that wraps a merged or closed pull request up, so one prompt
 # serves both.
-_USER_POSTS_PROMPT = """PR-inbox prompt for pull request #{pull_request}:
+_USER_POSTS_PROMPT = """User-posts prompt for pull request #{pull_request}:
 
   {round_input}
 
@@ -126,8 +126,13 @@ def compose_user_posts_prompt(
     return _prefix_stopped_round_feedback(prompt=prompt) if was_stopped else prompt
 
 
-def compose_conversation_prompt(*, instructions: str, round_prompt: str) -> str:
-    """Add a conversation round prompt to the saved recipe instructions."""
+def compose_conversation_prompt(
+    *, instructions: str, issue: int, round_input: Path
+) -> str:
+    """Add the first conversation round to the saved recipe instructions."""
+    round_prompt = compose_conversation_round_prompt(
+        issue=issue, round_input=round_input
+    )
     return f"{instructions}\n\n{round_prompt}"
 
 

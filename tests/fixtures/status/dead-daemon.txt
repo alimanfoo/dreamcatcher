@@ -1,13 +1,13 @@
 alimanfoo/dreamcatcher
 
 instance
-  daemon           not running   
-  harness          claude        
-  agent capacity   0 of 1 working
-  global cooldown  none          
+  daemon             not running   
+  preferred harness  claude        
+  agent capacity     0 of 1 working
+  global cooldown    none          
 
 assignments
-  GH20-20260819-184158  needs user feedback  idle 2h 0m                                             
+  GH20-20260819-184158  needs user feedback  last output 2h 0m ago                                  
   GH9-20260819-184158   fault                round 2 errored (exit 2)                               
   [failed] You hit your spend cap.                                                                  
   GH13-20260819-184158  waiting              round 2 interrupted                                    

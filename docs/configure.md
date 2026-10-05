@@ -1,7 +1,7 @@
 # Configure labels and harnesses
 
 Use `dreamcatcher.toml` to decide which GitHub labels start assignments or issue
-conversations, and which harness recipe each label uses. Put the file in the
+conversations, and which dispatch recipe each label uses. Put the file in the
 root of the repository's main checkout and commit it when everyone watching the
 repository should use the same routes.
 
@@ -77,15 +77,15 @@ again can resume it without changing its saved recipe.
 See the [configuration reference](configuration-reference.md) for a two-harness
 example and every accepted setting.
 
-## Make an issue eligible
+## Label an issue for agent work
 
-For a new assignment, the issue must:
+An issue is available for a new assignment when it:
 
-- be open and assigned to the account authenticated through `gh`;
-- carry exactly one configured assignment label;
-- have no open assignment already managed by this checkout;
-- have no other open pull request linked to it; and
-- have no open issue recorded by GitHub as blocking it.
+- is open and assigned to the account authenticated through `gh`;
+- carries exactly one configured assignment label;
+- has no open assignment already managed by this checkout;
+- has no other open pull request linked to it; and
+- has no open issue recorded by GitHub as blocking it.
 
 If an issue carries two configured assignment labels, Dreamcatcher reports a
 routing conflict instead of guessing which recipe to use. Removing an assignment
@@ -93,11 +93,11 @@ label after dispatch does not stop the active assignment: its saved route and
 pull request continue to govern later rounds. Use the controls in
 [Stop and recover work](stop-and-recover.md) when you need to intervene.
 
-For an issue conversation, the issue must be open, assigned to the authenticated
-account and carry exactly one configured conversation label. Those conditions
-remain active throughout the conversation. Closing or unassigning the issue, or
-removing its last conversation label, pauses new questions and automatic
-recovery. A round already running may still finish.
+An issue is eligible for a conversation when it is open, assigned to the
+authenticated account and carries exactly one configured conversation label.
+Those conditions remain active throughout the conversation. Closing or
+unassigning the issue, or removing its last conversation label, pauses new
+questions and automatic recovery. A round already running may still finish.
 
 One assignment label and one conversation label may coexist on an issue because
 they select different kinds of work.

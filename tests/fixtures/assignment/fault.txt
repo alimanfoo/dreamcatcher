@@ -6,10 +6,10 @@ assignment
   issue identifier             GH9                                           
   agent assignment identifier  GH9-20260819-184158                           
   pull request                 #52                                           
-  dispatch label               dream:smith                                   
+  label                        dream:smith                                   
   branch                       dreamcatcher-GH9-20260819-184158              
   worktree                     .dreamcatcher/v5/worktrees/GH9-20260819-184158
-  agent harness                claude                                        
+  harness                      claude                                        
   harness session identifier   abc-123                                       
   model                        opus[1m]                                      
   effort                       xhigh                                         

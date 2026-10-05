@@ -60,7 +60,7 @@ class InitialConversationIssue(DreamcatcherDocument):
     body: str
 
 
-class ConversationInput(DreamcatcherDocument):
+class ConversationRoundInput(DreamcatcherDocument):
     """Model the trusted issue input frozen for one conversation round."""
 
     issue: int
@@ -71,7 +71,7 @@ class ConversationInput(DreamcatcherDocument):
     revision: str
 
 
-class IssueCommentCursor(DreamcatcherDocument):
+class IssueCommentDeliveryPosition(DreamcatcherDocument):
     """Identify the newest issue comment accepted for delivery."""
 
     written_at: str
@@ -216,10 +216,14 @@ def list_undelivered_issue_comments(
     *,
     comments: list[ConversationComment],
     account: str,
-    cursor: IssueCommentCursor | None,
+    delivery_position: IssueCommentDeliveryPosition | None,
 ) -> list[ConversationComment]:
-    """Return trusted comments after the cursor, oldest first."""
-    cursor_position = (cursor.written_at, cursor.id) if cursor is not None else ("", 0)
+    """Return trusted comments after the delivery position, oldest first."""
+    after = (
+        (delivery_position.written_at, delivery_position.id)
+        if delivery_position is not None
+        else ("", 0)
+    )
     return sorted(
         (
             comment
@@ -227,7 +231,7 @@ def list_undelivered_issue_comments(
             if comment.author.casefold() == account.casefold()
             and bool(comment.body.strip())
             and AGENT_POST_MARKER not in comment.body
-            and (comment.written_at, comment.id) > cursor_position
+            and (comment.written_at, comment.id) > after
         ),
         key=lambda comment: (comment.written_at, comment.id),
     )
@@ -239,14 +243,14 @@ def prepare_conversation_input(
     conversation: Conversation,
     issue: Issue,
     comments: list[ConversationComment],
-) -> ConversationInput:
+) -> ConversationRoundInput:
     """Refresh the worktree and freeze one issue's trusted round input."""
     revision = refresh_detached_worktree(
         root=state.root,
         worktree=conversation.worktree,
     )
     is_initial = not conversation.rounds
-    return ConversationInput(
+    return ConversationRoundInput(
         issue=issue.number,
         initial_issue=(
             InitialConversationIssue(title=issue.title, body=issue.body)
@@ -260,7 +264,7 @@ def prepare_conversation_input(
 
 def read_conversation_input(
     *, conversation: Conversation, number: int
-) -> ConversationInput:
+) -> ConversationRoundInput:
     """Read and validate the durable input for one conversation round."""
     round_input = _read_conversation_input_document(
         conversation=conversation, number=number
@@ -275,10 +279,10 @@ def read_conversation_input(
 
 def _read_conversation_input_document(
     *, conversation: Conversation, number: int
-) -> ConversationInput:
+) -> ConversationRoundInput:
     """Read and validate one round input without comparing adjacent rounds."""
     round_input = read_json(
-        model=ConversationInput,
+        model=ConversationRoundInput,
         path=conversation.compose_round_paths(number=number).round_input,
     )
     if not round_input.comments:
@@ -311,9 +315,9 @@ def describe_conversation_revision(
     return f"code revision {previous_revision} -> {revision}"
 
 
-def read_issue_comment_delivery_cursor(
+def read_issue_comment_delivery_position(
     *, conversation: Conversation
-) -> IssueCommentCursor | None:
+) -> IssueCommentDeliveryPosition | None:
     """Return the newest comment saved in the latest durable round input."""
     if not conversation.rounds:
         return None
@@ -323,7 +327,7 @@ def read_issue_comment_delivery_cursor(
         number=latest_round.number,
     )
     newest = round_input.comments[-1]
-    return IssueCommentCursor(
+    return IssueCommentDeliveryPosition(
         written_at=newest.written_at,
         id=newest.id,
     )

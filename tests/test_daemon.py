@@ -654,7 +654,7 @@ def test_a_failed_tick_preserves_the_last_scheduler_record(ready_repo, capsys):
 
     assert recorded(daemon=daemon) == previous
     output = capsys.readouterr().out
-    assert "tick failed:" in output
+    assert "update failed:" in output
     assert "assignment.json is not valid" in output
 
 

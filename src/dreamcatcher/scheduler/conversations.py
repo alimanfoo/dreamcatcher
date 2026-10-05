@@ -24,7 +24,7 @@ from dreamcatcher.github import (
 from dreamcatcher.harness_adapters import AgentRoundLaunchRequest, AgentWorkKind
 from dreamcatcher.issue_conversations import (
     Conversation,
-    ConversationInput,
+    ConversationRoundInput,
     compose_conversation_identifier,
     create_conversation,
     is_conversation_ready_for_input,
@@ -33,7 +33,7 @@ from dreamcatcher.issue_conversations import (
     prepare_conversation_input,
     read_conversation_input,
     read_conversations,
-    read_issue_comment_delivery_cursor,
+    read_issue_comment_delivery_position,
 )
 from dreamcatcher.prompts import (
     CONVERSATION_RECOVERY_PROMPT,
@@ -204,15 +204,13 @@ class ConversationScheduler(
         *,
         conversation: Conversation,
         next_round_prompt: str,
-        plan: AgentRoundPlan[ConversationInput],
+        plan: AgentRoundPlan[ConversationRoundInput],
     ) -> AgentRoundStartRequest:
         paths = conversation.compose_round_paths(number=conversation.next_round_number)
         first_round_prompt = compose_conversation_prompt(
             instructions=conversation.record.prompt,
-            round_prompt=compose_conversation_round_prompt(
-                issue=conversation.record.issue,
-                round_input=paths.round_input,
-            ),
+            issue=conversation.record.issue,
+            round_input=paths.round_input,
         )
         resumption = self.resolve_harness_session(
             agent_work_identifier=conversation.identifier,
@@ -408,10 +406,10 @@ def _list_comments_to_answer(
             f"could not read comments for GH{issue}: {comment_response.reason}"
         )
     try:
-        cursor = (
+        delivery_position = (
             None
             if conversation is None
-            else read_issue_comment_delivery_cursor(conversation=conversation)
+            else read_issue_comment_delivery_position(conversation=conversation)
         )
     except ReportableError as failure:
         raise ReportableError(
@@ -420,7 +418,7 @@ def _list_comments_to_answer(
     return list_undelivered_issue_comments(
         comments=comment_response,
         account=account,
-        cursor=cursor,
+        delivery_position=delivery_position,
     )
 
 

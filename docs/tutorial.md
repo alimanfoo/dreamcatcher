@@ -206,7 +206,8 @@ dreamcatcher feed GH123 --assignment
 
 If the agent needs a decision, it should ask on the draft pull request. Reply
 there using the same GitHub account that `gh` is signed in as. Dreamcatcher
-delivers your pull-request comment or review in another round on its next tick.
+relays your pull-request comment or review into another round at its next
+update.
 
 When the implementation is complete, the assignment skill changes the pull
 request from draft to **ready for review**. That is the endpoint of this

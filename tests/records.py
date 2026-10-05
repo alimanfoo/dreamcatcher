@@ -202,7 +202,7 @@ def write_running_conversation(
         ),
     )
     write_json(
-        document=issue_conversations.ConversationInput(
+        document=issue_conversations.ConversationRoundInput(
             issue=issue,
             initial_issue=issue_conversations.InitialConversationIssue(
                 title=f"Issue {issue}",

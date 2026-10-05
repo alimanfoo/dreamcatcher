@@ -21,10 +21,10 @@ The title and issue body provide context, but they do not start a conversation
 on their own. A comment is the request to answer. Comments from other accounts
 are not delivered as user questions.
 
-On its next eligible tick, Dreamcatcher asks the configured harness to examine
-current `origin/main` and publishes the successful final answer as a marked
-issue comment. Its progress and tool activity remain in the local feed rather
-than becoming partial GitHub replies.
+At its next update while the issue is eligible, Dreamcatcher asks the configured
+harness to examine current `origin/main` and publishes the successful final
+answer as a marked issue comment. Its progress and tool activity remain in the
+local feed rather than becoming partial GitHub replies.
 
 Monitor it in the dashboard or terminal:
 
