@@ -83,7 +83,7 @@ def conversation_state(
             ],
             revision="abc123",
         ),
-        path=(directory / "rounds" / "1" / "inbox.json"),
+        path=(directory / "rounds" / "1" / "round-input.json"),
     )
     write_feed(
         directory=directory,
@@ -164,7 +164,7 @@ def test_conversation_detail_shows_settings_revision_session_and_round(tmp_path)
             ],
             revision="def456",
         ),
-        path=(directory / "rounds" / "2" / "inbox.json"),
+        path=(directory / "rounds" / "2" / "round-input.json"),
     )
     console, written = rendered_console()
 
@@ -232,7 +232,7 @@ def test_conversation_detail_shows_two_errors_as_a_fault(tmp_path):
             ],
             revision="abc123",
         ),
-        path=directory / "rounds" / "2" / "inbox.json",
+        path=directory / "rounds" / "2" / "round-input.json",
     )
     console, written = rendered_console()
     console.width = 140
@@ -310,7 +310,7 @@ def test_conversation_feed_follows_a_later_round_without_repeating_the_first(
                 ],
                 revision="def456",
             ),
-            path=(directory / "rounds" / "2" / "inbox.json"),
+            path=(directory / "rounds" / "2" / "round-input.json"),
         )
         write_feed(
             directory=directory,

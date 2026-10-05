@@ -147,7 +147,7 @@ def fabricate_conversation(
             ],
             revision="abc123",
         ),
-        path=(directory / "rounds" / "1" / "inbox.json"),
+        path=(directory / "rounds" / "1" / "round-input.json"),
     )
     write_feed(
         directory=directory,

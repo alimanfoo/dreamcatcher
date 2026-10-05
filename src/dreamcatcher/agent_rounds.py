@@ -93,7 +93,7 @@ class AgentRoundPaths:
     @property
     def round_input(self) -> Path:
         """The file holding the input that the round's owner delivered."""
-        return self.directory / "inbox.json"
+        return self.directory / "round-input.json"
 
     @property
     def stop_request(self) -> Path:
