@@ -349,7 +349,7 @@ available or a linked pull request proves that it is claimed elsewhere. That
 single row also includes any recorded routing-conflict or blocker evidence.
 
 An `AgentWorkObservation` records the tick's interpretation of one open work
-item. It carries the agent work identifier, issue and one `IssueFact` saying
+item. It carries the agent work identifier, issue and one `ObservedFact` saying
 whether it requires a round and why. Status reads this observation because view
 commands cannot reach GitHub. It is the last tick's interpretation kept as
 operational evidence, not authoritative state.
@@ -359,7 +359,7 @@ The scheduler record holds one `ConversationObservation`, extending
 configured conversation label. Each observation additionally records:
 
 - the issue and its title;
-- an `IssueFact` that says whether more than one conversation route matches.
+- an `ObservedFact` that says whether more than one conversation route matches.
 
 The tick observes a matching issue even when it has no conversation record yet.
 So status lists a conversation from the first tick that sees its issue, and

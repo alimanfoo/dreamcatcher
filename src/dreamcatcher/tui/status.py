@@ -17,8 +17,8 @@ from dreamcatcher.status import (
     ConversationStatus,
     DreamcatcherDaemonStatus,
     DreamcatcherStatusReport,
-    IssueFactValue,
     IssueObservation,
+    Truth,
     read_status_report,
 )
 from dreamcatcher.tui.shared import (
@@ -223,7 +223,7 @@ def _describe_issue_evidence(*, observation: IssueObservation) -> list[str]:
     return [
         fact.evidence
         for fact in (observation.routing_conflict, observation.blocked)
-        if fact.value is IssueFactValue.TRUE
+        if fact.value is Truth.TRUE
     ]
 
 

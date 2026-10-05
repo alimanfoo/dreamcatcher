@@ -37,7 +37,7 @@ from dreamcatcher.scheduler.assignments import (
 )
 from dreamcatcher.scheduler.models import (
     AgentWorkObservation,
-    IssueFactValue,
+    Truth,
     derive_round_purpose,
 )
 from dreamcatcher.state import StateDirectory
@@ -126,7 +126,7 @@ def found(
     if inspected.candidate is not None:
         assert not isinstance(inspected.candidate, NewAssignmentCandidate)
         return inspected.candidate
-    if inspected.observation.requires_round.value is not IssueFactValue.FALSE:
+    if inspected.observation.requires_round.value is not Truth.FALSE:
         return inspected.observation
     return None
 
@@ -486,7 +486,7 @@ def test_a_pull_request_read_that_failed_leaves_the_assignment_waiting(state, gh
 
     assert isinstance(waiting, AgentWorkObservation)
     assert waiting.requires_round.evidence.startswith("cannot read its pull request")
-    assert waiting.requires_round.value is IssueFactValue.UNKNOWN
+    assert waiting.requires_round.value is Truth.UNKNOWN
 
 
 def test_a_relay_read_that_failed_leaves_the_assignment_waiting(state, gh):
@@ -502,7 +502,7 @@ def test_a_relay_read_that_failed_leaves_the_assignment_waiting(state, gh):
     assert waiting.requires_round.evidence.startswith(
         "cannot tell what the user posted"
     )
-    assert waiting.requires_round.value is IssueFactValue.UNKNOWN
+    assert waiting.requires_round.value is Truth.UNKNOWN
 
 
 def test_the_most_open_work_comes_first(state):

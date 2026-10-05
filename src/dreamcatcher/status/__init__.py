@@ -2,7 +2,7 @@
 
 # The status report carries these scheduler records, and presentation imports
 # no scheduler module, so the status face carries them to presentation.
-from dreamcatcher.scheduler.models import IssueFactValue, IssueObservation
+from dreamcatcher.scheduler.models import IssueObservation, Truth
 from dreamcatcher.status.assignments import (
     ASSIGNMENT_STATUS_VALUES_IN_ATTENTION_ORDER,
     AssignmentStatus,
@@ -32,8 +32,8 @@ __all__ = [
     "ConversationStatus",
     "DreamcatcherDaemonStatus",
     "DreamcatcherStatusReport",
-    "IssueFactValue",
     "IssueObservation",
+    "Truth",
     "read_assignment_status",
     "read_assignment_statuses_for_issue",
     "read_conversation_status",

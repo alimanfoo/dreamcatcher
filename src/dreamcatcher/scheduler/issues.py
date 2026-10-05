@@ -16,19 +16,19 @@ from dreamcatcher.github import (
 )
 from dreamcatcher.scheduler.agent_work import AgentWorkScheduler
 from dreamcatcher.scheduler.models import (
-    IssueFact,
-    IssueFactValue,
     IssueObservation,
+    ObservedFact,
     ObservedIssueDetails,
+    Truth,
 )
 
 
 @dataclass(frozen=True, kw_only=True)
 class _ListedIssueFacts:
     details: ObservedIssueDetails | None
-    is_open: IssueFact
-    is_assigned_to_user: IssueFact
-    routing_conflict: IssueFact
+    is_open: ObservedFact
+    is_assigned_to_user: ObservedFact
+    routing_conflict: ObservedFact
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -90,8 +90,8 @@ def _observe_issue(
     """Observe the independent scheduling facts for one issue."""
     listed = _observe_listed_issue(scheduler=scheduler, response=issue_response)
     is_claimed_here = issue in assignments
-    claimed_here = IssueFact(
-        value=IssueFactValue.TRUE if is_claimed_here else IssueFactValue.FALSE,
+    claimed_here = ObservedFact(
+        value=Truth.TRUE if is_claimed_here else Truth.FALSE,
         evidence=(
             "this checkout has an open assignment for it"
             if is_claimed_here
@@ -124,7 +124,7 @@ def _observe_listed_issue(
 ) -> _ListedIssueFacts:
     if isinstance(response, UnknownGitHubResponse):
         reason = f"cannot read issue: {response.reason}"
-        unknown = IssueFact(value=IssueFactValue.UNKNOWN, evidence=reason)
+        unknown = ObservedFact(value=Truth.UNKNOWN, evidence=reason)
         return _ListedIssueFacts(
             details=None,
             is_open=unknown,
@@ -144,12 +144,12 @@ def _observe_listed_issue(
             created_at=response.created_at,
             assignment_labels=assignment_labels,
         ),
-        is_open=IssueFact(
-            value=IssueFactValue.TRUE if is_open else IssueFactValue.FALSE,
+        is_open=ObservedFact(
+            value=Truth.TRUE if is_open else Truth.FALSE,
             evidence="issue is open" if is_open else "issue is closed",
         ),
-        is_assigned_to_user=IssueFact(
-            value=IssueFactValue.TRUE if is_assigned else IssueFactValue.FALSE,
+        is_assigned_to_user=ObservedFact(
+            value=Truth.TRUE if is_assigned else Truth.FALSE,
             evidence=(
                 f"is assigned to {scheduler.account}"
                 if is_assigned
@@ -160,14 +160,14 @@ def _observe_listed_issue(
     )
 
 
-def _observe_assignment_routing_conflict(*, labels: list[str]) -> IssueFact:
+def _observe_assignment_routing_conflict(*, labels: list[str]) -> ObservedFact:
     if len(labels) <= 1:
-        return IssueFact(
-            value=IssueFactValue.FALSE,
+        return ObservedFact(
+            value=Truth.FALSE,
             evidence="has no routing conflict",
         )
-    return IssueFact(
-        value=IssueFactValue.TRUE,
+    return ObservedFact(
+        value=Truth.TRUE,
         evidence="multiple assignment labels: " + ", ".join(labels),
     )
 
@@ -178,12 +178,12 @@ def _observe_external_claim(
     assignments: dict[int, Assignment],
     incomplete_setups: dict[int, str | None],
     issue: int,
-) -> IssueFact:
+) -> ObservedFact:
     """Observe whether an open linked pull request claims the issue elsewhere."""
     setup_failure = incomplete_setups.get(issue)
     if issue in incomplete_setups and setup_failure is None:
-        return IssueFact(
-            value=IssueFactValue.FALSE,
+        return ObservedFact(
+            value=Truth.FALSE,
             evidence="no pull request outside this checkout claims it",
         )
     pull_request_context = read_issue_pull_request_context(
@@ -205,36 +205,36 @@ def _observe_external_claim(
         f"#{pull_request.number}" for pull_request in external
     )
     if external:
-        return IssueFact(
-            value=IssueFactValue.TRUE,
+        return ObservedFact(
+            value=Truth.TRUE,
             evidence=f"a pull request is open on it: {external_pull_requests}",
         )
     if setup_failure is not None:
-        return IssueFact(
-            value=IssueFactValue.UNKNOWN,
+        return ObservedFact(
+            value=Truth.UNKNOWN,
             evidence=setup_failure,
         )
-    return IssueFact(
-        value=IssueFactValue.FALSE,
+    return ObservedFact(
+        value=Truth.FALSE,
         evidence="no pull request outside this checkout claims it",
     )
 
 
 def _unknown_external_claim(
     *, setup_failure: str | None, response: UnknownGitHubResponse
-) -> IssueFact:
+) -> ObservedFact:
     evidence = setup_failure or (
         "cannot tell whether a pull request claims it: " + response.reason
     )
-    return IssueFact(value=IssueFactValue.UNKNOWN, evidence=evidence)
+    return ObservedFact(value=Truth.UNKNOWN, evidence=evidence)
 
 
-def _observe_blocking_issues(*, repository: str, issue: int) -> IssueFact:
+def _observe_blocking_issues(*, repository: str, issue: int) -> ObservedFact:
     """Observe whether an open issue dependency blocks the issue."""
     blocking = list_blocking_issues(repository=repository, issue=issue)
     if isinstance(blocking, UnknownGitHubResponse):
-        return IssueFact(
-            value=IssueFactValue.UNKNOWN,
+        return ObservedFact(
+            value=Truth.UNKNOWN,
             evidence=f"cannot tell what blocks it: {blocking.reason}",
         )
     open_blockers = [
@@ -242,13 +242,13 @@ def _observe_blocking_issues(*, repository: str, issue: int) -> IssueFact:
     ]
     blocker_names = ", ".join(f"GH{number}" for number in open_blockers)
     return (
-        IssueFact(
-            value=IssueFactValue.TRUE,
+        ObservedFact(
+            value=Truth.TRUE,
             evidence=f"blocked by {blocker_names}",
         )
         if open_blockers
-        else IssueFact(
-            value=IssueFactValue.FALSE,
+        else ObservedFact(
+            value=Truth.FALSE,
             evidence="no open issue blocks it",
         )
     )

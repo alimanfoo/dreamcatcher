@@ -42,11 +42,11 @@ from dreamcatcher.scheduler.models import (
     NO_ROUND_HAS_RUN,
     AgentWorkInspection,
     AgentWorkObservation,
-    IssueFact,
-    IssueFactValue,
     IssueObservation,
+    ObservedFact,
     ObservedIssueDetails,
     SchedulerRecord,
+    Truth,
     derive_round_purpose,
 )
 from dreamcatcher.words import describe_count
@@ -259,7 +259,7 @@ class AssignmentScheduler(
                 observation=_compose_assignment_observation(
                     assignment=assignment,
                     evidence="in fault",
-                    value=IssueFactValue.FALSE,
+                    value=Truth.FALSE,
                 ),
                 is_fault=True,
             )
@@ -282,7 +282,7 @@ class AssignmentScheduler(
                 observation=_compose_assignment_observation(
                     assignment=assignment,
                     evidence=f"cannot read its pull request: {pull_request.reason}",
-                    value=IssueFactValue.UNKNOWN,
+                    value=Truth.UNKNOWN,
                 ),
             )
         record_pull_request_observation(
@@ -304,7 +304,7 @@ class AssignmentScheduler(
                 observation=_compose_assignment_observation(
                     assignment=assignment,
                     evidence="no round required",
-                    value=IssueFactValue.FALSE,
+                    value=Truth.FALSE,
                 ),
             )
         return _AssignmentItemInspection(
@@ -340,7 +340,7 @@ class AssignmentScheduler(
                 evidence=(
                     f"cannot tell what the user posted: {undelivered_posts.reason}"
                 ),
-                value=IssueFactValue.UNKNOWN,
+                value=Truth.UNKNOWN,
             )
         if not undelivered_posts and pull_request.state is PullRequestState.OPEN:
             return None
@@ -365,7 +365,7 @@ class AssignmentScheduler(
                 ],
             )
             for observation in observations
-            if observation.availability.value is IssueFactValue.TRUE
+            if observation.availability.value is Truth.TRUE
         ]
 
     def _start_round(
@@ -432,10 +432,10 @@ def _compose_assignment_observation(
     *,
     assignment: Assignment,
     evidence: str,
-    value: IssueFactValue = IssueFactValue.TRUE,
+    value: Truth = Truth.TRUE,
 ) -> AgentWorkObservation:
     return AgentWorkObservation(
         identifier=assignment.identifier,
         issue=assignment.record.issue,
-        requires_round=IssueFact(value=value, evidence=evidence),
+        requires_round=ObservedFact(value=value, evidence=evidence),
     )

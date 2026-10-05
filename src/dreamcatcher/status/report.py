@@ -23,10 +23,10 @@ from dreamcatcher.lock import is_daemon_lock_held
 from dreamcatcher.scheduler.faults import read_scheduler_record
 from dreamcatcher.scheduler.models import (
     GlobalCooldown,
-    IssueFact,
-    IssueFactValue,
     IssueObservation,
+    ObservedFact,
     SchedulerRecord,
+    Truth,
 )
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.status.assignments import (
@@ -202,13 +202,13 @@ def _refresh_issue_observation(
         observation.issue
     )
     if open_assignment is not None:
-        claimed_here = IssueFact(
-            value=IssueFactValue.TRUE,
+        claimed_here = ObservedFact(
+            value=Truth.TRUE,
             evidence="this checkout has an open assignment for it",
         )
     elif assignments:
-        claimed_here = IssueFact(
-            value=IssueFactValue.FALSE,
+        claimed_here = ObservedFact(
+            value=Truth.FALSE,
             evidence="this checkout has no open assignment for it",
         )
     else:
@@ -247,7 +247,7 @@ def _select_issue_observations(
         for observation in observations
         if (
             observation.setup_failure is None
-            and IssueFactValue.TRUE
+            and Truth.TRUE
             in (
                 observation.routing_conflict.value,
                 observation.availability.value,

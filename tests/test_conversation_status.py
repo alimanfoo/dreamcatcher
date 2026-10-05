@@ -33,8 +33,8 @@ from dreamcatcher.issue_conversations import (
 )
 from dreamcatcher.scheduler.models import (
     ConversationObservation,
-    IssueFactValue,
     SchedulerRecord,
+    Truth,
 )
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.status import (
@@ -224,7 +224,7 @@ def test_a_conversation_with_comments_to_answer_is_waiting(conversation_state):
         state=conversation_state,
         observations=[
             observed_conversation(
-                value=IssueFactValue.TRUE,
+                value=Truth.TRUE,
                 evidence="2 comments to answer",
             )
         ],
@@ -243,7 +243,7 @@ def test_a_conversation_whose_comments_cannot_be_read_is_unknown(
         state=conversation_state,
         observations=[
             observed_conversation(
-                value=IssueFactValue.UNKNOWN,
+                value=Truth.UNKNOWN,
                 evidence="could not read comments for GH8: network unavailable",
             )
         ],
@@ -264,7 +264,7 @@ def test_a_conversation_whose_routes_cannot_be_listed_is_unknown(
         state=conversation_state,
         observations=[
             observed_conversation(
-                routing_conflict=IssueFactValue.UNKNOWN,
+                routing_conflict=Truth.UNKNOWN,
                 routing_conflict_evidence=failure,
             )
         ],
@@ -332,9 +332,7 @@ def test_an_unrecorded_round_input_shows_what_the_scheduler_reported(
     )
     observe(
         state=conversation_state,
-        observations=[
-            observed_conversation(value=IssueFactValue.UNKNOWN, evidence=failure)
-        ],
+        observations=[observed_conversation(value=Truth.UNKNOWN, evidence=failure)],
     )
 
     found = status(state=conversation_state)
@@ -435,7 +433,7 @@ def test_two_current_errors_put_a_conversation_in_fault(conversation_state):
     [
         [
             observed_conversation(
-                routing_conflict=IssueFactValue.TRUE,
+                routing_conflict=Truth.TRUE,
                 routing_conflict_evidence=(
                     "carries more than one conversation label: discuss, scout"
                 ),
@@ -443,7 +441,7 @@ def test_two_current_errors_put_a_conversation_in_fault(conversation_state):
         ],
         [
             observed_conversation(
-                value=IssueFactValue.UNKNOWN,
+                value=Truth.UNKNOWN,
                 evidence="could not read comments for GH8: network unavailable",
             )
         ],
@@ -526,9 +524,7 @@ def test_a_round_to_recover_comes_before_comments_to_answer(conversation_state):
     observe(
         state=conversation_state,
         observations=[
-            observed_conversation(
-                value=IssueFactValue.TRUE, evidence="1 comment to answer"
-            )
+            observed_conversation(value=Truth.TRUE, evidence="1 comment to answer")
         ],
     )
 
@@ -631,7 +627,7 @@ def test_an_eligible_issue_is_a_conversation_before_its_record_exists(tmp_path):
         state=state,
         observations=[
             observed_conversation(
-                issue=9, value=IssueFactValue.TRUE, evidence="1 comment to answer"
+                issue=9, value=Truth.TRUE, evidence="1 comment to answer"
             )
         ],
     )
@@ -674,7 +670,7 @@ def test_an_unsaved_conversation_with_two_routes_reports_its_conflict(tmp_path):
         observations=[
             observed_conversation(
                 issue=9,
-                routing_conflict=IssueFactValue.TRUE,
+                routing_conflict=Truth.TRUE,
                 routing_conflict_evidence=conflict,
             )
         ],
@@ -698,7 +694,7 @@ def test_a_saved_conversation_with_two_routes_reports_its_conflict(
         state=conversation_state,
         observations=[
             observed_conversation(
-                routing_conflict=IssueFactValue.TRUE,
+                routing_conflict=Truth.TRUE,
                 routing_conflict_evidence=conflict,
             )
         ],

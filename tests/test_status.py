@@ -34,9 +34,9 @@ from dreamcatcher.feed import FeedLine
 from dreamcatcher.scheduler.models import (
     AgentWorkObservation,
     GlobalCooldown,
-    IssueFact,
-    IssueFactValue,
+    ObservedFact,
     SchedulerRecord,
+    Truth,
 )
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.status import (
@@ -124,8 +124,8 @@ def idle_observation() -> AgentWorkObservation:
     return AgentWorkObservation(
         identifier=ASSIGNMENT_ID,
         issue=13,
-        requires_round=IssueFact(
-            value=IssueFactValue.FALSE,
+        requires_round=ObservedFact(
+            value=Truth.FALSE,
             evidence="no round required",
         ),
     )
@@ -449,8 +449,8 @@ def test_a_required_round_reports_the_scheduler_reason(state):
                 AgentWorkObservation(
                     identifier=ASSIGNMENT_ID,
                     issue=13,
-                    requires_round=IssueFact(
-                        value=IssueFactValue.TRUE,
+                    requires_round=ObservedFact(
+                        value=Truth.TRUE,
                         evidence="1 new post to answer",
                     ),
                 )
@@ -474,8 +474,8 @@ def test_an_unknown_assignment_observation_reports_unknown(state):
                 AgentWorkObservation(
                     identifier=ASSIGNMENT_ID,
                     issue=13,
-                    requires_round=IssueFact(
-                        value=IssueFactValue.UNKNOWN,
+                    requires_round=ObservedFact(
+                        value=Truth.UNKNOWN,
                         evidence="cannot read its pull request: unavailable",
                     ),
                 )
@@ -506,8 +506,8 @@ def test_a_round_ending_after_the_latest_tick_waits_for_the_next_update(
     launched_observation = AgentWorkObservation(
         identifier=ASSIGNMENT_ID,
         issue=13,
-        requires_round=IssueFact(
-            value=IssueFactValue.FALSE,
+        requires_round=ObservedFact(
+            value=Truth.FALSE,
             evidence="round 1 started",
         ),
     )
@@ -700,7 +700,7 @@ def test_a_blocked_issue_is_reported_with_its_evidence(state):
             issue_observations=[
                 observed_issue(
                     issue=20,
-                    values={"blocked": IssueFactValue.TRUE},
+                    values={"blocked": Truth.TRUE},
                     evidence={"blocked": "blocked by GH10"},
                 )
             ],
@@ -722,8 +722,8 @@ def test_a_routing_conflict_and_blocker_are_reported_once_with_their_evidence(st
                 observed_issue(
                     issue=20,
                     values={
-                        "routing_conflict": IssueFactValue.TRUE,
-                        "blocked": IssueFactValue.TRUE,
+                        "routing_conflict": Truth.TRUE,
+                        "blocked": Truth.TRUE,
                     },
                     evidence={
                         "routing_conflict": "multiple assignment labels",
@@ -752,7 +752,7 @@ def test_a_routing_conflict_without_a_blocker_is_reported(state):
             issue_observations=[
                 observed_issue(
                     issue=20,
-                    values={"routing_conflict": IssueFactValue.TRUE},
+                    values={"routing_conflict": Truth.TRUE},
                     evidence={"routing_conflict": "multiple assignment labels"},
                 )
             ],
@@ -780,7 +780,7 @@ def test_a_complete_local_assignment_no_longer_claims_its_observed_issue(state):
     ran(state=state, number=1, purpose=AssignmentRoundPurpose.WRAP_UP)
     observation = observed_issue(
         issue=13,
-        values={"claimed_here": IssueFactValue.TRUE},
+        values={"claimed_here": Truth.TRUE},
     )
     write_tick(
         state=state,
@@ -789,8 +789,8 @@ def test_a_complete_local_assignment_no_longer_claims_its_observed_issue(state):
 
     issue = report(state=state).issue_observations[0]
 
-    assert issue.claimed_here.value is IssueFactValue.FALSE
-    assert issue.availability.value is IssueFactValue.TRUE
+    assert issue.claimed_here.value is Truth.FALSE
+    assert issue.availability.value is Truth.TRUE
 
 
 def test_available_issues_keep_scheduler_order_and_observation_times(state):
@@ -952,7 +952,7 @@ def test_reading_one_assignment_does_not_read_an_unrelated_assignment(state):
 def test_a_failed_setup_reports_independently_of_an_external_claim(state):
     observation = observed_issue(
         issue=20,
-        values={"claimed_elsewhere": IssueFactValue.TRUE},
+        values={"claimed_elsewhere": Truth.TRUE},
         evidence={"claimed_elsewhere": "a pull request is open on it: #52"},
     ).model_copy(
         update={"title": "Failed issue", "setup_failure": "assignment setup failed"}
@@ -973,7 +973,7 @@ def test_a_failed_setup_reports_independently_of_an_external_claim(state):
 def test_a_failed_setup_with_a_routing_conflict_is_reported_once(state):
     observation = observed_issue(
         issue=20,
-        values={"routing_conflict": IssueFactValue.TRUE},
+        values={"routing_conflict": Truth.TRUE},
         evidence={"routing_conflict": "multiple assignment labels"},
     ).model_copy(update={"setup_failure": "assignment setup failed"})
     write_tick(

@@ -16,8 +16,8 @@ from dreamcatcher.status import (
     ConversationStatus,
     DreamcatcherDaemonStatus,
     DreamcatcherStatusReport,
-    IssueFactValue,
     IssueObservation,
+    Truth,
     read_repository,
 )
 from dreamcatcher.web.feed import read_agent_feed
@@ -305,9 +305,9 @@ def _shorten_git_revisions(*, text: str) -> str:
 
 
 def _compose_issue_row(*, observation: IssueObservation) -> WebIssueRow:
-    if observation.routing_conflict.value is IssueFactValue.TRUE:
+    if observation.routing_conflict.value is Truth.TRUE:
         status = "routing-conflict"
-    elif observation.blocked.value is IssueFactValue.TRUE:
+    elif observation.blocked.value is Truth.TRUE:
         status = "blocked"
     else:
         status = "available"
@@ -333,10 +333,10 @@ def _compose_observed_issue_row(
     leading_evidence: tuple[str, ...],
 ) -> WebIssueRow:
     plain_evidence = list(leading_evidence)
-    if observation.routing_conflict.value is IssueFactValue.TRUE:
+    if observation.routing_conflict.value is Truth.TRUE:
         plain_evidence.append(observation.routing_conflict.evidence)
     evidence: list[str | int] = ["; ".join(plain_evidence)] if plain_evidence else []
-    if observation.blocked.value is IssueFactValue.TRUE:
+    if observation.blocked.value is Truth.TRUE:
         if evidence:
             evidence.append("; ")
         evidence.extend(

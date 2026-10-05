@@ -44,9 +44,9 @@ from dreamcatcher.scheduler import AssignmentScheduler, ConversationScheduler, S
 from dreamcatcher.scheduler.models import (
     AgentWorkObservation,
     GlobalCooldown,
-    IssueFact,
-    IssueFactValue,
+    ObservedFact,
     SchedulerRecord,
+    Truth,
 )
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.version import DREAMCATCHER_VERSION
@@ -254,8 +254,8 @@ def test_a_successful_scheduler_tick_is_recorded_and_reported(
             AgentWorkObservation(
                 identifier=ASSIGNMENT_ID,
                 issue=13,
-                requires_round=IssueFact(
-                    value=IssueFactValue.TRUE,
+                requires_round=ObservedFact(
+                    value=Truth.TRUE,
                     evidence="waiting",
                 ),
             )
