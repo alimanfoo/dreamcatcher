@@ -421,6 +421,7 @@ def _find_assignment_statuses_for_issue(
     assignment_statuses = read_assignment_statuses_for_issue(
         state=state,
         issue=issue,
+        daemon=read_dreamcatcher_daemon_status(state=state),
         clock=clock,
     )
     if not assignment_statuses:

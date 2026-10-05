@@ -852,6 +852,7 @@ def test_reading_one_issue_returns_only_its_assignments_newest_first(state):
     statuses = read_assignment_statuses_for_issue(
         state=state,
         issue=13,
+        daemon=read_dreamcatcher_daemon_status(state=state),
         clock=lambda: LOOKED_AT,
     )
 

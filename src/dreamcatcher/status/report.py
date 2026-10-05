@@ -278,14 +278,19 @@ def read_assignment_statuses_for_issue(
     *,
     state: StateDirectory,
     issue: int,
+    daemon: DreamcatcherDaemonStatus,
     clock: Callable[[], datetime] = read_current_time,
 ) -> list[AssignmentStatus]:
-    """Read the statuses at one issue, newest agent assignment first."""
+    """Read the statuses at one issue, newest agent assignment first.
+
+    The caller reads the daemon status, so a view that also shows it shows the
+    same answer that its round statuses came from.
+    """
     at, scheduler_record = _read_status_facts(state=state, clock=clock)
     return AssignmentStatusReader(
         state=state,
         at=at,
-        is_daemon_running=is_daemon_lock_held(path=state.lock),
+        is_daemon_running=daemon.is_running,
         scheduler_record=scheduler_record,
         assignments=read_assignments_for_issue(state=state, issue=issue),
     ).list_statuses()
@@ -300,7 +305,7 @@ def read_assignment_status(
 ) -> AssignmentStatus | None:
     """Read one agent assignment's status by its exact identifier.
 
-    The caller reads the daemon status, so a page that also shows it shows the
+    The caller reads the daemon status, so a view that also shows it shows the
     same answer that its round statuses came from.
     """
     assignment = read_assignment(state=state, identifier=identifier)
@@ -327,7 +332,7 @@ def read_conversation_status(
 
     An issue has a conversation once it has a saved conversation or the latest
     tick observed it through a configured conversation route. The caller reads
-    the daemon status, so a page that also shows it shows the same answer that
+    the daemon status, so a view that also shows it shows the same answer that
     its round statuses came from.
     """
     conversation = read_conversation(state=state, issue=issue)
