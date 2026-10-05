@@ -1,6 +1,7 @@
 """Run Codex, and read what it streams back."""
 
-from collections.abc import Sequence
+import json
+from collections.abc import Mapping
 from pathlib import Path
 from typing import ClassVar
 
@@ -18,7 +19,7 @@ from dreamcatcher.harness_adapters import (
 
 # Let the round reach the network from inside its sandbox, so it can talk to
 # GitHub.
-_NETWORK_ACCESS_OVERRIDE = "sandbox_workspace_write.network_access=true"
+_NETWORK_ACCESS_SETTING = {"sandbox_workspace_write.network_access": True}
 
 # What Codex takes where a prompt would go, to read the prompt from stdin
 # instead. Claude reads stdin as soon as its command names no prompt, so it
@@ -28,20 +29,20 @@ _STDIN_ARGUMENT = "-"
 # What an unattended assignment resume may do without being asked. Its first
 # round gets this from `--approve-for-me`, but a resume does not keep it, so the
 # resumed command has to set the same permissions again itself.
-_ASSIGNMENT_RESUME_PERMISSION_OVERRIDES = (
-    'sandbox_mode="workspace-write"',
-    _NETWORK_ACCESS_OVERRIDE,
-    'approval_policy="on-request"',
-    'approvals_reviewer="auto_review"',
-)
+_ASSIGNMENT_RESUME_PERMISSION_SETTINGS = {
+    "sandbox_mode": "workspace-write",
+    **_NETWORK_ACCESS_SETTING,
+    "approval_policy": "on-request",
+    "approvals_reviewer": "auto_review",
+}
 
 # A conversation may write scratch files and make issue changes on GitHub, but
 # it must not ask a person to approve wider access.
-_CONVERSATION_PERMISSION_OVERRIDES = (
-    'sandbox_mode="workspace-write"',
-    _NETWORK_ACCESS_OVERRIDE,
-    'approval_policy="never"',
-)
+_CONVERSATION_PERMISSION_SETTINGS = {
+    "sandbox_mode": "workspace-write",
+    **_NETWORK_ACCESS_SETTING,
+    "approval_policy": "never",
+}
 
 
 class _CodexHarnessAdapter(HarnessAdapter):
@@ -60,13 +61,13 @@ class _CodexHarnessAdapter(HarnessAdapter):
         round_arguments = (
             [
                 *_build_round_settings(request=request),
-                *_build_config_overrides(settings=_CONVERSATION_PERMISSION_OVERRIDES),
+                *_build_config_overrides(settings=_CONVERSATION_PERMISSION_SETTINGS),
             ]
             if request.work_kind is AgentWorkKind.CONVERSATION
             else [
                 "--approve-for-me",
                 *_build_round_settings(request=request),
-                *_build_config_overrides(settings=[_NETWORK_ACCESS_OVERRIDE]),
+                *_build_config_overrides(settings=_NETWORK_ACCESS_SETTING),
             ]
         )
         return HarnessInvocation(
@@ -95,10 +96,10 @@ class _CodexHarnessAdapter(HarnessAdapter):
         Codex forgets the model and the effort when it resumes, so this sets
         both again.
         """
-        permission_overrides = (
-            _CONVERSATION_PERMISSION_OVERRIDES
+        permission_settings = (
+            _CONVERSATION_PERMISSION_SETTINGS
             if request.work_kind is AgentWorkKind.CONVERSATION
-            else _ASSIGNMENT_RESUME_PERMISSION_OVERRIDES
+            else _ASSIGNMENT_RESUME_PERMISSION_SETTINGS
         )
         return HarnessInvocation(
             program=self.program,
@@ -107,7 +108,7 @@ class _CodexHarnessAdapter(HarnessAdapter):
                 "resume",
                 "--json",
                 *_build_round_settings(request=request),
-                *_build_config_overrides(settings=permission_overrides),
+                *_build_config_overrides(settings=permission_settings),
                 *_build_final_output_arguments(
                     request=request, final_output_path=final_output_path
                 ),
@@ -187,14 +188,25 @@ def _build_round_settings(*, request: AgentRoundLaunchRequest) -> list[str]:
     return [
         "--model",
         request.model,
-        *_build_config_overrides(
-            settings=[f'model_reasoning_effort="{request.effort}"']
-        ),
+        *_build_config_overrides(settings={"model_reasoning_effort": request.effort}),
     ]
 
 
-def _build_config_overrides(*, settings: Sequence[str]) -> list[str]:
-    return [part for setting in settings for part in ("-c", setting)]
+def _build_config_overrides(*, settings: Mapping[str, bool | str]) -> list[str]:
+    return [
+        part
+        for key, value in settings.items()
+        for part in ("-c", f"{key}={_write_toml_value(value=value)}")
+    ]
+
+
+def _write_toml_value(*, value: bool | str) -> str:
+    """Return value written as TOML.
+
+    JSON writes a boolean and a string as TOML does, except that TOML refuses a
+    delete character inside a string.
+    """
+    return json.dumps(value, ensure_ascii=False).replace("\x7f", "\\u007f")
 
 
 def _read_completed_item(*, item: dict) -> list[FeedEvent]:
