@@ -520,14 +520,14 @@ accepted for delivery; the first also persists the issue title and body.
 
 Instance records persist the repository identity and the most recent daemon
 run's harness, Dreamcatcher version, and capacity. An instance-wide scheduler
-record persists the last tick's result, including whether capacity held it, its
-failures, issue, assignment and conversation observations, active global
-cooldown, and the time at which the most recent cooldown ended. Its per-work
-observations preserve operational evidence of the tick's interpretation rather
-than authoritative state. Assignment and conversation records persist the time
-of their latest user retry request. These boundaries allow fault to remain a
-derived status: ending a cooldown or requesting a retry changes which round
-errors count towards fault rather than writing a lifecycle status.
+record persists the last tick's result, including its failures, issue,
+assignment and conversation observations, active global cooldown, and the time
+at which the most recent cooldown ended. Its per-work observations preserve
+operational evidence of the tick's interpretation rather than authoritative
+state. Assignment and conversation records persist the time of their latest user
+retry request. These boundaries allow fault to remain a derived status: ending a
+cooldown or requesting a retry changes which round errors count towards fault
+rather than writing a lifecycle status.
 
 The following are derived rather than persisted as authoritative state:
 

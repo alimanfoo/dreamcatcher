@@ -4,6 +4,7 @@ import sys
 from collections.abc import Sequence
 from datetime import timedelta
 from io import BytesIO, TextIOWrapper
+from unittest.mock import Mock
 
 import psutil
 import pytest
@@ -296,8 +297,7 @@ def test_multiple_launches_are_recorded_and_reported(watched, capsys, monkeypatc
     assert recorded(daemon=daemon) == scheduler_record
     assert capsys.readouterr().out == (
         f"2026-08-20 02:41:58  launched rounds for {ASSIGNMENT_ID}, "
-        "conversation-GH8; "
-        "held: could not refresh assignments\n"
+        "conversation-GH8; could not refresh assignments\n"
     )
 
 
@@ -314,7 +314,7 @@ def test_a_cooldown_report_names_its_local_end(watched, capsys, monkeypatch):
     daemon.run_scheduler_cycle(scheduler=scheduler, at=PINNED)
 
     assert capsys.readouterr().out == (
-        "2026-08-20 02:41:58  held: global cooldown — next attempt at "
+        "2026-08-20 02:41:58  nothing launched; global cooldown ends "
         "2026-08-20 02:56:58\n"
     )
 
@@ -324,17 +324,16 @@ def test_a_tick_at_capacity_reports_capacity_before_its_failures(
 ):
     daemon, _, _ = idling(root=watched, ticks=1)
     scheduler = create_scheduler(daemon=daemon)
+    monkeypatch.setitem(scheduler.rounds, ASSIGNMENT_ID, Mock())
     scheduler_record = SchedulerRecord(
-        at=PINNED,
-        is_held_at_capacity=True,
-        failures=["could not refresh assignments"],
+        at=PINNED, failures=["could not refresh assignments"]
     )
     monkeypatch.setattr(scheduler, "tick", lambda *, at: scheduler_record)
 
     daemon.run_scheduler_cycle(scheduler=scheduler, at=PINNED)
 
     assert capsys.readouterr().out == (
-        "2026-08-20 02:41:58  held: agent capacity full; "
+        "2026-08-20 02:41:58  nothing launched; agent capacity full; "
         "could not refresh assignments\n"
     )
 
@@ -557,7 +556,8 @@ def test_a_tick_whose_listing_failed_records_what_it_could_not_read(
     assert recorded(daemon=daemon).issue_observations == []
     output = capsys.readouterr().out
     assert output.startswith(
-        "2026-08-20 02:41:58  dreamcatcher is running\n2026-08-20 02:41:58  held: "
+        "2026-08-20 02:41:58  dreamcatcher is running\n"
+        "2026-08-20 02:41:58  nothing launched; could not list issues for "
     )
     assert output.endswith("gh: could not connect to github.com gh: try again\n")
     assert output.count("\n") == 2
@@ -661,7 +661,7 @@ def test_a_failed_tick_preserves_the_last_scheduler_record(ready_repo, capsys):
 
     assert recorded(daemon=daemon) == previous
     output = capsys.readouterr().out
-    assert "held:" in output
+    assert "tick failed:" in output
     assert "assignment.json is not valid" in output
 
 

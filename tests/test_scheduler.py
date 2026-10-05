@@ -333,7 +333,7 @@ def test_a_tick_fills_free_capacity_with_available_issues(ready_repo, offered):
         CREATED_ASSIGNMENT_ID,
         "GH9-20260819-184158",
     ]
-    assert observed.is_held_at_capacity
+    assert scheduler.is_at_capacity
     assert (scheduler.assignments.state.worktrees / "GH9-20260819-184158").exists()
     assert not (scheduler.assignments.state.worktrees / "GH10-20260819-184158").exists()
 
@@ -476,7 +476,7 @@ def test_a_tick_at_the_cap_refreshes_the_candidates(ready_repo, offered, harness
     observed = scheduler.tick(at=clock())
     observed = scheduler.tick(at=clock())
 
-    assert observed.is_held_at_capacity
+    assert scheduler.is_at_capacity
     assert observed_issues(tick=observed) == [8, 9]
     assert availability_values(tick=observed) == [
         IssueFactValue.FALSE,
@@ -505,7 +505,7 @@ def test_a_tick_at_the_cap_records_a_candidate_listing_failure(
     offered.fails(stderr="gh: could not connect to github.com", to="issue list")
     observed = scheduler.tick(at=clock())
 
-    assert observed.is_held_at_capacity
+    assert scheduler.is_at_capacity
     failure = sole_failure(observed=observed)
     assert failure.startswith("could not list issues for dream:smith: ")
     assert "could not connect" in failure
@@ -1218,7 +1218,7 @@ def test_open_work_is_carried_on_before_a_new_issue_is_assigned(resuming, gh, of
     assert observed.issue_observations[1].claimed_here.value is IssueFactValue.TRUE
 
 
-def test_a_failed_issue_listing_holds_new_assignments_but_not_recovery(
+def test_a_failed_issue_listing_prevents_new_assignments_but_not_recovery(
     ready_repo, offered
 ):
     configure(root=ready_repo, head=SMITH_CLAUDE.replace("dream:smith", "dream:less"))

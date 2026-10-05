@@ -18,10 +18,11 @@ tagged.
   assignment runs no further rounds and shows as **cancelled**. The web home
   page and the terminal status view now group complete and cancelled assignments
   as **ended**.
-- The web home page and the terminal status view show what held the latest
-  scheduler tick once each: capacity and a global cooldown on their own rows,
-  and failures, such as a failed issue listing, on a **scheduler failures** row.
-  The web home page no longer hides a failure from a tick held at capacity.
+- The web home page and the terminal status view show capacity, a global
+  cooldown and the latest tick's failures once each. Failures, such as a failed
+  issue listing, appear on a **scheduler failures** row, and the web home page
+  no longer hides them while capacity is full. The daemon's line for each tick
+  says what it launched, then any global cooldown, full capacity and failures.
 - Reshaped the documentation around reader tasks: a start-to-finish tutorial,
   focused task guides, complete command and configuration references, this
   changelog, compatibility guidance and a testing account.
@@ -31,8 +32,9 @@ tagged.
   harness has exited in the same moment, and starting a round on Windows no
   longer fails when its harness exits in the moment after it starts: a Windows
   child is now placed in its job before it runs.
-- A failed issue listing for an assignment label no longer holds the rounds that
-  existing assignments require. It holds only the creation of new assignments.
+- A failed issue listing for an assignment label no longer prevents the rounds
+  that existing assignments require. It prevents only the creation of new
+  assignments.
 - State format 5 starts with empty local state in `.dreamcatcher/v5/`; state
   format 4 is left untouched and ignored. Finish assignments through successful
   wrap-up, stop the daemon, and accept fresh conversation context before

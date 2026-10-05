@@ -960,7 +960,7 @@ def test_comments_posted_during_a_round_wait_for_a_free_agent(
 
     observed = scheduler.tick(at=clock())
 
-    assert observed.is_held_at_capacity
+    assert scheduler.is_at_capacity
     assert observed.conversation_observations[0].requires_round == IssueFact(
         value=IssueFactValue.TRUE,
         evidence="1 comment to answer",
@@ -979,7 +979,7 @@ def test_comments_a_running_round_holds_are_not_waiting(
 
     observed = scheduler.tick(at=clock())
 
-    assert observed.is_held_at_capacity
+    assert scheduler.is_at_capacity
     assert observed.conversation_observations[0].requires_round == IssueFact(
         value=IssueFactValue.FALSE,
         evidence="no round required",
@@ -1104,7 +1104,7 @@ def test_a_conversation_waits_for_shared_capacity(conversation_scheduler, harnes
 
     observed = scheduler.tick(at=clock())
 
-    assert observed.is_held_at_capacity
+    assert scheduler.is_at_capacity
     assert observed.conversation_observations[0].requires_round == IssueFact(
         value=IssueFactValue.TRUE,
         evidence="1 comment to answer",
@@ -1260,7 +1260,7 @@ def test_the_cooldown_boundary_clears_conversation_faults(
 
     assert observed.cooldown is None
     assert observed.most_recent_cooldown_ended == cooldown_ends
-    assert observed.is_held_at_capacity
+    assert scheduler.is_at_capacity
     assert observed.launched_agent_work_identifiers == ["conversation-GH8"]
 
 
@@ -1509,7 +1509,7 @@ def test_a_follow_up_refuses_to_replace_a_missing_saved_session(
     assert len(harnesses["claude"].calls) == 1
 
 
-def test_a_failed_conversation_listing_holds_launches(conversation_scheduler):
+def test_a_failed_conversation_listing_prevents_launches(conversation_scheduler):
     scheduler, clock, gh = conversation_scheduler
     write_conversation(state=scheduler.assignments.state, issue=5)
     offer_conversation(gh=gh, comments=[])
@@ -1691,7 +1691,7 @@ def test_ineligible_conversation_faults_do_not_start_the_global_cooldown(
     assert count_comment_reads(gh=gh) == 0
 
 
-def test_a_recovery_whose_saved_input_cannot_be_read_holds_the_tick(
+def test_a_recovery_whose_saved_input_cannot_be_read_is_a_scheduler_failure(
     conversation_scheduler, harnesses
 ):
     scheduler, clock, gh = conversation_scheduler
@@ -1799,7 +1799,7 @@ def test_a_conversation_failure_remains_visible_when_an_assignment_launches(
     assert failure.startswith("could not list issues for dream:conversation")
 
 
-def test_a_failed_comment_listing_holds_launches(conversation_scheduler):
+def test_a_failed_comment_listing_prevents_launches(conversation_scheduler):
     scheduler, clock, gh = conversation_scheduler
     offer_conversation(gh=gh, comments=[])
     gh.fails(stderr="network unavailable", to=COMMENT_PATH)
@@ -1955,7 +1955,7 @@ def test_an_existing_empty_conversation_can_start(conversation_scheduler, harnes
     )
 
 
-def test_a_missing_empty_conversation_worktree_holds_without_detaching_main(
+def test_a_missing_empty_conversation_worktree_fails_without_detaching_main(
     conversation_scheduler,
 ):
     scheduler, clock, gh = conversation_scheduler
@@ -2069,7 +2069,7 @@ def test_a_recovery_precedes_a_fresh_batch_at_another_conversation(
 
     observed = scheduler.tick(at=clock())
 
-    assert observed.is_held_at_capacity
+    assert scheduler.is_at_capacity
     assert observed.launched_agent_work_identifiers == ["conversation-GH8"]
     assert observed.conversation_observations[0].requires_round.value is (
         IssueFactValue.FALSE
