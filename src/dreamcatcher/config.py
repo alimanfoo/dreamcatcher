@@ -4,7 +4,7 @@ from enum import StrEnum
 from pathlib import Path
 from typing import Annotated, Self
 
-from pydantic import AfterValidator, ConfigDict, Field, model_validator
+from pydantic import AfterValidator, Field, model_validator
 
 from dreamcatcher.commands import refuse_unquotable
 from dreamcatcher.documents import DreamcatcherDocument, read_toml
@@ -41,20 +41,19 @@ class DispatchRoute(DreamcatcherDocument):
     """Map one dispatch label to its available harness recipes.
 
     The label is the route's identity, so no two routes carry the same one.
-
-    Harness blocks sit beside the label as extra keys. Their declared key type
-    is `AgentHarness`, so an unknown harness is a validation error.
     """
 
-    model_config = ConfigDict(extra="allow")
-    __pydantic_extra__: dict[AgentHarness, DispatchRecipe]
-
     label: str
+    claude: DispatchRecipe | None = None
+    codex: DispatchRecipe | None = None
 
     @property
     def recipes(self) -> dict[AgentHarness, DispatchRecipe]:
         """The recipe of each harness that can run this route."""
-        return self.__pydantic_extra__
+        recipes = {AgentHarness.CLAUDE: self.claude, AgentHarness.CODEX: self.codex}
+        return {
+            harness: recipe for harness, recipe in recipes.items() if recipe is not None
+        }
 
     def choose_harness(self, *, requested_harness: AgentHarness) -> AgentHarness:
         """Return the harness that runs this label, given what the run named.

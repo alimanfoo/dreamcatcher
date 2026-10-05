@@ -208,7 +208,7 @@ def test_a_label_one_harness_can_run_runs_on_that_one_whatever_the_run_named(tmp
         (
             "a block for a harness that does not exist",
             CONFIG.replace("[assignment.codex]", "[assignment.gemini]"),
-            "assignment.0.gemini: Input should be 'claude' or 'codex'",
+            "assignment.0.gemini: Extra inputs are not permitted",
         ),
         (
             "a recipe block that is not a block",
