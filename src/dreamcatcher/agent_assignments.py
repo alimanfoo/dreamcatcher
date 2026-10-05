@@ -112,11 +112,11 @@ class PullRequestObservation(DreamcatcherDocument):
 
 
 class AssignmentRecord(DreamcatcherDocument):
-    """Model the identities and settled settings of an agent assignment.
+    """Model the identities and dispatch settings of an agent assignment.
 
-    The assignment dispatch settles the recipe and identities, and nothing
-    writes the record again. Every round reads this record, so later config
-    edits do not change an assignment in progress.
+    Assignment setup writes the record once, and nothing writes it again. Every
+    round reads this record, so later config edits do not change an assignment
+    in progress.
     """
 
     issue: int
@@ -136,7 +136,7 @@ class Assignment:
     """Represent an agent assignment as its persisted state currently reads.
 
     The directory name is the assignment identifier. The record holds the
-    settings that the assignment dispatch settled. Every fact that changes
+    settings that the assignment dispatch chose. Every fact that changes
     later, such as the latest pull request observation or a cancel, is read
     from a file of its own beside the record. The rounds are ordered from
     oldest to newest.

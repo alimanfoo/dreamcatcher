@@ -81,7 +81,7 @@ class IssueCommentCursor(DreamcatcherDocument):
 class ConversationRecord(DreamcatcherDocument):
     """Model one issue conversation's identity and settings.
 
-    The conversation's creation settles the record, and nothing writes it again.
+    Creation writes the record once, and nothing writes it again.
     """
 
     issue: int

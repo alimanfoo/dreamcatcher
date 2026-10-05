@@ -16,18 +16,18 @@ can be lost this way.
 
 ## How it works
 
-### The record is settled at creation
+### Creation writes the record once
 
 Creation writes `assignment.json` or `conversation.json`, and nothing writes it
-again. The record holds only what creation settles: the issue, title, dispatch
+again. The record holds only what creation decides: the issue, title, dispatch
 label, harness settings and prompt, and for an assignment its branch, worktree
 and pull request.
 
 ### Each changing fact has a file of its own
 
-Every fact that changes after creation lives in a file of its own in the work's
-directory. A write replaces the file whole, from what the writer knows, and
-merges nothing into it.
+Every fact that changes after creation lives in a file of its own in the
+directory of the assignment or conversation. A write replaces the file whole,
+from what the writer knows, and merges nothing into it.
 
 | File                            | Holds                             | Kept by                    |
 | ------------------------------- | --------------------------------- | -------------------------- |
@@ -39,11 +39,11 @@ merges nothing into it.
 The stop request already worked this way, as a file in the round's directory.
 
 Two writers of one fact are harmless. Two cancels, or two retries, each record a
-time the user asked, and the file keeps whichever landed last. A work runs one
-round at a time, so its harness session is reported by one thread at a time: the
-scheduler as it resumes a session, then the round as its output reports one.
-Recording the same session again changes nothing, and a different session is
-refused.
+time the user asked, and the file keeps whichever landed last. An assignment or
+conversation runs one round at a time, so its harness session is reported by one
+thread at a time: the scheduler as it resumes a session, then the round as its
+output reports one. Recording the same session again changes nothing, and a
+different session is refused.
 
 ### Creation writes the observation first
 

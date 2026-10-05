@@ -69,7 +69,8 @@ def _create_app(
 
     Pages read persisted status and feeds. A same-origin stop request can write
     into the running round's directory, and a same-origin retry request or
-    cancel into the directory of the work it names. Page times use the
+    cancel into the directory of the assignment or conversation that it
+    names. Page times use the
     machine's local zone when zone is None.
     """
     app = Flask(__name__, static_folder="../static", template_folder="../templates")

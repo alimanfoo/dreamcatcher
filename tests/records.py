@@ -147,7 +147,7 @@ def _write_harness_session(*, directory: Path, identifier: str | None) -> None:
     """Write the harness session of the work at this directory, when it has one."""
     if identifier is not None:
         write_json(
-            document=agent_work.HarnessSessionRecord(identifier=identifier),
+            document=agent_work._HarnessSessionRecord(identifier=identifier),
             path=directory / agent_work._HARNESS_SESSION_RECORD_NAME,
         )
 

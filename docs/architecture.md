@@ -402,9 +402,9 @@ starts as the cancel lands is stopped too, because the scheduler reads the
 cancel again once that round's record exists.
 
 The web process can also request a retry for agent work that status derives as
-in fault. It writes the retry request time into the work's own directory. The
-scheduler reads the request on a later tick, so the daemon still decides when
-recovery starts.
+in fault. It writes the retry request time into the directory of the assignment
+or conversation. The scheduler reads the request on a later tick, so the daemon
+still decides when recovery starts.
 
 ### Configuration, dispatch labels, and routes
 
@@ -490,8 +490,8 @@ TUI boundary.
 The architecture persists facts needed to recover identity, ownership, and
 acknowledged work.
 
-Assignment setup settles the assignment record, and nothing writes the record
-again. The record persists:
+Assignment setup writes the assignment record once, and nothing writes it again.
+The record persists:
 
 - the issue identifier, while the assignment identifier names the directory that
   holds the record;
