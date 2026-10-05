@@ -83,7 +83,7 @@ invoked by a dispatch recipe.
 
 A **dispatch recipe** specifies how Dreamcatcher starts one kind of agent work
 through a particular agent harness. It supplies the model, effort, and initial
-prompt for that harness. A Codex recipe may also supply **Codex config**, the
+prompt for that harness. A Codex recipe may also supply Codex config, the
 settings that Dreamcatcher passes to Codex on every round. An assignment recipe
 normally invokes an assignment skill; a conversation recipe asks the agent to
 answer the user.

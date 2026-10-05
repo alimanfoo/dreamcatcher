@@ -148,7 +148,7 @@ harness for newly created work:
 The option is therefore a preference, not a repository-wide pin. At startup,
 Dreamcatcher requires the named harness and every harness present in any route
 to be installed on `PATH`. An existing assignment or conversation keeps the
-label, harness, prompt, model, effort and Codex config settled when it was
+label, harness, prompt, model, effort and Codex config chosen when it was
 created; later configuration changes do not rewrite that record.
 
 A saved conversation may become eligible through any one configured conversation

@@ -65,26 +65,25 @@ _DREAMCATCHER_SETTING_KEYS = frozenset(
 )
 
 
-def _refuse_unpassable_codex_config(
+def _refuse_unusable_codex_config(
     config: dict[str, CodexConfigValue], /
 ) -> dict[str, CodexConfigValue]:
-    """Return config, or raise ValueError naming a setting no round can pass on.
+    """Return config, or raise ValueError naming a setting no round can use.
 
     pydantic is what calls this, as the validator behind `CodexConfig`, and it
     passes the config positionally, so the parameter is positional-only.
     """
-    claimed_keys = [
+    kept_keys = [
         key
         for key in sorted(config)
         if any(
-            key == claimed or key.startswith(f"{claimed}.")
-            for claimed in _DREAMCATCHER_SETTING_KEYS
+            key == kept or key.startswith(f"{kept}.")
+            for kept in _DREAMCATCHER_SETTING_KEYS
         )
     ]
-    if claimed_keys:
+    if kept_keys:
         raise ValueError(
-            f"cannot set {' or '.join(claimed_keys)}, which Dreamcatcher keeps "
-            "for itself"
+            f"cannot set {' or '.join(kept_keys)}, which Dreamcatcher keeps for itself"
         )
     for key, value in config.items():
         try:
@@ -104,7 +103,7 @@ _CodexConfigKey = Annotated[
 # with `-c`.
 CodexConfig = Annotated[
     dict[_CodexConfigKey, CodexConfigValue],
-    AfterValidator(_refuse_unpassable_codex_config),
+    AfterValidator(_refuse_unusable_codex_config),
 ]
 
 
