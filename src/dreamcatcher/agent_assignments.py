@@ -422,8 +422,9 @@ class AssignmentCreator:
         The route selects a recipe in response to the requested
         agent harness. The recipe supplies the model, effort, and prompt
         template. Creation fetches main, makes the branch and worktree, adds and
-        pushes an empty commit, opens the linked draft pull request, then writes
-        the record.
+        pushes an empty commit, and opens the linked draft pull request. It then
+        writes the pull request observation, and last the record, which marks
+        the setup complete.
 
         A retry reuses an incomplete setup that has the expected worktree and
         branch. A failed worktree creation is removed; failures after that point

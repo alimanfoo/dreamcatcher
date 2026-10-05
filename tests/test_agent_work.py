@@ -88,6 +88,8 @@ def test_a_session_recorded_through_an_earlier_read_keeps_a_later_retry(tmp_path
     read_by_the_retry = read_conversation(state=state, issue=8)
     assert read_by_the_daemon is not None
     assert read_by_the_retry is not None
+    record = read_by_the_daemon.directory / "conversation.json"
+    created = record.read_bytes()
 
     request_agent_work_retry(work=read_by_the_retry, at=PINNED)
     record_harness_session_identifier(
@@ -98,3 +100,4 @@ def test_a_session_recorded_through_an_earlier_read_keeps_a_later_retry(tmp_path
     assert conversation is not None
     assert conversation.retry_requested_at == PINNED
     assert conversation.harness_session_identifier == "conversation-session"
+    assert record.read_bytes() == created

@@ -2,11 +2,11 @@
 
 import tomllib
 from collections.abc import Callable, Iterator
-from contextlib import contextmanager
+from contextlib import contextmanager, suppress
 from io import SEEK_END, BytesIO
 from pathlib import Path
-from tempfile import NamedTemporaryFile
 from typing import IO
+from uuid import uuid4
 
 from pydantic import BaseModel, ConfigDict, ValidationError
 
@@ -236,21 +236,15 @@ def write_text(*, text: str, path: Path) -> None:
     directory is not a bug in the tool, and the user can act on either, so it
     reads as a message.
     """
+    staged = path.with_name(f"{path.name}.{uuid4().hex}{_STAGED_WRITE_SUFFIX}")
     try:
         path.parent.mkdir(parents=True, exist_ok=True)
-        with NamedTemporaryFile(
-            mode="w",
-            encoding="utf-8",
-            newline="",
-            dir=path.parent,
-            prefix=f"{path.name}.",
-            suffix=_STAGED_WRITE_SUFFIX,
-            delete_on_close=False,
-        ) as staged:
-            staged.write(text)
-            staged.close()
-            Path(staged.name).replace(path)
+        with staged.open("x", encoding="utf-8", newline="") as opened:
+            opened.write(text)
+        staged.replace(path)
     except OSError as error:
+        with suppress(OSError):
+            staged.unlink(missing_ok=True)
         raise ReportableError(f"cannot write {path}: {error}.") from error
 
 

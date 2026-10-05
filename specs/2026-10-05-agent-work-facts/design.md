@@ -39,9 +39,11 @@ merges nothing into it.
 The stop request already worked this way, as a file in the round's directory.
 
 Two writers of one fact are harmless. Two cancels, or two retries, each record a
-time the user asked, and the file keeps whichever landed last. Both daemon
-threads can report the same harness session, and recording it again changes
-nothing. A different session is refused, as before.
+time the user asked, and the file keeps whichever landed last. A work runs one
+round at a time, so its harness session is reported by one thread at a time: the
+scheduler as it resumes a session, then the round as its output reports one.
+Recording the same session again changes nothing, and a different session is
+refused.
 
 ### Creation writes the observation first
 

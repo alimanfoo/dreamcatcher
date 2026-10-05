@@ -68,10 +68,9 @@ def _create_app(
     """Create the web application for one local state directory.
 
     Pages read persisted status and feeds. A same-origin stop request can write
-    into the running round's directory. A same-origin retry request can write
-    into the faulted work's record, and a same-origin cancel into the
-    assignment's record. Page times use the machine's local zone when zone is
-    None.
+    into the running round's directory, and a same-origin retry request or
+    cancel into the directory of the work it names. Page times use the
+    machine's local zone when zone is None.
     """
     app = Flask(__name__, static_folder="../static", template_folder="../templates")
     app.config["TRUSTED_HOSTS"] = [WEB_HOST, "localhost"]

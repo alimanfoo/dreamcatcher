@@ -101,7 +101,7 @@ def read_user_request_time(*, path: Path) -> datetime | None:
 
 
 def record_user_request(*, path: Path, at: datetime) -> None:
-    """Record at path when the user made a request, over any earlier one."""
+    """Write the time of the user's request to path, replacing any earlier one."""
     write_json(document=_UserRequestRecord(at=at), path=path)
 
 

@@ -35,7 +35,10 @@ from dreamcatcher.agent_rounds import (
     InterruptedAgentRoundEnding,
     _compose_agent_round_ending,
 )
-from dreamcatcher.agent_work import request_agent_work_retry
+from dreamcatcher.agent_work import (
+    record_harness_session_identifier,
+    request_agent_work_retry,
+)
 from dreamcatcher.commands import CommandError
 from dreamcatcher.config import (
     _DREAMCATCHER_CONFIG_NAME,
@@ -168,6 +171,32 @@ def test_an_assignment_records_its_settled_dispatch_recipe(state, route):
     assert assignment.record.prompt.startswith("/dream:smith GH12\n")
     record = state.assignments / ASSIGNMENT_ID / "assignment.json"
     assert '"dispatch_label": "dream:smith"' in record.read_text(encoding="utf-8")
+
+
+def test_setup_writes_the_pull_request_observation_before_the_record(
+    state, route, monkeypatch
+):
+    # The record marks the setup complete, so a setup that stops at the record
+    # is incomplete and has its observation already.
+    def stop_at_the_record(*, document, path):
+        if path.name == "assignment.json":
+            raise ReportableError("the disk is full")
+        write_json(document=document, path=path)
+
+    monkeypatch.setattr("dreamcatcher.agent_assignments.write_json", stop_at_the_record)
+
+    with pytest.raises(ReportableError, match="the disk is full"):
+        create_assignment(
+            state=state,
+            route=route,
+            requested_harness=AgentHarness.CLAUDE,
+            issue=12,
+            at=PINNED,
+        )
+
+    assert read_assignments(state=state) == []
+    directory = state.assignments / ASSIGNMENT_ID
+    assert (directory / "pull-request-observation.json").is_file()
 
 
 def test_an_assignment_titles_its_pull_request_after_its_issue(state, route, gh):
@@ -389,7 +418,13 @@ def test_a_cancelled_assignment_records_when_and_is_no_longer_open(fabricated):
 
 def test_recording_later_facts_leaves_the_assignment_record_as_it_was(fabricated):
     # Nothing rewrites the record, so no writer can erase another's fact.
-    assignment = standing(state=fabricated, rounds=[ended(status=0)])
+    write_assignment(
+        state=fabricated,
+        identifier=ASSIGNMENT_ID,
+        issue=12,
+        harness_session_identifier=None,
+    )
+    assignment = read_assignments(state=fabricated)[0]
     record = assignment.directory / "assignment.json"
     created = record.read_bytes()
 
@@ -400,6 +435,7 @@ def test_recording_later_facts_leaves_the_assignment_record_as_it_was(fabricated
         ),
         observed_at=PINNED,
     )
+    record_harness_session_identifier(work=assignment, identifier="abc-123")
     request_agent_work_retry(work=assignment, at=PINNED)
     cancel_assignment(assignment=assignment, at=PINNED)
 
@@ -408,6 +444,7 @@ def test_recording_later_facts_leaves_the_assignment_record_as_it_was(fabricated
     assert recorded.pull_request_observation.state is PullRequestState.MERGED
     assert recorded.retry_requested_at == PINNED
     assert recorded.cancelled_at == PINNED
+    assert recorded.harness_session_identifier == "abc-123"
 
 
 def test_cancelling_asks_a_round_with_no_ending_to_stop(fabricated):

@@ -300,19 +300,32 @@ def test_a_write_that_lands_while_another_is_staged_leaves_both_whole(
     # place, as a write from another process or thread can.
     written = tmp_path / "assignment.json"
     replace = Path.replace
+    landed_while_staged = []
 
     def land_another_write_first(staged, target, /):
         """Stand in for `Path.replace`, which the write calls as a method."""
         monkeypatch.setattr(Path, "replace", replace)
         write_text(text="the second write\n", path=written)
+        landed_while_staged.append(written.read_bytes())
         return replace(staged, target)
 
     monkeypatch.setattr(Path, "replace", land_another_write_first)
 
     write_text(text="the first write\n", path=written)
 
+    assert landed_while_staged == [b"the second write\n"]
     assert written.read_bytes() == b"the first write\n"
     assert [found.name for found in tmp_path.iterdir()] == ["assignment.json"]
+
+
+def test_a_write_gives_its_file_the_mode_any_new_file_gets(tmp_path):
+    plain = tmp_path / "plain.txt"
+    plain.write_bytes(b"")
+    written = tmp_path / "written.txt"
+
+    write_text(text="what it holds\n", path=written)
+
+    assert written.stat().st_mode == plain.stat().st_mode
 
 
 def test_a_write_that_fails_says_so_and_leaves_nothing_of_itself(tmp_path):
