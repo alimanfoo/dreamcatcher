@@ -189,6 +189,9 @@ class AssignmentStatusReader(AgentWorkStatusReader[AssignmentStatus]):
         status = self._derive_ended(assignment=assignment)
         if status is not None:
             return status
+        status = self._derive_fault(assignment=assignment)
+        if status is not None:
+            return status
         status = self._derive_unfinished(assignment=assignment)
         if status is not None:
             return status
@@ -227,7 +230,7 @@ class AssignmentStatusReader(AgentWorkStatusReader[AssignmentStatus]):
             detail=describe_count(number=len(assignment.rounds), noun="round"),
         )
 
-    def _derive_unfinished(self, *, assignment: Assignment) -> AssignmentStatus | None:
+    def _derive_fault(self, *, assignment: Assignment) -> AssignmentStatus | None:
         if self.has_fault(
             records=assignment.rounds,
             retry_requested_at=assignment.retry_requested_at,
@@ -243,6 +246,9 @@ class AssignmentStatusReader(AgentWorkStatusReader[AssignmentStatus]):
                 detail=detail,
                 latest_output=latest_output,
             )
+        return None
+
+    def _derive_unfinished(self, *, assignment: Assignment) -> AssignmentStatus | None:
         if assignment.rounds and (
             assignment.rounds[-1].ending is None
             or assignment.describe_unfinished_round() is not None
