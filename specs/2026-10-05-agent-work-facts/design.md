@@ -72,7 +72,7 @@ take it. Separate files remove the shared document that the lock would guard.
 
 ## What changes
 
-State format 5 is unreleased, so it changes in place and keeps its number. A
+State format v5 is unreleased, so it changes in place and keeps its number. A
 `.dreamcatcher/v5/` directory written by an earlier development build no longer
 reads.
 
