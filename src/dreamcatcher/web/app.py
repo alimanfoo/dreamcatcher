@@ -33,7 +33,7 @@ from dreamcatcher.web.feed import (
     read_agent_tail,
 )
 from dreamcatcher.web.models import (
-    WebAgentTailContext,
+    WebAgentLiveState,
     WebAgentWorkControl,
     WebFeedOwner,
 )
@@ -44,7 +44,7 @@ from dreamcatcher.web.server import (
     run_web_server,
 )
 from dreamcatcher.web.views import (
-    compose_agent_rounds,
+    compose_agent_live_state,
     compose_assignment_view,
     compose_conversation_view,
     compose_home_view,
@@ -186,9 +186,21 @@ def _show_assignment(
         view=compose_assignment_view(
             state=state,
             status=status,
+            live=_compose_assignment_live_state(state=state, status=status, zone=zone),
             zone=zone,
-            controls=_compose_assignment_controls(status=status),
         ),
+    )
+
+
+def _compose_assignment_live_state(
+    *, state: StateDirectory, status: AssignmentStatus, zone: tzinfo | None
+) -> WebAgentLiveState:
+    return compose_agent_live_state(
+        state=state,
+        status=status,
+        worktree=status.assignment.record.worktree,
+        zone=zone,
+        controls=_compose_assignment_controls(status=status),
     )
 
 
@@ -247,17 +259,8 @@ def _show_assignment_tail(
         return _missing_assignment_response(identifier=identifier)
     return _show_agent_tail(
         owner=status.assignment,
-        context=WebAgentTailContext(
-            status=str(status.value),
-            status_label=str(status.value),
-            detail=status.detail,
-            rounds=compose_agent_rounds(
-                round_statuses=status.round_statuses, zone=zone
-            ),
-            controls=_compose_assignment_controls(status=status),
-        ),
+        live=_compose_assignment_live_state(state=state, status=status, zone=zone),
         is_terminal=status.is_over,
-        status_id="assignment-status",
         zone=zone,
     )
 
@@ -278,9 +281,24 @@ def _show_conversation(
         view=compose_conversation_view(
             state=state,
             status=status,
+            live=_compose_conversation_live_state(
+                state=state, status=status, zone=zone
+            ),
             zone=zone,
-            controls=_compose_conversation_controls(status=status),
         ),
+    )
+
+
+def _compose_conversation_live_state(
+    *, state: StateDirectory, status: ConversationStatus, zone: tzinfo | None
+) -> WebAgentLiveState:
+    conversation = status.conversation
+    return compose_agent_live_state(
+        state=state,
+        status=status,
+        worktree=None if conversation is None else conversation.worktree,
+        zone=zone,
+        controls=_compose_conversation_controls(status=status),
     )
 
 
@@ -324,20 +342,10 @@ def _show_conversation_tail(
     status = read_conversation_status(state=state, issue=issue, clock=clock)
     if status is None:
         return _missing_conversation_response(issue=issue)
-    conversation = status.conversation
     return _show_agent_tail(
-        owner=conversation,
-        context=WebAgentTailContext(
-            status=str(status.value),
-            status_label=str(status.value),
-            detail=status.detail,
-            rounds=compose_agent_rounds(
-                round_statuses=status.round_statuses, zone=zone
-            ),
-            controls=_compose_conversation_controls(status=status),
-        ),
+        owner=status.conversation,
+        live=_compose_conversation_live_state(state=state, status=status, zone=zone),
         is_terminal=status.is_over,
-        status_id="conversation-status",
         zone=zone,
     )
 
@@ -451,9 +459,8 @@ def _is_same_origin_request() -> bool:
 def _show_agent_tail(
     *,
     owner: WebFeedOwner | None,
-    context: WebAgentTailContext,
+    live: WebAgentLiveState,
     is_terminal: bool,
-    status_id: str,
     zone: tzinfo | None,
 ) -> str | tuple[str, int]:
     """Render incremental feed output for an assignment or conversation."""
@@ -461,7 +468,7 @@ def _show_agent_tail(
         cursor = decode_feed_cursor(value=request.args.get("cursor", ""))
         tail = read_agent_tail(
             owner=owner,
-            context=context,
+            live=live,
             cursor=cursor,
             zone=zone,
         )
@@ -471,7 +478,7 @@ def _show_agent_tail(
         _HTMX_STOP_POLLING_STATUS if not tail.feed_rounds and is_terminal else 200
     )
     return (
-        render_template("tail.html", tail=tail, status_id=status_id),
+        render_template("tail.html", tail=tail),
         response_status,
     )
 

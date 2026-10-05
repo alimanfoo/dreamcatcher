@@ -9,10 +9,11 @@
 
     <script src="/static/vendor/htmx-2.0.10.min.js" defer></script>
     <script src="/static/vendor/idiomorph-ext-0.7.4.min.js" defer></script>
+    <script src="/static/base.js" defer></script>
   </head>
   <body hx-ext="morph">
     
-  <main id="home" hx-get="/" hx-trigger="every 2s" hx-select="#home" hx-swap="morph:{callbacks:{beforeAttributeUpdated:(attribute,element)=>!(attribute==='open'&&element.matches('details'))}}">
+  <main id="home" hx-get="/" hx-trigger="every 2s" hx-select="#home" hx-swap="morph">
     <header class="site-header">
   <div class="repository"><img class="mark" src="/static/dreamcatcher-mark-phosphor.png" alt="Dreamcatcher"><a class="repository-link" href="https://github.com/alimanfoo/dreamcatcher" target="_blank" rel="noopener noreferrer">alimanfoo/dreamcatcher</a></div>
   <div class="site-actions">

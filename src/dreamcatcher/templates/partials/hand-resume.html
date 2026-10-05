@@ -1,7 +1,9 @@
-{%- if view.hand_resume %}
-      <details class="manual-recovery">
-        <summary>resume by hand</summary>
-        <pre>cd {{ view.hand_resume.worktree }}
-{{ view.hand_resume.command }}</pre>
-      </details>
-{%- endif %}
+<div id="hand-resume" class="hand-resume"{% if is_tail|default(false) %} hx-swap-oob="morph"{% endif %}>
+{%- if view.live.hand_resume %}
+        <details class="manual-recovery">
+          <summary>resume by hand</summary>
+          <pre>cd {{ view.live.hand_resume.worktree }}
+{{ view.live.hand_resume.command }}</pre>
+        </details>
+      {% endif -%}
+</div>

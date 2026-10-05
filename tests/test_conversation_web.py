@@ -19,7 +19,7 @@ from dreamcatcher.agent_rounds import (
     ConversationRoundPurpose,
     _compose_agent_round_ending,
 )
-from dreamcatcher.documents import append_text, write_json, write_text
+from dreamcatcher.documents import append_text, remove_file, write_json, write_text
 from dreamcatcher.feed import FeedLine
 from dreamcatcher.issue_conversations import (
     ConversationInput,
@@ -157,6 +157,27 @@ def test_conversation_page_requests_a_stop_for_its_running_round(tmp_path, daemo
     assert conversation is not None
     paths = conversation.compose_round_paths(number=1)
     assert paths.stop_request.read_text(encoding="utf-8") == ""
+
+
+def test_conversation_tail_offers_a_hand_resume_only_while_no_round_runs(
+    tmp_path, daemon
+):
+    state = StateDirectory(root=tmp_path)
+    fabricate_everything(state=state)
+    write_running_conversation(state=state, issue=8, started=PINNED)
+    client = application(state=state).test_client()
+    query = {"cursor": "0:0"}
+
+    working = client.get("/conversations/8/tail", query_string=query)
+    remove_file(path=state.lock)
+    without_daemon = client.get("/conversations/8/tail", query_string=query)
+
+    assert (
+        '<div id="hand-resume" class="hand-resume" hx-swap-oob="morph"></div>'
+        in working.text
+    )
+    assert "<summary>resume by hand</summary>" in without_daemon.text
+    assert "claude --resume conversation-session" in without_daemon.text
 
 
 def test_an_old_conversation_stop_submission_cannot_stop_the_next_round(
@@ -400,7 +421,7 @@ def test_conversation_tail_returns_new_output_and_advances_its_cursor(tmp_path):
     assert response.status_code == 200
     assert "One more detail." in response.text
     assert f'value="1:{feed.stat().st_size}"' in response.text
-    assert 'id="conversation-status"' in response.text
+    assert 'id="agent-work-status"' in response.text
 
 
 def test_an_ineligible_conversation_stops_empty_tail_polling(tmp_path):
@@ -498,7 +519,7 @@ def test_conversation_tail_adds_a_later_round_without_repeating_the_first(tmp_pa
 
     assert response.status_code == 200
     assert "I found the answer." not in response.text
-    assert 'id="conversation-detail"' in response.text
+    assert 'id="agent-work-detail"' in response.text
     assert "issue is not eligible for conversation" in response.text
     assert response.text.count("round 2: discuss") == 1
     assert response.text.count("code revision abc123 -&gt; def456") == 1

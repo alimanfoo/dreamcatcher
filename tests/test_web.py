@@ -249,9 +249,31 @@ def test_assignment_tail_updates_the_stop_and_cancel_controls(tmp_path, daemon):
     )
 
     assert response.status_code == 200
-    assert '<div id="agent-work-controls" hx-swap-oob="true">' in response.text
+    assert '<div id="agent-work-controls" hx-swap-oob="morph">' in response.text
     assert f'action="/assignments/{identifier}/stop/2"' in response.text
     assert f'action="/assignments/{identifier}/cancel"' in response.text
+
+
+def test_assignment_tail_offers_a_hand_resume_only_while_no_round_runs(
+    tmp_path, daemon
+):
+    state = StateDirectory(root=tmp_path)
+    fabricate_everything(state=state)
+    identifier = "GH13-20260819-184158"
+    client = _create_app(state=state, clock=lambda: LOOKED_AT).test_client()
+    page = client.get(f"/assignments/{identifier}")
+    query = {"cursor": _read_cursor(response=page)}
+
+    working = client.get(f"/assignments/{identifier}/tail", query_string=query)
+    remove_file(path=state.lock)
+    without_daemon = client.get(f"/assignments/{identifier}/tail", query_string=query)
+
+    assert (
+        '<div id="hand-resume" class="hand-resume" hx-swap-oob="morph"></div>'
+        in working.text
+    )
+    assert "<summary>resume by hand</summary>" in without_daemon.text
+    assert "claude --resume abc-123" in without_daemon.text
 
 
 def test_a_stale_assignment_stop_request_is_already_done(tmp_path, daemon):
@@ -410,7 +432,7 @@ def test_assignment_tail_offers_the_retry_control(tmp_path):
 
     response = _read_tail(state=state, identifier=identifier, cursor="1:0")
 
-    assert '<div id="agent-work-controls" hx-swap-oob="true">' in response.text
+    assert '<div id="agent-work-controls" hx-swap-oob="morph">' in response.text
     assert f'action="/assignments/{identifier}/retry/2"' in response.text
 
 
@@ -545,7 +567,7 @@ def test_assignment_feedback_status_uses_the_status_wording(tmp_path, daemon):
     )
 
     assert (
-        '<span id="assignment-status" '
+        '<span id="agent-work-status" '
         'class="chip status-needs-user-feedback">needs user feedback</span>'
     ) in page
     assert "[NEEDS USER FEEDBACK]" not in page
@@ -1024,7 +1046,7 @@ def test_a_tail_fragment_matches_its_golden(tmp_path, daemon, pytestconfig):
         path=FIXTURES / "web" / "tail.html",
         config=pytestconfig,
     )
-    assert 'id="assignment-detail"' in response.text
+    assert 'id="agent-work-detail"' in response.text
 
 
 def test_a_quiet_tail_has_no_appendable_text_nodes(tmp_path):
@@ -1043,9 +1065,10 @@ def test_a_quiet_tail_has_no_appendable_text_nodes(tmp_path):
         'hx-swap-oob="true"><span'
     )
     assert '</span><div id="agent-work-controls"' in response.text
-    assert '</div><p id="assignment-detail"' in response.text
+    assert '</div><p id="agent-work-detail"' in response.text
     assert "</p><aside" in response.text
-    assert response.text.endswith("</aside>")
+    assert '</aside><div id="hand-resume"' in response.text
+    assert response.text.endswith("</div>")
 
 
 def test_an_assignment_page_links_its_title_and_pull_request(tmp_path, daemon):
