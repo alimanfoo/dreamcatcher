@@ -230,7 +230,7 @@ class AssignmentStatusReader(AgentWorkStatusReader[AssignmentStatus]):
     def _derive_unfinished(self, *, assignment: Assignment) -> AssignmentStatus | None:
         if self.has_fault(
             records=assignment.rounds,
-            retry_requested_at=assignment.record.retry_requested_at,
+            retry_requested_at=assignment.retry_requested_at,
         ):
             latest = assignment.rounds[-1]
             detail, latest_output = describe_round_ending(

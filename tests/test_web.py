@@ -418,7 +418,7 @@ def test_assignment_page_requests_a_retry_for_its_fault(tmp_path):
     assert response.location == f"/assignments/{identifier}"
     assignment = read_assignment(state=state, identifier=identifier)
     assert assignment is not None
-    assert assignment.record.retry_requested_at == LOOKED_AT
+    assert assignment.retry_requested_at == LOOKED_AT
     assert (
         f'action="/assignments/{identifier}/retry/2"'
         not in client.get(f"/assignments/{identifier}").text
@@ -455,7 +455,7 @@ def test_an_assignment_retry_needs_its_fault_at_the_submitted_round(
     assert response.status_code == 303
     assignment = read_assignment(state=state, identifier=identifier)
     assert assignment is not None
-    assert assignment.record.retry_requested_at is None
+    assert assignment.retry_requested_at is None
 
 
 @pytest.mark.parametrize("origin", [None, "https://example.com"])
@@ -471,7 +471,7 @@ def test_assignment_retry_requests_must_come_from_the_page(tmp_path, origin):
     assert response.status_code == 403
     assignment = read_assignment(state=state, identifier=identifier)
     assert assignment is not None
-    assert assignment.record.retry_requested_at is None
+    assert assignment.retry_requested_at is None
 
 
 def test_an_unknown_assignment_cannot_receive_a_retry_request(tmp_path):

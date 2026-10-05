@@ -1,6 +1,5 @@
 from datetime import timedelta
 from importlib.metadata import version
-from unittest.mock import Mock
 
 import pytest
 from clocks import PINNED
@@ -21,13 +20,14 @@ from dreamcatcher.agent_rounds import (
     ConversationRoundPurpose,
     _compose_agent_round_ending,
 )
+from dreamcatcher.agent_work import request_agent_work_retry
 from dreamcatcher.cli import _MAX_INTERVAL_SECONDS, main
 from dreamcatcher.config import AgentHarness
 from dreamcatcher.daemon import DreamcatcherDaemon
 from dreamcatcher.documents import write_json
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import FeedLine
-from dreamcatcher.issue_conversations import read_conversation
+from dreamcatcher.issue_conversations import Conversation, read_conversation
 from dreamcatcher.scheduler import derive_agent_work_fault
 from dreamcatcher.scheduler.models import GlobalCooldown, SchedulerRecord
 from dreamcatcher.state import StateDirectory
@@ -202,10 +202,10 @@ def test_retry_clears_the_newest_assignments_fault(monkeypatch, faulted, capsys)
     assert main(argv=["retry", "GH13"]) == 0
 
     assignment = read_assignments_for_issue(state=faulted, issue=13)[-1]
-    assert assignment.record.retry_requested_at == requested
+    assert assignment.retry_requested_at == requested
     assert not derive_agent_work_fault(
         rounds=assignment.rounds,
-        retry_requested_at=assignment.record.retry_requested_at,
+        retry_requested_at=assignment.retry_requested_at,
         most_recent_cooldown_ended=PINNED - timedelta(minutes=1),
     )
     assert "next scheduler tick" in capsys.readouterr().out
@@ -223,10 +223,10 @@ def test_retry_clears_a_conversations_fault(monkeypatch, tmp_path, capsys):
 
     conversation = read_conversation(state=state, issue=13)
     assert conversation is not None
-    assert conversation.record.retry_requested_at == requested
+    assert conversation.retry_requested_at == requested
     assert not derive_agent_work_fault(
         rounds=conversation.rounds,
-        retry_requested_at=conversation.record.retry_requested_at,
+        retry_requested_at=conversation.retry_requested_at,
         most_recent_cooldown_ended=None,
     )
     assert "conversation-GH13" in capsys.readouterr().out
@@ -243,8 +243,8 @@ def test_retry_clears_assignment_and_conversation_faults(monkeypatch, faulted, c
     assignment = read_assignments_for_issue(state=faulted, issue=13)[-1]
     conversation = read_conversation(state=faulted, issue=13)
     assert conversation is not None
-    assert assignment.record.retry_requested_at == requested
-    assert conversation.record.retry_requested_at == requested
+    assert assignment.retry_requested_at == requested
+    assert conversation.retry_requested_at == requested
     output = capsys.readouterr().out
     assert assignment.identifier in output
     assert conversation.identifier in output
@@ -257,9 +257,14 @@ def test_retry_reports_when_only_the_assignment_retry_was_saved(
     requested = PINNED + timedelta(minutes=3)
     monkeypatch.chdir(faulted.root)
     monkeypatch.setattr("dreamcatcher.cli.read_current_time", lambda: requested)
+
+    def refuse_conversation_retry(*, work, at):
+        if isinstance(work, Conversation):
+            raise ReportableError("conversation record is read-only")
+        request_agent_work_retry(work=work, at=at)
+
     monkeypatch.setattr(
-        "dreamcatcher.cli.request_conversation_retry",
-        Mock(side_effect=ReportableError("conversation record is read-only")),
+        "dreamcatcher.cli.request_agent_work_retry", refuse_conversation_retry
     )
 
     assert main(argv=["retry", "GH13"]) == 1
@@ -267,8 +272,8 @@ def test_retry_reports_when_only_the_assignment_retry_was_saved(
     assignment = read_assignments_for_issue(state=faulted, issue=13)[-1]
     conversation = read_conversation(state=faulted, issue=13)
     assert conversation is not None
-    assert assignment.record.retry_requested_at == requested
-    assert conversation.record.retry_requested_at is None
+    assert assignment.retry_requested_at == requested
+    assert conversation.retry_requested_at is None
     error = capsys.readouterr().err
     assert f"{assignment.identifier} can recover" in error
     assert "conversation-GH13 could not be retried" in error
@@ -295,7 +300,7 @@ def test_retry_refuses_a_fault_an_elapsed_cooldown_cleared(
     assert main(argv=["retry", "GH13"]) == 1
 
     assignment = read_assignments_for_issue(state=faulted, issue=13)[-1]
-    assert assignment.record.retry_requested_at is None
+    assert assignment.retry_requested_at is None
     assert "no agent work in fault" in capsys.readouterr().err
 
 

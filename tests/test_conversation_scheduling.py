@@ -37,19 +37,21 @@ from dreamcatcher.agent_rounds import (
     ErroredAgentRoundEnding,
     request_agent_round_stop,
 )
+from dreamcatcher.agent_work import (
+    _HARNESS_SESSION_RECORD_NAME,
+    record_harness_session_identifier,
+)
 from dreamcatcher.config import AgentHarness, read_dreamcatcher_config
 from dreamcatcher.daemon import DreamcatcherDaemon
 from dreamcatcher.documents import read_json, write_json
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.git import _read_worktree_revision, add_detached_worktree
 from dreamcatcher.issue_conversations import (
-    _CONVERSATION_RECORD_NAME,
     NO_REPLY,
     ConversationInput,
     InitialConversationIssue,
     compose_conversation_identifier,
     read_conversation,
-    record_conversation_harness_session_identifier,
 )
 from dreamcatcher.prompts import (
     AGENT_POST_MARKER,
@@ -382,7 +384,7 @@ def test_an_initial_conversation_freezes_input_runs_claude_and_publishes_once(
     assert after.failures == []
     conversation = read_conversation(state=scheduler.assignments.state, issue=8)
     assert conversation is not None
-    assert conversation.record.harness_session_identifier == "conversation-session"
+    assert conversation.harness_session_identifier == "conversation-session"
     assert conversation.rounds[0].purpose is ConversationRoundPurpose.DISCUSS
     assert conversation.rounds[0].outcome is AgentRoundOutcome.SUCCESSFUL
     paths = conversation.compose_round_paths(number=1)
@@ -558,9 +560,7 @@ def test_codex_first_and_resumed_rounds_capture_and_publish_final_messages(
     conversation = read_conversation(state=scheduler.assignments.state, issue=8)
     assert conversation is not None
     assert conversation.record.harness is AgentHarness.CODEX
-    assert conversation.record.harness_session_identifier == (
-        "conversation-codex-session"
-    )
+    assert conversation.harness_session_identifier == ("conversation-codex-session")
     assert len(conversation.rounds) == 2
     calls = harnesses["codex"].calls
     assert len(calls) == 2
@@ -748,8 +748,8 @@ def test_a_stopped_conversation_waits_for_new_feedback(
     scheduler.tick(at=clock())
     conversation = read_conversation(state=scheduler.assignments.state, issue=8)
     assert conversation is not None
-    record_conversation_harness_session_identifier(
-        conversation=conversation, identifier="conversation-session"
+    record_harness_session_identifier(
+        work=conversation, identifier="conversation-session"
     )
     request_agent_round_stop(paths=conversation.compose_round_paths(number=1))
     finish(scheduler=scheduler)
@@ -1434,12 +1434,7 @@ def test_recovery_finds_a_session_identifier_left_in_raw_output(
     finish(scheduler=scheduler)
     conversation = read_conversation(state=scheduler.assignments.state, issue=8)
     assert conversation is not None
-    write_json(
-        document=conversation.record.model_copy(
-            update={"harness_session_identifier": None}
-        ),
-        path=conversation.directory / _CONVERSATION_RECORD_NAME,
-    )
+    (conversation.directory / _HARNESS_SESSION_RECORD_NAME).unlink()
     offer_conversation(gh=gh, comments=[ask(), ask(identifier=2)])
     answer(harnesses=harnesses, body="The recovered answer.")
     gh.replies(stdout=json.dumps({"id": 99}), to=POST_PATH)
@@ -1471,7 +1466,7 @@ def test_a_first_round_without_a_session_recovers_as_a_new_first_round(
     conversation = read_conversation(state=scheduler.assignments.state, issue=8)
     assert conversation is not None
     assert observed.launched_agent_work_identifiers == ["conversation-GH8"]
-    assert conversation.record.harness_session_identifier == "conversation-session"
+    assert conversation.harness_session_identifier == "conversation-session"
     assert conversation.rounds[1].is_recovery
     restarted = harnesses["claude"].calls[1]
     assert "--resume" not in restarted.arguments
@@ -1491,12 +1486,7 @@ def test_a_follow_up_refuses_to_replace_a_missing_saved_session(
     scheduler.tick(at=clock())
     conversation = read_conversation(state=scheduler.assignments.state, issue=8)
     assert conversation is not None
-    write_json(
-        document=conversation.record.model_copy(
-            update={"harness_session_identifier": None}
-        ),
-        path=conversation.directory / _CONVERSATION_RECORD_NAME,
-    )
+    (conversation.directory / _HARNESS_SESSION_RECORD_NAME).unlink()
     conversation.compose_round_paths(number=1).raw_output.unlink()
     offer_conversation(gh=gh, comments=[ask(), ask(identifier=2)])
 

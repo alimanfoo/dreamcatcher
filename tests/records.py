@@ -13,7 +13,12 @@ from pathlib import Path
 
 import psutil
 
-from dreamcatcher import agent_assignments, agent_rounds, issue_conversations
+from dreamcatcher import (
+    agent_assignments,
+    agent_rounds,
+    agent_work,
+    issue_conversations,
+)
 from dreamcatcher.config import AgentHarness
 from dreamcatcher.daemon import DEFAULT_INTERVAL_SECONDS
 from dreamcatcher.daemon_runs import DaemonRunRecord
@@ -98,13 +103,13 @@ def write_assignment(
                 None if reporting is None else reporting.pull_request_observation
             ),
             harness=AgentHarness.CLAUDE,
-            harness_session_identifier=harness_session_identifier,
             model="opus[1m]",
             effort="xhigh",
             prompt=f"/dream:smith GH{issue}",
         ),
         path=directory / agent_assignments._ASSIGNMENT_RECORD_NAME,
     )
+    _write_harness_session(directory=directory, identifier=harness_session_identifier)
     return directory
 
 
@@ -125,14 +130,23 @@ def write_conversation(
             title=f"Issue {issue}",
             dispatch_label="dream:conversation",
             harness=harness,
-            harness_session_identifier=harness_session_identifier,
             model="opus[1m]",
             effort="xhigh",
             prompt=f"/dream:conversation GH{issue}",
         ),
         path=directory / issue_conversations._CONVERSATION_RECORD_NAME,
     )
+    _write_harness_session(directory=directory, identifier=harness_session_identifier)
     return directory
+
+
+def _write_harness_session(*, directory: Path, identifier: str | None) -> None:
+    """Write the harness session of the work at this directory, when it has one."""
+    if identifier is not None:
+        write_json(
+            document=agent_work.HarnessSessionRecord(identifier=identifier),
+            path=directory / agent_work._HARNESS_SESSION_RECORD_NAME,
+        )
 
 
 def write_round(

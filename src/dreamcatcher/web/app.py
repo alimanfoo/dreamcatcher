@@ -13,12 +13,11 @@ from flask.typing import ResponseReturnValue
 from dreamcatcher.agent_assignments import (
     cancel_assignment,
     read_assignment,
-    request_assignment_retry,
 )
 from dreamcatcher.agent_rounds import request_agent_round_stop
+from dreamcatcher.agent_work import request_agent_work_retry
 from dreamcatcher.clock import read_current_time
 from dreamcatcher.errors import ReportableError
-from dreamcatcher.issue_conversations import request_conversation_retry
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.status import (
     AssignmentStatus,
@@ -405,7 +404,7 @@ def _request_assignment_retry(
     if status is None:
         return _missing_assignment_response(identifier=identifier)
     if status.faulted_round_number == number:
-        request_assignment_retry(assignment=status.assignment, at=clock())
+        request_agent_work_retry(work=status.assignment, at=clock())
     return redirect(url_for("show_assignment", identifier=identifier), code=303)
 
 
@@ -427,7 +426,7 @@ def _request_conversation_retry(
         return _missing_conversation_response(issue=issue)
     conversation = status.conversation
     if conversation is not None and status.faulted_round_number == number:
-        request_conversation_retry(conversation=conversation, at=clock())
+        request_agent_work_retry(work=conversation, at=clock())
     return redirect(url_for("show_conversation", issue=issue), code=303)
 
 

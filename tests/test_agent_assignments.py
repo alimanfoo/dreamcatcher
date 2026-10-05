@@ -26,7 +26,6 @@ from dreamcatcher.agent_assignments import (
     inspect_incomplete_assignment_setups,
     read_assignments,
     read_assignments_for_issue,
-    record_assignment_harness_session_identifier,
     record_pull_request_observation,
 )
 from dreamcatcher.agent_rounds import (
@@ -1005,26 +1004,6 @@ def test_an_assignment_record_from_before_pull_request_observations_reads(
     assert record.pull_request_observation is None
 
 
-def test_an_assignment_records_the_harness_session_its_first_round_reports(fabricated):
-    write_assignment(
-        state=fabricated,
-        identifier=ASSIGNMENT_ID,
-        issue=12,
-        harness_session_identifier=None,
-    )
-    assignment = read_assignments(state=fabricated)[0]
-
-    record_assignment_harness_session_identifier(
-        assignment=assignment, identifier="abc-123"
-    )
-    record_assignment_harness_session_identifier(
-        assignment=assignment, identifier="abc-123"
-    )
-
-    recorded = read_assignments(state=fabricated)[0]
-    assert recorded.record.harness_session_identifier == "abc-123"
-
-
 def test_an_assignment_recovers_a_session_reported_by_a_later_round(fabricated):
     directory = write_assignment(
         state=fabricated,
@@ -1122,42 +1101,6 @@ def test_an_unchanged_pull_request_observation_leaves_the_record_untouched(fabri
     )
 
     assert path.read_bytes() == before
-
-
-def test_an_assignment_refuses_a_different_harness_session(fabricated):
-    write_assignment(
-        state=fabricated,
-        identifier=ASSIGNMENT_ID,
-        issue=12,
-        harness_session_identifier="abc-123",
-    )
-    assignment = read_assignments(state=fabricated)[0]
-
-    with pytest.raises(ReportableError, match="but its record names abc-123"):
-        record_assignment_harness_session_identifier(
-            assignment=assignment, identifier="another-session"
-        )
-
-
-@pytest.mark.parametrize(
-    ("identifier", "message"),
-    [
-        ("", "identifier is empty"),
-        ("bad%identifier", "cannot hold a percent sign"),
-        ("--last", "must begin with a letter or digit"),
-        ("abc; touch another-file", "contain only ASCII letters"),
-    ],
-)
-def test_an_assignment_refuses_an_invalid_harness_session_identifier(
-    fabricated, identifier, message
-):
-    write_assignment(state=fabricated, identifier=ASSIGNMENT_ID, issue=12)
-    assignment = read_assignments(state=fabricated)[0]
-
-    with pytest.raises(ReportableError, match=message):
-        record_assignment_harness_session_identifier(
-            assignment=assignment, identifier=identifier
-        )
 
 
 def test_an_assignment_no_round_has_delivered_a_user_post_has_an_empty_cursor(

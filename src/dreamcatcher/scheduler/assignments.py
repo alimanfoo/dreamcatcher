@@ -12,7 +12,6 @@ from dreamcatcher.agent_assignments import (
     find_open_assignments_by_issue,
     inspect_incomplete_assignment_setups,
     read_assignments,
-    record_assignment_harness_session_identifier,
     record_pull_request_observation,
     stop_round_if_cancelled,
 )
@@ -24,6 +23,7 @@ from dreamcatcher.agent_rounds import (
     AssignmentRoundPurpose,
     start_agent_round,
 )
+from dreamcatcher.agent_work import record_harness_session_identifier
 from dreamcatcher.config import AssignmentRoute
 from dreamcatcher.github import (
     PullRequest,
@@ -251,7 +251,7 @@ class AssignmentScheduler(
             )
         if derive_agent_work_fault(
             rounds=assignment.rounds,
-            retry_requested_at=assignment.record.retry_requested_at,
+            retry_requested_at=assignment.retry_requested_at,
             most_recent_cooldown_ended=most_recent_cooldown_ended,
         ):
             return _AssignmentItemInspection(
@@ -386,8 +386,8 @@ class AssignmentScheduler(
             ),
         )
         if resumption.identifier is not None:
-            record_assignment_harness_session_identifier(
-                assignment=assignment,
+            record_harness_session_identifier(
+                work=assignment,
                 identifier=resumption.identifier,
             )
         paths = assignment.compose_round_paths(number=assignment.next_round_number)
@@ -402,8 +402,8 @@ class AssignmentScheduler(
                 ),
                 harness_session_identifier=resumption.identifier,
                 record_harness_session_identifier=partial(
-                    record_assignment_harness_session_identifier,
-                    assignment=assignment,
+                    record_harness_session_identifier,
+                    work=assignment,
                 ),
                 finish_round=None,
                 paths=paths,

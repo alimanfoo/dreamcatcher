@@ -32,6 +32,10 @@ from dreamcatcher.agent_rounds import (
     read_agent_round_records,
     request_agent_round_stop,
 )
+from dreamcatcher.agent_work import (
+    read_harness_session_identifier,
+    read_retry_requested_at,
+)
 from dreamcatcher.commands import CommandError
 from dreamcatcher.config import AgentHarness, AssignmentRoute
 from dreamcatcher.documents import (
@@ -57,10 +61,7 @@ from dreamcatcher.github import (
     PullRequestState,
     UserPost,
 )
-from dreamcatcher.harness_adapters import (
-    HarnessSessionIdentifier,
-    refuse_reportable_harness_session_identifier,
-)
+from dreamcatcher.harness_adapters import HarnessSessionIdentifier
 from dreamcatcher.harnesses import find_harness_session_identifier
 from dreamcatcher.prompts import compose_first_round_prompt
 from dreamcatcher.state import StateDirectory
@@ -101,11 +102,10 @@ class PullRequestObservation(DreamcatcherDocument):
 class AssignmentRecord(DreamcatcherDocument):
     """Model the identities and settled settings of an agent assignment.
 
-    The assignment dispatch settles the recipe and identities. The first round
-    adds the harness session identifier when the harness reports it, and a retry
-    request or a cancel records its time. Every round reads this record, so
-    later config edits do not change an assignment in progress. The latest pull
-    request observation supports reporting; scheduling still reads GitHub.
+    The assignment dispatch settles the recipe and identities. Every round
+    reads this record, so later config edits do not change an assignment in
+    progress. A cancel records its time. The latest pull request observation
+    supports reporting; scheduling still reads GitHub.
     """
 
     issue: int
@@ -116,8 +116,6 @@ class AssignmentRecord(DreamcatcherDocument):
     pull_request: int
     pull_request_observation: PullRequestObservation | None = None
     harness: AgentHarness
-    harness_session_identifier: HarnessSessionIdentifier | None = None
-    retry_requested_at: AwareDatetime | None = None
     cancelled_at: AwareDatetime | None = None
     model: str
     effort: str
@@ -129,8 +127,8 @@ class Assignment:
     """Represent an agent assignment as its persisted state currently reads.
 
     The directory name is the assignment identifier. The record holds the
-    assignment dispatch settings, and the rounds are ordered from oldest to
-    newest.
+    assignment dispatch settings, the facts recorded since sit beside it, and
+    the rounds are ordered from oldest to newest.
 
     The user-post delivery cursor is read from the newest recorded round input
     that delivered posts. An assignment that has received none has the beginning
@@ -139,6 +137,8 @@ class Assignment:
 
     directory: Path
     record: AssignmentRecord
+    harness_session_identifier: HarnessSessionIdentifier | None = None
+    retry_requested_at: datetime | None = None
     rounds: list[AgentRoundRecord] = field(default_factory=list)
 
     @property
@@ -196,7 +196,7 @@ class Assignment:
         return find_harness_session_identifier(
             harness=self.record.harness,
             agent_work_identifier=self.identifier,
-            recorded=self.record.harness_session_identifier,
+            recorded=self.harness_session_identifier,
             raw_outputs=(
                 self.compose_round_paths(number=round_record.number).raw_output
                 for round_record in reversed(self.rounds)
@@ -290,16 +290,6 @@ def find_open_assignments_by_issue(
         for assignment in assignments
         if assignment.is_open
     }
-
-
-def request_assignment_retry(*, assignment: Assignment, at: datetime) -> None:
-    """Record when the user asked a faulted assignment to recover again."""
-    path = assignment.directory / _ASSIGNMENT_RECORD_NAME
-    record = read_json(model=AssignmentRecord, path=path)
-    write_json(
-        document=record.model_copy(update={"retry_requested_at": at}),
-        path=path,
-    )
 
 
 def cancel_assignment(*, assignment: Assignment, at: datetime) -> None:
@@ -514,6 +504,8 @@ def _read_assignment(*, state: StateDirectory, directory: Path) -> Assignment:
         record=read_json(
             model=AssignmentRecord, path=directory / _ASSIGNMENT_RECORD_NAME
         ),
+        harness_session_identifier=read_harness_session_identifier(directory=directory),
+        retry_requested_at=read_retry_requested_at(directory=directory),
         rounds=read_agent_round_records(
             cache=state.document_cache,
             directory=directory / _AGENT_ROUNDS_DIRECTORY_NAME,
@@ -533,31 +525,6 @@ def read_user_post_delivery_cursor(*, assignment: Assignment) -> str:
         if round_input.user_posts:
             return round_input.user_posts[-1].written_at
     return ""
-
-
-def record_assignment_harness_session_identifier(
-    *, assignment: Assignment, identifier: str
-) -> None:
-    """Record the harness session that every round of the assignment continues."""
-    safe_identifier = refuse_reportable_harness_session_identifier(
-        agent_work_identifier=assignment.identifier, identifier=identifier
-    )
-    path = assignment.directory / _ASSIGNMENT_RECORD_NAME
-    record = read_json(model=AssignmentRecord, path=path)
-    recorded_identifier = record.harness_session_identifier
-    if recorded_identifier is not None and recorded_identifier != safe_identifier:
-        raise ReportableError(
-            f"{assignment.identifier} reported harness session {safe_identifier}, "
-            f"but its record names {recorded_identifier}."
-        )
-    if recorded_identifier == safe_identifier:
-        return
-    write_json(
-        document=record.model_copy(
-            update={"harness_session_identifier": safe_identifier}
-        ),
-        path=path,
-    )
 
 
 def record_pull_request_observation(

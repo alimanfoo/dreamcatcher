@@ -30,7 +30,6 @@ from records import write_assignment, write_round
 from dreamcatcher.agent_assignments import (
     PullRequestObservation,
     read_assignments,
-    request_assignment_retry,
 )
 from dreamcatcher.agent_rounds import (
     AgentRoundRecord,
@@ -39,6 +38,10 @@ from dreamcatcher.agent_rounds import (
     InterruptedAgentRoundEnding,
     _AgentRoundPurpose,
     _compose_agent_round_ending,
+)
+from dreamcatcher.agent_work import (
+    _HARNESS_SESSION_RECORD_NAME,
+    request_agent_work_retry,
 )
 from dreamcatcher.config import AgentHarness, read_dreamcatcher_config
 from dreamcatcher.documents import write_json, write_text
@@ -260,15 +263,10 @@ def written_round(*, scheduler: Scheduler, number: int, name: str) -> str:
 
 
 def forget_harness_session_identifier(*, root) -> None:
-    """Remove the harness session identifier from the assignment's record."""
+    """Remove the assignment's recorded harness session identifier."""
     state = StateDirectory(root=root)
     assignment = read_assignments(state=state)[0]
-    write_json(
-        document=assignment.record.model_copy(
-            update={"harness_session_identifier": None}
-        ),
-        path=assignment.directory / "assignment.json",
-    )
+    (assignment.directory / _HARNESS_SESSION_RECORD_NAME).unlink()
 
 
 def test_a_tick_assigns_the_oldest_issue_nothing_stands_in_the_way_of(
@@ -311,7 +309,7 @@ def test_a_new_assignments_round_records_what_caused_it_and_what_it_said(
     )
     assert "what the round said" in (written / "feed.txt").read_text(encoding="utf-8")
     assignment = read_assignments(state=scheduler.assignments.state)[0]
-    assert assignment.record.harness_session_identifier == "abc-123"
+    assert assignment.harness_session_identifier == "abc-123"
 
 
 def test_a_tick_fills_free_capacity_with_available_issues(ready_repo, offered):
@@ -593,7 +591,7 @@ def test_a_user_retry_clears_one_fault_and_starts_recovery(ready_repo):
     write_faulted_assignment(root=ready_repo, identifier=ASSIGNMENT_ID, issue=13)
     state = StateDirectory(root=ready_repo)
     assignment = read_assignments(state=state)[0]
-    request_assignment_retry(assignment=assignment, at=PINNED)
+    request_agent_work_retry(work=assignment, at=PINNED)
     scheduler, clock = create_scheduler(root=ready_repo)
 
     observed = scheduler.tick(at=clock())
@@ -923,7 +921,7 @@ def test_a_resume_recovers_the_harness_session_from_the_first_rounds_raw_stream(
 
     assert observed.launched_agent_work_identifiers == [ASSIGNMENT_ID]
     assignment = read_assignments(state=scheduler.assignments.state)[0]
-    assert assignment.record.harness_session_identifier == HARNESS_SESSION_IDENTIFIER
+    assert assignment.harness_session_identifier == HARNESS_SESSION_IDENTIFIER
     assert harnesses["claude"].calls[-1].arguments[-2:] == [
         "--resume",
         HARNESS_SESSION_IDENTIFIER,
@@ -1021,10 +1019,7 @@ def test_a_failed_replacement_session_does_not_redeliver_recorded_feedback(
     assert assignment.user_post_delivery_cursor == POSTED_AT
     ending = assignment.rounds[-1].ending
     assert isinstance(ending, ErroredAgentRoundEnding)
-    request_assignment_retry(
-        assignment=assignment,
-        at=ending.at + timedelta(seconds=1),
-    )
+    request_agent_work_retry(work=assignment, at=ending.at + timedelta(seconds=1))
 
     observed = scheduler.tick(at=clock())
     finish_rounds(scheduler=scheduler)
