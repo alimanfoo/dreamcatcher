@@ -61,7 +61,7 @@ def compose_agent_round_boundary(
     """Return the line that opens a round, saying what work it advances.
 
     A feed holds one round, so nothing writes this line as the round runs.
-    Whoever reads a whole assignment's rounds in order writes it between them,
+    Whoever reads an agent work item's rounds in order writes it between them,
     stamped with the time that round started.
     """
     description = describe_agent_round_start(purpose=purpose, is_recovery=is_recovery)

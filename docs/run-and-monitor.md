@@ -1,7 +1,7 @@
 # Run and monitor Dreamcatcher
 
 Run one Dreamcatcher daemon from the ordinary main checkout of each repository
-you want to watch. Keep it in the foreground so its tick reports and failures
+you want to watch. Keep it in the foreground so its update reports and failures
 remain visible.
 
 Before starting, make sure `dreamcatcher.toml` is present, `gh` is signed in,
@@ -48,9 +48,10 @@ Use an exact port when needed:
 dreamcatcher web --port 8123
 ```
 
-The home page shows daemon facts, active and ended assignments, issue
-conversations, setup failures, and issues waiting or blocked. Open an assignment
-or conversation to see its rounds and live feed.
+The home page shows daemon facts, any scheduler failures, active and ended
+assignments, issue conversations, failed assignment setups, and available or
+blocked issues. Open an assignment or conversation to see its rounds and live
+feed.
 
 ## Monitor from the terminal
 

@@ -25,11 +25,12 @@ decisions and reviews work through GitHub.
 
 A **Dreamcatcher instance** is one local body of configuration and state which
 manages agent work in one repository on behalf of one user. It endures while
-Dreamcatcher is stopped and across successive runs. Several users may each run
-their own Dreamcatcher instance for the same repository.
+Dreamcatcher is stopped and across successive daemon runs. Several users may
+each run their own Dreamcatcher instance for the same repository.
 
 A **daemon** is the process that runs a Dreamcatcher instance. At most one
-daemon runs an instance at a time.
+daemon runs an instance at a time. A **daemon run** is one daemon process from
+start to stop.
 
 ### Issue and issue identifier
 
@@ -154,7 +155,9 @@ domain object.
 
 ### Scheduler
 
-The **scheduler** decides what work Dreamcatcher starts and when.
+The **scheduler** decides what work Dreamcatcher starts and when. It decides
+once per **scheduler tick**, and the daemon runs one tick per interval. Users
+see a scheduler tick called an update.
 
 ### Status report
 
@@ -395,9 +398,10 @@ These statuses are derived reporting projections, not persisted lifecycle state.
 A status report may include operational facts such as the repository identity,
 whether the daemon is running, when the last scheduler tick occurred, current
 capacity, whether a global cooldown is active, and the scheduler failures. A
-scheduler failure is a failed issue listing or a failed launch in the latest
-tick. Its issue observations, issue conversation statuses and agent assignment
-statuses are projections derived for a person to read.
+scheduler failure is a read or a launch that failed in the latest tick, such as
+a failed issue listing or a failed read of an issue's comments. Its issue
+observations, issue conversation statuses and agent assignment statuses are
+projections derived for a person to read.
 
 The status report never schedules work and is never an input to scheduling.
 Scheduling and reporting must nevertheless interpret the same underlying facts

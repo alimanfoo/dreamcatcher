@@ -1,7 +1,6 @@
 """Represent and summarize the derived status of issue conversations."""
 
 from dataclasses import dataclass
-from datetime import datetime
 from enum import StrEnum
 from functools import cached_property
 
@@ -81,12 +80,11 @@ class ConversationStatus:
     value: ConversationStatusValue
     detail: str
     latest_output: str | None
-    observed_at: datetime | None
     is_listed: bool
 
     @property
     def is_over(self) -> bool:
-        """Whether nothing more can happen until the user acts.
+        """Whether the work has ended or is stuck, so a live view stops following it.
 
         A faulted or conflicted conversation waits for the user to act, and one
         that the status report no longer lists waits for its issue to be eligible
@@ -184,7 +182,7 @@ class ConversationStatus:
                     ),
                     outcome_description=describe_round_outcome(
                         record=record,
-                        is_running=(
+                        is_working=(
                             self.value is ConversationStatusValue.WORKING
                             and record.number == conversation.rounds[-1].number
                         ),
@@ -436,7 +434,6 @@ class ConversationStatusReader(AgentWorkStatusReader[ConversationStatus]):
             value=value,
             detail=detail,
             latest_output=latest_output,
-            observed_at=self.observed_at,
             is_listed=(
                 value is ConversationStatusValue.WORKING
                 or self.scheduler_record is None

@@ -49,13 +49,6 @@ class AgentWorkStatusReader[AgentWorkStatus](ABC):
     def list_statuses(self) -> list[AgentWorkStatus]:
         """Return this kind's statuses in report order."""
 
-    @property
-    def observed_at(self) -> datetime | None:
-        """The time of the scheduler observation behind a derived status."""
-        if self.scheduler_record is None:
-            return None
-        return self.scheduler_record.at
-
     def is_round_working(self, *, record: AgentRoundRecord) -> bool:
         """Return whether the latest round is still running under a daemon."""
         return record.ending is None and self.is_daemon_running

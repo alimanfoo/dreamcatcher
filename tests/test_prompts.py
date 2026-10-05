@@ -66,23 +66,23 @@ def test_conversation_recovery_returns_a_complete_postable_answer():
 def test_the_prompt_that_hands_over_user_posts_names_the_pull_request_and_the_file(
     tmp_path,
 ):
-    inbox = tmp_path / "inbox.json"
+    round_input = tmp_path / "round-input.json"
 
-    composed = compose_user_posts_prompt(pull_request=52, round_input=inbox)
+    composed = compose_user_posts_prompt(pull_request=52, round_input=round_input)
 
-    assert composed.startswith("PR-inbox prompt for pull request #52:")
-    assert str(inbox) in composed
+    assert composed.startswith("User-posts prompt for pull request #52:")
+    assert str(round_input) in composed
     assert composed.endswith(_AGENT_POST_INSTRUCTIONS)
 
 
 def test_input_after_a_stop_explains_why_the_previous_round_ended(tmp_path):
-    inbox = tmp_path / "inbox.json"
+    round_input = tmp_path / "round-input.json"
 
     assignment = compose_user_posts_prompt(
-        pull_request=52, round_input=inbox, was_stopped=True
+        pull_request=52, round_input=round_input, was_stopped=True
     )
     conversation = compose_conversation_round_prompt(
-        issue=52, round_input=inbox, was_stopped=True
+        issue=52, round_input=round_input, was_stopped=True
     )
 
     opening = "The user stopped your previous round before it\nfinished."
@@ -92,14 +92,14 @@ def test_input_after_a_stop_explains_why_the_previous_round_ended(tmp_path):
 
 
 def test_the_conversation_prompt_names_its_input_and_host_boundary(tmp_path):
-    inbox = tmp_path / "inbox.json"
+    round_input = tmp_path / "round-input.json"
 
     composed = compose_conversation_prompt(
-        template="/dream:conversation GH{issue}", issue=52, round_input=inbox
+        template="/dream:conversation GH{issue}", issue=52, round_input=round_input
     )
 
     assert composed.startswith("/dream:conversation GH52")
-    assert str(inbox) in composed
+    assert str(round_input) in composed
     assert "make issue changes on\nGitHub when the user asks" in composed
     assert "do not repeat an action that an earlier attempt completed" in composed
     assert (
@@ -114,12 +114,12 @@ def test_the_conversation_prompt_names_its_input_and_host_boundary(tmp_path):
 
 
 def test_the_conversation_round_prompt_names_only_its_new_input(tmp_path):
-    inbox = tmp_path / "inbox.json"
+    round_input = tmp_path / "round-input.json"
 
-    composed = compose_conversation_round_prompt(issue=52, round_input=inbox)
+    composed = compose_conversation_round_prompt(issue=52, round_input=round_input)
 
     assert composed.startswith("Issue-conversation input for GH52:")
-    assert str(inbox) in composed
+    assert str(round_input) in composed
     assert "/dream:conversation" not in composed
     assert "make issue changes on\nGitHub when the user asks" in composed
     assert "do not repeat an action that an earlier attempt completed" in composed
@@ -135,16 +135,16 @@ def test_every_agent_work_prompt_the_daemon_composes_asks_for_the_marker(tmp_pat
         RECOVERY_PROMPT,
         compose_user_posts_prompt(
             pull_request=52,
-            round_input=Path("inbox.json"),
+            round_input=Path("round-input.json"),
         ),
         compose_conversation_prompt(
             template="/dream:conversation GH{issue}",
             issue=52,
-            round_input=tmp_path / "inbox.json",
+            round_input=tmp_path / "round-input.json",
         ),
         compose_conversation_round_prompt(
             issue=52,
-            round_input=tmp_path / "inbox.json",
+            round_input=tmp_path / "round-input.json",
         ),
         CONVERSATION_RECOVERY_PROMPT,
     ]

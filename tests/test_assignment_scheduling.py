@@ -181,7 +181,7 @@ def test_an_assignment_whose_last_round_failed_is_carried_on_with_its_status(sta
     assert derive_round_purpose(pull_request=resume.pull_request) is (
         AssignmentRoundPurpose.ADDRESS_FEEDBACK
     )
-    assert resume.recovery_reason == "the last round failed (exit 2)"
+    assert resume.recovery_reason == "the last round errored (exit 2)"
     assert gh.calls[0].arguments[:3] == ["pr", "view", str(PULL_REQUEST)]
 
 
@@ -387,7 +387,7 @@ def test_a_batch_of_posts_says_how_many_it_holds(state, gh):
     assert len(resume.undelivered_posts) == 2
 
 
-def test_a_post_at_the_assignment_delivery_cursor_wakes_nothing(state, gh):
+def test_a_post_at_the_assignment_delivery_position_wakes_nothing(state, gh):
     ran(state=state, number=1, purpose=AssignmentRoundPurpose.IMPLEMENT)
     gh.replies(
         stdout=pages(items=[comment()]), to=f"api {POST_LIST_PATHS['conversation']}"

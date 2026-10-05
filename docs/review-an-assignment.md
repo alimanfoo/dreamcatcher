@@ -18,14 +18,14 @@ same account that `gh` is authenticated as, you can:
 - submit a review with a comment or verdict; or
 - leave an inline review comment on the diff.
 
-Dreamcatcher collects new feedback in chronological order and delivers it in a
+Dreamcatcher collects new feedback in chronological order and relays it into a
 later agent round. A submitted approval or request-for-changes verdict is also
-delivered even when its review body is empty. Posts by other accounts and posts
+relayed even when its review body is empty. Posts by other accounts and posts
 marked as the agent's own are not treated as your feedback.
 
 If the agent asks a blocking question while the pull request is still a draft,
 reply on that pull request. Do not move the discussion to the issue: assignment
-rounds listen to the pull request. The next scheduler tick can resume the same
+rounds listen to the pull request. The next scheduler update can resume the same
 harness session with your answer.
 
 Follow the response locally when useful:
@@ -43,7 +43,7 @@ Merge the pull request when the change meets your repository's normal review and
 check requirements. If the work should not land, close it instead.
 
 Either action asks the agent for one final **wrap-up** round. That round
-receives the merged or closed state and any feedback not delivered earlier. Keep
+receives the merged or closed state and any feedback not relayed earlier. Keep
 the daemon running until the assignment becomes **complete**: only a successful
 wrap-up releases it.
 
@@ -62,6 +62,6 @@ explains how.
 
 Removing the assignment label is not a way to stop an active assignment; its
 saved pull request continues to drive feedback and wrap-up. If you close a pull
-request without merging and do not want the still-open issue assigned again,
-remove its assignment label before wrap-up completes. Once wrap-up succeeds, the
-old assignment no longer claims the issue.
+request without merging and do not want a new assignment for the issue that's
+still open, remove its assignment label before wrap-up completes. Once wrap-up
+succeeds, the old assignment no longer claims the issue.

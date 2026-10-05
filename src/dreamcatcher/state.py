@@ -57,13 +57,7 @@ class StateDirectory:
 
     @property
     def worktrees(self) -> Path:
-        """The directory holding each assignment worktree by identifier.
-
-        Every worktree that dreamcatcher makes lives under here, wherever the
-        checkout would otherwise put its worktrees. A worktree under here is
-        therefore one of dreamcatcher's, and that is how the daemon tells its
-        own work from everyone else's.
-        """
+        """The directory holding each assignment worktree by identifier."""
         return self.path / "worktrees"
 
     @property
@@ -88,9 +82,9 @@ class StateDirectory:
         return path.as_posix()
 
     def bootstrap(self) -> None:
-        """Create the state directory and make Git ignore its contents.
+        """Make Git ignore everything under `.dreamcatcher/`.
 
-        Writing the .gitignore is what creates the directory. Bootstrap writes
-        it on every run, so a directory that was deleted comes back.
+        Bootstrap writes the .gitignore on every daemon run, so one that was deleted
+        comes back.
         """
         write_text(text="*\n", path=self.path.parent / ".gitignore")

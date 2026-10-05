@@ -2,7 +2,7 @@
 
 Dreamcatcher reads `dreamcatcher.toml` from the root of the main checkout where
 `dreamcatcher run` starts. The file defines which issue labels dispatch
-assignments or issue conversations, and the harness recipe available for each
+assignments or issue conversations, and the dispatch recipes available for each
 label. It does not configure daemon controls such as the interval or agent cap;
 those are [`run` options](command-reference.md#run).
 
@@ -62,13 +62,13 @@ the two daemon controls.
 
 An `[[assignment]]` entry and a `[[conversation]]` entry have the same schema:
 
-| Setting  | Value        | Required | Default | Constraint                                                                     |
-| -------- | ------------ | -------- | ------- | ------------------------------------------------------------------------------ |
-| `label`  | String       | Yes      | None    | Identifies this route, matched case-insensitively against GitHub issue labels. |
-| `claude` | Recipe table | No       | Absent  | Configures Claude for this route.                                              |
-| `codex`  | Recipe table | No       | Absent  | Configures Codex for this route.                                               |
+| Setting  | Value           | Required | Default | Constraint                                                                     |
+| -------- | --------------- | -------- | ------- | ------------------------------------------------------------------------------ |
+| `label`  | String          | Yes      | None    | Identifies this route, matched case-insensitively against GitHub issue labels. |
+| `claude` | Dispatch recipe | No       | Absent  | Configures Claude for this route.                                              |
+| `codex`  | Dispatch recipe | No       | Absent  | Configures Codex for this route.                                               |
 
-Every route must contain at least one harness recipe. `claude` and `codex` are
+Every route must contain at least one dispatch recipe. `claude` and `codex` are
 the only accepted harness-table names.
 
 A label is a case-insensitive identity. No two assignment routes may repeat a
@@ -83,7 +83,7 @@ assignment conflict prevents a new assignment but does not stop an existing
 assignment's rounds. A conversation conflict prevents new conversation batches
 and recovery rounds, though a round already running may finish.
 
-## Harness recipes
+## Dispatch recipes
 
 Each `[assignment.claude]`, `[assignment.codex]`, `[conversation.claude]` or
 `[conversation.codex]` table requires three settings, which have no defaults.

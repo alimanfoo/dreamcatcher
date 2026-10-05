@@ -1,4 +1,4 @@
-"""Enforce one running daemon per repository with an operating-system file lock.
+"""Enforce one running daemon per checkout with an operating-system file lock.
 
 The kernel releases the lock when the daemon's process ends, however it ends, so
 a held lock always means a live daemon.
@@ -48,7 +48,7 @@ def hold_daemon_lock(*, path: Path) -> Iterator[None]:
     finally:
         # The kernel releases the lock when the process ends, so a release that
         # fails costs nothing. Letting the failure out would replace whatever
-        # ended the run, and the user would read the wrong one.
+        # ended the daemon run, and the user would read the wrong one.
         with suppress(OSError):
             lock.release()
 

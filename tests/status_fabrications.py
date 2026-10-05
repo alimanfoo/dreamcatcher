@@ -34,7 +34,7 @@ from dreamcatcher.feed import FeedLine
 from dreamcatcher.github import PullRequestState
 from dreamcatcher.harness_adapters import HarnessSessionIdentifier
 from dreamcatcher.issue_conversations import (
-    ConversationInput,
+    ConversationRoundInput,
     InitialConversationIssue,
 )
 from dreamcatcher.scheduler.models import (
@@ -131,7 +131,7 @@ def fabricate_conversation(
         ),
     )
     write_json(
-        document=ConversationInput(
+        document=ConversationRoundInput(
             issue=8,
             initial_issue=InitialConversationIssue(
                 title="Issue 8",
@@ -147,7 +147,7 @@ def fabricate_conversation(
             ],
             revision="abc123",
         ),
-        path=(directory / "rounds" / "1" / "inbox.json"),
+        path=(directory / "rounds" / "1" / "round-input.json"),
     )
     write_feed(
         directory=directory,

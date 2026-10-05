@@ -25,7 +25,7 @@ from dreamcatcher.agent_rounds import (
 from dreamcatcher.documents import append_text, write_json, write_text
 from dreamcatcher.feed import FeedLine
 from dreamcatcher.issue_conversations import (
-    ConversationInput,
+    ConversationRoundInput,
     InitialConversationIssue,
     read_conversation,
 )
@@ -106,7 +106,7 @@ def test_conversation_page_shows_settings_revision_round_and_feed(tmp_path):
         ),
     )
     write_json(
-        document=ConversationInput(
+        document=ConversationRoundInput(
             issue=8,
             initial_issue=InitialConversationIssue(
                 title="Issue 8",
@@ -122,7 +122,7 @@ def test_conversation_page_shows_settings_revision_round_and_feed(tmp_path):
             ],
             revision=revision,
         ),
-        path=(directory / "rounds" / "2" / "inbox.json"),
+        path=(directory / "rounds" / "2" / "round-input.json"),
     )
 
     response = application(state=state).test_client().get("/conversations/8")
@@ -373,7 +373,7 @@ def _fabricate_faulted_conversation(*, state: StateDirectory) -> None:
         ),
     )
     write_json(
-        document=ConversationInput(
+        document=ConversationRoundInput(
             issue=8,
             comments=[
                 {
@@ -385,7 +385,7 @@ def _fabricate_faulted_conversation(*, state: StateDirectory) -> None:
             ],
             revision="abc123",
         ),
-        path=directory / "rounds" / "2" / "inbox.json",
+        path=directory / "rounds" / "2" / "round-input.json",
     )
 
 
@@ -488,7 +488,7 @@ def test_conversation_tail_adds_a_later_round_without_repeating_the_first(tmp_pa
         ),
     )
     write_json(
-        document=ConversationInput(
+        document=ConversationRoundInput(
             issue=8,
             initial_issue=InitialConversationIssue(
                 title="Issue 8",
@@ -504,7 +504,7 @@ def test_conversation_tail_adds_a_later_round_without_repeating_the_first(tmp_pa
             ],
             revision="def456",
         ),
-        path=(directory / "rounds" / "2" / "inbox.json"),
+        path=(directory / "rounds" / "2" / "round-input.json"),
     )
     write_feed(
         directory=directory,

@@ -50,16 +50,16 @@ class DreamcatcherDaemonStatus:
 
     @property
     def pid(self) -> int | None:
-        """The running daemon's process ID, from the latest run record.
+        """The running daemon's process ID, from the latest daemon run record.
 
-        A daemon writes its run record just after it takes the lock, so for that
-        moment a starting daemon reports the previous run's record.
+        A daemon writes its daemon run record just after it takes the lock, so for
+        that moment a starting daemon reports the previous daemon run's record.
         """
         return None if not self.is_running or self.run is None else self.run.pid
 
     @property
     def agent_harness(self) -> AgentHarness | None:
-        """The harness selected for the current or most recent run."""
+        """The preferred harness given to the current or latest `dreamcatcher run`."""
         return None if self.run is None else self.run.harness
 
     @property
@@ -204,12 +204,12 @@ def _refresh_issue_observation(
     if open_assignment is not None:
         claimed_here = ObservedFact(
             value=Truth.TRUE,
-            evidence="an assignment in this checkout is working on it",
+            evidence="this checkout has an open assignment for it",
         )
     elif assignments:
         claimed_here = ObservedFact(
             value=Truth.FALSE,
-            evidence="no assignment in this checkout is working on it",
+            evidence="this checkout has no open assignment for it",
         )
     else:
         claimed_here = observation.claimed_here
