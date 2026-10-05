@@ -208,7 +208,7 @@ class ConversationScheduler(
     ) -> AgentRoundStartRequest:
         paths = conversation.compose_round_paths(number=conversation.next_round_number)
         first_round_prompt = compose_conversation_prompt(
-            template=conversation.record.prompt,
+            instructions=conversation.record.prompt,
             issue=conversation.record.issue,
             round_input=paths.round_input,
         )

@@ -40,7 +40,7 @@ from dreamcatcher.github import (
 )
 from dreamcatcher.harness_adapters import HarnessConfig, HarnessSessionIdentifier
 from dreamcatcher.harnesses import find_harness_session_identifier
-from dreamcatcher.prompts import AGENT_POST_MARKER
+from dreamcatcher.prompts import AGENT_POST_MARKER, compose_issue_instructions
 from dreamcatcher.state import StateDirectory
 
 _CONVERSATION_RECORD_NAME = "conversation.json"
@@ -200,7 +200,9 @@ def create_conversation(
             model=recipe.model,
             effort=recipe.effort,
             harness_config=recipe.config,
-            prompt=recipe.prompt,
+            prompt=compose_issue_instructions(
+                template=recipe.prompt, issue=issue.number
+            ),
         )
         write_json(document=record, path=directory / _CONVERSATION_RECORD_NAME)
     except ReportableError:

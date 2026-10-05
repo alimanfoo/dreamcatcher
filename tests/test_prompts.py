@@ -95,7 +95,9 @@ def test_the_conversation_prompt_names_its_input_and_host_boundary(tmp_path):
     round_input = tmp_path / "round-input.json"
 
     composed = compose_conversation_prompt(
-        template="/dream:conversation GH{issue}", issue=52, round_input=round_input
+        instructions="/dream:conversation GH52",
+        issue=52,
+        round_input=round_input,
     )
 
     assert composed.startswith("/dream:conversation GH52")
@@ -138,7 +140,7 @@ def test_every_agent_work_prompt_the_daemon_composes_asks_for_the_marker(tmp_pat
             round_input=Path("round-input.json"),
         ),
         compose_conversation_prompt(
-            template="/dream:conversation GH{issue}",
+            instructions="/dream:conversation GH52",
             issue=52,
             round_input=tmp_path / "round-input.json",
         ),
