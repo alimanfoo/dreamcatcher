@@ -14,8 +14,8 @@ from dreamcatcher.feed import describe_agent_round_start, read_last_feed_line
 from dreamcatcher.harness_adapters import HarnessSessionIdentifier
 from dreamcatcher.scheduler.models import (
     AgentWorkObservation,
-    IssueFactValue,
     SchedulerRecord,
+    Truth,
     derive_round_purpose,
 )
 from dreamcatcher.status.agent_work import (
@@ -300,13 +300,13 @@ class AssignmentStatusReader(AgentWorkStatusReader[AssignmentStatus]):
                 value=AssignmentStatusValue.UNKNOWN,
                 detail="no current scheduler observation",
             )
-        if observation.requires_round.value is IssueFactValue.UNKNOWN:
+        if observation.requires_round.value is Truth.UNKNOWN:
             return self._compose(
                 assignment=assignment,
                 value=AssignmentStatusValue.UNKNOWN,
                 detail=observation.requires_round.evidence,
             )
-        if observation.requires_round.value is IssueFactValue.TRUE:
+        if observation.requires_round.value is Truth.TRUE:
             return self._compose(
                 assignment=assignment,
                 value=AssignmentStatusValue.WAITING,

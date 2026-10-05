@@ -61,9 +61,9 @@ from dreamcatcher.scheduler import AssignmentScheduler, ConversationScheduler, S
 from dreamcatcher.scheduler.models import (
     ConversationObservation,
     GlobalCooldown,
-    IssueFact,
-    IssueFactValue,
+    ObservedFact,
     SchedulerRecord,
+    Truth,
 )
 from dreamcatcher.state import StateDirectory
 
@@ -376,8 +376,8 @@ def test_an_initial_conversation_freezes_input_runs_claude_and_publishes_once(
             identifier=compose_conversation_identifier(issue=8),
             issue=8,
             title="Why does this happen?",
-            requires_round=IssueFact(
-                value=IssueFactValue.FALSE,
+            requires_round=ObservedFact(
+                value=Truth.FALSE,
                 evidence="round 1 started",
             ),
         )
@@ -475,12 +475,12 @@ def test_an_issue_with_two_conversation_labels_has_a_routing_conflict(
             identifier=compose_conversation_identifier(issue=8),
             issue=8,
             title="Why does this happen?",
-            requires_round=IssueFact(
-                value=IssueFactValue.FALSE,
+            requires_round=ObservedFact(
+                value=Truth.FALSE,
                 evidence="no round required",
             ),
-            routing_conflict=IssueFact(
-                value=IssueFactValue.TRUE,
+            routing_conflict=ObservedFact(
+                value=Truth.TRUE,
                 evidence=(
                     "carries more than one conversation label: "
                     "dream:conversation, dream:scout"
@@ -514,8 +514,8 @@ def test_route_matching_uses_the_latest_issue_labels(conversation_scheduler):
 
     observed = scheduler.tick(at=clock())
 
-    assert observed.conversation_observations[0].routing_conflict == IssueFact(
-        value=IssueFactValue.FALSE,
+    assert observed.conversation_observations[0].routing_conflict == ObservedFact(
+        value=Truth.FALSE,
         evidence="has no conversation routing conflict",
     )
     assert count_comment_reads(gh=gh) == 1
@@ -981,8 +981,8 @@ def test_comments_posted_during_a_round_wait_for_a_free_agent(
     observed = scheduler.tick(at=clock())
 
     assert scheduler.is_at_capacity
-    assert observed.conversation_observations[0].requires_round == IssueFact(
-        value=IssueFactValue.TRUE,
+    assert observed.conversation_observations[0].requires_round == ObservedFact(
+        value=Truth.TRUE,
         evidence="1 comment to answer",
     )
     assert count_comment_reads(gh=gh) == 2
@@ -1000,8 +1000,8 @@ def test_comments_a_running_round_holds_are_not_waiting(
     observed = scheduler.tick(at=clock())
 
     assert scheduler.is_at_capacity
-    assert observed.conversation_observations[0].requires_round == IssueFact(
-        value=IssueFactValue.FALSE,
+    assert observed.conversation_observations[0].requires_round == ObservedFact(
+        value=Truth.FALSE,
         evidence="no round required",
     )
 
@@ -1109,8 +1109,8 @@ def test_an_issue_without_a_trusted_unmarked_comment_does_not_start(
     observed = scheduler.tick(at=clock())
 
     assert observed.launched_agent_work_identifiers == []
-    assert observed.conversation_observations[0].requires_round == IssueFact(
-        value=IssueFactValue.FALSE,
+    assert observed.conversation_observations[0].requires_round == ObservedFact(
+        value=Truth.FALSE,
         evidence="no round required",
     )
     assert harnesses["claude"].calls == []
@@ -1125,8 +1125,8 @@ def test_a_conversation_waits_for_shared_capacity(conversation_scheduler, harnes
     observed = scheduler.tick(at=clock())
 
     assert scheduler.is_at_capacity
-    assert observed.conversation_observations[0].requires_round == IssueFact(
-        value=IssueFactValue.TRUE,
+    assert observed.conversation_observations[0].requires_round == ObservedFact(
+        value=Truth.TRUE,
         evidence="1 comment to answer",
     )
     assert harnesses["claude"].calls == []
@@ -1150,8 +1150,8 @@ def test_a_conversation_waits_for_the_active_global_cooldown(
 
     assert observed.cooldown is not None
     assert observed.failures == []
-    assert observed.conversation_observations[0].requires_round == IssueFact(
-        value=IssueFactValue.TRUE,
+    assert observed.conversation_observations[0].requires_round == ObservedFact(
+        value=Truth.TRUE,
         evidence="1 comment to answer",
     )
     assert harnesses["claude"].calls == []
@@ -1544,12 +1544,12 @@ def test_a_failed_conversation_listing_prevents_launches(conversation_scheduler)
             identifier=compose_conversation_identifier(issue=8),
             issue=8,
             title="Why does this happen?",
-            requires_round=IssueFact(
-                value=IssueFactValue.UNKNOWN,
+            requires_round=ObservedFact(
+                value=Truth.UNKNOWN,
                 evidence=failure,
             ),
-            routing_conflict=IssueFact(
-                value=IssueFactValue.UNKNOWN,
+            routing_conflict=ObservedFact(
+                value=Truth.UNKNOWN,
                 evidence=failure,
             ),
         )
@@ -1584,8 +1584,8 @@ def test_a_failed_route_listing_still_refreshes_healthy_routes(
     assert [
         observation.issue for observation in observed.conversation_observations
     ] == [8]
-    assert observed.conversation_observations[0].requires_round == IssueFact(
-        value=IssueFactValue.TRUE,
+    assert observed.conversation_observations[0].requires_round == ObservedFact(
+        value=Truth.TRUE,
         evidence="1 comment to answer",
     )
     assert observed.launched_agent_work_identifiers == []
@@ -1611,8 +1611,8 @@ def test_failed_listing_keeps_visible_conversation_faults_in_the_cooldown(
                     identifier=compose_conversation_identifier(issue=issue),
                     issue=issue,
                     title=f"Issue {issue}",
-                    requires_round=IssueFact(
-                        value=IssueFactValue.FALSE,
+                    requires_round=ObservedFact(
+                        value=Truth.FALSE,
                         evidence="in fault",
                     ),
                 )
@@ -1640,7 +1640,7 @@ def test_failed_listing_keeps_visible_conversation_faults_in_the_cooldown(
     assert observed.cooldown is not None
     assert failure.startswith("could not list issues for dream:conversation")
     assert all(
-        observation.requires_round.value is IssueFactValue.UNKNOWN
+        observation.requires_round.value is Truth.UNKNOWN
         for observation in observed.conversation_observations
     )
 
@@ -1818,8 +1818,8 @@ def test_a_failed_comment_listing_prevents_launches(conversation_scheduler):
 
     [failure] = observed.failures
     assert failure.startswith("could not read comments for GH8")
-    assert observed.conversation_observations[0].requires_round == IssueFact(
-        value=IssueFactValue.UNKNOWN,
+    assert observed.conversation_observations[0].requires_round == ObservedFact(
+        value=Truth.UNKNOWN,
         evidence=failure,
     )
 
@@ -2081,9 +2081,7 @@ def test_a_recovery_precedes_a_fresh_batch_at_another_conversation(
 
     assert scheduler.is_at_capacity
     assert observed.launched_agent_work_identifiers == ["conversation-GH8"]
-    assert observed.conversation_observations[0].requires_round.value is (
-        IssueFactValue.FALSE
-    )
+    assert observed.conversation_observations[0].requires_round.value is (Truth.FALSE)
 
 
 def test_an_unrelated_comment_failure_does_not_block_recovery(
@@ -2127,6 +2125,4 @@ def test_an_unrelated_comment_failure_does_not_block_recovery(
     [failure] = observed.failures
     assert failure.startswith("could not read comments for GH9:")
     assert "network unavailable" in failure
-    assert observed.conversation_observations[1].requires_round.value is (
-        IssueFactValue.UNKNOWN
-    )
+    assert observed.conversation_observations[1].requires_round.value is (Truth.UNKNOWN)

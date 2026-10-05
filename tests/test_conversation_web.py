@@ -29,7 +29,7 @@ from dreamcatcher.issue_conversations import (
     InitialConversationIssue,
     read_conversation,
 )
-from dreamcatcher.scheduler.models import IssueFactValue, SchedulerRecord
+from dreamcatcher.scheduler.models import SchedulerRecord, Truth
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.web.app import _create_app
 
@@ -572,7 +572,7 @@ def fabricate_unsaved_conversation(*, state: StateDirectory) -> None:
             at=PINNED,
             conversation_observations=[
                 observed_conversation(
-                    issue=9, value=IssueFactValue.TRUE, evidence="1 comment to answer"
+                    issue=9, value=Truth.TRUE, evidence="1 comment to answer"
                 )
             ],
         ),
@@ -625,11 +625,11 @@ def test_home_lists_conversations_in_attention_order(tmp_path):
                 observed_conversation(issue=8),
                 observed_conversation(issue=9),
                 observed_conversation(
-                    issue=10, value=IssueFactValue.TRUE, evidence="1 comment to answer"
+                    issue=10, value=Truth.TRUE, evidence="1 comment to answer"
                 ),
                 observed_conversation(issue=11),
                 observed_conversation(
-                    issue=12, value=IssueFactValue.UNKNOWN, evidence="cannot tell"
+                    issue=12, value=Truth.UNKNOWN, evidence="cannot tell"
                 ),
             ],
         ),

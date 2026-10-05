@@ -33,18 +33,18 @@ def _normalize_utc(at: datetime, /) -> datetime:
 _UtcDateTime = Annotated[AwareDatetime, AfterValidator(_normalize_utc)]
 
 
-class IssueFactValue(StrEnum):
-    """List the truth states of an observed issue fact."""
+class Truth(StrEnum):
+    """List the truth states of an observed fact."""
 
     TRUE = "true"
     FALSE = "false"
     UNKNOWN = "unknown"
 
 
-class IssueFact(DreamcatcherDocument):
-    """Model an independently observed issue fact and its evidence."""
+class ObservedFact(DreamcatcherDocument):
+    """Model an independently observed fact and its evidence."""
 
-    value: IssueFactValue
+    value: Truth
     evidence: str
 
 
@@ -62,16 +62,16 @@ class IssueObservation(DreamcatcherDocument):
     issue: int
     details: ObservedIssueDetails | None = None
     observed_at: _UtcDateTime | None = None
-    is_open: IssueFact
-    is_assigned_to_user: IssueFact
-    claimed_here: IssueFact
-    claimed_elsewhere: IssueFact
+    is_open: ObservedFact
+    is_assigned_to_user: ObservedFact
+    claimed_here: ObservedFact
+    claimed_elsewhere: ObservedFact
     setup_failure: str | None = None
-    blocked: IssueFact
-    routing_conflict: IssueFact
+    blocked: ObservedFact
+    routing_conflict: ObservedFact
 
     @property
-    def availability(self) -> IssueFact:
+    def availability(self) -> ObservedFact:
         """Whether the observed facts make the issue available for assignment."""
         return derive_issue_availability(observation=self)
 
@@ -81,7 +81,7 @@ class AgentWorkObservation(DreamcatcherDocument):
 
     identifier: str
     issue: int
-    requires_round: IssueFact
+    requires_round: ObservedFact
 
 
 class ConversationObservation(AgentWorkObservation):
@@ -93,9 +93,9 @@ class ConversationObservation(AgentWorkObservation):
     """
 
     title: str
-    routing_conflict: IssueFact = Field(
-        default_factory=lambda: IssueFact(
-            value=IssueFactValue.FALSE,
+    routing_conflict: ObservedFact = Field(
+        default_factory=lambda: ObservedFact(
+            value=Truth.FALSE,
             evidence="has no conversation routing conflict",
         )
     )
@@ -125,8 +125,8 @@ def mark_round_started(
     round_number: int,
 ) -> AgentWorkObservation:
     """Mark or create an agent work observation for a started round."""
-    requires_round = IssueFact(
-        value=IssueFactValue.FALSE,
+    requires_round = ObservedFact(
+        value=Truth.FALSE,
         evidence=f"round {round_number} started",
     )
     if observation is None:
@@ -167,12 +167,12 @@ class SchedulerRecord(DreamcatcherDocument):
     most_recent_cooldown_ended: _UtcDateTime | None = None
 
 
-def derive_issue_availability(*, observation: IssueObservation) -> IssueFact:
+def derive_issue_availability(*, observation: IssueObservation) -> ObservedFact:
     """Derive whether an issue is available from its independent facts."""
-    preventing = _find_preventing_issue_fact(observation=observation)
+    preventing = _find_preventing_fact(observation=observation)
     if preventing is not None:
-        return IssueFact(
-            value=IssueFactValue.FALSE,
+        return ObservedFact(
+            value=Truth.FALSE,
             evidence=preventing.evidence,
         )
     required = [
@@ -183,23 +183,21 @@ def derive_issue_availability(*, observation: IssueObservation) -> IssueFact:
         observation.blocked,
         observation.routing_conflict,
     ]
-    unknown = next(
-        (fact for fact in required if fact.value is IssueFactValue.UNKNOWN), None
-    )
+    unknown = next((fact for fact in required if fact.value is Truth.UNKNOWN), None)
     if unknown is not None:
         return unknown
     if observation.details is None:
-        return IssueFact(
-            value=IssueFactValue.UNKNOWN,
+        return ObservedFact(
+            value=Truth.UNKNOWN,
             evidence="cannot tell which assignment labels it carries",
         )
-    return IssueFact(
-        value=IssueFactValue.TRUE,
+    return ObservedFact(
+        value=Truth.TRUE,
         evidence="available for assignment",
     )
 
 
-def _find_preventing_issue_fact(*, observation: IssueObservation) -> IssueFact | None:
+def _find_preventing_fact(*, observation: IssueObservation) -> ObservedFact | None:
     """Return the first known fact that prevents assignment."""
     preventing = [
         observation.routing_conflict,
@@ -208,17 +206,17 @@ def _find_preventing_issue_fact(*, observation: IssueObservation) -> IssueFact |
         observation.blocked,
     ]
     for fact in preventing:
-        if fact.value is IssueFactValue.TRUE:
+        if fact.value is Truth.TRUE:
             return fact
     for fact in [observation.is_open, observation.is_assigned_to_user]:
-        if fact.value is IssueFactValue.FALSE:
+        if fact.value is Truth.FALSE:
             return fact
     if (
         observation.details is not None
         and len(observation.details.assignment_labels) != 1
     ):
-        return IssueFact(
-            value=IssueFactValue.FALSE,
+        return ObservedFact(
+            value=Truth.FALSE,
             evidence="carries no configured assignment label",
         )
     return None
