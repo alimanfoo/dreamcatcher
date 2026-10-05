@@ -360,7 +360,9 @@ assignment status meaning:
 - **Idle**: no round is due until the user comments. Its counterpart is needs
   user feedback.
 - **Fault**: two consecutive rounds have errored, and automatic recovery has
-  stopped. Its counterpart is fault.
+  stopped. Fault outranks every status but working, whatever the issue's
+  eligibility, so the user can see the fault and retry. Its counterpart is
+  fault.
 - **Unknown**: Dreamcatcher cannot tell whether the issue is eligible or whether
   comments wait. Its counterpart is unknown.
 
@@ -374,18 +376,14 @@ whether or not a conversation record exists yet. Exactly one label makes it
 eligible, while more than one gives it routing conflict status. Once the issue
 carries none of those labels, closes, or becomes unassigned, the status report
 lists its conversation only while a round runs. The conversation's own view
-still shows it, as idle with the reason. Conversations are listed as routing
-conflict, fault, working, waiting, unknown and then idle, since routing conflict
-requires the user to act and idle does not.
+still shows it, as idle with the reason unless it is in fault. Conversations are
+listed as routing conflict, fault, working, waiting, unknown and then idle,
+since routing conflict requires the user to act and idle does not.
 
 A running round remains working when its issue gains a second conversation
 label, because eligibility does not cancel work already in progress. Its routing
-conflict becomes the summary status after that round ends.
-
-Fault outranks every conversation status except working, whatever the issue's
-eligibility, so the user can always see the fault and retry. At an ineligible
-issue, the status report still stops listing a faulted conversation, but its own
-view shows the fault.
+conflict becomes the summary status after that round ends, unless the
+conversation is then in fault.
 
 These statuses are derived reporting projections, not persisted lifecycle state.
 
@@ -457,8 +455,8 @@ Closing the issue, removing every configured conversation label, or unassigning
 the signed-in account stops new comment batches and recovery, and takes the
 conversation off the status report once no round runs for it. Adding a second
 configured conversation label also stops new batches and recovery, but keeps the
-conversation on the report with a routing conflict. Eligibility must be restored
-before any later batch or recovery can start.
+conversation on the report, with a routing conflict unless it is in fault.
+Eligibility must be restored before any later batch or recovery can start.
 
 ### Working through an assignment
 

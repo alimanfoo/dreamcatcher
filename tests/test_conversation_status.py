@@ -412,7 +412,6 @@ def test_two_current_errors_put_a_conversation_in_fault(conversation_state):
 @pytest.mark.parametrize(
     "observations",
     [
-        [],
         [
             observed_conversation(
                 routing_conflict=IssueFactValue.TRUE,
@@ -428,7 +427,7 @@ def test_two_current_errors_put_a_conversation_in_fault(conversation_state):
             )
         ],
     ],
-    ids=["unlabelled", "routing conflict", "unknown"],
+    ids=["routing conflict", "unknown"],
 )
 def test_a_conversation_fault_takes_precedence_over_its_issue_eligibility(
     conversation_state, observations
@@ -466,13 +465,11 @@ def test_a_faulted_conversation_at_an_ineligible_issue_leaves_the_report(
     report = read_status_report(state=conversation_state, clock=lambda: LOOKED_AT)
 
     assert found.value is ConversationStatusValue.FAULT
-    assert not found.is_listed
+    assert found.faulted_round_number == 2
     assert report.conversation_statuses == []
 
 
-def test_a_retry_returns_a_faulted_conversation_to_its_eligibility(
-    conversation_state,
-):
+def test_a_retry_clears_a_conversation_fault(conversation_state):
     conversation_round(state=conversation_state, status=2)
     write_second_conversation_error(state=conversation_state)
     observe(state=conversation_state, observations=[])
