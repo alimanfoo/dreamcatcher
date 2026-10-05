@@ -189,7 +189,7 @@ def _build_cli_parser() -> argparse.ArgumentParser:
             + _HELP_WHEN_A_VIEW_ENDS
             + " "
             + _HELP_WHEN_A_VIEW_TAKES_THE_SCREEN
-            + " An assignment that is over stays on the screen for you to read. "
+            + " An ended assignment stays on the screen for you to read. "
             "Interrupt one that is still going and nothing is left behind. "
             + _HELP_WHEN_NOTHING_WATCHES
         ),
