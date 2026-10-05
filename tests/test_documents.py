@@ -293,9 +293,36 @@ def test_a_write_leaves_nothing_of_itself_beside_what_it_wrote(tmp_path):
     assert [found.name for found in tmp_path.iterdir()] == ["round.json"]
 
 
-def test_a_write_that_fails_says_so(tmp_path):
+def test_a_write_that_lands_while_another_is_staged_leaves_both_whole(
+    tmp_path, monkeypatch
+):
+    # The second write lands between the first write's staging and its move into
+    # place, as a write from another process or thread can.
+    written = tmp_path / "assignment.json"
+    replace = Path.replace
+
+    def land_another_write_first(staged, target, /):
+        """Stand in for `Path.replace`, which the write calls as a method."""
+        monkeypatch.setattr(Path, "replace", replace)
+        write_text(text="the second write\n", path=written)
+        return replace(staged, target)
+
+    monkeypatch.setattr(Path, "replace", land_another_write_first)
+
+    write_text(text="the first write\n", path=written)
+
+    assert written.read_bytes() == b"the first write\n"
+    assert [found.name for found in tmp_path.iterdir()] == ["assignment.json"]
+
+
+def test_a_write_that_fails_says_so_and_leaves_nothing_of_itself(tmp_path):
+    taken = tmp_path / "taken"
+    taken.mkdir()
+
     with pytest.raises(ReportableError, match="cannot write"):
-        write_text(text="what it holds\n", path=tmp_path)
+        write_text(text="what it holds\n", path=taken)
+
+    assert [found.name for found in tmp_path.iterdir()] == ["taken"]
 
 
 def test_an_append_adds_to_the_end_of_what_is_there(tmp_path):
