@@ -206,8 +206,9 @@ class DreamcatcherDaemon:
         to give it to somebody else once the daemon that recorded it died.
         Ending it reaches that pid's own process group, and a pid handed on to
         a stranger is almost never a group of its own, so it names no group and
-        nothing happens. That leaves a window, and it is accepted, as the same
-        window is where the tool ends its own rounds.
+        nothing happens. A reused pid that does lead a process group can cause
+        this sweep to terminate an unrelated group. The record can be stale
+        for the whole interval between daemon runs.
 
         Windows Job Objects empty when the earlier daemon closes its last
         handle, so termination there is already complete.

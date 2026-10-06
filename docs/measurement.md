@@ -6,84 +6,108 @@ before each major or minor release, and a phase plans its work from it. Earlier
 measurements are in the Git history. The first was the
 [baseline of 2026-09-30](https://github.com/alimanfoo/dreamcatcher/blob/main/specs/2026-09-30-engineering-standard/roadmap.md).
 
-Measured on 2026-10-06 at `14b26af`, before v5.1.0.
+Measured on 2026-10-07 at `0c37c52`, with the v5.2.0 release preparation.
 
 ## Results
 
-| Criterion                              | Measured                                        | Status | Issue                  |
-| -------------------------------------- | ----------------------------------------------- | ------ | ---------------------- |
-| S1 Modules are cohesive                | 0 modules without one nameable responsibility   | met    |                        |
-| S2 Functions fit on a screen           | 5 functions over 50 lines, each with its reason | met    |                        |
-| S3 Exports are used                    | 30 names without an importer, all permitted     | met    |                        |
-| S4 Each thing is done one way          | 8 facts derived twice                           | short  | #379–#380, #421        |
-| S5 Nothing is suppressed               | 0 `noqa`, 0 `type: ignore`, 3 platform pragmas  | met    |                        |
-| C1 One vocabulary                      | 0 disagreements, after this release's fixes     | met    |                        |
-| C2 Enduring documents are true         | 0 statements; 1 corrected with this measurement | met    |                        |
-| C3 Documentation by purpose            | 4 kinds of page, kept apart                     | met    |                        |
-| C4 Formats and contracts are versioned | state format 5, contract 1, both with policy    | met    |                        |
-| K1 Structural rules checked by machine | the 4 named rules checked                       | met    | #383                   |
-| K2 Suite is fast and speaks plainly    | 26 seconds on a laptop, 100% branch coverage    | met    |                        |
-| K3 Tracker is current                  | 0 issues in other words or for done work        | met    |                        |
-| K4 Every change reviewed to standard   | 3 of 3 pull requests answered                   | met    |                        |
-| E1 Rules, not cases                    | 10 ledgered, 1 internal cause; 4 unledgered     | short  | #418, #419             |
-| E2 Invariants by construction          | 55 optional fields, 0 coupled sets              | met    |                        |
-| E3 Concept economy                     | 21 concepts; none added without a case          | met    |                        |
-| E4 Symmetry                            | 14 parallel operations; 4 uneven sets           | short  | #382, #418, #420, #421 |
+| Criterion                              | Measured                                          | Status | Issue            |
+| -------------------------------------- | ------------------------------------------------- | ------ | ---------------- |
+| S1 Modules are cohesive                | 0 modules without one nameable responsibility     | met    |                  |
+| S2 Functions fit on a screen           | 5 functions over 50 lines, each with its reason   | met    |                  |
+| S3 Exports are used                    | 33 names without an importer, all permitted       | met    |                  |
+| S4 Each thing is done one way          | 6 facts derived more than once                    | short  | #379, #452, #455 |
+| S5 Nothing is suppressed               | 0 `noqa`, 0 `type: ignore`, 3 platform pragmas    | met    |                  |
+| C1 One vocabulary                      | 0 disagreements after 2 docstring corrections     | met    |                  |
+| C2 Enduring documents are true         | 1 guarantee broken after state-directory deletion | short  | #41              |
+| C3 Documentation by purpose            | 4 kinds of page, kept apart                       | met    |                  |
+| C4 Formats and contracts are versioned | state format 5, contract 1, both with policy      | met    |                  |
+| K1 Structural rules checked by machine | the 4 named rules checked                         | met    |                  |
+| K2 Suite is fast and speaks plainly    | 34 seconds on a laptop, 100% branch coverage      | met    |                  |
+| K3 Tracker is current                  | 39 issues reviewed; 10 corrected, none closed     | met    |                  |
+| K4 Every change reviewed to standard   | all 12 pull requests since v5.1.0 answered        | met    |                  |
+| E1 Rules, not cases                    | 9 ledgered, all external; 4 unledgered            | short  | #419, #457       |
+| E2 Invariants by construction          | 55 optional fields, 0 coupled sets                | met    |                  |
+| E3 Concept economy                     | 21 concepts; none added without a case            | met    |                  |
+| E4 Symmetry                            | 14 parallel operations; 1 uneven creation pair    | short  | #456             |
 
 ## Shortfalls
 
 - **S4.** The terminal and web views each derive instance facts, issue rows,
-  assignment order, round revisions and the recovery marker (#379). The
-  scheduler and status each derive "claimed here" and "awaiting recovery"
-  (#380). Each kind of agent work decides in its own way whether its last round
-  needs recovery (#421).
-- **E1.** The ledger's entry for a conversation that refuses a leftover worktree
-  names a crash as its cause, but the refusal is this project's choice, and an
-  assignment setup resumes the same leftover (#418). Four unledgered
-  conditionals single out a case: the conversation scheduler's early return when
-  no routes are configured, the templates' tests that place retry apart from the
-  other controls, the web's parsing of "blocked" evidence for issue numbers, and
-  the assignment card's comparison with the words "needs user feedback" (#419).
-- **E4.** The assignment prompt names, and `StateDirectory.worktrees`, carry no
-  kind while the conversation names do (#382). The two kinds create their work
-  in different shapes and treat a leftover worktree differently (#418), match
-  labels to routes under different names (#420), and decide recovery in
-  different ways (#421).
+  assignment order, round revisions and the recovery marker. #379 covers four of
+  these; its issue-row work waits for the observation design in #455. The rule
+  that a round without an ending was interrupted once its daemon has gone is
+  written in recovery, status and outcome reporting (#452).
+- **C2.** The ontology says at most one daemon runs an instance. Deleting the
+  state directory during a run removes the shared lock file while the first
+  daemon continues; a second daemon can then acquire a new lock file (#41).
+- **E1.** Four unledgered conditionals remain. The conversation scheduler
+  returns early when no routes are configured, the templates place retry apart
+  from the other controls, and the assignment card compares its status with
+  display text (#419). The web also parses blocked evidence to recover issue
+  numbers (#457).
+- **E4.** Assignment creation is a class method, while conversation creation is
+  a module function. Giving both creators one shape waits for the record-first
+  setup design (#456, blocked by #425).
 
 ## Notes
 
-- **Since v5.0.0.** Two pull requests merged: the documentation site (#424) and
-  the move of the stop and cancel controls (#427). Neither changed Python under
-  `src` beyond docstrings, so S1 to S3, S5, E2 and E4 read as they did at
-  v5.0.0. The measurement read them again rather than carry them over.
-- **C1.** The consistency review found eleven disagreements, and the release
-  pull request that records this measurement fixes them all. Nine were wording:
-  "agent cap" for agent capacity, "dashboard" for the web home page, "ticks" in
-  the contract, the web heading "Conversations", the contract's plural title,
-  "session" for harness session in the `conversation` help, the `assignment`
-  help's claim that the view ends while the assignment is in fault, a stale
-  comment on that help, and the architecture's claim below. Two needed a
-  decision. The web pages write an issue number as `#123` (#429), and the
-  product name is _dreamcatcher_ in lower case (#430). The ontology now states
-  both. Users still read "update" where the ontology, the architecture and the
-  code say "scheduler tick", which the ontology states.
-- **C2.** The architecture said an assignment stays open until a successful
-  wrap-up round, but a cancel also ends it. The release pull request corrects
-  it.
-- **C3.** The documentation is now a site built from `docs/`. It publishes the
-  developer pages in a Development section of their own, and no user page links
-  to one.
-- **K3.** Triage rewrote six issues and closed none. #68 named a test helper
-  since renamed, #382 the contract's old path, and #419 a template #427 removed.
-  #109, #113 and #125 said "repository" for the _dreamcatcher_ instance. #119
-  and #425 got smaller corrections outside K3.
-- **K4.** Every pull request merged since the last measurement, #422, #424 and
-  #427, answers the definition of done.
-- **E1.** #427 removed the cancel-only confirmation test by taking each
-  control's confirmation from one table, and added the retry placement tests in
-  its place, so the count of unledgered conditionals is unchanged.
-- **E2.** Nine `cast(...)` calls assert that an optional value is present, as at
-  v5.0.0. The method below does not count them.
+- **Since v5.1.0.** `init` adds a repository-setup boundary and shares the main
+  checkout, GitHub identity and harness checks with `run`. #443 gives claimed
+  here and awaiting recovery one derivation for scheduling and status. #451
+  makes prompt and worktree names parallel, #447 makes route matching parallel,
+  and #453 makes both creators reuse leftover worktrees. These changes remove
+  the shortfalls previously tracked in #380, #382, #418, #420 and #421.
+- **S1, S2.** The largest modules are `github.py` (703 lines), `agent_rounds.py`
+  (658) and `web/app.py` (602). They own GitHub projections and operations,
+  round supervision, and HTTP routes respectively. The five long functions
+  retain the reasons reported by `tools/measure_source.py`:
+
+  | Function                   | Lines | Reason it stays whole                                    |
+  | -------------------------- | ----: | -------------------------------------------------------- |
+  | `cli._build_cli_parser`    |   190 | It holds the complete command-line grammar.              |
+  | `AssignmentCreator.create` |    87 | It follows assignment creation as the ontology lists it. |
+  | `AgentRound.__init__`      |    87 | It starts a round as one transaction.                    |
+  | `DreamcatcherDaemon.run`   |    73 | It follows the daemon lifecycle in the architecture.     |
+  | `Scheduler.tick`           |    55 | It follows the scheduler tick in the architecture.       |
+
+- **S3.** The 33 names are document models or parts of interfaces the
+  architecture names, including callback protocols, scheduling candidates and
+  interpretations, durable delivery-position readers, and command entry points.
+  No view-model field or public name was counted as unused merely because a
+  template reads it.
+- **C1.** The consistency review corrected two unsupported docstring claims. The
+  startup sweep described its stale-PID window as the same window as live round
+  teardown, although it can span the interval between daemon runs (#61). The
+  Codex item reader said a todo list was the only unhandled item a round sends,
+  although collaboration items are also omitted (#97). The docstrings now
+  describe the current limits; those issues remain open for their behaviour
+  changes. No other vocabulary or symbol-contract disagreement was supported.
+- **C3, C4.** The documentation map still separates the tutorial, task guides,
+  command and configuration references, and design explanations. `init` is in
+  the command reference. The compatibility policy, state format and agent
+  contract agree, and this release changes neither version.
+- **K1.** #446 brought the K1 bar into line with the standard's rule for
+  admitting a machine check. The architecture tests and subprocess lint rule
+  check all four named boundaries; no additional rule was found that meets the
+  admission rule and lacks a check.
+- **K2.** All 1,175 default tests passed with full branch coverage in 34.11
+  seconds. A first run alongside the repository checks took 61.02 seconds, so
+  the final measurement ran without those checks in parallel. Test names were
+  read for behaviours rather than implementation names.
+- **K3.** Triage corrected product-name casing in #109, #113, #125 and #188, the
+  remaining conditional count in #419, the leftover-worktree description in
+  #425, the mutable-container example in #44, and the command list in #119. #61
+  and #97 now distinguish the corrected documentation from their outstanding
+  behaviour changes. No issue's requested work was wholly done or obsolete.
+- **K4.** #436–#439, #441, #443, #446–#449, #451 and #453 each name their issue
+  or spec and answer all seven definition-of-done questions.
+- **E1.** #453 removed the ledger's internal-cause entry for refusing a leftover
+  conversation worktree. All nine remaining entries have external causes.
+- **E2, E4.** The optional-field audit found no coupled sets. Thirteen casts
+  were reviewed separately and are not included in that count. The namespace map
+  confirms the parallel operations, with the creation-shape difference above.
+  The observation design in #455 remains a question to settle; the existing
+  differences in eligibility and observation content are named by the ontology.
 
 ## Method
 
@@ -97,7 +121,8 @@ Measured on 2026-10-06 at `14b26af`, before v5.1.0.
   the architecture names.
 - **S4, C1.** Run the `uncoded-consistency-review` skill over the source, the
   enduring documents, the user documentation and the output a user sees.
-- **C2.** Read the ontology, the architecture and the standard against the code.
+- **C2.** Read the ontology, the architecture and the standard against the code,
+  including recorded failure cases in open issues.
 - **K2.** Time the default run on a laptop.
 - **E1.** Read every conditional that names a particular situation against
   [the ledger](special-cases.md).

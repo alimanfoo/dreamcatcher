@@ -26,8 +26,12 @@ each entry links the pull request that made the change.
 
 ## Unreleased
 
+## [v5.2.0](https://github.com/alimanfoo/dreamcatcher/releases/tag/v5.2.0) — 2026-10-07
+
 ### Added
 
+- Every web page now links to the documentation site from its top bar.
+  ([#438](https://github.com/alimanfoo/dreamcatcher/pull/438))
 - The top bar of every web page now links to the repository's **issues** and
   **pulls** on GitHub, beside the repository's name.
   ([#441](https://github.com/alimanfoo/dreamcatcher/pull/441))
@@ -39,12 +43,19 @@ each entry links the pull request that made the change.
 
 ### Changed
 
+- Nature is now the default web theme. Matrix remains available from the theme
+  switch, and an existing theme choice is still remembered.
+  ([#448](https://github.com/alimanfoo/dreamcatcher/pull/448))
 - The complete example in the configuration reference now routes conversations
   to `dream:scout` and assignments to `dream:smith` and `dream:less`.
   ([#437](https://github.com/alimanfoo/dreamcatcher/pull/437))
 
 ### Fixed
 
+- Retrying conversation creation after a failed record write now reuses the
+  worktree left by the earlier attempt. The first round still resets it to
+  fetched main before the agent reads it.
+  ([#453](https://github.com/alimanfoo/dreamcatcher/pull/453))
 - The web home page heads its conversations panel **Conversations** again,
   beside **Assignments**, in place of **Issue conversations**.
   ([#449](https://github.com/alimanfoo/dreamcatcher/pull/449))
