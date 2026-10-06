@@ -30,9 +30,8 @@ A shortfall does not hold the release back. A failing test or check does.
 
 ## Prepare the release
 
-1. Move the entries under **Unreleased** in [the changelog](../CHANGELOG.md)
-   into a section for the new version, headed like the released sections below
-   it.
+1. Move the entries under **Unreleased** in [the changelog](changelog.md) into a
+   section for the new version, headed like the released sections below it.
 2. Update the opening of [Compatibility and upgrades](compatibility.md), which
    names the latest release and the state format it uses.
 3. Merge these changes, and the measurement, in one pull request, and wait for

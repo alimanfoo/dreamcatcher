@@ -1,8 +1,8 @@
 # Agent-facing contracts
 
 Contract version **1** covers assignments and issue conversations. See the
-[compatibility policy](docs/compatibility.md#agent-contract) for what this
-version promises and when it changes.
+[compatibility policy](compatibility.md#agent-contract) for what this version
+promises and when it changes.
 
 dreamcatcher watches a GitHub repository for issues that have been labelled for
 implementation by an agent. The repository owner can configure which labels are

@@ -38,7 +38,7 @@ everywhere makes the route easier to recognise.
 
 An assignment prompt normally invokes an installed assignment skill. The skill
 must know how to adopt Dreamcatcher's branch and draft pull request; authors can
-find the exact requirements in the [agent-facing contract](../CONTRACT.md). A
+find the exact requirements in the [agent-facing contract](contract.md). A
 conversation prompt can be plain instructions, as above, because Dreamcatcher
 adds the input and publication instructions itself.
 

@@ -36,12 +36,12 @@ setup and a first assignment.
 - Find every accepted setting in the
   [configuration reference](docs/configuration-reference.md).
 - Plan upgrades with [Compatibility and upgrades](docs/compatibility.md), and
-  see user-visible changes in the [changelog](CHANGELOG.md).
+  see user-visible changes in the [changelog](docs/changelog.md).
 
 ## Write a skill or prompt
 
-The [agent-facing contract](CONTRACT.md) defines what custom assignment skills
-and issue-conversation prompts must do.
+The [agent-facing contract](docs/contract.md) defines what custom assignment
+skills and issue-conversation prompts must do.
 
 ## Contributing
 

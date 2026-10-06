@@ -2,7 +2,7 @@
 
 Tagged releases follow Semantic Versioning beginning with v5.0.0. The state
 format and agent contract have independent integer versions. See
-[Compatibility and upgrades](docs/compatibility.md) for the policy and current
+[Compatibility and upgrades](compatibility.md) for the policy and current
 upgrade instructions.
 
 A change that users would notice gets an entry here. Released changes stay under
@@ -74,10 +74,10 @@ tagged. From v5.0.0 on, each entry links the pull request that made the change.
   format 4 is left untouched and ignored. Finish assignments through successful
   wrap-up, stop the daemon, and accept fresh conversation context before
   upgrading. See
-  [Upgrade from v4.0.0 to v5.0.0](docs/compatibility.md#upgrade-from-v400-to-v500).
+  [Upgrade from v4.0.0 to v5.0.0](compatibility.md#upgrade-from-v400-to-v500).
   ([#364](https://github.com/alimanfoo/dreamcatcher/pull/364))
 - State format 5 puts the initial conversation title and body under
-  `initial_issue`. [Agent contract version 1](CONTRACT.md) documents that
+  `initial_issue`. [Agent contract version 1](contract.md) documents that
   current protocol; declaring the version does not itself change the input.
   Prompt and skill authors should check their assumptions against the contract.
   ([#364](https://github.com/alimanfoo/dreamcatcher/pull/364),
@@ -85,7 +85,7 @@ tagged. From v5.0.0 on, each entry links the pull request that made the change.
 - The prompt that hands an assignment new pull request posts now opens with
   "User-posts prompt for pull request #N:" rather than "PR-inbox prompt", and
   each round's input file is `round-input.json` rather than `inbox.json`. A
-  skill that recognises the old words should follow [the contract](CONTRACT.md)
+  skill that recognises the old words should follow [the contract](contract.md)
   instead. ([#411](https://github.com/alimanfoo/dreamcatcher/pull/411))
 - Added a **Retry** button to the web assignment and conversation pages while
   the work is in fault. It records the same retry request as
