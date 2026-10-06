@@ -148,7 +148,7 @@ def test_a_label_one_harness_can_run_carries_that_block_alone(tmp_path):
     assert route.recipes == {AgentHarness.CLAUDE: CLAUDE_RECIPE}
 
 
-def test_the_config_identifies_assignment_labels_without_giving_one_precedence(
+def test_the_config_identifies_assignment_routes_without_giving_one_precedence(
     tmp_path,
 ):
     write_config(
@@ -158,9 +158,11 @@ def test_the_config_identifies_assignment_labels_without_giving_one_precedence(
 
     config = read_dreamcatcher_config(root=tmp_path)
 
-    assert config.identify_assignment_labels(
+    routes = config.identify_assignment_routes(
         labels=["maintenance", "DREAM:LESS", "dream:smith"]
-    ) == ["dream:less", "dream:smith"]
+    )
+
+    assert [route.label for route in routes] == ["dream:less", "dream:smith"]
 
 
 def test_a_label_either_harness_can_run_runs_on_the_one_the_run_named(tmp_path):

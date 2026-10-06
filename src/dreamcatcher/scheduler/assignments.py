@@ -358,11 +358,11 @@ class AssignmentScheduler(
             NewAssignmentCandidate(
                 issue=observation.issue,
                 title=cast("ObservedIssueDetails", observation.details).title,
-                route=self.config.assignment_routes[
-                    cast("ObservedIssueDetails", observation.details).assignment_labels[
-                        0
-                    ]
-                ],
+                route=self.config.identify_assignment_routes(
+                    labels=cast(
+                        "ObservedIssueDetails", observation.details
+                    ).assignment_labels
+                )[0],
             )
             for observation in observations
             if observation.availability.value is Truth.TRUE

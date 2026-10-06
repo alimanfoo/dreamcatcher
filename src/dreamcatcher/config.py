@@ -121,15 +121,6 @@ class DreamcatcherConfig(DreamcatcherDocument):
     conversation: list[ConversationRoute] = Field(default_factory=list)
 
     @property
-    def assignment_routes(self) -> dict[str, AssignmentRoute]:
-        """The assignment route for each configured label.
-
-        The label is a route's identity, and no two routes carry the same one,
-        so a label names one route here.
-        """
-        return {route.label: route for route in self.assignment}
-
-    @property
     def routed_harnesses(self) -> set[AgentHarness]:
         """Every harness that any configured route can select.
 
@@ -139,12 +130,9 @@ class DreamcatcherConfig(DreamcatcherDocument):
         routes = [*self.assignment, *self.conversation]
         return {harness for route in routes for harness in route.recipes}
 
-    def identify_assignment_labels(self, *, labels: list[str]) -> list[str]:
-        """Return the configured assignment labels among the observed labels."""
-        return [
-            route.label
-            for route in _identify_routes(labels=labels, routes=self.assignment)
-        ]
+    def identify_assignment_routes(self, *, labels: list[str]) -> list[AssignmentRoute]:
+        """Return the assignment routes matching the observed labels."""
+        return _identify_routes(labels=labels, routes=self.assignment)
 
     def identify_conversation_routes(
         self, *, labels: list[str]
