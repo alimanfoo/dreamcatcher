@@ -10,10 +10,10 @@ from rich.text import Text
 from dreamcatcher.clock import WaitForSeconds, read_current_time
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.status import (
+    AssignmentIssueStatus,
     AssignmentStatus,
     ConversationStatus,
     DreamcatcherStatusReport,
-    IssueStatus,
     read_status_report,
 )
 from dreamcatcher.tui.shared import (
@@ -83,18 +83,18 @@ def _render_instance_status(*, report: DreamcatcherStatusReport) -> RenderableTy
 def _render_assignments(*, report: DreamcatcherStatusReport) -> RenderableType | None:
     """Render assignment work as one section, mirroring the web home view.
 
-    Orders active assignments, failed assignment setups, issue statuses,
+    Orders active assignments, failed assignment setups, assignment issue statuses,
     and the ended-assignment count in that sequence.
     """
     if not (
         report.assignment_statuses
         or report.failed_assignment_setups
-        or report.issue_statuses
+        or report.assignment_issue_statuses
     ):
         return None
     rows = _render_assignment_rows(assignments=report.active_assignment_statuses)
     rows += _render_failed_setups(failed_setups=report.failed_assignment_setups)
-    rows += _render_issue_statuses(issues=report.issue_statuses)
+    rows += _render_assignment_issue_statuses(issues=report.assignment_issue_statuses)
     ended = report.ended_assignment_statuses
     if ended:
         rows.append(Text(describe_count(number=len(ended), noun="ended assignment")))
@@ -102,7 +102,7 @@ def _render_assignments(*, report: DreamcatcherStatusReport) -> RenderableType |
 
 
 def _render_failed_setups(
-    *, failed_setups: Sequence[IssueStatus]
+    *, failed_setups: Sequence[AssignmentIssueStatus]
 ) -> list[RenderableType]:
     """Render incomplete assignment setups with recorded failures."""
     if not failed_setups:
@@ -113,7 +113,9 @@ def _render_failed_setups(
     return [table]
 
 
-def _render_issue_statuses(*, issues: Sequence[IssueStatus]) -> list[RenderableType]:
+def _render_assignment_issue_statuses(
+    *, issues: Sequence[AssignmentIssueStatus]
+) -> list[RenderableType]:
     """Render the observed issues as one table, status inline per row."""
     if not issues:
         return []
@@ -173,7 +175,7 @@ def _describe_empty_status_report(
     """Describe an instance that has no issue or assignment status yet."""
     if (
         report.failed_assignment_setups
-        or report.issue_statuses
+        or report.assignment_issue_statuses
         or report.assignment_statuses
         or report.conversation_statuses
     ):

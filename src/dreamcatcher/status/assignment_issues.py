@@ -1,4 +1,4 @@
-"""Derive the status of the issues a status report shows."""
+"""Derive the assignment issue status of each issue that assignment routes list."""
 
 from dataclasses import dataclass
 from enum import StrEnum
@@ -12,8 +12,8 @@ from dreamcatcher.scheduler.models import (
 )
 
 
-class IssueStatusValue(StrEnum):
-    """List the reasons a status report shows an observed issue."""
+class AssignmentIssueStatusValue(StrEnum):
+    """List the reasons a status report shows an issue that assignment routes list."""
 
     FAILED_ASSIGNMENT_SETUP = "failed assignment setup"
     ASSIGNMENT_ROUTING_CONFLICT = "assignment routing conflict"
@@ -22,8 +22,8 @@ class IssueStatusValue(StrEnum):
 
 
 @dataclass(frozen=True, kw_only=True)
-class IssueEvidence:
-    """Give one piece of evidence for an issue's status.
+class AssignmentIssueEvidence:
+    """Give one piece of evidence for an assignment issue status.
 
     Evidence that names issues, such as "blocked by GH50", lets a view link
     each issue it names.
@@ -34,12 +34,12 @@ class IssueEvidence:
 
 
 @dataclass(frozen=True, kw_only=True)
-class IssueStatus:
-    """Describe why a status report shows an observed issue, with the evidence."""
+class AssignmentIssueStatus:
+    """Describe why a status report shows an issue that assignment routes list."""
 
     observation: IssueObservation
-    value: IssueStatusValue
-    evidence: tuple[IssueEvidence, ...]
+    value: AssignmentIssueStatusValue
+    evidence: tuple[AssignmentIssueEvidence, ...]
 
     @property
     def detail(self) -> str:
@@ -81,16 +81,17 @@ def _refresh_issue_observations(
     ]
 
 
-def derive_issue_statuses(
+def derive_assignment_issue_statuses(
     *, scheduler_record: SchedulerRecord | None, assignments: list[Assignment]
-) -> list[IssueStatus]:
+) -> list[AssignmentIssueStatus]:
     """Return the status of each issue the latest tick observed that a report shows.
 
-    The report shows an issue whose setup failed, or that has a routing
-    conflict, is blocked or is available, in the scheduler's order.
+    The report shows an issue whose assignment setup failed, or that has an
+    assignment routing conflict, is blocked or is available, in the scheduler's
+    order.
     """
     statuses = (
-        _derive_issue_status(observation=observation)
+        _derive_assignment_issue_status(observation=observation)
         for observation in _refresh_issue_observations(
             scheduler_record=scheduler_record, assignments=assignments
         )
@@ -98,7 +99,9 @@ def derive_issue_statuses(
     return [status for status in statuses if status is not None]
 
 
-def _derive_issue_status(*, observation: IssueObservation) -> IssueStatus | None:
+def _derive_assignment_issue_status(
+    *, observation: IssueObservation
+) -> AssignmentIssueStatus | None:
     """Return the status of one observed issue, or None when the report omits it.
 
     The first that holds of a failed assignment setup, an assignment routing
@@ -109,22 +112,28 @@ def _derive_issue_status(*, observation: IssueObservation) -> IssueStatus | None
     is_blocked = observation.blocked.value is Truth.TRUE
     evidence = []
     if observation.setup_failure is not None:
-        evidence.append(IssueEvidence(text=observation.setup_failure))
+        evidence.append(AssignmentIssueEvidence(text=observation.setup_failure))
     if is_conflicted:
-        evidence.append(IssueEvidence(text=observation.routing_conflict.evidence))
+        evidence.append(
+            AssignmentIssueEvidence(text=observation.routing_conflict.evidence)
+        )
     if is_blocked:
         evidence.append(
-            IssueEvidence(text=observation.blocked.evidence, names_issues=True)
+            AssignmentIssueEvidence(
+                text=observation.blocked.evidence, names_issues=True
+            )
         )
     if observation.setup_failure is not None:
-        value = IssueStatusValue.FAILED_ASSIGNMENT_SETUP
+        value = AssignmentIssueStatusValue.FAILED_ASSIGNMENT_SETUP
     elif is_conflicted:
-        value = IssueStatusValue.ASSIGNMENT_ROUTING_CONFLICT
+        value = AssignmentIssueStatusValue.ASSIGNMENT_ROUTING_CONFLICT
     elif is_blocked:
-        value = IssueStatusValue.BLOCKED
+        value = AssignmentIssueStatusValue.BLOCKED
     elif observation.availability.value is Truth.TRUE:
-        value = IssueStatusValue.AVAILABLE
-        evidence.append(IssueEvidence(text=observation.availability.evidence))
+        value = AssignmentIssueStatusValue.AVAILABLE
+        evidence.append(AssignmentIssueEvidence(text=observation.availability.evidence))
     else:
         return None
-    return IssueStatus(observation=observation, value=value, evidence=tuple(evidence))
+    return AssignmentIssueStatus(
+        observation=observation, value=value, evidence=tuple(evidence)
+    )

@@ -1,5 +1,6 @@
 """Read status reports for a dreamcatcher instance."""
 
+from dreamcatcher.status.assignment_issues import AssignmentIssueStatus
 from dreamcatcher.status.assignments import (
     ASSIGNMENT_STATUS_VALUES_IN_ATTENTION_ORDER,
     AssignmentStatus,
@@ -8,7 +9,6 @@ from dreamcatcher.status.conversations import (
     CONVERSATION_STATUS_VALUES_IN_ATTENTION_ORDER,
     ConversationStatus,
 )
-from dreamcatcher.status.issues import IssueStatus
 from dreamcatcher.status.report import (
     DreamcatcherDaemonStatus,
     DreamcatcherStatusReport,
@@ -27,11 +27,11 @@ __all__ = [
     "CONVERSATION_STATUS_VALUES_IN_ATTENTION_ORDER",
     "AgentRoundRevision",
     "AgentRoundStatus",
+    "AssignmentIssueStatus",
     "AssignmentStatus",
     "ConversationStatus",
     "DreamcatcherDaemonStatus",
     "DreamcatcherStatusReport",
-    "IssueStatus",
     "StatusFact",
     "read_assignment_status",
     "read_assignment_statuses_for_issue",

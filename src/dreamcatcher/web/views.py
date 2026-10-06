@@ -8,11 +8,11 @@ from dreamcatcher.issue_conversations import Conversation
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.status import (
     AgentRoundStatus,
+    AssignmentIssueStatus,
     AssignmentStatus,
     ConversationStatus,
     DreamcatcherDaemonStatus,
     DreamcatcherStatusReport,
-    IssueStatus,
     StatusFact,
     read_repository,
 )
@@ -81,7 +81,8 @@ def compose_home_view(*, report: DreamcatcherStatusReport) -> WebHomeView:
             for setup in report.failed_assignment_setups
         ),
         issues=tuple(
-            _compose_issue_row(status=issue) for issue in report.issue_statuses
+            _compose_issue_row(status=issue)
+            for issue in report.assignment_issue_statuses
         ),
     )
 
@@ -241,7 +242,7 @@ def _compose_agent_rounds(
     )
 
 
-def _compose_issue_row(*, status: IssueStatus) -> WebIssueRow:
+def _compose_issue_row(*, status: AssignmentIssueStatus) -> WebIssueRow:
     details = status.observation.details
     return WebIssueRow(
         issue=status.observation.issue,
@@ -252,7 +253,7 @@ def _compose_issue_row(*, status: IssueStatus) -> WebIssueRow:
     )
 
 
-def _compose_issue_evidence(*, status: IssueStatus) -> tuple[str | int, ...]:
+def _compose_issue_evidence(*, status: AssignmentIssueStatus) -> tuple[str | int, ...]:
     """Return the evidence as text, with each issue it names as a number."""
     parts: list[str | int] = []
     for item in status.evidence:

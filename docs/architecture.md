@@ -333,7 +333,7 @@ interface.
 
 Status reporting owns the read-only status model and constructs a
 `DreamcatcherStatusReport` containing the repository identity, instance and
-daemon facts, `IssueStatus` entries, `ConversationStatus` entries, and
+daemon facts, `AssignmentIssueStatus` entries, `ConversationStatus` entries, and
 `AssignmentStatus` entries. Status derives each fact that both the TUI and the
 web show, such as the instance facts, the order of the agent work and how a
 round is described, in the words both show, so neither presentation derives it
@@ -363,14 +363,15 @@ its availability is derived from those facts together with whether the issue is
 open, assigned to the instance's user, and carries exactly one assignment label.
 The report includes available issues in the scheduler's dispatch order. It also
 includes issues with known routing conflicts or open blockers, together with the
-scheduler's recorded evidence. Each one is an `IssueStatus`, which names the
-reason the report shows it and carries that evidence. An `AssignmentStatus` is
-one summary status from the ontology.
+scheduler's recorded evidence. Each one is an `AssignmentIssueStatus`, which
+names the reason the report shows it and carries that evidence. An
+`AssignmentStatus` is one summary status from the ontology.
 
-An issue's status is a failed assignment setup while the latest tick records an
-assignment setup failure, independently of whether the issue is available or a
-linked pull request proves that it is claimed elsewhere. That status also
-carries any recorded assignment routing conflict or blocker evidence.
+An issue's assignment issue status is a failed assignment setup while the latest
+tick records an assignment setup failure, independently of whether the issue is
+available or a linked pull request proves that it is claimed elsewhere. That
+status also carries any recorded assignment routing conflict or blocker
+evidence.
 
 An `AgentWorkObservation` records the tick's interpretation of one open work
 item. It carries the agent work identifier, issue and one `ObservedFact` saying
@@ -592,8 +593,8 @@ The following are derived rather than persisted as authoritative state:
 - whether an assignment is complete or either kind of agent work is in fault;
 - whether an assignment requires an agent round or needs user feedback;
 - what round purpose and recovery flag are required next; and
-- every issue status, issue conversation status and agent assignment status
-  shown in a status report.
+- every assignment issue status, issue conversation status and agent assignment
+  status shown in a status report.
 
 Mutable external facts, including issue state, assignees, labels, dependencies,
 linked pull requests, pull-request draft/readiness/terminal state, and user

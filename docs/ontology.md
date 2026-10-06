@@ -168,17 +168,15 @@ see a scheduler tick called an update.
 ### Status report
 
 A **status report** is _dreamcatcher_'s read-only account of a _dreamcatcher_
-instance, its issue conversations, agent assignments, and issue statuses at a
-particular time.
+instance, its issue conversations, agent assignments, and assignment issue
+statuses at a particular time.
 
 An **issue observation** records the independent facts that one scheduler tick
 found for an issue. Its availability is derived from those facts.
 
-An **issue status** says why a status report shows an issue observation: a
-failed assignment setup, an assignment routing conflict, a blocker, or
-availability. It carries the evidence for that reason. A conversation routing
-conflict is not among those reasons, because the report shows it as the issue
-conversation's own status.
+An **assignment issue status** says why a status report shows an issue that the
+assignment routes list: a failed assignment setup, an assignment routing
+conflict, a blocker, or availability. It carries the evidence for that reason.
 
 An **agent assignment status** is an assignment's single summary status in a
 status report. It summarizes the assignment record, recorded rounds, live
@@ -411,8 +409,8 @@ A status report may include operational facts such as the repository identity,
 whether the daemon is running, when the last scheduler tick occurred, current
 capacity, whether a global cooldown is active, and the scheduler failures. A
 scheduler failure is a read or a launch that failed in the latest tick, such as
-a failed issue listing or a failed read of an issue's comments. Its issue
-statuses, issue conversation statuses and agent assignment statuses are
+a failed issue listing or a failed read of an issue's comments. Its assignment
+issue statuses, issue conversation statuses and agent assignment statuses are
 projections derived for a person to read.
 
 The status report never schedules work and is never an input to scheduling.

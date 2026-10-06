@@ -49,11 +49,15 @@ from dreamcatcher.status import (
     read_dreamcatcher_daemon_status,
     read_status_report,
 )
+from dreamcatcher.status.assignment_issues import (
+    AssignmentIssueEvidence,
+    AssignmentIssueStatus,
+    AssignmentIssueStatusValue,
+)
 from dreamcatcher.status.assignments import (
     ASSIGNMENT_STATUS_VALUES_IN_ATTENTION_ORDER,
     AssignmentStatusValue,
 )
-from dreamcatcher.status.issues import IssueEvidence, IssueStatus, IssueStatusValue
 from dreamcatcher.status.rounds import AgentRoundStatus
 
 ASSIGNMENT_ID = "GH13-20260819-184158"
@@ -157,7 +161,7 @@ def test_an_empty_instance_reports_unknown_capacity_and_no_work(tmp_path):
     assert found.daemon.max_agents is None
     assert found.running_agents == 0
     assert found.active_global_cooldown is None
-    assert found.issue_statuses == []
+    assert found.assignment_issue_statuses == []
     assert found.assignment_statuses == []
     assert found.instance_facts == ()
 
@@ -728,9 +732,9 @@ def test_a_blocked_issue_is_reported_with_its_evidence(state):
 
     status_report = report(state=state)
 
-    [issue] = status_report.issue_statuses
+    [issue] = status_report.assignment_issue_statuses
     assert issue.observation.issue == 20
-    assert issue.value is IssueStatusValue.BLOCKED
+    assert issue.value is AssignmentIssueStatusValue.BLOCKED
     assert issue.detail == "blocked by GH10"
 
 
@@ -757,12 +761,12 @@ def test_a_routing_conflict_and_blocker_are_reported_once_with_their_evidence(st
 
     status_report = report(state=state)
 
-    [issue] = status_report.issue_statuses
+    [issue] = status_report.assignment_issue_statuses
     assert issue.observation.issue == 20
-    assert issue.value is IssueStatusValue.ASSIGNMENT_ROUTING_CONFLICT
+    assert issue.value is AssignmentIssueStatusValue.ASSIGNMENT_ROUTING_CONFLICT
     assert issue.evidence == (
-        IssueEvidence(text="multiple assignment labels"),
-        IssueEvidence(text="blocked by GH10", names_issues=True),
+        AssignmentIssueEvidence(text="multiple assignment labels"),
+        AssignmentIssueEvidence(text="blocked by GH10", names_issues=True),
     )
     assert issue.detail == "multiple assignment labels; blocked by GH10"
 
@@ -784,9 +788,9 @@ def test_a_routing_conflict_without_a_blocker_is_reported(state):
 
     status_report = report(state=state)
 
-    [issue] = status_report.issue_statuses
+    [issue] = status_report.assignment_issue_statuses
     assert issue.observation.issue == 20
-    assert issue.value is IssueStatusValue.ASSIGNMENT_ROUTING_CONFLICT
+    assert issue.value is AssignmentIssueStatusValue.ASSIGNMENT_ROUTING_CONFLICT
     assert issue.detail == "multiple assignment labels"
 
 
@@ -799,7 +803,7 @@ def test_an_open_local_assignment_removes_its_issue_from_available_work(state):
         ),
     )
 
-    assert report(state=state).issue_statuses == []
+    assert report(state=state).assignment_issue_statuses == []
 
 
 def test_a_complete_local_assignment_no_longer_claims_its_observed_issue(state):
@@ -813,10 +817,10 @@ def test_a_complete_local_assignment_no_longer_claims_its_observed_issue(state):
         tick=SchedulerRecord(at=PINNED, issue_observations=[observation]),
     )
 
-    [issue] = report(state=state).issue_statuses
+    [issue] = report(state=state).assignment_issue_statuses
 
     assert issue.observation.claimed_here.value is Truth.FALSE
-    assert issue.value is IssueStatusValue.AVAILABLE
+    assert issue.value is AssignmentIssueStatusValue.AVAILABLE
     assert issue.detail == "available for assignment"
 
 
@@ -830,10 +834,10 @@ def test_an_issue_with_no_local_assignment_is_not_claimed_here(state):
         tick=SchedulerRecord(at=PINNED, issue_observations=[observation]),
     )
 
-    [issue] = report(state=state).issue_statuses
+    [issue] = report(state=state).assignment_issue_statuses
 
     assert issue.observation.claimed_here.value is Truth.FALSE
-    assert issue.value is IssueStatusValue.AVAILABLE
+    assert issue.value is AssignmentIssueStatusValue.AVAILABLE
 
 
 def test_available_issues_keep_scheduler_order_and_observation_times(state):
@@ -848,7 +852,9 @@ def test_available_issues_keep_scheduler_order_and_observation_times(state):
         ),
     )
 
-    issues = [status.observation for status in report(state=state).issue_statuses]
+    issues = [
+        status.observation for status in report(state=state).assignment_issue_statuses
+    ]
 
     assert [issue.issue for issue in issues] == [20, 21]
     assert issues[0].observed_at == PINNED
@@ -1008,7 +1014,7 @@ def test_a_failed_setup_reports_independently_of_an_external_claim(state):
     status_report = report(state=state)
 
     assert status_report.failed_assignment_setups == [
-        IssueStatus(
+        AssignmentIssueStatus(
             observation=observation.model_copy(
                 update={
                     "observed_at": PINNED,
@@ -1018,11 +1024,11 @@ def test_a_failed_setup_reports_independently_of_an_external_claim(state):
                     ),
                 }
             ),
-            value=IssueStatusValue.FAILED_ASSIGNMENT_SETUP,
-            evidence=(IssueEvidence(text="assignment setup failed"),),
+            value=AssignmentIssueStatusValue.FAILED_ASSIGNMENT_SETUP,
+            evidence=(AssignmentIssueEvidence(text="assignment setup failed"),),
         )
     ]
-    assert status_report.issue_statuses == []
+    assert status_report.assignment_issue_statuses == []
 
 
 def test_a_failed_setup_with_a_routing_conflict_is_reported_once(state):
@@ -1041,7 +1047,7 @@ def test_a_failed_setup_with_a_routing_conflict_is_reported_once(state):
     [setup] = status_report.failed_assignment_setups
     assert setup.observation.issue == 20
     assert setup.detail == "assignment setup failed; multiple assignment labels"
-    assert status_report.issue_statuses == []
+    assert status_report.assignment_issue_statuses == []
 
 
 def test_a_report_orders_active_assignments_by_attention_and_ended_ones_newest_first(
@@ -1103,7 +1109,7 @@ def test_a_failed_setup_that_is_available_is_reported_once(state):
     assert observation.availability.value is Truth.TRUE
     [setup] = status_report.failed_assignment_setups
     assert setup.detail == "assignment setup failed"
-    assert status_report.issue_statuses == []
+    assert status_report.assignment_issue_statuses == []
 
 
 @pytest.mark.parametrize(
