@@ -1,4 +1,4 @@
-# Dreamcatcher ontology
+# Ontology
 
 This document establishes the language Dreamcatcher uses to describe its domain.
 It is an enduring part of the project: changes to the code, user interface,

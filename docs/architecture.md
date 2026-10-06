@@ -1,4 +1,4 @@
-# Dreamcatcher target architecture
+# Architecture
 
 This document describes the enduring target architecture for Dreamcatcher. It
 maps the concepts in [the ontology](ontology.md) to code boundaries and states
@@ -594,7 +594,7 @@ checks the status rule on the scheduler modules that status imports directly.
 
 ## Agent-facing contract
 
-The [agent-facing contract](../CONTRACT.md) describes the protocol between
+The [agent-facing contract](contract.md) describes the protocol between
 Dreamcatcher and an assignment skill, and the instructions that an issue
 conversation follows, not implementation history.
 

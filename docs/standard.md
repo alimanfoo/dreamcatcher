@@ -1,4 +1,4 @@
-# Dreamcatcher engineering standard
+# Engineering standard
 
 This document says what Dreamcatcher holds itself to. It is the third enduring
 document, beside [the ontology](ontology.md), which fixes the words, and
