@@ -4,7 +4,7 @@ This page holds the latest measurement of Dreamcatcher against
 [the standard](standard.md). [The release checklist](releasing.md) replaces it
 before each major or minor release, and a phase plans its work from it. Earlier
 measurements are in the Git history. The first was the
-[baseline of 2026-09-30](../specs/2026-09-30-engineering-standard/roadmap.md).
+[baseline of 2026-09-30](https://github.com/alimanfoo/dreamcatcher/blob/main/specs/2026-09-30-engineering-standard/roadmap.md).
 
 Measured on 2026-10-06 at `fe427d4`, before v5.0.0.
 
