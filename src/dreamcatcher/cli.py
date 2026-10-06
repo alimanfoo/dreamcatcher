@@ -8,7 +8,7 @@ from pathlib import Path
 from threading import TIMEOUT_MAX
 
 import dreamcatcher
-from dreamcatcher import tui, web
+from dreamcatcher import repository_setup, tui, web
 from dreamcatcher.agent_assignments import (
     cancel_assignment,
     read_assignments_for_issue,
@@ -21,7 +21,6 @@ from dreamcatcher.daemon import DEFAULT_INTERVAL_SECONDS, DreamcatcherDaemon
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.issue_conversations import read_conversation
-from dreamcatcher.repository_setup import set_up_repository
 from dreamcatcher.scheduler import (
     DEFAULT_MAX_AGENTS,
     derive_agent_work_fault,
@@ -82,7 +81,7 @@ def _build_cli_parser() -> argparse.ArgumentParser:
             "already in place."
         ),
     )
-    init_parser.set_defaults(act=_initialize_repository)
+    init_parser.set_defaults(act=_set_up_repository)
     run_parser = subcommands.add_parser(
         "run",
         help="run the dreamcatcher daemon",
@@ -311,8 +310,8 @@ def main(*, argv: Sequence[str] | None = None) -> int:
     return 0
 
 
-def _initialize_repository(*, arguments: argparse.Namespace) -> None:
-    set_up_repository(root=Path.cwd())
+def _set_up_repository(*, arguments: argparse.Namespace) -> None:
+    repository_setup.set_up_repository(root=Path.cwd())
 
 
 def _run_daemon(*, arguments: argparse.Namespace) -> None:

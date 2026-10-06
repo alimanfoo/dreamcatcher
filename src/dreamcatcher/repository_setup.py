@@ -8,17 +8,17 @@ from dreamcatcher.config import (
     AgentHarness,
     DreamcatcherConfig,
     read_dreamcatcher_config,
-    write_default_dreamcatcher_config,
+    write_default_dreamcatcher_config_if_absent,
 )
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.git import fetch_main, read_git_author_identity, require_main_checkout
 from dreamcatcher.github import (
     GitHubIdentity,
-    UnknownGitHubResponse,
     can_push_to_repository,
     create_label,
     list_labels,
     require_github_identity,
+    require_known_github_value,
 )
 from dreamcatcher.harnesses import HARNESS_ADAPTERS
 
@@ -40,20 +40,22 @@ def set_up_repository(*, root: Path) -> None:
     commits or pushes.
     """
     require_main_checkout(root=root)
-    _report_step(line=f"{root} is a main checkout.")
+    _print_line(line=f"{root} is a main checkout.")
     identity = require_github_identity(root=root)
     _require_push_access(identity=identity)
-    _report_step(
+    _print_line(
         line=f"gh is signed in as {identity.account}, "
         f"who can push to {identity.repository}."
     )
     author = read_git_author_identity(root=root)
-    _report_step(line=f"Git commits here as {author}.")
+    _print_line(line=f"Git commits here as {author}.")
     fetch_main(root=root)
-    _report_step(line="Fetched origin/main.")
-    installed = _find_installed_harnesses()
-    is_config_new = write_default_dreamcatcher_config(root=root, harnesses=installed)
-    _report_step(
+    _print_line(line="Fetched origin/main.")
+    installed = _require_installed_harnesses()
+    is_config_new = write_default_dreamcatcher_config_if_absent(
+        root=root, harnesses=installed
+    )
+    _print_line(
         line=f"Wrote the default {DREAMCATCHER_CONFIG_NAME}."
         if is_config_new
         else f"Left the existing {DREAMCATCHER_CONFIG_NAME} as it is."
@@ -73,18 +75,16 @@ def set_up_repository(*, root: Path) -> None:
     )
 
 
-def _report_step(*, line: str) -> None:
+def _print_line(*, line: str) -> None:
     # A plugin installation takes a while, so each line shows as it is done.
     print(line, flush=True)
 
 
 def _require_push_access(*, identity: GitHubIdentity) -> None:
-    can_push = can_push_to_repository(repository=identity.repository)
-    if isinstance(can_push, UnknownGitHubResponse):
-        raise ReportableError(
-            f"dreamcatcher cannot tell whether {identity.account} can push to "
-            f"{identity.repository}: {can_push.reason}"
-        )
+    can_push = require_known_github_value(
+        value=can_push_to_repository(repository=identity.repository),
+        question=f"whether {identity.account} can push to {identity.repository}",
+    )
     if not can_push:
         raise ReportableError(
             f"{identity.account} cannot push to {identity.repository}. Ask for "
@@ -92,14 +92,14 @@ def _require_push_access(*, identity: GitHubIdentity) -> None:
         )
 
 
-def _find_installed_harnesses() -> set[AgentHarness]:
+def _require_installed_harnesses() -> set[AgentHarness]:
     """Return every harness on the PATH, or refuse when there is none."""
     installed = set()
     for harness in AgentHarness:
         try:
             locate_program(program=HARNESS_ADAPTERS[harness].program)
         except CommandError as error:
-            _report_step(line=str(error))
+            _print_line(line=str(error))
         else:
             installed.add(harness)
     if not installed:
@@ -123,19 +123,22 @@ def _set_up_harness(*, harness: AgentHarness) -> None:
         marketplace=_DREAM_MARKETPLACE, plugin=_DREAM_PLUGIN
     ):
         run_command(program=adapter.program, arguments=arguments)
-    _report_step(
+    _print_line(
         line=f"{adapter.program} is signed in, and has the dream plugin installed."
     )
 
 
 def _create_missing_labels(*, repository: str, config: DreamcatcherConfig) -> None:
-    """Create every route label the repository lacks, matching as routing does."""
-    labels = list_labels(repository=repository)
-    if isinstance(labels, UnknownGitHubResponse):
-        raise ReportableError(
-            f"dreamcatcher cannot read the labels of {repository}: {labels.reason}"
-        )
-    existing = {label.name.casefold() for label in labels}
+    """Create every route label that matches none of the repository's labels."""
+    labels = require_known_github_value(
+        value=list_labels(repository=repository),
+        question=f"which labels {repository} has",
+    )
+    names = [label.name for label in labels]
+    routed = {
+        *config.identify_assignment_labels(labels=names),
+        *(route.label for route in config.identify_conversation_routes(labels=names)),
+    }
     descriptions = {
         **{route.label: _ASSIGNMENT_LABEL_DESCRIPTION for route in config.assignment},
         **{
@@ -143,10 +146,10 @@ def _create_missing_labels(*, repository: str, config: DreamcatcherConfig) -> No
             for route in config.conversation
         },
     }
-    created = [label for label in descriptions if label.casefold() not in existing]
+    created = [label for label in descriptions if label not in routed]
     for label in created:
         create_label(repository=repository, name=label, description=descriptions[label])
-    _report_step(
+    _print_line(
         line=f"Created the labels {', '.join(created)}."
         if created
         else "The repository has every label that the configuration routes."
@@ -169,4 +172,4 @@ def _report_next_steps(
         f"  dreamcatcher run --harness {min(config.routed_harnesses)}",
     ]
     for line in lines:
-        _report_step(line=line)
+        _print_line(line=line)

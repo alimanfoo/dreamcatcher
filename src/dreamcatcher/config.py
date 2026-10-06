@@ -195,14 +195,13 @@ def read_dreamcatcher_config(*, root: Path) -> DreamcatcherConfig:
     return read_toml(model=DreamcatcherConfig, path=root / DREAMCATCHER_CONFIG_NAME)
 
 
-def write_default_dreamcatcher_config(
+def write_default_dreamcatcher_config_if_absent(
     *, root: Path, harnesses: Set[AgentHarness]
 ) -> bool:
-    """Write the default configuration at root, unless a configuration is there.
+    """Write the default configuration at root, and return whether this wrote it.
 
     Every recipe table of a harness outside harnesses is commented out, since a
     run refuses to start while a route names a harness that is not installed.
-    Return whether this wrote the file.
     """
     path = root / DREAMCATCHER_CONFIG_NAME
     if path.exists():

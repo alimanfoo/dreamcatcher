@@ -10,7 +10,7 @@ from dreamcatcher.config import (
     CodexRecipe,
     ConversationRoute,
     read_dreamcatcher_config,
-    write_default_dreamcatcher_config,
+    write_default_dreamcatcher_config_if_absent,
 )
 from dreamcatcher.errors import ReportableError
 
@@ -387,7 +387,9 @@ def test_a_repo_with_no_config_says_which_file_is_missing(tmp_path):
 def test_the_default_config_routes_every_label_to_the_installed_harnesses(
     tmp_path, harnesses
 ):
-    assert write_default_dreamcatcher_config(root=tmp_path, harnesses=harnesses)
+    assert write_default_dreamcatcher_config_if_absent(
+        root=tmp_path, harnesses=harnesses
+    )
 
     config = read_dreamcatcher_config(root=tmp_path)
     assert config.routed_harnesses == harnesses
@@ -396,7 +398,9 @@ def test_the_default_config_routes_every_label_to_the_installed_harnesses(
 
 
 def test_the_default_config_keeps_a_missing_harnesss_recipes_as_comments(tmp_path):
-    write_default_dreamcatcher_config(root=tmp_path, harnesses={AgentHarness.CLAUDE})
+    write_default_dreamcatcher_config_if_absent(
+        root=tmp_path, harnesses={AgentHarness.CLAUDE}
+    )
 
     written = (tmp_path / DREAMCATCHER_CONFIG_NAME).read_text(encoding="utf-8")
     assert "\n#[assignment.codex]\n#prompt = " in written
@@ -406,7 +410,7 @@ def test_the_default_config_keeps_a_missing_harnesss_recipes_as_comments(tmp_pat
 def test_the_default_config_leaves_an_existing_config_alone(tmp_path):
     (tmp_path / DREAMCATCHER_CONFIG_NAME).write_text(SMITH_CLAUDE, encoding="utf-8")
 
-    assert not write_default_dreamcatcher_config(
+    assert not write_default_dreamcatcher_config_if_absent(
         root=tmp_path, harnesses=set(AgentHarness)
     )
     assert (tmp_path / DREAMCATCHER_CONFIG_NAME).read_text(

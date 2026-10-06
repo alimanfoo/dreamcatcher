@@ -29,9 +29,10 @@ def read_git_author_identity(*, root: Path) -> str:
 
     When Git has no identity to use, its CommandError says how to set one.
     """
-    ident = run_command(program="git", arguments=["var", "GIT_AUTHOR_IDENT"], cwd=root)
     # Git follows the identity with the commit time and its zone.
-    return ident.rsplit(maxsplit=2)[0]
+    return run_command(
+        program="git", arguments=["var", "GIT_AUTHOR_IDENT"], cwd=root
+    ).rsplit(maxsplit=2)[0]
 
 
 def fetch_main(*, root: Path) -> None:

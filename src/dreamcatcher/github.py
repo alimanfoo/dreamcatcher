@@ -122,8 +122,8 @@ class GitHubUserAccount(GitHubResponseProjection):
     login: str
 
 
-class GitHubIssueLabel(GitHubResponseProjection):
-    """Model an issue label, as an issue carries it or a repository holds it."""
+class GitHubLabel(GitHubResponseProjection):
+    """Model a GitHub label."""
 
     name: str
 
@@ -137,7 +137,7 @@ class Issue(GitHubResponseProjection):
     created_at: datetime = Field(alias="createdAt")
     state: IssueState
     assignees: list[GitHubUserAccount]
-    labels: list[GitHubIssueLabel]
+    labels: list[GitHubLabel]
 
 
 _ISSUE_RESPONSE_FIELDS = ",".join(
@@ -304,7 +304,7 @@ type UserPost = ConversationComment | PullRequestReview | InlineReviewComment
 _GITHUB_REPOSITORY_RESPONSE_ADAPTER = TypeAdapter(GitHubRepository)
 _GITHUB_REPOSITORY_PERMISSION_RESPONSE_ADAPTER = TypeAdapter(GitHubRepositoryPermission)
 _GITHUB_ACCOUNT_RESPONSE_ADAPTER = TypeAdapter(GitHubUserAccount)
-_GITHUB_LABEL_PAGES_ADAPTER = TypeAdapter(list[list[GitHubIssueLabel]])
+_GITHUB_LABEL_PAGES_ADAPTER = TypeAdapter(list[list[GitHubLabel]])
 _GITHUB_ISSUE_RESPONSE_ADAPTER = TypeAdapter(Issue)
 _GITHUB_ISSUE_LIST_RESPONSE_ADAPTER = TypeAdapter(list[Issue])
 _GITHUB_PULL_REQUEST_LIST_RESPONSE_ADAPTER = TypeAdapter(list[PullRequest])
@@ -374,18 +374,25 @@ def require_github_identity(*, root: Path) -> GitHubIdentity:
     Nothing can be done for a repository that gh cannot name, or as an account
     gh is not signed in as, so not knowing either one is a ReportableError.
     """
-    repository = _identify_github_repository(root=root)
-    if isinstance(repository, UnknownGitHubResponse):
-        raise ReportableError(
-            f"dreamcatcher cannot tell which repository this is: {repository.reason}"
-        )
-    account = _identify_github_account()
-    if isinstance(account, UnknownGitHubResponse):
-        raise ReportableError(
-            "dreamcatcher cannot tell which account gh is signed in as: "
-            f"{account.reason}"
-        )
-    return GitHubIdentity(repository=repository, account=account)
+    return GitHubIdentity(
+        repository=require_known_github_value(
+            value=_identify_github_repository(root=root),
+            question="which repository this is",
+        ),
+        account=require_known_github_value(
+            value=_identify_github_account(),
+            question="which account gh is signed in as",
+        ),
+    )
+
+
+def require_known_github_value[ValueT](
+    *, value: ValueT | UnknownGitHubResponse, question: str
+) -> ValueT:
+    """Return what gh answered, or refuse saying which question it could not answer."""
+    if isinstance(value, UnknownGitHubResponse):
+        raise ReportableError(f"dreamcatcher cannot tell {question}: {value.reason}")
+    return value
 
 
 def can_push_to_repository(*, repository: str) -> bool | UnknownGitHubResponse:
@@ -399,7 +406,7 @@ def can_push_to_repository(*, repository: str) -> bool | UnknownGitHubResponse:
     return permission_response.can_push
 
 
-def list_labels(*, repository: str) -> list[GitHubIssueLabel] | UnknownGitHubResponse:
+def list_labels(*, repository: str) -> list[GitHubLabel] | UnknownGitHubResponse:
     """Return every label the repository holds."""
     return _read_github_pages(
         response_adapter=_GITHUB_LABEL_PAGES_ADAPTER,

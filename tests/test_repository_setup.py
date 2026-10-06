@@ -206,7 +206,7 @@ def test_an_account_that_cannot_push_is_refused(checkout, gh, installed):
 
 @pytest.mark.parametrize(
     ("read", "refusal"),
-    [(PERMISSION, "cannot tell whether"), (LABELS, "cannot read the labels")],
+    [(PERMISSION, "cannot tell whether"), (LABELS, "cannot tell which labels")],
     ids=["the push permission", "the labels"],
 )
 def test_a_github_read_that_fails_is_refused_with_what_gh_said(
