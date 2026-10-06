@@ -5,8 +5,8 @@
 <input type="hidden" id="cursor" name="cursor" value="{{ tail.cursor }}" hx-swap-oob="true">
 {%- with view=tail, is_tail=true -%}
   {%- include "partials/agent-work-status.html" -%}
-  {%- include "partials/agent-work-controls.html" -%}
+  {%- include "partials/agent-work-retry.html" -%}
   {%- include "partials/agent-work-detail.html" -%}
   {%- include "partials/assignment-rounds.html" -%}
-  {%- include "partials/hand-resume.html" -%}
+  {%- include "partials/agent-work-foot.html" -%}
 {%- endwith %}

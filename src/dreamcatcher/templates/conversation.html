@@ -12,7 +12,7 @@
             <h1 id="conversation-heading"><strong class="assignment-issue">#{{ view.issue }} <span>{{ view.title }}</span></strong></h1>
           {% endif %}
           <div class="assignment-heading-actions">
-            {% include "partials/agent-work-controls.html" %}
+            {% include "partials/agent-work-retry.html" %}
             {% include "partials/agent-work-status.html" %}
           </div>
         </div>
@@ -42,7 +42,7 @@
           </div>
         </section>
       </div>
-      {% include "partials/hand-resume.html" %}
+      {% include "partials/agent-work-foot.html" %}
     </div>
   </main>
   <script src="{{ url_for('static', filename='assignment.js') }}"></script>

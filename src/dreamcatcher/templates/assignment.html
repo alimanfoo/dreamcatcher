@@ -12,7 +12,7 @@
             <h1 id="assignment-heading"><strong class="assignment-issue">#{{ view.issue }} <span>{{ view.title }}</span></strong></h1>
           {% endif %}
           <div class="assignment-heading-actions">
-            {% include "partials/agent-work-controls.html" %}
+            {% include "partials/agent-work-retry.html" %}
             {% include "partials/agent-work-status.html" %}
             {% if view.github_repository_url %}<a class="pr-chip" href="{{ view.github_repository_url }}/pull/{{ view.pull_request }}" target="_blank" rel="noopener noreferrer">PR #{{ view.pull_request }}{% if view.pull_request_state %} {{ view.pull_request_state }}{% endif %}</a>{% else %}<span class="pr-chip">PR #{{ view.pull_request }}{% if view.pull_request_state %} {{ view.pull_request_state }}{% endif %}</span>{% endif %}
           </div>
@@ -41,7 +41,7 @@
           </div>
         </section>
       </div>
-      {% include "partials/hand-resume.html" %}
+      {% include "partials/agent-work-foot.html" %}
     </div>
   </main>
   <script src="{{ url_for('static', filename='assignment.js') }}"></script>

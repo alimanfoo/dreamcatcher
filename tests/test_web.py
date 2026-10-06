@@ -265,7 +265,10 @@ def test_assignment_tail_updates_the_stop_and_cancel_controls(tmp_path):
     )
 
     assert response.status_code == 200
-    assert '<div id="agent-work-controls" hx-swap-oob="morph">' in response.text
+    assert (
+        '<div id="agent-work-foot" class="agent-work-foot" '
+        'hx-swap-oob="morph">' in response.text
+    )
     assert f'action="/assignments/{identifier}/stop/2"' in response.text
     assert f'action="/assignments/{identifier}/cancel"' in response.text
 
@@ -282,10 +285,7 @@ def test_assignment_tail_offers_a_hand_resume_only_while_no_round_runs(tmp_path)
     release_daemon_lock(path=state.lock)
     without_daemon = client.get(f"/assignments/{identifier}/tail", query_string=query)
 
-    assert (
-        '<div id="hand-resume" class="hand-resume" hx-swap-oob="morph"></div>'
-        in working.text
-    )
+    assert "<summary>resume by hand</summary>" not in working.text
     assert "<summary>resume by hand</summary>" in without_daemon.text
     assert "claude --resume abc-123" in without_daemon.text
 
@@ -444,7 +444,7 @@ def test_assignment_tail_offers_the_retry_control(tmp_path):
 
     response = _read_tail(state=state, identifier=identifier, cursor="1:0")
 
-    assert '<div id="agent-work-controls" hx-swap-oob="morph">' in response.text
+    assert '<div id="agent-work-retry" hx-swap-oob="morph">' in response.text
     assert f'action="/assignments/{identifier}/retry/2"' in response.text
 
 
@@ -1072,10 +1072,10 @@ def test_a_quiet_tail_has_no_appendable_text_nodes(tmp_path):
         '<input type="hidden" id="cursor" name="cursor" value="1:0" '
         'hx-swap-oob="true"><span'
     )
-    assert '</span><div id="agent-work-controls"' in response.text
+    assert '</span><div id="agent-work-retry"' in response.text
     assert '</div><p id="agent-work-detail"' in response.text
     assert "</p><aside" in response.text
-    assert '</aside><div id="hand-resume"' in response.text
+    assert '</aside><div id="agent-work-foot"' in response.text
     assert response.text.endswith("</div>")
 
 

@@ -1,0 +1,8 @@
+{% macro agent_work_control(control) -%}
+  {%- set labels = {"stop": "stop round", "cancel": "cancel assignment"} -%}
+  {%- set confirmations = {
+    "stop": "Stop this round? Dreamcatcher will stop the agent now and wait for new input from you before it starts another round.",
+    "cancel": "Cancel this assignment? Dreamcatcher will stop working on it so that you can finish its pull request by hand. This cannot be undone.",
+  } -%}
+  <form id="{{ control.action }}-form" class="agent-work-control-form" method="post" action="{{ control.url }}"{% if control.action in confirmations %} data-confirmation="{{ confirmations[control.action] }}"{% endif %}><button class="agent-work-control {{ control.action }}-control" type="submit">{{ labels.get(control.action, control.action) }}</button></form>
+{%- endmacro %}

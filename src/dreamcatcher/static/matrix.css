@@ -496,20 +496,17 @@ body::after {
   font: inherit;
   font-weight: 700;
   letter-spacing: var(--letter-label);
-  text-transform: uppercase;
-}
-
-.stop-control,
-.cancel-control {
-  color: var(--amber);
 }
 
 .retry-control {
   color: var(--phosphor);
+  text-transform: uppercase;
 }
 
 .agent-work-control:hover,
-.agent-work-control:focus-visible {
+.agent-work-control:focus-visible,
+.manual-recovery summary:hover,
+.manual-recovery summary:focus-visible {
   color: var(--bright);
 }
 
@@ -625,20 +622,34 @@ body::after {
   color: var(--amber);
 }
 
-.hand-resume {
-  display: contents;
-}
-
-.manual-recovery {
+.agent-work-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-5) var(--space-9);
   padding-top: var(--space-7);
   color: var(--dim);
   border-top: var(--line) solid var(--rule);
 }
 
+.agent-work-foot:empty {
+  display: none;
+}
+
+.manual-recovery {
+  flex: 1 1 20em;
+  min-width: 0;
+}
+
+.stop-control,
+.cancel-control,
 .manual-recovery summary {
   color: var(--amber);
-  cursor: pointer;
   font-size: 0.9em;
+}
+
+.manual-recovery summary {
+  cursor: pointer;
   font-weight: 700;
   letter-spacing: var(--letter-label);
 }

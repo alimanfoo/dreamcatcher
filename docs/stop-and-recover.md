@@ -3,12 +3,12 @@
 Choose the control that matches what you want to stop. Closing a status view,
 stopping one agent round and stopping the daemon have different consequences.
 
-| Action                                                            | What stops                            | What happens next                                                              |
-| ----------------------------------------------------------------- | ------------------------------------- | ------------------------------------------------------------------------------ |
-| Interrupt `web`, `status`, `assignment`, `conversation` or `feed` | Only that view                        | The daemon and agents continue.                                                |
-| Run `dreamcatcher stop` or select **Stop** on the web page        | The current agent round               | The work waits for input unless a merged or closed pull request needs wrap-up. |
-| Run `dreamcatcher cancel` or select **Cancel** on the web page    | The assignment and any running round  | You finish the pull request by hand. Dreamcatcher runs no further rounds.      |
-| Press Ctrl-C in the terminal running `dreamcatcher run`           | The daemon and all its current rounds | Work that still needs a round can recover after the daemon starts again.       |
+| Action                                                                    | What stops                            | What happens next                                                              |
+| ------------------------------------------------------------------------- | ------------------------------------- | ------------------------------------------------------------------------------ |
+| Interrupt `web`, `status`, `assignment`, `conversation` or `feed`         | Only that view                        | The daemon and agents continue.                                                |
+| Run `dreamcatcher stop` or select **stop round** on the web page          | The current agent round               | The work waits for input unless a merged or closed pull request needs wrap-up. |
+| Run `dreamcatcher cancel` or select **cancel assignment** on the web page | The assignment and any running round  | You finish the pull request by hand. Dreamcatcher runs no further rounds.      |
+| Press Ctrl-C in the terminal running `dreamcatcher run`                   | The daemon and all its current rounds | Work that still needs a round can recover after the daemon starts again.       |
 
 ## Stop one running round
 
@@ -21,9 +21,9 @@ dreamcatcher stop GH123 --conversation
 
 Use `--assignment` for the newest assignment at the issue, or `--conversation`
 for its issue conversation. You can instead run `dreamcatcher web`, open the
-assignment or conversation, and select **Stop**. Both controls are available
-only while the round is running and Dreamcatcher has learned its harness
-session. The round normally stops within about a second.
+assignment or conversation, select **stop round**, and confirm. Both controls
+are available only while the round is running and Dreamcatcher has learned its
+harness session. The round normally stops within about a second.
 
 After an assignment round is stopped, an open pull request waits for a new
 comment or review from you. Add that feedback when you are ready to resume. If
@@ -47,8 +47,8 @@ dreamcatcher cancel GH123
 ```
 
 The command cancels the newest assignment at the issue. You can instead open the
-assignment in `dreamcatcher web`, select **Cancel**, and confirm. A cancel
-cannot be undone.
+assignment in `dreamcatcher web`, select **cancel assignment**, and confirm. A
+cancel cannot be undone.
 
 Dreamcatcher asks a running round to stop, runs no further rounds for the
 assignment, and stops relaying your comments and reviews on its pull request.

@@ -399,31 +399,12 @@ body::after {
   gap: 10px;
 }
 
-.agent-work-control {
+.retry-control {
   padding: 6px 14px;
-  border: 0;
   border-radius: 9999px;
   font-weight: 500;
   letter-spacing: normal;
   text-transform: capitalize;
-}
-
-.stop-control,
-.cancel-control {
-  color: #8c3f2b;
-  background: rgba(140, 63, 43, 0.08);
-  box-shadow: 0 0 14px 2px rgba(140, 63, 43, 0.08);
-}
-
-.stop-control:hover,
-.stop-control:focus-visible,
-.cancel-control:hover,
-.cancel-control:focus-visible {
-  color: #6f2f21;
-  background: rgba(140, 63, 43, 0.15);
-}
-
-.retry-control {
   color: #56704b;
   background: rgba(86, 112, 75, 0.1);
   box-shadow: 0 0 14px 2px rgba(86, 112, 75, 0.1);
@@ -588,13 +569,24 @@ body::after {
   color: #8c3f2b;
 }
 
-.manual-recovery {
+.agent-work-foot {
   color: var(--dim);
   border-top-color: var(--rule);
 }
 
+.stop-control,
+.cancel-control,
 .manual-recovery summary {
   color: #8c3f2b;
+}
+
+.stop-control:hover,
+.stop-control:focus-visible,
+.cancel-control:hover,
+.cancel-control:focus-visible,
+.manual-recovery summary:hover,
+.manual-recovery summary:focus-visible {
+  color: #6f2f21;
 }
 
 .manual-recovery pre {

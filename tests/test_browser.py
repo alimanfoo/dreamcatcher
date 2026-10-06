@@ -85,7 +85,7 @@ def test_a_tail_refresh_leaves_an_opened_hand_resume_open(
     page: Page, live_web: str
 ) -> None:
     page.goto(f"{live_web}/conversations/8")
-    hand_resume = page.locator("#hand-resume details")
+    hand_resume = page.locator("#agent-work-foot details")
     hand_resume.locator("summary").click()
     expect(hand_resume).to_have_attribute("open", "")
 
@@ -94,9 +94,22 @@ def test_a_tail_refresh_leaves_an_opened_hand_resume_open(
     expect(hand_resume).to_have_attribute("open", "")
 
 
+def test_stopping_a_round_asks_first(page: Page, live_web: str) -> None:
+    page.goto(f"{live_web}/assignments/{BROWSER_ASSIGNMENT_IDENTIFIER}")
+    stop = page.get_by_role("button", name="stop round")
+
+    page.once("dialog", lambda dialog: dialog.dismiss())
+    stop.click()
+    expect(stop).to_be_visible()
+
+    page.once("dialog", lambda dialog: dialog.accept())
+    stop.click()
+    expect(stop).to_have_count(0)
+
+
 def test_cancelling_an_assignment_asks_first(page: Page, live_web: str) -> None:
     page.goto(f"{live_web}/assignments/GH44-20260819-184158")
-    cancel = page.get_by_role("button", name="cancel")
+    cancel = page.get_by_role("button", name="cancel assignment")
 
     page.once("dialog", lambda dialog: dialog.dismiss())
     cancel.click()
