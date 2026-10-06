@@ -152,7 +152,7 @@ def test_an_assignment_whose_last_round_was_interrupted_is_a_recovery(state, gh)
     assert derive_round_purpose(pull_request=resume.pull_request) is (
         AssignmentRoundPurpose.ADDRESS_FEEDBACK
     )
-    assert resume.recovery_reason == "the last round was interrupted"
+    assert resume.is_recovery
     assert resume.undelivered_posts == []
     assert gh.calls[0].arguments[:3] == ["pr", "view", str(PULL_REQUEST)]
 
@@ -169,7 +169,7 @@ def test_an_interruption_breaks_an_error_sequence(state, gh):
     resume = found(state=state)
 
     assert isinstance(resume, AssignmentRoundCandidate)
-    assert resume.recovery_reason == "the last round was interrupted"
+    assert resume.is_recovery
 
 
 def test_an_assignment_whose_last_round_failed_is_carried_on_with_its_status(state, gh):
@@ -181,7 +181,7 @@ def test_an_assignment_whose_last_round_failed_is_carried_on_with_its_status(sta
     assert derive_round_purpose(pull_request=resume.pull_request) is (
         AssignmentRoundPurpose.ADDRESS_FEEDBACK
     )
-    assert resume.recovery_reason == "the last round errored (exit 2)"
+    assert resume.is_recovery
     assert gh.calls[0].arguments[:3] == ["pr", "view", str(PULL_REQUEST)]
 
 
@@ -205,7 +205,7 @@ def test_a_terminal_pull_request_makes_an_interrupted_round_a_recovery_wrap_up(
     assert derive_round_purpose(pull_request=resume.pull_request) is (
         AssignmentRoundPurpose.WRAP_UP
     )
-    assert resume.recovery_reason == "the last round was interrupted"
+    assert resume.is_recovery
     assert resume.pull_request.state is PullRequestState.MERGED
     assert [post.body for post in resume.undelivered_posts] == [
         "have another look at the filter"
@@ -271,7 +271,7 @@ def test_a_terminal_pull_request_wraps_up_a_stopped_assignment(
     assert derive_round_purpose(pull_request=resume.pull_request) is (
         AssignmentRoundPurpose.WRAP_UP
     )
-    assert resume.recovery_reason is None
+    assert not resume.is_recovery
     assert resume.pull_request.state is PullRequestState(pull_request_state)
     assert resume.undelivered_posts == []
 
@@ -296,7 +296,7 @@ def test_a_stopped_assignment_uses_new_feedback_without_recovery(state, gh):
     resume = found(state=state)
 
     assert isinstance(resume, AssignmentRoundCandidate)
-    assert resume.recovery_reason is None
+    assert not resume.is_recovery
     assert len(resume.undelivered_posts) == 1
 
 
@@ -345,7 +345,7 @@ def test_an_assignment_the_user_has_posted_on_answers_what_they_said(state, gh):
     assert derive_round_purpose(pull_request=resume.pull_request) is (
         AssignmentRoundPurpose.ADDRESS_FEEDBACK
     )
-    assert resume.recovery_reason is None
+    assert not resume.is_recovery
     assert resume.pull_request.state is PullRequestState.OPEN
     assert [post.body for post in resume.undelivered_posts] == [
         "have another look at the filter"
@@ -369,7 +369,7 @@ def test_a_draft_pull_request_keeps_implementation_as_its_purpose(
     assert derive_round_purpose(pull_request=resume.pull_request) is (
         AssignmentRoundPurpose.IMPLEMENT
     )
-    assert resume.recovery_reason is None
+    assert not resume.is_recovery
 
 
 def test_a_batch_of_posts_says_how_many_it_holds(state, gh):
@@ -418,7 +418,7 @@ def test_a_posts_resume_carries_the_facts_launch_will_prepare(state, gh):
     assert [post.body for post in resume.undelivered_posts] == [
         "have another look at the filter"
     ]
-    assert resume.recovery_reason is None
+    assert not resume.is_recovery
 
 
 @pytest.mark.parametrize("state_name", ["MERGED", "CLOSED"])
@@ -522,7 +522,7 @@ def test_the_most_open_work_comes_first(state):
                 is_draft=purpose is AssignmentRoundPurpose.IMPLEMENT,
             ),
             undelivered_posts=[],
-            recovery_reason="unfinished" if is_recovery else None,
+            is_recovery=is_recovery,
         )
 
     scheduler = create_assignment_scheduler(state=state)
@@ -552,7 +552,7 @@ def test_the_most_open_work_comes_first(state):
             (
                 False
                 if isinstance(found, FirstAssignmentRoundCandidate)
-                else found.recovery_reason is not None
+                else found.is_recovery
             ),
             (
                 AssignmentRoundPurpose.IMPLEMENT
