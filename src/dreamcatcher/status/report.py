@@ -41,7 +41,6 @@ from dreamcatcher.status.issues import (
     IssueStatus,
     IssueStatusValue,
     derive_issue_statuses,
-    refresh_issue_observations,
 )
 from dreamcatcher.words import describe_countdown, describe_span
 
@@ -97,8 +96,8 @@ class DreamcatcherDaemonStatus:
 
 
 @dataclass(frozen=True, kw_only=True)
-class InstanceFact:
-    """Name one fact about a dreamcatcher instance, in the words a view shows."""
+class StatusFact:
+    """Name one labelled fact in the words a status view shows."""
 
     label: str
     value: str
@@ -122,11 +121,10 @@ class DreamcatcherStatusReport:
     conversation_statuses: list[ConversationStatus]
 
     @property
-    def instance_facts(self) -> tuple[InstanceFact, ...]:
+    def instance_facts(self) -> tuple[StatusFact, ...]:
         """The instance's facts that are known, in the order a view shows them.
 
-        The scheduler's facts need a running daemon, and a global cooldown and
-        scheduler failures are warnings.
+        A global cooldown and scheduler failures are warnings.
         """
         daemon = self.daemon
         cooldown = self.active_global_cooldown
@@ -164,7 +162,7 @@ class DreamcatcherStatusReport:
             ("scheduler failures", self.scheduler_failure_summary, True),
         )
         return tuple(
-            InstanceFact(label=label, value=value, is_warning=is_warning)
+            StatusFact(label=label, value=value, is_warning=is_warning)
             for label, value, is_warning in facts
             if value is not None
         )
@@ -210,10 +208,7 @@ def read_status_report(
         scheduler_record=scheduler_record,
     )
     issue_statuses = derive_issue_statuses(
-        observations=refresh_issue_observations(
-            scheduler_record=scheduler_record,
-            assignments=assignments,
-        )
+        scheduler_record=scheduler_record, assignments=assignments
     )
     return DreamcatcherStatusReport(
         at=at,

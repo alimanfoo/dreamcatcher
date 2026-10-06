@@ -1335,7 +1335,10 @@ def test_an_assignment_label_that_looks_like_an_issue_reference_remains_text():
         evidence={"routing_conflict": evidence},
     )
 
-    [status] = derive_issue_statuses(observations=[observation])
+    [status] = derive_issue_statuses(
+        scheduler_record=SchedulerRecord(at=PINNED, issue_observations=[observation]),
+        assignments=[],
+    )
 
     row = _compose_issue_row(status=status)
 

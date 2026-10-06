@@ -35,7 +35,6 @@ from dreamcatcher.status.rounds import (
     find_stoppable_round_paths,
 )
 
-# The length git itself abbreviates a revision to.
 _SHORT_REVISION_LENGTH = 7
 
 

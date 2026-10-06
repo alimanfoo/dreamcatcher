@@ -44,7 +44,7 @@ class IssueStatus:
         return "; ".join(item.text for item in self.evidence)
 
 
-def refresh_issue_observations(
+def _refresh_issue_observations(
     *,
     scheduler_record: SchedulerRecord | None,
     assignments: list[Assignment],
@@ -96,14 +96,19 @@ def _refresh_issue_observation(
     return refreshed
 
 
-def derive_issue_statuses(*, observations: list[IssueObservation]) -> list[IssueStatus]:
-    """Return the status of each observed issue that a status report shows.
+def derive_issue_statuses(
+    *, scheduler_record: SchedulerRecord | None, assignments: list[Assignment]
+) -> list[IssueStatus]:
+    """Return the status of each issue the latest tick observed that a report shows.
 
     The report shows an issue whose setup failed, or that has a routing
     conflict, is blocked or is available, in the scheduler's order.
     """
     statuses = (
-        _derive_issue_status(observation=observation) for observation in observations
+        _derive_issue_status(observation=observation)
+        for observation in _refresh_issue_observations(
+            scheduler_record=scheduler_record, assignments=assignments
+        )
     )
     return [status for status in statuses if status is not None]
 

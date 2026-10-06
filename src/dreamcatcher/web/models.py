@@ -4,15 +4,11 @@ from dataclasses import dataclass
 from typing import Literal, Protocol
 
 from dreamcatcher.agent_rounds import AgentRoundPaths, AgentRoundRecord
-from dreamcatcher.status import AgentRoundRevision, InstanceFact
-
-
-@dataclass(frozen=True, kw_only=True)
-class WebFact:
-    """Represent one labelled fact on a web page."""
-
-    label: str
-    value: str
+from dreamcatcher.status import (
+    AgentRoundRevision,
+    DreamcatcherDaemonStatus,
+    StatusFact,
+)
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -50,7 +46,7 @@ class WebAgentRound:
     """Represent one round row on an agent-work page."""
 
     number: int
-    purpose: str
+    purpose_description: str
     started: str
     duration: str
     outcome: str
@@ -136,8 +132,7 @@ class WebAssignmentView:
 
     repository: str
     github_repository_url: str | None
-    daemon_state: str
-    daemon_summary: str
+    daemon: DreamcatcherDaemonStatus
     identifier: str
     issue: int
     title: str
@@ -169,11 +164,10 @@ class WebConversationView:
 
     repository: str
     github_repository_url: str | None
-    daemon_state: str
-    daemon_summary: str
+    daemon: DreamcatcherDaemonStatus
     issue: int
     title: str
-    facts: tuple[WebFact, ...]
+    facts: tuple[StatusFact, ...]
     live: WebAgentLiveState
     feed_rounds: tuple[WebFeedRound, ...]
     feed_cursor: str
@@ -185,9 +179,8 @@ class WebHomeView:
 
     repository: str
     github_repository_url: str | None
-    daemon_state: str
-    daemon_summary: str
-    instance_facts: tuple[InstanceFact, ...]
+    daemon: DreamcatcherDaemonStatus
+    instance_facts: tuple[StatusFact, ...]
     conversations: tuple[WebConversationCard, ...]
     active_assignments: tuple[WebAssignmentCard, ...]
     ended_assignments: tuple[WebAssignmentCard, ...]

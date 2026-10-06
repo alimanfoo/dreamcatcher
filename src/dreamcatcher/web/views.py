@@ -13,6 +13,7 @@ from dreamcatcher.status import (
     DreamcatcherDaemonStatus,
     DreamcatcherStatusReport,
     IssueStatus,
+    StatusFact,
     read_repository,
 )
 from dreamcatcher.web.feed import read_agent_feed
@@ -24,7 +25,6 @@ from dreamcatcher.web.models import (
     WebAssignmentView,
     WebConversationCard,
     WebConversationView,
-    WebFact,
     WebHandResume,
     WebHomeView,
     WebIssueRow,
@@ -57,14 +57,12 @@ def _compose_github_repository_url(*, repository: str | None) -> str | None:
 
 def compose_home_view(*, report: DreamcatcherStatusReport) -> WebHomeView:
     """Return the values shown on the home page."""
-    daemon = report.daemon
     return WebHomeView(
         repository=report.repository or "repository unknown",
         github_repository_url=_compose_github_repository_url(
             repository=report.repository
         ),
-        daemon_state="running" if daemon.is_running else "not-running",
-        daemon_summary=daemon.summary,
+        daemon=report.daemon,
         instance_facts=report.instance_facts,
         conversations=tuple(
             _compose_conversation_card(status=status)
@@ -168,8 +166,7 @@ def compose_assignment_view(
     return WebAssignmentView(
         repository=repository or "repository unknown",
         github_repository_url=_compose_github_repository_url(repository=repository),
-        daemon_state="running" if daemon.is_running else "not-running",
-        daemon_summary=daemon.summary,
+        daemon=daemon,
         identifier=assignment.identifier,
         issue=record.issue,
         title=record.title,
@@ -200,8 +197,7 @@ def compose_conversation_view(
     return WebConversationView(
         repository=repository or "repository unknown",
         github_repository_url=_compose_github_repository_url(repository=repository),
-        daemon_state="running" if daemon.is_running else "not-running",
-        daemon_summary=daemon.summary,
+        daemon=daemon,
         issue=status.issue,
         title=status.title,
         facts=(
@@ -215,13 +211,15 @@ def compose_conversation_view(
     )
 
 
-def _compose_conversation_facts(*, conversation: Conversation) -> tuple[WebFact, ...]:
+def _compose_conversation_facts(
+    *, conversation: Conversation
+) -> tuple[StatusFact, ...]:
     """Return the settings that a conversation settled at its first round."""
     record = conversation.record
     return (
-        WebFact(label="label", value=record.dispatch_label),
-        WebFact(label="harness", value=str(record.harness)),
-        WebFact(label="model", value=f"{record.model} · {record.effort}"),
+        StatusFact(label="label", value=record.dispatch_label),
+        StatusFact(label="harness", value=str(record.harness)),
+        StatusFact(label="model", value=f"{record.model} · {record.effort}"),
     )
 
 
@@ -232,7 +230,7 @@ def _compose_agent_rounds(
     return tuple(
         WebAgentRound(
             number=round_status.record.number,
-            purpose=round_status.purpose_description,
+            purpose_description=round_status.purpose_description,
             started=describe_time(at=round_status.record.started, zone=zone),
             duration=round_status.duration_description,
             outcome=str(round_status.record.outcome),

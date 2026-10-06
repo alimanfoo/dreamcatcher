@@ -42,7 +42,7 @@ from dreamcatcher.scheduler.models import (
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.status import (
     DreamcatcherDaemonStatus,
-    InstanceFact,
+    StatusFact,
     read_assignment_status,
     read_assignment_statuses_for_issue,
     read_dreamcatcher_daemon_status,
@@ -687,11 +687,11 @@ def test_an_active_cooldown_and_scheduler_failures_are_instance_facts(running):
     assert found.daemon.max_agents == 3
     assert found.active_global_cooldown == cooldown
     assert found.instance_facts == (
-        InstanceFact(label="preferred harness", value="claude"),
-        InstanceFact(label="next update in", value="0s"),
-        InstanceFact(label="agent capacity", value="0 of 3 working"),
-        InstanceFact(label="global cooldown", value="ends in 1m", is_warning=True),
-        InstanceFact(
+        StatusFact(label="preferred harness", value="claude"),
+        StatusFact(label="next update in", value="0s"),
+        StatusFact(label="agent capacity", value="0 of 3 working"),
+        StatusFact(label="global cooldown", value="ends in 1m", is_warning=True),
+        StatusFact(
             label="scheduler failures",
             value="could not start assignment; could not read comments for GH8",
             is_warning=True,

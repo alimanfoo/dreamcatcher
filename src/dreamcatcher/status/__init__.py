@@ -12,7 +12,7 @@ from dreamcatcher.status.issues import IssueStatus
 from dreamcatcher.status.report import (
     DreamcatcherDaemonStatus,
     DreamcatcherStatusReport,
-    InstanceFact,
+    StatusFact,
     read_assignment_status,
     read_assignment_statuses_for_issue,
     read_conversation_status,
@@ -31,8 +31,8 @@ __all__ = [
     "ConversationStatus",
     "DreamcatcherDaemonStatus",
     "DreamcatcherStatusReport",
-    "InstanceFact",
     "IssueStatus",
+    "StatusFact",
     "read_assignment_status",
     "read_assignment_statuses_for_issue",
     "read_conversation_status",
