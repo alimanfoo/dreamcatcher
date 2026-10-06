@@ -1,9 +1,9 @@
 # Command reference
 
 _dreamcatcher_'s command-line program is `dreamcatcher`. Run operational
-commands from the repository checkout that they concern. `run` requires the main
-checkout; every other command requires the checkout in which _dreamcatcher_ has
-already created local state.
+commands from the repository checkout that they concern. `init` and `run`
+require the main checkout; every other command requires the checkout in which
+_dreamcatcher_ has already created local state.
 
 ```text
 dreamcatcher [--version] <command> [options]
@@ -19,6 +19,7 @@ prefix is case-insensitive, so `GH123` and `gh123` both name issue 123.
 
 | Command        | Purpose                                              |
 | -------------- | ---------------------------------------------------- |
+| `init`         | Prepare this repository's main checkout.             |
 | `run`          | Run the daemon for this repository.                  |
 | `retry`        | Allow faulted work at one issue to recover again.    |
 | `stop`         | Stop one running assignment or conversation round.   |
@@ -28,6 +29,42 @@ prefix is case-insensitive, so `GH123` and `gh123` both name issue 123.
 | `assignment`   | Show one issue's newest assignment.                  |
 | `conversation` | Show one issue conversation.                         |
 | `feed`         | Follow an assignment or conversation's agent output. |
+
+## `init`
+
+```text
+dreamcatcher init
+```
+
+Prepare the main checkout in the current directory for `run`. The command takes
+these steps in order, and prints what it finds as it goes:
+
+1. Check that the current directory is a repository's main checkout.
+2. Check that `gh` can name the repository and the account it is signed in as,
+   and that the account can push to the repository.
+3. Check that Git has an identity to commit with, and fetch `origin main`.
+4. Find which of `claude` and `codex` are on `PATH`, and refuse when neither is.
+5. Write the
+   [default configuration](configuration-reference.md#complete-example) to
+   `dreamcatcher.toml` when the file does not exist, with the recipes of each
+   harness that is not on `PATH` commented out. An existing file is never
+   changed.
+6. For each harness that `dreamcatcher.toml` uses, check that it is signed in,
+   then install the [`dream` plugin](https://github.com/alimanfoo/dream) for the
+   user.
+7. Create each label in `dreamcatcher.toml` that the repository lacks, matching
+   names case-insensitively. Existing labels are not changed.
+8. Print the next steps, including the commands that commit and push
+   `dreamcatcher.toml` when `origin/main` does not hold it as the checkout has
+   it.
+
+The command stops at the first step that fails, and says how to fix it. It also
+refuses when `dreamcatcher.toml` uses a harness that is not on `PATH`. Every
+step leaves alone what is already in place, so running the command again is
+safe, and repeats the checks.
+
+Installing the plugin changes the user's own Claude Code or Codex settings, not
+the repository. The command never commits or pushes.
 
 ## `run`
 

@@ -41,7 +41,10 @@ from dreamcatcher.prompts import (
     compose_conversation_round_prompt,
 )
 from dreamcatcher.scheduler.agent_work import AgentWorkScheduler, RouteIssueListing
-from dreamcatcher.scheduler.faults import derive_agent_work_fault
+from dreamcatcher.scheduler.faults import (
+    derive_agent_work_fault,
+    is_awaiting_recovery,
+)
 from dreamcatcher.scheduler.models import (
     AgentWorkInspection,
     ConversationObservation,
@@ -466,11 +469,8 @@ def _inspect_conversation_recovery(
             candidate=None,
             is_fault=True,
         )
-    if (
-        conversation is not None
-        and conversation.rounds
-        and conversation.rounds[-1].outcome
-        in {AgentRoundOutcome.ERRORED, AgentRoundOutcome.INTERRUPTED}
+    if conversation is not None and is_awaiting_recovery(
+        rounds=conversation.rounds, is_daemon_running=True
     ):
         return _ConversationInspection(
             observation=ConversationObservation(

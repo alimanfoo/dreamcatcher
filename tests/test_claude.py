@@ -410,3 +410,12 @@ def test_a_tool_input_that_is_not_a_mapping_comes_through_unchanged():
     )
 
     assert CLAUDE_ADAPTER.read(line=line) == [FeedProse(text=line)]
+
+
+def test_a_plugin_installs_for_the_user_so_every_worktree_has_it():
+    assert CLAUDE_ADAPTER.build_plugin_installation(
+        marketplace="alimanfoo/dream", plugin="dream@dream"
+    ) == [
+        ["plugin", "marketplace", "add", "alimanfoo/dream"],
+        ["plugin", "install", "dream@dream", "--scope", "user"],
+    ]

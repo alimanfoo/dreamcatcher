@@ -384,3 +384,12 @@ def test_an_item_that_is_not_a_mapping_comes_through_unchanged():
     line = streamed(type="item.completed", item=["not", "a", "map"])
 
     assert CODEX_ADAPTER.read(line=line) == [FeedProse(text=line)]
+
+
+def test_a_plugin_installs_from_the_marketplace_codex_adds():
+    assert CODEX_ADAPTER.build_plugin_installation(
+        marketplace="alimanfoo/dream", plugin="dream@dream"
+    ) == [
+        ["plugin", "marketplace", "add", "alimanfoo/dream"],
+        ["plugin", "add", "dream@dream"],
+    ]

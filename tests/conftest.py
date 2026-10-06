@@ -15,7 +15,7 @@ import pytest
 from records import release_daemon_locks
 
 from dreamcatcher.commands import run_command, spawn_command
-from dreamcatcher.config import _DREAMCATCHER_CONFIG_NAME
+from dreamcatcher.config import DREAMCATCHER_CONFIG_NAME
 
 ARMING = "PYTHONWARNDEFAULTENCODING"
 REGENERATE_VIEW_GOLDENS_OPTION = "--regenerate-view-goldens"
@@ -279,7 +279,7 @@ def cloned(seeded_checkout, seeded_upstream, tmp_path):
 @pytest.fixture
 def watched(repo):
     """Return a main checkout carrying a valid dreamcatcher.toml."""
-    (repo / _DREAMCATCHER_CONFIG_NAME).write_text(CONFIG, encoding="utf-8")
+    (repo / DREAMCATCHER_CONFIG_NAME).write_text(CONFIG, encoding="utf-8")
     return repo
 
 
@@ -346,7 +346,7 @@ def harnesses(fake):
 
 def configure(*, root, head: str = "") -> None:
     """Write a config for that checkout, with this ahead of its one route."""
-    (root / _DREAMCATCHER_CONFIG_NAME).write_text(
+    (root / DREAMCATCHER_CONFIG_NAME).write_text(
         head + SMITH_CLAUDE + SMITH_CODEX, encoding="utf-8"
     )
 

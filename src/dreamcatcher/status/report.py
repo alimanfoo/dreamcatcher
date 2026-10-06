@@ -24,9 +24,9 @@ from dreamcatcher.scheduler.faults import read_scheduler_record
 from dreamcatcher.scheduler.models import (
     GlobalCooldown,
     IssueObservation,
-    ObservedFact,
     SchedulerRecord,
     Truth,
+    observe_claimed_here,
 )
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.status.assignments import (
@@ -179,44 +179,21 @@ def _refresh_issue_observations(
 ) -> list[IssueObservation]:
     if scheduler_record is None:
         return []
-    assignments_by_issue: dict[int, list[Assignment]] = {}
-    for assignment in assignments:
-        assignments_by_issue.setdefault(assignment.record.issue, []).append(assignment)
+    open_assignment_issues = find_open_assignments_by_issue(
+        assignments=assignments
+    ).keys()
     return [
-        _refresh_issue_observation(
-            observation=observation,
-            assignments=assignments_by_issue.get(observation.issue, []),
-            recorded_at=scheduler_record.at,
+        observation.model_copy(
+            update={
+                "claimed_here": observe_claimed_here(
+                    issue=observation.issue,
+                    open_assignment_issues=open_assignment_issues,
+                ),
+                "observed_at": observation.observed_at or scheduler_record.at,
+            }
         )
         for observation in scheduler_record.issue_observations
     ]
-
-
-def _refresh_issue_observation(
-    *,
-    observation: IssueObservation,
-    assignments: list[Assignment],
-    recorded_at: datetime,
-) -> IssueObservation:
-    open_assignment = find_open_assignments_by_issue(assignments=assignments).get(
-        observation.issue
-    )
-    if open_assignment is not None:
-        claimed_here = ObservedFact(
-            value=Truth.TRUE,
-            evidence="this checkout has an open assignment for it",
-        )
-    elif assignments:
-        claimed_here = ObservedFact(
-            value=Truth.FALSE,
-            evidence="this checkout has no open assignment for it",
-        )
-    else:
-        claimed_here = observation.claimed_here
-    refreshed = observation.model_copy(update={"claimed_here": claimed_here})
-    if refreshed.observed_at is None:
-        return refreshed.model_copy(update={"observed_at": recorded_at})
-    return refreshed
 
 
 def _count_running_agents(

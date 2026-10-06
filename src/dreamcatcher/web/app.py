@@ -51,8 +51,8 @@ from dreamcatcher.web.views import (
 )
 
 _HTMX_STOP_POLLING_STATUS = 286
-_DEFAULT_WEB_THEME = "matrix"
-_WEB_THEME_MARKS = {_DEFAULT_WEB_THEME: "phosphor", "nature": "ink"}
+_DEFAULT_WEB_THEME = "nature"
+_WEB_THEME_MARKS = {"matrix": "phosphor", "nature": "ink"}
 _WEB_THEMES = tuple(_WEB_THEME_MARKS)
 _CROSS_ORIGIN_POST_RESPONSE = (
     "Requests that change agent work must come from this dreamcatcher page.",
