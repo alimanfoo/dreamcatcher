@@ -9,8 +9,8 @@ from dreamcatcher.github import (
     IssuePullRequestContext,
     PullRequest,
     PullRequestState,
-    identify_github_account,
-    identify_github_repository,
+    _identify_github_account,
+    _identify_github_repository,
     list_blocking_issues,
     list_issues,
     list_pull_requests,
@@ -32,11 +32,11 @@ BLOCKING = 8
 
 
 def test_this_checkout_is_this_repository():
-    assert identify_github_repository(root=CHECKOUT) == REPOSITORY
+    assert _identify_github_repository(root=CHECKOUT) == REPOSITORY
 
 
 def test_gh_is_signed_in_as_somebody():
-    assert identify_github_account()
+    assert _identify_github_account()
 
 
 def test_gh_takes_the_whole_issue_listing_command():

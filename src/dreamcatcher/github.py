@@ -22,6 +22,7 @@ from pydantic import (
 )
 
 from dreamcatcher.commands import CommandError, run_command
+from dreamcatcher.errors import ReportableError
 
 # gh lists thirty of anything unless you tell it otherwise, and thirty issues is
 # a number a busy repository passes. Asking for five hundred keeps the tool from
@@ -316,7 +317,7 @@ _GITHUB_USER_POST_ENDPOINTS = (
 )
 
 
-def identify_github_repository(*, root: Path) -> str | UnknownGitHubResponse:
+def _identify_github_repository(*, root: Path) -> str | UnknownGitHubResponse:
     """Return the checkout's repository as owner/name.
 
     gh reads the repository from the checkout's own remote, so this asks from
@@ -332,7 +333,7 @@ def identify_github_repository(*, root: Path) -> str | UnknownGitHubResponse:
     return repository_response.name_with_owner
 
 
-def identify_github_account() -> str | UnknownGitHubResponse:
+def _identify_github_account() -> str | UnknownGitHubResponse:
     """Return the login of the account gh is signed in as."""
     account_response = _read_github_response(
         response_adapter=_GITHUB_ACCOUNT_RESPONSE_ADAPTER,
@@ -341,6 +342,34 @@ def identify_github_account() -> str | UnknownGitHubResponse:
     if isinstance(account_response, UnknownGitHubResponse):
         return account_response
     return account_response.login
+
+
+@dataclass(frozen=True, kw_only=True)
+class GitHubIdentity:
+    """Name the checkout's repository and the account gh is signed in as."""
+
+    repository: str
+    account: str
+
+
+def require_github_identity(*, root: Path) -> GitHubIdentity:
+    """Return the identity of the checkout at root, or refuse saying what is unknown.
+
+    Nothing can be done for a repository that gh cannot name, or as an account
+    gh is not signed in as, so not knowing either one is a ReportableError.
+    """
+    repository = _identify_github_repository(root=root)
+    if isinstance(repository, UnknownGitHubResponse):
+        raise ReportableError(
+            f"dreamcatcher cannot tell which repository this is: {repository.reason}"
+        )
+    account = _identify_github_account()
+    if isinstance(account, UnknownGitHubResponse):
+        raise ReportableError(
+            "dreamcatcher cannot tell which account gh is signed in as: "
+            f"{account.reason}"
+        )
+    return GitHubIdentity(repository=repository, account=account)
 
 
 def list_issues(

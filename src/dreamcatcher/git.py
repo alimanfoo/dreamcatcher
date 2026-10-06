@@ -1,6 +1,6 @@
-"""Run the Git commands that create, refresh and remove worktrees for agent work.
+"""Recognise a main checkout, and run the Git commands that agent work needs.
 
-Every one of these raises CommandError when git refuses, carrying git's own
+Every command here raises CommandError when git refuses, carrying git's own
 words, so no caller has to guess what went wrong. What to do about a creation
 that failed part way is the caller's, since only the caller knows how far it
 got.
@@ -10,6 +10,18 @@ from pathlib import Path
 
 from dreamcatcher.commands import CommandError, run_command
 from dreamcatcher.errors import ReportableError
+
+
+def require_main_checkout(*, root: Path) -> None:
+    """Refuse a root that is not a repository's main checkout.
+
+    The tool creates worktrees of its own, so it refuses a linked worktree
+    as well as a directory outside any repository.
+    """
+    if not (root / ".git").is_dir():
+        raise ReportableError(
+            f"Run dreamcatcher from a repository's main checkout. {root} is not one."
+        )
 
 
 def fetch_main(*, root: Path) -> None:

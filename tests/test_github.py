@@ -21,9 +21,9 @@ from dreamcatcher.github import (
     PullRequestState,
     UnknownGitHubResponse,
     UserPost,
+    _identify_github_account,
+    _identify_github_repository,
     create_pull_request,
-    identify_github_account,
-    identify_github_repository,
     list_blocking_issues,
     list_issue_comments,
     list_issues,
@@ -59,7 +59,7 @@ def test_the_repository_comes_from_the_checkouts_own_remote(fake, tmp_path):
     gh = fake(program="gh")
     gh.replies(stdout=json.dumps({"nameWithOwner": REPOSITORY}))
 
-    assert identify_github_repository(root=tmp_path) == REPOSITORY
+    assert _identify_github_repository(root=tmp_path) == REPOSITORY
     assert gh.calls[0].arguments == ["repo", "view", "--json", "nameWithOwner"]
     assert gh.calls[0].directory == tmp_path.resolve()
 
@@ -68,7 +68,7 @@ def test_the_signed_in_account_is_the_one_gh_names(fake):
     gh = fake(program="gh")
     gh.replies(stdout=json.dumps({"login": "alimanfoo"}))
 
-    assert identify_github_account() == "alimanfoo"
+    assert _identify_github_account() == "alimanfoo"
     assert gh.calls[0].arguments == ["api", "user"]
 
 
@@ -576,9 +576,9 @@ def test_a_recorded_inline_comment_carries_the_diff_it_was_written_against(
     "ask",
     [
         pytest.param(
-            lambda: identify_github_repository(root=Path.cwd()), id="the repository"
+            lambda: _identify_github_repository(root=Path.cwd()), id="the repository"
         ),
-        pytest.param(identify_github_account, id="the account"),
+        pytest.param(_identify_github_account, id="the account"),
         pytest.param(
             lambda: list_issues(
                 repository=REPOSITORY, label="dream:smith", assignee="@me"

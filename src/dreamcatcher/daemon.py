@@ -20,11 +20,8 @@ from dreamcatcher.config import AgentHarness, read_dreamcatcher_config
 from dreamcatcher.daemon_runs import DaemonRunRecord
 from dreamcatcher.documents import write_json, write_text
 from dreamcatcher.errors import ReportableError
-from dreamcatcher.github import (
-    UnknownGitHubResponse,
-    identify_github_account,
-    identify_github_repository,
-)
+from dreamcatcher.git import require_main_checkout
+from dreamcatcher.github import require_github_identity
 from dreamcatcher.harnesses import HARNESS_ADAPTERS
 from dreamcatcher.issue_conversations import read_conversations
 from dreamcatcher.lock import hold_daemon_lock
@@ -80,11 +77,7 @@ class DreamcatcherDaemon:
 
         Report times use the machine's local zone when zone is None.
         """
-        if not (root / ".git").is_dir():
-            raise ReportableError(
-                f"Start dreamcatcher from a repository's main checkout. "
-                f"{root} is not one."
-            )
+        require_main_checkout(root=root)
         self.harness = harness
         self.interval = interval
         self.max_agents = max_agents
@@ -126,26 +119,19 @@ class DreamcatcherDaemon:
                 ),
                 path=self.state.daemon_run_record,
             )
-            repository = _require_known_github_value(
-                value=identify_github_repository(root=self.state.root),
-                question="which repository this is",
-            )
-            write_text(text=f"{repository}\n", path=self.state.repository)
-            account = _require_known_github_value(
-                value=identify_github_account(),
-                question="which account gh is signed in as",
-            )
+            identity = require_github_identity(root=self.state.root)
+            write_text(text=f"{identity.repository}\n", path=self.state.repository)
             assignments = AssignmentScheduler(
-                repository=repository,
-                account=account,
+                repository=identity.repository,
+                account=identity.account,
                 config=self.config,
                 state=self.state,
                 requested_harness=self.harness,
                 clock=self.clock,
             )
             conversations = ConversationScheduler(
-                repository=repository,
-                account=account,
+                repository=identity.repository,
+                account=identity.account,
                 config=self.config,
                 state=self.state,
                 requested_harness=self.harness,
@@ -275,12 +261,3 @@ def _describe_launches(*, identifiers: list[str]) -> str:
         return "nothing launched"
     round_noun = "round" if len(identifiers) == 1 else "rounds"
     return f"launched {round_noun} for {', '.join(identifiers)}"
-
-
-def _require_known_github_value(
-    *, value: str | UnknownGitHubResponse, question: str
-) -> str:
-    """Return what gh named, or refuse the daemon run saying what it could not tell."""
-    if isinstance(value, UnknownGitHubResponse):
-        raise ReportableError(f"dreamcatcher cannot tell {question}: {value.reason}")
-    return value
