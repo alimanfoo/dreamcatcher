@@ -588,7 +588,7 @@ body::after {
   color: #8c3f2b;
 }
 
-.manual-recovery {
+.agent-work-controls {
   color: var(--dim);
   border-top-color: var(--rule);
 }

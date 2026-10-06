@@ -625,14 +625,23 @@ body::after {
   color: var(--amber);
 }
 
-.hand-resume {
-  display: contents;
-}
-
-.manual-recovery {
+.agent-work-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-5) var(--space-9);
   padding-top: var(--space-7);
   color: var(--dim);
   border-top: var(--line) solid var(--rule);
+}
+
+.agent-work-controls:empty {
+  display: none;
+}
+
+.manual-recovery {
+  flex: 1;
+  min-width: 0;
 }
 
 .manual-recovery summary {

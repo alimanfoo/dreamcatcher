@@ -85,7 +85,7 @@ def test_a_tail_refresh_leaves_an_opened_hand_resume_open(
     page: Page, live_web: str
 ) -> None:
     page.goto(f"{live_web}/conversations/8")
-    hand_resume = page.locator("#hand-resume details")
+    hand_resume = page.locator("#agent-work-controls details")
     hand_resume.locator("summary").click()
     expect(hand_resume).to_have_attribute("open", "")
 

@@ -185,10 +185,7 @@ def test_conversation_tail_offers_a_hand_resume_only_while_no_round_runs(tmp_pat
     release_daemon_lock(path=state.lock)
     without_daemon = client.get("/conversations/8/tail", query_string=query)
 
-    assert (
-        '<div id="hand-resume" class="hand-resume" hx-swap-oob="morph"></div>'
-        in working.text
-    )
+    assert "<summary>resume by hand</summary>" not in working.text
     assert "<summary>resume by hand</summary>" in without_daemon.text
     assert "claude --resume conversation-session" in without_daemon.text
 
