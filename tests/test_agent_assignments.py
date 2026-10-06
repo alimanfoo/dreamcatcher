@@ -118,7 +118,7 @@ def test_an_assignment_cuts_a_worktree_of_its_own_under_the_state_directory(
     )
 
     assert assignment.identifier == ASSIGNMENT_ID
-    assert assignment.record.worktree == state.worktrees / ASSIGNMENT_ID
+    assert assignment.record.worktree == state.assignment_worktrees / ASSIGNMENT_ID
     assert (assignment.record.worktree / "README.md").exists()
 
 
@@ -572,7 +572,7 @@ def test_an_assignment_git_cannot_cut_leaves_no_branch_behind(state, route):
     # git makes the branch, then finds something already in the worktree's
     # place and stops. The worktree it never made cannot be removed, so the
     # back-out takes what git did leave.
-    occupied = state.worktrees / ASSIGNMENT_ID
+    occupied = state.assignment_worktrees / ASSIGNMENT_ID
     occupied.mkdir(parents=True)
     (occupied / "in the way.txt").write_text("not ours\n", encoding="utf-8")
 
@@ -603,7 +603,7 @@ def test_an_assignment_that_cannot_record_reuses_its_complete_setup(state, route
             at=PINNED,
         )
 
-    assert (state.worktrees / ASSIGNMENT_ID).exists()
+    assert (state.assignment_worktrees / ASSIGNMENT_ID).exists()
     assert BRANCH in git(arguments=["branch", "--list", BRANCH], cwd=state.root)
 
     (state.assignments / ASSIGNMENT_ID).unlink()
@@ -633,7 +633,7 @@ def test_an_interrupted_creation_continues_from_its_existing_artifacts(
     state, route, gh, checkpoint
 ):
     fetch_main(root=state.root)
-    worktree = state.worktrees / ASSIGNMENT_ID
+    worktree = state.assignment_worktrees / ASSIGNMENT_ID
     add_worktree(root=state.root, path=worktree, branch=BRANCH)
     if checkpoint != "worktree":
         make_empty_commit(worktree=worktree, message="GH12")
@@ -679,7 +679,7 @@ def test_an_issue_with_an_open_assignment_cannot_receive_another(state, route, g
             at=PINNED + timedelta(hours=1),
         )
 
-    assert len(list(state.worktrees.iterdir())) == 1
+    assert len(list(state.assignment_worktrees.iterdir())) == 1
     branches = git(
         arguments=["branch", "--list", "dreamcatcher-GH12-*"], cwd=state.root
     )
@@ -769,7 +769,7 @@ def test_several_incomplete_setups_for_one_issue_are_reported(state, route):
     for identifier in (ASSIGNMENT_ID, "GH12-20260819-194158"):
         add_worktree(
             root=state.root,
-            path=state.worktrees / identifier,
+            path=state.assignment_worktrees / identifier,
             branch=f"dreamcatcher-{identifier}",
         )
 
@@ -793,7 +793,7 @@ def test_an_incomplete_setup_without_a_pull_request_is_recoverable(state, gh):
     fetch_main(root=state.root)
     add_worktree(
         root=state.root,
-        path=state.worktrees / ASSIGNMENT_ID,
+        path=state.assignment_worktrees / ASSIGNMENT_ID,
         branch=BRANCH,
     )
 
@@ -806,7 +806,7 @@ def test_an_incomplete_setup_with_its_linked_draft_is_recoverable(state, gh):
     fetch_main(root=state.root)
     add_worktree(
         root=state.root,
-        path=state.worktrees / ASSIGNMENT_ID,
+        path=state.assignment_worktrees / ASSIGNMENT_ID,
         branch=BRANCH,
     )
     gh.replies(stdout=pull_requests(listed=[(PULL_REQUEST, "OPEN")]), to="pr list")
@@ -821,7 +821,7 @@ def test_an_incomplete_worktree_on_another_branch_is_reported(state, route):
     fetch_main(root=state.root)
     add_worktree(
         root=state.root,
-        path=state.worktrees / ASSIGNMENT_ID,
+        path=state.assignment_worktrees / ASSIGNMENT_ID,
         branch="some-other-branch",
     )
 
@@ -845,7 +845,7 @@ def test_a_finished_pull_request_on_the_incomplete_branch_is_not_adopted(
     state, route, gh, state_name
 ):
     fetch_main(root=state.root)
-    worktree = state.worktrees / ASSIGNMENT_ID
+    worktree = state.assignment_worktrees / ASSIGNMENT_ID
     add_worktree(root=state.root, path=worktree, branch=BRANCH)
     make_empty_commit(worktree=worktree, message="GH12")
     push_branch(root=state.root, branch=BRANCH)
@@ -867,7 +867,7 @@ def test_an_unlinked_pull_request_on_the_incomplete_branch_is_not_adopted(
     state, route, gh
 ):
     fetch_main(root=state.root)
-    worktree = state.worktrees / ASSIGNMENT_ID
+    worktree = state.assignment_worktrees / ASSIGNMENT_ID
     add_worktree(root=state.root, path=worktree, branch=BRANCH)
     make_empty_commit(worktree=worktree, message="GH12")
     push_branch(root=state.root, branch=BRANCH)
@@ -887,7 +887,7 @@ def test_an_unlinked_pull_request_on_the_incomplete_branch_is_not_adopted(
 
 def test_a_ready_pull_request_on_the_incomplete_branch_is_not_adopted(state, route, gh):
     fetch_main(root=state.root)
-    worktree = state.worktrees / ASSIGNMENT_ID
+    worktree = state.assignment_worktrees / ASSIGNMENT_ID
     add_worktree(root=state.root, path=worktree, branch=BRANCH)
     make_empty_commit(worktree=worktree, message="GH12")
     push_branch(root=state.root, branch=BRANCH)
@@ -921,7 +921,7 @@ def test_a_pull_request_listing_failure_keeps_the_setup_for_a_retry(state, route
             at=PINNED,
         )
 
-    assert (state.worktrees / ASSIGNMENT_ID).exists()
+    assert (state.assignment_worktrees / ASSIGNMENT_ID).exists()
 
 
 def test_a_linked_pull_request_read_failure_keeps_the_setup_for_a_retry(
@@ -940,7 +940,7 @@ def test_a_linked_pull_request_read_failure_keeps_the_setup_for_a_retry(
             at=PINNED,
         )
 
-    assert (state.worktrees / ASSIGNMENT_ID).exists()
+    assert (state.assignment_worktrees / ASSIGNMENT_ID).exists()
 
 
 def test_an_unrelated_linked_pull_request_prevents_another_one(state, route, gh):
@@ -1329,7 +1329,9 @@ def test_a_file_left_among_the_worktrees_is_not_an_assignment(state, route):
         issue=12,
         at=PINNED,
     )
-    (state.worktrees / ".DS_Store").write_text("a file browser\n", encoding="utf-8")
+    (state.assignment_worktrees / ".DS_Store").write_text(
+        "a file browser\n", encoding="utf-8"
+    )
 
     assert read_assignments(state=state) == [created]
 
@@ -1342,7 +1344,7 @@ def test_a_worktree_with_no_record_beside_it_is_not_an_assignment(state, route):
         issue=12,
         at=PINNED,
     )
-    (state.worktrees / "GH3-20260819-184158").mkdir()
+    (state.assignment_worktrees / "GH3-20260819-184158").mkdir()
 
     assert read_assignments(state=state) == [created]
 

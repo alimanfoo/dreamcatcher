@@ -282,14 +282,18 @@ def test_a_tick_assigns_the_oldest_issue_nothing_stands_in_the_way_of(
 
     assignment = scheduler.assignments.state.assignments / CREATED_ASSIGNMENT_ID
     assert (
-        scheduler.assignments.state.worktrees / CREATED_ASSIGNMENT_ID / "README.md"
+        scheduler.assignments.state.assignment_worktrees
+        / CREATED_ASSIGNMENT_ID
+        / "README.md"
     ).exists()
     assert (assignment / "assignment.json").exists()
     assert observed.issue_observations[0].observed_at == observed.at
     assert observed.launched_agent_work_identifiers == [CREATED_ASSIGNMENT_ID]
     assert (
         harnesses["claude"].calls[0].directory
-        == (scheduler.assignments.state.worktrees / CREATED_ASSIGNMENT_ID).resolve()
+        == (
+            scheduler.assignments.state.assignment_worktrees / CREATED_ASSIGNMENT_ID
+        ).resolve()
     )
 
 
@@ -335,8 +339,12 @@ def test_a_tick_fills_free_capacity_with_available_issues(ready_repo, offered):
         "GH9-20260819-184158",
     ]
     assert scheduler.is_at_capacity
-    assert (scheduler.assignments.state.worktrees / "GH9-20260819-184158").exists()
-    assert not (scheduler.assignments.state.worktrees / "GH10-20260819-184158").exists()
+    assert (
+        scheduler.assignments.state.assignment_worktrees / "GH9-20260819-184158"
+    ).exists()
+    assert not (
+        scheduler.assignments.state.assignment_worktrees / "GH10-20260819-184158"
+    ).exists()
 
 
 def test_a_later_failed_launch_keeps_the_rounds_already_started(
@@ -366,7 +374,9 @@ def test_a_later_failed_launch_keeps_the_rounds_already_started(
 
     assert observed.launched_agent_work_identifiers == [CREATED_ASSIGNMENT_ID]
     assert observed.failures == ["could not create an assignment for GH9"]
-    assert not (scheduler.assignments.state.worktrees / "GH10-20260819-184158").exists()
+    assert not (
+        scheduler.assignments.state.assignment_worktrees / "GH10-20260819-184158"
+    ).exists()
 
 
 def test_a_second_tick_judges_an_assigned_issue_handled(ready_repo):
@@ -542,7 +552,7 @@ def test_a_tick_with_nothing_eligible_starts_no_assignment(ready_repo, offered):
     assert observed_issues(tick=observed) == [8]
     assert observed.issue_observations[0].blocked.value is Truth.TRUE
     assert availability_values(tick=observed) == [Truth.FALSE]
-    assert not scheduler.assignments.state.worktrees.exists()
+    assert not scheduler.assignments.state.assignment_worktrees.exists()
 
 
 def test_one_errored_round_receives_an_ordinary_recovery(ready_repo):
@@ -558,7 +568,9 @@ def test_one_errored_round_receives_an_ordinary_recovery(ready_repo):
 
     assert observed.launched_agent_work_identifiers == [ASSIGNMENT_ID]
     assert observed.cooldown is None
-    assert not (scheduler.assignments.state.worktrees / CREATED_ASSIGNMENT_ID).exists()
+    assert not (
+        scheduler.assignments.state.assignment_worktrees / CREATED_ASSIGNMENT_ID
+    ).exists()
 
 
 def test_one_faulted_assignment_does_not_block_unrelated_work(ready_repo):
@@ -771,7 +783,9 @@ def test_a_dispatch_whose_round_will_not_start_retries_the_prepared_assignment(
     assert "cannot write" in sole_failure(observed=observed)
     assert observed_issues(tick=observed) == [8]
     assert availability_values(tick=observed) == [Truth.TRUE]
-    assert (scheduler.assignments.state.worktrees / CREATED_ASSIGNMENT_ID).exists()
+    assert (
+        scheduler.assignments.state.assignment_worktrees / CREATED_ASSIGNMENT_ID
+    ).exists()
     branch = f"dreamcatcher-{CREATED_ASSIGNMENT_ID}"
     assert branch in git(arguments=["branch", "--list", branch], cwd=ready_repo)
 
@@ -808,7 +822,7 @@ def test_the_next_tick_recovers_each_incomplete_creation_checkpoint(
 ):
     state = StateDirectory(root=ready_repo)
     branch = f"dreamcatcher-{CREATED_ASSIGNMENT_ID}"
-    worktree = state.worktrees / CREATED_ASSIGNMENT_ID
+    worktree = state.assignment_worktrees / CREATED_ASSIGNMENT_ID
     fetch_main(root=ready_repo)
     add_worktree(root=ready_repo, path=worktree, branch=branch)
     if checkpoint != "worktree":
@@ -856,7 +870,7 @@ def test_a_tick_records_an_incomplete_setup_failure(ready_repo):
     fetch_main(root=ready_repo)
     add_worktree(
         root=ready_repo,
-        path=state.worktrees / CREATED_ASSIGNMENT_ID,
+        path=state.assignment_worktrees / CREATED_ASSIGNMENT_ID,
         branch="some-other-branch",
     )
     scheduler, clock = create_scheduler(root=ready_repo)
@@ -1243,7 +1257,9 @@ def test_open_work_is_carried_on_before_a_new_issue_is_assigned(resuming, gh, of
     observed = scheduler.tick(at=clock())
 
     assert observed.launched_agent_work_identifiers == [ASSIGNMENT_ID]
-    assert not (scheduler.assignments.state.worktrees / CREATED_ASSIGNMENT_ID).exists()
+    assert not (
+        scheduler.assignments.state.assignment_worktrees / CREATED_ASSIGNMENT_ID
+    ).exists()
     assert observed_issues(tick=observed) == [8, 13]
     assert observed.issue_observations[1].claimed_here.value is Truth.TRUE
 
@@ -1273,7 +1289,9 @@ def test_a_failed_issue_listing_prevents_new_assignments_but_not_recovery(
         Truth.FALSE,
     ]
     assert observed.launched_agent_work_identifiers == [ASSIGNMENT_ID]
-    assert not (scheduler.assignments.state.worktrees / CREATED_ASSIGNMENT_ID).exists()
+    assert not (
+        scheduler.assignments.state.assignment_worktrees / CREATED_ASSIGNMENT_ID
+    ).exists()
 
 
 def test_two_faulted_assignments_start_a_global_cooldown(ready_repo):
