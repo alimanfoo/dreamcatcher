@@ -820,6 +820,12 @@ def test_github_links_open_in_a_new_tab(tmp_path):
         '<a class="repository-link" '
         'href="https://github.com/alimanfoo/dreamcatcher" '
         'target="_blank" rel="noopener noreferrer">alimanfoo/dreamcatcher</a>'
+        '<a class="repository-link" '
+        'href="https://github.com/alimanfoo/dreamcatcher/issues" '
+        'target="_blank" rel="noopener noreferrer">issues</a>'
+        '<a class="repository-link" '
+        'href="https://github.com/alimanfoo/dreamcatcher/pulls" '
+        'target="_blank" rel="noopener noreferrer">pulls</a>'
     ) in pages
 
 

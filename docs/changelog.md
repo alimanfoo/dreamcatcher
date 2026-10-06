@@ -28,6 +28,9 @@ each entry links the pull request that made the change.
 
 ### Added
 
+- The top bar of every web page now links to the repository's **issues** and
+  **pulls** on GitHub, beside the repository's name.
+  ([#441](https://github.com/alimanfoo/dreamcatcher/pull/441))
 - `dreamcatcher init` prepares a repository's main checkout for `run`. It checks
   `gh`, Git and each harness, writes a default `dreamcatcher.toml` for the
   harnesses that are installed, installs the `dream` plugin, and creates the
