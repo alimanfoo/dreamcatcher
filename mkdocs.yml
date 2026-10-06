@@ -43,6 +43,11 @@ extra_javascript:
 
 markdown_extensions:
   - pymdownx.highlight
+  # The configuration reference includes the package's default configuration,
+  # and a missing file fails the build.
+  - pymdownx.snippets:
+      base_path: [src/dreamcatcher]
+      check_paths: true
   - pymdownx.superfences
   - tables
   - toc:

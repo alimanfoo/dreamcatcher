@@ -11,3 +11,7 @@ tests/fixtures/** -text
 # Vendored release files are checked against upstream by checksum, so a
 # checkout must not rewrite their line endings.
 src/dreamcatcher/static/vendor/** -text
+
+# init writes the default configuration into a user's checkout as it is here,
+# so no checkout rewrites its line endings.
+src/dreamcatcher/default_config.toml text eol=lf

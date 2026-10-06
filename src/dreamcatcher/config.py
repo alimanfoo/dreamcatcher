@@ -1,5 +1,6 @@
 """Read dreamcatcher.toml, the configuration the repository agrees on."""
 
+from collections.abc import Set
 from enum import StrEnum
 from pathlib import Path
 from typing import Annotated, Self
@@ -9,9 +10,17 @@ from pydantic import AfterValidator, Field, model_validator
 from dreamcatcher.claude import ClaudeConfig
 from dreamcatcher.codex import CodexConfig
 from dreamcatcher.commands import refuse_unquotable
-from dreamcatcher.documents import DreamcatcherDocument, read_toml
+from dreamcatcher.documents import (
+    DreamcatcherDocument,
+    read_text,
+    read_toml,
+    write_text,
+)
 
-_DREAMCATCHER_CONFIG_NAME = "dreamcatcher.toml"
+DREAMCATCHER_CONFIG_NAME = "dreamcatcher.toml"
+
+# The configuration that init writes, which the configuration reference shows.
+_DEFAULT_CONFIG_PATH = Path(__file__).with_name("default_config.toml")
 
 # Text that quoting can carry to a harness's own command line. Windows runs a
 # harness that npm installed as a batch file, so the text meets cmd.exe on the
@@ -183,4 +192,27 @@ class DreamcatcherConfig(DreamcatcherDocument):
 
 def read_dreamcatcher_config(*, root: Path) -> DreamcatcherConfig:
     """Return the configuration the repository at root holds."""
-    return read_toml(model=DreamcatcherConfig, path=root / _DREAMCATCHER_CONFIG_NAME)
+    return read_toml(model=DreamcatcherConfig, path=root / DREAMCATCHER_CONFIG_NAME)
+
+
+def write_default_dreamcatcher_config_if_absent(
+    *, root: Path, harnesses: Set[AgentHarness]
+) -> bool:
+    """Write the default configuration at root, and return whether this wrote it.
+
+    Every recipe table of a harness outside harnesses is commented out, since a
+    run refuses to start while a route names a harness that is not installed.
+    """
+    path = root / DREAMCATCHER_CONFIG_NAME
+    if path.exists():
+        return False
+    lines = []
+    is_left_out = False
+    for line in read_text(path=_DEFAULT_CONFIG_PATH).splitlines(keepends=True):
+        # A table header names its harness last, as [assignment.codex] does.
+        if line.startswith("["):
+            table_name = line.strip().strip("[]").rpartition(".")[2]
+            is_left_out = table_name in set(AgentHarness) - harnesses
+        lines.append(f"#{line}" if is_left_out and line.strip() else line)
+    write_text(text="".join(lines), path=path)
+    return True

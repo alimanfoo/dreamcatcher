@@ -9,6 +9,11 @@ You need the harness CLIs you configure on `PATH`, plus an authenticated `gh`.
 _dreamcatcher_ reads the file when the daemon starts, so restart a running
 daemon after changing it.
 
+[`dreamcatcher init`](command-reference.md#init) writes a starting file with
+routes for the `dream` plugin's skills, when the checkout has none. Edit that
+file, or write your own. `init` installs the `dream` plugin for each harness the
+file uses, even when its prompts invoke other skills.
+
 ## Start with distinct labels
 
 Choose labels that say what kind of work they invite. The following file gives
@@ -32,9 +37,9 @@ model = "opus[1m]"
 effort = "high"
 ```
 
-Create matching `dream:smith` and `dream:discuss` labels in the GitHub
-repository. Label matching is case-insensitive, but using the same spelling
-everywhere makes the route easier to recognise.
+Run [`dreamcatcher init`](command-reference.md#init) to create any of the file's
+labels that the GitHub repository lacks. Label matching is case-insensitive, but
+using the same spelling everywhere makes the route easier to recognise.
 
 An assignment prompt normally invokes an installed assignment skill. The skill
 must know how to adopt _dreamcatcher_'s branch and draft pull request; authors
