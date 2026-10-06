@@ -318,9 +318,8 @@ def _read_completed_item(*, item: dict) -> list[FeedEvent]:
     on. An error item is different. That is Codex reporting a problem of its own
     rather than the agent doing anything, so its label says so.
 
-    An item this does not handle gets no feed line. The only one a round really
-    sends is a todo list, and it arrives finished just as the round ends, so it
-    says nothing about what the round is doing.
+    An item this does not handle gets no feed line. This includes todo lists
+    and collaboration items, so subagent activity does not appear in the feed.
     """
     kind = item["type"]
     if kind == "agent_message":
