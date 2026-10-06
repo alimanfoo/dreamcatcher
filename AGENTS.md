@@ -125,6 +125,17 @@ Open the PNG with the harness's image viewer. For interactions beyond the
 Playwright command, put a throwaway Python script outside the repository and
 drive the printed address with Playwright's synchronous API.
 
+### Documentation site
+
+MkDocs builds the documentation site from `docs/` with the Material theme.
+`mkdocs.yml` sets the navigation, so add every new page to it. A commit hook
+builds the site in strict mode, and a broken link, a missing anchor or a page
+left out of the navigation fails the commit. Preview the site while you edit:
+
+```sh
+uv run mkdocs serve
+```
+
 ## Conventions
 
 ### Development workflow and fixtures

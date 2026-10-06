@@ -1,0 +1,56 @@
+site_name: dreamcatcher
+site_description: >-
+  Carry labelled issues to pull requests with autonomous agent assignments
+site_url: https://alimanfoo.github.io/dreamcatcher/
+repo_url: https://github.com/alimanfoo/dreamcatcher
+repo_name: alimanfoo/dreamcatcher
+edit_uri: edit/main/docs/
+
+# A warning fails the build, so a broken link, a missing anchor or a page left
+# out of the navigation stops the commit.
+strict: true
+validation:
+  omitted_files: warn
+  absolute_links: warn
+  unrecognized_links: warn
+  anchors: warn
+
+theme:
+  name: material
+  features:
+    - content.code.copy
+    - navigation.footer
+    - navigation.sections
+    - toc.follow
+
+markdown_extensions:
+  - pymdownx.highlight
+  - pymdownx.superfences
+  - tables
+  - toc:
+      permalink: true
+
+nav:
+  - Home: index.md
+  - Tutorial:
+      - tutorial.md
+  - How-to guides:
+      - configure.md
+      - run-and-monitor.md
+      - discuss-an-issue.md
+      - review-an-assignment.md
+      - stop-and-recover.md
+  - Reference:
+      - command-reference.md
+      - configuration-reference.md
+      - contract.md
+      - compatibility.md
+      - changelog.md
+  - Development:
+      - standard.md
+      - ontology.md
+      - architecture.md
+      - testing.md
+      - releasing.md
+      - measurement.md
+      - special-cases.md
