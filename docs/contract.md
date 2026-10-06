@@ -4,16 +4,16 @@ Contract version **1** covers assignments and issue conversations. See the
 [compatibility policy](compatibility.md#agent-contract) for what this version
 promises and when it changes.
 
-dreamcatcher watches a GitHub repository for issues that have been labelled for
-implementation by an agent. The repository owner can configure which labels are
-recognised by dreamcatcher, which agent harnesses run assignments (Claude Code
-or Codex), and which assignment skill should guide the agent through the
+_dreamcatcher_ watches a GitHub repository for issues that have been labelled
+for implementation by an agent. The repository owner can configure which labels
+are recognised by _dreamcatcher_, which agent harnesses run assignments (Claude
+Code or Codex), and which assignment skill should guide the agent through the
 implementation of an issue. This guide describes how to write an assignment
-skill that works well with dreamcatcher.
+skill that works well with _dreamcatcher_.
 
 To make this concrete, consider a hypothetical GitHub repository, where the
-owner has configured dreamcatcher to look for issues with the "agent" label, and
-to launch an agent for each labelled issue using an assignment skill named
+owner has configured _dreamcatcher_ to look for issues with the "agent" label,
+and to launch an agent for each labelled issue using an assignment skill named
 "smith". For this to work, the "smith" assignment skill needs to follow this
 guide.
 
@@ -41,13 +41,13 @@ number 123.
 
 ## Branch adoption
 
-Before dreamcatcher starts an assignment, it fetches origin's main, cuts a
+Before _dreamcatcher_ starts an assignment, it fetches origin's main, cuts a
 branch from it, adds a worktree on that branch, makes and pushes an empty
 commit, and opens a linked draft pull request. The agent runs in that worktree,
 so the published branch is checked out and the working tree is clean.
 
 An assignment skill must instruct the agent to adopt the current branch and
-worktree. It must also adopt the draft pull request that dreamcatcher has
+worktree. It must also adopt the draft pull request that _dreamcatcher_ has
 already opened rather than opening another one.
 
 ## Using the draft pull request
@@ -65,7 +65,7 @@ the work.
 
 ## Ending a turn
 
-dreamcatcher runs an agent in rounds, and a round is over when the agent's
+_dreamcatcher_ runs an agent in rounds, and a round is over when the agent's
 process exits. An assignment skill must instruct the agent to end its turn once
 it has nothing left to do, and to post anything it has to tell the user on the
 pull request rather than relying on its turn output. _dreamcatcher_ records that
@@ -73,20 +73,20 @@ output in the feed, but does not publish it as a message to the user.
 
 An assignment skill must not instruct the agent to run anything that waits for a
 person, such as a command that asks to be approved, an editor, or a prompt for
-input. Nothing answers it, and the round stalls until dreamcatcher stops.
+input. Nothing answers it, and the round stalls until _dreamcatcher_ stops.
 
 ## Resumed rounds
 
-dreamcatcher gives an agent a further round whenever there is more for it to do.
-Each such round normally resumes the assignment's harness session where the last
-one left off, so the agent still has what the earlier rounds said in front of
-it, and dreamcatcher's prompt says what the round is for. When a recovery has no
-session identifier to resume, _dreamcatcher_ starts a new session with the
-assignment's first prompt followed by the prompt for the required round.
+_dreamcatcher_ gives an agent a further round whenever there is more for it to
+do. Each such round normally resumes the assignment's harness session where the
+last one left off, so the agent still has what the earlier rounds said in front
+of it, and _dreamcatcher_'s prompt says what the round is for. When a recovery
+has no session identifier to resume, _dreamcatcher_ starts a new session with
+the assignment's first prompt followed by the prompt for the required round.
 
 ### User posts and feedback
 
-dreamcatcher's prompt names a JSON file and asks the agent to read it.
+_dreamcatcher_'s prompt names a JSON file and asks the agent to read it.
 `pull_request_state` in that file says where the pull request has got to, and
 `user_posts` holds every user post not delivered to an earlier round, oldest
 first. These posts are the user's feedback.
@@ -114,11 +114,12 @@ later updates do not select those posts again.
 
 ### A merged or closed pull request
 
-dreamcatcher gives the agent a wrap-up round when the user merges or closes the
-pull request, with the same prompt naming the same file. `pull_request_state`
-then reads `MERGED` or `CLOSED`, so an assignment skill that needs to
-distinguish the two states reads `pull_request_state`. `user_posts` still holds
-any feedback that the user posted before merging or closing.
+_dreamcatcher_ gives the agent a wrap-up round when the user merges or closes
+the pull request, with the same prompt naming the same file.
+`pull_request_state` then reads `MERGED` or `CLOSED`, so an assignment skill
+that needs to distinguish the two states reads `pull_request_state`.
+`user_posts` still holds any feedback that the user posted before merging or
+closing.
 
 An assignment skill must instruct the agent to wind the work up when
 `pull_request_state` reads anything but `OPEN`.
@@ -126,13 +127,13 @@ An assignment skill must instruct the agent to wind the work up when
 ### A recovery round
 
 A recovery round follows a round that was interrupted or exited with an error.
-While the pull request is open, dreamcatcher's prompt says that the previous
+While the pull request is open, _dreamcatcher_'s prompt says that the previous
 round did not finish and asks the agent to carry on. A recovery round on a
 merged or closed pull request receives the user-posts prompt instead, whose
 `pull_request_state` tells the agent to wind up.
 
 An assignment skill needs nothing of its own for recovery. The resumed agent
-normally still has its own transcript, and dreamcatcher's prompt is enough to
+normally still has its own transcript, and _dreamcatcher_'s prompt is enough to
 carry it on. A replacement session instead receives the assignment's first
 prompt before the recovery prompt, so the skill's initial instructions apply
 again.
