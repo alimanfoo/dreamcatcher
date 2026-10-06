@@ -42,7 +42,10 @@ from dreamcatcher.status import (
     read_dreamcatcher_daemon_status,
     read_status_report,
 )
-from dreamcatcher.status.conversations import ConversationStatusValue
+from dreamcatcher.status.conversations import (
+    ConversationStatusValue,
+    _compose_round_revision,
+)
 
 LOOKED_AT = PINNED + timedelta(hours=2)
 
@@ -712,3 +715,17 @@ def test_an_unobserved_issue_with_no_record_has_no_conversation(conversation_sta
         )
         is None
     )
+
+
+@pytest.mark.parametrize(
+    ("previous", "current", "expected"),
+    [
+        (None, "abc123", "code revision abc123"),
+        ("abc123", "abc123", "code revision abc123 (unchanged)"),
+        ("abc123", "def456", "code revision abc123 -> def456"),
+    ],
+)
+def test_a_round_revision_description_names_its_transition(previous, current, expected):
+    found = _compose_round_revision(previous_revision=previous, revision=current)
+
+    assert found.description == expected

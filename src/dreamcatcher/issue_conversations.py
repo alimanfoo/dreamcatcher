@@ -304,17 +304,6 @@ def _read_conversation_input_document(
     return round_input
 
 
-def describe_conversation_revision(
-    *, previous_revision: str | None, revision: str
-) -> str:
-    """Describe the revision investigated by one conversation round."""
-    if previous_revision is None:
-        return f"code revision {revision}"
-    if previous_revision == revision:
-        return f"code revision {revision} (unchanged)"
-    return f"code revision {previous_revision} -> {revision}"
-
-
 def read_issue_comment_delivery_position(
     *, conversation: Conversation
 ) -> IssueCommentDeliveryPosition | None:
