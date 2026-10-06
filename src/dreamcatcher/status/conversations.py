@@ -14,10 +14,10 @@ from dreamcatcher.harness_adapters import HarnessSessionIdentifier
 from dreamcatcher.issue_conversations import (
     Conversation,
     describe_conversation_revision,
-    is_conversation_ready_for_input,
     is_no_reply,
     read_conversation_input,
 )
+from dreamcatcher.scheduler.faults import is_awaiting_recovery
 from dreamcatcher.scheduler.models import (
     ConversationObservation,
     Truth,
@@ -345,8 +345,8 @@ class ConversationStatusReader(AgentWorkStatusReader[ConversationStatus]):
         title: str,
         conversation: Conversation | None,
     ) -> ConversationStatus | None:
-        if conversation is not None and not is_conversation_ready_for_input(
-            conversation=conversation
+        if conversation is not None and is_awaiting_recovery(
+            rounds=conversation.rounds, is_daemon_running=self.is_daemon_running
         ):
             latest = conversation.rounds[-1]
             detail, _ = describe_round_ending(

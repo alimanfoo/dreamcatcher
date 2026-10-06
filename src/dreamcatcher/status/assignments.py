@@ -9,8 +9,9 @@ from dreamcatcher.agent_assignments import (
     Assignment,
 )
 from dreamcatcher.agent_rounds import AgentRoundPaths
-from dreamcatcher.feed import describe_agent_round_start, read_last_feed_line
+from dreamcatcher.feed import read_last_feed_line
 from dreamcatcher.harness_adapters import HarnessSessionIdentifier
+from dreamcatcher.scheduler.faults import is_awaiting_recovery
 from dreamcatcher.scheduler.models import (
     AgentWorkObservation,
     SchedulerRecord,
@@ -242,9 +243,8 @@ class AssignmentStatusReader(AgentWorkStatusReader[AssignmentStatus]):
         return None
 
     def _derive_unfinished(self, *, assignment: Assignment) -> AssignmentStatus | None:
-        if assignment.rounds and (
-            assignment.rounds[-1].ending is None
-            or assignment.describe_unfinished_round() is not None
+        if is_awaiting_recovery(
+            rounds=assignment.rounds, is_daemon_running=self.is_daemon_running
         ):
             latest = assignment.rounds[-1]
             detail, _ = describe_round_ending(
@@ -300,10 +300,13 @@ class AssignmentStatusReader(AgentWorkStatusReader[AssignmentStatus]):
                 detail=observation.requires_round.evidence,
             )
         if observation.requires_round.value is Truth.TRUE:
+            purpose = derive_round_purpose(
+                pull_request=assignment.pull_request_observation
+            )
             return self._compose(
                 assignment=assignment,
                 value=AssignmentStatusValue.WAITING,
-                detail=self._describe_next_round(assignment=assignment),
+                detail=f"next round, {purpose}",
             )
         return self._compose(
             assignment=assignment,
@@ -335,16 +338,3 @@ class AssignmentStatusReader(AgentWorkStatusReader[AssignmentStatus]):
         if line is None:
             return "no output"
         return f"last output {describe_span(span=self.at - line.at)} ago"
-
-    def _describe_next_round(self, *, assignment: Assignment) -> str:
-        record = assignment.rounds[-1]
-        description = describe_agent_round_start(
-            purpose=derive_round_purpose(
-                pull_request=assignment.pull_request_observation
-            ),
-            is_recovery=(
-                record.ending is None
-                or assignment.describe_unfinished_round() is not None
-            ),
-        )
-        return f"next round, {description}"

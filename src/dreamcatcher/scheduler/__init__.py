@@ -5,6 +5,7 @@ from dreamcatcher.scheduler.conversations import ConversationScheduler
 from dreamcatcher.scheduler.faults import (
     InvalidSchedulerRecordError,
     derive_agent_work_fault,
+    is_awaiting_recovery,
     read_scheduler_record,
 )
 from dreamcatcher.scheduler.models import DEFAULT_MAX_AGENTS, SchedulerRecord
@@ -18,5 +19,6 @@ __all__ = [
     "Scheduler",
     "SchedulerRecord",
     "derive_agent_work_fault",
+    "is_awaiting_recovery",
     "read_scheduler_record",
 ]

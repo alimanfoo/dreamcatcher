@@ -36,7 +36,7 @@ from dreamcatcher.harness_adapters import AgentRoundLaunchRequest
 from dreamcatcher.prompts import RECOVERY_PROMPT, compose_user_posts_prompt
 from dreamcatcher.relay import list_undelivered_user_posts
 from dreamcatcher.scheduler.agent_work import AgentWorkScheduler
-from dreamcatcher.scheduler.faults import derive_agent_work_fault
+from dreamcatcher.scheduler.faults import derive_agent_work_fault, is_awaiting_recovery
 from dreamcatcher.scheduler.issues import observe_issues
 from dreamcatcher.scheduler.models import (
     NO_ROUND_HAS_RUN,
@@ -320,7 +320,9 @@ class AssignmentScheduler(
     def _inspect_pending_round(
         self, *, assignment: Assignment, pull_request: PullRequest
     ) -> AssignmentRoundCandidate | AgentWorkObservation | None:
-        is_recovery = assignment.describe_unfinished_round() is not None
+        is_recovery = is_awaiting_recovery(
+            rounds=assignment.rounds, is_daemon_running=True
+        )
         if is_recovery and pull_request.state is PullRequestState.OPEN:
             return AssignmentRoundCandidate(
                 assignment=assignment,

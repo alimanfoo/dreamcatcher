@@ -36,6 +36,8 @@ from dreamcatcher.agent_rounds import (
     AssignmentRoundPurpose,
     ErroredAgentRoundEnding,
     InterruptedAgentRoundEnding,
+    StoppedAgentRoundEnding,
+    SuccessfulAgentRoundEnding,
     _AgentRoundPurpose,
     _compose_agent_round_ending,
 )
@@ -54,7 +56,12 @@ from dreamcatcher.git import (
 )
 from dreamcatcher.github import PullRequestState
 from dreamcatcher.prompts import RECOVERY_PROMPT
-from dreamcatcher.scheduler import AssignmentScheduler, ConversationScheduler, Scheduler
+from dreamcatcher.scheduler import (
+    AssignmentScheduler,
+    ConversationScheduler,
+    Scheduler,
+    is_awaiting_recovery,
+)
 from dreamcatcher.scheduler.models import (
     AgentWorkObservation,
     GlobalCooldown,
@@ -1392,3 +1399,39 @@ def test_a_cooldown_normalizes_aware_datetimes_to_utc():
 def test_a_cooldown_refuses_invalid_datetimes(started, ends, message):
     with pytest.raises(ValidationError, match=message):
         GlobalCooldown(started=started, ends=ends)
+
+
+@pytest.mark.parametrize(
+    ("ending", "is_daemon_running", "is_awaited"),
+    [
+        pytest.param(None, True, False, id="running"),
+        pytest.param(None, False, True, id="left-by-a-gone-daemon"),
+        pytest.param(InterruptedAgentRoundEnding(), True, True, id="interrupted"),
+        pytest.param(
+            ErroredAgentRoundEnding(at=PINNED, status=2), True, True, id="errored"
+        ),
+        pytest.param(
+            SuccessfulAgentRoundEnding(at=PINNED), True, False, id="successful"
+        ),
+        pytest.param(StoppedAgentRoundEnding(at=PINNED), True, False, id="stopped"),
+    ],
+)
+def test_only_an_interrupted_or_errored_last_round_awaits_recovery(
+    ending, is_daemon_running, is_awaited
+):
+    record = AgentRoundRecord(
+        number=1,
+        started=PINNED,
+        pid=1,
+        purpose=AssignmentRoundPurpose.IMPLEMENT,
+        ending=ending,
+    )
+
+    assert (
+        is_awaiting_recovery(rounds=[record], is_daemon_running=is_daemon_running)
+        is is_awaited
+    )
+
+
+def test_agent_work_that_has_run_no_round_awaits_no_recovery():
+    assert not is_awaiting_recovery(rounds=[], is_daemon_running=False)

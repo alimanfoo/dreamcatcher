@@ -1,8 +1,12 @@
-"""Derive agent-work faults and manage the global cooldown."""
+"""Derive agent-work recovery and faults, and manage the global cooldown."""
 
 from datetime import datetime
 
-from dreamcatcher.agent_rounds import AgentRoundRecord, ErroredAgentRoundEnding
+from dreamcatcher.agent_rounds import (
+    AgentRoundOutcome,
+    AgentRoundRecord,
+    ErroredAgentRoundEnding,
+)
 from dreamcatcher.documents import read_json
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.scheduler.models import (
@@ -11,6 +15,22 @@ from dreamcatcher.scheduler.models import (
     SchedulerRecord,
 )
 from dreamcatcher.state import StateDirectory
+
+
+def is_awaiting_recovery(
+    *, rounds: list[AgentRoundRecord], is_daemon_running: bool
+) -> bool:
+    """Return whether the latest round was interrupted or errored.
+
+    A round with no ending is running while a daemon runs it, and interrupted
+    once that daemon has gone, since a round cannot outlive its daemon.
+    """
+    if not rounds:
+        return False
+    outcome = rounds[-1].outcome
+    if outcome is AgentRoundOutcome.RUNNING:
+        return not is_daemon_running
+    return outcome in {AgentRoundOutcome.ERRORED, AgentRoundOutcome.INTERRUPTED}
 
 
 def derive_agent_work_fault(
