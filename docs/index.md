@@ -1,8 +1,8 @@
 # dreamcatcher
 
-dreamcatcher watches a GitHub repository for labelled issues, dispatches agents
-for issue conversations and coding assignments, and carries each assignment to a
-pull request for you to review and merge.
+_dreamcatcher_ watches a GitHub repository for labelled issues, dispatches
+agents for issue conversations and coding assignments, and carries each
+assignment to a pull request for you to review and merge.
 
 ## Start here
 

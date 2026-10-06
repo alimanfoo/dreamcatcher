@@ -15,7 +15,7 @@ below read the index.
 
 ## What this is
 
-dreamcatcher dispatches autonomous agent conversations and coding assignments
+_dreamcatcher_ dispatches autonomous agent conversations and coding assignments
 from labelled issues. It carries each assignment to a pull request for review.
 
 ## Specs
@@ -231,7 +231,7 @@ $env:PYTHONWARNDEFAULTENCODING = "1"; uv run pytest --regenerate-view-goldens
   each argument means and reordering a signature cannot change what a caller
   already passes. `tools/require_keyword_parameters.py` enforces this on every
   commit, and its own docstring says what it leaves alone. Where something
-  outside dreamcatcher makes the call, declare the parameter positional-only
+  outside _dreamcatcher_ makes the call, declare the parameter positional-only
   with `/`, and say in the docstring what makes the call that way.
 - Give a callback parameter a `Protocol` whose `__call__` is keyword-only, where
   this project implements the callback itself and it takes more than one
