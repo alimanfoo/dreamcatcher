@@ -5,17 +5,37 @@ format and agent contract have independent integer versions. See
 [Compatibility and upgrades](compatibility.md) for the policy and current
 upgrade instructions.
 
-A change that users would notice gets an entry here. Released changes stay under
-their release; development changes stay under **Unreleased** until they are
-tagged. From v5.0.0 on, each entry links the pull request that made the change.
+A change that users would notice gets an entry here: a change to a command, a
+setting, a message, a view, the documentation, the state format or the agent
+contract. Refactoring, tests and CI get none. The release notes on GitHub list
+every merged pull request, so this page lists only what a user upgrading needs
+to know.
+
+From v5.1.0 on, each release groups its entries under these headings, adapted
+from [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), in this order,
+leaving out any heading that would be empty:
+
+- **Breaking** for what users must act on before upgrading;
+- **Added** for new commands, settings, controls and pages;
+- **Changed** for existing behaviour that now works differently; and
+- **Fixed** for behaviour that was wrong.
+
+Released changes stay under their release; development changes stay under
+**Unreleased**, with the same headings, until they are tagged. From v5.0.0 on,
+each entry links the pull request that made the change.
 
 ## [v5.1.0](https://github.com/alimanfoo/dreamcatcher/releases/tag/v5.1.0) — 2026-10-06
+
+### Added
 
 - The documentation is now a site at
   <https://alimanfoo.github.io/dreamcatcher/>, built from `docs/`. The agent
   contract and this changelog moved there from the repository root, to
   `docs/contract.md` and `docs/changelog.md`.
   ([#424](https://github.com/alimanfoo/dreamcatcher/pull/424))
+
+### Changed
+
 - The assignment and conversation pages now show **Stop** and **Cancel** as
   **stop round** and **cancel assignment**, at the foot of the page beside
   **resume by hand** and styled like it. **stop round** asks you to confirm, as
