@@ -186,7 +186,7 @@ class AssignmentStatusReader(AgentWorkStatusReader[AssignmentStatus]):
         status = self._derive_fault(assignment=assignment)
         if status is not None:
             return status
-        status = self._derive_unfinished(assignment=assignment)
+        status = self._derive_awaiting_recovery(assignment=assignment)
         if status is not None:
             return status
         status = self._derive_unobserved(assignment=assignment)
@@ -242,7 +242,9 @@ class AssignmentStatusReader(AgentWorkStatusReader[AssignmentStatus]):
             )
         return None
 
-    def _derive_unfinished(self, *, assignment: Assignment) -> AssignmentStatus | None:
+    def _derive_awaiting_recovery(
+        self, *, assignment: Assignment
+    ) -> AssignmentStatus | None:
         if is_awaiting_recovery(
             rounds=assignment.rounds, is_daemon_running=self.is_daemon_running
         ):

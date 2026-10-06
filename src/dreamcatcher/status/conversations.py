@@ -237,7 +237,7 @@ class ConversationStatusReader(AgentWorkStatusReader[ConversationStatus]):
         )
         if status is not None:
             return status
-        status = self._derive_unfinished(
+        status = self._derive_awaiting_recovery(
             issue=issue, title=title, conversation=conversation
         )
         if status is not None:
@@ -338,7 +338,7 @@ class ConversationStatusReader(AgentWorkStatusReader[ConversationStatus]):
             )
         return None
 
-    def _derive_unfinished(
+    def _derive_awaiting_recovery(
         self,
         *,
         issue: int,
