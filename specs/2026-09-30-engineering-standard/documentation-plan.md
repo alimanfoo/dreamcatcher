@@ -140,10 +140,10 @@ The design discussion has produced drafts on branch `GH333`:
   C3.
 - [The compatibility policy](../../docs/compatibility.md) states the agreed
   release, state-format and agent-contract versioning rules.
-- [The contract](../../docs/contract.md) declares version 1 after correcting the
-  two known discrepancies: delivery positions come from recorded round inputs,
-  and the initial conversation input holds its title and body in
-  `initial_issue`.
+- [The contract](https://github.com/alimanfoo/dreamcatcher/blob/a7908f4e7594a6503c4003a511d1a159448b0bf6/CONTRACT.md)
+  declares version 1 after correcting the two known discrepancies: delivery
+  positions come from recorded round inputs, and the initial conversation input
+  holds its title and body in `initial_issue`.
 - The roadmap records all six decisions from the discussion.
 
 At that starting point, the README had not yet been divided into pages, and the

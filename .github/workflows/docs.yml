@@ -1,7 +1,8 @@
 name: Docs
 
-# Publishes the documentation site from main. The repository checks build the
-# same site in strict mode on every pull request, so this workflow only deploys.
+# Publishes the documentation site from main. The repository checks already
+# build the same site in strict mode on every pull request, so this workflow
+# adds no check of its own.
 on:
   push:
     branches: [main]

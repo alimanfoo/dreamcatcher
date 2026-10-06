@@ -41,11 +41,3 @@ a first assignment.
 
 The [agent-facing contract](contract.md) defines what custom assignment skills
 and issue-conversation prompts must do.
-
-## Contributing
-
-Start with the
-[agent guide](https://github.com/alimanfoo/dreamcatcher/blob/main/AGENTS.md) for
-the development setup, project conventions and required checks.
-[Testing](testing.md) explains what the test suite and CI establish, and
-[Releasing](releasing.md) lists what to do before each release.
