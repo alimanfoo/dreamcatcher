@@ -115,11 +115,24 @@ class HarnessOutput:
 class HarnessAdapter(ABC):
     """Define how dreamcatcher invokes and reads one harness.
 
-    The program names the harness CLI. Callers use the adapter without knowing
-    any harness-specific arguments or event shapes.
+    The program names the harness CLI, and the sign-in check arguments make it
+    exit with status zero only while it is signed in. Callers use the adapter
+    without knowing any harness-specific arguments or event shapes.
     """
 
     program: ClassVar[str]
+    sign_in_check_arguments: ClassVar[tuple[str, ...]]
+
+    @abstractmethod
+    def build_plugin_installation(
+        self, *, marketplace: str, plugin: str
+    ) -> list[list[str]]:
+        """Return the arguments of each command that installs the plugin, in order.
+
+        The marketplace is a GitHub repository as owner/name, and the plugin is
+        named as plugin@marketplace. Each command runs without a prompt, and
+        succeeds again when its step is already done.
+        """
 
     @abstractmethod
     def build_first_round(

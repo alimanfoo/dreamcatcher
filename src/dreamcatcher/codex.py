@@ -110,6 +110,16 @@ class _CodexHarnessAdapter(HarnessAdapter):
     """Run Codex and translate its stream into feed events."""
 
     program: ClassVar[str] = "codex"
+    sign_in_check_arguments: ClassVar[tuple[str, ...]] = ("login", "status")
+
+    def build_plugin_installation(
+        self, *, marketplace: str, plugin: str
+    ) -> list[list[str]]:
+        """Return how to install the plugin for the user."""
+        return [
+            ["plugin", "marketplace", "add", marketplace],
+            ["plugin", "add", plugin],
+        ]
 
     def build_first_round(
         self, *, request: AgentRoundLaunchRequest, final_output_path: Path
