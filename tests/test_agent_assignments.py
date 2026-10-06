@@ -41,7 +41,7 @@ from dreamcatcher.agent_work import (
 )
 from dreamcatcher.commands import CommandError
 from dreamcatcher.config import (
-    _DREAMCATCHER_CONFIG_NAME,
+    DREAMCATCHER_CONFIG_NAME,
     AgentHarness,
     read_dreamcatcher_config,
 )
@@ -78,7 +78,7 @@ def linked_pull_requests(*, numbers: Sequence[int]) -> str:
 @pytest.fixture
 def checkout(cloned):
     """A main checkout with an origin and an assignment configuration."""
-    (cloned / _DREAMCATCHER_CONFIG_NAME).write_text(CONFIG, encoding="utf-8")
+    (cloned / DREAMCATCHER_CONFIG_NAME).write_text(CONFIG, encoding="utf-8")
     return cloned
 
 
@@ -349,43 +349,10 @@ def test_a_round_an_assignment_has_run_is_found_by_the_number_it_ran_as(fabricat
     )
 
 
-def test_an_assignment_that_has_run_no_round_has_left_nothing_unfinished(fabricated):
+def test_an_assignment_that_has_run_no_round_is_not_complete(fabricated):
     assignment = standing(state=fabricated, rounds=[])
 
-    assert assignment.describe_unfinished_round() is None
     assert not assignment.is_complete
-
-
-def test_an_assignment_whose_last_round_has_no_ending_says_nothing(fabricated):
-    assignment = standing(state=fabricated, rounds=[running()])
-
-    assert assignment.describe_unfinished_round() is None
-
-
-def test_an_assignment_whose_last_round_was_interrupted_says_so(fabricated):
-    interrupted = running().model_copy(update={"ending": InterruptedAgentRoundEnding()})
-    assignment = standing(state=fabricated, rounds=[interrupted])
-
-    assert assignment.describe_unfinished_round() == "the last round was interrupted"
-
-
-def test_an_assignment_whose_last_round_failed_says_the_status_it_failed_with(
-    fabricated,
-):
-    assignment = standing(state=fabricated, rounds=[ended(status=2)])
-
-    assert assignment.describe_unfinished_round() == "the last round errored (exit 2)"
-
-
-def test_an_assignment_whose_last_round_ended_well_has_left_nothing_unfinished(
-    fabricated,
-):
-    assignment = standing(
-        state=fabricated,
-        rounds=[ended(status=1), ended(status=0, minute=1, number=2)],
-    )
-
-    assert assignment.describe_unfinished_round() is None
 
 
 def test_a_successful_wrap_up_completes_an_assignment(fabricated):

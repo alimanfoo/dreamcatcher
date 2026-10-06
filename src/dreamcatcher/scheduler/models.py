@@ -1,5 +1,6 @@
 """Persistent scheduler records and shared scheduling facts."""
 
+from collections.abc import Container
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from enum import StrEnum
@@ -165,6 +166,21 @@ class SchedulerRecord(DreamcatcherDocument):
     )
     cooldown: GlobalCooldown | None = None
     most_recent_cooldown_ended: _UtcDateTime | None = None
+
+
+def observe_claimed_here(
+    *, issue: int, open_assignment_issues: Container[int]
+) -> ObservedFact:
+    """Observe whether this instance has an open assignment for the issue."""
+    if issue in open_assignment_issues:
+        return ObservedFact(
+            value=Truth.TRUE,
+            evidence="this checkout has an open assignment for it",
+        )
+    return ObservedFact(
+        value=Truth.FALSE,
+        evidence="this checkout has no open assignment for it",
+    )
 
 
 def derive_issue_availability(*, observation: IssueObservation) -> ObservedFact:

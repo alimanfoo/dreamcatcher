@@ -139,6 +139,12 @@ class Unrenderable(HarnessAdapter):
     """An adapter whose events hold what the feed has no way to write."""
 
     program = "harness"
+    sign_in_check_arguments = ()
+
+    def build_plugin_installation(
+        self, *, marketplace: str, plugin: str
+    ) -> list[list[str]]:
+        return []
 
     def build_first_round(
         self, *, request: AgentRoundLaunchRequest, final_output_path: Path

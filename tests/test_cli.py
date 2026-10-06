@@ -594,6 +594,7 @@ def test_status_takes_no_issue(capsys):
 @pytest.mark.parametrize(
     "verb",
     [
+        "init",
         "run",
         "retry",
         "stop",

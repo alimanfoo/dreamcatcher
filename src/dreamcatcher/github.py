@@ -22,6 +22,7 @@ from pydantic import (
 )
 
 from dreamcatcher.commands import CommandError, run_command
+from dreamcatcher.errors import ReportableError
 
 # gh lists thirty of anything unless you tell it otherwise, and thirty issues is
 # a number a busy repository passes. Asking for five hundred keeps the tool from
@@ -33,6 +34,9 @@ _ISSUE_LISTING_LIMIT = "500"
 # whatever the size, so the largest page GitHub allows is the fewest calls for
 # the same answer.
 _GITHUB_PAGE_SIZE = "100"
+
+# The repository permissions that let an account push a branch.
+_PUSH_PERMISSIONS = {"ADMIN", "MAINTAIN", "WRITE"}
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -101,14 +105,25 @@ class GitHubRepository(GitHubResponseProjection):
     name_with_owner: str = Field(alias="nameWithOwner")
 
 
+class GitHubRepositoryPermission(GitHubResponseProjection):
+    """Model what the signed-in account may do in a repository."""
+
+    viewer_permission: str | None = Field(alias="viewerPermission")
+
+    @property
+    def can_push(self) -> bool:
+        """Whether the permission lets the account push a branch."""
+        return self.viewer_permission in _PUSH_PERMISSIONS
+
+
 class GitHubUserAccount(GitHubResponseProjection):
     """Model a GitHub user account."""
 
     login: str
 
 
-class GitHubIssueLabel(GitHubResponseProjection):
-    """Model a label attached to an issue."""
+class GitHubLabel(GitHubResponseProjection):
+    """Model a GitHub label."""
 
     name: str
 
@@ -122,7 +137,7 @@ class Issue(GitHubResponseProjection):
     created_at: datetime = Field(alias="createdAt")
     state: IssueState
     assignees: list[GitHubUserAccount]
-    labels: list[GitHubIssueLabel]
+    labels: list[GitHubLabel]
 
 
 _ISSUE_RESPONSE_FIELDS = ",".join(
@@ -287,7 +302,9 @@ type UserPost = ConversationComment | PullRequestReview | InlineReviewComment
 
 
 _GITHUB_REPOSITORY_RESPONSE_ADAPTER = TypeAdapter(GitHubRepository)
+_GITHUB_REPOSITORY_PERMISSION_RESPONSE_ADAPTER = TypeAdapter(GitHubRepositoryPermission)
 _GITHUB_ACCOUNT_RESPONSE_ADAPTER = TypeAdapter(GitHubUserAccount)
+_GITHUB_LABEL_PAGES_ADAPTER = TypeAdapter(list[list[GitHubLabel]])
 _GITHUB_ISSUE_RESPONSE_ADAPTER = TypeAdapter(Issue)
 _GITHUB_ISSUE_LIST_RESPONSE_ADAPTER = TypeAdapter(list[Issue])
 _GITHUB_PULL_REQUEST_LIST_RESPONSE_ADAPTER = TypeAdapter(list[PullRequest])
@@ -316,7 +333,7 @@ _GITHUB_USER_POST_ENDPOINTS = (
 )
 
 
-def identify_github_repository(*, root: Path) -> str | UnknownGitHubResponse:
+def _identify_github_repository(*, root: Path) -> str | UnknownGitHubResponse:
     """Return the checkout's repository as owner/name.
 
     gh reads the repository from the checkout's own remote, so this asks from
@@ -332,7 +349,7 @@ def identify_github_repository(*, root: Path) -> str | UnknownGitHubResponse:
     return repository_response.name_with_owner
 
 
-def identify_github_account() -> str | UnknownGitHubResponse:
+def _identify_github_account() -> str | UnknownGitHubResponse:
     """Return the login of the account gh is signed in as."""
     account_response = _read_github_response(
         response_adapter=_GITHUB_ACCOUNT_RESPONSE_ADAPTER,
@@ -341,6 +358,76 @@ def identify_github_account() -> str | UnknownGitHubResponse:
     if isinstance(account_response, UnknownGitHubResponse):
         return account_response
     return account_response.login
+
+
+@dataclass(frozen=True, kw_only=True)
+class GitHubIdentity:
+    """Name the checkout's repository and the account gh is signed in as."""
+
+    repository: str
+    account: str
+
+
+def require_github_identity(*, root: Path) -> GitHubIdentity:
+    """Return the identity of the checkout at root, or refuse saying what is unknown.
+
+    Nothing can be done for a repository that gh cannot name, or as an account
+    gh is not signed in as, so not knowing either one is a ReportableError.
+    """
+    return GitHubIdentity(
+        repository=require_known_github_value(
+            value=_identify_github_repository(root=root),
+            question="which repository this is",
+        ),
+        account=require_known_github_value(
+            value=_identify_github_account(),
+            question="which account gh is signed in as",
+        ),
+    )
+
+
+def require_known_github_value[ValueT](
+    *, value: ValueT | UnknownGitHubResponse, question: str
+) -> ValueT:
+    """Return what gh answered, or refuse saying which question it could not answer."""
+    if isinstance(value, UnknownGitHubResponse):
+        raise ReportableError(f"dreamcatcher cannot tell {question}: {value.reason}")
+    return value
+
+
+def can_push_to_repository(*, repository: str) -> bool | UnknownGitHubResponse:
+    """Return whether the signed-in account can push to the repository."""
+    permission_response = _read_github_response(
+        response_adapter=_GITHUB_REPOSITORY_PERMISSION_RESPONSE_ADAPTER,
+        arguments=["repo", "view", repository, "--json", "viewerPermission"],
+    )
+    if isinstance(permission_response, UnknownGitHubResponse):
+        return permission_response
+    return permission_response.can_push
+
+
+def list_labels(*, repository: str) -> list[GitHubLabel] | UnknownGitHubResponse:
+    """Return every label the repository holds."""
+    return _read_github_pages(
+        response_adapter=_GITHUB_LABEL_PAGES_ADAPTER,
+        endpoint=f"repos/{repository}/labels",
+    )
+
+
+def create_label(*, repository: str, name: str, description: str) -> None:
+    """Create the label in the repository, letting gh choose its colour."""
+    run_command(
+        program="gh",
+        arguments=[
+            "label",
+            "create",
+            name,
+            "--repo",
+            repository,
+            "--description",
+            description,
+        ],
+    )
 
 
 def list_issues(

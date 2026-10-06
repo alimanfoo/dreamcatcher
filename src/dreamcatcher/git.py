@@ -1,6 +1,6 @@
-"""Run the Git commands that create, refresh and remove worktrees for agent work.
+"""Recognise a main checkout, and run the Git commands that agent work needs.
 
-Every one of these raises CommandError when git refuses, carrying git's own
+Every command here raises CommandError when git refuses, carrying git's own
 words, so no caller has to guess what went wrong. What to do about a creation
 that failed part way is the caller's, since only the caller knows how far it
 got.
@@ -10,6 +10,48 @@ from pathlib import Path
 
 from dreamcatcher.commands import CommandError, run_command
 from dreamcatcher.errors import ReportableError
+
+
+def require_main_checkout(*, root: Path) -> None:
+    """Refuse a root that is not a repository's main checkout.
+
+    The tool creates worktrees of its own, so it refuses a linked worktree
+    as well as a directory outside any repository.
+    """
+    if not (root / ".git").is_dir():
+        raise ReportableError(
+            f"Start dreamcatcher from a repository's main checkout. {root} is not one."
+        )
+
+
+def read_git_author_identity(*, root: Path) -> str:
+    """Return the name and email that a commit in the checkout at root would carry.
+
+    When Git has no identity to use, its CommandError says how to set one.
+    """
+    # Git follows the identity with the commit time and its zone.
+    return run_command(
+        program="git", arguments=["var", "GIT_AUTHOR_IDENT"], cwd=root
+    ).rsplit(maxsplit=2)[0]
+
+
+def is_file_on_main(*, root: Path, name: str) -> bool:
+    """Return whether origin/main holds the named file as the checkout at root has it.
+
+    Git reads the file as it would commit it, so a checkout that writes its line
+    endings as CRLF still matches.
+    """
+    try:
+        on_main = run_command(
+            program="git",
+            arguments=["rev-parse", "--verify", "--quiet", f"origin/main:{name}"],
+            cwd=root,
+        )
+    except CommandError:
+        return False
+    return on_main == run_command(
+        program="git", arguments=["hash-object", "--", name], cwd=root
+    )
 
 
 def fetch_main(*, root: Path) -> None:

@@ -792,6 +792,22 @@ def test_a_complete_local_assignment_no_longer_claims_its_observed_issue(state):
     assert issue.availability.value is Truth.TRUE
 
 
+def test_an_issue_with_no_local_assignment_is_not_claimed_here(state):
+    observation = observed_issue(
+        issue=20,
+        values={"claimed_here": Truth.TRUE},
+    )
+    write_tick(
+        state=state,
+        tick=SchedulerRecord(at=PINNED, issue_observations=[observation]),
+    )
+
+    issue = report(state=state).issue_observations[0]
+
+    assert issue.claimed_here.value is Truth.FALSE
+    assert issue.availability.value is Truth.TRUE
+
+
 def test_available_issues_keep_scheduler_order_and_observation_times(state):
     write_tick(
         state=state,
@@ -964,7 +980,15 @@ def test_a_failed_setup_reports_independently_of_an_external_claim(state):
     status_report = report(state=state)
 
     assert status_report.failed_assignment_setups == [
-        observation.model_copy(update={"observed_at": PINNED})
+        observation.model_copy(
+            update={
+                "observed_at": PINNED,
+                "claimed_here": ObservedFact(
+                    value=Truth.FALSE,
+                    evidence="this checkout has no open assignment for it",
+                ),
+            }
+        )
     ]
     assert status_report.issue_observations == []
 

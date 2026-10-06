@@ -10,6 +10,7 @@ from pathlib import Path
 
 from dreamcatcher.claude import CLAUDE_ADAPTER
 from dreamcatcher.codex import CODEX_ADAPTER
+from dreamcatcher.commands import locate_program
 from dreamcatcher.config import AgentHarness
 from dreamcatcher.documents import read_lines_from
 from dreamcatcher.harness_adapters import (
@@ -22,6 +23,12 @@ HARNESS_ADAPTERS: dict[AgentHarness, HarnessAdapter] = {
     AgentHarness.CLAUDE: CLAUDE_ADAPTER,
     AgentHarness.CODEX: CODEX_ADAPTER,
 }
+
+
+def locate_harnesses(*, harnesses: Iterable[AgentHarness]) -> None:
+    """Refuse when any of the harnesses is not on the PATH."""
+    for harness in sorted(harnesses):
+        locate_program(program=HARNESS_ADAPTERS[harness].program)
 
 
 def find_harness_session_identifier(
