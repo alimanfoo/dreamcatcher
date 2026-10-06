@@ -396,7 +396,7 @@ def test_the_default_config_routes_every_label_to_the_installed_harnesses(
     config = read_dreamcatcher_config(root=tmp_path)
     assert config.routed_harnesses == harnesses
     assert [route.label for route in config.conversation] == ["dream:scout"]
-    assert list(config.assignment_routes) == ["dream:smith", "dream:less"]
+    assert [route.label for route in config.assignment] == ["dream:smith", "dream:less"]
 
 
 def test_the_default_config_keeps_the_recipes_of_a_missing_harness_as_comments(
