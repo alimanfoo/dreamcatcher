@@ -1,4 +1,4 @@
-# Dreamcatcher target architecture
+# Architecture
 
 This document describes the enduring target architecture for Dreamcatcher. It
 maps the concepts in [the ontology](ontology.md) to code boundaries and states
