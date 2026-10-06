@@ -1,5 +1,6 @@
 """Render issue conversations in the local web interface."""
 
+import re
 from datetime import timedelta
 from unittest.mock import MagicMock
 
@@ -159,7 +160,11 @@ def test_conversation_page_requests_a_stop_for_its_running_round(tmp_path):
     page = client.get("/conversations/8")
 
     assert page.status_code == 200
-    assert 'action="/conversations/8/stop/1"' in page.text
+    assert re.search(
+        r'<div id="agent-work-foot"[^>]*>\s*<form id="stop-form" [^>]*'
+        r'action="/conversations/8/stop/1" data-confirmation="Stop this round\?',
+        page.text,
+    )
     assert "<summary>resume by hand</summary>" not in page.text
 
     response = client.post(

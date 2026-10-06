@@ -584,7 +584,8 @@ body::after {
 .stop-control:focus-visible,
 .cancel-control:hover,
 .cancel-control:focus-visible,
-.manual-recovery summary:hover {
+.manual-recovery summary:hover,
+.manual-recovery summary:focus-visible {
   color: #6f2f21;
 }
 

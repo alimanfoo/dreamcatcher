@@ -11,10 +11,10 @@ tagged. From v5.0.0 on, each entry links the pull request that made the change.
 
 ## Unreleased
 
-- The assignment and conversation pages now keep **stop round** and **cancel
-  assignment** at the foot of the page, beside **resume by hand** and styled
-  like it, away from the pull request link. **stop round** asks you to confirm,
-  as **cancel assignment** already did. **Retry** stays at the top.
+- The assignment and conversation pages now show **Stop** and **Cancel** as
+  **stop round** and **cancel assignment**, at the foot of the page beside
+  **resume by hand** and styled like it. **stop round** asks you to confirm, as
+  **cancel assignment** already did. **Retry** stays at the top.
   ([#427](https://github.com/alimanfoo/dreamcatcher/pull/427))
 
 ## [v5.0.0](https://github.com/alimanfoo/dreamcatcher/releases/tag/v5.0.0) — 2026-10-06

@@ -505,7 +505,8 @@ body::after {
 
 .agent-work-control:hover,
 .agent-work-control:focus-visible,
-.manual-recovery summary:hover {
+.manual-recovery summary:hover,
+.manual-recovery summary:focus-visible {
   color: var(--bright);
 }
 
@@ -636,7 +637,7 @@ body::after {
 }
 
 .manual-recovery {
-  flex: 1;
+  flex: 1 1 20em;
   min-width: 0;
 }
 
