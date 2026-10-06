@@ -71,7 +71,7 @@ def compose_home_view(
             repository=report.repository
         ),
         daemon_state="running" if daemon.is_running else "not-running",
-        daemon_summary=_describe_daemon(daemon=daemon),
+        daemon_summary=daemon.summary,
         instance_facts=_compose_instance_facts(report=report),
         cooldown_message=(
             None if cooldown_end is None else f"Global cooldown ends {cooldown_end}"
@@ -179,7 +179,7 @@ def compose_assignment_view(
         repository=repository or "repository unknown",
         github_repository_url=_compose_github_repository_url(repository=repository),
         daemon_state="running" if daemon.is_running else "not-running",
-        daemon_summary=_describe_daemon(daemon=daemon),
+        daemon_summary=daemon.summary,
         identifier=assignment.identifier,
         issue=record.issue,
         title=record.title,
@@ -211,7 +211,7 @@ def compose_conversation_view(
         repository=repository or "repository unknown",
         github_repository_url=_compose_github_repository_url(repository=repository),
         daemon_state="running" if daemon.is_running else "not-running",
-        daemon_summary=_describe_daemon(daemon=daemon),
+        daemon_summary=daemon.summary,
         issue=status.issue,
         title=status.title,
         facts=(
@@ -283,18 +283,6 @@ def _compose_issue_references(*, evidence: str) -> tuple[str | int, ...]:
         for index, part in enumerate(_ISSUE_REFERENCE_PATTERN.split(evidence))
         if part
     )
-
-
-def _describe_daemon(*, daemon: DreamcatcherDaemonStatus) -> str:
-    if not daemon.is_running:
-        return "daemon not running"
-    version = (
-        None
-        if daemon.dreamcatcher_version is None
-        else f"dreamcatcher v{daemon.dreamcatcher_version}"
-    )
-    pid = None if daemon.pid is None else f"pid {daemon.pid}"
-    return " · ".join(filter(None, ("daemon running", version, pid)))
 
 
 def _compose_instance_facts(*, report: DreamcatcherStatusReport) -> tuple[WebFact, ...]:

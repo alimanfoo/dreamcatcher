@@ -81,6 +81,19 @@ class DreamcatcherDaemonStatus:
         """The interval selected for the current or latest daemon run."""
         return None if self.run is None else self.run.interval_seconds
 
+    @property
+    def summary(self) -> str:
+        """Whether the daemon runs, with its version and process ID when it does."""
+        if not self.is_running:
+            return "not running"
+        version = (
+            None
+            if self.dreamcatcher_version is None
+            else f"dreamcatcher v{self.dreamcatcher_version}"
+        )
+        pid = None if self.pid is None else f"as pid {self.pid}"
+        return " ".join(filter(None, ("running", version, pid)))
+
 
 @dataclass(frozen=True, kw_only=True)
 class DreamcatcherStatusReport:

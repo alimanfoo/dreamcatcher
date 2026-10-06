@@ -13,7 +13,6 @@ from dreamcatcher.state import StateDirectory
 from dreamcatcher.status import (
     AssignmentStatus,
     ConversationStatus,
-    DreamcatcherDaemonStatus,
     DreamcatcherStatusReport,
     IssueStatus,
     read_status_report,
@@ -112,10 +111,7 @@ def _compose_instance_rows(
         else f"ends {describe_time(at=report.active_global_cooldown.ends, zone=zone)}"
     )
     return (
-        (
-            "daemon",
-            _describe_daemon(daemon=daemon_status),
-        ),
+        ("daemon", daemon_status.summary),
         ("preferred harness", daemon_status.agent_harness),
         ("next update in", tick),
         (
@@ -129,18 +125,6 @@ def _compose_instance_rows(
         ("global cooldown", cooldown),
         ("scheduler failures", report.scheduler_failure_summary),
     )
-
-
-def _describe_daemon(*, daemon: DreamcatcherDaemonStatus) -> str:
-    if not daemon.is_running:
-        return "not running"
-    version = (
-        None
-        if daemon.dreamcatcher_version is None
-        else f"dreamcatcher v{daemon.dreamcatcher_version}"
-    )
-    pid = None if daemon.pid is None else f"as pid {daemon.pid}"
-    return " ".join(filter(None, ("running", version, pid)))
 
 
 def _render_assignments(*, report: DreamcatcherStatusReport) -> RenderableType | None:

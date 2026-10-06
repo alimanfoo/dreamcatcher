@@ -34,7 +34,8 @@ each entry links the pull request that made the change.
 - The terminal views and the web pages now use the same words for the same fact.
   The terminal shows a conversation round's code revision in seven characters,
   as the web pages already did. An available issue reads "available for
-  assignment" in both.
+  assignment" in both. The web page header describes a running daemon in the
+  terminal's words, such as "daemon running dreamcatcher v5.1.0 as pid 4242".
   ([#442](https://github.com/alimanfoo/dreamcatcher/pull/442))
 
 ## [v5.1.0](https://github.com/alimanfoo/dreamcatcher/releases/tag/v5.1.0) — 2026-10-06
