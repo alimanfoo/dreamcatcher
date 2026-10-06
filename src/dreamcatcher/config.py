@@ -25,7 +25,7 @@ QuotableText = Annotated[str, AfterValidator(refuse_unquotable)]
 
 
 class AgentHarness(StrEnum):
-    """List the agent harnesses that Dreamcatcher can run."""
+    """List the agent harnesses that dreamcatcher can run."""
 
     CLAUDE = "claude"
     CODEX = "codex"

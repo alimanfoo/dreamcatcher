@@ -1,8 +1,8 @@
 # Command reference
 
-Dreamcatcher's command-line program is `dreamcatcher`. Run operational commands
-from the repository checkout that they concern. `run` requires the main
-checkout; every other command requires the checkout in which Dreamcatcher has
+_dreamcatcher_'s command-line program is `dreamcatcher`. Run operational
+commands from the repository checkout that they concern. `run` requires the main
+checkout; every other command requires the checkout in which _dreamcatcher_ has
 already created local state.
 
 ```text
@@ -10,9 +10,9 @@ dreamcatcher [--version] <command> [options]
 ```
 
 `-h` or `--help` shows help for the program or the command that precedes it.
-`--version` prints the installed Dreamcatcher version. A command returns status
-1 for an operational error that Dreamcatcher can explain, or status 2 for
-invalid command-line syntax.
+`--version` prints the installed _dreamcatcher_ version. A command returns
+status 1 for an operational error that _dreamcatcher_ can explain, or status 2
+for invalid command-line syntax.
 
 Issue arguments use `GH<n>`, where `<n>` is a string of decimal digits. The `GH`
 prefix is case-insensitive, so `GH123` and `gh123` both name issue 123.
@@ -96,12 +96,12 @@ dreamcatcher cancel GH<n>
 ```
 
 Cancel the newest assignment at the issue, so that you can finish its pull
-request by hand. Dreamcatcher runs no further rounds for the assignment and
+request by hand. _dreamcatcher_ runs no further rounds for the assignment and
 relays no further posts from its pull request. If a round is running, the
 command asks it to stop, without the conditions that `stop` requires.
 
-Dreamcatcher leaves the pull request as it is, and while it is open it claims
-the issue as work outside Dreamcatcher. The worktree and branch stay in place,
+_dreamcatcher_ leaves the pull request as it is, and while it is open it claims
+the issue as work outside _dreamcatcher_. The worktree and branch stay in place,
 so you can carry on in the assignment's worktree. The cancelled assignment shows
 as **cancelled** on the web home page and in `dreamcatcher assignment`, and
 `dreamcatcher status` counts it among the ended assignments.
@@ -118,10 +118,10 @@ dreamcatcher web [--port PORT]
 
 Serve the current checkout's local status on `127.0.0.1`, open the address in
 the default browser, print the address, and continue serving until interrupted.
-The server reads local Dreamcatcher state and does not contact GitHub. It works
-when the daemon is stopped as well as while it is running.
+The server reads local _dreamcatcher_ state and does not contact GitHub. It
+works when the daemon is stopped as well as while it is running.
 
-With no option, Dreamcatcher derives a stable starting port in the range
+With no option, _dreamcatcher_ derives a stable starting port in the range
 8100–8499 from the recorded `owner/name` repository identity, then uses the
 first free port at or above it, up to 65535. State with no repository record
 starts at 8100.

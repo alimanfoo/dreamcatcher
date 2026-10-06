@@ -1,4 +1,4 @@
-"""Compose Flask-free models for Dreamcatcher's web views."""
+"""Compose Flask-free models for dreamcatcher's web views."""
 
 import re
 from datetime import datetime, tzinfo

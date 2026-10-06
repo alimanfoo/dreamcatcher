@@ -1,4 +1,4 @@
-"""Bind and run Dreamcatcher's local web server."""
+"""Bind and run dreamcatcher's local web server."""
 
 import errno
 import zlib

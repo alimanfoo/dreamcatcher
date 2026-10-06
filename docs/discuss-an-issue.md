@@ -21,10 +21,10 @@ The title and issue body provide context, but they do not start a conversation
 on their own. A comment is the request to answer. Comments from other accounts
 are not delivered as user questions.
 
-At its next update while the issue is eligible, Dreamcatcher asks the configured
-harness to examine current `origin/main` and publishes the successful final
-answer as a marked issue comment. Its progress and tool activity remain in the
-local feed rather than becoming partial GitHub replies.
+At its next update while the issue is eligible, _dreamcatcher_ asks the
+configured harness to examine current `origin/main` and publishes the successful
+final answer as a marked issue comment. Its progress and tool activity remain in
+the local feed rather than becoming partial GitHub replies.
 
 Monitor it on the web home page or in the terminal:
 
@@ -35,9 +35,9 @@ dreamcatcher feed GH123 --conversation
 
 ## Continue the discussion
 
-Post another issue comment from the authenticated account. Dreamcatcher resumes
-the same harness session with the new comments, so a follow-up can refer to the
-earlier answer while examining the latest `origin/main`.
+Post another issue comment from the authenticated account. _dreamcatcher_
+resumes the same harness session with the new comments, so a follow-up can refer
+to the earlier answer while examining the latest `origin/main`.
 
 The agent may read source, run reproductions and, when your question asks for
 it, make suitable issue changes such as filing a follow-up issue. An issue
@@ -56,7 +56,7 @@ conversation route pauses it after the daemon restarts. A saved conversation
 keeps its original recipe and session even if a different configured label later
 makes it eligible again.
 
-Dreamcatcher keeps the saved conversation. If the issue later becomes eligible
+_dreamcatcher_ keeps the saved conversation. If the issue later becomes eligible
 again, comments posted while it was paused can be delivered and the saved
 session can continue. To stop just the round that is running, follow
 [Stop and recover work](stop-and-recover.md).

@@ -1,4 +1,4 @@
-"""Run the foreground daemon for one Dreamcatcher instance."""
+"""Run the foreground daemon for one dreamcatcher instance."""
 
 from __future__ import annotations
 

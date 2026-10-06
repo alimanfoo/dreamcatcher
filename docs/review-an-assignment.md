@@ -1,6 +1,6 @@
 # Review an assignment
 
-Dreamcatcher opens a draft pull request before the assignment's first agent
+_dreamcatcher_ opens a draft pull request before the assignment's first agent
 round. That early draft proves the branch and communication channel exist; it is
 not a claim that the implementation is finished. Begin your normal code review
 when the assignment skill marks the pull request ready for review.
@@ -18,7 +18,7 @@ same account that `gh` is authenticated as, you can:
 - submit a review with a comment or verdict; or
 - leave an inline review comment on the diff.
 
-Dreamcatcher collects new feedback in chronological order and relays it into a
+_dreamcatcher_ collects new feedback in chronological order and relays it into a
 later agent round. A submitted approval or request-for-changes verdict is also
 relayed even when its review body is empty. Posts by other accounts and posts
 marked as the agent's own are not treated as your feedback.
@@ -55,8 +55,9 @@ A failed or interrupted wrap-up remains available for recovery.
 [Stop and recover work](stop-and-recover.md) explains what happens automatically
 and when to request a retry.
 
-To finish the pull request by hand instead, cancel the assignment. Dreamcatcher
-then runs no further rounds for it, and no wrap-up follows a merge or close.
+To finish the pull request by hand instead, cancel the assignment.
+_dreamcatcher_ then runs no further rounds for it, and no wrap-up follows a
+merge or close.
 [Take over an assignment's pull request](stop-and-recover.md#take-over-an-assignments-pull-request)
 explains how.
 

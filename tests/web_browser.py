@@ -1,4 +1,4 @@
-"""Serve representative Dreamcatcher state for browser tests."""
+"""Serve representative dreamcatcher state for browser tests."""
 
 from collections.abc import Iterator
 from contextlib import contextmanager

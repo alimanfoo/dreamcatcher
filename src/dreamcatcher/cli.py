@@ -1,4 +1,4 @@
-"""Define the Dreamcatcher command-line interface."""
+"""Define the dreamcatcher command-line interface."""
 
 import argparse
 import re
@@ -131,9 +131,9 @@ def _build_cli_parser() -> argparse.ArgumentParser:
         help="cancel an issue's newest assignment to finish its pull request by hand",
         description=(
             "Cancel the newest assignment at the issue, so that you can finish "
-            "its pull request by hand. Dreamcatcher asks a running round to "
+            "its pull request by hand. dreamcatcher asks a running round to "
             "stop, runs no further rounds for the assignment, and treats its "
-            "open pull request as work outside Dreamcatcher. The worktree and "
+            "open pull request as work outside dreamcatcher. The worktree and "
             "branch stay in place. A cancel cannot be undone, and it does not "
             "need the daemon to be running."
         ),

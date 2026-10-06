@@ -1,4 +1,4 @@
-"""Flask-free models for Dreamcatcher's web views."""
+"""Flask-free models for dreamcatcher's web views."""
 
 from dataclasses import dataclass
 from typing import Literal, Protocol

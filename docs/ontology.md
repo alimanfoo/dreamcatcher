@@ -1,9 +1,13 @@
 # Ontology
 
-This document establishes the language Dreamcatcher uses to describe its domain.
-It is an enduring part of the project: changes to the code, user interface,
-specifications, and agent contract should preserve these meanings or update this
-document deliberately.
+This document establishes the language _dreamcatcher_ uses to describe its
+domain. It is an enduring part of the project: changes to the code, user
+interface, specifications, and agent contract should preserve these meanings or
+update this document deliberately.
+
+The product's name is _dreamcatcher_, in lower case even at the start of a
+sentence. The documentation sets it in italics in running text, and writes it
+plainly in headings, bold terms, code and the tool's own output.
 
 The dated specifications record the design of particular phases. Where their
 terminology conflicts with this document, this document is authoritative.
@@ -12,34 +16,36 @@ terminology conflicts with this document, this document is authoritative.
 
 ### Repository
 
-A **repository** is a GitHub repository in which a Dreamcatcher instance manages
-agent work.
+A **repository** is a GitHub repository in which a _dreamcatcher_ instance
+manages agent work.
 
 ### User
 
-A **user** is the person whose account `gh` is signed in to. A Dreamcatcher
+A **user** is the person whose account `gh` is signed in to. A _dreamcatcher_
 instance manages agent work on the user's behalf, and the user provides
 decisions and reviews work through GitHub.
 
-### Dreamcatcher instance and daemon
+### dreamcatcher instance and daemon
 
-A **Dreamcatcher instance** is one local body of configuration and state which
+A **dreamcatcher instance** is one local body of configuration and state which
 manages agent work in one repository on behalf of one user. It endures while
-Dreamcatcher is stopped and across successive daemon runs. Several users may
-each run their own Dreamcatcher instance for the same repository.
+_dreamcatcher_ is stopped and across successive daemon runs. Several users may
+each run their own _dreamcatcher_ instance for the same repository.
 
-A **daemon** is the process that runs a Dreamcatcher instance. At most one
+A **daemon** is the process that runs a _dreamcatcher_ instance. At most one
 daemon runs an instance at a time. A **daemon run** is one daemon process from
 start to stop.
 
 ### Issue and issue identifier
 
-An **issue** is a GitHub issue that Dreamcatcher may handle. Its GitHub number
-is its **issue identifier**, conventionally written as `GH123`.
+An **issue** is a GitHub issue that _dreamcatcher_ may handle. Its GitHub number
+is its **issue identifier**, written as `GH123` in the terminal and in the
+identifiers built from it. The web pages write an issue or pull request number
+as `#123`, as GitHub does.
 
 ### Agent assignment and agent assignment identifier
 
-An **agent assignment** is Dreamcatcher's durable commission to an agent to
+An **agent assignment** is _dreamcatcher_'s durable commission to an agent to
 implement one issue.
 
 An **agent assignment identifier** identifies one agent assignment. It combines
@@ -54,7 +60,7 @@ communication channel between the agent and the user.
 
 ### Issue conversation
 
-An **issue conversation** is Dreamcatcher's durable commission to an agent to
+An **issue conversation** is _dreamcatcher_'s durable commission to an agent to
 answer the user on an issue without implementing a change.
 
 ### Agent work and agent work identifier
@@ -67,7 +73,7 @@ or the issue identifier prefixed with `conversation-`, as in
 ### Agent harness and harness session
 
 An **agent harness** is a program, such as Claude Code or Codex, through which
-Dreamcatcher runs an agent.
+_dreamcatcher_ runs an agent.
 
 A **harness session** is the continuing context maintained by the agent harness
 for one agent assignment or issue conversation. The harness supplies its own
@@ -76,16 +82,16 @@ identifier.
 
 ### Assignment skill
 
-An **assignment skill** is an agent skill which follows Dreamcatcher's
+An **assignment skill** is an agent skill which follows _dreamcatcher_'s
 agent-facing contract and guides an agent through an agent assignment. It may be
 invoked by a dispatch recipe.
 
 ### Dispatch recipe
 
-A **dispatch recipe** specifies how Dreamcatcher starts one kind of agent work
+A **dispatch recipe** specifies how _dreamcatcher_ starts one kind of agent work
 through a particular agent harness. It supplies the model, effort, and initial
 prompt for that harness. A recipe may also supply harness config, the settings
-beyond the model and effort that Dreamcatcher passes to the harness on every
+beyond the model and effort that _dreamcatcher_ passes to the harness on every
 round. The harness adapter decides which harness config it takes. An assignment
 recipe normally invokes an assignment skill; a conversation recipe asks the
 agent to answer the user.
@@ -93,7 +99,7 @@ agent to answer the user.
 ### Dispatch label
 
 A **dispatch label** is a GitHub issue label configured to mark issues for
-handling by Dreamcatcher.
+handling by _dreamcatcher_.
 
 ### Dispatch, assignment and conversation routes
 
@@ -101,17 +107,17 @@ A **dispatch route** maps one dispatch label to one dispatch recipe for each
 agent harness that the route configures. An **assignment route** is a dispatch
 route for agent assignments. A **conversation route** is a dispatch route for
 issue conversations. A route may offer recipes for all the harnesses
-Dreamcatcher supports or for only some of them.
+_dreamcatcher_ supports or for only some of them.
 
 ### Agent round
 
 An **agent round** is one bounded activation of an assignment's or issue
 conversation's harness session. Its core is a contiguous sequence of actions
-taken by the agent within that harness session. It begins when Dreamcatcher
+taken by the agent within that harness session. It begins when _dreamcatcher_
 starts or resumes the harness with a prompt, and ends when that invocation exits
 or is interrupted.
 
-An agent round is a Dreamcatcher concept. It is not a model turn, a tool call,
+An agent round is a _dreamcatcher_ concept. It is not a model turn, a tool call,
 or the harness session itself. An agent round has a number which identifies its
 position within one assignment or issue conversation.
 
@@ -149,19 +155,19 @@ It normalizes the different places in which GitHub lets the user write:
 conversation comments, review bodies, review verdicts, and inline review
 comments.
 
-Collectively, user posts are **feedback**. Dreamcatcher **relays** new user
+Collectively, user posts are **feedback**. _dreamcatcher_ **relays** new user
 posts into a later agent round. Relay is an action, not a separate durable
 domain object.
 
 ### Scheduler
 
-The **scheduler** decides what work Dreamcatcher starts and when. It decides
+The **scheduler** decides what work _dreamcatcher_ starts and when. It decides
 once per **scheduler tick**, and the daemon runs one tick per interval. Users
 see a scheduler tick called an update.
 
 ### Status report
 
-A **status report** is Dreamcatcher's read-only account of a Dreamcatcher
+A **status report** is _dreamcatcher_'s read-only account of a _dreamcatcher_
 instance, its issue conversations, agent assignments, and issue observations at
 a particular time.
 
@@ -204,8 +210,8 @@ Each agent assignment has exactly one:
 - agent harness.
 
 An issue can receive more than one assignment over its lifetime, but a
-Dreamcatcher instance can never have more than one open assignment for the same
-issue. An agent assignment remains open until it is complete or cancelled,
+_dreamcatcher_ instance can never have more than one open assignment for the
+same issue. An agent assignment remains open until it is complete or cancelled,
 including while its pull request is being wrapped up.
 
 A resumed assignment round's input records the user posts relayed to it and the
@@ -221,7 +227,7 @@ Each issue conversation has exactly one:
 - agent harness.
 
 It has no branch or pull request, so the issue is its communication channel. A
-Dreamcatcher instance has at most one issue conversation for an issue, and it
+_dreamcatcher_ instance has at most one issue conversation for an issue, and it
 keeps the conversation after the issue stops being eligible.
 
 Each conversation round input records the comment batch and the main revision.
@@ -229,9 +235,9 @@ The initial round input also records the issue title and body.
 
 ### Dispatch labels and routes
 
-An issue with no dispatch label is outside Dreamcatcher's scope. Each configured
-dispatch label belongs to exactly one dispatch route, so one label cannot be
-both an assignment label and a conversation label.
+An issue with no dispatch label is outside _dreamcatcher_'s scope. Each
+configured dispatch label belongs to exactly one dispatch route, so one label
+cannot be both an assignment label and a conversation label.
 
 An issue with more than one assignment label has an assignment routing conflict.
 An issue with more than one conversation label has a conversation routing
@@ -240,9 +246,9 @@ routing conflict. The order of routes in the configuration does not give one
 route precedence over another.
 
 Exactly one assignment label selects exactly one assignment route, and exactly
-one conversation label selects exactly one conversation route. Dreamcatcher then
-selects the dispatch recipe for the harness through which that agent work will
-run.
+one conversation label selects exactly one conversation route. _dreamcatcher_
+then selects the dispatch recipe for the harness through which that agent work
+will run.
 
 ### Completing an assignment
 
@@ -257,14 +263,14 @@ assignment has completed.
 ### Cancelling an assignment
 
 The user can **cancel** an open assignment to finish its pull request by hand. A
-cancelled assignment is no longer open, so Dreamcatcher runs no further rounds
+cancelled assignment is no longer open, so _dreamcatcher_ runs no further rounds
 for it and relays no further user posts from its pull request. A round that is
 running when the user cancels is asked to stop, and the assignment is working
 until that round ends. A cancel cannot be undone.
 
 An assignment that is complete or cancelled has **ended**.
 
-Dreamcatcher leaves the pull request as it is, and while it is open it claims
+_dreamcatcher_ leaves the pull request as it is, and while it is open it claims
 the issue elsewhere. If the user merges it, GitHub closes the issue. If the user
 closes it without merging, the issue may receive another assignment.
 
@@ -282,16 +288,16 @@ also be a recovery round, and two or more rounds may have the same purpose.
 An issue observation records these independent facts, each of which can be true,
 false, or unknown:
 
-- **Claimed here**: this Dreamcatcher instance has an open agent assignment for
-  the issue.
+- **Claimed here**: this _dreamcatcher_ instance has an open agent assignment
+  for the issue.
 - **Claimed elsewhere**: the issue has an open linked pull request other than
   the pull request belonging to its open local assignment, if any.
 - **Blocked**: an open issue dependency prevents work from starting.
 - **Routing conflict**: the issue carries more than one assignment label.
 
 These facts can coexist. In particular, an issue may be claimed both here and
-elsewhere if somebody opens another pull request after Dreamcatcher creates its
-assignment. A claimed issue may also become blocked or develop a routing
+elsewhere if somebody opens another pull request after _dreamcatcher_ creates
+its assignment. A claimed issue may also become blocked or develop a routing
 conflict after an assignment has started.
 
 An issue whose assignment setup was interrupted has an incomplete assignment
@@ -319,7 +325,7 @@ An issue is **available for an agent assignment** only when:
 Availability is derived rather than an independent fact. It is false as soon as
 any known fact prevents assignment. If no known fact prevents assignment but a
 required fact is unknown, availability is also unknown. A failure to observe
-external state can delay work, but must never cause Dreamcatcher to create
+external state can delay work, but must never cause _dreamcatcher_ to create
 duplicate or improperly routed work.
 
 There is no durable issue queue. The status report preserves the scheduler's
@@ -339,7 +345,7 @@ An agent assignment has one of these summary statuses in a status report:
   errors and ordinary recovery has stopped.
 - **Complete**: a wrap-up round has exited successfully.
 - **Cancelled**: the user has cancelled the assignment, and no round is running.
-- **Unknown**: Dreamcatcher cannot determine the assignment's status from what
+- **Unknown**: _dreamcatcher_ cannot determine the assignment's status from what
   it can currently observe.
 
 These statuses summarize what matters now; they are not a persisted lifecycle or
@@ -369,8 +375,8 @@ assignment status meaning:
   stopped. Fault outranks every status but working, whatever the issue's
   eligibility, so the user can see the fault and retry. Its counterpart is
   fault.
-- **Unknown**: Dreamcatcher cannot tell whether the issue is eligible or whether
-  comments wait. Its counterpart is unknown.
+- **Unknown**: _dreamcatcher_ cannot tell whether the issue is eligible or
+  whether comments wait. Its counterpart is unknown.
 
 Idle differs from needs user feedback on purpose. An assignment at rest has a
 pull request waiting for review, so it asks something of the user. A
@@ -411,11 +417,11 @@ consistently.
 
 ### Creating an agent assignment
 
-Dreamcatcher creates the branch and worktree, makes and pushes an empty commit,
-and opens a linked draft pull request before it asks the agent to do any work.
-These steps are part of creating the assignment, not responsibilities delegated
-to the agent or to the assignment skill. Every recorded agent assignment
-therefore already has a pull request before the agent starts working.
+_dreamcatcher_ creates the branch and worktree, makes and pushes an empty
+commit, and opens a linked draft pull request before it asks the agent to do any
+work. These steps are part of creating the assignment, not responsibilities
+delegated to the agent or to the assignment skill. Every recorded agent
+assignment therefore already has a pull request before the agent starts working.
 
 Creating the durable assignment and starting its first agent round are separate
 operations, but the scheduler performs them as one scheduling action. As soon as
@@ -433,25 +439,26 @@ Issue title and body alone do not start a round. Assignment ownership, linked
 pull requests, dependencies and assignment-routing conflicts do not govern
 conversation eligibility.
 
-Dreamcatcher fetches main, creates a detached worktree, and records the chosen
+_dreamcatcher_ fetches main, creates a detached worktree, and records the chosen
 conversation route and settings. It freezes the initial round input, then starts
 the initial conversation round. The recorded route and settings stay frozen if a
 different configured label later makes the issue eligible. The round shares the
 daemon's capacity and global cooldown with assignment rounds. Before a
-conversation round records a successful ending, Dreamcatcher requires its answer
-and posts it on the issue. An answer of `NO_REPLY` means no post is needed. A
-missing answer or failed post makes the round errored.
+conversation round records a successful ending, _dreamcatcher_ requires its
+answer and posts it on the issue. An answer of `NO_REPLY` means no post is
+needed. A missing answer or failed post makes the round errored.
 
 After the round ends, another eligible comment batch resumes the same harness
 session in another conversation round. Before it accepts that batch,
-Dreamcatcher resets the detached worktree to fetched main, deleting every local
-commit and file left by the earlier investigation. Comments that arrive while a
-round runs stay beyond the latest round input. If the round is interrupted or
-errors, recovery reuses its saved comments and revision without reading new
-comments or refreshing the worktree. It resumes the saved harness session, or
-repeats the first invocation with the configured prompt if no session identifier
-was recorded. If a successful first round recorded no session identifier, a
-later comment batch remains waiting because Dreamcatcher cannot resume it.
+_dreamcatcher_ resets the detached worktree to fetched main, deleting every
+local commit and file left by the earlier investigation. Comments that arrive
+while a round runs stay beyond the latest round input. If the round is
+interrupted or errors, recovery reuses its saved comments and revision without
+reading new comments or refreshing the worktree. It resumes the saved harness
+session, or repeats the first invocation with the configured prompt if no
+session identifier was recorded. If a successful first round recorded no session
+identifier, a later comment batch remains waiting because _dreamcatcher_ cannot
+resume it.
 
 A stopped conversation round posts no answer and is not recovered. The
 conversation is idle until another eligible comment batch arrives. That batch
@@ -469,7 +476,7 @@ Eligibility must be restored before any later batch or recovery can start.
 
 An assignment normally progresses as follows:
 
-1. Dreamcatcher opens its pull request as a draft during assignment setup.
+1. _dreamcatcher_ opens its pull request as a draft during assignment setup.
 2. The agent works on the implementation and may ask the user questions while it
    remains a draft.
 3. The agent marks it ready when the work is ready for the user to review.
@@ -499,10 +506,10 @@ by asking the user a question, the user's answer causes another implementation
 round to be scheduled.
 
 Merging or closing the pull request causes a wrap-up round to be scheduled. An
-errored or interrupted round does not require user input. Dreamcatcher schedules
-a recovery round automatically unless the assignment has entered a fault. An
-assignment in fault starts no round of any purpose, including wrap up, until a
-retry request or the end of a global cooldown clears the fault.
+errored or interrupted round does not require user input. _dreamcatcher_
+schedules a recovery round automatically unless the assignment has entered a
+fault. An assignment in fault starts no round of any purpose, including wrap up,
+until a retry request or the end of a global cooldown clears the fault.
 
 A stopped assignment round is not recovered. While its pull request remains
 open, it waits for a new user post. Merging or closing the pull request starts
@@ -538,13 +545,13 @@ candidates of the same kind for the rest of that tick.
 
 ### Handling errors and global cooldown
 
-Dreamcatcher does not diagnose any error as global when it happens. One piece of
-agent work's first consecutive error calls for a recovery round and its second
-makes that work in fault. The scheduler counts every assignment in fault. It
-counts a conversation in fault while its issue is eligible, or while a failed
+_dreamcatcher_ does not diagnose any error as global when it happens. One piece
+of agent work's first consecutive error calls for a recovery round and its
+second makes that work in fault. The scheduler counts every assignment in fault.
+It counts a conversation in fault while its issue is eligible, or while a failed
 issue listing leaves that eligibility unknown. Two counted faults, in any
 combination, are evidence of a shared problem and start a global cooldown. When
-the cooldown ends, Dreamcatcher clears those faults and permits recovery. This
+the cooldown ends, _dreamcatcher_ clears those faults and permits recovery. This
 deliberately simple policy prevents one work-specific failure from blocking all
 other work.
 

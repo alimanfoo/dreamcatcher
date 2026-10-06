@@ -1,4 +1,4 @@
-"""Define the paths and the shared document cache for Dreamcatcher's local state."""
+"""Define the paths and the shared document cache for dreamcatcher's local state."""
 
 from dataclasses import dataclass
 from functools import cached_property
@@ -12,7 +12,7 @@ STATE_FORMAT_VERSION = 5
 
 @dataclass(frozen=True, kw_only=True)
 class StateDirectory:
-    """Represent Dreamcatcher's local state for one repository.
+    """Represent dreamcatcher's local state for one repository.
 
     One of these is what a process reads the directory through, so it also
     holds what that process has read and need not read again.

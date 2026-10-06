@@ -1,4 +1,4 @@
-"""Choose and start the work for one Dreamcatcher instance."""
+"""Choose and start the work for one dreamcatcher instance."""
 
 from dreamcatcher.scheduler.assignments import AssignmentScheduler
 from dreamcatcher.scheduler.conversations import ConversationScheduler

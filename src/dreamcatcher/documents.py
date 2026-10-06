@@ -23,7 +23,7 @@ _BACKWARD_READ_SIZE = 4096
 
 
 class DreamcatcherDocument(BaseModel):
-    """Model a document that Dreamcatcher owns.
+    """Model a document that dreamcatcher owns.
 
     Every document refuses a key that it does not expect. A typo is then a
     named error, not a setting that the tool quietly ignores.

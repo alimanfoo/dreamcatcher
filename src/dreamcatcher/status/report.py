@@ -1,4 +1,4 @@
-"""Read status reports for a Dreamcatcher instance."""
+"""Read status reports for a dreamcatcher instance."""
 
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -80,7 +80,7 @@ class DreamcatcherDaemonStatus:
 
 @dataclass(frozen=True, kw_only=True)
 class DreamcatcherStatusReport:
-    """Describe one Dreamcatcher instance from its local state."""
+    """Describe one dreamcatcher instance from its local state."""
 
     at: datetime
     repository: str | None

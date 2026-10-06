@@ -1,6 +1,6 @@
 # Engineering standard
 
-This document says what Dreamcatcher holds itself to. It is the third enduring
+This document says what _dreamcatcher_ holds itself to. It is the third enduring
 document, beside [the ontology](ontology.md), which fixes the words, and
 [the architecture](architecture.md), which fixes the boundaries. The ontology
 says what things are called. The architecture says where each decision lives.
@@ -12,7 +12,7 @@ matter of taste.
 
 ## The aim
 
-Dreamcatcher aims to be as simple, clear, consistent and elegant as the finest
+_dreamcatcher_ aims to be as simple, clear, consistent and elegant as the finest
 open source projects. Those four words carry a precise meaning here.
 
 - **Simple** means there is no more of it than the job needs. Each part is small
@@ -140,7 +140,7 @@ not progress towards the standard. Meeting the criteria is.
 
 - Measure: whether the state format and the agent-facing contract each carry a
   version and a [compatibility statement](compatibility.md).
-- Bar: each does. Dreamcatcher reads and writes only its own state-format
+- Bar: each does. _dreamcatcher_ reads and writes only its own state-format
   directory, apart from the daemon lock and the `.gitignore` that every format
   shares, and ignores other format directories. A breaking change to the state
   format or agent-facing contract receives a new version and a changelog entry

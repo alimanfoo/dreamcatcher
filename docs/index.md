@@ -6,7 +6,7 @@ pull request for you to review and merge.
 
 ## Start here
 
-If you already use Dreamcatcher, read
+If you already use _dreamcatcher_, read
 [Compatibility and upgrades](compatibility.md) before replacing your
 installation.
 
@@ -22,7 +22,7 @@ a first assignment.
 ## Guides
 
 - [Configure labels and harnesses](configure.md).
-- [Run and monitor Dreamcatcher](run-and-monitor.md).
+- [Run and monitor _dreamcatcher_](run-and-monitor.md).
 - [Discuss an issue](discuss-an-issue.md) without starting an implementation
   assignment.
 - [Review an assignment](review-an-assignment.md) and give the agent feedback.

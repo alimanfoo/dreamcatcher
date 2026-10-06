@@ -6,8 +6,8 @@ root of the repository's main checkout and commit it when everyone watching the
 repository should use the same routes.
 
 You need the harness CLIs you configure on `PATH`, plus an authenticated `gh`.
-Dreamcatcher reads the file when the daemon starts, so restart a running daemon
-after changing it.
+_dreamcatcher_ reads the file when the daemon starts, so restart a running
+daemon after changing it.
 
 ## Start with distinct labels
 
@@ -37,9 +37,9 @@ repository. Label matching is case-insensitive, but using the same spelling
 everywhere makes the route easier to recognise.
 
 An assignment prompt normally invokes an installed assignment skill. The skill
-must know how to adopt Dreamcatcher's branch and draft pull request; authors can
-find the exact requirements in the [agent-facing contract](contract.md). A
-conversation prompt can be plain instructions, as above, because Dreamcatcher
+must know how to adopt _dreamcatcher_'s branch and draft pull request; authors
+can find the exact requirements in the [agent-facing contract](contract.md). A
+conversation prompt can be plain instructions, as above, because _dreamcatcher_
 adds the input and publication instructions itself.
 
 ## Decide which harness runs a route
@@ -49,7 +49,7 @@ the prompt, model, effort and any harness config that new work is created with.
 
 The `--harness` value on `dreamcatcher run` is the preference for a route that
 offers both harnesses. A route that offers only Claude always uses Claude; a
-route that offers only Codex always uses Codex. At startup Dreamcatcher checks
+route that offers only Codex always uses Codex. At startup _dreamcatcher_ checks
 that the preferred harness and every harness mentioned anywhere in the file is
 installed.
 
@@ -64,7 +64,7 @@ effort = "high"
 config = { model_context_window = 1000000, model_auto_compact_token_limit = 900000 }
 ```
 
-Dreamcatcher passes each entry to every Codex round. The
+_dreamcatcher_ passes each entry to every Codex round. The
 [configuration reference](configuration-reference.md#codex-config) says which
 values it accepts and which settings it keeps for itself.
 
@@ -87,7 +87,7 @@ An issue is available for a new assignment when it:
 - has no other open pull request linked to it; and
 - has no open issue recorded by GitHub as blocking it.
 
-If an issue carries two configured assignment labels, Dreamcatcher reports a
+If an issue carries two configured assignment labels, _dreamcatcher_ reports a
 routing conflict instead of guessing which recipe to use. Removing an assignment
 label after dispatch does not stop the active assignment: its saved route and
 pull request continue to govern later rounds. Use the controls in

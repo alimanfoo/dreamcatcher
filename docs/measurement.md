@@ -1,6 +1,6 @@
 # Measurement
 
-This page holds the latest measurement of Dreamcatcher against
+This page holds the latest measurement of _dreamcatcher_ against
 [the standard](standard.md). [The release checklist](releasing.md) replaces it
 before each major or minor release, and a phase plans its work from it. Earlier
 measurements are in the Git history. The first was the
@@ -17,7 +17,7 @@ Measured on 2026-10-06 at `14b26af`, before v5.1.0.
 | S3 Exports are used                    | 30 names without an importer, all permitted     | met    |                        |
 | S4 Each thing is done one way          | 8 facts derived twice                           | short  | #379–#380, #421        |
 | S5 Nothing is suppressed               | 0 `noqa`, 0 `type: ignore`, 3 platform pragmas  | met    |                        |
-| C1 One vocabulary                      | 11 disagreements; 9 fixed with this measurement | short  | #429, #430             |
+| C1 One vocabulary                      | 0 disagreements, after this release's fixes     | met    |                        |
 | C2 Enduring documents are true         | 0 statements; 1 corrected with this measurement | met    |                        |
 | C3 Documentation by purpose            | 4 kinds of page, kept apart                     | met    |                        |
 | C4 Formats and contracts are versioned | state format 5, contract 1, both with policy    | met    |                        |
@@ -37,9 +37,6 @@ Measured on 2026-10-06 at `14b26af`, before v5.1.0.
   scheduler and status each derive "claimed here" and "awaiting recovery"
   (#380). Each kind of agent work decides in its own way whether its last round
   needs recovery (#421).
-- **C1.** The web writes an issue number as `#50` where the ontology and the
-  terminal write `GH50` (#429). The product name is spelled both "dreamcatcher"
-  and "Dreamcatcher" (#430). Each needs a decision before the words can agree.
 - **E1.** The ledger's entry for a conversation that refuses a leftover worktree
   names a crash as its cause, but the refusal is this project's choice, and an
   assignment setup resumes the same leftover (#418). Four unledgered
@@ -59,14 +56,17 @@ Measured on 2026-10-06 at `14b26af`, before v5.1.0.
   the move of the stop and cancel controls (#427). Neither changed Python under
   `src` beyond docstrings, so S1 to S3, S5, E2 and E4 read as they did at
   v5.0.0. The measurement read them again rather than carry them over.
-- **C1.** The consistency review found eleven disagreements. The release pull
-  request that records this measurement fixes nine: "agent cap" for agent
-  capacity, "dashboard" for the web home page, "ticks" in the contract, the web
-  heading "Conversations", the contract's plural title, "session" for harness
-  session in the `conversation` help, the `assignment` help's claim that the
-  view ends while the assignment is in fault, a stale comment on that help, and
-  the architecture's claim below. Users still read "update" where the ontology,
-  the architecture and the code say "scheduler tick", which the ontology states.
+- **C1.** The consistency review found eleven disagreements, and the release
+  pull request that records this measurement fixes them all. Nine were wording:
+  "agent cap" for agent capacity, "dashboard" for the web home page, "ticks" in
+  the contract, the web heading "Conversations", the contract's plural title,
+  "session" for harness session in the `conversation` help, the `assignment`
+  help's claim that the view ends while the assignment is in fault, a stale
+  comment on that help, and the architecture's claim below. Two needed a
+  decision. The web pages write an issue number as `#123` (#429), and the
+  product name is _dreamcatcher_ in lower case (#430). The ontology now states
+  both. Users still read "update" where the ontology, the architecture and the
+  code say "scheduler tick", which the ontology states.
 - **C2.** The architecture said an assignment stays open until a successful
   wrap-up round, but a cancel also ends it. The release pull request corrects
   it.
@@ -75,8 +75,8 @@ Measured on 2026-10-06 at `14b26af`, before v5.1.0.
   to one.
 - **K3.** Triage rewrote six issues and closed none. #68 named a test helper
   since renamed, #382 the contract's old path, and #419 a template #427 removed.
-  #109, #113 and #125 said "repository" for the Dreamcatcher instance. #119 and
-  #425 got smaller corrections outside K3.
+  #109, #113 and #125 said "repository" for the _dreamcatcher_ instance. #119
+  and #425 got smaller corrections outside K3.
 - **K4.** Every pull request merged since the last measurement, #422, #424 and
   #427, answers the definition of done.
 - **E1.** #427 removed the cancel-only confirmation test by taking each

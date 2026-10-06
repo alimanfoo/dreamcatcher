@@ -17,7 +17,7 @@ to launch an agent for each labelled issue using an assignment skill named
 "smith". For this to work, the "smith" assignment skill needs to follow this
 guide.
 
-Dreamcatcher adds one instruction to every assignment and conversation prompt:
+_dreamcatcher_ adds one instruction to every assignment and conversation prompt:
 every GitHub post the agent makes must end with this line on a line of its own:
 
 ```html
@@ -25,7 +25,7 @@ every GitHub post the agent makes must end with this line on a line of its own:
 ```
 
 The marker is invisible when GitHub renders it. It distinguishes the agent's
-posts from the user's, so Dreamcatcher does not deliver the agent's own words
+posts from the user's, so _dreamcatcher_ does not deliver the agent's own words
 back in a later round. It applies to every post, including pull request
 descriptions, comments, inline replies and issues the agent files.
 
@@ -58,16 +58,17 @@ ready when the implementation is ready for review.
 
 ## Linking the pull request to the issue
 
-Dreamcatcher opens the draft pull request with `Closes #123` in its description,
-using the issue given to the assignment. An assignment skill must preserve that
-link when it replaces the description with its final account of the work.
+_dreamcatcher_ opens the draft pull request with `Closes #123` in its
+description, using the issue given to the assignment. An assignment skill must
+preserve that link when it replaces the description with its final account of
+the work.
 
 ## Ending a turn
 
 dreamcatcher runs an agent in rounds, and a round is over when the agent's
 process exits. An assignment skill must instruct the agent to end its turn once
 it has nothing left to do, and to post anything it has to tell the user on the
-pull request rather than relying on its turn output. Dreamcatcher records that
+pull request rather than relying on its turn output. _dreamcatcher_ records that
 output in the feed, but does not publish it as a message to the user.
 
 An assignment skill must not instruct the agent to run anything that waits for a
@@ -80,7 +81,7 @@ dreamcatcher gives an agent a further round whenever there is more for it to do.
 Each such round normally resumes the assignment's harness session where the last
 one left off, so the agent still has what the earlier rounds said in front of
 it, and dreamcatcher's prompt says what the round is for. When a recovery has no
-session identifier to resume, Dreamcatcher starts a new session with the
+session identifier to resume, _dreamcatcher_ starts a new session with the
 assignment's first prompt followed by the prompt for the required round.
 
 ### User posts and feedback
@@ -107,7 +108,7 @@ latest delivery position. A review's `verdict` can also be `COMMENTED`,
 
 An assignment skill must instruct the agent to read `pull_request_state` before
 anything else, and, when `pull_request_state` reads `OPEN`, to act on every user
-post in `user_posts` and reply on the pull request. Dreamcatcher derives the
+post in `user_posts` and reply on the pull request. _dreamcatcher_ derives the
 assignment's user-post delivery position from its recorded round inputs, so
 later updates do not select those posts again.
 
@@ -145,7 +146,7 @@ request can proceed to its wrap-up round without new feedback.
 
 An issue-conversation prompt asks an agent to answer a question on a GitHub
 issue. It must accept the issue number in the same `GH123` form as an assignment
-skill. Dreamcatcher adds the operational contract around the configured prompt
+skill. _dreamcatcher_ adds the operational contract around the configured prompt
 and names a JSON input file for the agent to read.
 
 Every input contains:
@@ -174,7 +175,7 @@ The first round receives every eligible existing comment. Each new comment batch
 after that resumes the same harness session and contains only eligible comments
 after the newest comment in the latest durable round input. The agent should use
 its existing transcript when a new question refers to an earlier answer. Before
-accepting a new batch, Dreamcatcher resets the idle worktree to fetched main,
+accepting a new batch, _dreamcatcher_ resets the idle worktree to fetched main,
 deleting every local commit and file left by the earlier investigation. Recovery
 instead reuses saved input and revision, as described below.
 
@@ -183,15 +184,15 @@ to read source and Git history, run code, reproduce a suspected bug, and make
 issue changes on GitHub when the user asks, such as filing or linking a
 subissue. Before making a GitHub change, the agent must inspect GitHub and must
 not repeat an action that an earlier attempt completed. It must not close the
-conversation issue or change its assignees or labels, because Dreamcatcher needs
-the issue to remain eligible until the answer is published. It must not fetch
-issue comments itself: the saved input is the comment set it must answer.
+conversation issue or change its assignees or labels, because _dreamcatcher_
+needs the issue to remain eligible until the answer is published. It must not
+fetch issue comments itself: the saved input is the comment set it must answer.
 
 Its instructions must not tell the agent to implement a change, edit project
 source, mutate Git, create a branch, commit or push, open or change a pull
 request, post the conversation reply itself, or contact the user elsewhere.
 
-Dreamcatcher reinforces that contract with harness-specific controls. Claude
+_dreamcatcher_ reinforces that contract with harness-specific controls. Claude
 allows selected `gh issue` commands and `gh api` while denying its direct
 editing and Git mutation tool families, though its general command tool can
 write files. Codex runs commands in a networked workspace-write sandbox so it
@@ -200,18 +201,19 @@ while approval requests are rejected. These controls make the intended actions
 practical rather than providing a hard security boundary. Local checkout writes
 are discarded by the refresh before the next batch.
 
-Dreamcatcher owns publication: when the harness exits successfully, the round
+_dreamcatcher_ owns publication: when the harness exits successfully, the round
 trims the final result, adds an agent attribution and the marker, and posts it
 before the round ends. A missing or empty final result is an error. A failed
 post makes the round errored.
 
 Issue conversations run through Claude or Codex and keep the harness chosen at
-creation. While the issue remains eligible, Dreamcatcher retries an interrupted
-or errored round's saved input and revision without collecting comments or
-refreshing the worktree. It resumes the recorded harness session with a recovery
-prompt. If the first invocation did not record a session identifier, it starts a
-new session with the configured prompt and the same saved input. The configured
-conversation prompt needs no special recovery instructions.
+creation. While the issue remains eligible, _dreamcatcher_ retries an
+interrupted or errored round's saved input and revision without collecting
+comments or refreshing the worktree. It resumes the recorded harness session
+with a recovery prompt. If the first invocation did not record a session
+identifier, it starts a new session with the configured prompt and the same
+saved input. The configured conversation prompt needs no special recovery
+instructions.
 
 A conversation round that the user stopped waits for a new eligible comment. The
 next ordinary round uses a refreshed worktree and begins by saying that the
