@@ -6,8 +6,10 @@ assignments or issue conversations, and the dispatch recipes available for each
 label. It does not configure daemon controls such as the interval or agent
 capacity; those are [`run` options](command-reference.md#run).
 
-The file is required and must be UTF-8 TOML. _dreamcatcher_ reports a missing,
-unreadable or invalid file rather than supplying a default configuration.
+The file is required and must be UTF-8 TOML. `run` reports a missing, unreadable
+or invalid file rather than supplying a default configuration.
+[`init`](command-reference.md#init) writes the complete example below when the
+file is missing.
 
 The daemon reads the file when it starts. Restart it to apply a change. Commit
 the file when everyone watching a repository should use the same routes.
@@ -19,7 +21,8 @@ the file when everyone watching a repository should use the same routes.
 ```
 
 This file offers both supported harnesses for every route. A route may instead
-contain only its `claude` or only its `codex` block.
+contain only its `claude` or only its `codex` block. When `init` writes the
+file, it comments out the blocks of a harness that is not installed.
 
 ## Top-level settings
 
