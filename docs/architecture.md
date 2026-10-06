@@ -43,6 +43,21 @@ domain phrase into a class. In particular, it should:
 The daemon does not decide which issue, assignment or conversation deserves
 work. It knows that scheduling happens, but not the scheduling priorities.
 
+### Repository setup
+
+`repository_setup.py` owns `dreamcatcher init`, which prepares a main checkout
+for a daemon. It checks what a daemon run needs: a main checkout, the GitHub
+repository and account, push access, a Git identity and a fetchable
+`origin/main`. It writes the default configuration when the checkout has none.
+For each harness that the configuration routes work to, it checks that the
+harness is installed and signed in, and installs the dream plugin. Then it
+creates every route label that the repository lacks.
+
+The daemon and setup refuse a checkout for the same reasons, because both call
+the main-checkout check in `git.py` and the repository and account check in
+`github.py`. Every setup step leaves alone what is already in place. Setup makes
+no scheduling decision and starts no agent work.
+
 ### Scheduling
 
 The scheduler package owns all decisions about what work starts and when.
@@ -257,7 +272,8 @@ domain object shared across boundaries.
 `github.py` is the only boundary that knows GitHub response shapes or constructs
 GitHub commands. It owns projections and operations for:
 
-- repository and account identity;
+- repository and account identity, and whether the account can push;
+- the repository's labels, and creating a label;
 - issue title, state, assignees, labels, and dependencies;
 - linked pull requests;
 - pull-request identity, draft state, readiness, and terminal state;
@@ -298,8 +314,10 @@ adapter knows:
 - how to resume an identified harness session;
 - which model and effort arguments its harness needs, and which harness config
   it takes;
-- how to recover the harness session identifier from output; and
-- how to parse the harness's event stream.
+- how to recover the harness session identifier from output;
+- how to parse the harness's event stream; and
+- how to check that its harness is signed in, and how to install a plugin for
+  the user.
 
 An adapter does not know about issues, pull requests, dispatch routes,
 assignment status, scheduling priorities, or status reports. It receives an
@@ -430,6 +448,11 @@ recipe wins when only one exists.
 The repository configuration carries choices that everyone working in the
 repository shares. The daemon interval and agent capacity belong to one person's
 run, so the `run` command receives them instead.
+
+The default configuration is `default_config.toml` in the package. The
+configuration module writes it for `init`, with the recipes of each harness that
+is not installed commented out, and the configuration reference includes the
+same file.
 
 The configuration module validates labels, routes, and recipes. Each dispatch
 label belongs to one route, so a label cannot configure both kinds of agent

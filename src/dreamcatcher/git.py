@@ -24,6 +24,16 @@ def require_main_checkout(*, root: Path) -> None:
         )
 
 
+def read_git_author_identity(*, root: Path) -> str:
+    """Return the name and email that a commit in the checkout at root would carry.
+
+    When Git has no identity to use, its CommandError says how to set one.
+    """
+    ident = run_command(program="git", arguments=["var", "GIT_AUTHOR_IDENT"], cwd=root)
+    # Git follows the identity with the commit time and its zone.
+    return ident.rsplit(maxsplit=2)[0]
+
+
 def fetch_main(*, root: Path) -> None:
     """Bring origin's main branch up to date in the checkout at root."""
     run_command(program="git", arguments=["fetch", "origin", "main"], cwd=root)

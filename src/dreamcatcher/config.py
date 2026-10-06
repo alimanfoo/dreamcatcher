@@ -17,7 +17,7 @@ from dreamcatcher.documents import (
     write_text,
 )
 
-_DREAMCATCHER_CONFIG_NAME = "dreamcatcher.toml"
+DREAMCATCHER_CONFIG_NAME = "dreamcatcher.toml"
 
 # The configuration that init writes, which the configuration reference shows.
 _DEFAULT_CONFIG_PATH = Path(__file__).with_name("default_config.toml")
@@ -192,7 +192,7 @@ class DreamcatcherConfig(DreamcatcherDocument):
 
 def read_dreamcatcher_config(*, root: Path) -> DreamcatcherConfig:
     """Return the configuration the repository at root holds."""
-    return read_toml(model=DreamcatcherConfig, path=root / _DREAMCATCHER_CONFIG_NAME)
+    return read_toml(model=DreamcatcherConfig, path=root / DREAMCATCHER_CONFIG_NAME)
 
 
 def write_default_dreamcatcher_config(
@@ -204,7 +204,7 @@ def write_default_dreamcatcher_config(
     run refuses to start while a route names a harness that is not installed.
     Return whether this wrote the file.
     """
-    path = root / _DREAMCATCHER_CONFIG_NAME
+    path = root / DREAMCATCHER_CONFIG_NAME
     if path.exists():
         return False
     lines = []

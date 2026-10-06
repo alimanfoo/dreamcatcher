@@ -95,6 +95,7 @@ FORBIDDEN_REACH = {
     "agent_rounds": SCHEDULING,
     "agent_work": SCHEDULING,
     "issue_conversations": SCHEDULING,
+    "repository_setup": PRESENTATION | SCHEDULING | {"daemon"},
     "status": PRESENTATION,
     "feed": PRESENTATION,
     **dict.fromkeys(ADAPTERS, PRESENTATION | SCHEDULING),
