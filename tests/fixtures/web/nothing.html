@@ -4,8 +4,11 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>repository unknown · dreamcatcher</title>
-    <link rel="icon" type="image/png" href="/static/dreamcatcher-mark-phosphor.png">
+    <link rel="icon" type="image/png" href="/static/dreamcatcher-mark-ink.png">
     <link rel="stylesheet" href="/static/matrix.css">
+
+    <link rel="stylesheet" href="/static/nature.css">
+    <script src="/static/nature.js" defer></script>
 
     <script src="/static/vendor/htmx-2.0.10.min.js" defer></script>
     <script src="/static/vendor/idiomorph-ext-0.7.4.min.js" defer></script>
@@ -15,15 +18,15 @@
     
   <main id="home" hx-get="/" hx-trigger="every 2s" hx-select="#home" hx-swap="morph">
     <header class="site-header">
-  <div class="repository"><img class="mark" src="/static/dreamcatcher-mark-phosphor.png" alt="dreamcatcher"><span>repository unknown</span></div>
+  <div class="repository"><img class="mark" src="/static/dreamcatcher-mark-ink.png" alt="dreamcatcher"><span>repository unknown</span></div>
   <div class="site-actions">
     <a class="docs-link" href="https://alimanfoo.github.io/dreamcatcher/" target="_blank" rel="noopener noreferrer">Docs</a>
     <div class="daemon daemon-not-running">daemon not running</div>
     <nav class="theme-switch" aria-label="Theme">
 
-      <a class="theme-choice" href="?theme=matrix" aria-current="page">Matrix</a>
+      <a class="theme-choice" href="?theme=matrix">Matrix</a>
 
-      <a class="theme-choice" href="?theme=nature">Nature</a>
+      <a class="theme-choice" href="?theme=nature" aria-current="page">Nature</a>
 
     </nav>
   </div>
