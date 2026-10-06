@@ -7,6 +7,7 @@ from typing import Annotated, Protocol, Self, overload
 
 from pydantic import AfterValidator, AwareDatetime, Field, model_validator
 
+from dreamcatcher.agent_assignments import Assignment
 from dreamcatcher.agent_rounds import AssignmentRoundPurpose
 from dreamcatcher.documents import DreamcatcherDocument
 
@@ -165,6 +166,25 @@ class SchedulerRecord(DreamcatcherDocument):
     )
     cooldown: GlobalCooldown | None = None
     most_recent_cooldown_ended: _UtcDateTime | None = None
+
+
+def observe_claimed_here(
+    *, issue: int, open_assignments: dict[int, Assignment]
+) -> ObservedFact:
+    """Observe whether this instance has an open assignment for the issue.
+
+    The open assignments are keyed by issue, as `find_open_assignments_by_issue`
+    returns them.
+    """
+    if issue in open_assignments:
+        return ObservedFact(
+            value=Truth.TRUE,
+            evidence="this checkout has an open assignment for it",
+        )
+    return ObservedFact(
+        value=Truth.FALSE,
+        evidence="this checkout has no open assignment for it",
+    )
 
 
 def derive_issue_availability(*, observation: IssueObservation) -> ObservedFact:
