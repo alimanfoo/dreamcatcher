@@ -180,6 +180,18 @@ def create_conversation(
     existing = read_conversation(state=state, issue=issue.number)
     if existing is not None:
         return existing
+    selected_harness = route.choose_harness(requested_harness=requested_harness)
+    recipe = route.recipes[selected_harness]
+    record = ConversationRecord(
+        issue=issue.number,
+        title=issue.title,
+        dispatch_label=route.label,
+        harness=selected_harness,
+        model=recipe.model,
+        effort=recipe.effort,
+        harness_config=recipe.config,
+        prompt=compose_issue_instructions(template=recipe.prompt, issue=issue.number),
+    )
     fetch_main(root=state.root)
     directory = state.conversations / f"GH{issue.number}"
     worktree = state.conversation_worktrees / f"GH{issue.number}"
@@ -190,20 +202,6 @@ def create_conversation(
         )
     add_detached_worktree(root=state.root, path=worktree)
     try:
-        selected_harness = route.choose_harness(requested_harness=requested_harness)
-        recipe = route.recipes[selected_harness]
-        record = ConversationRecord(
-            issue=issue.number,
-            title=issue.title,
-            dispatch_label=route.label,
-            harness=selected_harness,
-            model=recipe.model,
-            effort=recipe.effort,
-            harness_config=recipe.config,
-            prompt=compose_issue_instructions(
-                template=recipe.prompt, issue=issue.number
-            ),
-        )
         write_json(document=record, path=directory / _CONVERSATION_RECORD_NAME)
     except ReportableError:
         with suppress(CommandError):
