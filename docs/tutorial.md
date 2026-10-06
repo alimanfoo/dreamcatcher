@@ -190,15 +190,15 @@ ready for review. Claude then works in that child worktree.
 
 ## 8. Watch the assignment
 
-In a second terminal, still at the repository root, open the local dashboard:
+In a second terminal, still at the repository root, open the web home page:
 
 ```sh
 dreamcatcher web
 ```
 
-Select `GH123` to see its rounds and live feed. The dashboard reads local state,
-so it can show activity without publishing the agent's working notes to GitHub.
-You can also follow the same feed in a terminal:
+Select `GH123` to see its rounds and live feed. The page reads local state, so
+it can show activity without publishing the agent's working notes to GitHub. You
+can also follow the same feed in a terminal:
 
 ```sh
 dreamcatcher feed GH123 --assignment

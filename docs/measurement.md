@@ -6,7 +6,7 @@ before each major or minor release, and a phase plans its work from it. Earlier
 measurements are in the Git history. The first was the
 [baseline of 2026-09-30](https://github.com/alimanfoo/dreamcatcher/blob/main/specs/2026-09-30-engineering-standard/roadmap.md).
 
-Measured on 2026-10-06 at `fe427d4`, before v5.0.0.
+Measured on 2026-10-06 at `14b26af`, before v5.1.0.
 
 ## Results
 
@@ -17,14 +17,14 @@ Measured on 2026-10-06 at `fe427d4`, before v5.0.0.
 | S3 Exports are used                    | 30 names without an importer, all permitted     | met    |                        |
 | S4 Each thing is done one way          | 8 facts derived twice                           | short  | #379–#380, #421        |
 | S5 Nothing is suppressed               | 0 `noqa`, 0 `type: ignore`, 3 platform pragmas  | met    |                        |
-| C1 One vocabulary                      | 0 disagreements, after this release's fixes     | met    |                        |
-| C2 Enduring documents are true         | 0 statements; 2 corrected with this measurement | met    |                        |
+| C1 One vocabulary                      | 11 disagreements; 9 fixed with this measurement | short  | #429, #430             |
+| C2 Enduring documents are true         | 0 statements; 1 corrected with this measurement | met    |                        |
 | C3 Documentation by purpose            | 4 kinds of page, kept apart                     | met    |                        |
 | C4 Formats and contracts are versioned | state format 5, contract 1, both with policy    | met    |                        |
 | K1 Structural rules checked by machine | the 4 named rules checked                       | met    | #383                   |
-| K2 Suite is fast and speaks plainly    | 23 seconds on a laptop, 100% branch coverage    | met    |                        |
+| K2 Suite is fast and speaks plainly    | 26 seconds on a laptop, 100% branch coverage    | met    |                        |
 | K3 Tracker is current                  | 0 issues in other words or for done work        | met    |                        |
-| K4 Every change reviewed to standard   | 17 of 17 pull requests answered                 | met    |                        |
+| K4 Every change reviewed to standard   | 3 of 3 pull requests answered                   | met    |                        |
 | E1 Rules, not cases                    | 10 ledgered, 1 internal cause; 4 unledgered     | short  | #418, #419             |
 | E2 Invariants by construction          | 55 optional fields, 0 coupled sets              | met    |                        |
 | E3 Concept economy                     | 21 concepts; none added without a case          | met    |                        |
@@ -37,13 +37,16 @@ Measured on 2026-10-06 at `fe427d4`, before v5.0.0.
   scheduler and status each derive "claimed here" and "awaiting recovery"
   (#380). Each kind of agent work decides in its own way whether its last round
   needs recovery (#421).
+- **C1.** The web writes an issue number as `#50` where the ontology and the
+  terminal write `GH50` (#429). The product name is spelled both "dreamcatcher"
+  and "Dreamcatcher" (#430). Each needs a decision before the words can agree.
 - **E1.** The ledger's entry for a conversation that refuses a leftover worktree
   names a crash as its cause, but the refusal is this project's choice, and an
   assignment setup resumes the same leftover (#418). Four unledgered
   conditionals single out a case: the conversation scheduler's early return when
-  no routes are configured, the template's test for the cancel control, the
-  web's parsing of "blocked" evidence for issue numbers, and the assignment
-  card's comparison with the words "needs user feedback" (#419).
+  no routes are configured, the templates' tests that place retry apart from the
+  other controls, the web's parsing of "blocked" evidence for issue numbers, and
+  the assignment card's comparison with the words "needs user feedback" (#419).
 - **E4.** The assignment prompt names, and `StateDirectory.worktrees`, carry no
   kind while the conversation names do (#382). The two kinds create their work
   in different shapes and treat a leftover worktree differently (#418), match
@@ -52,29 +55,35 @@ Measured on 2026-10-06 at `fe427d4`, before v5.0.0.
 
 ## Notes
 
-- **C1.** The consistency review before this release found about thirty
-  disagreements, and #411, #412, #415, #416 and #417 fixed them all, closing
-  #381. Users read "update" where the ontology, the architecture and the code
-  say "scheduler tick". The ontology states that split, so it is not a
-  disagreement.
-- **C2.** #348, the previous shortfall, is fixed. This measurement found two
-  statements the code had moved past: the standard's C4 bar left out the daemon
-  lock and the `.gitignore` that every format shares, and the architecture said
-  a conversation's recovery prompt follows the first prompt in a replacement
-  session. The release pull request that records this measurement corrects both.
-- **K1.** The four rules the standard names are checked. #383 still asks whether
-  K1 means the architecture's other checkable rules too.
-- **K3.** Triage rewrote nine issues that named code since renamed or removed,
-  and closed none, because no issue's work was done. #121 still quotes a feed
-  recording in old words, which stays as evidence.
-- **K4.** Every pull request merged since the last measurement, from #376 to
-  #417, answers the definition of done.
-- **E2.** Nine `cast(...)` calls assert that an optional value is present, up
-  from eight. The method below does not count them.
-- **E3.** Cancelling arrived with its own spec. Harness config, the daemon run
-  and the scheduler tick were defined within existing concepts.
-- **E4.** #415 removed `is_over` from both kinds at once, so the table of
-  parallel operations has 14 rows where it had 15.
+- **Since v5.0.0.** Two pull requests merged: the documentation site (#424) and
+  the move of the stop and cancel controls (#427). Neither changed Python under
+  `src` beyond docstrings, so S1 to S3, S5, E2 and E4 read as they did at
+  v5.0.0. The measurement read them again rather than carry them over.
+- **C1.** The consistency review found eleven disagreements. The release pull
+  request that records this measurement fixes nine: "agent cap" for agent
+  capacity, "dashboard" for the web home page, "ticks" in the contract, the web
+  heading "Conversations", the contract's plural title, "session" for harness
+  session in the `conversation` help, the `assignment` help's claim that the
+  view ends while the assignment is in fault, a stale comment on that help, and
+  the architecture's claim below. Users still read "update" where the ontology,
+  the architecture and the code say "scheduler tick", which the ontology states.
+- **C2.** The architecture said an assignment stays open until a successful
+  wrap-up round, but a cancel also ends it. The release pull request corrects
+  it.
+- **C3.** The documentation is now a site built from `docs/`. It publishes the
+  developer pages in a Development section of their own, and no user page links
+  to one.
+- **K3.** Triage rewrote six issues and closed none. #68 named a test helper
+  since renamed, #382 the contract's old path, and #419 a template #427 removed.
+  #109, #113 and #125 said "repository" for the Dreamcatcher instance. #119 and
+  #425 got smaller corrections outside K3.
+- **K4.** Every pull request merged since the last measurement, #422, #424 and
+  #427, answers the definition of done.
+- **E1.** #427 removed the cancel-only confirmation test by taking each
+  control's confirmation from one table, and added the retry placement tests in
+  its place, so the count of unledgered conditionals is unchanged.
+- **E2.** Nine `cast(...)` calls assert that an optional value is present, as at
+  v5.0.0. The method below does not count them.
 
 ## Method
 

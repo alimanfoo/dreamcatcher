@@ -38,14 +38,6 @@ from dreamcatcher.version import DREAMCATCHER_VERSION
 _ISSUE_REFERENCE_PATTERN = re.compile(r"gh(\d+)\Z", re.IGNORECASE)
 _MAX_INTERVAL_SECONDS = int(TIMEOUT_MAX) - 1
 
-# The help that says when a view of one assignment ends, which the assignment view
-# and the feed both give, since a reader reads one verb's help and no other.
-_HELP_WHEN_A_VIEW_ENDS = (
-    "It ends once the assignment has completed a wrap-up round successfully "
-    "or been cancelled, and while an assignment is in fault. "
-    "Interrupt it to end it sooner."
-)
-
 # The help that says what a view does to the terminal it runs in, which the two
 # views that draw a picture over the one before give.
 _HELP_WHEN_A_VIEW_TAKES_THE_SCREEN = (
@@ -187,9 +179,7 @@ def _build_cli_parser() -> argparse.ArgumentParser:
             "its assignment dispatch settled, the rounds it has run, the command that "
             "resumes the harness session by hand, and the older assignments "
             "at the same issue. It keeps up until the assignment ends after a "
-            "successful wrap-up or a cancel. "
-            + _HELP_WHEN_A_VIEW_ENDS
-            + " "
+            "successful wrap-up or a cancel. Interrupt it to end it sooner. "
             + _HELP_WHEN_A_VIEW_TAKES_THE_SCREEN
             + " An ended assignment stays on the screen for you to read. "
             "Interrupt one that is still going and nothing is left behind. "
@@ -202,7 +192,7 @@ def _build_cli_parser() -> argparse.ArgumentParser:
         "conversation",
         help="show one issue conversation, in detail",
         description=(
-            "Show an issue conversation's chosen settings, session, worktree, "
+            "Show an issue conversation's chosen settings, harness session, worktree, "
             "code revision, and rounds. It keeps up while the status report "
             "lists the conversation. "
             + _HELP_WHEN_A_VIEW_TAKES_THE_SCREEN

@@ -9,8 +9,13 @@ A change that users would notice gets an entry here. Released changes stay under
 their release; development changes stay under **Unreleased** until they are
 tagged. From v5.0.0 on, each entry links the pull request that made the change.
 
-## Unreleased
+## [v5.1.0](https://github.com/alimanfoo/dreamcatcher/releases/tag/v5.1.0) — 2026-10-06
 
+- The documentation is now a site at
+  <https://alimanfoo.github.io/dreamcatcher/>, built from `docs/`. The agent
+  contract and this changelog moved there from the repository root, to
+  `docs/contract.md` and `docs/changelog.md`.
+  ([#424](https://github.com/alimanfoo/dreamcatcher/pull/424))
 - The assignment and conversation pages now show **Stop** and **Cancel** as
   **stop round** and **cancel assignment**, at the foot of the page beside
   **resume by hand** and styled like it. **stop round** asks you to confirm, as

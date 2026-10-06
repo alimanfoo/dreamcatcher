@@ -3,8 +3,8 @@
 Dreamcatcher reads `dreamcatcher.toml` from the root of the main checkout where
 `dreamcatcher run` starts. The file defines which issue labels dispatch
 assignments or issue conversations, and the dispatch recipes available for each
-label. It does not configure daemon controls such as the interval or agent cap;
-those are [`run` options](command-reference.md#run).
+label. It does not configure daemon controls such as the interval or agent
+capacity; those are [`run` options](command-reference.md#run).
 
 The file is required and must be UTF-8 TOML. Dreamcatcher reports a missing,
 unreadable or invalid file rather than supplying a default configuration.

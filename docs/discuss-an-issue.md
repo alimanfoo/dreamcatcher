@@ -26,7 +26,7 @@ harness to examine current `origin/main` and publishes the successful final
 answer as a marked issue comment. Its progress and tool activity remain in the
 local feed rather than becoming partial GitHub replies.
 
-Monitor it in the dashboard or terminal:
+Monitor it on the web home page or in the terminal:
 
 ```sh
 dreamcatcher conversation GH123

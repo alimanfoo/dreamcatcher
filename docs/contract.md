@@ -1,4 +1,4 @@
-# Agent-facing contracts
+# Agent-facing contract
 
 Contract version **1** covers assignments and issue conversations. See the
 [compatibility policy](compatibility.md#agent-contract) for what this version
@@ -109,7 +109,7 @@ An assignment skill must instruct the agent to read `pull_request_state` before
 anything else, and, when `pull_request_state` reads `OPEN`, to act on every user
 post in `user_posts` and reply on the pull request. Dreamcatcher derives the
 assignment's user-post delivery position from its recorded round inputs, so
-later ticks do not select those posts again.
+later updates do not select those posts again.
 
 ### A merged or closed pull request
 

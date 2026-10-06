@@ -21,15 +21,15 @@ shorter interval or more concurrent rounds:
 dreamcatcher run --harness claude --interval 30 --max-agents 2
 ```
 
-The agent cap is shared by assignments and issue conversations. Start with one
-until you know how much agent activity and review work you want at once. A
+The agent capacity is shared by assignments and issue conversations. Start with
+one until you know how much agent activity and review work you want at once. A
 second daemon for the same checkout refuses to start.
 
 `run` must start in the main checkout. Dreamcatcher stores its local state under
 that checkout's `.dreamcatcher/` directory. Use this same checkout when you
 continue saved work; another clone has separate local history.
 
-## Open the local dashboard
+## Open the web home page
 
 In another terminal at the same checkout, run:
 
@@ -37,10 +37,10 @@ In another terminal at the same checkout, run:
 dreamcatcher web
 ```
 
-Dreamcatcher opens a local dashboard in your browser and serves it on
-`127.0.0.1` until you interrupt this command. The dashboard reads the local
-state directory and does not contact GitHub itself. It still opens when the
-daemon is stopped, but then it can show only the last state the daemon recorded.
+Dreamcatcher opens the web home page in your browser and serves it on
+`127.0.0.1` until you interrupt this command. The page reads the local state
+directory and does not contact GitHub itself. It still opens when the daemon is
+stopped, but then it can show only the last state the daemon recorded.
 
 Use an exact port when needed:
 

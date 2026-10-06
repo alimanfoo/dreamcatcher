@@ -1,7 +1,8 @@
 # Compatibility and upgrades
 
-The latest tagged release, v5.0.0, uses state format 5. v4.0.0 used state format
-4, and saved work does not carry across from one format to the next.
+The latest tagged release, v5.1.0, uses state format 5, as v5.0.0 did. v4.0.0
+used state format 4, and saved work does not carry across from one format to the
+next.
 
 ## Upgrade from v4.0.0 to v5.0.0
 
@@ -58,7 +59,7 @@ Dreamcatcher reads and writes only the directory for its own format, such as
 The daemon lock at `.dreamcatcher/daemon.lock` is shared across formats, so two
 versions still cannot run against the same checkout at once. v4.0.0 and earlier
 use `.dreamcatcher/daemon.pid` instead, so stop an older daemon before you start
-v5.0.0.
+v5.0.0 or later.
 
 A different format starts with empty local state. No migration is promised.
 

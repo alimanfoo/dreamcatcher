@@ -174,8 +174,9 @@ of an agent assignment. It should provide cohesive operations to:
 - read existing assignments;
 - find the open assignment for an issue;
 - allocate the next round number within an assignment;
-- read the user-post delivery position from recorded round inputs; and
-- recognize completion after a successful wrap-up round.
+- read the user-post delivery position from recorded round inputs;
+- recognize completion after a successful wrap-up round; and
+- record a cancel.
 
 `agent_work.py` records the facts that both kinds of agent work share: the
 harness session identifier, and when the user requests another recovery attempt
@@ -208,8 +209,8 @@ already exists, the scheduler continues to the first round instead of recreating
 the assignment.
 
 The assignment remains open until the module recognizes a successful wrap-up
-round. A merged or closed pull request calls for wrap up but does not by itself
-complete the assignment.
+round or the user cancels it. A merged or closed pull request calls for wrap up
+but does not by itself complete the assignment.
 
 The assignment module coordinates the workflow but does not implement Git
 commands, parse GitHub responses, launch harnesses, or choose when work should
@@ -427,8 +428,8 @@ harness-selection rule: a configured requested harness wins, while the sole
 recipe wins when only one exists.
 
 The repository configuration carries choices that everyone working in the
-repository shares. The daemon interval and agent cap belong to one person's run,
-so the `run` command receives them instead.
+repository shares. The daemon interval and agent capacity belong to one person's
+run, so the `run` command receives them instead.
 
 The configuration module validates labels, routes, and recipes. Each dispatch
 label belongs to one route, so a label cannot configure both kinds of agent

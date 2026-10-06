@@ -69,7 +69,7 @@ class DreamcatcherDaemonStatus:
 
     @property
     def max_agents(self) -> int | None:
-        """The agent cap selected for the current or latest daemon run."""
+        """The agent capacity selected for the current or latest daemon run."""
         return None if self.run is None else self.run.max_agents
 
     @property

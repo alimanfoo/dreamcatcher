@@ -6,7 +6,7 @@ not a claim that the implementation is finished. Begin your normal code review
 when the assignment skill marks the pull request ready for review.
 
 You need the daemon running for feedback and final wrap-up to reach the agent.
-Use the dashboard or `dreamcatcher assignment GH123` to confirm which pull
+Use the web home page or `dreamcatcher assignment GH123` to confirm which pull
 request belongs to the assignment.
 
 ## Answer questions and give feedback
