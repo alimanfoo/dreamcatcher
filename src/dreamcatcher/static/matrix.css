@@ -496,20 +496,16 @@ body::after {
   font: inherit;
   font-weight: 700;
   letter-spacing: var(--letter-label);
-  text-transform: uppercase;
-}
-
-.stop-control,
-.cancel-control {
-  color: var(--amber);
 }
 
 .retry-control {
   color: var(--phosphor);
+  text-transform: uppercase;
 }
 
 .agent-work-control:hover,
-.agent-work-control:focus-visible {
+.agent-work-control:focus-visible,
+.manual-recovery summary:hover {
   color: var(--bright);
 }
 
@@ -644,10 +640,15 @@ body::after {
   min-width: 0;
 }
 
+.stop-control,
+.cancel-control,
 .manual-recovery summary {
   color: var(--amber);
-  cursor: pointer;
   font-size: 0.9em;
+}
+
+.manual-recovery summary {
+  cursor: pointer;
   font-weight: 700;
   letter-spacing: var(--letter-label);
 }
