@@ -235,12 +235,12 @@ def read_status_report(
         failed_assignment_setups=[
             status
             for status in issue_statuses
-            if status.value is IssueStatusValue.FAILED_SETUP
+            if status.value is IssueStatusValue.FAILED_ASSIGNMENT_SETUP
         ],
         issue_statuses=[
             status
             for status in issue_statuses
-            if status.value is not IssueStatusValue.FAILED_SETUP
+            if status.value is not IssueStatusValue.FAILED_ASSIGNMENT_SETUP
         ],
         assignment_statuses=assignment_statuses,
         conversation_statuses=conversation_statuses,

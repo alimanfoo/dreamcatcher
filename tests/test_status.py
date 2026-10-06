@@ -759,7 +759,7 @@ def test_a_routing_conflict_and_blocker_are_reported_once_with_their_evidence(st
 
     [issue] = status_report.issue_statuses
     assert issue.observation.issue == 20
-    assert issue.value is IssueStatusValue.ROUTING_CONFLICT
+    assert issue.value is IssueStatusValue.ASSIGNMENT_ROUTING_CONFLICT
     assert issue.evidence == (
         IssueEvidence(text="multiple assignment labels"),
         IssueEvidence(text="blocked by GH10", names_issues=True),
@@ -786,7 +786,7 @@ def test_a_routing_conflict_without_a_blocker_is_reported(state):
 
     [issue] = status_report.issue_statuses
     assert issue.observation.issue == 20
-    assert issue.value is IssueStatusValue.ROUTING_CONFLICT
+    assert issue.value is IssueStatusValue.ASSIGNMENT_ROUTING_CONFLICT
     assert issue.detail == "multiple assignment labels"
 
 
@@ -1018,7 +1018,7 @@ def test_a_failed_setup_reports_independently_of_an_external_claim(state):
                     ),
                 }
             ),
-            value=IssueStatusValue.FAILED_SETUP,
+            value=IssueStatusValue.FAILED_ASSIGNMENT_SETUP,
             evidence=(IssueEvidence(text="assignment setup failed"),),
         )
     ]

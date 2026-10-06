@@ -367,10 +367,10 @@ scheduler's recorded evidence. Each one is an `IssueStatus`, which names the
 reason the report shows it and carries that evidence. An `AssignmentStatus` is
 one summary status from the ontology.
 
-An issue's status is a failed setup while the latest tick records a setup
-failure, independently of whether the issue is available or a linked pull
-request proves that it is claimed elsewhere. That status also carries any
-recorded routing-conflict or blocker evidence.
+An issue's status is a failed assignment setup while the latest tick records an
+assignment setup failure, independently of whether the issue is available or a
+linked pull request proves that it is claimed elsewhere. That status also
+carries any recorded assignment routing conflict or blocker evidence.
 
 An `AgentWorkObservation` records the tick's interpretation of one open work
 item. It carries the agent work identifier, issue and one `ObservedFact` saying

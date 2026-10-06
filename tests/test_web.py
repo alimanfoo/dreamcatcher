@@ -1324,7 +1324,7 @@ def test_issue_references_link_to_github_with_hash_notation(tmp_path):
         f"{github_attributes}>#50</a>" in page
     )
     assert (
-        '<span class="chip issue-routing-conflict">multiple '
+        '<span class="chip issue-assignment-routing-conflict">multiple '
         "assignment labels: dream:less, dream:smith; blocked by "
         f'<a class="issue-number" href="{issue_url}" '
         f"{github_attributes}>#50</a>" in page

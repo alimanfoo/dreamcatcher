@@ -15,8 +15,8 @@ from dreamcatcher.scheduler.models import (
 class IssueStatusValue(StrEnum):
     """List the reasons a status report shows an observed issue."""
 
-    FAILED_SETUP = "failed setup"
-    ROUTING_CONFLICT = "routing conflict"
+    FAILED_ASSIGNMENT_SETUP = "failed assignment setup"
+    ASSIGNMENT_ROUTING_CONFLICT = "assignment routing conflict"
     BLOCKED = "blocked"
     AVAILABLE = "available"
 
@@ -101,9 +101,9 @@ def derive_issue_statuses(
 def _derive_issue_status(*, observation: IssueObservation) -> IssueStatus | None:
     """Return the status of one observed issue, or None when the report omits it.
 
-    The first that holds of a failed setup, a routing conflict, a blocker and
-    availability decides the value. The evidence gives each of the first three
-    that holds, or else the availability.
+    The first that holds of a failed assignment setup, an assignment routing
+    conflict, a blocker and availability decides the value. The evidence gives
+    each of the first three that holds, or else the availability.
     """
     is_conflicted = observation.routing_conflict.value is Truth.TRUE
     is_blocked = observation.blocked.value is Truth.TRUE
@@ -117,9 +117,9 @@ def _derive_issue_status(*, observation: IssueObservation) -> IssueStatus | None
             IssueEvidence(text=observation.blocked.evidence, names_issues=True)
         )
     if observation.setup_failure is not None:
-        value = IssueStatusValue.FAILED_SETUP
+        value = IssueStatusValue.FAILED_ASSIGNMENT_SETUP
     elif is_conflicted:
-        value = IssueStatusValue.ROUTING_CONFLICT
+        value = IssueStatusValue.ASSIGNMENT_ROUTING_CONFLICT
     elif is_blocked:
         value = IssueStatusValue.BLOCKED
     elif observation.availability.value is Truth.TRUE:

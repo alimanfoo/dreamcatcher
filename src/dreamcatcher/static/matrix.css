@@ -311,7 +311,7 @@ body::after {
 
 .status-needs-user-feedback,
 .status-routing-conflict,
-.issue-routing-conflict,
+.issue-assignment-routing-conflict,
 .issue-available {
   color: var(--background);
   background: var(--phosphor);
@@ -335,7 +335,7 @@ body::after {
   text-shadow: var(--shadow);
 }
 
-.issue-routing-conflict .issue-number {
+.issue-assignment-routing-conflict .issue-number {
   color: var(--background);
 }
 
