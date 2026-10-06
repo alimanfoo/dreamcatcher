@@ -2,6 +2,9 @@ gitignore: true
 config:
   # Line length (MD013) is off; prettier owns prose wrapping.
   MD013: false
+  # Each changelog release repeats the same group headings.
+  MD024:
+    siblings_only: true
 ignores:
   # CLAUDE.md is a one-line import of AGENTS.md, not a document.
   - "CLAUDE.md"
