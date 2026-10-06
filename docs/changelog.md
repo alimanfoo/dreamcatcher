@@ -26,6 +26,12 @@ each entry links the pull request that made the change.
 
 ## Unreleased
 
+### Added
+
+- The top bar of every web page now links to the repository's **issues** and
+  **pulls** on GitHub, beside the repository's name.
+  ([#441](https://github.com/alimanfoo/dreamcatcher/pull/441))
+
 ### Changed
 
 - The complete example in the configuration reference now routes conversations
