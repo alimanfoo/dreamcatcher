@@ -30,10 +30,13 @@ dependencies = [
 
 [dependency-groups]
 # uv installs this group on a bare `uv sync`, so the tools cannot go missing.
-# Pin every tool whose output is enforced or committed. The tests use psutil to
-# watch processes on every platform.
+# Pin every tool whose output is enforced, committed or published. The tests use
+# psutil to watch processes on every platform. MkDocs and Material build the
+# documentation site.
 dev = [
     "complexipy==7.0.1",
+    "mkdocs==1.6.1",
+    "mkdocs-material==9.7.7",
     "playwright==1.63.0",
     "pre-commit>=4.0",
     "psutil>=6.0",
@@ -59,7 +62,7 @@ source = "vcs"
 
 [tool.uncoded]
 source-roots = ["src", "tests", "tools"]
-doc-roots = ["README.md", "AGENTS.md", "CONTRACT.md", "CHANGELOG.md", "docs", "specs"]
+doc-roots = ["README.md", "AGENTS.md", "docs", "specs"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

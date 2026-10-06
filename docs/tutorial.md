@@ -20,7 +20,7 @@ You need:
 
 If you are upgrading an older installation, read
 [Compatibility and upgrades](compatibility.md) before replacing it. For a first
-installation, run this command unless you already ran it from the README:
+installation, run this command unless you have already run it:
 
 ```sh
 uv tool install git+https://github.com/alimanfoo/dreamcatcher

@@ -40,7 +40,7 @@ layout carry no stability promise.
 An incompatible configuration or agent-contract change requires a major release.
 A state-format change also requires a major release because saved work does not
 continue automatically across formats. Every breaking change gets a
-[changelog](../CHANGELOG.md) entry explaining its effect and what users must do
+[changelog](changelog.md) entry explaining its effect and what users must do
 before upgrading.
 
 This policy does not assign compatibility promises to earlier releases. Untagged
@@ -64,7 +64,7 @@ A different format starts with empty local state. No migration is promised.
 
 ## Agent contract
 
-The current [agent contract](../CONTRACT.md) is version **1**. It covers both
+The current [agent contract](contract.md) is version **1**. It covers both
 assignment skills and conversation prompts. Existing conforming skills and
 prompts remain compatible while the contract version stays the same.
 
