@@ -15,35 +15,48 @@ the file when everyone watching a repository should use the same routes.
 ## Complete example
 
 ```toml
+[[conversation]]
+label = "dream:scout"
+
+[conversation.claude]
+prompt = "/dream:scout GH{issue}"
+model = "opus"
+effort = "high"
+
+[conversation.codex]
+prompt = "$dream:scout GH{issue}"
+model = "gpt-5.6-sol"
+effort = "high"
+
 [[assignment]]
 label = "dream:smith"
 
 [assignment.claude]
 prompt = "/dream:smith GH{issue}"
 model = "opus[1m]"
-effort = "xhigh"
+effort = "high"
 
 [assignment.codex]
 prompt = "$dream:smith GH{issue}"
 model = "gpt-5.6-sol"
-effort = "xhigh"
+effort = "high"
 config = { model_context_window = 1000000, model_auto_compact_token_limit = 900000 }
 
-[[conversation]]
-label = "dream:conversation"
+[[assignment]]
+label = "dream:less"
 
-[conversation.claude]
-prompt = "Answer questions on GH{issue}."
-model = "opus[1m]"
+[assignment.claude]
+prompt = "/dream:less GH{issue}"
+model = "opus"
 effort = "high"
 
-[conversation.codex]
-prompt = "Answer questions on GH{issue}."
+[assignment.codex]
+prompt = "$dream:less GH{issue}"
 model = "gpt-5.6-sol"
 effort = "high"
 ```
 
-This file offers both supported harnesses for both routes. A route may instead
+This file offers both supported harnesses for every route. A route may instead
 contain only its `claude` or only its `codex` block.
 
 ## Top-level settings
