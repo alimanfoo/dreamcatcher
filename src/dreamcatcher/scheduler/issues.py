@@ -20,6 +20,7 @@ from dreamcatcher.scheduler.models import (
     ObservedFact,
     ObservedIssueDetails,
     Truth,
+    observe_claimed_here,
 )
 
 
@@ -89,21 +90,14 @@ def _observe_issue(
 ) -> IssueObservation:
     """Observe the independent scheduling facts for one issue."""
     listed = _observe_listed_issue(scheduler=scheduler, response=issue_response)
-    is_claimed_here = issue in assignments
-    claimed_here = ObservedFact(
-        value=Truth.TRUE if is_claimed_here else Truth.FALSE,
-        evidence=(
-            "this checkout has an open assignment for it"
-            if is_claimed_here
-            else "this checkout has no open assignment for it"
-        ),
-    )
     return IssueObservation(
         issue=issue,
         details=listed.details,
         is_open=listed.is_open,
         is_assigned_to_user=listed.is_assigned_to_user,
-        claimed_here=claimed_here,
+        claimed_here=observe_claimed_here(
+            issue=issue, open_assignment_issues=assignments.keys()
+        ),
         claimed_elsewhere=_observe_external_claim(
             scheduler=scheduler,
             assignments=assignments,

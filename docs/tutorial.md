@@ -43,7 +43,7 @@ claude --version
 
 This installs the current development version of _dreamcatcher_ from GitHub.
 
-## 2. Sign in to GitHub
+## 2. Sign in to GitHub and Claude
 
 _dreamcatcher_ acts as the account that `gh` is signed in as. For this
 walkthrough, use HTTPS for Git too:
@@ -54,9 +54,19 @@ gh auth setup-git
 gh auth status
 ```
 
-The account needs permission to read issues and pull requests and to push
-branches to the repository. Later, assign the issue to this same account;
-_dreamcatcher_ will ignore an issue assigned only to somebody else.
+The account needs permission to push branches to the repository. Later, assign
+the issue to this same account; _dreamcatcher_ will ignore an issue assigned
+only to somebody else.
+
+Start Claude Code in auto permission mode, and follow the browser sign-in if
+Claude asks:
+
+```sh
+claude --permission-mode auto
+```
+
+Reaching the Claude prompt confirms that this installation and account can start
+the mode _dreamcatcher_ uses. Leave Claude with `/exit`.
 
 ## 3. Prepare the repository
 
@@ -71,17 +81,7 @@ git switch main
 git pull --ff-only origin main
 ```
 
-Replace `OWNER/REPOSITORY` with your repository. _dreamcatcher_ fetches
-`origin main` before creating every assignment, so both must exist and your
-account must be able to push to `origin`.
-
-Now configure a Git identity if this repository does not already have one. The
-empty commit that begins an assignment needs it:
-
-```sh
-git config user.name "Your Name"
-git config user.email "you@example.com"
-```
+Replace `OWNER/REPOSITORY` with your repository.
 
 An assignment sees the files committed on `origin/main`, not uncommitted setup
 from your main checkout. Before dispatching, commit and push the project's agent
@@ -93,50 +93,35 @@ This walkthrough assumes you may push that setup to `main`. If `main` is
 protected, land the same files through your repository's normal pull-request
 process before continuing.
 
-## 4. Sign in to Claude and install the assignment skill
+## 4. Run dreamcatcher init
 
-From the prepared repository, start Claude Code in auto permission mode:
+From the main checkout, run:
 
 ```sh
-claude --permission-mode auto
+dreamcatcher init
 ```
 
-Follow the browser sign-in if Claude asks. Reaching the Claude prompt confirms
-that this installation and account can start the mode _dreamcatcher_ uses.
+`init` checks that `gh` can push to the repository, that Git can commit and that
+`origin/main` can be fetched. It writes a default `dreamcatcher.toml`, installs
+the [`dream` plugin](https://github.com/alimanfoo/dream) for each harness the
+file uses, and creates the labels the file names. It prints one line for each
+step. If a step fails, `init` says how to fix it; fix it and run `init` again.
+If Codex is installed as well as Claude, the file uses both, so sign in to Codex
+too, with `codex login`.
 
-Install the [`dream` plugin](https://github.com/alimanfoo/dream) in this same
-session. When Claude asks for an
-[installation scope](https://code.claude.com/docs/en/discover-plugins), choose
-**User** so the skill is available in the child Git worktree where an assignment
-runs:
+The `dream` plugin is installed at user scope, outside the repository, so its
+skills are available in the child Git worktree where an assignment runs. The
+plugin provides `dream:smith`, the assignment skill this tutorial uses.
 
-```text
-/plugin marketplace add alimanfoo/dream
-/plugin install dream@dream
-```
+The `dreamcatcher.toml` that `init` writes routes the `dream:smith` and
+`dream:less` labels to assignments, and the `dream:scout` label to issue
+conversations. If Codex is not installed, the file keeps the Codex recipes as
+comments. The label connects a GitHub issue to its route, and `{issue}` in a
+prompt becomes the issue number, so issue 123 starts Claude with
+`/dream:smith GH123`.
 
-Restart Claude if the installation asks you to. Type `/` and confirm that
-`/dream:smith` appears in the available commands, without running it. This is
-the skill _dreamcatcher_ will use. Then leave Claude with `/exit`.
-
-## 5. Configure one assignment route
-
-Create `dreamcatcher.toml` at the repository root:
-
-```toml
-[[assignment]]
-label = "dream:smith"
-
-[assignment.claude]
-prompt = "/dream:smith GH{issue}"
-model = "opus[1m]"
-effort = "high"
-```
-
-The label connects a GitHub issue to this route. `{issue}` becomes its issue
-number, so issue 123 starts Claude with `/dream:smith GH123`.
-
-Commit and push the configuration so the assignment worktree contains it too:
+Until `origin/main` holds the file, `init` ends by printing the commands that
+commit and push it. Run them, so the assignment worktree contains the file too:
 
 ```sh
 git add dreamcatcher.toml
@@ -144,19 +129,18 @@ git commit -m "Configure dreamcatcher"
 git push origin main
 ```
 
-For more routes or another harness, see
+For other routes or another harness, see
 [Configure labels and harnesses](configure.md). The
 [configuration reference](configuration-reference.md) lists every setting.
 
-## 6. Prepare a small issue
+## 5. Prepare a small issue
 
 In GitHub:
 
-1. Create the `dream:smith` label if the repository does not have it.
-2. Open one small, self-contained issue. State the expected result and how to
+1. Open one small, self-contained issue. State the expected result and how to
    check it.
-3. Assign it to the account shown by `gh auth status`.
-4. Add the `dream:smith` label.
+2. Assign it to the account shown by `gh auth status`.
+3. Add the `dream:smith` label.
 
 Choose work that can finish in one pull request. Avoid an issue with an open
 blocking issue or an existing open pull request linked to it; either condition
@@ -165,7 +149,7 @@ keeps a new assignment from starting.
 Suppose GitHub gives the issue number 123. The commands below call it `GH123`;
 replace that with your own issue number.
 
-## 7. Start dreamcatcher
+## 6. Start dreamcatcher
 
 From the main checkout, start the daemon in its own terminal:
 
@@ -188,7 +172,7 @@ worktree, pushes an empty commit, and opens a linked **draft** pull request. The
 draft means the assignment has begun; it does not mean the implementation is
 ready for review. Claude then works in that child worktree.
 
-## 8. Watch the assignment
+## 7. Watch the assignment
 
 In a second terminal, still at the repository root, open the web home page:
 

@@ -36,7 +36,7 @@ from dreamcatcher.harness_adapters import AgentRoundLaunchRequest
 from dreamcatcher.prompts import RECOVERY_PROMPT, compose_user_posts_prompt
 from dreamcatcher.relay import list_undelivered_user_posts
 from dreamcatcher.scheduler.agent_work import AgentWorkScheduler
-from dreamcatcher.scheduler.faults import derive_agent_work_fault
+from dreamcatcher.scheduler.faults import derive_agent_work_fault, is_awaiting_recovery
 from dreamcatcher.scheduler.issues import observe_issues
 from dreamcatcher.scheduler.models import (
     NO_ROUND_HAS_RUN,
@@ -75,7 +75,7 @@ class AssignmentRoundCandidate:
     assignment: Assignment
     pull_request: PullRequest
     undelivered_posts: list[UserPost]
-    recovery_reason: str | None
+    is_recovery: bool
 
 
 type AssignmentCandidate = (
@@ -153,7 +153,7 @@ class AssignmentScheduler(
             return 0
         if isinstance(candidate, NewAssignmentCandidate):
             return 4
-        if candidate.recovery_reason is not None:
+        if candidate.is_recovery:
             return 1
         if derive_round_purpose(pull_request=candidate.pull_request) is (
             AssignmentRoundPurpose.WRAP_UP
@@ -183,7 +183,7 @@ class AssignmentScheduler(
             )
         purpose = derive_round_purpose(pull_request=candidate.pull_request)
         if (
-            candidate.recovery_reason is not None
+            candidate.is_recovery
             and candidate.pull_request.state is PullRequestState.OPEN
         ):
             return self._start_round(
@@ -197,7 +197,7 @@ class AssignmentScheduler(
             assignment=assignment,
             plan=AgentRoundPlan(
                 purpose=purpose,
-                is_recovery=candidate.recovery_reason is not None,
+                is_recovery=candidate.is_recovery,
                 input=AssignmentRoundInput(
                     pull_request_state=candidate.pull_request.state,
                     user_posts=candidate.undelivered_posts,
@@ -320,13 +320,15 @@ class AssignmentScheduler(
     def _inspect_pending_round(
         self, *, assignment: Assignment, pull_request: PullRequest
     ) -> AssignmentRoundCandidate | AgentWorkObservation | None:
-        recovery_reason = assignment.describe_unfinished_round()
-        if recovery_reason is not None and pull_request.state is PullRequestState.OPEN:
+        is_recovery = is_awaiting_recovery(
+            rounds=assignment.rounds, is_daemon_running=True
+        )
+        if is_recovery and pull_request.state is PullRequestState.OPEN:
             return AssignmentRoundCandidate(
                 assignment=assignment,
                 pull_request=pull_request,
                 undelivered_posts=[],
-                recovery_reason=recovery_reason,
+                is_recovery=is_recovery,
             )
         undelivered_posts = list_undelivered_user_posts(
             repository=self.repository,
@@ -348,7 +350,7 @@ class AssignmentScheduler(
             assignment=assignment,
             pull_request=pull_request,
             undelivered_posts=undelivered_posts,
-            recovery_reason=recovery_reason,
+            is_recovery=is_recovery,
         )
 
     def _compose_new_candidates(
@@ -417,7 +419,7 @@ class AssignmentScheduler(
 
 
 def _describe_assignment_candidate(*, candidate: AssignmentRoundCandidate) -> str:
-    if candidate.recovery_reason is not None:
+    if candidate.is_recovery:
         latest_round = candidate.assignment.rounds[-1]
         return f"round {latest_round.number} {latest_round.outcome}, to recover"
     if candidate.pull_request.state is not PullRequestState.OPEN:

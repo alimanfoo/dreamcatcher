@@ -6,8 +6,10 @@ assignments or issue conversations, and the dispatch recipes available for each
 label. It does not configure daemon controls such as the interval or agent
 capacity; those are [`run` options](command-reference.md#run).
 
-The file is required and must be UTF-8 TOML. _dreamcatcher_ reports a missing,
-unreadable or invalid file rather than supplying a default configuration.
+The file is required and must be UTF-8 TOML. `run` reports a missing, unreadable
+or invalid file rather than supplying a default configuration.
+[`init`](command-reference.md#init) writes the complete example below when the
+file is missing.
 
 The daemon reads the file when it starts. Restart it to apply a change. Commit
 the file when everyone watching a repository should use the same routes.
@@ -15,49 +17,12 @@ the file when everyone watching a repository should use the same routes.
 ## Complete example
 
 ```toml
-[[conversation]]
-label = "dream:scout"
-
-[conversation.claude]
-prompt = "/dream:scout GH{issue}"
-model = "opus"
-effort = "high"
-
-[conversation.codex]
-prompt = "$dream:scout GH{issue}"
-model = "gpt-5.6-sol"
-effort = "high"
-
-[[assignment]]
-label = "dream:smith"
-
-[assignment.claude]
-prompt = "/dream:smith GH{issue}"
-model = "opus[1m]"
-effort = "high"
-
-[assignment.codex]
-prompt = "$dream:smith GH{issue}"
-model = "gpt-5.6-sol"
-effort = "high"
-config = { model_context_window = 1000000, model_auto_compact_token_limit = 900000 }
-
-[[assignment]]
-label = "dream:less"
-
-[assignment.claude]
-prompt = "/dream:less GH{issue}"
-model = "opus"
-effort = "high"
-
-[assignment.codex]
-prompt = "$dream:less GH{issue}"
-model = "gpt-5.6-sol"
-effort = "high"
+--8<-- "default_config.toml"
 ```
 
 This file offers both supported harnesses for every route. A route may instead
-contain only its `claude` or only its `codex` block.
+contain only its `claude` or only its `codex` block. When `init` writes the
+file, it comments out the blocks of a harness that is not installed.
 
 ## Top-level settings
 

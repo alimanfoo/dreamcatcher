@@ -4,12 +4,13 @@ import pytest
 from conftest import CONFIG, SMITH_CLAUDE, SMITH_CODEX
 
 from dreamcatcher.config import (
-    _DREAMCATCHER_CONFIG_NAME,
+    DREAMCATCHER_CONFIG_NAME,
     AgentHarness,
     ClaudeRecipe,
     CodexRecipe,
     ConversationRoute,
     read_dreamcatcher_config,
+    write_default_dreamcatcher_config_if_absent,
 )
 from dreamcatcher.errors import ReportableError
 
@@ -56,7 +57,7 @@ label = "dream:conversation"
 
 def write_config(*, root: Path, text: str) -> None:
     """Put a config in the repo root."""
-    (root / _DREAMCATCHER_CONFIG_NAME).write_text(text, encoding="utf-8")
+    (root / DREAMCATCHER_CONFIG_NAME).write_text(text, encoding="utf-8")
 
 
 def test_a_valid_config_reads_back(tmp_path):
@@ -313,7 +314,7 @@ def test_a_config_mistake_names_the_setting_and_the_fault(
 
     assert (
         str(error.value)
-        == f"{tmp_path / _DREAMCATCHER_CONFIG_NAME} is not valid:\n  {fault}"
+        == f"{tmp_path / DREAMCATCHER_CONFIG_NAME} is not valid:\n  {fault}"
     )
 
 
@@ -337,7 +338,7 @@ def test_a_codex_config_cannot_set_what_dreamcatcher_keeps(tmp_path, key):
         read_dreamcatcher_config(root=tmp_path)
 
     assert str(error.value) == (
-        f"{tmp_path / _DREAMCATCHER_CONFIG_NAME} is not valid:\n"
+        f"{tmp_path / DREAMCATCHER_CONFIG_NAME} is not valid:\n"
         f"  assignment.0.codex.config: Value error, cannot set {key}, which "
         "dreamcatcher keeps for itself"
     )
@@ -355,7 +356,7 @@ def test_a_setting_a_harness_cannot_be_given_names_itself(tmp_path, setting):
         read_dreamcatcher_config(root=tmp_path)
 
     assert str(error.value) == (
-        f"{tmp_path / _DREAMCATCHER_CONFIG_NAME} is not valid:\n"
+        f"{tmp_path / DREAMCATCHER_CONFIG_NAME} is not valid:\n"
         f"  assignment.0.claude.{setting}: Value error, cannot hold a percent "
         "sign, because on Windows cmd.exe acts on the text rather than passing "
         "it to the harness"
@@ -376,5 +377,46 @@ def test_a_prompt_may_hold_what_no_command_line_could_carry(tmp_path):
 
 
 def test_a_repo_with_no_config_says_which_file_is_missing(tmp_path):
-    with pytest.raises(ReportableError, match=_DREAMCATCHER_CONFIG_NAME):
+    with pytest.raises(ReportableError, match=DREAMCATCHER_CONFIG_NAME):
         read_dreamcatcher_config(root=tmp_path)
+
+
+@pytest.mark.parametrize(
+    "harnesses",
+    [{AgentHarness.CLAUDE}, {AgentHarness.CODEX}, set(AgentHarness)],
+    ids=["claude", "codex", "both"],
+)
+def test_the_default_config_routes_every_label_to_the_installed_harnesses(
+    tmp_path, harnesses
+):
+    assert write_default_dreamcatcher_config_if_absent(
+        root=tmp_path, harnesses=harnesses
+    )
+
+    config = read_dreamcatcher_config(root=tmp_path)
+    assert config.routed_harnesses == harnesses
+    assert [route.label for route in config.conversation] == ["dream:scout"]
+    assert list(config.assignment_routes) == ["dream:smith", "dream:less"]
+
+
+def test_the_default_config_keeps_the_recipes_of_a_missing_harness_as_comments(
+    tmp_path,
+):
+    write_default_dreamcatcher_config_if_absent(
+        root=tmp_path, harnesses={AgentHarness.CLAUDE}
+    )
+
+    written = (tmp_path / DREAMCATCHER_CONFIG_NAME).read_text(encoding="utf-8")
+    assert "\n#[assignment.codex]\n#prompt = " in written
+    assert "\n[assignment.claude]\nprompt = " in written
+
+
+def test_the_default_config_leaves_an_existing_config_alone(tmp_path):
+    (tmp_path / DREAMCATCHER_CONFIG_NAME).write_text(SMITH_CLAUDE, encoding="utf-8")
+
+    assert not write_default_dreamcatcher_config_if_absent(
+        root=tmp_path, harnesses=set(AgentHarness)
+    )
+    assert (tmp_path / DREAMCATCHER_CONFIG_NAME).read_text(
+        encoding="utf-8"
+    ) == SMITH_CLAUDE

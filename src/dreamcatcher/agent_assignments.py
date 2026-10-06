@@ -26,8 +26,6 @@ from dreamcatcher.agent_rounds import (
     AgentRoundPaths,
     AgentRoundRecord,
     AssignmentRoundPurpose,
-    ErroredAgentRoundEnding,
-    InterruptedAgentRoundEnding,
     SuccessfulAgentRoundEnding,
     read_agent_round_records,
     request_agent_round_stop,
@@ -189,21 +187,6 @@ class Assignment:
     def is_open(self) -> bool:
         """Whether the assignment has neither completed nor been cancelled."""
         return self.ended_at is None
-
-    def describe_unfinished_round(self) -> str | None:
-        """Describe an interrupted or errored final round, if one exists.
-
-        A record with no ending is a round the daemon has not reconciled yet,
-        and an interrupted or errored ending says that the work stopped short.
-        """
-        if not self.rounds:
-            return None
-        ending = self.rounds[-1].ending
-        if isinstance(ending, InterruptedAgentRoundEnding):
-            return "the last round was interrupted"
-        if isinstance(ending, ErroredAgentRoundEnding):
-            return f"the last round errored (exit {ending.status})"
-        return None
 
     def find_harness_session_identifier(self) -> HarnessSessionIdentifier | None:
         """Return the recorded or recoverable harness session identifier."""
