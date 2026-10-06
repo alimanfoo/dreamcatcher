@@ -10,4 +10,4 @@ instance
 assignments
   GH13-20260819-184158  waiting  next round, implement                              
   GH20  assignment setup failed; multiple assignment labels: dream:less, dream:smith
-  GH21  dream:smith  available                                                      
+  GH21  dream:smith  available for assignment                                       

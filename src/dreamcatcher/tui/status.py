@@ -15,8 +15,7 @@ from dreamcatcher.status import (
     ConversationStatus,
     DreamcatcherDaemonStatus,
     DreamcatcherStatusReport,
-    IssueObservation,
-    Truth,
+    IssueStatus,
     read_status_report,
 )
 from dreamcatcher.tui.shared import (
@@ -153,12 +152,12 @@ def _render_assignments(*, report: DreamcatcherStatusReport) -> RenderableType |
     if not (
         report.assignment_statuses
         or report.failed_assignment_setups
-        or report.issue_observations
+        or report.issue_statuses
     ):
         return None
     rows = _render_assignment_rows(assignments=report.active_assignment_statuses)
     rows += _render_failed_setups(failed_setups=report.failed_assignment_setups)
-    rows += _render_issue_observations(issues=report.issue_observations)
+    rows += _render_issue_statuses(issues=report.issue_statuses)
     ended = report.ended_assignment_statuses
     if ended:
         rows.append(Text(describe_count(number=len(ended), noun="ended assignment")))
@@ -166,52 +165,30 @@ def _render_assignments(*, report: DreamcatcherStatusReport) -> RenderableType |
 
 
 def _render_failed_setups(
-    *, failed_setups: Sequence[IssueObservation]
+    *, failed_setups: Sequence[IssueStatus]
 ) -> list[RenderableType]:
     """Render incomplete assignment setups with recorded failures."""
     if not failed_setups:
         return []
     table = create_table(columns=2)
     for setup in failed_setups:
-        evidence = [
-            cast("str", setup.setup_failure),
-            *_describe_issue_evidence(observation=setup),
-        ]
-        table.add_row(Text(f"GH{setup.issue}"), Text("; ".join(evidence)))
+        table.add_row(Text(f"GH{setup.observation.issue}"), Text(setup.detail))
     return [table]
 
 
-def _render_issue_observations(
-    *, issues: Sequence[IssueObservation]
-) -> list[RenderableType]:
-    """Render the issue observations as one table, status inline per row."""
-    rows = [
-        (
-            issue,
-            ", ".join([] if issue.details is None else issue.details.assignment_labels),
-            _describe_issue_observation(observation=issue),
-        )
-        for issue in issues
-    ]
-    if not rows:
+def _render_issue_statuses(*, issues: Sequence[IssueStatus]) -> list[RenderableType]:
+    """Render the observed issues as one table, status inline per row."""
+    if not issues:
         return []
     table = create_table(columns=3)
-    for issue, middle, status in rows:
-        table.add_row(Text(f"GH{issue.issue}"), Text(middle), Text(status))
+    for issue in issues:
+        details = issue.observation.details
+        table.add_row(
+            Text(f"GH{issue.observation.issue}"),
+            Text(", ".join([] if details is None else details.assignment_labels)),
+            Text(issue.detail),
+        )
     return [table]
-
-
-def _describe_issue_observation(*, observation: IssueObservation) -> str:
-    evidence = _describe_issue_evidence(observation=observation)
-    return "; ".join(evidence) if evidence else "available"
-
-
-def _describe_issue_evidence(*, observation: IssueObservation) -> list[str]:
-    return [
-        fact.evidence
-        for fact in (observation.routing_conflict, observation.blocked)
-        if fact.value is Truth.TRUE
-    ]
 
 
 def _render_assignment_rows(
@@ -260,7 +237,7 @@ def _describe_empty_status_report(
     """Describe an instance that has no issue or assignment status yet."""
     if (
         report.failed_assignment_setups
-        or report.issue_observations
+        or report.issue_statuses
         or report.assignment_statuses
         or report.conversation_statuses
     ):

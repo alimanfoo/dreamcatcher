@@ -174,6 +174,10 @@ a particular time.
 An **issue observation** records the independent facts that one scheduler tick
 found for an issue. Its availability is derived from those facts.
 
+An **issue status** says why a status report shows an issue observation: a
+failed assignment setup, a routing conflict, a blocker, or availability. It
+carries the evidence for that reason.
+
 An **agent assignment status** is an assignment's single summary status in a
 status report. It summarizes the assignment record, recorded rounds, live
 process state, and the latest scheduler evidence about whether another round was

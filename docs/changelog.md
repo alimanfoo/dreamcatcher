@@ -33,7 +33,8 @@ each entry links the pull request that made the change.
   ([#437](https://github.com/alimanfoo/dreamcatcher/pull/437))
 - The terminal views and the web pages now use the same words for the same fact.
   The terminal shows a conversation round's code revision in seven characters,
-  as the web pages already did.
+  as the web pages already did. An available issue reads "available for
+  assignment" in both.
   ([#442](https://github.com/alimanfoo/dreamcatcher/pull/442))
 
 ## [v5.1.0](https://github.com/alimanfoo/dreamcatcher/releases/tag/v5.1.0) — 2026-10-06

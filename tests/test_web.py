@@ -51,6 +51,7 @@ from dreamcatcher.scheduler.models import (
     Truth,
 )
 from dreamcatcher.state import StateDirectory
+from dreamcatcher.status.issues import derive_issue_statuses
 from dreamcatcher.web import serve_web
 from dreamcatcher.web.app import _create_app
 from dreamcatcher.web.server import _WEB_BASE_PORT, WEB_HOST
@@ -1334,7 +1335,9 @@ def test_an_assignment_label_that_looks_like_an_issue_reference_remains_text():
         evidence={"routing_conflict": evidence},
     )
 
-    row = _compose_issue_row(observation=observation)
+    [status] = derive_issue_statuses(observations=[observation])
+
+    row = _compose_issue_row(status=status)
 
     assert row.evidence == (evidence,)
 

@@ -22,7 +22,6 @@ from dreamcatcher.lock import is_daemon_lock_held
 from dreamcatcher.scheduler.faults import read_scheduler_record
 from dreamcatcher.scheduler.models import (
     GlobalCooldown,
-    IssueObservation,
     SchedulerRecord,
 )
 from dreamcatcher.state import StateDirectory
@@ -39,9 +38,10 @@ from dreamcatcher.status.conversations import (
     ConversationStatusValue,
 )
 from dreamcatcher.status.issues import (
+    IssueStatus,
+    IssueStatusValue,
+    derive_issue_statuses,
     refresh_issue_observations,
-    select_failed_setups,
-    select_issue_observations,
 )
 
 
@@ -93,8 +93,8 @@ class DreamcatcherStatusReport:
     scheduler_failure_summary: str | None
     running_agents: int
     active_global_cooldown: GlobalCooldown | None
-    failed_assignment_setups: list[IssueObservation]
-    issue_observations: list[IssueObservation]
+    failed_assignment_setups: list[IssueStatus]
+    issue_statuses: list[IssueStatus]
     assignment_statuses: list[AssignmentStatus]
     conversation_statuses: list[ConversationStatus]
 
@@ -138,9 +138,11 @@ def read_status_report(
         is_daemon_running=daemon.is_running,
         scheduler_record=scheduler_record,
     )
-    issue_observations = refresh_issue_observations(
-        scheduler_record=scheduler_record,
-        assignments=assignments,
+    issue_statuses = derive_issue_statuses(
+        observations=refresh_issue_observations(
+            scheduler_record=scheduler_record,
+            assignments=assignments,
+        )
     )
     return DreamcatcherStatusReport(
         at=at,
@@ -161,8 +163,16 @@ def read_status_report(
         active_global_cooldown=(
             None if scheduler_record is None else scheduler_record.cooldown
         ),
-        failed_assignment_setups=select_failed_setups(observations=issue_observations),
-        issue_observations=select_issue_observations(observations=issue_observations),
+        failed_assignment_setups=[
+            status
+            for status in issue_statuses
+            if status.value is IssueStatusValue.FAILED_SETUP
+        ],
+        issue_statuses=[
+            status
+            for status in issue_statuses
+            if status.value is not IssueStatusValue.FAILED_SETUP
+        ],
         assignment_statuses=assignment_statuses,
         conversation_statuses=conversation_statuses,
     )

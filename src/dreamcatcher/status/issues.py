@@ -1,6 +1,8 @@
-"""Select and refresh the issue observations a status report shows."""
+"""Derive the status of the issues a status report shows."""
 
+from dataclasses import dataclass
 from datetime import datetime
+from enum import StrEnum
 
 from dreamcatcher.agent_assignments import Assignment, find_open_assignments_by_issue
 from dreamcatcher.scheduler.models import (
@@ -9,6 +11,37 @@ from dreamcatcher.scheduler.models import (
     SchedulerRecord,
     Truth,
 )
+
+
+class IssueStatusValue(StrEnum):
+    """List the reasons a status report shows an observed issue."""
+
+    FAILED_SETUP = "failed setup"
+    ROUTING_CONFLICT = "routing conflict"
+    BLOCKED = "blocked"
+    AVAILABLE = "available"
+
+
+@dataclass(frozen=True, kw_only=True)
+class IssueEvidence:
+    """Give one piece of evidence for an issue's status."""
+
+    text: str
+    names_issues: bool = False
+
+
+@dataclass(frozen=True, kw_only=True)
+class IssueStatus:
+    """Describe why a status report shows an observed issue, with the evidence."""
+
+    observation: IssueObservation
+    value: IssueStatusValue
+    evidence: tuple[IssueEvidence, ...]
+
+    @property
+    def detail(self) -> str:
+        """The evidence as one line."""
+        return "; ".join(item.text for item in self.evidence)
 
 
 def refresh_issue_observations(
@@ -63,35 +96,41 @@ def _refresh_issue_observation(
     return refreshed
 
 
-def select_failed_setups(
-    *, observations: list[IssueObservation]
-) -> list[IssueObservation]:
-    """Return the observations that record a failed assignment setup."""
-    return [
-        observation
-        for observation in observations
-        if observation.setup_failure is not None
-    ]
+def derive_issue_statuses(*, observations: list[IssueObservation]) -> list[IssueStatus]:
+    """Return the status of each observed issue that a status report shows.
 
-
-def select_issue_observations(
-    *, observations: list[IssueObservation]
-) -> list[IssueObservation]:
-    """Return the available, routing-conflict and blocked observations.
-
-    An observation with a failed setup is left out, since the report shows it
-    among the failed setups.
+    The report shows an issue whose setup failed, or that has a routing
+    conflict, is blocked or is available, in the scheduler's order.
     """
-    return [
-        observation
-        for observation in observations
-        if (
-            observation.setup_failure is None
-            and Truth.TRUE
-            in (
-                observation.routing_conflict.value,
-                observation.availability.value,
-                observation.blocked.value,
-            )
+    statuses = (
+        _derive_issue_status(observation=observation) for observation in observations
+    )
+    return [status for status in statuses if status is not None]
+
+
+def _derive_issue_status(*, observation: IssueObservation) -> IssueStatus | None:
+    """Return the status of one observed issue, or None when the report omits it.
+
+    A setup failure or routing conflict comes with any blocked evidence, which
+    names the blocking issues.
+    """
+    evidence = []
+    if observation.routing_conflict.value is Truth.TRUE:
+        evidence.append(IssueEvidence(text=observation.routing_conflict.evidence))
+    if observation.blocked.value is Truth.TRUE:
+        evidence.append(
+            IssueEvidence(text=observation.blocked.evidence, names_issues=True)
         )
-    ]
+    if observation.setup_failure is not None:
+        value = IssueStatusValue.FAILED_SETUP
+        evidence.insert(0, IssueEvidence(text=observation.setup_failure))
+    elif observation.routing_conflict.value is Truth.TRUE:
+        value = IssueStatusValue.ROUTING_CONFLICT
+    elif observation.blocked.value is Truth.TRUE:
+        value = IssueStatusValue.BLOCKED
+    elif observation.availability.value is Truth.TRUE:
+        value = IssueStatusValue.AVAILABLE
+        evidence.append(IssueEvidence(text=observation.availability.evidence))
+    else:
+        return None
+    return IssueStatus(observation=observation, value=value, evidence=tuple(evidence))

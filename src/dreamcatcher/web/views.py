@@ -3,7 +3,6 @@
 import re
 from datetime import tzinfo
 from pathlib import Path
-from typing import cast
 
 from dreamcatcher.issue_conversations import Conversation
 from dreamcatcher.state import StateDirectory
@@ -13,8 +12,7 @@ from dreamcatcher.status import (
     ConversationStatus,
     DreamcatcherDaemonStatus,
     DreamcatcherStatusReport,
-    IssueObservation,
-    Truth,
+    IssueStatus,
     read_repository,
 )
 from dreamcatcher.web.feed import read_agent_feed
@@ -91,11 +89,11 @@ def compose_home_view(
             for status in report.ended_assignment_statuses
         ),
         failed_setups=tuple(
-            _compose_failed_setup_row(observation=setup)
+            _compose_issue_row(status=setup)
             for setup in report.failed_assignment_setups
         ),
         issues=tuple(
-            _compose_issue_row(observation=issue) for issue in report.issue_observations
+            _compose_issue_row(status=issue) for issue in report.issue_statuses
         ),
     )
 
@@ -255,52 +253,28 @@ def _compose_agent_rounds(
     )
 
 
-def _compose_issue_row(*, observation: IssueObservation) -> WebIssueRow:
-    if observation.routing_conflict.value is Truth.TRUE:
-        status = "routing-conflict"
-    elif observation.blocked.value is Truth.TRUE:
-        status = "blocked"
-    else:
-        status = "available"
-    return _compose_observed_issue_row(
-        observation=observation,
-        status=status,
-        leading_evidence=(),
-    )
-
-
-def _compose_failed_setup_row(*, observation: IssueObservation) -> WebIssueRow:
-    return _compose_observed_issue_row(
-        observation=observation,
-        status="failed-setup",
-        leading_evidence=(cast("str", observation.setup_failure),),
-    )
-
-
-def _compose_observed_issue_row(
-    *,
-    observation: IssueObservation,
-    status: str,
-    leading_evidence: tuple[str, ...],
-) -> WebIssueRow:
-    plain_evidence = list(leading_evidence)
-    if observation.routing_conflict.value is Truth.TRUE:
-        plain_evidence.append(observation.routing_conflict.evidence)
-    evidence: list[str | int] = ["; ".join(plain_evidence)] if plain_evidence else []
-    if observation.blocked.value is Truth.TRUE:
-        if evidence:
-            evidence.append("; ")
-        evidence.extend(
-            _compose_issue_references(evidence=observation.blocked.evidence)
-        )
-    details = observation.details
+def _compose_issue_row(*, status: IssueStatus) -> WebIssueRow:
+    details = status.observation.details
     return WebIssueRow(
-        issue=observation.issue,
+        issue=status.observation.issue,
         title=None if details is None else details.title,
         labels=", ".join([] if details is None else details.assignment_labels),
-        status=status,
-        evidence=tuple(evidence),
+        status=str(status.value),
+        evidence=_compose_issue_evidence(status=status),
     )
+
+
+def _compose_issue_evidence(*, status: IssueStatus) -> tuple[str | int, ...]:
+    """Return the evidence as text, with each issue it names as a number."""
+    parts: list[str | int] = []
+    for item in status.evidence:
+        if parts:
+            parts.append("; ")
+        if item.names_issues:
+            parts.extend(_compose_issue_references(evidence=item.text))
+        else:
+            parts.append(item.text)
+    return tuple(parts)
 
 
 def _compose_issue_references(*, evidence: str) -> tuple[str | int, ...]:
