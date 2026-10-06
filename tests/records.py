@@ -90,7 +90,7 @@ def write_assignment(
 
     The title is `Issue <n>` unless the test gives one.
     """
-    (state.worktrees / identifier).mkdir(parents=True)
+    (state.assignment_worktrees / identifier).mkdir(parents=True)
     directory = state.assignments / identifier
     write_json(
         document=agent_assignments.AssignmentRecord(
@@ -98,7 +98,7 @@ def write_assignment(
             title=f"Issue {issue}" if title is None else title,
             dispatch_label="dream:smith",
             branch=f"{agent_assignments._ASSIGNMENT_BRANCH_PREFIX}{identifier}",
-            worktree=state.worktrees / identifier,
+            worktree=state.assignment_worktrees / identifier,
             pull_request=52,
             harness=AgentHarness.CLAUDE,
             model="opus[1m]",

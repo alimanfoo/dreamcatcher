@@ -43,6 +43,12 @@ each entry links the pull request that made the change.
   to `dream:scout` and assignments to `dream:smith` and `dream:less`.
   ([#437](https://github.com/alimanfoo/dreamcatcher/pull/437))
 
+### Fixed
+
+- The web home page heads its conversations panel **Conversations** again,
+  beside **Assignments**, in place of **Issue conversations**.
+  ([#449](https://github.com/alimanfoo/dreamcatcher/pull/449))
+
 ## [v5.1.0](https://github.com/alimanfoo/dreamcatcher/releases/tag/v5.1.0) — 2026-10-06
 
 ### Added

@@ -33,7 +33,10 @@ from dreamcatcher.github import (
     read_pull_request,
 )
 from dreamcatcher.harness_adapters import AgentRoundLaunchRequest
-from dreamcatcher.prompts import RECOVERY_PROMPT, compose_user_posts_prompt
+from dreamcatcher.prompts import (
+    ASSIGNMENT_RECOVERY_PROMPT,
+    compose_assignment_input_prompt,
+)
 from dreamcatcher.relay import list_undelivered_user_posts
 from dreamcatcher.scheduler.agent_work import AgentWorkScheduler
 from dreamcatcher.scheduler.faults import derive_agent_work_fault, is_awaiting_recovery
@@ -189,7 +192,7 @@ class AssignmentScheduler(
             return self._start_round(
                 assignment=candidate.assignment,
                 plan=AgentRoundPlan(purpose=purpose, is_recovery=True),
-                next_round_prompt=RECOVERY_PROMPT,
+                next_round_prompt=ASSIGNMENT_RECOVERY_PROMPT,
             )
         assignment = candidate.assignment
         was_stopped = assignment.rounds[-1].outcome is AgentRoundOutcome.STOPPED
@@ -203,7 +206,7 @@ class AssignmentScheduler(
                     user_posts=candidate.undelivered_posts,
                 ),
             ),
-            next_round_prompt=compose_user_posts_prompt(
+            next_round_prompt=compose_assignment_input_prompt(
                 pull_request=candidate.pull_request.number,
                 round_input=assignment.compose_round_paths(
                     number=assignment.next_round_number
@@ -360,11 +363,11 @@ class AssignmentScheduler(
             NewAssignmentCandidate(
                 issue=observation.issue,
                 title=cast("ObservedIssueDetails", observation.details).title,
-                route=self.config.assignment_routes[
-                    cast("ObservedIssueDetails", observation.details).assignment_labels[
-                        0
-                    ]
-                ],
+                route=self.config.identify_assignment_routes(
+                    labels=cast(
+                        "ObservedIssueDetails", observation.details
+                    ).assignment_labels
+                )[0],
             )
             for observation in observations
             if observation.availability.value is Truth.TRUE

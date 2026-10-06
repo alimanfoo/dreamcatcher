@@ -125,7 +125,7 @@ def test_a_conversation_gets_a_detached_worktree_at_fetched_main(cloned):
     assert created.worktree.joinpath(".git").is_file()
     assert created.record.title == "Why does this happen?"
     assert created.record.harness == AgentHarness.CLAUDE
-    assert not state.worktrees.exists()
+    assert not state.assignment_worktrees.exists()
     assert read_conversations(state=state) == [created]
     assert (
         create_conversation(

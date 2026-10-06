@@ -63,7 +63,7 @@ from dreamcatcher.github import (
 )
 from dreamcatcher.harness_adapters import HarnessConfig, HarnessSessionIdentifier
 from dreamcatcher.harnesses import find_harness_session_identifier
-from dreamcatcher.prompts import compose_first_round_prompt
+from dreamcatcher.prompts import compose_assignment_first_round_prompt
 from dreamcatcher.state import StateDirectory
 
 # What an assignment's branch is called, before its identifier. The prefix keeps
@@ -233,11 +233,11 @@ def read_assignments(*, state: StateDirectory) -> list[Assignment]:
     Missing state and worktrees without assignment records are incomplete setups,
     so this read omits them. An invalid record raises ReportableError.
     """
-    if not state.worktrees.is_dir():
+    if not state.assignment_worktrees.is_dir():
         return []
     directories = [
         state.assignments / worktree.name
-        for worktree in sorted(state.worktrees.iterdir())
+        for worktree in sorted(state.assignment_worktrees.iterdir())
         if worktree.is_dir()
     ]
     return [
@@ -249,12 +249,12 @@ def read_assignments(*, state: StateDirectory) -> list[Assignment]:
 
 def read_assignment(*, state: StateDirectory, identifier: str) -> Assignment | None:
     """Return the assignment with this exact identifier, if its setup finished."""
-    if not state.worktrees.is_dir():
+    if not state.assignment_worktrees.is_dir():
         return None
     worktree = next(
         (
             path
-            for path in state.worktrees.iterdir()
+            for path in state.assignment_worktrees.iterdir()
             if path.is_dir() and path.name == identifier
         ),
         None,
@@ -350,7 +350,7 @@ def _find_incomplete_assignment_identifiers(
 ) -> dict[int, list[str]]:
     """Return each issue's setup identifiers whose record is absent."""
     identifiers_by_issue: dict[int, list[str]] = {}
-    for path in state.worktrees.glob("GH*-*"):
+    for path in state.assignment_worktrees.glob("GH*-*"):
         if (
             not is_linked_worktree(path=path)
             or (state.assignments / path.name / _ASSIGNMENT_RECORD_NAME).exists()
@@ -429,7 +429,7 @@ class AssignmentCreator:
             f"GH{issue}-{at:%Y%m%d-%H%M%S}"
         )
         branch = f"{_ASSIGNMENT_BRANCH_PREFIX}{identifier}"
-        worktree = self.state.worktrees / identifier
+        worktree = self.state.assignment_worktrees / identifier
         if is_linked_worktree(path=worktree):
             _check_worktree_branch(
                 state=self.state, identifier=identifier, branch=branch
@@ -459,7 +459,9 @@ class AssignmentCreator:
             model=recipe.model,
             effort=recipe.effort,
             harness_config=recipe.config,
-            prompt=compose_first_round_prompt(template=recipe.prompt, issue=issue),
+            prompt=compose_assignment_first_round_prompt(
+                template=recipe.prompt, issue=issue
+            ),
         )
         observation = PullRequestObservation(
             state=pull_request.state,
@@ -495,7 +497,9 @@ def _check_worktree_branch(
     *, state: StateDirectory, identifier: str, branch: str
 ) -> None:
     """Require an incomplete setup's worktree to have its assignment branch."""
-    checked_out_branch = read_worktree_branch(worktree=state.worktrees / identifier)
+    checked_out_branch = read_worktree_branch(
+        worktree=state.assignment_worktrees / identifier
+    )
     if checked_out_branch != branch:
         raise ReportableError(
             f"cannot reconcile {identifier}: its worktree has branch "

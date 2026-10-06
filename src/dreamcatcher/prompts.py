@@ -33,7 +33,7 @@ description, a comment, a reply on a line of the diff, and an issue you file."""
 # the round before this one stopped short. A round somebody interrupted and a
 # round that errored both read that way, and either is recovered from where it
 # stopped.
-RECOVERY_PROMPT = (
+ASSIGNMENT_RECOVERY_PROMPT = (
     """Your previous round did not finish. Carry on from where it stopped, and
 end your turn when the work is done."""
     + _AGENT_POST_INSTRUCTIONS
@@ -62,7 +62,7 @@ finished. The new input says what to do next.
 # pull request has got to, which is what tells a round that answers the user
 # from a round that wraps a merged or closed pull request up, so one prompt
 # serves both.
-_USER_POSTS_PROMPT = """User-posts prompt for pull request #{pull_request}:
+_ASSIGNMENT_INPUT_PROMPT = """User-posts prompt for pull request #{pull_request}:
 
   {round_input}
 
@@ -71,7 +71,7 @@ pull_request_state is MERGED or CLOSED, finish per your assignment's rules.
 Otherwise act on user_posts per your assignment's rules. End your turn when
 done."""
 
-_CONVERSATION_ROUND_PROMPT = (
+_CONVERSATION_INPUT_PROMPT = (
     """Issue-conversation input for GH{issue}:
 
   {round_input}
@@ -93,12 +93,14 @@ reply is needed."""
 )
 
 
-def compose_first_round_prompt(*, template: str, issue: int) -> str:
-    """Return the first-round prompt for an issue.
+def compose_assignment_first_round_prompt(*, template: str, issue: int) -> str:
+    """Return the first-round prompt for an assignment on an issue.
 
     The selected recipe supplies the template, and the issue's
     number replaces the placeholder in it. Anything else that the template
-    holds in braces reaches the first round as it was written.
+    holds in braces reaches the first round as it was written. An assignment's
+    first round has no input file, so the assignment record stores this whole
+    prompt.
     """
     instructions = compose_issue_instructions(template=template, issue=issue)
     return instructions + _AGENT_POST_INSTRUCTIONS
@@ -109,15 +111,15 @@ def compose_issue_instructions(*, template: str, issue: int) -> str:
     return template.replace(_ISSUE_PLACEHOLDER, str(issue))
 
 
-def compose_user_posts_prompt(
+def compose_assignment_input_prompt(
     *, pull_request: int, round_input: Path, was_stopped: bool = False
 ) -> str:
-    """Return the prompt that directs a resumed round to its input file.
+    """Return the prompt that directs a resumed assignment round to its input file.
 
     The input file holds the pull request state and the batch of user posts.
     """
     prompt = (
-        _USER_POSTS_PROMPT.format(
+        _ASSIGNMENT_INPUT_PROMPT.format(
             pull_request=pull_request,
             round_input=round_input,
         )
@@ -126,21 +128,26 @@ def compose_user_posts_prompt(
     return _prefix_stopped_round_feedback(prompt=prompt) if was_stopped else prompt
 
 
-def compose_conversation_prompt(
+def compose_conversation_first_round_prompt(
     *, instructions: str, issue: int, round_input: Path
 ) -> str:
-    """Add the first conversation round to the saved recipe instructions."""
-    round_prompt = compose_conversation_round_prompt(
+    """Return the first-round prompt for an issue conversation.
+
+    The conversation record stores only the recipe instructions, so the
+    scheduler composes this prompt when the first round launches, from those
+    instructions and the input file that the round reads.
+    """
+    round_prompt = compose_conversation_input_prompt(
         issue=issue, round_input=round_input
     )
     return f"{instructions}\n\n{round_prompt}"
 
 
-def compose_conversation_round_prompt(
+def compose_conversation_input_prompt(
     *, issue: int, round_input: Path, was_stopped: bool = False
 ) -> str:
     """Return the prompt that directs a conversation round to its saved input."""
-    prompt = _CONVERSATION_ROUND_PROMPT.format(
+    prompt = _CONVERSATION_INPUT_PROMPT.format(
         issue=issue,
         round_input=round_input,
     )

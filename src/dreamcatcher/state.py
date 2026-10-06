@@ -56,7 +56,7 @@ class StateDirectory:
         return self.path / "scheduler.json"
 
     @property
-    def worktrees(self) -> Path:
+    def assignment_worktrees(self) -> Path:
         """The directory holding each assignment worktree by identifier."""
         return self.path / "worktrees"
 
