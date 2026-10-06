@@ -1,15 +1,14 @@
 """Derive the status of the issues a status report shows."""
 
 from dataclasses import dataclass
-from datetime import datetime
 from enum import StrEnum
 
-from dreamcatcher.agent_assignments import Assignment
+from dreamcatcher.agent_assignments import Assignment, find_open_assignments_by_issue
 from dreamcatcher.scheduler.models import (
     IssueObservation,
-    ObservedFact,
     SchedulerRecord,
     Truth,
+    observe_claimed_here,
 )
 
 
@@ -61,46 +60,25 @@ def _refresh_issue_observations(
 ) -> list[IssueObservation]:
     """Return the latest tick's issue observations, claimed here as of now.
 
-    Where this checkout has an assignment for an issue, whether one is open
-    decides claimed here. An observation without its own time takes the tick's.
+    An observation without its own time takes the tick's.
     """
     if scheduler_record is None:
         return []
-    assignments_by_issue: dict[int, list[Assignment]] = {}
-    for assignment in assignments:
-        assignments_by_issue.setdefault(assignment.record.issue, []).append(assignment)
+    open_assignment_issues = find_open_assignments_by_issue(
+        assignments=assignments
+    ).keys()
     return [
-        _refresh_issue_observation(
-            observation=observation,
-            assignments=assignments_by_issue.get(observation.issue, []),
-            recorded_at=scheduler_record.at,
+        observation.model_copy(
+            update={
+                "claimed_here": observe_claimed_here(
+                    issue=observation.issue,
+                    open_assignment_issues=open_assignment_issues,
+                ),
+                "observed_at": observation.observed_at or scheduler_record.at,
+            }
         )
         for observation in scheduler_record.issue_observations
     ]
-
-
-def _refresh_issue_observation(
-    *,
-    observation: IssueObservation,
-    assignments: list[Assignment],
-    recorded_at: datetime,
-) -> IssueObservation:
-    if any(assignment.is_open for assignment in assignments):
-        claimed_here = ObservedFact(
-            value=Truth.TRUE,
-            evidence="this checkout has an open assignment for it",
-        )
-    elif assignments:
-        claimed_here = ObservedFact(
-            value=Truth.FALSE,
-            evidence="this checkout has no open assignment for it",
-        )
-    else:
-        claimed_here = observation.claimed_here
-    refreshed = observation.model_copy(update={"claimed_here": claimed_here})
-    if refreshed.observed_at is None:
-        return refreshed.model_copy(update={"observed_at": recorded_at})
-    return refreshed
 
 
 def derive_issue_statuses(
