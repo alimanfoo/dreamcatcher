@@ -171,9 +171,7 @@ def test_a_new_conversation_records_the_requested_harness_recipe(cloned):
     assert created.record.effort == "high"
 
 
-def test_a_conversation_retry_reuses_the_worktree_a_failed_record_write_left(
-    cloned, monkeypatch
-):
+def test_a_conversation_retry_reuses_its_leftover_worktree(cloned, monkeypatch):
     state = StateDirectory(root=cloned)
 
     def fail_record_write(*, document, path):
