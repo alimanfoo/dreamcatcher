@@ -65,8 +65,13 @@ For every push and pull request to `main`, the
 runs the default suite on Linux, macOS and Windows with the encoding gate and
 100% branch coverage. A separate Linux job runs the browser tests in Chromium.
 CI also runs the repository checks on Linux and Windows and builds and invokes
-the installed command on all three operating systems. It does not run the live
-GitHub integration tests.
+the installed command on all three operating systems. The checks include a
+strict build of the documentation site. CI does not run the live GitHub
+integration tests.
+
+For every push to `main`, the
+[docs workflow](https://github.com/alimanfoo/dreamcatcher/blob/main/.github/workflows/docs.yml)
+builds the documentation site and publishes it to GitHub Pages.
 
 ## Run the tests
 
