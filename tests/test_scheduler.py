@@ -55,7 +55,7 @@ from dreamcatcher.git import (
     push_branch,
 )
 from dreamcatcher.github import PullRequestState
-from dreamcatcher.prompts import RECOVERY_PROMPT
+from dreamcatcher.prompts import ASSIGNMENT_RECOVERY_PROMPT
 from dreamcatcher.scheduler import AssignmentScheduler, ConversationScheduler, Scheduler
 from dreamcatcher.scheduler.faults import is_awaiting_recovery
 from dreamcatcher.scheduler.models import (
@@ -971,7 +971,7 @@ def test_a_recovery_without_a_harness_session_starts_a_new_first_round(
 
     assert observed.launched_agent_work_identifiers == [ASSIGNMENT_ID]
     assert written_round(scheduler=scheduler, number=2, name="prompt.txt") == (
-        f"/dream:smith GH13\n\n{RECOVERY_PROMPT}"
+        f"/dream:smith GH13\n\n{ASSIGNMENT_RECOVERY_PROMPT}"
     )
     assert "--resume" not in harnesses["claude"].calls[-1].arguments
     recovered = record_of(scheduler=scheduler, number=2)

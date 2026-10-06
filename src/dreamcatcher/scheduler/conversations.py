@@ -37,8 +37,8 @@ from dreamcatcher.issue_conversations import (
 )
 from dreamcatcher.prompts import (
     CONVERSATION_RECOVERY_PROMPT,
-    compose_conversation_prompt,
-    compose_conversation_round_prompt,
+    compose_conversation_first_round_prompt,
+    compose_conversation_input_prompt,
 )
 from dreamcatcher.scheduler.agent_work import AgentWorkScheduler, RouteIssueListing
 from dreamcatcher.scheduler.faults import (
@@ -170,7 +170,7 @@ class ConversationScheduler(
         paths = conversation.compose_round_paths(number=conversation.next_round_number)
         return self._compose_round_start_request(
             conversation=conversation,
-            next_round_prompt=compose_conversation_round_prompt(
+            next_round_prompt=compose_conversation_input_prompt(
                 issue=conversation.record.issue,
                 round_input=paths.round_input,
                 was_stopped=(
@@ -210,7 +210,7 @@ class ConversationScheduler(
         plan: AgentRoundPlan[ConversationRoundInput],
     ) -> AgentRoundStartRequest:
         paths = conversation.compose_round_paths(number=conversation.next_round_number)
-        first_round_prompt = compose_conversation_prompt(
+        first_round_prompt = compose_conversation_first_round_prompt(
             instructions=conversation.record.prompt,
             issue=conversation.record.issue,
             round_input=paths.round_input,

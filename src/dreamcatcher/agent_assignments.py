@@ -63,7 +63,7 @@ from dreamcatcher.github import (
 )
 from dreamcatcher.harness_adapters import HarnessConfig, HarnessSessionIdentifier
 from dreamcatcher.harnesses import find_harness_session_identifier
-from dreamcatcher.prompts import compose_first_round_prompt
+from dreamcatcher.prompts import compose_assignment_first_round_prompt
 from dreamcatcher.state import StateDirectory
 
 # What an assignment's branch is called, before its identifier. The prefix keeps
@@ -459,7 +459,9 @@ class AssignmentCreator:
             model=recipe.model,
             effort=recipe.effort,
             harness_config=recipe.config,
-            prompt=compose_first_round_prompt(template=recipe.prompt, issue=issue),
+            prompt=compose_assignment_first_round_prompt(
+                template=recipe.prompt, issue=issue
+            ),
         )
         observation = PullRequestObservation(
             state=pull_request.state,

@@ -11,12 +11,12 @@ from dreamcatcher.config import (
 from dreamcatcher.prompts import (
     _AGENT_POST_INSTRUCTIONS,
     AGENT_POST_MARKER,
+    ASSIGNMENT_RECOVERY_PROMPT,
     CONVERSATION_RECOVERY_PROMPT,
-    RECOVERY_PROMPT,
-    compose_conversation_prompt,
-    compose_conversation_round_prompt,
-    compose_first_round_prompt,
-    compose_user_posts_prompt,
+    compose_assignment_first_round_prompt,
+    compose_assignment_input_prompt,
+    compose_conversation_first_round_prompt,
+    compose_conversation_input_prompt,
 )
 
 # What each harness's template in the test config renders as for issue 12. A
@@ -28,7 +28,7 @@ OPENINGS = {
 
 
 def test_a_template_holding_other_words_in_braces_keeps_them():
-    assert compose_first_round_prompt(
+    assert compose_assignment_first_round_prompt(
         template="read {the design} for GH{issue}", issue=12
     ).startswith("read {the design} for GH12\n")
 
@@ -40,14 +40,14 @@ def test_the_prompt_that_opens_an_assignment_is_its_template_then_the_postscript
     (tmp_path / DREAMCATCHER_CONFIG_NAME).write_text(CONFIG, encoding="utf-8")
     recipe = read_dreamcatcher_config(root=tmp_path).assignment[0].recipes[harness]
 
-    composed = compose_first_round_prompt(template=recipe.prompt, issue=12)
+    composed = compose_assignment_first_round_prompt(template=recipe.prompt, issue=12)
 
     assert composed == OPENINGS[harness] + _AGENT_POST_INSTRUCTIONS
 
 
-def test_the_prompt_that_carries_a_round_on_says_the_last_one_stopped_short():
-    assert RECOVERY_PROMPT.startswith("Your previous round did not finish.")
-    assert RECOVERY_PROMPT.endswith(_AGENT_POST_INSTRUCTIONS)
+def test_assignment_recovery_says_the_last_round_stopped_short():
+    assert ASSIGNMENT_RECOVERY_PROMPT.startswith("Your previous round did not finish.")
+    assert ASSIGNMENT_RECOVERY_PROMPT.endswith(_AGENT_POST_INSTRUCTIONS)
 
 
 def test_conversation_recovery_returns_a_complete_postable_answer():
@@ -63,12 +63,12 @@ def test_conversation_recovery_returns_a_complete_postable_answer():
     assert CONVERSATION_RECOVERY_PROMPT.endswith(_AGENT_POST_INSTRUCTIONS)
 
 
-def test_the_prompt_that_hands_over_user_posts_names_the_pull_request_and_the_file(
+def test_the_assignment_input_prompt_names_the_pull_request_and_the_file(
     tmp_path,
 ):
     round_input = tmp_path / "round-input.json"
 
-    composed = compose_user_posts_prompt(pull_request=52, round_input=round_input)
+    composed = compose_assignment_input_prompt(pull_request=52, round_input=round_input)
 
     assert composed.startswith("User-posts prompt for pull request #52:")
     assert str(round_input) in composed
@@ -78,10 +78,10 @@ def test_the_prompt_that_hands_over_user_posts_names_the_pull_request_and_the_fi
 def test_input_after_a_stop_explains_why_the_previous_round_ended(tmp_path):
     round_input = tmp_path / "round-input.json"
 
-    assignment = compose_user_posts_prompt(
+    assignment = compose_assignment_input_prompt(
         pull_request=52, round_input=round_input, was_stopped=True
     )
-    conversation = compose_conversation_round_prompt(
+    conversation = compose_conversation_input_prompt(
         issue=52, round_input=round_input, was_stopped=True
     )
 
@@ -91,10 +91,12 @@ def test_input_after_a_stop_explains_why_the_previous_round_ended(tmp_path):
     assert "new input says what to do next" in assignment
 
 
-def test_the_conversation_prompt_names_its_input_and_host_boundary(tmp_path):
+def test_the_conversation_first_round_prompt_names_its_input_and_host_boundary(
+    tmp_path,
+):
     round_input = tmp_path / "round-input.json"
 
-    composed = compose_conversation_prompt(
+    composed = compose_conversation_first_round_prompt(
         instructions="/dream:conversation GH52",
         issue=52,
         round_input=round_input,
@@ -115,10 +117,10 @@ def test_the_conversation_prompt_names_its_input_and_host_boundary(tmp_path):
     assert composed.endswith(_AGENT_POST_INSTRUCTIONS)
 
 
-def test_the_conversation_round_prompt_names_only_its_new_input(tmp_path):
+def test_the_conversation_input_prompt_names_only_its_new_input(tmp_path):
     round_input = tmp_path / "round-input.json"
 
-    composed = compose_conversation_round_prompt(issue=52, round_input=round_input)
+    composed = compose_conversation_input_prompt(issue=52, round_input=round_input)
 
     assert composed.startswith("Issue-conversation input for GH52:")
     assert str(round_input) in composed
@@ -133,18 +135,18 @@ def test_the_conversation_round_prompt_names_only_its_new_input(tmp_path):
 
 def test_every_agent_work_prompt_the_daemon_composes_asks_for_the_marker(tmp_path):
     composed = [
-        compose_first_round_prompt(template="/dream:smith GH12", issue=12),
-        RECOVERY_PROMPT,
-        compose_user_posts_prompt(
+        compose_assignment_first_round_prompt(template="/dream:smith GH12", issue=12),
+        ASSIGNMENT_RECOVERY_PROMPT,
+        compose_assignment_input_prompt(
             pull_request=52,
             round_input=Path("round-input.json"),
         ),
-        compose_conversation_prompt(
+        compose_conversation_first_round_prompt(
             instructions="/dream:conversation GH52",
             issue=52,
             round_input=tmp_path / "round-input.json",
         ),
-        compose_conversation_round_prompt(
+        compose_conversation_input_prompt(
             issue=52,
             round_input=tmp_path / "round-input.json",
         ),
