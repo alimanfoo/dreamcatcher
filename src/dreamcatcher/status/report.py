@@ -43,7 +43,7 @@ from dreamcatcher.status.conversations import (
 
 @dataclass(frozen=True, kw_only=True)
 class DreamcatcherDaemonStatus:
-    """Describe whether a daemon is running, and the current or most recent run."""
+    """Describe whether a daemon is running, and the current or latest daemon run."""
 
     is_running: bool
     run: DaemonRunRecord | None
@@ -64,17 +64,17 @@ class DreamcatcherDaemonStatus:
 
     @property
     def dreamcatcher_version(self) -> str | None:
-        """The version used by the current or most recent run."""
+        """The version used by the current or latest daemon run."""
         return None if self.run is None else self.run.version
 
     @property
     def max_agents(self) -> int | None:
-        """The agent cap selected for the current or most recent run."""
+        """The agent cap selected for the current or latest daemon run."""
         return None if self.run is None else self.run.max_agents
 
     @property
     def interval_seconds(self) -> int | None:
-        """The interval selected for the current or most recent run."""
+        """The interval selected for the current or latest daemon run."""
         return None if self.run is None else self.run.interval_seconds
 
 
@@ -267,7 +267,7 @@ def read_repository(*, state: StateDirectory) -> str | None:
 def read_dreamcatcher_daemon_status(
     *, state: StateDirectory
 ) -> DreamcatcherDaemonStatus:
-    """Read whether a daemon is running, and the current or most recent run."""
+    """Read whether a daemon is running, and the current or latest daemon run."""
     return DreamcatcherDaemonStatus(
         is_running=is_daemon_lock_held(path=state.lock),
         run=read_json_if_exists(model=DaemonRunRecord, path=state.daemon_run_record),
