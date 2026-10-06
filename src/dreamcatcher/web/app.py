@@ -80,7 +80,7 @@ def _create_app(
     app.add_url_rule(
         "/",
         endpoint="show_home",
-        view_func=partial(_show_home, state=state, clock=clock, zone=zone),
+        view_func=partial(_show_home, state=state, clock=clock),
     )
     _register_assignment_routes(app=app, state=state, clock=clock, zone=zone)
     _register_conversation_routes(app=app, state=state, clock=clock, zone=zone)
@@ -156,14 +156,10 @@ def _register_conversation_routes(
     )
 
 
-def _show_home(
-    *, state: StateDirectory, clock: Callable[[], datetime], zone: tzinfo | None
-) -> str:
+def _show_home(*, state: StateDirectory, clock: Callable[[], datetime]) -> str:
     """Render the local status overview."""
     report = read_status_report(state=state, clock=clock)
-    return render_template(
-        "home.html", view=compose_home_view(report=report, zone=zone)
-    )
+    return render_template("home.html", view=compose_home_view(report=report))
 
 
 def _show_assignment(

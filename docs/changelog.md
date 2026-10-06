@@ -35,7 +35,10 @@ each entry links the pull request that made the change.
   The terminal shows a conversation round's code revision in seven characters,
   as the web pages already did. An available issue reads "available for
   assignment" in both. The web page header describes a running daemon in the
-  terminal's words, such as "daemon running dreamcatcher v5.1.0 as pid 4242".
+  terminal's words, such as "daemon running dreamcatcher v5.1.0 as pid 4242". An
+  active global cooldown reads as a countdown, such as "ends in 4m", among the
+  instance facts of both, and the web home page shows it as a warning in place
+  of its banner. The terminal no longer shows "global cooldown none".
   ([#442](https://github.com/alimanfoo/dreamcatcher/pull/442))
 
 ## [v5.1.0](https://github.com/alimanfoo/dreamcatcher/releases/tag/v5.1.0) — 2026-10-06

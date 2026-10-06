@@ -43,6 +43,7 @@ from dreamcatcher.status.issues import (
     derive_issue_statuses,
     refresh_issue_observations,
 )
+from dreamcatcher.words import describe_countdown, describe_span
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -96,6 +97,15 @@ class DreamcatcherDaemonStatus:
 
 
 @dataclass(frozen=True, kw_only=True)
+class InstanceFact:
+    """Name one fact about a dreamcatcher instance, in the words a view shows."""
+
+    label: str
+    value: str
+    is_warning: bool = False
+
+
+@dataclass(frozen=True, kw_only=True)
 class DreamcatcherStatusReport:
     """Describe one dreamcatcher instance from its local state."""
 
@@ -110,6 +120,54 @@ class DreamcatcherStatusReport:
     issue_statuses: list[IssueStatus]
     assignment_statuses: list[AssignmentStatus]
     conversation_statuses: list[ConversationStatus]
+
+    @property
+    def instance_facts(self) -> tuple[InstanceFact, ...]:
+        """The instance's facts that are known, in the order a view shows them.
+
+        The scheduler's facts need a running daemon, and a global cooldown and
+        scheduler failures are warnings.
+        """
+        daemon = self.daemon
+        cooldown = self.active_global_cooldown
+        facts = (
+            (
+                "preferred harness",
+                None if daemon.agent_harness is None else str(daemon.agent_harness),
+                False,
+            ),
+            (
+                "next update in",
+                None
+                if not daemon.is_running
+                else describe_countdown(
+                    at=self.at,
+                    since=self.latest_scheduler_tick,
+                    span_seconds=daemon.interval_seconds,
+                ),
+                False,
+            ),
+            (
+                "agent capacity",
+                None
+                if daemon.max_agents is None
+                else f"{self.running_agents} of {daemon.max_agents} working",
+                False,
+            ),
+            (
+                "global cooldown",
+                None
+                if cooldown is None
+                else f"ends in {describe_span(span=cooldown.ends - self.at)}",
+                True,
+            ),
+            ("scheduler failures", self.scheduler_failure_summary, True),
+        )
+        return tuple(
+            InstanceFact(label=label, value=value, is_warning=is_warning)
+            for label, value, is_warning in facts
+            if value is not None
+        )
 
     @property
     def active_assignment_statuses(self) -> list[AssignmentStatus]:

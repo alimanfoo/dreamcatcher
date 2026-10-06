@@ -1386,7 +1386,7 @@ def test_next_update_is_left_out_when_no_daemon_is_running(tmp_path):
     assert "<dt>next update in</dt>" not in page
 
 
-def test_active_cooldown_uses_the_display_zone(tmp_path):
+def test_an_active_cooldown_is_a_warning_fact(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
     write_tick(
@@ -1401,10 +1401,9 @@ def test_active_cooldown_uses_the_display_zone(tmp_path):
 
     page = render_home(state=state)
 
-    assert "Global cooldown ends 2026-08-20 04:56:58" in page
-    assert "<dt>global cooldown</dt>" not in page
-    assert "<dt>scheduler failures</dt>" not in page
-    assert "2026-08-19 20:56:58" not in page
+    assert page.count('<div class="fact warning">') == 1
+    assert "<dt>global cooldown</dt>" in page
+    assert "<dd>ends in 15m</dd>" in page
 
 
 def test_an_inactive_cooldown_is_not_shown(tmp_path):

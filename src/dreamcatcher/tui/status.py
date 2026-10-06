@@ -1,9 +1,8 @@
 """Render the dreamcatcher instance status view in a terminal."""
 
 from collections.abc import Callable, Sequence
-from datetime import datetime, tzinfo
+from datetime import datetime
 from time import sleep
-from typing import cast
 
 from rich.console import Console, Group, RenderableType
 from rich.text import Text
@@ -27,7 +26,7 @@ from dreamcatcher.tui.shared import (
     render_latest_output,
     render_section,
 )
-from dreamcatcher.words import describe_count, describe_countdown, describe_time
+from dreamcatcher.words import describe_count
 
 
 def show_status_view(
@@ -36,44 +35,36 @@ def show_status_view(
     console: Console,
     clock: Callable[[], datetime] = read_current_time,
     wait: WaitForSeconds = sleep,
-    zone: tzinfo | None = None,
 ) -> None:
     """Show instance, issue, and assignment status until interrupted.
 
     A non-terminal or dumb terminal renders one report and returns.
-    Times use the given zone, or the machine's local zone when it is None.
     """
     refresh_live_view(
         console=console,
-        read_snapshot=lambda: _read_status_snapshot(
-            state=state, clock=clock, zone=zone
-        ),
+        read_snapshot=lambda: _read_status_snapshot(state=state, clock=clock),
         wait=wait,
     )
 
 
 def _read_status_snapshot(
-    *, state: StateDirectory, clock: Callable[[], datetime], zone: tzinfo | None
+    *, state: StateDirectory, clock: Callable[[], datetime]
 ) -> ViewSnapshot:
     """Return the current status report as a view that never ends itself.
 
     A daemon can start, a tick can run, or a round can begin after any refresh.
     """
     return ViewSnapshot(
-        renderable=_render_status(
-            report=read_status_report(state=state, clock=clock), zone=zone
-        ),
+        renderable=_render_status(report=read_status_report(state=state, clock=clock)),
         should_stop_refreshing=False,
     )
 
 
-def _render_status(
-    *, report: DreamcatcherStatusReport, zone: tzinfo | None
-) -> RenderableType:
+def _render_status(*, report: DreamcatcherStatusReport) -> RenderableType:
     return combine_renderable_parts(
         parts=[
             Text(report.repository or "repository unknown", style="bold"),
-            _render_instance_status(report=report, zone=zone),
+            _render_instance_status(report=report),
             _render_assignments(report=report),
             _render_conversations(conversations=report.conversation_statuses),
             _describe_empty_status_report(report=report),
@@ -81,50 +72,13 @@ def _render_status(
     )
 
 
-def _render_instance_status(
-    *, report: DreamcatcherStatusReport, zone: tzinfo | None
-) -> RenderableType:
-    """Render the daemon, scheduler, capacity, and cooldown facts."""
+def _render_instance_status(*, report: DreamcatcherStatusReport) -> RenderableType:
+    """Render the daemon and the instance facts."""
     table = create_table(columns=2)
-    for name, value in _compose_instance_rows(report=report, zone=zone):
-        if value is not None:
-            table.add_row(Text(name), Text(cast("str", value)))
+    table.add_row(Text("daemon"), Text(report.daemon.summary))
+    for fact in report.instance_facts:
+        table.add_row(Text(fact.label), Text(fact.value))
     return render_section(heading="instance", body=table)
-
-
-def _compose_instance_rows(
-    *, report: DreamcatcherStatusReport, zone: tzinfo | None
-) -> tuple[tuple[str, object | None], ...]:
-    daemon_status = report.daemon
-    tick = (
-        None
-        if not daemon_status.is_running
-        else describe_countdown(
-            at=report.at,
-            since=report.latest_scheduler_tick,
-            span_seconds=daemon_status.interval_seconds,
-        )
-    )
-    cooldown = (
-        "none"
-        if report.active_global_cooldown is None
-        else f"ends {describe_time(at=report.active_global_cooldown.ends, zone=zone)}"
-    )
-    return (
-        ("daemon", daemon_status.summary),
-        ("preferred harness", daemon_status.agent_harness),
-        ("next update in", tick),
-        (
-            "agent capacity",
-            (
-                None
-                if daemon_status.max_agents is None
-                else f"{report.running_agents} of {daemon_status.max_agents} working"
-            ),
-        ),
-        ("global cooldown", cooldown),
-        ("scheduler failures", report.scheduler_failure_summary),
-    )
 
 
 def _render_assignments(*, report: DreamcatcherStatusReport) -> RenderableType | None:

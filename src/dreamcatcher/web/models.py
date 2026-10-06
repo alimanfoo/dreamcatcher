@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import Literal, Protocol
 
 from dreamcatcher.agent_rounds import AgentRoundPaths, AgentRoundRecord
-from dreamcatcher.status import AgentRoundRevision
+from dreamcatcher.status import AgentRoundRevision, InstanceFact
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -13,7 +13,6 @@ class WebFact:
 
     label: str
     value: str
-    is_warning: bool = False
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -188,8 +187,7 @@ class WebHomeView:
     github_repository_url: str | None
     daemon_state: str
     daemon_summary: str
-    instance_facts: tuple[WebFact, ...]
-    cooldown_message: str | None
+    instance_facts: tuple[InstanceFact, ...]
     conversations: tuple[WebConversationCard, ...]
     active_assignments: tuple[WebAssignmentCard, ...]
     ended_assignments: tuple[WebAssignmentCard, ...]
