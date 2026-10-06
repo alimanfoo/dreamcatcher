@@ -723,9 +723,21 @@ def test_an_unobserved_issue_with_no_record_has_no_conversation(conversation_sta
         (None, "abc123", "code revision abc123"),
         ("abc123", "abc123", "code revision abc123 (unchanged)"),
         ("abc123", "def456", "code revision abc123 -> def456"),
+        (
+            "0123456" + "0" * 33,
+            "0123456" + "f" * 33,
+            "code revision 0123456 -> 0123456",
+        ),
     ],
 )
 def test_a_round_revision_description_names_its_transition(previous, current, expected):
     found = _compose_round_revision(previous_revision=previous, revision=current)
 
     assert found.description == expected
+
+
+def test_a_round_revision_shows_seven_characters():
+    found = _compose_round_revision(previous_revision=None, revision="0123456789abcdef")
+
+    assert found.value == "0123456"
+    assert found.description == "code revision 0123456"

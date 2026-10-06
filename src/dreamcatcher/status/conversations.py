@@ -147,7 +147,7 @@ class ConversationStatus:
                     conversation=conversation,
                     number=record.number,
                 )
-                revision = round_input.revision[:_SHORT_REVISION_LENGTH]
+                revision = round_input.revision
                 round_revision = _compose_round_revision(
                     previous_revision=previous_revision, revision=revision
                 )
@@ -440,11 +440,13 @@ class ConversationStatusReader(AgentWorkStatusReader[ConversationStatus]):
 def _compose_round_revision(
     *, previous_revision: str | None, revision: str
 ) -> AgentRoundRevision:
-    """Describe the revision one conversation round investigated."""
+    """Describe the revision one conversation round investigated, shortened."""
+    short_revision = revision[:_SHORT_REVISION_LENGTH]
     if previous_revision is None:
-        description = f"code revision {revision}"
+        description = f"code revision {short_revision}"
     elif previous_revision == revision:
-        description = f"code revision {revision} (unchanged)"
+        description = f"code revision {short_revision} (unchanged)"
     else:
-        description = f"code revision {previous_revision} -> {revision}"
-    return AgentRoundRevision(value=revision, description=description)
+        short_previous_revision = previous_revision[:_SHORT_REVISION_LENGTH]
+        description = f"code revision {short_previous_revision} -> {short_revision}"
+    return AgentRoundRevision(value=short_revision, description=description)

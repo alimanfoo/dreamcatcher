@@ -83,7 +83,10 @@ class DreamcatcherDaemonStatus:
 
     @property
     def summary(self) -> str:
-        """Whether the daemon runs, with its version and process ID when it does."""
+        """The daemon's state in words, such as "running dreamcatcher v5.1.0 as pid 7".
+
+        The views put the word "daemon" before it.
+        """
         if not self.is_running:
             return "not running"
         version = (
@@ -97,7 +100,7 @@ class DreamcatcherDaemonStatus:
 
 @dataclass(frozen=True, kw_only=True)
 class StatusFact:
-    """Name one labelled fact in the words a status view shows."""
+    """Hold one labelled fact, worded as a status view shows it."""
 
     label: str
     value: str

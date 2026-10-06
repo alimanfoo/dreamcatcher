@@ -315,8 +315,10 @@ interface.
 Status reporting owns the read-only status model and constructs a
 `DreamcatcherStatusReport` containing the repository identity, instance and
 daemon facts, `IssueStatus` entries, `ConversationStatus` entries, and
-`AssignmentStatus` entries. Status derives every fact and word that the TUI and
-the web both show, so each presentation only lays them out.
+`AssignmentStatus` entries. Status derives each fact that both the TUI and the
+web show, such as the instance facts, the order of the agent work and how a
+round is described, in the words both show, so neither presentation derives it
+again.
 
 Status construction may read:
 
@@ -346,10 +348,10 @@ scheduler's recorded evidence. Each one is an `IssueStatus`, which names the
 reason the report shows it and carries that evidence. An `AssignmentStatus` is
 one summary status from the ontology.
 
-The report includes an issue observation only among failed setups while the
-latest tick records a setup failure, independently of whether the issue is
-available or a linked pull request proves that it is claimed elsewhere. That
-single row also includes any recorded routing-conflict or blocker evidence.
+An issue's status is a failed setup while the latest tick records a setup
+failure, independently of whether the issue is available or a linked pull
+request proves that it is claimed elsewhere. That status also carries any
+recorded routing-conflict or blocker evidence.
 
 An `AgentWorkObservation` records the tick's interpretation of one open work
 item. It carries the agent work identifier, issue and one `ObservedFact` saying
@@ -566,7 +568,8 @@ The following are derived rather than persisted as authoritative state:
 - whether an assignment is complete or either kind of agent work is in fault;
 - whether an assignment requires an agent round or needs user feedback;
 - what round purpose and recovery flag are required next; and
-- every issue conversation and agent assignment status shown in a status report.
+- every issue status, issue conversation status and agent assignment status
+  shown in a status report.
 
 Mutable external facts, including issue state, assignees, labels, dependencies,
 linked pull requests, pull-request draft/readiness/terminal state, and user

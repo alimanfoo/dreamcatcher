@@ -30,6 +30,7 @@ from dreamcatcher.agent_rounds import (
 )
 from dreamcatcher.config import AgentHarness
 from dreamcatcher.daemon import DEFAULT_INTERVAL_SECONDS
+from dreamcatcher.daemon_runs import DaemonRunRecord
 from dreamcatcher.documents import write_text
 from dreamcatcher.feed import FeedLine
 from dreamcatcher.scheduler.models import (
@@ -53,6 +54,7 @@ from dreamcatcher.status.assignments import (
     AssignmentStatusValue,
 )
 from dreamcatcher.status.issues import IssueEvidence, IssueStatus, IssueStatusValue
+from dreamcatcher.status.rounds import AgentRoundStatus
 
 ASSIGNMENT_ID = "GH13-20260819-184158"
 LOOKED_AT = PINNED + timedelta(hours=2)
@@ -157,6 +159,7 @@ def test_an_empty_instance_reports_unknown_capacity_and_no_work(tmp_path):
     assert found.active_global_cooldown is None
     assert found.issue_statuses == []
     assert found.assignment_statuses == []
+    assert found.instance_facts == ()
 
 
 def test_the_instance_record_names_the_repository(state):
@@ -1034,3 +1037,66 @@ def test_a_report_orders_active_assignments_by_attention_and_ended_ones_newest_f
     assert [
         status.assignment.record.issue for status in found.ended_assignment_statuses
     ] == [70, 12]
+
+
+@pytest.mark.parametrize(
+    ("is_running", "run", "expected"),
+    [
+        (False, None, "not running"),
+        (True, None, "running"),
+        (
+            True,
+            DaemonRunRecord(
+                pid=42,
+                harness=AgentHarness.CLAUDE,
+                version="5.1.0",
+                max_agents=3,
+                interval_seconds=DEFAULT_INTERVAL_SECONDS,
+            ),
+            "running dreamcatcher v5.1.0 as pid 42",
+        ),
+    ],
+)
+def test_a_daemon_summary_says_whether_it_runs_and_which_run_it_is(
+    is_running, run, expected
+):
+    daemon = DreamcatcherDaemonStatus(is_running=is_running, run=run)
+
+    assert daemon.summary == expected
+
+
+def test_a_failed_setup_that_is_available_is_reported_once(state):
+    observation = observed_issue(issue=20).model_copy(
+        update={"setup_failure": "assignment setup failed"}
+    )
+    write_tick(
+        state=state,
+        tick=SchedulerRecord(at=PINNED, issue_observations=[observation]),
+    )
+
+    status_report = report(state=state)
+
+    assert observation.availability.value is Truth.TRUE
+    [setup] = status_report.failed_assignment_setups
+    assert setup.detail == "assignment setup failed"
+    assert status_report.issue_statuses == []
+
+
+@pytest.mark.parametrize(
+    ("is_recovery", "expected"), [(False, "implement"), (True, "implement (recovery)")]
+)
+def test_a_round_purpose_description_marks_a_recovery(is_recovery, expected):
+    round_status = AgentRoundStatus(
+        record=AgentRoundRecord(
+            number=2,
+            purpose=AssignmentRoundPurpose.IMPLEMENT,
+            is_recovery=is_recovery,
+            started=PINNED,
+            pid=1,
+            ending=None,
+        ),
+        duration_description="",
+        outcome_description="running",
+    )
+
+    assert round_status.purpose_description == expected

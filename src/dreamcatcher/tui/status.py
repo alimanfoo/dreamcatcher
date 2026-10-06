@@ -120,10 +120,9 @@ def _render_issue_statuses(*, issues: Sequence[IssueStatus]) -> list[RenderableT
         return []
     table = create_table(columns=3)
     for issue in issues:
-        details = issue.observation.details
         table.add_row(
             Text(f"GH{issue.observation.issue}"),
-            Text(", ".join([] if details is None else details.assignment_labels)),
+            Text(issue.labels),
             Text(issue.detail),
         )
     return [table]

@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
 
-from dreamcatcher.agent_assignments import Assignment, find_open_assignments_by_issue
+from dreamcatcher.agent_assignments import Assignment
 from dreamcatcher.scheduler.models import (
     IssueObservation,
     ObservedFact,
@@ -24,7 +24,11 @@ class IssueStatusValue(StrEnum):
 
 @dataclass(frozen=True, kw_only=True)
 class IssueEvidence:
-    """Give one piece of evidence for an issue's status."""
+    """Give one piece of evidence for an issue's status.
+
+    Evidence that names issues, such as "blocked by GH50", lets a view link
+    each issue it names.
+    """
 
     text: str
     names_issues: bool = False
@@ -42,6 +46,12 @@ class IssueStatus:
     def detail(self) -> str:
         """The evidence as one line."""
         return "; ".join(item.text for item in self.evidence)
+
+    @property
+    def labels(self) -> str:
+        """The issue's assignment labels as one line, empty when they are unknown."""
+        details = self.observation.details
+        return ", ".join([] if details is None else details.assignment_labels)
 
 
 def _refresh_issue_observations(
@@ -75,10 +85,7 @@ def _refresh_issue_observation(
     assignments: list[Assignment],
     recorded_at: datetime,
 ) -> IssueObservation:
-    open_assignment = find_open_assignments_by_issue(assignments=assignments).get(
-        observation.issue
-    )
-    if open_assignment is not None:
+    if any(assignment.is_open for assignment in assignments):
         claimed_here = ObservedFact(
             value=Truth.TRUE,
             evidence="this checkout has an open assignment for it",
@@ -116,22 +123,26 @@ def derive_issue_statuses(
 def _derive_issue_status(*, observation: IssueObservation) -> IssueStatus | None:
     """Return the status of one observed issue, or None when the report omits it.
 
-    A setup failure or routing conflict comes with any blocked evidence, which
-    names the blocking issues.
+    The first that holds of a failed setup, a routing conflict, a blocker and
+    availability decides the value. The evidence gives each of the first three
+    that holds, or else the availability.
     """
+    is_conflicted = observation.routing_conflict.value is Truth.TRUE
+    is_blocked = observation.blocked.value is Truth.TRUE
     evidence = []
-    if observation.routing_conflict.value is Truth.TRUE:
+    if observation.setup_failure is not None:
+        evidence.append(IssueEvidence(text=observation.setup_failure))
+    if is_conflicted:
         evidence.append(IssueEvidence(text=observation.routing_conflict.evidence))
-    if observation.blocked.value is Truth.TRUE:
+    if is_blocked:
         evidence.append(
             IssueEvidence(text=observation.blocked.evidence, names_issues=True)
         )
     if observation.setup_failure is not None:
         value = IssueStatusValue.FAILED_SETUP
-        evidence.insert(0, IssueEvidence(text=observation.setup_failure))
-    elif observation.routing_conflict.value is Truth.TRUE:
+    elif is_conflicted:
         value = IssueStatusValue.ROUTING_CONFLICT
-    elif observation.blocked.value is Truth.TRUE:
+    elif is_blocked:
         value = IssueStatusValue.BLOCKED
     elif observation.availability.value is Truth.TRUE:
         value = IssueStatusValue.AVAILABLE

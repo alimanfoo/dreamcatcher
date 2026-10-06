@@ -410,7 +410,7 @@ whether the daemon is running, when the last scheduler tick occurred, current
 capacity, whether a global cooldown is active, and the scheduler failures. A
 scheduler failure is a read or a launch that failed in the latest tick, such as
 a failed issue listing or a failed read of an issue's comments. Its issue
-observations, issue conversation statuses and agent assignment statuses are
+statuses, issue conversation statuses and agent assignment statuses are
 projections derived for a person to read.
 
 The status report never schedules work and is never an input to scheduling.
