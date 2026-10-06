@@ -56,12 +56,8 @@ from dreamcatcher.git import (
 )
 from dreamcatcher.github import PullRequestState
 from dreamcatcher.prompts import RECOVERY_PROMPT
-from dreamcatcher.scheduler import (
-    AssignmentScheduler,
-    ConversationScheduler,
-    Scheduler,
-    is_awaiting_recovery,
-)
+from dreamcatcher.scheduler import AssignmentScheduler, ConversationScheduler, Scheduler
+from dreamcatcher.scheduler.faults import is_awaiting_recovery
 from dreamcatcher.scheduler.models import (
     AgentWorkObservation,
     GlobalCooldown,
