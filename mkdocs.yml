@@ -29,6 +29,8 @@ theme:
     - navigation.sections
     - toc.follow
 
+# The hook publishes the files under static/ from the web interface's own
+# static directory.
 hooks:
   - tools/mkdocs_static.py
 

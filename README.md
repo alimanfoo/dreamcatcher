@@ -12,6 +12,6 @@ contract.
 ## Contributing
 
 Start with the [agent guide](AGENTS.md) for the development setup, project
-conventions and required checks. The documentation's development pages say how
-good the work has to be, how it is tested and how it is released. Every page's
-source is in [docs](docs).
+conventions and required checks. [Testing](docs/testing.md) explains what the
+test suite and CI establish, and [Releasing](docs/releasing.md) lists what to do
+before each release.

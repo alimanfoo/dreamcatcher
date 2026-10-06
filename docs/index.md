@@ -47,6 +47,5 @@ and issue-conversation prompts must do.
 Start with the
 [agent guide](https://github.com/alimanfoo/dreamcatcher/blob/main/AGENTS.md) for
 the development setup, project conventions and required checks.
-[The engineering standard](standard.md) says how good the work has to be.
 [Testing](testing.md) explains what the test suite and CI establish, and
 [Releasing](releasing.md) lists what to do before each release.

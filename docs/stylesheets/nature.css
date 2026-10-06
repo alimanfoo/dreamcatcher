@@ -1,5 +1,5 @@
 /* Material for MkDocs dressed in the web interface's nature theme, whose
-   variables come from its nature.css. */
+   variables come from src/dreamcatcher/static/nature.css. */
 
 [data-md-color-scheme="nature"] {
   --md-default-fg-color: var(--bright);
@@ -54,7 +54,7 @@
   --md-shadow-z2: 0 0 14px 3px rgba(59, 52, 46, 0.08);
 }
 
-/* The web interface's nature.css paints the sky, the sun and the paper grain.
+/* That stylesheet paints the sky, the sun and the paper grain.
    Here they sit behind the page, not over it. */
 
 body {
@@ -73,9 +73,20 @@ body::after {
 /* Header */
 
 .md-header {
+  background-color: transparent;
+  border-bottom: 1px solid rgba(59, 52, 46, 0.1);
+}
+
+/* The blur sits on a layer of its own. On the header itself it would confine
+   the header's fixed descendants, such as the mobile search panel. */
+
+.md-header::before {
+  position: absolute;
+  z-index: -1;
+  inset: 0;
   background-color: rgba(239, 230, 214, 0.4);
   backdrop-filter: blur(12px);
-  border-bottom: 1px solid rgba(59, 52, 46, 0.1);
+  content: "";
 }
 
 .md-header--shadow {
