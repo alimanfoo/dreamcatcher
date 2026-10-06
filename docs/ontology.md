@@ -168,8 +168,8 @@ see a scheduler tick called an update.
 ### Status report
 
 A **status report** is _dreamcatcher_'s read-only account of a _dreamcatcher_
-instance, its issue conversations, agent assignments, and issue observations at
-a particular time.
+instance, its issue conversations, agent assignments, and issue statuses at a
+particular time.
 
 An **issue observation** records the independent facts that one scheduler tick
 found for an issue. Its availability is derived from those facts.

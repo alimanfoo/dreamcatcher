@@ -1057,12 +1057,12 @@ def test_a_report_orders_active_assignments_by_attention_and_ended_ones_newest_f
         ),
     ],
 )
-def test_a_daemon_summary_says_whether_it_runs_and_which_run_it_is(
+def test_a_daemon_fact_says_whether_it_runs_and_which_run_it_is(
     is_running, run, expected
 ):
     daemon = DreamcatcherDaemonStatus(is_running=is_running, run=run)
 
-    assert daemon.summary == expected
+    assert daemon.fact == StatusFact(label="daemon", value=expected)
 
 
 def test_a_failed_setup_that_is_available_is_reported_once(state):

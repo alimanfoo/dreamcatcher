@@ -46,6 +46,15 @@ from dreamcatcher.words import describe_countdown, describe_span
 
 
 @dataclass(frozen=True, kw_only=True)
+class StatusFact:
+    """Hold one labelled fact that a view shows."""
+
+    label: str
+    value: str
+    is_warning: bool = False
+
+
+@dataclass(frozen=True, kw_only=True)
 class DreamcatcherDaemonStatus:
     """Describe whether a daemon is running, and the current or latest daemon run."""
 
@@ -82,11 +91,11 @@ class DreamcatcherDaemonStatus:
         return None if self.run is None else self.run.interval_seconds
 
     @property
-    def summary(self) -> str:
-        """The daemon's state in words, such as "running dreamcatcher v5.1.0 as pid 7".
+    def fact(self) -> StatusFact:
+        """Whether the daemon runs, with its version and process ID when it does."""
+        return StatusFact(label="daemon", value=self._describe_state())
 
-        The views put the word "daemon" before it.
-        """
+    def _describe_state(self) -> str:
         if not self.is_running:
             return "not running"
         version = (
@@ -96,15 +105,6 @@ class DreamcatcherDaemonStatus:
         )
         pid = None if self.pid is None else f"as pid {self.pid}"
         return " ".join(filter(None, ("running", version, pid)))
-
-
-@dataclass(frozen=True, kw_only=True)
-class StatusFact:
-    """Hold one labelled fact, worded as a status view shows it."""
-
-    label: str
-    value: str
-    is_warning: bool = False
 
 
 @dataclass(frozen=True, kw_only=True)

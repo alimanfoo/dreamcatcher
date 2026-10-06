@@ -75,8 +75,7 @@ def _render_status(*, report: DreamcatcherStatusReport) -> RenderableType:
 def _render_instance_status(*, report: DreamcatcherStatusReport) -> RenderableType:
     """Render the daemon and the instance facts."""
     table = create_table(columns=2)
-    table.add_row(Text("daemon"), Text(report.daemon.summary))
-    for fact in report.instance_facts:
+    for fact in (report.daemon.fact, *report.instance_facts):
         table.add_row(Text(fact.label), Text(fact.value))
     return render_section(heading="instance", body=table)
 
@@ -84,7 +83,7 @@ def _render_instance_status(*, report: DreamcatcherStatusReport) -> RenderableTy
 def _render_assignments(*, report: DreamcatcherStatusReport) -> RenderableType | None:
     """Render assignment work as one section, mirroring the web home view.
 
-    Orders active assignments, failed assignment setups, issue observations,
+    Orders active assignments, failed assignment setups, issue statuses,
     and the ended-assignment count in that sequence.
     """
     if not (
