@@ -766,8 +766,7 @@ def test_every_complete_page_uses_the_dreamcatcher_mark_as_its_favicon(tmp_path)
     )
 
     favicon = (
-        '<link rel="icon" type="image/png" '
-        'href="/static/dreamcatcher-mark-phosphor.png">'
+        '<link rel="icon" type="image/png" href="/static/dreamcatcher-mark-ink.png">'
     )
     assert all(favicon in page for page in pages)
 
@@ -776,33 +775,36 @@ def test_a_theme_choice_is_validated_and_remembered(tmp_path):
     app = _create_app(state=StateDirectory(root=tmp_path))
     client = app.test_client()
 
-    selected = client.get("/?theme=nature")
+    selected = client.get("/?theme=matrix")
     remembered = client.get("/")
+
+    assert 'href="/static/nature.css"' not in selected.text
+    assert 'src="/static/nature.js"' not in selected.text
+    assert 'href="/static/dreamcatcher-mark-phosphor.png"' in selected.text
+    assert "theme=matrix;" in selected.headers["Set-Cookie"]
+    assert 'href="/static/nature.css"' not in remembered.text
+    assert 'src="/static/nature.js"' not in remembered.text
+    assert 'href="/static/dreamcatcher-mark-phosphor.png"' in remembered.text
+
+
+def test_an_unknown_theme_uses_nature_without_being_remembered(tmp_path):
+    app = _create_app(state=StateDirectory(root=tmp_path))
+    client = app.test_client()
+
+    response = client.get("/?theme=unknown")
     stylesheet = client.get("/static/nature.css").get_data(as_text=True)
     script = client.get("/static/nature.js").get_data(as_text=True)
 
-    assert 'href="/static/nature.css"' in selected.text
-    assert 'src="/static/nature.js"' in selected.text
-    assert 'href="/static/dreamcatcher-mark-ink.png"' in selected.text
-    assert "theme=nature;" in selected.headers["Set-Cookie"]
-    assert 'href="/static/nature.css"' in remembered.text
-    assert 'src="/static/nature.js"' in remembered.text
-    assert 'href="/static/dreamcatcher-mark-ink.png"' in remembered.text
+    assert 'href="/static/nature.css"' in response.text
+    assert 'src="/static/nature.js"' in response.text
+    assert 'href="/static/dreamcatcher-mark-ink.png"' in response.text
+    assert "Set-Cookie" not in response.headers
     assert "circle at var(--sun-x) 6%" in stylesheet
     assert "opacity: var(--sun-opacity);" in stylesheet
     assert ".status-unknown," in stylesheet
     assert "const sunrise = 6 * 60;" in script
     assert "const sunset = 18 * 60;" in script
     assert 'style.setProperty("--sun-x", `${sunPosition}%`);' in script
-
-
-def test_an_unknown_theme_uses_matrix_without_being_remembered(tmp_path):
-    app = _create_app(state=StateDirectory(root=tmp_path))
-
-    response = app.test_client().get("/?theme=unknown")
-
-    assert 'href="/static/nature.css"' not in response.text
-    assert "Set-Cookie" not in response.headers
 
 
 def test_github_links_open_in_a_new_tab(tmp_path):
