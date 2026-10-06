@@ -193,6 +193,8 @@ def test_a_conversation_retry_reuses_the_worktree_a_failed_record_write_left(
             )
 
     assert is_linked_worktree(path=state.conversation_worktrees / "GH8")
+    leftover = state.conversation_worktrees / "GH8" / "leftover.txt"
+    leftover.write_bytes(b"left by the failed attempt\n")
     created = create_conversation(
         state=state,
         route=conversation_route(),
@@ -200,6 +202,7 @@ def test_a_conversation_retry_reuses_the_worktree_a_failed_record_write_left(
         issue=issue(),
     )
     assert read_conversations(state=state) == [created]
+    assert leftover.is_file()
 
 
 def test_a_conversation_record_must_name_its_directory(tmp_path):

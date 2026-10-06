@@ -173,11 +173,11 @@ def create_conversation(
     requested_harness: AgentHarness,
     issue: Issue,
 ) -> Conversation:
-    """Create one conversation at fetched main with no rounds run yet.
+    """Create one conversation with no rounds run yet.
 
-    A retry reuses the worktree that an earlier attempt left before it wrote
-    the record. Preparing the first round's input resets that worktree to
-    fetched main.
+    A new worktree starts at fetched main. A retry reuses the worktree that an
+    earlier attempt left before it wrote the record, and preparing the first
+    round's input resets that worktree to fetched main.
     """
     existing = read_conversation(state=state, issue=issue.number)
     if existing is not None:

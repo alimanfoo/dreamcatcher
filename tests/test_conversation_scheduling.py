@@ -1994,7 +1994,7 @@ def test_a_conversation_setup_failure_is_a_scheduler_failure(conversation_schedu
     observed = scheduler.tick(at=clock())
 
     [failure] = observed.failures
-    assert "already exists" in failure
+    assert "git worktree add --detach" in failure
 
 
 def test_the_oldest_waiting_comment_selects_the_conversation(
