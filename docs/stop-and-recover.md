@@ -21,8 +21,8 @@ dreamcatcher stop GH123 --conversation
 
 Use `--assignment` for the newest assignment at the issue, or `--conversation`
 for its issue conversation. You can instead run `dreamcatcher web`, open the
-assignment or conversation, and select **stop round**. Both controls are
-available only while the round is running and Dreamcatcher has learned its
+assignment or conversation, select **stop round**, and confirm. Both controls
+are available only while the round is running and Dreamcatcher has learned its
 harness session. The round normally stops within about a second.
 
 After an assignment round is stopped, an open pull request waits for a new
