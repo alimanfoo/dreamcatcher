@@ -17,11 +17,26 @@ validation:
 
 theme:
   name: material
+  logo: static/dreamcatcher-mark-ink.png
+  favicon: static/dreamcatcher-mark-ink.png
+  palette:
+    scheme: nature
+  font:
+    text: Alegreya Sans
   features:
     - content.code.copy
     - navigation.footer
     - navigation.sections
     - toc.follow
+
+hooks:
+  - tools/mkdocs_static.py
+
+extra_css:
+  - stylesheets/nature.css
+
+extra_javascript:
+  - static/nature.js
 
 markdown_extensions:
   - pymdownx.highlight

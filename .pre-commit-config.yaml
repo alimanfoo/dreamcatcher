@@ -109,7 +109,7 @@ repos:
         entry: uv run mkdocs build --quiet
         language: system
         pass_filenames: false
-        files: ^(docs/|mkdocs\.yml$)
+        files: ^(docs/|mkdocs\.yml$|tools/mkdocs_static\.py$|src/dreamcatcher/static/)
         exclude: *verbatim-paths
       - id: uncoded
         name: uncoded
