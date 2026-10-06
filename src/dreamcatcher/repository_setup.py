@@ -25,7 +25,7 @@ from dreamcatcher.github import (
     require_github_identity,
     require_known_github_value,
 )
-from dreamcatcher.harnesses import HARNESS_ADAPTERS
+from dreamcatcher.harnesses import HARNESS_ADAPTERS, locate_harnesses
 
 # The plugin whose skills the default configuration's prompts invoke.
 _DREAM_MARKETPLACE = "alimanfoo/dream"
@@ -66,12 +66,7 @@ def set_up_repository(*, root: Path) -> None:
         else f"Left the existing {DREAMCATCHER_CONFIG_NAME} as it is."
     )
     config = read_dreamcatcher_config(root=root)
-    missing = config.routed_harnesses - installed
-    if missing:
-        raise ReportableError(
-            f"{DREAMCATCHER_CONFIG_NAME} routes work to {', '.join(sorted(missing))}, "
-            "which is not on the PATH. Install it, or comment out its recipes."
-        )
+    locate_harnesses(harnesses=config.routed_harnesses)
     for harness in sorted(config.routed_harnesses):
         _set_up_harness(harness=harness)
     _create_missing_labels(repository=identity.repository, config=config)
@@ -122,7 +117,8 @@ def _set_up_harness(*, harness: AgentHarness) -> None:
         run_command(program=adapter.program, arguments=adapter.sign_in_check_arguments)
     except CommandError as error:
         raise ReportableError(
-            f"{error} Sign in to {adapter.program}, then run dreamcatcher init again."
+            f"Sign in to {adapter.program}, then run dreamcatcher init again, "
+            f"because {error}"
         ) from error
     for arguments in adapter.build_plugin_installation(
         marketplace=_DREAM_MARKETPLACE, plugin=_DREAM_PLUGIN
@@ -140,7 +136,7 @@ def _create_missing_labels(*, repository: str, config: DreamcatcherConfig) -> No
         question=f"which labels {repository} has",
     )
     names = [label.name for label in labels]
-    routed = {
+    existing = {
         *config.identify_assignment_labels(labels=names),
         *(route.label for route in config.identify_conversation_routes(labels=names)),
     }
@@ -151,7 +147,7 @@ def _create_missing_labels(*, repository: str, config: DreamcatcherConfig) -> No
             for route in config.conversation
         },
     }
-    created = [label for label in descriptions if label not in routed]
+    created = [label for label in descriptions if label not in existing]
     for label in created:
         create_label(repository=repository, name=label, description=descriptions[label])
     _print_line(

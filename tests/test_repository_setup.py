@@ -212,7 +212,7 @@ def test_a_configuration_routing_a_missing_harness_is_refused(checkout, gh, inst
         SMITH_CLAUDE + SMITH_CODEX, encoding="utf-8"
     )
 
-    with pytest.raises(ReportableError, match="routes work to codex"):
+    with pytest.raises(ReportableError, match="codex is not on the PATH"):
         set_up_repository(root=checkout)
     assert not harnesses["claude"].calls
 

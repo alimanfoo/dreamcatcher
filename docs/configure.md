@@ -12,7 +12,7 @@ daemon after changing it.
 [`dreamcatcher init`](command-reference.md#init) writes a starting file with
 routes for the `dream` plugin's skills, when the checkout has none. Edit that
 file, or write your own. `init` installs the `dream` plugin for each harness the
-file uses, whichever skills its prompts invoke.
+file uses, even when its prompts invoke other skills.
 
 ## Start with distinct labels
 

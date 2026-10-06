@@ -15,14 +15,13 @@ from dreamcatcher.agent_rounds import (
     record_agent_round_stop,
 )
 from dreamcatcher.clock import WaitForSeconds, read_current_time
-from dreamcatcher.commands import locate_program
 from dreamcatcher.config import AgentHarness, read_dreamcatcher_config
 from dreamcatcher.daemon_runs import DaemonRunRecord
 from dreamcatcher.documents import write_json, write_text
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.git import require_main_checkout
 from dreamcatcher.github import require_github_identity
-from dreamcatcher.harnesses import HARNESS_ADAPTERS
+from dreamcatcher.harnesses import locate_harnesses
 from dreamcatcher.issue_conversations import read_conversations
 from dreamcatcher.lock import hold_daemon_lock
 from dreamcatcher.scheduler import (
@@ -106,7 +105,9 @@ class DreamcatcherDaemon:
         identifies user posts before the marker excludes the assignment's own
         posts.
         """
-        self._locate_harnesses()
+        # A label carrying one dispatch recipe runs on that harness whatever the
+        # preference, so every harness a route can settle a label on must be there.
+        locate_harnesses(harnesses={self.harness, *self.config.routed_harnesses})
         with hold_daemon_lock(path=self.state.lock):
             self.state.bootstrap()
             write_json(
@@ -193,16 +194,6 @@ class DreamcatcherDaemon:
         _write_output(
             line=f"{describe_time(at=scheduler_record.at, zone=self.zone)}  {outcome}"
         )
-
-    def _locate_harnesses(self) -> None:
-        """Refuse the daemon run when a harness it could dispatch to is missing.
-
-        Every harness a route can settle a label on is looked up, not just
-        the preferred one, because a label carrying one dispatch recipe runs on
-        that harness whatever the preference.
-        """
-        for harness in sorted({self.harness, *self.config.routed_harnesses}):
-            locate_program(program=HARNESS_ADAPTERS[harness].program)
 
     def _sweep_orphans(self) -> None:
         """Terminate and reconcile rounds left running by an earlier daemon.

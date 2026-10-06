@@ -54,9 +54,10 @@ harness is installed and signed in, and installs the dream plugin. Then it
 creates every route label that the repository lacks.
 
 The daemon and setup refuse a checkout for the same reasons, because both call
-the main-checkout check in `git.py` and the repository and account check in
-`github.py`. Every setup step leaves alone what is already in place. Setup makes
-no scheduling decision and starts no agent work.
+the main-checkout check in `git.py`, the repository and account check in
+`github.py`, and the harness check in `harnesses.py`. Every setup step leaves
+alone what is already in place. Setup makes no scheduling decision and starts no
+agent work.
 
 ### Scheduling
 

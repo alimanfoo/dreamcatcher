@@ -37,11 +37,12 @@ it:
 
 ### Shared checks
 
-`run` already makes the checks in steps 1 and 2, apart from the push check.
+`run` already makes the checks in steps 1, 2 and 7, apart from the push check.
 Those checks move out of the daemon to the boundaries that own their subjects,
 and both verbs call them there. The main-checkout check moves to `git.py`. The
 repository and account check moves to `github.py`, which refuses with the reason
-gh gave when it cannot tell either one.
+gh gave when it cannot tell either one. The check that each routed harness is on
+the PATH moves to `harnesses.py`.
 
 ### The default configuration
 
