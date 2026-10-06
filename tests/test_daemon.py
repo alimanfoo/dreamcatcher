@@ -586,7 +586,7 @@ def test_a_tick_that_could_not_dispatch_records_the_failure_and_ticks_again(
     # A file where every worktree goes, so no assignment can be created.
     state = StateDirectory(root=ready_repo)
     state.path.mkdir(parents=True)
-    state.worktrees.write_text("something else is here\n", encoding="utf-8")
+    state.assignment_worktrees.write_text("something else is here\n", encoding="utf-8")
     daemon, waiting, _ = idling(root=ready_repo, ticks=2)
 
     daemon.run()
