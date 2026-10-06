@@ -171,12 +171,21 @@ A **status report** is _dreamcatcher_'s read-only account of a _dreamcatcher_
 instance, its issue conversations, agent assignments, and assignment issue
 statuses at a particular time.
 
-An **issue observation** records the independent facts that one scheduler tick
-found for an issue. Its availability is derived from those facts.
+Each scheduler tick observes the issues that the routes list, separately for
+each kind of agent work. The two kinds then report those issues differently. An
+issue conversation is reported from the first tick that observes its issue, so
+the facts about its issue feed the issue conversation status. An agent
+assignment exists only once its issue is available, so the report shows the
+issue itself before an assignment exists, and again whenever a later fact, such
+as a blocker, concerns the issue rather than its assignment.
 
-An **assignment issue status** says why a status report shows an issue that the
-assignment routes list: a failed assignment setup, an assignment routing
-conflict, a blocker, or availability. It carries the evidence for that reason.
+An **issue observation** records the independent facts that one scheduler tick
+found for an issue that the assignment routes list. Its availability is derived
+from those facts.
+
+An **assignment issue status** says why a status report shows an issue
+observation: a failed assignment setup, an assignment routing conflict, a
+blocker, or availability. It carries the evidence for that reason.
 
 An **agent assignment status** is an assignment's single summary status in a
 status report. It summarizes the assignment record, recorded rounds, live
