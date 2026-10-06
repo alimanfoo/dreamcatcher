@@ -96,7 +96,7 @@ def test_a_tail_refresh_leaves_an_opened_hand_resume_open(
 
 def test_cancelling_an_assignment_asks_first(page: Page, live_web: str) -> None:
     page.goto(f"{live_web}/assignments/GH44-20260819-184158")
-    cancel = page.get_by_role("button", name="cancel")
+    cancel = page.get_by_role("button", name="cancel assignment")
 
     page.once("dialog", lambda dialog: dialog.dismiss())
     cancel.click()

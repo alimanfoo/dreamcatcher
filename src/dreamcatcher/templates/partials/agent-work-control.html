@@ -1,3 +1,4 @@
 {% macro agent_work_control(control) -%}
-  <form class="agent-work-control-form" method="post" action="{{ control.url }}"{% if control.action == "cancel" %} data-confirmation="Cancel this assignment? Dreamcatcher will stop working on it so that you can finish its pull request by hand. This cannot be undone."{% endif %}><button class="agent-work-control {{ control.action }}-control" type="submit">{{ control.action }}</button></form>
+  {%- set labels = {"stop": "stop round", "retry": "retry", "cancel": "cancel assignment"} -%}
+  <form class="agent-work-control-form" method="post" action="{{ control.url }}"{% if control.action == "cancel" %} data-confirmation="Cancel this assignment? Dreamcatcher will stop working on it so that you can finish its pull request by hand. This cannot be undone."{% endif %}><button class="agent-work-control {{ control.action }}-control" type="submit">{{ labels[control.action] }}</button></form>
 {%- endmacro %}
