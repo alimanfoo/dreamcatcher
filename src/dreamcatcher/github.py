@@ -35,6 +35,9 @@ _ISSUE_LISTING_LIMIT = "500"
 # the same answer.
 _GITHUB_PAGE_SIZE = "100"
 
+# The repository permissions that let an account push a branch.
+_PUSH_PERMISSIONS = {"ADMIN", "MAINTAIN", "WRITE"}
+
 
 @dataclass(frozen=True, kw_only=True)
 class UnknownGitHubResponse:
@@ -102,6 +105,17 @@ class GitHubRepository(GitHubResponseProjection):
     name_with_owner: str = Field(alias="nameWithOwner")
 
 
+class GitHubRepositoryPermission(GitHubResponseProjection):
+    """Model what the signed-in account may do in a repository."""
+
+    viewer_permission: str | None = Field(alias="viewerPermission")
+
+    @property
+    def can_push(self) -> bool:
+        """Whether the permission lets the account push a branch."""
+        return self.viewer_permission in _PUSH_PERMISSIONS
+
+
 class GitHubUserAccount(GitHubResponseProjection):
     """Model a GitHub user account."""
 
@@ -109,7 +123,7 @@ class GitHubUserAccount(GitHubResponseProjection):
 
 
 class GitHubIssueLabel(GitHubResponseProjection):
-    """Model a label attached to an issue."""
+    """Model an issue label, as an issue carries it or a repository holds it."""
 
     name: str
 
@@ -288,7 +302,9 @@ type UserPost = ConversationComment | PullRequestReview | InlineReviewComment
 
 
 _GITHUB_REPOSITORY_RESPONSE_ADAPTER = TypeAdapter(GitHubRepository)
+_GITHUB_REPOSITORY_PERMISSION_RESPONSE_ADAPTER = TypeAdapter(GitHubRepositoryPermission)
 _GITHUB_ACCOUNT_RESPONSE_ADAPTER = TypeAdapter(GitHubUserAccount)
+_GITHUB_LABEL_PAGES_ADAPTER = TypeAdapter(list[list[GitHubIssueLabel]])
 _GITHUB_ISSUE_RESPONSE_ADAPTER = TypeAdapter(Issue)
 _GITHUB_ISSUE_LIST_RESPONSE_ADAPTER = TypeAdapter(list[Issue])
 _GITHUB_PULL_REQUEST_LIST_RESPONSE_ADAPTER = TypeAdapter(list[PullRequest])
@@ -370,6 +386,41 @@ def require_github_identity(*, root: Path) -> GitHubIdentity:
             f"{account.reason}"
         )
     return GitHubIdentity(repository=repository, account=account)
+
+
+def can_push_to_repository(*, repository: str) -> bool | UnknownGitHubResponse:
+    """Return whether the signed-in account can push to the repository."""
+    permission_response = _read_github_response(
+        response_adapter=_GITHUB_REPOSITORY_PERMISSION_RESPONSE_ADAPTER,
+        arguments=["repo", "view", repository, "--json", "viewerPermission"],
+    )
+    if isinstance(permission_response, UnknownGitHubResponse):
+        return permission_response
+    return permission_response.can_push
+
+
+def list_labels(*, repository: str) -> list[GitHubIssueLabel] | UnknownGitHubResponse:
+    """Return every label the repository holds."""
+    return _read_github_pages(
+        response_adapter=_GITHUB_LABEL_PAGES_ADAPTER,
+        endpoint=f"repos/{repository}/labels",
+    )
+
+
+def create_label(*, repository: str, name: str, description: str) -> None:
+    """Create the label in the repository, letting gh choose its colour."""
+    run_command(
+        program="gh",
+        arguments=[
+            "label",
+            "create",
+            name,
+            "--repo",
+            repository,
+            "--description",
+            description,
+        ],
+    )
 
 
 def list_issues(

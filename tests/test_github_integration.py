@@ -11,8 +11,10 @@ from dreamcatcher.github import (
     PullRequestState,
     _identify_github_account,
     _identify_github_repository,
+    can_push_to_repository,
     list_blocking_issues,
     list_issues,
+    list_labels,
     list_pull_requests,
     read_issue,
     read_issue_pull_request_context,
@@ -37,6 +39,17 @@ def test_this_checkout_is_this_repository():
 
 def test_gh_is_signed_in_as_somebody():
     assert _identify_github_account()
+
+
+def test_gh_says_whether_the_account_can_push_here():
+    assert isinstance(can_push_to_repository(repository=REPOSITORY), bool)
+
+
+def test_this_repository_holds_its_dispatch_labels():
+    labels = list_labels(repository=REPOSITORY)
+
+    assert isinstance(labels, list)
+    assert "dream:smith" in [label.name for label in labels]
 
 
 def test_gh_takes_the_whole_issue_listing_command():
