@@ -1,64 +1,64 @@
-/* The web interface's nature theme, carried over to Material for MkDocs. */
+/* Material for MkDocs dressed in the web interface's nature theme, whose
+   variables come from its nature.css. */
 
 [data-md-color-scheme="nature"] {
-  --md-default-fg-color: #3b342e;
-  --md-default-fg-color--light: #7a6e63;
-  --md-default-fg-color--lighter: #a39789;
-  --md-default-fg-color--lightest: rgba(59, 52, 46, 0.12);
-  --md-default-bg-color: #efe6d6;
+  --md-default-fg-color: var(--bright);
+  --md-default-fg-color--light: var(--dim);
+  --md-default-fg-color--lighter: var(--faint);
+  --md-default-fg-color--lightest: var(--rule-inner);
+  --md-default-bg-color: var(--background);
   --md-default-bg-color--light: rgba(239, 230, 214, 0.7);
   --md-default-bg-color--lighter: rgba(239, 230, 214, 0.3);
   --md-default-bg-color--lightest: rgba(239, 230, 214, 0.12);
 
-  --md-primary-fg-color: #efe6d6;
+  --md-primary-fg-color: var(--background);
   --md-primary-fg-color--light: #f7f1e6;
   --md-primary-fg-color--dark: #e3dfe4;
-  --md-primary-bg-color: #3b342e;
-  --md-primary-bg-color--light: #7a6e63;
+  --md-primary-bg-color: var(--bright);
+  --md-primary-bg-color--light: var(--dim);
 
   --md-accent-fg-color: #8c4b2e;
   --md-accent-fg-color--transparent: rgba(140, 75, 46, 0.1);
   --md-accent-bg-color: #fbf7ef;
   --md-accent-bg-color--light: rgba(251, 247, 239, 0.7);
 
-  --md-typeset-color: #3b342e;
-  --md-typeset-a-color: #a8623f;
+  --md-typeset-color: var(--bright);
+  --md-typeset-a-color: var(--phosphor);
   --md-typeset-mark-color: rgba(201, 162, 74, 0.35);
-  --md-typeset-table-color: rgba(59, 52, 46, 0.12);
+  --md-typeset-table-color: var(--rule-inner);
   --md-typeset-table-color--light: rgba(59, 52, 46, 0.04);
 
-  --md-code-fg-color: #3b342e;
+  --md-code-fg-color: var(--bright);
   --md-code-bg-color: rgba(251, 247, 239, 0.85);
   --md-code-hl-color: rgba(201, 162, 74, 0.2);
-  --md-code-hl-keyword-color: #a65a3c;
+  --md-code-hl-keyword-color: var(--amber);
   --md-code-hl-string-color: #56704b;
   --md-code-hl-number-color: #9a7a2e;
-  --md-code-hl-name-color: #3b342e;
+  --md-code-hl-name-color: var(--bright);
   --md-code-hl-function-color: #8c4b2e;
   --md-code-hl-constant-color: #9a7a2e;
-  --md-code-hl-special-color: #a65a3c;
+  --md-code-hl-special-color: var(--amber);
   --md-code-hl-variable-color: #5f7052;
-  --md-code-hl-operator-color: #7a6e63;
-  --md-code-hl-punctuation-color: #7a6e63;
-  --md-code-hl-comment-color: #a39789;
-  --md-code-hl-generic-color: #7a6e63;
+  --md-code-hl-operator-color: var(--dim);
+  --md-code-hl-punctuation-color: var(--dim);
+  --md-code-hl-comment-color: var(--faint);
+  --md-code-hl-generic-color: var(--dim);
 
-  --md-footer-fg-color: #3b342e;
-  --md-footer-fg-color--light: #7a6e63;
-  --md-footer-fg-color--lighter: #a39789;
+  --md-footer-fg-color: var(--bright);
+  --md-footer-fg-color--light: var(--dim);
+  --md-footer-fg-color--lighter: var(--faint);
   --md-footer-bg-color: rgba(59, 52, 46, 0.04);
   --md-footer-bg-color--dark: rgba(59, 52, 46, 0.07);
 
-  --md-shadow-z1: 0 0 14px 3px rgba(59, 52, 46, 0.06);
+  --md-shadow-z1: var(--shadow);
   --md-shadow-z2: 0 0 14px 3px rgba(59, 52, 46, 0.08);
 }
 
-/* The sky, the sun and the paper grain sit behind every page. nature.js moves
-   the sun across the sky through the day and hides it at night. */
+/* The web interface's nature.css paints the sky, the sun and the paper grain.
+   Here they sit behind the page, not over it. */
 
 body {
-  background: linear-gradient(180deg, #e3dfe4 0%, #ece5da 34%, #efe6d6 100%)
-    fixed;
+  isolation: isolate;
 }
 
 body::before,
@@ -68,28 +68,6 @@ body::after {
   inset: 0;
   pointer-events: none;
   content: "";
-}
-
-body::before {
-  background: radial-gradient(
-    circle at var(--sun-x, 50%) 6%,
-    rgba(255, 250, 232, 0.95) 0,
-    rgba(255, 236, 170, 0.72) 6vmin,
-    rgba(255, 226, 150, 0.32) 18vmin,
-    rgba(255, 226, 150, 0) 38vmin
-  );
-  opacity: var(--sun-opacity, 1);
-}
-
-body::after {
-  opacity: 0.16;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .45 0 0 0 0 .40 0 0 0 0 .34 0 0 0 .18 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-  mix-blend-mode: multiply;
-}
-
-::selection {
-  color: #3b342e;
-  background: #d9c4a3;
 }
 
 /* Header */
@@ -134,14 +112,14 @@ body::after {
 
 .md-search__input::placeholder,
 .md-search__icon {
-  color: #7a6e63;
+  color: var(--dim);
 }
 
 /* Navigation */
 
 .md-nav__item--section > .md-nav__link,
 .md-nav__title {
-  color: #7a6e63;
+  color: var(--dim);
   font-size: 0.6rem;
   font-weight: 400;
   letter-spacing: 0.14em;
@@ -155,7 +133,7 @@ body::after {
 
 .md-nav__link--active,
 .md-nav__link:is(:focus, :hover) {
-  color: #a8623f;
+  color: var(--phosphor);
 }
 
 /* Page text */
@@ -163,7 +141,7 @@ body::after {
 .md-typeset h1,
 .md-typeset h2,
 .md-typeset h3 {
-  color: #3b342e;
+  color: var(--bright);
   font-family: Georgia, "Times New Roman", serif;
   font-weight: 400;
   letter-spacing: 0;
@@ -176,7 +154,7 @@ body::after {
 
 .md-typeset h2 {
   padding-bottom: 0.35em;
-  border-bottom: 1px solid rgba(59, 52, 46, 0.12);
+  border-bottom: 1px solid var(--rule-inner);
   font-size: 1.55em;
   font-style: italic;
 }
@@ -210,7 +188,7 @@ body::after {
 }
 
 .md-typeset table:not([class]) th {
-  color: #7a6e63;
+  color: var(--dim);
   font-size: 0.75em;
   font-weight: 400;
   letter-spacing: 0.14em;

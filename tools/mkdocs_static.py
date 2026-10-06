@@ -1,8 +1,8 @@
-"""Publish the web interface's mark and sun in the documentation site.
+"""Publish the web interface's mark and nature theme in the documentation site.
 
 MkDocs loads this module as a hook, because `mkdocs.yml` names it. The site
-shows the same mark as the web interface and moves the same sun as its nature
-theme, so it takes both files from the package rather than keeping copies.
+shows the same mark as the web interface and wears the same nature theme, so it
+takes those files from the package rather than keeping copies.
 """
 
 from __future__ import annotations
@@ -17,7 +17,7 @@ if TYPE_CHECKING:
     from mkdocs.structure.files import Files
 
 STATIC_ROOT = Path(__file__).parents[1] / "src" / "dreamcatcher" / "static"
-PUBLISHED_FILES = ("dreamcatcher-mark-ink.png", "nature.js")
+PUBLISHED_FILES = ("dreamcatcher-mark-ink.png", "nature.css", "nature.js")
 
 
 def on_files(files: Files, /, *, config: MkDocsConfig) -> Files:

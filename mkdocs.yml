@@ -33,6 +33,7 @@ hooks:
   - tools/mkdocs_static.py
 
 extra_css:
+  - static/nature.css
   - stylesheets/nature.css
 
 extra_javascript:
