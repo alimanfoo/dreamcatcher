@@ -50,7 +50,7 @@ _CONVERSATION_PERMISSION_SETTINGS = {
 
 _EFFORT_KEY = "model_reasoning_effort"
 
-# Every setting that Dreamcatcher keeps for itself: those it gives Codex, and a
+# Every setting that dreamcatcher keeps for itself: those it gives Codex, and a
 # permissions profile, which Codex would apply in place of the sandbox settings.
 # A recipe's own setting of one, or of a key inside one, would compete with the
 # model, the effort or the permissions that an unattended round needs.
@@ -82,7 +82,7 @@ def _refuse_unusable_codex_config(config: HarnessConfig, /) -> HarnessConfig:
     ]
     if kept_keys:
         raise ValueError(
-            f"cannot set {' or '.join(kept_keys)}, which Dreamcatcher keeps for itself"
+            f"cannot set {' or '.join(kept_keys)}, which dreamcatcher keeps for itself"
         )
     for key, value in config.items():
         try:
@@ -93,7 +93,7 @@ def _refuse_unusable_codex_config(config: HarnessConfig, /) -> HarnessConfig:
 
 
 # A dotted path of TOML bare keys, as `-c` reads it. Any other text could name
-# one of Dreamcatcher's own settings in a form that the refusal does not match.
+# one of dreamcatcher's own settings in a form that the refusal does not match.
 _CodexConfigKey = Annotated[
     str, StringConstraints(pattern=r"^[A-Za-z0-9_-]+(\.[A-Za-z0-9_-]+)*$")
 ]

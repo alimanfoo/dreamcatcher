@@ -1,4 +1,4 @@
-"""Render the Dreamcatcher instance status view in a terminal."""
+"""Render the dreamcatcher instance status view in a terminal."""
 
 from collections.abc import Callable, Sequence
 from datetime import datetime, tzinfo

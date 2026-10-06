@@ -1,4 +1,4 @@
-"""Read status reports for a Dreamcatcher instance."""
+"""Read status reports for a dreamcatcher instance."""
 
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -69,7 +69,7 @@ class DreamcatcherDaemonStatus:
 
     @property
     def max_agents(self) -> int | None:
-        """The agent cap selected for the current or latest daemon run."""
+        """The agent capacity selected for the current or latest daemon run."""
         return None if self.run is None else self.run.max_agents
 
     @property
@@ -80,7 +80,7 @@ class DreamcatcherDaemonStatus:
 
 @dataclass(frozen=True, kw_only=True)
 class DreamcatcherStatusReport:
-    """Describe one Dreamcatcher instance from its local state."""
+    """Describe one dreamcatcher instance from its local state."""
 
     at: datetime
     repository: str | None

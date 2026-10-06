@@ -1,4 +1,4 @@
-"""Define failures that Dreamcatcher reports without a traceback."""
+"""Define failures that dreamcatcher reports without a traceback."""
 
 
 class ReportableError(Exception):

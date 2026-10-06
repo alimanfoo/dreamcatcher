@@ -49,7 +49,7 @@ class UnknownGitHubResponse:
 
 
 class GitHubResponseProjection(BaseModel):
-    """Model the declared fields that Dreamcatcher reads from GitHub.
+    """Model the declared fields that dreamcatcher reads from GitHub.
 
     GitHub owns the document, so a key we do not declare passes without
     complaint. That is the opposite of a DreamcatcherDocument, which refuses a
@@ -68,7 +68,7 @@ class PullRequestState(StrEnum):
 
 
 class IssueState(StrEnum):
-    """List the issue states that Dreamcatcher observes."""
+    """List the issue states that dreamcatcher observes."""
 
     OPEN = "OPEN"
     CLOSED = "CLOSED"

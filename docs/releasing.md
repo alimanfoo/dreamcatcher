@@ -7,9 +7,11 @@ tag is the only version change.
 ## Choose the version
 
 [The compatibility policy](compatibility.md#release-compatibility) decides the
-number. An incompatible change makes a major release, and so does any change to
-the state format. Compatible new functionality makes a minor release, and
-compatible fixes alone make a patch release.
+number, and the headings of the entries under **Unreleased** in
+[the changelog](changelog.md) apply it. An entry under **Breaking** makes a
+major release, and so does any change to the state format. An entry under
+**Added** or **Changed** makes a minor release. Entries under **Fixed** alone
+make a patch release.
 
 ## Check the standard
 
@@ -31,7 +33,9 @@ A shortfall does not hold the release back. A failing test or check does.
 ## Prepare the release
 
 1. Move the entries under **Unreleased** in [the changelog](changelog.md) into a
-   section for the new version, headed like the released sections below it.
+   section for the new version, headed like the released sections below it. Keep
+   each entry under its heading. Add an entry for any merged pull request that a
+   user would notice and that has none.
 2. Update the opening of [Compatibility and upgrades](compatibility.md), which
    names the latest release and the state format it uses.
 3. Merge these changes, and the measurement, in one pull request, and wait for
@@ -39,5 +43,13 @@ A shortfall does not hold the release back. A failing test or check does.
 
 ## Publish
 
-Create the release on GitHub from `main`. Tag it with the version, such as
-`v5.0.0`, and use the version's changelog section as the release notes.
+Create the release on GitHub from `main`, tagged with the version. Save the
+version's changelog section, without its own heading, to a file outside the
+repository, and pass it as the notes:
+
+```sh
+gh release create v5.1.0 --target main --generate-notes --notes-file NOTES.md
+```
+
+The release notes then open with the changelog section, and GitHub follows it
+with the list of every pull request merged since the previous release.

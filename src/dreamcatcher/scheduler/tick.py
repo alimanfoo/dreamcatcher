@@ -66,7 +66,7 @@ def _read_candidate_issue(
 
 @dataclass(kw_only=True)
 class Scheduler:
-    """Choose and start the work for one Dreamcatcher instance."""
+    """Choose and start the work for one dreamcatcher instance."""
 
     state: StateDirectory
     assignments: AssignmentScheduler

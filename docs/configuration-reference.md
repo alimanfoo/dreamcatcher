@@ -1,12 +1,12 @@
 # Configuration reference
 
-Dreamcatcher reads `dreamcatcher.toml` from the root of the main checkout where
-`dreamcatcher run` starts. The file defines which issue labels dispatch
+_dreamcatcher_ reads `dreamcatcher.toml` from the root of the main checkout
+where `dreamcatcher run` starts. The file defines which issue labels dispatch
 assignments or issue conversations, and the dispatch recipes available for each
-label. It does not configure daemon controls such as the interval or agent cap;
-those are [`run` options](command-reference.md#run).
+label. It does not configure daemon controls such as the interval or agent
+capacity; those are [`run` options](command-reference.md#run).
 
-The file is required and must be UTF-8 TOML. Dreamcatcher reports a missing,
+The file is required and must be UTF-8 TOML. _dreamcatcher_ reports a missing,
 unreadable or invalid file rather than supplying a default configuration.
 
 The daemon reads the file when it starts. Restart it to apply a change. Commit
@@ -54,7 +54,7 @@ contain only its `claude` or only its `codex` block.
 | `conversation` | Array of route tables, written as `[[conversation]]` | No       | Empty array | Each entry defines a separate conversation route. |
 
 No other top-level settings are accepted. In particular, `assignee`, `interval`
-and `max_agents` are not configuration-file settings. Dreamcatcher obtains the
+and `max_agents` are not configuration-file settings. _dreamcatcher_ obtains the
 account from authenticated `gh`; use `run --interval` and `run --max-agents` for
 the two daemon controls.
 
@@ -98,8 +98,8 @@ table's `config` must be empty.
 | `model`  | String | Passed to the selected harness as its model. It may not contain `%`, a line feed or a carriage return.                                                                                           |
 | `effort` | String | Passed to the selected harness as its reasoning-effort value. It has the same character restrictions as `model`.                                                                                 |
 
-Dreamcatcher does not prescribe the harness-specific model and effort names; the
-selected harness must accept the configured strings. Unknown settings at any
+_dreamcatcher_ does not prescribe the harness-specific model and effort names;
+the selected harness must accept the configured strings. Unknown settings at any
 level are errors, so a misspelling is reported rather than ignored. The keys of
 a Codex `config` table are the exception, because they belong to Codex.
 
@@ -107,26 +107,27 @@ Assignment prompts normally invoke an assignment skill that follows the
 [agent-facing contract](contract.md). Conversation prompts may be plain
 instructions or invoke a suitable skill, but they must follow the
 [issue-conversation contract](contract.md#issue-conversation-instructions).
-Dreamcatcher adds its operational instructions to either prompt.
+_dreamcatcher_ adds its operational instructions to either prompt.
 
 ## Codex config
 
 A Codex recipe's `config` table gives Codex settings of its own, such as a
-larger context window. Dreamcatcher passes each entry to every round of the
+larger context window. _dreamcatcher_ passes each entry to every round of the
 work, first and resumed, as `-c key=value`, with the value written as TOML. The
 table is optional, and an absent table passes nothing.
 
 | Part  | Constraint                                                                                                                                    |
 | ----- | --------------------------------------------------------------------------------------------------------------------------------------------- |
 | Key   | A Codex setting's name, as `codex -c` takes it. A name is ASCII letters, digits, `_` and `-`, and a dot separates the parts of a nested name. |
-| Value | A boolean, an integer or a string. A string may not contain `%`. Dreamcatcher refuses a float, an array and a table.                          |
+| Value | A boolean, an integer or a string. A string may not contain `%`. _dreamcatcher_ refuses a float, an array and a table.                        |
 
 Write a nested setting as one quoted key, such as
 `"features.web_search_request" = true`. A dotted key without quotes makes a
-table in TOML, and Dreamcatcher refuses a table as a value.
+table in TOML, and _dreamcatcher_ refuses a table as a value.
 
-Dreamcatcher keeps these settings for itself, so that every round runs with the
-recipe's model and effort and with the permissions that unattended work needs:
+_dreamcatcher_ keeps these settings for itself, so that every round runs with
+the recipe's model and effort and with the permissions that unattended work
+needs:
 
 - `model` and `model_reasoning_effort`;
 - `sandbox_mode`, `approval_policy`, `approvals_reviewer` and
@@ -135,7 +136,7 @@ recipe's model and effort and with the permissions that unattended work needs:
   permissions profile in place of the sandbox settings.
 
 A `config` table that sets one of these, or a key inside one, is an error.
-Dreamcatcher does not check that Codex knows a setting, so a misspelt key in a
+_dreamcatcher_ does not check that Codex knows a setting, so a misspelt key in a
 `config` table is not reported.
 
 ## Harness selection
@@ -143,12 +144,12 @@ Dreamcatcher does not check that Codex knows a setting, so a misspelt key in a
 `dreamcatcher run --harness claude` or `--harness codex` supplies the preferred
 harness for newly created work:
 
-- When a route has a recipe for the preferred harness, Dreamcatcher uses it.
-- When a route has only the other harness's recipe, Dreamcatcher uses that
+- When a route has a recipe for the preferred harness, _dreamcatcher_ uses it.
+- When a route has only the other harness's recipe, _dreamcatcher_ uses that
   harness instead.
 
 The option is therefore a preference, not a repository-wide pin. At startup,
-Dreamcatcher requires the named harness and every harness present in any route
+_dreamcatcher_ requires the named harness and every harness present in any route
 to be installed on `PATH`. An existing assignment or conversation keeps the
 label, harness, prompt, model, effort and harness config chosen when it was
 created; later configuration changes do not rewrite that record.

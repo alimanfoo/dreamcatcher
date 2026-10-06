@@ -57,7 +57,7 @@ def test_conversation_recovery_returns_a_complete_postable_answer():
     assert "issue actions may already have succeeded" in prompt
     assert "Inspect GitHub before repeating any action." in prompt
     assert (
-        "complete answer, as Markdown ready for Dreamcatcher to post, or exactly "
+        "complete answer, as Markdown ready for dreamcatcher to post, or exactly "
         "NO_REPLY."
     ) in prompt
     assert CONVERSATION_RECOVERY_PROMPT.endswith(_AGENT_POST_INSTRUCTIONS)

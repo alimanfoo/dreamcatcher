@@ -1,4 +1,4 @@
-"""Name the installed Dreamcatcher version."""
+"""Name the installed dreamcatcher version."""
 
 from importlib.metadata import version
 

@@ -1,4 +1,4 @@
-"""Define the boundary between Dreamcatcher and each agent harness.
+"""Define the boundary between dreamcatcher and each agent harness.
 
 Everything else in the tool names a harness only to pick its adapter. The
 adapter knows what the CLI is called, which flags keep it from stalling, and
@@ -113,7 +113,7 @@ class HarnessOutput:
 
 
 class HarnessAdapter(ABC):
-    """Define how Dreamcatcher invokes and reads one harness.
+    """Define how dreamcatcher invokes and reads one harness.
 
     The program names the harness CLI. Callers use the adapter without knowing
     any harness-specific arguments or event shapes.

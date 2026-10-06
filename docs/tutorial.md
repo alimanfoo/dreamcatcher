@@ -41,11 +41,11 @@ gh --version
 claude --version
 ```
 
-This installs the current development version of Dreamcatcher from GitHub.
+This installs the current development version of _dreamcatcher_ from GitHub.
 
 ## 2. Sign in to GitHub
 
-Dreamcatcher acts as the account that `gh` is signed in as. For this
+_dreamcatcher_ acts as the account that `gh` is signed in as. For this
 walkthrough, use HTTPS for Git too:
 
 ```sh
@@ -56,12 +56,12 @@ gh auth status
 
 The account needs permission to read issues and pull requests and to push
 branches to the repository. Later, assign the issue to this same account;
-Dreamcatcher will ignore an issue assigned only to somebody else.
+_dreamcatcher_ will ignore an issue assigned only to somebody else.
 
 ## 3. Prepare the repository
 
 Use the main checkout of an ordinary clone, not a linked Git worktree.
-Dreamcatcher deliberately refuses to run from a linked worktree because it
+_dreamcatcher_ deliberately refuses to run from a linked worktree because it
 creates and manages child worktrees of its own.
 
 ```sh
@@ -71,7 +71,7 @@ git switch main
 git pull --ff-only origin main
 ```
 
-Replace `OWNER/REPOSITORY` with your repository. Dreamcatcher fetches
+Replace `OWNER/REPOSITORY` with your repository. _dreamcatcher_ fetches
 `origin main` before creating every assignment, so both must exist and your
 account must be able to push to `origin`.
 
@@ -102,7 +102,7 @@ claude --permission-mode auto
 ```
 
 Follow the browser sign-in if Claude asks. Reaching the Claude prompt confirms
-that this installation and account can start the mode Dreamcatcher uses.
+that this installation and account can start the mode _dreamcatcher_ uses.
 
 Install the [`dream` plugin](https://github.com/alimanfoo/dream) in this same
 session. When Claude asks for an
@@ -117,7 +117,7 @@ runs:
 
 Restart Claude if the installation asks you to. Type `/` and confirm that
 `/dream:smith` appears in the available commands, without running it. This is
-the skill Dreamcatcher will use. Then leave Claude with `/exit`.
+the skill _dreamcatcher_ will use. Then leave Claude with `/exit`.
 
 ## 5. Configure one assignment route
 
@@ -140,7 +140,7 @@ Commit and push the configuration so the assignment worktree contains it too:
 
 ```sh
 git add dreamcatcher.toml
-git commit -m "Configure Dreamcatcher"
+git commit -m "Configure dreamcatcher"
 git push origin main
 ```
 
@@ -165,7 +165,7 @@ keeps a new assignment from starting.
 Suppose GitHub gives the issue number 123. The commands below call it `GH123`;
 replace that with your own issue number.
 
-## 7. Start Dreamcatcher
+## 7. Start dreamcatcher
 
 From the main checkout, start the daemon in its own terminal:
 
@@ -173,39 +173,39 @@ From the main checkout, start the daemon in its own terminal:
 dreamcatcher run --harness claude --interval 30 --max-agents 1
 ```
 
-Keep this terminal open. Every 30 seconds Dreamcatcher looks for work, with at
+Keep this terminal open. Every 30 seconds _dreamcatcher_ looks for work, with at
 most one agent round running at a time. A round is one agent process, from the
-moment Dreamcatcher starts it until that process exits.
+moment _dreamcatcher_ starts it until that process exits.
 
-Dreamcatcher starts Claude non-interactively in auto permission mode and allows
-the selected Git, pull-request and issue commands the assignment needs to finish
-the job. The agent can edit files, run tools, commit and push under your
+_dreamcatcher_ starts Claude non-interactively in auto permission mode and
+allows the selected Git, pull-request and issue commands the assignment needs to
+finish the job. The agent can edit files, run tools, commit and push under your
 account. These controls are not a security sandbox or a guarantee about what a
 plugin will do, so use a repository, plugin and GitHub account you trust.
 
-On dispatch, Dreamcatcher fetches `origin/main`, creates a branch and child
+On dispatch, _dreamcatcher_ fetches `origin/main`, creates a branch and child
 worktree, pushes an empty commit, and opens a linked **draft** pull request. The
 draft means the assignment has begun; it does not mean the implementation is
 ready for review. Claude then works in that child worktree.
 
 ## 8. Watch the assignment
 
-In a second terminal, still at the repository root, open the local dashboard:
+In a second terminal, still at the repository root, open the web home page:
 
 ```sh
 dreamcatcher web
 ```
 
-Select `GH123` to see its rounds and live feed. The dashboard reads local state,
-so it can show activity without publishing the agent's working notes to GitHub.
-You can also follow the same feed in a terminal:
+Select `GH123` to see its rounds and live feed. The page reads local state, so
+it can show activity without publishing the agent's working notes to GitHub. You
+can also follow the same feed in a terminal:
 
 ```sh
 dreamcatcher feed GH123 --assignment
 ```
 
 If the agent needs a decision, it should ask on the draft pull request. Reply
-there using the same GitHub account that `gh` is signed in as. Dreamcatcher
+there using the same GitHub account that `gh` is signed in as. _dreamcatcher_
 relays your pull-request comment or review into another round at its next
 update.
 
@@ -215,4 +215,4 @@ tutorial: a normal pull request containing the implementation, checks and the
 agent's account of the change.
 
 Continue with [Review an assignment](review-an-assignment.md) to give feedback,
-merge it, and let Dreamcatcher finish its wrap-up.
+merge it, and let _dreamcatcher_ finish its wrap-up.

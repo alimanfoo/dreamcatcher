@@ -106,7 +106,7 @@ On Windows PowerShell:
 $env:PYTHONWARNDEFAULTENCODING = "1"; uv run pytest -m browser --no-cov
 ```
 
-To inspect the web UI without using real Dreamcatcher state, start the
+To inspect the web UI without using real _dreamcatcher_ state, start the
 fabricated web server in one terminal:
 
 ```sh

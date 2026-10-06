@@ -1,4 +1,4 @@
-"""Render Dreamcatcher's terminal views."""
+"""Render dreamcatcher's terminal views."""
 
 from dreamcatcher.tui.shared import open_tui_console
 from dreamcatcher.tui.status import show_status_view

@@ -1,6 +1,6 @@
 """Render every harness's output as one shared feed format.
 
-A feed records each event with the time that Dreamcatcher rendered it.
+A feed records each event with the time that dreamcatcher rendered it.
 
 A harness adapter turns what its CLI streams into the events here, and the
 renderer turns those events into lines. So a reader sees the same feed

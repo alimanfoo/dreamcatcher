@@ -1,4 +1,4 @@
-"""Read status reports for a Dreamcatcher instance."""
+"""Read status reports for a dreamcatcher instance."""
 
 # The status report carries these scheduler records, and presentation imports
 # no scheduler module, so the status face carries them to presentation.

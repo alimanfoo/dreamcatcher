@@ -1,4 +1,4 @@
-"""Serve and model Dreamcatcher's local web interface."""
+"""Serve and model dreamcatcher's local web interface."""
 
 from dreamcatcher.web.app import serve_web
 from dreamcatcher.web.server import WEB_MAX_PORT

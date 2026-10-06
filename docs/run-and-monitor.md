@@ -1,6 +1,6 @@
-# Run and monitor Dreamcatcher
+# Run and monitor dreamcatcher
 
-Run one Dreamcatcher daemon from the ordinary main checkout of each repository
+Run one _dreamcatcher_ daemon from the ordinary main checkout of each repository
 you want to watch. Keep it in the foreground so its update reports and failures
 remain visible.
 
@@ -21,15 +21,15 @@ shorter interval or more concurrent rounds:
 dreamcatcher run --harness claude --interval 30 --max-agents 2
 ```
 
-The agent cap is shared by assignments and issue conversations. Start with one
-until you know how much agent activity and review work you want at once. A
+The agent capacity is shared by assignments and issue conversations. Start with
+one until you know how much agent activity and review work you want at once. A
 second daemon for the same checkout refuses to start.
 
-`run` must start in the main checkout. Dreamcatcher stores its local state under
-that checkout's `.dreamcatcher/` directory. Use this same checkout when you
-continue saved work; another clone has separate local history.
+`run` must start in the main checkout. _dreamcatcher_ stores its local state
+under that checkout's `.dreamcatcher/` directory. Use this same checkout when
+you continue saved work; another clone has separate local history.
 
-## Open the local dashboard
+## Open the web home page
 
 In another terminal at the same checkout, run:
 
@@ -37,10 +37,10 @@ In another terminal at the same checkout, run:
 dreamcatcher web
 ```
 
-Dreamcatcher opens a local dashboard in your browser and serves it on
-`127.0.0.1` until you interrupt this command. The dashboard reads the local
-state directory and does not contact GitHub itself. It still opens when the
-daemon is stopped, but then it can show only the last state the daemon recorded.
+_dreamcatcher_ opens the web home page in your browser and serves it on
+`127.0.0.1` until you interrupt this command. The page reads the local state
+directory and does not contact GitHub itself. It still opens when the daemon is
+stopped, but then it can show only the last state the daemon recorded.
 
 Use an exact port when needed:
 
@@ -82,18 +82,18 @@ view is piped or redirected, it prints one snapshot and returns.
 The most useful assignment states are:
 
 - **working**: an agent round is running;
-- **waiting**: Dreamcatcher is waiting to start or decide the next round; the
+- **waiting**: _dreamcatcher_ is waiting to start or decide the next round; the
   accompanying detail says which;
 - **needs user feedback**: the pull request is open and no round is required;
 - **fault**: repeated errors need attention;
 - **complete**: the pull request is closed or merged and wrap-up succeeded; and
-- **cancelled**: you took the pull request over, and Dreamcatcher no longer
+- **cancelled**: you took the pull request over, and _dreamcatcher_ no longer
   works on it.
 
 An **idle** conversation has no round due until another eligible comment
 arrives. A conversation marked **waiting** may have a round ready or may be
 awaiting the next scheduler update; its detail says which. **Unknown** means
-Dreamcatcher could not establish a current fact; the accompanying detail says
+_dreamcatcher_ could not establish a current fact; the accompanying detail says
 what it could not read.
 
 The [command reference](command-reference.md) gives the complete syntax and

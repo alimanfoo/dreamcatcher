@@ -7,7 +7,7 @@ stopping one agent round and stopping the daemon have different consequences.
 | ------------------------------------------------------------------------- | ------------------------------------- | ------------------------------------------------------------------------------ |
 | Interrupt `web`, `status`, `assignment`, `conversation` or `feed`         | Only that view                        | The daemon and agents continue.                                                |
 | Run `dreamcatcher stop` or select **stop round** on the web page          | The current agent round               | The work waits for input unless a merged or closed pull request needs wrap-up. |
-| Run `dreamcatcher cancel` or select **cancel assignment** on the web page | The assignment and any running round  | You finish the pull request by hand. Dreamcatcher runs no further rounds.      |
+| Run `dreamcatcher cancel` or select **cancel assignment** on the web page | The assignment and any running round  | You finish the pull request by hand. _dreamcatcher_ runs no further rounds.    |
 | Press Ctrl-C in the terminal running `dreamcatcher run`                   | The daemon and all its current rounds | Work that still needs a round can recover after the daemon starts again.       |
 
 ## Stop one running round
@@ -22,7 +22,7 @@ dreamcatcher stop GH123 --conversation
 Use `--assignment` for the newest assignment at the issue, or `--conversation`
 for its issue conversation. You can instead run `dreamcatcher web`, open the
 assignment or conversation, select **stop round**, and confirm. Both controls
-are available only while the round is running and Dreamcatcher has learned its
+are available only while the round is running and _dreamcatcher_ has learned its
 harness session. The round normally stops within about a second.
 
 After an assignment round is stopped, an open pull request waits for a new
@@ -50,19 +50,19 @@ The command cancels the newest assignment at the issue. You can instead open the
 assignment in `dreamcatcher web`, select **cancel assignment**, and confirm. A
 cancel cannot be undone.
 
-Dreamcatcher asks a running round to stop, runs no further rounds for the
+_dreamcatcher_ asks a running round to stop, runs no further rounds for the
 assignment, and stops relaying your comments and reviews on its pull request.
 The assignment shows as **cancelled** on the web home page and in
 `dreamcatcher assignment`, and `dreamcatcher status` counts it among the ended
 assignments.
 
 Carry on in the assignment's worktree, which still has the branch checked out.
-Once no round is running, and when Dreamcatcher has learned the agent's harness
-session, the assignment page shows the worktree and the command that resumes
-that session by hand.
+Once no round is running, and when _dreamcatcher_ has learned the agent's
+harness session, the assignment page shows the worktree and the command that
+resumes that session by hand.
 
-Dreamcatcher leaves the pull request as it is, and while it is open it claims
-the issue as work outside Dreamcatcher. If you merge it, GitHub closes the
+_dreamcatcher_ leaves the pull request as it is, and while it is open it claims
+the issue as work outside _dreamcatcher_. If you merge it, GitHub closes the
 issue. If you close it without merging, the issue can receive a new assignment
 while it keeps its assignment label and stays assigned to you.
 
@@ -77,16 +77,16 @@ dreamcatcher run --harness claude
 
 Repeat any non-default `--interval` and `--max-agents` values you want; those
 are options for each daemon run, not saved configuration. On startup
-Dreamcatcher also detects rounds orphaned by an earlier daemon. It records them
-as interrupted and schedules the next required recovery or wrap-up when the work
-is eligible. Recovery normally resumes the recorded harness session; you do not
-need to use the hand-resume command.
+_dreamcatcher_ also detects rounds orphaned by an earlier daemon. It records
+them as interrupted and schedules the next required recovery or wrap-up when the
+work is eligible. Recovery normally resumes the recorded harness session; you do
+not need to use the hand-resume command.
 
 ## Recover from errors and faults
 
 One errored round gets an automatic recovery opportunity, and unrelated work can
 continue. Two consecutive errored rounds put that assignment or conversation in
-**fault** so Dreamcatcher does not repeat the same failure forever.
+**fault** so _dreamcatcher_ does not repeat the same failure forever.
 
 Read the detail and feed to find the cause:
 
@@ -118,9 +118,10 @@ assignment or conversation in the same way. The page records the request even
 while the daemon is stopped, and recovery can start once the daemon runs again.
 
 Repeated failures across multiple work items can trigger a 15-minute global
-cooldown. Dreamcatcher keeps reporting status but starts no agent rounds during
-the cooldown. It survives a daemon restart and clears the current faults when it
-ends. A manual retry request still waits until an active cooldown is over.
+cooldown. _dreamcatcher_ keeps reporting status but starts no agent rounds
+during the cooldown. It survives a daemon restart and clears the current faults
+when it ends. A manual retry request still waits until an active cooldown is
+over.
 
 For exact retry syntax and error conditions, see the
 [`retry` command reference](command-reference.md#retry).

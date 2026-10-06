@@ -1,6 +1,6 @@
 # Testing
 
-Dreamcatcher's test suite combines small behaviour tests with checks at real
+_dreamcatcher_'s test suite combines small behaviour tests with checks at real
 process and presentation boundaries. Each technique answers a different
 question; no single number is treated as proof that the program is correct.
 
@@ -33,7 +33,7 @@ upstream event that has not been recorded.
 ### Real subprocesses with stand-in programs
 
 Tests install executable stand-ins for `gh`, `claude`, `codex` and other child
-programs at the front of `PATH`. Dreamcatcher launches them as real
+programs at the front of `PATH`. _dreamcatcher_ launches them as real
 subprocesses, so arguments, working directories, UTF-8 standard input, streamed
 output, exit statuses and process-tree shutdown cross the operating-system
 boundary. The stand-ins answer deterministically; these tests do not run paid AI

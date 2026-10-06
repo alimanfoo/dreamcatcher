@@ -1,4 +1,4 @@
-"""Serve and render Dreamcatcher's local web interface."""
+"""Serve and render dreamcatcher's local web interface."""
 
 import logging
 from collections.abc import Callable
@@ -55,7 +55,7 @@ _DEFAULT_WEB_THEME = "matrix"
 _WEB_THEME_MARKS = {_DEFAULT_WEB_THEME: "phosphor", "nature": "ink"}
 _WEB_THEMES = tuple(_WEB_THEME_MARKS)
 _CROSS_ORIGIN_POST_RESPONSE = (
-    "Requests that change agent work must come from this Dreamcatcher page.",
+    "Requests that change agent work must come from this dreamcatcher page.",
     403,
 )
 
@@ -535,7 +535,7 @@ def _missing_conversation_response(*, issue: int) -> tuple[str, int]:
     return (
         render_template(
             "error.html",
-            message=f"No issue conversation here is for GH{issue}.",
+            message=f"No issue conversation here is for #{issue}.",
         ),
         404,
     )

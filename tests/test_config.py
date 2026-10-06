@@ -244,10 +244,10 @@ def test_a_label_one_harness_can_run_runs_on_that_one_whatever_the_run_named(tmp
             "beyond the model and the effort",
         ),
         (
-            "a Codex config that sets what Dreamcatcher keeps",
+            "a Codex config that sets what dreamcatcher keeps",
             CONFIG + 'config = { sandbox_mode = "danger-full-access", model = "o3" }\n',
             "assignment.0.codex.config: Value error, cannot set model or "
-            "sandbox_mode, which Dreamcatcher keeps for itself",
+            "sandbox_mode, which dreamcatcher keeps for itself",
         ),
         (
             "a Codex config value that is a float",
@@ -337,7 +337,7 @@ def test_a_codex_config_cannot_set_what_dreamcatcher_keeps(tmp_path, key):
     assert str(error.value) == (
         f"{tmp_path / _DREAMCATCHER_CONFIG_NAME} is not valid:\n"
         f"  assignment.0.codex.config: Value error, cannot set {key}, which "
-        "Dreamcatcher keeps for itself"
+        "dreamcatcher keeps for itself"
     )
 
 

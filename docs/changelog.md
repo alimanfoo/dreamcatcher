@@ -5,17 +5,46 @@ format and agent contract have independent integer versions. See
 [Compatibility and upgrades](compatibility.md) for the policy and current
 upgrade instructions.
 
-A change that users would notice gets an entry here. Released changes stay under
-their release; development changes stay under **Unreleased** until they are
-tagged. From v5.0.0 on, each entry links the pull request that made the change.
+A change that users would notice gets an entry here: a change to a command, a
+setting, a message, a view, the documentation, the state format or the agent
+contract. Refactoring, tests and CI get none. The release notes on GitHub list
+every merged pull request, so this page lists only what a user upgrading needs
+to know.
 
-## Unreleased
+From v5.1.0 on, each release groups its entries under these headings, adapted
+from [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), in this order,
+leaving out any heading that would be empty:
+
+- **Breaking** for what users must act on before upgrading;
+- **Added** for new commands, settings, controls and pages;
+- **Changed** for existing behaviour that now works differently; and
+- **Fixed** for behaviour that was wrong.
+
+Released changes stay under their release; development changes stay under
+**Unreleased**, with the same headings, until they are tagged. From v5.0.0 on,
+each entry links the pull request that made the change.
+
+## [v5.1.0](https://github.com/alimanfoo/dreamcatcher/releases/tag/v5.1.0) — 2026-10-06
+
+### Added
+
+- The documentation is now a site at
+  <https://alimanfoo.github.io/dreamcatcher/>, built from `docs/`. The agent
+  contract and this changelog moved there from the repository root, to
+  `docs/contract.md` and `docs/changelog.md`.
+  ([#424](https://github.com/alimanfoo/dreamcatcher/pull/424))
+
+### Changed
 
 - The assignment and conversation pages now show **Stop** and **Cancel** as
   **stop round** and **cancel assignment**, at the foot of the page beside
   **resume by hand** and styled like it. **stop round** asks you to confirm, as
   **cancel assignment** already did. **Retry** stays at the top.
   ([#427](https://github.com/alimanfoo/dreamcatcher/pull/427))
+- The product name is now _dreamcatcher_, in lower case, in the documentation,
+  the help, the messages and the web pages. The web pages now write every issue
+  number as `#123`, as GitHub does.
+  ([#431](https://github.com/alimanfoo/dreamcatcher/pull/431))
 
 ## [v5.0.0](https://github.com/alimanfoo/dreamcatcher/releases/tag/v5.0.0) — 2026-10-06
 
@@ -38,9 +67,9 @@ tagged. From v5.0.0 on, each entry links the pull request that made the change.
   `.dreamcatcher/daemon.lock` for as long as it runs, in place of
   `.dreamcatcher/daemon.pid`, so stop a v4.0.0 daemon before you start this
   release. ([#405](https://github.com/alimanfoo/dreamcatcher/pull/405))
-- Added a `config` table to a Codex recipe in `dreamcatcher.toml`. Dreamcatcher
-  passes each entry to every Codex round as `-c key=value`, so that a label can
-  run Codex with settings such as a larger context window.
+- Added a `config` table to a Codex recipe in `dreamcatcher.toml`.
+  _dreamcatcher_ passes each entry to every Codex round as `-c key=value`, so
+  that a label can run Codex with settings such as a larger context window.
   ([#402](https://github.com/alimanfoo/dreamcatcher/pull/402))
 - Added `dreamcatcher stop` to request a stop for the running round of a
   selected assignment or issue conversation.
@@ -112,7 +141,7 @@ tagged. From v5.0.0 on, each entry links the pull request that made the change.
 - State format 4 began with new local state. Configuration renamed assignment
   route tables from `[[dispatch]]` to `[[assignment]]` and changed the single
   `[conversation]` table to repeatable `[[conversation]]` routes. The `assignee`
-  setting was removed; Dreamcatcher uses the account signed in through `gh`.
+  setting was removed; _dreamcatcher_ uses the account signed in through `gh`.
 
 Evidence:
 [state format 4 commit](https://github.com/alimanfoo/dreamcatcher/commit/fa275e7d9fb5e69e615872f88bafea419e8f0364),

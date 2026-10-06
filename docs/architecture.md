@@ -1,6 +1,6 @@
 # Architecture
 
-This document describes the enduring target architecture for Dreamcatcher. It
+This document describes the enduring target architecture for _dreamcatcher_. It
 maps the concepts in [the ontology](ontology.md) to code boundaries and states
 the responsibilities, interfaces, and encapsulation those boundaries should
 provide.
@@ -27,7 +27,7 @@ domain phrase into a class. In particular, it should:
 
 ### Daemon lifecycle
 
-`daemon.py` owns the lifetime of the daemon that runs a Dreamcatcher instance:
+`daemon.py` owns the lifetime of the daemon that runs a _dreamcatcher_ instance:
 
 - acquire and release the checkout's daemon lock;
 - record the daemon process identifier in the daemon run record as soon as it
@@ -113,7 +113,7 @@ live outside assignment discovery and never acquire implementation branches or
 pull requests.
 
 The signed-in GitHub account identifies trusted issue comments. Marked
-Dreamcatcher comments, comments by other accounts and blank comments are
+_dreamcatcher_ comments, comments by other accounts and blank comments are
 excluded. Each durable round input records the delivered batch, so the newest
 comment in the latest input is the delivery position and a batch cannot be
 selected again.
@@ -174,8 +174,9 @@ of an agent assignment. It should provide cohesive operations to:
 - read existing assignments;
 - find the open assignment for an issue;
 - allocate the next round number within an assignment;
-- read the user-post delivery position from recorded round inputs; and
-- recognize completion after a successful wrap-up round.
+- read the user-post delivery position from recorded round inputs;
+- recognize completion after a successful wrap-up round; and
+- record a cancel.
 
 `agent_work.py` records the facts that both kinds of agent work share: the
 harness session identifier, and when the user requests another recovery attempt
@@ -208,8 +209,8 @@ already exists, the scheduler continues to the first round instead of recreating
 the assignment.
 
 The assignment remains open until the module recognizes a successful wrap-up
-round. A merged or closed pull request calls for wrap up but does not by itself
-complete the assignment.
+round or the user cancels it. A merged or closed pull request calls for wrap up
+but does not by itself complete the assignment.
 
 The assignment module coordinates the workflow but does not implement Git
 commands, parse GitHub responses, launch harnesses, or choose when work should
@@ -271,7 +272,7 @@ Scheduling does not read that observation. It reads the current state from
 GitHub when it needs it.
 
 GitHub owns its documents and may add fields, so its responses remain tolerant
-projections. Documents owned by Dreamcatcher remain strict.
+projections. Documents owned by _dreamcatcher_ remain strict.
 
 ### User-post relay
 
@@ -427,8 +428,8 @@ harness-selection rule: a configured requested harness wins, while the sole
 recipe wins when only one exists.
 
 The repository configuration carries choices that everyone working in the
-repository shares. The daemon interval and agent cap belong to one person's run,
-so the `run` command receives them instead.
+repository shares. The daemon interval and agent capacity belong to one person's
+run, so the `run` command receives them instead.
 
 The configuration module validates labels, routes, and recipes. Each dispatch
 label belongs to one route, so a label cannot configure both kinds of agent
@@ -468,7 +469,7 @@ The on-disk layout follows ownership:
 - assignment and conversation worktrees live in separate collections under the
   versioned root.
 
-`documents.py` remains the only way Dreamcatcher reads and writes documents it
+`documents.py` remains the only way _dreamcatcher_ reads and writes documents it
 owns. Every structured document has a strict model and every replacement write
 is atomic. Each write stages in a file that no other write shares, so writes
 that race each other each land whole. A one-value process file may remain simple
@@ -545,7 +546,7 @@ investigated revision and the trusted comments accepted for delivery; the first
 also persists the issue title and body.
 
 Instance records persist the repository identity and the most recent daemon
-run's harness, Dreamcatcher version, and capacity. An instance-wide scheduler
+run's harness, _dreamcatcher_ version, and capacity. An instance-wide scheduler
 record persists the last tick's result, including its failures, issue,
 assignment and conversation observations, active global cooldown, and the time
 at which the most recent cooldown ended. Its per-work observations preserve
@@ -595,13 +596,13 @@ checks the status rule on the scheduler modules that status imports directly.
 ## Agent-facing contract
 
 The [agent-facing contract](contract.md) describes the protocol between
-Dreamcatcher and an assignment skill, and the instructions that an issue
+_dreamcatcher_ and an assignment skill, and the instructions that an issue
 conversation follows, not implementation history.
 
 For assignments, the contract should establish that:
 
-- Dreamcatcher provides the issue, branch, worktree, and already-open draft pull
-  request;
+- _dreamcatcher_ provides the issue, branch, worktree, and already-open draft
+  pull request;
 - the assignment skill adopts those resources rather than creating them;
 - the agent uses the pull request for questions and feedback;
 - the agent marks the pull request ready when implementation is ready for
