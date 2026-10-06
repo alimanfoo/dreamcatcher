@@ -129,9 +129,10 @@ def _observe_listed_issue(
     is_assigned = scheduler.account.casefold() in {
         assignee.login.casefold() for assignee in response.assignees
     }
-    assignment_labels = scheduler.config.identify_assignment_labels(
+    routes = scheduler.config.identify_assignment_routes(
         labels=[label.name for label in response.labels]
     )
+    assignment_labels = [route.label for route in routes]
     return _ListedIssueFacts(
         details=ObservedIssueDetails(
             title=response.title,

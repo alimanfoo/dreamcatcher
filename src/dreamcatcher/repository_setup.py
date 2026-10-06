@@ -137,8 +137,11 @@ def _create_missing_labels(*, repository: str, config: DreamcatcherConfig) -> No
     )
     names = [label.name for label in labels]
     existing = {
-        *config.identify_assignment_labels(labels=names),
-        *(route.label for route in config.identify_conversation_routes(labels=names)),
+        route.label
+        for route in [
+            *config.identify_assignment_routes(labels=names),
+            *config.identify_conversation_routes(labels=names),
+        ]
     }
     descriptions = {
         **{route.label: _ASSIGNMENT_LABEL_DESCRIPTION for route in config.assignment},
