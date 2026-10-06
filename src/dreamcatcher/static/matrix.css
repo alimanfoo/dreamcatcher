@@ -118,12 +118,14 @@ body::after {
   font-weight: 600;
 }
 
-.repository-link {
+.repository-link,
+.docs-link {
   color: inherit;
   text-decoration: none;
 }
 
-.repository-link:hover {
+.repository-link:hover,
+.docs-link:hover {
   color: var(--phosphor);
   text-shadow: var(--shadow);
 }
