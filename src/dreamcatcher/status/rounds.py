@@ -31,6 +31,13 @@ class AgentRoundStatus:
     outcome_description: str
     revision: AgentRoundRevision | None = None
 
+    @property
+    def purpose_description(self) -> str:
+        """The work the round advances, marked when it recovers another round."""
+        return describe_agent_round_start(
+            purpose=self.record.purpose, is_recovery=self.record.is_recovery
+        )
+
 
 def describe_running_round(
     *, record: AgentRoundRecord, paths: AgentRoundPaths, at: datetime

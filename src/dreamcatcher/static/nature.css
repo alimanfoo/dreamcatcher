@@ -538,7 +538,6 @@ body::after {
   font-weight: 500;
 }
 
-.round-purpose span,
 .round-timing {
   color: var(--dim);
   font-size: 14px;

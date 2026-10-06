@@ -4,7 +4,7 @@
     <a class="round-link" href="#feed-round-{{ round.number }}" aria-controls="feed-round-{{ round.number }}">
       <span class="round-number">{{ "%02d"|format(round.number) }}</span>
       <span class="round-summary">
-        <span class="round-purpose">{{ round.purpose }}{% if round.is_recovery %} <span>(recovery)</span>{% endif %}</span>
+        <span class="round-purpose">{{ round.purpose }}</span>
         <span class="round-outcome outcome-{{ round.outcome }}">{{ round.outcome_description }}</span>
         <span class="round-timing">{{ round.started }}{% if round.duration %} · {{ round.duration }}{% endif %}{% if round.revision %} · {{ round.revision.value }}{% endif %}</span>
       </span>

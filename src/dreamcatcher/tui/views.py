@@ -20,7 +20,6 @@ from dreamcatcher.feed import (
     SUBAGENT_INDENT,
     FeedLine,
     compose_agent_round_boundary,
-    describe_agent_round_start,
     read_feed_line,
 )
 from dreamcatcher.harness_adapters import AgentWorkKind
@@ -279,12 +278,7 @@ def _render_round_statuses(
         record = round_status.record
         cells = [
             Text(str(record.number)),
-            Text(
-                describe_agent_round_start(
-                    purpose=record.purpose,
-                    is_recovery=record.is_recovery,
-                )
-            ),
+            Text(round_status.purpose_description),
         ]
         if shows_revision:
             cells.append(
