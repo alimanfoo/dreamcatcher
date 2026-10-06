@@ -37,13 +37,13 @@ dreamcatcher init
 ```
 
 Prepare the main checkout in the current directory for `run`. The command takes
-these steps in order, and prints one line as it finishes each:
+these steps in order, and prints what it finds as it goes:
 
 1. Check that the current directory is a repository's main checkout.
 2. Check that `gh` can name the repository and the account it is signed in as,
    and that the account can push to the repository.
 3. Check that Git has an identity to commit with, and fetch `origin main`.
-4. Find which of `claude` and `codex` are on `PATH`.
+4. Find which of `claude` and `codex` are on `PATH`, and refuse when neither is.
 5. Write the
    [default configuration](configuration-reference.md#complete-example) to
    `dreamcatcher.toml` when the file does not exist, with the recipes of each
@@ -55,7 +55,8 @@ these steps in order, and prints one line as it finishes each:
 7. Create each label in `dreamcatcher.toml` that the repository lacks, matching
    names case-insensitively. Existing labels are not changed.
 8. Print the next steps, including the commands that commit and push
-   `dreamcatcher.toml` when this run wrote it.
+   `dreamcatcher.toml` when `origin/main` does not hold it as the checkout has
+   it.
 
 The command stops at the first step that fails, and says how to fix it. It also
 refuses when `dreamcatcher.toml` uses a harness that is not on `PATH`. Every

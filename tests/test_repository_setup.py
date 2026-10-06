@@ -4,7 +4,7 @@ import shutil
 from pathlib import Path
 
 import pytest
-from conftest import POSTED_BY, REPOSITORY, SMITH_CLAUDE, SMITH_CODEX, git
+from conftest import POSTED_BY, REPOSITORY, SMITH_CLAUDE, SMITH_CODEX, commit, git
 
 from dreamcatcher.cli import main
 from dreamcatcher.config import (
@@ -131,8 +131,10 @@ def test_only_the_route_labels_the_repository_lacks_are_created(
 def test_a_second_setup_leaves_the_configuration_and_labels_alone(
     checkout, gh, installed, capsys
 ):
-    installed(programs=["claude"])
+    harnesses = installed(programs=["claude"])
     (checkout / DREAMCATCHER_CONFIG_NAME).write_text(SMITH_CLAUDE, encoding="utf-8")
+    commit(path=checkout, message="Configure dreamcatcher")
+    git(arguments=["push", "origin", "main"], cwd=checkout)
     gh.replies(stdout=json.dumps([[{"name": "dream:smith"}]]), to=LABELS)
 
     set_up_repository(root=checkout)
@@ -140,11 +142,37 @@ def test_a_second_setup_leaves_the_configuration_and_labels_alone(
     assert (checkout / DREAMCATCHER_CONFIG_NAME).read_text(
         encoding="utf-8"
     ) == SMITH_CLAUDE
+    assert ["plugin", "install", "dream@dream", "--scope", "user"] in [
+        call.arguments for call in harnesses["claude"].calls
+    ]
     assert not [call for call in gh.calls if call.arguments[0] == "label"]
     output = capsys.readouterr().out
     assert f"Left the existing {DREAMCATCHER_CONFIG_NAME} as it is." in output
     assert "The repository has every label that the configuration routes." in output
     assert "git add" not in output
+
+
+def test_a_configuration_not_yet_on_main_comes_with_the_commands_to_push_it(
+    checkout, gh, installed, capsys
+):
+    installed(programs=["claude"])
+    (checkout / DREAMCATCHER_CONFIG_NAME).write_text(SMITH_CLAUDE, encoding="utf-8")
+
+    set_up_repository(root=checkout)
+
+    assert f"  git add {DREAMCATCHER_CONFIG_NAME}\n" in capsys.readouterr().out
+
+
+def test_only_the_harnesses_the_configuration_routes_are_set_up(
+    checkout, gh, installed
+):
+    harnesses = installed(programs=["claude", "codex"])
+    (checkout / DREAMCATCHER_CONFIG_NAME).write_text(SMITH_CLAUDE, encoding="utf-8")
+
+    set_up_repository(root=checkout)
+
+    assert harnesses["claude"].calls
+    assert not harnesses["codex"].calls
 
 
 def test_a_harness_that_is_not_installed_is_left_out_of_the_configuration(
@@ -179,21 +207,25 @@ def test_a_machine_with_no_harness_is_refused(checkout, gh, installed):
 
 
 def test_a_configuration_routing_a_missing_harness_is_refused(checkout, gh, installed):
-    installed(programs=["claude"])
+    harnesses = installed(programs=["claude"])
     (checkout / DREAMCATCHER_CONFIG_NAME).write_text(
         SMITH_CLAUDE + SMITH_CODEX, encoding="utf-8"
     )
 
     with pytest.raises(ReportableError, match="routes work to codex"):
         set_up_repository(root=checkout)
+    assert not harnesses["claude"].calls
 
 
 def test_a_harness_that_is_signed_out_is_refused(checkout, gh, installed):
     harnesses = installed(programs=["claude", "codex"])
     harnesses["codex"].fails(stderr="Not logged in", to="login status")
 
-    with pytest.raises(ReportableError, match="codex is not signed in"):
+    with pytest.raises(ReportableError, match="codex login status failed"):
         set_up_repository(root=checkout)
+    assert [call.arguments for call in harnesses["codex"].calls] == [
+        ["login", "status"]
+    ]
 
 
 def test_an_account_that_cannot_push_is_refused(checkout, gh, installed):
@@ -201,6 +233,18 @@ def test_an_account_that_cannot_push_is_refused(checkout, gh, installed):
     gh.replies(stdout=json.dumps({"viewerPermission": "READ"}), to=PERMISSION)
 
     with pytest.raises(ReportableError, match=f"{POSTED_BY} cannot push"):
+        set_up_repository(root=checkout)
+    assert not (checkout / DREAMCATCHER_CONFIG_NAME).exists()
+
+
+def test_a_checkout_whose_origin_cannot_be_fetched_is_refused(checkout, gh, installed):
+    installed(programs=["claude"])
+    git(
+        arguments=["remote", "set-url", "origin", str(checkout.parent / "gone.git")],
+        cwd=checkout,
+    )
+
+    with pytest.raises(ReportableError, match="git fetch origin main failed"):
         set_up_repository(root=checkout)
 
 

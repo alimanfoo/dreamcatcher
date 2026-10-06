@@ -107,7 +107,7 @@ the [`dream` plugin](https://github.com/alimanfoo/dream) for each harness the
 file uses, and creates the labels the file names. It prints one line for each
 step. If a step fails, `init` says how to fix it; fix it and run `init` again.
 If Codex is installed as well as Claude, the file uses both, so sign in to Codex
-too.
+too, with `codex login`.
 
 The `dream` plugin is installed at user scope, outside the repository, so its
 skills are available in the child Git worktree where an assignment runs. The
@@ -120,8 +120,8 @@ comments. The label connects a GitHub issue to its route, and `{issue}` in a
 prompt becomes the issue number, so issue 123 starts Claude with
 `/dream:smith GH123`.
 
-When `init` has written the file, it ends by printing the commands that commit
-and push it. Run them, so the assignment worktree contains the file too:
+Until `origin/main` holds the file, `init` ends by printing the commands that
+commit and push it. Run them, so the assignment worktree contains the file too:
 
 ```sh
 git add dreamcatcher.toml

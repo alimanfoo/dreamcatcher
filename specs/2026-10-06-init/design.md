@@ -89,8 +89,9 @@ whether it starts an assignment or a conversation.
 ### What init does not do
 
 `init` does not commit or push `dreamcatcher.toml`. `main` may be protected, and
-a push publishes the user's work. It prints the commands instead, when it has
-just written the file.
+a push publishes the user's work. It prints the commands instead, whenever
+`origin/main` does not hold the file as the checkout has it. So a run that wrote
+the file and then failed still leads to the commands when it is run again.
 
 `init` does not check the version of gh or of a harness, and it does not update
 an installed plugin.

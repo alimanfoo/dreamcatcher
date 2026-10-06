@@ -11,7 +11,12 @@ from dreamcatcher.config import (
     write_default_dreamcatcher_config_if_absent,
 )
 from dreamcatcher.errors import ReportableError
-from dreamcatcher.git import fetch_main, read_git_author_identity, require_main_checkout
+from dreamcatcher.git import (
+    fetch_main,
+    is_file_on_main,
+    read_git_author_identity,
+    require_main_checkout,
+)
 from dreamcatcher.github import (
     GitHubIdentity,
     can_push_to_repository,
@@ -71,7 +76,9 @@ def set_up_repository(*, root: Path) -> None:
         _set_up_harness(harness=harness)
     _create_missing_labels(repository=identity.repository, config=config)
     _report_next_steps(
-        account=identity.account, config=config, is_config_new=is_config_new
+        account=identity.account,
+        config=config,
+        is_config_on_main=is_file_on_main(root=root, name=DREAMCATCHER_CONFIG_NAME),
     )
 
 
@@ -93,7 +100,6 @@ def _require_push_access(*, identity: GitHubIdentity) -> None:
 
 
 def _require_installed_harnesses() -> set[AgentHarness]:
-    """Return every harness on the PATH, or refuse when there is none."""
     installed = set()
     for harness in AgentHarness:
         try:
@@ -116,8 +122,7 @@ def _set_up_harness(*, harness: AgentHarness) -> None:
         run_command(program=adapter.program, arguments=adapter.sign_in_check_arguments)
     except CommandError as error:
         raise ReportableError(
-            f"{adapter.program} is not signed in. Sign in to {adapter.program}, "
-            "then run dreamcatcher init again."
+            f"{error} Sign in to {adapter.program}, then run dreamcatcher init again."
         ) from error
     for arguments in adapter.build_plugin_installation(
         marketplace=_DREAM_MARKETPLACE, plugin=_DREAM_PLUGIN
@@ -157,11 +162,10 @@ def _create_missing_labels(*, repository: str, config: DreamcatcherConfig) -> No
 
 
 def _report_next_steps(
-    *, account: str, config: DreamcatcherConfig, is_config_new: bool
+    *, account: str, config: DreamcatcherConfig, is_config_on_main: bool
 ) -> None:
-    """Say what the user does next, which the setup leaves to them."""
     lines = ["", "dreamcatcher is ready. Next:"]
-    if is_config_new:
+    if not is_config_on_main:
         lines += [
             f"  git add {DREAMCATCHER_CONFIG_NAME}",
             '  git commit -m "Configure dreamcatcher"',

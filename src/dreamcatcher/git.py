@@ -20,7 +20,7 @@ def require_main_checkout(*, root: Path) -> None:
     """
     if not (root / ".git").is_dir():
         raise ReportableError(
-            f"Run dreamcatcher from a repository's main checkout. {root} is not one."
+            f"Start dreamcatcher from a repository's main checkout. {root} is not one."
         )
 
 
@@ -33,6 +33,25 @@ def read_git_author_identity(*, root: Path) -> str:
     return run_command(
         program="git", arguments=["var", "GIT_AUTHOR_IDENT"], cwd=root
     ).rsplit(maxsplit=2)[0]
+
+
+def is_file_on_main(*, root: Path, name: str) -> bool:
+    """Return whether origin/main holds the named file as the checkout at root has it.
+
+    Git reads the file as it would commit it, so a checkout that writes its line
+    endings as CRLF still matches.
+    """
+    try:
+        on_main = run_command(
+            program="git",
+            arguments=["rev-parse", "--verify", "--quiet", f"origin/main:{name}"],
+            cwd=root,
+        )
+    except CommandError:
+        return False
+    return on_main == run_command(
+        program="git", arguments=["hash-object", "--", name], cwd=root
+    )
 
 
 def fetch_main(*, root: Path) -> None:
