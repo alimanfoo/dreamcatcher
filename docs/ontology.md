@@ -176,7 +176,9 @@ found for an issue. Its availability is derived from those facts.
 
 An **issue status** says why a status report shows an issue observation: a
 failed assignment setup, an assignment routing conflict, a blocker, or
-availability. It carries the evidence for that reason.
+availability. It carries the evidence for that reason. A conversation routing
+conflict is not among those reasons, because the report shows it as the issue
+conversation's own status.
 
 An **agent assignment status** is an assignment's single summary status in a
 status report. It summarizes the assignment record, recorded rounds, live
