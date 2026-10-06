@@ -8,7 +8,7 @@ from conftest import POST_LIST_PATHS, POSTED_BY, PULL_REQUEST, pages
 from dreamcatcher.github import (
     BlockingIssue,
     ConversationComment,
-    GitHubIssueLabel,
+    GitHubLabel,
     GitHubUserAccount,
     InlineReviewComment,
     Issue,
@@ -21,12 +21,15 @@ from dreamcatcher.github import (
     PullRequestState,
     UnknownGitHubResponse,
     UserPost,
+    _identify_github_account,
+    _identify_github_repository,
+    can_push_to_repository,
+    create_label,
     create_pull_request,
-    identify_github_account,
-    identify_github_repository,
     list_blocking_issues,
     list_issue_comments,
     list_issues,
+    list_labels,
     list_pull_requests,
     list_user_posts,
     post_issue_comment,
@@ -59,7 +62,7 @@ def test_the_repository_comes_from_the_checkouts_own_remote(fake, tmp_path):
     gh = fake(program="gh")
     gh.replies(stdout=json.dumps({"nameWithOwner": REPOSITORY}))
 
-    assert identify_github_repository(root=tmp_path) == REPOSITORY
+    assert _identify_github_repository(root=tmp_path) == REPOSITORY
     assert gh.calls[0].arguments == ["repo", "view", "--json", "nameWithOwner"]
     assert gh.calls[0].directory == tmp_path.resolve()
 
@@ -68,8 +71,63 @@ def test_the_signed_in_account_is_the_one_gh_names(fake):
     gh = fake(program="gh")
     gh.replies(stdout=json.dumps({"login": "alimanfoo"}))
 
-    assert identify_github_account() == "alimanfoo"
+    assert _identify_github_account() == "alimanfoo"
     assert gh.calls[0].arguments == ["api", "user"]
+
+
+@pytest.mark.parametrize(
+    ("permission", "can_push"),
+    [
+        ("ADMIN", True),
+        ("MAINTAIN", True),
+        ("WRITE", True),
+        ("READ", False),
+        (None, False),
+    ],
+)
+def test_an_account_can_push_with_write_permission_or_more(fake, permission, can_push):
+    gh = fake(program="gh")
+    gh.replies(stdout=json.dumps({"viewerPermission": permission}))
+
+    assert can_push_to_repository(repository=REPOSITORY) is can_push
+    assert gh.calls[0].arguments == [
+        "repo",
+        "view",
+        REPOSITORY,
+        "--json",
+        "viewerPermission",
+    ]
+
+
+def test_the_labels_come_from_every_page_of_the_repositorys_labels(fake):
+    gh = fake(program="gh")
+    gh.replies(stdout=json.dumps([[{"name": "bug"}], [{"name": "dream:smith"}]]))
+
+    labels = list_labels(repository=REPOSITORY)
+
+    assert isinstance(labels, list)
+    assert [label.name for label in labels] == ["bug", "dream:smith"]
+    assert gh.calls[0].arguments[:2] == [
+        "api",
+        f"repos/{REPOSITORY}/labels?per_page=100",
+    ]
+
+
+def test_a_label_is_created_with_its_description(fake):
+    gh = fake(program="gh")
+    gh.replies(stdout="")
+
+    create_label(repository=REPOSITORY, name="dream:smith", description="Implement")
+
+    assert gh.calls[0].arguments == [
+        "label",
+        "create",
+        "dream:smith",
+        "--repo",
+        REPOSITORY,
+        "--description",
+        "Implement",
+    ]
 
 
 def test_a_listing_carries_each_issue_and_when_it_was_filed(fake):
@@ -95,7 +153,7 @@ def test_a_listing_carries_each_issue_and_when_it_was_filed(fake):
             created_at=datetime(2026, 8, 19, 18, 41, 58, tzinfo=UTC),
             state=IssueState.OPEN,
             assignees=[GitHubUserAccount(login="alimanfoo")],
-            labels=[GitHubIssueLabel(name="dream:smith")],
+            labels=[GitHubLabel(name="dream:smith")],
         )
     ]
     assert gh.calls[0].arguments == [
@@ -136,7 +194,7 @@ def test_one_issue_carries_its_state_assignees_and_labels(fake):
         created_at=datetime(2026, 8, 19, 18, 41, 58, tzinfo=UTC),
         state=IssueState.CLOSED,
         assignees=[],
-        labels=[GitHubIssueLabel(name="maintenance")],
+        labels=[GitHubLabel(name="maintenance")],
     )
     assert gh.calls[0].arguments == [
         "issue",
@@ -576,9 +634,9 @@ def test_a_recorded_inline_comment_carries_the_diff_it_was_written_against(
     "ask",
     [
         pytest.param(
-            lambda: identify_github_repository(root=Path.cwd()), id="the repository"
+            lambda: _identify_github_repository(root=Path.cwd()), id="the repository"
         ),
-        pytest.param(identify_github_account, id="the account"),
+        pytest.param(_identify_github_account, id="the account"),
         pytest.param(
             lambda: list_issues(
                 repository=REPOSITORY, label="dream:smith", assignee="@me"
@@ -602,6 +660,11 @@ def test_a_recorded_inline_comment_carries_the_diff_it_was_written_against(
             lambda: list_user_posts(repository=REPOSITORY, pull_request=PULL_REQUEST),
             id="the posts",
         ),
+        pytest.param(
+            lambda: can_push_to_repository(repository=REPOSITORY),
+            id="the push permission",
+        ),
+        pytest.param(lambda: list_labels(repository=REPOSITORY), id="the labels"),
     ],
 )
 def test_a_read_that_fails_answers_unknown_with_what_gh_said(fake, ask):

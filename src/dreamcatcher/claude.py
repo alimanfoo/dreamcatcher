@@ -113,6 +113,19 @@ class _ClaudeHarnessAdapter(HarnessAdapter):
     """Run Claude Code and translate its stream into feed events."""
 
     program: ClassVar[str] = "claude"
+    sign_in_check_arguments: ClassVar[tuple[str, ...]] = ("auth", "status")
+
+    def build_plugin_installation(
+        self, *, marketplace: str, plugin: str
+    ) -> list[list[str]]:
+        """Return how to install the plugin for the user.
+
+        User scope makes the plugin available in every worktree a round runs in.
+        """
+        return [
+            ["plugin", "marketplace", "add", marketplace],
+            ["plugin", "install", plugin, "--scope", "user"],
+        ]
 
     def build_first_round(
         self, *, request: AgentRoundLaunchRequest, final_output_path: Path

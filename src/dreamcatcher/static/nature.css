@@ -74,7 +74,8 @@ body::after {
   font-weight: 400;
 }
 
-.repository-link:hover {
+.repository-link:hover,
+.docs-link:hover {
   color: var(--bright);
   text-shadow: none;
 }

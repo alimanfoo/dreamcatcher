@@ -4,7 +4,7 @@ import pytest
 from conftest import CONFIG
 
 from dreamcatcher.config import (
-    _DREAMCATCHER_CONFIG_NAME,
+    DREAMCATCHER_CONFIG_NAME,
     AgentHarness,
     read_dreamcatcher_config,
 )
@@ -37,7 +37,7 @@ def test_a_template_holding_other_words_in_braces_keeps_them():
 def test_the_prompt_that_opens_an_assignment_is_its_template_then_the_postscript(
     tmp_path, harness
 ):
-    (tmp_path / _DREAMCATCHER_CONFIG_NAME).write_text(CONFIG, encoding="utf-8")
+    (tmp_path / DREAMCATCHER_CONFIG_NAME).write_text(CONFIG, encoding="utf-8")
     recipe = read_dreamcatcher_config(root=tmp_path).assignment[0].recipes[harness]
 
     composed = compose_first_round_prompt(template=recipe.prompt, issue=12)

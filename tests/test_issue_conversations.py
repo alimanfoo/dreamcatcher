@@ -19,7 +19,7 @@ from dreamcatcher.errors import ReportableError
 from dreamcatcher.git import add_detached_worktree, is_linked_worktree
 from dreamcatcher.github import (
     ConversationComment,
-    GitHubIssueLabel,
+    GitHubLabel,
     GitHubUserAccount,
     Issue,
     IssueState,
@@ -66,7 +66,7 @@ def issue(*, number: int = 8) -> Issue:
         created_at=datetime(2026, 9, 23, tzinfo=UTC),
         state=IssueState.OPEN,
         assignees=[GitHubUserAccount(login="alimanfoo")],
-        labels=[GitHubIssueLabel(name="dream:conversation")],
+        labels=[GitHubLabel(name="dream:conversation")],
     )
 
 

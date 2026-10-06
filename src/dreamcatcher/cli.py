@@ -8,7 +8,7 @@ from pathlib import Path
 from threading import TIMEOUT_MAX
 
 import dreamcatcher
-from dreamcatcher import tui, web
+from dreamcatcher import repository_setup, tui, web
 from dreamcatcher.agent_assignments import (
     cancel_assignment,
     read_assignments_for_issue,
@@ -66,6 +66,22 @@ def _build_cli_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--version", action="version", version=DREAMCATCHER_VERSION)
     subcommands = parser.add_subparsers(title="verbs", dest="verb", required=True)
+    init_parser = subcommands.add_parser(
+        "init",
+        help="prepare this checkout for the dreamcatcher daemon",
+        description=(
+            "Check what dreamcatcher run needs in this repository's main "
+            "checkout, and put in place what is missing. It checks that gh is "
+            "signed in with push access, that Git can commit and that origin/main "
+            "can be fetched. It writes a default dreamcatcher.toml when there is "
+            "none, checks that each harness the file uses is signed in, installs "
+            "the dream plugin for each of those harnesses at user scope, and "
+            "creates the labels the file names. It never commits or pushes. "
+            "Running it again repeats the checks and leaves alone what is "
+            "already in place."
+        ),
+    )
+    init_parser.set_defaults(act=_set_up_repository)
     run_parser = subcommands.add_parser(
         "run",
         help="run the dreamcatcher daemon",
@@ -292,6 +308,10 @@ def main(*, argv: Sequence[str] | None = None) -> int:
         print(error, file=sys.stderr)
         return 1
     return 0
+
+
+def _set_up_repository(*, arguments: argparse.Namespace) -> None:
+    repository_setup.set_up_repository(root=Path.cwd())
 
 
 def _run_daemon(*, arguments: argparse.Namespace) -> None:
