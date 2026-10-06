@@ -16,7 +16,7 @@ from dreamcatcher.config import (
 )
 from dreamcatcher.documents import write_json, write_text
 from dreamcatcher.errors import ReportableError
-from dreamcatcher.git import add_detached_worktree, is_linked_worktree
+from dreamcatcher.git import is_linked_worktree
 from dreamcatcher.github import (
     ConversationComment,
     GitHubLabel,
@@ -171,43 +171,35 @@ def test_a_new_conversation_records_the_requested_harness_recipe(cloned):
     assert created.record.effort == "high"
 
 
-def test_an_unrecorded_conversation_worktree_is_not_forced_away(cloned):
+def test_a_conversation_retry_reuses_the_worktree_a_failed_record_write_left(
+    cloned, monkeypatch
+):
     state = StateDirectory(root=cloned)
-    path = state.conversation_worktrees / "GH8"
-    add_detached_worktree(root=cloned, path=path)
-
-    with pytest.raises(ReportableError) as error:
-        create_conversation(
-            state=state,
-            route=conversation_route(),
-            requested_harness=AgentHarness.CLAUDE,
-            issue=issue(),
-        )
-
-    assert "its unrecorded worktree already exists" in str(error.value)
-
-
-def test_a_failed_conversation_setup_removes_the_worktree_it_added(cloned, monkeypatch):
-    state = StateDirectory(root=cloned)
-    path = state.conversation_worktrees / "GH8"
 
     def fail_record_write(*, document, path):
         raise ReportableError(f"cannot write the record at {path}")
 
-    monkeypatch.setattr(
-        "dreamcatcher.issue_conversations.write_json",
-        fail_record_write,
-    )
-
-    with pytest.raises(ReportableError, match="cannot write the record"):
-        create_conversation(
-            state=state,
-            route=conversation_route(),
-            requested_harness=AgentHarness.CLAUDE,
-            issue=issue(),
+    with monkeypatch.context() as patched:
+        patched.setattr(
+            "dreamcatcher.issue_conversations.write_json",
+            fail_record_write,
         )
+        with pytest.raises(ReportableError, match="cannot write the record"):
+            create_conversation(
+                state=state,
+                route=conversation_route(),
+                requested_harness=AgentHarness.CLAUDE,
+                issue=issue(),
+            )
 
-    assert not is_linked_worktree(path=path)
+    assert is_linked_worktree(path=state.conversation_worktrees / "GH8")
+    created = create_conversation(
+        state=state,
+        route=conversation_route(),
+        requested_harness=AgentHarness.CLAUDE,
+        issue=issue(),
+    )
+    assert read_conversations(state=state) == [created]
 
 
 def test_a_conversation_record_must_name_its_directory(tmp_path):

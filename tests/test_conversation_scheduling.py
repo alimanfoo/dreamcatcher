@@ -1987,15 +1987,14 @@ def test_a_missing_empty_conversation_worktree_fails_without_detaching_main(
 def test_a_conversation_setup_failure_is_a_scheduler_failure(conversation_scheduler):
     scheduler, clock, gh = conversation_scheduler
     offer_conversation(gh=gh, comments=[ask()])
-    add_detached_worktree(
-        root=scheduler.assignments.state.root,
-        path=scheduler.assignments.state.conversation_worktrees / "GH8",
-    )
+    worktree = scheduler.assignments.state.conversation_worktrees / "GH8"
+    worktree.mkdir(parents=True)
+    (worktree / "occupied").write_bytes(b"not a worktree\n")
 
     observed = scheduler.tick(at=clock())
 
     [failure] = observed.failures
-    assert "unrecorded worktree already exists" in failure
+    assert "already exists" in failure
 
 
 def test_the_oldest_waiting_comment_selects_the_conversation(

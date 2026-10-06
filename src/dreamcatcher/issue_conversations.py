@@ -1,6 +1,5 @@
 """Persist issue conversations and prepare their trusted input."""
 
-from contextlib import suppress
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
@@ -17,7 +16,6 @@ from dreamcatcher.agent_work import (
     read_harness_session_identifier,
     read_retry_requested_at,
 )
-from dreamcatcher.commands import CommandError
 from dreamcatcher.config import (
     AgentHarness,
     ConversationRoute,
@@ -30,7 +28,6 @@ from dreamcatcher.git import (
     fetch_main,
     is_linked_worktree,
     refresh_detached_worktree,
-    remove_worktree,
 )
 from dreamcatcher.github import (
     ConversationComment,
@@ -176,7 +173,12 @@ def create_conversation(
     requested_harness: AgentHarness,
     issue: Issue,
 ) -> Conversation:
-    """Create one conversation at fetched main with no rounds run yet."""
+    """Create one conversation at fetched main with no rounds run yet.
+
+    A retry reuses the worktree that an earlier attempt left before it wrote
+    the record. Preparing the first round's input resets that worktree to
+    fetched main.
+    """
     existing = read_conversation(state=state, issue=issue.number)
     if existing is not None:
         return existing
@@ -195,18 +197,9 @@ def create_conversation(
     fetch_main(root=state.root)
     directory = state.conversations / f"GH{issue.number}"
     worktree = state.conversation_worktrees / f"GH{issue.number}"
-    if is_linked_worktree(path=worktree):
-        raise ReportableError(
-            f"Could not create conversation for GH{issue.number}: its unrecorded "
-            f"worktree already exists at {state.describe_path(path=worktree)}."
-        )
-    add_detached_worktree(root=state.root, path=worktree)
-    try:
-        write_json(document=record, path=directory / _CONVERSATION_RECORD_NAME)
-    except ReportableError:
-        with suppress(CommandError):
-            remove_worktree(root=state.root, path=worktree)
-        raise
+    if not is_linked_worktree(path=worktree):
+        add_detached_worktree(root=state.root, path=worktree)
+    write_json(document=record, path=directory / _CONVERSATION_RECORD_NAME)
     return Conversation(directory=directory, worktree=worktree, record=record)
 
 
