@@ -266,7 +266,7 @@ def test_assignment_tail_updates_the_stop_and_cancel_controls(tmp_path):
 
     assert response.status_code == 200
     assert (
-        '<div id="agent-work-controls" class="agent-work-controls" '
+        '<div id="agent-work-foot" class="agent-work-foot" '
         'hx-swap-oob="morph">' in response.text
     )
     assert f'action="/assignments/{identifier}/stop/2"' in response.text
@@ -1075,7 +1075,7 @@ def test_a_quiet_tail_has_no_appendable_text_nodes(tmp_path):
     assert '</span><div id="agent-work-retry"' in response.text
     assert '</div><p id="agent-work-detail"' in response.text
     assert "</p><aside" in response.text
-    assert '</aside><div id="agent-work-controls"' in response.text
+    assert '</aside><div id="agent-work-foot"' in response.text
     assert response.text.endswith("</div>")
 
 

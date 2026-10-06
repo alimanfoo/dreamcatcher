@@ -569,7 +569,7 @@ body::after {
   color: #8c3f2b;
 }
 
-.agent-work-controls {
+.agent-work-foot {
   color: var(--dim);
   border-top-color: var(--rule);
 }

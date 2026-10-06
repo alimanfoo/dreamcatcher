@@ -621,7 +621,7 @@ body::after {
   color: var(--amber);
 }
 
-.agent-work-controls {
+.agent-work-foot {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
@@ -631,7 +631,7 @@ body::after {
   border-top: var(--line) solid var(--rule);
 }
 
-.agent-work-controls:empty {
+.agent-work-foot:empty {
   display: none;
 }
 

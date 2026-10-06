@@ -1,4 +1,4 @@
-{% from "partials/agent-work-control.html" import agent_work_control %}<div id="agent-work-controls" class="agent-work-controls"{% if is_tail|default(false) %} hx-swap-oob="morph"{% endif %}>
+{% from "partials/agent-work-control.html" import agent_work_control %}<div id="agent-work-foot" class="agent-work-foot"{% if is_tail|default(false) %} hx-swap-oob="morph"{% endif %}>
 {%- for control in view.live.controls if control.action != "retry" %}
         {{ agent_work_control(control) }}
 {%- endfor %}
