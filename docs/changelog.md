@@ -24,6 +24,14 @@ Released changes stay under their release; development changes stay under
 **Unreleased**, with the same headings, until they are tagged. From v5.0.0 on,
 each entry links the pull request that made the change.
 
+## Unreleased
+
+### Changed
+
+- The complete example in the configuration reference now routes conversations
+  to `dream:scout` and assignments to `dream:smith` and `dream:less`.
+  ([#437](https://github.com/alimanfoo/dreamcatcher/pull/437))
+
 ## [v5.1.0](https://github.com/alimanfoo/dreamcatcher/releases/tag/v5.1.0) — 2026-10-06
 
 ### Added
