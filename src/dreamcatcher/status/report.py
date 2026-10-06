@@ -3,6 +3,7 @@
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
+from typing import cast
 
 from dreamcatcher.agent_assignments import (
     Assignment,
@@ -30,11 +31,13 @@ from dreamcatcher.scheduler.models import (
 )
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.status.assignments import (
+    ASSIGNMENT_STATUS_VALUES_IN_ATTENTION_ORDER,
     AssignmentStatus,
     AssignmentStatusReader,
     AssignmentStatusValue,
 )
 from dreamcatcher.status.conversations import (
+    CONVERSATION_STATUS_VALUES_IN_ATTENTION_ORDER,
     ConversationStatus,
     ConversationStatusReader,
     ConversationStatusValue,
@@ -93,6 +96,25 @@ class DreamcatcherStatusReport:
     issue_observations: list[IssueObservation]
     assignment_statuses: list[AssignmentStatus]
     conversation_statuses: list[ConversationStatus]
+
+    @property
+    def active_assignment_statuses(self) -> list[AssignmentStatus]:
+        """The assignments that have not ended, in attention order."""
+        return sorted(
+            (status for status in self.assignment_statuses if not status.has_ended),
+            key=lambda status: ASSIGNMENT_STATUS_VALUES_IN_ATTENTION_ORDER.index(
+                status.value
+            ),
+        )
+
+    @property
+    def ended_assignment_statuses(self) -> list[AssignmentStatus]:
+        """The assignments that have ended, most recently ended first."""
+        return sorted(
+            (status for status in self.assignment_statuses if status.has_ended),
+            key=lambda status: cast("datetime", status.assignment.ended_at),
+            reverse=True,
+        )
 
 
 def read_status_report(
@@ -159,17 +181,23 @@ def _list_reported_conversation_statuses(
     is_daemon_running: bool,
     scheduler_record: SchedulerRecord | None,
 ) -> list[ConversationStatus]:
-    return [
-        status
-        for status in ConversationStatusReader(
-            state=state,
-            at=at,
-            is_daemon_running=is_daemon_running,
-            scheduler_record=scheduler_record,
-            conversations=read_conversations(state=state),
-        ).list_statuses()
-        if status.is_listed
-    ]
+    """Return the listed conversations in attention order."""
+    return sorted(
+        (
+            status
+            for status in ConversationStatusReader(
+                state=state,
+                at=at,
+                is_daemon_running=is_daemon_running,
+                scheduler_record=scheduler_record,
+                conversations=read_conversations(state=state),
+            ).list_statuses()
+            if status.is_listed
+        ),
+        key=lambda status: CONVERSATION_STATUS_VALUES_IN_ATTENTION_ORDER.index(
+            status.value
+        ),
+    )
 
 
 def _refresh_issue_observations(
