@@ -1,5 +1,6 @@
 """Persistent scheduler records and shared scheduling facts."""
 
+from collections.abc import Container
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from enum import StrEnum
@@ -7,7 +8,6 @@ from typing import Annotated, Protocol, Self, overload
 
 from pydantic import AfterValidator, AwareDatetime, Field, model_validator
 
-from dreamcatcher.agent_assignments import Assignment
 from dreamcatcher.agent_rounds import AssignmentRoundPurpose
 from dreamcatcher.documents import DreamcatcherDocument
 
@@ -169,14 +169,10 @@ class SchedulerRecord(DreamcatcherDocument):
 
 
 def observe_claimed_here(
-    *, issue: int, open_assignments: dict[int, Assignment]
+    *, issue: int, open_assignment_issues: Container[int]
 ) -> ObservedFact:
-    """Observe whether this instance has an open assignment for the issue.
-
-    The open assignments are keyed by issue, as `find_open_assignments_by_issue`
-    returns them.
-    """
-    if issue in open_assignments:
+    """Observe whether this instance has an open assignment for the issue."""
+    if issue in open_assignment_issues:
         return ObservedFact(
             value=Truth.TRUE,
             evidence="this checkout has an open assignment for it",

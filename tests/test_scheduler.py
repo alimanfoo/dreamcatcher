@@ -1401,7 +1401,7 @@ def test_a_cooldown_refuses_invalid_datetimes(started, ends, message):
     ("ending", "is_daemon_running", "is_awaited"),
     [
         pytest.param(None, True, False, id="running"),
-        pytest.param(None, False, True, id="left-by-a-gone-daemon"),
+        pytest.param(None, False, True, id="interrupted-by-daemon-shutdown"),
         pytest.param(InterruptedAgentRoundEnding(), True, True, id="interrupted"),
         pytest.param(
             ErroredAgentRoundEnding(at=PINNED, status=2), True, True, id="errored"

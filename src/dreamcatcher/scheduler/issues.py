@@ -95,7 +95,9 @@ def _observe_issue(
         details=listed.details,
         is_open=listed.is_open,
         is_assigned_to_user=listed.is_assigned_to_user,
-        claimed_here=observe_claimed_here(issue=issue, open_assignments=assignments),
+        claimed_here=observe_claimed_here(
+            issue=issue, open_assignment_issues=assignments.keys()
+        ),
         claimed_elsewhere=_observe_external_claim(
             scheduler=scheduler,
             assignments=assignments,

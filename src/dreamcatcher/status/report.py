@@ -179,12 +179,15 @@ def _refresh_issue_observations(
 ) -> list[IssueObservation]:
     if scheduler_record is None:
         return []
-    open_assignments = find_open_assignments_by_issue(assignments=assignments)
+    open_assignment_issues = find_open_assignments_by_issue(
+        assignments=assignments
+    ).keys()
     return [
         observation.model_copy(
             update={
                 "claimed_here": observe_claimed_here(
-                    issue=observation.issue, open_assignments=open_assignments
+                    issue=observation.issue,
+                    open_assignment_issues=open_assignment_issues,
                 ),
                 "observed_at": observation.observed_at or scheduler_record.at,
             }
