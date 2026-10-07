@@ -108,7 +108,7 @@ class DreamcatcherDaemon:
         # A label carrying one dispatch recipe runs on that harness whatever the
         # preference, so every harness a route can settle a label on must be there.
         locate_harnesses(harnesses={self.harness, *self.config.routed_harnesses})
-        with hold_daemon_lock(path=self.state.lock):
+        with hold_daemon_lock(path=self.state.lock) as daemon_lock:
             self.state.bootstrap()
             write_json(
                 document=DaemonRunRecord(
@@ -155,6 +155,7 @@ class DreamcatcherDaemon:
                     while True:
                         self.run_scheduler_cycle(scheduler=scheduler, at=at)
                         self.wait(self.interval)
+                        daemon_lock.ensure_held()
                         at = self.clock()
             finally:
                 # Rounds die with the daemon by design, so this happens however

@@ -471,15 +471,16 @@ conversations and rounds name the files within their own directories. A
 state-format constant selects the versioned root, currently `.dreamcatcher/v5/`,
 so one format never reads another format's files. The shared
 `.dreamcatcher/daemon.lock` stays outside that root, so daemons using different
-formats from v5 on cannot run against one checkout together. The daemon holds an
-operating-system lock on that empty file for as long as it runs, and a reader
-asks whether the lock is held. The kernel releases the lock when the daemon's
-process ends, so neither a reused PID nor a clock change can make a dead daemon
-look live or a live one look dead. A v4 daemon takes no such lock. It writes its
-PID to `.dreamcatcher/daemon.pid` and treats that file as a mutex, so it does
-not see this lock. The module should remain deliberately small. It must not
-contain collections of issues or assignments selected for work, scheduling
-decisions, or status projections.
+formats from v5 on use the same lock. The daemon acquires an operating-system
+lock on that empty file before it starts work. After every wait, the daemon
+verifies that the path still names the file that it acquired and stops before
+another tick when it does not. A reader asks whether the lock is held. The
+kernel releases the lock when the daemon's process ends, so neither a reused PID
+nor a clock change can make a dead daemon look live. A v4 daemon takes no such
+lock. It writes its PID to `.dreamcatcher/daemon.pid` and treats that file as a
+mutex, so it does not see this lock. The module should remain deliberately
+small. It must not contain collections of issues or assignments selected for
+work, scheduling decisions, or status projections.
 
 The on-disk layout follows ownership:
 

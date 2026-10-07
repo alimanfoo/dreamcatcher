@@ -1,7 +1,9 @@
 import subprocess
 import sys
 import time
+from pathlib import Path
 from threading import Event, Thread
+from unittest.mock import Mock
 
 import pytest
 from filelock import BaseFileLock
@@ -27,10 +29,73 @@ _RELEASE_DEADLINE_SECONDS = 5
 def test_the_lock_is_held_until_the_daemon_releases_it(tmp_path):
     lock = tmp_path / "daemon.lock"
 
-    with hold_daemon_lock(path=lock):
+    with hold_daemon_lock(path=lock) as held_lock:
+        held_lock.ensure_held()
         assert is_daemon_lock_held(path=lock)
 
     assert not is_daemon_lock_held(path=lock)
+
+
+def test_a_lock_whose_path_is_replaced_reports_that_it_was_lost(tmp_path, monkeypatch):
+    lock = tmp_path / "daemon.lock"
+
+    with hold_daemon_lock(path=lock) as held_lock:
+        if sys.platform == "win32":
+            # Windows prevents removing an open lock file, so stand another
+            # file in for the replacement that POSIX permits.
+            replacement = tmp_path / "replacement.lock"
+            replacement.touch()
+            stat = Path.stat
+
+            def stat_replacement(path, /, *, follow_symlinks=True):
+                """Stand in for Path.stat, which passes its path by position."""
+                target = replacement if path == lock else path
+                return stat(target, follow_symlinks=follow_symlinks)
+
+            monkeypatch.setattr(Path, "stat", stat_replacement)
+        else:
+            lock.unlink()
+            lock.touch()
+
+        with pytest.raises(ReportableError, match=r"daemon lock .* was lost"):
+            held_lock.ensure_held()
+
+
+def test_a_lock_whose_path_disappears_reports_that_it_was_lost(tmp_path, monkeypatch):
+    lock = tmp_path / "daemon.lock"
+
+    with hold_daemon_lock(path=lock) as held_lock:
+        if sys.platform == "win32":
+            # Windows prevents removing an open lock file, so make its stat
+            # report the missing path that POSIX permits.
+            stat = Path.stat
+
+            def stat_missing(path, /, *, follow_symlinks=True):
+                """Stand in for Path.stat, which passes its path by position."""
+                if path == lock:
+                    raise FileNotFoundError(lock)
+                return stat(path, follow_symlinks=follow_symlinks)
+
+            monkeypatch.setattr(Path, "stat", stat_missing)
+        else:
+            lock.unlink()
+
+        with pytest.raises(ReportableError, match=r"daemon lock .* was lost"):
+            held_lock.ensure_held()
+
+
+def test_a_lock_that_cannot_be_checked_says_so(tmp_path, monkeypatch):
+    lock = tmp_path / "daemon.lock"
+
+    with hold_daemon_lock(path=lock) as held_lock:
+        monkeypatch.setattr(
+            Path,
+            "stat",
+            Mock(side_effect=PermissionError("the lock cannot be read")),
+        )
+
+        with pytest.raises(ReportableError, match=r"cannot check .* cannot be read"):
+            held_lock.ensure_held()
 
 
 def test_a_missing_lock_is_not_held_and_the_probe_leaves_it_missing(tmp_path):
@@ -106,6 +171,22 @@ def test_a_lock_that_cannot_be_taken_says_so(tmp_path):
     with (
         pytest.raises(ReportableError, match=r"cannot lock .*daemon\.lock"),
         hold_daemon_lock(path=lock),
+    ):
+        pass
+
+
+def test_a_grouped_lock_failure_says_so(tmp_path, monkeypatch):
+    def refuse_acquisition(self, /):
+        raise ExceptionGroup(
+            "acquisition and rollback failed",
+            [OSError("cannot inspect the file"), OSError("cannot release the lock")],
+        )
+
+    monkeypatch.setattr(BaseFileLock, "acquire", refuse_acquisition)
+
+    with (
+        pytest.raises(ReportableError, match=r"cannot lock .*daemon\.lock"),
+        hold_daemon_lock(path=tmp_path / "daemon.lock"),
     ):
         pass
 

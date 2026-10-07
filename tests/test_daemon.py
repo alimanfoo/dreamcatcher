@@ -4,7 +4,7 @@ import sys
 from collections.abc import Sequence
 from datetime import timedelta
 from io import BytesIO, TextIOWrapper
-from unittest.mock import Mock
+from unittest.mock import Mock, call
 
 import psutil
 import pytest
@@ -39,7 +39,7 @@ from dreamcatcher.daemon import DreamcatcherDaemon
 from dreamcatcher.daemon_runs import DaemonRunRecord
 from dreamcatcher.documents import read_json, write_json, write_text
 from dreamcatcher.errors import ReportableError
-from dreamcatcher.lock import hold_daemon_lock, is_daemon_lock_held
+from dreamcatcher.lock import _HeldDaemonLock, hold_daemon_lock, is_daemon_lock_held
 from dreamcatcher.scheduler import AssignmentScheduler, ConversationScheduler, Scheduler
 from dreamcatcher.scheduler.models import (
     AgentWorkObservation,
@@ -623,6 +623,35 @@ def test_the_daemon_ends_the_rounds_it_holds_as_it_goes_down(ready_repo, harness
 
     daemon.run()
 
+    agent_round = daemon.rounds[CREATED_ASSIGNMENT_ID]
+    assert not agent_round.is_alive
+    assert gone(pid=agent_round.harness_process.pid)
+
+
+def test_a_daemon_that_loses_its_lock_runs_no_other_tick_and_stops_rounds(
+    ready_repo, harnesses, monkeypatch
+):
+    harnesses["claude"].streams(
+        lines=[Line(text="still working\n")], delay=STILL_RUNNING
+    )
+    daemon, _, _ = idling(root=ready_repo)
+    interval = Mock()
+    daemon.wait = interval.wait
+    run_scheduler_cycle = Mock(wraps=daemon.run_scheduler_cycle)
+    daemon.run_scheduler_cycle = run_scheduler_cycle
+
+    interval.ensure_held.side_effect = ReportableError("the daemon lock was lost")
+    monkeypatch.setattr(
+        _HeldDaemonLock,
+        "ensure_held",
+        interval.ensure_held,
+    )
+
+    with pytest.raises(ReportableError, match="daemon lock was lost"):
+        daemon.run()
+
+    assert run_scheduler_cycle.call_count == 1
+    assert interval.mock_calls == [call.wait(300), call.ensure_held()]
     agent_round = daemon.rounds[CREATED_ASSIGNMENT_ID]
     assert not agent_round.is_alive
     assert gone(pid=agent_round.harness_process.pid)
