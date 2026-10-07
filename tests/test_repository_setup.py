@@ -18,6 +18,14 @@ from dreamcatcher.repository_setup import set_up_repository
 LABELS = f"api repos/{REPOSITORY}/labels?per_page=100"
 PERMISSION = f"repo view {REPOSITORY} --json viewerPermission"
 
+CONVERSATION_CLAUDE = """[[conversation]]
+label = "dream:conversation"
+[conversation.claude]
+prompt = "/dream:conversation GH{issue}"
+model = "opus[1m]"
+effort = "xhigh"
+"""
+
 
 @pytest.fixture
 def checkout(cloned):
@@ -197,6 +205,37 @@ def test_a_configuration_routing_codex_alone_runs_on_codex(
 
     assert harnesses["codex"].calls
     assert capsys.readouterr().out.endswith("dreamcatcher run --harness codex\n")
+
+
+def test_a_conversation_only_configuration_explains_how_to_start_one(
+    checkout, gh, installed, capsys
+):
+    installed(programs=["claude"])
+    (checkout / DREAMCATCHER_CONFIG_NAME).write_text(
+        CONVERSATION_CLAUDE, encoding="utf-8"
+    )
+
+    set_up_repository(root=checkout)
+
+    assert capsys.readouterr().out.endswith(
+        f"  Assign an issue to {POSTED_BY}, label it dream:conversation, and comment "
+        "with your question.\n"
+        "  dreamcatcher run --harness claude\n"
+    )
+
+
+def test_a_configuration_with_no_routes_explains_what_to_add(
+    checkout, gh, installed, capsys
+):
+    harnesses = installed(programs=["claude"])
+    (checkout / DREAMCATCHER_CONFIG_NAME).write_text("", encoding="utf-8")
+
+    set_up_repository(root=checkout)
+
+    assert not harnesses["claude"].calls
+    assert capsys.readouterr().out.endswith(
+        f"  Add an assignment or conversation route to {DREAMCATCHER_CONFIG_NAME}.\n"
+    )
 
 
 def test_a_machine_with_no_harness_is_refused(checkout, gh, installed):
