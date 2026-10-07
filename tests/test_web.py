@@ -808,6 +808,20 @@ def test_assignment_page_shares_the_home_page_top_bar(tmp_path):
     assert assignment_headers == home_headers
 
 
+def test_the_daemon_version_links_to_the_documentation(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    fabricate_everything(state=state)
+
+    page = render_home(state=state)
+
+    assert (
+        '<a class="docs-link" href="https://alimanfoo.github.io/dreamcatcher/" '
+        'target="_blank" rel="noopener noreferrer">dreamcatcher v3.0.0.beta1</a>'
+        in page
+    )
+    assert ">Docs</a>" not in page
+
+
 def test_every_complete_page_uses_the_dreamcatcher_mark_as_its_favicon(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
@@ -872,17 +886,27 @@ def test_github_links_open_in_a_new_tab(tmp_path):
 
     assert links
     assert all('target="_blank" rel="noopener noreferrer"' in link for link in links)
+
+
+def test_repository_links_are_separated(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    fabricate_everything(state=state)
+
+    page = render_home(state=state)
+
     assert (
-        '<a class="repository-link" '
+        '<span class="repository-links"><a class="repository-link" '
         'href="https://github.com/alimanfoo/dreamcatcher" '
         'target="_blank" rel="noopener noreferrer">alimanfoo/dreamcatcher</a>'
+        '<span aria-hidden="true">·</span>'
         '<a class="repository-link" '
         'href="https://github.com/alimanfoo/dreamcatcher/issues" '
         'target="_blank" rel="noopener noreferrer">issues</a>'
+        '<span aria-hidden="true">·</span>'
         '<a class="repository-link" '
         'href="https://github.com/alimanfoo/dreamcatcher/pulls" '
-        'target="_blank" rel="noopener noreferrer">pulls</a>'
-    ) in pages
+        'target="_blank" rel="noopener noreferrer">pulls</a></span>'
+    ) in page
 
 
 def test_an_unknown_assignment_renders_a_404_page(tmp_path):
