@@ -20,6 +20,7 @@
             {% for issue in view.issues %}
               {% include "partials/issue-row.html" %}
             {% endfor %}
+            {% if view.assignment_empty_message and not view.active_assignments and not view.failed_setups and not view.issues %}<p class="empty">{{ view.assignment_empty_message }}</p>{% endif %}
             {% if view.ended_assignments %}
               <details class="ended-assignments">
                 <summary>+ {{ view.ended_assignments|length }} ended</summary>
@@ -30,7 +31,6 @@
                 </div>
               </details>
             {% endif %}
-            {% if not view.active_assignments and not view.ended_assignments and not view.failed_setups and not view.issues %}<p class="empty">{{ view.assignment_empty_message }}</p>{% endif %}
           </div>
         </section>{% endif %}
         {% if view.conversations or view.conversation_empty_message %}

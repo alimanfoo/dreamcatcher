@@ -753,6 +753,7 @@ def test_ended_assignments_are_ordered_by_when_they_ended(tmp_path):
 
     page = render_home(state=state)
 
+    assert "Label an issue with dream:smith to create an assignment." in page
     assert "+ 3 ended</summary>" in page
     assert (
         page.index("assignment-GH20-")
