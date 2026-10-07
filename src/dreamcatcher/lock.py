@@ -1,11 +1,15 @@
 """Enforce one running daemon per checkout with an operating-system file lock.
 
 The kernel releases the lock when the daemon's process ends, however it ends, so
-a held lock always means a live daemon.
+a held lock always means a live daemon. A daemon also checks that its lock path
+still names the file that it acquired, because removing that path lets another
+process lock a replacement file.
 """
 
-from collections.abc import Iterator
+import os
+from collections.abc import Callable, Iterator
 from contextlib import contextmanager, suppress
+from dataclasses import dataclass
 from pathlib import Path
 
 from filelock import BaseFileLock, FileLock, Timeout
@@ -24,16 +28,35 @@ _PROBE_TIMEOUT_SECONDS = 0.02
 _POLL_INTERVAL_SECONDS = 0.005
 
 
+@dataclass(frozen=True)
+class HeldDaemonLock:
+    """A daemon lock and the identity of the file that it holds."""
+
+    path: Path
+    _acquired_file: os.stat_result
+
+    def ensure_held(self) -> None:
+        """Raise ReportableError unless the path still names the acquired file."""
+        try:
+            is_same_file = os.path.samestat(self._acquired_file, self.path.stat())
+        except OSError:
+            is_same_file = False
+        if not is_same_file:
+            raise ReportableError(f"the daemon lock at {self.path} was lost.")
+
+
 @contextmanager
-def hold_daemon_lock(*, path: Path) -> Iterator[None]:
+def hold_daemon_lock(*, path: Path) -> Iterator[HeldDaemonLock]:
     """Hold the daemon lock and release it when the caller exits.
 
     Raise ReportableError when another daemon holds it, or when the filesystem
     cannot lock the file.
     """
+    acquired_file: list[os.stat_result] = []
     lock = _create_daemon_lock(
         path=path,
         timeout=_DAEMON_ACQUIRE_TIMEOUT_SECONDS,
+        on_acquired=lambda descriptor: acquired_file.append(os.fstat(descriptor)),
     )
     try:
         lock.acquire()
@@ -44,7 +67,7 @@ def hold_daemon_lock(*, path: Path) -> Iterator[None]:
     except OSError as error:
         raise ReportableError(f"cannot lock {path}: {error}") from error
     try:
-        yield
+        yield HeldDaemonLock(path=path, _acquired_file=acquired_file[0])
     finally:
         # The kernel releases the lock when the process ends, so a release that
         # fails costs nothing. Letting the failure out would replace whatever
@@ -74,7 +97,12 @@ def is_daemon_lock_held(*, path: Path) -> bool:
         raise ReportableError(f"cannot probe the lock {path}: {error}") from error
 
 
-def _create_daemon_lock(*, path: Path, timeout: float) -> BaseFileLock:
+def _create_daemon_lock(
+    *,
+    path: Path,
+    timeout: float,
+    on_acquired: Callable[[int], None] | None = None,
+) -> BaseFileLock:
     # A soft lock outlives a daemon that dies, which is the false answer that
     # this lock exists to prevent, so a filesystem that cannot lock files fails.
     return FileLock(
@@ -82,4 +110,5 @@ def _create_daemon_lock(*, path: Path, timeout: float) -> BaseFileLock:
         timeout=timeout,
         poll_interval=_POLL_INTERVAL_SECONDS,
         fallback_to_soft=False,
+        on_acquired=on_acquired,
     )
