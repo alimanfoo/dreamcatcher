@@ -173,7 +173,7 @@ def test_an_empty_home_hides_an_unconfigured_assignment_section(tmp_path):
     page = render_home(state=state)
 
     assert 'id="assignments-heading"' not in page
-    assert '<h1 id="conversations-heading">Conversations</h1>' in page
+    assert '<h1 id="conversations-heading">Issue conversations</h1>' in page
     assert "Label an issue with dream:scout to start a conversation." in page
 
 

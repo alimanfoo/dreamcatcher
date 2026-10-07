@@ -85,6 +85,9 @@ each entry links the pull request that made the change.
   4242". An active global cooldown reads as a countdown, such as "ends in 4m",
   among the instance facts of both, and the web home page shows it as a warning
   in place of its banner. The terminal no longer shows "global cooldown none".
+  The web heads its conversations panel **Issue conversations**, and an empty
+  terminal status shows the same configured-label guidance as the web in place
+  of "no issues or agent assignments recorded yet".
   ([#488](https://github.com/alimanfoo/dreamcatcher/pull/488))
 
 ### Fixed

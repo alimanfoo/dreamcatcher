@@ -6,6 +6,7 @@ from typing import Literal, Protocol
 from dreamcatcher.agent_rounds import AgentRoundPaths, AgentRoundRecord
 from dreamcatcher.status import (
     AgentRoundRevision,
+    AgentWorkStatusSection,
     DreamcatcherDaemonStatus,
     StatusFact,
 )
@@ -181,8 +182,8 @@ class WebHomeView:
     github_repository_url: str | None
     daemon: DreamcatcherDaemonStatus
     instance_facts: tuple[StatusFact, ...]
-    assignment_empty_message: str | None
-    conversation_empty_message: str | None
+    assignment_section: AgentWorkStatusSection | None
+    conversation_section: AgentWorkStatusSection | None
     conversations: tuple[WebConversationCard, ...]
     active_assignments: tuple[WebAssignmentCard, ...]
     ended_assignments: tuple[WebAssignmentCard, ...]

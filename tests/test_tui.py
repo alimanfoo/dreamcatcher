@@ -13,7 +13,7 @@ from io import StringIO
 
 import pytest
 from clocks import DISPLAY_TIME_ZONE, PINNED
-from conftest import FIXTURES, assert_matches_view_golden
+from conftest import FIXTURES, assert_matches_view_golden, configure
 from records import write_feed, write_round
 from rich.console import Console
 from rich.control import Control
@@ -42,6 +42,7 @@ from dreamcatcher.agent_assignments import (
 from dreamcatcher.agent_rounds import (
     AssignmentRoundPurpose,
 )
+from dreamcatcher.config import DREAMCATCHER_CONFIG_NAME
 from dreamcatcher.documents import append_text, write_text
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import FeedLine
@@ -224,6 +225,7 @@ def test_ended_assignments_are_summarized(tmp_path):
 
 
 def test_only_ended_assignments_are_summarized(tmp_path):
+    configure(root=tmp_path)
     state = StateDirectory(root=tmp_path)
     completed_round = ended(minute=1, purpose=AssignmentRoundPurpose.WRAP_UP)
     written(state=state, issue=12, records=[completed_round])
@@ -237,6 +239,27 @@ def test_only_ended_assignments_are_summarized(tmp_path):
     assert "2 ended assignments" in rendered
     assert "GH12-20260819-184158" not in rendered
     assert "GH13-20260819-184158" not in rendered
+
+
+def test_status_shows_only_the_configured_empty_agent_work(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    fabricate_nothing(state=state)
+    write_text(
+        text="""[[conversation]]
+label = "dream:scout"
+[conversation.claude]
+prompt = "/dream:scout GH{issue}"
+model = "opus"
+effort = "xhigh"
+""",
+        path=state.root / DREAMCATCHER_CONFIG_NAME,
+    )
+
+    rendered = render_status_view(state=state)
+
+    assert "assignments" not in rendered
+    assert "issue conversations" in rendered
+    assert "Label an issue with dream:scout to start a conversation." in rendered
 
 
 def test_status_nobody_is_watching_is_drawn_once_and_returns(tmp_path):
@@ -283,7 +306,7 @@ def test_status_a_reader_watches_keeps_up_with_what_the_daemon_writes(tmp_path):
     # Status is never over, so it drew again when the assignment started
     # while the reader was watching, and ended only when they interrupted it.
     assert looks == [_VIEW_REFRESH_INTERVAL, _VIEW_REFRESH_INTERVAL]
-    assert "no issues or agent assignments recorded yet" in status
+    assert "Label an issue with dream:smith to create an assignment." in status
     assert f"GH13-{ASSIGNMENT_TIMESTAMP}" in status
 
 

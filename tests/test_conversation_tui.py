@@ -5,6 +5,7 @@ from io import StringIO
 
 import pytest
 from clocks import PINNED
+from conftest import configure
 from observations import observed_conversation
 from records import (
     hold_daemon_lock_for_test,
@@ -47,6 +48,7 @@ def conversation_state(
     harness_session_identifier: str | None = "conversation-session",
 ) -> StateDirectory:
     """Return state containing one finished conversation."""
+    configure(root=root)
     state = StateDirectory(root=root)
     directory = write_conversation(
         state=state,
@@ -383,6 +385,7 @@ def test_a_missing_conversation_round_says_how_many_exist(tmp_path):
 
 def unsaved_conversation_state(*, root) -> StateDirectory:
     """Return state whose latest tick observed GH9 with a comment to answer."""
+    configure(root=root)
     state = StateDirectory(root=root)
     write_tick(
         state=state,

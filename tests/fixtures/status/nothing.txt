@@ -5,4 +5,5 @@ instance
   preferred harness  claude        
   agent capacity     0 of 1 working
 
-no issues or agent assignments recorded yet
+assignments
+  Label an issue with dream:smith to create an assignment.

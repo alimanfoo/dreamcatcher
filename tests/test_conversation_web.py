@@ -64,7 +64,7 @@ def test_home_lists_a_conversation_and_links_to_its_page(tmp_path):
         'id="conversations-heading"'
     )
     assert 'class="assignment-card' in page
-    assert '<h1 id="conversations-heading">Conversations</h1>' in page
+    assert '<h1 id="conversations-heading">Issue conversations</h1>' in page
     assert 'id="conversation-GH8"' in page
     conversation_link = (
         'class="assignment-open" href="/conversations/8" target="_blank" '

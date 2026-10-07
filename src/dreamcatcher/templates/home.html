@@ -5,8 +5,8 @@
     <div class="home-content">
       {% include "partials/instance.html" %}
       <div class="dashboard">
-        {% if view.active_assignments or view.ended_assignments or view.failed_setups or view.issues or view.assignment_empty_message %}<section class="panel" aria-labelledby="assignments-heading">
-          <h1 id="assignments-heading">Assignments</h1>
+        {% if view.assignment_section %}<section class="panel" aria-labelledby="assignments-heading">
+          <h1 id="assignments-heading">{{ view.assignment_section.heading|capitalize }}</h1>
           <div class="panel-body">
             {% for assignment in view.active_assignments %}
               {% include "partials/assignment-card.html" %}
@@ -20,7 +20,7 @@
             {% for issue in view.issues %}
               {% include "partials/issue-row.html" %}
             {% endfor %}
-            {% if view.assignment_empty_message and not view.active_assignments and not view.failed_setups and not view.issues %}<p class="empty">{{ view.assignment_empty_message }}</p>{% endif %}
+            {% if view.assignment_section.empty_message %}<p class="empty">{{ view.assignment_section.empty_message }}</p>{% endif %}
             {% if view.ended_assignments %}
               <details class="ended-assignments">
                 <summary>+ {{ view.ended_assignments|length }} ended</summary>
@@ -33,14 +33,14 @@
             {% endif %}
           </div>
         </section>{% endif %}
-        {% if view.conversations or view.conversation_empty_message %}
+        {% if view.conversation_section %}
           <section class="panel" aria-labelledby="conversations-heading">
-            <h1 id="conversations-heading">Conversations</h1>
+            <h1 id="conversations-heading">{{ view.conversation_section.heading|capitalize }}</h1>
             <div class="panel-body">
               {% for conversation in view.conversations %}
                 {% include "partials/conversation-card.html" %}
               {% endfor %}
-              {% if not view.conversations %}<p class="empty">{{ view.conversation_empty_message }}</p>{% endif %}
+              {% if view.conversation_section.empty_message %}<p class="empty">{{ view.conversation_section.empty_message }}</p>{% endif %}
             </div>
           </section>
         {% endif %}

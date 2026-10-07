@@ -13,7 +13,7 @@ from dreamcatcher.agent_assignments import (
     read_assignments_for_issue,
 )
 from dreamcatcher.clock import read_current_time
-from dreamcatcher.config import AgentHarness
+from dreamcatcher.config import AgentHarness, DreamcatcherConfig
 from dreamcatcher.daemon_runs import DaemonRunRecord
 from dreamcatcher.documents import read_json_if_exists, read_text
 from dreamcatcher.issue_conversations import (
@@ -52,6 +52,14 @@ class StatusFact:
     label: str
     value: str
     is_warning: bool = False
+
+
+@dataclass(frozen=True, kw_only=True)
+class AgentWorkStatusSection:
+    """Describe one kind of agent work as a status view shows it."""
+
+    heading: str
+    empty_message: str | None
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -208,6 +216,71 @@ class DreamcatcherStatusReport:
             key=lambda status: cast("datetime", status.assignment.ended_at),
             reverse=True,
         )
+
+    def describe_assignment_section(
+        self, *, config: DreamcatcherConfig
+    ) -> AgentWorkStatusSection | None:
+        """Describe the assignments section when it has work or configured routes."""
+        labels = tuple(
+            sorted((route.label for route in config.assignment), key=str.casefold)
+        )
+        has_current_work = bool(
+            self.active_assignment_statuses
+            or self.failed_assignment_setups
+            or self.issue_observations
+        )
+        return _describe_agent_work_section(
+            heading="assignments",
+            labels=labels,
+            has_any_work=bool(
+                self.assignment_statuses
+                or self.failed_assignment_setups
+                or self.issue_observations
+            ),
+            has_current_work=has_current_work,
+            empty_action="create an assignment",
+        )
+
+    def describe_conversation_section(
+        self, *, config: DreamcatcherConfig
+    ) -> AgentWorkStatusSection | None:
+        """Describe the issue-conversations section when it has work or routes."""
+        labels = tuple(
+            sorted((route.label for route in config.conversation), key=str.casefold)
+        )
+        has_work = bool(self.conversation_statuses)
+        return _describe_agent_work_section(
+            heading="issue conversations",
+            labels=labels,
+            has_any_work=has_work,
+            has_current_work=has_work,
+            empty_action="start a conversation",
+        )
+
+
+def _describe_agent_work_section(
+    *,
+    heading: str,
+    labels: tuple[str, ...],
+    has_any_work: bool,
+    has_current_work: bool,
+    empty_action: str,
+) -> AgentWorkStatusSection | None:
+    if not (labels or has_any_work):
+        return None
+    empty_message = None
+    if labels and not has_current_work:
+        empty_message = (
+            f"Label an issue with {_describe_route_labels(labels=labels)} "
+            f"to {empty_action}."
+        )
+    return AgentWorkStatusSection(heading=heading, empty_message=empty_message)
+
+
+def _describe_route_labels(*, labels: tuple[str, ...]) -> str:
+    if len(labels) == 1:
+        return labels[0]
+    return f"{', '.join(labels[:-1])} or {labels[-1]}"
 
 
 def read_status_report(

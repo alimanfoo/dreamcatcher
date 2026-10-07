@@ -28,7 +28,7 @@ from dreamcatcher.agent_rounds import (
     StoppedAgentRoundEnding,
     _compose_agent_round_ending,
 )
-from dreamcatcher.config import AgentHarness
+from dreamcatcher.config import AgentHarness, read_dreamcatcher_config
 from dreamcatcher.daemon import DEFAULT_INTERVAL_SECONDS
 from dreamcatcher.daemon_runs import DaemonRunRecord
 from dreamcatcher.documents import write_text
@@ -42,6 +42,7 @@ from dreamcatcher.scheduler.models import (
 )
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.status import (
+    AgentWorkStatusSection,
     DreamcatcherDaemonStatus,
     StatusFact,
     read_assignment_status,
@@ -157,6 +158,21 @@ def test_an_empty_instance_reports_unknown_capacity_and_no_work(tmp_path):
     assert found.active_global_cooldown is None
     assert found.issue_observations == []
     assert found.assignment_statuses == []
+
+
+def test_an_empty_report_describes_only_its_configured_agent_work(tmp_path):
+    configure(root=tmp_path)
+    found = read_status_report(
+        state=StateDirectory(root=tmp_path),
+        clock=lambda: LOOKED_AT,
+    )
+    config = read_dreamcatcher_config(root=tmp_path)
+
+    assert found.describe_assignment_section(config=config) == AgentWorkStatusSection(
+        heading="assignments",
+        empty_message="Label an issue with dream:smith to create an assignment.",
+    )
+    assert found.describe_conversation_section(config=config) is None
 
 
 def test_the_instance_record_names_the_repository(state):

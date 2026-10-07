@@ -12,6 +12,7 @@ from dreamcatcher.status.conversations import (
     ConversationStatus,
 )
 from dreamcatcher.status.report import (
+    AgentWorkStatusSection,
     DreamcatcherDaemonStatus,
     DreamcatcherStatusReport,
     StatusFact,
@@ -29,6 +30,7 @@ __all__ = [
     "CONVERSATION_STATUS_VALUES_IN_ATTENTION_ORDER",
     "AgentRoundRevision",
     "AgentRoundStatus",
+    "AgentWorkStatusSection",
     "AssignmentStatus",
     "ConversationStatus",
     "DreamcatcherDaemonStatus",

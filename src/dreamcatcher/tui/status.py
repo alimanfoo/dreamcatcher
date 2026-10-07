@@ -9,8 +9,10 @@ from rich.console import Console, Group, RenderableType
 from rich.text import Text
 
 from dreamcatcher.clock import WaitForSeconds, read_current_time
+from dreamcatcher.config import DreamcatcherConfig, read_dreamcatcher_config
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.status import (
+    AgentWorkStatusSection,
     AssignmentStatus,
     ConversationStatus,
     DreamcatcherStatusReport,
@@ -56,20 +58,28 @@ def _read_status_snapshot(
 
     A daemon can start, a tick can run, or a round can begin after any refresh.
     """
+    report = read_status_report(state=state, clock=clock)
+    config = read_dreamcatcher_config(root=state.root)
     return ViewSnapshot(
-        renderable=_render_status(report=read_status_report(state=state, clock=clock)),
+        renderable=_render_status(report=report, config=config),
         should_stop_refreshing=False,
     )
 
 
-def _render_status(*, report: DreamcatcherStatusReport) -> RenderableType:
+def _render_status(
+    *, report: DreamcatcherStatusReport, config: DreamcatcherConfig
+) -> RenderableType:
+    assignment_section = report.describe_assignment_section(config=config)
+    conversation_section = report.describe_conversation_section(config=config)
     return combine_renderable_parts(
         parts=[
             Text(report.repository or "repository unknown", style="bold"),
             _render_instance_status(report=report),
-            _render_assignments(report=report),
-            _render_conversations(conversations=report.conversation_statuses),
-            _describe_empty_status_report(report=report),
+            _render_assignments(report=report, section=assignment_section),
+            _render_conversations(
+                conversations=report.conversation_statuses,
+                section=conversation_section,
+            ),
         ]
     )
 
@@ -82,25 +92,25 @@ def _render_instance_status(*, report: DreamcatcherStatusReport) -> RenderableTy
     return render_section(heading="instance", body=table)
 
 
-def _render_assignments(*, report: DreamcatcherStatusReport) -> RenderableType | None:
+def _render_assignments(
+    *, report: DreamcatcherStatusReport, section: AgentWorkStatusSection | None
+) -> RenderableType | None:
     """Render assignment work as one section, mirroring the web home view.
 
     Orders active assignments, failed assignment setups, issue observations,
     and the ended-assignment count in that sequence.
     """
-    if not (
-        report.assignment_statuses
-        or report.failed_assignment_setups
-        or report.issue_observations
-    ):
+    if section is None:
         return None
     rows = _render_assignment_rows(assignments=report.active_assignment_statuses)
     rows += _render_failed_setups(failed_setups=report.failed_assignment_setups)
     rows += _render_issue_observations(issues=report.issue_observations)
+    if section.empty_message is not None:
+        rows.append(Text(section.empty_message))
     ended = report.ended_assignment_statuses
     if ended:
         rows.append(Text(describe_count(number=len(ended), noun="ended assignment")))
-    return render_section(heading="assignments", body=Group(*rows))
+    return render_section(heading=section.heading, body=Group(*rows))
 
 
 def _render_failed_setups(
@@ -178,10 +188,14 @@ def _render_assignment_rows(
 
 
 def _render_conversations(
-    *, conversations: Sequence[ConversationStatus]
+    *,
+    conversations: Sequence[ConversationStatus],
+    section: AgentWorkStatusSection | None,
 ) -> RenderableType | None:
-    if not conversations:
+    if section is None:
         return None
+    if section.empty_message is not None:
+        return render_section(heading=section.heading, body=Text(section.empty_message))
     table = create_table(columns=3)
     for status in conversations:
         table.add_row(
@@ -189,18 +203,4 @@ def _render_conversations(
             Text(str(status.value), style=CONVERSATION_STATUS_STYLES[status.value]),
             Text(status.detail),
         )
-    return render_section(heading="issue conversations", body=table)
-
-
-def _describe_empty_status_report(
-    *, report: DreamcatcherStatusReport
-) -> RenderableType | None:
-    """Describe an instance that has no issue or assignment status yet."""
-    if (
-        report.failed_assignment_setups
-        or report.issue_observations
-        or report.assignment_statuses
-        or report.conversation_statuses
-    ):
-        return None
-    return Group(Text(), Text("no issues or agent assignments recorded yet"))
+    return render_section(heading=section.heading, body=table)

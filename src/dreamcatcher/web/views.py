@@ -65,12 +65,6 @@ def compose_home_view(
 ) -> WebHomeView:
     """Return the values shown on the home page."""
     daemon = report.daemon
-    assignment_labels = tuple(
-        sorted((route.label for route in config.assignment), key=str.casefold)
-    )
-    conversation_labels = tuple(
-        sorted((route.label for route in config.conversation), key=str.casefold)
-    )
     return WebHomeView(
         repository=report.repository or "repository unknown",
         github_repository_url=_compose_github_repository_url(
@@ -78,20 +72,8 @@ def compose_home_view(
         ),
         daemon=daemon,
         instance_facts=report.instance_facts,
-        assignment_empty_message=(
-            None
-            if not assignment_labels
-            else "Label an issue with "
-            f"{_describe_route_labels(labels=assignment_labels)} "
-            "to create an assignment."
-        ),
-        conversation_empty_message=(
-            None
-            if not conversation_labels
-            else "Label an issue with "
-            f"{_describe_route_labels(labels=conversation_labels)} "
-            "to start a conversation."
-        ),
+        assignment_section=report.describe_assignment_section(config=config),
+        conversation_section=report.describe_conversation_section(config=config),
         conversations=tuple(
             _compose_conversation_card(status=status)
             for status in report.conversation_statuses
@@ -112,12 +94,6 @@ def compose_home_view(
             _compose_issue_row(observation=issue) for issue in report.issue_observations
         ),
     )
-
-
-def _describe_route_labels(*, labels: tuple[str, ...]) -> str:
-    if len(labels) == 1:
-        return labels[0]
-    return f"{', '.join(labels[:-1])} or {labels[-1]}"
 
 
 def _compose_assignment_card(*, status: AssignmentStatus) -> WebAssignmentCard:
