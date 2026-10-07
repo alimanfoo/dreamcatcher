@@ -1509,14 +1509,13 @@ def test_an_active_cooldown_is_a_warning_fact(tmp_path):
     assert "<dt>scheduler failures</dt>" not in page
 
 
-def test_an_inactive_cooldown_is_shown_as_none(tmp_path):
+def test_an_inactive_cooldown_is_not_shown(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
 
     page = render_home(state=state)
 
-    assert "<dt>global cooldown</dt>" in page
-    assert "<dd>none</dd>" in page
+    assert "global cooldown" not in page
 
 
 def test_pull_request_state_remains_without_a_repository_record(tmp_path):

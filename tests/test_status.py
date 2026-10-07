@@ -157,7 +157,6 @@ def test_an_empty_instance_reports_unknown_capacity_and_no_work(tmp_path):
     assert found.daemon.max_agents is None
     assert found.running_agents == 0
     assert found.active_global_cooldown is None
-    assert StatusFact(label="global cooldown", value="none") in found.instance_facts
     assert found.issue_observations == []
     assert found.assignment_statuses == []
 

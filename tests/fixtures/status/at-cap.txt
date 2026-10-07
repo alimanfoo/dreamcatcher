@@ -5,7 +5,6 @@ instance
   preferred harness   claude                                                 
   next update in      0s                                                     
   agent capacity      1 of 1 working                                         
-  global cooldown     none                                                   
   scheduler failures  could not list issues for dream:less: could not connect
 
 assignments

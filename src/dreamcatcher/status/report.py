@@ -183,10 +183,10 @@ class DreamcatcherStatusReport:
             ),
             (
                 "global cooldown",
-                "none"
+                None
                 if cooldown is None
                 else f"ends in {describe_span(span=cooldown.ends - self.at)}",
-                cooldown is not None,
+                True,
             ),
             ("scheduler failures", self.scheduler_failure_summary, True),
         )
