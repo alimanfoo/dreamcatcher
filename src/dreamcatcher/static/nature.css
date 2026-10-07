@@ -148,7 +148,8 @@ body::after {
   margin-bottom: 32px;
 }
 
-.cooldown {
+.cooldown,
+.refresh-error {
   position: relative;
   isolation: isolate;
   padding: 16px 22px;
@@ -163,6 +164,7 @@ body::after {
 }
 
 .cooldown::before,
+.refresh-error::before,
 .assignment-card::before,
 .issue-row::before,
 .failed-setup-row::before,
@@ -177,7 +179,8 @@ body::after {
   filter: blur(14px);
 }
 
-.cooldown::before {
+.cooldown::before,
+.refresh-error::before {
   background: rgba(168, 98, 63, 0.12);
 }
 
