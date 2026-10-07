@@ -22,6 +22,7 @@ from status_fabrications import (
     LOOKED_AT,
     STATUS_REPORTS,
     ended,
+    fabricate_a_dead_daemon,
     fabricate_a_silent_round,
     fabricate_everything,
     fabricate_nothing,
@@ -825,10 +826,19 @@ def test_the_daemon_version_links_to_the_documentation(tmp_path):
 
     assert (
         '<a class="docs-link" href="https://alimanfoo.github.io/dreamcatcher/" '
-        'target="_blank" rel="noopener noreferrer">dreamcatcher v3.0.0.beta1</a>'
-        in page
+        'target="_blank" rel="noopener noreferrer">dreamcatcher '
+        "v3.0.0.beta1</a>" in page
     )
     assert ">Docs</a>" not in page
+
+
+def test_a_stopped_daemon_does_not_link_its_status_to_the_documentation(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    fabricate_a_dead_daemon(state=state)
+
+    page = render_home(state=state)
+
+    assert 'class="docs-link"' not in page
 
 
 def test_every_complete_page_uses_the_dreamcatcher_mark_as_its_favicon(tmp_path):
@@ -1478,7 +1488,7 @@ def test_next_update_is_left_out_when_no_daemon_is_running(tmp_path):
     assert "<dt>next update in</dt>" not in page
 
 
-def test_active_cooldown_uses_the_display_zone(tmp_path):
+def test_an_active_cooldown_is_a_warning_fact(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
     write_tick(
@@ -1493,10 +1503,10 @@ def test_active_cooldown_uses_the_display_zone(tmp_path):
 
     page = render_home(state=state)
 
-    assert "Global cooldown ends 2026-08-20 04:56:58" in page
-    assert "<dt>global cooldown</dt>" not in page
+    assert page.count('<div class="fact warning">') == 1
+    assert "<dt>global cooldown</dt>" in page
+    assert "<dd>ends in 15m</dd>" in page
     assert "<dt>scheduler failures</dt>" not in page
-    assert "2026-08-19 20:56:58" not in page
 
 
 def test_an_inactive_cooldown_is_not_shown(tmp_path):

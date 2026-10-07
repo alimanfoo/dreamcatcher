@@ -162,7 +162,6 @@ body::after {
   margin-bottom: var(--space-12);
 }
 
-.cooldown,
 .refresh-error {
   padding: var(--space-5) var(--space-7);
   margin: 0 0 var(--space-8);
@@ -170,7 +169,6 @@ body::after {
   font-weight: 700;
   border: var(--line) solid var(--amber);
 }
-
 .facts {
   display: flex;
   flex-wrap: wrap;
@@ -597,9 +595,12 @@ body::after {
 }
 
 .round-number,
-.round-timing,
-.round-purpose span {
+.round-timing {
   color: var(--dim);
+}
+
+.round-timing {
+  overflow-wrap: anywhere;
 }
 
 .round-link[aria-current="true"] .round-number {

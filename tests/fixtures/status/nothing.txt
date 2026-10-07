@@ -4,6 +4,6 @@ instance
   daemon             not running   
   preferred harness  claude        
   agent capacity     0 of 1 working
-  global cooldown    none          
 
-no issues or agent assignments recorded yet
+assignments
+  Assign an issue to yourself and label it with dream:smith to create an assignment.

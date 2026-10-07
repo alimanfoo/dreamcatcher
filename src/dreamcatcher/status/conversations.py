@@ -13,7 +13,6 @@ from dreamcatcher.errors import ReportableError
 from dreamcatcher.harness_adapters import HarnessSessionIdentifier
 from dreamcatcher.issue_conversations import (
     Conversation,
-    describe_conversation_revision,
     is_no_reply,
     read_conversation_input,
 )
@@ -147,12 +146,8 @@ class ConversationStatus:
                     number=record.number,
                 )
                 revision = round_input.revision
-                round_revision = AgentRoundRevision(
-                    value=revision,
-                    description=describe_conversation_revision(
-                        previous_revision=previous_revision,
-                        revision=revision,
-                    ),
+                round_revision = _compose_round_revision(
+                    previous_revision=previous_revision, revision=revision
                 )
                 previous_revision = revision
             except ReportableError:
@@ -438,3 +433,16 @@ class ConversationStatusReader(AgentWorkStatusReader[ConversationStatus]):
             "no reply needed" if is_no_reply(final_output=final_output) else "answered"
         )
         return f"round {latest.number}, {answer}, {duration}"
+
+
+def _compose_round_revision(
+    *, previous_revision: str | None, revision: str
+) -> AgentRoundRevision:
+    """Describe the revision one conversation round investigated."""
+    if previous_revision is None:
+        description = f"code revision {revision}"
+    elif previous_revision == revision:
+        description = f"code revision {revision} (unchanged)"
+    else:
+        description = f"code revision {previous_revision} -> {revision}"
+    return AgentRoundRevision(value=revision, description=description)

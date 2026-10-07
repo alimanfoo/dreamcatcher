@@ -14,6 +14,7 @@ from records import (
     write_round,
     write_tick,
 )
+from status_fabrications import fabricate_everything
 
 from dreamcatcher.agent_assignments import (
     Assignment,
@@ -27,8 +28,9 @@ from dreamcatcher.agent_rounds import (
     StoppedAgentRoundEnding,
     _compose_agent_round_ending,
 )
-from dreamcatcher.config import AgentHarness
+from dreamcatcher.config import DREAMCATCHER_CONFIG_NAME, AgentHarness
 from dreamcatcher.daemon import DEFAULT_INTERVAL_SECONDS
+from dreamcatcher.daemon_runs import DaemonRunRecord
 from dreamcatcher.documents import write_text
 from dreamcatcher.feed import FeedLine
 from dreamcatcher.scheduler.models import (
@@ -40,13 +42,19 @@ from dreamcatcher.scheduler.models import (
 )
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.status import (
+    AgentWorkStatusSection,
+    DaemonStatusFact,
     DreamcatcherDaemonStatus,
+    StatusFact,
     read_assignment_status,
     read_assignment_statuses_for_issue,
     read_dreamcatcher_daemon_status,
     read_status_report,
 )
-from dreamcatcher.status.assignments import AssignmentStatusValue
+from dreamcatcher.status.assignments import (
+    ASSIGNMENT_STATUS_VALUES_IN_ATTENTION_ORDER,
+    AssignmentStatusValue,
+)
 
 ASSIGNMENT_ID = "GH13-20260819-184158"
 LOOKED_AT = PINNED + timedelta(hours=2)
@@ -132,7 +140,7 @@ def idle_observation() -> AgentWorkObservation:
 
 
 def test_an_empty_instance_reports_unknown_capacity_and_no_work(tmp_path):
-
+    configure(root=tmp_path)
     found = read_status_report(
         state=StateDirectory(root=tmp_path),
         clock=lambda: LOOKED_AT,
@@ -151,6 +159,22 @@ def test_an_empty_instance_reports_unknown_capacity_and_no_work(tmp_path):
     assert found.active_global_cooldown is None
     assert found.issue_observations == []
     assert found.assignment_statuses == []
+
+
+def test_an_empty_report_describes_only_its_configured_agent_work(tmp_path):
+    configure(root=tmp_path)
+    found = read_status_report(
+        state=StateDirectory(root=tmp_path),
+        clock=lambda: LOOKED_AT,
+    )
+    assert found.assignment_section == AgentWorkStatusSection(
+        heading="assignments",
+        empty_message=(
+            "Assign an issue to yourself and label it with dream:smith "
+            "to create an assignment."
+        ),
+    )
+    assert found.conversation_section is None
 
 
 def test_the_instance_record_names_the_repository(state):
@@ -177,6 +201,7 @@ def test_the_instance_records_name_the_harness_and_version(state):
 
 
 def test_a_live_daemon_that_has_not_named_its_run_has_no_pid(tmp_path):
+    configure(root=tmp_path)
     state = StateDirectory(root=tmp_path)
     hold_daemon_lock_for_test(path=state.lock)
 
@@ -680,6 +705,17 @@ def test_an_active_cooldown_and_scheduler_failures_are_instance_facts(running):
     )
     assert found.daemon.max_agents == 3
     assert found.active_global_cooldown == cooldown
+    assert found.instance_facts == (
+        StatusFact(label="preferred harness", value="claude"),
+        StatusFact(label="next update in", value="0s"),
+        StatusFact(label="agent capacity", value="0 of 3 working"),
+        StatusFact(label="global cooldown", value="ends in 1m", is_warning=True),
+        StatusFact(
+            label="scheduler failures",
+            value="could not start assignment; could not read comments for GH8",
+            is_warning=True,
+        ),
+    )
 
 
 def test_a_stopped_daemon_has_no_current_scheduler_failures(state):
@@ -1008,3 +1044,75 @@ def test_a_failed_setup_with_a_routing_conflict_is_reported_once(state):
 
     assert [issue.issue for issue in status_report.failed_assignment_setups] == [20]
     assert status_report.issue_observations == []
+
+
+def test_a_report_orders_active_assignments_by_attention_and_ended_ones_newest_first(
+    tmp_path,
+):
+    state = StateDirectory(root=tmp_path)
+    fabricate_everything(state=state)
+
+    found = report(state=state)
+
+    attention = [
+        ASSIGNMENT_STATUS_VALUES_IN_ATTENTION_ORDER.index(status.value)
+        for status in found.active_assignment_statuses
+    ]
+    assert attention == sorted(attention)
+    assert len(set(attention)) > 1
+    assert [
+        status.assignment.record.issue for status in found.ended_assignment_statuses
+    ] == [70, 12]
+
+
+def test_an_assignment_keeps_its_section_after_its_routes_are_removed(state):
+    write_text(text="", path=state.root / DREAMCATCHER_CONFIG_NAME)
+
+    found = report(state=state)
+
+    assert found.assignment_section == AgentWorkStatusSection(
+        heading="assignments", empty_message=None
+    )
+
+
+@pytest.mark.parametrize(
+    ("is_running", "run", "expected"),
+    [
+        (
+            False,
+            None,
+            DaemonStatusFact(
+                label="daemon", state="not running", version=None, process=None
+            ),
+        ),
+        (
+            True,
+            None,
+            DaemonStatusFact(
+                label="daemon", state="running", version=None, process=None
+            ),
+        ),
+        (
+            True,
+            DaemonRunRecord(
+                pid=42,
+                harness=AgentHarness.CLAUDE,
+                version="5.3.0",
+                max_agents=3,
+                interval_seconds=DEFAULT_INTERVAL_SECONDS,
+            ),
+            DaemonStatusFact(
+                label="daemon",
+                state="running",
+                version="dreamcatcher v5.3.0",
+                process="pid 42",
+            ),
+        ),
+    ],
+)
+def test_a_daemon_fact_says_whether_it_runs_and_which_run_it_is(
+    is_running, run, expected
+):
+    daemon = DreamcatcherDaemonStatus(is_running=is_running, run=run)
+
+    assert daemon.status_fact == expected

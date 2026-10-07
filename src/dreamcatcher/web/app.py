@@ -17,7 +17,6 @@ from dreamcatcher.agent_assignments import (
 from dreamcatcher.agent_rounds import request_agent_round_stop
 from dreamcatcher.agent_work import request_agent_work_retry
 from dreamcatcher.clock import read_current_time
-from dreamcatcher.config import read_dreamcatcher_config
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.status import (
@@ -81,7 +80,7 @@ def _create_app(
     app.add_url_rule(
         "/",
         endpoint="show_home",
-        view_func=partial(_show_home, state=state, clock=clock, zone=zone),
+        view_func=partial(_show_home, state=state, clock=clock),
     )
     _register_assignment_routes(app=app, state=state, clock=clock, zone=zone)
     _register_conversation_routes(app=app, state=state, clock=clock, zone=zone)
@@ -157,19 +156,10 @@ def _register_conversation_routes(
     )
 
 
-def _show_home(
-    *, state: StateDirectory, clock: Callable[[], datetime], zone: tzinfo | None
-) -> str:
+def _show_home(*, state: StateDirectory, clock: Callable[[], datetime]) -> str:
     """Render the local status overview."""
     report = read_status_report(state=state, clock=clock)
-    return render_template(
-        "home.html",
-        view=compose_home_view(
-            report=report,
-            config=read_dreamcatcher_config(root=state.root),
-            zone=zone,
-        ),
-    )
+    return render_template("home.html", view=compose_home_view(report=report))
 
 
 def _show_assignment(

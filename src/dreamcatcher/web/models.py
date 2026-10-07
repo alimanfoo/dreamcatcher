@@ -4,16 +4,12 @@ from dataclasses import dataclass
 from typing import Literal, Protocol
 
 from dreamcatcher.agent_rounds import AgentRoundPaths, AgentRoundRecord
-from dreamcatcher.status import AgentRoundRevision
-
-
-@dataclass(frozen=True, kw_only=True)
-class WebFact:
-    """Represent one labelled fact on a web page."""
-
-    label: str
-    value: str
-    is_warning: bool = False
+from dreamcatcher.status import (
+    AgentRoundRevision,
+    AgentWorkStatusSection,
+    DreamcatcherDaemonStatus,
+    StatusFact,
+)
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -52,7 +48,6 @@ class WebAgentRound:
 
     number: int
     purpose: str
-    is_recovery: bool
     started: str
     duration: str
     outcome: str
@@ -133,22 +128,12 @@ class WebAgentTail:
 
 
 @dataclass(frozen=True, kw_only=True)
-class WebDaemon:
-    """Represent the daemon values shown in the site header."""
-
-    state: str
-    summary: str
-    version: str | None
-    pid: str | None
-
-
-@dataclass(frozen=True, kw_only=True)
 class WebAssignmentView:
     """Represent every value that the assignment template lays out."""
 
     repository: str
     github_repository_url: str | None
-    daemon: WebDaemon
+    daemon: DreamcatcherDaemonStatus
     identifier: str
     issue: int
     title: str
@@ -180,10 +165,10 @@ class WebConversationView:
 
     repository: str
     github_repository_url: str | None
-    daemon: WebDaemon
+    daemon: DreamcatcherDaemonStatus
     issue: int
     title: str
-    facts: tuple[WebFact, ...]
+    facts: tuple[StatusFact, ...]
     live: WebAgentLiveState
     feed_rounds: tuple[WebFeedRound, ...]
     feed_cursor: str
@@ -195,11 +180,10 @@ class WebHomeView:
 
     repository: str
     github_repository_url: str | None
-    daemon: WebDaemon
-    instance_facts: tuple[WebFact, ...]
-    cooldown_message: str | None
-    assignment_empty_message: str | None
-    conversation_empty_message: str | None
+    daemon: DreamcatcherDaemonStatus
+    instance_facts: tuple[StatusFact, ...]
+    assignment_section: AgentWorkStatusSection | None
+    conversation_section: AgentWorkStatusSection | None
     conversations: tuple[WebConversationCard, ...]
     active_assignments: tuple[WebAssignmentCard, ...]
     ended_assignments: tuple[WebAssignmentCard, ...]

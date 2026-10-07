@@ -26,6 +26,12 @@ each entry links the pull request that made the change.
 
 ## Unreleased
 
+### Changed
+
+- Terminal and web status views now share their daemon, instance, agent-work,
+  and round ordering and wording.
+  ([#488](https://github.com/alimanfoo/dreamcatcher/pull/488))
+
 ### Fixed
 
 - The web home page's empty panels now tell users to assign the issue to the

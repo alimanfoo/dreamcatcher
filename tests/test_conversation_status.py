@@ -5,6 +5,7 @@ from datetime import timedelta
 
 import pytest
 from clocks import PINNED
+from conftest import configure
 from observations import observed_conversation
 from records import (
     hold_daemon_lock_for_test,
@@ -38,11 +39,15 @@ from dreamcatcher.scheduler.models import (
 )
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.status import (
+    AgentWorkStatusSection,
     read_conversation_status,
     read_dreamcatcher_daemon_status,
     read_status_report,
 )
-from dreamcatcher.status.conversations import ConversationStatusValue
+from dreamcatcher.status.conversations import (
+    ConversationStatusValue,
+    _compose_round_revision,
+)
 
 LOOKED_AT = PINNED + timedelta(hours=2)
 
@@ -50,6 +55,7 @@ LOOKED_AT = PINNED + timedelta(hours=2)
 @pytest.fixture
 def conversation_state(tmp_path):
     """Return local state containing one issue conversation."""
+    configure(root=tmp_path)
     state = StateDirectory(root=tmp_path)
     write_daemon_run(state=state, pid=os.getpid())
     write_conversation(state=state, issue=8)
@@ -360,6 +366,9 @@ def test_a_live_round_keeps_an_ineligible_conversation_on_the_report(
     found = report.conversation_statuses[0]
 
     assert report.running_agents == 1
+    assert report.conversation_section == AgentWorkStatusSection(
+        heading="conversations", empty_message=None
+    )
     assert found.value is ConversationStatusValue.WORKING
     assert found.detail == ("round 1, discuss, running 2h 0m, last output 1h 59m ago")
     assert found.latest_output == "I am reading the scheduler."
@@ -619,6 +628,7 @@ def test_a_stopped_conversation_waits_for_new_comments(conversation_state):
 
 
 def test_an_eligible_issue_is_a_conversation_before_its_record_exists(tmp_path):
+    configure(root=tmp_path)
     state = StateDirectory(root=tmp_path)
     observe(
         state=state,
@@ -712,3 +722,29 @@ def test_an_unobserved_issue_with_no_record_has_no_conversation(conversation_sta
         )
         is None
     )
+
+
+@pytest.mark.parametrize(
+    ("previous", "current", "expected"),
+    [
+        (None, "abc123", "code revision abc123"),
+        ("abc123", "abc123", "code revision abc123 (unchanged)"),
+        ("abc123", "def456", "code revision abc123 -> def456"),
+        (
+            "0123456" + "0" * 33,
+            "0123456" + "f" * 33,
+            f"code revision {'0123456' + '0' * 33} -> {'0123456' + 'f' * 33}",
+        ),
+    ],
+)
+def test_a_round_revision_description_names_its_transition(previous, current, expected):
+    found = _compose_round_revision(previous_revision=previous, revision=current)
+
+    assert found.description == expected
+
+
+def test_a_round_revision_keeps_its_whole_value():
+    found = _compose_round_revision(previous_revision=None, revision="0123456789abcdef")
+
+    assert found.value == "0123456789abcdef"
+    assert found.description == "code revision 0123456789abcdef"

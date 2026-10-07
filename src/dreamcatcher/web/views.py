@@ -1,23 +1,20 @@
 """Compose Flask-free models for dreamcatcher's web views."""
 
 import re
-from datetime import datetime, tzinfo
+from datetime import tzinfo
 from pathlib import Path
 from typing import cast
 
-from dreamcatcher.config import DreamcatcherConfig
 from dreamcatcher.issue_conversations import Conversation
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.status import (
-    ASSIGNMENT_STATUS_VALUES_IN_ATTENTION_ORDER,
-    CONVERSATION_STATUS_VALUES_IN_ATTENTION_ORDER,
-    AgentRoundRevision,
     AgentRoundStatus,
     AssignmentStatus,
     ConversationStatus,
     DreamcatcherDaemonStatus,
     DreamcatcherStatusReport,
     IssueObservation,
+    StatusFact,
     Truth,
     read_repository,
 )
@@ -30,16 +27,13 @@ from dreamcatcher.web.models import (
     WebAssignmentView,
     WebConversationCard,
     WebConversationView,
-    WebDaemon,
-    WebFact,
     WebHandResume,
     WebHomeView,
     WebIssueRow,
 )
-from dreamcatcher.words import describe_countdown, describe_time
+from dreamcatcher.words import describe_time
 
 _ISSUE_REFERENCE_PATTERN = re.compile(r"(?<!\w)(?:GH|#)(\d+)\b(?!-)")
-_GIT_REVISION_PATTERN = re.compile(r"\b[0-9a-f]{40}\b")
 
 
 def _compose_hand_resume(
@@ -63,54 +57,30 @@ def _compose_github_repository_url(*, repository: str | None) -> str | None:
     return f"https://github.com/{repository}"
 
 
-def compose_home_view(
-    *,
-    report: DreamcatcherStatusReport,
-    config: DreamcatcherConfig,
-    zone: tzinfo | None,
-) -> WebHomeView:
+def compose_home_view(*, report: DreamcatcherStatusReport) -> WebHomeView:
     """Return the values shown on the home page."""
     daemon = report.daemon
-    cooldown_end = (
-        None
-        if report.active_global_cooldown is None
-        else describe_time(at=report.active_global_cooldown.ends, zone=zone)
-    )
-    active_assignments, ended_assignments = _compose_assignment_cards(report=report)
-    assignment_labels = tuple(
-        sorted((route.label for route in config.assignment), key=str.casefold)
-    )
-    conversation_labels = tuple(
-        sorted((route.label for route in config.conversation), key=str.casefold)
-    )
     return WebHomeView(
         repository=report.repository or "repository unknown",
         github_repository_url=_compose_github_repository_url(
             repository=report.repository
         ),
-        daemon=_compose_web_daemon(daemon=daemon),
-        instance_facts=_compose_instance_facts(report=report),
-        cooldown_message=(
-            None if cooldown_end is None else f"Global cooldown ends {cooldown_end}"
+        daemon=daemon,
+        instance_facts=report.instance_facts,
+        assignment_section=report.assignment_section,
+        conversation_section=report.conversation_section,
+        conversations=tuple(
+            _compose_conversation_card(status=status)
+            for status in report.conversation_statuses
         ),
-        assignment_empty_message=(
-            None
-            if not assignment_labels
-            else "Assign an issue to yourself "
-            "and label it with "
-            f"{_describe_route_labels(labels=assignment_labels)} "
-            "to create an assignment."
+        active_assignments=tuple(
+            _compose_assignment_card(status=status)
+            for status in report.active_assignment_statuses
         ),
-        conversation_empty_message=(
-            None
-            if not conversation_labels
-            else "Assign an issue to yourself, label it with "
-            f"{_describe_route_labels(labels=conversation_labels)} "
-            "and post a comment to start a conversation."
+        ended_assignments=tuple(
+            _compose_assignment_card(status=status)
+            for status in report.ended_assignment_statuses
         ),
-        conversations=_compose_conversation_cards(report=report),
-        active_assignments=active_assignments,
-        ended_assignments=ended_assignments,
         failed_setups=tuple(
             _compose_failed_setup_row(observation=setup)
             for setup in report.failed_assignment_setups
@@ -118,49 +88,6 @@ def compose_home_view(
         issues=tuple(
             _compose_issue_row(observation=issue) for issue in report.issue_observations
         ),
-    )
-
-
-def _describe_route_labels(*, labels: tuple[str, ...]) -> str:
-    if len(labels) == 1:
-        return labels[0]
-    return f"{', '.join(labels[:-1])} or {labels[-1]}"
-
-
-def _compose_assignment_cards(
-    *, report: DreamcatcherStatusReport
-) -> tuple[tuple[WebAssignmentCard, ...], tuple[WebAssignmentCard, ...]]:
-    active_statuses = sorted(
-        (status for status in report.assignment_statuses if not status.has_ended),
-        key=lambda status: ASSIGNMENT_STATUS_VALUES_IN_ATTENTION_ORDER.index(
-            status.value
-        ),
-    )
-    ended_statuses = sorted(
-        (status for status in report.assignment_statuses if status.has_ended),
-        key=lambda status: cast("datetime", status.assignment.ended_at),
-        reverse=True,
-    )
-    ended_assignments = tuple(
-        _compose_assignment_card(status=status) for status in ended_statuses
-    )
-    active_assignments = tuple(
-        _compose_assignment_card(status=status) for status in active_statuses
-    )
-    return active_assignments, ended_assignments
-
-
-def _compose_conversation_cards(
-    *, report: DreamcatcherStatusReport
-) -> tuple[WebConversationCard, ...]:
-    return tuple(
-        _compose_conversation_card(status=status)
-        for status in sorted(
-            report.conversation_statuses,
-            key=lambda status: CONVERSATION_STATUS_VALUES_IN_ATTENTION_ORDER.index(
-                status.value
-            ),
-        )
     )
 
 
@@ -244,7 +171,7 @@ def compose_assignment_view(
     return WebAssignmentView(
         repository=repository or "repository unknown",
         github_repository_url=_compose_github_repository_url(repository=repository),
-        daemon=_compose_web_daemon(daemon=daemon),
+        daemon=daemon,
         identifier=assignment.identifier,
         issue=record.issue,
         title=record.title,
@@ -275,7 +202,7 @@ def compose_conversation_view(
     return WebConversationView(
         repository=repository or "repository unknown",
         github_repository_url=_compose_github_repository_url(repository=repository),
-        daemon=_compose_web_daemon(daemon=daemon),
+        daemon=daemon,
         issue=status.issue,
         title=status.title,
         facts=(
@@ -289,13 +216,15 @@ def compose_conversation_view(
     )
 
 
-def _compose_conversation_facts(*, conversation: Conversation) -> tuple[WebFact, ...]:
+def _compose_conversation_facts(
+    *, conversation: Conversation
+) -> tuple[StatusFact, ...]:
     """Return the settings that a conversation settled at its first round."""
     record = conversation.record
     return (
-        WebFact(label="label", value=record.dispatch_label),
-        WebFact(label="harness", value=str(record.harness)),
-        WebFact(label="model", value=f"{record.model} · {record.effort}"),
+        StatusFact(label="label", value=record.dispatch_label),
+        StatusFact(label="harness", value=str(record.harness)),
+        StatusFact(label="model", value=f"{record.model} · {record.effort}"),
     )
 
 
@@ -306,31 +235,15 @@ def _compose_agent_rounds(
     return tuple(
         WebAgentRound(
             number=round_status.record.number,
-            purpose=str(round_status.record.purpose),
-            is_recovery=round_status.record.is_recovery,
+            purpose=round_status.purpose_description,
             started=describe_time(at=round_status.record.started, zone=zone),
             duration=round_status.duration_description,
             outcome=str(round_status.record.outcome),
             outcome_description=round_status.outcome_description,
-            revision=_compose_web_round_revision(revision=round_status.revision),
+            revision=round_status.revision,
         )
         for round_status in round_statuses
     )
-
-
-def _compose_web_round_revision(
-    *, revision: AgentRoundRevision | None
-) -> AgentRoundRevision | None:
-    if revision is None:
-        return None
-    return AgentRoundRevision(
-        value=_shorten_git_revisions(text=revision.value),
-        description=_shorten_git_revisions(text=revision.description),
-    )
-
-
-def _shorten_git_revisions(*, text: str) -> str:
-    return _GIT_REVISION_PATTERN.sub(lambda match: match.group()[:7], text)
 
 
 def _compose_issue_row(*, observation: IssueObservation) -> WebIssueRow:
@@ -386,67 +299,4 @@ def _compose_issue_references(*, evidence: str) -> tuple[str | int, ...]:
         int(part) if index % 2 else part
         for index, part in enumerate(_ISSUE_REFERENCE_PATTERN.split(evidence))
         if part
-    )
-
-
-def _compose_web_daemon(*, daemon: DreamcatcherDaemonStatus) -> WebDaemon:
-    if not daemon.is_running:
-        return WebDaemon(
-            state="not-running",
-            summary="daemon not running",
-            version=None,
-            pid=None,
-        )
-    return WebDaemon(
-        state="running",
-        summary="daemon running",
-        version=(
-            None
-            if daemon.dreamcatcher_version is None
-            else f"dreamcatcher v{daemon.dreamcatcher_version}"
-        ),
-        pid=None if daemon.pid is None else f"pid {daemon.pid}",
-    )
-
-
-def _compose_instance_facts(*, report: DreamcatcherStatusReport) -> tuple[WebFact, ...]:
-    daemon = report.daemon
-    values: tuple[tuple[str, str | None, bool], ...] = (
-        (
-            "preferred harness",
-            None if daemon.agent_harness is None else str(daemon.agent_harness),
-            False,
-        ),
-        (
-            "next update in",
-            (
-                None
-                if not daemon.is_running
-                else describe_countdown(
-                    at=report.at,
-                    since=report.latest_scheduler_tick,
-                    span_seconds=daemon.interval_seconds,
-                )
-            ),
-            False,
-        ),
-        (
-            "agent capacity",
-            (
-                None
-                if daemon.max_agents is None
-                else f"{report.running_agents} of {daemon.max_agents} working"
-            ),
-            False,
-        ),
-        (
-            "scheduler failures",
-            report.scheduler_failure_summary,
-            report.scheduler_failure_summary is not None,
-        ),
-    )
-    return tuple(
-        WebFact(label=label, value=value, is_warning=is_warning)
-        for label, value, is_warning in values
-        if value is not None
     )

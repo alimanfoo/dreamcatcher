@@ -4,7 +4,6 @@ instance
   daemon             not running   
   preferred harness  claude        
   agent capacity     0 of 1 working
-  global cooldown    none          
 
 assignments
   GH13-20260819-184158  needs user feedback  last output 1h 58m ago

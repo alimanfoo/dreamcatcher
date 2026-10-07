@@ -1,11 +1,10 @@
 alimanfoo/dreamcatcher
 
 instance
-  daemon             running dreamcatcher v3.0.0.beta1 as pid 4242
-  preferred harness  claude                                       
-  next update in     0s                                           
-  agent capacity     1 of 1 working                               
-  global cooldown    none                                         
+  daemon             running · dreamcatcher v3.0.0.beta1 · pid 4242
+  preferred harness  claude                                        
+  next update in     0s                                            
+  agent capacity     1 of 1 working                                
 
 assignments
   GH20-20260819-184158  needs user feedback  last output 2h 0m ago                                  

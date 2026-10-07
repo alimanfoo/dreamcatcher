@@ -3,6 +3,7 @@
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
+from typing import cast
 
 from dreamcatcher.agent_assignments import (
     Assignment,
@@ -12,7 +13,7 @@ from dreamcatcher.agent_assignments import (
     read_assignments_for_issue,
 )
 from dreamcatcher.clock import read_current_time
-from dreamcatcher.config import AgentHarness
+from dreamcatcher.config import AgentHarness, read_dreamcatcher_config
 from dreamcatcher.daemon_runs import DaemonRunRecord
 from dreamcatcher.documents import read_json_if_exists, read_text
 from dreamcatcher.issue_conversations import (
@@ -30,15 +31,50 @@ from dreamcatcher.scheduler.models import (
 )
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.status.assignments import (
+    ASSIGNMENT_STATUS_VALUES_IN_ATTENTION_ORDER,
     AssignmentStatus,
     AssignmentStatusReader,
     AssignmentStatusValue,
 )
 from dreamcatcher.status.conversations import (
+    CONVERSATION_STATUS_VALUES_IN_ATTENTION_ORDER,
     ConversationStatus,
     ConversationStatusReader,
     ConversationStatusValue,
 )
+from dreamcatcher.words import describe_countdown, describe_span
+
+
+@dataclass(frozen=True, kw_only=True)
+class StatusFact:
+    """Hold one labelled fact that a view shows."""
+
+    label: str
+    value: str
+    is_warning: bool = False
+
+
+@dataclass(frozen=True, kw_only=True)
+class DaemonStatusFact:
+    """Describe the labelled daemon state that both status views show."""
+
+    label: str
+    state: str
+    version: str | None
+    process: str | None
+
+    @property
+    def value(self) -> str:
+        """The daemon state, version and process in display order."""
+        return " · ".join(filter(None, (self.state, self.version, self.process)))
+
+
+@dataclass(frozen=True, kw_only=True)
+class AgentWorkStatusSection:
+    """Describe one kind of agent work as a status view shows it."""
+
+    heading: str
+    empty_message: str | None
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -77,6 +113,23 @@ class DreamcatcherDaemonStatus:
         """The interval selected for the current or latest daemon run."""
         return None if self.run is None else self.run.interval_seconds
 
+    @property
+    def status_fact(self) -> DaemonStatusFact:
+        """Whether the daemon runs, with its version and process ID when it does."""
+        if not self.is_running:
+            return DaemonStatusFact(
+                label="daemon", state="not running", version=None, process=None
+            )
+        version = (
+            None
+            if self.dreamcatcher_version is None
+            else f"dreamcatcher v{self.dreamcatcher_version}"
+        )
+        process = None if self.pid is None else f"pid {self.pid}"
+        return DaemonStatusFact(
+            label="daemon", state="running", version=version, process=process
+        )
+
 
 @dataclass(frozen=True, kw_only=True)
 class DreamcatcherStatusReport:
@@ -93,6 +146,96 @@ class DreamcatcherStatusReport:
     issue_observations: list[IssueObservation]
     assignment_statuses: list[AssignmentStatus]
     conversation_statuses: list[ConversationStatus]
+    assignment_section: AgentWorkStatusSection | None
+    conversation_section: AgentWorkStatusSection | None
+
+    @property
+    def instance_facts(self) -> tuple[StatusFact, ...]:
+        """The known instance facts, in the order that a view shows them.
+
+        A global cooldown and scheduler failures are warnings.
+        """
+        daemon = self.daemon
+        cooldown = self.active_global_cooldown
+        facts = (
+            (
+                "preferred harness",
+                None if daemon.agent_harness is None else str(daemon.agent_harness),
+                False,
+            ),
+            (
+                "next update in",
+                None
+                if not daemon.is_running
+                else describe_countdown(
+                    at=self.at,
+                    since=self.latest_scheduler_tick,
+                    span_seconds=daemon.interval_seconds,
+                ),
+                False,
+            ),
+            (
+                "agent capacity",
+                None
+                if daemon.max_agents is None
+                else f"{self.running_agents} of {daemon.max_agents} working",
+                False,
+            ),
+            (
+                "global cooldown",
+                None
+                if cooldown is None
+                else f"ends in {describe_span(span=cooldown.ends - self.at)}",
+                True,
+            ),
+            ("scheduler failures", self.scheduler_failure_summary, True),
+        )
+        return tuple(
+            StatusFact(label=label, value=value, is_warning=is_warning)
+            for label, value, is_warning in facts
+            if value is not None
+        )
+
+    @property
+    def active_assignment_statuses(self) -> list[AssignmentStatus]:
+        """The assignments that have not ended, in attention order."""
+        return sorted(
+            (status for status in self.assignment_statuses if not status.has_ended),
+            key=lambda status: ASSIGNMENT_STATUS_VALUES_IN_ATTENTION_ORDER.index(
+                status.value
+            ),
+        )
+
+    @property
+    def ended_assignment_statuses(self) -> list[AssignmentStatus]:
+        """The assignments that have ended, most recently ended first."""
+        return sorted(
+            (status for status in self.assignment_statuses if status.has_ended),
+            key=lambda status: cast("datetime", status.assignment.ended_at),
+            reverse=True,
+        )
+
+
+def _describe_agent_work_section(
+    *,
+    heading: str,
+    labels: tuple[str, ...],
+    has_any_work: bool,
+    has_current_work: bool,
+    empty_message: str | None,
+) -> AgentWorkStatusSection | None:
+    if not (labels or has_any_work):
+        return None
+    return AgentWorkStatusSection(
+        heading=heading,
+        empty_message=None if has_current_work else empty_message,
+    )
+
+
+def _describe_route_labels(*, labels: tuple[str, ...]) -> str:
+    if len(labels) == 1:
+        return labels[0]
+    return f"{', '.join(labels[:-1])} or {labels[-1]}"
 
 
 def read_status_report(
@@ -119,6 +262,37 @@ def read_status_report(
         scheduler_record=scheduler_record,
         assignments=assignments,
     )
+    failed_assignment_setups = _select_failed_setups(observations=issue_observations)
+    reported_issue_observations = _select_issue_observations(
+        observations=issue_observations
+    )
+    config = read_dreamcatcher_config(root=state.root)
+    assignment_labels = tuple(
+        sorted((route.label for route in config.assignment), key=str.casefold)
+    )
+    conversation_labels = tuple(
+        sorted((route.label for route in config.conversation), key=str.casefold)
+    )
+    has_current_assignment_work = bool(
+        any(not status.has_ended for status in assignment_statuses)
+        or failed_assignment_setups
+        or reported_issue_observations
+    )
+    has_conversation_work = bool(conversation_statuses)
+    assignment_empty_message = (
+        None
+        if not assignment_labels
+        else "Assign an issue to yourself and label it with "
+        f"{_describe_route_labels(labels=assignment_labels)} "
+        "to create an assignment."
+    )
+    conversation_empty_message = (
+        None
+        if not conversation_labels
+        else "Assign an issue to yourself, label it with "
+        f"{_describe_route_labels(labels=conversation_labels)} "
+        "and post a comment to start a conversation."
+    )
     return DreamcatcherStatusReport(
         at=at,
         repository=read_repository(state=state),
@@ -138,10 +312,28 @@ def read_status_report(
         active_global_cooldown=(
             None if scheduler_record is None else scheduler_record.cooldown
         ),
-        failed_assignment_setups=_select_failed_setups(observations=issue_observations),
-        issue_observations=_select_issue_observations(observations=issue_observations),
+        failed_assignment_setups=failed_assignment_setups,
+        issue_observations=reported_issue_observations,
         assignment_statuses=assignment_statuses,
         conversation_statuses=conversation_statuses,
+        assignment_section=_describe_agent_work_section(
+            heading="assignments",
+            labels=assignment_labels,
+            has_any_work=bool(
+                assignment_statuses
+                or failed_assignment_setups
+                or reported_issue_observations
+            ),
+            has_current_work=has_current_assignment_work,
+            empty_message=assignment_empty_message,
+        ),
+        conversation_section=_describe_agent_work_section(
+            heading="conversations",
+            labels=conversation_labels,
+            has_any_work=has_conversation_work,
+            has_current_work=has_conversation_work,
+            empty_message=conversation_empty_message,
+        ),
     )
 
 
@@ -159,17 +351,23 @@ def _list_reported_conversation_statuses(
     is_daemon_running: bool,
     scheduler_record: SchedulerRecord | None,
 ) -> list[ConversationStatus]:
-    return [
-        status
-        for status in ConversationStatusReader(
-            state=state,
-            at=at,
-            is_daemon_running=is_daemon_running,
-            scheduler_record=scheduler_record,
-            conversations=read_conversations(state=state),
-        ).list_statuses()
-        if status.is_listed
-    ]
+    """Return the listed conversations in attention order."""
+    return sorted(
+        (
+            status
+            for status in ConversationStatusReader(
+                state=state,
+                at=at,
+                is_daemon_running=is_daemon_running,
+                scheduler_record=scheduler_record,
+                conversations=read_conversations(state=state),
+            ).list_statuses()
+            if status.is_listed
+        ),
+        key=lambda status: CONVERSATION_STATUS_VALUES_IN_ATTENTION_ORDER.index(
+            status.value
+        ),
+    )
 
 
 def _refresh_issue_observations(

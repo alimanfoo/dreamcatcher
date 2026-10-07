@@ -1,11 +1,10 @@
 alimanfoo/dreamcatcher
 
 instance
-  daemon              running dreamcatcher v3.0.0.beta1 as pid 4242          
+  daemon              running · dreamcatcher v3.0.0.beta1 · pid 4242         
   preferred harness   claude                                                 
   next update in      0s                                                     
   agent capacity      1 of 1 working                                         
-  global cooldown     none                                                   
   scheduler failures  could not list issues for dream:less: could not connect
 
 assignments

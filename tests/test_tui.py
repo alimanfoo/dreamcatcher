@@ -13,7 +13,7 @@ from io import StringIO
 
 import pytest
 from clocks import DISPLAY_TIME_ZONE, PINNED
-from conftest import FIXTURES, assert_matches_view_golden
+from conftest import FIXTURES, assert_matches_view_golden, configure
 from records import write_feed, write_round
 from rich.console import Console
 from rich.control import Control
@@ -42,6 +42,7 @@ from dreamcatcher.agent_assignments import (
 from dreamcatcher.agent_rounds import (
     AssignmentRoundPurpose,
 )
+from dreamcatcher.config import DREAMCATCHER_CONFIG_NAME
 from dreamcatcher.documents import append_text, write_text
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import FeedLine
@@ -225,6 +226,7 @@ def test_ended_assignments_are_summarized(tmp_path):
 
 
 def test_only_ended_assignments_are_summarized(tmp_path):
+    configure(root=tmp_path)
     state = StateDirectory(root=tmp_path)
     completed_round = ended(minute=1, purpose=AssignmentRoundPurpose.WRAP_UP)
     written(state=state, issue=12, records=[completed_round])
@@ -240,6 +242,30 @@ def test_only_ended_assignments_are_summarized(tmp_path):
     assert "GH13-20260819-184158" not in rendered
 
 
+def test_status_shows_only_the_configured_empty_agent_work(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    fabricate_nothing(state=state)
+    write_text(
+        text="""[[conversation]]
+label = "dream:scout"
+[conversation.claude]
+prompt = "/dream:scout GH{issue}"
+model = "opus"
+effort = "xhigh"
+""",
+        path=state.root / DREAMCATCHER_CONFIG_NAME,
+    )
+
+    rendered = render_status_view(state=state)
+
+    assert "assignments" not in rendered
+    assert "conversations" in rendered
+    assert (
+        "Assign an issue to yourself, label it with dream:scout and post a comment "
+        "to start a conversation." in rendered
+    )
+
+
 def test_status_nobody_is_watching_is_drawn_once_and_returns(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
@@ -250,10 +276,9 @@ def test_status_nobody_is_watching_is_drawn_once_and_returns(tmp_path):
         console=pinned(written_to=written_to),
         clock=lambda: LOOKED_AT,
         wait=refusing,
-        zone=DISPLAY_TIME_ZONE,
     )
 
-    assert "running dreamcatcher v3.0.0.beta1 as pid 4242" in written_to.getvalue()
+    assert "running · dreamcatcher v3.0.0.beta1 · pid 4242" in written_to.getvalue()
 
 
 def test_status_a_reader_watches_keeps_up_with_what_the_daemon_writes(tmp_path):
@@ -279,14 +304,16 @@ def test_status_a_reader_watches_keeps_up_with_what_the_daemon_writes(tmp_path):
         console=pinned(written_to=written_to, is_terminal=True),
         clock=lambda: LOOKED_AT,
         wait=wait,
-        zone=DISPLAY_TIME_ZONE,
     )
     status = written_to.getvalue()
 
     # Status is never over, so it drew again when the assignment started
     # while the reader was watching, and ended only when they interrupted it.
     assert looks == [_VIEW_REFRESH_INTERVAL, _VIEW_REFRESH_INTERVAL]
-    assert "no issues or agent assignments recorded yet" in status
+    assert (
+        "Assign an issue to yourself and label it with dream:smith "
+        "to create an assignment." in status
+    )
     assert f"GH13-{ASSIGNMENT_TIMESTAMP}" in status
 
 
@@ -301,7 +328,6 @@ def test_status_a_reader_watches_takes_the_screen_and_hands_it_back(tmp_path):
         console=pinned(written_to=written_to, is_terminal=True),
         clock=lambda: LOOKED_AT,
         wait=interrupting,
-        zone=DISPLAY_TIME_ZONE,
     )
     status = written_to.getvalue()
 
@@ -324,7 +350,6 @@ def test_status_on_a_dumb_terminal_is_drawn_once_and_returns(tmp_path):
         console=pinned(written_to=written_to, is_terminal=True, term="dumb"),
         clock=lambda: LOOKED_AT,
         wait=refusing,
-        zone=DISPLAY_TIME_ZONE,
     )
     status = written_to.getvalue()
 

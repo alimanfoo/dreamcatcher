@@ -355,6 +355,10 @@ process. In the code, those functions and records are the scheduler's `models`
 and `faults` modules, and status imports no other scheduler module. Status
 values are always derived; they are not written back as domain state.
 
+Status reads the current route configuration and describes whether each kind of
+agent work has a section to show, the section's heading, and any guidance for an
+empty section. The presentations make none of those choices themselves.
+
 An `IssueObservation` represents claimed here, claimed elsewhere, blocked, and
 routing conflict as independent facts which may each be true, false, or unknown;
 its availability is derived from those facts together with whether the issue is
@@ -414,9 +418,7 @@ headings and colors.
 The web interface renders status reports and feeds as HTML. It owns presentation
 only and depends on the status and feed models; neither model depends on it. It
 should not rediscover status, scheduling, or lifecycle rules while choosing
-markup and styles. The home page also reads the route labels in
-`dreamcatcher.toml`, so an empty panel can name the labels that start that kind
-of agent work.
+markup and styles.
 
 The web process can ask a running round to stop. It writes a same-origin stop
 request through the agent-round boundary, into that round's own directory. The

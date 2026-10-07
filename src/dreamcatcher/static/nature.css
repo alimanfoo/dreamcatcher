@@ -148,7 +148,6 @@ body::after {
   margin-bottom: 32px;
 }
 
-.cooldown,
 .refresh-error {
   position: relative;
   isolation: isolate;
@@ -163,7 +162,6 @@ body::after {
   font-weight: 400;
 }
 
-.cooldown::before,
 .refresh-error::before,
 .assignment-card::before,
 .issue-row::before,
@@ -179,7 +177,6 @@ body::after {
   filter: blur(14px);
 }
 
-.cooldown::before,
 .refresh-error::before {
   background: rgba(168, 98, 63, 0.12);
 }
@@ -542,10 +539,10 @@ body::after {
   font-weight: 500;
 }
 
-.round-purpose span,
 .round-timing {
   color: var(--dim);
   font-size: 14px;
+  overflow-wrap: anywhere;
 }
 
 .round-outcome {

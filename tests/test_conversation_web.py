@@ -146,9 +146,8 @@ def test_conversation_page_shows_settings_revision_round_and_feed(tmp_path):
     assert "<dt>worktree</dt>" not in page
     assert "<dt>session</dt>" not in page
     assert "abc123" in page
-    assert page.count("0123456") == 2
-    assert "code revision abc123 -&gt; 0123456" in page
-    assert revision not in page
+    assert f"code revision abc123 -&gt; {revision}" in page
+    assert revision in page
     assert "opus[1m] · xhigh" in page
     assert "discuss" in page
     assert "I found the answer." in page

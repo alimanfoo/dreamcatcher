@@ -11,11 +11,9 @@ from rich.text import Text
 from dreamcatcher.clock import WaitForSeconds, read_current_time
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.status import (
-    ASSIGNMENT_STATUS_VALUES_IN_ATTENTION_ORDER,
-    CONVERSATION_STATUS_VALUES_IN_ATTENTION_ORDER,
+    AgentWorkStatusSection,
     AssignmentStatus,
     ConversationStatus,
-    DreamcatcherDaemonStatus,
     DreamcatcherStatusReport,
     IssueObservation,
     Truth,
@@ -31,7 +29,7 @@ from dreamcatcher.tui.shared import (
     render_latest_output,
     render_section,
 )
-from dreamcatcher.words import describe_count, describe_countdown, describe_time
+from dreamcatcher.words import describe_count
 
 
 def show_status_view(
@@ -45,137 +43,68 @@ def show_status_view(
     """Show instance, issue, and assignment status until interrupted.
 
     A non-terminal or dumb terminal renders one report and returns.
-    Times use the given zone, or the machine's local zone when it is None.
     """
     refresh_live_view(
         console=console,
-        read_snapshot=lambda: _read_status_snapshot(
-            state=state, clock=clock, zone=zone
-        ),
+        read_snapshot=lambda: _read_status_snapshot(state=state, clock=clock),
         wait=wait,
     )
 
 
 def _read_status_snapshot(
-    *, state: StateDirectory, clock: Callable[[], datetime], zone: tzinfo | None
+    *, state: StateDirectory, clock: Callable[[], datetime]
 ) -> ViewSnapshot:
     """Return the current status report as a view that never ends itself.
 
     A daemon can start, a tick can run, or a round can begin after any refresh.
     """
     return ViewSnapshot(
-        renderable=_render_status(
-            report=read_status_report(state=state, clock=clock), zone=zone
-        ),
+        renderable=_render_status(report=read_status_report(state=state, clock=clock)),
         should_stop_refreshing=False,
     )
 
 
-def _render_status(
-    *, report: DreamcatcherStatusReport, zone: tzinfo | None
-) -> RenderableType:
+def _render_status(*, report: DreamcatcherStatusReport) -> RenderableType:
     return combine_renderable_parts(
         parts=[
             Text(report.repository or "repository unknown", style="bold"),
-            _render_instance_status(report=report, zone=zone),
-            _render_assignments(
-                assignments=report.assignment_statuses,
-                failed_setups=report.failed_assignment_setups,
-                issues=report.issue_observations,
+            _render_instance_status(report=report),
+            _render_assignments(report=report, section=report.assignment_section),
+            _render_conversations(
+                conversations=report.conversation_statuses,
+                section=report.conversation_section,
             ),
-            _render_conversations(conversations=report.conversation_statuses),
-            _describe_empty_status_report(report=report),
         ]
     )
 
 
-def _render_instance_status(
-    *, report: DreamcatcherStatusReport, zone: tzinfo | None
-) -> RenderableType:
-    """Render the daemon, scheduler, capacity, and cooldown facts."""
+def _render_instance_status(*, report: DreamcatcherStatusReport) -> RenderableType:
+    """Render the daemon and the instance facts."""
     table = create_table(columns=2)
-    for name, value in _compose_instance_rows(report=report, zone=zone):
-        if value is not None:
-            table.add_row(Text(name), Text(cast("str", value)))
+    for fact in (report.daemon.status_fact, *report.instance_facts):
+        table.add_row(Text(fact.label), Text(fact.value))
     return render_section(heading="instance", body=table)
 
 
-def _compose_instance_rows(
-    *, report: DreamcatcherStatusReport, zone: tzinfo | None
-) -> tuple[tuple[str, object | None], ...]:
-    daemon_status = report.daemon
-    tick = (
-        None
-        if not daemon_status.is_running
-        else describe_countdown(
-            at=report.at,
-            since=report.latest_scheduler_tick,
-            span_seconds=daemon_status.interval_seconds,
-        )
-    )
-    cooldown = (
-        "none"
-        if report.active_global_cooldown is None
-        else f"ends {describe_time(at=report.active_global_cooldown.ends, zone=zone)}"
-    )
-    return (
-        (
-            "daemon",
-            _describe_daemon(daemon=daemon_status),
-        ),
-        ("preferred harness", daemon_status.agent_harness),
-        ("next update in", tick),
-        (
-            "agent capacity",
-            (
-                None
-                if daemon_status.max_agents is None
-                else f"{report.running_agents} of {daemon_status.max_agents} working"
-            ),
-        ),
-        ("global cooldown", cooldown),
-        ("scheduler failures", report.scheduler_failure_summary),
-    )
-
-
-def _describe_daemon(*, daemon: DreamcatcherDaemonStatus) -> str:
-    if not daemon.is_running:
-        return "not running"
-    version = (
-        None
-        if daemon.dreamcatcher_version is None
-        else f"dreamcatcher v{daemon.dreamcatcher_version}"
-    )
-    pid = None if daemon.pid is None else f"as pid {daemon.pid}"
-    return " ".join(filter(None, ("running", version, pid)))
-
-
 def _render_assignments(
-    *,
-    assignments: Sequence[AssignmentStatus],
-    failed_setups: Sequence[IssueObservation],
-    issues: Sequence[IssueObservation],
+    *, report: DreamcatcherStatusReport, section: AgentWorkStatusSection | None
 ) -> RenderableType | None:
     """Render assignment work as one section, mirroring the web home view.
 
     Orders active assignments, failed assignment setups, issue observations,
     and the ended-assignment count in that sequence.
     """
-    if not (assignments or failed_setups or issues):
+    if section is None:
         return None
-    ended = [status for status in assignments if status.has_ended]
-    ordered = sorted(
-        (status for status in assignments if not status.has_ended),
-        key=lambda status: ASSIGNMENT_STATUS_VALUES_IN_ATTENTION_ORDER.index(
-            status.value
-        ),
-    )
-    rows = _render_assignment_rows(assignments=ordered)
-    rows += _render_failed_setups(failed_setups=failed_setups)
-    rows += _render_issue_observations(issues=issues)
+    rows = _render_assignment_rows(assignments=report.active_assignment_statuses)
+    rows += _render_failed_setups(failed_setups=report.failed_assignment_setups)
+    rows += _render_issue_observations(issues=report.issue_observations)
+    if section.empty_message is not None:
+        rows.append(Text(section.empty_message))
+    ended = report.ended_assignment_statuses
     if ended:
         rows.append(Text(describe_count(number=len(ended), noun="ended assignment")))
-    return render_section(heading="assignments", body=Group(*rows))
+    return render_section(heading=section.heading, body=Group(*rows))
 
 
 def _render_failed_setups(
@@ -253,35 +182,19 @@ def _render_assignment_rows(
 
 
 def _render_conversations(
-    *, conversations: Sequence[ConversationStatus]
+    *,
+    conversations: Sequence[ConversationStatus],
+    section: AgentWorkStatusSection | None,
 ) -> RenderableType | None:
-    """Render conversations in attention order, preserving order within a status."""
-    if not conversations:
+    if section is None:
         return None
+    if section.empty_message is not None:
+        return render_section(heading=section.heading, body=Text(section.empty_message))
     table = create_table(columns=3)
-    for status in sorted(
-        conversations,
-        key=lambda status: CONVERSATION_STATUS_VALUES_IN_ATTENTION_ORDER.index(
-            status.value
-        ),
-    ):
+    for status in conversations:
         table.add_row(
             Text(f"GH{status.issue}"),
             Text(str(status.value), style=CONVERSATION_STATUS_STYLES[status.value]),
             Text(status.detail),
         )
-    return render_section(heading="issue conversations", body=table)
-
-
-def _describe_empty_status_report(
-    *, report: DreamcatcherStatusReport
-) -> RenderableType | None:
-    """Describe an instance that has no issue or assignment status yet."""
-    if (
-        report.failed_assignment_setups
-        or report.issue_observations
-        or report.assignment_statuses
-        or report.conversation_statuses
-    ):
-        return None
-    return Group(Text(), Text("no issues or agent assignments recorded yet"))
+    return render_section(heading=section.heading, body=table)
