@@ -28,7 +28,7 @@ from dreamcatcher.agent_rounds import (
     StoppedAgentRoundEnding,
     _compose_agent_round_ending,
 )
-from dreamcatcher.config import AgentHarness
+from dreamcatcher.config import DREAMCATCHER_CONFIG_NAME, AgentHarness
 from dreamcatcher.daemon import DEFAULT_INTERVAL_SECONDS
 from dreamcatcher.daemon_runs import DaemonRunRecord
 from dreamcatcher.documents import write_text
@@ -1059,6 +1059,16 @@ def test_a_report_orders_active_assignments_by_attention_and_ended_ones_newest_f
     assert [
         status.assignment.record.issue for status in found.ended_assignment_statuses
     ] == [70, 12]
+
+
+def test_an_assignment_keeps_its_section_after_its_routes_are_removed(state):
+    write_text(text="", path=state.root / DREAMCATCHER_CONFIG_NAME)
+
+    found = report(state=state)
+
+    assert found.assignment_section == AgentWorkStatusSection(
+        heading="assignments", empty_message=None
+    )
 
 
 @pytest.mark.parametrize(

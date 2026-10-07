@@ -1,7 +1,7 @@
 """Render the dreamcatcher instance status view in a terminal."""
 
 from collections.abc import Callable, Sequence
-from datetime import datetime
+from datetime import datetime, tzinfo
 from time import sleep
 from typing import cast
 
@@ -38,6 +38,7 @@ def show_status_view(
     console: Console,
     clock: Callable[[], datetime] = read_current_time,
     wait: WaitForSeconds = sleep,
+    zone: tzinfo | None = None,
 ) -> None:
     """Show instance, issue, and assignment status until interrupted.
 

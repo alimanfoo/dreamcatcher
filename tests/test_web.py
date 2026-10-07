@@ -22,6 +22,7 @@ from status_fabrications import (
     LOOKED_AT,
     STATUS_REPORTS,
     ended,
+    fabricate_a_dead_daemon,
     fabricate_a_silent_round,
     fabricate_everything,
     fabricate_nothing,
@@ -808,7 +809,7 @@ def test_assignment_page_shares_the_home_page_top_bar(tmp_path):
     assert assignment_headers == home_headers
 
 
-def test_the_daemon_version_links_to_the_documentation(tmp_path):
+def test_the_daemon_header_links_to_the_documentation(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
 
@@ -816,10 +817,18 @@ def test_the_daemon_version_links_to_the_documentation(tmp_path):
 
     assert (
         '<a class="docs-link" href="https://alimanfoo.github.io/dreamcatcher/" '
-        'target="_blank" rel="noopener noreferrer">running dreamcatcher '
-        "v3.0.0.beta1 as pid 4242</a>" in page
+        'target="_blank" rel="noopener noreferrer">docs</a>' in page
     )
     assert ">Docs</a>" not in page
+
+
+def test_a_stopped_daemon_does_not_link_its_status_to_the_documentation(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    fabricate_a_dead_daemon(state=state)
+
+    page = render_home(state=state)
+
+    assert 'class="docs-link"' not in page
 
 
 def test_every_complete_page_uses_the_dreamcatcher_mark_as_its_favicon(tmp_path):

@@ -140,6 +140,7 @@ def render_status_view(*, state, width: int = WIDTH) -> str:
         console=pinned(written_to=written_to, width=width),
         clock=lambda: LOOKED_AT,
         wait=refusing,
+        zone=DISPLAY_TIME_ZONE,
     )
     return written_to.getvalue()
 

@@ -523,6 +523,7 @@ body::after {
 .round-timing {
   color: var(--dim);
   font-size: 14px;
+  overflow-wrap: anywhere;
 }
 
 .round-outcome {
