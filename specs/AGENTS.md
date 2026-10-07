@@ -17,5 +17,6 @@ you to correct that historical record.
 - `2026-10-06-init`
 
 A dated folder that is absent from this list is an active phase. Keep its
-specifications aligned with implementation changes. The final pull request of
-the phase adds the folder to this list before merge.
+specifications aligned with implementation changes, and say in the pull request
+what you changed and why. The final pull request of the phase adds the folder to
+this list before merge.

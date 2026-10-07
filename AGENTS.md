@@ -20,17 +20,9 @@ from labelled issues. It carries each assignment to a pull request for review.
 
 ## Specs
 
-The project is spec-first. Each phase of development has a dated folder under
-`specs/`. Before working, find the spec your task belongs to — the task usually
-names it. Then read `specs/AGENTS.md`, which lists every completed phase. Leave
-the specs of a completed phase as they stand, however far the code has moved
-since. They are historical records of what that phase set out to do.
-
-When the code you're writing has to diverge from an active spec, correct it in
-the same PR, so it keeps saying what the code really does. Say in the PR what
-you changed and why, so the reviewer reads the divergence rather than finding
-it. The final PR of a phase must add its dated folder to the completed list in
-`specs/AGENTS.md`.
+The project is spec-first. Each development phase has a dated folder under
+`specs/`. Before working, find the phase your task belongs to — the task usually
+names it — and follow the status and editing rules in `specs/AGENTS.md`.
 
 ## The standard
 
