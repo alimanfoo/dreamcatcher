@@ -90,6 +90,20 @@ def test_a_conversation_is_configured_separately(tmp_path):
     assert config.routed_harnesses == {AgentHarness.CLAUDE, AgentHarness.CODEX}
 
 
+def test_a_config_can_omit_assignment_routes(tmp_path):
+    write_config(root=tmp_path, text=CONVERSATION)
+
+    config = read_dreamcatcher_config(root=tmp_path)
+
+    assert config.assignment == []
+    assert config.conversation == [
+        ConversationRoute(
+            label="dream:conversation",
+            claude=CLAUDE_CONVERSATION_RECIPE,
+        )
+    ]
+
+
 def test_a_conversation_one_harness_can_run_uses_that_one(tmp_path):
     write_config(root=tmp_path, text=WITHOUT_CODEX + CODEX_CONVERSATION)
 
@@ -218,11 +232,6 @@ def test_a_label_one_harness_can_run_runs_on_that_one_whatever_the_run_named(tmp
             "an assignee",
             'assignee = "@me"\n' + CONFIG,
             "assignee: Extra inputs are not permitted",
-        ),
-        (
-            "no assignment routes",
-            "assignment = []\n",
-            "assignment: List should have at least 1 item after validation, not 0",
         ),
         (
             "a label no harness can run",

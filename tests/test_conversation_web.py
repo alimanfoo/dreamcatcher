@@ -5,7 +5,7 @@ from datetime import timedelta
 from unittest.mock import MagicMock
 
 from clocks import DISPLAY_TIME_ZONE, PINNED
-from conftest import REPOSITORY
+from conftest import REPOSITORY, configure
 from observations import observed_conversation
 from records import (
     hold_daemon_lock_for_test,
@@ -35,6 +35,13 @@ from dreamcatcher.state import StateDirectory
 from dreamcatcher.web.app import _create_app
 
 LOOKED_AT = PINNED + timedelta(hours=2)
+CONVERSATION_CONFIG = """[[conversation]]
+label = "dream:scout"
+[conversation.claude]
+prompt = "/dream:scout GH{issue}"
+model = "opus"
+effort = "xhigh"
+"""
 
 
 def application(*, state: StateDirectory):
@@ -630,6 +637,7 @@ def fabricate_unsaved_conversation(*, state: StateDirectory) -> None:
 def test_home_lists_an_eligible_issue_before_its_conversation_is_saved(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_unsaved_conversation(state=state)
+    configure(root=state.root, head=CONVERSATION_CONFIG)
 
     page = application(state=state).test_client().get("/").text
 
@@ -658,6 +666,7 @@ def test_conversation_page_before_its_record_shows_its_issue_and_polls(tmp_path)
 def test_home_lists_conversations_in_attention_order(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_conversation(state=state)
+    configure(root=state.root, head=CONVERSATION_CONFIG)
     write_running_conversation(state=state, issue=11, started=PINNED)
     write_feed(
         directory=state.conversations / "GH11",
