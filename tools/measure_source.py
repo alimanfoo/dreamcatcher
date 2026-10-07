@@ -7,20 +7,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 SOURCE_ROOT = Path(__file__).parents[1] / "src" / "dreamcatcher"
-FUNCTION_LINE_BAR = 50
-
-# The functions that stay whole over the bar, each with its reason. Each is one
-# transaction whose steps the architecture or the ontology lists in order, and
-# splitting it would hide that order rather than name a concept.
-FUNCTIONS_THAT_STAY_WHOLE = {
-    "_build_cli_parser": "the complete command-line grammar, in one place",
-    "DreamcatcherDaemon.run": "the daemon lifecycle, as the architecture lists it",
-    "Scheduler.tick": "the scheduler tick, as the architecture lists it",
-    "AssignmentCreator.create": "assignment creation, as the ontology lists it",
-    "AgentRound.__init__": (
-        "starting a round as one transaction: inputs, process, record, readers"
-    ),
-}
+LONGEST_FUNCTIONS_SHOWN = 10
 
 
 @dataclass(frozen=True)
@@ -57,16 +44,14 @@ def _measure_functions(*, path: Path) -> list[FunctionMeasurement]:
             (decorator.lineno for decorator in node.decorator_list),
             default=node.lineno,
         )
-        lines = node.end_lineno - first_line + 1
-        if lines > FUNCTION_LINE_BAR:
-            measurements.append(
-                FunctionMeasurement(
-                    path=path,
-                    name=name,
-                    line=first_line,
-                    lines=lines,
-                )
+        measurements.append(
+            FunctionMeasurement(
+                path=path,
+                name=name,
+                line=first_line,
+                lines=node.end_lineno - first_line + 1,
             )
+        )
     return measurements
 
 
@@ -104,25 +89,13 @@ def _print_modules(*, measurements: list[ModuleMeasurement]) -> None:
 
 def _print_functions(*, measurements: list[FunctionMeasurement]) -> None:
     print()
-    print("## Functions over the S2 bar")
+    print("## Longest functions")
     print()
-    print("| Function | Lines | Stays whole because |")
-    print("| --- | ---: | --- |")
+    print("| Function | Lines |")
+    print("| --- | ---: |")
     for measurement in measurements:
         location = f"{_display_path(path=measurement.path)}:{measurement.line}"
-        reason = FUNCTIONS_THAT_STAY_WHOLE.get(measurement.name, "")
-        print(f"| `{location}::{measurement.name}` | {measurement.lines} | {reason} |")
-
-
-def _print_unmatched_exemptions(*, measurements: list[FunctionMeasurement]) -> None:
-    measured_names = {measurement.name for measurement in measurements}
-    unmatched = sorted(set(FUNCTIONS_THAT_STAY_WHOLE) - measured_names)
-    if unmatched:
-        print()
-        print("## Exemptions that match no function over the bar")
-        print()
-        for name in unmatched:
-            print(f"- `{name}`")
+        print(f"| `{location}::{measurement.name}` | {measurement.lines} |")
 
 
 def main() -> None:
@@ -147,8 +120,7 @@ def main() -> None:
     print("# Dreamcatcher source measurement")
     print()
     _print_modules(measurements=modules)
-    _print_functions(measurements=functions)
-    _print_unmatched_exemptions(measurements=functions)
+    _print_functions(measurements=functions[:LONGEST_FUNCTIONS_SHOWN])
 
 
 if __name__ == "__main__":

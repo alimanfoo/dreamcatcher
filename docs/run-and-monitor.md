@@ -39,8 +39,9 @@ dreamcatcher web
 
 _dreamcatcher_ opens the web home page in your browser and serves it on
 `127.0.0.1` until you interrupt this command. The page reads the local state
-directory and does not contact GitHub itself. It still opens when the daemon is
-stopped, but then it can show only the last state the daemon recorded.
+directory and `dreamcatcher.toml`, and does not contact GitHub itself. It still
+opens when the daemon is stopped, but then it can show only the last state the
+daemon recorded.
 
 Use an exact port when needed:
 

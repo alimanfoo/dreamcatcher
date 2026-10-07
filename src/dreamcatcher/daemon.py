@@ -100,6 +100,8 @@ class DreamcatcherDaemon:
         that could never dispatch. Once the loop is going, a tick that fails
         reports the failure and the next tick tries again. An invalid scheduler
         record ends the daemon run because retrying cannot change the document it reads.
+        A lost daemon lock ends it too, because another daemon may then hold the
+        checkout.
 
         The repository and signed-in account are fixed for the daemon run. The account
         identifies user posts before the marker excludes the assignment's own
