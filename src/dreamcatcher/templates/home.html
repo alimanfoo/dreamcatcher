@@ -5,7 +5,7 @@
     <div class="home-content">
       {% include "partials/instance.html" %}
       <div class="dashboard">
-        <section class="panel" aria-labelledby="assignments-heading">
+        {% if view.active_assignments or view.ended_assignments or view.failed_setups or view.issues or view.assignment_empty_message %}<section class="panel" aria-labelledby="assignments-heading">
           <h1 id="assignments-heading">Assignments</h1>
           <div class="panel-body">
             {% for assignment in view.active_assignments %}
@@ -32,7 +32,7 @@
             {% endif %}
             {% if not view.active_assignments and not view.ended_assignments and not view.failed_setups and not view.issues %}<p class="empty">{{ view.assignment_empty_message }}</p>{% endif %}
           </div>
-        </section>
+        </section>{% endif %}
         {% if view.conversations or view.conversation_empty_message %}
           <section class="panel" aria-labelledby="conversations-heading">
             <h1 id="conversations-heading">Conversations</h1>

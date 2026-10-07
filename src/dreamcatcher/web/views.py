@@ -94,7 +94,9 @@ def compose_home_view(
             None if cooldown_end is None else f"Global cooldown ends {cooldown_end}"
         ),
         assignment_empty_message=(
-            "Label an issue with "
+            None
+            if not assignment_labels
+            else "Label an issue with "
             f"{_describe_route_labels(labels=assignment_labels)} "
             "to create an assignment."
         ),

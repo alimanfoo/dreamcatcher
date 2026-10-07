@@ -28,7 +28,7 @@ file, it comments out the blocks of a harness that is not installed.
 
 | Setting        | Value                                                | Required | Default     | Constraint                                        |
 | -------------- | ---------------------------------------------------- | -------- | ----------- | ------------------------------------------------- |
-| `assignment`   | Array of route tables, written as `[[assignment]]`   | Yes      | None        | At least one entry.                               |
+| `assignment`   | Array of route tables, written as `[[assignment]]`   | No       | Empty array | Each entry defines a separate assignment route.   |
 | `conversation` | Array of route tables, written as `[[conversation]]` | No       | Empty array | Each entry defines a separate conversation route. |
 
 No other top-level settings are accepted. In particular, `assignee`, `interval`

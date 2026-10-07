@@ -43,6 +43,7 @@ from dreamcatcher.agent_rounds import (
     AssignmentRoundPurpose,
     StoppedAgentRoundEnding,
 )
+from dreamcatcher.config import DREAMCATCHER_CONFIG_NAME
 from dreamcatcher.documents import append_text, write_text
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import FeedLine
@@ -70,13 +71,17 @@ WEB_ASSIGNMENT_PAGES = {
     "working": (fabricate_everything, "GH13-20260819-184158"),
 }
 
-ADDITIONAL_AGENT_WORK_CONFIG = """[[conversation]]
+CONVERSATION_ONLY_CONFIG = """[[conversation]]
 label = "dream:scout"
 [conversation.claude]
 prompt = "/dream:scout GH{issue}"
 model = "opus"
 effort = "xhigh"
+"""
 
+ADDITIONAL_AGENT_WORK_CONFIG = (
+    CONVERSATION_ONLY_CONFIG
+    + """
 [[assignment]]
 label = "dream:zebra"
 [assignment.claude]
@@ -84,6 +89,7 @@ prompt = "/dream:zebra GH{issue}"
 model = "opus"
 effort = "xhigh"
 """
+)
 
 
 def render_home(*, state: StateDirectory) -> str:
@@ -153,6 +159,21 @@ def test_an_empty_home_names_every_configured_agent_work_label(tmp_path):
         "Label an issue with dream:smith or dream:zebra to create an assignment."
         in page
     )
+    assert "Label an issue with dream:scout to start a conversation." in page
+
+
+def test_an_empty_home_hides_an_unconfigured_assignment_section(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    fabricate_nothing(state=state)
+    write_text(
+        text=CONVERSATION_ONLY_CONFIG,
+        path=state.root / DREAMCATCHER_CONFIG_NAME,
+    )
+
+    page = render_home(state=state)
+
+    assert 'id="assignments-heading"' not in page
+    assert '<h1 id="conversations-heading">Conversations</h1>' in page
     assert "Label an issue with dream:scout to start a conversation." in page
 
 
