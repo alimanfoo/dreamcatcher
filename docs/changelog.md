@@ -32,6 +32,9 @@ each entry links the pull request that made the change.
   signed-in GitHub account and apply a route label. The conversation panel also
   says to comment from that account.
   ([#486](https://github.com/alimanfoo/dreamcatcher/pull/486))
+- `dreamcatcher init` now gives suitable next steps when the configuration has
+  only conversation routes or no routes. It no longer fails with a traceback.
+  ([#487](https://github.com/alimanfoo/dreamcatcher/pull/487))
 
 ## [v5.3.0](https://github.com/alimanfoo/dreamcatcher/releases/tag/v5.3.0) — 2026-10-07
 

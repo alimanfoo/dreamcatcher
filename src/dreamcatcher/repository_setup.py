@@ -170,9 +170,21 @@ def _report_next_steps(
             '  git commit -m "Configure dreamcatcher"',
             "  git push origin main",
         ]
-    lines += [
-        f"  Assign an issue to {account}, and label it {config.assignment[0].label}.",
-        f"  dreamcatcher run --harness {min(config.routed_harnesses)}",
-    ]
+    if config.assignment:
+        lines.append(
+            f"  Assign an issue to {account}, and label it "
+            f"{config.assignment[0].label}."
+        )
+    elif config.conversation:
+        lines.append(
+            f"  Assign an issue to {account}, label it "
+            f"{config.conversation[0].label}, and comment with your question."
+        )
+    else:
+        lines.append(
+            f"  Add an assignment or conversation route to {DREAMCATCHER_CONFIG_NAME}."
+        )
+    if config.routed_harnesses:
+        lines.append(f"  dreamcatcher run --harness {min(config.routed_harnesses)}")
     for line in lines:
         _print_line(line=line)
