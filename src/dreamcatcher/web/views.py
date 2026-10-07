@@ -1,7 +1,7 @@
 """Compose Flask-free models for dreamcatcher's web views."""
 
 import re
-from datetime import datetime, tzinfo
+from datetime import tzinfo
 from pathlib import Path
 from typing import cast
 
@@ -9,8 +9,6 @@ from dreamcatcher.config import DreamcatcherConfig
 from dreamcatcher.issue_conversations import Conversation
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.status import (
-    ASSIGNMENT_STATUS_VALUES_IN_ATTENTION_ORDER,
-    CONVERSATION_STATUS_VALUES_IN_ATTENTION_ORDER,
     AgentRoundStatus,
     AssignmentStatus,
     ConversationStatus,
@@ -74,7 +72,6 @@ def compose_home_view(
         if report.active_global_cooldown is None
         else describe_time(at=report.active_global_cooldown.ends, zone=zone)
     )
-    active_assignments, ended_assignments = _compose_assignment_cards(report=report)
     assignment_labels = tuple(
         sorted((route.label for route in config.assignment), key=str.casefold)
     )
@@ -105,9 +102,18 @@ def compose_home_view(
             f"{_describe_route_labels(labels=conversation_labels)} "
             "to start a conversation."
         ),
-        conversations=_compose_conversation_cards(report=report),
-        active_assignments=active_assignments,
-        ended_assignments=ended_assignments,
+        conversations=tuple(
+            _compose_conversation_card(status=status)
+            for status in report.conversation_statuses
+        ),
+        active_assignments=tuple(
+            _compose_assignment_card(status=status)
+            for status in report.active_assignment_statuses
+        ),
+        ended_assignments=tuple(
+            _compose_assignment_card(status=status)
+            for status in report.ended_assignment_statuses
+        ),
         failed_setups=tuple(
             _compose_failed_setup_row(observation=setup)
             for setup in report.failed_assignment_setups
@@ -122,43 +128,6 @@ def _describe_route_labels(*, labels: tuple[str, ...]) -> str:
     if len(labels) == 1:
         return labels[0]
     return f"{', '.join(labels[:-1])} or {labels[-1]}"
-
-
-def _compose_assignment_cards(
-    *, report: DreamcatcherStatusReport
-) -> tuple[tuple[WebAssignmentCard, ...], tuple[WebAssignmentCard, ...]]:
-    active_statuses = sorted(
-        (status for status in report.assignment_statuses if not status.has_ended),
-        key=lambda status: ASSIGNMENT_STATUS_VALUES_IN_ATTENTION_ORDER.index(
-            status.value
-        ),
-    )
-    ended_statuses = sorted(
-        (status for status in report.assignment_statuses if status.has_ended),
-        key=lambda status: cast("datetime", status.assignment.ended_at),
-        reverse=True,
-    )
-    ended_assignments = tuple(
-        _compose_assignment_card(status=status) for status in ended_statuses
-    )
-    active_assignments = tuple(
-        _compose_assignment_card(status=status) for status in active_statuses
-    )
-    return active_assignments, ended_assignments
-
-
-def _compose_conversation_cards(
-    *, report: DreamcatcherStatusReport
-) -> tuple[WebConversationCard, ...]:
-    return tuple(
-        _compose_conversation_card(status=status)
-        for status in sorted(
-            report.conversation_statuses,
-            key=lambda status: CONVERSATION_STATUS_VALUES_IN_ATTENTION_ORDER.index(
-                status.value
-            ),
-        )
-    )
 
 
 def _compose_assignment_card(*, status: AssignmentStatus) -> WebAssignmentCard:

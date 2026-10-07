@@ -11,8 +11,6 @@ from rich.text import Text
 from dreamcatcher.clock import WaitForSeconds, read_current_time
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.status import (
-    ASSIGNMENT_STATUS_VALUES_IN_ATTENTION_ORDER,
-    CONVERSATION_STATUS_VALUES_IN_ATTENTION_ORDER,
     AssignmentStatus,
     ConversationStatus,
     DreamcatcherDaemonStatus,
@@ -78,11 +76,7 @@ def _render_status(
         parts=[
             Text(report.repository or "repository unknown", style="bold"),
             _render_instance_status(report=report, zone=zone),
-            _render_assignments(
-                assignments=report.assignment_statuses,
-                failed_setups=report.failed_assignment_setups,
-                issues=report.issue_observations,
-            ),
+            _render_assignments(report=report),
             _render_conversations(conversations=report.conversation_statuses),
             _describe_empty_status_report(report=report),
         ]
@@ -150,29 +144,22 @@ def _describe_daemon(*, daemon: DreamcatcherDaemonStatus) -> str:
     return " ".join(filter(None, ("running", version, pid)))
 
 
-def _render_assignments(
-    *,
-    assignments: Sequence[AssignmentStatus],
-    failed_setups: Sequence[IssueObservation],
-    issues: Sequence[IssueObservation],
-) -> RenderableType | None:
+def _render_assignments(*, report: DreamcatcherStatusReport) -> RenderableType | None:
     """Render assignment work as one section, mirroring the web home view.
 
     Orders active assignments, failed assignment setups, issue observations,
     and the ended-assignment count in that sequence.
     """
-    if not (assignments or failed_setups or issues):
+    if not (
+        report.assignment_statuses
+        or report.failed_assignment_setups
+        or report.issue_observations
+    ):
         return None
-    ended = [status for status in assignments if status.has_ended]
-    ordered = sorted(
-        (status for status in assignments if not status.has_ended),
-        key=lambda status: ASSIGNMENT_STATUS_VALUES_IN_ATTENTION_ORDER.index(
-            status.value
-        ),
-    )
-    rows = _render_assignment_rows(assignments=ordered)
-    rows += _render_failed_setups(failed_setups=failed_setups)
-    rows += _render_issue_observations(issues=issues)
+    rows = _render_assignment_rows(assignments=report.active_assignment_statuses)
+    rows += _render_failed_setups(failed_setups=report.failed_assignment_setups)
+    rows += _render_issue_observations(issues=report.issue_observations)
+    ended = report.ended_assignment_statuses
     if ended:
         rows.append(Text(describe_count(number=len(ended), noun="ended assignment")))
     return render_section(heading="assignments", body=Group(*rows))
@@ -255,16 +242,10 @@ def _render_assignment_rows(
 def _render_conversations(
     *, conversations: Sequence[ConversationStatus]
 ) -> RenderableType | None:
-    """Render conversations in attention order, preserving order within a status."""
     if not conversations:
         return None
     table = create_table(columns=3)
-    for status in sorted(
-        conversations,
-        key=lambda status: CONVERSATION_STATUS_VALUES_IN_ATTENTION_ORDER.index(
-            status.value
-        ),
-    ):
+    for status in conversations:
         table.add_row(
             Text(f"GH{status.issue}"),
             Text(str(status.value), style=CONVERSATION_STATUS_STYLES[status.value]),

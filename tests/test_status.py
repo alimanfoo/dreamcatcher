@@ -14,6 +14,7 @@ from records import (
     write_round,
     write_tick,
 )
+from status_fabrications import fabricate_everything
 
 from dreamcatcher.agent_assignments import (
     Assignment,
@@ -46,7 +47,10 @@ from dreamcatcher.status import (
     read_dreamcatcher_daemon_status,
     read_status_report,
 )
-from dreamcatcher.status.assignments import AssignmentStatusValue
+from dreamcatcher.status.assignments import (
+    ASSIGNMENT_STATUS_VALUES_IN_ATTENTION_ORDER,
+    AssignmentStatusValue,
+)
 
 ASSIGNMENT_ID = "GH13-20260819-184158"
 LOOKED_AT = PINNED + timedelta(hours=2)
@@ -1008,3 +1012,22 @@ def test_a_failed_setup_with_a_routing_conflict_is_reported_once(state):
 
     assert [issue.issue for issue in status_report.failed_assignment_setups] == [20]
     assert status_report.issue_observations == []
+
+
+def test_a_report_orders_active_assignments_by_attention_and_ended_ones_newest_first(
+    tmp_path,
+):
+    state = StateDirectory(root=tmp_path)
+    fabricate_everything(state=state)
+
+    found = report(state=state)
+
+    attention = [
+        ASSIGNMENT_STATUS_VALUES_IN_ATTENTION_ORDER.index(status.value)
+        for status in found.active_assignment_statuses
+    ]
+    assert attention == sorted(attention)
+    assert len(set(attention)) > 1
+    assert [
+        status.assignment.record.issue for status in found.ended_assignment_statuses
+    ] == [70, 12]
