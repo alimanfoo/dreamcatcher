@@ -241,7 +241,7 @@ def _describe_route_labels(*, labels: tuple[str, ...]) -> str:
 def read_status_report(
     *, state: StateDirectory, clock: Callable[[], datetime] = read_current_time
 ) -> DreamcatcherStatusReport:
-    """Read a status report from the instance's local state."""
+    """Read a status report from local state and the current route configuration."""
     daemon = read_dreamcatcher_daemon_status(state=state)
     at, scheduler_record = _read_status_facts(state=state, clock=clock)
     assignments = read_assignments(state=state)
