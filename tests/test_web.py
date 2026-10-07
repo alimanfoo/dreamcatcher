@@ -754,6 +754,20 @@ def test_assignment_page_shares_the_home_page_top_bar(tmp_path):
     assert assignment_headers == home_headers
 
 
+def test_the_daemon_version_links_to_the_documentation(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    fabricate_everything(state=state)
+
+    page = render_home(state=state)
+
+    assert (
+        '<a class="docs-link" href="https://alimanfoo.github.io/dreamcatcher/" '
+        'target="_blank" rel="noopener noreferrer">dreamcatcher v3.0.0.beta1</a>'
+        in page
+    )
+    assert ">Docs</a>" not in page
+
+
 def test_every_complete_page_uses_the_dreamcatcher_mark_as_its_favicon(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
