@@ -1,7 +1,7 @@
 """Read and write the files that dreamcatcher owns."""
 
 import tomllib
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Generator
 from contextlib import contextmanager, suppress
 from io import SEEK_END, BytesIO
 from pathlib import Path
@@ -279,7 +279,7 @@ def remove_file(*, path: Path) -> None:
 
 
 @contextmanager
-def _open_bytes(*, path: Path) -> Iterator[IO[bytes]]:
+def _open_bytes(*, path: Path) -> Generator[IO[bytes], None, None]:
     """Open the file for byte reads, or provide an empty stream if it is absent.
 
     Finding one part of a file takes more than one read of it, so whoever

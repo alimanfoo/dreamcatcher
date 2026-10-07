@@ -1,6 +1,6 @@
 """Serve representative dreamcatcher state for browser tests."""
 
-from collections.abc import Iterator
+from collections.abc import Generator
 from contextlib import contextmanager
 from datetime import timedelta
 from pathlib import Path
@@ -28,7 +28,7 @@ FEED_LINE_COUNT_PER_ROUND = 40
 
 
 @contextmanager
-def serve_fabricated_web(*, root: Path) -> Iterator[str]:
+def serve_fabricated_web(*, root: Path) -> Generator[str, None, None]:
     """Serve representative state on an available port until the caller exits."""
     state = StateDirectory(root=root)
     fabricate_conversation(state=state)

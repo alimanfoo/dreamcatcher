@@ -1,26 +1,38 @@
 version: 2
 
+# Each ecosystem opens one pull request for its version updates and one for
+# its security updates, majors included, because a group applies to one kind.
+
 updates:
   - package-ecosystem: "uv"
     directory: "/"
     schedule:
       interval: "weekly"
     groups:
-      minor-and-patch:
-        update-types: ["minor", "patch"]
+      uv:
+        patterns: ["*"]
+      uv-security:
+        applies-to: security-updates
+        patterns: ["*"]
 
   - package-ecosystem: "pre-commit"
     directory: "/"
     schedule:
       interval: "weekly"
     groups:
-      minor-and-patch:
-        update-types: ["minor", "patch"]
+      pre-commit:
+        patterns: ["*"]
+      pre-commit-security:
+        applies-to: security-updates
+        patterns: ["*"]
 
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
     groups:
-      minor-and-patch:
-        update-types: ["minor", "patch"]
+      github-actions:
+        patterns: ["*"]
+      github-actions-security:
+        applies-to: security-updates
+        patterns: ["*"]

@@ -7,7 +7,7 @@ process lock a replacement file.
 """
 
 import os
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Generator
 from contextlib import contextmanager, suppress
 from dataclasses import dataclass
 from pathlib import Path
@@ -50,7 +50,7 @@ class _HeldDaemonLock:
 
 
 @contextmanager
-def hold_daemon_lock(*, path: Path) -> Iterator[_HeldDaemonLock]:
+def hold_daemon_lock(*, path: Path) -> Generator[_HeldDaemonLock, None, None]:
     """Hold the daemon lock and release it when the caller exits.
 
     Yield a checker that the caller invokes after each wait and before doing
