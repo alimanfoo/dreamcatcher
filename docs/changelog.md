@@ -79,15 +79,15 @@ each entry links the pull request that made the change.
   to `dream:scout` and assignments to `dream:smith` and `dream:less`.
   ([#437](https://github.com/alimanfoo/dreamcatcher/pull/437))
 - The terminal views and the web pages now use the same words for the same fact.
-  The terminal shows a conversation round's code revision in seven characters,
-  as the web pages already did. The web page header describes a running daemon
-  in the terminal's words, such as "daemon running dreamcatcher v5.3.0 as pid
-  4242". An active global cooldown reads as a countdown, such as "ends in 4m",
-  among the instance facts of both, and the web home page shows it as a warning
-  in place of its banner. The terminal no longer shows "global cooldown none".
-  The web heads its conversations panel **Issue conversations**, and an empty
-  terminal status shows the same configured-label guidance as the web in place
-  of "no issues or agent assignments recorded yet".
+  The web shows a conversation round's complete code revision, as the terminal
+  already did. The web page header describes a running daemon in the terminal's
+  words, such as "daemon running dreamcatcher v5.3.0 as pid 4242". An active
+  global cooldown reads as a countdown, such as "ends in 4m", among the instance
+  facts of both, and the web home page shows it as a warning in place of its
+  banner. The terminal no longer shows "global cooldown none". The web heads its
+  conversations panel **Issue conversations**, and an empty terminal status
+  shows the same configured-label guidance as the web in place of "no issues or
+  agent assignments recorded yet".
   ([#488](https://github.com/alimanfoo/dreamcatcher/pull/488))
 
 ### Fixed

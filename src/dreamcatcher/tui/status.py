@@ -9,7 +9,6 @@ from rich.console import Console, Group, RenderableType
 from rich.text import Text
 
 from dreamcatcher.clock import WaitForSeconds, read_current_time
-from dreamcatcher.config import DreamcatcherConfig, read_dreamcatcher_config
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.status import (
     AgentWorkStatusSection,
@@ -58,27 +57,21 @@ def _read_status_snapshot(
 
     A daemon can start, a tick can run, or a round can begin after any refresh.
     """
-    report = read_status_report(state=state, clock=clock)
-    config = read_dreamcatcher_config(root=state.root)
     return ViewSnapshot(
-        renderable=_render_status(report=report, config=config),
+        renderable=_render_status(report=read_status_report(state=state, clock=clock)),
         should_stop_refreshing=False,
     )
 
 
-def _render_status(
-    *, report: DreamcatcherStatusReport, config: DreamcatcherConfig
-) -> RenderableType:
-    assignment_section = report.describe_assignment_section(config=config)
-    conversation_section = report.describe_conversation_section(config=config)
+def _render_status(*, report: DreamcatcherStatusReport) -> RenderableType:
     return combine_renderable_parts(
         parts=[
             Text(report.repository or "repository unknown", style="bold"),
             _render_instance_status(report=report),
-            _render_assignments(report=report, section=assignment_section),
+            _render_assignments(report=report, section=report.assignment_section),
             _render_conversations(
                 conversations=report.conversation_statuses,
-                section=conversation_section,
+                section=report.conversation_section,
             ),
         ]
     )

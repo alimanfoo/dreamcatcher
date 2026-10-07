@@ -816,8 +816,8 @@ def test_the_daemon_version_links_to_the_documentation(tmp_path):
 
     assert (
         '<a class="docs-link" href="https://alimanfoo.github.io/dreamcatcher/" '
-        'target="_blank" rel="noopener noreferrer">dreamcatcher v3.0.0.beta1</a>'
-        in page
+        'target="_blank" rel="noopener noreferrer">running dreamcatcher '
+        "v3.0.0.beta1 as pid 4242</a>" in page
     )
     assert ">Docs</a>" not in page
 

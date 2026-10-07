@@ -5,7 +5,6 @@ from datetime import tzinfo
 from pathlib import Path
 from typing import cast
 
-from dreamcatcher.config import DreamcatcherConfig
 from dreamcatcher.issue_conversations import Conversation
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.status import (
@@ -58,11 +57,7 @@ def _compose_github_repository_url(*, repository: str | None) -> str | None:
     return f"https://github.com/{repository}"
 
 
-def compose_home_view(
-    *,
-    report: DreamcatcherStatusReport,
-    config: DreamcatcherConfig,
-) -> WebHomeView:
+def compose_home_view(*, report: DreamcatcherStatusReport) -> WebHomeView:
     """Return the values shown on the home page."""
     daemon = report.daemon
     return WebHomeView(
@@ -72,8 +67,8 @@ def compose_home_view(
         ),
         daemon=daemon,
         instance_facts=report.instance_facts,
-        assignment_section=report.describe_assignment_section(config=config),
-        conversation_section=report.describe_conversation_section(config=config),
+        assignment_section=report.assignment_section,
+        conversation_section=report.conversation_section,
         conversations=tuple(
             _compose_conversation_card(status=status)
             for status in report.conversation_statuses

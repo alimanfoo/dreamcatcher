@@ -5,6 +5,7 @@ from datetime import timedelta
 
 import pytest
 from clocks import PINNED
+from conftest import configure
 from observations import observed_conversation
 from records import (
     hold_daemon_lock_for_test,
@@ -53,6 +54,7 @@ LOOKED_AT = PINNED + timedelta(hours=2)
 @pytest.fixture
 def conversation_state(tmp_path):
     """Return local state containing one issue conversation."""
+    configure(root=tmp_path)
     state = StateDirectory(root=tmp_path)
     write_daemon_run(state=state, pid=os.getpid())
     write_conversation(state=state, issue=8)
@@ -622,6 +624,7 @@ def test_a_stopped_conversation_waits_for_new_comments(conversation_state):
 
 
 def test_an_eligible_issue_is_a_conversation_before_its_record_exists(tmp_path):
+    configure(root=tmp_path)
     state = StateDirectory(root=tmp_path)
     observe(
         state=state,
@@ -726,7 +729,7 @@ def test_an_unobserved_issue_with_no_record_has_no_conversation(conversation_sta
         (
             "0123456" + "0" * 33,
             "0123456" + "f" * 33,
-            "code revision 0123456 -> 0123456",
+            f"code revision {'0123456' + '0' * 33} -> {'0123456' + 'f' * 33}",
         ),
     ],
 )
@@ -736,8 +739,8 @@ def test_a_round_revision_description_names_its_transition(previous, current, ex
     assert found.description == expected
 
 
-def test_a_round_revision_shows_seven_characters():
+def test_a_round_revision_keeps_its_whole_value():
     found = _compose_round_revision(previous_revision=None, revision="0123456789abcdef")
 
-    assert found.value == "0123456"
-    assert found.description == "code revision 0123456"
+    assert found.value == "0123456789abcdef"
+    assert found.description == "code revision 0123456789abcdef"

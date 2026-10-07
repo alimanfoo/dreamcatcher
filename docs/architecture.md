@@ -355,10 +355,9 @@ process. In the code, those functions and records are the scheduler's `models`
 and `faults` modules, and status imports no other scheduler module. Status
 values are always derived; they are not written back as domain state.
 
-Given the current route configuration, status also describes whether each kind
-of agent work has a section to show, the section's heading, and any guidance for
-an empty section. The presentations read the configuration but make none of
-those choices themselves.
+Status reads the current route configuration and describes whether each kind of
+agent work has a section to show, the section's heading, and any guidance for an
+empty section. The presentations make none of those choices themselves.
 
 An `IssueObservation` represents claimed here, claimed elsewhere, blocked, and
 routing conflict as independent facts which may each be true, false, or unknown;

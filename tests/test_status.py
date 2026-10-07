@@ -28,7 +28,7 @@ from dreamcatcher.agent_rounds import (
     StoppedAgentRoundEnding,
     _compose_agent_round_ending,
 )
-from dreamcatcher.config import AgentHarness, read_dreamcatcher_config
+from dreamcatcher.config import AgentHarness
 from dreamcatcher.daemon import DEFAULT_INTERVAL_SECONDS
 from dreamcatcher.daemon_runs import DaemonRunRecord
 from dreamcatcher.documents import write_text
@@ -139,7 +139,7 @@ def idle_observation() -> AgentWorkObservation:
 
 
 def test_an_empty_instance_reports_unknown_capacity_and_no_work(tmp_path):
-
+    configure(root=tmp_path)
     found = read_status_report(
         state=StateDirectory(root=tmp_path),
         clock=lambda: LOOKED_AT,
@@ -166,13 +166,11 @@ def test_an_empty_report_describes_only_its_configured_agent_work(tmp_path):
         state=StateDirectory(root=tmp_path),
         clock=lambda: LOOKED_AT,
     )
-    config = read_dreamcatcher_config(root=tmp_path)
-
-    assert found.describe_assignment_section(config=config) == AgentWorkStatusSection(
+    assert found.assignment_section == AgentWorkStatusSection(
         heading="assignments",
         empty_message="Label an issue with dream:smith to create an assignment.",
     )
-    assert found.describe_conversation_section(config=config) is None
+    assert found.conversation_section is None
 
 
 def test_the_instance_record_names_the_repository(state):
@@ -199,6 +197,7 @@ def test_the_instance_records_name_the_harness_and_version(state):
 
 
 def test_a_live_daemon_that_has_not_named_its_run_has_no_pid(tmp_path):
+    configure(root=tmp_path)
     state = StateDirectory(root=tmp_path)
     hold_daemon_lock_for_test(path=state.lock)
 

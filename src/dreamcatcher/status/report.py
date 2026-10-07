@@ -13,7 +13,7 @@ from dreamcatcher.agent_assignments import (
     read_assignments_for_issue,
 )
 from dreamcatcher.clock import read_current_time
-from dreamcatcher.config import AgentHarness, DreamcatcherConfig
+from dreamcatcher.config import AgentHarness, read_dreamcatcher_config
 from dreamcatcher.daemon_runs import DaemonRunRecord
 from dreamcatcher.documents import read_json_if_exists, read_text
 from dreamcatcher.issue_conversations import (
@@ -101,38 +101,16 @@ class DreamcatcherDaemonStatus:
     @property
     def fact(self) -> StatusFact:
         """Whether the daemon runs, with its version and process ID when it does."""
-        return StatusFact(
-            label="daemon",
-            value=" ".join(
-                filter(
-                    None,
-                    (
-                        self.state_description,
-                        self.version_description,
-                        self.process_description,
-                    ),
-                )
-            ),
-        )
-
-    @property
-    def state_description(self) -> str:
-        """Whether the daemon runs."""
-        return "running" if self.is_running else "not running"
-
-    @property
-    def version_description(self) -> str | None:
-        """The running daemon's version, when it is known."""
-        return (
+        if not self.is_running:
+            return StatusFact(label="daemon", value="not running")
+        version = (
             None
-            if not self.is_running or self.dreamcatcher_version is None
+            if self.dreamcatcher_version is None
             else f"dreamcatcher v{self.dreamcatcher_version}"
         )
-
-    @property
-    def process_description(self) -> str | None:
-        """The running daemon's process ID, when it is known."""
-        return None if self.pid is None else f"as pid {self.pid}"
+        process = None if self.pid is None else f"as pid {self.pid}"
+        value = " ".join(filter(None, ("running", version, process)))
+        return StatusFact(label="daemon", value=value)
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -150,6 +128,8 @@ class DreamcatcherStatusReport:
     issue_observations: list[IssueObservation]
     assignment_statuses: list[AssignmentStatus]
     conversation_statuses: list[ConversationStatus]
+    assignment_section: AgentWorkStatusSection | None
+    conversation_section: AgentWorkStatusSection | None
 
     @property
     def instance_facts(self) -> tuple[StatusFact, ...]:
@@ -217,46 +197,6 @@ class DreamcatcherStatusReport:
             reverse=True,
         )
 
-    def describe_assignment_section(
-        self, *, config: DreamcatcherConfig
-    ) -> AgentWorkStatusSection | None:
-        """Describe the assignments section when it has work or configured routes."""
-        labels = tuple(
-            sorted((route.label for route in config.assignment), key=str.casefold)
-        )
-        has_current_work = bool(
-            self.active_assignment_statuses
-            or self.failed_assignment_setups
-            or self.issue_observations
-        )
-        return _describe_agent_work_section(
-            heading="assignments",
-            labels=labels,
-            has_any_work=bool(
-                self.assignment_statuses
-                or self.failed_assignment_setups
-                or self.issue_observations
-            ),
-            has_current_work=has_current_work,
-            empty_action="create an assignment",
-        )
-
-    def describe_conversation_section(
-        self, *, config: DreamcatcherConfig
-    ) -> AgentWorkStatusSection | None:
-        """Describe the issue-conversations section when it has work or routes."""
-        labels = tuple(
-            sorted((route.label for route in config.conversation), key=str.casefold)
-        )
-        has_work = bool(self.conversation_statuses)
-        return _describe_agent_work_section(
-            heading="issue conversations",
-            labels=labels,
-            has_any_work=has_work,
-            has_current_work=has_work,
-            empty_action="start a conversation",
-        )
-
 
 def _describe_agent_work_section(
     *,
@@ -307,6 +247,23 @@ def read_status_report(
         scheduler_record=scheduler_record,
         assignments=assignments,
     )
+    failed_assignment_setups = _select_failed_setups(observations=issue_observations)
+    reported_issue_observations = _select_issue_observations(
+        observations=issue_observations
+    )
+    config = read_dreamcatcher_config(root=state.root)
+    assignment_labels = tuple(
+        sorted((route.label for route in config.assignment), key=str.casefold)
+    )
+    conversation_labels = tuple(
+        sorted((route.label for route in config.conversation), key=str.casefold)
+    )
+    has_current_assignment_work = bool(
+        any(not status.has_ended for status in assignment_statuses)
+        or failed_assignment_setups
+        or reported_issue_observations
+    )
+    has_conversation_work = bool(conversation_statuses)
     return DreamcatcherStatusReport(
         at=at,
         repository=read_repository(state=state),
@@ -326,10 +283,28 @@ def read_status_report(
         active_global_cooldown=(
             None if scheduler_record is None else scheduler_record.cooldown
         ),
-        failed_assignment_setups=_select_failed_setups(observations=issue_observations),
-        issue_observations=_select_issue_observations(observations=issue_observations),
+        failed_assignment_setups=failed_assignment_setups,
+        issue_observations=reported_issue_observations,
         assignment_statuses=assignment_statuses,
         conversation_statuses=conversation_statuses,
+        assignment_section=_describe_agent_work_section(
+            heading="assignments",
+            labels=assignment_labels,
+            has_any_work=bool(
+                assignment_statuses
+                or failed_assignment_setups
+                or reported_issue_observations
+            ),
+            has_current_work=has_current_assignment_work,
+            empty_action="create an assignment",
+        ),
+        conversation_section=_describe_agent_work_section(
+            heading="issue conversations",
+            labels=conversation_labels,
+            has_any_work=has_conversation_work,
+            has_current_work=has_conversation_work,
+            empty_action="start a conversation",
+        ),
     )
 
 

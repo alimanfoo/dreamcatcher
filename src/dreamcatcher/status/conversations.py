@@ -35,8 +35,6 @@ from dreamcatcher.status.rounds import (
     find_stoppable_round_paths,
 )
 
-_SHORT_REVISION_LENGTH = 7
-
 
 class ConversationStatusValue(StrEnum):
     """List the summary statuses of an issue conversation.
@@ -440,13 +438,11 @@ class ConversationStatusReader(AgentWorkStatusReader[ConversationStatus]):
 def _compose_round_revision(
     *, previous_revision: str | None, revision: str
 ) -> AgentRoundRevision:
-    """Describe the revision one conversation round investigated, shortened."""
-    short_revision = revision[:_SHORT_REVISION_LENGTH]
+    """Describe the revision one conversation round investigated."""
     if previous_revision is None:
-        description = f"code revision {short_revision}"
+        description = f"code revision {revision}"
     elif previous_revision == revision:
-        description = f"code revision {short_revision} (unchanged)"
+        description = f"code revision {revision} (unchanged)"
     else:
-        short_previous_revision = previous_revision[:_SHORT_REVISION_LENGTH]
-        description = f"code revision {short_previous_revision} -> {short_revision}"
-    return AgentRoundRevision(value=short_revision, description=description)
+        description = f"code revision {previous_revision} -> {revision}"
+    return AgentRoundRevision(value=revision, description=description)
