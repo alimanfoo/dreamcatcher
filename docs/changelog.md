@@ -28,6 +28,10 @@ each entry links the pull request that made the change.
 
 ### Fixed
 
+- The web home page's empty panels now tell users to assign the issue to the
+  signed-in GitHub account and apply a route label. The conversation panel also
+  says to comment from that account.
+  ([#486](https://github.com/alimanfoo/dreamcatcher/pull/486))
 - `dreamcatcher init` now gives suitable next steps when the configuration has
   only conversation routes or no routes. It no longer fails with a traceback.
   ([#487](https://github.com/alimanfoo/dreamcatcher/pull/487))

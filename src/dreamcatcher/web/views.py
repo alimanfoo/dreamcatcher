@@ -96,16 +96,17 @@ def compose_home_view(
         assignment_empty_message=(
             None
             if not assignment_labels
-            else "Label an issue with "
+            else "Assign an issue to yourself "
+            "and label it with "
             f"{_describe_route_labels(labels=assignment_labels)} "
             "to create an assignment."
         ),
         conversation_empty_message=(
             None
             if not conversation_labels
-            else "Label an issue with "
+            else "Assign an issue to yourself, label it with "
             f"{_describe_route_labels(labels=conversation_labels)} "
-            "to start a conversation."
+            "and post a comment to start a conversation."
         ),
         conversations=_compose_conversation_cards(report=report),
         active_assignments=active_assignments,
