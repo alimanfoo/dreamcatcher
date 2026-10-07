@@ -156,10 +156,14 @@ def test_an_empty_home_names_every_configured_agent_work_label(tmp_path):
     page = render_home(state=state)
 
     assert (
-        "Label an issue with dream:smith or dream:zebra to create an assignment."
+        "Assign an issue to the account signed in through gh and label it with "
+        "dream:smith or dream:zebra to create an assignment." in page
+    )
+    assert (
+        "Assign an issue to the account signed in through gh, label it with "
+        "dream:scout and comment on it from that account to start a conversation."
         in page
     )
-    assert "Label an issue with dream:scout to start a conversation." in page
 
 
 def test_an_empty_home_hides_an_unconfigured_assignment_section(tmp_path):
@@ -174,7 +178,11 @@ def test_an_empty_home_hides_an_unconfigured_assignment_section(tmp_path):
 
     assert 'id="assignments-heading"' not in page
     assert '<h1 id="conversations-heading">Conversations</h1>' in page
-    assert "Label an issue with dream:scout to start a conversation." in page
+    assert (
+        "Assign an issue to the account signed in through gh, label it with "
+        "dream:scout and comment on it from that account to start a conversation."
+        in page
+    )
 
 
 @pytest.mark.parametrize("name", sorted(WEB_ASSIGNMENT_PAGES))
@@ -753,7 +761,10 @@ def test_ended_assignments_are_ordered_by_when_they_ended(tmp_path):
 
     page = render_home(state=state)
 
-    assert "Label an issue with dream:smith to create an assignment." in page
+    assert (
+        "Assign an issue to the account signed in through gh and label it with "
+        "dream:smith to create an assignment." in page
+    )
     assert "+ 3 ended</summary>" in page
     assert (
         page.index("assignment-GH20-")

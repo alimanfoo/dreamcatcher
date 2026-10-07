@@ -26,6 +26,13 @@ each entry links the pull request that made the change.
 
 ## Unreleased
 
+### Fixed
+
+- The web home page's empty panels now tell users to assign the issue to the
+  signed-in GitHub account and apply a route label. The conversation panel also
+  says to comment from that account.
+  ([#486](https://github.com/alimanfoo/dreamcatcher/pull/486))
+
 ## [v5.3.0](https://github.com/alimanfoo/dreamcatcher/releases/tag/v5.3.0) — 2026-10-07
 
 ### Added
