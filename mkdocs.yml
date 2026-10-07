@@ -58,11 +58,11 @@ nav:
   - Tutorial:
       - tutorial.md
   - How-to guides:
-      - configure.md
-      - run-and-monitor.md
-      - discuss-an-issue.md
       - review-an-assignment.md
+      - discuss-an-issue.md
       - stop-and-recover.md
+      - run-and-monitor.md
+      - configure.md
   - Reference:
       - command-reference.md
       - configuration-reference.md
