@@ -37,7 +37,8 @@ domain phrase into a class. In particular, it should:
   to record them as stopped when the user asked to stop them, and otherwise as
   interrupted;
 - call the scheduler repeatedly;
-- wait for the daemon run's requested interval between ticks; and
+- wait for the daemon run's requested interval between ticks, then check that it
+  still holds the daemon lock; and
 - stop active child processes during shutdown.
 
 The daemon does not decide which issue, assignment or conversation deserves
@@ -413,7 +414,9 @@ headings and colors.
 The web interface renders status reports and feeds as HTML. It owns presentation
 only and depends on the status and feed models; neither model depends on it. It
 should not rediscover status, scheduling, or lifecycle rules while choosing
-markup and styles.
+markup and styles. The home page also reads the route labels in
+`dreamcatcher.toml`, so an empty panel can name the labels that start that kind
+of agent work.
 
 The web process can ask a running round to stop. It writes a same-origin stop
 request through the agent-round boundary, into that round's own directory. The

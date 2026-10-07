@@ -155,8 +155,9 @@ dreamcatcher web [--port PORT]
 
 Serve the current checkout's local status on `127.0.0.1`, open the address in
 the default browser, print the address, and continue serving until interrupted.
-The server reads local _dreamcatcher_ state and does not contact GitHub. It
-works when the daemon is stopped as well as while it is running.
+The server reads local _dreamcatcher_ state and the route labels in
+`dreamcatcher.toml`, and does not contact GitHub. It works when the daemon is
+stopped as well as while it is running.
 
 With no option, _dreamcatcher_ derives a stable starting port in the range
 8100–8499 from the recorded `owner/name` repository identity, then uses the

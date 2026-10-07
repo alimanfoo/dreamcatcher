@@ -53,8 +53,8 @@ class _HeldDaemonLock:
 def hold_daemon_lock(*, path: Path) -> Generator[_HeldDaemonLock, None, None]:
     """Hold the daemon lock and release it when the caller exits.
 
-    Yield a checker that the caller invokes after each wait and before doing
-    more work, so a replaced lock file ends the daemon run.
+    Yield the held lock. The caller invokes its ensure_held after each wait and
+    before doing more work, so a replaced lock file ends the daemon run.
 
     Raise ReportableError when another daemon holds it, or when the filesystem
     cannot lock the file.

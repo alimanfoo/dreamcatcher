@@ -1,8 +1,8 @@
 # Compatibility and upgrades
 
-The latest tagged release, v5.2.0, uses state format 5, as v5.0.0 and v5.1.0
-did. v4.0.0 used state format 4, and saved work does not carry across from one
-format to the next.
+The latest tagged release, v5.3.0, uses state format 5, as v5.0.0, v5.1.0 and
+v5.2.0 did. v4.0.0 used state format 4, and saved work does not carry across
+from one format to the next.
 
 ## Upgrade from v4.0.0 to v5.0.0
 

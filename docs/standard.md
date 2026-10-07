@@ -76,12 +76,15 @@ not progress towards the standard. Meeting the criteria is.
 - Check: review, ordered by the line counts the release measurement reports and
   focused on any module a change grows.
 
-**S2. Functions fit on a screen.**
+**S2. Functions do one thing.**
 
-- Measure: lines in each function.
-- Bar: no function exceeds 50 lines, except those the measurement names and
-  explains, such as the scheduler tick when it reads as the listed steps.
-- Check: the release measurement, and review of any function a change grows.
+- Measure: functions for which review cannot name the one job they do, read
+  longest first.
+- Bar: zero. A function is split where a clean seam gives each part a job of its
+  own, never to meet a line count. A long function that reads as the steps the
+  architecture or ontology lists, such as the scheduler tick, stays whole.
+- Check: review, ordered by the line counts the release measurement reports and
+  focused on any function a change grows.
 
 **S3. Exports are used.**
 
@@ -177,7 +180,7 @@ not progress towards the standard. Meeting the criteria is.
 
 - Measure: pull requests that name the spec they serve and answer the definition
   of done below.
-- Bar: all of them.
+- Bar: all of them, apart from the dependency updates that Dependabot raises.
 - Check: review, which reads the answers before the pull request merges.
 
 ### Elegance
@@ -244,9 +247,9 @@ A pull request is done when its author can say yes to each of these.
 ## Exceptions
 
 A criterion may be waived for one place, never in general. The waiver is written
-where the check will read it: an entry in the measurement for S2, a per-file
-rule in `pyproject.toml` for K1, a pragma with its reason for S5, an entry on
-the ledger for E1. A waiver with no reason a reader can find is a violation.
+where the check will read it: a per-file rule in `pyproject.toml` for K1, a
+pragma with its reason for S5, an entry on the ledger for E1. A waiver with no
+reason a reader can find is a violation.
 
 ## Measurement
 

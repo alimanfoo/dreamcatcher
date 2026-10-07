@@ -26,6 +26,35 @@ each entry links the pull request that made the change.
 
 ## Unreleased
 
+## [v5.3.0](https://github.com/alimanfoo/dreamcatcher/releases/tag/v5.3.0) — 2026-10-07
+
+### Added
+
+- When a kind of agent work has no current work, the web home page now names the
+  labels that start it in place of an empty panel.
+  ([#460](https://github.com/alimanfoo/dreamcatcher/pull/460))
+
+### Changed
+
+- `dreamcatcher.toml` may now leave out `[[assignment]]` routes, as it could
+  already leave out `[[conversation]]` routes. The web home page hides the panel
+  for a kind of agent work that has neither routes nor work.
+  ([#460](https://github.com/alimanfoo/dreamcatcher/pull/460))
+- The top bar of every web page now links the version number to the
+  documentation site, in place of a separate **Docs** link.
+  ([#464](https://github.com/alimanfoo/dreamcatcher/pull/464))
+- Dots now separate the repository, **issues** and **pulls** links in the top
+  bar. ([#466](https://github.com/alimanfoo/dreamcatcher/pull/466))
+- The documentation site lists **Review an assignment** straight after the
+  tutorial. ([#462](https://github.com/alimanfoo/dreamcatcher/pull/462))
+
+### Fixed
+
+- A running daemon now stops, along with its rounds, when its lock file goes
+  missing or is replaced, as happens when someone deletes the state directory. A
+  second daemon could otherwise run against the same checkout beside it.
+  ([#468](https://github.com/alimanfoo/dreamcatcher/pull/468))
+
 ## [v5.2.0](https://github.com/alimanfoo/dreamcatcher/releases/tag/v5.2.0) — 2026-10-07
 
 ### Added
