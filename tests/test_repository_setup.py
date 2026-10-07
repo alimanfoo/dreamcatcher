@@ -233,7 +233,9 @@ def test_a_configuration_with_no_routes_explains_what_to_add(
     set_up_repository(root=checkout)
 
     assert not harnesses["claude"].calls
-    assert capsys.readouterr().out.endswith(
+    output = capsys.readouterr().out
+    assert "dreamcatcher run" not in output
+    assert output.endswith(
         f"  Add an assignment or conversation route to {DREAMCATCHER_CONFIG_NAME}.\n"
     )
 
