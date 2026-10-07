@@ -14,11 +14,12 @@ and its feed together. Both pages keep themselves current while the browser is
 open. The command opens the browser at the home page and stays in the foreground
 until the user interrupts it.
 
-Nothing about where a view gets its information changes. The pages read what the
-daemon left under `.dreamcatcher/`, ask GitHub nothing, and work whether the
-daemon is running or not, which is the property the skeleton and watch tower
-designs protected and the reason the web UI is a view and not a part of the
-daemon.
+The pages read what the daemon left under `.dreamcatcher/`. The home page also
+reads the route labels from `dreamcatcher.toml`, so it can tell the user how to
+start work when a section is empty. The pages ask GitHub nothing and work
+whether the daemon is running or not, which is the property the skeleton and
+watch tower designs protected and the reason the web UI is a view and not a part
+of the daemon.
 
 The design sketches under `design-v2/` were made with a design tool before this
 document, as a way of seeing what the pages might be. Where this document and
@@ -206,6 +207,11 @@ page its top. The pages reuse the descriptions the status model composes, such
 as a round's duration, wherever they say what the page needs. Where a page needs
 a fact that no description gives, the fact is promoted into the model and the
 TUI keeps composing its description from it, so the terminal goldens hold.
+
+**The configured route labels.** The home page reads the assignment and
+conversation labels from `dreamcatcher.toml`. An empty section names the labels
+that can start that kind of work. A kind with no configured route and no work
+has no section.
 
 **The feed, as it is written.** The feed on disk stays the plain text it is
 today: a timestamp, then either a bracketed label and its detail or a line of

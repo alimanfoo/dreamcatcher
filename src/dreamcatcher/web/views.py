@@ -76,8 +76,12 @@ def compose_home_view(
         else describe_time(at=report.active_global_cooldown.ends, zone=zone)
     )
     active_assignments, ended_assignments = _compose_assignment_cards(report=report)
-    assignment_labels = tuple(route.label for route in config.assignment)
-    conversation_labels = tuple(route.label for route in config.conversation)
+    assignment_labels = tuple(
+        sorted((route.label for route in config.assignment), key=str.casefold)
+    )
+    conversation_labels = tuple(
+        sorted((route.label for route in config.conversation), key=str.casefold)
+    )
     return WebHomeView(
         repository=report.repository or "repository unknown",
         github_repository_url=_compose_github_repository_url(

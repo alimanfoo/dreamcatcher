@@ -78,9 +78,9 @@ model = "opus"
 effort = "xhigh"
 
 [[assignment]]
-label = "dream:less"
+label = "dream:zebra"
 [assignment.claude]
-prompt = "/dream:less GH{issue}"
+prompt = "/dream:zebra GH{issue}"
 model = "opus"
 effort = "xhigh"
 """
@@ -150,7 +150,8 @@ def test_an_empty_home_names_every_configured_agent_work_label(tmp_path):
     page = render_home(state=state)
 
     assert (
-        "Label an issue with dream:less or dream:smith to create an assignment." in page
+        "Label an issue with dream:smith or dream:zebra to create an assignment."
+        in page
     )
     assert "Label an issue with dream:scout to start a conversation." in page
 
