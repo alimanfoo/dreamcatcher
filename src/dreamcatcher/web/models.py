@@ -52,7 +52,6 @@ class WebAgentRound:
 
     number: int
     purpose: str
-    is_recovery: bool
     started: str
     duration: str
     outcome: str

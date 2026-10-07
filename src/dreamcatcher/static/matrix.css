@@ -596,8 +596,7 @@ body::after {
 }
 
 .round-number,
-.round-timing,
-.round-purpose span {
+.round-timing {
   color: var(--dim);
 }
 
