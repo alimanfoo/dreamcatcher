@@ -45,7 +45,8 @@ A shortfall does not hold the release back. A failing test or check does.
 
 Create the release on GitHub from `main`, tagged with the version. Save the
 version's changelog section, without its own heading, to a file outside the
-repository, and pass it as the notes:
+repository. Raise its headings from `###` to `##`, to match the `##` heading
+GitHub gives its pull request list, and pass the file as the notes:
 
 ```sh
 gh release create v5.1.0 --target main --generate-notes --notes-file NOTES.md
