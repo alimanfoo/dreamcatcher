@@ -22,15 +22,20 @@ leaving out any heading that would be empty:
 
 Released changes stay under their release; development changes stay under
 **Unreleased**, with the same headings, until they are tagged. From v5.0.0 on,
-each entry links the pull request that made the change.
+each entry links the pull request or commit that made the change.
 
 ## Unreleased
+
+## [v5.4.0](https://github.com/alimanfoo/dreamcatcher/releases/tag/v5.4.0) — 2026-10-08
 
 ### Changed
 
 - Terminal and web status views now share their daemon, instance, agent-work,
   and round ordering and wording.
   ([#488](https://github.com/alimanfoo/dreamcatcher/pull/488))
+- The default `dream:less` recipes now use medium effort for both harnesses.
+  Existing configuration files are unchanged.
+  ([2aa4d8b](https://github.com/alimanfoo/dreamcatcher/commit/2aa4d8b847ab7536d46a9163137c41c33f43b931))
 
 ### Fixed
 
@@ -41,6 +46,9 @@ each entry links the pull request that made the change.
 - `dreamcatcher init` now gives suitable next steps when the configuration has
   only conversation routes or no routes. It no longer fails with a traceback.
   ([#487](https://github.com/alimanfoo/dreamcatcher/pull/487))
+- The web home page now reports a failed background refresh while keeping the
+  last successful status visible. The warning clears after a successful refresh.
+  ([#489](https://github.com/alimanfoo/dreamcatcher/pull/489))
 
 ## [v5.3.0](https://github.com/alimanfoo/dreamcatcher/releases/tag/v5.3.0) — 2026-10-07
 
