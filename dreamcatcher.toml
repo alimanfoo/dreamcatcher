@@ -26,8 +26,8 @@ label = "dream:less"
 [assignment.claude]
 prompt = "/dream:less GH{issue}"
 model = "opus"
-effort = "high"
+effort = "medium"
 [assignment.codex]
 prompt = "$dream:less GH{issue}"
 model = "gpt-5.6-sol"
-effort = "high"
+effort = "medium"
