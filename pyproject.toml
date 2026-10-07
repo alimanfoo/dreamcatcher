@@ -34,7 +34,7 @@ dependencies = [
 # psutil to watch processes on every platform. MkDocs and Material build the
 # documentation site.
 dev = [
-    "complexipy==7.0.1",
+    "complexipy==8.0.1",
     "mkdocs==1.6.1",
     "mkdocs-material==9.7.7",
     "playwright==1.63.0",
