@@ -43,6 +43,7 @@ from dreamcatcher.scheduler.models import (
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.status import (
     AgentWorkStatusSection,
+    DaemonStatusFact,
     DreamcatcherDaemonStatus,
     StatusFact,
     read_assignment_status,
@@ -156,6 +157,7 @@ def test_an_empty_instance_reports_unknown_capacity_and_no_work(tmp_path):
     assert found.daemon.max_agents is None
     assert found.running_agents == 0
     assert found.active_global_cooldown is None
+    assert StatusFact(label="global cooldown", value="none") in found.instance_facts
     assert found.issue_observations == []
     assert found.assignment_statuses == []
 
@@ -168,7 +170,10 @@ def test_an_empty_report_describes_only_its_configured_agent_work(tmp_path):
     )
     assert found.assignment_section == AgentWorkStatusSection(
         heading="assignments",
-        empty_message="Label an issue with dream:smith to create an assignment.",
+        empty_message=(
+            "Assign an issue to yourself and label it with dream:smith "
+            "to create an assignment."
+        ),
     )
     assert found.conversation_section is None
 
@@ -1074,8 +1079,20 @@ def test_an_assignment_keeps_its_section_after_its_routes_are_removed(state):
 @pytest.mark.parametrize(
     ("is_running", "run", "expected"),
     [
-        (False, None, "not running"),
-        (True, None, "running"),
+        (
+            False,
+            None,
+            DaemonStatusFact(
+                label="daemon", state="not running", version=None, process=None
+            ),
+        ),
+        (
+            True,
+            None,
+            DaemonStatusFact(
+                label="daemon", state="running", version=None, process=None
+            ),
+        ),
         (
             True,
             DaemonRunRecord(
@@ -1085,7 +1102,12 @@ def test_an_assignment_keeps_its_section_after_its_routes_are_removed(state):
                 max_agents=3,
                 interval_seconds=DEFAULT_INTERVAL_SECONDS,
             ),
-            "running dreamcatcher v5.3.0 as pid 42",
+            DaemonStatusFact(
+                label="daemon",
+                state="running",
+                version="dreamcatcher v5.3.0",
+                process="pid 42",
+            ),
         ),
     ],
 )
@@ -1094,4 +1116,4 @@ def test_a_daemon_fact_says_whether_it_runs_and_which_run_it_is(
 ):
     daemon = DreamcatcherDaemonStatus(is_running=is_running, run=run)
 
-    assert daemon.fact == StatusFact(label="daemon", value=expected)
+    assert daemon.status_fact == expected

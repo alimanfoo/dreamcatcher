@@ -28,17 +28,19 @@ each entry links the pull request that made the change.
 
 ### Changed
 
-- The terminal views and the web pages now use the same words for the same fact.
-  The web shows a conversation round's complete code revision, as the terminal
-  already did. The web page header describes a running daemon in the terminal's
-  words, such as "daemon running dreamcatcher v5.3.0 as pid 4242", with a
-  **docs** link beside it. An active global cooldown reads as a countdown, such
-  as "ends in 4m", among the instance facts of both, and the web home page shows
-  it as a warning in place of its banner. The terminal no longer shows "global
-  cooldown none". The web heads its conversations panel **Issue conversations**,
-  and an empty terminal status shows the same configured-label guidance as the
-  web in place of "no issues or agent assignments recorded yet".
+- Terminal and web status views now share their daemon, instance, agent-work,
+  and round ordering and wording.
   ([#488](https://github.com/alimanfoo/dreamcatcher/pull/488))
+
+### Fixed
+
+- The web home page's empty panels now tell users to assign the issue to the
+  signed-in GitHub account and apply a route label. The conversation panel also
+  says to comment from that account.
+  ([#486](https://github.com/alimanfoo/dreamcatcher/pull/486))
+- `dreamcatcher init` now gives suitable next steps when the configuration has
+  only conversation routes or no routes. It no longer fails with a traceback.
+  ([#487](https://github.com/alimanfoo/dreamcatcher/pull/487))
 
 ## [v5.3.0](https://github.com/alimanfoo/dreamcatcher/releases/tag/v5.3.0) — 2026-10-07
 

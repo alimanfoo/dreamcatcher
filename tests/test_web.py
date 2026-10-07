@@ -157,10 +157,13 @@ def test_an_empty_home_names_every_configured_agent_work_label(tmp_path):
     page = render_home(state=state)
 
     assert (
-        "Label an issue with dream:smith or dream:zebra to create an assignment."
-        in page
+        "Assign an issue to yourself and label it with "
+        "dream:smith or dream:zebra to create an assignment." in page
     )
-    assert "Label an issue with dream:scout to start a conversation." in page
+    assert (
+        "Assign an issue to yourself, label it with dream:scout and post a comment "
+        "to start a conversation." in page
+    )
 
 
 def test_an_empty_home_hides_an_unconfigured_assignment_section(tmp_path):
@@ -174,8 +177,11 @@ def test_an_empty_home_hides_an_unconfigured_assignment_section(tmp_path):
     page = render_home(state=state)
 
     assert 'id="assignments-heading"' not in page
-    assert '<h1 id="conversations-heading">Issue conversations</h1>' in page
-    assert "Label an issue with dream:scout to start a conversation." in page
+    assert '<h1 id="conversations-heading">Conversations</h1>' in page
+    assert (
+        "Assign an issue to yourself, label it with dream:scout and post a comment "
+        "to start a conversation." in page
+    )
 
 
 @pytest.mark.parametrize("name", sorted(WEB_ASSIGNMENT_PAGES))
@@ -754,7 +760,10 @@ def test_ended_assignments_are_ordered_by_when_they_ended(tmp_path):
 
     page = render_home(state=state)
 
-    assert "Label an issue with dream:smith to create an assignment." in page
+    assert (
+        "Assign an issue to yourself and label it with "
+        "dream:smith to create an assignment." in page
+    )
     assert "+ 3 ended</summary>" in page
     assert (
         page.index("assignment-GH20-")
@@ -809,7 +818,7 @@ def test_assignment_page_shares_the_home_page_top_bar(tmp_path):
     assert assignment_headers == home_headers
 
 
-def test_the_daemon_header_links_to_the_documentation(tmp_path):
+def test_the_daemon_version_links_to_the_documentation(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
 
@@ -817,7 +826,8 @@ def test_the_daemon_header_links_to_the_documentation(tmp_path):
 
     assert (
         '<a class="docs-link" href="https://alimanfoo.github.io/dreamcatcher/" '
-        'target="_blank" rel="noopener noreferrer">docs</a>' in page
+        'target="_blank" rel="noopener noreferrer">dreamcatcher '
+        "v3.0.0.beta1</a>" in page
     )
     assert ">Docs</a>" not in page
 
@@ -1499,13 +1509,14 @@ def test_an_active_cooldown_is_a_warning_fact(tmp_path):
     assert "<dt>scheduler failures</dt>" not in page
 
 
-def test_an_inactive_cooldown_is_not_shown(tmp_path):
+def test_an_inactive_cooldown_is_shown_as_none(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
 
     page = render_home(state=state)
 
-    assert "global cooldown" not in page
+    assert "<dt>global cooldown</dt>" in page
+    assert "<dd>none</dd>" in page
 
 
 def test_pull_request_state_remains_without_a_repository_record(tmp_path):

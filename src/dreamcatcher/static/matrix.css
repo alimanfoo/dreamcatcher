@@ -162,6 +162,13 @@ body::after {
   margin-bottom: var(--space-12);
 }
 
+.refresh-error {
+  padding: var(--space-5) var(--space-7);
+  margin: 0 0 var(--space-8);
+  color: var(--amber);
+  font-weight: 700;
+  border: var(--line) solid var(--amber);
+}
 .facts {
   display: flex;
   flex-wrap: wrap;

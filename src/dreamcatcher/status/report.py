@@ -55,6 +55,21 @@ class StatusFact:
 
 
 @dataclass(frozen=True, kw_only=True)
+class DaemonStatusFact:
+    """Describe the labelled daemon state that both status views show."""
+
+    label: str
+    state: str
+    version: str | None
+    process: str | None
+
+    @property
+    def value(self) -> str:
+        """The daemon state, version and process in display order."""
+        return " · ".join(filter(None, (self.state, self.version, self.process)))
+
+
+@dataclass(frozen=True, kw_only=True)
 class AgentWorkStatusSection:
     """Describe one kind of agent work as a status view shows it."""
 
@@ -99,18 +114,21 @@ class DreamcatcherDaemonStatus:
         return None if self.run is None else self.run.interval_seconds
 
     @property
-    def fact(self) -> StatusFact:
+    def status_fact(self) -> DaemonStatusFact:
         """Whether the daemon runs, with its version and process ID when it does."""
         if not self.is_running:
-            return StatusFact(label="daemon", value="not running")
+            return DaemonStatusFact(
+                label="daemon", state="not running", version=None, process=None
+            )
         version = (
             None
             if self.dreamcatcher_version is None
             else f"dreamcatcher v{self.dreamcatcher_version}"
         )
-        process = None if self.pid is None else f"as pid {self.pid}"
-        value = " ".join(filter(None, ("running", version, process)))
-        return StatusFact(label="daemon", value=value)
+        process = None if self.pid is None else f"pid {self.pid}"
+        return DaemonStatusFact(
+            label="daemon", state="running", version=version, process=process
+        )
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -165,10 +183,10 @@ class DreamcatcherStatusReport:
             ),
             (
                 "global cooldown",
-                None
+                "none"
                 if cooldown is None
                 else f"ends in {describe_span(span=cooldown.ends - self.at)}",
-                True,
+                cooldown is not None,
             ),
             ("scheduler failures", self.scheduler_failure_summary, True),
         )
@@ -204,17 +222,14 @@ def _describe_agent_work_section(
     labels: tuple[str, ...],
     has_any_work: bool,
     has_current_work: bool,
-    empty_action: str,
+    empty_message: str | None,
 ) -> AgentWorkStatusSection | None:
     if not (labels or has_any_work):
         return None
-    empty_message = None
-    if labels and not has_current_work:
-        empty_message = (
-            f"Label an issue with {_describe_route_labels(labels=labels)} "
-            f"to {empty_action}."
-        )
-    return AgentWorkStatusSection(heading=heading, empty_message=empty_message)
+    return AgentWorkStatusSection(
+        heading=heading,
+        empty_message=None if has_current_work else empty_message,
+    )
 
 
 def _describe_route_labels(*, labels: tuple[str, ...]) -> str:
@@ -264,6 +279,20 @@ def read_status_report(
         or reported_issue_observations
     )
     has_conversation_work = bool(conversation_statuses)
+    assignment_empty_message = (
+        None
+        if not assignment_labels
+        else "Assign an issue to yourself and label it with "
+        f"{_describe_route_labels(labels=assignment_labels)} "
+        "to create an assignment."
+    )
+    conversation_empty_message = (
+        None
+        if not conversation_labels
+        else "Assign an issue to yourself, label it with "
+        f"{_describe_route_labels(labels=conversation_labels)} "
+        "and post a comment to start a conversation."
+    )
     return DreamcatcherStatusReport(
         at=at,
         repository=read_repository(state=state),
@@ -296,14 +325,14 @@ def read_status_report(
                 or reported_issue_observations
             ),
             has_current_work=has_current_assignment_work,
-            empty_action="create an assignment",
+            empty_message=assignment_empty_message,
         ),
         conversation_section=_describe_agent_work_section(
-            heading="issue conversations",
+            heading="conversations",
             labels=conversation_labels,
             has_any_work=has_conversation_work,
             has_current_work=has_conversation_work,
-            empty_action="start a conversation",
+            empty_message=conversation_empty_message,
         ),
     )
 

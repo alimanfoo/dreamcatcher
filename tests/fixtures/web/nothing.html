@@ -20,6 +20,7 @@
     <header class="site-header">
   <div class="repository"><img class="mark" src="/static/dreamcatcher-mark-ink.png" alt="dreamcatcher"><span>repository unknown</span></div>
   <div class="site-actions">
+
     <div class="daemon daemon-not-running">daemon not running</div>
     <nav class="theme-switch" aria-label="Theme">
 
@@ -31,6 +32,7 @@
   </div>
 </header>
     <div class="home-content">
+      <p id="home-refresh-error" class="refresh-error" role="alert" hidden></p>
       <section class="instance" aria-label="Instance">
   <dl class="facts">
     
@@ -44,6 +46,11 @@
         <dd>0 of 1 working</dd>
       </div>
     
+      <div class="fact">
+        <dt>global cooldown</dt>
+        <dd>none</dd>
+      </div>
+    
   </dl>
 </section>
       <div class="dashboard">
@@ -53,7 +60,7 @@
             
             
             
-            <p class="empty">Label an issue with dream:smith to create an assignment.</p>
+            <p class="empty">Assign an issue to yourself and label it with dream:smith to create an assignment.</p>
             
           </div>
         </section>

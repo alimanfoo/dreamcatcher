@@ -367,7 +367,7 @@ def test_a_live_round_keeps_an_ineligible_conversation_on_the_report(
 
     assert report.running_agents == 1
     assert report.conversation_section == AgentWorkStatusSection(
-        heading="issue conversations", empty_message=None
+        heading="conversations", empty_message=None
     )
     assert found.value is ConversationStatusValue.WORKING
     assert found.detail == ("round 1, discuss, running 2h 0m, last output 1h 59m ago")

@@ -259,8 +259,11 @@ effort = "xhigh"
     rendered = render_status_view(state=state)
 
     assert "assignments" not in rendered
-    assert "issue conversations" in rendered
-    assert "Label an issue with dream:scout to start a conversation." in rendered
+    assert "conversations" in rendered
+    assert (
+        "Assign an issue to yourself, label it with dream:scout and post a comment "
+        "to start a conversation." in rendered
+    )
 
 
 def test_status_nobody_is_watching_is_drawn_once_and_returns(tmp_path):
@@ -275,7 +278,7 @@ def test_status_nobody_is_watching_is_drawn_once_and_returns(tmp_path):
         wait=refusing,
     )
 
-    assert "running dreamcatcher v3.0.0.beta1 as pid 4242" in written_to.getvalue()
+    assert "running · dreamcatcher v3.0.0.beta1 · pid 4242" in written_to.getvalue()
 
 
 def test_status_a_reader_watches_keeps_up_with_what_the_daemon_writes(tmp_path):
@@ -307,7 +310,10 @@ def test_status_a_reader_watches_keeps_up_with_what_the_daemon_writes(tmp_path):
     # Status is never over, so it drew again when the assignment started
     # while the reader was watching, and ended only when they interrupted it.
     assert looks == [_VIEW_REFRESH_INTERVAL, _VIEW_REFRESH_INTERVAL]
-    assert "Label an issue with dream:smith to create an assignment." in status
+    assert (
+        "Assign an issue to yourself and label it with dream:smith "
+        "to create an assignment." in status
+    )
     assert f"GH13-{ASSIGNMENT_TIMESTAMP}" in status
 
 

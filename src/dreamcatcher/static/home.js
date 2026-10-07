@@ -65,3 +65,18 @@ document.body.addEventListener("htmx:afterSwap", (event) => {
     );
   }
 });
+
+document.body.addEventListener("htmx:responseError", (event) => {
+  if (event.detail.target.id !== "home") {
+    return;
+  }
+  const message = new DOMParser()
+    .parseFromString(event.detail.xhr.response, "text/html")
+    .querySelector(".error-message");
+  const alert = document.querySelector("#home-refresh-error");
+  if (message === null || alert === null) {
+    return;
+  }
+  alert.textContent = `Refresh failed. Showing the last successful status. ${message.textContent}`;
+  alert.hidden = false;
+});

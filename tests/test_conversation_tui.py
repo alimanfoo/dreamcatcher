@@ -120,7 +120,7 @@ def test_status_lists_the_conversation(tmp_path):
     )
 
     shown = written.getvalue()
-    assert "issue conversations" in shown
+    assert "conversations" in shown
     assert "GH8" in shown
     assert "idle" in shown
     assert "round 1, answered, ran 4m" in shown
