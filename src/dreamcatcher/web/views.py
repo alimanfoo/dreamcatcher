@@ -27,7 +27,6 @@ from dreamcatcher.web.models import (
     WebAssignmentView,
     WebConversationCard,
     WebConversationView,
-    WebDaemon,
     WebFact,
     WebHandResume,
     WebHomeView,
@@ -83,7 +82,7 @@ def compose_home_view(
         github_repository_url=_compose_github_repository_url(
             repository=report.repository
         ),
-        daemon=_compose_web_daemon(daemon=daemon),
+        daemon=daemon,
         instance_facts=_compose_instance_facts(report=report),
         cooldown_message=(
             None if cooldown_end is None else f"Global cooldown ends {cooldown_end}"
@@ -210,7 +209,7 @@ def compose_assignment_view(
     return WebAssignmentView(
         repository=repository or "repository unknown",
         github_repository_url=_compose_github_repository_url(repository=repository),
-        daemon=_compose_web_daemon(daemon=daemon),
+        daemon=daemon,
         identifier=assignment.identifier,
         issue=record.issue,
         title=record.title,
@@ -241,7 +240,7 @@ def compose_conversation_view(
     return WebConversationView(
         repository=repository or "repository unknown",
         github_repository_url=_compose_github_repository_url(repository=repository),
-        daemon=_compose_web_daemon(daemon=daemon),
+        daemon=daemon,
         issue=status.issue,
         title=status.title,
         facts=(
@@ -336,26 +335,6 @@ def _compose_issue_references(*, evidence: str) -> tuple[str | int, ...]:
         int(part) if index % 2 else part
         for index, part in enumerate(_ISSUE_REFERENCE_PATTERN.split(evidence))
         if part
-    )
-
-
-def _compose_web_daemon(*, daemon: DreamcatcherDaemonStatus) -> WebDaemon:
-    if not daemon.is_running:
-        return WebDaemon(
-            state="not-running",
-            summary="daemon not running",
-            version=None,
-            pid=None,
-        )
-    return WebDaemon(
-        state="running",
-        summary="daemon running",
-        version=(
-            None
-            if daemon.dreamcatcher_version is None
-            else f"dreamcatcher v{daemon.dreamcatcher_version}"
-        ),
-        pid=None if daemon.pid is None else f"pid {daemon.pid}",
     )
 
 

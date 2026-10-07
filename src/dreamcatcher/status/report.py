@@ -45,6 +45,15 @@ from dreamcatcher.status.conversations import (
 
 
 @dataclass(frozen=True, kw_only=True)
+class StatusFact:
+    """Hold one labelled fact that a view shows."""
+
+    label: str
+    value: str
+    is_warning: bool = False
+
+
+@dataclass(frozen=True, kw_only=True)
 class DreamcatcherDaemonStatus:
     """Describe whether a daemon is running, and the current or latest daemon run."""
 
@@ -79,6 +88,42 @@ class DreamcatcherDaemonStatus:
     def interval_seconds(self) -> int | None:
         """The interval selected for the current or latest daemon run."""
         return None if self.run is None else self.run.interval_seconds
+
+    @property
+    def fact(self) -> StatusFact:
+        """Whether the daemon runs, with its version and process ID when it does."""
+        return StatusFact(
+            label="daemon",
+            value=" ".join(
+                filter(
+                    None,
+                    (
+                        self.state_description,
+                        self.version_description,
+                        self.process_description,
+                    ),
+                )
+            ),
+        )
+
+    @property
+    def state_description(self) -> str:
+        """Whether the daemon runs."""
+        return "running" if self.is_running else "not running"
+
+    @property
+    def version_description(self) -> str | None:
+        """The running daemon's version, when it is known."""
+        return (
+            None
+            if not self.is_running or self.dreamcatcher_version is None
+            else f"dreamcatcher v{self.dreamcatcher_version}"
+        )
+
+    @property
+    def process_description(self) -> str | None:
+        """The running daemon's process ID, when it is known."""
+        return None if self.pid is None else f"as pid {self.pid}"
 
 
 @dataclass(frozen=True, kw_only=True)

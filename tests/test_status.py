@@ -30,6 +30,7 @@ from dreamcatcher.agent_rounds import (
 )
 from dreamcatcher.config import AgentHarness
 from dreamcatcher.daemon import DEFAULT_INTERVAL_SECONDS
+from dreamcatcher.daemon_runs import DaemonRunRecord
 from dreamcatcher.documents import write_text
 from dreamcatcher.feed import FeedLine
 from dreamcatcher.scheduler.models import (
@@ -42,6 +43,7 @@ from dreamcatcher.scheduler.models import (
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.status import (
     DreamcatcherDaemonStatus,
+    StatusFact,
     read_assignment_status,
     read_assignment_statuses_for_issue,
     read_dreamcatcher_daemon_status,
@@ -1031,3 +1033,29 @@ def test_a_report_orders_active_assignments_by_attention_and_ended_ones_newest_f
     assert [
         status.assignment.record.issue for status in found.ended_assignment_statuses
     ] == [70, 12]
+
+
+@pytest.mark.parametrize(
+    ("is_running", "run", "expected"),
+    [
+        (False, None, "not running"),
+        (True, None, "running"),
+        (
+            True,
+            DaemonRunRecord(
+                pid=42,
+                harness=AgentHarness.CLAUDE,
+                version="5.3.0",
+                max_agents=3,
+                interval_seconds=DEFAULT_INTERVAL_SECONDS,
+            ),
+            "running dreamcatcher v5.3.0 as pid 42",
+        ),
+    ],
+)
+def test_a_daemon_fact_says_whether_it_runs_and_which_run_it_is(
+    is_running, run, expected
+):
+    daemon = DreamcatcherDaemonStatus(is_running=is_running, run=run)
+
+    assert daemon.fact == StatusFact(label="daemon", value=expected)

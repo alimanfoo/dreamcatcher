@@ -14,6 +14,7 @@ from dreamcatcher.status.conversations import (
 from dreamcatcher.status.report import (
     DreamcatcherDaemonStatus,
     DreamcatcherStatusReport,
+    StatusFact,
     read_assignment_status,
     read_assignment_statuses_for_issue,
     read_conversation_status,
@@ -33,6 +34,7 @@ __all__ = [
     "DreamcatcherDaemonStatus",
     "DreamcatcherStatusReport",
     "IssueObservation",
+    "StatusFact",
     "Truth",
     "read_assignment_status",
     "read_assignment_statuses_for_issue",

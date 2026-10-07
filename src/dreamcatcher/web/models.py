@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import Literal, Protocol
 
 from dreamcatcher.agent_rounds import AgentRoundPaths, AgentRoundRecord
-from dreamcatcher.status import AgentRoundRevision
+from dreamcatcher.status import AgentRoundRevision, DreamcatcherDaemonStatus
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -132,22 +132,12 @@ class WebAgentTail:
 
 
 @dataclass(frozen=True, kw_only=True)
-class WebDaemon:
-    """Represent the daemon values shown in the site header."""
-
-    state: str
-    summary: str
-    version: str | None
-    pid: str | None
-
-
-@dataclass(frozen=True, kw_only=True)
 class WebAssignmentView:
     """Represent every value that the assignment template lays out."""
 
     repository: str
     github_repository_url: str | None
-    daemon: WebDaemon
+    daemon: DreamcatcherDaemonStatus
     identifier: str
     issue: int
     title: str
@@ -179,7 +169,7 @@ class WebConversationView:
 
     repository: str
     github_repository_url: str | None
-    daemon: WebDaemon
+    daemon: DreamcatcherDaemonStatus
     issue: int
     title: str
     facts: tuple[WebFact, ...]
@@ -194,7 +184,7 @@ class WebHomeView:
 
     repository: str
     github_repository_url: str | None
-    daemon: WebDaemon
+    daemon: DreamcatcherDaemonStatus
     instance_facts: tuple[WebFact, ...]
     cooldown_message: str | None
     assignment_empty_message: str | None

@@ -80,8 +80,9 @@ each entry links the pull request that made the change.
   ([#437](https://github.com/alimanfoo/dreamcatcher/pull/437))
 - The terminal views and the web pages now use the same words for the same fact.
   The terminal shows a conversation round's code revision in seven characters,
-  as the web pages already did.
-  ([#488](https://github.com/alimanfoo/dreamcatcher/pull/488))
+  as the web pages already did. The web page header describes a running daemon
+  in the terminal's words, such as "daemon running dreamcatcher v5.3.0 as pid
+  4242". ([#488](https://github.com/alimanfoo/dreamcatcher/pull/488))
 
 ### Fixed
 
