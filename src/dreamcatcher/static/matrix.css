@@ -118,6 +118,12 @@ body::after {
   font-weight: 600;
 }
 
+.repository-links {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
 .repository-link,
 .docs-link {
   color: inherit;
