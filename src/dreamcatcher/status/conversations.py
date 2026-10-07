@@ -13,7 +13,6 @@ from dreamcatcher.errors import ReportableError
 from dreamcatcher.harness_adapters import HarnessSessionIdentifier
 from dreamcatcher.issue_conversations import (
     Conversation,
-    describe_conversation_revision,
     is_no_reply,
     read_conversation_input,
 )
@@ -35,6 +34,8 @@ from dreamcatcher.status.rounds import (
     describe_running_round,
     find_stoppable_round_paths,
 )
+
+_SHORT_REVISION_LENGTH = 7
 
 
 class ConversationStatusValue(StrEnum):
@@ -147,12 +148,8 @@ class ConversationStatus:
                     number=record.number,
                 )
                 revision = round_input.revision
-                round_revision = AgentRoundRevision(
-                    value=revision,
-                    description=describe_conversation_revision(
-                        previous_revision=previous_revision,
-                        revision=revision,
-                    ),
+                round_revision = _compose_round_revision(
+                    previous_revision=previous_revision, revision=revision
                 )
                 previous_revision = revision
             except ReportableError:
@@ -438,3 +435,18 @@ class ConversationStatusReader(AgentWorkStatusReader[ConversationStatus]):
             "no reply needed" if is_no_reply(final_output=final_output) else "answered"
         )
         return f"round {latest.number}, {answer}, {duration}"
+
+
+def _compose_round_revision(
+    *, previous_revision: str | None, revision: str
+) -> AgentRoundRevision:
+    """Describe the revision one conversation round investigated, shortened."""
+    short_revision = revision[:_SHORT_REVISION_LENGTH]
+    if previous_revision is None:
+        description = f"code revision {short_revision}"
+    elif previous_revision == revision:
+        description = f"code revision {short_revision} (unchanged)"
+    else:
+        short_previous_revision = previous_revision[:_SHORT_REVISION_LENGTH]
+        description = f"code revision {short_previous_revision} -> {short_revision}"
+    return AgentRoundRevision(value=short_revision, description=description)

@@ -11,7 +11,6 @@ from dreamcatcher.state import StateDirectory
 from dreamcatcher.status import (
     ASSIGNMENT_STATUS_VALUES_IN_ATTENTION_ORDER,
     CONVERSATION_STATUS_VALUES_IN_ATTENTION_ORDER,
-    AgentRoundRevision,
     AgentRoundStatus,
     AssignmentStatus,
     ConversationStatus,
@@ -39,7 +38,6 @@ from dreamcatcher.web.models import (
 from dreamcatcher.words import describe_countdown, describe_time
 
 _ISSUE_REFERENCE_PATTERN = re.compile(r"(?<!\w)(?:GH|#)(\d+)\b(?!-)")
-_GIT_REVISION_PATTERN = re.compile(r"\b[0-9a-f]{40}\b")
 
 
 def _compose_hand_resume(
@@ -310,25 +308,10 @@ def _compose_agent_rounds(
             duration=round_status.duration_description,
             outcome=str(round_status.record.outcome),
             outcome_description=round_status.outcome_description,
-            revision=_compose_web_round_revision(revision=round_status.revision),
+            revision=round_status.revision,
         )
         for round_status in round_statuses
     )
-
-
-def _compose_web_round_revision(
-    *, revision: AgentRoundRevision | None
-) -> AgentRoundRevision | None:
-    if revision is None:
-        return None
-    return AgentRoundRevision(
-        value=_shorten_git_revisions(text=revision.value),
-        description=_shorten_git_revisions(text=revision.description),
-    )
-
-
-def _shorten_git_revisions(*, text: str) -> str:
-    return _GIT_REVISION_PATTERN.sub(lambda match: match.group()[:7], text)
 
 
 def _compose_issue_row(*, observation: IssueObservation) -> WebIssueRow:

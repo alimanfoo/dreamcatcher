@@ -78,6 +78,10 @@ each entry links the pull request that made the change.
 - The complete example in the configuration reference now routes conversations
   to `dream:scout` and assignments to `dream:smith` and `dream:less`.
   ([#437](https://github.com/alimanfoo/dreamcatcher/pull/437))
+- The terminal views and the web pages now use the same words for the same fact.
+  The terminal shows a conversation round's code revision in seven characters,
+  as the web pages already did.
+  ([#488](https://github.com/alimanfoo/dreamcatcher/pull/488))
 
 ### Fixed
 
