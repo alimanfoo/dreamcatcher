@@ -9,7 +9,7 @@ from unittest.mock import MagicMock
 
 import pytest
 from clocks import DISPLAY_TIME_ZONE, PINNED
-from conftest import FIXTURES, REPOSITORY, assert_matches_view_golden
+from conftest import FIXTURES, REPOSITORY, assert_matches_view_golden, configure
 from observations import observed_issue
 from records import (
     release_daemon_lock,
@@ -24,6 +24,7 @@ from status_fabrications import (
     ended,
     fabricate_a_silent_round,
     fabricate_everything,
+    fabricate_nothing,
     fabricate_titles_and_pull_request_states,
     running,
     written,
@@ -68,6 +69,21 @@ WEB_ASSIGNMENT_PAGES = {
     "waiting-to-start": (fabricate_everything, "GH44-20260819-184158"),
     "working": (fabricate_everything, "GH13-20260819-184158"),
 }
+
+ADDITIONAL_AGENT_WORK_CONFIG = """[[conversation]]
+label = "dream:scout"
+[conversation.claude]
+prompt = "/dream:scout GH{issue}"
+model = "opus"
+effort = "xhigh"
+
+[[assignment]]
+label = "dream:less"
+[assignment.claude]
+prompt = "/dream:less GH{issue}"
+model = "opus"
+effort = "xhigh"
+"""
 
 
 def render_home(*, state: StateDirectory) -> str:
@@ -124,6 +140,19 @@ def test_a_state_directory_renders_as_its_golden_home(name, tmp_path, pytestconf
         path=FIXTURES / "web" / f"{name}.html",
         config=pytestconfig,
     )
+
+
+def test_an_empty_home_names_every_configured_agent_work_label(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    fabricate_nothing(state=state)
+    configure(root=state.root, head=ADDITIONAL_AGENT_WORK_CONFIG)
+
+    page = render_home(state=state)
+
+    assert (
+        "Label an issue with dream:less or dream:smith to create an assignment." in page
+    )
+    assert "Label an issue with dream:scout to start a conversation." in page
 
 
 @pytest.mark.parametrize("name", sorted(WEB_ASSIGNMENT_PAGES))
@@ -677,6 +706,7 @@ def test_ended_assignment_cards_have_space_between_them(tmp_path):
 def test_ended_assignments_are_ordered_by_when_they_ended(tmp_path):
     state = StateDirectory(root=tmp_path)
     state.bootstrap()
+    configure(root=state.root)
     written(
         state=state,
         issue=10,
@@ -712,6 +742,7 @@ def test_ended_assignments_are_ordered_by_when_they_ended(tmp_path):
 def test_home_page_types_replaced_assignment_output(tmp_path):
     state = StateDirectory(root=tmp_path)
     state.bootstrap()
+    configure(root=state.root)
     application = _create_app(
         state=state, clock=lambda: LOOKED_AT, zone=DISPLAY_TIME_ZONE
     )

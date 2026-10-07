@@ -30,16 +30,17 @@
                 </div>
               </details>
             {% endif %}
-            {% if not view.active_assignments and not view.ended_assignments and not view.failed_setups and not view.issues %}<p class="empty">-- no assignment work --</p>{% endif %}
+            {% if not view.active_assignments and not view.ended_assignments and not view.failed_setups and not view.issues %}<p class="empty">{{ view.assignment_empty_message }}</p>{% endif %}
           </div>
         </section>
-        {% if view.conversations %}
+        {% if view.conversations or view.conversation_empty_message %}
           <section class="panel" aria-labelledby="conversations-heading">
             <h1 id="conversations-heading">Conversations</h1>
             <div class="panel-body">
               {% for conversation in view.conversations %}
                 {% include "partials/conversation-card.html" %}
               {% endfor %}
+              {% if not view.conversations %}<p class="empty">{{ view.conversation_empty_message }}</p>{% endif %}
             </div>
           </section>
         {% endif %}

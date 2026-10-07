@@ -5,6 +5,7 @@ from datetime import datetime, tzinfo
 from pathlib import Path
 from typing import cast
 
+from dreamcatcher.config import DreamcatcherConfig
 from dreamcatcher.issue_conversations import Conversation
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.status import (
@@ -62,7 +63,10 @@ def _compose_github_repository_url(*, repository: str | None) -> str | None:
 
 
 def compose_home_view(
-    *, report: DreamcatcherStatusReport, zone: tzinfo | None
+    *,
+    report: DreamcatcherStatusReport,
+    config: DreamcatcherConfig,
+    zone: tzinfo | None,
 ) -> WebHomeView:
     """Return the values shown on the home page."""
     daemon = report.daemon
@@ -72,6 +76,8 @@ def compose_home_view(
         else describe_time(at=report.active_global_cooldown.ends, zone=zone)
     )
     active_assignments, ended_assignments = _compose_assignment_cards(report=report)
+    assignment_labels = tuple(route.label for route in config.assignment)
+    conversation_labels = tuple(route.label for route in config.conversation)
     return WebHomeView(
         repository=report.repository or "repository unknown",
         github_repository_url=_compose_github_repository_url(
@@ -82,6 +88,18 @@ def compose_home_view(
         instance_facts=_compose_instance_facts(report=report),
         cooldown_message=(
             None if cooldown_end is None else f"Global cooldown ends {cooldown_end}"
+        ),
+        assignment_empty_message=(
+            "Label an issue with "
+            f"{_describe_route_labels(labels=assignment_labels)} "
+            "to create an assignment."
+        ),
+        conversation_empty_message=(
+            None
+            if not conversation_labels
+            else "Label an issue with "
+            f"{_describe_route_labels(labels=conversation_labels)} "
+            "to start a conversation."
         ),
         conversations=_compose_conversation_cards(report=report),
         active_assignments=active_assignments,
@@ -94,6 +112,12 @@ def compose_home_view(
             _compose_issue_row(observation=issue) for issue in report.issue_observations
         ),
     )
+
+
+def _describe_route_labels(*, labels: tuple[str, ...]) -> str:
+    if len(labels) == 1:
+        return labels[0]
+    return f"{', '.join(labels[:-1])} or {labels[-1]}"
 
 
 def _compose_assignment_cards(
