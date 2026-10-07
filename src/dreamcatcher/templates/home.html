@@ -3,6 +3,7 @@
   <main id="home" hx-get="{{ url_for('show_home') }}" hx-trigger="every 2s" hx-select="#home" hx-swap="morph">
     {% include "partials/site-header.html" %}
     <div class="home-content">
+      <p id="home-refresh-error" class="refresh-error" role="alert" hidden></p>
       {% include "partials/instance.html" %}
       <div class="dashboard">
         {% if view.active_assignments or view.ended_assignments or view.failed_setups or view.issues or view.assignment_empty_message %}<section class="panel" aria-labelledby="assignments-heading">

@@ -81,6 +81,36 @@ def test_a_refresh_leaves_an_opened_section_open(page: Page, live_web: str) -> N
     expect(ended).to_have_attribute("open", "")
 
 
+def test_a_failed_home_refresh_keeps_the_dashboard_and_reports_why(
+    page: Page, live_web: str
+) -> None:
+    page.goto(live_web)
+    assignments = page.get_by_role("heading", name="Assignments")
+    expect(assignments).to_be_visible()
+    home_address = f"{live_web}/**"
+    page.route(
+        home_address,
+        lambda route: route.fulfill(
+            status=500,
+            content_type="text/html",
+            body='<p class="error-message">The status record is invalid.</p>',
+        ),
+    )
+
+    alert = page.get_by_role("alert")
+    expect(alert).to_contain_text(
+        "Refresh failed. Showing the last successful status. "
+        "The status record is invalid.",
+        timeout=5_000,
+    )
+    expect(assignments).to_be_visible()
+
+    page.unroute(home_address)
+    wait_for_refresh(page=page)
+
+    expect(alert).to_be_hidden()
+
+
 def test_a_tail_refresh_leaves_an_opened_hand_resume_open(
     page: Page, live_web: str
 ) -> None:
