@@ -4,16 +4,11 @@ from dataclasses import dataclass
 from typing import Literal, Protocol
 
 from dreamcatcher.agent_rounds import AgentRoundPaths, AgentRoundRecord
-from dreamcatcher.status import AgentRoundRevision, DreamcatcherDaemonStatus
-
-
-@dataclass(frozen=True, kw_only=True)
-class WebFact:
-    """Represent one labelled fact on a web page."""
-
-    label: str
-    value: str
-    is_warning: bool = False
+from dreamcatcher.status import (
+    AgentRoundRevision,
+    DreamcatcherDaemonStatus,
+    StatusFact,
+)
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -172,7 +167,7 @@ class WebConversationView:
     daemon: DreamcatcherDaemonStatus
     issue: int
     title: str
-    facts: tuple[WebFact, ...]
+    facts: tuple[StatusFact, ...]
     live: WebAgentLiveState
     feed_rounds: tuple[WebFeedRound, ...]
     feed_cursor: str
@@ -185,8 +180,7 @@ class WebHomeView:
     repository: str
     github_repository_url: str | None
     daemon: DreamcatcherDaemonStatus
-    instance_facts: tuple[WebFact, ...]
-    cooldown_message: str | None
+    instance_facts: tuple[StatusFact, ...]
     assignment_empty_message: str | None
     conversation_empty_message: str | None
     conversations: tuple[WebConversationCard, ...]

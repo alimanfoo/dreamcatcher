@@ -15,6 +15,7 @@ from dreamcatcher.status import (
     DreamcatcherDaemonStatus,
     DreamcatcherStatusReport,
     IssueObservation,
+    StatusFact,
     Truth,
     read_repository,
 )
@@ -27,12 +28,11 @@ from dreamcatcher.web.models import (
     WebAssignmentView,
     WebConversationCard,
     WebConversationView,
-    WebFact,
     WebHandResume,
     WebHomeView,
     WebIssueRow,
 )
-from dreamcatcher.words import describe_countdown, describe_time
+from dreamcatcher.words import describe_time
 
 _ISSUE_REFERENCE_PATTERN = re.compile(r"(?<!\w)(?:GH|#)(\d+)\b(?!-)")
 
@@ -62,15 +62,9 @@ def compose_home_view(
     *,
     report: DreamcatcherStatusReport,
     config: DreamcatcherConfig,
-    zone: tzinfo | None,
 ) -> WebHomeView:
     """Return the values shown on the home page."""
     daemon = report.daemon
-    cooldown_end = (
-        None
-        if report.active_global_cooldown is None
-        else describe_time(at=report.active_global_cooldown.ends, zone=zone)
-    )
     assignment_labels = tuple(
         sorted((route.label for route in config.assignment), key=str.casefold)
     )
@@ -83,10 +77,7 @@ def compose_home_view(
             repository=report.repository
         ),
         daemon=daemon,
-        instance_facts=_compose_instance_facts(report=report),
-        cooldown_message=(
-            None if cooldown_end is None else f"Global cooldown ends {cooldown_end}"
-        ),
+        instance_facts=report.instance_facts,
         assignment_empty_message=(
             None
             if not assignment_labels
@@ -254,13 +245,15 @@ def compose_conversation_view(
     )
 
 
-def _compose_conversation_facts(*, conversation: Conversation) -> tuple[WebFact, ...]:
+def _compose_conversation_facts(
+    *, conversation: Conversation
+) -> tuple[StatusFact, ...]:
     """Return the settings that a conversation settled at its first round."""
     record = conversation.record
     return (
-        WebFact(label="label", value=record.dispatch_label),
-        WebFact(label="harness", value=str(record.harness)),
-        WebFact(label="model", value=f"{record.model} · {record.effort}"),
+        StatusFact(label="label", value=record.dispatch_label),
+        StatusFact(label="harness", value=str(record.harness)),
+        StatusFact(label="model", value=f"{record.model} · {record.effort}"),
     )
 
 
@@ -335,47 +328,4 @@ def _compose_issue_references(*, evidence: str) -> tuple[str | int, ...]:
         int(part) if index % 2 else part
         for index, part in enumerate(_ISSUE_REFERENCE_PATTERN.split(evidence))
         if part
-    )
-
-
-def _compose_instance_facts(*, report: DreamcatcherStatusReport) -> tuple[WebFact, ...]:
-    daemon = report.daemon
-    values: tuple[tuple[str, str | None, bool], ...] = (
-        (
-            "preferred harness",
-            None if daemon.agent_harness is None else str(daemon.agent_harness),
-            False,
-        ),
-        (
-            "next update in",
-            (
-                None
-                if not daemon.is_running
-                else describe_countdown(
-                    at=report.at,
-                    since=report.latest_scheduler_tick,
-                    span_seconds=daemon.interval_seconds,
-                )
-            ),
-            False,
-        ),
-        (
-            "agent capacity",
-            (
-                None
-                if daemon.max_agents is None
-                else f"{report.running_agents} of {daemon.max_agents} working"
-            ),
-            False,
-        ),
-        (
-            "scheduler failures",
-            report.scheduler_failure_summary,
-            report.scheduler_failure_summary is not None,
-        ),
-    )
-    return tuple(
-        WebFact(label=label, value=value, is_warning=is_warning)
-        for label, value, is_warning in values
-        if value is not None
     )

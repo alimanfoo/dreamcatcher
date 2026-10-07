@@ -139,7 +139,6 @@ def render_status_view(*, state, width: int = WIDTH) -> str:
         console=pinned(written_to=written_to, width=width),
         clock=lambda: LOOKED_AT,
         wait=refusing,
-        zone=DISPLAY_TIME_ZONE,
     )
     return written_to.getvalue()
 
@@ -250,7 +249,6 @@ def test_status_nobody_is_watching_is_drawn_once_and_returns(tmp_path):
         console=pinned(written_to=written_to),
         clock=lambda: LOOKED_AT,
         wait=refusing,
-        zone=DISPLAY_TIME_ZONE,
     )
 
     assert "running dreamcatcher v3.0.0.beta1 as pid 4242" in written_to.getvalue()
@@ -279,7 +277,6 @@ def test_status_a_reader_watches_keeps_up_with_what_the_daemon_writes(tmp_path):
         console=pinned(written_to=written_to, is_terminal=True),
         clock=lambda: LOOKED_AT,
         wait=wait,
-        zone=DISPLAY_TIME_ZONE,
     )
     status = written_to.getvalue()
 
@@ -301,7 +298,6 @@ def test_status_a_reader_watches_takes_the_screen_and_hands_it_back(tmp_path):
         console=pinned(written_to=written_to, is_terminal=True),
         clock=lambda: LOOKED_AT,
         wait=interrupting,
-        zone=DISPLAY_TIME_ZONE,
     )
     status = written_to.getvalue()
 
@@ -324,7 +320,6 @@ def test_status_on_a_dumb_terminal_is_drawn_once_and_returns(tmp_path):
         console=pinned(written_to=written_to, is_terminal=True, term="dumb"),
         clock=lambda: LOOKED_AT,
         wait=refusing,
-        zone=DISPLAY_TIME_ZONE,
     )
     status = written_to.getvalue()
 

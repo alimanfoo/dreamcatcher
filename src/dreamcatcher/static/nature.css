@@ -148,21 +148,6 @@ body::after {
   margin-bottom: 32px;
 }
 
-.cooldown {
-  position: relative;
-  isolation: isolate;
-  padding: 16px 22px;
-  margin-bottom: 24px;
-  color: #8c3f2b;
-  background: transparent;
-  border: 0;
-  border-radius: 24px;
-  font-family: Georgia, "Times New Roman", serif;
-  font-size: 18px;
-  font-weight: 400;
-}
-
-.cooldown::before,
 .assignment-card::before,
 .issue-row::before,
 .failed-setup-row::before,
@@ -175,10 +160,6 @@ body::after {
   border-radius: 40px;
   content: "";
   filter: blur(14px);
-}
-
-.cooldown::before {
-  background: rgba(168, 98, 63, 0.12);
 }
 
 .facts,

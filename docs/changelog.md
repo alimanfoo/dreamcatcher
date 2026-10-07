@@ -82,7 +82,10 @@ each entry links the pull request that made the change.
   The terminal shows a conversation round's code revision in seven characters,
   as the web pages already did. The web page header describes a running daemon
   in the terminal's words, such as "daemon running dreamcatcher v5.3.0 as pid
-  4242". ([#488](https://github.com/alimanfoo/dreamcatcher/pull/488))
+  4242". An active global cooldown reads as a countdown, such as "ends in 4m",
+  among the instance facts of both, and the web home page shows it as a warning
+  in place of its banner. The terminal no longer shows "global cooldown none".
+  ([#488](https://github.com/alimanfoo/dreamcatcher/pull/488))
 
 ### Fixed
 
