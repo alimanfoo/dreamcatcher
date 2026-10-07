@@ -639,10 +639,11 @@ def test_a_daemon_that_loses_its_lock_runs_no_other_tick_and_stops_rounds(
     run_scheduler_cycle = Mock(wraps=daemon.run_scheduler_cycle)
     daemon.run_scheduler_cycle = run_scheduler_cycle
 
-    def report_lost_lock(self):
-        raise ReportableError("the daemon lock was lost")
-
-    monkeypatch.setattr(HeldDaemonLock, "ensure_held", report_lost_lock)
+    monkeypatch.setattr(
+        HeldDaemonLock,
+        "ensure_held",
+        Mock(side_effect=ReportableError("the daemon lock was lost")),
+    )
 
     with pytest.raises(ReportableError, match="daemon lock was lost"):
         daemon.run()

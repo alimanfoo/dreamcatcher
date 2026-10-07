@@ -3,6 +3,7 @@ import sys
 import time
 from pathlib import Path
 from threading import Event, Thread
+from unittest.mock import Mock
 
 import pytest
 from filelock import BaseFileLock
@@ -80,6 +81,20 @@ def test_a_lock_whose_path_disappears_reports_that_it_was_lost(tmp_path, monkeyp
             lock.unlink()
 
         with pytest.raises(ReportableError, match=r"daemon lock .* was lost"):
+            held_lock.ensure_held()
+
+
+def test_a_lock_that_cannot_be_checked_says_so(tmp_path, monkeypatch):
+    lock = tmp_path / "daemon.lock"
+
+    with hold_daemon_lock(path=lock) as held_lock:
+        monkeypatch.setattr(
+            Path,
+            "stat",
+            Mock(side_effect=PermissionError("the lock cannot be read")),
+        )
+
+        with pytest.raises(ReportableError, match=r"cannot check .* cannot be read"):
             held_lock.ensure_held()
 
 

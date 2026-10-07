@@ -38,10 +38,14 @@ class HeldDaemonLock:
     def ensure_held(self) -> None:
         """Raise ReportableError unless the path still names the acquired file."""
         try:
-            is_same_file = os.path.samestat(self._acquired_file, self.path.stat())
-        except OSError:
-            is_same_file = False
-        if not is_same_file:
+            current_file = self.path.stat()
+        except FileNotFoundError:
+            raise ReportableError(f"the daemon lock at {self.path} was lost.") from None
+        except OSError as error:
+            raise ReportableError(
+                f"cannot check the daemon lock {self.path}: {error}"
+            ) from error
+        if not os.path.samestat(self._acquired_file, current_file):
             raise ReportableError(f"the daemon lock at {self.path} was lost.")
 
 
