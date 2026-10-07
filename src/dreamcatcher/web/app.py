@@ -17,6 +17,7 @@ from dreamcatcher.agent_assignments import (
 from dreamcatcher.agent_rounds import request_agent_round_stop
 from dreamcatcher.agent_work import request_agent_work_retry
 from dreamcatcher.clock import read_current_time
+from dreamcatcher.config import read_dreamcatcher_config
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.status import (
@@ -162,7 +163,12 @@ def _show_home(
     """Render the local status overview."""
     report = read_status_report(state=state, clock=clock)
     return render_template(
-        "home.html", view=compose_home_view(report=report, zone=zone)
+        "home.html",
+        view=compose_home_view(
+            report=report,
+            config=read_dreamcatcher_config(root=state.root),
+            zone=zone,
+        ),
     )
 
 

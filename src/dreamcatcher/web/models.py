@@ -198,6 +198,8 @@ class WebHomeView:
     daemon: WebDaemon
     instance_facts: tuple[WebFact, ...]
     cooldown_message: str | None
+    assignment_empty_message: str | None
+    conversation_empty_message: str | None
     conversations: tuple[WebConversationCard, ...]
     active_assignments: tuple[WebAssignmentCard, ...]
     ended_assignments: tuple[WebAssignmentCard, ...]
