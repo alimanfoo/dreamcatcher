@@ -29,7 +29,7 @@ _POLL_INTERVAL_SECONDS = 0.005
 
 
 @dataclass(frozen=True)
-class HeldDaemonLock:
+class _HeldDaemonLock:
     """A daemon lock and the identity of the file that it holds."""
 
     path: Path
@@ -50,8 +50,11 @@ class HeldDaemonLock:
 
 
 @contextmanager
-def hold_daemon_lock(*, path: Path) -> Iterator[HeldDaemonLock]:
+def hold_daemon_lock(*, path: Path) -> Iterator[_HeldDaemonLock]:
     """Hold the daemon lock and release it when the caller exits.
+
+    Yield a checker that the caller invokes after each wait and before doing
+    more work, so a replaced lock file ends the daemon run.
 
     Raise ReportableError when another daemon holds it, or when the filesystem
     cannot lock the file.
@@ -68,10 +71,10 @@ def hold_daemon_lock(*, path: Path) -> Iterator[HeldDaemonLock]:
         raise ReportableError(
             "dreamcatcher is already running in this checkout."
         ) from error
-    except OSError as error:
+    except (OSError, ExceptionGroup) as error:
         raise ReportableError(f"cannot lock {path}: {error}") from error
     try:
-        yield HeldDaemonLock(path=path, _acquired_file=acquired_file[0])
+        yield _HeldDaemonLock(path=path, _acquired_file=acquired_file[0])
     finally:
         # The kernel releases the lock when the process ends, so a release that
         # fails costs nothing. Letting the failure out would replace whatever

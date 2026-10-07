@@ -175,6 +175,22 @@ def test_a_lock_that_cannot_be_taken_says_so(tmp_path):
         pass
 
 
+def test_a_grouped_lock_failure_says_so(tmp_path, monkeypatch):
+    def refuse_acquisition(self, /):
+        raise ExceptionGroup(
+            "acquisition and rollback failed",
+            [OSError("cannot inspect the file"), OSError("cannot release the lock")],
+        )
+
+    monkeypatch.setattr(BaseFileLock, "acquire", refuse_acquisition)
+
+    with (
+        pytest.raises(ReportableError, match=r"cannot lock .*daemon\.lock"),
+        hold_daemon_lock(path=tmp_path / "daemon.lock"),
+    ):
+        pass
+
+
 def test_a_lock_that_cannot_be_probed_says_so(tmp_path):
     lock = tmp_path / "daemon.lock"
     lock.mkdir()

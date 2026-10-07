@@ -476,11 +476,11 @@ lock on that empty file before it starts work. After every wait, the daemon
 verifies that the path still names the file that it acquired and stops before
 another tick when it does not. A reader asks whether the lock is held. The
 kernel releases the lock when the daemon's process ends, so neither a reused PID
-nor a clock change can make a dead daemon look live or a live one look dead. A
-v4 daemon takes no such lock. It writes its PID to `.dreamcatcher/daemon.pid`
-and treats that file as a mutex, so it does not see this lock. The module should
-remain deliberately small. It must not contain collections of issues or
-assignments selected for work, scheduling decisions, or status projections.
+nor a clock change can make a dead daemon look live. A v4 daemon takes no such
+lock. It writes its PID to `.dreamcatcher/daemon.pid` and treats that file as a
+mutex, so it does not see this lock. The module should remain deliberately
+small. It must not contain collections of issues or assignments selected for
+work, scheduling decisions, or status projections.
 
 The on-disk layout follows ownership:
 
