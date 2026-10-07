@@ -133,13 +133,22 @@ class WebAgentTail:
 
 
 @dataclass(frozen=True, kw_only=True)
+class WebDaemon:
+    """Represent the daemon values shown in the site header."""
+
+    state: str
+    summary: str
+    version: str | None
+    pid: str | None
+
+
+@dataclass(frozen=True, kw_only=True)
 class WebAssignmentView:
     """Represent every value that the assignment template lays out."""
 
     repository: str
     github_repository_url: str | None
-    daemon_state: str
-    daemon_summary: str
+    daemon: WebDaemon
     identifier: str
     issue: int
     title: str
@@ -171,8 +180,7 @@ class WebConversationView:
 
     repository: str
     github_repository_url: str | None
-    daemon_state: str
-    daemon_summary: str
+    daemon: WebDaemon
     issue: int
     title: str
     facts: tuple[WebFact, ...]
@@ -187,8 +195,7 @@ class WebHomeView:
 
     repository: str
     github_repository_url: str | None
-    daemon_state: str
-    daemon_summary: str
+    daemon: WebDaemon
     instance_facts: tuple[WebFact, ...]
     cooldown_message: str | None
     conversations: tuple[WebConversationCard, ...]

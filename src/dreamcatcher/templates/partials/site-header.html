@@ -1,8 +1,7 @@
 <header class="site-header">
   <div class="repository"><img class="mark" src="{{ url_for('static', filename='dreamcatcher-mark-' ~ mark ~ '.png') }}" alt="dreamcatcher">{% if view.github_repository_url %}<a class="repository-link" href="{{ view.github_repository_url }}" target="_blank" rel="noopener noreferrer">{{ view.repository }}</a><a class="repository-link" href="{{ view.github_repository_url }}/issues" target="_blank" rel="noopener noreferrer">issues</a><a class="repository-link" href="{{ view.github_repository_url }}/pulls" target="_blank" rel="noopener noreferrer">pulls</a>{% else %}<span>{{ view.repository }}</span>{% endif %}</div>
   <div class="site-actions">
-    <a class="docs-link" href="https://alimanfoo.github.io/dreamcatcher/" target="_blank" rel="noopener noreferrer">Docs</a>
-    <div class="daemon daemon-{{ view.daemon_state }}">{{ view.daemon_summary }}</div>
+    <div class="daemon daemon-{{ view.daemon.state }}">{{ view.daemon.summary }}{% if view.daemon.version %} · <a class="docs-link" href="https://alimanfoo.github.io/dreamcatcher/" target="_blank" rel="noopener noreferrer">{{ view.daemon.version }}</a>{% endif %}{% if view.daemon.pid %} · {{ view.daemon.pid }}{% endif %}</div>
     <nav class="theme-switch" aria-label="Theme">
 {% for theme_choice in themes %}
       <a class="theme-choice" href="?theme={{ theme_choice }}"{% if theme_choice == theme %} aria-current="page"{% endif %}>{{ theme_choice|capitalize }}</a>
