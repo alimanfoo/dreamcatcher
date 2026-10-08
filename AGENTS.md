@@ -21,9 +21,10 @@ from labelled issues. It carries each assignment to a pull request for review.
 ## Specs
 
 Larger development efforts are organised as phases, with a dated specification
-folder under `specs/`. Smaller tasks work directly from their issues. When a
-task belongs to a phase, the task usually names it; follow the status and
-editing rules in `specs/AGENTS.md`.
+folder under `specs/`. Smaller tasks work directly from their issues. When an
+issue belongs to a phase, the issue description names the phase and references
+the relevant specification; follow the status and editing rules in
+`specs/AGENTS.md`.
 
 ## The standard
 
