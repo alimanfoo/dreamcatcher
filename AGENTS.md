@@ -20,9 +20,10 @@ from labelled issues. It carries each assignment to a pull request for review.
 
 ## Specs
 
-The project is spec-first. Each development phase has a dated folder under
-`specs/`. Before working, find the phase your task belongs to — the task usually
-names it — and follow the status and editing rules in `specs/AGENTS.md`.
+Larger development efforts are organised as phases, with a dated specification
+folder under `specs/`. Smaller tasks work directly from their issues. When a
+task belongs to a phase, the task usually names it; follow the status and
+editing rules in `specs/AGENTS.md`.
 
 ## The standard
 
