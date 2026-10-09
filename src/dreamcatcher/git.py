@@ -187,8 +187,8 @@ def make_empty_commit(*, worktree: Path, message: str) -> None:
 def push_branch(*, root: Path, branch: str) -> None:
     """Push the placeholder branch to origin and set its upstream.
 
-    The push skips repository hooks because it publishes only the empty
-    placeholder commit. The agent's later pushes still run the hooks.
+    The assignment setup skips repository hooks because no agent work has
+    started. The agent's later pushes still run the hooks.
     """
     run_command(
         program="git",
