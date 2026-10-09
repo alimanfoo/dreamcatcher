@@ -160,7 +160,11 @@ def has_commits_since_main(*, worktree: Path) -> bool:
 
 
 def make_empty_commit(*, worktree: Path, message: str) -> None:
-    """Make an empty commit on the branch checked out in the worktree."""
+    """Make an empty placeholder commit without running repository hooks.
+
+    The commit gives the draft pull request a branch but holds no files for the
+    hooks to check. The agent's later commits still run the hooks.
+    """
     run_command(
         program="git",
         arguments=[
@@ -171,6 +175,7 @@ def make_empty_commit(*, worktree: Path, message: str) -> None:
             "-c",
             "commit.gpgsign=false",
             "commit",
+            "--no-verify",
             "--allow-empty",
             "--message",
             message,
@@ -180,10 +185,14 @@ def make_empty_commit(*, worktree: Path, message: str) -> None:
 
 
 def push_branch(*, root: Path, branch: str) -> None:
-    """Push the branch to origin and make that remote branch its upstream."""
+    """Push the placeholder branch to origin and set its upstream.
+
+    The assignment setup skips repository hooks because no agent work has
+    started. The agent's later pushes still run the hooks.
+    """
     run_command(
         program="git",
-        arguments=["push", "--set-upstream", "origin", branch],
+        arguments=["push", "--no-verify", "--set-upstream", "origin", branch],
         cwd=root,
     )
 

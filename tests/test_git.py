@@ -1,4 +1,5 @@
 from pathlib import Path
+from unittest.mock import Mock
 
 import pytest
 from conftest import commit, git
@@ -251,6 +252,31 @@ def test_an_empty_commit_moves_the_assignment_branch_beyond_main(cloned):
     )
 
 
+def test_an_empty_commit_skips_repository_hooks(tmp_path, monkeypatch):
+    command = Mock()
+    monkeypatch.setattr("dreamcatcher.git.run_command", command)
+
+    make_empty_commit(worktree=tmp_path, message="GH8")
+
+    command.assert_called_once_with(
+        program="git",
+        arguments=[
+            "-c",
+            "user.name=dreamcatcher",
+            "-c",
+            "user.email=noreply@github.com",
+            "-c",
+            "commit.gpgsign=false",
+            "commit",
+            "--no-verify",
+            "--allow-empty",
+            "--message",
+            "GH8",
+        ],
+        cwd=tmp_path,
+    )
+
+
 def test_a_pushed_assignment_branch_is_visible_at_origin(cloned):
     path = assignment_worktree(root=cloned)
     add_worktree(root=cloned, path=path, branch=BRANCH)
@@ -260,6 +286,21 @@ def test_a_pushed_assignment_branch_is_visible_at_origin(cloned):
 
     remote = git(arguments=["ls-remote", "--heads", "origin", BRANCH], cwd=cloned)
     assert f"refs/heads/{BRANCH}" in remote
+
+
+def test_publishing_the_placeholder_branch_skips_repository_hooks(
+    tmp_path, monkeypatch
+):
+    command = Mock()
+    monkeypatch.setattr("dreamcatcher.git.run_command", command)
+
+    push_branch(root=tmp_path, branch=BRANCH)
+
+    command.assert_called_once_with(
+        program="git",
+        arguments=["push", "--no-verify", "--set-upstream", "origin", BRANCH],
+        cwd=tmp_path,
+    )
 
 
 def test_an_assignment_worktree_can_push_to_origin(cloned):
