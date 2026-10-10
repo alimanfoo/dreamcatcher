@@ -55,13 +55,53 @@
   text-wrap: balance;
 }
 
+/* Each sentence of the headline takes a line of its own, except on a narrow
+   screen, where the words wrap freely. */
+
+.dch-line {
+  display: block;
+}
+
 .md-typeset .dch-lede {
   max-width: 34rem;
-  margin: 0 0 2.4rem;
+  margin: 0 0 1.4rem;
   font-size: 1.05rem;
   line-height: 1.55;
   color: var(--dim);
   text-wrap: pretty;
+}
+
+/* What sets dreamcatcher apart, one point to a line, each marked like a live
+   status. */
+
+.md-typeset ul.dch-points {
+  max-width: 36rem;
+  margin: 0 0 2.6rem;
+  padding: 0;
+  list-style: none;
+  color: var(--dim);
+}
+
+.md-typeset ul.dch-points > li {
+  position: relative;
+  margin: 0 0 0.55em;
+  padding-left: 1.3em;
+}
+
+.md-typeset ul.dch-points > li::before {
+  position: absolute;
+  top: 0.62em;
+  left: 0.1em;
+  width: 0.42em;
+  height: 0.42em;
+  border-radius: 50%;
+  background: var(--phosphor);
+  content: "";
+}
+
+.md-typeset .dch-points strong {
+  color: var(--bright);
+  font-weight: 600;
 }
 
 /* The status view: always dark, like the terminal it stands for, in the
@@ -228,6 +268,10 @@
 
   .md-typeset .dch-headline {
     font-size: 2.4rem;
+  }
+
+  .dch-line {
+    display: inline;
   }
 
   .md-typeset .dch-term {

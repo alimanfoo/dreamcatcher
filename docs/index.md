@@ -4,19 +4,61 @@ template: home.html
 hide:
   - navigation
   - toc
-headline: Label issues. Review pull requests.
+headline:
+  - Run coding agents on your machine.
+  - Steer them from GitHub.
 lede:
-  An agent starts on each GitHub issue that you label, and carries the issue to
-  a pull request or answers your questions on it. Run as many at once as you
-  like, and talk to them on GitHub while they work.
+  Label an issue, and an agent carries it to a pull request by itself, asking
+  you on GitHub only when it needs a decision or feedback.
+points:
+  - title: Your own setup.
+    text:
+      Agents run in your own Claude Code or Codex, on your machine, with nothing
+      hosted and no new service to trust.
+  - title: Steer from anywhere.
+    text:
+      The conversation happens on GitHub, so you can steer from your phone while
+      the agents keep working at home.
+  - title: Many at once.
+    text: dreamcatcher runs as many agents at once as you allow.
 ---
 
-## Skills for the agents
+## How it works
 
-Every agent that _dreamcatcher_ starts follows a skill, which says how to do the
-work. [dream](https://alimanfoo.github.io/dream/) is a plugin of skills for
-Claude Code and Codex, and `dreamcatcher init` installs it and routes a label of
-each skill's name to that skill:
+_dreamcatcher_ runs on your own machine, as a daemon in your repository's main
+checkout. It watches the repository through `gh`, and starts each agent in
+Claude Code or Codex. The label on an issue says which kind of work to start.
+
+An **assignment** carries an issue to a pull request:
+
+1. You label an issue and assign it to yourself.
+2. _dreamcatcher_ opens a draft pull request for the issue, and starts an agent
+   on it in a worktree of its own.
+3. The agent works in rounds. When it needs a decision, it asks on the pull
+   request, and _dreamcatcher_ passes your reply to its next round.
+4. When the work is done, the agent marks the pull request ready for review. You
+   review it as you would any pull request: comment to ask for changes, or merge
+   or close it.
+5. The agent then takes one last round to wrap up.
+
+A **conversation** answers your questions on an issue, and writes no code. Label
+an issue for a conversation and post a question as a comment. The agent reads
+the code and answers on the issue. Post another question, and the conversation
+carries on.
+
+Several agents can work at once, up to a number that you set. Follow them all on
+a local web page, or in the terminal.
+
+## Ready-made skills from dream
+
+_dreamcatcher_ decides when an agent starts and what it works on. A skill
+decides how the agent does the work: each label's route names the prompt that an
+agent starts with, and that prompt normally invokes a skill.
+
+[dream](https://alimanfoo.github.io/dream/) is a separate plugin of skills for
+Claude Code and Codex, and the skills below plug straight in.
+`dreamcatcher init` installs dream, and creates a label named after each skill
+that starts it:
 
 | Skill         | On its own | Under _dreamcatcher_ |
 | ------------- | ---------- | -------------------- |
