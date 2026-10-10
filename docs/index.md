@@ -19,7 +19,7 @@ points:
     text:
       The conversation happens on GitHub, so you can steer from your phone while
       the agents keep working at home.
-  - title: Many at once.
+  - title: Work in parallel.
     text: dreamcatcher runs as many agents at once as you allow.
 ---
 
