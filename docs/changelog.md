@@ -38,9 +38,10 @@ each entry links the pull request or commit that made the change.
   Serif, and offers a dusk scheme beside the day one. It follows your system
   setting, and the header has a switch between the two.
   ([#500](https://github.com/alimanfoo/dreamcatcher/pull/500))
-- The documentation home page explains how _dreamcatcher_ works before it
-  introduces the dream plugin's skills, so it no longer reads as if
-  _dreamcatcher_ provides them.
+- The documentation home page leads with what sets _dreamcatcher_ apart: agents
+  that run on your machine and that you steer from GitHub. It explains how
+  _dreamcatcher_ works before it introduces the dream plugin's skills, so it no
+  longer reads as if _dreamcatcher_ provides them.
   ([#501](https://github.com/alimanfoo/dreamcatcher/pull/501))
 
 ## [v5.4.0](https://github.com/alimanfoo/dreamcatcher/releases/tag/v5.4.0) — 2026-10-08

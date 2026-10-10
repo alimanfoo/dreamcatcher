@@ -4,11 +4,14 @@ template: home.html
 hide:
   - navigation
   - toc
-headline: Label issues. Review pull requests.
+headline:
+  - Run coding agents on your machine.
+  - Steer them from GitHub.
 lede:
-  An agent starts on each GitHub issue that you label, and carries the issue to
-  a pull request or answers your questions on it. Run as many at once as you
-  like, and talk to them on GitHub while they work.
+  Label an issue, and an agent takes it on with your own Claude Code or Codex,
+  alongside as many others as you like. Each carries its issue to a pull request
+  and asks you on GitHub when it needs a decision, so you can steer from
+  anywhere, even your phone.
 ---
 
 ## How it works

@@ -55,6 +55,13 @@
   text-wrap: balance;
 }
 
+/* Each sentence of the headline takes a line of its own, except on a narrow
+   screen, where the words wrap freely. */
+
+.dch-line {
+  display: block;
+}
+
 .md-typeset .dch-lede {
   max-width: 34rem;
   margin: 0 0 2.4rem;
@@ -228,6 +235,10 @@
 
   .md-typeset .dch-headline {
     font-size: 2.4rem;
+  }
+
+  .dch-line {
+    display: inline;
   }
 
   .md-typeset .dch-term {

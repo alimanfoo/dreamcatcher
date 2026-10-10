@@ -3,7 +3,7 @@
 {% block content %}
 <section class="dch">
   <p class="dch-eyebrow"><span class="dch-pulse"></span>GitHub &middot; Claude Code &middot; Codex</p>
-  <h1 class="dch-headline">{{ page.meta.headline }}</h1>
+  <h1 class="dch-headline">{% for line in page.meta.headline %}<span class="dch-line">{{ line }}</span> {% endfor %}</h1>
   <p class="dch-lede">{{ page.meta.lede }}</p>
 
   <figure class="dch-term" role="img" aria-label="dreamcatcher status, as four labelled issues move on at once: one pull request is merged and wrapped up, one question is answered, one pull request goes back for a second round after review, and one becomes ready for review">
