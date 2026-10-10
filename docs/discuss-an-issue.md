@@ -5,8 +5,13 @@ answer on the issue without turning the question into an implementation
 assignment. Use it for questions such as where behavior comes from, whether a
 reported problem can be reproduced, or how a possible change might fit.
 
-You need a configured conversation route and a running daemon.
-[Configure labels and harnesses](configure.md) shows a minimal route.
+You need a configured conversation route and a running daemon. The
+`dreamcatcher.toml` that `dreamcatcher init` writes routes the `dream:scout`
+label to the `dream:scout` skill from
+[dream](https://alimanfoo.github.io/dream/). That skill checks each claim
+against the code, and cites the code it relies on.
+[Configure labels and harnesses](configure.md) shows how to write a route of
+your own.
 
 ## Ask the first question
 
@@ -14,7 +19,7 @@ On GitHub:
 
 1. Keep the issue open.
 2. Assign it to the account authenticated through `gh`.
-3. Add exactly one configured conversation label.
+3. Add exactly one configured conversation label, such as `dream:scout`.
 4. Post the question as an issue comment from that same account.
 
 The title and issue body provide context, but they do not start a conversation

@@ -29,7 +29,7 @@ model = "opus[1m]"
 effort = "high"
 
 [[conversation]]
-label = "dream:discuss"
+label = "discuss"
 
 [conversation.claude]
 prompt = "Investigate the question on GH{issue} and return a concise answer."

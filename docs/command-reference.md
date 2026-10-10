@@ -50,7 +50,7 @@ these steps in order, and prints what it finds as it goes:
    harness that is not on `PATH` commented out. An existing file is never
    changed.
 6. For each harness that `dreamcatcher.toml` uses, check that it is signed in,
-   then install the [`dream` plugin](https://github.com/alimanfoo/dream) for the
+   then install the [`dream` plugin](https://alimanfoo.github.io/dream/) for the
    user.
 7. Create each label in `dreamcatcher.toml` that the repository lacks, matching
    names case-insensitively. Existing labels are not changed.
