@@ -1,0 +1,198 @@
+/* Dusk: the nature theme after sunset. An indigo sky that warms towards the
+   horizon, the moon rising through mist, the same grain, and warm lights for
+   the things you act on. */
+
+[data-md-color-scheme="dusk"] {
+  --background: #1a1830;
+  --bright: #ece6dc;
+  --phosphor: #e9b183;
+  --dim: rgba(236, 230, 220, 0.64);
+  --faint: rgba(236, 230, 220, 0.44);
+  --rule: rgba(236, 230, 220, 0.16);
+  --rule-inner: rgba(236, 230, 220, 0.1);
+  --tint: rgba(236, 230, 220, 0.05);
+  --amber: #e9bf76;
+  --shadow: 0 0 0 1px rgba(236, 230, 220, 0.06);
+  --dusk-moon-x: 84%;
+  --dusk-moon-y: 4%;
+  --dusk-glow: rgba(236, 140, 98, 0.2);
+  --dusk-mist: rgba(236, 178, 160, 0.06);
+
+  --md-default-fg-color: var(--bright);
+  --md-default-fg-color--light: var(--dim);
+  --md-default-fg-color--lighter: var(--faint);
+  --md-default-fg-color--lightest: var(--rule-inner);
+  --md-default-bg-color: var(--background);
+  --md-default-bg-color--light: rgba(26, 24, 48, 0.7);
+  --md-default-bg-color--lighter: rgba(26, 24, 48, 0.3);
+  --md-default-bg-color--lightest: rgba(26, 24, 48, 0.12);
+
+  --md-primary-fg-color: var(--background);
+  --md-primary-fg-color--light: #24213d;
+  --md-primary-fg-color--dark: #0f1128;
+  --md-primary-bg-color: var(--bright);
+  --md-primary-bg-color--light: var(--dim);
+
+  --md-accent-fg-color: #f3c9a3;
+  --md-accent-fg-color--transparent: rgba(233, 177, 131, 0.12);
+  --md-accent-bg-color: #24213d;
+  --md-accent-bg-color--light: rgba(36, 33, 61, 0.7);
+
+  --md-typeset-color: var(--bright);
+  --md-typeset-a-color: var(--phosphor);
+  --md-typeset-mark-color: rgba(233, 191, 118, 0.25);
+  --md-typeset-table-color: var(--rule-inner);
+  --md-typeset-table-color--light: rgba(236, 230, 220, 0.03);
+
+  --md-code-fg-color: var(--bright);
+  --md-code-bg-color: rgba(236, 230, 220, 0.045);
+  --md-code-bg-color--light: rgba(236, 230, 220, 0.06);
+  --md-code-bg-color--lighter: rgba(236, 230, 220, 0.03);
+  --md-code-hl-color: rgba(233, 191, 118, 0.15);
+  --md-code-hl-keyword-color: #e9b183;
+  --md-code-hl-string-color: #b3cba6;
+  --md-code-hl-number-color: #e9cb93;
+  --md-code-hl-name-color: var(--bright);
+  --md-code-hl-function-color: #f3c9a3;
+  --md-code-hl-constant-color: #e9cb93;
+  --md-code-hl-special-color: #e9b183;
+  --md-code-hl-variable-color: #c3c4ea;
+  --md-code-hl-operator-color: var(--dim);
+  --md-code-hl-punctuation-color: var(--dim);
+  --md-code-hl-comment-color: var(--faint);
+  --md-code-hl-generic-color: var(--dim);
+
+  --md-footer-fg-color: var(--bright);
+  --md-footer-fg-color--light: var(--dim);
+  --md-footer-fg-color--lighter: var(--faint);
+  --md-footer-bg-color: rgba(236, 230, 220, 0.03);
+  --md-footer-bg-color--dark: rgba(236, 230, 220, 0.05);
+
+  --md-shadow-z1: var(--shadow);
+  --md-shadow-z2: 0 0 0 1px rgba(236, 230, 220, 0.08);
+}
+
+/* On the home page the moon rises in the open sky beside the headline and the
+   horizon glows fully. On every other page the moon sits behind the header,
+   clear of the text, and the glow stays low. */
+
+body[data-md-color-scheme="dusk"]:has(.dch) {
+  --dusk-moon-y: 17%;
+  --dusk-glow: rgba(236, 140, 98, 0.32);
+}
+
+/* A narrow screen has no open sky beside the headline, so the moon rises
+   above it. */
+
+@media screen and (max-width: 44em) {
+  body[data-md-color-scheme="dusk"]:has(.dch) {
+    --dusk-moon-y: 8%;
+  }
+}
+
+/* The sky, the afterglow at the horizon, and a bank of mist by the moon. */
+
+body[data-md-color-scheme="dusk"] {
+  background:
+    radial-gradient(
+      ellipse 120% 40% at 60% 112%,
+      var(--dusk-glow),
+      transparent 70%
+    ),
+    radial-gradient(
+      ellipse 85% 20% at var(--dusk-moon-x) 24%,
+      var(--dusk-mist),
+      transparent 72%
+    ),
+    linear-gradient(
+      180deg,
+      #0f1128 0%,
+      #1d1a36 42%,
+      #33233d 78%,
+      #4a2a3c 100%
+    );
+  background-attachment: fixed;
+}
+
+/* The moon through mist: a soft disc with no hard edge, inside a wide, faint
+   halo. */
+
+body[data-md-color-scheme="dusk"]::before {
+  background: radial-gradient(
+    circle at var(--dusk-moon-x) var(--dusk-moon-y),
+    rgba(250, 236, 214, 0.72) 0,
+    rgba(250, 236, 214, 0.52) 1.2vmin,
+    rgba(240, 204, 184, 0.2) 3vmin,
+    rgba(230, 184, 172, 0.07) 12vmin,
+    rgba(230, 184, 172, 0) 40vmin
+  );
+  opacity: 1;
+}
+
+body[data-md-color-scheme="dusk"]::after {
+  opacity: 0.22;
+  mix-blend-mode: screen;
+}
+
+[data-md-color-scheme="dusk"] ::selection {
+  color: var(--background);
+  background: #e9b183;
+}
+
+[data-md-color-scheme="dusk"] .md-header {
+  border-bottom-color: rgba(236, 230, 220, 0.07);
+}
+
+[data-md-color-scheme="dusk"] .md-header::before {
+  background-color: rgba(18, 17, 40, 0.45);
+}
+
+[data-md-color-scheme="dusk"] .md-header__button.md-logo img {
+  filter: invert(0.92) sepia(0.2)
+    drop-shadow(0 0 12px rgba(250, 236, 214, 0.3));
+}
+
+[data-md-color-scheme="dusk"] .md-search__form {
+  background-color: rgba(236, 230, 220, 0.06);
+}
+
+[data-md-color-scheme="dusk"] .md-typeset :not(pre) > code {
+  background-color: rgba(236, 230, 220, 0.07);
+}
+
+[data-md-color-scheme="dusk"] .md-typeset pre,
+[data-md-color-scheme="dusk"] .md-typeset table:not([class]) {
+  background-color: rgba(236, 230, 220, 0.035);
+  box-shadow: 0 0 0 1px rgba(236, 230, 220, 0.07);
+}
+
+[data-md-color-scheme="dusk"] .md-typeset a:hover {
+  color: #f3c9a3;
+}
+
+/* The hero at dusk: the status view becomes a pane of tinted glass. */
+
+[data-md-color-scheme="dusk"] .md-typeset .dch-eyebrow {
+  border-color: rgba(236, 230, 220, 0.1);
+  background: rgba(236, 230, 220, 0.04);
+}
+
+[data-md-color-scheme="dusk"] .dch-pulse {
+  background: #a9c7a3;
+}
+
+[data-md-color-scheme="dusk"] .md-typeset .dch-term {
+  --dch-ink: rgba(16, 14, 34, 0.62);
+  --dch-text: #ece6dc;
+  --dch-dim: rgba(236, 230, 220, 0.56);
+  --dch-faint: rgba(236, 230, 220, 0.36);
+  --dch-working: #a9c7a3;
+  --dch-feedback: #e9c06e;
+  --dch-accent: #e9b183;
+
+  border-color: rgba(250, 236, 214, 0.1);
+  backdrop-filter: blur(14px) saturate(1.2);
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.3),
+    0 30px 90px -30px rgba(236, 140, 98, 0.35);
+}

@@ -46,11 +46,11 @@
 
 .md-typeset .dch-headline {
   margin: 0 0 1rem;
-  font-family: Georgia, "Times New Roman", serif;
-  font-size: 2.9rem;
+  font-family: var(--dc-serif);
+  font-size: 3.4rem;
   font-weight: 400;
-  letter-spacing: -0.025em;
-  line-height: 1.04;
+  letter-spacing: -0.015em;
+  line-height: 1;
   color: var(--bright);
   text-wrap: balance;
 }
@@ -227,7 +227,7 @@
   }
 
   .md-typeset .dch-headline {
-    font-size: 2rem;
+    font-size: 2.4rem;
   }
 
   .md-typeset .dch-term {

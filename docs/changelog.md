@@ -34,6 +34,10 @@ each entry links the pull request or commit that made the change.
 - The documentation home page opens with a hero: a short account of what
   _dreamcatcher_ does over an animated status view.
   ([#500](https://github.com/alimanfoo/dreamcatcher/pull/500))
+- The documentation site sets its text in Geist and its headings in Instrument
+  Serif, and offers a dusk scheme beside the day one. It follows your system
+  setting, and the header has a switch between the two.
+  ([#500](https://github.com/alimanfoo/dreamcatcher/pull/500))
 
 ## [v5.4.0](https://github.com/alimanfoo/dreamcatcher/releases/tag/v5.4.0) — 2026-10-08
 
