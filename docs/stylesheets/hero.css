@@ -1,0 +1,321 @@
+/* The home page's hero: a headline over a dreamcatcher status view, where
+   several labelled issues move on at once and then settle. */
+
+/* The home page hides its sidebars, so its one column reads at a measure. */
+
+.md-content:has(.dch) {
+  max-width: 46rem;
+  margin-inline: auto;
+}
+
+.md-content:has(.dch) .md-content__inner {
+  margin-inline: 0.8rem;
+}
+
+.dch {
+  padding: 2.6rem 0 0.6rem;
+}
+
+.md-typeset .dch-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6em;
+  margin: 0 0 1.4rem;
+  padding: 0.3em 0.8em;
+  border: 1px solid var(--rule-inner);
+  border-radius: 999px;
+  background: rgba(251, 247, 239, 0.6);
+  font-family: var(--md-code-font-family);
+  font-size: 0.62rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+
+.dch-pulse,
+.dch-dot {
+  width: 0.5em;
+  height: 0.5em;
+  border-radius: 50%;
+  animation: dch-pulse 2.4s ease-out infinite;
+}
+
+.dch-pulse {
+  background: #6f8a5e;
+}
+
+.md-typeset .dch-headline {
+  margin: 0 0 1rem;
+  font-family: var(--dc-serif);
+  font-size: 3.4rem;
+  font-weight: 400;
+  letter-spacing: -0.015em;
+  line-height: 1;
+  color: var(--bright);
+  text-wrap: balance;
+}
+
+.md-typeset .dch-lede {
+  max-width: 34rem;
+  margin: 0 0 2.4rem;
+  font-size: 1.05rem;
+  line-height: 1.55;
+  color: var(--dim);
+  text-wrap: pretty;
+}
+
+/* The status view: always dark, like the terminal it stands for, in the
+   warm ink of the nature theme. */
+
+.md-typeset .dch-term {
+  --dch-ink: #221d19;
+  --dch-text: #efe6d6;
+  --dch-dim: rgba(239, 230, 214, 0.58);
+  --dch-faint: rgba(239, 230, 214, 0.36);
+  --dch-working: #a3bb8f;
+  --dch-feedback: #e2b65c;
+  --dch-accent: #d4895e;
+
+  display: block;
+  width: auto;
+  max-width: none;
+  margin: 0;
+  overflow: hidden;
+  border: 1px solid rgba(255, 240, 220, 0.08);
+  border-radius: 1rem;
+  background: var(--dch-ink);
+  box-shadow:
+    0 0 0 1px rgba(59, 52, 46, 0.15),
+    0 30px 80px -24px rgba(168, 98, 63, 0.5);
+  font-family: var(--md-code-font-family);
+  font-size: 0.66rem;
+  line-height: 1.75;
+  text-align: left;
+  color: var(--dch-text);
+}
+
+.dch-term__bar {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.55rem 1.1rem;
+  border-bottom: 1px solid rgba(255, 240, 220, 0.07);
+  font-size: 0.6rem;
+  color: var(--dch-faint);
+}
+
+.dch-term__live {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6em;
+  color: var(--dch-working);
+}
+
+.dch-dot {
+  background: var(--dch-working);
+}
+
+.md-typeset .dch-term__log {
+  margin: 0;
+  padding: 0.9rem 1.1rem 1.1rem;
+  list-style: none;
+}
+
+.md-typeset .dch-term__log li {
+  margin: 0;
+  opacity: 0;
+  animation: dch-line 0.35s ease-out forwards;
+  animation-delay: calc(var(--i) * 0.22s + 0.3s);
+}
+
+.md-typeset .dch-term__log li.dch-in {
+  margin-bottom: 0.3em;
+}
+
+.dch-prompt {
+  color: var(--dch-accent);
+}
+
+.md-typeset .dch-term__log li.dch-section {
+  margin-top: 0.7em;
+  color: var(--dch-faint);
+}
+
+/* One issue: its title and state, then its skill, round and pull request. */
+
+.md-typeset .dch-term__log li.dch-row {
+  display: grid;
+  grid-template-columns: 3.2em 1fr auto;
+  grid-template-areas:
+    "issue title state"
+    ". detail pr";
+  column-gap: 1em;
+  padding: 0.35em 0;
+}
+
+.dch-issue {
+  grid-area: issue;
+  color: var(--dch-accent);
+}
+
+.dch-title {
+  grid-area: title;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dch-state {
+  grid-area: state;
+  justify-self: end;
+  text-align: right;
+}
+
+.dch-detail {
+  grid-area: detail;
+  color: var(--dch-dim);
+}
+
+.dch-pr {
+  grid-area: pr;
+  justify-self: end;
+  text-align: right;
+  color: var(--dch-dim);
+}
+
+.dch-working {
+  color: var(--dch-working);
+}
+
+.dch-feedback {
+  color: var(--dch-feedback);
+}
+
+.dch-quiet {
+  color: var(--dch-dim);
+}
+
+/* A swap stacks every value a cell takes in one place, so the row never
+   reflows, and shows each from its --at time until its --out time. The times
+   count from the moment every line has appeared. */
+
+.dch-swap {
+  --dch-start: 2.2s;
+
+  display: inline-grid;
+}
+
+.dch-swap > * {
+  grid-area: 1 / 1;
+  white-space: nowrap;
+  animation:
+    dch-in 0.35s ease-out calc(var(--dch-start) + var(--at, 0s)) both,
+    dch-out 0.01s step-start calc(var(--dch-start) + var(--out, 600s)) both;
+}
+
+.dch-swap > :first-child {
+  animation: dch-out 0.01s step-start
+    calc(var(--dch-start) + var(--out, 600s)) both;
+}
+
+.dch-state > * {
+  justify-self: end;
+}
+
+@media screen and (max-width: 44em) {
+  .dch {
+    padding-top: 1.6rem;
+  }
+
+  .md-typeset .dch-headline {
+    font-size: 2.4rem;
+  }
+
+  .md-typeset .dch-term {
+    font-size: 0.56rem;
+  }
+
+  .md-typeset .dch-term__log {
+    padding-inline: 0.8rem;
+  }
+
+  .md-typeset .dch-term__log li.dch-row {
+    grid-template-columns: 2.4em 1fr auto;
+    column-gap: 0.8em;
+    grid-template-areas:
+      "issue title title"
+      ". detail detail"
+      ". state pr";
+  }
+
+  .dch-state,
+  .dch-state > * {
+    justify-self: start;
+  }
+}
+
+/* Motion. */
+
+@keyframes dch-line {
+  from {
+    opacity: 0;
+    transform: translateY(0.25em);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes dch-in {
+  from {
+    opacity: 0;
+    transform: translateY(0.2em);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes dch-out {
+  to {
+    visibility: hidden;
+  }
+}
+
+@keyframes dch-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(111, 138, 94, 0.55);
+  }
+
+  70%,
+  100% {
+    box-shadow: 0 0 0 0.6em transparent;
+  }
+}
+
+/* Without motion, the view shows where it settles. */
+
+@media (prefers-reduced-motion: reduce) {
+  .md-typeset .dch-term__log li {
+    opacity: 1;
+    animation: none;
+  }
+
+  .dch-swap > *,
+  .dch-swap > :first-child {
+    visibility: hidden;
+    animation: none;
+  }
+
+  .dch-swap > :last-child {
+    visibility: visible;
+  }
+
+  .dch-pulse,
+  .dch-dot {
+    animation: none;
+  }
+}
