@@ -31,6 +31,9 @@ each entry links the pull request or commit that made the change.
 - The documentation now introduces the dream plugin, says which of its skills
   run under _dreamcatcher_, and links to the dream documentation site.
   ([#499](https://github.com/alimanfoo/dreamcatcher/pull/499))
+- The documentation home page opens with a hero: a short account of what
+  _dreamcatcher_ does over an animated status view.
+  ([#500](https://github.com/alimanfoo/dreamcatcher/pull/500))
 
 ## [v5.4.0](https://github.com/alimanfoo/dreamcatcher/releases/tag/v5.4.0) — 2026-10-08
 
