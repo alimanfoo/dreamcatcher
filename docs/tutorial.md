@@ -103,7 +103,7 @@ dreamcatcher init
 
 `init` checks that `gh` can push to the repository, that Git can commit and that
 `origin/main` can be fetched. It writes a default `dreamcatcher.toml`, installs
-the [`dream` plugin](https://github.com/alimanfoo/dream) for each harness the
+the [`dream` plugin](https://alimanfoo.github.io/dream/) for each harness the
 file uses, and creates the labels the file names. It prints one line for each
 step. If a step fails, `init` says how to fix it; fix it and run `init` again.
 If Codex is installed as well as Claude, the file uses both, so sign in to Codex
@@ -119,6 +119,10 @@ conversations. If Codex is not installed, the file keeps the Codex recipes as
 comments. The label connects a GitHub issue to its route, and `{issue}` in a
 prompt becomes the issue number, so issue 123 starts Claude with
 `/dream:smith GH123`.
+
+`dream:smith` plans a change, builds it one commit at a time and reviews it.
+`dream:less` builds a small, self-contained change with no plan. `dream:scout`
+answers your questions on an issue, and writes no code.
 
 Until `origin/main` holds the file, `init` ends by printing the commands that
 commit and push it. Run them, so the assignment worktree contains the file too:

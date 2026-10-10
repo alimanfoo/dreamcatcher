@@ -17,6 +17,15 @@ and to launch an agent for each labelled issue using an assignment skill named
 "smith". For this to work, the "smith" assignment skill needs to follow this
 guide.
 
+For working examples, read the skills in
+[dream](https://alimanfoo.github.io/dream/) that follow this contract: the
+[`dream:smith`](https://github.com/alimanfoo/dream/blob/main/plugins/dream/skills/smith/SKILL.md)
+and
+[`dream:less`](https://github.com/alimanfoo/dream/blob/main/plugins/dream/skills/less/SKILL.md)
+assignment skills, and the
+[`dream:scout`](https://github.com/alimanfoo/dream/blob/main/plugins/dream/skills/scout/SKILL.md)
+conversation skill.
+
 _dreamcatcher_ adds one instruction to every assignment and conversation prompt:
 every GitHub post the agent makes must end with this line on a line of its own:
 
