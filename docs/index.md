@@ -8,10 +8,19 @@ headline:
   - Run coding agents on your machine.
   - Steer them from GitHub.
 lede:
-  Label an issue, and an agent takes it on with your own Claude Code or Codex,
-  alongside as many others as you like. Each carries its issue to a pull request
-  and asks you on GitHub when it needs a decision, so you can steer from
-  anywhere, even your phone.
+  Label an issue, and an agent carries it to a pull request by itself, asking
+  you on GitHub only when it needs a decision or feedback.
+points:
+  - title: Your own setup.
+    text:
+      Agents run in your own Claude Code or Codex, on your machine, with nothing
+      hosted and no new service to trust.
+  - title: Steer from anywhere.
+    text:
+      The conversation happens on GitHub, so you can steer from your phone while
+      the agents keep working at home.
+  - title: Many at once.
+    text: dreamcatcher runs as many agents at once as you allow.
 ---
 
 ## How it works

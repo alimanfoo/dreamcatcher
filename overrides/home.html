@@ -5,6 +5,10 @@
   <p class="dch-eyebrow"><span class="dch-pulse"></span>GitHub &middot; Claude Code &middot; Codex</p>
   <h1 class="dch-headline">{% for line in page.meta.headline %}<span class="dch-line">{{ line }}</span> {% endfor %}</h1>
   <p class="dch-lede">{{ page.meta.lede }}</p>
+  <ul class="dch-points">
+    {% for point in page.meta.points %}<li><strong>{{ point.title }}</strong> {{ point.text }}</li>
+    {% endfor %}
+  </ul>
 
   <figure class="dch-term" role="img" aria-label="dreamcatcher status, as four labelled issues move on at once: one pull request is merged and wrapped up, one question is answered, one pull request goes back for a second round after review, and one becomes ready for review">
     <div class="dch-term__bar">
