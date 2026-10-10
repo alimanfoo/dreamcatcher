@@ -172,15 +172,6 @@ body[data-md-color-scheme="dusk"]::after {
 
 /* The hero at dusk: the status view becomes a pane of tinted glass. */
 
-[data-md-color-scheme="dusk"] .md-typeset .dch-eyebrow {
-  border-color: rgba(236, 230, 220, 0.1);
-  background: rgba(236, 230, 220, 0.04);
-}
-
-[data-md-color-scheme="dusk"] .dch-pulse {
-  background: #a9c7a3;
-}
-
 [data-md-color-scheme="dusk"] .md-typeset .dch-term {
   --dch-ink: rgba(16, 14, 34, 0.62);
   --dch-text: #ece6dc;
