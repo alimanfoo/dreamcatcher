@@ -1,8 +1,15 @@
-# dreamcatcher
-
-_dreamcatcher_ watches a GitHub repository for labelled issues, dispatches
-agents for issue conversations and coding assignments, and carries each
-assignment to a pull request for you to review and merge.
+---
+title: dreamcatcher
+template: home.html
+hide:
+  - navigation
+  - toc
+headline: Label issues. Review pull requests.
+lede:
+  An agent starts on each GitHub issue that you label, and carries the issue to
+  a pull request or answers your questions on it. Run as many at once as you
+  like, and talk to them on GitHub while they work.
+---
 
 ## Skills for the agents
 

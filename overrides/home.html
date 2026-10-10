@@ -1,0 +1,95 @@
+{% extends "main.html" %}
+
+{% block content %}
+<section class="dch">
+  <p class="dch-eyebrow"><span class="dch-pulse"></span>GitHub &middot; Claude Code &middot; Codex</p>
+  <h1 class="dch-headline">{{ page.meta.headline }}</h1>
+  <p class="dch-lede">{{ page.meta.lede }}</p>
+
+  <figure class="dch-term" role="img" aria-label="dreamcatcher status, as four labelled issues move on at once: one pull request is merged and wrapped up, one question is answered, one pull request goes back for a second round after review, and one becomes ready for review">
+    <div class="dch-term__bar">
+      <span>~/uploader</span>
+      <span class="dch-term__live"><span class="dch-dot"></span>daemon running</span>
+    </div>
+    <ol class="dch-term__log">
+      <li style="--i:0" class="dch-in"><span class="dch-prompt">&gt;</span> dreamcatcher status</li>
+
+      <li style="--i:1" class="dch-section">assignments</li>
+
+      <li style="--i:2" class="dch-row">
+        <span class="dch-issue">#41</span>
+        <span class="dch-title">Stream uploads from disk</span>
+        <span class="dch-swap dch-state">
+          <span class="dch-feedback" style="--out:1.4s">needs user feedback</span>
+          <span class="dch-working" style="--at:1.4s;--out:3.4s">working</span>
+          <span class="dch-quiet" style="--at:3.4s">complete</span>
+        </span>
+        <span class="dch-detail">dream:smith &middot; <span class="dch-swap">
+          <span style="--out:1.4s">last output 3m ago</span>
+          <span style="--at:1.4s;--out:3.4s">round 3, wrap up</span>
+          <span style="--at:3.4s">round 3, wrap up, ran 1m</span>
+        </span></span>
+        <span class="dch-swap dch-pr">
+          <span style="--out:1.4s">PR #54 ready</span>
+          <span style="--at:1.4s">PR #54 merged</span>
+        </span>
+      </li>
+
+      <li style="--i:3" class="dch-row">
+        <span class="dch-issue">#42</span>
+        <span class="dch-title">Add retries to the upload client</span>
+        <span class="dch-swap dch-state">
+          <span class="dch-working" style="--out:5.6s">working</span>
+          <span class="dch-feedback" style="--at:5.6s">needs user feedback</span>
+        </span>
+        <span class="dch-detail">dream:smith &middot; <span class="dch-swap">
+          <span style="--out:5.6s">round 1, implement</span>
+          <span style="--at:5.6s">last output 1m ago</span>
+        </span></span>
+        <span class="dch-swap dch-pr">
+          <span style="--out:5.6s">PR #57 draft</span>
+          <span style="--at:5.6s">PR #57 ready</span>
+        </span>
+      </li>
+
+      <li style="--i:4" class="dch-row">
+        <span class="dch-issue">#43</span>
+        <span class="dch-title">Resume an interrupted upload</span>
+        <span class="dch-swap dch-state">
+          <span class="dch-quiet" style="--out:0.4s">waiting</span>
+          <span class="dch-working" style="--at:0.4s;--out:2.6s">working</span>
+          <span class="dch-feedback" style="--at:2.6s;--out:4.6s">needs user feedback</span>
+          <span class="dch-working" style="--at:4.6s">working</span>
+        </span>
+        <span class="dch-detail">dream:less &middot; <span class="dch-swap">
+          <span style="--out:0.4s">next round, implement</span>
+          <span style="--at:0.4s;--out:2.6s">round 1, implement</span>
+          <span style="--at:2.6s;--out:4.6s">last output 2m ago</span>
+          <span style="--at:4.6s">round 2, address feedback</span>
+        </span></span>
+        <span class="dch-swap dch-pr">
+          <span style="--out:2.6s">PR #58 draft</span>
+          <span style="--at:2.6s">PR #58 ready</span>
+        </span>
+      </li>
+
+      <li style="--i:5" class="dch-section">conversations</li>
+
+      <li style="--i:6" class="dch-row">
+        <span class="dch-issue">#44</span>
+        <span class="dch-title">Why do large uploads time out?</span>
+        <span class="dch-swap dch-state">
+          <span class="dch-working" style="--out:0.8s">working</span>
+          <span class="dch-quiet" style="--at:0.8s">idle</span>
+        </span>
+        <span class="dch-detail">dream:scout &middot; <span class="dch-swap">
+          <span style="--out:0.8s">round 1, running</span>
+          <span style="--at:0.8s">round 1, answered, ran 4m</span>
+        </span></span>
+      </li>
+    </ol>
+  </figure>
+</section>
+
+{{ page.content }}
+{% endblock %}
