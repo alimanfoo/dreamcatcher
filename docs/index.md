@@ -100,8 +100,8 @@ and Codex. `dreamcatcher init` installs it and sets up a label for each skill:
 | `dream:scout` | No         | A conversation       |
 
 `dream:smith` plans a change, builds it a commit at a time, and reviews it.
-`dream:less` makes a small change without a plan. `dream:scout` looks into an
-issue and answers your questions about it.
+`dream:less` makes a smaller change with lighter review. `dream:scout` looks
+into an issue and answers your questions about it.
 
 If you want your agents to work differently, write your own skill or prompt and
 point a label to it. The [agent-facing contract](contract.md) explains what it
