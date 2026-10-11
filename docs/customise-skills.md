@@ -34,13 +34,13 @@ point a label to it.
    that it investigates the issue and returns an answer for _dreamcatcher_ to
    publish. A conversation prompt can instead give plain instructions, because
    _dreamcatcher_ adds the operational requirements.
-2. Make the skill available where the agent runs. Each agent works in a fresh
-   worktree of `origin/main`, so either install the skill at user scope, or
-   commit it to the repository and push it.
-3. Add a route to `dreamcatcher.toml` that points a label to a prompt that calls
-   your skill. Run `dreamcatcher init` to create the label on GitHub, commit and
-   push `dreamcatcher.toml`, and restart the daemon so that it reads the new
-   route.
+2. If you wrote a skill, make it available where the agent runs. Each agent
+   works in a fresh worktree of `origin/main`, so either install the skill at
+   user scope, or commit it to the repository and push it.
+3. Add a route to `dreamcatcher.toml` that points a label to a prompt. The
+   prompt calls your skill or gives the conversation instructions directly. Run
+   `dreamcatcher init` to create the label on GitHub, commit and push
+   `dreamcatcher.toml`, and restart the daemon so that it reads the new route.
 
 A route for an assignment skill looks like this:
 

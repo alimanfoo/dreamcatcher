@@ -627,8 +627,8 @@ checks the status rule on the scheduler modules that status imports directly.
 
 The [agent-facing contract](contract.md) describes two protocols: one between
 _dreamcatcher_ and an assignment skill, and one between _dreamcatcher_ and a
-conversation skill. A dispatch recipe that gives instructions directly follows
-the contract for its kind of agent work too.
+conversation skill. A conversation recipe that gives instructions directly
+follows the conversation skill contract too.
 
 For assignments, the contract should establish that:
 
@@ -647,4 +647,5 @@ For issue conversations, the contract should establish that:
   recorded main revision;
 - the conversation skill investigates without implementing a change;
 - _dreamcatcher_ publishes the agent's final answer on the issue; and
-- resumed rounds use the saved conversation input and harness session.
+- ordinary follow-ups use fresh input and resume the harness session; and
+- recovery reuses saved input and resumes the session when one was recorded.

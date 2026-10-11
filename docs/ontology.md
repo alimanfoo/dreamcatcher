@@ -100,8 +100,8 @@ prompt for that harness. A recipe may also supply harness config, the settings
 beyond the model and effort that _dreamcatcher_ passes to the harness on every
 round. The harness adapter decides which harness config it takes. An assignment
 recipe normally invokes an assignment skill; a conversation recipe normally
-invokes a conversation skill. A recipe may instead give the agent its
-instructions directly.
+invokes a conversation skill, but may instead give the agent its instructions
+directly.
 
 ### Dispatch label
 

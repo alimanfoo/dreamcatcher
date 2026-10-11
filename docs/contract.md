@@ -7,9 +7,8 @@ promises and when it changes.
 This page contains two contracts. The assignment skill contract covers a skill
 that guides an agent through an agent assignment. The conversation skill
 contract covers a skill that guides an agent through an issue conversation. A
-dispatch recipe may give the agent plain instructions instead of invoking a
-skill, but those instructions must follow the contract for their kind of agent
-work.
+conversation recipe may give the agent plain instructions instead of invoking a
+skill, but those instructions must follow the conversation skill contract.
 
 For working examples, read the skills in
 [dream](https://alimanfoo.github.io/dream/) that follow this contract: the
@@ -159,9 +158,9 @@ request can proceed to its wrap-up round without new feedback.
 A conversation skill must guide the agent to investigate and answer the user's
 questions without implementing a change. It must accept the issue number in the
 same `GH123` form as an assignment skill. _dreamcatcher_ adds the input,
-publication and operational instructions around the configured prompt, so the
-skill does not need to repeat them. The skill must keep the agent within the
-scope below and guide it to return the answer in the required form.
+publication and operational instructions around the configured prompt. These
+instructions set the investigation scope and output form, so the skill does not
+need to repeat them and must not contradict them.
 
 ### Input
 
