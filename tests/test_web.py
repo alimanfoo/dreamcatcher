@@ -866,10 +866,12 @@ def test_a_theme_choice_is_validated_and_remembered(tmp_path):
     remembered = client.get("/")
 
     assert 'href="/static/nature.css"' not in selected.text
+    assert 'href="/static/nature-dusk.css"' not in selected.text
     assert 'src="/static/nature.js"' not in selected.text
     assert 'href="/static/dreamcatcher-mark-phosphor.png"' in selected.text
     assert "theme=matrix;" in selected.headers["Set-Cookie"]
     assert 'href="/static/nature.css"' not in remembered.text
+    assert 'href="/static/nature-dusk.css"' not in remembered.text
     assert 'src="/static/nature.js"' not in remembered.text
     assert 'href="/static/dreamcatcher-mark-phosphor.png"' in remembered.text
 
@@ -883,6 +885,7 @@ def test_an_unknown_theme_uses_nature_without_being_remembered(tmp_path):
     script = client.get("/static/nature.js").get_data(as_text=True)
 
     assert 'href="/static/nature.css"' in response.text
+    assert 'href="/static/nature-dusk.css"' in response.text
     assert 'src="/static/nature.js"' in response.text
     assert 'href="/static/dreamcatcher-mark-ink.png"' in response.text
     assert "Set-Cookie" not in response.headers
@@ -892,6 +895,7 @@ def test_an_unknown_theme_uses_nature_without_being_remembered(tmp_path):
     assert "const sunrise = 6 * 60;" in script
     assert "const sunset = 18 * 60;" in script
     assert 'style.setProperty("--sun-x", `${sunPosition}%`);' in script
+    assert 'style.setProperty("--moon-x", `${moonPosition}%`);' in script
 
 
 def test_github_links_open_in_a_new_tab(tmp_path):

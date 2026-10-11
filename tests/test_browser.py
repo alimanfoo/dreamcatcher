@@ -1,6 +1,7 @@
 """Exercise web interactions that depend on a real browser layout."""
 
 from collections.abc import Iterator
+from datetime import datetime
 
 import pytest
 from playwright.sync_api import Locator, Page, expect
@@ -149,3 +150,45 @@ def test_cancelling_an_assignment_asks_first(page: Page, live_web: str) -> None:
     cancel.click()
     expect(page.locator("#agent-work-status")).to_have_text("cancelled")
     expect(cancel).to_have_count(0)
+
+
+def test_dark_nature_uses_the_dusk_palette_and_follows_the_night(
+    page: Page,
+    live_web: str,
+) -> None:
+    page.emulate_media(color_scheme="dark")
+    page.clock.set_fixed_time(datetime(2026, 10, 11, 20, 0))
+    page.goto(live_web)
+
+    expect(page.locator("html")).to_have_css("background-color", "rgb(26, 24, 48)")
+    expect(page.locator("body")).to_have_css("color", "rgb(236, 230, 220)")
+    expect(page.locator(".status-working")).to_have_css(
+        "background-color",
+        "rgba(169, 199, 163, 0.9)",
+    )
+
+    root = page.locator("html")
+    times = (
+        (datetime(2026, 10, 11, 20, 0), 20.6667, "1"),
+        (datetime(2026, 10, 12, 0, 0), 50, "1"),
+        (datetime(2026, 10, 12, 4, 0), 79.3333, "1"),
+        (datetime(2026, 10, 12, 12, 0), None, "0"),
+    )
+    for time, expected_position, expected_opacity in times:
+        page.clock.set_fixed_time(time)
+        page.evaluate("updateCelestialPositions()")
+        opacity = root.evaluate(
+            "element => element.style.getPropertyValue('--moon-opacity')"
+        )
+        assert opacity == expected_opacity
+        if expected_position is not None:
+            position = root.evaluate(
+                "element => element.style.getPropertyValue('--moon-x')"
+            )
+            assert float(position.removesuffix("%")) == pytest.approx(
+                expected_position,
+                abs=0.0001,
+            )
+
+    page.emulate_media(color_scheme="light")
+    expect(page.locator("html")).to_have_css("background-color", "rgb(239, 230, 214)")

@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='matrix.css') }}">
 {% if theme != "matrix" %}
     <link rel="stylesheet" href="{{ url_for('static', filename=theme ~ '.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='nature-dusk.css') }}">
     <script src="{{ url_for('static', filename=theme ~ '.js') }}" defer></script>
 {% endif %}
     <script src="{{ url_for('static', filename='vendor/htmx-2.0.10.min.js') }}" defer></script>
