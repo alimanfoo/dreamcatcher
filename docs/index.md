@@ -9,7 +9,7 @@ headline:
   - Steer them from GitHub.
 lede:
   Label an issue, and an agent carries it to a pull request by itself, asking
-  you on GitHub only when it needs a decision or feedback.
+  you on GitHub when it needs a decision or feedback.
 points:
   - title: Your own setup.
     text:
