@@ -868,10 +868,12 @@ def test_a_theme_choice_is_validated_and_remembered(tmp_path):
     assert 'href="/static/nature.css"' not in selected.text
     assert 'src="/static/nature.js"' not in selected.text
     assert 'href="/static/dreamcatcher-mark-phosphor.png"' in selected.text
+    assert 'data-web-theme="matrix"' in selected.text
     assert "theme=matrix;" in selected.headers["Set-Cookie"]
     assert 'href="/static/nature.css"' not in remembered.text
     assert 'src="/static/nature.js"' not in remembered.text
     assert 'href="/static/dreamcatcher-mark-phosphor.png"' in remembered.text
+    assert 'data-web-theme="matrix"' in remembered.text
 
 
 def test_an_unknown_theme_uses_nature_without_being_remembered(tmp_path):
@@ -880,18 +882,15 @@ def test_an_unknown_theme_uses_nature_without_being_remembered(tmp_path):
 
     response = client.get("/?theme=unknown")
     stylesheet = client.get("/static/nature.css").get_data(as_text=True)
-    script = client.get("/static/nature.js").get_data(as_text=True)
 
     assert 'href="/static/nature.css"' in response.text
     assert 'src="/static/nature.js"' in response.text
     assert 'href="/static/dreamcatcher-mark-ink.png"' in response.text
+    assert 'data-web-theme="nature"' in response.text
     assert "Set-Cookie" not in response.headers
     assert "circle at var(--sun-x) 6%" in stylesheet
     assert "opacity: var(--sun-opacity);" in stylesheet
     assert ".status-unknown," in stylesheet
-    assert "const sunrise = 6 * 60;" in script
-    assert "const sunset = 18 * 60;" in script
-    assert 'style.setProperty("--sun-x", `${sunPosition}%`);' in script
 
 
 def test_github_links_open_in_a_new_tab(tmp_path):

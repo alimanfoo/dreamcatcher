@@ -34,6 +34,10 @@ each entry links the pull request or commit that made the change.
 
 ### Changed
 
+- The web interface's nature theme now follows the viewer's system light or dark
+  setting. Its dark scheme uses a dusk palette and shows the moon crossing the
+  sky at night; the Matrix theme is unchanged.
+  ([#507](https://github.com/alimanfoo/dreamcatcher/pull/507))
 - The documentation now introduces the dream plugin, says which of its skills
   run under _dreamcatcher_, and links to the dream documentation site.
   ([#499](https://github.com/alimanfoo/dreamcatcher/pull/499))
