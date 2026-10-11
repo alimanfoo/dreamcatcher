@@ -27,11 +27,11 @@ If you want your agents to work differently, write your own skill or prompt and
 point a label to it.
 
 1. Write the skill or prompt. An assignment skill must follow the
-   [assignment skill contract](contract.md), so that it picks up the branch and
-   draft pull request that _dreamcatcher_ has already opened. A conversation
-   skill must follow the
-   [conversation skill contract](contract.md#issue-conversation-instructions),
-   so that it investigates the issue and returns an answer for _dreamcatcher_ to
+   [assignment skill contract](contract.md#assignment-skill-contract), so that
+   it picks up the branch and draft pull request that _dreamcatcher_ has already
+   opened. A conversation skill must follow the
+   [conversation skill contract](contract.md#conversation-skill-contract), so
+   that it investigates the issue and returns an answer for _dreamcatcher_ to
    publish. A conversation prompt can instead give plain instructions, because
    _dreamcatcher_ adds the operational requirements.
 2. Make the skill available where the agent runs. Each agent works in a fresh
