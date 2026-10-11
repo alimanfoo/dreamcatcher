@@ -208,3 +208,29 @@ def test_dark_nature_uses_the_dusk_palette_and_follows_the_night(
 
     page.emulate_media(color_scheme="light")
     expect(page.locator("html")).to_have_css("background-color", "rgb(239, 230, 214)")
+
+
+def test_nature_shows_exactly_one_of_sun_and_moon_at_each_boundary(
+    page: Page,
+    live_web: str,
+) -> None:
+    page.clock.install(time=datetime(2026, 10, 11, 5, 59))
+    page.goto(live_web)
+
+    root = page.locator("html")
+    steps = (
+        (None, "0", "1"),
+        ("00:01:00", "1", "0"),
+        ("11:59:00", "1", "0"),
+        ("00:01:00", "0", "1"),
+    )
+    for advance, sun_opacity, moon_opacity in steps:
+        if advance is not None:
+            page.clock.fast_forward(advance)
+        opacities = root.evaluate(
+            """element => [
+              element.style.getPropertyValue("--sun-opacity"),
+              element.style.getPropertyValue("--moon-opacity"),
+            ]"""
+        )
+        assert opacities == [sun_opacity, moon_opacity]
