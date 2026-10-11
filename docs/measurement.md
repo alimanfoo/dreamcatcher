@@ -17,13 +17,13 @@ Measured on 2026-10-11 at `2d3c972`, with the v5.5.0 release preparation.
 | S3 Exports are used                    | 33 names without an importer, all permitted    | met    |            |
 | S4 Each thing is done one way          | 2 facts derived more than once                 | short  | #452, #455 |
 | S5 Nothing is suppressed               | 0 `noqa`, 0 `type: ignore`, 3 platform pragmas | met    |            |
-| C1 One vocabulary                      | 1 disagreement                                 | short  | #509       |
+| C1 One vocabulary                      | 2 disagreements                                | short  | #509, #511 |
 | C2 Enduring documents are true         | 0 new contradictions                           | met    |            |
 | C3 Documentation by purpose            | 4 kinds of page, kept apart                    | met    |            |
 | C4 Formats and contracts are versioned | state format 5, contract 1, both with policy   | met    |            |
 | K1 Structural rules checked by machine | the 4 named rules checked                      | met    |            |
 | K2 Suite is fast and speaks plainly    | 24 seconds on a laptop, 100% branch coverage   | met    |            |
-| K3 Tracker is current                  | 46 issues reviewed; none to correct or close   | met    |            |
+| K3 Tracker is current                  | 42 issues reviewed; 5 corrected, none closed   | met    |            |
 | K4 Every change reviewed to standard   | 10 pull requests answered; 7 name no issue     | short  | #510       |
 | E1 Rules, not cases                    | 9 ledgered, all external; 4 unledgered         | short  | #419, #457 |
 | E2 Invariants by construction          | 61 optional fields, 0 coupled sets             | met    |            |
@@ -41,6 +41,9 @@ Measured on 2026-10-11 at `2d3c972`, with the v5.5.0 release preparation.
   that follows the contract, and the skills guide routes a conversation label to
   a skill. The ontology defines only the assignment skill, and says a
   conversation recipe asks the agent to answer the user (#509).
+- **C1.** The home page's terminal illustration writes an issue as `#41`, where
+  `dreamcatcher status` writes `GH41`, and shows columns that the status view
+  does not print (#511).
 - **K4.** #499 to #505 came from one review of the documentation sites. Each
   answers every definition-of-done question, but answers the first with "No
   issue or spec". The standard does not say whether a change may serve neither
@@ -97,9 +100,9 @@ Measured on 2026-10-11 at `2d3c972`, with the v5.5.0 release preparation.
   seconds. All seven browser tests passed in 7.73 seconds. The new tests name
   behaviours a user sees, such as a placeholder commit that skips failing hooks
   and the moon crossing the dusk sky.
-- **K3.** Five issues opened since v5.4.0: #492, #494, #496, #498 and #508. They
-  use the ontology's words. #498 carries no type label. No open issue's work is
-  complete or obsolete.
+- **K3.** The triage read all 42 open issues against the ontology, and rewrote
+  #391, #404, #492, #494 and #496 to its words. #498 carries no type label. No
+  open issue's work is complete or obsolete.
 - **K4.** All ten pull requests answer the seven definition-of-done questions.
   #491, #497 and #507 each close an issue.
 - **E1.** The nature script's day and night ranges and the stylesheet's colour
