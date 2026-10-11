@@ -54,3 +54,8 @@ gh release create v5.1.0 --target main --generate-notes --notes-file NOTES.md
 
 The release notes then open with the changelog section, and GitHub follows it
 with the list of every pull request merged since the previous release.
+
+Publishing the release starts the Publish workflow, which builds the package
+from the tag and uploads it to [PyPI](https://pypi.org/p/dreamcatcher). Check
+that the workflow succeeds and that PyPI lists the new version. If the upload
+fails partway, re-run the workflow, which skips the files PyPI already holds.

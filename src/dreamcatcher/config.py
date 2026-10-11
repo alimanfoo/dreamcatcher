@@ -82,7 +82,7 @@ class DispatchRoute(DreamcatcherDocument):
             if (recipe := getattr(self, harness.value)) is not None
         }
 
-    def choose_harness(self, *, requested_harness: AgentHarness) -> AgentHarness:
+    def choose_harness(self, *, preferred_harness: AgentHarness) -> AgentHarness:
         """Return the harness that runs this label, given the preferred harness.
 
         A label carrying a recipe for the preferred harness runs on that one. There
@@ -93,7 +93,7 @@ class DispatchRoute(DreamcatcherDocument):
         """
         recipes = self.recipes
         return (
-            requested_harness if requested_harness in recipes else next(iter(recipes))
+            preferred_harness if preferred_harness in recipes else next(iter(recipes))
         )
 
     @model_validator(mode="after")
@@ -133,7 +133,7 @@ class DreamcatcherConfig(DreamcatcherDocument):
     def routed_harnesses(self) -> set[AgentHarness]:
         """Every harness that any configured route can select.
 
-        A route with one harness selects it regardless of the daemon's requested
+        A route with one harness selects it regardless of the daemon's preferred
         harness.
         """
         routes = [*self.assignment, *self.conversation]

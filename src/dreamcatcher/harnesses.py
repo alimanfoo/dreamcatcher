@@ -25,7 +25,7 @@ HARNESS_ADAPTERS: dict[AgentHarness, HarnessAdapter] = {
 }
 
 
-def locate_harnesses(*, harnesses: Iterable[AgentHarness]) -> None:
+def require_harnesses_on_path(*, harnesses: Iterable[AgentHarness]) -> None:
     """Refuse when any of the harnesses is not on the PATH."""
     for harness in sorted(harnesses):
         locate_program(program=HARNESS_ADAPTERS[harness].program)

@@ -61,7 +61,7 @@ def create_assignment_scheduler(*, state: StateDirectory) -> AssignmentScheduler
         account=POSTED_BY,
         config=read_dreamcatcher_config(root=state.root),
         state=state,
-        requested_harness=AgentHarness.CLAUDE,
+        preferred_harness=AgentHarness.CLAUDE,
         clock=lambda: PINNED,
     )
 

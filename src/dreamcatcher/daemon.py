@@ -21,7 +21,7 @@ from dreamcatcher.documents import write_json, write_text
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.git import require_main_checkout
 from dreamcatcher.github import require_github_identity
-from dreamcatcher.harnesses import locate_harnesses
+from dreamcatcher.harnesses import require_harnesses_on_path
 from dreamcatcher.issue_conversations import read_conversations
 from dreamcatcher.lock import hold_daemon_lock
 from dreamcatcher.scheduler import (
@@ -109,7 +109,9 @@ class DreamcatcherDaemon:
         """
         # A label carrying one dispatch recipe runs on that harness whatever the
         # preference, so every harness a route can settle a label on must be there.
-        locate_harnesses(harnesses={self.harness, *self.config.routed_harnesses})
+        require_harnesses_on_path(
+            harnesses={self.harness, *self.config.routed_harnesses}
+        )
         with hold_daemon_lock(path=self.state.lock) as daemon_lock:
             self.state.bootstrap()
             write_json(
@@ -129,7 +131,7 @@ class DreamcatcherDaemon:
                 account=identity.account,
                 config=self.config,
                 state=self.state,
-                requested_harness=self.harness,
+                preferred_harness=self.harness,
                 clock=self.clock,
             )
             conversations = ConversationScheduler(
@@ -137,7 +139,7 @@ class DreamcatcherDaemon:
                 account=identity.account,
                 config=self.config,
                 state=self.state,
-                requested_harness=self.harness,
+                preferred_harness=self.harness,
                 clock=self.clock,
             )
             scheduler = Scheduler(

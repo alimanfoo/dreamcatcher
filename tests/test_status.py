@@ -149,7 +149,7 @@ def test_an_empty_instance_reports_unknown_capacity_and_no_work(tmp_path):
     assert found.at == LOOKED_AT
     assert found.repository is None
     assert found.daemon.pid is None
-    assert found.daemon.agent_harness is None
+    assert found.daemon.preferred_harness is None
     assert found.daemon.dreamcatcher_version is None
     assert found.latest_scheduler_tick is None
     assert found.daemon.interval_seconds is None
@@ -194,7 +194,7 @@ def test_the_instance_records_name_the_harness_and_version(state):
 
     found = report(state=state)
 
-    assert found.daemon.agent_harness is AgentHarness.CODEX
+    assert found.daemon.preferred_harness is AgentHarness.CODEX
     assert found.daemon.dreamcatcher_version == "3.0.0.beta1"
     assert not found.daemon.is_running
     assert found.daemon.pid is None

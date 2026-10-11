@@ -23,7 +23,7 @@ If you are upgrading an older installation, read
 installation, run this command unless you have already run it:
 
 ```sh
-uv tool install git+https://github.com/alimanfoo/dreamcatcher
+uv tool install dreamcatcher
 ```
 
 Then make the command available in your shell:

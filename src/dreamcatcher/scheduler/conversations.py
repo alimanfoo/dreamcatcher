@@ -158,7 +158,7 @@ class ConversationScheduler(
         conversation = candidate.conversation or create_conversation(
             state=self.state,
             route=candidate.route,
-            requested_harness=self.requested_harness,
+            preferred_harness=self.preferred_harness,
             issue=candidate.issue,
         )
         round_input = prepare_conversation_input(

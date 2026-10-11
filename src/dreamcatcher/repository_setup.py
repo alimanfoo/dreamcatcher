@@ -25,7 +25,7 @@ from dreamcatcher.github import (
     require_github_identity,
     require_known_github_value,
 )
-from dreamcatcher.harnesses import HARNESS_ADAPTERS, locate_harnesses
+from dreamcatcher.harnesses import HARNESS_ADAPTERS, require_harnesses_on_path
 
 # The plugin whose skills the default configuration's prompts invoke.
 _DREAM_MARKETPLACE = "alimanfoo/dream"
@@ -66,7 +66,7 @@ def set_up_repository(*, root: Path) -> None:
         else f"Left the existing {DREAMCATCHER_CONFIG_NAME} as it is."
     )
     config = read_dreamcatcher_config(root=root)
-    locate_harnesses(harnesses=config.routed_harnesses)
+    require_harnesses_on_path(harnesses=config.routed_harnesses)
     for harness in sorted(config.routed_harnesses):
         _set_up_harness(harness=harness)
     _create_missing_labels(repository=identity.repository, config=config)

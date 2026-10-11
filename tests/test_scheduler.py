@@ -114,7 +114,7 @@ def create_scheduler(*, root, max_agents: int = 1) -> tuple[Scheduler, Ticking]:
         account=POSTED_BY,
         config=config,
         state=state,
-        requested_harness=AgentHarness.CLAUDE,
+        preferred_harness=AgentHarness.CLAUDE,
         clock=clock,
     )
     conversations = ConversationScheduler(
@@ -122,7 +122,7 @@ def create_scheduler(*, root, max_agents: int = 1) -> tuple[Scheduler, Ticking]:
         account=POSTED_BY,
         config=config,
         state=state,
-        requested_harness=AgentHarness.CLAUDE,
+        preferred_harness=AgentHarness.CLAUDE,
         clock=clock,
     )
     scheduler = Scheduler(
