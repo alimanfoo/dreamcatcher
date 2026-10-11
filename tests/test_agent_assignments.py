@@ -56,11 +56,11 @@ ASSIGNMENT_ID = "GH12-20260819-184158"
 BRANCH = f"dreamcatcher-{ASSIGNMENT_ID}"
 
 
-def create_assignment(*, state, route, requested_harness, issue, at):
+def create_assignment(*, state, route, preferred_harness, issue, at):
     """Create one assignment through the repository's creation boundary."""
     creator = AssignmentCreator(state=state, repository=REPOSITORY)
     return creator.create(
-        route=route, requested_harness=requested_harness, issue=issue, at=at
+        route=route, preferred_harness=preferred_harness, issue=issue, at=at
     )
 
 
@@ -112,7 +112,7 @@ def test_an_assignment_cuts_a_worktree_of_its_own_under_the_state_directory(
     assignment = create_assignment(
         state=state,
         route=route,
-        requested_harness=AgentHarness.CLAUDE,
+        preferred_harness=AgentHarness.CLAUDE,
         issue=12,
         at=PINNED,
     )
@@ -136,7 +136,7 @@ def test_an_assignment_cuts_a_branch_of_its_own_from_origins_main_as_it_is_now(
     assignment = create_assignment(
         state=state,
         route=route,
-        requested_harness=AgentHarness.CLAUDE,
+        preferred_harness=AgentHarness.CLAUDE,
         issue=12,
         at=PINNED,
     )
@@ -159,7 +159,7 @@ def test_a_codex_assignment_records_its_recipes_config(state, route):
     create_assignment(
         state=state,
         route=configured,
-        requested_harness=AgentHarness.CODEX,
+        preferred_harness=AgentHarness.CODEX,
         issue=12,
         at=PINNED,
     )
@@ -171,7 +171,7 @@ def test_an_assignment_records_its_settled_dispatch_recipe(state, route):
     assignment = create_assignment(
         state=state,
         route=route,
-        requested_harness=AgentHarness.CLAUDE,
+        preferred_harness=AgentHarness.CLAUDE,
         issue=12,
         at=PINNED,
     )
@@ -211,7 +211,7 @@ def test_setup_writes_the_pull_request_observation_before_the_record(
         create_assignment(
             state=state,
             route=route,
-            requested_harness=AgentHarness.CLAUDE,
+            preferred_harness=AgentHarness.CLAUDE,
             issue=12,
             at=PINNED,
         )
@@ -225,7 +225,7 @@ def test_an_assignment_titles_its_pull_request_after_its_issue(state, route, gh)
     create_assignment(
         state=state,
         route=route,
-        requested_harness=AgentHarness.CLAUDE,
+        preferred_harness=AgentHarness.CLAUDE,
         issue=12,
         at=PINNED,
     )
@@ -240,7 +240,7 @@ def test_an_assignment_runs_on_the_harness_the_run_named(state, route):
     assignment = create_assignment(
         state=state,
         route=route,
-        requested_harness=AgentHarness.CODEX,
+        preferred_harness=AgentHarness.CODEX,
         issue=12,
         at=PINNED,
     )
@@ -254,7 +254,7 @@ def test_a_new_assignment_has_run_no_rounds_and_its_next_is_its_first(state, rou
     assignment = create_assignment(
         state=state,
         route=route,
-        requested_harness=AgentHarness.CLAUDE,
+        preferred_harness=AgentHarness.CLAUDE,
         issue=12,
         at=PINNED,
     )
@@ -580,7 +580,7 @@ def test_an_assignment_git_cannot_cut_leaves_no_branch_behind(state, route):
         create_assignment(
             state=state,
             route=route,
-            requested_harness=AgentHarness.CLAUDE,
+            preferred_harness=AgentHarness.CLAUDE,
             issue=12,
             at=PINNED,
         )
@@ -598,7 +598,7 @@ def test_an_assignment_that_cannot_record_reuses_its_complete_setup(state, route
         create_assignment(
             state=state,
             route=route,
-            requested_harness=AgentHarness.CLAUDE,
+            preferred_harness=AgentHarness.CLAUDE,
             issue=12,
             at=PINNED,
         )
@@ -613,7 +613,7 @@ def test_an_assignment_that_cannot_record_reuses_its_complete_setup(state, route
     recovered = create_assignment(
         state=state,
         route=route,
-        requested_harness=AgentHarness.CLAUDE,
+        preferred_harness=AgentHarness.CLAUDE,
         issue=12,
         at=PINNED + timedelta(hours=1),
     )
@@ -646,7 +646,7 @@ def test_an_interrupted_creation_continues_from_its_existing_artifacts(
     recovered = create_assignment(
         state=state,
         route=route,
-        requested_harness=AgentHarness.CLAUDE,
+        preferred_harness=AgentHarness.CLAUDE,
         issue=12,
         at=PINNED + timedelta(hours=1),
     )
@@ -665,7 +665,7 @@ def test_an_issue_with_an_open_assignment_cannot_receive_another(state, route, g
     create_assignment(
         state=state,
         route=route,
-        requested_harness=AgentHarness.CLAUDE,
+        preferred_harness=AgentHarness.CLAUDE,
         issue=12,
         at=PINNED,
     )
@@ -674,7 +674,7 @@ def test_an_issue_with_an_open_assignment_cannot_receive_another(state, route, g
         create_assignment(
             state=state,
             route=route,
-            requested_harness=AgentHarness.CLAUDE,
+            preferred_harness=AgentHarness.CLAUDE,
             issue=12,
             at=PINNED + timedelta(hours=1),
         )
@@ -697,7 +697,7 @@ def test_an_issue_whose_assignment_finished_can_receive_another(state, route):
     first = create_assignment(
         state=state,
         route=route,
-        requested_harness=AgentHarness.CLAUDE,
+        preferred_harness=AgentHarness.CLAUDE,
         issue=12,
         at=PINNED,
     )
@@ -716,7 +716,7 @@ def test_an_issue_whose_assignment_finished_can_receive_another(state, route):
     second = create_assignment(
         state=state,
         route=route,
-        requested_harness=AgentHarness.CLAUDE,
+        preferred_harness=AgentHarness.CLAUDE,
         issue=12,
         at=PINNED + timedelta(hours=1),
     )
@@ -738,7 +738,7 @@ def test_an_issue_whose_final_work_is_unfinished_cannot_receive_another(
     first = create_assignment(
         state=state,
         route=route,
-        requested_harness=AgentHarness.CLAUDE,
+        preferred_harness=AgentHarness.CLAUDE,
         issue=12,
         at=PINNED,
     )
@@ -758,7 +758,7 @@ def test_an_issue_whose_final_work_is_unfinished_cannot_receive_another(
         create_assignment(
             state=state,
             route=route,
-            requested_harness=AgentHarness.CLAUDE,
+            preferred_harness=AgentHarness.CLAUDE,
             issue=12,
             at=PINNED + timedelta(hours=1),
         )
@@ -777,7 +777,7 @@ def test_several_incomplete_setups_for_one_issue_are_reported(state, route):
         create_assignment(
             state=state,
             route=route,
-            requested_harness=AgentHarness.CLAUDE,
+            preferred_harness=AgentHarness.CLAUDE,
             issue=12,
             at=PINNED + timedelta(hours=2),
         )
@@ -829,7 +829,7 @@ def test_an_incomplete_worktree_on_another_branch_is_reported(state, route):
         create_assignment(
             state=state,
             route=route,
-            requested_harness=AgentHarness.CLAUDE,
+            preferred_harness=AgentHarness.CLAUDE,
             issue=12,
             at=PINNED,
         )
@@ -855,7 +855,7 @@ def test_a_finished_pull_request_on_the_incomplete_branch_is_not_adopted(
         create_assignment(
             state=state,
             route=route,
-            requested_harness=AgentHarness.CLAUDE,
+            preferred_harness=AgentHarness.CLAUDE,
             issue=12,
             at=PINNED,
         )
@@ -877,7 +877,7 @@ def test_an_unlinked_pull_request_on_the_incomplete_branch_is_not_adopted(
         create_assignment(
             state=state,
             route=route,
-            requested_harness=AgentHarness.CLAUDE,
+            preferred_harness=AgentHarness.CLAUDE,
             issue=12,
             at=PINNED,
         )
@@ -903,7 +903,7 @@ def test_a_ready_pull_request_on_the_incomplete_branch_is_not_adopted(state, rou
         create_assignment(
             state=state,
             route=route,
-            requested_harness=AgentHarness.CLAUDE,
+            preferred_harness=AgentHarness.CLAUDE,
             issue=12,
             at=PINNED,
         )
@@ -916,7 +916,7 @@ def test_a_pull_request_listing_failure_keeps_the_setup_for_a_retry(state, route
         create_assignment(
             state=state,
             route=route,
-            requested_harness=AgentHarness.CLAUDE,
+            preferred_harness=AgentHarness.CLAUDE,
             issue=12,
             at=PINNED,
         )
@@ -935,7 +935,7 @@ def test_a_linked_pull_request_read_failure_keeps_the_setup_for_a_retry(
         create_assignment(
             state=state,
             route=route,
-            requested_harness=AgentHarness.CLAUDE,
+            preferred_harness=AgentHarness.CLAUDE,
             issue=12,
             at=PINNED,
         )
@@ -950,7 +950,7 @@ def test_an_unrelated_linked_pull_request_prevents_another_one(state, route, gh)
         create_assignment(
             state=state,
             route=route,
-            requested_harness=AgentHarness.CLAUDE,
+            preferred_harness=AgentHarness.CLAUDE,
             issue=12,
             at=PINNED,
         )
@@ -969,7 +969,7 @@ def test_several_pull_requests_on_an_incomplete_branch_are_reported(state, route
         create_assignment(
             state=state,
             route=route,
-            requested_harness=AgentHarness.CLAUDE,
+            preferred_harness=AgentHarness.CLAUDE,
             issue=12,
             at=PINNED,
         )
@@ -986,7 +986,7 @@ def test_a_created_pull_request_that_cannot_be_read_is_reconciled_next_time(
         create_assignment(
             state=state,
             route=route,
-            requested_harness=AgentHarness.CLAUDE,
+            preferred_harness=AgentHarness.CLAUDE,
             issue=12,
             at=PINNED,
         )
@@ -997,7 +997,7 @@ def test_a_created_pull_request_that_cannot_be_read_is_reconciled_next_time(
     recovered = create_assignment(
         state=state,
         route=route,
-        requested_harness=AgentHarness.CLAUDE,
+        preferred_harness=AgentHarness.CLAUDE,
         issue=12,
         at=PINNED + timedelta(hours=1),
     )
@@ -1014,7 +1014,7 @@ def test_a_created_pull_request_that_is_not_a_draft_is_reported(state, route, gh
         create_assignment(
             state=state,
             route=route,
-            requested_harness=AgentHarness.CLAUDE,
+            preferred_harness=AgentHarness.CLAUDE,
             issue=12,
             at=PINNED,
         )
@@ -1028,7 +1028,7 @@ def test_an_assignment_reads_back_with_its_settled_dispatch_recipe(state, route)
     created = create_assignment(
         state=state,
         route=route,
-        requested_harness=AgentHarness.CLAUDE,
+        preferred_harness=AgentHarness.CLAUDE,
         issue=12,
         at=PINNED,
     )
@@ -1141,7 +1141,7 @@ def test_an_assignment_with_no_delivered_user_post_has_an_empty_delivery_positio
     create_assignment(
         state=state,
         route=route,
-        requested_harness=AgentHarness.CLAUDE,
+        preferred_harness=AgentHarness.CLAUDE,
         issue=12,
         at=PINNED,
     )
@@ -1153,7 +1153,7 @@ def test_an_assignment_reads_back_its_user_post_delivery_position(state, route):
     created = create_assignment(
         state=state,
         route=route,
-        requested_harness=AgentHarness.CLAUDE,
+        preferred_harness=AgentHarness.CLAUDE,
         issue=12,
         at=PINNED,
     )
@@ -1192,7 +1192,7 @@ def test_the_user_post_delivery_position_scans_past_an_input_that_delivered_no_p
     created = create_assignment(
         state=state,
         route=route,
-        requested_harness=AgentHarness.CLAUDE,
+        preferred_harness=AgentHarness.CLAUDE,
         issue=12,
         at=PINNED,
     )
@@ -1237,7 +1237,7 @@ def test_an_assignments_rounds_read_back_in_number_order(state, route):
     create_assignment(
         state=state,
         route=route,
-        requested_harness=AgentHarness.CLAUDE,
+        preferred_harness=AgentHarness.CLAUDE,
         issue=12,
         at=PINNED,
     )
@@ -1280,7 +1280,7 @@ def test_a_round_record_must_carry_the_number_of_its_directory(state, route):
     create_assignment(
         state=state,
         route=route,
-        requested_harness=AgentHarness.CLAUDE,
+        preferred_harness=AgentHarness.CLAUDE,
         issue=12,
         at=PINNED,
     )
@@ -1303,14 +1303,14 @@ def test_every_assignment_of_the_repo_reads_back_by_identifier(state, route):
     create_assignment(
         state=state,
         route=route,
-        requested_harness=AgentHarness.CLAUDE,
+        preferred_harness=AgentHarness.CLAUDE,
         issue=12,
         at=PINNED,
     )
     create_assignment(
         state=state,
         route=route,
-        requested_harness=AgentHarness.CLAUDE,
+        preferred_harness=AgentHarness.CLAUDE,
         issue=3,
         at=PINNED,
     )
@@ -1325,7 +1325,7 @@ def test_a_file_left_among_the_worktrees_is_not_an_assignment(state, route):
     created = create_assignment(
         state=state,
         route=route,
-        requested_harness=AgentHarness.CLAUDE,
+        preferred_harness=AgentHarness.CLAUDE,
         issue=12,
         at=PINNED,
     )
@@ -1340,7 +1340,7 @@ def test_a_worktree_with_no_record_beside_it_is_not_an_assignment(state, route):
     created = create_assignment(
         state=state,
         route=route,
-        requested_harness=AgentHarness.CLAUDE,
+        preferred_harness=AgentHarness.CLAUDE,
         issue=12,
         at=PINNED,
     )
@@ -1353,7 +1353,7 @@ def test_an_assignment_record_that_will_not_read_names_the_file(state, route):
     create_assignment(
         state=state,
         route=route,
-        requested_harness=AgentHarness.CLAUDE,
+        preferred_harness=AgentHarness.CLAUDE,
         issue=12,
         at=PINNED,
     )

@@ -448,8 +448,9 @@ dispatch label to one recipe per harness that the route configures.
 An `AssignmentRoute` specializes a dispatch route for assignments, and its
 prompt normally invokes an assignment skill. A `ConversationRoute` specializes a
 dispatch route for issue conversations, and its prompt normally invokes a
-conversation skill. Both kinds use the same harness-selection rule: a configured
-requested harness wins, while the sole recipe wins when only one exists.
+conversation skill. Both kinds use the same harness-selection rule: the
+preferred harness wins when the route has a recipe for it, while the sole recipe
+wins when only one exists.
 
 The repository configuration carries choices that everyone working in the
 repository shares. The daemon interval and agent capacity belong to one person's

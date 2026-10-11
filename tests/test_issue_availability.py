@@ -106,7 +106,7 @@ def create_assignment_scheduler(
         account=account,
         config=config,
         state=state or StateDirectory(root=Path()),
-        requested_harness=AgentHarness.CLAUDE,
+        preferred_harness=AgentHarness.CLAUDE,
         clock=read_current_time,
     )
 

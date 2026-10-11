@@ -94,7 +94,7 @@ class DreamcatcherDaemonStatus:
         return None if not self.is_running or self.run is None else self.run.pid
 
     @property
-    def agent_harness(self) -> AgentHarness | None:
+    def preferred_harness(self) -> AgentHarness | None:
         """The preferred harness given to the current or latest `dreamcatcher run`."""
         return None if self.run is None else self.run.harness
 
@@ -160,7 +160,9 @@ class DreamcatcherStatusReport:
         facts = (
             (
                 "preferred harness",
-                None if daemon.agent_harness is None else str(daemon.agent_harness),
+                None
+                if daemon.preferred_harness is None
+                else str(daemon.preferred_harness),
                 False,
             ),
             (

@@ -47,7 +47,7 @@ class AgentWorkStatusReader[AgentWorkStatus](ABC):
 
     @abstractmethod
     def list_statuses(self) -> list[AgentWorkStatus]:
-        """Return this kind's statuses in report order."""
+        """Return this kind's statuses in issue order."""
 
     def is_round_working(self, *, record: AgentRoundRecord) -> bool:
         """Return whether the latest round is still running under a daemon."""

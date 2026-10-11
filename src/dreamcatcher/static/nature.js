@@ -10,7 +10,7 @@ function updateCelestialPositions() {
   const now = new Date();
   const minutes = now.getHours() * 60 + now.getMinutes();
   const daylightDuration = sunset - sunrise;
-  const isDaylight = minutes >= sunrise && minutes <= sunset;
+  const isDaylight = minutes >= sunrise && minutes < sunset;
   const daylightProgress = (minutes - sunrise) / daylightDuration;
   const sunPosition =
     startPosition + (endPosition - startPosition) * daylightProgress;

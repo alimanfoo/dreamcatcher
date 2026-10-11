@@ -44,9 +44,9 @@ An **assignment** carries an issue to a pull request:
 6. The agent then takes one last round to wrap up.
 
 A **conversation** answers your questions on an issue, and writes no code. Label
-an issue for a conversation and post a question as a comment. The agent reads
-the code and answers on the issue. Post another question, and the conversation
-carries on.
+an issue for a conversation, assign it to yourself, and post a question as a
+comment. The agent reads the code and answers on the issue. Post another
+question, and the conversation carries on.
 
 Several agents can work at once, up to a number that you set. Follow them all on
 a local web page, or in the terminal.
@@ -60,7 +60,7 @@ installation.
 With [uv](https://docs.astral.sh/uv/getting-started/installation/) installed:
 
 ```sh
-uv tool install git+https://github.com/alimanfoo/dreamcatcher
+uv tool install dreamcatcher
 ```
 
 Then follow [From issue to pull request](tutorial.md) for the complete setup and
@@ -83,5 +83,7 @@ a first assignment.
   [command reference](command-reference.md).
 - Find every accepted setting in the
   [configuration reference](configuration-reference.md).
+- Write an assignment skill or a conversation prompt to the
+  [agent-facing contract](contract.md).
 - Plan upgrades with [Compatibility and upgrades](compatibility.md), and see
   user-visible changes in the [changelog](changelog.md).

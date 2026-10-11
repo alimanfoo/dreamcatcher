@@ -40,7 +40,7 @@ def show_status_view(
     wait: WaitForSeconds = sleep,
     zone: tzinfo | None = None,
 ) -> None:
-    """Show instance, issue, and assignment status until interrupted.
+    """Show instance, assignment, issue and conversation status until interrupted.
 
     A non-terminal or dumb terminal renders one report and returns.
     """

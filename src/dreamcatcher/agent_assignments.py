@@ -397,18 +397,17 @@ class AssignmentCreator:
         self,
         *,
         route: AssignmentRoute,
-        requested_harness: AgentHarness,
+        preferred_harness: AgentHarness,
         issue: int,
         at: datetime,
     ) -> Assignment:
         """Create and publish the issue's assignment with no rounds run yet.
 
-        The route selects a recipe in response to the requested
-        agent harness. The recipe supplies the settings that the record
-        keeps. Creation fetches main, makes the branch and worktree, adds and
-        pushes an empty commit, and opens the linked draft pull request. It then
-        writes the pull request observation, and last the record, which marks
-        the setup complete.
+        The route selects a recipe in response to the preferred harness. The
+        recipe supplies the settings that the record keeps. Creation fetches
+        main, makes the branch and worktree, adds and pushes an empty commit,
+        and opens the linked draft pull request. It then writes the pull request
+        observation, and last the record, which marks the setup complete.
 
         A retry reuses an incomplete setup that has the expected worktree and
         branch. A failed worktree creation is removed; failures after that point
@@ -422,7 +421,7 @@ class AssignmentCreator:
             raise ReportableError(
                 f"GH{issue} already has open assignment {open_assignment.identifier}."
             )
-        selected_harness = route.choose_harness(requested_harness=requested_harness)
+        selected_harness = route.choose_harness(preferred_harness=preferred_harness)
         recipe = route.recipes[selected_harness]
         fetch_main(root=self.state.root)
         identifier = _find_incomplete_assignment(state=self.state, issue=issue) or (

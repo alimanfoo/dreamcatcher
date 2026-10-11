@@ -170,7 +170,7 @@ def create_conversation(
     *,
     state: StateDirectory,
     route: ConversationRoute,
-    requested_harness: AgentHarness,
+    preferred_harness: AgentHarness,
     issue: Issue,
 ) -> Conversation:
     """Create one conversation with no rounds run yet.
@@ -182,7 +182,7 @@ def create_conversation(
     existing = read_conversation(state=state, issue=issue.number)
     if existing is not None:
         return existing
-    selected_harness = route.choose_harness(requested_harness=requested_harness)
+    selected_harness = route.choose_harness(preferred_harness=preferred_harness)
     recipe = route.recipes[selected_harness]
     record = ConversationRecord(
         issue=issue.number,
