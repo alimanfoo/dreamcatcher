@@ -84,16 +84,14 @@ a first assignment.
 - Plan upgrades with [Compatibility and upgrades](compatibility.md), and see
   user-visible changes in the [changelog](changelog.md).
 
-## Skills: ready-made or your own
+## Customisable skills
 
-A skill decides how an agent does the work. Each label's route names the prompt
-that an agent starts with, and that prompt normally invokes a skill, so you
-choose how your agents work.
+How an agent works on an issue is up to the skill it runs. Each label points to
+a prompt, and the prompt usually calls a skill.
 
-To get going straight away, use the skills from
+The quickest way to start is with the skills from
 [dream](https://alimanfoo.github.io/dream/), a separate plugin for Claude Code
-and Codex. `dreamcatcher init` installs dream, and creates a label named after
-each skill that starts it:
+and Codex. `dreamcatcher init` installs it and sets up a label for each skill:
 
 | Skill         | On its own | Under _dreamcatcher_ |
 | ------------- | ---------- | -------------------- |
@@ -101,11 +99,11 @@ each skill that starts it:
 | `dream:less`  | Yes        | An assignment        |
 | `dream:scout` | No         | A conversation       |
 
-`dream:smith` plans a change, builds it one commit at a time and reviews it.
-`dream:less` builds a small, self-contained change with no plan. `dream:scout`
-investigates an issue before any code, and answers your questions on it.
+`dream:smith` plans a change, builds it a commit at a time, and reviews it.
+`dream:less` makes a small change without a plan. `dream:scout` looks into an
+issue and answers your questions about it.
 
-To change how your agents work, write a skill or prompt of your own, and route a
-label to it. The [agent-facing contract](contract.md) says what an assignment
-skill or a conversation prompt must do, and
-[Configure labels and harnesses](configure.md) shows how to route a label.
+If you want your agents to work differently, write your own skill or prompt and
+point a label to it. The [agent-facing contract](contract.md) explains what it
+needs to do, and [Configure labels and harnesses](configure.md) shows how to set
+up the label.
