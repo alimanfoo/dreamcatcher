@@ -19,6 +19,18 @@ jobs:
           fetch-depth: 0
       - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
       - run: uv build
+      # A tag that is not v followed by the package version would publish
+      # whatever version hatch-vcs derives from it.
+      - name: Check the version matches the tag
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          for file in "dreamcatcher-$version.tar.gz" "dreamcatcher-$version-py3-none-any.whl"; do
+            if [ ! -f "dist/$file" ]; then
+              echo "::error::Tag $GITHUB_REF_NAME did not build dist/$file"
+              ls dist
+              exit 1
+            fi
+          done
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: distributions
@@ -39,4 +51,7 @@ jobs:
         with:
           name: distributions
           path: dist/
+      # A re-run after a partial upload skips the files PyPI already holds.
       - uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2
+        with:
+          skip-existing: true
