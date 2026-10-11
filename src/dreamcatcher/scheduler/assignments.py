@@ -170,7 +170,7 @@ class AssignmentScheduler(
             creator = AssignmentCreator(state=self.state, repository=self.repository)
             assignment = creator.create(
                 route=candidate.route,
-                requested_harness=self.requested_harness,
+                preferred_harness=self.preferred_harness,
                 issue=candidate.issue,
                 at=at,
             )

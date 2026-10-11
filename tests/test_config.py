@@ -110,7 +110,7 @@ def test_a_conversation_one_harness_can_run_uses_that_one(tmp_path):
     config = read_dreamcatcher_config(root=tmp_path)
 
     assert (
-        config.conversation[0].choose_harness(requested_harness=AgentHarness.CLAUDE)
+        config.conversation[0].choose_harness(preferred_harness=AgentHarness.CLAUDE)
         == AgentHarness.CODEX
     )
     assert config.routed_harnesses == {AgentHarness.CLAUDE, AgentHarness.CODEX}
@@ -126,11 +126,11 @@ def test_a_conversation_either_harness_can_run_uses_the_requested_one(tmp_path):
         AgentHarness.CODEX: CODEX_CONVERSATION_RECIPE,
     }
     assert (
-        conversation.choose_harness(requested_harness=AgentHarness.CLAUDE)
+        conversation.choose_harness(preferred_harness=AgentHarness.CLAUDE)
         == AgentHarness.CLAUDE
     )
     assert (
-        conversation.choose_harness(requested_harness=AgentHarness.CODEX)
+        conversation.choose_harness(preferred_harness=AgentHarness.CODEX)
         == AgentHarness.CODEX
     )
 
@@ -186,11 +186,11 @@ def test_a_label_either_harness_can_run_runs_on_the_one_the_run_named(tmp_path):
     route = read_dreamcatcher_config(root=tmp_path).assignment[0]
 
     assert (
-        route.choose_harness(requested_harness=AgentHarness.CLAUDE)
+        route.choose_harness(preferred_harness=AgentHarness.CLAUDE)
         == AgentHarness.CLAUDE
     )
     assert (
-        route.choose_harness(requested_harness=AgentHarness.CODEX) == AgentHarness.CODEX
+        route.choose_harness(preferred_harness=AgentHarness.CODEX) == AgentHarness.CODEX
     )
 
 
@@ -200,7 +200,7 @@ def test_a_label_one_harness_can_run_runs_on_that_one_whatever_the_run_named(tmp
     route = read_dreamcatcher_config(root=tmp_path).assignment[0]
 
     assert (
-        route.choose_harness(requested_harness=AgentHarness.CODEX)
+        route.choose_harness(preferred_harness=AgentHarness.CODEX)
         == AgentHarness.CLAUDE
     )
 

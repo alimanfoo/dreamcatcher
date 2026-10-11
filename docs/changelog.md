@@ -26,6 +26,8 @@ each entry links the pull request or commit that made the change.
 
 ## Unreleased
 
+## [v5.5.0](https://github.com/alimanfoo/dreamcatcher/releases/tag/v5.5.0) — 2026-10-11
+
 ### Added
 
 - A how-to guide, "Customise skills", says how to start with dream's skills and
@@ -62,6 +64,13 @@ each entry links the pull request or commit that made the change.
   ([#503](https://github.com/alimanfoo/dreamcatcher/pull/503))
 - The documentation home page lists the how-to guides in the same order as the
   navigation. ([#504](https://github.com/alimanfoo/dreamcatcher/pull/504))
+
+### Fixed
+
+- Assignment setup no longer runs the repository's commit and pre-push hooks on
+  the empty placeholder commit, so a hook that cannot run in a fresh worktree no
+  longer stops agent work from starting. The agent's own commits and pushes
+  still run them. ([#497](https://github.com/alimanfoo/dreamcatcher/pull/497))
 
 ## [v5.4.0](https://github.com/alimanfoo/dreamcatcher/releases/tag/v5.4.0) — 2026-10-08
 

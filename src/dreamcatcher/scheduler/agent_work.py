@@ -38,7 +38,7 @@ class AgentWorkScheduler[CandidateT, ObservationT, RankT](ABC):
     account: str
     config: DreamcatcherConfig
     state: StateDirectory
-    requested_harness: AgentHarness
+    preferred_harness: AgentHarness
     clock: Callable[[], datetime]
 
     @abstractmethod

@@ -146,7 +146,7 @@ def create_scheduler(*, daemon: DreamcatcherDaemon) -> Scheduler:
         account=POSTED_BY,
         config=daemon.config,
         state=daemon.state,
-        requested_harness=daemon.harness,
+        preferred_harness=daemon.harness,
         clock=daemon.clock,
     )
     conversations = ConversationScheduler(
@@ -154,7 +154,7 @@ def create_scheduler(*, daemon: DreamcatcherDaemon) -> Scheduler:
         account=POSTED_BY,
         config=daemon.config,
         state=daemon.state,
-        requested_harness=daemon.harness,
+        preferred_harness=daemon.harness,
         clock=daemon.clock,
     )
     return Scheduler(

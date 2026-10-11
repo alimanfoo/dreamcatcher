@@ -108,7 +108,7 @@ def create_scheduler(*, root, harness, clock) -> Scheduler:
         account=POSTED_BY,
         config=config,
         state=state,
-        requested_harness=harness,
+        preferred_harness=harness,
         clock=clock,
     )
     conversations = ConversationScheduler(
@@ -116,7 +116,7 @@ def create_scheduler(*, root, harness, clock) -> Scheduler:
         account=POSTED_BY,
         config=config,
         state=state,
-        requested_harness=harness,
+        preferred_harness=harness,
         clock=clock,
     )
     return Scheduler(

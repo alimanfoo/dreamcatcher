@@ -115,7 +115,7 @@ def test_a_conversation_gets_a_detached_worktree_at_fetched_main(cloned):
     created = create_conversation(
         state=state,
         route=conversation_route(),
-        requested_harness=AgentHarness.CLAUDE,
+        preferred_harness=AgentHarness.CLAUDE,
         issue=issue(),
     )
 
@@ -137,7 +137,7 @@ def test_a_conversation_gets_a_detached_worktree_at_fetched_main(cloned):
                     effort="high",
                 ),
             ),
-            requested_harness=AgentHarness.CODEX,
+            preferred_harness=AgentHarness.CODEX,
             issue=issue(),
         )
         == created
@@ -145,7 +145,7 @@ def test_a_conversation_gets_a_detached_worktree_at_fetched_main(cloned):
     assert created.record.dispatch_label == "dream:conversation"
 
 
-def test_a_new_conversation_records_the_requested_harness_recipe(cloned):
+def test_a_new_conversation_records_the_preferred_harness_recipe(cloned):
     state = StateDirectory(root=cloned)
     route = ConversationRoute(
         label="dream:conversation",
@@ -160,7 +160,7 @@ def test_a_new_conversation_records_the_requested_harness_recipe(cloned):
     created = create_conversation(
         state=state,
         route=route,
-        requested_harness=AgentHarness.CODEX,
+        preferred_harness=AgentHarness.CODEX,
         issue=issue(),
     )
 
@@ -185,7 +185,7 @@ def test_a_conversation_retry_reuses_its_leftover_worktree(cloned, monkeypatch):
             create_conversation(
                 state=state,
                 route=conversation_route(),
-                requested_harness=AgentHarness.CLAUDE,
+                preferred_harness=AgentHarness.CLAUDE,
                 issue=issue(),
             )
 
@@ -195,7 +195,7 @@ def test_a_conversation_retry_reuses_its_leftover_worktree(cloned, monkeypatch):
     created = create_conversation(
         state=state,
         route=conversation_route(),
-        requested_harness=AgentHarness.CLAUDE,
+        preferred_harness=AgentHarness.CLAUDE,
         issue=issue(),
     )
     assert read_conversations(state=state) == [created]
@@ -258,7 +258,7 @@ def test_round_input_freezes_the_issue_comments_and_revision(cloned):
     conversation = create_conversation(
         state=state,
         route=conversation_route(),
-        requested_harness=AgentHarness.CLAUDE,
+        preferred_harness=AgentHarness.CLAUDE,
         issue=issue(),
     )
 
