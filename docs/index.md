@@ -51,28 +51,6 @@ carries on.
 Several agents can work at once, up to a number that you set. Follow them all on
 a local web page, or in the terminal.
 
-## Ready-made skills from dream
-
-_dreamcatcher_ decides when an agent starts and what it works on. A skill
-decides how the agent does the work: each label's route names the prompt that an
-agent starts with, and that prompt normally invokes a skill.
-
-[dream](https://alimanfoo.github.io/dream/) is a separate plugin of skills for
-Claude Code and Codex, and the skills below plug straight in.
-`dreamcatcher init` installs dream, and creates a label named after each skill
-that starts it:
-
-| Skill         | On its own | Under _dreamcatcher_ |
-| ------------- | ---------- | -------------------- |
-| `dream:smith` | Yes        | An assignment        |
-| `dream:less`  | Yes        | An assignment        |
-| `dream:scout` | No         | A conversation       |
-
-`dream:smith` plans a change, builds it one commit at a time and reviews it.
-`dream:less` builds a small, self-contained change with no plan. `dream:scout`
-investigates an issue before any code, and answers your questions on it. A skill
-of your own works too, when it follows the [agent-facing contract](contract.md).
-
 ## Start here
 
 If you already use _dreamcatcher_, read
@@ -106,7 +84,28 @@ a first assignment.
 - Plan upgrades with [Compatibility and upgrades](compatibility.md), and see
   user-visible changes in the [changelog](changelog.md).
 
-## Write a skill or prompt
+## Skills: ready-made or your own
 
-The [agent-facing contract](contract.md) defines what custom assignment skills
-and issue-conversation prompts must do.
+A skill decides how an agent does the work. Each label's route names the prompt
+that an agent starts with, and that prompt normally invokes a skill, so you
+choose how your agents work.
+
+To get going straight away, use the skills from
+[dream](https://alimanfoo.github.io/dream/), a separate plugin for Claude Code
+and Codex. `dreamcatcher init` installs dream, and creates a label named after
+each skill that starts it:
+
+| Skill         | On its own | Under _dreamcatcher_ |
+| ------------- | ---------- | -------------------- |
+| `dream:smith` | Yes        | An assignment        |
+| `dream:less`  | Yes        | An assignment        |
+| `dream:scout` | No         | A conversation       |
+
+`dream:smith` plans a change, builds it one commit at a time and reviews it.
+`dream:less` builds a small, self-contained change with no plan. `dream:scout`
+investigates an issue before any code, and answers your questions on it.
+
+To change how your agents work, write a skill or prompt of your own, and route a
+label to it. The [agent-facing contract](contract.md) says what an assignment
+skill or a conversation prompt must do, and
+[Configure labels and harnesses](configure.md) shows how to route a label.
