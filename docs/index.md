@@ -100,7 +100,7 @@ and Codex. `dreamcatcher init` installs it and sets up a label for each skill:
 | `dream:scout` | No         | A conversation       |
 
 `dream:smith` plans a change, builds it a commit at a time, and reviews it
-thoroughly. `dream:less` makes a smaller change with lighter review.
+thoroughly. `dream:less` implements smaller tasks with lighter review.
 `dream:scout` looks into an issue and answers your questions about it.
 
 If you want your agents to work differently, write your own skill or prompt and

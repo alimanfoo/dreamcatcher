@@ -121,7 +121,7 @@ prompt becomes the issue number, so issue 123 starts Claude with
 `/dream:smith GH123`.
 
 `dream:smith` plans a change, builds it a commit at a time, and reviews it
-thoroughly. `dream:less` makes a smaller change with lighter review.
+thoroughly. `dream:less` implements smaller tasks with lighter review.
 `dream:scout` answers your questions on an issue, and writes no code.
 
 Until `origin/main` holds the file, `init` ends by printing the commands that
