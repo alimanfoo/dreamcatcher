@@ -26,6 +26,12 @@ each entry links the pull request or commit that made the change.
 
 ## Unreleased
 
+### Added
+
+- A how-to guide, "Customise skills", says how to start with dream's skills and
+  how to write and route your own. It replaces the home page section on skills.
+  ([#505](https://github.com/alimanfoo/dreamcatcher/pull/505))
+
 ### Changed
 
 - The documentation now introduces the dream plugin, says which of its skills

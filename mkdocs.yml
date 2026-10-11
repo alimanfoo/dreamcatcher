@@ -76,6 +76,7 @@ nav:
       - stop-and-recover.md
       - run-and-monitor.md
       - configure.md
+      - customise-skills.md
   - Reference:
       - command-reference.md
       - configuration-reference.md
