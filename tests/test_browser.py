@@ -1,5 +1,6 @@
 """Exercise web interactions that depend on a real browser layout."""
 
+import re
 from collections.abc import Iterator
 from datetime import datetime
 
@@ -167,7 +168,7 @@ def test_dark_nature_uses_the_dusk_palette_and_follows_the_night(
         "rgba(169, 199, 163, 0.9)",
     )
 
-    root = page.locator("html")
+    body = page.locator("body")
     times = (
         (datetime(2026, 10, 11, 20, 0), 20.6667, "1"),
         (datetime(2026, 10, 12, 0, 0), 50, "1"),
@@ -177,15 +178,20 @@ def test_dark_nature_uses_the_dusk_palette_and_follows_the_night(
     for time, expected_position, expected_opacity in times:
         page.clock.set_fixed_time(time)
         page.evaluate("updateCelestialPositions()")
-        opacity = root.evaluate(
-            "element => element.style.getPropertyValue('--moon-opacity')"
+        celestial_style = body.evaluate(
+            """element => {
+              const style = getComputedStyle(element, "::before");
+              return { backgroundImage: style.backgroundImage, opacity: style.opacity };
+            }"""
         )
-        assert opacity == expected_opacity
+        assert celestial_style["opacity"] == expected_opacity
         if expected_position is not None:
-            position = root.evaluate(
-                "element => element.style.getPropertyValue('--moon-x')"
+            position_match = re.search(
+                r"circle at ([\d.]+)% 6%",
+                celestial_style["backgroundImage"],
             )
-            assert float(position.removesuffix("%")) == pytest.approx(
+            assert position_match is not None
+            assert float(position_match.group(1)) == pytest.approx(
                 expected_position,
                 abs=0.0001,
             )
