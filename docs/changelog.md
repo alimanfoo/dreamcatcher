@@ -48,6 +48,8 @@ each entry links the pull request or commit that made the change.
   its account of an assignment includes the rounds that address your review. Its
   last section says that you can start with dream's skills or write your own.
   ([#502](https://github.com/alimanfoo/dreamcatcher/pull/502))
+- The documentation home page hero has tighter wording.
+  ([#503](https://github.com/alimanfoo/dreamcatcher/pull/503))
 
 ## [v5.4.0](https://github.com/alimanfoo/dreamcatcher/releases/tag/v5.4.0) — 2026-10-08
 
