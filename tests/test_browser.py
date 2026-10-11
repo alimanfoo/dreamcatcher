@@ -171,6 +171,13 @@ def test_dark_nature_uses_the_dusk_palette_and_follows_the_night(
         "color",
         "rgb(22, 21, 42)",
     )
+    panel_style = page.locator(".assignment-card").first.evaluate(
+        """element => {
+          const style = getComputedStyle(element, "::before");
+          return { filter: style.filter, boxShadow: style.boxShadow };
+        }"""
+    )
+    assert panel_style == {"filter": "blur(14px)", "boxShadow": "none"}
 
     body = page.locator("body")
     times = (
