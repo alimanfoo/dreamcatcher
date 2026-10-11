@@ -13,14 +13,14 @@ lede:
 points:
   - title: Your own setup.
     text:
-      Agents run in your own Claude Code or Codex, on your machine, with nothing
-      hosted and no new service to trust.
+      Agents run in Claude Code or Codex on your machine, with nothing hosted
+      and no new service to trust.
   - title: Steer from anywhere.
     text:
       The conversation happens on GitHub, so you can steer from your phone while
       the agents keep working at home.
   - title: Work in parallel.
-    text: dreamcatcher runs as many agents at once as you allow.
+    text: Run as many agents at once as you allow.
 ---
 
 ## How it works
