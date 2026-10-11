@@ -831,7 +831,5 @@ body::after {
   html[data-web-theme="nature"] .failed-setup-row::before,
   html[data-web-theme="nature"] .assignment-feed::before {
     backdrop-filter: blur(14px) saturate(1.2);
-    box-shadow: 0 0 0 1px rgba(250, 236, 214, 0.08);
-    filter: none;
   }
 }
