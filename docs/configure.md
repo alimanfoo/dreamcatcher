@@ -44,8 +44,10 @@ using the same spelling everywhere makes the route easier to recognise.
 An assignment prompt normally invokes an installed assignment skill. The skill
 must know how to adopt _dreamcatcher_'s branch and draft pull request; authors
 can find the exact requirements in the [agent-facing contract](contract.md). A
-conversation prompt can be plain instructions, as above, because _dreamcatcher_
-adds the input and publication instructions itself.
+conversation prompt normally invokes a conversation skill, but it can be plain
+instructions, as above, because _dreamcatcher_ adds the input and publication
+instructions itself. Authors can find the conversation skill's requirements in
+the [issue-conversation contract](contract.md#issue-conversation-instructions).
 
 ## Decide which harness runs a route
 

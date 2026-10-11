@@ -447,9 +447,9 @@ dispatch label to one recipe per harness that the route configures.
 
 An `AssignmentRoute` specializes a dispatch route for assignments, and its
 prompt normally invokes an assignment skill. A `ConversationRoute` specializes a
-dispatch route for issue conversations. Both kinds use the same
-harness-selection rule: a configured requested harness wins, while the sole
-recipe wins when only one exists.
+dispatch route for issue conversations, and its prompt normally invokes a
+conversation skill. Both kinds use the same harness-selection rule: a configured
+requested harness wins, while the sole recipe wins when only one exists.
 
 The repository configuration carries choices that everyone working in the
 repository shares. The daemon interval and agent capacity belong to one person's
@@ -625,9 +625,10 @@ checks the status rule on the scheduler modules that status imports directly.
 
 ## Agent-facing contract
 
-The [agent-facing contract](contract.md) describes the protocol between
-_dreamcatcher_ and an assignment skill, and the instructions that an issue
-conversation follows, not implementation history.
+The [agent-facing contract](contract.md) describes two protocols: one between
+_dreamcatcher_ and an assignment skill, and one between _dreamcatcher_ and a
+conversation skill. A dispatch recipe that gives instructions directly follows
+the contract for its kind of agent work too.
 
 For assignments, the contract should establish that:
 
@@ -639,3 +640,11 @@ For assignments, the contract should establish that:
   review;
 - resumed rounds act on relayed user posts; and
 - a wrap-up round acts on the merged or closed state carried in its round input.
+
+For issue conversations, the contract should establish that:
+
+- _dreamcatcher_ provides the issue comments and a detached worktree at the
+  recorded main revision;
+- the conversation skill investigates without implementing a change;
+- _dreamcatcher_ publishes the agent's final answer on the issue; and
+- resumed rounds use the saved conversation input and harness session.

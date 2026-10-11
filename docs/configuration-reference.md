@@ -83,7 +83,7 @@ a Codex `config` table are the exception, because they belong to Codex.
 
 Assignment prompts normally invoke an assignment skill that follows the
 [agent-facing contract](contract.md). Conversation prompts may be plain
-instructions or invoke a suitable skill, but they must follow the
+instructions or invoke a conversation skill, but they must follow the
 [issue-conversation contract](contract.md#issue-conversation-instructions).
 _dreamcatcher_ adds its operational instructions to either prompt.
 
