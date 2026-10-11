@@ -74,6 +74,8 @@ a first assignment.
 - [Stop and recover work](stop-and-recover.md).
 - [Run and monitor _dreamcatcher_](run-and-monitor.md).
 - [Configure labels and harnesses](configure.md).
+- [Customise skills](customise-skills.md), starting with the ready-made ones
+  from [dream](https://alimanfoo.github.io/dream/).
 
 ## Reference
 
@@ -83,27 +85,3 @@ a first assignment.
   [configuration reference](configuration-reference.md).
 - Plan upgrades with [Compatibility and upgrades](compatibility.md), and see
   user-visible changes in the [changelog](changelog.md).
-
-## Customisable skills
-
-How an agent works on an issue is up to the skill it runs. Each label points to
-a prompt, and the prompt usually calls a skill.
-
-The quickest way to start is with the skills from
-[dream](https://alimanfoo.github.io/dream/), a separate plugin for Claude Code
-and Codex. `dreamcatcher init` installs it and sets up a label for each skill:
-
-| Skill         | On its own | Under _dreamcatcher_ |
-| ------------- | ---------- | -------------------- |
-| `dream:smith` | Yes        | An assignment        |
-| `dream:less`  | Yes        | An assignment        |
-| `dream:scout` | No         | A conversation       |
-
-`dream:smith` plans a change, builds it a commit at a time, and reviews it
-thoroughly. `dream:less` implements smaller tasks with lighter review.
-`dream:scout` looks into an issue and answers your questions about it.
-
-If you want your agents to work differently, write your own skill or prompt and
-point a label to it. The [agent-facing contract](contract.md) explains what it
-needs to do, and [Configure labels and harnesses](configure.md) shows how to set
-up the label.
