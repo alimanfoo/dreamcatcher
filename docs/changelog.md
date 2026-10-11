@@ -44,7 +44,8 @@ each entry links the pull request or commit that made the change.
   introduces the dream plugin's skills, so it no longer reads as if
   _dreamcatcher_ provides them.
   ([#501](https://github.com/alimanfoo/dreamcatcher/pull/501))
-- The documentation home page no longer shows a label above its headline.
+- The documentation home page no longer shows a label above its headline, and
+  its account of an assignment includes the rounds that address your review.
   ([#502](https://github.com/alimanfoo/dreamcatcher/pull/502))
 
 ## [v5.4.0](https://github.com/alimanfoo/dreamcatcher/releases/tag/v5.4.0) — 2026-10-08

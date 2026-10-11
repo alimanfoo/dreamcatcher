@@ -36,10 +36,12 @@ An **assignment** carries an issue to a pull request:
    on it in a worktree of its own.
 3. The agent works in rounds. When it needs a decision, it asks on the pull
    request, and _dreamcatcher_ passes your reply to its next round.
-4. When the work is done, the agent marks the pull request ready for review. You
-   review it as you would any pull request: comment to ask for changes, or merge
-   or close it.
-5. The agent then takes one last round to wrap up.
+4. When the work is done, the agent marks the pull request ready for review.
+   Review it as you would any pull request. _dreamcatcher_ passes each review
+   and comment to another round, in which the agent addresses your feedback.
+5. Keep iterating until you're happy, then merge the pull request. If the work
+   should not land, close it.
+6. The agent then takes one last round to wrap up.
 
 A **conversation** answers your questions on an issue, and writes no code. Label
 an issue for a conversation and post a question as a comment. The agent reads
