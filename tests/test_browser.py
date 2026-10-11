@@ -158,7 +158,7 @@ def test_dark_nature_uses_the_dusk_palette_and_follows_the_night(
     live_web: str,
 ) -> None:
     page.emulate_media(color_scheme="dark")
-    page.clock.set_fixed_time(datetime(2026, 10, 11, 20, 0))
+    page.clock.install(time=datetime(2026, 10, 11, 20, 0))
     page.goto(live_web)
 
     expect(page.locator("html")).to_have_css("background-color", "rgb(26, 24, 48)")
@@ -167,17 +167,21 @@ def test_dark_nature_uses_the_dusk_palette_and_follows_the_night(
         "background-color",
         "rgba(169, 199, 163, 0.9)",
     )
+    expect(page.locator(".status-needs-user-feedback")).to_have_css(
+        "color",
+        "rgb(22, 21, 42)",
+    )
 
     body = page.locator("body")
     times = (
-        (datetime(2026, 10, 11, 20, 0), 20.6667, "1"),
-        (datetime(2026, 10, 12, 0, 0), 50, "1"),
-        (datetime(2026, 10, 12, 4, 0), 79.3333, "1"),
-        (datetime(2026, 10, 12, 12, 0), None, "0"),
+        (None, 20.6667, "1"),
+        ("04:00:00", 50, "1"),
+        ("04:00:00", 79.3333, "1"),
+        ("08:00:00", None, "0"),
     )
-    for time, expected_position, expected_opacity in times:
-        page.clock.set_fixed_time(time)
-        page.evaluate("updateCelestialPositions()")
+    for advance, expected_position, expected_opacity in times:
+        if advance is not None:
+            page.clock.fast_forward(advance)
         celestial_style = body.evaluate(
             """element => {
               const style = getComputedStyle(element, "::before");
@@ -195,6 +199,12 @@ def test_dark_nature_uses_the_dusk_palette_and_follows_the_night(
                 expected_position,
                 abs=0.0001,
             )
+
+    page.goto(f"{live_web}/assignments/{BROWSER_ASSIGNMENT_IDENTIFIER}")
+    expect(page.locator(".feed-line time").first).to_have_css(
+        "color",
+        "rgba(236, 230, 220, 0.56)",
+    )
 
     page.emulate_media(color_scheme="light")
     expect(page.locator("html")).to_have_css("background-color", "rgb(239, 230, 214)")

@@ -51,6 +51,7 @@
   --waiting: #5f7052;
   --waiting-surface: rgba(170, 190, 140, 0.45);
   --waiting-shadow: 0 0 14px 3px rgba(170, 190, 140, 0.28);
+  --feedback-ink: var(--bright);
   --feedback-surface: rgba(201, 162, 74, 0.9);
   --feedback-shadow: 0 0 14px 3px rgba(201, 162, 74, 0.42);
   --fault-surface: rgba(166, 90, 60, 0.85);
@@ -399,7 +400,7 @@ body::after {
 .status-needs-user-feedback,
 .status-routing-conflict,
 .issue-routing-conflict {
-  color: var(--bright);
+  color: var(--feedback-ink);
   background: var(--feedback-surface);
   box-shadow: var(--feedback-shadow);
 }
@@ -726,7 +727,7 @@ body::after {
     --bright: #ece6dc;
     --phosphor: #e9b183;
     --dim: rgba(236, 230, 220, 0.64);
-    --faint: rgba(236, 230, 220, 0.44);
+    --faint: rgba(236, 230, 220, 0.56);
     --rule: rgba(236, 230, 220, 0.16);
     --rule-inner: rgba(236, 230, 220, 0.1);
     --tint: rgba(236, 230, 220, 0.05);
@@ -785,6 +786,7 @@ body::after {
     --waiting: #b3cba6;
     --waiting-surface: rgba(179, 203, 166, 0.14);
     --waiting-shadow: 0 0 14px 3px rgba(179, 203, 166, 0.1);
+    --feedback-ink: var(--status-on-color);
     --feedback-surface: rgba(233, 192, 110, 0.92);
     --feedback-shadow: 0 0 14px 3px rgba(233, 192, 110, 0.2);
     --fault-surface: rgba(231, 151, 127, 0.9);
