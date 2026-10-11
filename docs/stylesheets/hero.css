@@ -16,33 +16,6 @@
   padding: 2.6rem 0 0.6rem;
 }
 
-.md-typeset .dch-eyebrow {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.6em;
-  margin: 0 0 1.4rem;
-  padding: 0.3em 0.8em;
-  border: 1px solid var(--rule-inner);
-  border-radius: 999px;
-  background: rgba(251, 247, 239, 0.6);
-  font-family: var(--md-code-font-family);
-  font-size: 0.62rem;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--dim);
-}
-
-.dch-pulse,
-.dch-dot {
-  width: 0.5em;
-  height: 0.5em;
-  border-radius: 50%;
-  animation: dch-pulse 2.4s ease-out infinite;
-}
-
-.dch-pulse {
-  background: #6f8a5e;
-}
 
 .md-typeset .dch-headline {
   margin: 0 0 1rem;
@@ -151,7 +124,11 @@
 }
 
 .dch-dot {
+  width: 0.5em;
+  height: 0.5em;
+  border-radius: 50%;
   background: var(--dch-working);
+  animation: dch-pulse 2.4s ease-out infinite;
 }
 
 .md-typeset .dch-term__log {
@@ -358,7 +335,6 @@
     visibility: visible;
   }
 
-  .dch-pulse,
   .dch-dot {
     animation: none;
   }

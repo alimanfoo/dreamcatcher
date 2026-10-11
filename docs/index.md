@@ -36,10 +36,12 @@ An **assignment** carries an issue to a pull request:
    on it in a worktree of its own.
 3. The agent works in rounds. When it needs a decision, it asks on the pull
    request, and _dreamcatcher_ passes your reply to its next round.
-4. When the work is done, the agent marks the pull request ready for review. You
-   review it as you would any pull request: comment to ask for changes, or merge
-   or close it.
-5. The agent then takes one last round to wrap up.
+4. When the work is done, the agent marks the pull request ready for review.
+   Review it as you would any pull request. _dreamcatcher_ passes each review
+   and comment to another round, in which the agent addresses your feedback.
+5. Keep iterating until you're happy, then merge the pull request. If the work
+   should not land, close it.
+6. The agent then takes one last round to wrap up.
 
 A **conversation** answers your questions on an issue, and writes no code. Label
 an issue for a conversation and post a question as a comment. The agent reads
@@ -48,28 +50,6 @@ carries on.
 
 Several agents can work at once, up to a number that you set. Follow them all on
 a local web page, or in the terminal.
-
-## Ready-made skills from dream
-
-_dreamcatcher_ decides when an agent starts and what it works on. A skill
-decides how the agent does the work: each label's route names the prompt that an
-agent starts with, and that prompt normally invokes a skill.
-
-[dream](https://alimanfoo.github.io/dream/) is a separate plugin of skills for
-Claude Code and Codex, and the skills below plug straight in.
-`dreamcatcher init` installs dream, and creates a label named after each skill
-that starts it:
-
-| Skill         | On its own | Under _dreamcatcher_ |
-| ------------- | ---------- | -------------------- |
-| `dream:smith` | Yes        | An assignment        |
-| `dream:less`  | Yes        | An assignment        |
-| `dream:scout` | No         | A conversation       |
-
-`dream:smith` plans a change, builds it one commit at a time and reviews it.
-`dream:less` builds a small, self-contained change with no plan. `dream:scout`
-investigates an issue before any code, and answers your questions on it. A skill
-of your own works too, when it follows the [agent-facing contract](contract.md).
 
 ## Start here
 
@@ -104,7 +84,26 @@ a first assignment.
 - Plan upgrades with [Compatibility and upgrades](compatibility.md), and see
   user-visible changes in the [changelog](changelog.md).
 
-## Write a skill or prompt
+## Customisable skills
 
-The [agent-facing contract](contract.md) defines what custom assignment skills
-and issue-conversation prompts must do.
+How an agent works on an issue is up to the skill it runs. Each label points to
+a prompt, and the prompt usually calls a skill.
+
+The quickest way to start is with the skills from
+[dream](https://alimanfoo.github.io/dream/), a separate plugin for Claude Code
+and Codex. `dreamcatcher init` installs it and sets up a label for each skill:
+
+| Skill         | On its own | Under _dreamcatcher_ |
+| ------------- | ---------- | -------------------- |
+| `dream:smith` | Yes        | An assignment        |
+| `dream:less`  | Yes        | An assignment        |
+| `dream:scout` | No         | A conversation       |
+
+`dream:smith` plans a change, builds it a commit at a time, and reviews it
+thoroughly. `dream:less` implements smaller tasks with lighter review.
+`dream:scout` looks into an issue and answers your questions about it.
+
+If you want your agents to work differently, write your own skill or prompt and
+point a label to it. The [agent-facing contract](contract.md) explains what it
+needs to do, and [Configure labels and harnesses](configure.md) shows how to set
+up the label.
