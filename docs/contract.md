@@ -6,9 +6,7 @@ promises and when it changes.
 
 This page contains two contracts. The assignment skill contract covers a skill
 that guides an agent through an agent assignment. The conversation skill
-contract covers a skill that guides an agent through an issue conversation. A
-conversation recipe may give the agent plain instructions instead of invoking a
-skill, but those instructions must follow the conversation skill contract.
+contract covers a skill that guides an agent through an issue conversation.
 
 For working examples, read the skills in
 [dream](https://alimanfoo.github.io/dream/) that follow this contract: the

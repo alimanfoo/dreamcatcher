@@ -65,9 +65,8 @@ A different format starts with empty local state. No migration is promised.
 ## Agent contract
 
 The current [agent contract](contract.md) is version **1**. It covers assignment
-skills, conversation skills and conversation recipes that give the agent plain
-instructions. Existing conforming skills and prompts remain compatible while the
-contract version stays the same.
+skills, conversation skills and conversation prompts. Existing conforming skills
+and prompts remain compatible while the contract version stays the same.
 
 The contract number is an integer independent of the release and state-format
 versions. A change that requires an existing conforming skill or prompt to
