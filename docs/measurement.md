@@ -17,14 +17,14 @@ Measured on 2026-10-11 at `2d3c972`, with the v5.5.0 release preparation.
 | S3 Exports are used                    | 33 names without an importer, all permitted    | met    |            |
 | S4 Each thing is done one way          | 2 facts derived more than once                 | short  | #452, #455 |
 | S5 Nothing is suppressed               | 0 `noqa`, 0 `type: ignore`, 3 platform pragmas | met    |            |
-| C1 One vocabulary                      | 1 disagreement                                 | short  | GH-NEW-1   |
+| C1 One vocabulary                      | 1 disagreement                                 | short  | #509       |
 | C2 Enduring documents are true         | 0 new contradictions                           | met    |            |
 | C3 Documentation by purpose            | 4 kinds of page, kept apart                    | met    |            |
 | C4 Formats and contracts are versioned | state format 5, contract 1, both with policy   | met    |            |
 | K1 Structural rules checked by machine | the 4 named rules checked                      | met    |            |
 | K2 Suite is fast and speaks plainly    | 24 seconds on a laptop, 100% branch coverage   | met    |            |
 | K3 Tracker is current                  | 46 issues reviewed; none to correct or close   | met    |            |
-| K4 Every change reviewed to standard   | 10 pull requests answered; 7 name no issue     | short  | GH-NEW-2   |
+| K4 Every change reviewed to standard   | 10 pull requests answered; 7 name no issue     | short  | #510       |
 | E1 Rules, not cases                    | 9 ledgered, all external; 4 unledgered         | short  | #419, #457 |
 | E2 Invariants by construction          | 61 optional fields, 0 coupled sets             | met    |            |
 | E3 Concept economy                     | 21 concepts; none added                        | met    |            |
@@ -40,11 +40,11 @@ Measured on 2026-10-11 at `2d3c972`, with the v5.5.0 release preparation.
 - **C1.** The agent-facing contract calls `dream:scout` a conversation skill
   that follows the contract, and the skills guide routes a conversation label to
   a skill. The ontology defines only the assignment skill, and says a
-  conversation recipe asks the agent to answer the user (GH-NEW-1).
+  conversation recipe asks the agent to answer the user (#509).
 - **K4.** #499 to #505 came from one review of the documentation sites. Each
   answers every definition-of-done question, but answers the first with "No
   issue or spec". The standard does not say whether a change may serve neither
-  (GH-NEW-2).
+  (#510).
 - **E1.** Four unledgered conditionals remain. The conversation scheduler
   returns early when no routes are configured, the templates place retry apart
   from the other controls, and the assignment card compares its status with

@@ -33,6 +33,9 @@ each entry links the pull request or commit that made the change.
 - A how-to guide, "Customise skills", says how to start with dream's skills and
   how to write and route your own. It replaces the home page section on skills.
   ([#505](https://github.com/alimanfoo/dreamcatcher/pull/505))
+- _dreamcatcher_ is published on PyPI. Install it with
+  `uv tool install dreamcatcher`.
+  ([#512](https://github.com/alimanfoo/dreamcatcher/pull/512))
 
 ### Changed
 
@@ -71,6 +74,9 @@ each entry links the pull request or commit that made the change.
   the empty placeholder commit, so a hook that cannot run in a fresh worktree no
   longer stops agent work from starting. The agent's own commits and pushes
   still run them. ([#497](https://github.com/alimanfoo/dreamcatcher/pull/497))
+- The documentation home page says to assign the issue to yourself before you
+  ask a question in a conversation, and it links to the agent-facing contract
+  again. ([#512](https://github.com/alimanfoo/dreamcatcher/pull/512))
 
 ## [v5.4.0](https://github.com/alimanfoo/dreamcatcher/releases/tag/v5.4.0) — 2026-10-08
 
