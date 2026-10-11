@@ -213,17 +213,6 @@ Its instructions must not tell the agent to implement a change, edit project
 source, mutate Git, create a branch, commit or push, open or change a pull
 request, post the conversation reply itself, or contact the user elsewhere.
 
-### Harness controls
-
-_dreamcatcher_ reinforces that contract with harness-specific controls. Claude
-allows selected `gh issue` commands and `gh api` while denying its direct
-editing and Git mutation tool families, though its general command tool can
-write files. Codex runs commands in a networked workspace-write sandbox so it
-can use scratch files, local reproductions and authenticated GitHub commands,
-while approval requests are rejected. These controls make the intended actions
-practical rather than providing a hard security boundary. Local checkout writes
-are discarded by the refresh before the next batch.
-
 ### Publication
 
 _dreamcatcher_ owns publication: when the harness exits successfully, the round

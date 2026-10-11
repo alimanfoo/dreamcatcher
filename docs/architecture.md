@@ -625,27 +625,6 @@ checks the status rule on the scheduler modules that status imports directly.
 
 ## Agent-facing contract
 
-The [agent-facing contract](contract.md) describes two protocols: one between
-_dreamcatcher_ and an assignment skill, and one between _dreamcatcher_ and a
-conversation skill. A conversation recipe that gives instructions directly
-follows the conversation skill contract too.
-
-For assignments, the contract should establish that:
-
-- _dreamcatcher_ provides the issue, branch, worktree, and already-open draft
-  pull request;
-- the assignment skill adopts those resources rather than creating them;
-- the agent uses the pull request for questions and feedback;
-- the agent marks the pull request ready when implementation is ready for
-  review;
-- resumed rounds act on relayed user posts; and
-- a wrap-up round acts on the merged or closed state carried in its round input.
-
-For issue conversations, the contract should establish that:
-
-- _dreamcatcher_ provides the issue comments and a detached worktree at the
-  recorded main revision;
-- the conversation skill investigates without implementing a change;
-- _dreamcatcher_ publishes the agent's final answer on the issue; and
-- ordinary follow-ups use fresh input and resume the harness session; and
-- recovery reuses saved input and resumes the session when one was recorded.
+The [agent-facing contract](contract.md) describes the protocols between
+_dreamcatcher_ and assignment and conversation skills. It records each side's
+responsibilities, not implementation history.
