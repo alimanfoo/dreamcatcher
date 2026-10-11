@@ -68,12 +68,12 @@ a first assignment.
 
 ## Guides
 
-- [Configure labels and harnesses](configure.md).
-- [Run and monitor _dreamcatcher_](run-and-monitor.md).
+- [Review an assignment](review-an-assignment.md) and give the agent feedback.
 - [Discuss an issue](discuss-an-issue.md) without starting an implementation
   assignment.
-- [Review an assignment](review-an-assignment.md) and give the agent feedback.
 - [Stop and recover work](stop-and-recover.md).
+- [Run and monitor _dreamcatcher_](run-and-monitor.md).
+- [Configure labels and harnesses](configure.md).
 
 ## Reference
 
