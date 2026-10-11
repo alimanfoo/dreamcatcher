@@ -50,6 +50,8 @@ each entry links the pull request or commit that made the change.
   ([#502](https://github.com/alimanfoo/dreamcatcher/pull/502))
 - The documentation home page hero has tighter wording.
   ([#503](https://github.com/alimanfoo/dreamcatcher/pull/503))
+- The documentation home page lists the how-to guides in the same order as the
+  navigation. ([#504](https://github.com/alimanfoo/dreamcatcher/pull/504))
 
 ## [v5.4.0](https://github.com/alimanfoo/dreamcatcher/releases/tag/v5.4.0) — 2026-10-08
 
