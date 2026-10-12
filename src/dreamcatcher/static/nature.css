@@ -66,7 +66,6 @@
   --round-current-shadow: 0 0 12px 2px rgba(59, 52, 46, 0.2);
   --interrupted: #9a7a2e;
   --code-surface: rgba(251, 247, 239, 0.45);
-  --feed-boundary-surface: #f7f1e6;
   --font: "Alegreya Sans", Avenir, "Segoe UI", sans-serif;
   --font-size: 15px;
   --line-height: 1.5;
@@ -699,7 +698,7 @@ body::after {
   top: -6px;
   padding: 10px 0 8px;
   color: var(--dim);
-  background: var(--feed-boundary-surface);
+  background: var(--background);
   border-bottom-color: var(--rule);
   font-family: var(--font);
   font-size: 14px;
@@ -801,7 +800,6 @@ body::after {
     --round-current-shadow: 0 0 14px 2px rgba(233, 177, 131, 0.18);
     --interrupted: #e9cb93;
     --code-surface: rgba(236, 230, 220, 0.055);
-    --feed-boundary-surface: #1e1b34;
     --moon-opacity: 0;
     --moon-x: 50%;
   }
