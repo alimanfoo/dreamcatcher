@@ -6,8 +6,8 @@ instance
   agent capacity     0 of 1 working
 
 assignments
-  GH13  Issue 13  needs user feedback                    
-        last output 1h 58m ago                           
-        GH13-20260819-184158 · dream:smith · PR #52 draft
-        agent [Bash] git push                            
-  2 ended assignments                                    
+  GH13  Issue 13  needs user feedback                         
+        last output 1h 58m ago                                
+        dream:smith · claude · opus[1m] · xhigh · PR #52 draft
+        [Bash] git push                                       
+  2 ended assignments                                         

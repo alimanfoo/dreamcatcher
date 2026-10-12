@@ -168,14 +168,14 @@ def test_next_update_is_left_out_when_no_daemon_is_running(tmp_path):
     assert "next update in" not in status
 
 
-def test_identifiers_remain_whole_when_the_assignment_table_folds(tmp_path):
-    """Keep the active assignment identifier whole when the table folds."""
+def test_assignment_metadata_folds_without_hiding_ended_work(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_repeat_assignments(state=state)
 
     status = render_status_view(state=state, width=55)
 
-    assert "GH13-20260819-184158" in status
+    for value in ("dream:smith", "claude", "opus[1m]", "xhigh"):
+        assert value in status
     assert "2 ended assignments" in status
 
 
@@ -185,17 +185,9 @@ def test_assignments_are_rendered_in_attention_order(tmp_path):
 
     rendered = render_status_view(state=state)
 
-    identifiers = [
-        "GH20-20260819-184158",
-        "GH9-20260819-184158",
-        "GH13-20260819-184158",
-        "GH31-20260819-184158",
-        "GH35-20260819-184158",
-        "GH44-20260819-184158",
-        "GH40-20260819-184158",
-    ]
-    assert [rendered.index(identifier) for identifier in identifiers] == sorted(
-        rendered.index(identifier) for identifier in identifiers
+    headings = [f"GH{issue}  Issue {issue}" for issue in (20, 9, 13, 31, 35, 44, 40)]
+    assert [rendered.index(heading) for heading in headings] == sorted(
+        rendered.index(heading) for heading in headings
     )
     for issue in (20, 13, 50, 52, 53):
         assert f"Issue {issue}" in rendered
@@ -214,10 +206,12 @@ def test_status_output_fits_one_line_without_hiding_later_assignments(width, tmp
 
     assert len(output) == 1
     assert len(output[0]) <= width
-    assert f"GH31-{ASSIGNMENT_TIMESTAMP}" in rendered
-    assert "agent [Bash] git push" in rendered
+    assert "dream:smith" in rendered
+    assert "claude" in rendered
+    assert "opus[1m]" in rendered
+    assert "[Bash] git push" in rendered
     assert "conversations" in rendered
-    assert "agent I found the answer." in rendered
+    assert "I found the answer." in rendered
 
 
 def test_a_cancelled_assignment_still_working_omits_pull_request_state(tmp_path):
@@ -228,10 +222,11 @@ def test_a_cancelled_assignment_still_working_omits_pull_request_state(tmp_path)
 
     rendered = render_status_view(state=state)
 
-    metadata = next(
-        line for line in rendered.splitlines() if f"GH13-{ASSIGNMENT_TIMESTAMP}" in line
-    )
-    assert metadata.strip() == f"GH13-{ASSIGNMENT_TIMESTAMP} · dream:smith"
+    row_start = rendered.index("GH13  Issue 13")
+    row_end = rendered.index("GH31  Issue 31")
+    row = rendered[row_start:row_end]
+    assert "dream:smith · claude · opus[1m] · xhigh" in row
+    assert "PR #52" not in row
 
 
 def test_ended_assignments_are_summarized(tmp_path):
@@ -334,7 +329,9 @@ def test_status_a_reader_watches_keeps_up_with_what_the_daemon_writes(tmp_path):
         "Assign an issue to yourself and label it with dream:smith "
         "to create an assignment." in status
     )
-    assert f"GH13-{ASSIGNMENT_TIMESTAMP}" in status
+    assert "GH13" in status
+    assert "Issue 13" in status
+    assert "opus[1m]" in status
 
 
 def test_status_a_reader_watches_takes_the_screen_and_hands_it_back(tmp_path):

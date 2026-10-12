@@ -169,7 +169,12 @@ def _render_assignment_rows(
     for status in assignments:
         assignment = status.assignment
         record = assignment.record
-        metadata = [assignment.identifier, record.dispatch_label]
+        metadata = [
+            record.dispatch_label,
+            str(record.harness),
+            record.model,
+            record.effort,
+        ]
         if status.pull_request_state is not None:
             metadata.append(f"PR #{record.pull_request} {status.pull_request_state}")
         details = [
@@ -179,7 +184,7 @@ def _render_assignment_rows(
                 style="dim",
             ),
         ]
-        latest_output = _render_status_latest_output(latest_output=status.latest_output)
+        latest_output = render_latest_output(latest_output=status.latest_output)
         if latest_output is not None:
             details.append(latest_output)
         rows.append(
@@ -223,7 +228,7 @@ def _render_conversations(
                     style="dim",
                 )
             )
-        latest_output = _render_status_latest_output(latest_output=status.latest_output)
+        latest_output = render_latest_output(latest_output=status.latest_output)
         if latest_output is not None:
             details.append(latest_output)
         rows.append(
@@ -255,17 +260,4 @@ def _render_titled_row(
             )
             for detail in details
         ),
-    )
-
-
-def _render_status_latest_output(*, latest_output: str | None) -> Text | None:
-    rendered = render_latest_output(latest_output=latest_output)
-    if rendered is None:
-        return None
-    return Text.assemble(
-        "agent ",
-        rendered,
-        style="dim",
-        overflow="ellipsis",
-        no_wrap=True,
     )

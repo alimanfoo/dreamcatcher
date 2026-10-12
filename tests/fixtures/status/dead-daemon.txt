@@ -8,28 +8,28 @@ instance
 assignments
   GH20  Issue 20  needs user feedback                                                 
         last output 2h 0m ago                                                         
-        GH20-20260819-184158 · dream:smith · PR #52 draft                             
-        agent [Bash] git push                                                         
+        dream:smith · claude · opus[1m] · xhigh · PR #52 draft                        
+        [Bash] git push                                                               
   GH9  Issue 9  fault                                                                 
        round 2 errored (exit 2)                                                       
-       GH9-20260819-184158 · dream:smith · PR #52 draft                               
-       agent [failed] You hit your spend cap.                                         
+       dream:smith · claude · opus[1m] · xhigh · PR #52 draft                         
+       [failed] You hit your spend cap.                                               
   GH13  Issue 13  waiting                                                             
         round 2 interrupted                                                           
-        GH13-20260819-184158 · dream:smith · PR #52 draft                             
-        agent [Bash] pytest                                                           
+        dream:smith · claude · opus[1m] · xhigh · PR #52 draft                        
+        [Bash] pytest                                                                 
   GH31  Issue 31  waiting                                                             
         next round, implement                                                         
-        GH31-20260819-184158 · dream:smith · PR #52 draft                             
+        dream:smith · claude · opus[1m] · xhigh · PR #52 draft                        
   GH35  Issue 35  waiting                                                             
         round 1 errored (exit 2)                                                      
-        GH35-20260819-184158 · dream:smith · PR #52 draft                             
+        dream:smith · claude · opus[1m] · xhigh · PR #52 draft                        
   GH44  Issue 44  waiting                                                             
         next round, implement                                                         
-        GH44-20260819-184158 · dream:smith · PR #52 draft                             
+        dream:smith · claude · opus[1m] · xhigh · PR #52 draft                        
   GH40  Issue 40  unknown                                                             
         no current scheduler observation                                              
-        GH40-20260819-184158 · dream:smith · PR #52 draft                             
+        dream:smith · claude · opus[1m] · xhigh · PR #52 draft                        
   GH50  Issue 50  available                                                           
         dream:smith                                                                   
   GH51  Issue 51  available                                                           

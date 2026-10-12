@@ -125,7 +125,7 @@ def test_status_lists_the_conversation(tmp_path):
     assert "Issue 8" in shown
     assert "idle" in shown
     assert "round 1, answered, ran 4m" in shown
-    assert "agent I found the answer." in shown
+    assert "I found the answer." in shown
 
 
 def test_conversation_detail_shows_settings_revision_session_and_round(tmp_path):

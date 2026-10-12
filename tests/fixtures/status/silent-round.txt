@@ -9,4 +9,4 @@ instance
 assignments
   GH13  Issue 13  working                                              
         round 2, address feedback, running 1h 30m, has said nothing yet
-        GH13-20260819-184158 · dream:smith · PR #52 draft              
+        dream:smith · claude · opus[1m] · xhigh · PR #52 draft         
