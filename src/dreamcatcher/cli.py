@@ -90,7 +90,8 @@ def _build_cli_parser() -> argparse.ArgumentParser:
             "assignments, and carry every assignment through review until its "
             "pull request is merged or closed and its wrap-up round succeeds. "
             "One daemon runs per checkout, so a second daemon here refuses while "
-            "the first is alive."
+            "the first is alive. The command opens and serves the web interface "
+            "for the same lifetime unless --noweb is present."
         ),
     )
     run_parser.add_argument(
@@ -116,6 +117,12 @@ def _build_cli_parser() -> argparse.ArgumentParser:
         default=DEFAULT_MAX_AGENTS,
         metavar="N",
         help=f"maximum agents to run at once (default: {DEFAULT_MAX_AGENTS})",
+    )
+    run_parser.add_argument(
+        "--noweb",
+        action="store_false",
+        dest="should_serve_web",
+        help="run the daemon without opening or serving the web interface",
     )
     run_parser.set_defaults(act=_run_daemon)
     retry_parser = subcommands.add_parser(
@@ -315,12 +322,18 @@ def _set_up_repository(*, arguments: argparse.Namespace) -> None:
 
 
 def _run_daemon(*, arguments: argparse.Namespace) -> None:
-    DreamcatcherDaemon(
+    daemon = DreamcatcherDaemon(
         root=Path.cwd(),
         harness=AgentHarness(arguments.harness),
         interval=arguments.interval,
         max_agents=arguments.max_agents,
-    ).run()
+    )
+    if not arguments.should_serve_web:
+        daemon.run()
+        return
+    daemon.run(
+        companion=web.serve_web_in_background(state=daemon.state),
+    )
 
 
 def _retry_agent_work(*, arguments: argparse.Namespace) -> None:

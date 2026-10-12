@@ -23,25 +23,30 @@ dreamcatcher run --harness claude --interval 30 --max-agents 2
 
 The agent capacity is shared by assignments and issue conversations. Start with
 one until you know how much agent activity and review work you want at once. A
-second daemon for the same checkout refuses to start.
+second daemon for the same checkout refuses to start. The command opens the web
+home page in your browser and serves it until the daemon ends. The page reads
+the local state directory and `dreamcatcher.toml`, and does not contact GitHub
+itself.
 
 `run` must start in the main checkout. _dreamcatcher_ stores its local state
 under that checkout's `.dreamcatcher/` directory. Use this same checkout when
 you continue saved work; another clone has separate local history.
 
-## Open the web home page
+## Run without the web home page
 
-In another terminal at the same checkout, run:
+Use `--noweb` when you want to run only the daemon:
+
+```sh
+dreamcatcher run --harness claude --noweb
+```
+
+The standalone command gives you manual control of the web server. It also works
+when the daemon is stopped, but then it can show only the last state the daemon
+recorded:
 
 ```sh
 dreamcatcher web
 ```
-
-_dreamcatcher_ opens the web home page in your browser and serves it on
-`127.0.0.1` until you interrupt this command. The page reads the local state
-directory and `dreamcatcher.toml`, and does not contact GitHub itself. It still
-opens when the daemon is stopped, but then it can show only the last state the
-daemon recorded.
 
 Use an exact port when needed:
 

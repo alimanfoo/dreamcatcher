@@ -2,6 +2,7 @@ import json
 import os
 import sys
 from collections.abc import Sequence
+from contextlib import contextmanager
 from datetime import timedelta
 from io import BytesIO, TextIOWrapper
 from unittest.mock import Mock, call
@@ -173,6 +174,27 @@ def test_the_daemon_ticks_on_the_interval_until_the_user_interrupts(
     daemon.run()
 
     assert waiting.waited == [300, 300]
+
+
+def test_the_daemon_keeps_its_companion_inside_its_established_lifetime(
+    watched, harnesses, gh
+):
+    daemon, _, _ = idling(root=watched, ticks=1)
+    events = []
+
+    @contextmanager
+    def record_companion_lifetime():
+        assert daemon.state.daemon_run_record.exists()
+        events.append("started")
+        try:
+            yield
+        finally:
+            events.append("stopped")
+
+    daemon.run(companion=record_companion_lifetime())
+
+    assert events == ["started", "stopped"]
+    assert not is_daemon_lock_held(path=daemon.state.lock)
 
 
 def test_the_daemon_reports_when_it_has_started_before_its_first_tick(

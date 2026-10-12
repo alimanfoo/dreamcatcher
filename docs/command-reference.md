@@ -69,13 +69,14 @@ the repository. The command never commits or pushes.
 ## `run`
 
 ```text
-dreamcatcher run --harness {claude,codex} [--interval SECONDS] [--max-agents N]
+dreamcatcher run --harness {claude,codex} [--interval SECONDS] [--max-agents N] [--noweb]
 ```
 
 Run the daemon in the foreground for the repository whose main checkout is the
 current directory. A second daemon refuses to start while one already runs in
-that checkout. Interrupting the command stops its running agent rounds and ends
-the daemon.
+that checkout. The command also opens and serves the web interface until the
+daemon ends. Interrupting the command stops its running agent rounds, ends the
+daemon, and stops the web server.
 
 The command reads `dreamcatcher.toml`, identifies the repository and the account
 authenticated through `gh`, checks the required harness programs, and then runs
@@ -88,11 +89,16 @@ harness-selection rules.
 | `--harness`          | Yes      | None    | `claude` or `codex`. This is the preferred harness for routes that configure both. A route with only one dispatch recipe uses that recipe's harness instead. |
 | `--interval SECONDS` | No       | `120`   | A positive integer number of seconds between checks for work. The maximum is platform-dependent; an out-of-range value reports the allowed maximum.          |
 | `--max-agents N`     | No       | `1`     | A positive integer. This is the shared maximum number of assignment and conversation rounds that may run at once.                                            |
+| `--noweb`            | No       | Off     | Run the daemon without opening or serving the web interface.                                                                                                 |
 
 The named harness and every harness configured on any route must be installed on
 `PATH`, even when a single-harness route would override the command's preferred
 harness. Existing assignments and conversations keep the harness saved when they
 were created; changing `--harness` affects only newly created agent work.
+
+The companion web server uses the same automatic port selection as
+`dreamcatcher web`. Use `--noweb` and run the standalone command when you need
+an exact port or want the web interface to outlive the daemon.
 
 ## `retry`
 

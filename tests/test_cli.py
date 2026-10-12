@@ -1,3 +1,4 @@
+from contextlib import contextmanager
 from datetime import timedelta
 from importlib.metadata import version
 
@@ -79,12 +80,32 @@ def watching(tmp_path):
 
 
 @pytest.fixture
-def started(monkeypatch):
+def served(monkeypatch):
+    """Return the state directories whose web interface a run served."""
+    states = []
+
+    @contextmanager
+    def serve_web_in_background(*, state):
+        states.append(state)
+        yield
+
+    monkeypatch.setattr(web, "serve_web_in_background", serve_web_in_background)
+    return states
+
+
+@pytest.fixture
+def started(monkeypatch, served):
     """Return the daemons a run started, with the tick loop held back."""
     daemons = []
-    monkeypatch.setattr(
-        DreamcatcherDaemon, "run", lambda daemon: daemons.append(daemon)
-    )
+
+    def run(daemon, /, *, companion=None):
+        if companion is None:
+            daemons.append(daemon)
+            return
+        with companion:
+            daemons.append(daemon)
+
+    monkeypatch.setattr(DreamcatcherDaemon, "run", run)
     return daemons
 
 
@@ -659,6 +680,23 @@ def test_run_starts_a_daemon_on_the_current_directory(monkeypatch, watched, star
     assert started[0].harness is AgentHarness.CLAUDE
     assert started[0].interval == 120
     assert started[0].max_agents == 1
+
+
+def test_run_serves_the_web_interface_while_the_daemon_runs(
+    monkeypatch, watched, started, served
+):
+    monkeypatch.chdir(watched)
+
+    assert main(argv=["run", "--harness", "claude"]) == 0
+    assert served == [started[0].state]
+
+
+def test_noweb_runs_only_the_daemon(monkeypatch, watched, started, served):
+    monkeypatch.chdir(watched)
+
+    assert main(argv=["run", "--harness", "claude", "--noweb"]) == 0
+    assert len(started) == 1
+    assert served == []
 
 
 def test_the_harness_flag_says_what_to_run_rounds_with(monkeypatch, watched, started):

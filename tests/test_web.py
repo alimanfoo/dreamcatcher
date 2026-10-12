@@ -5,6 +5,7 @@ import logging
 import re
 import socket
 from datetime import timedelta
+from threading import Event
 from unittest.mock import MagicMock
 
 import pytest
@@ -54,9 +55,13 @@ from dreamcatcher.scheduler.models import (
     Truth,
 )
 from dreamcatcher.state import StateDirectory
-from dreamcatcher.web import serve_web
+from dreamcatcher.web import serve_web, serve_web_in_background
 from dreamcatcher.web.app import _create_app
-from dreamcatcher.web.server import _WEB_BASE_PORT, WEB_HOST
+from dreamcatcher.web.server import (
+    _WEB_BASE_PORT,
+    WEB_HOST,
+    run_web_server_in_background,
+)
 from dreamcatcher.web.views import _compose_issue_row
 
 WEB_STATUS_REPORTS = {
@@ -1646,6 +1651,18 @@ def test_the_browser_receives_the_address_the_server_listens_on(
     assert werkzeug_logger.level == logging.ERROR
 
 
+def test_the_background_web_server_opens_for_its_context(tmp_path, capsys):
+    state = StateDirectory(root=tmp_path)
+    state.bootstrap()
+    opened = []
+
+    with serve_web_in_background(state=state, browser_opener=opened.append):
+        address = opened[0]
+        assert capsys.readouterr().out == f"{address}\n"
+
+    assert opened == [address]
+
+
 def test_an_interruption_ends_the_server_without_an_error(tmp_path):
     state = StateDirectory(root=tmp_path)
     state.bootstrap()
@@ -1728,3 +1745,46 @@ def test_the_default_server_runner_serves_forever():
     web_server_module.run_web_server(server=server)
 
     server.serve_forever.assert_called_once_with()
+
+
+def test_a_background_server_runs_until_its_context_ends():
+    server_started = Event()
+    server_stopped = Event()
+    server = MagicMock()
+
+    def serve_forever():
+        server_started.set()
+        assert server_stopped.wait(timeout=1)
+
+    server.serve_forever.side_effect = serve_forever
+    server.shutdown.side_effect = server_stopped.set
+
+    with run_web_server_in_background(server=server):
+        assert server_started.wait(timeout=1)
+
+    server.shutdown.assert_called_once_with()
+
+
+def test_a_background_server_stops_when_its_action_fails():
+    server_started = Event()
+    server_stopped = Event()
+    server = MagicMock()
+
+    def serve_forever():
+        server_started.set()
+        assert server_stopped.wait(timeout=1)
+
+    def fail():
+        assert server_started.wait(timeout=1)
+        raise ReportableError("the daemon failed")
+
+    server.serve_forever.side_effect = serve_forever
+    server.shutdown.side_effect = server_stopped.set
+
+    with (
+        pytest.raises(ReportableError, match="the daemon failed"),
+        run_web_server_in_background(server=server),
+    ):
+        fail()
+
+    server.shutdown.assert_called_once_with()

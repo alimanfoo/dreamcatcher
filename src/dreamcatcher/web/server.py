@@ -2,8 +2,10 @@
 
 import errno
 import zlib
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Generator, Iterable
+from contextlib import contextmanager
 from socketserver import TCPServer
+from threading import Thread
 from typing import Protocol
 
 from werkzeug.serving import BaseWSGIServer
@@ -48,6 +50,20 @@ class WebServerRunner(Protocol):
 def run_web_server(*, server: BaseWSGIServer) -> None:
     """Serve requests on a bound web server until the process stops."""
     server.serve_forever()
+
+
+@contextmanager
+def run_web_server_in_background(
+    *, server: BaseWSGIServer
+) -> Generator[None, None, None]:
+    """Serve requests in the background until the surrounding action ends."""
+    thread = Thread(target=server.serve_forever)
+    thread.start()
+    try:
+        yield
+    finally:
+        server.shutdown()
+        thread.join()
 
 
 def create_web_server(

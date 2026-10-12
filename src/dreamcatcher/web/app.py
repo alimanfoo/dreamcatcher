@@ -1,14 +1,15 @@
 """Serve and render dreamcatcher's local web interface."""
 
 import logging
-from collections.abc import Callable
-from contextlib import suppress
+from collections.abc import Callable, Generator
+from contextlib import contextmanager, suppress
 from datetime import datetime, tzinfo
 from functools import partial
 from webbrowser import open as open_browser
 
 from flask import Flask, Response, redirect, render_template, request, url_for
 from flask.typing import ResponseReturnValue
+from werkzeug.serving import BaseWSGIServer
 
 from dreamcatcher.agent_assignments import (
     cancel_assignment,
@@ -42,6 +43,7 @@ from dreamcatcher.web.server import (
     WebServerRunner,
     create_web_server,
     run_web_server,
+    run_web_server_in_background,
 )
 from dreamcatcher.web.views import (
     compose_agent_live_state,
@@ -573,6 +575,26 @@ def _configure_web_theme(*, app: Flask) -> None:
         return response
 
 
+@contextmanager
+def _open_web_server(
+    *,
+    state: StateDirectory,
+    port: int | None,
+    browser_opener: Callable[[str], object],
+    zone: tzinfo | None,
+) -> Generator[BaseWSGIServer, None, None]:
+    logging.getLogger("werkzeug").setLevel(logging.ERROR)
+    application = _create_app(state=state, zone=zone)
+    server = create_web_server(state=state, port=port, application=application)
+    address = f"http://{WEB_HOST}:{server.server_port}/"
+    try:
+        browser_opener(address)
+        print(address, flush=True)
+        yield server
+    finally:
+        server.server_close()
+
+
 def serve_web(
     *,
     state: StateDirectory,
@@ -585,14 +607,33 @@ def serve_web(
 
     Page times use the machine's local zone when zone is None.
     """
-    logging.getLogger("werkzeug").setLevel(logging.ERROR)
-    application = _create_app(state=state, zone=zone)
-    server = create_web_server(state=state, port=port, application=application)
-    address = f"http://{WEB_HOST}:{server.server_port}/"
-    try:
-        with suppress(KeyboardInterrupt):
-            browser_opener(address)
-            print(address, flush=True)
-            server_runner(server=server)
-    finally:
-        server.server_close()
+    with (
+        suppress(KeyboardInterrupt),
+        _open_web_server(
+            state=state,
+            port=port,
+            browser_opener=browser_opener,
+            zone=zone,
+        ) as server,
+    ):
+        server_runner(server=server)
+
+
+@contextmanager
+def serve_web_in_background(
+    *,
+    state: StateDirectory,
+    browser_opener: Callable[[str], object] = open_browser,
+    zone: tzinfo | None = None,
+) -> Generator[None, None, None]:
+    """Serve and open the local status page until the surrounding context exits."""
+    with (
+        _open_web_server(
+            state=state,
+            port=None,
+            browser_opener=browser_opener,
+            zone=zone,
+        ) as server,
+        run_web_server_in_background(server=server),
+    ):
+        yield

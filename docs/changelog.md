@@ -26,6 +26,13 @@ each entry links the pull request or commit that made the change.
 
 ## Unreleased
 
+### Changed
+
+- `dreamcatcher run` now opens and serves the web interface beside the daemon.
+  Use `--noweb` to run only the daemon; the standalone `dreamcatcher web`
+  command remains available for manual control.
+  ([#518](https://github.com/alimanfoo/dreamcatcher/pull/518))
+
 ## [v5.5.1](https://github.com/alimanfoo/dreamcatcher/releases/tag/v5.5.1) — 2026-10-12
 
 ### Fixed
