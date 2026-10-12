@@ -324,6 +324,13 @@ class AssignmentStatusReader(AgentWorkStatusReader[AssignmentStatus]):
         detail: str,
         latest_output: str | None = None,
     ) -> AssignmentStatus:
+        if latest_output is None and assignment.rounds:
+            line = read_last_feed_line(
+                path=assignment.compose_round_paths(
+                    number=assignment.rounds[-1].number
+                ).feed
+            )
+            latest_output = None if line is None else line.text.strip()
         return AssignmentStatus(
             assignment=assignment,
             value=value,

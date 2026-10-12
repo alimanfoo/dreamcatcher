@@ -601,6 +601,7 @@ def test_a_current_tick_with_no_required_round_needs_user_feedback(state):
 
     assert status.value is AssignmentStatusValue.NEEDS_USER_FEEDBACK
     assert status.detail == "last output 1h 58m ago"
+    assert status.latest_output == "Ready for review"
 
 
 def test_an_assignment_needing_feedback_with_no_feed_has_no_output(state):
@@ -613,7 +614,10 @@ def test_an_assignment_needing_feedback_with_no_feed_has_no_output(state):
         ),
     )
 
-    assert only_assignment(state=state).detail == "no output"
+    status = only_assignment(state=state)
+
+    assert status.detail == "no output"
+    assert status.latest_output is None
 
 
 def test_a_stopped_assignment_needs_user_feedback(state):
