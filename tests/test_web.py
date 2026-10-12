@@ -718,7 +718,7 @@ def test_assignment_script_follows_only_when_the_feed_was_at_its_end(tmp_path):
     assert "focusedRoundLink?.focus({ preventScroll: true })" in script
 
 
-def test_ended_assignment_cards_have_space_between_them(tmp_path):
+def test_ended_assignment_cards_are_separated_and_compact(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
 
@@ -726,15 +726,28 @@ def test_ended_assignment_cards_have_space_between_them(tmp_path):
     application = _create_app(
         state=state, clock=lambda: LOOKED_AT, zone=DISPLAY_TIME_ZONE
     )
-    stylesheet = (
+    matrix_stylesheet = (
         application.test_client().get("/static/matrix.css").get_data(as_text=True)
+    )
+    nature_stylesheet = (
+        application.test_client().get("/static/nature.css").get_data(as_text=True)
     )
 
     assert '<div class="ended-assignment-cards">' in page
     assert re.search(
         r"\.ended-assignment-cards \{[^}]*display: grid;"
         r"[^}]*gap: var\(--space-5\);",
-        stylesheet,
+        matrix_stylesheet,
+        re.DOTALL,
+    )
+    assert re.search(
+        r"\.ended-assignment-cards \{[^}]*gap: 32px;",
+        nature_stylesheet,
+        re.DOTALL,
+    )
+    assert re.search(
+        r"\.ended-assignment-cards \.assignment-card \{[^}]*padding: 18px 22px;",
+        nature_stylesheet,
         re.DOTALL,
     )
 
