@@ -7,6 +7,7 @@ from dreamcatcher.agent_rounds import AgentRoundPaths, AgentRoundRecord
 from dreamcatcher.status import (
     AgentRoundRevision,
     AgentWorkStatusSection,
+    AssignmentStatusValue,
     DreamcatcherDaemonStatus,
     StatusFact,
 )
@@ -19,7 +20,7 @@ class WebAssignmentCard:
     identifier: str
     issue: int
     title: str
-    status: str
+    status: AssignmentStatusValue
     detail: str
     dispatch_label: str
     harness: str
@@ -113,7 +114,8 @@ class WebAgentLiveState:
     status: str
     detail: str
     rounds: tuple[WebAgentRound, ...]
-    controls: tuple[WebAgentWorkControl, ...]
+    heading_controls: tuple[WebAgentWorkControl, ...]
+    foot_controls: tuple[WebAgentWorkControl, ...]
     hand_resume: WebHandResume | None
 
 

@@ -9,7 +9,5 @@
         <span class="round-timing">{{ round.started }}{% if round.duration %} · {{ round.duration }}{% endif %}{% if round.revision %} · {{ round.revision.value }}{% endif %}</span>
       </span>
     </a>
-  {% else %}
-    <p class="empty">-- no rounds have run --</p>
   {% endfor %}
 </aside>

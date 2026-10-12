@@ -408,15 +408,18 @@ def test_conversation_page_shows_two_errors_as_a_fault(tmp_path):
     assert "(recovery)" in page
 
 
-def test_conversation_before_its_first_round_has_an_empty_feed(tmp_path):
+def test_conversation_before_its_first_round_invites_a_comment(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_conversation(state=state, has_round=False)
+    client = application(state=state).test_client()
 
-    page = application(state=state).test_client().get("/conversations/8").text
+    page = client.get("/conversations/8").text
+    tail = client.get("/conversations/8/tail", query_string={"cursor": "0:0"}).text
 
     assert 'id="cursor" name="cursor" value="0:0"' in page
-    assert "-- no rounds have run --" in page
-    assert "-- no feed yet --" in page
+    assert "-- no rounds have run --" not in page
+    assert "-- no rounds have run --" not in tail
+    assert "Post a comment to start the conversation." in page
 
 
 def test_conversation_tail_returns_new_output_and_advances_its_cursor(tmp_path):
@@ -657,7 +660,7 @@ def test_conversation_page_before_its_record_shows_its_issue_and_polls(tmp_path)
     assert page.status_code == 200
     assert "Issue 9" in page.text
     assert "assignment-facts" not in page.text
-    assert "-- no feed yet --" in page.text
+    assert "Post a comment to start the conversation." in page.text
     assert tail.status_code == 200
     assert 'value="0:0"' in tail.text
 
