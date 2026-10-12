@@ -179,7 +179,7 @@ def _render_assignment_rows(
                 style="dim",
             ),
         ]
-        latest_output = render_latest_output(latest_output=status.latest_output)
+        latest_output = _render_status_latest_output(latest_output=status.latest_output)
         if latest_output is not None:
             details.append(latest_output)
         rows.append(
@@ -223,7 +223,7 @@ def _render_conversations(
                     style="dim",
                 )
             )
-        latest_output = render_latest_output(latest_output=status.latest_output)
+        latest_output = _render_status_latest_output(latest_output=status.latest_output)
         if latest_output is not None:
             details.append(latest_output)
         rows.append(
@@ -255,4 +255,17 @@ def _render_titled_row(
             )
             for detail in details
         ),
+    )
+
+
+def _render_status_latest_output(*, latest_output: str | None) -> Text | None:
+    rendered = render_latest_output(latest_output=latest_output)
+    if rendered is None:
+        return None
+    return Text.assemble(
+        "agent ",
+        rendered,
+        style="dim",
+        overflow="ellipsis",
+        no_wrap=True,
     )

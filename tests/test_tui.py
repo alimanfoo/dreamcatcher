@@ -452,7 +452,7 @@ def test_assignment_status_alone_is_coloured_and_latest_output_is_dim(tmp_path):
         "\x1b[32mworking\x1b[0m  round 2, address feedback (recovery), running"
         in rendered
     )
-    assert "\x1b[2magent [Bash] pytest\x1b[0m" in rendered
+    assert "\x1b[2m[Bash] pytest\x1b[0m" in rendered
 
 
 @pytest.mark.parametrize("name", sorted(ASSIGNMENTS))

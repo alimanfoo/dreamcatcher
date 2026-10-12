@@ -1,6 +1,6 @@
 newest agent assignment GH9-20260819-184158
 fault  round 2 errored (exit 2)
-  agent [failed] You hit your spend cap.
+  [failed] You hit your spend cap.
 
 assignment
   issue identifier             GH9                                           

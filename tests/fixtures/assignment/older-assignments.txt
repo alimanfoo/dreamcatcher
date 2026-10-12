@@ -1,6 +1,6 @@
 newest agent assignment GH13-20260819-184158
 needs user feedback  last output 1h 58m ago
-  agent [Bash] git push
+  [Bash] git push
 
 assignment
   issue identifier             GH13                                           
