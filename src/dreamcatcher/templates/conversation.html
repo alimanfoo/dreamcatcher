@@ -37,7 +37,7 @@
             {% for feed_round in view.feed_rounds %}
               {% for line in feed_round.lines %}{% include "partials/feed-line.html" %}{% endfor %}
             {% else %}
-              <p id="empty-feed" class="empty">-- no feed yet --</p>
+              <p id="empty-feed" class="empty">Post a comment to start the conversation.</p>
             {% endfor %}
           </div>
         </section>
