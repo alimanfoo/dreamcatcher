@@ -1785,6 +1785,19 @@ def test_removing_conversation_configuration_makes_saved_work_inactive(
     assert observed.conversation_observations == []
 
 
+def test_no_conversation_routes_still_read_saved_conversations(conversation_scheduler):
+    scheduler, clock, _ = conversation_scheduler
+    directory = write_conversation(state=scheduler.assignments.state, issue=8)
+    (directory / "conversation.json").write_bytes(b"{}\n")
+    set_scheduler_config(
+        scheduler=scheduler,
+        config=scheduler.conversations.config.model_copy(update={"conversation": []}),
+    )
+
+    with pytest.raises(ReportableError, match=r"conversation\.json"):
+        scheduler.tick(at=clock())
+
+
 def test_a_conversation_failure_remains_visible_when_an_assignment_launches(
     conversation_scheduler, harnesses
 ):
