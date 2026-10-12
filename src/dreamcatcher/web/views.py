@@ -10,6 +10,7 @@ from dreamcatcher.state import StateDirectory
 from dreamcatcher.status import (
     AgentRoundStatus,
     AssignmentStatus,
+    AssignmentStatusValue,
     ConversationStatus,
     DreamcatcherDaemonStatus,
     DreamcatcherStatusReport,
@@ -98,6 +99,7 @@ def _compose_assignment_card(*, status: AssignmentStatus) -> WebAssignmentCard:
         issue=assignment.record.issue,
         title=assignment.record.title,
         status=str(status.value),
+        needs_user_feedback=status.value is AssignmentStatusValue.NEEDS_USER_FEEDBACK,
         detail=status.detail,
         dispatch_label=assignment.record.dispatch_label,
         harness=str(assignment.record.harness),

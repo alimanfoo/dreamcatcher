@@ -20,6 +20,7 @@ class WebAssignmentCard:
     issue: int
     title: str
     status: str
+    needs_user_feedback: bool
     detail: str
     dispatch_label: str
     harness: str

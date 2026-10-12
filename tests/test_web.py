@@ -618,6 +618,7 @@ def test_feedback_card_keeps_its_compact_actions_inside_the_heading(tmp_path):
     card_start = page.index('<article id="assignment-GH20-20260819-184158"')
     card = page[card_start : page.index("</article>", card_start)]
 
+    assert 'class="assignment-card needs-feedback"' in card
     assert (
         '<span class="chip status-needs-user-feedback">needs user feedback</span>'
         in card
