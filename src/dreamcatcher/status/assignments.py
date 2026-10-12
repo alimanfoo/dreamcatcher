@@ -55,6 +55,11 @@ ASSIGNMENT_STATUS_VALUES_IN_ATTENTION_ORDER = (
     AssignmentStatusValue.CANCELLED,
 )
 
+_ENDED_ASSIGNMENT_STATUS_VALUES = {
+    AssignmentStatusValue.COMPLETE,
+    AssignmentStatusValue.CANCELLED,
+}
+
 _UNREAD_LATEST_OUTPUT = object()
 
 
@@ -70,10 +75,7 @@ class AssignmentStatus:
     @property
     def has_ended(self) -> bool:
         """Whether the assignment has ended and no round of it is still running."""
-        return self.value in {
-            AssignmentStatusValue.COMPLETE,
-            AssignmentStatusValue.CANCELLED,
-        }
+        return self.value in _ENDED_ASSIGNMENT_STATUS_VALUES
 
     @property
     def pull_request_state(self) -> str | None:
@@ -329,10 +331,7 @@ class AssignmentStatusReader(AgentWorkStatusReader[AssignmentStatus]):
         detail: str,
         latest_output: object = _UNREAD_LATEST_OUTPUT,
     ) -> AssignmentStatus:
-        has_ended = value in {
-            AssignmentStatusValue.COMPLETE,
-            AssignmentStatusValue.CANCELLED,
-        }
+        has_ended = value in _ENDED_ASSIGNMENT_STATUS_VALUES
         if (
             latest_output is _UNREAD_LATEST_OUTPUT
             and assignment.rounds

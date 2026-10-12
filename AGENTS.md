@@ -157,6 +157,8 @@ uv run mkdocs serve
   the one path no hook rewrites. A rendered table's rows end in the spaces that
   pad them, and the trailing-whitespace hook would take those away anywhere
   else, so the test would then assert what the view never wrote.
+- Keep status facts and attention order aligned across the terminal status view,
+  web home page and documentation home-page illustration.
 
 Regenerate every rendered-view golden after a presentation change with the
 encoding warning variable set as described above:

@@ -175,9 +175,8 @@ def test_identifiers_remain_whole_when_the_assignment_table_folds(tmp_path):
 
     status = render_status_view(state=state, width=55)
 
-    compact = "".join(status.split())
-    assert "GH13-20260819-184158" in compact
-    assert "2endedassignments" in compact
+    assert "GH13-20260819-184158" in status
+    assert "2 ended assignments" in status
 
 
 def test_assignments_are_rendered_in_attention_order(tmp_path):

@@ -90,11 +90,7 @@ def _render_instance_status(*, report: DreamcatcherStatusReport) -> RenderableTy
 def _render_assignments(
     *, report: DreamcatcherStatusReport, section: AgentWorkStatusSection | None
 ) -> RenderableType | None:
-    """Render assignment work as one section, mirroring the web home view.
-
-    Orders active assignments, failed assignment setups, issue observations,
-    and the ended-assignment count in that sequence.
-    """
+    """Render assignment work as one section."""
     if section is None:
         return None
     rows = _render_assignment_rows(assignments=report.active_assignment_statuses)
