@@ -17,20 +17,6 @@ assignment skills, and the
 [`dream:scout`](https://github.com/alimanfoo/dream/blob/main/plugins/dream/skills/scout/SKILL.md)
 conversation skill.
 
-## Shared GitHub post marker
-
-_dreamcatcher_ adds one instruction to every assignment and conversation prompt:
-every GitHub post the agent makes must end with this line on a line of its own:
-
-```html
-<!-- dreamcatcher -->
-```
-
-The marker is invisible when GitHub renders it. It distinguishes the agent's
-posts from the user's, so _dreamcatcher_ does not deliver the agent's own words
-back in a later round. It applies to every post, including pull request
-descriptions, comments, inline replies and issues the agent files.
-
 ## Assignment skill contract
 
 An assignment skill must guide the agent to implement the issue on the branch
