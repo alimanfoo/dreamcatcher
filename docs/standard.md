@@ -178,8 +178,9 @@ not progress towards the standard. Meeting the criteria is.
 
 **K4. Every change is reviewed against this standard.**
 
-- Measure: pull requests that name the spec they serve and answer the definition
-  of done below.
+- Measure: pull requests merged since the previous major or minor release that
+  name the spec that they serve or the issue that they close, and answer the
+  definition of done below.
 - Bar: all of them, apart from the dependency updates that Dependabot raises.
 - Check: review, which reads the answers before the pull request merges.
 
