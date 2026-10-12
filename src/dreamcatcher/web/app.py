@@ -575,24 +575,33 @@ def _configure_web_theme(*, app: Flask) -> None:
         return response
 
 
-@contextmanager
-def _open_web_server(
+def _create_web_application_server(
     *,
     state: StateDirectory,
     port: int | None,
-    browser_opener: Callable[[str], object],
     zone: tzinfo | None,
-) -> Generator[BaseWSGIServer, None, None]:
+) -> BaseWSGIServer:
     logging.getLogger("werkzeug").setLevel(logging.ERROR)
     application = _create_app(state=state, zone=zone)
-    server = create_web_server(state=state, port=port, application=application)
+    return create_web_server(state=state, port=port, application=application)
+
+
+def _open_web_page(
+    *, server: BaseWSGIServer, browser_opener: Callable[[str], object]
+) -> None:
     address = f"http://{WEB_HOST}:{server.server_port}/"
     try:
         browser_opener(address)
+        _write_web_address(address=address)
+    except OSError as error:
+        raise ReportableError("Could not open the web interface.") from error
+
+
+def _write_web_address(*, address: str) -> None:
+    try:
         print(address, flush=True)
-        yield server
-    finally:
-        server.server_close()
+    except (OSError, UnicodeError) as error:
+        raise ReportableError("Could not write the web address.") from error
 
 
 def serve_web(
@@ -607,16 +616,13 @@ def serve_web(
 
     Page times use the machine's local zone when zone is None.
     """
-    with (
-        suppress(KeyboardInterrupt),
-        _open_web_server(
-            state=state,
-            port=port,
-            browser_opener=browser_opener,
-            zone=zone,
-        ) as server,
-    ):
-        server_runner(server=server)
+    server = _create_web_application_server(state=state, port=port, zone=zone)
+    try:
+        with suppress(KeyboardInterrupt):
+            _open_web_page(server=server, browser_opener=browser_opener)
+            server_runner(server=server)
+    finally:
+        server.server_close()
 
 
 @contextmanager
@@ -627,13 +633,7 @@ def serve_web_in_background(
     zone: tzinfo | None = None,
 ) -> Generator[None, None, None]:
     """Serve and open the local status page until the surrounding context exits."""
-    with (
-        _open_web_server(
-            state=state,
-            port=None,
-            browser_opener=browser_opener,
-            zone=zone,
-        ) as server,
-        run_web_server_in_background(server=server),
-    ):
+    server = _create_web_application_server(state=state, port=None, zone=zone)
+    with run_web_server_in_background(server=server):
+        _open_web_page(server=server, browser_opener=browser_opener)
         yield
