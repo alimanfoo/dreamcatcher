@@ -1863,33 +1863,29 @@ def test_a_background_server_stops_when_its_action_fails():
     server.server_close.assert_called_once_with()
 
 
-def test_a_background_server_failure_reaches_its_caller():
+def test_a_background_server_failure_reaches_its_caller(monkeypatch):
     notified = Event()
     server = MagicMock()
     server.serve_forever.side_effect = OSError("socket failed")
+    monkeypatch.setattr(web_server_module, "interrupt_main", notified.set)
 
     with (
         pytest.raises(ReportableError, match="web server failed"),
-        run_web_server_in_background(
-            server=server,
-            notify_main=notified.set,
-        ),
+        run_web_server_in_background(server=server),
     ):
         assert notified.wait(timeout=1)
 
     server.server_close.assert_called_once_with()
 
 
-def test_a_background_server_that_returns_is_a_failure():
+def test_a_background_server_that_returns_is_a_failure(monkeypatch):
     notified = Event()
     server = MagicMock()
+    monkeypatch.setattr(web_server_module, "interrupt_main", notified.set)
 
     with (
         pytest.raises(ReportableError, match="stopped unexpectedly"),
-        run_web_server_in_background(
-            server=server,
-            notify_main=notified.set,
-        ),
+        run_web_server_in_background(server=server),
     ):
         assert notified.wait(timeout=1)
 

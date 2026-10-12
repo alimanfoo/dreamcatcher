@@ -55,14 +55,8 @@ def run_web_server(*, server: BaseWSGIServer) -> None:
 
 
 class _BackgroundWebServer:
-    def __init__(
-        self,
-        *,
-        server: BaseWSGIServer,
-        notify_main: Callable[[], None],
-    ) -> None:
+    def __init__(self, *, server: BaseWSGIServer) -> None:
         self.server = server
-        self.notify_main = notify_main
         self.failures: SimpleQueue[BaseException] = SimpleQueue()
         self.is_stopping = Event()
         self.thread = Thread(target=self._serve)
@@ -101,17 +95,16 @@ class _BackgroundWebServer:
                 )
         finally:
             if not self.is_stopping.is_set():
-                self.notify_main()
+                interrupt_main()
 
 
 @contextmanager
 def run_web_server_in_background(
     *,
     server: BaseWSGIServer,
-    notify_main: Callable[[], None] = interrupt_main,
 ) -> Generator[None, None, None]:
     """Own and serve a bound server until the surrounding action ends."""
-    background = _BackgroundWebServer(server=server, notify_main=notify_main)
+    background = _BackgroundWebServer(server=server)
     try:
         background.start()
         yield

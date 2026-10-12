@@ -592,12 +592,8 @@ def _open_web_page(
     address = f"http://{WEB_HOST}:{server.server_port}/"
     try:
         browser_opener(address)
-        _write_web_address(address=address)
     except OSError as error:
         raise ReportableError("Could not open the web interface.") from error
-
-
-def _write_web_address(*, address: str) -> None:
     try:
         print(address, flush=True)
     except (OSError, UnicodeError) as error:
