@@ -27,7 +27,9 @@
       </section>
       <div class="assignment-workspace">
         <div class="assignment-sidebar">
-          {% include "partials/assignment-rounds.html" %}
+          {% with show_empty_rounds=false %}
+            {% include "partials/assignment-rounds.html" %}
+          {% endwith %}
         </div>
         <section class="panel assignment-feed" aria-labelledby="feed-heading">
           <h1 id="feed-heading">Feed</h1>

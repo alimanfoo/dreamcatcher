@@ -411,11 +411,14 @@ def test_conversation_page_shows_two_errors_as_a_fault(tmp_path):
 def test_conversation_before_its_first_round_invites_a_comment(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_conversation(state=state, has_round=False)
+    client = application(state=state).test_client()
 
-    page = application(state=state).test_client().get("/conversations/8").text
+    page = client.get("/conversations/8").text
+    tail = client.get("/conversations/8/tail", query_string={"cursor": "0:0"}).text
 
     assert 'id="cursor" name="cursor" value="0:0"' in page
     assert "-- no rounds have run --" not in page
+    assert "-- no rounds have run --" not in tail
     assert "Post a comment to start the conversation." in page
 
 
