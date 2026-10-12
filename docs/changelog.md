@@ -26,6 +26,11 @@ each entry links the pull request or commit that made the change.
 
 ## Unreleased
 
+### Changed
+
+- `dreamcatcher run` now includes the installed software version in its startup
+  message. ([#522](https://github.com/alimanfoo/dreamcatcher/pull/522))
+
 ## [v5.5.1](https://github.com/alimanfoo/dreamcatcher/releases/tag/v5.5.1) — 2026-10-12
 
 ### Fixed

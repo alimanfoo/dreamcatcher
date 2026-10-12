@@ -152,7 +152,10 @@ class DreamcatcherDaemon:
             self._sweep_orphans()
             at = self.clock()
             _write_output(
-                line=f"{describe_time(at=at, zone=self.zone)}  dreamcatcher is running"
+                line=(
+                    f"{describe_time(at=at, zone=self.zone)}  "
+                    f"dreamcatcher v{DREAMCATCHER_VERSION} is running"
+                )
             )
             try:
                 with suppress(KeyboardInterrupt):
