@@ -702,7 +702,7 @@ body::after {
   border-bottom-color: var(--rule);
   font-family: var(--font);
   font-size: 14px;
-  font-weight: 500;
+  font-weight: 700;
 }
 
 @media (max-width: 700px) {
