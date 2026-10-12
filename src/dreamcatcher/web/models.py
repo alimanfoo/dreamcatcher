@@ -7,6 +7,7 @@ from dreamcatcher.agent_rounds import AgentRoundPaths, AgentRoundRecord
 from dreamcatcher.status import (
     AgentRoundRevision,
     AgentWorkStatusSection,
+    AssignmentStatusValue,
     DreamcatcherDaemonStatus,
     StatusFact,
 )
@@ -19,8 +20,7 @@ class WebAssignmentCard:
     identifier: str
     issue: int
     title: str
-    status: str
-    needs_user_feedback: bool
+    status: AssignmentStatusValue
     detail: str
     dispatch_label: str
     harness: str
