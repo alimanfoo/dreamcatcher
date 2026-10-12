@@ -141,14 +141,16 @@ def compose_agent_live_state(
     status: AssignmentStatus | ConversationStatus,
     worktree: Path | None,
     zone: tzinfo | None,
-    controls: tuple[WebAgentWorkControl, ...],
+    heading_controls: tuple[WebAgentWorkControl, ...],
+    foot_controls: tuple[WebAgentWorkControl, ...],
 ) -> WebAgentLiveState:
     """Return the values of an agent page that its tail refreshes."""
     return WebAgentLiveState(
         status=str(status.value),
         detail=status.detail,
         rounds=_compose_agent_rounds(round_statuses=status.round_statuses, zone=zone),
-        controls=controls,
+        heading_controls=heading_controls,
+        foot_controls=foot_controls,
         hand_resume=_compose_hand_resume(
             state=state, worktree=worktree, command=status.hand_resume_command
         ),

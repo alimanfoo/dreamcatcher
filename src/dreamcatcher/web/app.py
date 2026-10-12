@@ -193,24 +193,13 @@ def _show_assignment(
 def _compose_assignment_live_state(
     *, state: StateDirectory, status: AssignmentStatus, zone: tzinfo | None
 ) -> WebAgentLiveState:
-    return compose_agent_live_state(
-        state=state,
-        status=status,
-        worktree=status.assignment.record.worktree,
-        zone=zone,
-        controls=_compose_assignment_controls(status=status),
-    )
-
-
-def _compose_assignment_controls(
-    *, status: AssignmentStatus
-) -> tuple[WebAgentWorkControl, ...]:
     assignment = status.assignment
     identifier = assignment.identifier
-    controls = []
+    heading_controls = []
+    foot_controls = []
     paths = status.stoppable_round_paths
     if paths is not None:
-        controls.append(
+        foot_controls.append(
             WebAgentWorkControl(
                 action="stop",
                 url=url_for(
@@ -222,7 +211,7 @@ def _compose_assignment_controls(
         )
     number = status.faulted_round_number
     if number is not None:
-        controls.append(
+        heading_controls.append(
             WebAgentWorkControl(
                 action="retry",
                 url=url_for(
@@ -231,13 +220,20 @@ def _compose_assignment_controls(
             )
         )
     if assignment.is_open:
-        controls.append(
+        foot_controls.append(
             WebAgentWorkControl(
                 action="cancel",
                 url=url_for("cancel_assignment", identifier=identifier),
             )
         )
-    return tuple(controls)
+    return compose_agent_live_state(
+        state=state,
+        status=status,
+        worktree=assignment.record.worktree,
+        zone=zone,
+        heading_controls=tuple(heading_controls),
+        foot_controls=tuple(foot_controls),
+    )
 
 
 def _show_assignment_tail(
@@ -296,22 +292,11 @@ def _compose_conversation_live_state(
     *, state: StateDirectory, status: ConversationStatus, zone: tzinfo | None
 ) -> WebAgentLiveState:
     conversation = status.conversation
-    return compose_agent_live_state(
-        state=state,
-        status=status,
-        worktree=None if conversation is None else conversation.worktree,
-        zone=zone,
-        controls=_compose_conversation_controls(status=status),
-    )
-
-
-def _compose_conversation_controls(
-    *, status: ConversationStatus
-) -> tuple[WebAgentWorkControl, ...]:
-    controls = []
+    heading_controls = []
+    foot_controls = []
     paths = status.stoppable_round_paths
     if paths is not None:
-        controls.append(
+        foot_controls.append(
             WebAgentWorkControl(
                 action="stop",
                 url=url_for(
@@ -323,7 +308,7 @@ def _compose_conversation_controls(
         )
     number = status.faulted_round_number
     if number is not None:
-        controls.append(
+        heading_controls.append(
             WebAgentWorkControl(
                 action="retry",
                 url=url_for(
@@ -331,7 +316,14 @@ def _compose_conversation_controls(
                 ),
             )
         )
-    return tuple(controls)
+    return compose_agent_live_state(
+        state=state,
+        status=status,
+        worktree=None if conversation is None else conversation.worktree,
+        zone=zone,
+        heading_controls=tuple(heading_controls),
+        foot_controls=tuple(foot_controls),
+    )
 
 
 def _show_conversation_tail(

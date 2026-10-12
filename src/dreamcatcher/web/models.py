@@ -113,7 +113,8 @@ class WebAgentLiveState:
     status: str
     detail: str
     rounds: tuple[WebAgentRound, ...]
-    controls: tuple[WebAgentWorkControl, ...]
+    heading_controls: tuple[WebAgentWorkControl, ...]
+    foot_controls: tuple[WebAgentWorkControl, ...]
     hand_resume: WebHandResume | None
 
 
