@@ -26,6 +26,8 @@ each entry links the pull request or commit that made the change.
 
 ## Unreleased
 
+## [v5.6.0](https://github.com/alimanfoo/dreamcatcher/releases/tag/v5.6.0) — 2026-10-12
+
 ### Changed
 
 - `dreamcatcher run` now opens and serves the web interface beside the daemon.
@@ -34,6 +36,12 @@ each entry links the pull request or commit that made the change.
   ([#518](https://github.com/alimanfoo/dreamcatcher/pull/518))
 - `dreamcatcher run` now includes the installed software version in its startup
   message. ([#522](https://github.com/alimanfoo/dreamcatcher/pull/522))
+
+### Fixed
+
+- The web interface's nature theme gives each round's heading the page
+  background, so the heading no longer sits in a band of a slightly different
+  colour. ([#520](https://github.com/alimanfoo/dreamcatcher/pull/520))
 
 ## [v5.5.1](https://github.com/alimanfoo/dreamcatcher/releases/tag/v5.5.1) — 2026-10-12
 
