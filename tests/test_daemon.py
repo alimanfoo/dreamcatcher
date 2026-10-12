@@ -182,7 +182,8 @@ def test_the_daemon_reports_when_it_has_started_before_its_first_tick(
 
     def verify_report(*, scheduler, at):
         assert (
-            capsys.readouterr().out == "2026-08-20 02:41:58  dreamcatcher is running\n"
+            capsys.readouterr().out
+            == f"2026-08-20 02:41:58  dreamcatcher v{DREAMCATCHER_VERSION} is running\n"
         )
         raise KeyboardInterrupt
 
@@ -201,7 +202,10 @@ def test_the_daemon_flushes_every_report(watched, harnesses, gh, monkeypatch):
     daemon.run()
 
     assert reports == [
-        ("2026-08-20 02:41:58  dreamcatcher is running", True),
+        (
+            f"2026-08-20 02:41:58  dreamcatcher v{DREAMCATCHER_VERSION} is running",
+            True,
+        ),
         ("2026-08-20 02:41:58  nothing launched", True),
     ]
 
@@ -236,7 +240,7 @@ def test_every_tick_records_when_it_ran(watched, harnesses, gh, capsys):
     assert len(ticking.readings) == 2
     assert SchedulerRecord.model_validate_json(recorded).at == ticking.readings[-1]
     assert capsys.readouterr().out == (
-        "2026-08-20 02:41:58  dreamcatcher is running\n"
+        f"2026-08-20 02:41:58  dreamcatcher v{DREAMCATCHER_VERSION} is running\n"
         "2026-08-20 02:41:58  nothing launched\n"
         "2026-08-20 02:46:58  nothing launched\n"
     )
@@ -558,7 +562,7 @@ def test_a_tick_whose_listing_failed_records_what_it_could_not_read(
     assert recorded(daemon=daemon).issue_observations == []
     output = capsys.readouterr().out
     assert output.startswith(
-        "2026-08-20 02:41:58  dreamcatcher is running\n"
+        f"2026-08-20 02:41:58  dreamcatcher v{DREAMCATCHER_VERSION} is running\n"
         "2026-08-20 02:41:58  nothing launched; could not list issues for "
     )
     assert output.endswith("gh: could not connect to github.com gh: try again\n")
