@@ -176,7 +176,7 @@
 
 .md-typeset .dch-term__log li.dch-row {
   display: grid;
-  grid-template-columns: 3.2em 1fr auto;
+  grid-template-columns: 7ch 1fr auto;
   grid-template-areas:
     "issue title state"
     ". detail detail"
@@ -222,7 +222,7 @@
 }
 
 .md-typeset .dch-term__log li.dch-summary {
-  padding-left: 4.2em;
+  padding-left: calc(7ch + 1em);
   color: var(--dch-dim);
 }
 
@@ -291,7 +291,7 @@
   }
 
   .md-typeset .dch-term__log li.dch-row {
-    grid-template-columns: 2.4em 1fr auto;
+    grid-template-columns: 7ch 1fr auto;
     column-gap: 0.8em;
     grid-template-areas:
       "issue title title"
@@ -311,7 +311,7 @@
   }
 
   .md-typeset .dch-term__log li.dch-summary {
-    padding-left: 3.2em;
+    padding-left: calc(7ch + 0.8em);
   }
 }
 

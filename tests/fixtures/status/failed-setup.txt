@@ -7,12 +7,12 @@ instance
   agent capacity     0 of 1 working                                
 
 assignments
-  GH13  Issue 13  waiting                                     
-        next round, implement                                 
-        dream:smith · claude · opus[1m] · xhigh · PR #52 draft
-  GH20  Issue 20  assignment setup failed                     
-        dream:smith, dream:less                               
-        multiple assignment labels: dream:less, dream:smith   
-  GH22    issue details unavailable                           
-  GH21  Issue 21  available                                   
-        dream:smith                                           
+  GH13     Issue 13  waiting                                     
+           next round, implement                                 
+           dream:smith · claude · opus[1m] · xhigh · PR #52 draft
+  GH20     Issue 20  assignment setup failed                     
+           dream:smith, dream:less                               
+           multiple assignment labels: dream:less, dream:smith   
+  GH22       issue details unavailable                           
+  GH21     Issue 21  available                                   
+           dream:smith                                           

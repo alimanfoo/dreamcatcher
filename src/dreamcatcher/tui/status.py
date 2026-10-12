@@ -32,6 +32,9 @@ from dreamcatcher.tui.shared import (
 )
 from dreamcatcher.words import describe_count
 
+_ISSUE_REFERENCE_WIDTH = len("GH99999")
+_ISSUE_CONTENT_INDENT = _ISSUE_REFERENCE_WIDTH + 2
+
 
 def show_status_view(
     *,
@@ -249,13 +252,14 @@ def _render_titled_row(
 ) -> RenderableType:
     issue_reference = f"GH{issue}"
     table = create_table(columns=3)
+    table.columns[0].width = _ISSUE_REFERENCE_WIDTH
     table.add_row(Text(issue_reference), Text(title), status)
     return Group(
         table,
         *(
             Padding(
                 detail,
-                (0, 0, 0, len(issue_reference) + 2),
+                (0, 0, 0, _ISSUE_CONTENT_INDENT),
                 expand=False,
             )
             for detail in details

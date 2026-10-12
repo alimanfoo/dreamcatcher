@@ -6,38 +6,38 @@ instance
   agent capacity     0 of 1 working
 
 assignments
-  GH20  Issue 20  needs user feedback                                                 
-        last output 2h 0m ago                                                         
-        dream:smith · claude · opus[1m] · xhigh · PR #52 draft                        
-        [Bash] git push                                                               
-  GH9  Issue 9  fault                                                                 
-       round 2 errored (exit 2)                                                       
-       dream:smith · claude · opus[1m] · xhigh · PR #52 draft                         
-       [failed] You hit your spend cap.                                               
-  GH13  Issue 13  waiting                                                             
-        round 2 interrupted                                                           
-        dream:smith · claude · opus[1m] · xhigh · PR #52 draft                        
-        [Bash] pytest                                                                 
-  GH31  Issue 31  waiting                                                             
-        next round, implement                                                         
-        dream:smith · claude · opus[1m] · xhigh · PR #52 draft                        
-  GH35  Issue 35  waiting                                                             
-        round 1 errored (exit 2)                                                      
-        dream:smith · claude · opus[1m] · xhigh · PR #52 draft                        
-  GH44  Issue 44  waiting                                                             
-        next round, implement                                                         
-        dream:smith · claude · opus[1m] · xhigh · PR #52 draft                        
-  GH40  Issue 40  unknown                                                             
-        no current scheduler observation                                              
-        dream:smith · claude · opus[1m] · xhigh · PR #52 draft                        
-  GH50  Issue 50  available                                                           
-        dream:smith                                                                   
-  GH51  Issue 51  available                                                           
-        dream:smith                                                                   
-  GH52  Issue 52  blocked by GH50                                                     
-        dream:smith                                                                   
-  GH53  Issue 53  multiple assignment labels: dream:less, dream:smith                 
-        dream:smith, dream:less                                                       
-  GH54  Issue 54  multiple assignment labels: dream:less, dream:smith; blocked by GH50
-        dream:smith, dream:less                                                       
-  2 ended assignments                                                                 
+  GH20     Issue 20  needs user feedback                                                 
+           last output 2h 0m ago                                                         
+           dream:smith · claude · opus[1m] · xhigh · PR #52 draft                        
+           [Bash] git push                                                               
+  GH9      Issue 9  fault                                                                
+           round 2 errored (exit 2)                                                      
+           dream:smith · claude · opus[1m] · xhigh · PR #52 draft                        
+           [failed] You hit your spend cap.                                              
+  GH13     Issue 13  waiting                                                             
+           round 2 interrupted                                                           
+           dream:smith · claude · opus[1m] · xhigh · PR #52 draft                        
+           [Bash] pytest                                                                 
+  GH31     Issue 31  waiting                                                             
+           next round, implement                                                         
+           dream:smith · claude · opus[1m] · xhigh · PR #52 draft                        
+  GH35     Issue 35  waiting                                                             
+           round 1 errored (exit 2)                                                      
+           dream:smith · claude · opus[1m] · xhigh · PR #52 draft                        
+  GH44     Issue 44  waiting                                                             
+           next round, implement                                                         
+           dream:smith · claude · opus[1m] · xhigh · PR #52 draft                        
+  GH40     Issue 40  unknown                                                             
+           no current scheduler observation                                              
+           dream:smith · claude · opus[1m] · xhigh · PR #52 draft                        
+  GH50     Issue 50  available                                                           
+           dream:smith                                                                   
+  GH51     Issue 51  available                                                           
+           dream:smith                                                                   
+  GH52     Issue 52  blocked by GH50                                                     
+           dream:smith                                                                   
+  GH53     Issue 53  multiple assignment labels: dream:less, dream:smith                 
+           dream:smith, dream:less                                                       
+  GH54     Issue 54  multiple assignment labels: dream:less, dream:smith; blocked by GH50
+           dream:smith, dream:less                                                       
+  2 ended assignments                                                                    

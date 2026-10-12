@@ -50,6 +50,7 @@ from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.tui import show_assignment_view, show_feed_view, show_status_view
 from dreamcatcher.tui.shared import _VIEW_REFRESH_INTERVAL
+from dreamcatcher.tui.status import _render_titled_row
 from dreamcatcher.tui.views import _render_feed_line, _render_written_feed_line
 
 # How wide the console is, so a line wraps in the same place every run.
@@ -179,13 +180,35 @@ def test_assignment_metadata_folds_without_hiding_ended_work(tmp_path):
     assert "2 ended assignments" in status
 
 
+def test_status_rows_align_for_one_and_five_digit_issue_numbers():
+    written_to = StringIO()
+    console = pinned(written_to=written_to)
+    for issue in (9, 12345):
+        console.print(
+            _render_titled_row(
+                issue=issue,
+                title=f"Issue {issue}",
+                status=Text("waiting"),
+                details=[Text(f"detail {issue}")],
+            )
+        )
+
+    lines = written_to.getvalue().splitlines()
+    title_starts = [line.index("Issue") for line in lines if "Issue" in line]
+    detail_starts = [line.index("detail") for line in lines if "detail" in line]
+
+    assert len(set(title_starts)) == 1
+    assert len(set(detail_starts)) == 1
+    assert title_starts == detail_starts
+
+
 def test_assignments_are_rendered_in_attention_order(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
 
     rendered = render_status_view(state=state)
 
-    headings = [f"GH{issue}  Issue {issue}" for issue in (20, 9, 13, 31, 35, 44, 40)]
+    headings = [f"Issue {issue}" for issue in (20, 9, 13, 31, 35, 44, 40)]
     assert [rendered.index(heading) for heading in headings] == sorted(
         rendered.index(heading) for heading in headings
     )
@@ -222,8 +245,8 @@ def test_a_cancelled_assignment_still_working_omits_pull_request_state(tmp_path)
 
     rendered = render_status_view(state=state)
 
-    row_start = rendered.index("GH13  Issue 13")
-    row_end = rendered.index("GH31  Issue 31")
+    row_start = rendered.index("Issue 13")
+    row_end = rendered.index("Issue 31")
     row = rendered[row_start:row_end]
     assert "dream:smith · claude · opus[1m] · xhigh" in row
     assert "PR #52" not in row
