@@ -95,10 +95,6 @@ class ConversationScheduler(
         self, *, previous_record: SchedulerRecord | None, at: datetime
     ) -> AgentWorkInspection[ConversationCandidate, ConversationObservation]:
         """Observe matching issues and return conversation work ready to run."""
-        if not self.config.conversation:
-            return AgentWorkInspection(
-                candidates=[], observations=[], fault_count=0, failures=[]
-            )
         listing = self.list_route_issues(routes=self.config.conversation)
         conversations = read_conversations(state=self.state)
         conversations_by_issue = {
