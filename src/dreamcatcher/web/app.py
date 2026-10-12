@@ -259,7 +259,6 @@ def _show_assignment_tail(
     return _show_agent_tail(
         owner=status.assignment,
         live=_compose_assignment_live_state(state=state, status=status, zone=zone),
-        show_empty_rounds=True,
         should_stop_polling=status.has_ended,
         zone=zone,
     )
@@ -354,7 +353,6 @@ def _show_conversation_tail(
     return _show_agent_tail(
         owner=status.conversation,
         live=_compose_conversation_live_state(state=state, status=status, zone=zone),
-        show_empty_rounds=False,
         should_stop_polling=not status.is_listed,
         zone=zone,
     )
@@ -490,7 +488,6 @@ def _show_agent_tail(
     *,
     owner: WebFeedOwner | None,
     live: WebAgentLiveState,
-    show_empty_rounds: bool,
     should_stop_polling: bool,
     zone: tzinfo | None,
 ) -> str | tuple[str, int]:
@@ -511,11 +508,7 @@ def _show_agent_tail(
         else 200
     )
     return (
-        render_template(
-            "tail.html",
-            tail=tail,
-            show_empty_rounds=show_empty_rounds,
-        ),
+        render_template("tail.html", tail=tail),
         response_status,
     )
 
