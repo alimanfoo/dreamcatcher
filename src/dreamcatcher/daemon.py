@@ -161,7 +161,7 @@ class DreamcatcherDaemon:
                     _write_output(
                         line=(
                             f"{describe_time(at=at, zone=self.zone)}  "
-                            "dreamcatcher is running"
+                            f"dreamcatcher v{DREAMCATCHER_VERSION} is running"
                         )
                     )
                     while True:

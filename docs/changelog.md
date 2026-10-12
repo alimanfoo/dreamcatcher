@@ -32,6 +32,8 @@ each entry links the pull request or commit that made the change.
   Use `--noweb` to run only the daemon; the standalone `dreamcatcher web`
   command remains available for manual control.
   ([#518](https://github.com/alimanfoo/dreamcatcher/pull/518))
+- `dreamcatcher run` now includes the installed software version in its startup
+  message. ([#522](https://github.com/alimanfoo/dreamcatcher/pull/522))
 
 ## [v5.5.1](https://github.com/alimanfoo/dreamcatcher/releases/tag/v5.5.1) — 2026-10-12
 
