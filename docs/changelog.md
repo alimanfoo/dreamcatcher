@@ -26,6 +26,19 @@ each entry links the pull request or commit that made the change.
 
 ## Unreleased
 
+## [v5.5.1](https://github.com/alimanfoo/dreamcatcher/releases/tag/v5.5.1) — 2026-10-12
+
+### Fixed
+
+- The web interface's nature theme no longer draws a hard outline around the
+  home page cards in its dark scheme, so their edges stay soft as in the light
+  one. ([#515](https://github.com/alimanfoo/dreamcatcher/pull/515))
+- The agent contract, the ontology and the guides to configuring and customising
+  skills now name conversation skills beside assignment skills, where they spoke
+  of conversation prompts before. The agent contract stays at version 1, and
+  existing skills and prompts need no change.
+  ([#513](https://github.com/alimanfoo/dreamcatcher/pull/513))
+
 ## [v5.5.0](https://github.com/alimanfoo/dreamcatcher/releases/tag/v5.5.0) — 2026-10-11
 
 ### Added

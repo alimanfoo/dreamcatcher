@@ -10,8 +10,9 @@ tag is the only version change.
 number, and the headings of the entries under **Unreleased** in
 [the changelog](changelog.md) apply it. An entry under **Breaking** makes a
 major release, and so does any change to the state format. An entry under
-**Added** or **Changed** makes a minor release. Entries under **Fixed** alone
-make a patch release.
+**Added** or **Changed** makes a minor release when it adds to or changes what
+the software does. Any other release is a patch: its entries fix behaviour or
+change only the documentation.
 
 ## Check the standard
 
