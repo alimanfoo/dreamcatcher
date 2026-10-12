@@ -96,9 +96,9 @@ determines the remaining fields:
 
 The list includes only posts by the account through which `gh` was authenticated
 that have a body, or a review verdict of `APPROVED` or `CHANGES_REQUESTED`. It
-excludes posts carrying the agent marker and omits anything at or before the
-latest delivery position. A review's `verdict` can also be `COMMENTED`,
-`DISMISSED` or `PENDING` when its body says something.
+excludes the agent's own posts and omits anything at or before the latest
+delivery position. A review's `verdict` can also be `COMMENTED`, `DISMISSED` or
+`PENDING` when its body says something.
 
 An assignment skill must instruct the agent to read `pull_request_state` before
 anything else, and, when `pull_request_state` reads `OPEN`, to act on every user
@@ -200,9 +200,9 @@ request, post the conversation reply itself, or contact the user elsewhere.
 ### Publication
 
 _dreamcatcher_ owns publication: when the harness exits successfully, the round
-trims the final result, adds an agent attribution and the marker, and posts it
-before the round ends. A missing or empty final result is an error. A failed
-post makes the round errored.
+trims the final result, adds an agent attribution and posts it before the round
+ends. A missing or empty final result is an error. A failed post makes the round
+errored.
 
 ### Recovery and stopped rounds
 
