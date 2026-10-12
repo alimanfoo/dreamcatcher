@@ -26,6 +26,18 @@ each entry links the pull request or commit that made the change.
 
 ## Unreleased
 
+## [v5.6.1](https://github.com/alimanfoo/dreamcatcher/releases/tag/v5.6.1) — 2026-10-12
+
+### Fixed
+
+- The web interface's nature theme separates the cards of ended assignments and
+  makes them more compact, so their blurred surfaces no longer run together.
+  ([#525](https://github.com/alimanfoo/dreamcatcher/pull/525))
+- A conversation or assignment page before its first round now leaves the rounds
+  panel blank, and an empty conversation feed invites you to post a comment,
+  where both showed a dashed placeholder before.
+  ([#528](https://github.com/alimanfoo/dreamcatcher/pull/528))
+
 ## [v5.6.0](https://github.com/alimanfoo/dreamcatcher/releases/tag/v5.6.0) — 2026-10-12
 
 ### Changed
