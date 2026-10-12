@@ -298,6 +298,14 @@ body::after {
   gap: 14px;
 }
 
+.ended-assignment-cards {
+  gap: 32px;
+}
+
+.ended-assignment-cards .assignment-card {
+  padding: 18px 22px;
+}
+
 .assignment-group-label {
   color: var(--dim);
   font-size: 12px;
