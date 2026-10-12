@@ -1,6 +1,6 @@
 newest agent assignment GH13-20260819-184158
 working  round 2, address feedback (recovery), running 1h 30m, last output 1h 29m ago
-  [Bash] pytest
+  agent [Bash] pytest
 
 assignment
   issue identifier             GH13                                           

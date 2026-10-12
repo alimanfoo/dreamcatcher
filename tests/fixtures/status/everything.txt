@@ -7,20 +7,44 @@ instance
   agent capacity     1 of 1 working                                
 
 assignments
-  GH20-20260819-184158  needs user feedback  last output 2h 0m ago                                  
-  GH9-20260819-184158   fault                round 2 errored (exit 2)                               
-  [failed] You hit your spend cap.                                                                  
-  GH13-20260819-184158  working              round 2, address feedback (recovery), running 1h 30m,  
-                                             last output 1h 29m ago                                 
-  The agent is explaining a long change that would otherwise wrap onto another line and move every …
-  GH31-20260819-184158  waiting              next round, implement                                  
-  GH35-20260819-184158  waiting              round 1 errored (exit 2)                               
-  GH44-20260819-184158  waiting              next round, implement                                  
-  GH40-20260819-184158  unknown              no current scheduler observation                       
-  GH50  dream:smith              available                                                          
-  GH51  dream:smith              available                                                          
-  GH52  dream:smith              blocked by GH50                                                    
-  GH53  dream:smith, dream:less  multiple assignment labels: dream:less, dream:smith                
-  GH54  dream:smith, dream:less  multiple assignment labels: dream:less, dream:smith; blocked by    
+  GH20  Issue 20                                           needs user feedback                      
+        last output 2h 0m ago                                                                       
+        GH20-20260819-184158 · dream:smith · PR #52 draft                                           
+  GH9  Issue 9                                           fault                                      
+       round 2 errored (exit 2)                                                                     
+       GH9-20260819-184158 · dream:smith · PR #52 draft                                             
+       agent [failed] You hit your spend cap.                                                       
+  GH13  Issue 13                                                                             working
+        round 2, address feedback (recovery), running 1h 30m, last output 1h 29m ago                
+        GH13-20260819-184158 · dream:smith · PR #52 draft                                           
+        agent The agent is explaining a long change that would otherwise wrap onto another…         
+  GH31  Issue 31                                           waiting                                  
+        next round, implement                                                                       
+        GH31-20260819-184158 · dream:smith · PR #52 draft                                           
+  GH35  Issue 35                                           waiting                                  
+        round 1 errored (exit 2)                                                                    
+        GH35-20260819-184158 · dream:smith · PR #52 draft                                           
+  GH44  Issue 44                                           waiting                                  
+        next round, implement                                                                       
+        GH44-20260819-184158 · dream:smith · PR #52 draft                                           
+  GH40  Issue 40                                           unknown                                  
+        no current scheduler observation                                                            
+        GH40-20260819-184158 · dream:smith · PR #52 draft                                           
+  GH50  Issue 50     available                                                                      
+        dream:smith                                                                                 
+  GH51  Issue 51     available                                                                      
+        dream:smith                                                                                 
+  GH52  Issue 52     blocked by GH50                                                                
+        dream:smith                                                                                 
+  GH53  Issue 53                 multiple assignment labels: dream:less, dream:smith                
+        dream:smith, dream:less                                                                     
+  GH54  Issue 54                 multiple assignment labels: dream:less, dream:smith; blocked by    
                                  GH50                                                               
+        dream:smith, dream:less                                                                     
   2 ended assignments                                                                               
+
+conversations
+  GH8  Issue 8                                         idle
+       round 1, answered, ran 4m                           
+       dream:conversation · claude · opus[1m] · xhigh      
+       agent I found the answer.                           

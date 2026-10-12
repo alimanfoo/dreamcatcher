@@ -111,36 +111,44 @@ def _render_failed_setups(
     *, failed_setups: Sequence[IssueObservation]
 ) -> list[RenderableType]:
     """Render incomplete assignment setups with recorded failures."""
-    if not failed_setups:
-        return []
-    table = create_table(columns=2)
-    for setup in failed_setups:
-        evidence = [
-            cast("str", setup.setup_failure),
-            *_describe_issue_evidence(observation=setup),
-        ]
-        table.add_row(Text(f"GH{setup.issue}"), Text("; ".join(evidence)))
-    return [table]
+    return [
+        _render_issue_row(
+            observation=setup,
+            status=cast("str", setup.setup_failure),
+            evidence=_describe_issue_evidence(observation=setup),
+        )
+        for setup in failed_setups
+    ]
 
 
 def _render_issue_observations(
     *, issues: Sequence[IssueObservation]
 ) -> list[RenderableType]:
-    """Render the issue observations as one table, status inline per row."""
-    rows = [
-        (
-            issue,
-            ", ".join([] if issue.details is None else issue.details.assignment_labels),
-            _describe_issue_observation(observation=issue),
+    """Render issue observations as titled rows."""
+    return [
+        _render_issue_row(
+            observation=issue,
+            status=_describe_issue_observation(observation=issue),
+            evidence=(),
         )
         for issue in issues
     ]
-    if not rows:
-        return []
-    table = create_table(columns=3)
-    for issue, middle, status in rows:
-        table.add_row(Text(f"GH{issue.issue}"), Text(middle), Text(status))
-    return [table]
+
+
+def _render_issue_row(
+    *, observation: IssueObservation, status: str, evidence: Sequence[str]
+) -> RenderableType:
+    details = observation.details
+    row_details = []
+    if details is not None and details.assignment_labels:
+        row_details.append(Text(", ".join(details.assignment_labels), style="dim"))
+    row_details.extend(Text(item) for item in evidence)
+    return _render_titled_row(
+        issue=observation.issue,
+        title="" if details is None else details.title,
+        status=Text(status),
+        details=row_details,
+    )
 
 
 def _describe_issue_observation(*, observation: IssueObservation) -> str:
@@ -160,24 +168,32 @@ def _render_assignment_rows(
     *, assignments: Sequence[AssignmentStatus]
 ) -> list[RenderableType]:
     """Render the detailed rows for assignments that have not ended."""
-    if not assignments:
-        return []
-    identifier_width = max(len(status.assignment.identifier) for status in assignments)
-    status_width = max(len(status.value) for status in assignments)
     rows: list[RenderableType] = []
     for status in assignments:
-        table = create_table(columns=3)
-        table.columns[0].width = identifier_width
-        table.columns[1].width = status_width
-        table.add_row(
-            Text(status.assignment.identifier),
-            Text(str(status.value), style=ASSIGNMENT_STATUS_STYLES[status.value]),
+        assignment = status.assignment
+        record = assignment.record
+        pull_request_state = cast("str", status.pull_request_state)
+        pull_request = f"PR #{record.pull_request} {pull_request_state}"
+        details = [
             Text(status.detail),
-        )
-        rows.append(table)
+            Text(
+                f"{assignment.identifier} · {record.dispatch_label} · {pull_request}",
+                style="dim",
+            ),
+        ]
         latest_output = render_latest_output(latest_output=status.latest_output)
         if latest_output is not None:
-            rows.append(latest_output)
+            details.append(latest_output)
+        rows.append(
+            _render_titled_row(
+                issue=record.issue,
+                title=record.title,
+                status=Text(
+                    str(status.value), style=ASSIGNMENT_STATUS_STYLES[status.value]
+                ),
+                details=details,
+            )
+        )
     return rows
 
 
@@ -190,11 +206,46 @@ def _render_conversations(
         return None
     if section.empty_message is not None:
         return render_section(heading=section.heading, body=Text(section.empty_message))
-    table = create_table(columns=3)
+    rows: list[RenderableType] = []
     for status in conversations:
-        table.add_row(
-            Text(f"GH{status.issue}"),
-            Text(str(status.value), style=CONVERSATION_STATUS_STYLES[status.value]),
-            Text(status.detail),
+        details = [Text(status.detail)]
+        conversation = status.conversation
+        if conversation is not None:
+            record = conversation.record
+            details.append(
+                Text(
+                    " · ".join(
+                        [
+                            record.dispatch_label,
+                            str(record.harness),
+                            record.model,
+                            record.effort,
+                        ]
+                    ),
+                    style="dim",
+                )
+            )
+        latest_output = render_latest_output(latest_output=status.latest_output)
+        if latest_output is not None:
+            details.append(latest_output)
+        rows.append(
+            _render_titled_row(
+                issue=status.issue,
+                title=status.title,
+                status=Text(
+                    str(status.value), style=CONVERSATION_STATUS_STYLES[status.value]
+                ),
+                details=details,
+            )
         )
-    return render_section(heading=section.heading, body=table)
+    return render_section(heading=section.heading, body=Group(*rows))
+
+
+def _render_titled_row(
+    *, issue: int, title: str, status: Text, details: Sequence[Text]
+) -> RenderableType:
+    table = create_table(columns=3)
+    table.add_row(Text(f"GH{issue}"), Text(title), status)
+    for detail in details:
+        table.add_row(Text(), detail, Text())
+    return table

@@ -198,6 +198,10 @@ def test_assignments_are_rendered_in_attention_order(tmp_path):
     assert [rendered.index(identifier) for identifier in identifiers] == sorted(
         rendered.index(identifier) for identifier in identifiers
     )
+    for issue in (20, 13, 50, 52, 53):
+        assert f"Issue {issue}" in rendered
+    assert "dream:smith" in rendered
+    assert "PR #52 draft" in rendered
     assert "2 ended assignments" in rendered
 
 
@@ -212,6 +216,8 @@ def test_status_output_fits_one_line_without_hiding_later_assignments(width, tmp
     assert len(output) == 1
     assert len(output[0]) <= width
     assert f"GH31-{ASSIGNMENT_TIMESTAMP}" in rendered
+    assert "conversations" in rendered
+    assert "agent I found the answer." in rendered
 
 
 def test_ended_assignments_are_summarized(tmp_path):
@@ -432,7 +438,7 @@ def test_assignment_status_alone_is_coloured_and_latest_output_is_dim(tmp_path):
         "\x1b[32mworking\x1b[0m  round 2, address feedback (recovery), running"
         in rendered
     )
-    assert "\x1b[2m[Bash] pytest\x1b[0m" in rendered
+    assert "\x1b[2magent [Bash] pytest\x1b[0m" in rendered
 
 
 @pytest.mark.parametrize("name", sorted(ASSIGNMENTS))

@@ -10,6 +10,7 @@ from dreamcatcher.agent_rounds import (
 )
 from dreamcatcher.documents import read_text
 from dreamcatcher.errors import ReportableError
+from dreamcatcher.feed import read_last_feed_line
 from dreamcatcher.harness_adapters import HarnessSessionIdentifier
 from dreamcatcher.issue_conversations import (
     Conversation,
@@ -405,6 +406,8 @@ class ConversationStatusReader(AgentWorkStatusReader[ConversationStatus]):
         detail: str,
         latest_output: str | None = None,
     ) -> ConversationStatus:
+        if latest_output is None:
+            latest_output = self._read_latest_output(conversation=conversation)
         return ConversationStatus(
             issue=issue,
             title=title,
@@ -418,6 +421,15 @@ class ConversationStatusReader(AgentWorkStatusReader[ConversationStatus]):
                 or issue in self.observations
             ),
         )
+
+    def _read_latest_output(self, *, conversation: Conversation | None) -> str | None:
+        if conversation is None or not conversation.rounds:
+            return None
+        latest_round = conversation.rounds[-1]
+        line = read_last_feed_line(
+            path=conversation.compose_round_paths(number=latest_round.number).feed
+        )
+        return None if line is None else line.text.strip()
 
     def _describe_idle(self, *, conversation: Conversation | None) -> str:
         if conversation is None or not conversation.rounds:

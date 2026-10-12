@@ -291,21 +291,24 @@ def fabricate_everything(
             at=PINNED + timedelta(hours=1, minutes=58),
             launched_agent_work_identifiers=[f"GH13-{ASSIGNMENT_TIMESTAMP}"],
             issue_observations=[
-                observed_issue(issue=50),
-                observed_issue(issue=51),
+                observed_issue(issue=50, title="Issue 50"),
+                observed_issue(issue=51, title="Issue 51"),
                 observed_issue(
                     issue=52,
+                    title="Issue 52",
                     values={"blocked": Truth.TRUE},
                     evidence={"blocked": "blocked by GH50"},
                 ),
                 observed_issue(
                     issue=53,
+                    title="Issue 53",
                     assignment_labels=(ASSIGNMENT_LABEL, "dream:less"),
                     values={"routing_conflict": Truth.TRUE},
                     evidence={"routing_conflict": DOUBLE_LABELLED},
                 ),
                 observed_issue(
                     issue=54,
+                    title="Issue 54",
                     assignment_labels=(ASSIGNMENT_LABEL, "dream:less"),
                     values={
                         "routing_conflict": Truth.TRUE,
@@ -353,7 +356,11 @@ def fabricate_everything(
 
 def fabricate_status_everything(*, state):
     """Write the combined report, including output wider than its console."""
-    fabricate_everything(state=state)
+    fabricate_conversation(state=state)
+    fabricate_everything(
+        state=state,
+        conversation_observations=[observed_conversation()],
+    )
     write_feed(
         directory=state.assignments / f"GH13-{ASSIGNMENT_TIMESTAMP}",
         number=2,
@@ -379,6 +386,7 @@ def fabricate_a_failed_setup(*, state):
             issue_observations=[
                 observed_issue(
                     issue=20,
+                    title="Issue 20",
                     assignment_labels=(ASSIGNMENT_LABEL, "dream:less"),
                     values={
                         "claimed_elsewhere": Truth.UNKNOWN,
@@ -389,7 +397,10 @@ def fabricate_a_failed_setup(*, state):
                         "routing_conflict": DOUBLE_LABELLED,
                     },
                 ).model_copy(update={"setup_failure": failure}),
-                observed_issue(issue=21),
+                observed_issue(issue=21, title="Issue 21"),
+                observed_issue(issue=22, created_at=None).model_copy(
+                    update={"setup_failure": "issue details unavailable"}
+                ),
             ],
         ),
     )

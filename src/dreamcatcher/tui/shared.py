@@ -119,11 +119,11 @@ def combine_renderable_parts(
 
 
 def render_latest_output(*, latest_output: str | None) -> Text | None:
-    """Render agent work's latest output as one dimmed line."""
+    """Render agent work's latest output as one labelled, dimmed line."""
     if latest_output is None:
         return None
     return Text(
-        latest_output,
+        f"agent {latest_output}",
         style="dim",
         overflow="ellipsis",
         no_wrap=True,

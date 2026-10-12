@@ -597,11 +597,17 @@ def test_an_unreadable_round_input_still_shows_the_round(conversation_state):
 
 def test_a_posted_answer_leaves_the_conversation_idle(conversation_state):
     conversation_round(state=conversation_state)
+    write_feed(
+        directory=conversation_state.conversations / "GH8",
+        number=1,
+        lines=[FeedLine(at=PINNED, text="I found the answer.")],
+    )
 
     found = status(state=conversation_state)
 
     assert found.value is ConversationStatusValue.IDLE
     assert found.detail == "round 1, answered, ran 4m"
+    assert found.latest_output == "I found the answer."
     assert found.is_listed
     assert found.round_statuses[0].duration_description == "ran 4m"
 
