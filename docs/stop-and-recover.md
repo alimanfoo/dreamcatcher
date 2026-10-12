@@ -3,12 +3,12 @@
 Choose the control that matches what you want to stop. Closing a status view,
 stopping one agent round and stopping the daemon have different consequences.
 
-| Action                                                                    | What stops                            | What happens next                                                              |
-| ------------------------------------------------------------------------- | ------------------------------------- | ------------------------------------------------------------------------------ |
-| Interrupt `web`, `status`, `assignment`, `conversation` or `feed`         | Only that view                        | The daemon and agents continue.                                                |
-| Run `dreamcatcher stop` or select **stop round** on the web page          | The current agent round               | The work waits for input unless a merged or closed pull request needs wrap-up. |
-| Run `dreamcatcher cancel` or select **cancel assignment** on the web page | The assignment and any running round  | You finish the pull request by hand. _dreamcatcher_ runs no further rounds.    |
-| Press Ctrl-C in the terminal running `dreamcatcher run`                   | The daemon and all its current rounds | Work that still needs a round can recover after the daemon starts again.       |
+| Action                                                                       | What stops                            | What happens next                                                              |
+| ---------------------------------------------------------------------------- | ------------------------------------- | ------------------------------------------------------------------------------ |
+| Interrupt standalone `web`, `status`, `assignment`, `conversation` or `feed` | Only that view                        | The daemon and agents continue.                                                |
+| Run `dreamcatcher stop` or select **stop round** on the web page             | The current agent round               | The work waits for input unless a merged or closed pull request needs wrap-up. |
+| Run `dreamcatcher cancel` or select **cancel assignment** on the web page    | The assignment and any running round  | You finish the pull request by hand. _dreamcatcher_ runs no further rounds.    |
+| Press Ctrl-C in the terminal running `dreamcatcher run`                      | The daemon and all its current rounds | Work that still needs a round can recover after the daemon starts again.       |
 
 ## Stop one running round
 
@@ -20,9 +20,10 @@ dreamcatcher stop GH123 --conversation
 ```
 
 Use `--assignment` for the newest assignment at the issue, or `--conversation`
-for its issue conversation. You can instead run `dreamcatcher web`, open the
-assignment or conversation, select **stop round**, and confirm. Both controls
-are available only while the round is running and _dreamcatcher_ has learned its
+for its issue conversation. You can instead open the assignment or conversation
+in the web page that `run` opened, select **stop round**, and confirm. If you
+ran the daemon with `--noweb`, start `dreamcatcher web` first. Both controls are
+available only while the round is running and _dreamcatcher_ has learned its
 harness session. The round normally stops within about a second.
 
 After an assignment round is stopped, an open pull request waits for a new
@@ -47,7 +48,8 @@ dreamcatcher cancel GH123
 ```
 
 The command cancels the newest assignment at the issue. You can instead open the
-assignment in `dreamcatcher web`, select **cancel assignment**, and confirm. A
+assignment in the web page that `run` opened, select **cancel assignment**, and
+confirm. If you ran the daemon with `--noweb`, start `dreamcatcher web` first. A
 cancel cannot be undone.
 
 _dreamcatcher_ asks a running round to stop, runs no further rounds for the
@@ -111,9 +113,10 @@ newest faulted assignment and faulted conversation at that issue. It does not
 start an agent itself; the daemon may recover the work on a later scheduler
 update.
 
-You can instead run `dreamcatcher web`, open the faulted assignment or
-conversation, and select **Retry**. The control is available while the page
-shows that work's status as fault, and it requests recovery for that one
+You can instead open the faulted assignment or conversation in the web page that
+`run` opened, and select **Retry**. If the daemon is stopped or ran with
+`--noweb`, start `dreamcatcher web` first. The control is available while the
+page shows that work's status as fault, and it requests recovery for that one
 assignment or conversation in the same way. The page records the request even
 while the daemon is stopped, and recovery can start once the daemon runs again.
 

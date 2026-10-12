@@ -2,11 +2,15 @@
 
 import errno
 import zlib
-from collections.abc import Callable, Iterable
+from _thread import interrupt_main
+from collections.abc import Callable, Generator, Iterable
+from contextlib import contextmanager
+from queue import SimpleQueue
 from socketserver import TCPServer
+from threading import Event, Thread
 from typing import Protocol
 
-from werkzeug.serving import BaseWSGIServer
+from werkzeug.serving import BaseWSGIServer, ThreadedWSGIServer
 
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.state import StateDirectory
@@ -24,7 +28,7 @@ class _WebServerBindError(Exception):
         self.error = error
 
 
-class _ExclusiveWebServer(BaseWSGIServer):
+class _ExclusiveWebServer(ThreadedWSGIServer):
     allow_reuse_address = False
 
     def server_bind(self) -> None:
@@ -48,6 +52,65 @@ class WebServerRunner(Protocol):
 def run_web_server(*, server: BaseWSGIServer) -> None:
     """Serve requests on a bound web server until the process stops."""
     server.serve_forever()
+
+
+class _BackgroundWebServer:
+    def __init__(self, *, server: BaseWSGIServer) -> None:
+        self.server = server
+        self.failures: SimpleQueue[BaseException] = SimpleQueue()
+        self.is_stopping = Event()
+        self.thread = Thread(target=self._serve)
+
+    def start(self) -> None:
+        """Start serving in the background."""
+        self.thread.start()
+
+    def stop(self) -> None:
+        """Stop serving, join the thread, and close the server."""
+        self.is_stopping.set()
+        if self.thread.ident is not None:
+            if self.thread.is_alive():
+                self.server.shutdown()
+            self.thread.join()
+        self.server.server_close()
+
+    def raise_if_failed(self) -> None:
+        """Raise a reportable failure when the serving thread failed."""
+        if self.failures.empty():
+            return
+        failure = self.failures.get()
+        if isinstance(failure, ReportableError):
+            raise failure
+        raise ReportableError(f"The web server failed: {failure}") from failure
+
+    def _serve(self) -> None:
+        try:
+            self.server.serve_forever()
+        except BaseException as error:
+            self.failures.put(error)
+        else:
+            if not self.is_stopping.is_set():
+                self.failures.put(
+                    ReportableError("The web server stopped unexpectedly.")
+                )
+        finally:
+            if not self.is_stopping.is_set():
+                interrupt_main()
+
+
+@contextmanager
+def run_web_server_in_background(
+    *,
+    server: BaseWSGIServer,
+) -> Generator[None, None, None]:
+    """Own and serve a bound server until the surrounding action ends."""
+    background = _BackgroundWebServer(server=server)
+    try:
+        background.start()
+        yield
+    finally:
+        background.stop()
+        background.raise_if_failed()
 
 
 def create_web_server(

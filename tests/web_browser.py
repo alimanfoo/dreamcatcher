@@ -4,7 +4,6 @@ from collections.abc import Generator
 from contextlib import contextmanager
 from datetime import timedelta
 from pathlib import Path
-from threading import Thread
 
 from clocks import DISPLAY_TIME_ZONE
 from observations import observed_conversation
@@ -21,7 +20,7 @@ from dreamcatcher.documents import append_text
 from dreamcatcher.feed import FeedLine
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.web.app import _create_app
-from dreamcatcher.web.server import WEB_HOST
+from dreamcatcher.web.server import WEB_HOST, run_web_server_in_background
 
 BROWSER_ASSIGNMENT_IDENTIFIER = f"GH13-{ASSIGNMENT_TIMESTAMP}"
 FEED_LINE_COUNT_PER_ROUND = 40
@@ -60,12 +59,5 @@ def serve_fabricated_web(*, root: Path) -> Generator[str, None, None]:
         zone=DISPLAY_TIME_ZONE,
     )
     server = make_server(WEB_HOST, 0, application)
-    thread = Thread(target=server.serve_forever, name="fabricated-web-server")
-    try:
-        thread.start()
+    with run_web_server_in_background(server=server):
         yield f"http://{WEB_HOST}:{server.server_port}"
-    finally:
-        if thread.is_alive():
-            server.shutdown()
-            thread.join()
-        server.server_close()

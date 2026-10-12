@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import os
 import sys
-from contextlib import suppress
+from contextlib import nullcontext, suppress
 from time import sleep
 from typing import TYPE_CHECKING
 
@@ -37,6 +37,7 @@ from dreamcatcher.words import describe_time
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+    from contextlib import AbstractContextManager
     from datetime import datetime, tzinfo
     from pathlib import Path
 
@@ -44,6 +45,7 @@ if TYPE_CHECKING:
     from dreamcatcher.scheduler import SchedulerRecord
 
 DEFAULT_INTERVAL_SECONDS = 120
+_NO_COMPANION = nullcontext()
 
 
 def _write_output(*, line: str) -> None:
@@ -90,7 +92,7 @@ class DreamcatcherDaemon:
         # goes down.
         self.rounds: dict[str, AgentRound] = {}
 
-    def run(self) -> None:
+    def run(self, *, companion: AbstractContextManager[None] = _NO_COMPANION) -> None:
         """Hold the daemon lock and run scheduler cycles until interrupted.
 
         Everything a daemon run cannot do without is settled before the loop: the
@@ -106,6 +108,9 @@ class DreamcatcherDaemon:
         The repository and signed-in account are fixed for the daemon run. The account
         identifies user posts before the marker excludes the assignment's own
         posts.
+
+        The companion starts after the daemon's startup checks pass and ends with the
+        daemon.
         """
         # A label carrying one dispatch recipe runs on that harness whatever the
         # preference, so every harness a route can settle a label on must be there.
@@ -150,15 +155,15 @@ class DreamcatcherDaemon:
                 max_agents=self.max_agents,
             )
             self._sweep_orphans()
-            at = self.clock()
-            _write_output(
-                line=(
-                    f"{describe_time(at=at, zone=self.zone)}  "
-                    f"dreamcatcher v{DREAMCATCHER_VERSION} is running"
-                )
-            )
             try:
-                with suppress(KeyboardInterrupt):
+                with suppress(KeyboardInterrupt), companion:
+                    at = self.clock()
+                    _write_output(
+                        line=(
+                            f"{describe_time(at=at, zone=self.zone)}  "
+                            f"dreamcatcher v{DREAMCATCHER_VERSION} is running"
+                        )
+                    )
                     while True:
                         self.run_scheduler_cycle(scheduler=scheduler, at=at)
                         self.wait(self.interval)

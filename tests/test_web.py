@@ -4,7 +4,9 @@ import errno
 import logging
 import re
 import socket
+from contextlib import contextmanager
 from datetime import timedelta
+from threading import Event
 from unittest.mock import MagicMock
 
 import pytest
@@ -33,6 +35,7 @@ from status_fabrications import (
 from werkzeug.test import TestResponse
 
 import dreamcatcher.status.report as report_module
+import dreamcatcher.web.app as web_app_module
 import dreamcatcher.web.server as web_server_module
 from dreamcatcher.agent_assignments import (
     cancel_assignment,
@@ -54,9 +57,13 @@ from dreamcatcher.scheduler.models import (
     Truth,
 )
 from dreamcatcher.state import StateDirectory
-from dreamcatcher.web import serve_web
+from dreamcatcher.web import serve_web, serve_web_in_background
 from dreamcatcher.web.app import _create_app
-from dreamcatcher.web.server import _WEB_BASE_PORT, WEB_HOST
+from dreamcatcher.web.server import (
+    _WEB_BASE_PORT,
+    WEB_HOST,
+    run_web_server_in_background,
+)
 from dreamcatcher.web.views import _compose_issue_row
 
 WEB_STATUS_REPORTS = {
@@ -1646,6 +1653,77 @@ def test_the_browser_receives_the_address_the_server_listens_on(
     assert werkzeug_logger.level == logging.ERROR
 
 
+def test_the_background_web_server_opens_for_its_context(tmp_path, capsys):
+    state = StateDirectory(root=tmp_path)
+    state.bootstrap()
+    opened = []
+
+    with serve_web_in_background(state=state, browser_opener=opened.append):
+        address = opened[0]
+        assert capsys.readouterr().out == f"{address}\n"
+
+    assert opened == [address]
+
+
+def test_a_web_address_that_cannot_be_written_is_reportable(tmp_path, monkeypatch):
+    state = StateDirectory(root=tmp_path)
+    state.bootstrap()
+    monkeypatch.setattr("builtins.print", MagicMock(side_effect=OSError("closed")))
+
+    with pytest.raises(ReportableError, match="Could not write the web address"):
+        serve_web(
+            state=state,
+            port=0,
+            browser_opener=lambda address: None,
+            server_runner=lambda *, server: None,
+        )
+
+
+def test_a_browser_that_cannot_open_is_reportable(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    state.bootstrap()
+
+    def refuse(address, /):
+        raise OSError("no browser")
+
+    with pytest.raises(ReportableError, match="Could not open the web interface"):
+        serve_web(
+            state=state,
+            port=0,
+            browser_opener=refuse,
+            server_runner=lambda *, server: None,
+        )
+
+
+def test_the_background_server_starts_before_the_browser_opens(tmp_path, monkeypatch):
+    state = StateDirectory(root=tmp_path)
+    state.bootstrap()
+    events = []
+
+    @contextmanager
+    def run_in_background(*, server):
+        events.append("serving")
+        try:
+            yield
+        finally:
+            events.append("stopped")
+
+    def open_browser(address, /):
+        assert events == ["serving"]
+        events.append("opened")
+
+    monkeypatch.setattr(
+        web_app_module,
+        "run_web_server_in_background",
+        run_in_background,
+    )
+
+    with serve_web_in_background(state=state, browser_opener=open_browser):
+        assert events == ["serving", "opened"]
+
+    assert events == ["serving", "opened", "stopped"]
+
+
 def test_an_interruption_ends_the_server_without_an_error(tmp_path):
     state = StateDirectory(root=tmp_path)
     state.bootstrap()
@@ -1720,6 +1798,8 @@ def test_a_bind_failure_other_than_contention_is_reported(tmp_path, monkeypatch)
 
 def test_the_web_server_refuses_address_reuse():
     assert web_server_module._ExclusiveWebServer.allow_reuse_address is False
+    assert web_server_module._ExclusiveWebServer.daemon_threads is True
+    assert web_server_module._ExclusiveWebServer.multithread is True
 
 
 def test_the_default_server_runner_serves_forever():
@@ -1728,3 +1808,106 @@ def test_the_default_server_runner_serves_forever():
     web_server_module.run_web_server(server=server)
 
     server.serve_forever.assert_called_once_with()
+
+
+def test_a_background_server_runs_until_its_context_ends():
+    server_started = Event()
+    server_stopped = Event()
+    server_finished = Event()
+    server = MagicMock()
+
+    def serve_forever():
+        server_started.set()
+        server_stopped.wait(timeout=1)
+        server_finished.set()
+
+    server.serve_forever.side_effect = serve_forever
+    server.shutdown.side_effect = server_stopped.set
+
+    with run_web_server_in_background(server=server):
+        assert server_started.wait(timeout=1)
+
+    assert server_stopped.is_set()
+    assert server_finished.is_set()
+    server.shutdown.assert_called_once_with()
+    server.server_close.assert_called_once_with()
+
+
+def test_a_background_server_stops_when_its_action_fails():
+    server_started = Event()
+    server_stopped = Event()
+    server_finished = Event()
+    server = MagicMock()
+
+    def serve_forever():
+        server_started.set()
+        server_stopped.wait(timeout=1)
+        server_finished.set()
+
+    def fail():
+        assert server_started.wait(timeout=1)
+        raise ReportableError("the daemon failed")
+
+    server.serve_forever.side_effect = serve_forever
+    server.shutdown.side_effect = server_stopped.set
+
+    with (
+        pytest.raises(ReportableError, match="the daemon failed"),
+        run_web_server_in_background(server=server),
+    ):
+        fail()
+
+    assert server_stopped.is_set()
+    assert server_finished.is_set()
+    server.shutdown.assert_called_once_with()
+    server.server_close.assert_called_once_with()
+
+
+def test_a_background_server_failure_reaches_its_caller(monkeypatch):
+    notified = Event()
+    server = MagicMock()
+    server.serve_forever.side_effect = OSError("socket failed")
+    monkeypatch.setattr(web_server_module, "interrupt_main", notified.set)
+
+    with (
+        pytest.raises(ReportableError, match="web server failed"),
+        run_web_server_in_background(server=server),
+    ):
+        assert notified.wait(timeout=1)
+
+    server.server_close.assert_called_once_with()
+
+
+def test_a_background_server_that_returns_is_a_failure(monkeypatch):
+    notified = Event()
+    server = MagicMock()
+    monkeypatch.setattr(web_server_module, "interrupt_main", notified.set)
+
+    with (
+        pytest.raises(ReportableError, match="stopped unexpectedly"),
+        run_web_server_in_background(server=server),
+    ):
+        assert notified.wait(timeout=1)
+
+    server.server_close.assert_called_once_with()
+
+
+def test_a_background_thread_that_cannot_start_still_closes_the_server(monkeypatch):
+    thread = MagicMock()
+    thread.start.side_effect = RuntimeError("cannot start")
+    thread.ident = None
+    server = MagicMock()
+    monkeypatch.setattr(
+        web_server_module,
+        "Thread",
+        lambda *, target: thread,
+    )
+
+    with (
+        pytest.raises(RuntimeError, match="cannot start"),
+        run_web_server_in_background(server=server),
+    ):
+        raise AssertionError("unreachable")
+
+    server.shutdown.assert_not_called()
+    server.server_close.assert_called_once_with()

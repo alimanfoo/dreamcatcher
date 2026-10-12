@@ -32,6 +32,8 @@ domain phrase into a class. In particular, it should:
 - acquire and release the checkout's daemon lock;
 - record the daemon process identifier in the daemon run record as soon as it
   holds the lock;
+- keep the web server inside the established daemon lifetime when `run` enables
+  it;
 - reconcile round records that an earlier daemon left without an ending by
   ending their recorded process trees at startup, then asking the round boundary
   to record them as stopped when the user asked to stop them, and otherwise as
@@ -420,19 +422,23 @@ only and depends on the status and feed models; neither model depends on it. It
 should not rediscover status, scheduling, or lifecycle rules while choosing
 markup and styles.
 
-The web process can ask a running round to stop. It writes a same-origin stop
+`dreamcatcher run` serves the web interface by default. The web server starts
+after the daemon's startup checks pass and stops when the daemon ends.
+`dreamcatcher web` serves the same interface by itself for manual control.
+
+The web interface can ask a running round to stop. It writes a same-origin stop
 request through the agent-round boundary, into that round's own directory. The
 daemon still owns the live process and lifecycle transition: the round watches
 the request, kills its harness process tree, and records its stopped ending.
 
-The web process and the `cancel` command can cancel an assignment. A cancel goes
-through the agent-assignment boundary, which records the time of the cancel in a
-file of its own and then writes a stop request for any round that has no ending.
-The scheduler starts no further rounds for the assignment. A round that it
-starts as the cancel lands is stopped too, because the scheduler reads the
+The web interface and the `cancel` command can cancel an assignment. A cancel
+goes through the agent-assignment boundary, which records the time of the cancel
+in a file of its own and then writes a stop request for any round that has no
+ending. The scheduler starts no further rounds for the assignment. A round that
+it starts as the cancel lands is stopped too, because the scheduler reads the
 cancel again once that round's record exists.
 
-The web process can also request a retry for agent work that status derives as
+The web interface can also request a retry for agent work that status derives as
 in fault. It writes the retry request time into the directory of the assignment
 or conversation. The scheduler reads the request on a later tick, so the daemon
 still decides when recovery starts.
