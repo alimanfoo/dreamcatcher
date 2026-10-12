@@ -148,6 +148,10 @@
   margin-bottom: 0.3em;
 }
 
+.md-typeset .dch-term__log li.dch-repository {
+  margin-top: 0.7em;
+}
+
 .dch-prompt {
   color: var(--dch-accent);
 }
@@ -157,14 +161,27 @@
   color: var(--dch-faint);
 }
 
-/* One issue: its title and state, then its skill, round and pull request. */
+.md-typeset .dch-term__log li.dch-fact {
+  display: grid;
+  grid-template-columns: 10.5em 1fr;
+  column-gap: 1em;
+  padding-left: 1.2em;
+}
+
+.dch-fact > :first-child {
+  color: var(--dch-dim);
+}
+
+/* One issue: its title and state, then its current detail, metadata and output. */
 
 .md-typeset .dch-term__log li.dch-row {
   display: grid;
   grid-template-columns: 3.2em 1fr auto;
   grid-template-areas:
     "issue title state"
-    ". detail pr";
+    ". detail detail"
+    ". meta meta"
+    ". output output";
   column-gap: 1em;
   padding: 0.35em 0;
 }
@@ -189,13 +206,23 @@
 
 .dch-detail {
   grid-area: detail;
+}
+
+.dch-meta {
+  grid-area: meta;
   color: var(--dch-dim);
 }
 
-.dch-pr {
-  grid-area: pr;
-  justify-self: end;
-  text-align: right;
+.dch-output {
+  grid-area: output;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--dch-dim);
+}
+
+.md-typeset .dch-term__log li.dch-summary {
+  padding-left: 4.2em;
   color: var(--dch-dim);
 }
 
@@ -216,7 +243,7 @@
    count from the moment every line has appeared. */
 
 .dch-swap {
-  --dch-start: 2.2s;
+  --dch-start: 3.5s;
 
   display: inline-grid;
 }
@@ -264,13 +291,23 @@
     column-gap: 0.8em;
     grid-template-areas:
       "issue title title"
+      ". state state"
       ". detail detail"
-      ". state pr";
+      ". meta meta"
+      ". output output";
   }
 
   .dch-state,
   .dch-state > * {
     justify-self: start;
+  }
+
+  .md-typeset .dch-term__log li.dch-fact {
+    grid-template-columns: 9.5em 1fr;
+  }
+
+  .md-typeset .dch-term__log li.dch-summary {
+    padding-left: 3.2em;
   }
 }
 

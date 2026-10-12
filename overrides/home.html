@@ -9,7 +9,7 @@
     {% endfor %}
   </ul>
 
-  <figure class="dch-term" role="img" aria-label="dreamcatcher status, as four labelled issues move on at once: one pull request is merged and wrapped up, one question is answered, one pull request goes back for a second round after review, and one becomes ready for review">
+  <figure class="dch-term" role="img" aria-label="dreamcatcher status showing the repository and instance, three titled assignment rows with their identifiers, labels, round details, pull requests and latest agent output, one ended-assignment summary, and a titled conversation row">
     <div class="dch-term__bar">
       <span>~/uploader</span>
       <span class="dch-term__live"><span class="dch-dot"></span>daemon running</span>
@@ -17,78 +17,84 @@
     <ol class="dch-term__log">
       <li style="--i:0" class="dch-in"><span class="dch-prompt">&gt;</span> dreamcatcher status</li>
 
-      <li style="--i:1" class="dch-section">assignments</li>
+      <li style="--i:1" class="dch-repository">alimanfoo/uploader</li>
 
-      <li style="--i:2" class="dch-row">
-        <span class="dch-issue">#41</span>
+      <li style="--i:2" class="dch-section">instance</li>
+
+      <li style="--i:3" class="dch-fact"><span>daemon</span><span>running &middot; dreamcatcher v5.6.0 &middot; pid 4242</span></li>
+      <li style="--i:4" class="dch-fact"><span>preferred harness</span><span>claude</span></li>
+      <li style="--i:5" class="dch-fact"><span>next update in</span><span>8s</span></li>
+      <li style="--i:6" class="dch-fact"><span>agent capacity</span><span>2 of 4 working</span></li>
+
+      <li style="--i:7" class="dch-section">assignments</li>
+
+      <li style="--i:8" class="dch-row">
+        <span class="dch-issue">GH41</span>
         <span class="dch-title">Stream uploads from disk</span>
         <span class="dch-swap dch-state">
           <span class="dch-feedback" style="--out:1.4s">needs user feedback</span>
-          <span class="dch-working" style="--at:1.4s;--out:3.4s">working</span>
-          <span class="dch-quiet" style="--at:3.4s">complete</span>
+          <span class="dch-working" style="--at:1.4s">working</span>
         </span>
-        <span class="dch-detail">dream:smith &middot; <span class="dch-swap">
+        <span class="dch-detail dch-swap">
           <span style="--out:1.4s">last output 3m ago</span>
-          <span style="--at:1.4s;--out:3.4s">round 3, wrap up</span>
-          <span style="--at:3.4s">round 3, wrap up, ran 1m</span>
-        </span></span>
-        <span class="dch-swap dch-pr">
-          <span style="--out:1.4s">PR #54 ready</span>
-          <span style="--at:1.4s">PR #54 merged</span>
+          <span style="--at:1.4s">round 2, address feedback, running 1m, last output 1m ago</span>
+        </span>
+        <span class="dch-meta">GH41-20261011-120000 &middot; dream:smith &middot; PR #54 ready</span>
+        <span class="dch-output dch-swap">
+          <span style="--out:1.4s">agent Asked which upload API to preserve.</span>
+          <span style="--at:1.4s">agent [Edit] src/uploader.py</span>
         </span>
       </li>
 
-      <li style="--i:3" class="dch-row">
-        <span class="dch-issue">#42</span>
+      <li style="--i:9" class="dch-row">
+        <span class="dch-issue">GH42</span>
         <span class="dch-title">Add retries to the upload client</span>
         <span class="dch-swap dch-state">
-          <span class="dch-working" style="--out:5.6s">working</span>
-          <span class="dch-feedback" style="--at:5.6s">needs user feedback</span>
+          <span class="dch-working" style="--out:3.4s">working</span>
+          <span class="dch-feedback" style="--at:3.4s">needs user feedback</span>
         </span>
-        <span class="dch-detail">dream:smith &middot; <span class="dch-swap">
-          <span style="--out:5.6s">round 1, implement</span>
-          <span style="--at:5.6s">last output 1m ago</span>
-        </span></span>
-        <span class="dch-swap dch-pr">
-          <span style="--out:5.6s">PR #57 draft</span>
-          <span style="--at:5.6s">PR #57 ready</span>
+        <span class="dch-detail dch-swap">
+          <span style="--out:3.4s">round 1, implement, running 1m, last output 1m ago</span>
+          <span style="--at:3.4s">last output 1m ago</span>
         </span>
+        <span class="dch-meta dch-swap">
+          <span style="--out:3.4s">GH42-20261011-120500 &middot; dream:smith &middot; PR #57 draft</span>
+          <span style="--at:3.4s">GH42-20261011-120500 &middot; dream:smith &middot; PR #57 ready</span>
+        </span>
+        <span class="dch-output">agent [Bash] pytest -q --tb=short</span>
       </li>
 
-      <li style="--i:4" class="dch-row">
-        <span class="dch-issue">#43</span>
+      <li style="--i:10" class="dch-row">
+        <span class="dch-issue">GH43</span>
         <span class="dch-title">Resume an interrupted upload</span>
         <span class="dch-swap dch-state">
-          <span class="dch-quiet" style="--out:0.4s">waiting</span>
-          <span class="dch-working" style="--at:0.4s;--out:2.6s">working</span>
-          <span class="dch-feedback" style="--at:2.6s;--out:4.6s">needs user feedback</span>
-          <span class="dch-working" style="--at:4.6s">working</span>
+          <span class="dch-quiet" style="--out:3.4s">waiting</span>
+          <span class="dch-working" style="--at:3.4s">working</span>
         </span>
-        <span class="dch-detail">dream:less &middot; <span class="dch-swap">
-          <span style="--out:0.4s">next round, implement</span>
-          <span style="--at:0.4s;--out:2.6s">round 1, implement</span>
-          <span style="--at:2.6s;--out:4.6s">last output 2m ago</span>
-          <span style="--at:4.6s">round 2, address feedback</span>
-        </span></span>
-        <span class="dch-swap dch-pr">
-          <span style="--out:2.6s">PR #58 draft</span>
-          <span style="--at:2.6s">PR #58 ready</span>
+        <span class="dch-detail dch-swap">
+          <span style="--out:3.4s">next round, implement</span>
+          <span style="--at:3.4s">round 1, implement, running 1m, has said nothing yet</span>
         </span>
+        <span class="dch-meta">GH43-20261011-121000 &middot; dream:less &middot; PR #58 draft</span>
       </li>
 
-      <li style="--i:5" class="dch-section">conversations</li>
+      <li style="--i:11" class="dch-summary">1 ended assignment</li>
 
-      <li style="--i:6" class="dch-row">
-        <span class="dch-issue">#44</span>
+      <li style="--i:12" class="dch-section">conversations</li>
+
+      <li style="--i:13" class="dch-row">
+        <span class="dch-issue">GH44</span>
         <span class="dch-title">Why do large uploads time out?</span>
         <span class="dch-swap dch-state">
-          <span class="dch-working" style="--out:0.8s">working</span>
-          <span class="dch-quiet" style="--at:0.8s">idle</span>
+          <span class="dch-working" style="--out:1.4s">working</span>
+          <span class="dch-quiet" style="--at:1.4s">idle</span>
         </span>
-        <span class="dch-detail">dream:scout &middot; <span class="dch-swap">
-          <span style="--out:0.8s">round 1, running</span>
-          <span style="--at:0.8s">round 1, answered, ran 4m</span>
-        </span></span>
+        <span class="dch-detail dch-swap">
+          <span style="--out:1.4s">round 1, discuss, running 4m, last output 1m ago</span>
+          <span style="--at:1.4s">round 1, answered, ran 4m</span>
+        </span>
+        <span class="dch-meta">dream:scout &middot; claude &middot; sonnet[1m] &middot; high</span>
+        <span class="dch-output">agent The timeout starts in the proxy.</span>
       </li>
     </ol>
   </figure>
