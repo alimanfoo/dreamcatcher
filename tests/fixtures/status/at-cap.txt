@@ -8,10 +8,10 @@ instance
   scheduler failures  could not list issues for dream:less: could not connect
 
 assignments
-  GH13  Issue 13                                                    working
-        round 1, implement, running 1h 30m, last output 1h 29m ago         
-        GH13-20260819-184158 · dream:smith · PR #52 draft                  
-        agent [Bash] pytest                                                
-  GH20  Issue 20                                           waiting         
-        next round, implement                                              
-        GH20-20260819-184158 · dream:smith · PR #52 draft                  
+  GH13  Issue 13  working                                         
+        round 1, implement, running 1h 30m, last output 1h 29m ago
+        GH13-20260819-184158 · dream:smith · PR #52 draft         
+        agent [Bash] pytest                                       
+  GH20  Issue 20  waiting                                         
+        next round, implement                                     
+        GH20-20260819-184158 · dream:smith · PR #52 draft         

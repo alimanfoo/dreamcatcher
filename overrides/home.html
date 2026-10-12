@@ -9,7 +9,7 @@
     {% endfor %}
   </ul>
 
-  <figure class="dch-term" role="img" aria-label="dreamcatcher status showing the repository and instance, three titled assignment rows with their identifiers, labels, round details, pull requests and latest agent output, one ended-assignment summary, and a titled conversation row">
+  <figure class="dch-term" role="img" aria-label="dreamcatcher status for alimanfoo/uploader shows a running daemon with two of four agents working. GH41 resumes after user feedback while conversation GH44 finishes its answer. GH42 keeps working, GH43 waits to start, and one earlier assignment has ended.">
     <div class="dch-term__bar">
       <span>~/uploader</span>
       <span class="dch-term__live"><span class="dch-dot"></span>daemon running</span>
@@ -49,32 +49,17 @@
       <li style="--i:9" class="dch-row">
         <span class="dch-issue">GH42</span>
         <span class="dch-title">Add retries to the upload client</span>
-        <span class="dch-swap dch-state">
-          <span class="dch-working" style="--out:3.4s">working</span>
-          <span class="dch-feedback" style="--at:3.4s">needs user feedback</span>
-        </span>
-        <span class="dch-detail dch-swap">
-          <span style="--out:3.4s">round 1, implement, running 1m, last output 1m ago</span>
-          <span style="--at:3.4s">last output 1m ago</span>
-        </span>
-        <span class="dch-meta dch-swap">
-          <span style="--out:3.4s">GH42-20261011-120500 &middot; dream:smith &middot; PR #57 draft</span>
-          <span style="--at:3.4s">GH42-20261011-120500 &middot; dream:smith &middot; PR #57 ready</span>
-        </span>
+        <span class="dch-working dch-state">working</span>
+        <span class="dch-detail">round 1, implement, running 1m, last output 1m ago</span>
+        <span class="dch-meta">GH42-20261011-120500 &middot; dream:smith &middot; PR #57 draft</span>
         <span class="dch-output">agent [Bash] pytest -q --tb=short</span>
       </li>
 
       <li style="--i:10" class="dch-row">
         <span class="dch-issue">GH43</span>
         <span class="dch-title">Resume an interrupted upload</span>
-        <span class="dch-swap dch-state">
-          <span class="dch-quiet" style="--out:3.4s">waiting</span>
-          <span class="dch-working" style="--at:3.4s">working</span>
-        </span>
-        <span class="dch-detail dch-swap">
-          <span style="--out:3.4s">next round, implement</span>
-          <span style="--at:3.4s">round 1, implement, running 1m, has said nothing yet</span>
-        </span>
+        <span class="dch-quiet dch-state">waiting</span>
+        <span class="dch-detail">next round, implement</span>
         <span class="dch-meta">GH43-20261011-121000 &middot; dream:less &middot; PR #58 draft</span>
       </li>
 

@@ -3,6 +3,7 @@
 from dataclasses import dataclass
 from enum import StrEnum
 from functools import cached_property
+from typing import cast
 
 from dreamcatcher.agent_rounds import (
     AgentRoundOutcome,
@@ -64,6 +65,8 @@ CONVERSATION_STATUS_VALUES_IN_ATTENTION_ORDER = (
     ConversationStatusValue.UNKNOWN,
     ConversationStatusValue.IDLE,
 )
+
+_UNREAD_LATEST_OUTPUT = object()
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -345,7 +348,7 @@ class ConversationStatusReader(AgentWorkStatusReader[ConversationStatus]):
             rounds=conversation.rounds, is_daemon_running=self.is_daemon_running
         ):
             latest = conversation.rounds[-1]
-            detail, _ = describe_round_ending(
+            detail, latest_output = describe_round_ending(
                 record=latest,
                 paths=conversation.compose_round_paths(number=latest.number),
             )
@@ -355,6 +358,7 @@ class ConversationStatusReader(AgentWorkStatusReader[ConversationStatus]):
                 conversation=conversation,
                 value=ConversationStatusValue.WAITING,
                 detail=detail,
+                latest_output=latest_output,
             )
         return None
 
@@ -404,22 +408,25 @@ class ConversationStatusReader(AgentWorkStatusReader[ConversationStatus]):
         conversation: Conversation | None,
         value: ConversationStatusValue,
         detail: str,
-        latest_output: str | None = None,
+        latest_output: object = _UNREAD_LATEST_OUTPUT,
     ) -> ConversationStatus:
-        if latest_output is None:
+        is_listed = (
+            value is ConversationStatusValue.WORKING
+            or self.scheduler_record is None
+            or issue in self.observations
+        )
+        if latest_output is _UNREAD_LATEST_OUTPUT and is_listed:
             latest_output = self._read_latest_output(conversation=conversation)
+        if latest_output is _UNREAD_LATEST_OUTPUT:
+            latest_output = None
         return ConversationStatus(
             issue=issue,
             title=title,
             conversation=conversation,
             value=value,
             detail=detail,
-            latest_output=latest_output,
-            is_listed=(
-                value is ConversationStatusValue.WORKING
-                or self.scheduler_record is None
-                or issue in self.observations
-            ),
+            latest_output=cast("str | None", latest_output),
+            is_listed=is_listed,
         )
 
     def _read_latest_output(self, *, conversation: Conversation | None) -> str | None:

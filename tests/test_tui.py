@@ -205,7 +205,7 @@ def test_assignments_are_rendered_in_attention_order(tmp_path):
     assert "2 ended assignments" in rendered
 
 
-@pytest.mark.parametrize("width", [60, 80])
+@pytest.mark.parametrize("width", [40, 60, 80])
 def test_status_output_fits_one_line_without_hiding_later_assignments(width, tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_status_everything(state=state)
@@ -216,8 +216,23 @@ def test_status_output_fits_one_line_without_hiding_later_assignments(width, tmp
     assert len(output) == 1
     assert len(output[0]) <= width
     assert f"GH31-{ASSIGNMENT_TIMESTAMP}" in rendered
+    assert "agent [Bash] git push" in rendered
     assert "conversations" in rendered
     assert "agent I found the answer." in rendered
+
+
+def test_a_cancelled_assignment_still_working_omits_pull_request_state(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    fabricate_everything(state=state)
+    assignment = read_assignments_for_issue(state=state, issue=13)[0]
+    cancel_assignment(assignment=assignment, at=LOOKED_AT)
+
+    rendered = render_status_view(state=state)
+
+    metadata = next(
+        line for line in rendered.splitlines() if f"GH13-{ASSIGNMENT_TIMESTAMP}" in line
+    )
+    assert metadata.strip() == f"GH13-{ASSIGNMENT_TIMESTAMP} · dream:smith"
 
 
 def test_ended_assignments_are_summarized(tmp_path):

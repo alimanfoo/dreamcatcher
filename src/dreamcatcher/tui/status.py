@@ -6,6 +6,7 @@ from time import sleep
 from typing import cast
 
 from rich.console import Console, Group, RenderableType
+from rich.padding import Padding
 from rich.text import Text
 
 from dreamcatcher.clock import WaitForSeconds, read_current_time
@@ -172,12 +173,13 @@ def _render_assignment_rows(
     for status in assignments:
         assignment = status.assignment
         record = assignment.record
-        pull_request_state = cast("str", status.pull_request_state)
-        pull_request = f"PR #{record.pull_request} {pull_request_state}"
+        metadata = [assignment.identifier, record.dispatch_label]
+        if status.pull_request_state is not None:
+            metadata.append(f"PR #{record.pull_request} {status.pull_request_state}")
         details = [
             Text(status.detail),
             Text(
-                f"{assignment.identifier} · {record.dispatch_label} · {pull_request}",
+                " · ".join(metadata),
                 style="dim",
             ),
         ]
@@ -244,8 +246,17 @@ def _render_conversations(
 def _render_titled_row(
     *, issue: int, title: str, status: Text, details: Sequence[Text]
 ) -> RenderableType:
+    issue_reference = f"GH{issue}"
     table = create_table(columns=3)
-    table.add_row(Text(f"GH{issue}"), Text(title), status)
-    for detail in details:
-        table.add_row(Text(), detail, Text())
-    return table
+    table.add_row(Text(issue_reference), Text(title), status)
+    return Group(
+        table,
+        *(
+            Padding(
+                detail,
+                (0, 0, 0, len(issue_reference) + 2),
+                expand=False,
+            )
+            for detail in details
+        ),
+    )

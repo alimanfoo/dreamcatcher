@@ -55,6 +55,8 @@ ASSIGNMENT_STATUS_VALUES_IN_ATTENTION_ORDER = (
     AssignmentStatusValue.CANCELLED,
 )
 
+_UNREAD_LATEST_OUTPUT = object()
+
 
 @dataclass(frozen=True, kw_only=True)
 class AssignmentStatus:
@@ -249,7 +251,7 @@ class AssignmentStatusReader(AgentWorkStatusReader[AssignmentStatus]):
             rounds=assignment.rounds, is_daemon_running=self.is_daemon_running
         ):
             latest = assignment.rounds[-1]
-            detail, _ = describe_round_ending(
+            detail, latest_output = describe_round_ending(
                 record=latest,
                 paths=assignment.compose_round_paths(number=latest.number),
             )
@@ -257,6 +259,7 @@ class AssignmentStatusReader(AgentWorkStatusReader[AssignmentStatus]):
                 assignment=assignment,
                 value=AssignmentStatusValue.WAITING,
                 detail=detail,
+                latest_output=latest_output,
             )
         return None
 
@@ -310,10 +313,12 @@ class AssignmentStatusReader(AgentWorkStatusReader[AssignmentStatus]):
                 value=AssignmentStatusValue.WAITING,
                 detail=f"next round, {purpose}",
             )
+        detail, latest_output = self._describe_last_output(assignment=assignment)
         return self._compose(
             assignment=assignment,
             value=AssignmentStatusValue.NEEDS_USER_FEEDBACK,
-            detail=self._describe_last_output(assignment=assignment),
+            detail=detail,
+            latest_output=latest_output,
         )
 
     def _compose(
@@ -322,28 +327,43 @@ class AssignmentStatusReader(AgentWorkStatusReader[AssignmentStatus]):
         assignment: Assignment,
         value: AssignmentStatusValue,
         detail: str,
-        latest_output: str | None = None,
+        latest_output: object = _UNREAD_LATEST_OUTPUT,
     ) -> AssignmentStatus:
-        if latest_output is None and assignment.rounds:
+        has_ended = value in {
+            AssignmentStatusValue.COMPLETE,
+            AssignmentStatusValue.CANCELLED,
+        }
+        if (
+            latest_output is _UNREAD_LATEST_OUTPUT
+            and assignment.rounds
+            and not has_ended
+        ):
             line = read_last_feed_line(
                 path=assignment.compose_round_paths(
                     number=assignment.rounds[-1].number
                 ).feed
             )
             latest_output = None if line is None else line.text.strip()
+        if latest_output is _UNREAD_LATEST_OUTPUT:
+            latest_output = None
         return AssignmentStatus(
             assignment=assignment,
             value=value,
             detail=detail,
-            latest_output=latest_output,
+            latest_output=cast("str | None", latest_output),
         )
 
-    def _describe_last_output(self, *, assignment: Assignment) -> str:
+    def _describe_last_output(
+        self, *, assignment: Assignment
+    ) -> tuple[str, str | None]:
         line = read_last_feed_line(
             path=assignment.compose_round_paths(
                 number=assignment.rounds[-1].number
             ).feed
         )
         if line is None:
-            return "no output"
-        return f"last output {describe_span(span=self.at - line.at)} ago"
+            return "no output", None
+        return (
+            f"last output {describe_span(span=self.at - line.at)} ago",
+            line.text.strip(),
+        )

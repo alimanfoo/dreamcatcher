@@ -256,6 +256,11 @@
     dch-out 0.01s step-start calc(var(--dch-start) + var(--out, 600s)) both;
 }
 
+.dch-detail.dch-swap > *,
+.dch-meta.dch-swap > * {
+  white-space: normal;
+}
+
 .dch-swap > :first-child {
   animation: dch-out 0.01s step-start
     calc(var(--dch-start) + var(--out, 600s)) both;
