@@ -82,9 +82,10 @@ level are errors, so a misspelling is reported rather than ignored. The keys of
 a Codex `config` table are the exception, because they belong to Codex.
 
 Assignment prompts normally invoke an assignment skill that follows the
-[agent-facing contract](contract.md). Conversation prompts may be plain
-instructions or invoke a suitable skill, but they must follow the
-[issue-conversation contract](contract.md#issue-conversation-instructions).
+[assignment skill contract](contract.md#assignment-skill-contract). Conversation
+prompts may be plain instructions or invoke a conversation skill, but they must
+follow the
+[conversation skill contract](contract.md#conversation-skill-contract).
 _dreamcatcher_ adds its operational instructions to either prompt.
 
 ## Codex config

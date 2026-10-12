@@ -27,17 +27,20 @@ If you want your agents to work differently, write your own skill or prompt and
 point a label to it.
 
 1. Write the skill or prompt. An assignment skill must follow the
-   [agent-facing contract](contract.md), so that it picks up the branch and
-   draft pull request that _dreamcatcher_ has already opened. A conversation
-   prompt can be plain instructions, because _dreamcatcher_ adds what the agent
-   needs to know about reading and answering the issue.
-2. Make the skill available where the agent runs. Each agent works in a fresh
-   worktree of `origin/main`, so either install the skill at user scope, or
-   commit it to the repository and push it.
-3. Add a route to `dreamcatcher.toml` that points a label to a prompt that calls
-   your skill. Run `dreamcatcher init` to create the label on GitHub, commit and
-   push `dreamcatcher.toml`, and restart the daemon so that it reads the new
-   route.
+   [assignment skill contract](contract.md#assignment-skill-contract), so that
+   it picks up the branch and draft pull request that _dreamcatcher_ has already
+   opened. A conversation skill must follow the
+   [conversation skill contract](contract.md#conversation-skill-contract), so
+   that it investigates the issue and returns an answer for _dreamcatcher_ to
+   publish. A conversation prompt can instead give plain instructions, because
+   _dreamcatcher_ adds the operational requirements.
+2. If you wrote a skill, make it available where the agent runs. Each agent
+   works in a fresh worktree of `origin/main`, so either install the skill at
+   user scope, or commit it to the repository and push it.
+3. Add a route to `dreamcatcher.toml` that points a label to a prompt. The
+   prompt calls your skill or gives the conversation instructions directly. Run
+   `dreamcatcher init` to create the label on GitHub, commit and push
+   `dreamcatcher.toml`, and restart the daemon so that it reads the new route.
 
 A route for an assignment skill looks like this:
 

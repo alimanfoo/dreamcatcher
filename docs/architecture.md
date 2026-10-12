@@ -447,9 +447,10 @@ dispatch label to one recipe per harness that the route configures.
 
 An `AssignmentRoute` specializes a dispatch route for assignments, and its
 prompt normally invokes an assignment skill. A `ConversationRoute` specializes a
-dispatch route for issue conversations. Both kinds use the same
-harness-selection rule: the preferred harness wins when the route has a recipe
-for it, while the sole recipe wins when only one exists.
+dispatch route for issue conversations, and its prompt normally invokes a
+conversation skill. Both kinds use the same harness-selection rule: the
+preferred harness wins when the route has a recipe for it, while the sole recipe
+wins when only one exists.
 
 The repository configuration carries choices that everyone working in the
 repository shares. The daemon interval and agent capacity belong to one person's
@@ -625,17 +626,6 @@ checks the status rule on the scheduler modules that status imports directly.
 
 ## Agent-facing contract
 
-The [agent-facing contract](contract.md) describes the protocol between
-_dreamcatcher_ and an assignment skill, and the instructions that an issue
-conversation follows, not implementation history.
-
-For assignments, the contract should establish that:
-
-- _dreamcatcher_ provides the issue, branch, worktree, and already-open draft
-  pull request;
-- the assignment skill adopts those resources rather than creating them;
-- the agent uses the pull request for questions and feedback;
-- the agent marks the pull request ready when implementation is ready for
-  review;
-- resumed rounds act on relayed user posts; and
-- a wrap-up round acts on the merged or closed state carried in its round input.
+The [agent-facing contract](contract.md) describes the protocols between
+_dreamcatcher_ and assignment and conversation skills. It records each side's
+responsibilities, not implementation history.

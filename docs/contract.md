@@ -4,18 +4,9 @@ Contract version **1** covers assignments and issue conversations. See the
 [compatibility policy](compatibility.md#agent-contract) for what this version
 promises and when it changes.
 
-_dreamcatcher_ watches a GitHub repository for issues that have been labelled
-for implementation by an agent. The repository owner can configure which labels
-are recognised by _dreamcatcher_, which agent harnesses run assignments (Claude
-Code or Codex), and which assignment skill should guide the agent through the
-implementation of an issue. This guide describes how to write an assignment
-skill that works well with _dreamcatcher_.
-
-To make this concrete, consider a hypothetical GitHub repository, where the
-owner has configured _dreamcatcher_ to look for issues with the "agent" label,
-and to launch an agent for each labelled issue using an assignment skill named
-"smith". For this to work, the "smith" assignment skill needs to follow this
-guide.
+This page contains two contracts. The assignment skill contract covers a skill
+that guides an agent through an agent assignment. The conversation skill
+contract covers a skill that guides an agent through an issue conversation.
 
 For working examples, read the skills in
 [dream](https://alimanfoo.github.io/dream/) that follow this contract: the
@@ -26,29 +17,23 @@ assignment skills, and the
 [`dream:scout`](https://github.com/alimanfoo/dream/blob/main/plugins/dream/skills/scout/SKILL.md)
 conversation skill.
 
-_dreamcatcher_ adds one instruction to every assignment and conversation prompt:
-every GitHub post the agent makes must end with this line on a line of its own:
+## Assignment skill contract
 
-```html
-<!-- dreamcatcher -->
-```
+An assignment skill must guide the agent to implement the issue on the branch
+and pull request that _dreamcatcher_ prepared, then continue the assignment
+through review and wrap-up.
 
-The marker is invisible when GitHub renders it. It distinguishes the agent's
-posts from the user's, so _dreamcatcher_ does not deliver the agent's own words
-back in a later round. It applies to every post, including pull request
-descriptions, comments, inline replies and issues the agent files.
-
-## Arguments
+### Arguments
 
 An assignment skill must accept a GitHub issue number as an argument, and it
 must recognise that its purpose is to implement the work described in that
 issue.
 
-For example, the hypothetical "smith" skill should be able to be invoked with a
-prompt like "/smith GH123" and to know its job is then to implement GitHub issue
+For example, an assignment skill named "smith" should be able to be invoked with
+a prompt like "/smith GH123" and know that its job is to implement GitHub issue
 number 123.
 
-## Branch adoption
+### Branch adoption
 
 Before _dreamcatcher_ starts an assignment, it fetches origin's main, cuts a
 branch from it, adds a worktree on that branch, makes and pushes an empty
@@ -59,20 +44,20 @@ An assignment skill must instruct the agent to adopt the current branch and
 worktree. It must also adopt the draft pull request that _dreamcatcher_ has
 already opened rather than opening another one.
 
-## Using the draft pull request
+### Using the draft pull request
 
 An assignment skill must use the draft pull request that is already open as its
 primary channel of communication with the user. It must mark the pull request
 ready when the implementation is ready for review.
 
-## Linking the pull request to the issue
+### Linking the pull request to the issue
 
 _dreamcatcher_ opens the draft pull request with `Closes #123` in its
 description, using the issue given to the assignment. An assignment skill must
 preserve that link when it replaces the description with its final account of
 the work.
 
-## Ending a turn
+### Ending a turn
 
 _dreamcatcher_ runs an agent in rounds, and a round is over when the agent's
 process exits. An assignment skill must instruct the agent to end its turn once
@@ -84,7 +69,7 @@ An assignment skill must not instruct the agent to run anything that waits for a
 person, such as a command that asks to be approved, an editor, or a prompt for
 input. Nothing answers it, and the round stalls until _dreamcatcher_ stops.
 
-## Resumed rounds
+### Resumed rounds
 
 _dreamcatcher_ gives an agent a further round whenever there is more for it to
 do. Each such round normally resumes the assignment's harness session where the
@@ -93,7 +78,7 @@ of it, and _dreamcatcher_'s prompt says what the round is for. When a recovery
 has no session identifier to resume, _dreamcatcher_ starts a new session with
 the assignment's first prompt followed by the prompt for the required round.
 
-### User posts and feedback
+#### User posts and feedback
 
 _dreamcatcher_'s prompt names a JSON file and asks the agent to read it.
 `pull_request_state` in that file says where the pull request has got to, and
@@ -121,7 +106,7 @@ post in `user_posts` and reply on the pull request. _dreamcatcher_ derives the
 assignment's user-post delivery position from its recorded round inputs, so
 later updates do not select those posts again.
 
-### A merged or closed pull request
+#### A merged or closed pull request
 
 _dreamcatcher_ gives the agent a wrap-up round when the user merges or closes
 the pull request, with the same prompt naming the same file.
@@ -133,7 +118,7 @@ closing.
 An assignment skill must instruct the agent to wind the work up when
 `pull_request_state` reads anything but `OPEN`.
 
-### A recovery round
+#### A recovery round
 
 A recovery round follows a round that was interrupted or exited with an error.
 While the pull request is open, _dreamcatcher_'s prompt says that the previous
@@ -152,12 +137,16 @@ for new feedback before it resumes, and that next prompt says the earlier round
 was stopped before directing the agent to the new input. A merged or closed pull
 request can proceed to its wrap-up round without new feedback.
 
-## Issue conversation instructions
+## Conversation skill contract
 
-An issue-conversation prompt asks an agent to answer a question on a GitHub
-issue. It must accept the issue number in the same `GH123` form as an assignment
-skill. _dreamcatcher_ adds the operational contract around the configured prompt
-and names a JSON input file for the agent to read.
+A conversation skill must guide the agent to investigate and answer the user's
+questions without implementing a change. It must accept the issue number in the
+same `GH123` form as an assignment skill. _dreamcatcher_ adds the input,
+publication and operational instructions around the configured prompt. These
+instructions set the investigation scope and output form, so the skill does not
+need to repeat them and must not contradict them.
+
+### Input
 
 Every input contains:
 
@@ -176,10 +165,14 @@ The first input also contains `initial_issue`, an object holding the issue's
 `title` and `body`. Ordinary follow-up inputs omit this object; the resumed
 harness transcript keeps that original context.
 
+### Answer
+
 The agent must answer the saved question from the checked-out code and return
 its final answer as Markdown in the harness's final result. It returns exactly
 `NO_REPLY` when no issue comment should be posted. Progress output and tool
 activity are feed records, not the answer.
+
+### Continued conversations
 
 The first round receives every eligible existing comment. Each new comment batch
 after that resumes the same harness session and contains only eligible comments
@@ -188,6 +181,8 @@ its existing transcript when a new question refers to an earlier answer. Before
 accepting a new batch, _dreamcatcher_ resets the idle worktree to fetched main,
 deleting every local commit and file left by the earlier investigation. Recovery
 instead reuses saved input and revision, as described below.
+
+### Investigation scope
 
 An issue conversation is investigation work. Its instructions may tell the agent
 to read source and Git history, run code, reproduce a suspected bug, and make
@@ -202,19 +197,14 @@ Its instructions must not tell the agent to implement a change, edit project
 source, mutate Git, create a branch, commit or push, open or change a pull
 request, post the conversation reply itself, or contact the user elsewhere.
 
-_dreamcatcher_ reinforces that contract with harness-specific controls. Claude
-allows selected `gh issue` commands and `gh api` while denying its direct
-editing and Git mutation tool families, though its general command tool can
-write files. Codex runs commands in a networked workspace-write sandbox so it
-can use scratch files, local reproductions and authenticated GitHub commands,
-while approval requests are rejected. These controls make the intended actions
-practical rather than providing a hard security boundary. Local checkout writes
-are discarded by the refresh before the next batch.
+### Publication
 
 _dreamcatcher_ owns publication: when the harness exits successfully, the round
 trims the final result, adds an agent attribution and the marker, and posts it
 before the round ends. A missing or empty final result is an error. A failed
 post makes the round errored.
+
+### Recovery and stopped rounds
 
 Issue conversations run through Claude or Codex and keep the harness chosen at
 creation. While the issue remains eligible, _dreamcatcher_ retries an

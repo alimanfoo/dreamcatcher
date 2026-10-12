@@ -83,8 +83,14 @@ identifier.
 ### Assignment skill
 
 An **assignment skill** is an agent skill which follows _dreamcatcher_'s
-agent-facing contract and guides an agent through an agent assignment. It may be
-invoked by a dispatch recipe.
+assignment skill contract and guides an agent through an agent assignment. It
+may be invoked by a dispatch recipe.
+
+### Conversation skill
+
+A **conversation skill** is an agent skill which follows _dreamcatcher_'s
+conversation skill contract and guides an agent through an issue conversation.
+It may be invoked by a dispatch recipe.
 
 ### Dispatch recipe
 
@@ -93,8 +99,9 @@ through a particular agent harness. It supplies the model, effort, and initial
 prompt for that harness. A recipe may also supply harness config, the settings
 beyond the model and effort that _dreamcatcher_ passes to the harness on every
 round. The harness adapter decides which harness config it takes. An assignment
-recipe normally invokes an assignment skill; a conversation recipe asks the
-agent to answer the user.
+recipe normally invokes an assignment skill; a conversation recipe normally
+invokes a conversation skill, but may instead give the agent its instructions
+directly.
 
 ### Dispatch label
 
