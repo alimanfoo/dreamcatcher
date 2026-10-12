@@ -3,12 +3,12 @@
 Choose the control that matches what you want to stop. Closing a status view,
 stopping one agent round and stopping the daemon have different consequences.
 
-| Action                                                                       | What stops                            | What happens next                                                              |
-| ---------------------------------------------------------------------------- | ------------------------------------- | ------------------------------------------------------------------------------ |
-| Interrupt standalone `web`, `status`, `assignment`, `conversation` or `feed` | Only that view                        | The daemon and agents continue.                                                |
-| Run `dreamcatcher stop` or select **stop round** on the web page             | The current agent round               | The work waits for input unless a merged or closed pull request needs wrap-up. |
-| Run `dreamcatcher cancel` or select **cancel assignment** on the web page    | The assignment and any running round  | You finish the pull request by hand. _dreamcatcher_ runs no further rounds.    |
-| Press Ctrl-C in the terminal running `dreamcatcher run`                      | The daemon and all its current rounds | Work that still needs a round can recover after the daemon starts again.       |
+| Action                                                                       | What stops                                                | What happens next                                                              |
+| ---------------------------------------------------------------------------- | --------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| Interrupt standalone `web`, `status`, `assignment`, `conversation` or `feed` | Only that view                                            | The daemon and agents continue.                                                |
+| Run `dreamcatcher stop` or select **stop round** on the web page             | The current agent round                                   | The work waits for input unless a merged or closed pull request needs wrap-up. |
+| Run `dreamcatcher cancel` or select **cancel assignment** on the web page    | The assignment and any running round                      | You finish the pull request by hand. _dreamcatcher_ runs no further rounds.    |
+| Press Ctrl-C in the terminal running `dreamcatcher run`                      | The daemon, its current rounds and the web page it serves | Work that still needs a round can recover after the daemon starts again.       |
 
 ## Stop one running round
 
@@ -70,8 +70,9 @@ while it keeps its assignment label and stays assigned to you.
 
 ## Restart an interrupted daemon
 
-Pressing Ctrl-C in the `dreamcatcher run` terminal shuts the daemon down and
-ends the rounds it owns. Start it again from the same main checkout:
+Pressing Ctrl-C in the `dreamcatcher run` terminal shuts the daemon down, ends
+the rounds it owns and stops the web page it serves. Start it again from the
+same main checkout:
 
 ```sh
 dreamcatcher run --harness claude

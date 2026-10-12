@@ -45,7 +45,7 @@ from dreamcatcher.harnesses import HARNESS_ADAPTERS
 # pipe EOF. This bound is for an escaped descendant that keeps the pipe open.
 _FINAL_OUTPUT_CAPTURE_TIMEOUT_SECONDS = 5
 
-# How often a live round checks whether the web process asked it to stop.
+# How often a live round checks whether the user asked it to stop.
 _STOP_REQUEST_POLL_INTERVAL_SECONDS = 1
 _AGENT_ROUND_RECORD_NAME = "round.json"
 

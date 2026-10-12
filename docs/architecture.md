@@ -551,7 +551,7 @@ The record persists:
 
 Every fact that changes later has a file of its own beside the record. Each
 write replaces that file whole and merges nothing into it, so the daemon, the
-web process and a command can each record a fact at the same moment without
+web interface and a command can each record a fact at the same moment without
 erasing another's. These files persist:
 
 - the latest observed pull-request state, draft flag, and observation time;
