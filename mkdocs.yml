@@ -84,10 +84,10 @@ nav:
       - compatibility.md
       - changelog.md
   - Development:
-      - standard.md
       - ontology.md
       - architecture.md
       - testing.md
       - releasing.md
+      - standard.md
       - measurement.md
       - special-cases.md
