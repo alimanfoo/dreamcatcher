@@ -26,6 +26,13 @@ each entry links the pull request or commit that made the change.
 
 ## Unreleased
 
+### Changed
+
+- Status views now retain the latest agent output after work stops. The terminal
+  status view also shows issue titles and assignment metadata in multi-line
+  rows, and the documentation home page mirrors that layout.
+  ([#529](https://github.com/alimanfoo/dreamcatcher/pull/529))
+
 ## [v5.6.0](https://github.com/alimanfoo/dreamcatcher/releases/tag/v5.6.0) — 2026-10-12
 
 ### Changed
