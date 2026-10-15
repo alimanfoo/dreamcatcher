@@ -164,20 +164,17 @@ def test_dark_nature_uses_the_dusk_palette_and_follows_the_night(
     expect(page.locator("html")).to_have_css("background-color", "rgb(26, 24, 48)")
     expect(page.locator("body")).to_have_css("color", "rgb(236, 230, 220)")
     expect(page.locator(".status-working")).to_have_css(
-        "background-color",
-        "rgba(169, 199, 163, 0.9)",
+        "color",
+        "rgb(179, 203, 166)",
     )
     expect(page.locator(".status-needs-user-feedback")).to_have_css(
         "color",
         "rgb(22, 21, 42)",
     )
-    panel_style = page.locator(".assignment-card").first.evaluate(
-        """element => {
-          const style = getComputedStyle(element, "::before");
-          return { filter: style.filter, boxShadow: style.boxShadow };
-        }"""
+    expect(page.locator(".assignment-card").first).to_have_css(
+        "border-bottom-color",
+        "rgba(236, 230, 220, 0.1)",
     )
-    assert panel_style == {"filter": "blur(14px)", "boxShadow": "none"}
 
     body = page.locator("body")
     times = (

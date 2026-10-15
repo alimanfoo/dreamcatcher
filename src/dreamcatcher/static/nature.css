@@ -9,12 +9,12 @@
   --tint: rgba(59, 52, 46, 0.06);
   --amber: #a65a3c;
   --shadow: 0 0 14px 3px rgba(59, 52, 46, 0.06);
-  --sky-background: linear-gradient(
-    180deg,
-    #e3dfe4 0%,
-    #ece5da 34%,
-    #efe6d6 100%
-  );
+  --sky-background: radial-gradient(
+      ellipse 120% 40% at 40% 112%,
+      rgba(232, 150, 100, 0.42),
+      transparent 70%
+    ),
+    linear-gradient(180deg, #d6d8e7 0%, #e7e2df 34%, #efe6d6 62%, #efd8c0 100%);
   --sun-background: radial-gradient(
     circle at var(--sun-x) 6%,
     rgba(255, 250, 232, 0.95) 0,
@@ -22,48 +22,53 @@
     rgba(255, 226, 150, 0.32) 18vmin,
     rgba(255, 226, 150, 0) 38vmin
   );
+
+  /* The moon's glow, shared with the docs' dusk sky. Many stops trace one
+     smooth falloff, so no ring shows against the dark. */
+
+  --moon-glow:
+    rgba(246, 228, 210, 0.500) 0,
+    rgba(246, 228, 210, 0.470) 1vmin,
+    rgba(246, 228, 210, 0.399) 2vmin,
+    rgba(246, 228, 210, 0.318) 3vmin,
+    rgba(246, 228, 210, 0.247) 4vmin,
+    rgba(246, 228, 210, 0.192) 5vmin,
+    rgba(246, 228, 210, 0.134) 6.5vmin,
+    rgba(246, 228, 210, 0.096) 8vmin,
+    rgba(246, 228, 210, 0.065) 10vmin,
+    rgba(246, 228, 210, 0.042) 12.5vmin,
+    rgba(246, 228, 210, 0.027) 15.5vmin,
+    rgba(246, 228, 210, 0.016) 19vmin,
+    rgba(246, 228, 210, 0.009) 23.5vmin,
+    rgba(246, 228, 210, 0.004) 29vmin,
+    rgba(246, 228, 210, 0.002) 34vmin,
+    rgba(246, 228, 210, 0.000) 40vmin;
+
   --selection: #d9c4a3;
   --focus: #526348;
   --header-rule: rgba(59, 52, 46, 0.1);
   --mark-shadow: rgba(255, 250, 240, 0.9);
   --daemon-running: #8a9a78;
   --control-surface: rgba(59, 52, 46, 0.05);
-  --control-shadow: 0 0 12px 3px rgba(59, 52, 46, 0.05);
-  --chip-shadow: 0 0 14px 3px rgba(59, 52, 46, 0.05);
   --control-hover-surface: rgba(251, 247, 239, 0.45);
   --control-current-surface: rgba(251, 247, 239, 0.9);
   --danger: #8c3f2b;
   --danger-hover: #6f2f21;
-  --panel-surface: rgba(251, 247, 239, 0.85);
-  --panel-strong-surface: rgba(251, 247, 239, 0.9);
   --error-surface: rgba(168, 98, 63, 0.12);
   --fact-rule: rgba(59, 52, 46, 0.14);
   --link: var(--phosphor);
   --link-hover: #8c4b2e;
   --status-on-color: #fbf7ef;
-  --working-surface: rgba(126, 154, 108, 0.85);
-  --working-shadow: 0 0 14px 3px rgba(126, 154, 108, 0.48);
   --action: #56704b;
   --action-hover: #3f5536;
   --action-surface: rgba(86, 112, 75, 0.1);
   --action-hover-surface: rgba(86, 112, 75, 0.18);
-  --action-shadow: 0 0 14px 2px rgba(86, 112, 75, 0.1);
-  --waiting: #5f7052;
-  --waiting-surface: rgba(170, 190, 140, 0.45);
-  --waiting-shadow: 0 0 14px 3px rgba(170, 190, 140, 0.28);
+  --working: #5f7052;
   --feedback-ink: var(--bright);
   --feedback-surface: rgba(201, 162, 74, 0.9);
-  --feedback-shadow: 0 0 14px 3px rgba(201, 162, 74, 0.42);
   --fault-surface: rgba(166, 90, 60, 0.85);
-  --fault-shadow: 0 0 14px 3px rgba(166, 90, 60, 0.38);
-  --quiet-surface: rgba(150, 140, 110, 0.28);
-  --quiet-shadow: 0 0 14px 3px rgba(150, 140, 110, 0.18);
-  --latest-output-rule: rgba(59, 52, 46, 0.08);
-  --open-control-shadow: 0 0 16px 3px rgba(86, 112, 75, 0.1);
   --control-hover-strong-surface: rgba(59, 52, 46, 0.12);
-  --round-number-shadow: 0 0 12px 2px rgba(59, 52, 46, 0.05);
   --round-current-surface: rgba(59, 52, 46, 0.78);
-  --round-current-shadow: 0 0 12px 2px rgba(59, 52, 46, 0.2);
   --interrupted: #9a7a2e;
   --code-surface: rgba(251, 247, 239, 0.45);
   --font: "Alegreya Sans", Avenir, "Segoe UI", sans-serif;
@@ -166,7 +171,6 @@ body::after {
   background: var(--control-surface);
   border: 0;
   border-radius: 9999px;
-  box-shadow: var(--control-shadow);
 }
 
 .theme-choice {
@@ -200,36 +204,15 @@ body::after {
 }
 
 .refresh-error {
-  position: relative;
-  isolation: isolate;
-  padding: 16px 22px;
+  padding: 14px 20px;
   margin-bottom: 24px;
   color: var(--danger);
-  background: transparent;
-  border: 0;
-  border-radius: 24px;
+  background: var(--error-surface);
+  border: 1px solid var(--rule-inner);
+  border-radius: 12px;
   font-family: Georgia, "Times New Roman", serif;
   font-size: 18px;
   font-weight: 400;
-}
-
-.refresh-error::before,
-.assignment-card::before,
-.issue-row::before,
-.failed-setup-row::before,
-.assignment-feed::before {
-  position: absolute;
-  z-index: -1;
-  inset: -6px;
-  pointer-events: none;
-  background: var(--panel-surface);
-  border-radius: 40px;
-  content: "";
-  filter: blur(14px);
-}
-
-.refresh-error::before {
-  background: var(--error-surface);
 }
 
 .facts,
@@ -281,29 +264,20 @@ body::after {
   align-items: baseline;
   gap: 12px;
   padding: 0 0 10px;
-  margin: 0 0 12px;
-  color: var(--bright);
+  margin: 0;
+  color: var(--dim);
   background: transparent;
   border-bottom: 1px solid var(--rule-inner);
-  font-family: Georgia, "Times New Roman", serif;
-  font-size: 27px;
-  font-style: italic;
-  font-weight: 400;
-  letter-spacing: 0;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
   text-shadow: none;
-  text-transform: capitalize;
+  text-transform: uppercase;
 }
 
-.panel-body {
-  gap: 14px;
-}
-
+.panel-body,
 .ended-assignment-cards {
-  gap: 32px;
-}
-
-.ended-assignment-cards .assignment-card {
-  padding: 18px 22px;
+  gap: 0;
 }
 
 .assignment-group-label {
@@ -314,18 +288,12 @@ body::after {
 
 .assignment-card,
 .issue-row,
-.failed-setup-row {
-  position: relative;
-  isolation: isolate;
-  padding: 22px 26px;
-  background: transparent;
-  border: 0;
-  border-radius: 28px;
-}
-
+.failed-setup-row,
 .assignment-card.needs-feedback {
+  padding: 16px 0;
   background: transparent;
   border: 0;
+  border-bottom: 1px solid var(--rule-inner);
 }
 
 .card-heading {
@@ -360,11 +328,10 @@ body::after {
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  padding: 3px 12px;
+  padding: 3px 0;
   color: var(--dim);
-  background: var(--control-surface);
+  background: transparent;
   border-radius: 9999px;
-  box-shadow: var(--chip-shadow);
   font-size: 13px;
   font-weight: 500;
   letter-spacing: 0;
@@ -392,16 +359,17 @@ body::after {
 
 .status-working,
 .issue-available {
-  color: var(--status-on-color);
-  background: var(--working-surface);
-  box-shadow: var(--working-shadow);
+  color: var(--working);
   text-shadow: none;
 }
 
-.status-waiting {
-  color: var(--waiting);
-  background: var(--waiting-surface);
-  box-shadow: var(--waiting-shadow);
+/* Only the states that need the user take a fill. */
+
+.status-needs-user-feedback,
+.status-routing-conflict,
+.issue-routing-conflict,
+.status-fault {
+  padding-inline: 12px;
 }
 
 .status-needs-user-feedback,
@@ -409,23 +377,20 @@ body::after {
 .issue-routing-conflict {
   color: var(--feedback-ink);
   background: var(--feedback-surface);
-  box-shadow: var(--feedback-shadow);
 }
 
 .status-fault {
   color: var(--status-on-color);
   background: var(--fault-surface);
-  box-shadow: var(--fault-shadow);
 }
 
+.status-waiting,
 .status-complete,
 .status-cancelled,
 .status-idle,
 .status-unknown,
 .issue-blocked {
   color: var(--dim);
-  background: var(--quiet-surface);
-  box-shadow: var(--quiet-shadow);
 }
 
 .assignment-detail,
@@ -436,15 +401,13 @@ body::after {
 }
 
 .latest-output {
-  padding-top: 8px;
   color: var(--bright);
-  border-top: 1px solid var(--latest-output-rule);
   font-size: 14px;
 }
 
 .latest-output > span {
   display: inline;
-  color: var(--waiting);
+  color: var(--working);
   font-weight: 500;
   text-transform: lowercase;
 }
@@ -467,7 +430,6 @@ body::after {
   text-transform: capitalize;
   color: var(--action);
   background: var(--action-surface);
-  box-shadow: var(--action-shadow);
 }
 
 .retry-control:hover,
@@ -476,34 +438,30 @@ body::after {
   background: var(--action-hover-surface);
 }
 
-.pr-chip,
-.assignment-open {
-  color: var(--action);
-  background: var(--action-surface);
+.pr-chip {
+  padding: 0;
+  color: var(--dim);
   border: 0;
-  box-shadow: var(--open-control-shadow);
+  font-weight: 500;
 }
 
-.pr-chip {
-  padding: 6px 16px;
-  border-radius: 9999px;
-  font-weight: 500;
+.pr-chip:hover {
+  color: var(--bright);
+  background: transparent;
 }
 
 .assignment-open {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 34px;
-  height: 34px;
+  width: 28px;
+  height: 28px;
   padding: 0;
-  color: var(--bright);
-  background: var(--control-surface);
+  color: var(--dim);
+  border: 1px solid var(--rule-inner);
   border-radius: 50%;
-  box-shadow: var(--control-shadow);
 }
 
-.pr-chip:hover,
 .assignment-open:hover {
   color: var(--bright);
   background: var(--control-hover-strong-surface);
@@ -553,23 +511,22 @@ body::after {
   gap: 16px;
 }
 
-.assignment-rounds > h1,
-.assignment-feed > h1 {
-  font-size: 22px;
-}
-
 .round-link {
   grid-template-columns: 32px minmax(0, 1fr);
   gap: 12px;
-  padding: 10px 12px;
+  padding: 10px 0;
   border: 0;
-  border-radius: 20px;
 }
 
 .round-link:hover,
 .round-link[aria-current="true"] {
-  background: var(--tint);
+  background: transparent;
   border: 0;
+}
+
+.round-link:hover .round-number {
+  color: var(--bright);
+  background: var(--control-hover-strong-surface);
 }
 
 .round-number {
@@ -581,7 +538,6 @@ body::after {
   color: var(--dim);
   background: var(--control-surface);
   border-radius: 50%;
-  box-shadow: var(--round-number-shadow);
   font-size: 14px;
   font-weight: 500;
 }
@@ -589,7 +545,6 @@ body::after {
 .round-link[aria-current="true"] .round-number {
   color: var(--status-on-color);
   background: var(--round-current-surface);
-  box-shadow: var(--round-current-shadow);
 }
 
 .round-purpose,
@@ -614,7 +569,7 @@ body::after {
 }
 
 .outcome-running {
-  color: var(--waiting);
+  color: var(--working);
 }
 
 .outcome-errored {
@@ -656,20 +611,10 @@ body::after {
   border-radius: 20px;
 }
 
-.assignment-feed {
-  position: relative;
-  isolation: isolate;
-}
-
-.assignment-feed::before {
-  inset: 42px -6px -6px;
-  background: var(--panel-strong-surface);
-}
-
 .feed-records {
   height: 52vh;
   min-height: 320px;
-  padding: 6px 24px 20px;
+  padding: 6px 0 20px;
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 12.5px;
   line-height: 1.6;
@@ -677,7 +622,7 @@ body::after {
 
 .feed-tail {
   top: 2px;
-  color: var(--waiting);
+  color: var(--working);
   background: transparent;
   text-shadow: none;
 }
@@ -693,7 +638,7 @@ body::after {
 }
 
 .feed-label {
-  color: var(--waiting);
+  color: var(--working);
   font-weight: 600;
   text-transform: lowercase;
 }
@@ -706,7 +651,8 @@ body::after {
   top: -6px;
   padding: 10px 0 8px;
   color: var(--dim);
-  background: var(--background);
+  background: var(--sky-background);
+  background-attachment: fixed;
   border-bottom-color: var(--rule);
   font-family: var(--font);
   font-size: 14px;
@@ -757,13 +703,10 @@ body::after {
         #33233d 78%,
         #4a2a3c 100%
       );
+
     --moon-background: radial-gradient(
       circle at var(--moon-x) 6%,
-      rgba(250, 236, 214, 0.72) 0,
-      rgba(250, 236, 214, 0.52) 1.2vmin,
-      rgba(240, 204, 184, 0.2) 3vmin,
-      rgba(230, 184, 172, 0.07) 12vmin,
-      rgba(230, 184, 172, 0) 40vmin
+      var(--moon-glow)
     );
     --selection: #e9b183;
     --focus: #f3c9a3;
@@ -771,41 +714,24 @@ body::after {
     --mark-shadow: rgba(250, 236, 214, 0.3);
     --daemon-running: #a9c7a3;
     --control-surface: rgba(236, 230, 220, 0.06);
-    --control-shadow: 0 0 12px 3px rgba(0, 0, 0, 0.16);
-    --chip-shadow: 0 0 0 1px rgba(236, 230, 220, 0.06);
     --control-hover-surface: rgba(236, 230, 220, 0.1);
     --control-current-surface: rgba(236, 230, 220, 0.14);
     --danger: #e7977f;
     --danger-hover: #f5b8a8;
-    --panel-surface: rgba(20, 18, 43, 0.62);
-    --panel-strong-surface: rgba(20, 18, 43, 0.72);
     --error-surface: rgba(231, 151, 127, 0.12);
     --fact-rule: rgba(236, 230, 220, 0.12);
     --link-hover: #f3c9a3;
     --status-on-color: #16152a;
-    --working-surface: rgba(169, 199, 163, 0.9);
-    --working-shadow: 0 0 14px 3px rgba(169, 199, 163, 0.22);
     --action: #b3cba6;
     --action-hover: #d0e0c7;
     --action-surface: rgba(179, 203, 166, 0.1);
     --action-hover-surface: rgba(179, 203, 166, 0.18);
-    --action-shadow: 0 0 14px 2px rgba(179, 203, 166, 0.08);
-    --waiting: #b3cba6;
-    --waiting-surface: rgba(179, 203, 166, 0.14);
-    --waiting-shadow: 0 0 14px 3px rgba(179, 203, 166, 0.1);
+    --working: #b3cba6;
     --feedback-ink: var(--status-on-color);
     --feedback-surface: rgba(233, 192, 110, 0.92);
-    --feedback-shadow: 0 0 14px 3px rgba(233, 192, 110, 0.2);
     --fault-surface: rgba(231, 151, 127, 0.9);
-    --fault-shadow: 0 0 14px 3px rgba(231, 151, 127, 0.18);
-    --quiet-surface: rgba(236, 230, 220, 0.08);
-    --quiet-shadow: 0 0 0 1px rgba(236, 230, 220, 0.04);
-    --latest-output-rule: rgba(236, 230, 220, 0.07);
-    --open-control-shadow: 0 0 0 1px rgba(179, 203, 166, 0.12);
     --control-hover-strong-surface: rgba(236, 230, 220, 0.12);
-    --round-number-shadow: 0 0 0 1px rgba(236, 230, 220, 0.06);
     --round-current-surface: rgba(233, 177, 131, 0.9);
-    --round-current-shadow: 0 0 14px 2px rgba(233, 177, 131, 0.18);
     --interrupted: #e9cb93;
     --code-surface: rgba(236, 230, 220, 0.055);
     --moon-opacity: 0;
@@ -829,13 +755,5 @@ body::after {
   html[data-web-theme="nature"] .mark {
     filter: invert(0.92) sepia(0.2)
       drop-shadow(0 0 12px var(--mark-shadow));
-  }
-
-  html[data-web-theme="nature"] .refresh-error::before,
-  html[data-web-theme="nature"] .assignment-card::before,
-  html[data-web-theme="nature"] .issue-row::before,
-  html[data-web-theme="nature"] .failed-setup-row::before,
-  html[data-web-theme="nature"] .assignment-feed::before {
-    backdrop-filter: blur(14px) saturate(1.2);
   }
 }

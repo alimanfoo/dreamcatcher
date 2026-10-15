@@ -1,5 +1,5 @@
-/* The home page's hero: a headline over a dreamcatcher status view, where
-   several labelled issues move on at once and then settle. */
+/* The home page's hero: a headline over the dreamcatcher web page in
+   miniature, where several labelled issues move on at once and then settle. */
 
 /* The home page hides its sidebars, so its one column reads at a measure. */
 
@@ -77,138 +77,223 @@
   font-weight: 600;
 }
 
-/* The status view: always dark, like the terminal it stands for, in the
-   warm ink of the nature theme. */
+/* The web page in miniature, in its own fonts, under its own sky. */
 
-.md-typeset .dch-term {
-  --dch-ink: #221d19;
-  --dch-text: #efe6d6;
-  --dch-dim: rgba(239, 230, 214, 0.58);
-  --dch-faint: rgba(239, 230, 214, 0.36);
-  --dch-working: #a3bb8f;
-  --dch-feedback: #e2b65c;
-  --dch-accent: #d4895e;
+.md-typeset .dch-ui {
+  --dch-sky: var(--sky-background);
+  --dch-working: var(--working);
+  --dch-feedback: var(--feedback-surface);
+  --dch-feedback-ink: var(--feedback-ink);
+  --dch-daemon: var(--daemon-running);
 
   display: block;
   width: auto;
   max-width: none;
   margin: 0;
   overflow: hidden;
-  border: 1px solid rgba(255, 240, 220, 0.08);
-  border-radius: 1rem;
-  background: var(--dch-ink);
-  box-shadow:
-    0 0 0 1px rgba(59, 52, 46, 0.15),
-    0 30px 80px -24px rgba(168, 98, 63, 0.5);
-  font-family: var(--md-code-font-family);
+  border: 1px solid var(--rule);
+  border-radius: 0.6rem;
+  background: var(--dch-sky);
+  box-shadow: 0 24px 60px -30px rgba(59, 52, 46, 0.45);
+  font-family: var(--font);
   font-size: 0.66rem;
-  line-height: 1.75;
+  line-height: 1.5;
   text-align: left;
-  color: var(--dch-text);
+  color: var(--bright);
 }
 
-.dch-term__bar {
+.dch-ui__header {
   display: flex;
+  align-items: center;
   justify-content: space-between;
-  padding: 0.55rem 1.1rem;
-  border-bottom: 1px solid rgba(255, 240, 220, 0.07);
-  font-size: 0.6rem;
-  color: var(--dch-faint);
+  gap: 1em;
+  padding: 0.8em 1.6em;
+  border-bottom: 1px solid var(--rule-inner);
+  color: var(--dim);
 }
 
-.dch-term__live {
+.dch-ui__repository {
   display: inline-flex;
   align-items: center;
-  gap: 0.6em;
-  color: var(--dch-working);
+  gap: 1em;
 }
 
-.dch-dot {
+.md-typeset .dch-ui__mark {
+  width: 2.4em;
+  opacity: 0.85;
+}
+
+.dch-ui__daemon::before {
+  display: inline-block;
   width: 0.5em;
   height: 0.5em;
+  margin-right: 0.55em;
   border-radius: 50%;
-  background: var(--dch-working);
-  animation: dch-pulse 2.4s ease-out infinite;
+  background: var(--dch-daemon);
+  content: "";
 }
 
-.md-typeset .dch-term__log {
+.md-typeset .dch-ui__facts {
+  display: flex;
+  flex-wrap: wrap;
+  row-gap: 0.4em;
   margin: 0;
-  padding: 0.9rem 1.1rem 1.1rem;
+  padding: 1.1em 1.6em 0;
+  color: var(--dim);
+}
+
+.dch-ui__facts > div {
+  display: flex;
+  align-items: baseline;
+  gap: 0.55em;
+  padding-right: 1.1em;
+  margin-right: 1.1em;
+  border-right: 1px solid var(--rule-inner);
+  line-height: 1.2;
+}
+
+.dch-ui__facts > div:last-child {
+  border-right: 0;
+}
+
+.dch-ui__facts dt {
+  font-size: 0.8em;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.md-typeset .dch-ui__facts dd {
+  margin: 0;
+  color: var(--bright);
+  font-weight: 500;
+}
+
+.md-typeset ol.dch-ui__lists {
+  margin: 0;
+  padding: 1.2em 1.6em 0.6em;
   list-style: none;
 }
 
-.md-typeset .dch-term__log li {
+/* Material indents a list item with a selector that outranks a single class. */
+
+.md-typeset ol.dch-ui__lists > li {
   margin: 0;
   opacity: 0;
   animation: dch-line 0.35s ease-out forwards;
   animation-delay: calc(var(--i) * 0.22s + 0.3s);
 }
 
-.md-typeset .dch-term__log li.dch-in {
-  margin-bottom: 0.3em;
+.md-typeset .dch-ui__lists li.dch-section {
+  padding-bottom: 0.7em;
+  border-bottom: 1px solid var(--rule-inner);
+  color: var(--dim);
+  font-size: 0.8em;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
 }
 
-.dch-prompt {
-  color: var(--dch-accent);
+.md-typeset .dch-ui__lists li.dch-section:not(:first-child) {
+  margin-top: 1.8em;
 }
 
-.md-typeset .dch-term__log li.dch-section {
-  margin-top: 0.7em;
-  color: var(--dch-faint);
-}
+/* One issue, laid out as the web page lays out a row: its title, state and
+   open button, then its round, then its settings and pull request. */
 
-/* One issue: its title and state, then its skill, round and pull request. */
-
-.md-typeset .dch-term__log li.dch-row {
+.md-typeset .dch-ui__lists li.dch-row {
   display: grid;
-  grid-template-columns: 3.2em 1fr auto;
+  grid-template-columns: minmax(0, 1fr) auto auto;
   grid-template-areas:
-    "issue title state"
-    ". detail pr";
-  column-gap: 1em;
-  padding: 0.35em 0;
+    "heading state open"
+    "detail detail detail"
+    "meta pr pr";
+  align-items: center;
+  gap: 0.25em 0.7em;
+  padding: 0.9em 0;
+  border-bottom: 1px solid var(--rule-inner);
+}
+
+.dch-heading {
+  grid-area: heading;
+  overflow: hidden;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.27em;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .dch-issue {
-  grid-area: issue;
-  color: var(--dch-accent);
-}
-
-.dch-title {
-  grid-area: title;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  color: var(--phosphor);
 }
 
 .dch-state {
   grid-area: state;
   justify-self: end;
-  text-align: right;
+  font-size: 0.87em;
+  font-weight: 500;
+}
+
+.dch-state > * {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5em;
+  justify-self: end;
+  padding: 0.15em 0;
+  border-radius: 9999px;
+}
+
+.dch-state > ::before {
+  width: 0.5em;
+  height: 0.5em;
+  border-radius: 50%;
+  background: currentcolor;
+  content: "";
+}
+
+.dch-open {
+  grid-area: open;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.9em;
+  height: 1.9em;
+  border: 1px solid var(--rule-inner);
+  border-radius: 50%;
+  color: var(--dim);
+  font-size: 0.9em;
 }
 
 .dch-detail {
   grid-area: detail;
-  color: var(--dch-dim);
+  color: var(--dim);
+}
+
+.dch-meta {
+  grid-area: meta;
+  color: var(--dim);
 }
 
 .dch-pr {
   grid-area: pr;
   justify-self: end;
   text-align: right;
-  color: var(--dch-dim);
+  color: var(--dim);
+  font-weight: 500;
 }
 
 .dch-working {
   color: var(--dch-working);
 }
 
-.dch-feedback {
-  color: var(--dch-feedback);
+.md-typeset .dch-feedback {
+  padding-inline: 0.8em;
+  color: var(--dch-feedback-ink);
+  background: var(--dch-feedback);
 }
 
 .dch-quiet {
-  color: var(--dch-dim);
+  color: var(--dim);
 }
 
 /* A swap stacks every value a cell takes in one place, so the row never
@@ -234,10 +319,6 @@
     calc(var(--dch-start) + var(--out, 600s)) both;
 }
 
-.dch-state > * {
-  justify-self: end;
-}
-
 @media screen and (max-width: 44em) {
   .dch {
     padding-top: 1.6rem;
@@ -251,21 +332,23 @@
     display: inline;
   }
 
-  .md-typeset .dch-term {
+  .md-typeset .dch-ui {
     font-size: 0.56rem;
   }
 
-  .md-typeset .dch-term__log {
-    padding-inline: 0.8rem;
+  .dch-ui__header,
+  .md-typeset .dch-ui__facts,
+  .md-typeset .dch-ui__lists {
+    padding-inline: 1em;
   }
 
-  .md-typeset .dch-term__log li.dch-row {
-    grid-template-columns: 2.4em 1fr auto;
-    column-gap: 0.8em;
+  .md-typeset .dch-ui__lists li.dch-row {
+    grid-template-columns: minmax(0, 1fr) auto;
     grid-template-areas:
-      "issue title title"
-      ". detail detail"
-      ". state pr";
+      "heading open"
+      "state state"
+      "detail detail"
+      "meta pr";
   }
 
   .dch-state,
@@ -306,21 +389,10 @@
   }
 }
 
-@keyframes dch-pulse {
-  0% {
-    box-shadow: 0 0 0 0 rgba(111, 138, 94, 0.55);
-  }
-
-  70%,
-  100% {
-    box-shadow: 0 0 0 0.6em transparent;
-  }
-}
-
-/* Without motion, the view shows where it settles. */
+/* Without motion, the page shows where it settles. */
 
 @media (prefers-reduced-motion: reduce) {
-  .md-typeset .dch-term__log li {
+  .md-typeset .dch-ui__lists li {
     opacity: 1;
     animation: none;
   }
@@ -333,9 +405,5 @@
 
   .dch-swap > :last-child {
     visibility: visible;
-  }
-
-  .dch-dot {
-    animation: none;
   }
 }
