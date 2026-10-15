@@ -497,13 +497,6 @@ body::after {
   grid-template-columns: 32px minmax(0, 1fr);
   gap: 12px;
   padding: 10px 0;
-  border: 0;
-}
-
-.round-link:hover,
-.round-link[aria-current="true"] {
-  background: transparent;
-  border: 0;
 }
 
 .round-link:hover .round-number {

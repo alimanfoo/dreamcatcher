@@ -565,16 +565,9 @@ body::after {
   display: grid;
   grid-template-columns: 3ch minmax(0, 1fr);
   gap: var(--space-5);
-  padding: var(--space-4) var(--space-7);
+  padding: var(--space-4) 0;
   color: inherit;
-  border-left: 2px solid transparent;
   text-decoration: none;
-}
-
-.round-link:hover,
-.round-link[aria-current="true"] {
-  background: var(--tint);
-  border-left-color: var(--phosphor);
 }
 
 .round-number,
@@ -582,12 +575,24 @@ body::after {
   color: var(--dim);
 }
 
+.round-number {
+  align-self: start;
+  justify-self: start;
+  padding: 0 var(--space-1);
+}
+
 .round-timing {
   overflow-wrap: anywhere;
 }
 
+.round-link:hover .round-number {
+  color: var(--bright);
+  background: var(--tint);
+}
+
 .round-link[aria-current="true"] .round-number {
-  color: var(--phosphor);
+  color: var(--background);
+  background: var(--phosphor);
 }
 
 .round-number,
