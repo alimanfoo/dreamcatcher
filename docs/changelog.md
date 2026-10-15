@@ -26,6 +26,17 @@ each entry links the pull request or commit that made the change.
 
 ## Unreleased
 
+## [v5.6.2](https://github.com/alimanfoo/dreamcatcher/releases/tag/v5.6.2) — 2026-10-15
+
+### Changed
+
+- The web interface's nature theme takes a crisper look. Assignments, issues and
+  conversations are rows divided by rules in place of blurred cards, the feed
+  and rounds lose their boxes, and only the states that need you keep a filled
+  pill. The documentation site follows, and its home page now shows a miniature
+  of the web interface.
+  ([#539](https://github.com/alimanfoo/dreamcatcher/pull/539))
+
 ## [v5.6.1](https://github.com/alimanfoo/dreamcatcher/releases/tag/v5.6.1) — 2026-10-12
 
 ### Fixed

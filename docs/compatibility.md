@@ -1,6 +1,6 @@
 # Compatibility and upgrades
 
-The latest tagged release, v5.6.1, uses state format 5, as v5.0.0 through v5.6.0
+The latest tagged release, v5.6.2, uses state format 5, as v5.0.0 through v5.6.1
 did. v4.0.0 used state format 4, and saved work does not carry across from one
 format to the next.
 
