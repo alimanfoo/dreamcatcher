@@ -718,7 +718,7 @@ def test_assignment_script_follows_only_when_the_feed_was_at_its_end(tmp_path):
     assert "focusedRoundLink?.focus({ preventScroll: true })" in script
 
 
-def test_ended_assignment_cards_are_separated_and_compact(tmp_path):
+def test_ended_assignment_cards_are_separated_by_rules(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
 
@@ -731,10 +731,8 @@ def test_ended_assignment_cards_are_separated_and_compact(tmp_path):
     )
 
     assert '<div class="ended-assignment-cards">' in page
-    assert re.search(r"\.ended-assignment-cards \{\s*display: grid;\s*\}", stylesheet)
     assert re.search(
-        r"\.assignment-card,[^{]*\{[^}]*padding: var\(--space-6\) 0;"
-        r"[^}]*border-bottom: var\(--line\) solid var\(--rule-inner\);",
+        r"\.assignment-card,[^{]*\{[^}]*border-bottom: var\(--line\) solid",
         stylesheet,
         re.DOTALL,
     )

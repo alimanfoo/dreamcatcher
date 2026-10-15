@@ -226,10 +226,6 @@ body::after {
   text-transform: uppercase;
 }
 
-.panel-body {
-  display: grid;
-}
-
 .assignment-group-label {
   margin: var(--space-6) 0 0;
   color: var(--dim);
@@ -426,10 +422,6 @@ body::after {
 .ended-assignments summary {
   padding: var(--space-4) 0;
   cursor: pointer;
-}
-
-.ended-assignment-cards {
-  display: grid;
 }
 
 .failed-setup-row {
