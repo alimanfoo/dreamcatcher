@@ -31,8 +31,8 @@ tools don't.
 
 ## How to execute the rule
 
-The index has two parts: a namespace map and per-file stubs. Follow this
-sequence.
+The index has two parts: a namespace map and per-file stubs. Start with the map
+and add detail only when the task needs it.
 
 **Step 1: Orient. Read the namespace map first.** If the map is missing, run the
 repository's configured `uncoded sync` command. Then, before answering the user,
@@ -55,18 +55,18 @@ src/foo/bar.py      →  .uncoded/stubs/src/foo/bar.pyi
 tests/test_foo.py   →  .uncoded/stubs/tests/test_foo.pyi
 ```
 
-Read the stub for every file you intend to touch or reference, including tests.
-The stub contains imports, every signature with types, module-level assignments,
-and class attributes. That is enough for most navigation. Skipping straight to
-source means reading many lines to learn what the stub would have told you in
-one. If no stub exists at the expected path, the file has no symbols indexed. In
-that narrow case, read source directly.
+The stub contains imports, parameter names and annotations, return types,
+module-level assignments, and class attributes. It omits parameter defaults,
+decorators, docstrings, and function bodies. Read source when the task depends
+on an omitted detail or needs exact code. If no stub exists at the expected
+path, the file has no symbols indexed. In that narrow case, read source
+directly.
 
 **Step 3: Act.** Use `uncoded body` to read a symbol's body. Use `uncoded refs`
 to find every reference to a symbol. Use `Edit` (with `uncoded body`'s output as
-`old_string`) to change a symbol. With the map and stub loaded, you have the
-exact `relative_path` and `name_path` each tool needs. Use `ClassName/method`
-for a method and `function_name` for a top-level function. Per task:
+`old_string`) to change a symbol. Use the exact `relative_path` and `name_path`
+from the map. Use `ClassName/method` for a method and `function_name` for a
+top-level function. Per task:
 
 - **Read a symbol's body.** `uvx uncoded body <name_path> --in <relative_path>`
   prints the symbol's source text to stdout, byte-identical to disk. Returns
