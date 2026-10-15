@@ -57,7 +57,6 @@ from dreamcatcher.scheduler.models import (
     Truth,
 )
 from dreamcatcher.state import StateDirectory
-from dreamcatcher.status import AssignmentStatusValue
 from dreamcatcher.web import serve_web, serve_web_in_background
 from dreamcatcher.web.app import _create_app
 from dreamcatcher.web.server import (
@@ -633,25 +632,6 @@ def test_feedback_card_keeps_its_compact_actions_inside_the_heading(tmp_path):
     assert re.search(
         r"\.card-heading-actions \{[^}]*flex: none;", stylesheet, re.DOTALL
     )
-
-
-def test_feedback_card_highlight_does_not_depend_on_status_wording(
-    tmp_path, monkeypatch
-):
-    state = StateDirectory(root=tmp_path)
-    fabricate_everything(state=state)
-    monkeypatch.setattr(
-        AssignmentStatusValue,
-        "__str__",
-        lambda _: "feedback wording changed",
-    )
-
-    page = render_home(state=state)
-    card_start = page.index('<article id="assignment-GH20-20260819-184158"')
-    card = page[card_start : page.index("</article>", card_start)]
-
-    assert 'class="assignment-card needs-feedback"' in card
-    assert ">feedback wording changed</span>" in card
 
 
 def test_assignment_feedback_status_uses_the_status_wording(tmp_path):

@@ -279,8 +279,7 @@ body::after {
 
 .assignment-card,
 .issue-row,
-.failed-setup-row,
-.assignment-card.needs-feedback {
+.failed-setup-row {
   padding: 16px 0;
   background: transparent;
   border: 0;

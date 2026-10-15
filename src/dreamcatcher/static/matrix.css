@@ -247,11 +247,6 @@ body::after {
   border: var(--line) solid var(--rule-inner);
 }
 
-.assignment-card.needs-feedback {
-  background: var(--tint);
-  border-color: var(--phosphor);
-}
-
 .card-heading,
 .assignment-meta,
 .failed-setup-row {
