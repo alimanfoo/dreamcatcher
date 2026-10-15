@@ -253,26 +253,17 @@ body::after {
   gap: 32px;
 }
 
-.panel {
-  padding: 0;
-  border: 0;
-}
-
 .panel > h1 {
-  position: static;
   display: flex;
   align-items: baseline;
   gap: 12px;
   padding: 0 0 10px;
-  margin: 0;
   color: var(--dim);
-  background: transparent;
-  border-bottom: 1px solid var(--rule-inner);
+  border-bottom-color: var(--rule-inner);
   font-size: 12px;
   font-weight: 500;
   letter-spacing: 0.14em;
   text-shadow: none;
-  text-transform: uppercase;
 }
 
 .panel-body,
@@ -623,7 +614,6 @@ body::after {
 .feed-tail {
   top: 2px;
   color: var(--working);
-  background: transparent;
   text-shadow: none;
 }
 

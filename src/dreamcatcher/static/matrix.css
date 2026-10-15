@@ -212,18 +212,13 @@ body::after {
 .panel {
   position: relative;
   min-width: 0;
-  padding: var(--space-10) var(--space-8) var(--space-8);
-  border: var(--line) solid var(--rule);
 }
 
 .panel > h1 {
-  position: absolute;
-  top: calc(var(--space-5) * -1);
-  left: var(--space-6);
-  padding: 0 var(--space-4);
+  padding: 0 0 var(--space-4);
   margin: 0;
   color: var(--phosphor);
-  background: var(--background);
+  border-bottom: var(--line) solid var(--rule);
   font-size: var(--font-size);
   font-weight: 700;
   letter-spacing: var(--letter-label);
@@ -573,11 +568,6 @@ body::after {
   gap: var(--space-7);
 }
 
-.assignment-rounds {
-  padding-right: 0;
-  padding-left: 0;
-}
-
 .round-link {
   display: grid;
   grid-template-columns: 3ch minmax(0, 1fr);
@@ -685,11 +675,11 @@ body::after {
 
 .feed-tail {
   position: absolute;
-  top: calc(var(--space-5) * -1);
-  right: var(--space-6);
-  padding: 0 var(--space-4);
+  top: 0;
+  right: 0;
+  padding: 0;
   color: var(--phosphor);
-  background: var(--background);
+  background: transparent;
   border: 0;
   cursor: pointer;
   font: inherit;
