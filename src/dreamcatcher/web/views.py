@@ -118,7 +118,7 @@ def _compose_conversation_card(*, status: ConversationStatus) -> WebConversation
     return WebConversationCard(
         issue=status.issue,
         title=status.title,
-        status=str(status.value),
+        status=status.value,
         detail=status.detail,
         settings=(
             None
@@ -146,7 +146,7 @@ def compose_agent_live_state(
 ) -> WebAgentLiveState:
     """Return the values of an agent page that its tail refreshes."""
     return WebAgentLiveState(
-        status=str(status.value),
+        status=status.value,
         detail=status.detail,
         rounds=_compose_agent_rounds(round_statuses=status.round_statuses, zone=zone),
         heading_controls=heading_controls,
