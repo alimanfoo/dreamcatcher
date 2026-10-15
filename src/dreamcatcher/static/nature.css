@@ -253,31 +253,17 @@ body::after {
   gap: 32px;
 }
 
-.panel {
-  padding: 0;
-  border: 0;
-}
-
 .panel > h1 {
-  position: static;
   display: flex;
   align-items: baseline;
   gap: 12px;
   padding: 0 0 10px;
-  margin: 0;
   color: var(--dim);
-  background: transparent;
-  border-bottom: 1px solid var(--rule-inner);
+  border-bottom-color: var(--rule-inner);
   font-size: 12px;
   font-weight: 500;
   letter-spacing: 0.14em;
   text-shadow: none;
-  text-transform: uppercase;
-}
-
-.panel-body,
-.ended-assignment-cards {
-  gap: 0;
 }
 
 .assignment-group-label {
@@ -288,12 +274,8 @@ body::after {
 
 .assignment-card,
 .issue-row,
-.failed-setup-row,
-.assignment-card.needs-feedback {
+.failed-setup-row {
   padding: 16px 0;
-  background: transparent;
-  border: 0;
-  border-bottom: 1px solid var(--rule-inner);
 }
 
 .card-heading {
@@ -515,17 +497,9 @@ body::after {
   grid-template-columns: 32px minmax(0, 1fr);
   gap: 12px;
   padding: 10px 0;
-  border: 0;
-}
-
-.round-link:hover,
-.round-link[aria-current="true"] {
-  background: transparent;
-  border: 0;
 }
 
 .round-link:hover .round-number {
-  color: var(--bright);
   background: var(--control-hover-strong-surface);
 }
 
@@ -535,7 +509,6 @@ body::after {
   justify-content: center;
   width: 32px;
   height: 32px;
-  color: var(--dim);
   background: var(--control-surface);
   border-radius: 50%;
   font-size: 14px;
@@ -554,7 +527,6 @@ body::after {
 }
 
 .round-timing {
-  color: var(--dim);
   font-size: 14px;
   overflow-wrap: anywhere;
 }
@@ -623,7 +595,6 @@ body::after {
 .feed-tail {
   top: 2px;
   color: var(--working);
-  background: transparent;
   text-shadow: none;
 }
 

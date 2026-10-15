@@ -26,6 +26,15 @@ each entry links the pull request or commit that made the change.
 
 ## Unreleased
 
+### Changed
+
+- The web interface's matrix theme drops its boxes, as the nature theme did.
+  Panels become headings over a rule, assignments, issues and conversations are
+  rows divided by rules, and the feed and rounds line up with their headings.
+  The filled chip alone marks an assignment that needs your feedback, and the
+  current round's number shows in inverse video.
+  ([#543](https://github.com/alimanfoo/dreamcatcher/pull/543))
+
 ## [v5.6.2](https://github.com/alimanfoo/dreamcatcher/releases/tag/v5.6.2) — 2026-10-15
 
 ### Changed

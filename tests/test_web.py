@@ -703,7 +703,6 @@ def test_status_classes_do_not_depend_on_status_wording(tmp_path, monkeypatch):
         conversation_start : home.index("</article>", conversation_start)
     ]
 
-    assert 'class="assignment-card needs-feedback"' in card
     assert (
         '<span class="chip status-needs-user-feedback">'
         "reworded needs user feedback</span>"
@@ -802,7 +801,7 @@ def test_assignment_script_follows_only_when_the_feed_was_at_its_end(tmp_path):
     assert "focusedRoundLink?.focus({ preventScroll: true })" in script
 
 
-def test_ended_assignment_cards_are_separated_and_compact(tmp_path):
+def test_ended_assignment_cards_are_separated_by_rules(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
 
@@ -810,28 +809,15 @@ def test_ended_assignment_cards_are_separated_and_compact(tmp_path):
     application = _create_app(
         state=state, clock=lambda: LOOKED_AT, zone=DISPLAY_TIME_ZONE
     )
-    matrix_stylesheet = (
+    stylesheet = (
         application.test_client().get("/static/matrix.css").get_data(as_text=True)
     )
-    nature_stylesheet = (
-        application.test_client().get("/static/nature.css").get_data(as_text=True)
-    )
 
-    assert '<div class="ended-assignment-cards">' in page
+    ended = page[page.index('<details class="ended-assignments">') :]
+    assert '<article id="assignment-' in ended
     assert re.search(
-        r"\.ended-assignment-cards \{[^}]*display: grid;"
-        r"[^}]*gap: var\(--space-5\);",
-        matrix_stylesheet,
-        re.DOTALL,
-    )
-    assert re.search(
-        r"\.panel-body,\s*\.ended-assignment-cards \{[^}]*gap: 0;",
-        nature_stylesheet,
-        re.DOTALL,
-    )
-    assert re.search(
-        r"\.assignment-card,[^{]*\{[^}]*border-bottom: 1px solid var\(--rule-inner\);",
-        nature_stylesheet,
+        r"\.assignment-card,[^{]*\{[^}]*border-bottom: var\(--line\) solid",
+        stylesheet,
         re.DOTALL,
     )
 

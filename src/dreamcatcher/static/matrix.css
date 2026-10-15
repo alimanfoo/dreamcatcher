@@ -212,28 +212,18 @@ body::after {
 .panel {
   position: relative;
   min-width: 0;
-  padding: var(--space-10) var(--space-8) var(--space-8);
-  border: var(--line) solid var(--rule);
 }
 
 .panel > h1 {
-  position: absolute;
-  top: calc(var(--space-5) * -1);
-  left: var(--space-6);
-  padding: 0 var(--space-4);
+  padding: 0 0 var(--space-4);
   margin: 0;
   color: var(--phosphor);
-  background: var(--background);
+  border-bottom: var(--line) solid var(--rule);
   font-size: var(--font-size);
   font-weight: 700;
   letter-spacing: var(--letter-label);
   text-shadow: var(--shadow);
   text-transform: uppercase;
-}
-
-.panel-body {
-  display: grid;
-  gap: var(--space-5);
 }
 
 .assignment-group-label {
@@ -248,13 +238,8 @@ body::after {
 .issue-row,
 .failed-setup-row {
   min-width: 0;
-  padding: var(--space-5) var(--space-7);
-  border: var(--line) solid var(--rule-inner);
-}
-
-.assignment-card.needs-feedback {
-  background: var(--tint);
-  border-color: var(--phosphor);
+  padding: var(--space-6) 0;
+  border-bottom: var(--line) solid var(--rule-inner);
 }
 
 .card-heading,
@@ -439,11 +424,6 @@ body::after {
   cursor: pointer;
 }
 
-.ended-assignment-cards {
-  display: grid;
-  gap: var(--space-5);
-}
-
 .failed-setup-row {
   justify-content: flex-start;
   color: var(--amber);
@@ -573,25 +553,13 @@ body::after {
   gap: var(--space-7);
 }
 
-.assignment-rounds {
-  padding-right: 0;
-  padding-left: 0;
-}
-
 .round-link {
   display: grid;
   grid-template-columns: 3ch minmax(0, 1fr);
   gap: var(--space-5);
-  padding: var(--space-4) var(--space-7);
+  padding: var(--space-4) 0;
   color: inherit;
-  border-left: 2px solid transparent;
   text-decoration: none;
-}
-
-.round-link:hover,
-.round-link[aria-current="true"] {
-  background: var(--tint);
-  border-left-color: var(--phosphor);
 }
 
 .round-number,
@@ -599,12 +567,24 @@ body::after {
   color: var(--dim);
 }
 
+.round-number {
+  align-self: start;
+  justify-self: start;
+  padding: 0 var(--space-1);
+}
+
 .round-timing {
   overflow-wrap: anywhere;
 }
 
+.round-link:hover .round-number {
+  color: var(--bright);
+  background: var(--tint);
+}
+
 .round-link[aria-current="true"] .round-number {
-  color: var(--phosphor);
+  color: var(--background);
+  background: var(--phosphor);
 }
 
 .round-number,
@@ -678,18 +658,18 @@ body::after {
   align-content: start;
   gap: var(--space-2);
   height: clamp(240px, 50vh, 520px);
-  padding: var(--space-7) var(--space-9) var(--space-9);
+  padding: var(--space-7) 0 var(--space-9);
   overflow: auto;
   scroll-behavior: smooth;
 }
 
 .feed-tail {
   position: absolute;
-  top: calc(var(--space-5) * -1);
-  right: var(--space-6);
-  padding: 0 var(--space-4);
+  top: 0;
+  right: 0;
+  padding: 0;
   color: var(--phosphor);
-  background: var(--background);
+  background: transparent;
   border: 0;
   cursor: pointer;
   font: inherit;
@@ -788,10 +768,5 @@ body::after {
   .feed-line {
     grid-template-columns: 1fr;
     gap: 0;
-  }
-
-  .feed-records {
-    padding-right: var(--space-7);
-    padding-left: var(--space-7);
   }
 }
