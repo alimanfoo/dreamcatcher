@@ -661,7 +661,7 @@ body::after {
   align-content: start;
   gap: var(--space-2);
   height: clamp(240px, 50vh, 520px);
-  padding: var(--space-7) var(--space-9) var(--space-9);
+  padding: var(--space-7) 0 var(--space-9);
   overflow: auto;
   scroll-behavior: smooth;
 }
@@ -771,10 +771,5 @@ body::after {
   .feed-line {
     grid-template-columns: 1fr;
     gap: 0;
-  }
-
-  .feed-records {
-    padding-right: var(--space-7);
-    padding-left: var(--space-7);
   }
 }
