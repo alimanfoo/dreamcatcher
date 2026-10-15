@@ -6,6 +6,9 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+
 jobs:
   # The test and checks jobs take their interpreter from .python-version. The
   # package job takes whatever uvx picks, which is what a user installing the
