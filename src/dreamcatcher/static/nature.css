@@ -266,11 +266,6 @@ body::after {
   text-shadow: none;
 }
 
-.panel-body,
-.ended-assignment-cards {
-  gap: 0;
-}
-
 .assignment-group-label {
   color: var(--dim);
   font-size: 12px;
@@ -281,9 +276,6 @@ body::after {
 .issue-row,
 .failed-setup-row {
   padding: 16px 0;
-  background: transparent;
-  border: 0;
-  border-bottom: 1px solid var(--rule-inner);
 }
 
 .card-heading {

@@ -228,7 +228,6 @@ body::after {
 
 .panel-body {
   display: grid;
-  gap: var(--space-5);
 }
 
 .assignment-group-label {
@@ -243,8 +242,8 @@ body::after {
 .issue-row,
 .failed-setup-row {
   min-width: 0;
-  padding: var(--space-5) var(--space-7);
-  border: var(--line) solid var(--rule-inner);
+  padding: var(--space-6) 0;
+  border-bottom: var(--line) solid var(--rule-inner);
 }
 
 .card-heading,
@@ -431,7 +430,6 @@ body::after {
 
 .ended-assignment-cards {
   display: grid;
-  gap: var(--space-5);
 }
 
 .failed-setup-row {

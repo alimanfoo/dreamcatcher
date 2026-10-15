@@ -726,28 +726,16 @@ def test_ended_assignment_cards_are_separated_and_compact(tmp_path):
     application = _create_app(
         state=state, clock=lambda: LOOKED_AT, zone=DISPLAY_TIME_ZONE
     )
-    matrix_stylesheet = (
+    stylesheet = (
         application.test_client().get("/static/matrix.css").get_data(as_text=True)
-    )
-    nature_stylesheet = (
-        application.test_client().get("/static/nature.css").get_data(as_text=True)
     )
 
     assert '<div class="ended-assignment-cards">' in page
+    assert re.search(r"\.ended-assignment-cards \{\s*display: grid;\s*\}", stylesheet)
     assert re.search(
-        r"\.ended-assignment-cards \{[^}]*display: grid;"
-        r"[^}]*gap: var\(--space-5\);",
-        matrix_stylesheet,
-        re.DOTALL,
-    )
-    assert re.search(
-        r"\.panel-body,\s*\.ended-assignment-cards \{[^}]*gap: 0;",
-        nature_stylesheet,
-        re.DOTALL,
-    )
-    assert re.search(
-        r"\.assignment-card,[^{]*\{[^}]*border-bottom: 1px solid var\(--rule-inner\);",
-        nature_stylesheet,
+        r"\.assignment-card,[^{]*\{[^}]*padding: var\(--space-6\) 0;"
+        r"[^}]*border-bottom: var\(--line\) solid var\(--rule-inner\);",
+        stylesheet,
         re.DOTALL,
     )
 
