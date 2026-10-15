@@ -17,6 +17,13 @@
   --dusk-moon-y: 4%;
   --dusk-glow: rgba(236, 140, 98, 0.2);
   --dusk-mist: rgba(236, 178, 160, 0.06);
+  --dusk-sky: linear-gradient(
+    180deg,
+    #0f1128 0%,
+    #1d1a36 42%,
+    #33233d 78%,
+    #4a2a3c 100%
+  );
 
   --md-default-fg-color: var(--bright);
   --md-default-fg-color--light: var(--dim);
@@ -104,13 +111,7 @@ body[data-md-color-scheme="dusk"] {
       var(--dusk-mist),
       transparent 72%
     ),
-    linear-gradient(
-      180deg,
-      #0f1128 0%,
-      #1d1a36 42%,
-      #33233d 78%,
-      #4a2a3c 100%
-    );
+    var(--dusk-sky);
   background-attachment: fixed;
 }
 
@@ -155,20 +156,23 @@ body[data-md-color-scheme="dusk"]::after {
   color: #f3c9a3;
 }
 
-/* The hero at dusk: the status view becomes a pane of tinted glass. */
+/* The hero at dusk: the web page in its dusk colours. */
 
-[data-md-color-scheme="dusk"] .md-typeset .dch-term {
-  --dch-ink: rgba(16, 14, 34, 0.62);
-  --dch-text: #ece6dc;
-  --dch-dim: rgba(236, 230, 220, 0.56);
-  --dch-faint: rgba(236, 230, 220, 0.36);
-  --dch-working: #a9c7a3;
-  --dch-feedback: #e9c06e;
-  --dch-accent: #e9b183;
+[data-md-color-scheme="dusk"] .md-typeset .dch-ui {
+  --dch-sky: radial-gradient(
+      ellipse 120% 40% at 60% 112%,
+      var(--dusk-glow),
+      transparent 70%
+    ),
+    var(--dusk-sky);
+  --dch-working: #b3cba6;
+  --dch-feedback: rgba(233, 192, 110, 0.92);
+  --dch-feedback-ink: #16152a;
+  --dch-daemon: #a9c7a3;
 
-  border-color: rgba(250, 236, 214, 0.1);
-  backdrop-filter: blur(14px) saturate(1.2);
-  box-shadow:
-    0 0 0 1px rgba(0, 0, 0, 0.3),
-    0 30px 90px -30px rgba(236, 140, 98, 0.35);
+  box-shadow: 0 24px 60px -30px rgba(0, 0, 0, 0.7);
+}
+
+[data-md-color-scheme="dusk"] .md-typeset .dch-ui__mark {
+  filter: invert(0.92) sepia(0.2);
 }
