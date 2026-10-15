@@ -114,17 +114,12 @@ body[data-md-color-scheme="dusk"] {
   background-attachment: fixed;
 }
 
-/* The moon through mist: a soft disc with no hard edge, inside a wide, faint
-   halo. */
+/* The moon through mist, in the web interface's glow. */
 
 body[data-md-color-scheme="dusk"]::before {
   background: radial-gradient(
     circle at var(--dusk-moon-x) var(--dusk-moon-y),
-    rgba(250, 236, 214, 0.72) 0,
-    rgba(250, 236, 214, 0.52) 1.2vmin,
-    rgba(240, 204, 184, 0.2) 3vmin,
-    rgba(230, 184, 172, 0.07) 12vmin,
-    rgba(230, 184, 172, 0) 40vmin
+    var(--moon-glow)
   );
   opacity: 1;
 }
@@ -154,16 +149,6 @@ body[data-md-color-scheme="dusk"]::after {
 
 [data-md-color-scheme="dusk"] .md-search__form {
   background-color: rgba(236, 230, 220, 0.06);
-}
-
-[data-md-color-scheme="dusk"] .md-typeset :not(pre) > code {
-  background-color: rgba(236, 230, 220, 0.07);
-}
-
-[data-md-color-scheme="dusk"] .md-typeset pre,
-[data-md-color-scheme="dusk"] .md-typeset table:not([class]) {
-  background-color: rgba(236, 230, 220, 0.035);
-  box-shadow: 0 0 0 1px rgba(236, 230, 220, 0.07);
 }
 
 [data-md-color-scheme="dusk"] .md-typeset a:hover {

@@ -94,7 +94,7 @@ body::after {
 }
 
 .md-header--shadow {
-  box-shadow: var(--md-shadow-z1);
+  box-shadow: none;
 }
 
 .md-header__button.md-logo {
@@ -118,7 +118,6 @@ body::after {
 .md-search__form {
   background-color: rgba(59, 52, 46, 0.05);
   border-radius: 9999px;
-  box-shadow: 0 0 12px 3px rgba(59, 52, 46, 0.05);
 }
 
 .md-search__form:hover {
@@ -171,35 +170,51 @@ body::after {
   padding-bottom: 0.35em;
   border-bottom: 1px solid var(--rule-inner);
   font-size: 1.75em;
-  font-style: italic;
 }
 
 .md-typeset a:hover {
   color: #8c4b2e;
 }
 
-.md-typeset code {
-  border-radius: 0.3rem;
+.md-typeset :not(pre) > code {
+  padding: 0;
+  background-color: transparent;
 }
 
-.md-typeset :not(pre) > code {
-  background-color: rgba(59, 52, 46, 0.06);
-}
+/* Code reads as lines on the page, between two rules, as the web interface's
+   feed does. */
 
 .md-typeset pre {
-  border-radius: 1rem;
-  box-shadow: 0 0 14px 3px rgba(59, 52, 46, 0.05);
+  border-block: 1px solid var(--rule-inner);
 }
 
 .md-typeset pre > code {
-  border-radius: 1rem;
+  padding-inline: 0;
+  background-color: transparent;
 }
 
+.md-typeset .md-code__nav,
+.md-typeset :hover > .md-code__nav {
+  right: 0;
+  background-color: transparent;
+}
+
+/* A table reads as rows on the page, as lists do in the web interface. */
+
 .md-typeset table:not([class]) {
-  background-color: rgba(251, 247, 239, 0.7);
+  background-color: transparent;
   border: 0;
-  border-radius: 1rem;
-  box-shadow: 0 0 14px 3px rgba(59, 52, 46, 0.05);
+  border-bottom: 1px solid var(--rule-inner);
+  border-radius: 0;
+}
+
+.md-typeset table:not([class]) :is(th, td):first-child {
+  padding-left: 0;
+}
+
+.md-typeset table:not([class]) tbody tr:hover {
+  background-color: transparent;
+  box-shadow: none;
 }
 
 .md-typeset table:not([class]) th {
