@@ -11,6 +11,7 @@ from dreamcatcher.status.assignments import (
 from dreamcatcher.status.conversations import (
     CONVERSATION_STATUS_VALUES_IN_ATTENTION_ORDER,
     ConversationStatus,
+    ConversationStatusValue,
 )
 from dreamcatcher.status.report import (
     AgentWorkStatusSection,
@@ -36,6 +37,7 @@ __all__ = [
     "AssignmentStatus",
     "AssignmentStatusValue",
     "ConversationStatus",
+    "ConversationStatusValue",
     "DaemonStatusFact",
     "DreamcatcherDaemonStatus",
     "DreamcatcherStatusReport",

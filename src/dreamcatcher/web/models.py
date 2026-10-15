@@ -8,6 +8,7 @@ from dreamcatcher.status import (
     AgentRoundRevision,
     AgentWorkStatusSection,
     AssignmentStatusValue,
+    ConversationStatusValue,
     DreamcatcherDaemonStatus,
     StatusFact,
 )
@@ -37,7 +38,7 @@ class WebConversationCard:
 
     issue: int
     title: str
-    status: str
+    status: ConversationStatusValue
     detail: str
     settings: str | None
     latest_output: str | None
@@ -111,7 +112,7 @@ class WebAgentWorkControl:
 class WebAgentLiveState:
     """Represent the values of an agent page that its tail refreshes."""
 
-    status: str
+    status: AssignmentStatusValue | ConversationStatusValue
     detail: str
     rounds: tuple[WebAgentRound, ...]
     heading_controls: tuple[WebAgentWorkControl, ...]

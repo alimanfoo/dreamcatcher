@@ -5,14 +5,16 @@ import logging
 import re
 import socket
 from contextlib import contextmanager
+from dataclasses import replace
 from datetime import timedelta
+from enum import StrEnum
 from threading import Event
 from unittest.mock import MagicMock
 
 import pytest
 from clocks import DISPLAY_TIME_ZONE, PINNED
 from conftest import FIXTURES, REPOSITORY, assert_matches_view_golden, configure
-from observations import observed_issue
+from observations import observed_conversation, observed_issue
 from records import (
     release_daemon_lock,
     write_assignment,
@@ -26,6 +28,7 @@ from status_fabrications import (
     ended,
     fabricate_a_dead_daemon,
     fabricate_a_silent_round,
+    fabricate_conversation,
     fabricate_everything,
     fabricate_nothing,
     fabricate_titles_and_pull_request_states,
@@ -57,6 +60,7 @@ from dreamcatcher.scheduler.models import (
     Truth,
 )
 from dreamcatcher.state import StateDirectory
+from dreamcatcher.status import AssignmentStatusValue, ConversationStatusValue
 from dreamcatcher.web import serve_web, serve_web_in_background
 from dreamcatcher.web.app import _create_app
 from dreamcatcher.web.server import (
@@ -116,6 +120,16 @@ def render_assignment(*, state: StateDirectory, identifier: str) -> str:
         state=state, clock=lambda: LOOKED_AT, zone=DISPLAY_TIME_ZONE
     )
     response = application.test_client().get(f"/assignments/{identifier}")
+    assert response.status_code == 200
+    return response.get_data(as_text=True)
+
+
+def render_conversation(*, state: StateDirectory, issue: int) -> str:
+    """Render one conversation page against a pinned clock."""
+    application = _create_app(
+        state=state, clock=lambda: LOOKED_AT, zone=DISPLAY_TIME_ZONE
+    )
+    response = application.test_client().get(f"/conversations/{issue}")
     assert response.status_code == 200
     return response.get_data(as_text=True)
 
@@ -632,6 +646,75 @@ def test_feedback_card_keeps_its_compact_actions_inside_the_heading(tmp_path):
     assert re.search(
         r"\.card-heading-actions \{[^}]*flex: none;", stylesheet, re.DOTALL
     )
+
+
+def test_status_classes_do_not_depend_on_status_wording(tmp_path, monkeypatch):
+    state = StateDirectory(root=tmp_path)
+    fabricate_conversation(state=state)
+    fabricate_everything(
+        state=state, conversation_observations=[observed_conversation()]
+    )
+
+    # A real rewording changes each member's string value, which patching
+    # __str__ alone would leave in place, so swap in members that share the
+    # names and change the wording.
+
+    reworded = StrEnum(
+        "reworded",
+        {
+            status.name: f"reworded {status}"
+            for status in (*AssignmentStatusValue, *ConversationStatusValue)
+        },
+    )
+
+    compose_home_view = web_app_module.compose_home_view
+    compose_agent_live_state = web_app_module.compose_agent_live_state
+
+    def reword_home_view(**kwargs):
+        view = compose_home_view(**kwargs)
+        return replace(
+            view,
+            conversations=tuple(
+                replace(card, status=reworded[card.status.name])
+                for card in view.conversations
+            ),
+            active_assignments=tuple(
+                replace(card, status=reworded[card.status.name])
+                for card in view.active_assignments
+            ),
+        )
+
+    def reword_agent_live_state(**kwargs):
+        live = compose_agent_live_state(**kwargs)
+        return replace(live, status=reworded[live.status.name])
+
+    monkeypatch.setattr(web_app_module, "compose_home_view", reword_home_view)
+    monkeypatch.setattr(
+        web_app_module, "compose_agent_live_state", reword_agent_live_state
+    )
+
+    home = render_home(state=state)
+    assignment_page = render_assignment(state=state, identifier="GH20-20260819-184158")
+    conversation_page = render_conversation(state=state, issue=8)
+    card_start = home.index('<article id="assignment-GH20-20260819-184158"')
+    card = home[card_start : home.index("</article>", card_start)]
+    conversation_start = home.index('<article id="conversation-GH8"')
+    conversation_card = home[
+        conversation_start : home.index("</article>", conversation_start)
+    ]
+
+    assert (
+        '<span class="chip status-needs-user-feedback">'
+        "reworded needs user feedback</span>"
+    ) in card
+    assert '<span class="chip status-idle">reworded idle</span>' in conversation_card
+    assert (
+        '<span id="agent-work-status" class="chip status-needs-user-feedback">'
+        "reworded needs user feedback</span>"
+    ) in assignment_page
+    assert (
+        '<span id="agent-work-status" class="chip status-idle">reworded idle</span>'
+    ) in conversation_page
 
 
 def test_assignment_feedback_status_uses_the_status_wording(tmp_path):
