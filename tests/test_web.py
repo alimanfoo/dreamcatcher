@@ -730,7 +730,8 @@ def test_ended_assignment_cards_are_separated_by_rules(tmp_path):
         application.test_client().get("/static/matrix.css").get_data(as_text=True)
     )
 
-    assert '<div class="ended-assignment-cards">' in page
+    ended = page[page.index('<details class="ended-assignments">') :]
+    assert '<article id="assignment-' in ended
     assert re.search(
         r"\.assignment-card,[^{]*\{[^}]*border-bottom: var\(--line\) solid",
         stylesheet,
