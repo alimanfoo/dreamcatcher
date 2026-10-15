@@ -761,12 +761,12 @@ def test_ended_assignment_cards_are_separated_and_compact(tmp_path):
         re.DOTALL,
     )
     assert re.search(
-        r"\.ended-assignment-cards \{[^}]*gap: 32px;",
+        r"\.panel-body,\s*\.ended-assignment-cards \{[^}]*gap: 0;",
         nature_stylesheet,
         re.DOTALL,
     )
     assert re.search(
-        r"\.ended-assignment-cards \.assignment-card \{[^}]*padding: 18px 22px;",
+        r"\.assignment-card,[^{]*\{[^}]*border-bottom: 1px solid var\(--rule-inner\);",
         nature_stylesheet,
         re.DOTALL,
     )
