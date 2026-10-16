@@ -94,7 +94,14 @@ A view reads only what the daemon recorded under .dreamcatcher/. It never opens
 the configuration file, so a view can't disagree with the daemon that's running.
 Issue #483 is the case that proves it.
 
-Blocking issue numbers are recorded as data, not recovered from text (#457).
+What the scheduler writes down is data, not sentences. Each thing it observed is
+either a typed value, such as the list of open blockers, the open linked pull
+requests, the matched labels or the new posts, or the reason a read failed. The
+words a person reads are composed by the view from that data, so nothing ever
+parses a sentence to get a number back. Today each observed fact is a true,
+false or unknown beside a string of evidence, and most of those strings either
+restate the value or carry a list written as prose. #457 is one symptom of that
+shape and should fall out rather than be fixed.
 
 Once an assignment exists, dreamcatcher can ignore its issue. The facts about an
 issue that decide whether work may start, such as what else claims it and what
