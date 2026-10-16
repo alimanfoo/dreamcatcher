@@ -96,6 +96,11 @@ Issue #483 is the case that proves it.
 
 Blocking issue numbers are recorded as data, not recovered from text (#457).
 
+Once an assignment exists, dreamcatcher can ignore its issue. The facts about an
+issue that decide whether work may start, such as what else claims it and what
+blocks it, are read only while no work exists for it. Today they are read every
+tick for every issue with an open assignment, and the answers decide nothing.
+
 For the new rounds (#550 and #551): a ready pull request that GitHub reports as
 behind main or conflicting wakes the agent once per head commit, with one prompt
 line, and the agent merges main in. Drafts are left alone. A failed CI check
@@ -123,7 +128,9 @@ work I do by hand today.
 
 Observing every issue the same way means an issue that only conversation routes
 list also gets its blockers and linked pull requests read. That's two or three
-more GitHub reads per such issue per tick. I'd pay that to keep one shape.
+more GitHub reads per such issue per tick, and I'd pay that to keep one shape.
+But reading those facts for an issue that already has an assignment is a cost
+with no decision behind it, and the design should not keep paying it.
 
 ## How will I know it worked?
 
