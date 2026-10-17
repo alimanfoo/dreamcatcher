@@ -27,7 +27,7 @@ prefix is case-insensitive, so `GH123` and `gh123` both name issue 123.
 | `web`          | Serve the local status report in a browser.          |
 | `status`       | Show the whole local status report in the terminal.  |
 | `assignment`   | Show one issue's newest assignment.                  |
-| `conversation` | Show one issue conversation.                         |
+| `conversation` | Show one issue's newest conversation.                |
 | `feed`         | Follow an assignment or conversation's agent output. |
 
 ## `init`
@@ -183,8 +183,8 @@ dreamcatcher status
 ```
 
 Show the repository and daemon facts, assignments and issue conversations, and
-each labelled issue that has no work yet, in dispatch order, with why no work
-has started.
+each dispatch label on an issue that has no work yet, in dispatch order, with
+why no work has started.
 
 In an interactive terminal the view refreshes and occupies the terminal until
 interrupted. When output is piped, redirected or captured, it prints one
@@ -223,7 +223,7 @@ dreamcatcher feed GH<n> (--assignment | --conversation) [--round N]
 ```
 
 Show the agent actions and output recorded for one kind of work at the issue.
-Exactly one owner selector is required:
+Exactly one selector of the kind of work is required:
 
 - `--assignment` selects the newest assignment at the issue.
 - `--conversation` selects the newest issue conversation at the issue.

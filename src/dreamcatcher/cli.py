@@ -181,11 +181,11 @@ def _build_cli_parser() -> argparse.ArgumentParser:
     web_parser.set_defaults(act=_show_web)
     status_parser = subcommands.add_parser(
         "status",
-        help="show the instance, its agent work, and the requests waiting",
+        help="show the instance, its agent work, and the labels waiting for work",
         description=(
             "Show instance and daemon facts, each assignment and conversation, "
-            "and each request that has no work yet, which is one dispatch label "
-            "on an issue, in dispatch order, with why no work has started. It "
+            "and each dispatch label on an issue that has no work yet, in "
+            "dispatch order, with why no work has started. It "
             "refreshes automatically "
             "until you interrupt it. "
             + _HELP_WHEN_A_VIEW_TAKES_THE_SCREEN

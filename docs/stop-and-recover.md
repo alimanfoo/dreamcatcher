@@ -27,11 +27,12 @@ Both controls are available only while the round is running and _dreamcatcher_
 has learned its harness session. The round normally stops within about a second.
 
 After an assignment round is stopped, an open pull request waits for a new
-comment or review from you, or for its branch to fall behind or a check to fail
-at a new commit. Add that feedback when you are ready to resume. If you merge or
-close the pull request instead, its wrap-up can start without a new post. If you
-stop the wrap-up round itself, the assignment stays open with no round due;
-cancel it when you no longer want the agent on it.
+comment or review from you. Once it is ready for review, it also waits for its
+branch to fall behind or a check to fail at a new commit. Add that feedback when
+you are ready to resume. If you merge or close the pull request instead, its
+wrap-up can start without a new post. If you stop the wrap-up round itself, the
+assignment stays open with no round due; cancel it when you no longer want the
+agent on it.
 
 After a conversation round is stopped, post a new eligible issue comment to
 resume the discussion. The next round answers that input; the stopped round's
