@@ -58,10 +58,7 @@ def inspect_open_conversation(
             is_counted_fault=is_fault,
         )
     if issue.state is IssueState.CLOSED:
-        is_round_running = bool(
-            conversation.rounds and conversation.rounds[-1].ending is None
-        )
-        if not is_round_running:
+        if not conversation.is_round_running:
             end_agent_work(
                 work=conversation,
                 reason=AgentWorkEndReason.ISSUE_CLOSED,

@@ -170,7 +170,6 @@ class Scheduler:
         A running round prevents another round from starting, but its channel
         is still read so that the request row stays current.
         """
-        is_round_running = bool(work.rounds and work.rounds[-1].ending is None)
         is_fault = derive_agent_work_fault(
             rounds=work.rounds,
             retry_requested_at=work.retry_requested_at,
@@ -186,7 +185,7 @@ class Scheduler:
                 conversation=work,
                 is_fault=is_fault,
             )
-        if not is_round_running:
+        if not work.is_round_running:
             return inspection
         return replace(inspection, candidate=None)
 
