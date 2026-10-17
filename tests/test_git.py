@@ -245,17 +245,20 @@ def test_a_worktree_git_refuses_says_what_git_said(cloned):
 def test_an_empty_commit_moves_the_assignment_branch_beyond_main(cloned):
     path = assignment_worktree(root=cloned)
     add_worktree(root=cloned, path=path, branch=BRANCH)
-    git(arguments=["config", "user.name", ""], cwd=path)
-    git(arguments=["config", "user.email", ""], cwd=path)
+    git(arguments=["config", "user.name", "A User"], cwd=path)
+    git(arguments=["config", "user.email", "a.user@example.com"], cwd=path)
     git(arguments=["config", "commit.gpgsign", "true"], cwd=path)
 
     assert not has_commits_since_main(worktree=path)
 
-    make_empty_commit(worktree=path, message="GH8")
+    make_empty_commit(worktree=path, message="GH8 [skip ci]")
 
     assert has_commits_since_main(worktree=path)
     assert git(arguments=["log", "-1", "--format=%an <%ae>"], cwd=path).strip() == (
-        "dreamcatcher <noreply@github.com>"
+        "A User <a.user@example.com>"
+    )
+    assert git(arguments=["log", "-1", "--format=%s"], cwd=path).strip() == (
+        "GH8 [skip ci]"
     )
 
 
@@ -268,10 +271,6 @@ def test_an_empty_commit_skips_repository_hooks(tmp_path, monkeypatch):
     command.assert_called_once_with(
         program="git",
         arguments=[
-            "-c",
-            "user.name=dreamcatcher",
-            "-c",
-            "user.email=noreply@github.com",
             "-c",
             "commit.gpgsign=false",
             "commit",

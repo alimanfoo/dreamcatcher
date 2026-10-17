@@ -151,18 +151,15 @@ def has_commits_since_main(*, worktree: Path) -> bool:
 
 
 def make_empty_commit(*, worktree: Path, message: str) -> None:
-    """Make an empty placeholder commit without running repository hooks.
+    """Make an empty placeholder commit with the checkout's author identity.
 
-    The commit gives the draft pull request a branch but holds no files for the
-    hooks to check. The agent's later commits still run the hooks.
+    The unattended commit disables signing and repository hooks. It gives the
+    draft pull request a branch but holds no files for the hooks to check. The
+    agent's later commits still run the hooks.
     """
     run_command(
         program="git",
         arguments=[
-            "-c",
-            "user.name=dreamcatcher",
-            "-c",
-            "user.email=noreply@github.com",
             "-c",
             "commit.gpgsign=false",
             "commit",

@@ -165,6 +165,10 @@ def test_an_assignment_cuts_a_branch_of_its_own_from_origins_main_as_it_is_now(
     assert compose_assignment_branch(identifier=assignment.identifier) == BRANCH
     assert BRANCH in git(arguments=["branch", "--list", BRANCH], cwd=state.root)
     assert (assignment.worktree / "later.txt").exists()
+    message = git(
+        arguments=["log", "-1", "--format=%s"], cwd=assignment.worktree
+    ).strip()
+    assert message == "GH12 [skip ci]"
 
 
 def test_a_codex_assignment_records_its_recipes_config(state, route):

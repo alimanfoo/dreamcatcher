@@ -30,8 +30,6 @@ effort = "xhigh"
 @pytest.fixture
 def checkout(cloned):
     """A main checkout of upstream, where Git has an identity to commit as."""
-    git(arguments=["config", "user.name", "A Test"], cwd=cloned)
-    git(arguments=["config", "user.email", "test@example.com"], cwd=cloned)
     return cloned
 
 
@@ -310,6 +308,8 @@ def test_a_checkout_where_git_has_no_identity_is_refused(
     installed(programs=["claude"])
     monkeypatch.setenv("GIT_CONFIG_GLOBAL", os.devnull)
     monkeypatch.setenv("GIT_CONFIG_NOSYSTEM", "1")
+    git(arguments=["config", "--unset", "user.name"], cwd=cloned)
+    git(arguments=["config", "--unset", "user.email"], cwd=cloned)
     git(arguments=["config", "user.useConfigOnly", "true"], cwd=cloned)
 
     with pytest.raises(ReportableError, match="Please tell me who you are"):
