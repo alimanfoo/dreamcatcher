@@ -416,7 +416,7 @@ def _find_conversation_status_for_issue(
     issue: int,
     clock: Callable[[], datetime] = read_current_time,
 ) -> AgentWorkStatus:
-    """Return the issue's conversation status, or refuse if none."""
+    """Return the status of the newest conversation at the issue, or refuse if none."""
     status = read_conversation_status(
         state=state,
         issue=issue,

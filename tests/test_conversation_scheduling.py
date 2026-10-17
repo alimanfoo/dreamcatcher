@@ -1518,14 +1518,14 @@ def test_two_errored_rounds_put_a_conversation_in_fault(
 
     offer_conversation(gh=gh, comments=[ask()])
     answer(harnesses=harnesses, status=2)
-    recovery = scheduler.tick(at=clock())
+    retried = scheduler.tick(at=clock())
     finish(scheduler=scheduler)
 
     conversation = read_conversation(state=scheduler.context.state, issue=8)
     assert conversation is not None
     assert conversation.rounds[0].outcome is AgentRoundOutcome.ERRORED
     assert conversation.rounds[1].outcome is AgentRoundOutcome.ERRORED
-    assert recovery.launched_agent_work_identifiers == [
+    assert retried.launched_agent_work_identifiers == [
         "GH8-20260819-184158-conversation"
     ]
     assert len(harnesses["claude"].calls) == 2

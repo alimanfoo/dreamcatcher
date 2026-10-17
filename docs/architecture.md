@@ -14,7 +14,8 @@ The architecture should make the domain visible in the code without making every
 domain phrase into a class. In particular, it should:
 
 - give each important decision one owner;
-- separate persistent facts, live observations, derived status, and actions;
+- separate persistent facts, what each tick reads from GitHub, derived status,
+  and actions;
 - keep scheduling policy out of process supervision and presentation;
 - keep GitHub and harness-specific data behind explicit boundaries;
 - let an interrupted operation run again without inventing incomplete domain
@@ -189,8 +190,6 @@ a freshly reset worktree, and its prompt says that the previous round did not
 finish. It resumes the recorded harness session, or starts a new session with
 the configured prompt and the issue's title and body when no session identifier
 was recorded.
-
-Fresh-batch candidates are polled before the capacity check.
 
 Conversation harness permissions reinforce the no-implementation boundary while
 allowing issue actions that the user requests. Claude allows selected `gh issue`

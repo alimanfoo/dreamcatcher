@@ -40,8 +40,8 @@ def find_harness_session_identifier(
 ) -> HarnessSessionIdentifier | None:
     """Return the recorded identifier, or else the first the raw outputs hold.
 
-    Pass the raw outputs newest round first, so that a recovered identifier is
-    the one the latest round reported.
+    Pass the raw outputs newest round first, so that an identifier found there
+    is the one the latest round reported.
     """
     if recorded is not None:
         return recorded

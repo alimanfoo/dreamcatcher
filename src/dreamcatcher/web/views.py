@@ -35,7 +35,7 @@ def _compose_hand_resume(
     worktree: Path | None,
     command: list[str] | None,
 ) -> WebHandResume | None:
-    """Return the web values for a manual session resume, when available."""
+    """Return the web values for a hand resume, when available."""
     if worktree is None or command is None:
         return None
     return WebHandResume(

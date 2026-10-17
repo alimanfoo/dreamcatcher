@@ -258,7 +258,7 @@ def test_a_conversation_numbers_its_rounds_by_their_records(tmp_path):
     assert reread.next_round_number == 2
 
 
-def test_a_conversation_recovers_a_session_reported_by_a_later_round(tmp_path):
+def test_a_conversation_finds_a_session_reported_by_a_later_round(tmp_path):
     conversation = write_conversation(state=StateDirectory(root=tmp_path))
     for number in (1, 2):
         paths = conversation.compose_round_paths(number=number)
@@ -280,9 +280,9 @@ def test_a_conversation_recovers_a_session_reported_by_a_later_round(tmp_path):
     reread = read_conversation(state=StateDirectory(root=tmp_path), issue=8)
     assert reread is not None
 
-    recovered = reread.find_harness_session_identifier()
+    found = reread.find_harness_session_identifier()
 
-    assert recovered == "replacement-session"
+    assert found == "replacement-session"
 
 
 @pytest.mark.parametrize(

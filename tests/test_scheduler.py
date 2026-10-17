@@ -821,7 +821,7 @@ def test_an_assignment_with_a_round_that_has_no_ending_starts_nothing(resuming):
     ).exists()
 
 
-def test_a_resume_recovers_the_harness_session_from_the_first_rounds_raw_stream(
+def test_a_resume_finds_the_harness_session_in_the_first_rounds_raw_stream(
     resuming, harnesses
 ):
     ran(root=resuming, number=1, status=1)

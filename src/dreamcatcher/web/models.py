@@ -50,7 +50,7 @@ class WebAgentRound:
 
 @dataclass(frozen=True, kw_only=True)
 class WebHandResume:
-    """Represent the directory and command for one manual session resume."""
+    """Represent the directory and command for one hand resume."""
 
     worktree: str
     command: str

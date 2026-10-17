@@ -587,7 +587,7 @@ def test_an_assignment_reads_back_with_its_settled_dispatch_recipe(state, route)
     assert read_assignments(state=state) == [created]
 
 
-def test_an_assignment_recovers_a_session_reported_by_a_later_round(fabricated):
+def test_an_assignment_finds_a_session_reported_by_a_later_round(fabricated):
     directory = write_assignment(
         state=fabricated,
         identifier=ASSIGNMENT_ID,
@@ -619,9 +619,9 @@ def test_an_assignment_recovers_a_session_reported_by_a_later_round(fabricated):
         ).encode()
     )
 
-    recovered = assignment.find_harness_session_identifier()
+    found = assignment.find_harness_session_identifier()
 
-    assert recovered == "replacement-session"
+    assert found == "replacement-session"
 
 
 def test_an_assignment_with_no_relayed_user_post_has_an_empty_cursor(state, route):

@@ -145,7 +145,7 @@ class AgentWork:
         return self.rounds[-1].number + 1 if self.rounds else 1
 
     def find_harness_session_identifier(self) -> HarnessSessionIdentifier | None:
-        """Return the recorded or recoverable harness session identifier."""
+        """Return the recorded harness session identifier, or one found in output."""
         return find_harness_session_identifier(
             harness=self.record.harness,
             agent_work_identifier=self.identifier,

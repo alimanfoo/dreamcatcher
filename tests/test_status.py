@@ -329,7 +329,7 @@ def test_an_unended_round_status_follows_the_daemon(
     assert round_status.duration_description == ""
 
 
-def test_status_recovers_the_harness_session_and_builds_its_resume_command(tmp_path):
+def test_status_finds_the_harness_session_and_builds_its_resume_command(tmp_path):
     state = StateDirectory(root=tmp_path)
     directory = write_assignment(
         state=state,
@@ -366,14 +366,14 @@ def test_status_recovers_the_harness_session_and_builds_its_resume_command(tmp_p
 def test_status_reads_harness_resume_details_only_when_requested(state, monkeypatch):
     calls = []
 
-    def recover_harness_session_identifier(assignment, /):
+    def find_harness_session_identifier(assignment, /):
         calls.append(assignment)
         return "abc-123"
 
     monkeypatch.setattr(
         AgentWork,
         "find_harness_session_identifier",
-        recover_harness_session_identifier,
+        find_harness_session_identifier,
     )
 
     status = only_assignment(state=state)

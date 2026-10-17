@@ -144,7 +144,7 @@ class AgentWorkStatus:
 
     @cached_property
     def harness_session_identifier(self) -> HarnessSessionIdentifier | None:
-        """The recorded or recoverable harness session identifier."""
+        """The recorded harness session identifier, or else one found in output."""
         return self.work.find_harness_session_identifier()
 
     @cached_property
