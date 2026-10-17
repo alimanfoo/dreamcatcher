@@ -56,13 +56,13 @@ from dreamcatcher.status import (
     DreamcatcherDaemonStatus,
     RequestReason,
     RequestStatus,
-    RequestStatusValue,
     StatusFact,
     read_agent_work_status,
     read_assignment_statuses_for_issue,
     read_dreamcatcher_daemon_status,
     read_status_report,
 )
+from dreamcatcher.status.requests import RequestStatusValue
 
 ASSIGNMENT_ID = "GH13-20260819-184158-assignment"
 LOOKED_AT = PINNED + timedelta(hours=2)
@@ -203,14 +203,16 @@ def test_an_empty_report_names_the_labels_the_daemon_routes_without_a_config(
 
     found = read_status_report(state=state, clock=lambda: LOOKED_AT)
 
-    assert found.assignment_section == AgentWorkStatusSection(
+    assert found.describe_section(
+        kind=AgentWorkKind.ASSIGNMENT
+    ) == AgentWorkStatusSection(
         heading="assignments",
         empty_message=(
             "Assign an issue to yourself and label it with dream:smith "
             "to create an assignment."
         ),
     )
-    assert found.conversation_section is None
+    assert found.describe_section(kind=AgentWorkKind.CONVERSATION) is None
 
 
 def test_the_instance_record_names_the_repository(state):
@@ -559,13 +561,13 @@ def test_a_failed_read_makes_the_assignment_unknown_with_the_reason(state):
     assert status.detail == "cannot tell: unavailable"
 
 
-def test_an_assignment_with_no_scheduler_observation_is_unknown(state):
+def test_an_assignment_before_any_update_is_unknown(state):
     ran(state=state, number=1)
 
     status = only_assignment(state=state)
 
     assert status.value is AgentWorkStatusValue.UNKNOWN
-    assert status.detail == "no current scheduler observation"
+    assert status.detail == "not seen by the latest update"
 
 
 @pytest.mark.parametrize("is_launched_observed", [False, True])
@@ -589,17 +591,17 @@ def test_a_round_ending_after_the_latest_tick_waits_for_the_next_update(
 
 
 @pytest.mark.parametrize("ended_at", [LOOKED_AT - timedelta(minutes=1), LOOKED_AT])
-def test_a_tick_at_or_after_the_latest_ending_needs_a_row(state, ended_at):
+def test_an_assignment_the_latest_update_did_not_see_is_unknown(state, ended_at):
     ran(state=state, number=1, ended_at=ended_at)
     tick_with(state=state, rows=[])
 
     status = only_assignment(state=state)
 
     assert status.value is AgentWorkStatusValue.UNKNOWN
-    assert status.detail == "no current scheduler observation"
+    assert status.detail == "not seen by the latest update"
 
 
-def test_a_row_is_current_when_a_round_ends_after_the_tick_begins(state):
+def test_what_the_latest_update_read_stays_current_when_a_round_ends_after_it(state):
     ran(state=state, number=1, ended_at=LOOKED_AT + timedelta(minutes=1))
     tick_with(state=state, rows=[pull_request_row()])
 
@@ -776,6 +778,45 @@ def test_a_blocked_request_names_its_claims_and_blockers_as_numbers(state):
             RequestReason(words="blocked by", issues=(10, 11)),
         ),
     )
+
+
+def test_a_request_that_an_open_pull_request_claims_is_blocked(state):
+    write_tick(
+        state=state,
+        tick=SchedulerRecord(
+            at=PINNED,
+            rows=[
+                request_row(
+                    issue=20,
+                    finding=StartTimeFinding(
+                        linked_pull_requests=[28], blocking_issues=[]
+                    ),
+                )
+            ],
+        ),
+    )
+
+    [request] = report(state=state).request_statuses
+
+    assert request.value is RequestStatusValue.BLOCKED
+    assert request.reasons == (RequestReason(words="claimed by", pull_requests=(28,)),)
+
+
+def test_an_assignment_whose_pull_request_is_not_yet_open_waits_for_it(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    write_assignment(
+        state=state, identifier=ASSIGNMENT_ID, issue=13, pull_request_observation=None
+    )
+    ran(state=state, number=1)
+    tick_with(
+        state=state,
+        rows=[request_row(issue=13, agent_work=ASSIGNMENT_ID)],
+    )
+
+    status = only_assignment(state=state)
+
+    assert status.value is AgentWorkStatusValue.WAITING
+    assert status.detail == "no pull request yet"
 
 
 def test_a_request_nothing_claims_or_blocks_is_available(state):
@@ -1021,9 +1062,9 @@ def test_an_assignment_keeps_its_section_after_its_routes_are_removed(state):
 
     found = report(state=state)
 
-    assert found.assignment_section == AgentWorkStatusSection(
-        heading="assignments", empty_message=None
-    )
+    assert found.describe_section(
+        kind=AgentWorkKind.ASSIGNMENT
+    ) == AgentWorkStatusSection(heading="assignments", empty_message=None)
 
 
 @pytest.mark.parametrize(

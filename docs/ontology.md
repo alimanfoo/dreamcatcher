@@ -288,9 +288,9 @@ Agent work is open until its ending is recorded, with the time and the reason,
 and then it has **ended**. An assignment ends when it is complete or cancelled.
 
 _dreamcatcher_ leaves the pull request as it is, and while it is open it claims
-the issue, so the start-time questions find it. If the user merges it, GitHub
-closes the issue. If the user closes it without merging, the issue may receive
-another assignment.
+the issue, so no new assignment starts for the issue. If the user merges it,
+GitHub closes the issue. If the user closes it without merging, the issue may
+receive another assignment.
 
 ### Describing an agent round
 
@@ -316,10 +316,10 @@ of their own.
 
 For a request with no open work the tick records what decides whether work may
 start. An assignment request that carries the issue's only assignment label is
-asked the two **start-time questions**: which open pull requests linked to the
-issue claim it, and which open issue dependencies block it. They are asked only
-while no open assignment exists, because they decide only whether one may start.
-A conversation request reads the issue's comments. A request whose issue carries
+asked the **start-time questions**: which open pull requests linked to the issue
+claim it, and which open issue dependencies block it. They are asked only while
+no open assignment exists, because they decide only whether one may start. A
+conversation request reads the issue's comments. A request whose issue carries
 more than one label of its kind has a routing conflict, and nothing of that kind
 starts while it lasts.
 
@@ -341,34 +341,38 @@ assignments.
 
 ### Agent work status
 
-Agent work of either kind has one of these summary statuses. The first that
-applies, in this order, is the status:
+Agent work of either kind has one of these summary statuses:
 
 - **Working**: a round is running under the daemon. A cancelled assignment whose
   round is still stopping is working until the round ends.
 - **Ended**: the work's ending is recorded, and its reason, completed or
   cancelled, is the detail.
 - **Fault**: two consecutive rounds have errored, so no further round starts on
-  its own. Fault outranks every status but working and ended, so the user can
-  see the fault and retry.
+  its own.
 - **Unknown**: the latest tick could not read what it needed for the work, and
-  the reason is the detail.
-- **Idle**, for a conversation that the latest tick holds back: its issue was
-  not listed, or it carries a second conversation label. No round starts for it,
-  so it is idle whatever its last round did, with the cause as its detail.
+  the reason is the detail; or the latest tick has no row for the work, or read
+  nothing for it.
 - **Waiting**: a round is due but has not started. Its last round errored or was
   interrupted, including a round left without an ending by a daemon that has
-  gone; no round has run yet; a round ended after the tick that started it, so
-  no tick has looked since; or the latest tick found something new, which is
-  user posts, issue comments, or a merged or closed pull request whose final
-  turn has not been taken. A free agent slot, or the end of a cooldown, starts
-  it.
+  gone; no round has run yet; an assignment's pull request is not yet open; a
+  round ended after the latest tick, when that tick started the round or read
+  nothing for the work, so no tick has looked since; or the latest tick found
+  something new, which is user posts, issue comments, or a merged or closed pull
+  request whose final turn has not been taken. A free agent slot, or the end of
+  a cooldown, starts it.
 - **Idle**: nothing is due until something new appears in the work's channel.
   The detail says why: an assignment's pull request is ready for review, still a
   draft, or merged or closed after its final turn; a conversation's latest round
-  answered, needed no reply, or was stopped.
-- **Unknown**, otherwise: the latest tick has no row for the work, or read
-  nothing for it.
+  answered, needed no reply, or was stopped; or the tick starts no round for a
+  conversation, because its issue was not listed or carries a second
+  conversation label.
+
+The statuses are decided in an order. Working comes first, then ended, then
+fault, so the user can see a fault and retry whatever else is true. A failed
+read comes next, as unknown. A conversation that the tick starts no round for is
+idle before it can be waiting, because no round will start however its last
+round ended. Then come waiting and idle, and work that the latest tick has no
+row for, or read nothing for, is unknown when nothing else applies.
 
 These statuses summarize what matters now; they are not a persisted lifecycle or
 a substitute for the underlying facts. In particular, pull-request state, what

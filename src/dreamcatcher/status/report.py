@@ -29,6 +29,18 @@ from dreamcatcher.status.agent_work import (
 from dreamcatcher.status.requests import RequestStatus, describe_request
 from dreamcatcher.words import describe_countdown, describe_span
 
+# The guidance that an empty section of each kind gives, naming its labels.
+_EMPTY_SECTION_GUIDANCE = {
+    AgentWorkKind.ASSIGNMENT: (
+        "Assign an issue to yourself and label it with {labels} "
+        "to create an assignment."
+    ),
+    AgentWorkKind.CONVERSATION: (
+        "Assign an issue to yourself, label it with {labels} "
+        "and post a comment to start a conversation."
+    ),
+}
+
 
 @dataclass(frozen=True, kw_only=True)
 class StatusFact:
@@ -133,8 +145,6 @@ class DreamcatcherStatusReport:
     active_global_cooldown: GlobalCooldown | None
     request_statuses: list[RequestStatus]
     work_statuses: list[AgentWorkStatus]
-    assignment_section: AgentWorkStatusSection | None
-    conversation_section: AgentWorkStatusSection | None
 
     @property
     def instance_facts(self) -> tuple[StatusFact, ...]:
@@ -185,9 +195,34 @@ class DreamcatcherStatusReport:
             if value is not None
         )
 
+    def describe_section(self, *, kind: AgentWorkKind) -> AgentWorkStatusSection | None:
+        """Describe one kind's section, shown once the kind is routed or has work.
+
+        The guidance shows only while nothing of the kind is active, and names
+        the labels that the current or latest daemon run routes.
+        """
+        labels = self.daemon.list_labels(kind=kind)
+        work_statuses = self._list_work_statuses(kind=kind)
+        request_statuses = self.list_request_statuses(kind=kind)
+        if not (labels or work_statuses or request_statuses):
+            return None
+        is_active = bool(
+            request_statuses or any(status.is_active for status in work_statuses)
+        )
+        return AgentWorkStatusSection(
+            heading=f"{kind}s",
+            empty_message=(
+                None
+                if is_active or not labels
+                else _EMPTY_SECTION_GUIDANCE[kind].format(
+                    labels=_describe_route_labels(labels=labels)
+                )
+            ),
+        )
+
     def list_request_statuses(self, *, kind: AgentWorkKind) -> list[RequestStatus]:
         """Return the requests of one kind with no open work, in the tick's order."""
-        return _select_request_statuses(statuses=self.request_statuses, kind=kind)
+        return [status for status in self.request_statuses if status.kind is kind]
 
     def list_active_work_statuses(
         self, *, kind: AgentWorkKind
@@ -196,8 +231,8 @@ class DreamcatcherStatusReport:
         return sorted(
             (
                 status
-                for status in self.work_statuses
-                if status.work.record.kind is kind and status.is_active
+                for status in self._list_work_statuses(kind=kind)
+                if status.is_active
             ),
             key=lambda status: AGENT_WORK_STATUS_VALUES_IN_ATTENTION_ORDER.index(
                 status.value
@@ -209,47 +244,17 @@ class DreamcatcherStatusReport:
         return sorted(
             (
                 status
-                for status in self.work_statuses
-                if status.work.record.kind is kind and status.has_ended
+                for status in self._list_work_statuses(kind=kind)
+                if status.has_ended
             ),
             key=lambda status: cast("AgentWorkEnding", status.work.ending).at,
             reverse=True,
         )
 
-
-def _describe_agent_work_section(
-    *,
-    heading: str,
-    labels: tuple[str, ...],
-    work_statuses: list[AgentWorkStatus],
-    request_statuses: list[RequestStatus],
-    empty_message: str | None,
-) -> AgentWorkStatusSection | None:
-    """Describe one kind's section, which shows once the kind is routed or has work.
-
-    The guidance shows only while nothing of the kind is active.
-    """
-    if not (labels or work_statuses or request_statuses):
-        return None
-    has_active_work = bool(
-        request_statuses or any(status.is_active for status in work_statuses)
-    )
-    return AgentWorkStatusSection(
-        heading=heading,
-        empty_message=None if has_active_work else empty_message,
-    )
-
-
-def _select_work_statuses(
-    *, statuses: list[AgentWorkStatus], kind: AgentWorkKind
-) -> list[AgentWorkStatus]:
-    return [status for status in statuses if status.work.record.kind is kind]
-
-
-def _select_request_statuses(
-    *, statuses: list[RequestStatus], kind: AgentWorkKind
-) -> list[RequestStatus]:
-    return [status for status in statuses if status.kind is kind]
+    def _list_work_statuses(self, *, kind: AgentWorkKind) -> list[AgentWorkStatus]:
+        return [
+            status for status in self.work_statuses if status.work.record.kind is kind
+        ]
 
 
 def _describe_route_labels(*, labels: tuple[str, ...]) -> str:
@@ -261,11 +266,7 @@ def _describe_route_labels(*, labels: tuple[str, ...]) -> str:
 def read_status_report(
     *, state: StateDirectory, clock: Callable[[], datetime] = read_current_time
 ) -> DreamcatcherStatusReport:
-    """Read a status report from local state alone.
-
-    The labels that the guidance names are the ones the current or latest daemon
-    run routes.
-    """
+    """Read a status report from local state alone."""
     daemon = read_dreamcatcher_daemon_status(state=state)
     reader = _create_status_reader(state=state, daemon=daemon, clock=clock)
     scheduler_record = reader.scheduler_record
@@ -281,28 +282,6 @@ def read_status_report(
             for row in scheduler_record.rows
             if row.agent_work is None
         ]
-    )
-    assignment_requests = _select_request_statuses(
-        statuses=request_statuses, kind=AgentWorkKind.ASSIGNMENT
-    )
-    conversation_requests = _select_request_statuses(
-        statuses=request_statuses, kind=AgentWorkKind.CONVERSATION
-    )
-    assignment_labels = daemon.list_labels(kind=AgentWorkKind.ASSIGNMENT)
-    conversation_labels = daemon.list_labels(kind=AgentWorkKind.CONVERSATION)
-    assignment_empty_message = (
-        None
-        if not assignment_labels
-        else "Assign an issue to yourself and label it with "
-        f"{_describe_route_labels(labels=assignment_labels)} "
-        "to create an assignment."
-    )
-    conversation_empty_message = (
-        None
-        if not conversation_labels
-        else "Assign an issue to yourself, label it with "
-        f"{_describe_route_labels(labels=conversation_labels)} "
-        "and post a comment to start a conversation."
     )
     return DreamcatcherStatusReport(
         at=reader.at,
@@ -322,24 +301,6 @@ def read_status_report(
         ),
         request_statuses=request_statuses,
         work_statuses=work_statuses,
-        assignment_section=_describe_agent_work_section(
-            heading="assignments",
-            labels=assignment_labels,
-            work_statuses=_select_work_statuses(
-                statuses=work_statuses, kind=AgentWorkKind.ASSIGNMENT
-            ),
-            request_statuses=assignment_requests,
-            empty_message=assignment_empty_message,
-        ),
-        conversation_section=_describe_agent_work_section(
-            heading="conversations",
-            labels=conversation_labels,
-            work_statuses=_select_work_statuses(
-                statuses=work_statuses, kind=AgentWorkKind.CONVERSATION
-            ),
-            request_statuses=conversation_requests,
-            empty_message=conversation_empty_message,
-        ),
     )
 
 

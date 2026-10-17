@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING
 
 from dreamcatcher import teardown
 from dreamcatcher.agent_rounds import (
+    describe_round_preparation_failure,
     record_agent_round_interruption,
     record_agent_round_stop,
 )
@@ -277,10 +278,14 @@ def _describe_tick_outcome(
     failures = [
         *record.failures,
         *(
-            f"{row.agent_work} round {row.started_round.number} errored: "
-            f"{row.started_round.preparation_failure}"
+            describe_round_preparation_failure(
+                agent_work_identifier=row.agent_work,
+                round_number=row.started_round.number,
+                reason=row.started_round.preparation_failure,
+            )
             for row in record.rows
-            if row.started_round is not None
+            if row.agent_work is not None
+            and row.started_round is not None
             and row.started_round.preparation_failure is not None
         ),
     ]

@@ -78,7 +78,7 @@ def show_conversation_view(
     wait: WaitForSeconds = sleep,
     zone: tzinfo | None = None,
 ) -> None:
-    """Show one issue conversation while the status report lists it.
+    """Show one issue conversation until it ends.
 
     A non-terminal or dumb terminal renders one snapshot and returns.
     """

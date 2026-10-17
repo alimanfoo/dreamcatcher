@@ -50,11 +50,11 @@ from dreamcatcher.status import (
     AgentWorkStatusSection,
     AgentWorkStatusValue,
     RequestReason,
-    RequestStatusValue,
     read_conversation_status,
     read_dreamcatcher_daemon_status,
     read_status_report,
 )
+from dreamcatcher.status.requests import RequestStatusValue
 from dreamcatcher.status.rounds import _compose_round_revision
 
 LOOKED_AT = PINNED + timedelta(hours=2)
@@ -264,7 +264,7 @@ def test_a_conversation_no_tick_has_observed_is_unknown(conversation_state):
     found = status(state=conversation_state)
 
     assert found.value is AgentWorkStatusValue.UNKNOWN
-    assert found.detail == "no current scheduler observation"
+    assert found.detail == "not seen by the latest update"
 
 
 def test_a_conversation_whose_issue_is_not_listed_is_idle_and_stays_on_the_report(
@@ -339,9 +339,9 @@ def test_a_live_round_shows_a_conversation_whose_issue_is_not_listed_as_working(
     found = report.work_statuses[0]
 
     assert report.running_agents == 1
-    assert report.conversation_section == AgentWorkStatusSection(
-        heading="conversations", empty_message=None
-    )
+    assert report.describe_section(
+        kind=AgentWorkKind.CONVERSATION
+    ) == AgentWorkStatusSection(heading="conversations", empty_message=None)
     assert found.value is AgentWorkStatusValue.WORKING
     assert found.detail == ("round 1, 1 comment, running 2h 0m, last output 1h 59m ago")
     assert found.latest_output == "I am reading the scheduler."
@@ -727,9 +727,9 @@ def test_the_report_lists_ended_conversations_apart_newest_first(tmp_path):
         status.work.record.issue
         for status in report.list_ended_work_statuses(kind=AgentWorkKind.CONVERSATION)
     ] == [9, 8]
-    assert report.conversation_section == AgentWorkStatusSection(
-        heading="conversations", empty_message=None
-    )
+    assert report.describe_section(
+        kind=AgentWorkKind.CONVERSATION
+    ) == AgentWorkStatusSection(heading="conversations", empty_message=None)
 
 
 def test_a_section_of_ended_conversations_alone_gives_its_guidance(
@@ -742,7 +742,9 @@ def test_a_section_of_ended_conversations_alone_gives_its_guidance(
     report = read_status_report(state=conversation_state, clock=lambda: LOOKED_AT)
 
     assert report.list_active_work_statuses(kind=AgentWorkKind.CONVERSATION) == []
-    assert report.conversation_section == AgentWorkStatusSection(
+    assert report.describe_section(
+        kind=AgentWorkKind.CONVERSATION
+    ) == AgentWorkStatusSection(
         heading="conversations",
         empty_message=(
             "Assign an issue to yourself, label it with dream:scout and post a "

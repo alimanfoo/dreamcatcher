@@ -22,7 +22,7 @@ from dreamcatcher.agent_rounds import (
 from dreamcatcher.agent_work import AgentWork, AgentWorkEndReason
 from dreamcatcher.documents import read_text
 from dreamcatcher.github import PullRequestState
-from dreamcatcher.harness_adapters import HarnessSessionIdentifier
+from dreamcatcher.harness_adapters import AgentWorkKind, HarnessSessionIdentifier
 from dreamcatcher.harnesses import HARNESS_ADAPTERS
 from dreamcatcher.issue_conversations import is_no_reply
 from dreamcatcher.scheduler.faults import (
@@ -39,6 +39,11 @@ from dreamcatcher.scheduler.models import (
     UnlistedIssueFinding,
 )
 from dreamcatcher.state import StateDirectory
+from dreamcatcher.status.findings import (
+    describe_comments_to_answer,
+    describe_conflicting_labels,
+    describe_read_failure,
+)
 from dreamcatcher.status.rounds import (
     AgentRoundStatus,
     compose_round_duration_description,
@@ -207,16 +212,17 @@ class AgentWorkStatusReader:
     def derive(self, *, work: AgentWork) -> AgentWorkStatus:
         """Derive one piece of work's status from its records and the latest tick.
 
-        The first of working, ended, fault, unknown, held and waiting that
-        applies is the status. Otherwise the work is idle, or unknown when the
-        latest tick has no row for it or read nothing for it.
+        The first that applies of working, ended, fault, unknown, idle for a
+        conversation that the tick starts no round for, and waiting is the
+        status. Otherwise the work is idle, or unknown when the latest tick has
+        no row for it or read nothing for it.
         """
         steps: tuple[_StatusStep, ...] = (
             self._derive_working,
             self._derive_ended,
             self._derive_fault,
             self._derive_unknown,
-            self._derive_held,
+            self._derive_unscheduled_conversation,
             self._derive_waiting,
         )
         for step in steps:
@@ -278,10 +284,14 @@ class AgentWorkStatusReader:
         row = self.rows.get(work.identifier)
         if row is None or not isinstance(row.finding, ReadFailure):
             return None
-        return _compose_unknown(work=work, detail=f"cannot tell: {row.finding.reason}")
+        return _compose_unknown(
+            work=work, detail=describe_read_failure(reason=row.finding.reason)
+        )
 
-    def _derive_held(self, work: AgentWork, /) -> AgentWorkStatus | None:
-        """Derive the idle status of a conversation that the tick holds back.
+    def _derive_unscheduled_conversation(
+        self, work: AgentWork, /
+    ) -> AgentWorkStatus | None:
+        """Derive the idle status of a conversation that the tick starts no round for.
 
         The tick starts no round for a conversation whose issue the listing did
         not return or carries a second conversation label, so neither waits.
@@ -289,7 +299,7 @@ class AgentWorkStatusReader:
         row = self.rows.get(work.identifier)
         finding = None if row is None else row.finding
         if isinstance(finding, ConflictingLabelsFinding):
-            detail = "conflicting labels " + ", ".join(finding.labels)
+            detail = describe_conflicting_labels(labels=finding.labels)
         elif isinstance(finding, UnlistedIssueFinding):
             detail = "issue not listed"
         else:
@@ -305,9 +315,10 @@ class AgentWorkStatusReader:
         """Derive the status of work that a round is due for, if it is due.
 
         A round is due once the last round did not finish, before the first
-        round has run, and when the latest tick found something new. A round
-        that ended after the tick that started it, or after a tick that read
-        nothing for the work, is one that no tick has looked at yet.
+        round has run, while an assignment's pull request is not yet open, and
+        when the latest tick found something new. A round that ended after the
+        tick that started it, or after a tick that read nothing for the work, is
+        one that no tick has looked at yet.
         """
         if is_last_round_unfinished(
             rounds=work.rounds, is_daemon_running=self.is_daemon_running
@@ -319,6 +330,11 @@ class AgentWorkStatusReader:
             return _compose_waiting(work=work, detail=detail)
         if not work.rounds:
             return _compose_waiting(work=work, detail="no round has run yet")
+        if (
+            work.record.kind is AgentWorkKind.ASSIGNMENT
+            and read_pull_request_observation(assignment=work) is None
+        ):
+            return _compose_waiting(work=work, detail="no pull request yet")
         latest = work.rounds[-1]
         row = self.rows.get(work.identifier)
         if self._did_round_end_after_latest_tick(record=latest, row=row):
@@ -383,7 +399,7 @@ class AgentWorkStatusReader:
 
 
 def _compose_unknown(
-    *, work: AgentWork, detail: str = "no current scheduler observation"
+    *, work: AgentWork, detail: str = "not seen by the latest update"
 ) -> AgentWorkStatus:
     return AgentWorkStatus(
         work=work,
@@ -406,8 +422,7 @@ def _describe_signal(*, work: AgentWork, row: RequestRow) -> str | None:
     """Describe what the latest tick found new in the work's channel, if anything."""
     finding = row.finding
     if isinstance(finding, IssueCommentsFinding) and finding.new_comments:
-        comments = describe_count(number=finding.new_comments, noun="comment")
-        return f"{comments} to answer"
+        return describe_comments_to_answer(count=finding.new_comments)
     if not isinstance(finding, PullRequestFinding):
         return None
     if finding.state is not PullRequestState.OPEN and not is_final_turn_taken(

@@ -64,7 +64,7 @@ class _ConversationInspection:
     rows: list[RequestRow]
     candidate: ConversationBatchCandidate | None = None
     is_fault: bool = False
-    is_comment_read_failed: bool = False
+    is_blocking_fresh_batches: bool = False
 
 
 class ConversationScheduler(
@@ -117,7 +117,7 @@ class ConversationScheduler(
             if inspection.candidate is not None
         ]
         if listing.failures or any(
-            inspection.is_comment_read_failed for inspection in listed
+            inspection.is_blocking_fresh_batches for inspection in listed
         ):
             candidates = [
                 candidate
@@ -255,7 +255,9 @@ class ConversationScheduler(
         )
         is_ready = is_conversation_ready_for_input(conversation=conversation)
         if isinstance(comments, ReadFailure):
-            return _ConversationInspection(rows=[row], is_comment_read_failed=is_ready)
+            return _ConversationInspection(
+                rows=[row], is_blocking_fresh_batches=is_ready
+            )
         if not comments or not is_ready:
             return _ConversationInspection(rows=[row])
         return _ConversationInspection(

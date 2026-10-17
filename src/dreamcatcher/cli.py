@@ -181,11 +181,11 @@ def _build_cli_parser() -> argparse.ArgumentParser:
     web_parser.set_defaults(act=_show_web)
     status_parser = subcommands.add_parser(
         "status",
-        help="show the instance, conversation, issue, and assignment status",
+        help="show the instance, its agent work, and the labelled issues waiting",
         description=(
-            "Show instance and daemon facts, each conversation and assignment, "
-            "available issues in dispatch order, blocked issues, and assignment "
-            "routing conflicts. It refreshes automatically "
+            "Show instance and daemon facts, each assignment and conversation, "
+            "and each labelled issue that has no work yet, in dispatch order, "
+            "with why no work has started. It refreshes automatically "
             "until you interrupt it. "
             + _HELP_WHEN_A_VIEW_TAKES_THE_SCREEN
             + " "
@@ -215,8 +215,8 @@ def _build_cli_parser() -> argparse.ArgumentParser:
         help="show one issue conversation, in detail",
         description=(
             "Show an issue conversation's chosen settings, harness session, worktree, "
-            "code revision, and rounds. It keeps up while the status report "
-            "lists the conversation. "
+            "code revision, and rounds. It keeps up until the conversation "
+            "ends. "
             + _HELP_WHEN_A_VIEW_TAKES_THE_SCREEN
             + " "
             + _HELP_WHEN_NOTHING_WATCHES
@@ -230,8 +230,7 @@ def _build_cli_parser() -> argparse.ArgumentParser:
         description=(
             "Show the agent's actions and outputs from every round of "
             "the selected assignment or conversation, and keep showing what "
-            "arrives until an assignment ends or the status report stops listing "
-            "a conversation. " + _HELP_WHEN_NOTHING_WATCHES
+            "arrives until the work ends. " + _HELP_WHEN_NOTHING_WATCHES
         ),
     )
     _add_issue_argument(parser=feed_parser)

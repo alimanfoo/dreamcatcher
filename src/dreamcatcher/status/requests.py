@@ -12,7 +12,11 @@ from dreamcatcher.scheduler.models import (
     RequestRow,
     StartTimeFinding,
 )
-from dreamcatcher.words import describe_count
+from dreamcatcher.status.findings import (
+    describe_comments_to_answer,
+    describe_conflicting_labels,
+    describe_read_failure,
+)
 
 # What the tick finds for a request with no open work: what decides whether work
 # may start, or why that read failed.
@@ -79,17 +83,18 @@ def _describe_finding(
         return _describe_start_time_answers(finding=finding)
     if isinstance(finding, IssueCommentsFinding):
         if finding.new_comments:
-            comments = describe_count(number=finding.new_comments, noun="comment")
             return RequestStatusValue.AVAILABLE, (
-                RequestReason(words=f"{comments} to answer"),
+                RequestReason(
+                    words=describe_comments_to_answer(count=finding.new_comments)
+                ),
             )
         return RequestStatusValue.IDLE, (RequestReason(words="waiting for a comment"),)
     if isinstance(finding, ConflictingLabelsFinding):
         return RequestStatusValue.ROUTING_CONFLICT, (
-            RequestReason(words="conflicting labels " + ", ".join(finding.labels)),
+            RequestReason(words=describe_conflicting_labels(labels=finding.labels)),
         )
     return RequestStatusValue.UNKNOWN, (
-        RequestReason(words=f"cannot tell: {finding.reason}"),
+        RequestReason(words=describe_read_failure(reason=finding.reason)),
     )
 
 
@@ -97,6 +102,8 @@ def _describe_start_time_answers(
     *, finding: StartTimeFinding
 ) -> tuple[RequestStatusValue, tuple[RequestReason, ...]]:
     """Return what claims or blocks an issue, or that nothing does."""
+    if finding.is_clear:
+        return RequestStatusValue.AVAILABLE, ()
     reasons = []
     if finding.linked_pull_requests:
         reasons.append(
@@ -109,6 +116,4 @@ def _describe_start_time_answers(
         reasons.append(
             RequestReason(words="blocked by", issues=tuple(finding.blocking_issues))
         )
-    if reasons:
-        return RequestStatusValue.BLOCKED, tuple(reasons)
-    return RequestStatusValue.AVAILABLE, ()
+    return RequestStatusValue.BLOCKED, tuple(reasons)

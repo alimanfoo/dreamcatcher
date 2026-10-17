@@ -516,7 +516,7 @@ def test_a_last_round_that_was_carried_on_is_still_the_last_round(state, gh):
     assert found(state=state) is None
 
 
-def test_a_pull_request_read_that_failed_is_held_in_the_row(state, gh):
+def test_a_failed_pull_request_read_leaves_the_assignment_unknown(state, gh):
     ran(state=state, number=1)
     gh.fails(stderr="gh: could not connect to github.com", to="pr view")
 
@@ -526,7 +526,7 @@ def test_a_pull_request_read_that_failed_is_held_in_the_row(state, gh):
     assert "could not connect" in waiting.reason
 
 
-def test_a_relay_read_that_failed_is_held_in_the_row(state, gh):
+def test_a_failed_user_post_read_leaves_the_assignment_unknown(state, gh):
     ran(state=state, number=1)
     gh.fails(
         stderr="gh: could not connect to github.com",

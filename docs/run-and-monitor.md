@@ -56,8 +56,8 @@ dreamcatcher web --port 8123
 The home page shows daemon facts, any scheduler failures, active and ended
 assignments and issue conversations, and the labelled issues that have no work
 yet, with why: available, blocked by an issue or claimed by a pull request,
-waiting for a comment, or carrying conflicting labels. Open an assignment or
-conversation to see its rounds and live feed.
+waiting for a comment, carrying conflicting labels, or unknown because a read
+failed. Open an assignment or conversation to see its rounds and live feed.
 
 ## Monitor from the terminal
 

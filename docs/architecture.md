@@ -81,6 +81,9 @@ One scheduler tick:
 7. returns a `SchedulerRecord`, holding one request row per request, for
    operational reporting.
 
+Alternation advances when a kind is selected, including when its start fails,
+and begins afresh after a daemon restart.
+
 The daemon persists the returned `SchedulerRecord` and reports it in its output.
 A scheduler tick that fails before returning one is reported in daemon output
 and leaves the last complete scheduler record in place. An invalid scheduler
@@ -88,12 +91,13 @@ record ends the daemon because retrying cannot repair the document.
 
 If a read for a request fails, the tick holds the reason in that request's row
 and prevents only the launches that depend on what it would have read. A failed
-listing is a scheduler failure, because it belongs to no request. A later tick
-retries the failed read. New conversation rounds launch in order of their oldest
-waiting comment across all issues, so a failed comment read for any conversation
-that awaits new comments prevents every new conversation round in that tick. A
-round that gives a conversation the input of one that did not finish does not
-depend on that order, so it still launches.
+listing is a scheduler failure, because it belongs to no request, and the rows
+of open conversations that it did not return hold its reason, so they read as
+unknown. A later tick retries the failed read. New conversation rounds launch in
+order of their oldest waiting comment across all issues, so a failed comment
+read for any conversation that awaits new comments prevents every new
+conversation round in that tick. A round that gives a conversation the input of
+one that did not finish does not depend on that order, so it still launches.
 
 A launch that fails takes no agent slot. The tick keeps every round that it
 already started and goes on to the next candidate. A round that errored before
@@ -393,9 +397,8 @@ for both kinds of agent work. `RequestStatus` gives a request with no open work
 its request status and its reasons, each as words with the issues or pull
 requests it names.
 
-Alternation advances when a kind is selected, including when its start fails,
-and begins afresh after a daemon restart. A round that the tick started and that
-ended after the scheduler record means no tick has looked since, so status
+A round that ended after the scheduler record, when that tick started the round
+or read nothing for the work, is one that no tick has looked at since, so status
 reports that the work is waiting for the next update. An ending that predates
 the record should already have been read, so a missing row remains unknown.
 

@@ -59,8 +59,8 @@ def compose_home_view(*, report: DreamcatcherStatusReport) -> WebHomeView:
         ),
         daemon=daemon,
         instance_facts=report.instance_facts,
-        assignment_section=report.assignment_section,
-        conversation_section=report.conversation_section,
+        assignment_section=report.describe_section(kind=AgentWorkKind.ASSIGNMENT),
+        conversation_section=report.describe_section(kind=AgentWorkKind.CONVERSATION),
         active_conversations=tuple(
             _compose_work_card(status=status)
             for status in report.list_active_work_statuses(

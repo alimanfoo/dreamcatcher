@@ -249,6 +249,13 @@ class AgentRoundRecord(DreamcatcherDocument):
         }
 
 
+def describe_round_preparation_failure(
+    *, agent_work_identifier: str, round_number: int, reason: str
+) -> str:
+    """Say which round of which work errored before its harness ran, and why."""
+    return f"{agent_work_identifier} round {round_number} errored: {reason}"
+
+
 class AgentRoundPreparationError(ReportableError):
     """Report a round that ended errored before its harness ran.
 
@@ -262,7 +269,11 @@ class AgentRoundPreparationError(ReportableError):
     ) -> None:
         """Hold the round that errored and say which one it was."""
         super().__init__(
-            f"{agent_work_identifier} round {round_number} errored: {reason}"
+            describe_round_preparation_failure(
+                agent_work_identifier=agent_work_identifier,
+                round_number=round_number,
+                reason=reason,
+            )
         )
         self.agent_work_identifier = agent_work_identifier
         self.round_number = round_number

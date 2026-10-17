@@ -140,7 +140,7 @@ def test_a_later_route_failure_keeps_the_rows_of_earlier_routes(gh):
     assert [row.issue for row in found.rows] == [8]
 
 
-def test_a_request_row_holds_the_open_blockers_as_numbers(gh):
+def test_a_request_names_the_open_issues_that_block_it(gh):
     gh.replies(
         stdout=pages(
             items=[
@@ -156,7 +156,7 @@ def test_a_request_row_holds_the_open_blockers_as_numbers(gh):
     assert row.finding == StartTimeFinding(linked_pull_requests=[], blocking_issues=[9])
 
 
-def test_a_request_row_holds_the_open_linked_pull_requests_as_numbers(gh):
+def test_a_request_names_the_open_pull_requests_that_claim_it(gh):
     gh.replies(
         stdout=json.dumps(
             {"number": 8, "closedByPullRequestsReferences": [{"number": 28}]}
@@ -223,7 +223,7 @@ def test_each_of_two_assignment_labels_is_a_request_with_conflicting_labels(gh):
 
 
 @pytest.mark.parametrize("read", ["issue view", "api"])
-def test_a_failed_start_time_read_is_held_in_the_request_row(gh, read):
+def test_a_failed_start_time_read_leaves_the_request_unknown(gh, read):
     gh.fails(stderr="gh: could not connect to github.com", to=read)
 
     [row] = rows_for(config=config_with_routes(labels=[ASSIGNMENT_LABEL]))

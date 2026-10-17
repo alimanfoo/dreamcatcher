@@ -670,9 +670,8 @@ def test_every_verb_describes_itself_in_its_own_help(verb, capsys):
     ("verb", "description"),
     [
         ("assignment", "until the assignment ends"),
-        ("conversation", "while the status report lists the conversation"),
-        ("feed", "until an assignment ends"),
-        ("feed", "status report stops listing a conversation"),
+        ("conversation", "until the conversation ends"),
+        ("feed", "until the work ends"),
     ],
 )
 def test_live_view_help_explains_what_ends_each_view(verb, description, capsys):
@@ -683,12 +682,12 @@ def test_live_view_help_explains_what_ends_each_view(verb, description, capsys):
     assert description in " ".join(capsys.readouterr().out.split())
 
 
-def test_status_help_names_assignment_routing_conflicts(capsys):
+def test_status_help_says_why_a_labelled_issue_has_no_work(capsys):
     with pytest.raises(SystemExit) as exit_info:
         main(argv=["status", "--help"])
 
     assert exit_info.value.code == 0
-    assert "assignment routing conflicts" in " ".join(capsys.readouterr().out.split())
+    assert "with why no work has started" in " ".join(capsys.readouterr().out.split())
 
 
 def test_a_bare_invocation_asks_for_a_verb(capsys):

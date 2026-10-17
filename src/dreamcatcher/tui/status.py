@@ -12,7 +12,6 @@ from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.status import (
     AgentWorkStatus,
-    AgentWorkStatusSection,
     DreamcatcherStatusReport,
     RequestReason,
     RequestStatus,
@@ -67,16 +66,8 @@ def _render_status(*, report: DreamcatcherStatusReport) -> RenderableType:
         parts=[
             Text(report.repository or "repository unknown", style="bold"),
             _render_instance_status(report=report),
-            _render_agent_work(
-                report=report,
-                section=report.assignment_section,
-                kind=AgentWorkKind.ASSIGNMENT,
-            ),
-            _render_agent_work(
-                report=report,
-                section=report.conversation_section,
-                kind=AgentWorkKind.CONVERSATION,
-            ),
+            _render_agent_work(report=report, kind=AgentWorkKind.ASSIGNMENT),
+            _render_agent_work(report=report, kind=AgentWorkKind.CONVERSATION),
         ]
     )
 
@@ -90,16 +81,14 @@ def _render_instance_status(*, report: DreamcatcherStatusReport) -> RenderableTy
 
 
 def _render_agent_work(
-    *,
-    report: DreamcatcherStatusReport,
-    section: AgentWorkStatusSection | None,
-    kind: AgentWorkKind,
+    *, report: DreamcatcherStatusReport, kind: AgentWorkKind
 ) -> RenderableType | None:
     """Render one kind of agent work as one section, mirroring the web home view.
 
     Orders the active work, the requests with no open work, the guidance and
     the count of ended work in that sequence.
     """
+    section = report.describe_section(kind=kind)
     if section is None:
         return None
     rows = _render_work_rows(statuses=report.list_active_work_statuses(kind=kind))
