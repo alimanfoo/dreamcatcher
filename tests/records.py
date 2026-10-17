@@ -44,8 +44,8 @@ MERGED_INPUT = agent_assignments.AssignmentRoundInput(
     pull_request_state=PullRequestState.MERGED, user_posts=[]
 )
 
-# The pull request a fabricated assignment opened, unless a test says.
-_PULL_REQUEST_52 = agent_assignments.PullRequestObservation(number=52)
+# The number of the pull request a fabricated assignment opened, unless a test says.
+_PULL_REQUEST_52 = 52
 
 
 def write_daemon_run(
@@ -97,20 +97,19 @@ def write_assignment(
     issue: int,
     harness_session_identifier: str | None = "abc-123",
     title: str | None = None,
-    pull_request_observation: agent_assignments.PullRequestObservation
-    | None = _PULL_REQUEST_52,
+    pull_request: int | None = _PULL_REQUEST_52,
 ) -> Path:
     """Write an assignment's worktree and its records, and return its own directory.
 
     The title is `Issue <n>` unless the test gives one. An assignment given no
-    pull request observation is one whose first round has not opened it.
+    pull request is one whose first round has not opened it.
     """
     (state.worktrees / identifier).mkdir(parents=True)
     directory = state.work / identifier
-    if pull_request_observation is not None:
+    if pull_request is not None:
         write_json(
-            document=pull_request_observation,
-            path=directory / agent_assignments._PULL_REQUEST_OBSERVATION_RECORD_NAME,
+            document=agent_assignments._PullRequestRecord(number=pull_request),
+            path=directory / agent_assignments._PULL_REQUEST_RECORD_NAME,
         )
     agent_work._record_agent_work(
         state=state,

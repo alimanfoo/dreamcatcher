@@ -830,9 +830,7 @@ def test_a_request_that_an_open_pull_request_claims_is_blocked(state):
 
 def test_an_assignment_whose_pull_request_is_not_yet_open_waits_for_it(tmp_path):
     state = StateDirectory(root=tmp_path)
-    write_assignment(
-        state=state, identifier=ASSIGNMENT_ID, issue=13, pull_request_observation=None
-    )
+    write_assignment(state=state, identifier=ASSIGNMENT_ID, issue=13, pull_request=None)
     ran(state=state, number=1)
     tick_with(
         state=state,

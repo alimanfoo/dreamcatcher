@@ -49,7 +49,7 @@ flowchart LR
     GH -- lists and reads --> Tick
     Tick -- scheduler.json, work.json,<br/>round.json --> State
     Tick -- starts --> Round
-    Round -- round records, ended.json,<br/>pull request observation --> State
+    Round -- round records, ended.json,<br/>pull request number --> State
     Round -- branch, pull request,<br/>answer comment --> GH
     Round -- prompt and input file --> Agent
     Agent -- pushes, posts, replies --> GH
@@ -77,13 +77,13 @@ The tick then starts round one. It writes `rounds/1/round.json` with the number
 and start time and no process id, because nothing has been spawned yet. Round
 one's preparation runs: fetch main, add the worktree on a new branch, make an
 empty commit, push, open the draft pull request with "Closes #20", and write
-`pull-request-observation.json` holding the pull request's number, which is all
-that file ever holds. Each step does nothing if its result already exists. Then
-the round writes its prompt, the recipe's initial prompt, spawns the harness
-with the prompt on stdin, writes the process id into the round record, and from
-then on behaves as a round does today. The agent implements the issue, pushes,
-marks the pull request ready for review, and ends its turn. The round records
-its outcome, successful.
+`pull-request.json` holding the pull request's number, which is all that file
+ever holds. Each step does nothing if its result already exists. Then the round
+writes its prompt, the recipe's initial prompt, spawns the harness with the
+prompt on stdin, writes the process id into the round record, and from then on
+behaves as a round does today. The agent implements the issue, pushes, marks the
+pull request ready for review, and ends its turn. The round records its outcome,
+successful.
 
 The pull request is now the assignment's **channel**: the GitHub object the
 agent and you talk through. Next tick, the assignment is open and has a channel,
@@ -311,20 +311,19 @@ A round is started by the tick for one piece of agent work, with the signals the
 tick found. Its steps, in order:
 
 1. Write the round record: number and start time. No process id yet.
-2. Prepare the channel. For an assignment whose pull request observation does
-   not exist, which is what "the channel does not exist" means on disk: fetch
+2. Prepare the channel. For an assignment whose pull request number is not
+   recorded, which is what "the channel does not exist" means on disk: fetch
    main, add the worktree on the assignment's branch, make the empty commit,
-   push, find or create the draft pull request on that branch, and write the
-   observation with the pull request's number. A pull request found on the
-   assignment's own branch is adopted whatever its state, and round one looks at
-   no other pull request, since the start-time questions already asked whether
-   one claims the issue. A pull request it creates takes its title from the work
-   record, so making the channel reads nothing from the issue. For an assignment
-   whose pull request exists: nothing. For every conversation round: fetch main
-   and reset the detached worktree to it, adding the worktree when it is
-   missing, as today's refresh does. Each step does nothing when its result
-   already exists, so a round that follows a failed one re-runs the step and
-   finds most of it done.
+   push, find or create the draft pull request on that branch, and record the
+   pull request's number. A pull request found on the assignment's own branch is
+   adopted whatever its state, and round one looks at no other pull request,
+   since the start-time questions already asked whether one claims the issue. A
+   pull request it creates takes its title from the work record, so making the
+   channel reads nothing from the issue. For an assignment whose pull request
+   exists: nothing. For every conversation round: fetch main and reset the
+   detached worktree to it, adding the worktree when it is missing, as today's
+   refresh does. Each step does nothing when its result already exists, so a
+   round that follows a failed one re-runs the step and finds most of it done.
 3. Write the input file, when there is anything to relay, and the prompt. A
    prompt is built from up to three parts: the recipe's initial prompt, which is
    the agent's standing instructions; the input prompt, which tells the agent to
@@ -525,7 +524,7 @@ scheduler.json       one row per request, the cooldown, listing failures;
 work/<identifier>/
     work.json        issue, label, kind, title, harness, model, effort,
                      harness config, prompt
-    pull-request-observation.json
+    pull-request.json
                      assignment only, written once by round one: the pull
                      request's number
     harness-session.json
@@ -667,9 +666,9 @@ What goes, and what each deletion buys.
   buys the work record being written before any Git or GitHub step, and one
   conditional.
 - `record_pull_request_observation` and the state, draft flag and time in
-  `PullRequestObservation`. The observation holds the number, written once. It
-  buys one write per state change per assignment per tick and one fewer place
-  the pull request's state is stored.
+  `PullRequestObservation`, which becomes `pull-request.json` holding the
+  number, written once. It buys one write per state change per assignment per
+  tick and one fewer place the pull request's state is stored.
 - The round record's purpose and recovery fields, `AssignmentRoundPurpose`,
   `ConversationRoundPurpose`, `AgentRoundPlan.is_recovery`,
   `derive_round_purpose`, `ASSIGNMENT_RECOVERY_PROMPT` and

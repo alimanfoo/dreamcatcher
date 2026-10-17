@@ -11,7 +11,7 @@ import dreamcatcher
 from dreamcatcher import repository_setup, tui, web
 from dreamcatcher.agent_assignments import (
     cancel_assignment,
-    read_pull_request_observation,
+    read_assignment_pull_request_number,
 )
 from dreamcatcher.agent_rounds import request_agent_round_stop
 from dreamcatcher.agent_work import find_newest_agent_work, request_agent_work_retry
@@ -417,13 +417,13 @@ def _cancel_assignment(*, arguments: argparse.Namespace) -> None:
     if assignment is None:
         raise ReportableError(f"GH{arguments.issue} has no assignment.")
     cancel_assignment(assignment=assignment, at=read_current_time())
-    observation = read_pull_request_observation(assignment=assignment)
-    if observation is None:
+    pull_request = read_assignment_pull_request_number(assignment=assignment)
+    if pull_request is None:
         print(f"{assignment.identifier} is cancelled before it opened a pull request.")
     else:
         print(
             f"{assignment.identifier} is cancelled. Finish pull request "
-            f"#{observation.number} by hand."
+            f"#{pull_request} by hand."
         )
 
 

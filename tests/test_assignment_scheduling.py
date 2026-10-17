@@ -141,9 +141,7 @@ def found(*, state) -> AssignmentRoundInput | str | ReadFailureFinding | None:
 def test_an_assignment_with_no_pull_request_yet_needs_its_first_round(tmp_path):
     configure(root=tmp_path)
     state = StateDirectory(root=tmp_path)
-    write_assignment(
-        state=state, identifier=ASSIGNMENT_ID, issue=13, pull_request_observation=None
-    )
+    write_assignment(state=state, identifier=ASSIGNMENT_ID, issue=13, pull_request=None)
 
     assert found(state=state) == OPENS_PULL_REQUEST
 
@@ -153,9 +151,7 @@ def test_a_first_round_that_failed_before_its_pull_request_is_tried_again(
 ):
     configure(root=tmp_path)
     state = StateDirectory(root=tmp_path)
-    write_assignment(
-        state=state, identifier=ASSIGNMENT_ID, issue=13, pull_request_observation=None
-    )
+    write_assignment(state=state, identifier=ASSIGNMENT_ID, issue=13, pull_request=None)
     write_round(
         directory=state.work / ASSIGNMENT_ID,
         number=1,
@@ -173,9 +169,7 @@ def test_a_first_round_that_failed_before_its_pull_request_is_tried_again(
 def test_an_assignment_in_fault_reads_nothing_and_counts_its_fault(tmp_path):
     configure(root=tmp_path)
     state = StateDirectory(root=tmp_path)
-    write_assignment(
-        state=state, identifier=ASSIGNMENT_ID, issue=13, pull_request_observation=None
-    )
+    write_assignment(state=state, identifier=ASSIGNMENT_ID, issue=13, pull_request=None)
     for number in (1, 2):
         write_round(
             directory=state.work / ASSIGNMENT_ID,

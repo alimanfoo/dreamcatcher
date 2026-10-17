@@ -1148,7 +1148,7 @@ def test_ready_assignment_rounds_and_conversations_alternate(
             state=scheduler.context.state,
             identifier=f"GH{issue}-20260923-010000-assignment",
             issue=issue,
-            pull_request_observation=None,
+            pull_request=None,
         )
     offer_conversation(gh=gh, comments=[ask()])
     harnesses["claude"].replies(stdout="")
@@ -1178,7 +1178,7 @@ def test_one_tick_alternates_work_kinds_until_capacity_is_full(
             state=scheduler.context.state,
             identifier=f"GH{issue}-20260923-010000-assignment",
             issue=issue,
-            pull_request_observation=None,
+            pull_request=None,
         )
     offer_conversation(gh=gh, comments=[ask()])
     answer(harnesses=harnesses)
@@ -1225,7 +1225,7 @@ def test_a_failed_assignment_candidate_does_not_block_a_ready_conversation(
         state=scheduler.context.state,
         identifier="GH13-20260923-010000-assignment",
         issue=13,
-        pull_request_observation=None,
+        pull_request=None,
     )
     offer_conversation(gh=gh, comments=[ask()])
     answer(harnesses=harnesses)
@@ -2097,7 +2097,7 @@ def test_a_conversation_failure_remains_visible_when_an_assignment_launches(
         state=scheduler.context.state,
         identifier=assignment_identifier,
         issue=13,
-        pull_request_observation=None,
+        pull_request=None,
     )
     gh.fails(
         stderr="network unavailable",

@@ -52,8 +52,8 @@ from dreamcatcher.state import StateDirectory
 # that the catcher it replaces left behind.
 _ASSIGNMENT_BRANCH_PREFIX = "dreamcatcher-"
 
-# The file in an assignment's directory holding its pull request observation.
-_PULL_REQUEST_OBSERVATION_RECORD_NAME = "pull-request-observation.json"
+# The file in an assignment's directory holding its pull request's number.
+_PULL_REQUEST_RECORD_NAME = "pull-request.json"
 
 
 class AssignmentRoundInput(DreamcatcherDocument):
@@ -63,7 +63,7 @@ class AssignmentRoundInput(DreamcatcherDocument):
     user_posts: list[UserPost]
 
 
-class PullRequestObservation(DreamcatcherDocument):
+class _PullRequestRecord(DreamcatcherDocument):
     """Model the number of the assignment's pull request.
 
     The round that opens the pull request writes it once, and the scheduler
@@ -78,14 +78,13 @@ def compose_assignment_branch(*, identifier: str) -> str:
     return f"{_ASSIGNMENT_BRANCH_PREFIX}{identifier}"
 
 
-def read_pull_request_observation(
-    *, assignment: AgentWork
-) -> PullRequestObservation | None:
-    """Return the assignment's pull request observation, once a round has opened it."""
-    return read_json_if_exists(
-        model=PullRequestObservation,
-        path=assignment.directory / _PULL_REQUEST_OBSERVATION_RECORD_NAME,
+def read_assignment_pull_request_number(*, assignment: AgentWork) -> int | None:
+    """Return the number of the assignment's pull request, once a round opened it."""
+    record = read_json_if_exists(
+        model=_PullRequestRecord,
+        path=assignment.directory / _PULL_REQUEST_RECORD_NAME,
     )
+    return None if record is None else record.number
 
 
 def cancel_assignment(*, assignment: AgentWork, at: datetime) -> None:
@@ -158,8 +157,8 @@ def open_assignment_pull_request(
         title=assignment.record.title,
     )
     write_json(
-        document=PullRequestObservation(number=pull_request.number),
-        path=assignment.directory / _PULL_REQUEST_OBSERVATION_RECORD_NAME,
+        document=_PullRequestRecord(number=pull_request.number),
+        path=assignment.directory / _PULL_REQUEST_RECORD_NAME,
     )
 
 

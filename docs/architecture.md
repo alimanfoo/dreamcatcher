@@ -122,8 +122,8 @@ a scheduler failure.
 When the tick selects a request, it writes the work record and starts the first
 round in the same scheduling action. The record comes first, before any Git or
 GitHub step, so the work exists however the round goes. An assignment without a
-pull request observation is due a round that opens it, unless its last round is
-running or it is in fault. This does not create a separate class of normally
+recorded pull request number is due a round that opens it, unless its last round
+is running or it is in fault. This does not create a separate class of normally
 scheduled work.
 
 Every new round is given the input that past rounds have not yet relayed. An
@@ -219,7 +219,7 @@ of an agent assignment. It should provide cohesive operations to:
 - open the assignment's pull request, as the preparation of a round whose
   assignment has none;
 - name the assignment's branch from its identifier;
-- read its pull request observation;
+- read its pull request number;
 - read the user-post delivery position, the pull request state last relayed, and
   whether the final turn has been taken, from recorded round inputs;
 - complete an assignment as its wrap-up round finishes; and
@@ -233,7 +233,7 @@ both kinds: the harness session identifier, when the user retries work after
 resolving a fault, and when and why the work ended.
 
 Creating an assignment writes its work record and nothing else. The preparation
-step of a round whose assignment has no pull request observation coordinates
+step of a round whose assignment has no recorded pull request number coordinates
 lower-level Git, GitHub and document operations. It:
 
 1. fetches the current main branch;
@@ -242,8 +242,7 @@ lower-level Git, GitHub and document operations. It:
    branch;
 4. adopts the pull request already on the branch, whatever its state, or opens a
    linked draft pull request; and
-5. writes the pull request observation, which holds the pull request's number
-   and nothing else.
+5. writes the pull request's number to `pull-request.json`.
 
 Each step does nothing when its result already exists, and a worktree that
 cannot be added is removed with its branch. The assignment identifier names the
@@ -566,7 +565,7 @@ The same record serves both kinds of agent work. It persists:
 - the selected harness, model, effort, harness config and prompt.
 
 An assignment's branch is named from its identifier, and its pull request number
-is in its pull request observation.
+is in `pull-request.json`.
 
 Every fact that changes later has a file of its own beside the record. Each
 write replaces that file whole and merges nothing into it, so the daemon, the

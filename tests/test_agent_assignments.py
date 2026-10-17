@@ -21,12 +21,11 @@ from records import (
 
 from dreamcatcher.agent_assignments import (
     AssignmentRoundInput,
-    PullRequestObservation,
     cancel_assignment,
     complete_assignment,
     compose_assignment_branch,
     open_assignment_pull_request,
-    read_pull_request_observation,
+    read_assignment_pull_request_number,
     read_user_post_delivery_position,
 )
 from dreamcatcher.agent_rounds import (
@@ -201,9 +200,7 @@ def test_an_assignment_records_its_settled_dispatch_recipe(state, route):
     assert assignment.record.issue == 12
     assert assignment.record.title == "The issue title"
     assert assignment.record.dispatch_label == "dream:smith"
-    assert read_pull_request_observation(
-        assignment=assignment
-    ) == PullRequestObservation(number=PULL_REQUEST)
+    assert read_assignment_pull_request_number(assignment=assignment) == PULL_REQUEST
     assert assignment.record.harness == AgentHarness.CLAUDE
     assert assignment.record.model == "opus[1m]"
     assert assignment.record.effort == "xhigh"
@@ -218,7 +215,7 @@ def test_an_assignment_is_recorded_before_any_git_or_github_step(state, route, g
 
     assert read_assignments(state=state) == [assignment]
     assert not assignment.worktree.exists()
-    assert read_pull_request_observation(assignment=assignment) is None
+    assert read_assignment_pull_request_number(assignment=assignment) is None
     assert git(arguments=["branch", "--list", BRANCH], cwd=state.root) == ""
     assert gh.calls == []
 
@@ -523,9 +520,7 @@ def test_a_first_round_continues_from_what_an_earlier_attempt_left(
 
     open_pull_request(state=state, assignment=assignment)
 
-    observation = read_pull_request_observation(assignment=assignment)
-    assert observation is not None
-    assert observation.number == PULL_REQUEST
+    assert read_assignment_pull_request_number(assignment=assignment) == PULL_REQUEST
     commits = git(arguments=["rev-list", "--count", "origin/main..HEAD"], cwd=worktree)
     assert commits.strip() == "1"
     remote = git(arguments=["ls-remote", "--heads", "origin", BRANCH], cwd=state.root)
@@ -542,7 +537,7 @@ def test_a_pull_request_listing_failure_leaves_the_round_to_try_again(state, rou
         open_pull_request(state=state, assignment=assignment)
 
     assert (state.worktrees / ASSIGNMENT_ID).exists()
-    assert read_pull_request_observation(assignment=assignment) is None
+    assert read_assignment_pull_request_number(assignment=assignment) is None
 
 
 def test_several_pull_requests_on_the_assignments_branch_are_reported(state, route, gh):
@@ -570,9 +565,7 @@ def test_a_created_pull_request_that_cannot_be_read_is_adopted_next_time(
     gh.replies(stdout=pull_requests(listed=[(PULL_REQUEST, "OPEN")]), to="pr list")
     open_pull_request(state=state, assignment=assignment)
 
-    observation = read_pull_request_observation(assignment=assignment)
-    assert observation is not None
-    assert observation.number == PULL_REQUEST
+    assert read_assignment_pull_request_number(assignment=assignment) == PULL_REQUEST
     created = [call for call in gh.calls if call.arguments[:2] == ["pr", "create"]]
     assert len(created) == 1
 

@@ -380,7 +380,7 @@ def test_an_assignment_with_no_pull_request_yet_says_so(tmp_path):
         state=state,
         identifier=f"GH13-{ASSIGNMENT_TIMESTAMP}-assignment",
         issue=13,
-        pull_request_observation=None,
+        pull_request=None,
     )
 
     assert "pull request                 none yet" in viewed(state=state, issue=13)

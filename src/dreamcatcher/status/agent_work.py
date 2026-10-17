@@ -7,7 +7,7 @@ from functools import cached_property
 from typing import Protocol, cast
 
 from dreamcatcher.agent_assignments import (
-    read_pull_request_observation,
+    read_assignment_pull_request_number,
     read_relayed_pull_request_state,
 )
 from dreamcatcher.agent_rounds import (
@@ -113,8 +113,7 @@ class AgentWorkStatus:
     @cached_property
     def pull_request(self) -> int | None:
         """The number of the assignment's pull request, once a round opened it."""
-        observation = read_pull_request_observation(assignment=self.work)
-        return None if observation is None else observation.number
+        return read_assignment_pull_request_number(assignment=self.work)
 
     @property
     def pull_request_state(self) -> str | None:
@@ -352,7 +351,7 @@ class AgentWorkStatusReader:
             return _compose_waiting(work=work, row=row, detail="no round has run yet")
         if (
             work.record.kind is AgentWorkKind.ASSIGNMENT
-            and read_pull_request_observation(assignment=work) is None
+            and read_assignment_pull_request_number(assignment=work) is None
         ):
             return _compose_waiting(work=work, row=row, detail="no pull request yet")
         latest = work.rounds[-1]

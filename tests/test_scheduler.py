@@ -31,8 +31,7 @@ from rows import UNCLAIMED, request_row
 import dreamcatcher.scheduler.tick as tick_module
 from dreamcatcher.agent_assignments import (
     AssignmentRoundInput,
-    PullRequestObservation,
-    read_pull_request_observation,
+    read_assignment_pull_request_number,
     read_user_post_delivery_position,
 )
 from dreamcatcher.agent_rounds import (
@@ -687,9 +686,7 @@ def test_an_assignment_with_nothing_new_reads_only_its_pull_request_and_posts(
             ),
         )
     ]
-    assert read_pull_request_observation(
-        assignment=assignment
-    ) == PullRequestObservation(number=52)
+    assert read_assignment_pull_request_number(assignment=assignment) == 52
     calls = [" ".join(call.arguments) for call in gh.calls]
     assert not [
         call
@@ -700,9 +697,7 @@ def test_an_assignment_with_nothing_new_reads_only_its_pull_request_and_posts(
 
 def test_an_assignment_that_has_run_no_round_at_all_gets_its_first(ready_repo):
     state = StateDirectory(root=ready_repo)
-    write_assignment(
-        state=state, identifier=ASSIGNMENT_ID, issue=13, pull_request_observation=None
-    )
+    write_assignment(state=state, identifier=ASSIGNMENT_ID, issue=13, pull_request=None)
     scheduler, clock = create_scheduler(root=ready_repo)
 
     observed = scheduler.tick(at=clock())
@@ -715,9 +710,7 @@ def test_an_assignment_that_has_run_no_round_at_all_gets_its_first(ready_repo):
         "/dream:smith GH13\n\nEnd every post you make on GitHub"
     )
     [assignment] = read_assignments(state=state)
-    observation = read_pull_request_observation(assignment=assignment)
-    assert observation is not None
-    assert observation.number == PULL_REQUEST
+    assert read_assignment_pull_request_number(assignment=assignment) == PULL_REQUEST
 
 
 def test_a_dispatch_whose_round_will_not_start_keeps_the_assignment_for_next_time(
@@ -758,7 +751,7 @@ def test_a_round_after_one_that_failed_part_way_finishes_its_preparation(
         identifier=ASSIGNMENT_ID,
         issue=13,
         harness_session_identifier=None,
-        pull_request_observation=None,
+        pull_request=None,
     )
     started = PINNED.replace(hour=17)
     write_round(
@@ -797,9 +790,7 @@ def test_a_round_after_one_that_failed_part_way_finishes_its_preparation(
     created = [call for call in offered.calls if call.arguments[:2] == ["pr", "create"]]
     assert len(created) == (0 if checkpoint == "pull request" else 1)
     [assignment] = read_assignments(state=state)
-    observation = read_pull_request_observation(assignment=assignment)
-    assert observation is not None
-    assert observation.number == PULL_REQUEST
+    assert read_assignment_pull_request_number(assignment=assignment) == PULL_REQUEST
 
 
 def test_an_assignment_with_a_round_that_has_no_ending_starts_nothing(resuming):
@@ -868,9 +859,7 @@ def test_a_codex_assignment_round_passes_its_recorded_harness_config(
     ready_repo, harnesses
 ):
     state = StateDirectory(root=ready_repo)
-    write_assignment(
-        state=state, identifier=ASSIGNMENT_ID, issue=13, pull_request_observation=None
-    )
+    write_assignment(state=state, identifier=ASSIGNMENT_ID, issue=13, pull_request=None)
     record = read_assignments(state=state)[0].record
     write_json(
         document=record.model_copy(

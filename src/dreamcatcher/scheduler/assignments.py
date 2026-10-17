@@ -7,7 +7,7 @@ from dreamcatcher.agent_assignments import (
     complete_assignment,
     is_final_turn_taken,
     open_assignment_pull_request,
-    read_pull_request_observation,
+    read_assignment_pull_request_number,
     read_user_post_delivery_position,
 )
 from dreamcatcher.agent_work import AgentWork
@@ -52,8 +52,8 @@ def inspect_open_assignment(
     unread = compose_agent_work_row(work=assignment, finding=None)
     if is_fault:
         return Inspection(row=unread, is_counted_fault=True)
-    observation = read_pull_request_observation(assignment=assignment)
-    if observation is None:
+    pull_request = read_assignment_pull_request_number(assignment=assignment)
+    if pull_request is None:
         return Inspection(
             row=unread,
             candidate=Candidate(
@@ -62,7 +62,7 @@ def inspect_open_assignment(
             ),
         )
     return _inspect_pull_request(
-        context=context, assignment=assignment, pull_request=observation.number
+        context=context, assignment=assignment, pull_request=pull_request
     )
 
 
