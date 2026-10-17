@@ -14,7 +14,12 @@ from pydantic import (
 )
 
 from dreamcatcher.documents import DreamcatcherDocument
-from dreamcatcher.github import CheckResult, PullRequestMergeState, PullRequestState
+from dreamcatcher.github import (
+    CheckResult,
+    PullRequestMergeState,
+    PullRequestSignal,
+    PullRequestState,
+)
 from dreamcatcher.harness_adapters import AgentWorkKind
 
 GLOBAL_COOLDOWN_DURATION = timedelta(minutes=15)
@@ -30,7 +35,10 @@ _UtcDateTime = Annotated[AwareDatetime, AfterValidator(_normalize_utc)]
 
 
 class PullRequestFinding(DreamcatcherDocument):
-    """Hold what the tick read of an open assignment's pull request."""
+    """Hold what the tick read of an open assignment's pull request.
+
+    A withheld check failure is one that the relay rule declined to relay.
+    """
 
     found: Literal["pull request"] = "pull request"
     number: PositiveInt
@@ -39,6 +47,8 @@ class PullRequestFinding(DreamcatcherDocument):
     merge_state: PullRequestMergeState
     check_result: CheckResult
     new_posts: NonNegativeInt
+    new_signals: list[PullRequestSignal]
+    is_check_failure_withheld: bool
     is_final_turn_due: bool
 
 

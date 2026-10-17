@@ -6,6 +6,7 @@ import pytest
 from clocks import PINNED
 from conftest import (
     CONFIG,
+    HEAD,
     PULL_REQUEST,
     REPOSITORY,
     comment,
@@ -661,6 +662,8 @@ def test_an_assignment_reads_back_its_user_post_delivery_position(state, route):
     write_json(
         document=AssignmentRoundInput(
             pull_request_state=PullRequestState.OPEN,
+            pull_request_head=HEAD,
+            signals=[],
             user_posts=[
                 ConversationComment.model_validate(
                     comment(created_at="2026-09-03T22:31:51Z")
@@ -711,6 +714,8 @@ def test_the_user_post_delivery_position_scans_past_an_input_that_delivered_no_p
         write_json(
             document=AssignmentRoundInput(
                 pull_request_state=PullRequestState.OPEN,
+                pull_request_head=HEAD,
+                signals=[],
                 user_posts=posts,
             ),
             path=created.compose_round_paths(number=number).round_input,

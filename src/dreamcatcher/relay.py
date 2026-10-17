@@ -1,13 +1,71 @@
-"""Select new user posts for delivery to an agent assignment.
+"""Select what is past an agent assignment's cursor in its pull request.
 
-The relay returns posts without writing state. The assignment's delivery position
-records the newest delivered post after a round starts. Posts written through
+The relay returns user posts and signals without writing state. The inputs of
+the rounds that took their turn record what each relayed. Posts written through
 the shared GitHub account are user input only when they do not carry the agent
 marker.
 """
 
-from dreamcatcher.github import UnknownGitHubResponse, UserPost, list_user_posts
+from dataclasses import dataclass
+
+from dreamcatcher.agent_assignments import (
+    is_check_failure_relay_spent,
+    read_signal_relay_head,
+)
+from dreamcatcher.agent_work import AgentWork
+from dreamcatcher.github import (
+    CheckResult,
+    PullRequest,
+    PullRequestSignal,
+    PullRequestState,
+    UnknownGitHubResponse,
+    UserPost,
+    list_user_posts,
+)
 from dreamcatcher.prompts import AGENT_POST_MARKER
+
+
+@dataclass(frozen=True, kw_only=True)
+class PullRequestSignals:
+    """Hold the signals past an assignment's cursor, and whether one was held back."""
+
+    new: list[PullRequestSignal]
+    is_check_failure_withheld: bool
+
+
+def find_pull_request_signals(
+    *, assignment: AgentWork, pull_request: PullRequest
+) -> PullRequestSignals:
+    """Return the signals that the pull request raises at a head not yet relayed.
+
+    Only an open pull request that is ready for review raises one, because a
+    draft means that the agent has not finished. A check failure that the relay
+    rule declines is withheld rather than new.
+    """
+    if pull_request.state is not PullRequestState.OPEN or pull_request.is_draft:
+        return PullRequestSignals(new=[], is_check_failure_withheld=False)
+    raised = [
+        signal
+        for signal, is_raised in (
+            (PullRequestSignal.OUT_OF_DATE, pull_request.merge_state.is_out_of_date),
+            (
+                PullRequestSignal.CHECK_FAILURE,
+                pull_request.check_result is CheckResult.FAILING,
+            ),
+        )
+        if is_raised
+        and read_signal_relay_head(assignment=assignment, signal=signal)
+        != pull_request.head
+    ]
+    is_check_failure_withheld = (
+        PullRequestSignal.CHECK_FAILURE in raised
+        and is_check_failure_relay_spent(assignment=assignment)
+    )
+    if is_check_failure_withheld:
+        raised.remove(PullRequestSignal.CHECK_FAILURE)
+    return PullRequestSignals(
+        new=raised, is_check_failure_withheld=is_check_failure_withheld
+    )
 
 
 def list_undelivered_user_posts(

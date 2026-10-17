@@ -167,6 +167,8 @@ def pull_request_row(
             merge_state=PullRequestMergeState.CLEAN,
             check_result=CheckResult.PASSING,
             new_posts=new_posts,
+            new_signals=[],
+            is_check_failure_withheld=False,
             is_final_turn_due=is_final_turn_due,
         ),
         started_round=started_round,

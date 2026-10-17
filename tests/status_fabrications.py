@@ -7,6 +7,7 @@ from types import MappingProxyType
 from clocks import PINNED
 from conftest import ASSIGNMENT_LABEL, DAEMON_PID, REPOSITORY, comment
 from records import (
+    HEAD,
     MERGED_INPUT,
     compose_conversation_identifier,
     hold_daemon_lock_for_test,
@@ -86,6 +87,8 @@ def _draft_pull_request(*, new_posts: int = 0) -> PullRequestFinding:
         merge_state=PullRequestMergeState.CLEAN,
         check_result=CheckResult.PASSING,
         new_posts=new_posts,
+        new_signals=[],
+        is_check_failure_withheld=False,
         is_final_turn_due=False,
     )
 
@@ -201,13 +204,18 @@ def fabricate_conversation(
 # What an assignment round woken by one post from the user was given.
 ONE_POST_INPUT = AssignmentRoundInput(
     pull_request_state=PullRequestState.OPEN,
+    pull_request_head=HEAD,
+    signals=[],
     user_posts=[ConversationComment.model_validate(comment())],
 )
 
 # What an assignment round given the input of one that did not finish was given,
 # when that input held no posts.
 CARRY_ON_INPUT = AssignmentRoundInput(
-    pull_request_state=PullRequestState.OPEN, user_posts=[]
+    pull_request_state=PullRequestState.OPEN,
+    pull_request_head=HEAD,
+    signals=[],
+    user_posts=[],
 )
 
 
@@ -509,6 +517,8 @@ def fabricate_titles_and_pull_request_states(*, state):
                     merge_state=PullRequestMergeState.CLEAN,
                     check_result=CheckResult.PASSING,
                     new_posts=0,
+                    new_signals=[],
+                    is_check_failure_withheld=False,
                     is_final_turn_due=pull_request_state is not PullRequestState.OPEN,
                 ),
             )

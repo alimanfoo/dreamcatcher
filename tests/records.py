@@ -39,9 +39,16 @@ SMITH_ROUTES = (RecordedRoute(label="dream:smith", kind=AgentWorkKind.ASSIGNMENT
 # The routes of a daemon run that loaded one conversation label and nothing else.
 SCOUT_ROUTES = (RecordedRoute(label="dream:scout", kind=AgentWorkKind.CONVERSATION),)
 
+# The head commit of the pull request that the tests ask gh about, unless a test
+# moves it.
+HEAD = "3aa91fcd8f64716f7c44d904d6891025bd606f1a"
+
 # What a round that wraps a merged pull request up was given.
 MERGED_INPUT = agent_assignments.AssignmentRoundInput(
-    pull_request_state=PullRequestState.MERGED, user_posts=[]
+    pull_request_state=PullRequestState.MERGED,
+    pull_request_head=HEAD,
+    signals=[],
+    user_posts=[],
 )
 
 # The number of the pull request a fabricated assignment opened, unless a test says.

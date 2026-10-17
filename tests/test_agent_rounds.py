@@ -14,6 +14,7 @@ import pytest
 from clocks import PINNED
 from conftest import (
     FIXTURES,
+    HEAD,
     HUNK,
     POSTED_BY,
     comment,
@@ -349,7 +350,10 @@ def test_a_round_writes_the_pull_request_state_and_user_posts_it_was_given(
         harness=round_harness(),
         paths=compose_round_paths(worktree=worktree, directory=directory),
         prepare_round=lambda: AssignmentRoundInput(
-            pull_request_state=PullRequestState.OPEN, user_posts=posts
+            pull_request_state=PullRequestState.OPEN,
+            pull_request_head=HEAD,
+            signals=[],
+            user_posts=posts,
         ),
         clock=pinned,
     )

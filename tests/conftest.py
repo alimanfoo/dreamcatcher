@@ -12,7 +12,7 @@ from pathlib import Path
 import fakes
 import psutil
 import pytest
-from records import release_daemon_locks
+from records import HEAD, release_daemon_locks
 
 from dreamcatcher.commands import run_command, spawn_command
 from dreamcatcher.config import DREAMCATCHER_CONFIG_NAME
@@ -33,9 +33,6 @@ REPOSITORY = "alimanfoo/dreamcatcher"
 PULL_REQUEST = 52
 
 POSTED_BY = "alimanfoo"
-
-# The head commit that pull request is at, unless a test moves it.
-HEAD = "3aa91fcd8f64716f7c44d904d6891025bd606f1a"
 
 DAEMON_PID = 4242
 

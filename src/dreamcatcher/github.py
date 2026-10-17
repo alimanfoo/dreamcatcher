@@ -212,6 +212,13 @@ class StatusContext(GitHubResponseProjection):
         return CheckResult.FAILING
 
 
+class PullRequestSignal(StrEnum):
+    """List what in a pull request, besides the user's posts, calls for a turn."""
+
+    OUT_OF_DATE = "out_of_date"
+    CHECK_FAILURE = "check_failure"
+
+
 type PullRequestCheck = Annotated[CheckRun | StatusContext, Field(discriminator="kind")]
 
 

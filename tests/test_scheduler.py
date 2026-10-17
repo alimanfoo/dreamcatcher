@@ -8,6 +8,7 @@ import pytest
 from clocks import PINNED, Ticking
 from conftest import (
     FILED,
+    HEAD,
     LATER,
     POST_LIST_PATHS,
     POSTED_AT,
@@ -84,6 +85,8 @@ NOTHING_NEW = PullRequestFinding(
     merge_state=PullRequestMergeState.CLEAN,
     check_result=CheckResult.PASSING,
     new_posts=0,
+    new_signals=[],
+    is_check_failure_withheld=False,
     is_final_turn_due=False,
 )
 
@@ -686,6 +689,8 @@ def test_an_assignment_with_nothing_new_reads_only_its_pull_request_and_posts(
                 merge_state=PullRequestMergeState.CLEAN,
                 check_result=CheckResult.PASSING,
                 new_posts=0,
+                new_signals=[],
+                is_check_failure_withheld=False,
                 is_final_turn_due=False,
             ),
         )
@@ -1000,7 +1005,12 @@ def test_a_round_after_an_interrupted_one_is_given_the_input_again(resuming):
     )
     assert json.loads(
         written_round(scheduler=scheduler, number=2, name="round-input.json")
-    ) == {"pull_request_state": "OPEN", "user_posts": []}
+    ) == {
+        "pull_request_state": "OPEN",
+        "pull_request_head": HEAD,
+        "signals": [],
+        "user_posts": [],
+    }
 
 
 def test_an_assignment_the_user_has_posted_on_is_told_what_they_said(resuming, gh):
@@ -1031,6 +1041,8 @@ def test_an_assignment_the_user_has_posted_on_is_told_what_they_said(resuming, g
                 merge_state=PullRequestMergeState.CLEAN,
                 check_result=CheckResult.PASSING,
                 new_posts=1,
+                new_signals=[],
+                is_check_failure_withheld=False,
                 is_final_turn_due=False,
             ),
             started_round=StartedRound(number=2),
@@ -1101,6 +1113,8 @@ def test_a_pull_request_that_is_finished_gets_one_last_round(resuming, gh, state
         written_round(scheduler=scheduler, number=2, name="round-input.json")
     ) == {
         "pull_request_state": state_name,
+        "pull_request_head": HEAD,
+        "signals": [],
         "user_posts": [],
     }
     [completed] = read_assignments(state=scheduler.context.state)
