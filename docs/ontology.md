@@ -184,6 +184,25 @@ or are still running, so the input of a round that errored or was interrupted is
 given again. Anything in the channel past the cursor is new, and something new
 calls for a round.
 
+### Signal
+
+A **signal** is something new in a piece of agent work's channel that calls for
+a turn. A conversation has one kind, an issue comment by the user past the
+cursor. An assignment has four: a user post past the cursor; its pull request
+being merged or closed before its wrap-up round has taken its turn;
+**out-of-date**, a pull request that is ready for review and behind its base
+branch or in conflict with it; and **check-failure**, a pull request that is
+ready for review with a finished check that failed. A draft raises neither of
+the last two, because the agent has not finished. Each of the last two is
+relayed at most once for each head commit of the pull request, so it is raised
+again only once the head moves.
+
+The **relay rule** gives an agent two attempts at a red build on its own. A
+check-failure is not relayed when the last two rounds that took their turn both
+relayed one, so the work stays idle until another signal, such as a user post,
+wakes it. A round that relayed no check-failure breaks the run, and a round that
+did not finish its turn does not count.
+
 ### Status report
 
 A **status report** is _dreamcatcher_'s read-only account of a _dreamcatcher_
@@ -243,9 +262,9 @@ _dreamcatcher_ instance can never have more than one open assignment for the
 same issue. An agent assignment remains open until it is complete or cancelled,
 including while its pull request is being wrapped up.
 
-An assignment round's input records the user posts relayed to it and the state
-of its pull request. A round that opens the pull request carries no input beyond
-its prompt.
+An assignment round's input records the user posts and other signals relayed to
+it, and the state and head commit of its pull request. A round that opens the
+pull request carries no input beyond its prompt.
 
 ### Issue conversation composition
 
@@ -337,6 +356,8 @@ its input, so nothing else records it:
 - **start**: an assignment round with no input, which opens the pull request;
 - a count of posts or comments: the user posts or issue comments relayed, or
   **comments** without a count for a conversation round that has no input yet;
+- **out of date** or **checks failed**: the other signals an assignment round
+  relayed, after any count of posts;
 - **merged** or **closed**: the state of a finished pull request, which calls
   for the assignment's last round, its **wrap-up round**;
 - **carry on**: an assignment round whose input relays nothing new, given again
@@ -394,15 +415,15 @@ Agent work of either kind has one of these summary statuses:
   interrupted, including a round left without an ending by a daemon that has
   gone; no round has run yet; an assignment's pull request is not yet open; a
   round ended after the latest tick, when that tick started the round or read
-  nothing for the work, so no tick has looked since; or the latest tick found
-  something new, which is user posts, issue comments, or a merged or closed pull
-  request whose final turn has not been taken. A free agent slot, or the end of
-  a cooldown, starts it.
+  nothing for the work, so no tick has looked since; or the latest tick found a
+  signal. A free agent slot, or the end of a cooldown, starts it.
 - **Idle**: nothing is due until something new appears in the work's channel.
   The detail says why: an assignment's pull request is ready for review, still a
-  draft, or merged or closed after its final turn; a conversation's latest round
-  answered, needed no reply, or was stopped; or a conversation is paused, and
-  the detail is the cause.
+  draft, merged or closed after its final turn, out of date at a head already
+  relayed, failing its checks, failing them after two attempts under the relay
+  rule, or running its checks; a conversation's latest round answered, needed no
+  reply, or was stopped; or a conversation is paused, and the detail is the
+  cause.
 
 The statuses are decided in an order. Working comes first, then ended, then
 fault, so the user can see a fault and retry whatever else is true. A failed
@@ -533,6 +554,12 @@ agent rounds do not therefore alternate in strict turns.
 The round is launched in the same way whether the pull request is a draft or
 ready for review. For example, if the first round ends by asking the user a
 question, the user's answer causes another round to be scheduled.
+
+A pull request that is ready for review also wakes its assignment without the
+user. When the base branch moves under it and leaves it behind or in conflict,
+an out-of-date signal schedules a round to bring it up to date. When a check
+fails, a check-failure signal schedules a round to fix it, within the relay
+rule. Running checks schedule nothing.
 
 Merging or closing the pull request causes a wrap-up round to be scheduled,
 unless a round has already been given the finished pull request and took its
