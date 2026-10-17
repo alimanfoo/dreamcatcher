@@ -77,14 +77,22 @@ round brings the branch, worktree and pull request into being, before the
 harness starts, so the promise in the agent contract still holds. Setup is not a
 concept apart from a round.
 
-There is one rule for a piece of agent work failing, whatever stage it failed
-at. A failure is recorded against the work, not as a scheduler failure and not
-as a round. Two in a row put the work in fault, and a retry clears it, as now.
-Recovery means trying the next step again: where a harness session exists it's
-resumed, and where none exists yet the first-round steps run again, which they
-can because each does nothing when its work is already done. The scheduler's
-failure list keeps only failures that belong to no piece of work, such as a
-failed issue listing. #496 should become a non-issue as a result.
+Everything a piece of agent work does is a round. A round is one attempt to take
+a turn, and it holds the orchestration before the harness runs, the harness
+invocation, and the orchestration after. A round's record is written when the
+attempt begins, so an attempt that fails before the harness starts is a round
+that errored, with the reason and no process. The fault rule stays as it is: two
+errored rounds in a row put the work in fault, and a retry clears it. There is
+no recovery path of its own. A round that didn't finish leaves what it was given
+still undelivered, so the next round is given it again, with a line saying the
+previous round didn't finish. The scheduler's failure list keeps only failures
+that belong to no piece of work, such as a failed issue listing. #496 should
+become a non-issue as a result.
+
+A piece of work is live until it ends, and it ends when its channel closes: an
+assignment when its pull request is merged or closed and the agent has had its
+final turn, a conversation when its issue is closed. I can also cancel an
+assignment. Ended work of either kind shows under the ended fold in the web UI.
 
 The fault and error handling model as a whole is in scope. It has never had a
 hard look, it's what's generating most of the complexity now, and I want any of
@@ -113,12 +121,14 @@ behind main or conflicting wakes the agent once per head commit, with one prompt
 line, and the agent merges main in. Drafts are left alone. A failed CI check
 wakes the agent the same way, once per head commit. Every check counts, not only
 the required ones. An agent that keeps pushing red fixes has to stop somewhere,
-and that's the one failure rule's job: an automatic CI round whose push comes
-back red again counts as the work failing, so two in a row put the assignment in
-fault and it waits for my retry. There is no separate cap or counter. While
-checks are still running the status says nothing special. A pull request that
-goes stale without a push, in a repository that doesn't require branches to be
-up to date, is documented rather than handled.
+and the once-per-head rule carries that too: a check failure isn't relayed when
+the last two rounds were both woken for one. The agent gets two attempts on its
+own, then the assignment sits idle saying the checks are still failing, and a
+post from me wakes it. That's a rule about what to relay, not a new kind of
+failure, so fault, retry and the cooldown aren't involved. While checks are
+still running the status says nothing special. A pull request that goes stale
+without a push, in a repository that doesn't require branches to be up to date,
+is documented rather than handled.
 
 ## What limits this?
 
@@ -152,14 +162,11 @@ being issues at all once this lands.
 
 ## What's still open?
 
-Two of the issues need amending to match this brief. #550's design reads only
+Three of the issues need amending to match this brief. #550's design reads only
 GitHub's conflict field, and waking on "behind main" needs the merge state field
-as well. #425 keeps a failed launch as a scheduler failure, where this brief
-records it against the work.
-
-The web UI shows ended assignments but not ended conversations. That's a
-presentational asymmetry worth fixing once the model is straight, probably as a
-separate issue.
+as well. #551's loop cap is a relay rule here, not a counter over three rounds.
+And #425 keeps a failed launch as a scheduler failure, where this brief makes it
+a round that errored.
 
 The issues in the batch are #550, #551, #483, #455, #425, #393 and #457. Whoever
 reads any of them should read all the comments, because on several the thread
