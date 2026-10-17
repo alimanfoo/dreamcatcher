@@ -399,14 +399,10 @@ def test_cancel_ends_the_newest_assignment_and_stops_its_running_round(
     )[-1]
     assert not assignment.is_open
     assert assignment.compose_round_paths(number=1).stop_request.is_file()
-    assert capsys.readouterr().out == (
-        f"{ASSIGNMENT_ID} is cancelled. Finish pull request #52 by hand.\n"
-    )
+    assert capsys.readouterr().out == f"{ASSIGNMENT_ID} is cancelled.\n"
 
 
-def test_cancel_of_an_assignment_with_no_pull_request_says_so(
-    monkeypatch, tmp_path, capsys
-):
+def test_cancel_of_an_assignment_without_a_pull_request(monkeypatch, tmp_path, capsys):
     configure(root=tmp_path)
     state = StateDirectory(root=tmp_path)
     state.bootstrap()
@@ -415,9 +411,7 @@ def test_cancel_of_an_assignment_with_no_pull_request_says_so(
 
     assert main(argv=["cancel", "GH13"]) == 0
 
-    assert capsys.readouterr().out == (
-        f"{ASSIGNMENT_ID} is cancelled before it opened a pull request.\n"
-    )
+    assert capsys.readouterr().out == f"{ASSIGNMENT_ID} is cancelled.\n"
 
 
 def test_cancel_leaves_older_assignments_at_the_issue_alone(monkeypatch, watching):
