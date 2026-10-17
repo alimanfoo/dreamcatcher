@@ -35,10 +35,11 @@ number 123.
 
 ### Branch adoption
 
-Before _dreamcatcher_ starts an assignment, it fetches origin's main, cuts a
-branch from it, adds a worktree on that branch, makes and pushes an empty
-commit, and opens a linked draft pull request. The agent runs in that worktree,
-so the published branch is checked out and the working tree is clean.
+Before _dreamcatcher_ runs the agent in an assignment's first round, it fetches
+origin's main, cuts a branch from it, adds a worktree on that branch, makes and
+pushes an empty commit, and opens a linked draft pull request. The agent runs in
+that worktree, so the published branch is checked out and the working tree is
+clean.
 
 An assignment skill must instruct the agent to adopt the current branch and
 worktree. It must also adopt the draft pull request that _dreamcatcher_ has
@@ -74,9 +75,9 @@ input. Nothing answers it, and the round stalls until _dreamcatcher_ stops.
 _dreamcatcher_ gives an agent a further round whenever there is more for it to
 do. Each such round normally resumes the assignment's harness session where the
 last one left off, so the agent still has what the earlier rounds said in front
-of it, and _dreamcatcher_'s prompt says what the round is for. When a recovery
-has no session identifier to resume, _dreamcatcher_ starts a new session with
-the assignment's first prompt followed by the prompt for the required round.
+of it, and _dreamcatcher_'s prompt names the round's input. When there is no
+session identifier to resume, _dreamcatcher_ starts a new session with the
+assignment's first prompt followed by the prompt naming the input.
 
 #### User posts and feedback
 
@@ -118,24 +119,26 @@ closing.
 An assignment skill must instruct the agent to wind the work up when
 `pull_request_state` reads anything but `OPEN`.
 
-#### A recovery round
+#### After a round that did not finish
 
-A recovery round follows a round that was interrupted or exited with an error.
-While the pull request is open, _dreamcatcher_'s prompt says that the previous
-round did not finish and asks the agent to carry on. A recovery round on a
-merged or closed pull request receives the user-posts prompt instead, whose
-`pull_request_state` tells the agent to wind up.
+A round that was interrupted or errored did not finish its turn, so the next
+round is given the same input again: `user_posts` holds the posts that round was
+given and any that arrived since, and `pull_request_state` says where the pull
+request has got to now. _dreamcatcher_'s prompt opens with a line saying that
+the previous round did not finish, and that some of what it did may already be
+done, before it names the input. `user_posts` may be empty, in which case the
+agent carries on with the work in hand.
 
-An assignment skill needs nothing of its own for recovery. The resumed agent
-normally still has its own transcript, and _dreamcatcher_'s prompt is enough to
-carry it on. A replacement session instead receives the assignment's first
-prompt before the recovery prompt, so the skill's initial instructions apply
-again.
+An assignment skill needs nothing of its own for this. The resumed agent
+normally still has its own transcript. A new session instead receives the
+assignment's first prompt before the input, so the skill's initial instructions
+apply again.
 
-A round that the user stopped is not a recovery round. An open assignment waits
-for new feedback before it resumes, and that next prompt says the earlier round
-was stopped before directing the agent to the new input. A merged or closed pull
-request can proceed to its wrap-up round without new feedback.
+A round that the user stopped took its turn, so its input is not given again. An
+open assignment waits for new feedback before it resumes, and that next prompt
+says the earlier round was stopped before directing the agent to the new input.
+A merged or closed pull request can proceed to its wrap-up round without new
+feedback.
 
 ## Conversation skill contract
 
@@ -161,9 +164,10 @@ the account through which `gh` was authenticated, with a non-empty body. The
 issue title and body do not by themselves ask the agent a question; the comments
 are the request to answer.
 
-The first input also contains `initial_issue`, an object holding the issue's
-`title` and `body`. Ordinary follow-up inputs omit this object; the resumed
-harness transcript keeps that original context.
+The input of a round that starts a new harness session also contains
+`initial_issue`, an object holding the issue's `title` and `body`. Inputs of
+rounds that resume the session omit this object; the resumed harness transcript
+keeps that original context.
 
 ### Answer
 
@@ -176,11 +180,10 @@ activity are feed records, not the answer.
 
 The first round receives every eligible existing comment. Each new comment batch
 after that resumes the same harness session and contains only eligible comments
-after the newest comment in the latest durable round input. The agent should use
-its existing transcript when a new question refers to an earlier answer. Before
-accepting a new batch, _dreamcatcher_ resets the idle worktree to fetched main,
-deleting every local commit and file left by the earlier investigation. Recovery
-instead reuses saved input and revision, as described below.
+after the newest comment given to a round that finished its turn. The agent
+should use its existing transcript when a new question refers to an earlier
+answer. Before every round, _dreamcatcher_ resets the worktree to fetched main,
+deleting every local commit and file left by the earlier investigation.
 
 ### Investigation scope
 
@@ -204,17 +207,16 @@ trims the final result, adds an agent attribution and posts it before the round
 ends. A missing or empty final result is an error. A failed post makes the round
 errored.
 
-### Recovery and stopped rounds
+### Rounds that did not finish and stopped rounds
 
 Issue conversations run through Claude or Codex and keep the harness chosen at
-creation. While the issue remains eligible, _dreamcatcher_ retries an
-interrupted or errored round's saved input and revision without collecting
-comments or refreshing the worktree. It resumes the recorded harness session
-with a recovery prompt. If the first invocation did not record a session
-identifier, it starts a new session with the configured prompt and the same
-saved input. The configured conversation prompt needs no special recovery
-instructions.
+creation. While the issue remains eligible, the round after an interrupted or
+errored one is given that round's comments again, with any that arrived since,
+against a refreshed worktree. Its prompt opens by saying that the previous round
+did not finish. It resumes the recorded harness session, or starts a new session
+with the configured prompt and the issue's title and body when no session
+identifier was recorded. The configured conversation prompt needs no special
+instructions for this.
 
 A conversation round that the user stopped waits for a new eligible comment. The
-next ordinary round uses a refreshed worktree and begins by saying that the
-earlier round was stopped. It is not marked as a recovery round.
+next round begins by saying that the earlier round was stopped.

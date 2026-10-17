@@ -120,7 +120,7 @@ def conversation_round(
 
 
 def write_second_conversation_error(*, state: StateDirectory) -> None:
-    """Write a recovery round that errors after the fixture's first round."""
+    """Write a second round that errors after the fixture's first round."""
     conversation = read_conversation(state=state, issue=8)
     assert conversation is not None
     first_input = read_json(

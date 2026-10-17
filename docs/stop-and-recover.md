@@ -81,14 +81,16 @@ dreamcatcher run --harness claude
 Repeat any non-default `--interval` and `--max-agents` values you want; those
 are options for each daemon run, not saved configuration. On startup
 _dreamcatcher_ also detects rounds orphaned by an earlier daemon. It records
-them as interrupted and schedules the next required recovery or wrap-up when the
-work is eligible. Recovery normally resumes the recorded harness session; you do
-not need to use the hand-resume command.
+them as interrupted, and when the work is eligible a later round is given the
+interrupted round's input again. That round normally resumes the recorded
+harness session; you do not need to use the hand-resume command.
 
 ## Recover from errors and faults
 
-One errored round gets an automatic recovery opportunity, and unrelated work can
-continue. Two consecutive errored rounds put that assignment or conversation in
+After one errored round, the next round is given the same input again, and
+unrelated work can continue. A round can error before its agent starts, for
+example when it cannot push an assignment's branch, and that counts the same
+way. Two consecutive errored rounds put that assignment or conversation in
 **fault** so _dreamcatcher_ does not repeat the same failure forever.
 
 Read the detail and feed to find the cause:

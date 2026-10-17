@@ -51,9 +51,9 @@ wrap-up releases it.
 dreamcatcher assignment GH123
 ```
 
-A failed or interrupted wrap-up remains available for recovery.
-[Stop and recover work](stop-and-recover.md) explains what happens automatically
-and when to request a retry.
+After a failed or interrupted wrap-up, the next round is given the finished pull
+request again. [Stop and recover work](stop-and-recover.md) explains what
+happens automatically and when to request a retry.
 
 To finish the pull request by hand instead, cancel the assignment.
 _dreamcatcher_ then runs no further rounds for it, and no wrap-up follows a

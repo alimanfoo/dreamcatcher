@@ -77,10 +77,11 @@ before any Git or GitHub step.
   nothing when its result exists.
 - A failure in preparation records an errored outcome with the reason and no
   exit status, and the views word it without one.
-- The cursor is read from the latest round whose outcome is successful or
-  stopped, so a round that errored or was interrupted has its input given again,
-  with the did-not-finish line prefixed to the prompt as the stopped line is
-  today.
+- The cursor is read from the latest round whose outcome is not errored or
+  interrupted, so a round that errored or was interrupted has its input given
+  again, with the did-not-finish line prefixed to the prompt as the stopped line
+  is today. A running round's input counts as relayed, so what it holds is not
+  new while it runs.
 - The recovery prompts, the recovery flag, the purpose field and
   `resolve_harness_session` go. The feed's round line and the rounds table say
   what woke the round, from its input.

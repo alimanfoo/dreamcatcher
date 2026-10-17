@@ -58,8 +58,8 @@ If an issue matches more than one assignment route, that assignment work has a
 routing conflict. The same is independently true of conversation routes. One
 assignment label and one conversation label may coexist on an issue. An
 assignment conflict prevents a new assignment but does not stop an existing
-assignment's rounds. A conversation conflict prevents new conversation batches
-and recovery rounds, though a round already running may finish.
+assignment's rounds. A conversation conflict prevents new conversation rounds,
+though a round already running may finish.
 
 ## Dispatch recipes
 

@@ -987,7 +987,7 @@ def test_reading_an_unknown_assignment_finds_nothing(state):
     )
 
 
-def test_reading_an_incomplete_assignment_finds_nothing(state):
+def test_reading_a_worktree_with_no_work_record_finds_nothing(state):
     identifier = "GH99-20260820-090000-assignment"
     (state.worktrees / identifier).mkdir()
 
