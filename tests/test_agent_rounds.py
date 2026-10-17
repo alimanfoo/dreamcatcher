@@ -562,7 +562,7 @@ def stream_final_result(*, result: str) -> str:
 def start_conversation_round(
     *, paths: AgentRoundPaths, finish_round: AgentRoundFinisher | None
 ) -> AgentRound:
-    """Start a conversation round that its owner may finish."""
+    """Start a conversation round with a finishing step."""
     return start_agent_round(
         request=AgentRoundStartRequest(
             harness=AgentHarness.CLAUDE,

@@ -1,9 +1,8 @@
 """Flask-free models for dreamcatcher's web views."""
 
 from dataclasses import dataclass
-from typing import Literal, Protocol
+from typing import Literal
 
-from dreamcatcher.agent_rounds import AgentRoundPaths, AgentRoundRecord
 from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.status import (
     AgentRoundRevision,
@@ -102,7 +101,7 @@ class WebAgentWorkControl:
 
 @dataclass(frozen=True, kw_only=True)
 class WebAgentLiveState:
-    """Represent the values of an agent page that its tail refreshes."""
+    """Represent the values of an agent-work page that its tail refreshes."""
 
     status: AgentWorkStatusValue
     detail: str
@@ -183,16 +182,3 @@ class WebHomeView:
     daemon: DreamcatcherDaemonStatus
     instance_facts: tuple[StatusFact, ...]
     sections: tuple[WebAgentWorkSection, ...]
-
-
-class WebFeedOwner(Protocol):
-    """Provide the saved rounds and paths that a web feed reads."""
-
-    @property
-    def rounds(self) -> list[AgentRoundRecord]:
-        """The saved round records in their run order."""
-        ...
-
-    def compose_round_paths(self, *, number: int) -> AgentRoundPaths:
-        """Return the paths of one numbered round."""
-        ...

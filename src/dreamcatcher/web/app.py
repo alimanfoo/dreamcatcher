@@ -36,7 +36,6 @@ from dreamcatcher.web.feed import (
 from dreamcatcher.web.models import (
     WebAgentLiveState,
     WebAgentWorkControl,
-    WebFeedOwner,
 )
 from dreamcatcher.web.server import (
     WEB_HOST,
@@ -226,8 +225,8 @@ def _show_work_tail(
         daemon=read_dreamcatcher_daemon_status(state=state),
         clock=clock,
     )
-    return _show_agent_tail(
-        owner=work,
+    return _render_work_tail(
+        work=work,
         live=_compose_work_live_state(state=state, work=work, status=status, zone=zone),
         should_stop_polling=not status.is_active,
         zone=zone,
@@ -320,9 +319,9 @@ def _is_same_origin_request() -> bool:
     return request.headers.get("Origin") == request.host_url.removesuffix("/")
 
 
-def _show_agent_tail(
+def _render_work_tail(
     *,
-    owner: WebFeedOwner,
+    work: AgentWork,
     live: WebAgentLiveState,
     should_stop_polling: bool,
     zone: tzinfo | None,
@@ -331,7 +330,7 @@ def _show_agent_tail(
     try:
         feed_cursor = decode_feed_cursor(value=request.args.get("cursor", ""))
         tail = read_agent_tail(
-            owner=owner,
+            work=work,
             live=live,
             feed_cursor=feed_cursor,
             zone=zone,

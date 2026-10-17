@@ -6,6 +6,7 @@ from datetime import tzinfo
 from pathlib import Path
 
 from dreamcatcher.agent_rounds import AgentRoundRecord
+from dreamcatcher.agent_work import AgentWork
 from dreamcatcher.documents import is_complete_line_position, read_lines_from
 from dreamcatcher.feed import compose_agent_round_boundary, read_feed_line
 from dreamcatcher.web.models import (
@@ -15,7 +16,6 @@ from dreamcatcher.web.models import (
     WebAgentTail,
     WebFeedCursor,
     WebFeedLine,
-    WebFeedOwner,
     WebFeedRound,
 )
 from dreamcatcher.words import describe_time
@@ -61,13 +61,13 @@ def decode_feed_cursor(*, value: str) -> WebFeedCursor:
 
 def read_agent_tail(
     *,
-    owner: WebFeedOwner,
+    work: AgentWork,
     live: WebAgentLiveState,
     feed_cursor: WebFeedCursor,
     zone: tzinfo | None,
 ) -> WebAgentTail:
     """Read feed output written after one feed cursor for any agent work."""
-    round_feeds = _list_round_feeds(owner=owner)
+    round_feeds = _list_round_feeds(work=work)
     number, position, is_opening_round = _resolve_feed_cursor(
         feed_cursor=feed_cursor,
         round_feeds=round_feeds,
@@ -159,26 +159,26 @@ def _compose_web_round_boundary(
     )
 
 
-def _list_round_feeds(*, owner: WebFeedOwner) -> dict[int, _WebRoundFeed]:
+def _list_round_feeds(*, work: AgentWork) -> dict[int, _WebRoundFeed]:
     """Return every saved round of the agent work with its feed, by number."""
     return {
         record.number: _WebRoundFeed(
-            record=record, feed=owner.compose_round_paths(number=record.number).feed
+            record=record, feed=work.compose_round_paths(number=record.number).feed
         )
-        for record in owner.rounds
+        for record in work.rounds
     }
 
 
 def read_agent_feed(
     *,
-    owner: WebFeedOwner,
+    work: AgentWork,
     zone: tzinfo | None,
     rounds: tuple[WebAgentRound, ...],
 ) -> WebAgentFeed:
     """Read the complete saved feed for any agent work."""
     feed_rounds = []
     feed_cursor = WebFeedCursor(round_number=0, position=0)
-    for round_feed in _list_round_feeds(owner=owner).values():
+    for round_feed in _list_round_feeds(work=work).values():
         record = round_feed.record
         written_lines, position = read_lines_from(path=round_feed.feed, position=0)
         feed_cursor = WebFeedCursor(round_number=record.number, position=position)

@@ -251,15 +251,15 @@ def _build_cli_parser() -> argparse.ArgumentParser:
 
 
 def _add_agent_work_selector(*, parser: argparse.ArgumentParser) -> None:
-    owner_group = parser.add_mutually_exclusive_group(required=True)
-    owner_group.add_argument(
+    work_kind_group = parser.add_mutually_exclusive_group(required=True)
+    work_kind_group.add_argument(
         "--assignment",
         dest="work_kind",
         action="store_const",
         const=AgentWorkKind.ASSIGNMENT,
         help="select the newest assignment at the issue",
     )
-    owner_group.add_argument(
+    work_kind_group.add_argument(
         "--conversation",
         dest="work_kind",
         action="store_const",

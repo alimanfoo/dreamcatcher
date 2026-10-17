@@ -120,7 +120,7 @@ def compose_agent_live_state(
     heading_controls: tuple[WebAgentWorkControl, ...],
     foot_controls: tuple[WebAgentWorkControl, ...],
 ) -> WebAgentLiveState:
-    """Return the values of an agent page that its tail refreshes."""
+    """Return the values of an agent-work page that its tail refreshes."""
     return WebAgentLiveState(
         status=status.value,
         detail=status.detail,
@@ -145,7 +145,7 @@ def compose_assignment_view(
     assignment = status.work
     record = assignment.record
     repository = read_repository(state=state)
-    feed = read_agent_feed(owner=assignment, zone=zone, rounds=live.rounds)
+    feed = read_agent_feed(work=assignment, zone=zone, rounds=live.rounds)
     return WebAssignmentView(
         repository=repository or "repository unknown",
         github_repository_url=_compose_github_repository_url(repository=repository),
@@ -176,7 +176,7 @@ def compose_conversation_view(
     """Return the values shown on one issue-conversation page."""
     conversation = status.work
     repository = read_repository(state=state)
-    feed = read_agent_feed(owner=conversation, zone=zone, rounds=live.rounds)
+    feed = read_agent_feed(work=conversation, zone=zone, rounds=live.rounds)
     return WebConversationView(
         repository=repository or "repository unknown",
         github_repository_url=_compose_github_repository_url(repository=repository),

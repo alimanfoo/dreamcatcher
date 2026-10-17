@@ -348,10 +348,8 @@ def show_feed_view(
 
     def refresh_feed() -> bool:
         """Show new output and return whether refreshing should stop."""
-        snapshot = _find_feed_owner(state=state, issue=issue, work_kind=work_kind)
-        view.show_new_output(
-            owner=snapshot.owner, round_statuses=snapshot.round_statuses
-        )
+        snapshot = _find_feed_work(state=state, issue=issue, work_kind=work_kind)
+        view.show_new_output(work=snapshot.work, round_statuses=snapshot.round_statuses)
         return snapshot.should_stop_refreshing
 
     refresh_until_view_ends(console=console, refresh_view=refresh_feed, wait=wait)
@@ -372,8 +370,8 @@ def _show_one_round(
 
     def refresh_round_feed() -> bool:
         """Show output since the previous refresh and return whether it has ended."""
-        snapshot = _find_feed_owner(state=state, issue=issue, work_kind=work_kind)
-        owner = snapshot.owner
+        snapshot = _find_feed_work(state=state, issue=issue, work_kind=work_kind)
+        work = snapshot.work
         round_status = next(
             (
                 round_status
@@ -384,11 +382,11 @@ def _show_one_round(
         )
         if round_status is None:
             raise ReportableError(
-                f"{owner.identifier} has run "
-                f"{describe_count(number=len(owner.rounds), noun='round')}, "
+                f"{work.identifier} has run "
+                f"{describe_count(number=len(work.rounds), noun='round')}, "
                 f"so it has no round {number}."
             )
-        view.show_new_output(owner=owner, round_statuses=[round_status])
+        view.show_new_output(work=work, round_statuses=[round_status])
         return round_status.record.ending is not None
 
     refresh_until_view_ends(console=console, refresh_view=refresh_round_feed, wait=wait)
@@ -431,28 +429,28 @@ def _find_conversation_status_for_issue(
 
 
 @dataclass(frozen=True, kw_only=True)
-class _FeedOwnerSnapshot:
-    """Hold one feed owner and the status-derived context for its headings."""
+class _FeedWorkSnapshot:
+    """Hold one piece of agent work and what status says of its rounds."""
 
-    owner: AgentWork
+    work: AgentWork
     should_stop_refreshing: bool
     round_statuses: list[AgentRoundStatus]
 
 
-def _find_feed_owner(
+def _find_feed_work(
     *, state: StateDirectory, issue: int, work_kind: AgentWorkKind
-) -> _FeedOwnerSnapshot:
-    """Return the selected feed owner and whether to stop refreshing its feed."""
+) -> _FeedWorkSnapshot:
+    """Return the selected feed work and whether to stop refreshing its feed."""
     if work_kind is AgentWorkKind.CONVERSATION:
         status = _find_conversation_status_for_issue(state=state, issue=issue)
-        return _FeedOwnerSnapshot(
-            owner=status.work,
+        return _FeedWorkSnapshot(
+            work=status.work,
             should_stop_refreshing=not status.is_active,
             round_statuses=status.round_statuses,
         )
     status = _find_assignment_statuses_for_issue(state=state, issue=issue)[0]
-    return _FeedOwnerSnapshot(
-        owner=status.work,
+    return _FeedWorkSnapshot(
+        work=status.work,
         should_stop_refreshing=status.has_ended,
         round_statuses=status.round_statuses,
     )
@@ -469,22 +467,22 @@ class _FeedView:
     def show_new_output(
         self,
         *,
-        owner: AgentWork,
+        work: AgentWork,
         round_statuses: Iterable[AgentRoundStatus],
     ) -> None:
         """Show agent output written since the previous refresh."""
         for round_status in round_statuses:
             number = round_status.record.number
             if number not in self.positions:
-                self._show_round_heading(round_status=round_status)
-            self._show_new_lines(owner=owner, round_number=number)
+                self._show_round_boundary(round_status=round_status)
+            self._show_new_lines(work=work, round_number=number)
 
-    def _show_round_heading(self, *, round_status: AgentRoundStatus) -> None:
+    def _show_round_boundary(self, *, round_status: AgentRoundStatus) -> None:
         """Show the line that opens a round, saying what woke it."""
         if self.positions:
             self.console.print()
         record = round_status.record
-        round_heading = compose_agent_round_boundary(
+        round_boundary = compose_agent_round_boundary(
             number=record.number,
             trigger=round_status.trigger_description,
             at=record.started,
@@ -496,16 +494,16 @@ class _FeedView:
         )
         self.console.print(
             _render_feed_line(
-                line=round_heading,
-                content=Text(round_heading.text, style="bold"),
+                line=round_boundary,
+                content=Text(round_boundary.text, style="bold"),
                 zone=self.zone,
             )
         )
         self.positions[record.number] = 0
 
-    def _show_new_lines(self, *, owner: AgentWork, round_number: int) -> None:
+    def _show_new_lines(self, *, work: AgentWork, round_number: int) -> None:
         """Show lines the round wrote since the previous refresh."""
-        feed_path = owner.compose_round_paths(number=round_number).feed
+        feed_path = work.compose_round_paths(number=round_number).feed
         new_lines, new_position = read_lines_from(
             path=feed_path, position=self.positions[round_number]
         )
