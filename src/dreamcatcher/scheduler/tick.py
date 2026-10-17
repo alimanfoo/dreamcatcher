@@ -7,7 +7,7 @@ from functools import partial
 
 from dreamcatcher.agent_rounds import (
     AgentRound,
-    AgentRoundPreparationError,
+    AgentRoundLaunchError,
     AgentRoundStartRequest,
     start_agent_round,
 )
@@ -279,11 +279,11 @@ class Scheduler:
             self._last_selected_work_kind = row.kind
             try:
                 launched = self._launch(row=row, candidate=candidate, at=record.at)
-            except AgentRoundPreparationError as failure:
+            except AgentRoundLaunchError as failure:
                 identifier = failure.agent_work_identifier
                 started_round = StartedRound(
                     number=failure.round_number,
-                    preparation_failure=failure.reason,
+                    launch_failure=failure.reason,
                 )
             except ReportableError as failure:
                 failures.append(str(failure))

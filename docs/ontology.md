@@ -457,11 +457,11 @@ conversation is paused after that round ends, unless it is then in fault.
 A status report may include operational facts such as the repository identity,
 whether the daemon is running, when the last scheduler tick occurred, current
 capacity, whether a global cooldown is active, and the scheduler failures. A
-scheduler failure is a failure in the latest tick that belongs to no piece of
-agent work, such as a failed issue listing. A failed read for a request is held
-in its request row, and so is a round that errored before its harness ran. Its
-request statuses and agent work statuses are projections derived for a person to
-read.
+scheduler failure is a failure in the latest tick that no request row holds: a
+failed issue listing, or a launch that failed before its round was recorded. A
+failed read for a request is held in its request row, and so is a round that
+errored before its harness ran. Its request statuses and agent work statuses are
+projections derived for a person to read.
 
 The status report never schedules work and is never an input to scheduling.
 Scheduling and reporting must nevertheless interpret the same underlying facts

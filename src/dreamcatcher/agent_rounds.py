@@ -249,14 +249,14 @@ class AgentRoundRecord(DreamcatcherDocument):
         }
 
 
-def describe_round_preparation_failure(
+def describe_round_launch_failure(
     *, agent_work_identifier: str, round_number: int, reason: str
 ) -> str:
     """Say which round of which work errored before its harness ran, and why."""
     return f"{agent_work_identifier} round {round_number} errored: {reason}"
 
 
-class AgentRoundPreparationError(ReportableError):
+class AgentRoundLaunchError(ReportableError):
     """Report a round that ended errored before its harness ran.
 
     The round's record already holds the errored ending. The error carries the
@@ -269,7 +269,7 @@ class AgentRoundPreparationError(ReportableError):
     ) -> None:
         """Hold the round that errored and say which one it was."""
         super().__init__(
-            describe_round_preparation_failure(
+            describe_round_launch_failure(
                 agent_work_identifier=agent_work_identifier,
                 round_number=round_number,
                 reason=reason,
@@ -439,7 +439,7 @@ class AgentRound:
 
         A failure before the harness is running ends the round errored, with the
         failure as its reason and no exit status, and raises
-        AgentRoundPreparationError naming the work and the round.
+        AgentRoundLaunchError naming the work and the round.
 
         A round given a finisher lets its owner finish it before it records its
         ending.
@@ -472,7 +472,7 @@ class AgentRound:
                 ending=ErroredAgentRoundEnding(at=clock(), reason=str(failure)),
                 path=paths.record,
             )
-            raise AgentRoundPreparationError(
+            raise AgentRoundLaunchError(
                 agent_work_identifier=agent_work_identifier,
                 round_number=paths.number,
                 reason=str(failure),

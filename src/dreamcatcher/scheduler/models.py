@@ -118,7 +118,7 @@ class StartedRound(DreamcatcherDocument):
     """Name the round that a tick started, and why it errored before its harness ran."""
 
     number: PositiveInt
-    preparation_failure: str | None = None
+    launch_failure: str | None = None
 
 
 class RequestRow(DreamcatcherDocument):
@@ -155,8 +155,9 @@ class GlobalCooldown(DreamcatcherDocument):
 class SchedulerRecord(DreamcatcherDocument):
     """Record what one scheduler tick found and started.
 
-    The tick writes one row per request it saw. Its failures are those that
-    belong to no piece of agent work, such as a failed issue listing.
+    The tick writes one row per request it saw. Its failures are those that no
+    row holds: a failed issue listing, or a launch that failed before its round
+    was recorded.
     """
 
     at: _UtcDateTime
@@ -180,5 +181,5 @@ class SchedulerRecord(DreamcatcherDocument):
         return [
             identifier
             for identifier, started_round in self.started_rounds.items()
-            if started_round.preparation_failure is None
+            if started_round.launch_failure is None
         ]

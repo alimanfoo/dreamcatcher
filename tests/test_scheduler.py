@@ -366,8 +366,8 @@ def test_a_round_that_cannot_open_its_pull_request_is_named_in_its_row(
     assert row.agent_work_identifier == CREATED_ASSIGNMENT_ID
     assert row.started_round is not None
     assert row.started_round.number == 1
-    assert row.started_round.preparation_failure is not None
-    assert "pull request create failed" in row.started_round.preparation_failure
+    assert row.started_round.launch_failure is not None
+    assert "pull request create failed" in row.started_round.launch_failure
 
 
 def test_a_second_tick_judges_an_assigned_issue_handled(ready_repo):

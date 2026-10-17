@@ -982,9 +982,7 @@ def test_a_failed_conversation_refresh_is_an_errored_round(
             title="Why does this happen?",
             agent_work_identifier="GH8-20260819-184158-conversation",
             finding=IssueCommentsFinding(new_comments=1),
-            started_round=StartedRound(
-                number=2, preparation_failure="could not fetch main"
-            ),
+            started_round=StartedRound(number=2, launch_failure="could not fetch main"),
         )
     ]
     assert observed.launched_agent_work_identifiers == []
@@ -1034,7 +1032,7 @@ def test_a_round_whose_input_cannot_be_saved_errors_and_the_next_refreshes(
     refreshed_revision = _read_worktree_revision(worktree=conversation.worktree)
     assert failed.failures == []
     assert failed.rows[0].started_round == StartedRound(
-        number=2, preparation_failure="could not save conversation input"
+        number=2, launch_failure="could not save conversation input"
     )
     assert not conversation.compose_round_paths(number=2).round_input.exists()
     offer_conversation(gh=gh, comments=comments)
@@ -1090,7 +1088,7 @@ def test_a_follow_up_refreshes_again_after_a_launch_failure(
     )
     assert failed.failures == []
     assert failed.rows[0].started_round == StartedRound(
-        number=2, preparation_failure="could not launch conversation"
+        number=2, launch_failure="could not launch conversation"
     )
     (scheduler.context.state.root / "README.md").write_bytes(b"second move\n")
     commit(path=scheduler.context.state.root, message="move main twice")
@@ -2336,8 +2334,8 @@ def test_a_conversation_worktree_that_cannot_be_added_errors_its_round(
     [row] = observed.rows
     assert row.started_round is not None
     assert row.started_round.number == 1
-    assert row.started_round.preparation_failure is not None
-    assert "git worktree add --detach" in row.started_round.preparation_failure
+    assert row.started_round.launch_failure is not None
+    assert "git worktree add --detach" in row.started_round.launch_failure
     assert observed.launched_agent_work_identifiers == []
 
 

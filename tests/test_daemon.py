@@ -313,7 +313,7 @@ def test_a_round_that_errored_before_its_harness_ran_is_reported_from_its_row(
                 issue=13,
                 agent_work_identifier=ASSIGNMENT_ID,
                 started_round=StartedRound(
-                    number=1, preparation_failure="git push failed\nhook refused"
+                    number=1, launch_failure="git push failed\nhook refused"
                 ),
             )
         ],
@@ -644,8 +644,8 @@ def test_a_tick_whose_round_could_not_prepare_records_it_and_ticks_again(
     [row] = record.rows
     assert row.started_round is not None
     assert row.started_round.number == 2
-    assert row.started_round.preparation_failure is not None
-    assert "git worktree add" in row.started_round.preparation_failure
+    assert row.started_round.launch_failure is not None
+    assert "git worktree add" in row.started_round.launch_failure
 
 
 def test_a_run_that_cannot_be_told_which_repository_this_is_refuses(

@@ -35,9 +35,9 @@ from dreamcatcher.agent_rounds import (
     _STOP_REQUEST_POLL_INTERVAL_SECONDS,
     AgentRound,
     AgentRoundFinisher,
+    AgentRoundLaunchError,
     AgentRoundOutcome,
     AgentRoundPaths,
-    AgentRoundPreparationError,
     AgentRoundRecord,
     AgentRoundStartRequest,
     ErroredAgentRoundEnding,
@@ -912,7 +912,7 @@ def test_a_round_whose_preparation_fails_errors_with_its_reason(
         raise ReportableError("git push failed with status 1: hook refused")
 
     with pytest.raises(
-        AgentRoundPreparationError,
+        AgentRoundLaunchError,
         match=r"^GH9-20260819-184158 round 1 errored: git push failed",
     ) as raised:
         AgentRound(
