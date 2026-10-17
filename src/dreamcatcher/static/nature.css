@@ -346,13 +346,11 @@ body::after {
 
 /* Only the states that need the user take a fill. */
 
-.status-needs-user-feedback,
 .status-routing-conflict,
 .status-fault {
   padding-inline: 12px;
 }
 
-.status-needs-user-feedback,
 .status-routing-conflict {
   color: var(--feedback-ink);
   background: var(--feedback-surface);
@@ -364,8 +362,6 @@ body::after {
 }
 
 .status-waiting,
-.status-complete,
-.status-cancelled,
 .status-ended,
 .status-idle,
 .status-unknown,

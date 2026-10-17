@@ -26,15 +26,13 @@ from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.status import (
     AgentRoundStatus,
-    AssignmentStatus,
-    ConversationStatus,
+    AgentWorkStatus,
     read_assignment_statuses_for_issue,
     read_conversation_status,
     read_dreamcatcher_daemon_status,
 )
 from dreamcatcher.tui.shared import (
-    ASSIGNMENT_STATUS_STYLES,
-    CONVERSATION_STATUS_STYLES,
+    AGENT_WORK_STATUS_STYLES,
     SECTION_PADDING,
     ViewSnapshot,
     combine_renderable_parts,
@@ -111,25 +109,25 @@ def _read_conversation_snapshot(
 def _render_conversation(
     *,
     state: StateDirectory,
-    status: ConversationStatus,
+    status: AgentWorkStatus,
     zone: tzinfo | None,
 ) -> RenderableType:
     """Render one issue conversation and its saved rounds."""
     status_value = str(status.value)
     rendered_status = Text(f"{status_value}  {status.detail}")
     rendered_status.stylize(
-        CONVERSATION_STATUS_STYLES[status.value], 0, len(status_value)
+        AGENT_WORK_STATUS_STYLES[status.value], 0, len(status_value)
     )
     return combine_renderable_parts(
         parts=[
-            Text(f"issue conversation GH{status.issue}"),
+            Text(f"issue conversation GH{status.work.record.issue}"),
             rendered_status,
             render_latest_output(latest_output=status.latest_output),
             _render_conversation_summary(state=state, status=status),
             _render_round_statuses(round_statuses=status.round_statuses, zone=zone),
             _render_harness_resume(
                 state=state,
-                worktree=status.conversation.worktree,
+                worktree=status.work.worktree,
                 hand_resume_command=status.hand_resume_command,
             ),
         ]
@@ -137,15 +135,15 @@ def _render_conversation(
 
 
 def _render_conversation_summary(
-    *, state: StateDirectory, status: ConversationStatus
+    *, state: StateDirectory, status: AgentWorkStatus
 ) -> RenderableType:
     """Return the issue, and what the first round settled for every round."""
-    conversation = status.conversation
+    conversation = status.work
     record = conversation.record
     table = create_table(columns=2)
     for name, value in (
-        ("issue identifier", f"GH{status.issue}"),
-        ("title", status.title),
+        ("issue identifier", f"GH{record.issue}"),
+        ("title", record.title),
         ("label", record.dispatch_label),
         ("worktree", state.describe_path(path=conversation.worktree)),
         ("harness", record.harness),
@@ -188,7 +186,7 @@ def _read_assignment_snapshot(
 def _render_assignment(
     *,
     state: StateDirectory,
-    assignment_statuses: list[AssignmentStatus],
+    assignment_statuses: list[AgentWorkStatus],
     zone: tzinfo | None,
 ) -> RenderableType:
     """Render the newest assignment with older assignments beneath it."""
@@ -196,7 +194,7 @@ def _render_assignment(
     status_value = str(current_status.value)
     rendered_status = Text(f"{status_value}  {current_status.detail}")
     rendered_status.stylize(
-        ASSIGNMENT_STATUS_STYLES[current_status.value], 0, len(status_value)
+        AGENT_WORK_STATUS_STYLES[current_status.value], 0, len(status_value)
     )
     latest_output = render_latest_output(latest_output=current_status.latest_output)
     if latest_output is not None:
@@ -207,7 +205,7 @@ def _render_assignment(
         )
     return combine_renderable_parts(
         parts=[
-            Text(f"newest agent assignment {current_status.assignment.identifier}"),
+            Text(f"newest agent assignment {current_status.work.identifier}"),
             rendered_status,
             latest_output,
             _render_assignment_summary(state=state, status=current_status),
@@ -216,7 +214,7 @@ def _render_assignment(
             ),
             _render_harness_resume(
                 state=state,
-                worktree=current_status.assignment.worktree,
+                worktree=current_status.work.worktree,
                 hand_resume_command=current_status.hand_resume_command,
             ),
             _render_older_assignments(older_statuses=assignment_statuses[1:]),
@@ -225,10 +223,10 @@ def _render_assignment(
 
 
 def _render_assignment_summary(
-    *, state: StateDirectory, status: AssignmentStatus
+    *, state: StateDirectory, status: AgentWorkStatus
 ) -> RenderableType:
     """Return what the assignment dispatch settled for every round."""
-    assignment = status.assignment
+    assignment = status.work
     record = assignment.record
     table = create_table(columns=2)
     for name, value in (
@@ -302,7 +300,7 @@ def _render_harness_resume(
 
 
 def _render_older_assignments(
-    *, older_statuses: list[AssignmentStatus]
+    *, older_statuses: list[AgentWorkStatus]
 ) -> RenderableType | None:
     """Return the assignments at this issue that came before, newest first."""
     if not older_statuses:
@@ -310,8 +308,8 @@ def _render_older_assignments(
     table = create_table(columns=3)
     for status in older_statuses:
         table.add_row(
-            Text(f"agent assignment {status.assignment.identifier}"),
-            Text(str(status.value), style=ASSIGNMENT_STATUS_STYLES[status.value]),
+            Text(f"agent assignment {status.work.identifier}"),
+            Text(str(status.value), style=AGENT_WORK_STATUS_STYLES[status.value]),
             Text(status.detail),
         )
     return render_section(heading="older assignments", body=table)
@@ -394,7 +392,7 @@ def _find_assignment_statuses_for_issue(
     state: StateDirectory,
     issue: int,
     clock: Callable[[], datetime] = read_current_time,
-) -> list[AssignmentStatus]:
+) -> list[AgentWorkStatus]:
     """Return the issue's agent-assignment statuses, or refuse if none."""
     assignment_statuses = read_assignment_statuses_for_issue(
         state=state,
@@ -412,7 +410,7 @@ def _find_conversation_status_for_issue(
     state: StateDirectory,
     issue: int,
     clock: Callable[[], datetime] = read_current_time,
-) -> ConversationStatus:
+) -> AgentWorkStatus:
     """Return the issue's conversation status, or refuse if none."""
     status = read_conversation_status(
         state=state,
@@ -441,13 +439,13 @@ def _find_feed_owner(
     if work_kind is AgentWorkKind.CONVERSATION:
         status = _find_conversation_status_for_issue(state=state, issue=issue)
         return _FeedOwnerSnapshot(
-            owner=status.conversation,
+            owner=status.work,
             should_stop_refreshing=not status.is_active,
             round_statuses=status.round_statuses,
         )
     status = _find_assignment_statuses_for_issue(state=state, issue=issue)[0]
     return _FeedOwnerSnapshot(
-        owner=status.assignment,
+        owner=status.work,
         should_stop_refreshing=status.has_ended,
         round_statuses=status.round_statuses,
     )

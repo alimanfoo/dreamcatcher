@@ -191,13 +191,13 @@ def test_assignments_are_rendered_in_attention_order(tmp_path):
     rendered = render_status_view(state=state)
 
     identifiers = [
-        "GH20-20260819-184158-assignment",
         "GH9-20260819-184158-assignment",
         "GH13-20260819-184158-assignment",
         "GH31-20260819-184158-assignment",
         "GH35-20260819-184158-assignment",
         "GH44-20260819-184158-assignment",
         "GH40-20260819-184158-assignment",
+        "GH20-20260819-184158-assignment",
     ]
     assert [rendered.index(identifier) for identifier in identifiers] == sorted(
         rendered.index(identifier) for identifier in identifiers

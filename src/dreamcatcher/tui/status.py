@@ -11,16 +11,15 @@ from dreamcatcher.clock import WaitForSeconds, read_current_time
 from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.status import (
+    AgentWorkStatus,
     AgentWorkStatusSection,
-    AssignmentStatus,
     DreamcatcherStatusReport,
     RequestReason,
     RequestStatus,
     read_status_report,
 )
 from dreamcatcher.tui.shared import (
-    ASSIGNMENT_STATUS_STYLES,
-    CONVERSATION_STATUS_STYLES,
+    AGENT_WORK_STATUS_STYLES,
     ViewSnapshot,
     combine_renderable_parts,
     create_table,
@@ -68,8 +67,16 @@ def _render_status(*, report: DreamcatcherStatusReport) -> RenderableType:
         parts=[
             Text(report.repository or "repository unknown", style="bold"),
             _render_instance_status(report=report),
-            _render_assignments(report=report, section=report.assignment_section),
-            _render_conversations(report=report, section=report.conversation_section),
+            _render_agent_work(
+                report=report,
+                section=report.assignment_section,
+                kind=AgentWorkKind.ASSIGNMENT,
+            ),
+            _render_agent_work(
+                report=report,
+                section=report.conversation_section,
+                kind=AgentWorkKind.CONVERSATION,
+            ),
         ]
     )
 
@@ -82,25 +89,26 @@ def _render_instance_status(*, report: DreamcatcherStatusReport) -> RenderableTy
     return render_section(heading="instance", body=table)
 
 
-def _render_assignments(
-    *, report: DreamcatcherStatusReport, section: AgentWorkStatusSection | None
+def _render_agent_work(
+    *,
+    report: DreamcatcherStatusReport,
+    section: AgentWorkStatusSection | None,
+    kind: AgentWorkKind,
 ) -> RenderableType | None:
-    """Render assignment work as one section, mirroring the web home view.
+    """Render one kind of agent work as one section, mirroring the web home view.
 
-    Orders active assignments, requests with no open assignment, and the
-    ended-assignment count in that sequence.
+    Orders the active work, the requests with no open work, the guidance and
+    the count of ended work in that sequence.
     """
     if section is None:
         return None
-    rows = _render_assignment_rows(assignments=report.active_assignment_statuses)
-    rows += _render_request_rows(
-        requests=report.list_request_statuses(kind=AgentWorkKind.ASSIGNMENT)
-    )
+    rows = _render_work_rows(statuses=report.list_active_work_statuses(kind=kind))
+    rows += _render_request_rows(requests=report.list_request_statuses(kind=kind))
     if section.empty_message is not None:
         rows.append(Text(section.empty_message))
-    ended = report.ended_assignment_statuses
+    ended = report.list_ended_work_statuses(kind=kind)
     if ended:
-        rows.append(Text(describe_count(number=len(ended), noun="ended assignment")))
+        rows.append(Text(describe_count(number=len(ended), noun=f"ended {kind}")))
     return render_section(heading=section.heading, body=Group(*rows))
 
 
@@ -134,22 +142,20 @@ def _render_request_reason(*, reason: RequestReason) -> str:
     return f"{reason.words} {', '.join(references)}"
 
 
-def _render_assignment_rows(
-    *, assignments: Sequence[AssignmentStatus]
-) -> list[RenderableType]:
-    """Render the detailed rows for assignments that have not ended."""
-    if not assignments:
+def _render_work_rows(*, statuses: Sequence[AgentWorkStatus]) -> list[RenderableType]:
+    """Render the detailed rows for work that has not ended."""
+    if not statuses:
         return []
-    identifier_width = max(len(status.assignment.identifier) for status in assignments)
-    status_width = max(len(status.value) for status in assignments)
+    identifier_width = max(len(status.work.identifier) for status in statuses)
+    status_width = max(len(status.value) for status in statuses)
     rows: list[RenderableType] = []
-    for status in assignments:
+    for status in statuses:
         table = create_table(columns=3)
         table.columns[0].width = identifier_width
         table.columns[1].width = status_width
         table.add_row(
-            Text(status.assignment.identifier),
-            Text(str(status.value), style=ASSIGNMENT_STATUS_STYLES[status.value]),
+            Text(status.work.identifier),
+            Text(str(status.value), style=AGENT_WORK_STATUS_STYLES[status.value]),
             Text(status.detail),
         )
         rows.append(table)
@@ -157,31 +163,3 @@ def _render_assignment_rows(
         if latest_output is not None:
             rows.append(latest_output)
     return rows
-
-
-def _render_conversations(
-    *, report: DreamcatcherStatusReport, section: AgentWorkStatusSection | None
-) -> RenderableType | None:
-    """Render conversation work as one section, as the web home view does."""
-    if section is None:
-        return None
-    rows: list[RenderableType] = []
-    active = report.active_conversation_statuses
-    if active:
-        table = create_table(columns=3)
-        for status in active:
-            table.add_row(
-                Text(f"GH{status.issue}"),
-                Text(str(status.value), style=CONVERSATION_STATUS_STYLES[status.value]),
-                Text(status.detail),
-            )
-        rows.append(table)
-    rows += _render_request_rows(
-        requests=report.list_request_statuses(kind=AgentWorkKind.CONVERSATION)
-    )
-    if section.empty_message is not None:
-        rows.append(Text(section.empty_message))
-    ended = report.ended_conversation_statuses
-    if ended:
-        rows.append(Text(describe_count(number=len(ended), noun="ended conversation")))
-    return render_section(heading=section.heading, body=Group(*rows))

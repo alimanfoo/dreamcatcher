@@ -6,10 +6,10 @@ from datetime import timedelta
 from pathlib import Path
 
 from clocks import DISPLAY_TIME_ZONE
-from observations import observed_conversation
 from status_fabrications import (
     ASSIGNMENT_TIMESTAMP,
     LOOKED_AT,
+    conversation_row,
     fabricate_conversation,
     fabricate_everything,
 )
@@ -18,6 +18,7 @@ from werkzeug.serving import make_server
 from dreamcatcher.agent_work import find_agent_work
 from dreamcatcher.documents import append_text
 from dreamcatcher.feed import FeedLine
+from dreamcatcher.scheduler.models import IssueCommentsFinding
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.web.app import _create_app
 from dreamcatcher.web.server import WEB_HOST, run_web_server_in_background
@@ -33,7 +34,9 @@ def serve_fabricated_web(*, root: Path) -> Generator[str, None, None]:
     fabricate_conversation(state=state)
     fabricate_everything(
         state=state,
-        conversation_observations=[observed_conversation()],
+        conversation_rows=[
+            conversation_row(finding=IssueCommentsFinding(new_comments=0))
+        ],
     )
     assignment = find_agent_work(
         state=state,

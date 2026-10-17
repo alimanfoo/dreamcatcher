@@ -5,7 +5,6 @@ from io import StringIO
 
 import pytest
 from clocks import PINNED
-from observations import observed_conversation
 from records import (
     find_conversation_directory,
     hold_daemon_lock_for_test,
@@ -19,6 +18,7 @@ from records import (
 )
 from rich.console import Console
 from rows import request_row
+from status_fabrications import conversation_row
 
 from dreamcatcher.agent_rounds import (
     AgentRoundRecord,
@@ -34,10 +34,11 @@ from dreamcatcher.issue_conversations import (
     InitialConversationIssue,
 )
 from dreamcatcher.scheduler.models import (
+    ConflictingLabelsFinding,
     IssueCommentsFinding,
     ReadFailure,
     SchedulerRecord,
-    Truth,
+    UnlistedIssueFinding,
 )
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.tui import (
@@ -51,7 +52,7 @@ def conversation_state(
     *,
     root,
     status: int = 0,
-    is_eligible: bool = False,
+    is_listed: bool = False,
     harness_session_identifier: str | None = "conversation-session",
 ) -> StateDirectory:
     """Return state containing one finished conversation."""
@@ -102,7 +103,15 @@ def conversation_state(
         state=state,
         tick=SchedulerRecord(
             at=PINNED,
-            conversation_observations=[observed_conversation()] if is_eligible else [],
+            rows=[
+                conversation_row(
+                    finding=(
+                        IssueCommentsFinding(new_comments=0)
+                        if is_listed
+                        else UnlistedIssueFinding()
+                    )
+                )
+            ],
         ),
     )
     return state
@@ -115,7 +124,7 @@ def rendered_console() -> tuple[Console, StringIO]:
 
 
 def test_status_lists_the_conversation(tmp_path):
-    state = conversation_state(root=tmp_path, is_eligible=True)
+    state = conversation_state(root=tmp_path, is_listed=True)
     console, written = rendered_console()
 
     show_status_view(
@@ -195,7 +204,7 @@ def test_conversation_detail_shows_settings_revision_session_and_round(tmp_path)
 
 
 def test_conversation_detail_shows_a_failed_round(tmp_path):
-    state = conversation_state(root=tmp_path, status=2, is_eligible=True)
+    state = conversation_state(root=tmp_path, status=2, is_listed=True)
     console, written = rendered_console()
 
     show_conversation_view(
@@ -209,7 +218,7 @@ def test_conversation_detail_shows_a_failed_round(tmp_path):
 
 
 def test_conversation_detail_shows_two_errors_as_a_fault(tmp_path):
-    state = conversation_state(root=tmp_path, status=2, is_eligible=True)
+    state = conversation_state(root=tmp_path, status=2, is_listed=True)
     directory = find_conversation_directory(state=state, issue=8)
     write_round(
         directory=directory,
@@ -272,7 +281,7 @@ def test_conversation_feed_shows_its_saved_activity(tmp_path):
 def test_conversation_feed_follows_a_later_round_without_repeating_the_first(
     tmp_path,
 ):
-    state = conversation_state(root=tmp_path, is_eligible=True)
+    state = conversation_state(root=tmp_path, is_listed=True)
     written = StringIO()
     console = Console(
         file=written,
@@ -320,12 +329,10 @@ def test_conversation_feed_follows_a_later_round_without_repeating_the_first(
             number=2,
             lines=[FeedLine(at=PINNED, text="I found the follow-up answer.")],
         )
-        write_tick(
-            state=state,
-            tick=SchedulerRecord(
-                at=PINNED,
-                conversation_observations=[],
-            ),
+        write_ending(
+            directory=directory,
+            reason=AgentWorkEndReason.COMPLETED,
+            at=PINNED + timedelta(minutes=11),
         )
 
     show_feed_view(
@@ -459,11 +466,11 @@ def test_conversations_are_listed_in_attention_order_before_requests(tmp_path):
         state=state,
         tick=SchedulerRecord(
             at=PINNED,
-            conversation_observations=[
-                observed_conversation(issue=8),
-                observed_conversation(issue=11),
-            ],
             rows=[
+                conversation_row(finding=IssueCommentsFinding(new_comments=0)),
+                conversation_row(
+                    issue=11, finding=IssueCommentsFinding(new_comments=0)
+                ),
                 request_row(
                     issue=9,
                     kind=AgentWorkKind.CONVERSATION,
@@ -526,8 +533,13 @@ def refusing(seconds, /):
 
 
 @pytest.mark.parametrize("status", [0, 2], ids=["answered", "errored"])
-def test_a_conversation_view_off_the_report_never_waits(tmp_path, status):
+def test_an_ended_conversation_view_never_waits(tmp_path, status):
     state = conversation_state(root=tmp_path, status=status)
+    write_ending(
+        directory=find_conversation_directory(state=state, issue=8),
+        reason=AgentWorkEndReason.COMPLETED,
+        at=PINNED + timedelta(minutes=5),
+    )
     console, written = watched_console()
 
     show_conversation_view(
@@ -542,12 +554,12 @@ def test_a_conversation_view_off_the_report_never_waits(tmp_path, status):
 
 
 def test_a_conversation_view_of_an_idle_conversation_keeps_watching(tmp_path):
-    state = conversation_state(root=tmp_path, is_eligible=True)
+    state = conversation_state(root=tmp_path, is_listed=True)
     assert_conversation_views_keep_watching(state=state)
 
 
 def test_a_conversation_view_in_fault_keeps_watching(tmp_path):
-    state = conversation_state(root=tmp_path, status=2, is_eligible=True)
+    state = conversation_state(root=tmp_path, status=2, is_listed=True)
     write_round(
         directory=find_conversation_directory(state=state, issue=8),
         number=2,
@@ -565,13 +577,15 @@ def test_a_conversation_view_in_fault_keeps_watching(tmp_path):
 
 
 def test_a_conversation_view_with_a_routing_conflict_keeps_watching(tmp_path):
-    state = conversation_state(root=tmp_path, is_eligible=True)
+    state = conversation_state(root=tmp_path, is_listed=True)
     write_tick(
         state=state,
         tick=SchedulerRecord(
             at=PINNED,
-            conversation_observations=[
-                observed_conversation(routing_conflict=Truth.TRUE)
+            rows=[
+                conversation_row(
+                    finding=ConflictingLabelsFinding(labels=["discuss", "scout"])
+                )
             ],
         ),
     )
@@ -617,7 +631,7 @@ def end_conversation(*, state: StateDirectory) -> None:
 
 
 def test_status_counts_an_ended_conversation(tmp_path):
-    state = conversation_state(root=tmp_path, is_eligible=True)
+    state = conversation_state(root=tmp_path, is_listed=True)
     end_conversation(state=state)
     console, written = rendered_console()
 

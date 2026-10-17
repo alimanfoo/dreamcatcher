@@ -8,8 +8,7 @@ from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.status import (
     AgentRoundStatus,
-    AssignmentStatus,
-    ConversationStatus,
+    AgentWorkStatus,
     DreamcatcherDaemonStatus,
     DreamcatcherStatusReport,
     StatusFact,
@@ -19,10 +18,9 @@ from dreamcatcher.web.feed import read_agent_feed
 from dreamcatcher.web.models import (
     WebAgentLiveState,
     WebAgentRound,
+    WebAgentWorkCard,
     WebAgentWorkControl,
-    WebAssignmentCard,
     WebAssignmentView,
-    WebConversationCard,
     WebConversationView,
     WebHandResume,
     WebHomeView,
@@ -64,20 +62,26 @@ def compose_home_view(*, report: DreamcatcherStatusReport) -> WebHomeView:
         assignment_section=report.assignment_section,
         conversation_section=report.conversation_section,
         active_conversations=tuple(
-            _compose_conversation_card(status=status)
-            for status in report.active_conversation_statuses
+            _compose_work_card(status=status)
+            for status in report.list_active_work_statuses(
+                kind=AgentWorkKind.CONVERSATION
+            )
         ),
         ended_conversations=tuple(
-            _compose_conversation_card(status=status)
-            for status in report.ended_conversation_statuses
+            _compose_work_card(status=status)
+            for status in report.list_ended_work_statuses(
+                kind=AgentWorkKind.CONVERSATION
+            )
         ),
         active_assignments=tuple(
-            _compose_assignment_card(status=status)
-            for status in report.active_assignment_statuses
+            _compose_work_card(status=status)
+            for status in report.list_active_work_statuses(
+                kind=AgentWorkKind.ASSIGNMENT
+            )
         ),
         ended_assignments=tuple(
-            _compose_assignment_card(status=status)
-            for status in report.ended_assignment_statuses
+            _compose_work_card(status=status)
+            for status in report.list_ended_work_statuses(kind=AgentWorkKind.ASSIGNMENT)
         ),
         assignment_requests=tuple(
             report.list_request_statuses(kind=AgentWorkKind.ASSIGNMENT)
@@ -88,40 +92,23 @@ def compose_home_view(*, report: DreamcatcherStatusReport) -> WebHomeView:
     )
 
 
-def _compose_assignment_card(*, status: AssignmentStatus) -> WebAssignmentCard:
-    assignment = status.assignment
-    return WebAssignmentCard(
-        identifier=assignment.identifier,
-        issue=assignment.record.issue,
-        title=assignment.record.title,
+def _compose_work_card(*, status: AgentWorkStatus) -> WebAgentWorkCard:
+    """Return the values shown for one piece of agent work on the home page."""
+    work = status.work
+    record = work.record
+    return WebAgentWorkCard(
+        identifier=work.identifier,
+        kind=record.kind,
+        issue=record.issue,
+        title=record.title,
         status=status.value,
         detail=status.detail,
-        dispatch_label=assignment.record.dispatch_label,
-        harness=str(assignment.record.harness),
-        model=assignment.record.model,
-        effort=assignment.record.effort,
+        dispatch_label=record.dispatch_label,
+        harness=str(record.harness),
+        model=record.model,
+        effort=record.effort,
         pull_request=status.pull_request,
         pull_request_state=status.pull_request_state,
-        latest_output=status.latest_output,
-    )
-
-
-def _compose_conversation_card(*, status: ConversationStatus) -> WebConversationCard:
-    """Return the values shown for one issue conversation on the home page."""
-    conversation = status.conversation
-    return WebConversationCard(
-        identifier=conversation.identifier,
-        issue=status.issue,
-        title=status.title,
-        status=status.value,
-        detail=status.detail,
-        settings=" · ".join(
-            [
-                str(conversation.record.harness),
-                conversation.record.model,
-                conversation.record.effort,
-            ]
-        ),
         latest_output=status.latest_output,
     )
 
@@ -129,7 +116,7 @@ def _compose_conversation_card(*, status: ConversationStatus) -> WebConversation
 def compose_agent_live_state(
     *,
     state: StateDirectory,
-    status: AssignmentStatus | ConversationStatus,
+    status: AgentWorkStatus,
     worktree: Path | None,
     zone: tzinfo | None,
     heading_controls: tuple[WebAgentWorkControl, ...],
@@ -151,13 +138,13 @@ def compose_agent_live_state(
 def compose_assignment_view(
     *,
     state: StateDirectory,
-    status: AssignmentStatus,
+    status: AgentWorkStatus,
     daemon: DreamcatcherDaemonStatus,
     live: WebAgentLiveState,
     zone: tzinfo | None,
 ) -> WebAssignmentView:
     """Return the values shown on one assignment page."""
-    assignment = status.assignment
+    assignment = status.work
     record = assignment.record
     repository = read_repository(state=state)
     feed = read_agent_feed(owner=assignment, zone=zone, rounds=live.rounds)
@@ -183,13 +170,13 @@ def compose_assignment_view(
 def compose_conversation_view(
     *,
     state: StateDirectory,
-    conversation: AgentWork,
-    status: ConversationStatus,
+    status: AgentWorkStatus,
     daemon: DreamcatcherDaemonStatus,
     live: WebAgentLiveState,
     zone: tzinfo | None,
 ) -> WebConversationView:
     """Return the values shown on one issue-conversation page."""
+    conversation = status.work
     repository = read_repository(state=state)
     feed = read_agent_feed(owner=conversation, zone=zone, rounds=live.rounds)
     return WebConversationView(
@@ -197,8 +184,8 @@ def compose_conversation_view(
         github_repository_url=_compose_github_repository_url(repository=repository),
         daemon=daemon,
         identifier=conversation.identifier,
-        issue=status.issue,
-        title=status.title,
+        issue=conversation.record.issue,
+        title=conversation.record.title,
         facts=_compose_conversation_facts(conversation=conversation),
         live=live,
         feed_rounds=feed.rounds,

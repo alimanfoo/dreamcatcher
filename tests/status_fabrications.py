@@ -6,9 +6,9 @@ from types import MappingProxyType
 
 from clocks import PINNED
 from conftest import ASSIGNMENT_LABEL, DAEMON_PID, REPOSITORY, comment
-from observations import observed_conversation
 from records import (
     MERGED_INPUT,
+    compose_conversation_identifier,
     hold_daemon_lock_for_test,
     release_daemon_lock,
     write_assignment,
@@ -40,14 +40,15 @@ from dreamcatcher.issue_conversations import (
     InitialConversationIssue,
 )
 from dreamcatcher.scheduler.models import (
-    NO_ROUND_HAS_RUN,
-    AgentWorkObservation,
     ConflictingLabelsFinding,
-    ConversationObservation,
-    ObservedFact,
+    IssueCommentsFinding,
+    PullRequestFinding,
+    RequestFinding,
+    RequestRow,
     SchedulerRecord,
+    StartedRound,
     StartTimeFinding,
-    Truth,
+    UnlistedIssueFinding,
 )
 from dreamcatcher.state import StateDirectory
 
@@ -56,17 +57,35 @@ ASSIGNMENT_TIMESTAMP = "20260819-184158"
 HARNESS_SESSION_IDENTIFIER = "abc-123"
 
 
-def _observed_assignment(
+def _assignment_row(
     *,
-    identifier: str,
     issue: int,
-    evidence: str,
-    value: Truth = Truth.TRUE,
-) -> AgentWorkObservation:
-    return AgentWorkObservation(
-        identifier=identifier,
+    finding: RequestFinding | None = None,
+    started_round: StartedRound | None = None,
+) -> RequestRow:
+    """Return the row of the assignment that the fabrications write at the issue."""
+    return request_row(
         issue=issue,
-        requires_round=ObservedFact(value=value, evidence=evidence),
+        agent_work=f"GH{issue}-{ASSIGNMENT_TIMESTAMP}-assignment",
+        finding=finding,
+        started_round=started_round,
+    )
+
+
+def _draft_pull_request(*, new_posts: int = 0) -> PullRequestFinding:
+    """Return what the tick reads of the draft that the fabrications open."""
+    return PullRequestFinding(
+        number=52, state=PullRequestState.OPEN, is_draft=True, new_posts=new_posts
+    )
+
+
+def conversation_row(*, finding: RequestFinding, issue: int = 8) -> RequestRow:
+    """Return the row of the conversation that the tests write at the issue."""
+    return request_row(
+        issue=issue,
+        kind=AgentWorkKind.CONVERSATION,
+        agent_work=compose_conversation_identifier(issue=issue),
+        finding=finding,
     )
 
 
@@ -101,7 +120,7 @@ def fabricate_conversation(
     state: StateDirectory,
     has_round: bool = True,
     status: int = 0,
-    is_eligible: bool = False,
+    is_listed: bool = False,
     harness_session_identifier: HarnessSessionIdentifier
     | None = "conversation-session",
 ) -> None:
@@ -116,7 +135,15 @@ def fabricate_conversation(
         state=state,
         tick=SchedulerRecord(
             at=PINNED,
-            conversation_observations=[observed_conversation()] if is_eligible else [],
+            rows=[
+                conversation_row(
+                    finding=(
+                        IssueCommentsFinding(new_comments=0)
+                        if is_listed
+                        else UnlistedIssueFinding()
+                    )
+                )
+            ],
         ),
     )
     if not has_round:
@@ -244,7 +271,7 @@ def fabricate_nothing(*, state):
 def fabricate_everything(
     *,
     state,
-    conversation_observations: Sequence[ConversationObservation] = (),
+    conversation_rows: Sequence[RequestRow] = (),
 ):
     """Write a running daemon with varied issue and assignment statuses."""
     holding(state=state)
@@ -320,37 +347,14 @@ def fabricate_everything(
                         linked_pull_requests=[61], blocking_issues=[50, 51]
                     ),
                 ),
+                _assignment_row(issue=13, started_round=StartedRound(number=2)),
+                _assignment_row(issue=31, finding=_draft_pull_request(new_posts=1)),
+                _assignment_row(issue=20, finding=_draft_pull_request()),
+                _assignment_row(issue=35, finding=_draft_pull_request()),
+                _assignment_row(issue=9),
+                _assignment_row(issue=44),
+                *conversation_rows,
             ],
-            assignment_observations=[
-                _observed_assignment(
-                    identifier=f"GH31-{ASSIGNMENT_TIMESTAMP}-assignment",
-                    issue=31,
-                    evidence="1 new post to answer",
-                ),
-                _observed_assignment(
-                    identifier=f"GH20-{ASSIGNMENT_TIMESTAMP}-assignment",
-                    issue=20,
-                    evidence="no round required",
-                    value=Truth.FALSE,
-                ),
-                _observed_assignment(
-                    identifier=f"GH35-{ASSIGNMENT_TIMESTAMP}-assignment",
-                    issue=35,
-                    evidence="round 1 errored, to try again",
-                ),
-                _observed_assignment(
-                    identifier=f"GH9-{ASSIGNMENT_TIMESTAMP}-assignment",
-                    issue=9,
-                    evidence="in fault",
-                    value=Truth.FALSE,
-                ),
-                _observed_assignment(
-                    identifier=f"GH44-{ASSIGNMENT_TIMESTAMP}-assignment",
-                    issue=44,
-                    evidence=NO_ROUND_HAS_RUN,
-                ),
-            ],
-            conversation_observations=list(conversation_observations),
         ),
     )
 
@@ -392,13 +396,7 @@ def fabricate_the_cap(*, state):
         tick=SchedulerRecord(
             at=PINNED + timedelta(hours=1, minutes=58),
             failures=["could not list issues for dream:less: could not connect"],
-            assignment_observations=[
-                _observed_assignment(
-                    identifier=f"GH20-{ASSIGNMENT_TIMESTAMP}-assignment",
-                    issue=20,
-                    evidence="1 new post to answer",
-                )
-            ],
+            rows=[_assignment_row(issue=20, finding=_draft_pull_request(new_posts=1))],
         ),
     )
 
@@ -446,14 +444,7 @@ def fabricate_repeat_assignments(*, state):
         state=state,
         tick=SchedulerRecord(
             at=PINNED + timedelta(hours=1, minutes=58),
-            assignment_observations=[
-                _observed_assignment(
-                    identifier=f"GH13-{ASSIGNMENT_TIMESTAMP}-assignment",
-                    issue=13,
-                    evidence="no round required",
-                    value=Truth.FALSE,
-                )
-            ],
+            rows=[_assignment_row(issue=13, finding=_draft_pull_request())],
         ),
     )
 
@@ -477,6 +468,7 @@ def fabricate_a_silent_round(*, state):
         tick=SchedulerRecord(
             at=PINNED + timedelta(hours=1, minutes=58),
             launched_agent_work_identifiers=[f"GH13-{ASSIGNMENT_TIMESTAMP}-assignment"],
+            rows=[_assignment_row(issue=13, started_round=StartedRound(number=2))],
         ),
     )
 
@@ -484,7 +476,6 @@ def fabricate_a_silent_round(*, state):
 def fabricate_titles_and_pull_request_states(*, state):
     """Write assignments and issues carrying every web reporting fact."""
     holding(state=state)
-    assignment_observations = []
     for issue, title, pull_request_state, is_draft in (
         (10, "Draft assignment", PullRequestState.OPEN, True),
         (11, "Ready assignment", PullRequestState.OPEN, False),
@@ -504,25 +495,11 @@ def fabricate_titles_and_pull_request_states(*, state):
             ),
             harness_session_identifier=None,
         )
-        assignment_observations.append(
-            _observed_assignment(
-                identifier=f"GH{issue}-{ASSIGNMENT_TIMESTAMP}-assignment",
-                issue=issue,
-                evidence=NO_ROUND_HAS_RUN,
-            )
-        )
     write_assignment(
         state=state,
         identifier=f"GH14-{ASSIGNMENT_TIMESTAMP}-assignment",
         issue=14,
         harness_session_identifier=None,
-    )
-    assignment_observations.append(
-        _observed_assignment(
-            identifier=f"GH14-{ASSIGNMENT_TIMESTAMP}-assignment",
-            issue=14,
-            evidence=NO_ROUND_HAS_RUN,
-        )
     )
     write_tick(
         state=state,
@@ -537,8 +514,8 @@ def fabricate_titles_and_pull_request_states(*, state):
                         linked_pull_requests=[], blocking_issues=[20]
                     ),
                 ),
+                *(_assignment_row(issue=issue) for issue in (10, 11, 12, 13, 14)),
             ],
-            assignment_observations=assignment_observations,
         ),
     )
 

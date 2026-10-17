@@ -305,7 +305,6 @@ body::after {
   content: "]";
 }
 
-.status-needs-user-feedback,
 .status-routing-conflict,
 .status-available {
   color: var(--background);
@@ -319,8 +318,6 @@ body::after {
 
 .status-waiting,
 .status-unknown,
-.status-complete,
-.status-cancelled,
 .status-ended,
 .status-idle,
 .status-blocked {

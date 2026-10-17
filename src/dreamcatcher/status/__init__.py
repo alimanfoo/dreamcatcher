@@ -1,14 +1,9 @@
 """Read status reports for a dreamcatcher instance."""
 
-from dreamcatcher.status.assignments import (
-    ASSIGNMENT_STATUS_VALUES_IN_ATTENTION_ORDER,
-    AssignmentStatus,
-    AssignmentStatusValue,
-)
-from dreamcatcher.status.conversations import (
-    CONVERSATION_STATUS_VALUES_IN_ATTENTION_ORDER,
-    ConversationStatus,
-    ConversationStatusValue,
+from dreamcatcher.status.agent_work import (
+    AGENT_WORK_STATUS_VALUES_IN_ATTENTION_ORDER,
+    AgentWorkStatus,
+    AgentWorkStatusValue,
 )
 from dreamcatcher.status.report import (
     AgentWorkStatusSection,
@@ -31,15 +26,12 @@ from dreamcatcher.status.requests import (
 from dreamcatcher.status.rounds import AgentRoundRevision, AgentRoundStatus
 
 __all__ = [
-    "ASSIGNMENT_STATUS_VALUES_IN_ATTENTION_ORDER",
-    "CONVERSATION_STATUS_VALUES_IN_ATTENTION_ORDER",
+    "AGENT_WORK_STATUS_VALUES_IN_ATTENTION_ORDER",
     "AgentRoundRevision",
     "AgentRoundStatus",
+    "AgentWorkStatus",
     "AgentWorkStatusSection",
-    "AssignmentStatus",
-    "AssignmentStatusValue",
-    "ConversationStatus",
-    "ConversationStatusValue",
+    "AgentWorkStatusValue",
     "DaemonStatusFact",
     "DreamcatcherDaemonStatus",
     "DreamcatcherStatusReport",

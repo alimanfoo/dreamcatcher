@@ -4,11 +4,11 @@ from dataclasses import dataclass
 from typing import Literal, Protocol
 
 from dreamcatcher.agent_rounds import AgentRoundPaths, AgentRoundRecord
+from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.status import (
     AgentRoundRevision,
     AgentWorkStatusSection,
-    AssignmentStatusValue,
-    ConversationStatusValue,
+    AgentWorkStatusValue,
     DreamcatcherDaemonStatus,
     RequestStatus,
     StatusFact,
@@ -16,13 +16,17 @@ from dreamcatcher.status import (
 
 
 @dataclass(frozen=True, kw_only=True)
-class WebAssignmentCard:
-    """Represent the values rendered in one assignment card."""
+class WebAgentWorkCard:
+    """Represent the values rendered in one card for agent work of either kind.
+
+    Only an assignment has a pull request.
+    """
 
     identifier: str
+    kind: AgentWorkKind
     issue: int
     title: str
-    status: AssignmentStatusValue
+    status: AgentWorkStatusValue
     detail: str
     dispatch_label: str
     harness: str
@@ -30,19 +34,6 @@ class WebAssignmentCard:
     effort: str
     pull_request: int | None
     pull_request_state: str | None
-    latest_output: str | None
-
-
-@dataclass(frozen=True, kw_only=True)
-class WebConversationCard:
-    """Represent the values rendered in one issue-conversation card."""
-
-    identifier: str
-    issue: int
-    title: str
-    status: ConversationStatusValue
-    detail: str
-    settings: str
     latest_output: str | None
 
 
@@ -114,7 +105,7 @@ class WebAgentWorkControl:
 class WebAgentLiveState:
     """Represent the values of an agent page that its tail refreshes."""
 
-    status: AssignmentStatusValue | ConversationStatusValue
+    status: AgentWorkStatusValue
     detail: str
     rounds: tuple[WebAgentRound, ...]
     heading_controls: tuple[WebAgentWorkControl, ...]
@@ -179,10 +170,10 @@ class WebHomeView:
     instance_facts: tuple[StatusFact, ...]
     assignment_section: AgentWorkStatusSection | None
     conversation_section: AgentWorkStatusSection | None
-    active_conversations: tuple[WebConversationCard, ...]
-    ended_conversations: tuple[WebConversationCard, ...]
-    active_assignments: tuple[WebAssignmentCard, ...]
-    ended_assignments: tuple[WebAssignmentCard, ...]
+    active_conversations: tuple[WebAgentWorkCard, ...]
+    ended_conversations: tuple[WebAgentWorkCard, ...]
+    active_assignments: tuple[WebAgentWorkCard, ...]
+    ended_assignments: tuple[WebAgentWorkCard, ...]
     assignment_requests: tuple[RequestStatus, ...]
     conversation_requests: tuple[RequestStatus, ...]
 

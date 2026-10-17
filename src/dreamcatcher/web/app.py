@@ -23,8 +23,7 @@ from dreamcatcher.errors import ReportableError
 from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.status import (
-    AssignmentStatus,
-    ConversationStatus,
+    AgentWorkStatus,
     read_agent_work_status,
     read_dreamcatcher_daemon_status,
     read_status_report,
@@ -146,7 +145,7 @@ def _show_work(
     daemon = read_dreamcatcher_daemon_status(state=state)
     status = read_agent_work_status(state=state, work=work, daemon=daemon, clock=clock)
     live = _compose_work_live_state(state=state, work=work, status=status, zone=zone)
-    if isinstance(status, AssignmentStatus):
+    if work.record.kind is AgentWorkKind.ASSIGNMENT:
         return render_template(
             "assignment.html",
             view=compose_assignment_view(
@@ -157,7 +156,6 @@ def _show_work(
         "conversation.html",
         view=compose_conversation_view(
             state=state,
-            conversation=work,
             status=status,
             daemon=daemon,
             live=live,
@@ -170,7 +168,7 @@ def _compose_work_live_state(
     *,
     state: StateDirectory,
     work: AgentWork,
-    status: AssignmentStatus | ConversationStatus,
+    status: AgentWorkStatus,
     zone: tzinfo | None,
 ) -> WebAgentLiveState:
     identifier = work.identifier

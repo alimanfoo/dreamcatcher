@@ -1,17 +1,26 @@
-"""Describe agent rounds shared by assignment and conversation status."""
+"""Describe the agent rounds of either kind of agent work."""
 
 from dataclasses import dataclass
 from datetime import datetime
 
+from dreamcatcher.agent_assignments import AssignmentRoundInput
 from dreamcatcher.agent_rounds import (
     AgentRoundOutcome,
     AgentRoundPaths,
     AgentRoundRecord,
     ErroredAgentRoundEnding,
 )
+from dreamcatcher.agent_work import AgentWork
+from dreamcatcher.documents import read_json_if_exists
+from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import read_last_feed_line
-from dreamcatcher.harness_adapters import HarnessSessionIdentifier
-from dreamcatcher.words import describe_span
+from dreamcatcher.github import PullRequestState
+from dreamcatcher.harness_adapters import AgentWorkKind, HarnessSessionIdentifier
+from dreamcatcher.issue_conversations import (
+    ConversationRoundInput,
+    read_conversation_input,
+)
+from dreamcatcher.words import describe_count, describe_span
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -111,3 +120,85 @@ def describe_round_outcome(*, record: AgentRoundRecord, is_working: bool) -> str
     if record.ending is None and not is_working:
         return str(AgentRoundOutcome.INTERRUPTED)
     return str(record.outcome)
+
+
+def list_round_statuses(*, work: AgentWork, is_working: bool) -> list[AgentRoundStatus]:
+    """Return the derived status of every round of the work, in run order.
+
+    A conversation round also names the code revision it investigated, against
+    the revision of the conversation round before it.
+    """
+    statuses: list[AgentRoundStatus] = []
+    previous_revision = None
+    for record in work.rounds:
+        revision = None
+        if work.record.kind is AgentWorkKind.CONVERSATION:
+            round_input = _read_conversation_input(work=work, number=record.number)
+            if round_input is not None:
+                revision = _compose_round_revision(
+                    previous_revision=previous_revision, revision=round_input.revision
+                )
+                previous_revision = round_input.revision
+        statuses.append(
+            AgentRoundStatus(
+                record=record,
+                trigger_description=describe_round_trigger(
+                    work=work, number=record.number
+                ),
+                duration_description=compose_round_duration_description(record=record),
+                outcome_description=describe_round_outcome(
+                    record=record,
+                    is_working=is_working and record.number == work.rounds[-1].number,
+                ),
+                revision=revision,
+            )
+        )
+    return statuses
+
+
+def describe_round_trigger(*, work: AgentWork, number: int) -> str:
+    """Describe what woke one round of the work, from the input it was given.
+
+    An assignment round given no input started the assignment. Comments wake
+    every conversation round, so one whose input is still to be written, or
+    never was, says so without a count.
+    """
+    if work.record.kind is AgentWorkKind.CONVERSATION:
+        conversation_input = _read_conversation_input(work=work, number=number)
+        if conversation_input is None:
+            return "comments"
+        return describe_count(number=len(conversation_input.comments), noun="comment")
+    assignment_input = read_json_if_exists(
+        model=AssignmentRoundInput,
+        path=work.compose_round_paths(number=number).round_input,
+    )
+    if assignment_input is None:
+        return "start"
+    if assignment_input.pull_request_state is not PullRequestState.OPEN:
+        return assignment_input.pull_request_state.lower()
+    if assignment_input.user_posts:
+        return describe_count(number=len(assignment_input.user_posts), noun="post")
+    return "carry on"
+
+
+def _read_conversation_input(
+    *, work: AgentWork, number: int
+) -> ConversationRoundInput | None:
+    """Return one conversation round's input, or None when it cannot be read."""
+    try:
+        return read_conversation_input(conversation=work, number=number)
+    except ReportableError:
+        return None
+
+
+def _compose_round_revision(
+    *, previous_revision: str | None, revision: str
+) -> AgentRoundRevision:
+    """Describe the revision one conversation round investigated."""
+    if previous_revision is None:
+        description = f"code revision {revision}"
+    elif previous_revision == revision:
+        description = f"code revision {revision} (unchanged)"
+    else:
+        description = f"code revision {previous_revision} -> {revision}"
+    return AgentRoundRevision(value=revision, description=description)

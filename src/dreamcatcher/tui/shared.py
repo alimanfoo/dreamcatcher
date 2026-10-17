@@ -11,23 +11,12 @@ from rich.table import Table
 from rich.text import Text
 
 from dreamcatcher.clock import WaitForSeconds
-from dreamcatcher.status import (
-    ASSIGNMENT_STATUS_VALUES_IN_ATTENTION_ORDER,
-    CONVERSATION_STATUS_VALUES_IN_ATTENTION_ORDER,
-)
+from dreamcatcher.status import AGENT_WORK_STATUS_VALUES_IN_ATTENTION_ORDER
 
-ASSIGNMENT_STATUS_STYLES = dict(
+AGENT_WORK_STATUS_STYLES = dict(
     zip(
-        ASSIGNMENT_STATUS_VALUES_IN_ATTENTION_ORDER,
-        ("yellow", "red", "green", "cyan", "magenta", "dim", "dim"),
-        strict=True,
-    )
-)
-
-CONVERSATION_STATUS_STYLES = dict(
-    zip(
-        CONVERSATION_STATUS_VALUES_IN_ATTENTION_ORDER,
-        ("yellow", "red", "green", "cyan", "magenta", "dim", "dim"),
+        AGENT_WORK_STATUS_VALUES_IN_ATTENTION_ORDER,
+        ("red", "green", "cyan", "magenta", "dim", "dim"),
         strict=True,
     )
 )

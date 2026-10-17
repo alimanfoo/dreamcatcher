@@ -8,8 +8,8 @@
       <div class="dashboard">
         {% if view.assignment_section %}<section class="panel" aria-labelledby="assignments-heading">
           <h1 id="assignments-heading">{{ view.assignment_section.heading|capitalize }}</h1>
-          {% for assignment in view.active_assignments %}
-            {% include "partials/assignment-card.html" %}
+          {% for card in view.active_assignments %}
+            {% include "partials/agent-work-card.html" %}
           {% endfor %}
           {% for request in view.assignment_requests %}
             {% include "partials/request-row.html" %}
@@ -18,8 +18,8 @@
           {% if view.ended_assignments %}
             <details class="ended-work">
               <summary>+ {{ view.ended_assignments|length }} ended</summary>
-              {%- for assignment in view.ended_assignments %}
-                {% include "partials/assignment-card.html" %}
+              {%- for card in view.ended_assignments %}
+                {% include "partials/agent-work-card.html" %}
               {%- endfor %}
             </details>
           {% endif %}
@@ -27,8 +27,8 @@
         {% if view.conversation_section %}
           <section class="panel" aria-labelledby="conversations-heading">
             <h1 id="conversations-heading">{{ view.conversation_section.heading|capitalize }}</h1>
-            {% for conversation in view.active_conversations %}
-              {% include "partials/conversation-card.html" %}
+            {% for card in view.active_conversations %}
+              {% include "partials/agent-work-card.html" %}
             {% endfor %}
             {% for request in view.conversation_requests %}
               {% include "partials/request-row.html" %}
@@ -37,8 +37,8 @@
             {% if view.ended_conversations %}
               <details class="ended-work">
                 <summary>+ {{ view.ended_conversations|length }} ended</summary>
-                {%- for conversation in view.ended_conversations %}
-                  {% include "partials/conversation-card.html" %}
+                {%- for card in view.ended_conversations %}
+                  {% include "partials/agent-work-card.html" %}
                 {%- endfor %}
               </details>
             {% endif %}

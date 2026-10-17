@@ -14,7 +14,6 @@ from unittest.mock import MagicMock
 import pytest
 from clocks import DISPLAY_TIME_ZONE, PINNED
 from conftest import DAEMON_PID, FIXTURES, REPOSITORY, assert_matches_view_golden
-from observations import observed_conversation
 from records import (
     MERGED_INPUT,
     SCOUT_ROUTES,
@@ -29,6 +28,7 @@ from records import (
 from status_fabrications import (
     LOOKED_AT,
     STATUS_REPORTS,
+    conversation_row,
     ended,
     fabricate_a_dead_daemon,
     fabricate_a_silent_round,
@@ -64,10 +64,11 @@ from dreamcatcher.feed import FeedLine
 from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.scheduler.models import (
     GlobalCooldown,
+    IssueCommentsFinding,
     SchedulerRecord,
 )
 from dreamcatcher.state import StateDirectory
-from dreamcatcher.status import AssignmentStatusValue, ConversationStatusValue
+from dreamcatcher.status import AgentWorkStatusValue
 from dreamcatcher.web import serve_web, serve_web_in_background
 from dreamcatcher.web.app import _create_app
 from dreamcatcher.web.server import (
@@ -638,7 +639,7 @@ def test_a_home_card_links_to_its_exact_assignment(tmp_path):
     assert card.index('class="pr-chip"') > card.index('class="assignment-detail"')
 
 
-def test_feedback_card_keeps_its_compact_actions_inside_the_heading(tmp_path):
+def test_a_card_keeps_its_compact_actions_inside_the_heading(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
 
@@ -652,11 +653,8 @@ def test_feedback_card_keeps_its_compact_actions_inside_the_heading(tmp_path):
     card_start = page.index('<article id="assignment-GH20-20260819-184158-assignment"')
     card = page[card_start : page.index("</article>", card_start)]
 
-    assert (
-        '<span class="chip status-needs-user-feedback">needs user feedback</span>'
-        in card
-    )
-    assert "[NEEDS USER FEEDBACK]" not in card
+    assert '<span class="chip status-idle">idle</span>' in card
+    assert "[IDLE]" not in card
     assert re.search(
         r"\.card-heading \{[^}]*display: grid;"
         r"[^}]*grid-template-columns: minmax\(0, 1fr\) max-content;",
@@ -672,7 +670,10 @@ def test_status_classes_do_not_depend_on_status_wording(tmp_path, monkeypatch):
     state = StateDirectory(root=tmp_path)
     fabricate_conversation(state=state)
     fabricate_everything(
-        state=state, conversation_observations=[observed_conversation()]
+        state=state,
+        conversation_rows=[
+            conversation_row(finding=IssueCommentsFinding(new_comments=0))
+        ],
     )
 
     # A real rewording changes each member's string value, which patching
@@ -681,10 +682,7 @@ def test_status_classes_do_not_depend_on_status_wording(tmp_path, monkeypatch):
 
     reworded = StrEnum(
         "reworded",
-        {
-            status.name: f"reworded {status}"
-            for status in (*AssignmentStatusValue, *ConversationStatusValue)
-        },
+        {status.name: f"reworded {status}" for status in AgentWorkStatusValue},
     )
 
     compose_home_view = web_app_module.compose_home_view
@@ -727,21 +725,17 @@ def test_status_classes_do_not_depend_on_status_wording(tmp_path, monkeypatch):
         conversation_start : home.index("</article>", conversation_start)
     ]
 
-    assert (
-        '<span class="chip status-needs-user-feedback">'
-        "reworded needs user feedback</span>"
-    ) in card
+    assert '<span class="chip status-idle">reworded idle</span>' in card
     assert '<span class="chip status-idle">reworded idle</span>' in conversation_card
     assert (
-        '<span id="agent-work-status" class="chip status-needs-user-feedback">'
-        "reworded needs user feedback</span>"
+        '<span id="agent-work-status" class="chip status-idle">reworded idle</span>'
     ) in assignment_page
     assert (
         '<span id="agent-work-status" class="chip status-idle">reworded idle</span>'
     ) in conversation_page
 
 
-def test_assignment_feedback_status_uses_the_status_wording(tmp_path):
+def test_an_idle_assignment_status_uses_the_status_wording(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
 
@@ -750,11 +744,8 @@ def test_assignment_feedback_status_uses_the_status_wording(tmp_path):
         identifier="GH20-20260819-184158-assignment",
     )
 
-    assert (
-        '<span id="agent-work-status" '
-        'class="chip status-needs-user-feedback">needs user feedback</span>'
-    ) in page
-    assert "[NEEDS USER FEEDBACK]" not in page
+    assert ('<span id="agent-work-status" class="chip status-idle">idle</span>') in page
+    assert "[IDLE]" not in page
 
 
 def test_assignment_page_polls_its_tail_from_the_last_complete_line(tmp_path):
