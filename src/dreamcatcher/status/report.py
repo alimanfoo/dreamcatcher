@@ -204,7 +204,7 @@ class DreamcatcherStatusReport:
     def active_assignment_statuses(self) -> list[AssignmentStatus]:
         """The assignments that have not ended, in attention order."""
         return sorted(
-            (status for status in self.assignment_statuses if status.is_current),
+            (status for status in self.assignment_statuses if status.is_active),
             key=lambda status: ASSIGNMENT_STATUS_VALUES_IN_ATTENTION_ORDER.index(
                 status.value
             ),
@@ -212,8 +212,8 @@ class DreamcatcherStatusReport:
 
     @property
     def active_conversation_statuses(self) -> list[ConversationStatus]:
-        """The conversations that are current work, in attention order."""
-        return [status for status in self.conversation_statuses if status.is_current]
+        """The conversations that are active work, in attention order."""
+        return [status for status in self.conversation_statuses if status.is_active]
 
     @property
     def ended_conversation_statuses(self) -> list[ConversationStatus]:
@@ -239,14 +239,14 @@ def _describe_agent_work_section(
     heading: str,
     labels: tuple[str, ...],
     has_any_work: bool,
-    has_current_work: bool,
+    has_active_work: bool,
     empty_message: str | None,
 ) -> AgentWorkStatusSection | None:
     if not (labels or has_any_work):
         return None
     return AgentWorkStatusSection(
         heading=heading,
-        empty_message=None if has_current_work else empty_message,
+        empty_message=None if has_active_work else empty_message,
     )
 
 
@@ -296,14 +296,14 @@ def read_status_report(
     )
     assignment_labels = daemon.list_labels(kind=AgentWorkKind.ASSIGNMENT)
     conversation_labels = daemon.list_labels(kind=AgentWorkKind.CONVERSATION)
-    has_current_assignment_work = bool(
-        any(status.is_current for status in assignment_statuses)
+    has_active_assignment_work = bool(
+        any(status.is_active for status in assignment_statuses)
         or failed_assignment_setups
         or reported_issue_observations
     )
     has_conversation_work = bool(conversation_statuses)
-    has_current_conversation_work = any(
-        status.is_current for status in conversation_statuses
+    has_active_conversation_work = any(
+        status.is_active for status in conversation_statuses
     )
     assignment_empty_message = (
         None
@@ -350,14 +350,14 @@ def read_status_report(
                 or failed_assignment_setups
                 or reported_issue_observations
             ),
-            has_current_work=has_current_assignment_work,
+            has_active_work=has_active_assignment_work,
             empty_message=assignment_empty_message,
         ),
         conversation_section=_describe_agent_work_section(
             heading="conversations",
             labels=conversation_labels,
             has_any_work=has_conversation_work,
-            has_current_work=has_current_conversation_work,
+            has_active_work=has_active_conversation_work,
             empty_message=conversation_empty_message,
         ),
     )
@@ -535,11 +535,11 @@ def read_conversation_status(
     daemon: DreamcatcherDaemonStatus,
     clock: Callable[[], datetime] = read_current_time,
 ) -> ConversationStatus | None:
-    """Read the status of the current or newest issue conversation at an issue.
+    """Read the status of the issue conversation at an issue.
 
     An issue has a conversation once it has a saved conversation or the latest
-    tick observed it through a configured conversation route. A current
-    conversation is chosen over an ended one. The caller reads the daemon
+    tick observed it through a configured conversation route. A conversation
+    that has not ended is chosen over one that has. The caller reads the daemon
     status, so a view that also shows it shows the same answer that its round
     statuses came from.
     """

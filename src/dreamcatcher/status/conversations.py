@@ -96,8 +96,8 @@ class ConversationStatus:
         return self.value is ConversationStatusValue.ENDED
 
     @property
-    def is_current(self) -> bool:
-        """Whether the status report lists the conversation as current work."""
+    def is_active(self) -> bool:
+        """Whether the status report lists the conversation as active work."""
         return self.is_listed and not self.has_ended
 
     @cached_property

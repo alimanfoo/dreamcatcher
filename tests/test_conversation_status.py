@@ -770,7 +770,7 @@ def test_an_ended_conversation_reads_as_ended_with_its_reason(conversation_state
     assert found.value is ConversationStatusValue.ENDED
     assert found.detail == "completed"
     assert found.has_ended
-    assert not found.is_current
+    assert not found.is_active
 
 
 def test_a_running_round_keeps_an_ended_conversation_working(conversation_state):
@@ -825,7 +825,7 @@ def test_a_section_of_ended_conversations_alone_gives_its_guidance(
     )
 
 
-def test_the_status_at_an_issue_is_its_current_conversation_over_an_ended_one(
+def test_the_status_at_an_issue_is_its_open_conversation_over_an_ended_one(
     conversation_state,
 ):
     end_conversation(state=conversation_state)

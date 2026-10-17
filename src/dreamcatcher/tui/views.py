@@ -105,7 +105,7 @@ def _read_conversation_snapshot(
     status = _find_conversation_status_for_issue(state=state, issue=issue, clock=clock)
     return ViewSnapshot(
         renderable=_render_conversation(state=state, status=status, zone=zone),
-        should_stop_refreshing=not status.is_current,
+        should_stop_refreshing=not status.is_active,
     )
 
 
@@ -460,7 +460,7 @@ def _find_feed_owner(
             )
         return _FeedOwnerSnapshot(
             owner=status.conversation,
-            should_stop_refreshing=not status.is_current,
+            should_stop_refreshing=not status.is_active,
             round_details={
                 round_status.record.number: round_status.revision.description
                 for round_status in status.round_statuses

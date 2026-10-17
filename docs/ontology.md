@@ -406,7 +406,7 @@ Idle differs from needs user feedback on purpose. An assignment at rest has a
 pull request waiting for review, so it asks something of the user. A
 conversation at rest asks nothing. A conversation has no complete status.
 
-An ended conversation is counted apart from current work, as an ended assignment
+An ended conversation is counted apart from active work, as an ended assignment
 is: in a collapsed list of ended conversations on the web home page, and in a
 count of ended conversations in the terminal.
 

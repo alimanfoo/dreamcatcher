@@ -79,8 +79,8 @@ class AssignmentStatus:
         return self.value in _ENDED_STATUS_VALUES.values()
 
     @property
-    def is_current(self) -> bool:
-        """Whether the status report lists the assignment as current work."""
+    def is_active(self) -> bool:
+        """Whether the status report lists the assignment as active work."""
         return not self.has_ended
 
     @cached_property
