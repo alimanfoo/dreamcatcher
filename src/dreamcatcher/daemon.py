@@ -121,7 +121,7 @@ class DreamcatcherDaemon:
             write_json(
                 document=DaemonRunRecord(
                     pid=os.getpid(),
-                    harness=self.harness,
+                    preferred_harness=self.harness,
                     version=DREAMCATCHER_VERSION,
                     max_agents=self.max_agents,
                     interval_seconds=self.interval,

@@ -68,7 +68,7 @@ def write_daemon_run(
     write_json(
         document=DaemonRunRecord(
             pid=pid,
-            harness=harness,
+            preferred_harness=harness,
             version=version,
             max_agents=max_agents,
             interval_seconds=DEFAULT_INTERVAL_SECONDS,

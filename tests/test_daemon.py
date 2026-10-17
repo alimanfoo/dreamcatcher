@@ -380,7 +380,7 @@ def test_the_daemon_bootstraps_the_state_directory_and_releases_the_lock(
         path=daemon.state.daemon_run_record,
     ) == DaemonRunRecord(
         pid=os.getpid(),
-        harness=AgentHarness.CLAUDE,
+        preferred_harness=AgentHarness.CLAUDE,
         version=DREAMCATCHER_VERSION,
         max_agents=1,
         interval_seconds=300,
