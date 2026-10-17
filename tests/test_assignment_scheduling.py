@@ -27,17 +27,17 @@ from dreamcatcher.agent_rounds import (
 )
 from dreamcatcher.config import AgentHarness, read_dreamcatcher_config
 from dreamcatcher.documents import write_json
-from dreamcatcher.github import ConversationComment, PullRequest, PullRequestState
-from dreamcatcher.scheduler.assignments import (
-    AssignmentRoundCandidate,
-    AssignmentScheduler,
-    NewAssignmentCandidate,
-    PullRequestOpeningCandidate,
-)
+from dreamcatcher.github import ConversationComment, PullRequestState
+from dreamcatcher.scheduler import Scheduler, SchedulingContext
+from dreamcatcher.scheduler.assignments import inspect_open_assignment
+from dreamcatcher.scheduler.inspection import Inspection
 from dreamcatcher.scheduler.models import ReadFailureFinding
 from dreamcatcher.state import StateDirectory
 
 ASSIGNMENT_ID = "GH13-20260819-184158-assignment"
+
+# What found answers for an assignment whose next round opens its pull request.
+OPENS_PULL_REQUEST = "opens the pull request"
 
 
 @pytest.fixture
@@ -49,15 +49,23 @@ def state(tmp_path):
     return directory
 
 
-def create_assignment_scheduler(*, state: StateDirectory) -> AssignmentScheduler:
-    """Create the assignment scheduler that inspects this test state."""
-    return AssignmentScheduler(
+def create_scheduling_context(*, state: StateDirectory) -> SchedulingContext:
+    """Create the context that inspects this test state."""
+    return SchedulingContext(
         repository=REPOSITORY,
         account=POSTED_BY,
         config=read_dreamcatcher_config(root=state.root),
         state=state,
-        preferred_harness=AgentHarness.CLAUDE,
         clock=lambda: PINNED,
+    )
+
+
+def inspect(*, state: StateDirectory, is_fault: bool = False) -> Inspection:
+    """Inspect the one assignment in that state directory."""
+    return inspect_open_assignment(
+        context=create_scheduling_context(state=state),
+        assignment=read_assignments(state=state)[0],
+        is_fault=is_fault,
     )
 
 
@@ -99,20 +107,32 @@ def ran(
     )
 
 
-def found(
-    *, state
-) -> PullRequestOpeningCandidate | AssignmentRoundCandidate | ReadFailureFinding | None:
-    """What the one assignment in that state directory needs next."""
-    assignment = read_assignments(state=state)[0]
-    if not assignment.is_open:
-        return None
-    inspected = create_assignment_scheduler(state=state)._inspect_assignment(
-        assignment=assignment,
-        most_recent_cooldown_ended=None,
+def create_scheduler(*, state: StateDirectory) -> Scheduler:
+    """Create a scheduler for this test state with no free agent slot to fill."""
+    return Scheduler(
+        context=create_scheduling_context(state=state),
+        preferred_harness=AgentHarness.CLAUDE,
+        rounds={},
+        max_agents=0,
     )
+
+
+def found(*, state) -> AssignmentRoundInput | str | ReadFailureFinding | None:
+    """What the one assignment in that state directory needs next.
+
+    A round that relays the pull request answers with the input it would be
+    given. The round that opens the pull request is given no input prompt, and
+    answers OPENS_PULL_REQUEST.
+    """
+    assignment = read_assignments(state=state)[0]
+    inspected = inspect(state=state)
     if inspected.candidate is not None:
-        assert not isinstance(inspected.candidate, NewAssignmentCandidate)
-        return inspected.candidate
+        plan = inspected.candidate.compose_round(work=assignment)
+        if plan.input_prompt is None:
+            return OPENS_PULL_REQUEST
+        round_input = plan.prepare_round()
+        assert isinstance(round_input, AssignmentRoundInput)
+        return round_input
     if isinstance(inspected.row.finding, ReadFailureFinding):
         return inspected.row.finding
     return None
@@ -125,10 +145,7 @@ def test_an_assignment_with_no_pull_request_yet_needs_its_first_round(tmp_path):
         state=state, identifier=ASSIGNMENT_ID, issue=13, pull_request_observation=None
     )
 
-    first = found(state=state)
-
-    assert isinstance(first, PullRequestOpeningCandidate)
-    assert first.assignment.record.issue == 13
+    assert found(state=state) == OPENS_PULL_REQUEST
 
 
 def test_a_first_round_that_failed_before_its_pull_request_is_tried_again(
@@ -148,17 +165,12 @@ def test_a_first_round_that_failed_before_its_pull_request_is_tried_again(
             ending=ErroredAgentRoundEnding(at=PINNED, reason="git push failed"),
         ),
     )
-    assignment = read_assignments(state=state)[0]
 
-    inspected = create_assignment_scheduler(state=state)._inspect_assignment(
-        assignment=assignment, most_recent_cooldown_ended=None
-    )
-
-    assert isinstance(inspected.candidate, PullRequestOpeningCandidate)
-    assert inspected.row.finding is None
+    assert found(state=state) == OPENS_PULL_REQUEST
+    assert inspect(state=state).row.finding is None
 
 
-def test_an_assignment_whose_first_round_failed_twice_is_in_fault(tmp_path):
+def test_an_assignment_in_fault_reads_nothing_and_counts_its_fault(tmp_path):
     configure(root=tmp_path)
     state = StateDirectory(root=tmp_path)
     write_assignment(
@@ -177,12 +189,10 @@ def test_an_assignment_whose_first_round_failed_twice_is_in_fault(tmp_path):
             ),
         )
 
-    inspected = create_assignment_scheduler(state=state)._inspect_assignment(
-        assignment=read_assignments(state=state)[0],
-        most_recent_cooldown_ended=None,
-    )
+    inspected = inspect(state=state, is_fault=True)
 
     assert inspected.candidate is None
+    assert inspected.row.finding is None
     assert inspected.is_fault
 
 
@@ -197,8 +207,8 @@ def test_an_assignment_whose_last_round_was_interrupted_is_given_its_input_again
 
     resume = found(state=state)
 
-    assert isinstance(resume, AssignmentRoundCandidate)
-    assert resume.undelivered_posts == []
+    assert isinstance(resume, AssignmentRoundInput)
+    assert resume.user_posts == []
     assert gh.calls[0].arguments[:3] == ["pr", "view", str(PULL_REQUEST)]
 
 
@@ -212,7 +222,7 @@ def test_an_interruption_breaks_an_error_sequence(state, gh):
 
     resume = found(state=state)
 
-    assert isinstance(resume, AssignmentRoundCandidate)
+    assert isinstance(resume, AssignmentRoundInput)
 
 
 def test_an_assignment_whose_last_round_failed_is_carried_on_with_its_status(state, gh):
@@ -220,7 +230,7 @@ def test_an_assignment_whose_last_round_failed_is_carried_on_with_its_status(sta
 
     resume = found(state=state)
 
-    assert isinstance(resume, AssignmentRoundCandidate)
+    assert isinstance(resume, AssignmentRoundInput)
     assert gh.calls[0].arguments[:3] == ["pr", "view", str(PULL_REQUEST)]
 
 
@@ -237,9 +247,9 @@ def test_a_terminal_pull_request_makes_an_interrupted_round_a_wrap_up(state, gh)
 
     resume = found(state=state)
 
-    assert isinstance(resume, AssignmentRoundCandidate)
-    assert resume.pull_request.state is PullRequestState.MERGED
-    assert [post.body for post in resume.undelivered_posts] == [
+    assert isinstance(resume, AssignmentRoundInput)
+    assert resume.pull_request_state is PullRequestState.MERGED
+    assert [post.body for post in resume.user_posts] == [
         "have another look at the filter"
     ]
 
@@ -247,8 +257,8 @@ def test_a_terminal_pull_request_makes_an_interrupted_round_a_wrap_up(state, gh)
         state=state,
         number=2,
         round_input=AssignmentRoundInput(
-            pull_request_state=resume.pull_request.state,
-            user_posts=resume.undelivered_posts,
+            pull_request_state=resume.pull_request_state,
+            user_posts=resume.user_posts,
         ),
     )
 
@@ -299,9 +309,9 @@ def test_a_terminal_pull_request_wraps_up_a_stopped_assignment(
 
     resume = found(state=state)
 
-    assert isinstance(resume, AssignmentRoundCandidate)
-    assert resume.pull_request.state is PullRequestState(pull_request_state)
-    assert resume.undelivered_posts == []
+    assert isinstance(resume, AssignmentRoundInput)
+    assert resume.pull_request_state is PullRequestState(pull_request_state)
+    assert resume.user_posts == []
 
 
 @pytest.mark.parametrize("pull_request_state", ["CLOSED", "MERGED"])
@@ -350,8 +360,8 @@ def test_a_stopped_assignment_uses_new_feedback(state, gh):
 
     resume = found(state=state)
 
-    assert isinstance(resume, AssignmentRoundCandidate)
-    assert len(resume.undelivered_posts) == 1
+    assert isinstance(resume, AssignmentRoundInput)
+    assert len(resume.user_posts) == 1
 
 
 def test_a_cancelled_assignment_is_not_inspected_for_rounds(state, gh):
@@ -362,28 +372,21 @@ def test_a_cancelled_assignment_is_not_inspected_for_rounds(state, gh):
     gh.replies(stdout="[]", to="issue list")
     cancel_assignment(assignment=read_assignments(state=state)[0], at=PINNED)
 
-    inspection = create_assignment_scheduler(state=state).inspect(previous_record=None)
+    observed = create_scheduler(state=state).tick(at=PINNED)
 
-    assert inspection.rows == []
-    assert inspection.candidates == []
+    assert observed.rows == []
     assert [call.arguments[:2] for call in gh.calls] == [["issue", "list"]]
 
 
 def test_a_round_started_for_an_assignment_cancelled_after_inspection_stops(
-    state, harnesses
+    state, gh, harnesses
 ):
-    candidate = AssignmentRoundCandidate(
-        assignment=read_assignments(state=state)[0],
-        pull_request=PullRequest(
-            number=PULL_REQUEST, state=PullRequestState.OPEN, is_draft=True
-        ),
-        undelivered_posts=[],
-    )
-    cancel_assignment(assignment=candidate.assignment, at=PINNED)
+    ran(state=state, number=1, status=2)
+    candidate = inspect(state=state).candidate
+    assert candidate is not None
+    cancel_assignment(assignment=read_assignments(state=state)[0], at=PINNED)
 
-    started = create_assignment_scheduler(state=state).launch(
-        candidate=candidate, at=PINNED
-    )
+    started = create_scheduler(state=state)._launch(candidate=candidate, at=PINNED)
     started.wait()
 
     assert started.paths.stop_request.is_file()
@@ -397,9 +400,9 @@ def test_an_assignment_the_user_has_posted_on_answers_what_they_said(state, gh):
 
     resume = found(state=state)
 
-    assert isinstance(resume, AssignmentRoundCandidate)
-    assert resume.pull_request.state is PullRequestState.OPEN
-    assert [post.body for post in resume.undelivered_posts] == [
+    assert isinstance(resume, AssignmentRoundInput)
+    assert resume.pull_request_state is PullRequestState.OPEN
+    assert [post.body for post in resume.user_posts] == [
         "have another look at the filter"
     ]
 
@@ -415,7 +418,7 @@ def test_a_post_on_a_draft_pull_request_wakes_its_assignment(state, gh_with_no_p
 
     resume = found(state=state)
 
-    assert isinstance(resume, AssignmentRoundCandidate)
+    assert isinstance(resume, AssignmentRoundInput)
 
 
 def test_a_batch_of_posts_says_how_many_it_holds(state, gh):
@@ -429,8 +432,8 @@ def test_a_batch_of_posts_says_how_many_it_holds(state, gh):
 
     resume = found(state=state)
 
-    assert isinstance(resume, AssignmentRoundCandidate)
-    assert len(resume.undelivered_posts) == 2
+    assert isinstance(resume, AssignmentRoundInput)
+    assert len(resume.user_posts) == 2
 
 
 def test_a_post_at_the_assignment_delivery_position_wakes_nothing(state, gh):
@@ -458,10 +461,9 @@ def test_a_posts_resume_carries_the_facts_launch_will_prepare(state, gh):
 
     resume = found(state=state)
 
-    assert isinstance(resume, AssignmentRoundCandidate)
-    assert resume.pull_request.number == PULL_REQUEST
-    assert resume.pull_request.state is PullRequestState.OPEN
-    assert [post.body for post in resume.undelivered_posts] == [
+    assert isinstance(resume, AssignmentRoundInput)
+    assert resume.pull_request_state is PullRequestState.OPEN
+    assert [post.body for post in resume.user_posts] == [
         "have another look at the filter"
     ]
 
@@ -475,9 +477,9 @@ def test_a_pull_request_that_is_finished_calls_for_one_last_round(
 
     resume = found(state=state)
 
-    assert isinstance(resume, AssignmentRoundCandidate)
-    assert resume.pull_request.state is PullRequestState(state_name)
-    assert resume.undelivered_posts == []
+    assert isinstance(resume, AssignmentRoundInput)
+    assert resume.pull_request_state is PullRequestState(state_name)
+    assert resume.user_posts == []
 
 
 def test_a_last_round_carries_what_the_user_said_before_the_merge(state, gh):
@@ -489,8 +491,8 @@ def test_a_last_round_carries_what_the_user_said_before_the_merge(state, gh):
 
     resume = found(state=state)
 
-    assert isinstance(resume, AssignmentRoundCandidate)
-    assert [post.body for post in resume.undelivered_posts] == [
+    assert isinstance(resume, AssignmentRoundInput)
+    assert [post.body for post in resume.user_posts] == [
         "have another look at the filter"
     ]
 
@@ -533,28 +535,3 @@ def test_a_failed_user_post_read_leaves_the_assignment_unknown(state, gh):
 
     assert isinstance(waiting, ReadFailureFinding)
     assert "could not connect" in waiting.reason
-
-
-def test_existing_work_comes_before_new_work(state):
-    first_assignment = read_assignments(state=state)[0]
-    ran(state=state, number=1)
-    continued_assignment = read_assignments(state=state)[0]
-    new = NewAssignmentCandidate(
-        issue=8,
-        title="Issue 8",
-        route=create_assignment_scheduler(state=state).config.assignment[0],
-    )
-    continued = AssignmentRoundCandidate(
-        assignment=continued_assignment,
-        pull_request=PullRequest(
-            number=PULL_REQUEST, state=PullRequestState.MERGED, is_draft=False
-        ),
-        undelivered_posts=[],
-    )
-    first = PullRequestOpeningCandidate(assignment=first_assignment)
-
-    ordered = sorted(
-        [new, continued, first], key=create_assignment_scheduler(state=state).rank
-    )
-
-    assert ordered == [continued, first, new]

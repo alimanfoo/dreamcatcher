@@ -171,6 +171,19 @@ The **scheduler** decides what work _dreamcatcher_ starts and when. It decides
 once per **scheduler tick**, and the daemon runs one tick per interval. Users
 see a scheduler tick called an update.
 
+### Channel and cursor
+
+A piece of agent work's **channel** is the GitHub object through which the agent
+and the user talk: an assignment's pull request, or a conversation's issue. An
+assignment's channel exists once the round that opens its pull request has done
+so.
+
+The **cursor** is how far the agent has read in its channel. Nothing stores it
+on its own: it is read back from the inputs of the rounds that took their turn
+or are still running, so the input of a round that errored or was interrupted is
+given again. Anything in the channel past the cursor is new, and something new
+calls for a round.
+
 ### Status report
 
 A **status report** is _dreamcatcher_'s read-only account of a _dreamcatcher_
@@ -333,18 +346,20 @@ its input, so nothing else records it:
 
 A scheduler tick finds requests in two places: each dispatch label on each open
 issue assigned to the signed-in account, and each piece of open agent work,
-which names its own issue and label. An issue with open agent work of one kind
-appears through that work, so its other labels of that kind make no request row
-of their own.
+which names its own issue and label. Open work answers the request it came from.
+An open assignment also answers every assignment label on its issue, so those
+labels make no request row of their own. A conversation answers only its own
+label, so another conversation label on its issue is a request of its own.
 
 For a request with no open work the tick records what decides whether work may
-start. An assignment request that carries the issue's only assignment label is
-asked the **start-time questions**: which open pull requests linked to the issue
-claim it, and which open issue dependencies block it. They are asked only while
-no open assignment exists, because they decide only whether one may start. A
-conversation request reads the issue's comments. A request whose issue carries
-more than one label of its kind has a routing conflict, and nothing of that kind
-starts while it lasts.
+start, and the tick makes these reads only for an issue whose open work does not
+answer the request. An assignment request that carries the issue's only
+assignment label is asked the **start-time questions**: which open pull requests
+linked to the issue claim it, and which open issue dependencies block it. They
+are asked only while no open assignment exists, because they decide only whether
+one may start. A conversation request reads the issue's comments. A request
+whose issue carries more than one label of its kind has a routing conflict, and
+nothing of that kind starts while it lasts.
 
 A request with no open work has one of these request statuses:
 
@@ -537,26 +552,25 @@ rounds, a stopped round ends a run of errors.
 
 ### Scheduling work
 
-The scheduler creates agent assignments and starts agent rounds. A failed issue
-read prevents only the launches that depend on it, so it never prevents the
-other kind of agent work. A failed listing of assignment issues prevents the
-creation of assignments, but not the rounds that existing assignments require. A
-failed listing of conversation issues prevents new conversations, but an open
-conversation reads its own issue, so the listing does not affect it. A failed
-read of the comments of a conversation that could take a round prevents fresh
-batches in the same way, because they start in order of their oldest waiting
-comment.
+The scheduler creates agent work and starts agent rounds, the same way for both
+kinds. Each tick reads every piece of agent work from disk, lists the issues
+under each dispatch label, inspects the channel of each piece of open work, and
+decides for each request with no open work whether work may start. A
+**candidate** is open work with something new past its cursor, or whose last
+round errored or was interrupted, unless its last round is running or it is in
+fault; or a request whose work may start.
 
-Existing assignments take precedence over new ones, and among existing
-assignments the order is the order of their identifiers. The scheduler creates
-assignments for available requests in the order it listed their issues.
+A failed read prevents only the launches that depend on it. A failed listing for
+a dispatch label starts no work for the issues it would have listed, but open
+work reads its own channel, so the listing does not affect it.
 
-Conversation candidates are ordered by their oldest waiting comment. When both
-an assignment candidate and a conversation candidate are ready, the scheduler
-alternates which kind receives each free slot until capacity is full or no
-candidate remains. When only one kind is ready, it proceeds without waiting for
-the other. A launch that fails takes no slot, and the scheduler goes on to the
-next candidate.
+Existing work takes precedence over new work. Among existing work the order is
+the order of the identifiers, and new work starts in the order in which the
+scheduler listed its issues. When both an assignment candidate and a
+conversation candidate are ready, the scheduler alternates which kind receives
+each free slot until capacity is full or no candidate remains. When only one
+kind is ready, it proceeds without waiting for the other. A launch that fails
+takes no slot, and the scheduler goes on to the next candidate.
 
 ### Handling errors and global cooldown
 

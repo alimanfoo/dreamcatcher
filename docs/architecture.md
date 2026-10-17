@@ -64,22 +64,38 @@ agent work.
 
 ### Scheduling
 
-The scheduler package owns all decisions about what work starts and when.
+The scheduler package owns all decisions about what work starts and when. The
+tick in `tick.py` has one path for both kinds of agent work. Each kind's module,
+`assignments.py` or `conversations.py`, supplies only what differs by kind: how
+it inspects the channel of open work, how it decides whether a request with no
+open work may start, and how it composes a round's plan.
 
 One scheduler tick:
 
-1. reads the relevant local, process, configuration, and GitHub facts;
-2. ranks the assignment candidates, considering existing assignment rounds
-   before dispatching a new assignment for the oldest available request;
-3. ranks the conversation candidates by their oldest waiting comment;
-4. starts a global cooldown when the counted faults call for one, and launches
+1. reads every piece of agent work from disk, and lists the open issues assigned
+   to the signed-in account under each dispatch label;
+2. builds the requests from two sources, each dispatch label on each listed
+   issue and each piece of open agent work, which names its own issue and label;
+3. inspects each piece of open work's channel: an assignment's pull request and
+   user posts, or a conversation's issue and then its comments, ending the
+   conversation if the issue is closed;
+4. for each request with no open work, checks for a routing conflict, and for an
+   assignment label for an open assignment at the issue, then asks the
+   start-time questions or reads the comments;
+5. starts a global cooldown when the counted faults call for one, and launches
    nothing while a cooldown is active;
-5. alternates between the two kinds when both have candidates, without changing
-   either kind's internal order;
-6. performs scheduling actions until the daemon run's requested capacity is full
-   or no candidate remains; and
+6. launches candidates until the daemon run's requested capacity is full or no
+   candidate remains, open work first in identifier order and then new requests
+   in listing order, alternating between the two kinds while both have
+   candidates; and
 7. returns a `SchedulerRecord`, holding one request row per request, for
    operational reporting.
+
+A candidate is open work the tick may start a round for, or a request it may
+start work for. It carries a composer that builds the round's plan once the work
+exists: the preparation that runs inside the round, the input prompt, and the
+finishing step. The tick creates the work of a new request, then starts the
+round the plan describes, so creating and launching are one path for both kinds.
 
 Alternation advances when a kind is selected, including when its start fails,
 and begins afresh after a daemon restart.
@@ -91,13 +107,10 @@ record ends the daemon because retrying cannot repair the document.
 
 If a read for a request fails, the tick holds the reason in that request's row
 and prevents only the launches that depend on what it would have read. A failed
-listing is a scheduler failure, because it belongs to no request, and the rows
-of open conversations that it did not return hold its reason, so they read as
-unknown. A later tick retries the failed read. New conversation rounds launch in
-order of their oldest waiting comment across all issues, so a failed comment
-read for any conversation that awaits new comments prevents every new
-conversation round in that tick. A round that gives a conversation the input of
-one that did not finish does not depend on that order, so it still launches.
+listing is a scheduler failure, because it belongs to no request, and it starts
+no work for the issues it would have listed. Open work is found on disk and
+reads its own channel, so a failed listing leaves it inspected. A later tick
+retries the failed read.
 
 A launch that fails takes no agent slot. The tick keeps every round that it
 already started and goes on to the next candidate. A round that errored before
@@ -106,13 +119,12 @@ round and its reason, which the daemon's output line repeats. A launch that
 fails before any round exists, such as a work record that cannot be written, is
 a scheduler failure.
 
-The scheduler uses two distinct lower-level operations: creating an agent
-assignment and starting an agent round. When it selects an available request, it
-writes the assignment's work record and starts the first round in the same
-scheduling action. The record comes first, before any Git or GitHub step, so the
-assignment exists however the round goes. An assignment without a pull request
-observation is due a round that opens it, unless its last round is running or it
-is in fault. This does not create a separate class of normally scheduled work.
+When the tick selects a request, it writes the work record and starts the first
+round in the same scheduling action. The record comes first, before any Git or
+GitHub step, so the work exists however the round goes. An assignment without a
+pull request observation is due a round that opens it, unless its last round is
+running or it is in fault. This does not create a separate class of normally
+scheduled work.
 
 Every new round is given the input that past rounds have not yet relayed. An
 assignment round's input holds the pull request state and the user posts after

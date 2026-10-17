@@ -28,6 +28,7 @@ from pydantic import ValidationError
 from records import MERGED_INPUT, read_assignments, write_assignment, write_round
 from rows import UNCLAIMED, request_row
 
+import dreamcatcher.scheduler.tick as tick_module
 from dreamcatcher.agent_assignments import (
     AssignmentRoundInput,
     PullRequestObservation,
@@ -45,6 +46,7 @@ from dreamcatcher.agent_rounds import (
 from dreamcatcher.agent_work import (
     _HARNESS_SESSION_RECORD_NAME,
     AgentWorkEndReason,
+    create_agent_work,
     request_agent_work_retry,
 )
 from dreamcatcher.config import AgentHarness, read_dreamcatcher_config
@@ -57,7 +59,7 @@ from dreamcatcher.git import (
     push_branch,
 )
 from dreamcatcher.github import PullRequestState
-from dreamcatcher.scheduler import AssignmentScheduler, ConversationScheduler, Scheduler
+from dreamcatcher.scheduler import Scheduler, SchedulingContext
 from dreamcatcher.scheduler.faults import is_last_round_unfinished
 from dreamcatcher.scheduler.models import (
     GlobalCooldown,
@@ -103,26 +105,15 @@ def create_scheduler(*, root, max_agents: int = 1) -> tuple[Scheduler, Ticking]:
     clock = Ticking(step=300)
     config = read_dreamcatcher_config(root=root)
     state = StateDirectory(root=root)
-    assignments = AssignmentScheduler(
-        repository=REPOSITORY,
-        account=POSTED_BY,
-        config=config,
-        state=state,
-        preferred_harness=AgentHarness.CLAUDE,
-        clock=clock,
-    )
-    conversations = ConversationScheduler(
-        repository=REPOSITORY,
-        account=POSTED_BY,
-        config=config,
-        state=state,
-        preferred_harness=AgentHarness.CLAUDE,
-        clock=clock,
-    )
     scheduler = Scheduler(
-        state=state,
-        assignments=assignments,
-        conversations=conversations,
+        context=SchedulingContext(
+            repository=REPOSITORY,
+            account=POSTED_BY,
+            config=config,
+            state=state,
+            clock=clock,
+        ),
+        preferred_harness=AgentHarness.CLAUDE,
         rounds={},
         max_agents=max_agents,
     )
@@ -231,9 +222,7 @@ def write_faulted_assignment(*, root, identifier: str, issue: int) -> None:
 
 def written_round(*, scheduler: Scheduler, number: int, name: str) -> str:
     """What the assignment's round wrote into the file of that name."""
-    directory = (
-        scheduler.assignments.state.work / ASSIGNMENT_ID / "rounds" / str(number)
-    )
+    directory = scheduler.context.state.work / ASSIGNMENT_ID / "rounds" / str(number)
     return (directory / name).read_text(encoding="utf-8")
 
 
@@ -252,9 +241,9 @@ def test_a_tick_assigns_the_oldest_issue_nothing_stands_in_the_way_of(
     observed = scheduler.tick(at=clock())
     finish_rounds(scheduler=scheduler)
 
-    assignment = scheduler.assignments.state.work / CREATED_ASSIGNMENT_ID
+    assignment = scheduler.context.state.work / CREATED_ASSIGNMENT_ID
     assert (
-        scheduler.assignments.state.worktrees / CREATED_ASSIGNMENT_ID / "README.md"
+        scheduler.context.state.worktrees / CREATED_ASSIGNMENT_ID / "README.md"
     ).exists()
     assert (assignment / "work.json").exists()
     assert observed.launched_agent_work_identifiers == [CREATED_ASSIGNMENT_ID]
@@ -268,7 +257,7 @@ def test_a_tick_assigns_the_oldest_issue_nothing_stands_in_the_way_of(
     ]
     assert (
         harnesses["claude"].calls[0].directory
-        == (scheduler.assignments.state.worktrees / CREATED_ASSIGNMENT_ID).resolve()
+        == (scheduler.context.state.worktrees / CREATED_ASSIGNMENT_ID).resolve()
     )
 
 
@@ -280,7 +269,7 @@ def test_a_new_assignments_round_records_what_caused_it_and_what_it_said(
     scheduler.tick(at=clock())
     finish_rounds(scheduler=scheduler)
 
-    written = scheduler.assignments.state.work / CREATED_ASSIGNMENT_ID / "rounds" / "1"
+    written = scheduler.context.state.work / CREATED_ASSIGNMENT_ID / "rounds" / "1"
     assert (
         AgentRoundRecord.model_validate_json(
             (written / "round.json").read_text(encoding="utf-8")
@@ -288,7 +277,7 @@ def test_a_new_assignments_round_records_what_caused_it_and_what_it_said(
         == 1
     )
     assert "what the round said" in (written / "feed.txt").read_text(encoding="utf-8")
-    assignment = read_assignments(state=scheduler.assignments.state)[0]
+    assignment = read_assignments(state=scheduler.context.state)[0]
     assert assignment.harness_session_identifier == "abc-123"
 
 
@@ -322,10 +311,10 @@ def test_a_tick_fills_free_capacity_with_available_issues(ready_repo, offered):
         request_row(issue=10, finding=UNCLAIMED),
     ]
     assert (
-        scheduler.assignments.state.worktrees / "GH9-20260819-184158-assignment"
+        scheduler.context.state.worktrees / "GH9-20260819-184158-assignment"
     ).exists()
     assert not (
-        scheduler.assignments.state.worktrees / "GH10-20260819-184158-assignment"
+        scheduler.context.state.worktrees / "GH10-20260819-184158-assignment"
     ).exists()
 
 
@@ -343,14 +332,13 @@ def test_a_failed_launch_goes_on_to_the_next_candidate(
         to="issue list",
     )
     scheduler, clock = create_scheduler(root=ready_repo, max_agents=3)
-    launch_assignment = scheduler.assignments.launch
 
-    def fail_second_launch(self, *, candidate, at):
-        if candidate.issue == 9:
+    def fail_second_creation(**arguments):
+        if arguments["issue"] == 9:
             raise ReportableError("could not create an assignment for GH9")
-        return launch_assignment(candidate=candidate, at=at)
+        return create_agent_work(**arguments)
 
-    monkeypatch.setattr(AssignmentScheduler, "launch", fail_second_launch)
+    monkeypatch.setattr(tick_module, "create_agent_work", fail_second_creation)
 
     observed = scheduler.tick(at=clock())
 
@@ -537,7 +525,7 @@ def test_a_tick_with_nothing_eligible_starts_no_assignment(ready_repo, offered):
             finding=StartTimeFinding(linked_pull_requests=[], blocking_issues=[7]),
         )
     ]
-    assert not scheduler.assignments.state.worktrees.exists()
+    assert not scheduler.context.state.worktrees.exists()
 
 
 def test_one_errored_round_is_given_its_input_again(ready_repo):
@@ -553,7 +541,7 @@ def test_one_errored_round_is_given_its_input_again(ready_repo):
 
     assert observed.launched_agent_work_identifiers == [ASSIGNMENT_ID]
     assert observed.cooldown is None
-    assert not (scheduler.assignments.state.worktrees / CREATED_ASSIGNMENT_ID).exists()
+    assert not (scheduler.context.state.worktrees / CREATED_ASSIGNMENT_ID).exists()
 
 
 def test_one_faulted_assignment_does_not_block_unrelated_work(ready_repo):
@@ -631,7 +619,7 @@ def test_an_assignment_the_scheduler_is_running_a_round_for_is_not_waiting(
     # The round the scheduler held recorded no ending, so the assignment would have
     # read as interrupted had the scheduler not been running it.
     written = (
-        scheduler.assignments.state.work
+        scheduler.context.state.work
         / CREATED_ASSIGNMENT_ID
         / "rounds"
         / "1"
@@ -685,7 +673,7 @@ def test_an_assignment_with_an_open_pull_request_and_nothing_new_is_not_waiting(
     observed = scheduler.tick(at=clock())
 
     assert observed.launched_agent_work_identifiers == []
-    assignment = read_assignments(state=scheduler.assignments.state)[0]
+    assignment = read_assignments(state=scheduler.context.state)[0]
     assert assignment.record.title == "Issue 13"
     assert observed.rows == [
         request_row(
@@ -739,7 +727,7 @@ def test_a_dispatch_whose_round_will_not_start_keeps_the_assignment_for_next_tim
     observed = scheduler.tick(at=clock())
 
     assert "cannot write" in sole_failure(observed=observed)
-    [assignment] = read_assignments(state=scheduler.assignments.state)
+    [assignment] = read_assignments(state=scheduler.context.state)
     assert assignment.identifier == CREATED_ASSIGNMENT_ID
     assert assignment.rounds == []
     assert not assignment.worktree.exists()
@@ -749,7 +737,7 @@ def test_a_dispatch_whose_round_will_not_start_keeps_the_assignment_for_next_tim
     finish_rounds(scheduler=scheduler)
 
     assert observed.launched_agent_work_identifiers == [CREATED_ASSIGNMENT_ID]
-    record = scheduler.assignments.state.work / CREATED_ASSIGNMENT_ID / "rounds" / "1"
+    record = scheduler.context.state.work / CREATED_ASSIGNMENT_ID / "rounds" / "1"
     assert (record / "round.json").is_file()
     created = [call for call in offered.calls if call.arguments[:2] == ["pr", "create"]]
     assert len(created) == 1
@@ -822,7 +810,7 @@ def test_an_assignment_with_a_round_that_has_no_ending_starts_nothing(resuming):
     assert observed.launched_agent_work_identifiers == []
     assert observed.rows == [request_row(issue=13, agent_work_identifier=ASSIGNMENT_ID)]
     assert not (
-        scheduler.assignments.state.work
+        scheduler.context.state.work
         / ASSIGNMENT_ID
         / "rounds"
         / "2"
@@ -863,7 +851,7 @@ def test_a_resume_recovers_the_harness_session_from_the_first_rounds_raw_stream(
     finish_rounds(scheduler=scheduler)
 
     assert observed.launched_agent_work_identifiers == [ASSIGNMENT_ID]
-    assignment = read_assignments(state=scheduler.assignments.state)[0]
+    assignment = read_assignments(state=scheduler.context.state)[0]
     assert assignment.harness_session_identifier == HARNESS_SESSION_IDENTIFIER
     assert harnesses["claude"].calls[-1].arguments[-2:] == [
         "--resume",
@@ -963,7 +951,7 @@ def test_a_terminal_round_after_an_error_without_a_session_receives_wrap_up_inpu
     )
     assert round_input["pull_request_state"] == PullRequestState.MERGED
     assert "--resume" not in harnesses["claude"].calls[-1].arguments
-    assignment = read_assignments(state=scheduler.assignments.state)[0]
+    assignment = read_assignments(state=scheduler.context.state)[0]
     assert read_user_post_delivery_position(assignment=assignment) == POSTED_AT
 
 
@@ -979,7 +967,7 @@ def test_a_round_after_an_errored_one_is_given_its_posts_again(resuming, gh, har
 
     scheduler.tick(at=clock())
     finish_rounds(scheduler=scheduler)
-    assignment = read_assignments(state=scheduler.assignments.state)[0]
+    assignment = read_assignments(state=scheduler.context.state)[0]
     assert read_user_post_delivery_position(assignment=assignment) == ""
     ending = assignment.rounds[-1].ending
     assert isinstance(ending, ErroredAgentRoundEnding)
@@ -1051,7 +1039,7 @@ def test_an_assignment_the_user_has_posted_on_is_told_what_they_said(resuming, g
         )
     ]
     assert str(
-        scheduler.assignments.state.work
+        scheduler.context.state.work
         / ASSIGNMENT_ID
         / "rounds"
         / "2"
@@ -1073,9 +1061,7 @@ def test_an_assignment_receives_a_batch_only_once(resuming, gh):
     finish_rounds(scheduler=scheduler)
 
     assert observed.launched_agent_work_identifiers == []
-    assert not (
-        scheduler.assignments.state.work / ASSIGNMENT_ID / "rounds" / "3"
-    ).exists()
+    assert not (scheduler.context.state.work / ASSIGNMENT_ID / "rounds" / "3").exists()
 
 
 def test_a_batch_no_round_ever_launched_is_read_again_next_tick(
@@ -1119,7 +1105,7 @@ def test_a_pull_request_that_is_finished_gets_one_last_round(resuming, gh, state
         "pull_request_state": state_name,
         "user_posts": [],
     }
-    [completed] = read_assignments(state=scheduler.assignments.state)
+    [completed] = read_assignments(state=scheduler.context.state)
     assert completed.ending is not None
     assert completed.ending.reason is AgentWorkEndReason.COMPLETED
 
@@ -1133,7 +1119,7 @@ def test_a_last_round_that_fails_leaves_its_assignment_open(resuming, gh, harnes
     scheduler.tick(at=clock())
     finish_rounds(scheduler=scheduler)
 
-    [assignment] = read_assignments(state=scheduler.assignments.state)
+    [assignment] = read_assignments(state=scheduler.context.state)
     assert assignment.is_open
 
 
@@ -1146,9 +1132,7 @@ def test_an_assignment_that_has_had_its_last_round_gets_no_other(resuming, gh):
     observed = scheduler.tick(at=clock())
 
     assert observed.launched_agent_work_identifiers == []
-    assert not (
-        scheduler.assignments.state.work / ASSIGNMENT_ID / "rounds" / "3"
-    ).exists()
+    assert not (scheduler.context.state.work / ASSIGNMENT_ID / "rounds" / "3").exists()
 
 
 def test_a_last_round_that_was_interrupted_is_carried_on_as_the_last_round(
@@ -1174,9 +1158,7 @@ def test_a_last_round_that_was_interrupted_is_carried_on_as_the_last_round(
     finish_rounds(scheduler=scheduler)
 
     # The carry-on finished what the last round started, so no second one runs.
-    assert not (
-        scheduler.assignments.state.work / ASSIGNMENT_ID / "rounds" / "4"
-    ).exists()
+    assert not (scheduler.context.state.work / ASSIGNMENT_ID / "rounds" / "4").exists()
 
 
 def test_open_work_is_carried_on_before_a_new_issue_is_assigned(resuming, gh, offered):
@@ -1195,7 +1177,7 @@ def test_open_work_is_carried_on_before_a_new_issue_is_assigned(resuming, gh, of
     observed = scheduler.tick(at=clock())
 
     assert observed.launched_agent_work_identifiers == [ASSIGNMENT_ID]
-    assert not (scheduler.assignments.state.worktrees / CREATED_ASSIGNMENT_ID).exists()
+    assert not (scheduler.context.state.worktrees / CREATED_ASSIGNMENT_ID).exists()
     assert observed.rows == [
         request_row(
             issue=13,
@@ -1207,9 +1189,7 @@ def test_open_work_is_carried_on_before_a_new_issue_is_assigned(resuming, gh, of
     ]
 
 
-def test_a_failed_issue_listing_prevents_new_assignments_but_not_existing_rounds(
-    ready_repo, offered
-):
+def test_a_failed_issue_listing_starts_nothing_for_its_label_alone(ready_repo, offered):
     configure(root=ready_repo, head=SMITH_CLAUDE.replace("dream:smith", "dream:less"))
     write_assignment(
         state=StateDirectory(root=ready_repo),
@@ -1226,7 +1206,10 @@ def test_a_failed_issue_listing_prevents_new_assignments_but_not_existing_rounds
     observed = scheduler.tick(at=clock())
 
     assert "could not list issues for dream:less" in sole_failure(observed=observed)
-    assert observed.launched_agent_work_identifiers == [ASSIGNMENT_ID]
+    assert observed.launched_agent_work_identifiers == [
+        ASSIGNMENT_ID,
+        CREATED_ASSIGNMENT_ID,
+    ]
     assert observed.rows == [
         request_row(
             issue=13,
@@ -1234,9 +1217,13 @@ def test_a_failed_issue_listing_prevents_new_assignments_but_not_existing_rounds
             finding=NOTHING_NEW,
             started_round=StartedRound(number=2),
         ),
-        request_row(issue=8, finding=UNCLAIMED),
+        request_row(
+            issue=8,
+            agent_work_identifier=CREATED_ASSIGNMENT_ID,
+            finding=UNCLAIMED,
+            started_round=StartedRound(number=1),
+        ),
     ]
-    assert not (scheduler.assignments.state.worktrees / CREATED_ASSIGNMENT_ID).exists()
 
 
 def test_two_faulted_assignments_start_a_global_cooldown(ready_repo):

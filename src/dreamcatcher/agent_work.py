@@ -236,15 +236,6 @@ def read_agent_work(*, state: StateDirectory) -> list[AgentWork]:
     return _read_selected_agent_work(state=state, is_selected=lambda record: True)
 
 
-def read_agent_work_of_kind(
-    *, state: StateDirectory, kind: AgentWorkKind
-) -> list[AgentWork]:
-    """Return the agent work of one kind, ordered by identifier."""
-    return _read_selected_agent_work(
-        state=state, is_selected=lambda record: record.kind is kind
-    )
-
-
 def read_agent_work_at_issue(
     *, state: StateDirectory, issue: int, kind: AgentWorkKind
 ) -> list[AgentWork]:
@@ -290,11 +281,6 @@ def _is_agent_work_recorded(*, state: StateDirectory, identifier: str) -> bool:
         directory.resolve().parent == state.work.resolve()
         and (directory / _WORK_RECORD_NAME).is_file()
     )
-
-
-def find_open_agent_work_by_issue(*, work: list[AgentWork]) -> dict[int, AgentWork]:
-    """Return the open work among these, keyed by issue."""
-    return {item.record.issue: item for item in work if item.is_open}
 
 
 def _read_selected_agent_work(

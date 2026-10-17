@@ -289,9 +289,11 @@ def write_final_output(*, directory: Path, number: int, text: str) -> None:
 
 def read_assignments(*, state: StateDirectory) -> list[agent_work.AgentWork]:
     """Return every assignment in the state directory, by identifier."""
-    return agent_work.read_agent_work_of_kind(
-        state=state, kind=AgentWorkKind.ASSIGNMENT
-    )
+    return [
+        work
+        for work in agent_work.read_agent_work(state=state)
+        if work.record.kind is AgentWorkKind.ASSIGNMENT
+    ]
 
 
 def read_conversation(

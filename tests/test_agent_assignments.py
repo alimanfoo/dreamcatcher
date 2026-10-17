@@ -14,7 +14,6 @@ from conftest import (
     pull_requests,
 )
 from records import (
-    MERGED_INPUT,
     read_assignments,
     write_assignment,
     write_round,
@@ -40,7 +39,6 @@ from dreamcatcher.agent_work import (
     AgentWorkEndReason,
     AgentWorkRecord,
     create_agent_work,
-    find_open_agent_work_by_issue,
     read_agent_work_at_issue,
     record_harness_session_identifier,
     request_agent_work_retry,
@@ -300,36 +298,6 @@ def test_assignments_at_one_issue_are_read_behind_the_assignment_boundary(fabric
     ]
 
 
-def test_open_assignments_are_found_by_issue_across_assignment_histories(fabricated):
-    for issue in (13, 14):
-        complete = write_assignment(
-            state=fabricated,
-            identifier=f"GH{issue}-20260818-090000-assignment",
-            issue=issue,
-        )
-        write_round(
-            directory=complete,
-            number=1,
-            record=AgentRoundRecord(
-                number=1,
-                started=PINNED,
-                pid=1,
-                ending=_compose_agent_round_ending(at=PINNED, status=0),
-            ),
-            round_input=MERGED_INPUT,
-        )
-    write_assignment(
-        state=fabricated, identifier="GH14-20260819-090000-assignment", issue=14
-    )
-    assignments = read_assignments(state=fabricated)
-
-    open_assignments = find_open_agent_work_by_issue(work=assignments)
-
-    assert 12 not in open_assignments
-    assert 13 not in open_assignments
-    assert open_assignments[14].identifier == "GH14-20260819-090000-assignment"
-
-
 def ended(*, status, minute=0, number: int = 1):
     """Return a round that started that minute past the hour and ended."""
     started = PINNED + timedelta(minutes=minute)
@@ -391,7 +359,6 @@ def test_a_cancelled_assignment_records_when_and_is_no_longer_open(fabricated):
         at=PINNED + timedelta(hours=1), reason=AgentWorkEndReason.CANCELLED
     )
     assert not cancelled.is_open
-    assert find_open_agent_work_by_issue(work=[cancelled]) == {}
 
 
 def test_recording_later_facts_leaves_the_assignment_record_as_it_was(fabricated):

@@ -1,6 +1,5 @@
 """Persistent scheduler records and shared scheduling facts."""
 
-from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from enum import StrEnum
 from typing import Annotated, Literal, Self
@@ -123,16 +122,6 @@ class RequestRow(DreamcatcherDocument):
     agent_work_identifier: str | None = None
     finding: RequestFinding | None = None
     started_round: StartedRound | None = None
-
-
-@dataclass(frozen=True, kw_only=True)
-class AgentWorkInspection[CandidateT]:
-    """Collect one kind's ranked candidates, rows, faults and listing failures."""
-
-    candidates: list[CandidateT]
-    rows: list[RequestRow]
-    fault_count: int
-    failures: list[str]
 
 
 class GlobalCooldown(DreamcatcherDocument):
