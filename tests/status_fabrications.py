@@ -4,7 +4,7 @@ from collections.abc import Sequence
 from datetime import timedelta
 
 from clocks import PINNED
-from conftest import ASSIGNMENT_LABEL, DAEMON_PID, REPOSITORY, configure
+from conftest import ASSIGNMENT_LABEL, DAEMON_PID, REPOSITORY
 from observations import observed_conversation, observed_issue
 from records import (
     hold_daemon_lock_for_test,
@@ -208,8 +208,7 @@ def running(
 
 
 def holding(*, state):
-    """Configure the instance and hold the lock as its running daemon."""
-    configure(root=state.root)
+    """Record the instance and hold the lock as its running daemon."""
     write_text(text=f"{REPOSITORY}\n", path=state.repository)
     write_daemon_run(state=state, pid=DAEMON_PID)
     hold_daemon_lock_for_test(path=state.lock)
@@ -217,7 +216,6 @@ def holding(*, state):
 
 def fabricate_nothing(*, state):
     """Write a state directory that a daemon has only bootstrapped."""
-    configure(root=state.root)
     state.bootstrap()
     write_daemon_run(state=state, pid=DAEMON_PID)
 
@@ -429,7 +427,6 @@ def fabricate_the_cap(*, state):
 
 def fabricate_repeat_assignments(*, state):
     """Write three assignments at one issue to show repeat assignment dispatches."""
-    configure(root=state.root)
     write_text(text=f"{REPOSITORY}\n", path=state.repository)
     write_daemon_run(state=state, pid=DAEMON_PID)
     for stamp, rounds in (

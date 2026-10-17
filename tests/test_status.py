@@ -4,7 +4,7 @@ from datetime import timedelta
 
 import pytest
 from clocks import PINNED
-from conftest import REPOSITORY, configure
+from conftest import REPOSITORY
 from observations import observed_issue
 from records import (
     hold_daemon_lock_for_test,
@@ -28,7 +28,7 @@ from dreamcatcher.agent_rounds import (
     StoppedAgentRoundEnding,
     _compose_agent_round_ending,
 )
-from dreamcatcher.config import DREAMCATCHER_CONFIG_NAME, AgentHarness
+from dreamcatcher.config import AgentHarness
 from dreamcatcher.daemon import DEFAULT_INTERVAL_SECONDS
 from dreamcatcher.daemon_runs import DaemonRunRecord
 from dreamcatcher.documents import write_text
@@ -62,8 +62,7 @@ LOOKED_AT = PINNED + timedelta(hours=2)
 
 @pytest.fixture
 def state(tmp_path):
-    """A configured state directory holding one assignment."""
-    configure(root=tmp_path)
+    """A state directory holding one assignment, and a daemon run routing it."""
     directory = StateDirectory(root=tmp_path)
     write_daemon_run(state=directory, pid=os.getpid(), max_agents=3)
     write_assignment(state=directory, identifier=ASSIGNMENT_ID, issue=13)
@@ -140,7 +139,6 @@ def idle_observation() -> AgentWorkObservation:
 
 
 def test_an_empty_instance_reports_unknown_capacity_and_no_work(tmp_path):
-    configure(root=tmp_path)
     found = read_status_report(
         state=StateDirectory(root=tmp_path),
         clock=lambda: LOOKED_AT,
@@ -161,12 +159,14 @@ def test_an_empty_instance_reports_unknown_capacity_and_no_work(tmp_path):
     assert found.assignment_statuses == []
 
 
-def test_an_empty_report_describes_only_its_configured_agent_work(tmp_path):
-    configure(root=tmp_path)
-    found = read_status_report(
-        state=StateDirectory(root=tmp_path),
-        clock=lambda: LOOKED_AT,
-    )
+def test_an_empty_report_names_the_labels_the_daemon_routes_without_a_config(
+    tmp_path,
+):
+    state = StateDirectory(root=tmp_path)
+    write_daemon_run(state=state, pid=os.getpid())
+
+    found = read_status_report(state=state, clock=lambda: LOOKED_AT)
+
     assert found.assignment_section == AgentWorkStatusSection(
         heading="assignments",
         empty_message=(
@@ -201,7 +201,6 @@ def test_the_instance_records_name_the_harness_and_version(state):
 
 
 def test_a_live_daemon_that_has_not_named_its_run_has_no_pid(tmp_path):
-    configure(root=tmp_path)
     state = StateDirectory(root=tmp_path)
     hold_daemon_lock_for_test(path=state.lock)
 
@@ -281,7 +280,6 @@ def test_an_unended_round_status_follows_the_daemon(
 
 
 def test_status_recovers_the_harness_session_and_builds_its_resume_command(tmp_path):
-    configure(root=tmp_path)
     state = StateDirectory(root=tmp_path)
     directory = write_assignment(
         state=state,
@@ -338,7 +336,6 @@ def test_status_reads_harness_resume_details_only_when_requested(state, monkeypa
 
 
 def test_status_with_no_harness_session_has_no_resume_command(tmp_path):
-    configure(root=tmp_path)
     state = StateDirectory(root=tmp_path)
     directory = write_assignment(
         state=state,
@@ -440,7 +437,6 @@ def test_a_cancelled_assignment_is_cancelled_rather_than_in_fault(state):
 
 
 def test_a_cancelled_assignment_stops_reporting_its_pull_request_state(tmp_path):
-    configure(root=tmp_path)
     state = StateDirectory(root=tmp_path)
     write_assignment(
         state=state,
@@ -1066,7 +1062,7 @@ def test_a_report_orders_active_assignments_by_attention_and_ended_ones_newest_f
 
 
 def test_an_assignment_keeps_its_section_after_its_routes_are_removed(state):
-    write_text(text="", path=state.root / DREAMCATCHER_CONFIG_NAME)
+    write_daemon_run(state=state, pid=os.getpid(), routes=[])
 
     found = report(state=state)
 
@@ -1100,6 +1096,7 @@ def test_an_assignment_keeps_its_section_after_its_routes_are_removed(state):
                 version="5.3.0",
                 max_agents=3,
                 interval_seconds=DEFAULT_INTERVAL_SECONDS,
+                routes=[],
             ),
             DaemonStatusFact(
                 label="daemon",

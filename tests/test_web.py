@@ -13,11 +13,14 @@ from unittest.mock import MagicMock
 
 import pytest
 from clocks import DISPLAY_TIME_ZONE, PINNED
-from conftest import FIXTURES, REPOSITORY, assert_matches_view_golden, configure
+from conftest import DAEMON_PID, FIXTURES, REPOSITORY, assert_matches_view_golden
 from observations import observed_conversation, observed_issue
 from records import (
+    SCOUT_ROUTES,
+    SMITH_ROUTES,
     release_daemon_lock,
     write_assignment,
+    write_daemon_run,
     write_feed,
     write_round,
     write_tick,
@@ -50,10 +53,11 @@ from dreamcatcher.agent_rounds import (
     AssignmentRoundPurpose,
     StoppedAgentRoundEnding,
 )
-from dreamcatcher.config import DREAMCATCHER_CONFIG_NAME
+from dreamcatcher.daemon_runs import RoutedLabel
 from dreamcatcher.documents import append_text, write_text
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import FeedLine
+from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.scheduler.models import (
     GlobalCooldown,
     SchedulerRecord,
@@ -82,26 +86,6 @@ WEB_ASSIGNMENT_PAGES = {
     "waiting-to-start": (fabricate_everything, "GH44-20260819-184158"),
     "working": (fabricate_everything, "GH13-20260819-184158"),
 }
-
-CONVERSATION_ONLY_CONFIG = """[[conversation]]
-label = "dream:scout"
-[conversation.claude]
-prompt = "/dream:scout GH{issue}"
-model = "opus"
-effort = "xhigh"
-"""
-
-ADDITIONAL_AGENT_WORK_CONFIG = (
-    CONVERSATION_ONLY_CONFIG
-    + """
-[[assignment]]
-label = "dream:zebra"
-[assignment.claude]
-prompt = "/dream:zebra GH{issue}"
-model = "opus"
-effort = "xhigh"
-"""
-)
 
 
 def render_home(*, state: StateDirectory) -> str:
@@ -170,10 +154,18 @@ def test_a_state_directory_renders_as_its_golden_home(name, tmp_path, pytestconf
     )
 
 
-def test_an_empty_home_names_every_configured_agent_work_label(tmp_path):
+def test_an_empty_home_names_every_routed_label(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_nothing(state=state)
-    configure(root=state.root, head=ADDITIONAL_AGENT_WORK_CONFIG)
+    write_daemon_run(
+        state=state,
+        pid=DAEMON_PID,
+        routes=[
+            *SMITH_ROUTES,
+            *SCOUT_ROUTES,
+            RoutedLabel(label="dream:zebra", kind=AgentWorkKind.ASSIGNMENT),
+        ],
+    )
 
     page = render_home(state=state)
 
@@ -187,13 +179,10 @@ def test_an_empty_home_names_every_configured_agent_work_label(tmp_path):
     )
 
 
-def test_an_empty_home_hides_an_unconfigured_assignment_section(tmp_path):
+def test_an_empty_home_hides_an_unrouted_assignment_section(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_nothing(state=state)
-    write_text(
-        text=CONVERSATION_ONLY_CONFIG,
-        path=state.root / DREAMCATCHER_CONFIG_NAME,
-    )
+    write_daemon_run(state=state, pid=DAEMON_PID, routes=SCOUT_ROUTES)
 
     page = render_home(state=state)
 
@@ -825,7 +814,7 @@ def test_ended_assignment_cards_are_separated_by_rules(tmp_path):
 def test_ended_assignments_are_ordered_by_when_they_ended(tmp_path):
     state = StateDirectory(root=tmp_path)
     state.bootstrap()
-    configure(root=state.root)
+    write_daemon_run(state=state, pid=DAEMON_PID)
     written(
         state=state,
         issue=10,
@@ -865,7 +854,6 @@ def test_ended_assignments_are_ordered_by_when_they_ended(tmp_path):
 def test_home_page_types_replaced_assignment_output(tmp_path):
     state = StateDirectory(root=tmp_path)
     state.bootstrap()
-    configure(root=state.root)
     application = _create_app(
         state=state, clock=lambda: LOOKED_AT, zone=DISPLAY_TIME_ZONE
     )

@@ -30,8 +30,8 @@ domain phrase into a class. In particular, it should:
 `daemon.py` owns the lifetime of the daemon that runs a _dreamcatcher_ instance:
 
 - acquire and release the checkout's daemon lock;
-- record the daemon process identifier in the daemon run record as soon as it
-  holds the lock;
+- record the daemon process identifier and the dispatch routes it loaded in the
+  daemon run record as soon as it holds the lock;
 - keep the web server inside the established daemon lifetime when `run` enables
   it;
 - reconcile round records that an earlier daemon left without an ending by
@@ -357,9 +357,10 @@ process. In the code, those functions and records are the scheduler's `models`
 and `faults` modules, and status imports no other scheduler module. Status
 values are always derived; they are not written back as domain state.
 
-Status reads the current route configuration and describes whether each kind of
-agent work has a section to show, the section's heading, and any guidance for an
-empty section. The presentations make none of those choices themselves.
+Status reads the dispatch labels from the daemon run record, never from
+`dreamcatcher.toml`, and describes whether each kind of agent work has a section
+to show, the section's heading, and any guidance for an empty section. The
+presentations make none of those choices themselves.
 
 An `IssueObservation` represents claimed here, claimed elsewhere, blocked, and
 routing conflict as independent facts which may each be true, false, or unknown;
@@ -583,8 +584,9 @@ investigated revision and the trusted comments accepted for delivery; the first
 also persists the issue title and body.
 
 Instance records persist the repository identity and the most recent daemon
-run's harness, _dreamcatcher_ version, and capacity. An instance-wide scheduler
-record persists the last tick's result, including its failures, issue,
+run's harness, _dreamcatcher_ version, capacity, interval, and the dispatch
+routes it loaded, each as a label and its kind of agent work. An instance-wide
+scheduler record persists the last tick's result, including its failures, issue,
 assignment and conversation observations, active global cooldown, and the time
 at which the most recent cooldown ended. Its per-work observations preserve
 operational evidence of the tick's interpretation rather than authoritative

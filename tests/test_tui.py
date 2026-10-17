@@ -13,8 +13,8 @@ from io import StringIO
 
 import pytest
 from clocks import DISPLAY_TIME_ZONE, PINNED
-from conftest import FIXTURES, assert_matches_view_golden, configure
-from records import write_feed, write_round
+from conftest import DAEMON_PID, FIXTURES, assert_matches_view_golden
+from records import SCOUT_ROUTES, write_daemon_run, write_feed, write_round
 from rich.console import Console
 from rich.control import Control
 from rich.text import Text
@@ -42,7 +42,6 @@ from dreamcatcher.agent_assignments import (
 from dreamcatcher.agent_rounds import (
     AssignmentRoundPurpose,
 )
-from dreamcatcher.config import DREAMCATCHER_CONFIG_NAME
 from dreamcatcher.documents import append_text, write_text
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import FeedLine
@@ -226,7 +225,6 @@ def test_ended_assignments_are_summarized(tmp_path):
 
 
 def test_only_ended_assignments_are_summarized(tmp_path):
-    configure(root=tmp_path)
     state = StateDirectory(root=tmp_path)
     completed_round = ended(minute=1, purpose=AssignmentRoundPurpose.WRAP_UP)
     written(state=state, issue=12, records=[completed_round])
@@ -242,19 +240,10 @@ def test_only_ended_assignments_are_summarized(tmp_path):
     assert "GH13-20260819-184158" not in rendered
 
 
-def test_status_shows_only_the_configured_empty_agent_work(tmp_path):
+def test_status_shows_only_the_routed_empty_agent_work(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_nothing(state=state)
-    write_text(
-        text="""[[conversation]]
-label = "dream:scout"
-[conversation.claude]
-prompt = "/dream:scout GH{issue}"
-model = "opus"
-effort = "xhigh"
-""",
-        path=state.root / DREAMCATCHER_CONFIG_NAME,
-    )
+    write_daemon_run(state=state, pid=DAEMON_PID, routes=SCOUT_ROUTES)
 
     rendered = render_status_view(state=state)
 

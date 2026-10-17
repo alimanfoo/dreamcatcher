@@ -25,8 +25,7 @@ The agent capacity is shared by assignments and issue conversations. Start with
 one until you know how much agent activity and review work you want at once. A
 second daemon for the same checkout refuses to start. The command opens the web
 home page in your browser and serves it until the daemon ends. The page reads
-the local state directory and `dreamcatcher.toml`, and does not contact GitHub
-itself.
+the local state directory alone, and does not contact GitHub itself.
 
 `run` must start in the main checkout. _dreamcatcher_ stores its local state
 under that checkout's `.dreamcatcher/` directory. Use this same checkout when

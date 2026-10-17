@@ -37,9 +37,10 @@ from dreamcatcher.agent_rounds import (
 )
 from dreamcatcher.config import DREAMCATCHER_CONFIG_NAME, AgentHarness
 from dreamcatcher.daemon import DreamcatcherDaemon
-from dreamcatcher.daemon_runs import DaemonRunRecord
+from dreamcatcher.daemon_runs import DaemonRunRecord, RoutedLabel
 from dreamcatcher.documents import read_json, write_json, write_text
 from dreamcatcher.errors import ReportableError
+from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.lock import _HeldDaemonLock, hold_daemon_lock, is_daemon_lock_held
 from dreamcatcher.scheduler import AssignmentScheduler, ConversationScheduler, Scheduler
 from dreamcatcher.scheduler.models import (
@@ -382,6 +383,7 @@ def test_the_daemon_bootstraps_the_state_directory_and_releases_the_lock(
         version=DREAMCATCHER_VERSION,
         max_agents=1,
         interval_seconds=300,
+        routes=[RoutedLabel(label="dream:smith", kind=AgentWorkKind.ASSIGNMENT)],
     )
     assert not is_daemon_lock_held(path=daemon.state.lock)
 

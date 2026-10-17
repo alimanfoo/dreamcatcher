@@ -13,9 +13,10 @@ from dreamcatcher.agent_assignments import (
     read_assignments_for_issue,
 )
 from dreamcatcher.clock import read_current_time
-from dreamcatcher.config import AgentHarness, read_dreamcatcher_config
+from dreamcatcher.config import AgentHarness
 from dreamcatcher.daemon_runs import DaemonRunRecord
 from dreamcatcher.documents import read_json_if_exists, read_text
+from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.issue_conversations import (
     read_conversation,
     read_conversations,
@@ -112,6 +113,10 @@ class DreamcatcherDaemonStatus:
     def interval_seconds(self) -> int | None:
         """The interval selected for the current or latest daemon run."""
         return None if self.run is None else self.run.interval_seconds
+
+    def list_labels(self, *, kind: AgentWorkKind) -> tuple[str, ...]:
+        """Return the labels of one kind that the current or latest run routes."""
+        return () if self.run is None else self.run.list_labels(kind=kind)
 
     @property
     def status_fact(self) -> DaemonStatusFact:
@@ -243,7 +248,11 @@ def _describe_route_labels(*, labels: tuple[str, ...]) -> str:
 def read_status_report(
     *, state: StateDirectory, clock: Callable[[], datetime] = read_current_time
 ) -> DreamcatcherStatusReport:
-    """Read a status report from local state and the current route configuration."""
+    """Read a status report from local state alone.
+
+    The labels that the guidance names are the ones the current or latest daemon
+    run routes.
+    """
     daemon = read_dreamcatcher_daemon_status(state=state)
     at, scheduler_record = _read_status_facts(state=state, clock=clock)
     assignments = read_assignments(state=state)
@@ -268,13 +277,8 @@ def read_status_report(
     reported_issue_observations = _select_issue_observations(
         observations=issue_observations
     )
-    config = read_dreamcatcher_config(root=state.root)
-    assignment_labels = tuple(
-        sorted((route.label for route in config.assignment), key=str.casefold)
-    )
-    conversation_labels = tuple(
-        sorted((route.label for route in config.conversation), key=str.casefold)
-    )
+    assignment_labels = daemon.list_labels(kind=AgentWorkKind.ASSIGNMENT)
+    conversation_labels = daemon.list_labels(kind=AgentWorkKind.CONVERSATION)
     has_current_assignment_work = bool(
         any(not status.has_ended for status in assignment_statuses)
         or failed_assignment_setups

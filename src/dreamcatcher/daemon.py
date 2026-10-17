@@ -16,11 +16,12 @@ from dreamcatcher.agent_rounds import (
 )
 from dreamcatcher.clock import WaitForSeconds, read_current_time
 from dreamcatcher.config import AgentHarness, read_dreamcatcher_config
-from dreamcatcher.daemon_runs import DaemonRunRecord
+from dreamcatcher.daemon_runs import DaemonRunRecord, RoutedLabel
 from dreamcatcher.documents import write_json, write_text
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.git import require_main_checkout
 from dreamcatcher.github import require_github_identity
+from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.harnesses import require_harnesses_on_path
 from dreamcatcher.issue_conversations import read_conversations
 from dreamcatcher.lock import hold_daemon_lock
@@ -126,6 +127,20 @@ class DreamcatcherDaemon:
                     version=DREAMCATCHER_VERSION,
                     max_agents=self.max_agents,
                     interval_seconds=self.interval,
+                    routes=[
+                        *(
+                            RoutedLabel(
+                                label=route.label, kind=AgentWorkKind.ASSIGNMENT
+                            )
+                            for route in self.config.assignment
+                        ),
+                        *(
+                            RoutedLabel(
+                                label=route.label, kind=AgentWorkKind.CONVERSATION
+                            )
+                            for route in self.config.conversation
+                        ),
+                    ],
                 ),
                 path=self.state.daemon_run_record,
             )

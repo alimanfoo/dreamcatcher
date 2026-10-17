@@ -20,16 +20,24 @@ from dreamcatcher import (
 )
 from dreamcatcher.config import AgentHarness
 from dreamcatcher.daemon import DEFAULT_INTERVAL_SECONDS
-from dreamcatcher.daemon_runs import DaemonRunRecord
+from dreamcatcher.daemon_runs import DaemonRunRecord, RoutedLabel
 from dreamcatcher.documents import write_json, write_text
 from dreamcatcher.feed import FeedLine
 from dreamcatcher.github import PullRequestState
+from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.lock import hold_daemon_lock
 from dreamcatcher.scheduler.models import SchedulerRecord
 from dreamcatcher.state import StateDirectory
 
 # The daemon locks that the running test holds, by path.
 _HELD_DAEMON_LOCKS: dict[Path, ExitStack] = {}
+
+# The routes a fabricated daemon run loaded, unless a test says: those of the
+# configuration that conftest writes.
+SMITH_ROUTES = (RoutedLabel(label="dream:smith", kind=AgentWorkKind.ASSIGNMENT),)
+
+# The routes of a daemon run that loaded one conversation label and nothing else.
+SCOUT_ROUTES = (RoutedLabel(label="dream:scout", kind=AgentWorkKind.CONVERSATION),)
 
 # What a fabricated assignment saw of its pull request, unless a test says.
 _OPEN_DRAFT = agent_assignments.PullRequestObservation(
@@ -44,6 +52,7 @@ def write_daemon_run(
     harness: AgentHarness = AgentHarness.CLAUDE,
     version: str = "3.0.0.beta1",
     max_agents: int = 1,
+    routes: Sequence[RoutedLabel] = SMITH_ROUTES,
 ) -> None:
     """Write the facts fixed for one daemon run."""
     write_json(
@@ -53,6 +62,7 @@ def write_daemon_run(
             version=version,
             max_agents=max_agents,
             interval_seconds=DEFAULT_INTERVAL_SECONDS,
+            routes=list(routes),
         ),
         path=state.daemon_run_record,
     )

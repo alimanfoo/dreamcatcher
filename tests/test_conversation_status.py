@@ -5,7 +5,6 @@ from datetime import timedelta
 
 import pytest
 from clocks import PINNED
-from conftest import configure
 from observations import observed_conversation
 from records import (
     hold_daemon_lock_for_test,
@@ -55,7 +54,6 @@ LOOKED_AT = PINNED + timedelta(hours=2)
 @pytest.fixture
 def conversation_state(tmp_path):
     """Return local state containing one issue conversation."""
-    configure(root=tmp_path)
     state = StateDirectory(root=tmp_path)
     write_daemon_run(state=state, pid=os.getpid())
     write_conversation(state=state, issue=8)
@@ -628,7 +626,6 @@ def test_a_stopped_conversation_waits_for_new_comments(conversation_state):
 
 
 def test_an_eligible_issue_is_a_conversation_before_its_record_exists(tmp_path):
-    configure(root=tmp_path)
     state = StateDirectory(root=tmp_path)
     observe(
         state=state,
