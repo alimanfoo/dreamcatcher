@@ -15,6 +15,7 @@ historical record. Do not update these documents to match the current code.
 - `2026-10-03-cancel-assignments`
 - `2026-10-05-agent-work-facts`
 - `2026-10-06-init`
+- `2026-10-16-state-format-6`
 
 A dated folder that is absent from this list is an active phase. If you find
 that an unlisted phase has already ended, add it to this list before changing
