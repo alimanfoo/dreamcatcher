@@ -39,8 +39,8 @@ now has its citation.
    [Handling errors and global cooldown](../../docs/ontology.md#handling-errors-and-global-cooldown))
 6. Both have a summary status with shared meanings for working, waiting, fault
    and unknown, and each has a resting status that is the other's counterpart.
-   ([Agent assignment status](https://github.com/alimanfoo/dreamcatcher/blob/24030d89a5db85454aee47185f7c5c5f4aa38d95/docs/ontology.md#agent-assignment-status),
-   [Issue conversation status](https://github.com/alimanfoo/dreamcatcher/blob/24030d89a5db85454aee47185f7c5c5f4aa38d95/docs/ontology.md#issue-conversation-status))
+   ([Agent assignment status](https://github.com/alimanfoo/dreamcatcher/blob/24030d89a5db85454aee47185f7c5c5f4aa38d95/docs/ontology.md?plain=1#L345),
+   [Issue conversation status](https://github.com/alimanfoo/dreamcatcher/blob/24030d89a5db85454aee47185f7c5c5f4aa38d95/docs/ontology.md?plain=1#L369))
 7. Both are selected through one dispatch label, which belongs to one route,
    which supplies one recipe.
    ([Dispatch labels and routes](../../docs/ontology.md#dispatch-labels-and-routes))
@@ -82,17 +82,17 @@ now has its citation.
    issue stops being eligible.
    ([Completing an assignment](../../docs/ontology.md#completing-an-assignment),
    [Issue conversation composition](../../docs/ontology.md#issue-conversation-composition),
-   [Issue conversation status](https://github.com/alimanfoo/dreamcatcher/blob/24030d89a5db85454aee47185f7c5c5f4aa38d95/docs/ontology.md#issue-conversation-status))
+   [Issue conversation status](https://github.com/alimanfoo/dreamcatcher/blob/24030d89a5db85454aee47185f7c5c5f4aa38d95/docs/ontology.md?plain=1#L369))
 7. The tick observes every labelled issue of either kind before any work exists.
    For an assignment the observation says whether the issue is available, so it
    is a place in the queue. For a conversation it says whether comments wait, so
    it is a status, idle until the user comments.
-   ([Issue observations and availability](https://github.com/alimanfoo/dreamcatcher/blob/24030d89a5db85454aee47185f7c5c5f4aa38d95/docs/ontology.md#issue-observations-and-availability),
-   [Issue conversation status](https://github.com/alimanfoo/dreamcatcher/blob/24030d89a5db85454aee47185f7c5c5f4aa38d95/docs/ontology.md#issue-conversation-status))
+   ([Issue observations and availability](https://github.com/alimanfoo/dreamcatcher/blob/24030d89a5db85454aee47185f7c5c5f4aa38d95/docs/ontology.md?plain=1#L305),
+   [Issue conversation status](https://github.com/alimanfoo/dreamcatcher/blob/24030d89a5db85454aee47185f7c5c5f4aa38d95/docs/ontology.md?plain=1#L369))
 8. Availability for an assignment reads claimed here, claimed elsewhere, blocked
    and routing conflict. Conversation eligibility reads none of those, only its
    own routing conflict and whether comments wait.
-   ([Issue observations and availability](https://github.com/alimanfoo/dreamcatcher/blob/24030d89a5db85454aee47185f7c5c5f4aa38d95/docs/ontology.md#issue-observations-and-availability),
+   ([Issue observations and availability](https://github.com/alimanfoo/dreamcatcher/blob/24030d89a5db85454aee47185f7c5c5f4aa38d95/docs/ontology.md?plain=1#L305),
    [Starting an issue conversation](../../docs/ontology.md#starting-an-issue-conversation))
 9. Assignment ranking is recovery, wrap up, new posts, then oldest available
    issue. Conversation ranking is recovery, then oldest waiting comment.
