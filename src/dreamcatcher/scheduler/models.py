@@ -128,7 +128,7 @@ class RequestRow(DreamcatcherDocument):
 
     A request is one dispatch label on one issue. The row names the open agent
     work the request led to, if any. A row has no finding when the tick read
-    nothing for it, as for work whose round is running or that is in fault.
+    nothing for it, as for work that is in fault.
     """
 
     issue: PositiveInt

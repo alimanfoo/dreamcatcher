@@ -345,8 +345,8 @@ resumes it in the same harness session, and it is then given every comment
 posted since its last finished round.
 
 When a tick finds a conversation's issue closed, it records the conversation's
-ending with the reason "issue closed". A round that is running when the issue
-closes finishes first, because nothing is read for work whose round is running.
+ending with the reason "issue closed". The tick reads the issue while a round is
+running, so it can record the ending before that round reaches its outcome.
 
 A paused conversation does not block a new one under another label. Taking label
 A off an issue and adding label B starts a fresh conversation under B, while A's
