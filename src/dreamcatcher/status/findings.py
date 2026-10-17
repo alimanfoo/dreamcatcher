@@ -1,5 +1,6 @@
 """Word what a scheduler tick found, once for every status that shows it."""
 
+from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.words import describe_count
 
 
@@ -8,9 +9,9 @@ def describe_comments_to_answer(*, count: int) -> str:
     return f"{describe_count(number=count, noun='comment')} to answer"
 
 
-def describe_conflicting_labels(*, labels: list[str]) -> str:
+def describe_conflicting_labels(*, kind: AgentWorkKind, labels: list[str]) -> str:
     """Name the labels of one kind that an issue carries together."""
-    return "conflicting labels " + ", ".join(labels)
+    return f"multiple {kind} labels: " + ", ".join(labels)
 
 
 def describe_read_failure(*, reason: str) -> str:

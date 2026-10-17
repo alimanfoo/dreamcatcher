@@ -159,7 +159,7 @@ def pull_request_row(
     """Return the row of the fixture's assignment with what its pull request held."""
     return request_row(
         issue=13,
-        agent_work=ASSIGNMENT_ID,
+        agent_work_identifier=ASSIGNMENT_ID,
         finding=PullRequestFinding(
             number=PULL_REQUEST,
             state=state,
@@ -555,7 +555,7 @@ def test_a_failed_read_makes_the_assignment_unknown_with_the_reason(state):
         rows=[
             request_row(
                 issue=13,
-                agent_work=ASSIGNMENT_ID,
+                agent_work_identifier=ASSIGNMENT_ID,
                 finding=ReadFailureFinding(reason="unavailable"),
             )
         ],
@@ -810,7 +810,7 @@ def test_an_assignment_whose_pull_request_is_not_yet_open_waits_for_it(tmp_path)
     ran(state=state, number=1)
     tick_with(
         state=state,
-        rows=[request_row(issue=13, agent_work=ASSIGNMENT_ID)],
+        rows=[request_row(issue=13, agent_work_identifier=ASSIGNMENT_ID)],
     )
 
     status = only_assignment(state=state)
@@ -853,7 +853,7 @@ def test_two_labels_of_one_kind_are_a_routing_conflict_named_in_each_row(state):
         (ASSIGNMENT_LABEL, RequestStatusValue.ROUTING_CONFLICT),
     ]
     assert requests[0].reasons == (
-        RequestReason(words="conflicting labels dream:less, dream:smith"),
+        RequestReason(words="multiple assignment labels: dream:less, dream:smith"),
     )
 
 
@@ -879,7 +879,11 @@ def test_a_request_that_led_to_open_work_is_reported_through_its_work(state):
         state=state,
         tick=SchedulerRecord(
             at=PINNED,
-            rows=[request_row(issue=13, agent_work=ASSIGNMENT_ID, finding=UNCLAIMED)],
+            rows=[
+                request_row(
+                    issue=13, agent_work_identifier=ASSIGNMENT_ID, finding=UNCLAIMED
+                )
+            ],
         ),
     )
 

@@ -79,7 +79,7 @@ def _mark_row_started(
     return [
         row.model_copy(
             update={
-                "agent_work": agent_work_identifier,
+                "agent_work_identifier": agent_work_identifier,
                 "started_round": started_round,
             }
         )

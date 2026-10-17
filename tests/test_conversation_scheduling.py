@@ -220,7 +220,7 @@ def conversation_row(
     issue: int = 8,
     title: str = "Why does this happen?",
     label: str | None = None,
-    agent_work: str | None = None,
+    agent_work_identifier: str | None = None,
     started_round: StartedRound | None = None,
 ) -> RequestRow:
     """Return the row of a conversation request at the issue the tests offer."""
@@ -229,7 +229,7 @@ def conversation_row(
         kind=AgentWorkKind.CONVERSATION,
         title=title,
         label=label,
-        agent_work=agent_work,
+        agent_work_identifier=agent_work_identifier,
         finding=finding,
         started_round=started_round,
     )
@@ -402,7 +402,7 @@ def test_an_initial_conversation_freezes_input_runs_claude_and_publishes_once(
     ]
     assert launched.rows == [
         conversation_row(
-            agent_work=compose_conversation_identifier(issue=8),
+            agent_work_identifier=compose_conversation_identifier(issue=8),
             finding=IssueCommentsFinding(new_comments=1),
             started_round=StartedRound(number=1),
         )
@@ -529,7 +529,7 @@ def test_a_saved_conversation_whose_issue_gains_a_second_label_starts_nothing(
     assert observed.rows == [
         conversation_row(
             title="Issue 8",
-            agent_work=compose_conversation_identifier(issue=8),
+            agent_work_identifier=compose_conversation_identifier(issue=8),
             finding=ConflictingLabelsFinding(
                 labels=["dream:conversation", "dream:scout"]
             ),
@@ -918,7 +918,7 @@ def test_a_failed_conversation_refresh_is_an_errored_round(
     assert observed.rows == [
         conversation_row(
             title="Why does this happen?",
-            agent_work="GH8-20260819-184158-conversation",
+            agent_work_identifier="GH8-20260819-184158-conversation",
             finding=IssueCommentsFinding(new_comments=1),
             started_round=StartedRound(
                 number=2, preparation_failure="could not fetch main"
@@ -1069,7 +1069,7 @@ def test_comments_posted_during_a_round_wait_for_a_free_agent(
     assert scheduler.is_at_capacity
     assert observed.rows == [
         conversation_row(
-            agent_work=compose_conversation_identifier(issue=8),
+            agent_work_identifier=compose_conversation_identifier(issue=8),
             finding=IssueCommentsFinding(new_comments=1),
         )
     ]
@@ -1090,7 +1090,7 @@ def test_comments_a_running_round_holds_are_not_waiting(
     assert scheduler.is_at_capacity
     assert observed.rows == [
         conversation_row(
-            agent_work=compose_conversation_identifier(issue=8),
+            agent_work_identifier=compose_conversation_identifier(issue=8),
             finding=IssueCommentsFinding(new_comments=0),
         )
     ]
@@ -1659,7 +1659,7 @@ def test_a_failed_conversation_listing_prevents_launches(conversation_scheduler)
         conversation_row(
             issue=5,
             title="Issue 5",
-            agent_work=compose_conversation_identifier(issue=5),
+            agent_work_identifier=compose_conversation_identifier(issue=5),
             finding=ReadFailureFinding(reason=failure),
         )
     ]
@@ -1732,7 +1732,7 @@ def test_failed_listing_keeps_visible_conversation_faults_in_the_cooldown(
         conversation_row(
             issue=issue,
             title=f"Issue {issue}",
-            agent_work=compose_conversation_identifier(issue=issue),
+            agent_work_identifier=compose_conversation_identifier(issue=issue),
             finding=ReadFailureFinding(reason=failure),
         )
         for issue in (8, 9)
@@ -1748,7 +1748,7 @@ def test_an_ineligible_saved_conversation_is_not_polled(conversation_scheduler):
     assert observed.rows == [
         conversation_row(
             title="Issue 8",
-            agent_work=compose_conversation_identifier(issue=8),
+            agent_work_identifier=compose_conversation_identifier(issue=8),
             finding=UnlistedIssueFinding(),
         )
     ]
@@ -1776,7 +1776,7 @@ def test_an_ineligible_conversation_does_not_retry_its_errored_round(
     assert observed.rows == [
         conversation_row(
             title="Issue 8",
-            agent_work=compose_conversation_identifier(issue=8),
+            agent_work_identifier=compose_conversation_identifier(issue=8),
             finding=UnlistedIssueFinding(),
         )
     ]
@@ -1806,7 +1806,7 @@ def test_ineligible_conversation_faults_do_not_start_the_global_cooldown(
         conversation_row(
             issue=issue,
             title=f"Issue {issue}",
-            agent_work=compose_conversation_identifier(issue=issue),
+            agent_work_identifier=compose_conversation_identifier(issue=issue),
             finding=UnlistedIssueFinding(),
         )
         for issue in (8, 9)
@@ -1839,7 +1839,7 @@ def test_a_relayed_round_whose_input_cannot_be_read_launches_nothing(
     [row] = observed.rows
     assert isinstance(row.finding, ReadFailureFinding)
     assert row.finding.reason.startswith(
-        f"could not read delivered comments for GH8: {round_input}"
+        f"could not read delivered comments: {round_input}"
     )
     assert observed.launched_agent_work_identifiers == []
     assert harnesses["claude"].calls == []
@@ -1868,7 +1868,7 @@ def test_rediscovery_delivers_comments_posted_while_a_conversation_was_inactive(
 
     assert inactive.rows == [
         conversation_row(
-            agent_work=compose_conversation_identifier(issue=8),
+            agent_work_identifier=compose_conversation_identifier(issue=8),
             finding=UnlistedIssueFinding(),
         )
     ]
@@ -1910,7 +1910,7 @@ def test_removing_conversation_configuration_makes_saved_work_inactive(
     assert observed.rows == [
         conversation_row(
             title="Issue 8",
-            agent_work=compose_conversation_identifier(issue=8),
+            agent_work_identifier=compose_conversation_identifier(issue=8),
             finding=UnlistedIssueFinding(),
         )
     ]
@@ -1967,7 +1967,7 @@ def test_a_failed_comment_listing_prevents_launches(conversation_scheduler):
     assert observed.launched_agent_work_identifiers == []
     [row] = observed.rows
     assert isinstance(row.finding, ReadFailureFinding)
-    assert row.finding.reason.startswith("could not read comments for GH8")
+    assert row.finding.reason.startswith("could not read comments:")
     assert row == conversation_row(finding=row.finding)
 
 
@@ -1987,10 +1987,10 @@ def test_a_failed_delivery_position_read_is_recorded_in_its_row(
     assert observed.failures == []
     [row] = observed.rows
     assert isinstance(row.finding, ReadFailureFinding)
-    assert row.finding.reason.startswith("could not read delivered comments for GH8")
+    assert row.finding.reason.startswith("could not read delivered comments:")
     assert row == conversation_row(
         title="Issue 8",
-        agent_work=compose_conversation_identifier(issue=8),
+        agent_work_identifier=compose_conversation_identifier(issue=8),
         finding=row.finding,
     )
 
@@ -2084,7 +2084,7 @@ def test_a_partial_comment_scan_does_not_launch_or_starve_later_reads(
     assert [row.issue for row in observed.rows] == [8, 9, 10]
     failed_read = observed.rows[1].finding
     assert isinstance(failed_read, ReadFailureFinding)
-    assert failed_read.reason.startswith("could not read comments for GH9")
+    assert failed_read.reason.startswith("could not read comments:")
     assert any("issues/10/comments" in " ".join(call.arguments) for call in gh.calls)
     assert observed.launched_agent_work_identifiers == []
 
@@ -2266,7 +2266,7 @@ def test_an_older_unfinished_batch_precedes_a_fresh_batch_at_another_conversatio
     ]
     assert observed.rows == [
         conversation_row(
-            agent_work="GH8-20260819-184158-conversation",
+            agent_work_identifier="GH8-20260819-184158-conversation",
             finding=IssueCommentsFinding(new_comments=1),
             started_round=StartedRound(number=2),
         ),
@@ -2319,7 +2319,7 @@ def test_an_unrelated_comment_failure_does_not_block_an_unfinished_round(
     assert observed.failures == []
     failed_read = observed.rows[1].finding
     assert isinstance(failed_read, ReadFailureFinding)
-    assert failed_read.reason.startswith("could not read comments for GH9:")
+    assert failed_read.reason.startswith("could not read comments:")
     assert "network unavailable" in failed_read.reason
 
 

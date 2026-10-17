@@ -52,7 +52,7 @@ def compose_agent_work_row(
         title=record.title,
         dispatch_label=record.dispatch_label,
         kind=record.kind,
-        agent_work=work.identifier,
+        agent_work_identifier=work.identifier,
         finding=finding,
     )
 

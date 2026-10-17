@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 from typing import cast
 
+from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.scheduler.models import (
     ConflictingLabelsFinding,
     IssueCommentsFinding,
@@ -45,7 +46,10 @@ class RequestStatusValue(StrEnum):
 
 @dataclass(frozen=True, kw_only=True)
 class RequestReason:
-    """Say one thing that holds a request back, with the numbers that it names."""
+    """Say one thing about why no work has started for a request.
+
+    A reason names the issues or pull requests it refers to as numbers.
+    """
 
     words: str
     issues: tuple[int, ...] = ()
@@ -67,12 +71,14 @@ class RequestStatus:
 
 def describe_request(*, row: RequestRow) -> RequestStatus:
     """Return the status of a request that the tick found no open work for."""
-    value, reasons = _describe_finding(finding=cast("_StartFinding", row.finding))
+    value, reasons = _describe_finding(
+        finding=cast("_StartFinding", row.finding), kind=row.kind
+    )
     return RequestStatus(row=row, value=value, reasons=reasons)
 
 
 def _describe_finding(
-    *, finding: _StartFinding
+    *, finding: _StartFinding, kind: AgentWorkKind
 ) -> tuple[RequestStatusValue, tuple[RequestReason, ...]]:
     """Return the status and reasons that what the tick found gives a request."""
     if isinstance(finding, StartTimeFinding):
@@ -87,7 +93,9 @@ def _describe_finding(
         return RequestStatusValue.IDLE, (RequestReason(words="waiting for a comment"),)
     if isinstance(finding, ConflictingLabelsFinding):
         return RequestStatusValue.ROUTING_CONFLICT, (
-            RequestReason(words=describe_conflicting_labels(labels=finding.labels)),
+            RequestReason(
+                words=describe_conflicting_labels(kind=kind, labels=finding.labels)
+            ),
         )
     return RequestStatusValue.UNKNOWN, (
         RequestReason(words=describe_read_failure(reason=finding.reason)),

@@ -204,9 +204,9 @@ class AgentWorkStatusReader:
         if self.scheduler_record is None:
             return {}
         return {
-            row.agent_work: row
+            row.agent_work_identifier: row
             for row in self.scheduler_record.rows
-            if row.agent_work is not None
+            if row.agent_work_identifier is not None
         }
 
     def derive(self, *, work: AgentWork) -> AgentWorkStatus:
@@ -299,7 +299,9 @@ class AgentWorkStatusReader:
         row = self.rows_by_work.get(work.identifier)
         finding = None if row is None else row.finding
         if isinstance(finding, ConflictingLabelsFinding):
-            detail = describe_conflicting_labels(labels=finding.labels)
+            detail = describe_conflicting_labels(
+                kind=work.record.kind, labels=finding.labels
+            )
         elif isinstance(finding, UnlistedIssueFinding):
             detail = "issue not listed"
         else:

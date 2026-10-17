@@ -280,12 +280,12 @@ def _list_comments_to_answer(
 ) -> list[ConversationComment] | ReadFailureFinding:
     """Return the trusted comments that no round has been given yet.
 
-    A read that fails answers why, naming the issue.
+    A read that fails answers why.
     """
     comment_response = list_issue_comments(repository=repository, issue=issue)
     if isinstance(comment_response, UnknownGitHubResponse):
         return ReadFailureFinding(
-            reason=f"could not read comments for GH{issue}: {comment_response.reason}"
+            reason=f"could not read comments: {comment_response.reason}"
         )
     try:
         delivery_position = (
@@ -295,7 +295,7 @@ def _list_comments_to_answer(
         )
     except ReportableError as failure:
         return ReadFailureFinding(
-            reason=f"could not read delivered comments for GH{issue}: {failure}"
+            reason=f"could not read delivered comments: {failure}"
         )
     return list_undelivered_issue_comments(
         comments=comment_response,

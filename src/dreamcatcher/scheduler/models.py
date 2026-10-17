@@ -110,7 +110,7 @@ class RequestRow(DreamcatcherDocument):
     title: str
     dispatch_label: str
     kind: AgentWorkKind
-    agent_work: str | None = None
+    agent_work_identifier: str | None = None
     finding: RequestFinding | None = None
     started_round: StartedRound | None = None
 
@@ -156,9 +156,9 @@ class SchedulerRecord(DreamcatcherDocument):
     def started_rounds(self) -> dict[str, StartedRound]:
         """The round the tick started for each piece of work, by work identifier."""
         return {
-            row.agent_work: row.started_round
+            row.agent_work_identifier: row.started_round
             for row in self.rows
-            if row.agent_work is not None and row.started_round is not None
+            if row.agent_work_identifier is not None and row.started_round is not None
         }
 
     @property

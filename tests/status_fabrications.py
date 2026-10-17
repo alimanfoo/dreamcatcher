@@ -66,7 +66,7 @@ def _assignment_row(
     """Return the row of the assignment that the fabrications write at the issue."""
     return request_row(
         issue=issue,
-        agent_work=f"GH{issue}-{ASSIGNMENT_TIMESTAMP}-assignment",
+        agent_work_identifier=f"GH{issue}-{ASSIGNMENT_TIMESTAMP}-assignment",
         finding=finding,
         started_round=started_round,
     )
@@ -88,7 +88,7 @@ def conversation_row(*, finding: RequestFinding, issue: int = 8) -> RequestRow:
     return request_row(
         issue=issue,
         kind=AgentWorkKind.CONVERSATION,
-        agent_work=compose_conversation_identifier(issue=issue),
+        agent_work_identifier=compose_conversation_identifier(issue=issue),
         finding=finding,
     )
 

@@ -163,7 +163,7 @@ def observe(
                 request_row(
                     issue=8,
                     kind=AgentWorkKind.CONVERSATION,
-                    agent_work=compose_conversation_identifier(issue=8),
+                    agent_work_identifier=compose_conversation_identifier(issue=8),
                     finding=finding,
                     started_round=started_round,
                 )
@@ -625,7 +625,7 @@ def test_a_conversation_with_two_conversation_labels_is_idle_saying_so(
     found = status(state=conversation_state)
 
     assert found.value is AgentWorkStatusValue.IDLE
-    assert found.detail == "conflicting labels discuss, scout"
+    assert found.detail == "multiple conversation labels: discuss, scout"
 
 
 def test_an_unobserved_issue_with_no_record_has_no_conversation(conversation_state):

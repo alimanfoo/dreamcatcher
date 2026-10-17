@@ -1534,8 +1534,8 @@ def test_issue_and_pull_request_numbers_link_to_github_with_hash_notation(tmp_pa
         f"{github_attributes}>#61</a>; blocked by" in page
     )
     assert (
-        '<span class="chip status-routing-conflict">conflicting labels '
-        "dream:less, dream:smith</span>" in page
+        '<span class="chip status-routing-conflict">multiple assignment '
+        "labels: dream:less, dream:smith</span>" in page
     )
 
 

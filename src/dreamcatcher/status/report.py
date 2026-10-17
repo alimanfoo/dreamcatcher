@@ -280,7 +280,7 @@ def read_status_report(
         else [
             describe_request(row=row)
             for row in scheduler_record.rows
-            if row.agent_work is None
+            if row.agent_work_identifier is None
         ]
     )
     return DreamcatcherStatusReport(

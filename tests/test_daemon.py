@@ -256,7 +256,7 @@ def test_a_successful_scheduler_tick_is_recorded_and_reported(
         rows=[
             request_row(
                 issue=13,
-                agent_work=ASSIGNMENT_ID,
+                agent_work_identifier=ASSIGNMENT_ID,
                 started_round=StartedRound(number=1),
             )
         ],
@@ -272,9 +272,9 @@ def test_a_successful_scheduler_tick_is_recorded_and_reported(
 
     assert recorded(daemon=daemon) == scheduler_record
     written_record = daemon.state.scheduler_record.read_text(encoding="utf-8")
-    assert [row["agent_work"] for row in json.loads(written_record)["rows"]] == [
-        ASSIGNMENT_ID
-    ]
+    assert [
+        row["agent_work_identifier"] for row in json.loads(written_record)["rows"]
+    ] == [ASSIGNMENT_ID]
     assert (
         capsys.readouterr().out
         == f"2026-08-20 02:41:58  launched round for {ASSIGNMENT_ID}\n"
@@ -289,13 +289,13 @@ def test_multiple_launches_are_recorded_and_reported(watched, capsys, monkeypatc
         rows=[
             request_row(
                 issue=13,
-                agent_work=ASSIGNMENT_ID,
+                agent_work_identifier=ASSIGNMENT_ID,
                 started_round=StartedRound(number=1),
             ),
             request_row(
                 issue=8,
                 kind=AgentWorkKind.CONVERSATION,
-                agent_work="GH8-20260819-184158-conversation",
+                agent_work_identifier="GH8-20260819-184158-conversation",
                 started_round=StartedRound(number=1),
             ),
         ],
@@ -322,7 +322,7 @@ def test_a_round_that_errored_before_its_harness_ran_is_reported_from_its_row(
         rows=[
             request_row(
                 issue=13,
-                agent_work=ASSIGNMENT_ID,
+                agent_work_identifier=ASSIGNMENT_ID,
                 started_round=StartedRound(
                     number=1, preparation_failure="git push failed\nhook refused"
                 ),

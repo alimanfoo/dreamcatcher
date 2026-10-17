@@ -22,7 +22,7 @@ def request_row(
     kind: AgentWorkKind = AgentWorkKind.ASSIGNMENT,
     title: str | None = None,
     label: str | None = None,
-    agent_work: str | None = None,
+    agent_work_identifier: str | None = None,
     finding: RequestFinding | None = None,
     started_round: StartedRound | None = None,
 ) -> RequestRow:
@@ -42,7 +42,7 @@ def request_row(
             else CONVERSATION_LABEL
         ),
         kind=kind,
-        agent_work=agent_work,
+        agent_work_identifier=agent_work_identifier,
         finding=finding,
         started_round=started_round,
     )
