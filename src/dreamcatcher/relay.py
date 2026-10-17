@@ -9,7 +9,7 @@ marker.
 from dataclasses import dataclass
 
 from dreamcatcher.agent_assignments import (
-    is_check_failure_relay_spent,
+    is_check_failure_withheld,
     read_signal_relay_head,
 )
 from dreamcatcher.agent_work import AgentWork
@@ -40,7 +40,7 @@ def find_pull_request_signals(
 
     Only an open pull request that is ready for review raises one, because a
     draft means that the agent has not finished. A check failure that the relay
-    rule declines is withheld rather than new.
+    rule withholds is not new.
     """
     if pull_request.state is not PullRequestState.OPEN or pull_request.is_draft:
         return PullRequestSignals(new_signals=[], is_check_failure_withheld=False)
@@ -57,15 +57,12 @@ def find_pull_request_signals(
         and read_signal_relay_head(assignment=assignment, signal=signal)
         != pull_request.head
     ]
-    is_check_failure_withheld = (
-        PullRequestSignal.CHECK_FAILURE in raised
-        and is_check_failure_relay_spent(assignment=assignment)
+    is_withheld = PullRequestSignal.CHECK_FAILURE in raised and (
+        is_check_failure_withheld(assignment=assignment)
     )
-    if is_check_failure_withheld:
+    if is_withheld:
         raised.remove(PullRequestSignal.CHECK_FAILURE)
-    return PullRequestSignals(
-        new_signals=raised, is_check_failure_withheld=is_check_failure_withheld
-    )
+    return PullRequestSignals(new_signals=raised, is_check_failure_withheld=is_withheld)
 
 
 def list_undelivered_user_posts(

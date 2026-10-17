@@ -1613,22 +1613,22 @@ def test_an_inactive_cooldown_is_not_shown(tmp_path):
     assert "global cooldown" not in page
 
 
-def test_pull_request_state_remains_without_a_repository_record(tmp_path):
+def test_pull_request_summary_remains_without_a_repository_record(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_titles_and_pull_request_states(state=state)
     state.repository.unlink()
 
     page = render_home(state=state)
 
-    for pull_request_state in (
+    for pull_request_summary in (
         "draft",
-        "ready, checks passing",
+        "ready",
         "merged",
         "closed",
         "ready, out of date, checks running",
         "ready, checks failing",
     ):
-        assert f'<span class="pr-chip">PR #52 {pull_request_state}</span>' in page
+        assert f'<span class="pr-chip">PR #52 {pull_request_summary}</span>' in page
 
 
 def test_a_record_that_will_not_read_renders_an_error_page(tmp_path):

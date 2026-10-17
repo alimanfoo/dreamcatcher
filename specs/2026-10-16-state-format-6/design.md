@@ -122,9 +122,9 @@ That is a **check-failure** signal at head C, which the cursor has never seen.
 Round four is woken for it, with the prompt saying the checks failed; the agent
 fixes the test and pushes head D. Had D come back red too, round five would have
 been woken for it in the same way, and had the agent's next head come back red
-as well, the relay rule, described below, would have declined to wake the agent
-a third time: the row would say idle, "checks failing after two attempts", and
-the next thing to wake the assignment would be a post from you.
+as well, the relay rule, described below, would have withheld it rather than
+wake the agent a third time: the row would say idle, "checks failing after two
+attempts", and the next thing to wake the assignment would be a post from you.
 
 D is green. You merge. Next tick, reading the pull request says it is merged,
 and the cursor says no round has yet been given a merged or closed state. That
@@ -431,13 +431,14 @@ and `DIRTY` only, and a merged pull request reports `UNKNOWN`, which the
 final-turn signal never asks about.
 
 The **relay rule** is what stops an agent that keeps pushing red. A check
-failure is not relayed when the last two rounds whose input is behind the cursor
+failure is withheld when the last two rounds whose input is behind the cursor
 both relayed a check failure, so an errored or interrupted round does not count,
 since its input is given again. A round that relayed no check failure, such as
-one woken by a user post alone, breaks the run. So the agent gets two attempts
-at a red build on its own, and then waits for you. The row says why, and a post
-from you wakes it again. This is a rule about what to relay, not a new kind of
-failure, so faults, retries and the global cooldown are untouched by it.
+one woken by a user post alone, starts the count again. So the agent gets two
+attempts at a red build on its own, and then waits for you. The row says why,
+and a post from you wakes it again. This is a rule about what to relay, not a
+new kind of failure, so faults, retries and the global cooldown are untouched by
+it.
 
 ## Faults
 

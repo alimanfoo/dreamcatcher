@@ -131,7 +131,7 @@ assignment round's input holds the pull request state and head commit, the
 out-of-date and check-failure signals raised at a head not yet relayed, and the
 user posts after the delivery position, and a conversation round's input holds
 the comments after it. The delivery position, the head at which each signal was
-last relayed, whether the relay rule declines a check-failure, and whether the
+last relayed, whether the relay rule withholds a check-failure, and whether the
 final turn has been taken are read from the inputs of the rounds that did not
 error or get interrupted, so a round that did not finish has its input given
 again. Existing work with something new to relay, or whose last round errored or
@@ -224,7 +224,7 @@ of an agent assignment. It should provide cohesive operations to:
 - name the assignment's branch from its identifier;
 - read its pull request number;
 - read the user-post delivery position, the pull request state last relayed, the
-  head at which each signal was last relayed, whether the relay rule is spent,
+  head at which each signal was last relayed, whether the relay rule withholds,
   and whether the final turn has been taken, from recorded round inputs;
 - complete an assignment as its wrap-up round finishes; and
 - cancel an assignment.
@@ -338,15 +338,16 @@ comparing normalized user posts from the GitHub boundary with the assignment's
 delivery position, read from the newest recorded round input that contains
 posts. It raises the out-of-date and check-failure signals of a pull request
 that is open and ready for review, each at a head commit at which no recorded
-round input relayed it, and withholds a check-failure that the relay rule
-declines.
+round input relayed it, and leaves out a check-failure that the relay rule
+withholds.
 
 Relay does not define a separate inbox domain entity and does not decide when a
-round should run. The scheduler determines whether unrelayed posts or signals
-require work; the relay selects them, the scheduler places them in the round's
-input, and the round input records the posts and signals accepted for delivery,
-with the head they were raised at, before its process starts. Posts made while a
-round is running remain beyond that position and are available to a later round.
+round should run. The scheduler determines whether unrelayed posts or other
+signals require work; the relay selects them, the scheduler places them in the
+round's input, and the round input records the posts and other signals accepted
+for delivery, with the head they were raised at, before its process starts.
+Posts made while a round is running remain beyond that position and are
+available to a later round.
 
 ### Harness adapters
 

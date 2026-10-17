@@ -193,7 +193,7 @@ Delivers the two new reasons an assignment takes a turn.
 - The tick raises out-of-date for a ready pull request whose merge state is
   `BEHIND` or `DIRTY` at a head not yet relayed, and check-failure for a ready
   pull request with a finished check that failed at a head not yet relayed. It
-  declines a check failure when the last two rounds whose input is behind the
+  withholds a check failure when the last two rounds whose input is behind the
   cursor both relayed one.
 - The prompt gains one prefix line for each signal.
 - The views show the merge state and check result beside draft or ready, with

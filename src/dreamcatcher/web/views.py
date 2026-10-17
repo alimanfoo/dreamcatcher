@@ -106,7 +106,7 @@ def _compose_work_card(*, status: AgentWorkStatus) -> WebAgentWorkCard:
         model=record.model,
         effort=record.effort,
         pull_request=status.pull_request,
-        pull_request_state=status.pull_request_state,
+        pull_request_summary=status.pull_request_summary,
         latest_output=status.latest_output,
     )
 
@@ -154,7 +154,7 @@ def compose_assignment_view(
         issue=record.issue,
         title=record.title,
         pull_request=status.pull_request,
-        pull_request_state=status.pull_request_state,
+        pull_request_summary=status.pull_request_summary,
         dispatch_label=record.dispatch_label,
         harness=str(record.harness),
         model=record.model,

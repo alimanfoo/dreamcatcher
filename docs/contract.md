@@ -124,9 +124,9 @@ names the input:
   agent to read the checks' output, fix the cause, and push.
 
 Each is relayed once for each head commit, so an agent that pushes nothing is
-not woken again for the same one. After two consecutive rounds relayed a check
-failure, _dreamcatcher_ relays no further one until another round breaks the
-run, such as one woken by a user post. A draft raises neither.
+not woken again for the same one. After two rounds in a row relayed a check
+failure, _dreamcatcher_ withholds the next one until a round relays something
+else, such as a user post. A draft raises neither.
 
 An assignment skill needs nothing of its own for this. The prompt's lines carry
 the instructions, and a skill may ignore `pull_request_head` and `signals`. The

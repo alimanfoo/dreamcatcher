@@ -517,8 +517,12 @@ def pull_request_row_holding(**facts: object) -> RequestRow:
 @pytest.mark.parametrize(
     ("facts", "words"),
     [
-        ({"is_draft": True}, "draft, checks passing"),
+        ({"is_draft": True}, "draft"),
         ({"check_result": CheckResult.NONE}, "ready"),
+        (
+            {"is_draft": True, "check_result": CheckResult.RUNNING},
+            "draft, checks running",
+        ),
         (
             {
                 "merge_state": PullRequestMergeState.BEHIND,
@@ -541,7 +545,7 @@ def test_an_open_assignment_reports_where_the_tick_found_its_pull_request(
     ran(state=state, number=1)
     tick_with(state=state, rows=[pull_request_row_holding(**facts)])
 
-    assert only_assignment(state=state).pull_request_state == words
+    assert only_assignment(state=state).pull_request_summary == words
 
 
 @pytest.mark.parametrize(
@@ -625,22 +629,22 @@ def test_a_round_says_which_signals_woke_it(state, signals, posts, trigger):
     assert round_status.trigger_description == trigger
 
 
-def test_an_assignment_the_tick_read_nothing_for_reports_no_pull_request_state(state):
+def test_an_assignment_the_tick_read_nothing_for_reports_no_pull_request_summary(state):
     ran(state=state, number=1, status=None)
     tick_with(
         state=state, rows=[request_row(issue=13, agent_work_identifier=ASSIGNMENT_ID)]
     )
 
-    assert only_assignment(state=state).pull_request_state is None
+    assert only_assignment(state=state).pull_request_summary is None
 
 
-def test_a_cancelled_assignment_stops_reporting_its_pull_request_state(state):
+def test_a_cancelled_assignment_stops_reporting_its_pull_request_summary(state):
     ran(state=state, number=1)
     tick_with(state=state, rows=[pull_request_row(is_draft=True)])
 
     cancel(state=state)
 
-    assert only_assignment(state=state).pull_request_state is None
+    assert only_assignment(state=state).pull_request_summary is None
 
 
 @pytest.mark.parametrize("status", [0, None])
@@ -653,7 +657,7 @@ def test_a_wrapped_up_assignment_reports_the_state_its_last_round_was_given(
         state=state, rows=[request_row(issue=13, agent_work_identifier=ASSIGNMENT_ID)]
     )
 
-    assert only_assignment(state=state).pull_request_state == "merged"
+    assert only_assignment(state=state).pull_request_summary == "merged"
 
 
 def test_an_assignment_that_has_run_no_round_waits_for_its_first(state):

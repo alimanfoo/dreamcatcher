@@ -119,7 +119,7 @@ class AgentWorkStatus:
         return read_assignment_pull_request_number(assignment=self.work)
 
     @property
-    def pull_request_state(self) -> str | None:
+    def pull_request_summary(self) -> str | None:
         """Where the pull request stands in status-report words, when it is known.
 
         The latest tick's read of an open assignment's pull request gives it.

@@ -252,9 +252,9 @@ def _describe_pull_request(*, status: AgentWorkStatus) -> str:
     """Return the pull request's number and where it stands, when that is known."""
     if status.pull_request is None:
         return "none yet"
-    if status.pull_request_state is None:
+    if status.pull_request_summary is None:
         return f"#{status.pull_request}"
-    return f"#{status.pull_request} {status.pull_request_state}"
+    return f"#{status.pull_request} {status.pull_request_summary}"
 
 
 def _render_round_statuses(

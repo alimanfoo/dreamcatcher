@@ -44,15 +44,15 @@ def describe_signal(*, signal: PullRequestSignal) -> str:
 def describe_pull_request(*, finding: PullRequestFinding) -> str:
     """Say where a pull request stands.
 
-    An open one is draft or ready, followed by whether it is out of date and what
-    its checks add up to. Any other names its state alone.
+    An open one is draft or ready, followed by whether it is out of date and
+    whether its checks are running or failing. Any other names its state alone.
     """
     if finding.state is not PullRequestState.OPEN:
         return finding.state.lower()
     words = ["draft" if finding.is_draft else "ready"]
     if finding.merge_state.is_out_of_date:
         words.append("out of date")
-    if finding.check_result is not CheckResult.NONE:
+    if finding.check_result in {CheckResult.RUNNING, CheckResult.FAILING}:
         words.append(f"checks {finding.check_result}")
     return ", ".join(words)
 

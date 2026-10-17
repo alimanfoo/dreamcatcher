@@ -37,7 +37,7 @@ _UtcDateTime = Annotated[AwareDatetime, AfterValidator(_normalize_utc)]
 class PullRequestFinding(DreamcatcherDocument):
     """Hold what the tick read of an open assignment's pull request.
 
-    A withheld check failure is one that the relay rule declined to relay.
+    A withheld check failure is one that the relay rule kept from the agent.
     """
 
     found: Literal["pull request"] = "pull request"
