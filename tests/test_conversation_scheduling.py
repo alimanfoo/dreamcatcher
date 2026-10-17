@@ -2115,7 +2115,9 @@ def test_a_conversation_failure_remains_visible_when_an_assignment_launches(
     assert failure.startswith("could not list issues for dream:conversation")
 
 
-def test_a_failed_comment_listing_prevents_launches(conversation_scheduler):
+def test_a_failed_comment_read_records_its_reason_and_starts_nothing(
+    conversation_scheduler,
+):
     scheduler, clock, gh = conversation_scheduler
     offer_conversation(gh=gh, comments=[])
     gh.fails(stderr="network unavailable", to=COMMENT_PATH)
@@ -2384,7 +2386,7 @@ def test_new_conversations_start_in_listing_order(conversation_scheduler, harnes
     ]
 
 
-def test_an_older_unfinished_batch_precedes_a_fresh_batch_at_another_conversation(
+def test_an_open_conversation_starts_before_a_new_one(
     conversation_scheduler, harnesses
 ):
     scheduler, clock, gh = conversation_scheduler
