@@ -608,6 +608,12 @@ dropped because the brief says a conversation resumes where it left off.
    Which ones, for Claude and for Codex, is for the build.
 3. Issues #550, #551 and #425 need amending to match the brief and this design,
    and #455, #393 and #457 should close in favour of them.
-4. How `statusCheckRollup` entries map to "a finished check has failed", and
-   whether an errored round counts towards the two-round relay limit. Both are
-   for the build.
+4. Whether an errored round counts towards the two-round relay limit is for the
+   build. How `gh pr view --json statusCheckRollup` reports checks was checked
+   on this repository: each entry is a `CheckRun` with a `status` of `COMPLETED`
+   or `IN_PROGRESS` and a `conclusion` that is `SUCCESS` when done and empty
+   while running, or an older status context reporting a `state`. A finished
+   check has failed when its status is completed and its conclusion is anything
+   but success, neutral or skipped. While required checks run the merge state is
+   `BLOCKED`, so "out of date" tests for `BEHIND` and `DIRTY` only, and a merged
+   pull request reports `UNKNOWN`.
