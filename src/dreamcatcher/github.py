@@ -171,8 +171,8 @@ class BlockingIssue(GitHubResponseProjection):
         return str(value).upper()
 
 
-class LinkedPullRequest(GitHubResponseProjection):
-    """Model a pull request that GitHub links to an issue."""
+class PullRequestReference(GitHubResponseProjection):
+    """Model a pull request known only by its number."""
 
     number: int
 
@@ -187,7 +187,7 @@ class IssuePullRequestContext(GitHubResponseProjection):
     """
 
     issue: int = Field(alias="number")
-    pull_requests: list[LinkedPullRequest] = Field(
+    pull_requests: list[PullRequestReference] = Field(
         alias="closedByPullRequestsReferences"
     )
 
@@ -306,7 +306,10 @@ _GITHUB_ACCOUNT_RESPONSE_ADAPTER = TypeAdapter(GitHubUserAccount)
 _GITHUB_LABEL_PAGES_ADAPTER = TypeAdapter(list[list[GitHubLabel]])
 _GITHUB_ISSUE_LIST_RESPONSE_ADAPTER = TypeAdapter(list[Issue])
 _GITHUB_ISSUE_RESPONSE_ADAPTER = TypeAdapter(Issue)
-_GITHUB_PULL_REQUEST_LIST_RESPONSE_ADAPTER = TypeAdapter(list[PullRequest])
+_GITHUB_PULL_REQUEST_REFERENCE_LIST_RESPONSE_ADAPTER = TypeAdapter(
+    list[PullRequestReference]
+)
+_GITHUB_PULL_REQUEST_REFERENCE_RESPONSE_ADAPTER = TypeAdapter(PullRequestReference)
 _GITHUB_PULL_REQUEST_RESPONSE_ADAPTER = TypeAdapter(PullRequest)
 _GITHUB_BLOCKING_ISSUE_LIST_RESPONSE_ADAPTER = TypeAdapter(list[list[BlockingIssue]])
 _GITHUB_ISSUE_PULL_REQUEST_CONTEXT_RESPONSE_ADAPTER = TypeAdapter(
@@ -472,14 +475,14 @@ def read_issue(*, repository: str, issue: int) -> Issue | UnknownGitHubResponse:
 
 def list_pull_requests(
     *, repository: str, branch: str
-) -> list[PullRequest] | UnknownGitHubResponse:
+) -> list[PullRequestReference] | UnknownGitHubResponse:
     """Return pull requests whose head is the branch, within gh's result limit.
 
     A branch usually has one, and an empty list means it has none. Which of
     several counts is the caller's rule, not this read's.
     """
     return _read_github_response(
-        response_adapter=_GITHUB_PULL_REQUEST_LIST_RESPONSE_ADAPTER,
+        response_adapter=_GITHUB_PULL_REQUEST_REFERENCE_LIST_RESPONSE_ADAPTER,
         arguments=[
             "pr",
             "list",
@@ -490,14 +493,14 @@ def list_pull_requests(
             "--state",
             "all",
             "--json",
-            "number,state,isDraft",
+            "number",
         ],
     )
 
 
 def create_pull_request(
     *, repository: str, branch: str, issue: int, title: str
-) -> PullRequest | UnknownGitHubResponse:
+) -> PullRequestReference | UnknownGitHubResponse:
     """Open the branch's draft pull request, linked to the issue, and return it.
 
     An unknown response means that creation succeeded but the pull request's
@@ -521,7 +524,10 @@ def create_pull_request(
             f"Closes #{issue}",
         ],
     ).strip()
-    pull_request = _read_pull_request(repository=repository, reference=reference)
+    pull_request = _read_github_response(
+        response_adapter=_GITHUB_PULL_REQUEST_REFERENCE_RESPONSE_ADAPTER,
+        arguments=["pr", "view", reference, "--repo", repository, "--json", "number"],
+    )
     if isinstance(pull_request, UnknownGitHubResponse):
         return UnknownGitHubResponse(
             reason=f"created the pull request for {branch} but cannot read it: "
@@ -534,19 +540,12 @@ def read_pull_request(
     *, repository: str, pull_request: int
 ) -> PullRequest | UnknownGitHubResponse:
     """Return the pull request with this persisted identity."""
-    return _read_pull_request(repository=repository, reference=str(pull_request))
-
-
-def _read_pull_request(
-    *, repository: str, reference: str
-) -> PullRequest | UnknownGitHubResponse:
-    """Return one pull request named by a number or URL."""
     return _read_github_response(
         response_adapter=_GITHUB_PULL_REQUEST_RESPONSE_ADAPTER,
         arguments=[
             "pr",
             "view",
-            reference,
+            str(pull_request),
             "--repo",
             repository,
             "--json",

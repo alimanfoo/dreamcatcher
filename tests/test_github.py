@@ -14,8 +14,8 @@ from dreamcatcher.github import (
     Issue,
     IssuePullRequestContext,
     IssueState,
-    LinkedPullRequest,
     PullRequest,
+    PullRequestReference,
     PullRequestReview,
     PullRequestReviewVerdict,
     PullRequestState,
@@ -258,7 +258,7 @@ def test_an_issue_comment_is_posted_as_one_body(fake):
     }
 
 
-def test_the_pull_requests_of_a_branch_come_back_with_their_states(fake):
+def test_the_pull_requests_of_a_branch_come_back_by_number(fake):
     gh = fake(program="gh")
     gh.replies(
         stdout=json.dumps(
@@ -270,8 +270,8 @@ def test_the_pull_requests_of_a_branch_come_back_with_their_states(fake):
     )
 
     assert list_pull_requests(repository=REPOSITORY, branch=BRANCH) == [
-        PullRequest(number=28, state=PullRequestState.OPEN, isDraft=True),
-        PullRequest(number=25, state=PullRequestState.MERGED, isDraft=False),
+        PullRequestReference(number=28),
+        PullRequestReference(number=25),
     ]
     assert gh.calls[0].arguments == [
         "pr",
@@ -283,7 +283,7 @@ def test_the_pull_requests_of_a_branch_come_back_with_their_states(fake):
         "--state",
         "all",
         "--json",
-        "number,state,isDraft",
+        "number",
     ]
 
 
@@ -313,16 +313,13 @@ def test_a_linked_draft_pull_request_is_opened_for_the_assignment_branch(fake):
     gh.replies(
         stdout="https://github.com/alimanfoo/dreamcatcher/pull/28\n", to="pr create"
     )
-    gh.replies(
-        stdout=json.dumps({"number": 28, "state": "OPEN", "isDraft": True}),
-        to="pr view",
-    )
+    gh.replies(stdout=json.dumps({"number": 28}), to="pr view")
 
     created = create_pull_request(
         repository=REPOSITORY, branch=BRANCH, issue=8, title="Use the issue title"
     )
 
-    assert created == PullRequest(number=28, state=PullRequestState.OPEN, isDraft=True)
+    assert created == PullRequestReference(number=28)
     assert gh.calls[0].arguments == [
         "pr",
         "create",
@@ -345,7 +342,7 @@ def test_a_linked_draft_pull_request_is_opened_for_the_assignment_branch(fake):
         "--repo",
         REPOSITORY,
         "--json",
-        "number,state,isDraft",
+        "number",
     ]
 
 
@@ -388,7 +385,7 @@ def test_an_issue_answers_with_its_open_linked_pull_requests(fake):
         repository=REPOSITORY, issue=8
     ) == IssuePullRequestContext(
         issue=8,
-        pull_requests=[LinkedPullRequest(number=28)],
+        pull_requests=[PullRequestReference(number=28)],
     )
     assert gh.calls[0].arguments == [
         "issue",
