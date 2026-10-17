@@ -51,7 +51,7 @@ def inspect_open_assignment(
     """
     unread = compose_agent_work_row(work=assignment, finding=None)
     if is_fault:
-        return Inspection(row=unread, is_fault=True)
+        return Inspection(row=unread, is_counted_fault=True)
     observation = read_pull_request_observation(assignment=assignment)
     if observation is None:
         return Inspection(

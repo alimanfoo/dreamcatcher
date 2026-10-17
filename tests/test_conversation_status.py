@@ -282,7 +282,7 @@ def test_a_paused_conversation_is_idle_with_its_cause_and_stays_on_the_report(
     report = read_status_report(state=conversation_state, clock=lambda: LOOKED_AT)
 
     assert found.value is AgentWorkStatusValue.IDLE
-    assert found.detail == f"paused: {cause}"
+    assert found.detail == f"paused, {cause}"
     assert report.list_active_work_statuses(kind=AgentWorkKind.CONVERSATION) == [found]
 
 
@@ -458,7 +458,7 @@ def test_a_retry_clears_a_conversation_fault(conversation_state):
     found = status(state=conversation_state)
 
     assert found.value is AgentWorkStatusValue.IDLE
-    assert found.detail == "paused: label removed"
+    assert found.detail == "paused, label removed"
 
 
 @pytest.mark.parametrize(
@@ -516,7 +516,7 @@ def test_a_conversation_with_two_conversation_labels_is_paused_saying_so(
     found = status(state=conversation_state)
 
     assert found.value is AgentWorkStatusValue.IDLE
-    assert found.detail == "paused: multiple conversation labels: discuss, scout"
+    assert found.detail == "paused, multiple conversation labels: discuss, scout"
 
 
 def test_an_errored_round_of_a_paused_conversation_does_not_wait(
@@ -528,7 +528,7 @@ def test_an_errored_round_of_a_paused_conversation_does_not_wait(
     found = status(state=conversation_state)
 
     assert found.value is AgentWorkStatusValue.IDLE
-    assert found.detail == "paused: label removed"
+    assert found.detail == "paused, label removed"
 
 
 def test_a_round_that_needed_no_reply_says_so(conversation_state):

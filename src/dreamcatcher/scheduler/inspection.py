@@ -62,12 +62,13 @@ class Candidate:
 class Inspection:
     """Hold the row the tick writes for one request, and what it may start for it.
 
-    The work is in fault when its fault counts towards a global cooldown.
+    A counted fault is work in fault whose fault counts towards a global
+    cooldown.
     """
 
     row: RequestRow
     candidate: Candidate | None = None
-    is_fault: bool = False
+    is_counted_fault: bool = False
 
 
 class RequestInspector[RouteT: DispatchRoute](Protocol):

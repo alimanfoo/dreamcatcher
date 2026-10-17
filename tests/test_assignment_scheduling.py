@@ -193,7 +193,7 @@ def test_an_assignment_in_fault_reads_nothing_and_counts_its_fault(tmp_path):
 
     assert inspected.candidate is None
     assert inspected.row.finding is None
-    assert inspected.is_fault
+    assert inspected.is_counted_fault
 
 
 def test_an_assignment_whose_last_round_was_interrupted_is_given_its_input_again(

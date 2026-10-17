@@ -633,7 +633,7 @@ def test_conversation_tail_adds_a_later_round_without_repeating_the_first(tmp_pa
     assert response.status_code == 200
     assert "I found the answer." not in response.text
     assert 'id="agent-work-detail"' in response.text
-    assert "paused: label removed" in response.text
+    assert "paused, label removed" in response.text
     assert response.text.count("round 2: 1 comment") == 1
     assert response.text.count("code revision abc123 -&gt; def456") == 1
     assert response.text.count("I found the follow-up answer.") == 1

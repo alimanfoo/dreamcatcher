@@ -79,8 +79,8 @@ One scheduler tick:
 3. inspects each piece of open work's channel: an assignment's pull request and
    user posts, or a conversation's issue and then its comments, ending the
    conversation if the issue is closed;
-4. for each request with no open work, checks for a routing conflict, and for an
-   assignment label for an open assignment at the issue, then asks the
+4. for each request with no open work, skips an assignment label whose issue
+   already has an open assignment, checks for a routing conflict, then asks the
    start-time questions or reads the comments;
 5. starts a global cooldown when the counted faults call for one, and launches
    nothing while a cooldown is active;

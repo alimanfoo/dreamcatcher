@@ -2047,6 +2047,34 @@ def test_an_open_conversation_carries_on_when_its_route_is_removed(
     ]
 
 
+def test_a_conversation_whose_route_is_removed_still_pauses_for_a_second_label(
+    conversation_scheduler, harnesses
+):
+    scheduler, _, gh = conversation_scheduler
+    configure(root=scheduler.context.state.root, head=SECOND_CONVERSATION_CONFIG)
+    set_scheduler_config(
+        scheduler=scheduler,
+        config=read_dreamcatcher_config(root=scheduler.context.state.root),
+    )
+    write_conversation(state=scheduler.context.state, issue=8)
+    labels = ("dream:conversation", "dream:scout")
+    offer_conversation(gh=gh, comments=[ask()], label="dream:scout")
+    show_conversation_issue(gh=gh, issue=conversation_issue(labels=labels))
+    answer(harnesses=harnesses)
+
+    observed = scheduler.tick(at=PINNED + timedelta(hours=1))
+    finish(scheduler=scheduler)
+
+    assert observed.rows[0] == conversation_row(
+        title="Issue 8",
+        agent_work_identifier=compose_conversation_identifier(issue=8),
+        finding=ConflictingLabelsFinding(labels=list(labels)),
+    )
+    assert observed.launched_agent_work_identifiers == [
+        observed.rows[1].agent_work_identifier
+    ]
+
+
 def test_no_conversation_routes_still_read_saved_conversations(conversation_scheduler):
     scheduler, clock, _ = conversation_scheduler
     directory = write_conversation(state=scheduler.context.state, issue=8)

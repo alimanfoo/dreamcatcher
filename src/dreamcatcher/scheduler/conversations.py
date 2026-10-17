@@ -40,11 +40,10 @@ from dreamcatcher.scheduler.models import (
 def inspect_open_conversation(
     *, context: SchedulingContext, conversation: AgentWork, is_fault: bool
 ) -> Inspection:
-    """Read an open conversation's issue, then its comments unless it rests.
+    """Read an open conversation's issue, then its comments unless paused or in fault.
 
     A closed issue ends the conversation. A paused conversation's fault does
-    not count, since it starts no round however its rounds ended, and one in
-    fault reads no comments.
+    not count, since it starts no round however its rounds ended.
     """
     unread = compose_agent_work_row(work=conversation, finding=None)
     issue = read_issue(repository=context.repository, issue=conversation.record.issue)
@@ -53,7 +52,7 @@ def inspect_open_conversation(
             row=compose_agent_work_row(
                 work=conversation, finding=ReadFailureFinding(reason=issue.reason)
             ),
-            is_fault=is_fault,
+            is_counted_fault=is_fault,
         )
     if issue.state is IssueState.CLOSED:
         end_agent_work(
@@ -66,7 +65,7 @@ def inspect_open_conversation(
     if pause is not None:
         return Inspection(row=compose_agent_work_row(work=conversation, finding=pause))
     if is_fault:
-        return Inspection(row=unread, is_fault=True)
+        return Inspection(row=unread, is_counted_fault=True)
     return _inspect_comments(
         context=context, issue=issue, work=conversation, row=unread
     )
@@ -75,10 +74,11 @@ def inspect_open_conversation(
 def _find_pause(
     *, context: SchedulingContext, conversation: AgentWork, issue: Issue
 ) -> PausedFinding | ConflictingLabelsFinding | None:
-    """Return why the open conversation at this open issue rests, if it does.
+    """Return why the open conversation at this open issue is paused, if it is.
 
-    A second conversation label on the issue is a routing conflict, held as the
-    labels.
+    A second configured conversation label on the issue is a routing conflict,
+    held as the labels. The conversation's own label counts whether or not its
+    route is still configured.
     """
     labels = [label.name for label in issue.labels]
     label = conversation.record.dispatch_label.casefold()
@@ -87,9 +87,17 @@ def _find_pause(
     account = context.account.casefold()
     if account not in {assignee.login.casefold() for assignee in issue.assignees}:
         return PausedFinding(cause=PauseCause.ISSUE_UNASSIGNED)
-    routes = context.config.identify_conversation_routes(labels=labels)
-    if len(routes) > 1:
-        return ConflictingLabelsFinding(labels=[route.label for route in routes])
+    others = [
+        route.label
+        for route in context.config.identify_conversation_routes(labels=labels)
+        if route.label.casefold() != label
+    ]
+    if others:
+        return ConflictingLabelsFinding(
+            labels=sorted(
+                [conversation.record.dispatch_label, *others], key=str.casefold
+            )
+        )
     return None
 
 

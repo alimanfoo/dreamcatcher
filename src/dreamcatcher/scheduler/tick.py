@@ -116,7 +116,7 @@ class Scheduler:
         ]
         cooldown = start_cooldown_if_required(
             active=None if previous_record is None else previous_record.cooldown,
-            fault_count=sum(inspection.is_fault for inspection in inspections),
+            fault_count=sum(inspection.is_counted_fault for inspection in inspections),
             at=at,
         )
         record = SchedulerRecord(
