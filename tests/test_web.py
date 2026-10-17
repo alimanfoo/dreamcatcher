@@ -1633,7 +1633,7 @@ def test_pull_request_summary_remains_without_a_repository_record(tmp_path):
         "ready",
         "merged",
         "closed",
-        "ready, out of date, checks running",
+        "ready, behind main, checks running",
         "ready, checks failing",
     ):
         assert f'<span class="pr-chip">PR #52 {pull_request_summary}</span>' in page

@@ -2,6 +2,7 @@
 
 from dreamcatcher.github import (
     CheckResult,
+    PullRequestMergeState,
     PullRequestSignal,
     PullRequestState,
 )
@@ -11,7 +12,7 @@ from dreamcatcher.words import describe_count
 
 # What each signal says, wherever a status names what woke or will wake a round.
 _SIGNAL_WORDS = {
-    PullRequestSignal.OUT_OF_DATE: "out of date",
+    PullRequestSignal.OUT_OF_DATE: "main moved",
     PullRequestSignal.CHECK_FAILURE: "checks failed",
 }
 
@@ -44,14 +45,16 @@ def describe_signal(*, signal: PullRequestSignal) -> str:
 def describe_pull_request(*, finding: PullRequestFinding) -> str:
     """Say where a pull request stands.
 
-    An open one is draft or ready, followed by whether it is out of date and
+    An open one is draft or ready, followed by how main prevents a merge and
     whether its checks are running or failing. Any other names its state alone.
     """
     if finding.state is not PullRequestState.OPEN:
         return finding.state.lower()
     words = ["draft" if finding.is_draft else "ready"]
-    if finding.merge_state.is_out_of_date:
-        words.append("out of date")
+    if finding.merge_state is PullRequestMergeState.BEHIND:
+        words.append("behind main")
+    elif finding.merge_state is PullRequestMergeState.DIRTY:
+        words.append("conflicts with main")
     if finding.check_result in {CheckResult.RUNNING, CheckResult.FAILING}:
         words.append(f"checks {finding.check_result}")
     return ", ".join(words)
