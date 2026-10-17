@@ -41,13 +41,14 @@ from dreamcatcher.issue_conversations import (
 from dreamcatcher.scheduler.models import (
     ConflictingLabelsFinding,
     IssueCommentsFinding,
+    PauseCause,
+    PausedFinding,
     PullRequestFinding,
     RequestFinding,
     RequestRow,
     SchedulerRecord,
     StartedRound,
     StartTimeFinding,
-    UnlistedIssueFinding,
 )
 from dreamcatcher.state import StateDirectory
 
@@ -123,7 +124,7 @@ def fabricate_conversation(
     state: StateDirectory,
     has_round: bool = True,
     status: int = 0,
-    is_listed: bool = False,
+    is_paused: bool = True,
     harness_session_identifier: HarnessSessionIdentifier
     | None = "conversation-session",
 ) -> None:
@@ -141,9 +142,9 @@ def fabricate_conversation(
             rows=[
                 conversation_row(
                     finding=(
-                        IssueCommentsFinding(new_comments=0)
-                        if is_listed
-                        else UnlistedIssueFinding()
+                        PausedFinding(cause=PauseCause.LABEL_REMOVED)
+                        if is_paused
+                        else IssueCommentsFinding(new_comments=0)
                     )
                 )
             ],

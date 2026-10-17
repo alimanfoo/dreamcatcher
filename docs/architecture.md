@@ -141,6 +141,14 @@ missing, and freezes the trusted comment batch and that revision. A
 conversation's worktree never acquires an implementation branch or a pull
 request.
 
+Each tick reads an open conversation's issue before its comments, so open
+conversations do not depend on the listing. A closed issue ends the conversation
+with the reason "issue closed". A conversation whose label is off its issue,
+whose issue is not assigned to the signed-in account, or whose issue carries
+another configured conversation label is paused: the tick reads no comments for
+it and starts no round. A conversation belongs to the label that started it, so
+another label on the same issue is a request of its own.
+
 The signed-in GitHub account identifies trusted issue comments. Marked
 _dreamcatcher_ comments, comments by other accounts and blank comments are
 excluded. Each durable round input records the delivered batch, so the newest
@@ -383,7 +391,7 @@ the open agent work, if any. It holds what the tick found as a typed finding:
 - for an assignment request with no open work, the open linked pull requests and
   the open blocking issues, as numbers;
 - for a request whose issue carries two labels of its kind, those labels;
-- for an open conversation the listing did not return, that it was not listed;
+- for a paused conversation, the cause;
 - for a read that failed, the reason, in place of what it would have found.
 
 A row has no finding when the tick read nothing for it, as for work whose round
@@ -572,11 +580,11 @@ recorded inputs of its rounds that did not error or get interrupted, from newest
 to oldest. What woke a round is read from its input rather than recorded.
 
 A conversation's harness session identifier and latest user retry request each
-have a file of their own beside its record, as an assignment's do. The route and
-recipe remain frozen when a different configured conversation label later makes
-the issue eligible. Each round input persists its investigated revision and the
-trusted comments accepted for delivery; the input of a round that starts a new
-harness session also persists the issue title and body.
+have a file of their own beside its record, as an assignment's do. Its route and
+recipe stay frozen for its life; a different conversation label on the issue
+starts a conversation of its own. Each round input persists its investigated
+revision and the trusted comments accepted for delivery; the input of a round
+that starts a new harness session also persists the issue title and body.
 
 Instance records persist the repository identity and the most recent daemon
 run's harness, _dreamcatcher_ version, capacity, interval, and the dispatch

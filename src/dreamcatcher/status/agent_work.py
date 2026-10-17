@@ -29,19 +29,18 @@ from dreamcatcher.scheduler.faults import (
     is_last_round_unfinished,
 )
 from dreamcatcher.scheduler.models import (
-    ConflictingLabelsFinding,
     IssueCommentsFinding,
+    PausedFinding,
     PullRequestFinding,
     ReadFailureFinding,
     RequestFinding,
     RequestRow,
     SchedulerRecord,
-    UnlistedIssueFinding,
 )
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.status.findings import (
     describe_comments_to_answer,
-    describe_conflicting_labels,
+    describe_pause,
     describe_read_failure,
 )
 from dreamcatcher.status.rounds import (
@@ -212,16 +211,16 @@ class AgentWorkStatusReader:
         """Derive one piece of work's status from its records and the latest tick.
 
         The first that applies of working, ended, fault, unknown, idle for a
-        conversation that the tick starts no round for, and waiting is the
-        status. Otherwise the work is idle, or unknown when the latest tick has
-        no row for it or read nothing for it.
+        paused conversation, and waiting is the status. Otherwise the work is
+        idle, or unknown when the latest tick has no row for it or read nothing
+        for it.
         """
         steps: tuple[_StatusStep, ...] = (
             self._derive_working,
             self._derive_ended,
             self._derive_fault,
             self._derive_unknown,
-            self._derive_unscheduled_conversation,
+            self._derive_paused,
             self._derive_waiting,
         )
         row = self.rows_by_work.get(work.identifier)
@@ -298,28 +297,18 @@ class AgentWorkStatusReader:
             work=work, row=row, detail=describe_read_failure(reason=row.finding.reason)
         )
 
-    def _derive_unscheduled_conversation(
+    def _derive_paused(
         self, work: AgentWork, row: RequestRow | None, /
     ) -> AgentWorkStatus | None:
-        """Derive the idle status of a conversation that the tick starts no round for.
-
-        The tick starts no round for a conversation whose issue the listing did
-        not return or carries a second conversation label, so neither waits.
-        """
+        """Derive the idle status of a paused conversation, which waits for nothing."""
         finding = None if row is None else row.finding
-        if isinstance(finding, ConflictingLabelsFinding):
-            detail = describe_conflicting_labels(
-                kind=work.record.kind, labels=finding.labels
-            )
-        elif isinstance(finding, UnlistedIssueFinding):
-            detail = "issue not listed"
-        else:
+        if not isinstance(finding, PausedFinding):
             return None
         return AgentWorkStatus(
             work=work,
             row=row,
             value=AgentWorkStatusValue.IDLE,
-            detail=detail,
+            detail=describe_pause(cause=finding.cause),
             latest_output=None,
         )
 

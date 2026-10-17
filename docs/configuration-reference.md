@@ -133,9 +133,9 @@ to be installed on `PATH`. An existing assignment or conversation keeps the
 label, harness, prompt, model, effort and harness config chosen when it was
 created; later configuration changes do not rewrite that record.
 
-A saved conversation may become eligible through any one configured conversation
-label on its issue, but it still keeps its original route and recipe. Changing
-the current label does not switch its saved harness or settings.
+A conversation belongs to the conversation label that started it. Another
+conversation label on the same issue starts a conversation of its own, with that
+label's route and recipe.
 
 A matching label selects a route but does not by itself make an issue ready for
 dispatch. [From issue to pull request](tutorial.md) explains how to prepare an

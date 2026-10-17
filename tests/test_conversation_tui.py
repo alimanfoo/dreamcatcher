@@ -36,9 +36,10 @@ from dreamcatcher.issue_conversations import (
 from dreamcatcher.scheduler.models import (
     ConflictingLabelsFinding,
     IssueCommentsFinding,
+    PauseCause,
+    PausedFinding,
     ReadFailureFinding,
     SchedulerRecord,
-    UnlistedIssueFinding,
 )
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.tui import (
@@ -52,7 +53,7 @@ def conversation_state(
     *,
     root,
     status: int = 0,
-    is_listed: bool = False,
+    is_paused: bool = True,
     harness_session_identifier: str | None = "conversation-session",
 ) -> StateDirectory:
     """Return state containing one finished conversation."""
@@ -106,9 +107,9 @@ def conversation_state(
             rows=[
                 conversation_row(
                     finding=(
-                        IssueCommentsFinding(new_comments=0)
-                        if is_listed
-                        else UnlistedIssueFinding()
+                        PausedFinding(cause=PauseCause.LABEL_REMOVED)
+                        if is_paused
+                        else IssueCommentsFinding(new_comments=0)
                     )
                 )
             ],
@@ -124,7 +125,7 @@ def rendered_console() -> tuple[Console, StringIO]:
 
 
 def test_status_lists_the_conversation(tmp_path):
-    state = conversation_state(root=tmp_path, is_listed=True)
+    state = conversation_state(root=tmp_path, is_paused=False)
     console, written = rendered_console()
 
     show_status_view(
@@ -204,7 +205,7 @@ def test_conversation_detail_shows_settings_revision_session_and_round(tmp_path)
 
 
 def test_conversation_detail_shows_a_failed_round(tmp_path):
-    state = conversation_state(root=tmp_path, status=2, is_listed=True)
+    state = conversation_state(root=tmp_path, status=2, is_paused=False)
     console, written = rendered_console()
 
     show_conversation_view(
@@ -218,7 +219,7 @@ def test_conversation_detail_shows_a_failed_round(tmp_path):
 
 
 def test_conversation_detail_shows_two_errors_as_a_fault(tmp_path):
-    state = conversation_state(root=tmp_path, status=2, is_listed=True)
+    state = conversation_state(root=tmp_path, status=2, is_paused=False)
     directory = find_conversation_directory(state=state, issue=8)
     write_round(
         directory=directory,
@@ -281,7 +282,7 @@ def test_conversation_feed_shows_its_saved_activity(tmp_path):
 def test_conversation_feed_follows_a_later_round_without_repeating_the_first(
     tmp_path,
 ):
-    state = conversation_state(root=tmp_path, is_listed=True)
+    state = conversation_state(root=tmp_path, is_paused=False)
     written = StringIO()
     console = Console(
         file=written,
@@ -554,12 +555,12 @@ def test_an_ended_conversation_view_never_waits(tmp_path, status):
 
 
 def test_a_conversation_view_of_an_idle_conversation_keeps_watching(tmp_path):
-    state = conversation_state(root=tmp_path, is_listed=True)
+    state = conversation_state(root=tmp_path, is_paused=False)
     assert_conversation_views_keep_watching(state=state)
 
 
 def test_a_conversation_view_in_fault_keeps_watching(tmp_path):
-    state = conversation_state(root=tmp_path, status=2, is_listed=True)
+    state = conversation_state(root=tmp_path, status=2, is_paused=False)
     write_round(
         directory=find_conversation_directory(state=state, issue=8),
         number=2,
@@ -577,7 +578,7 @@ def test_a_conversation_view_in_fault_keeps_watching(tmp_path):
 
 
 def test_a_conversation_view_with_a_routing_conflict_keeps_watching(tmp_path):
-    state = conversation_state(root=tmp_path, is_listed=True)
+    state = conversation_state(root=tmp_path, is_paused=False)
     write_tick(
         state=state,
         tick=SchedulerRecord(
@@ -631,7 +632,7 @@ def end_conversation(*, state: StateDirectory) -> None:
 
 
 def test_status_counts_an_ended_conversation(tmp_path):
-    state = conversation_state(root=tmp_path, is_listed=True)
+    state = conversation_state(root=tmp_path, is_paused=False)
     end_conversation(state=state)
     console, written = rendered_console()
 

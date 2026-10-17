@@ -80,6 +80,7 @@ class AgentWorkEndReason(StrEnum):
 
     COMPLETED = "completed"
     CANCELLED = "cancelled"
+    ISSUE_CLOSED = "issue closed"
 
 
 class AgentWorkEnding(DreamcatcherDocument):

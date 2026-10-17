@@ -2,6 +2,7 @@
 
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
+from enum import StrEnum
 from typing import Annotated, Literal, Self
 
 from pydantic import (
@@ -67,10 +68,19 @@ class ConflictingLabelsFinding(DreamcatcherDocument):
     labels: list[str] = Field(min_length=2)
 
 
-class UnlistedIssueFinding(DreamcatcherDocument):
-    """Say that the listing did not return the issue of open work."""
+class PauseCause(StrEnum):
+    """The reasons an open conversation pauses, in the order the tick checks them."""
 
-    found: Literal["issue not listed"] = "issue not listed"
+    LABEL_REMOVED = "label removed"
+    ISSUE_UNASSIGNED = "issue unassigned"
+    CONFLICTING_LABELS = "conflicting labels"
+
+
+class PausedFinding(DreamcatcherDocument):
+    """Say why the tick starts no round for an open conversation until it resumes."""
+
+    found: Literal["paused"] = "paused"
+    cause: PauseCause
 
 
 class ReadFailureFinding(DreamcatcherDocument):
@@ -85,7 +95,7 @@ type RequestFinding = Annotated[
     | IssueCommentsFinding
     | StartTimeFinding
     | ConflictingLabelsFinding
-    | UnlistedIssueFinding
+    | PausedFinding
     | ReadFailureFinding,
     Field(discriminator="found"),
 ]

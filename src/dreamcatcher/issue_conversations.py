@@ -2,7 +2,6 @@
 
 from pydantic import Field
 
-from dreamcatcher.agent_rounds import AgentRoundOutcome
 from dreamcatcher.agent_work import AgentWork
 from dreamcatcher.documents import DreamcatcherDocument, read_json
 from dreamcatcher.errors import ReportableError
@@ -44,13 +43,6 @@ class IssueCommentDeliveryPosition(DreamcatcherDocument):
 
     written_at: str
     id: int
-
-
-def is_conversation_ready_for_input(*, conversation: AgentWork | None) -> bool:
-    """Return whether a conversation can accept another comment batch."""
-    if conversation is None or not conversation.rounds:
-        return True
-    return conversation.rounds[-1].outcome is not AgentRoundOutcome.RUNNING
 
 
 def list_undelivered_issue_comments(

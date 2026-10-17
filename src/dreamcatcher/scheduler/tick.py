@@ -4,6 +4,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 
 from dreamcatcher.agent_rounds import AgentRound, AgentRoundPreparationError
+from dreamcatcher.config import ConversationRoute
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.scheduler.assignments import (
@@ -60,11 +61,10 @@ def _read_candidate_request(
             return candidate.issue, candidate.route.label
         record = candidate.assignment.record
         return record.issue, record.dispatch_label
-    conversation_candidate = candidates.conversations[0]
-    if conversation_candidate.conversation is None:
-        return conversation_candidate.issue.number, conversation_candidate.route.label
-    record = conversation_candidate.conversation.record
-    return record.issue, record.dispatch_label
+    conversation = candidates.conversations[0].conversation
+    if isinstance(conversation, ConversationRoute):
+        return candidates.conversations[0].issue.number, conversation.label
+    return conversation.record.issue, conversation.record.dispatch_label
 
 
 def _mark_row_started(

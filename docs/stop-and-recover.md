@@ -82,7 +82,7 @@ dreamcatcher run --harness claude
 Repeat any non-default `--interval` and `--max-agents` values you want; those
 are options for each daemon run, not saved configuration. On startup
 _dreamcatcher_ also detects rounds orphaned by an earlier daemon. It records
-them as interrupted, and when the work is eligible a later round is given the
+them as interrupted, and unless the work is paused a later round is given the
 interrupted round's input again. That round normally resumes the recorded
 harness session; you do not need to use the hand-resume command.
 
