@@ -97,11 +97,9 @@ def read_assignment_pull_request_number(*, assignment: AgentWork) -> int | None:
 def cancel_assignment(*, assignment: AgentWork, at: datetime) -> None:
     """Record that the user has taken an open assignment over.
 
-    A round with no ending is asked to stop, so it does not go on pushing to the
-    branch. The ending is written before the rounds are read again, so a round
-    that starts at the same moment is either asked to stop here or finds the
-    ending through request_round_stop_if_ended. An assignment that has already
-    ended raises ReportableError.
+    The ending is written before the running round is asked to stop, so a round
+    that starts at the same moment either receives the stop request here or sees
+    the ending itself.
     """
     if not assignment.is_open:
         raise ReportableError(f"{assignment.identifier} has already ended.")
