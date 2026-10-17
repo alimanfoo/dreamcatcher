@@ -361,7 +361,7 @@ is read from the round's input, so nothing else records it:
 - **start**: an assignment round with no input, which opens the pull request;
 - a count of posts or comments: the user posts or issue comments relayed, or
   **comments** without a count for a conversation round that has no input yet;
-- **out of date** or **checks failed**: the other signals an assignment round
+- **main moved** or **checks failed**: the other signals an assignment round
   relayed, after any count of posts;
 - **merged** or **closed**: the state of a finished pull request, which calls
   for the assignment's final round, its **wrap-up round**;
