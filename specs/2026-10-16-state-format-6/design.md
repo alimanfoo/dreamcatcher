@@ -205,9 +205,10 @@ shape for both kinds of agent work.
 
 First, it reads every piece of agent work from disk, and lists the open issues
 assigned to you under each dispatch label, one `gh issue list` per route as
-today. A listing that fails is recorded as a scheduler failure and means no new
-work starts for that route this tick. Open work is still inspected, because it
-is found on disk, not in the listing.
+today. A listing that fails is recorded as a scheduler failure and starts no
+work for the issues it would have listed this tick. An issue that another
+label's listing returns still carries all its labels, so its requests are found.
+Open work is still inspected, because it is found on disk, not in the listing.
 
 Second, it builds the set of requests. A request comes from two sources: each
 dispatch label on each listed issue, and each piece of open agent work, which
@@ -227,11 +228,13 @@ channel:
   assignment is in fault.
 - A conversation: one read of the issue itself, for its state, labels and
   assignees, and then, unless the conversation is paused or the issue is closed,
-  one paged read of its comments as today. The issue read is what tells a closed
-  issue, which ends the conversation, from a removed label, an unassigned issue,
-  or a second conversation label, each of which pauses it. Because of that read,
-  open conversations do not depend on the listing at all, and a failed listing
-  affects only new requests.
+  one paged read of its comments as today. Nothing is read for work of either
+  kind whose round is running, so an issue that closes during a round ends the
+  conversation at the first tick after the round. The issue read is what tells a
+  closed issue, which ends the conversation, from a removed label, an unassigned
+  issue, or a second conversation label, each of which pauses it. Because of
+  that read, open conversations do not depend on the listing at all, and a
+  failed listing affects only new requests.
 
 From what it read and the cursor, the tick works out the signals. A
 **candidate** is a piece of agent work the tick may start a round for, or a
@@ -241,16 +244,18 @@ is running or it is in fault.
 
 Fourth, for each request with no open agent work, it decides whether to start
 some. For an assignment label: nothing starts if the issue already has an open
-assignment, from any label, or carries another assignment label, which is a
-routing conflict; otherwise the tick asks the two start-time questions, open
-linked pull requests and open blockers, and the request is a candidate when both
-come back empty. For a conversation label: nothing starts if the issue carries
-another conversation label, which is a routing conflict; otherwise the tick
-reads the comments and the request is a candidate when there is at least one
-comment by you. A paused conversation under another label does not block a new
-one; the rule is one conversation per label, and the routing-conflict rule keeps
-two from running at once. These are the only reads made for an issue that has no
-open work, and they are never made for an issue that has.
+assignment, from any label, and the request has no row of its own, because the
+issue appears through that assignment's row; nothing starts either if the issue
+carries another assignment label, which is a routing conflict; otherwise the
+tick asks the two start-time questions, open linked pull requests and open
+blockers, and the request is a candidate when both come back empty. For a
+conversation label: nothing starts if the issue carries another conversation
+label, which is a routing conflict; otherwise the tick reads the comments and
+the request is a candidate when there is at least one comment by you. A paused
+conversation under another label does not block a new one; the rule is one
+conversation per label, and the routing-conflict rule keeps two from running at
+once. These are the only reads made for an issue that has no open work, and they
+are never made for an issue that has.
 
 Fifth, it ranks and launches. Candidates for existing work come before new
 requests, and within each the order is identifier order for existing work and
@@ -474,13 +479,15 @@ stayed on from one that was taken off and put back, so if you do not want the
 agent back you take the label off.
 
 A conversation is **paused** while its label is off the issue, the issue is no
-longer assigned to you, or the issue carries a second conversation label. Paused
-is derived, not written: the tick reads the conversation's issue, finds one of
-those three, and leaves the conversation alone. Put the label back, reassign the
-issue, or remove the second label, and the next tick inspects it as before and
-it carries on in the same harness session. The issue read is what tells a closed
-issue, which ends the conversation, from the three that pause it. Pausing takes
-the place of the ontology's conversation eligibility.
+longer assigned to you, or the issue carries a second conversation label.
+Removing the conversation's route from the configuration does not pause it: like
+an assignment, it keeps the recipe its work record holds. Paused is derived, not
+written: the tick reads the conversation's issue, finds one of those three, and
+leaves the conversation alone. Put the label back, reassign the issue, or remove
+the second label, and the next tick inspects it as before and it carries on in
+the same harness session. The issue read is what tells a closed issue, which
+ends the conversation, from the three that pause it. Pausing takes the place of
+the ontology's conversation eligibility.
 
 An assignment does not pause. Once its record exists, its labels are not
 consulted again.
