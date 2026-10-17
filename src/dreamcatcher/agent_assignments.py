@@ -230,20 +230,15 @@ def _open_pull_request(
     if not has_commits_since_main(worktree=assignment.worktree):
         make_empty_commit(worktree=assignment.worktree, message=f"GH{issue}")
     push_branch(root=state.root, branch=branch)
-    pull_request = find_or_create_assignment_pull_request(
-        repository=repository,
-        branch=branch,
-        issue=issue,
-        title=assignment.record.title,
-    )
-    write_json(
-        document=PullRequestObservation(
-            number=pull_request.number,
-            state=pull_request.state,
-            is_draft=pull_request.is_draft,
-            observed_at=clock(),
+    record_pull_request_observation(
+        assignment=assignment,
+        pull_request=find_or_create_assignment_pull_request(
+            repository=repository,
+            branch=branch,
+            issue=issue,
+            title=assignment.record.title,
         ),
-        path=assignment.directory / _PULL_REQUEST_OBSERVATION_RECORD_NAME,
+        observed_at=clock(),
     )
 
 
@@ -277,7 +272,10 @@ def _read_relayed_inputs(*, assignment: AgentWork) -> Iterator[AssignmentRoundIn
 def record_pull_request_observation(
     *, assignment: AgentWork, pull_request: PullRequest, observed_at: datetime
 ) -> None:
-    """Record a pull request state when it differs from the latest observation."""
+    """Record the pull request when it differs from the latest observation.
+
+    An assignment with no observation yet records this one, its first.
+    """
     recorded = read_pull_request_observation(assignment=assignment)
     if (
         recorded is not None

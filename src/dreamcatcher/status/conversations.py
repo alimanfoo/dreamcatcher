@@ -493,9 +493,13 @@ def _read_round_input(
 
 
 def _describe_round_trigger(*, round_input: ConversationRoundInput | None) -> str:
-    """Describe what woke a conversation round, from the input it was given."""
+    """Describe what woke a conversation round, from the input it was given.
+
+    Comments wake every conversation round, so a round whose input is still to
+    be written, or never was, says so without a count.
+    """
     if round_input is None:
-        return "no input"
+        return "comments"
     return describe_count(number=len(round_input.comments), noun="comment")
 
 

@@ -295,7 +295,8 @@ round. The **first round** is round number one. What woke a round is read from
 its input, so nothing else records it:
 
 - **start**: an assignment round with no input, which opens the pull request;
-- a count of posts or comments: the user posts or issue comments relayed;
+- a count of posts or comments: the user posts or issue comments relayed, or
+  **comments** without a count for a conversation round that has no input yet;
 - **merged** or **closed**: the state of a finished pull request, which calls
   for the assignment's last round, its **wrap-up round**;
 - **carry on**: an assignment round whose input relays nothing new, given again

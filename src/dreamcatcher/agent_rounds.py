@@ -551,11 +551,15 @@ class AgentRound:
             self.harness_process.kill()
 
     def _watch_for_stop_request(self) -> None:
-        """Stop the round promptly when its request file appears."""
-        while not self._wait_for_round_end(_STOP_REQUEST_POLL_INTERVAL_SECONDS):
-            if self.paths.stop_request.is_file():
-                self._end_process_tree(ending=StoppedAgentRoundEnding(at=self.clock()))
+        """Stop the round promptly when its request file appears.
+
+        The first look comes before any wait, so a request made while the round
+        was preparing stops the harness as soon as it spawns.
+        """
+        while not self.paths.stop_request.is_file():
+            if self._wait_for_round_end(_STOP_REQUEST_POLL_INTERVAL_SECONDS):
                 return
+        self._end_process_tree(ending=StoppedAgentRoundEnding(at=self.clock()))
 
     def _read_stream_until_finished(self, *, read_stream: Callable[[], None]) -> None:
         """Read one output stream and interrupt the round if persistence fails.

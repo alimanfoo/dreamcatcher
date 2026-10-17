@@ -53,8 +53,6 @@ from dreamcatcher.version import DREAMCATCHER_VERSION
 
 ASSIGNMENT_ID = "GH13-20260819-184158-assignment"
 
-# What every round the tests here write down says woke it.
-
 # How long a scripted harness waits after its first line, so a round the daemon
 # launched is certainly still running at the next tick. The waits these tests
 # give the daemon take no real time, so its ticks are milliseconds apart.
@@ -119,23 +117,6 @@ def idling(
     daemon.clock = ticking
     daemon.wait = waiting
     return daemon, waiting, ticking
-
-
-def settling(*, root, ticks: int = 1) -> DreamcatcherDaemon:
-    """A daemon that lets each round it launches finish before the next tick.
-
-    A round the daemon still holds is ended as the run goes down, so a test
-    that reads what a round wrote lets the round finish while the run is still
-    going.
-    """
-    daemon, _, _ = idling(root=root, ticks=ticks)
-
-    def settle() -> None:
-        for agent_round in list(daemon.rounds.values()):
-            agent_round.wait()
-
-    daemon.wait = Interrupting(ticks=ticks, settle=settle)
-    return daemon
 
 
 def create_scheduler(*, daemon: DreamcatcherDaemon) -> Scheduler:

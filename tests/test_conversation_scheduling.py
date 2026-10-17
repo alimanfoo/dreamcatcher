@@ -1782,14 +1782,16 @@ def test_a_relayed_round_whose_input_cannot_be_read_is_a_scheduler_failure(
             ending=SuccessfulAgentRoundEnding(at=clock()),
         ),
     )
+    round_input = directory / "rounds" / "1" / "round-input.json"
+    round_input.write_bytes(b"not json\n")
     offer_conversation(gh=gh, comments=[ask()])
 
     observed = scheduler.tick(at=clock())
 
-    round_input = directory / "rounds" / "1" / "round-input.json"
-    assert observed.failures == [
-        f"could not read delivered comments for GH8: {round_input} does not exist."
-    ]
+    [failure] = observed.failures
+    assert failure.startswith(
+        f"could not read delivered comments for GH8: {round_input}"
+    )
     assert observed.launched_agent_work_identifiers == []
     assert harnesses["claude"].calls == []
 

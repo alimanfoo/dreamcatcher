@@ -358,6 +358,37 @@ def test_the_delivery_position_comes_from_the_latest_relayed_round(
     )
 
 
+def test_a_stopped_round_that_wrote_no_input_leaves_the_delivery_position(
+    tmp_path,
+):
+    state = StateDirectory(root=tmp_path)
+    conversation = write_conversation(state=state)
+    first = conversation.compose_round_paths(number=1)
+    write_json(
+        document=ConversationRoundInput(
+            issue=8,
+            comments=[comment(identifier=3, body="Question")],
+            revision="abc123",
+        ),
+        path=first.round_input,
+    )
+    for number in (1, 2):
+        write_json(
+            document=AgentRoundRecord(
+                number=number,
+                started=PINNED,
+                ending=StoppedAgentRoundEnding(at=PINNED),
+            ),
+            path=conversation.compose_round_paths(number=number).record,
+        )
+    reread = read_conversation(state=state, issue=8)
+    assert reread is not None
+
+    assert read_issue_comment_delivery_position(
+        conversation=reread
+    ) == IssueCommentDeliveryPosition(written_at="2026-09-23T01:00:00Z", id=3)
+
+
 def test_the_delivery_position_refuses_a_round_without_comments(tmp_path):
     state = StateDirectory(root=tmp_path)
     conversation = write_conversation(state=state)

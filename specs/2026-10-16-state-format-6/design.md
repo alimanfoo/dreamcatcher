@@ -376,10 +376,10 @@ The feed's line at the start of each round, and the rounds table on a work page,
 say what woke the round, from its input: "round 1: start", "round 3: 2 posts",
 "round 4: checks failed", "round 5: merged", "round 2: 1 comment". An assignment
 round whose input relays nothing new, given again after a round that did not
-finish, says "carry on", and a conversation round whose preparation failed
-before it wrote an input says "no input". The ontology's round purpose,
-implement, address feedback, wrap up and discuss, goes, because what woke a
-round says more than a purpose did and needs nothing stored.
+finish, says "carry on", and a conversation round whose preparation has not
+written an input, or failed before it did, says "comments". The ontology's round
+purpose, implement, address feedback, wrap up and discuss, goes, because what
+woke a round says more than a purpose did and needs nothing stored.
 
 ## The cursor and the signals, exactly
 

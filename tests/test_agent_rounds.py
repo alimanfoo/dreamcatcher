@@ -73,8 +73,6 @@ RECORDING = FIXTURES / "claude" / "round.jsonl"
 
 FEED_TIMESTAMP = "2026-08-19T18:41:58Z"
 
-# What the tests here say woke every round they run.
-
 # What every round here asks the harness to do. It holds a percent sign and runs
 # over two lines, neither of which a command line could carry to a batch file,
 # because the prompt reaches the harness as a file it reads.
@@ -795,6 +793,34 @@ def test_a_stop_request_stops_the_round_and_records_why(fake, worktree, director
     assert written(path=running.paths.record).ending == StoppedAgentRoundEnding(
         at=PINNED
     )
+
+
+def test_a_stop_requested_while_the_round_prepared_stops_it_at_once(
+    fake, worktree, directory
+):
+    fake(program="harness").streams(lines=[Line(text="working\n")], delay=5)
+    paths = compose_round_paths(worktree=worktree, directory=directory)
+    polls: list[float] = []
+
+    def request_stop() -> None:
+        request_agent_round_stop(paths=paths)
+
+    def count_poll(seconds: float, /) -> bool:
+        polls.append(seconds)
+        return False
+
+    running = AgentRound(
+        agent_work_identifier="GH9-20260819-184158",
+        harness=round_harness(),
+        paths=paths,
+        prepare_round=request_stop,
+        clock=pinned,
+        wait_for_round_end=count_poll,
+    )
+    running.wait()
+
+    assert polls == []
+    assert written(path=paths.record).ending == StoppedAgentRoundEnding(at=PINNED)
 
 
 def test_the_first_reason_for_ending_a_round_wins(fake, worktree, directory):
