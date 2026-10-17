@@ -174,21 +174,24 @@ see a scheduler tick called an update.
 ### Status report
 
 A **status report** is _dreamcatcher_'s read-only account of a _dreamcatcher_
-instance, its issue conversations, agent assignments, and issue observations at
-a particular time.
+instance, its agent work and its requests at a particular time.
 
-An **issue observation** records the independent facts that one scheduler tick
-found for an issue. Its availability is derived from those facts.
+A **request** is one dispatch label on one issue. It exists while the label is
+on the issue, so one issue with two labels is two requests. Nothing is stored
+for a request: each scheduler tick reads the labels from GitHub, and the agent
+work a request led to is what is stored.
 
-An **agent assignment status** is an assignment's single summary status in a
-status report. It summarizes the assignment's work record, recorded rounds, live
-process state, and the latest scheduler evidence about whether another round was
-required or launched.
+A **request row** is what one scheduler tick found for one request, held as
+typed values rather than sentences. It names the open agent work the request led
+to, if any, and holds what the tick read for it, the reason a read failed in
+place of what it would have found, and the round the tick started for it.
 
-An **issue conversation status** is a conversation's single summary status in a
-status report. It is derived from the conversation's work record, its latest
-round, the daemon process, and the latest scheduler evidence about whether its
-issue is eligible and whether comments wait to be answered.
+An **agent work status** is one piece of agent work's single summary status in a
+status report, derived the same way for both kinds from the work's record, its
+rounds, the daemon process and its request row.
+
+A **request status** is the single summary status of a request with no open
+agent work. It says why no work has started for it.
 
 ### Global cooldown
 
@@ -285,8 +288,9 @@ Agent work is open until its ending is recorded, with the time and the reason,
 and then it has **ended**. An assignment ends when it is complete or cancelled.
 
 _dreamcatcher_ leaves the pull request as it is, and while it is open it claims
-the issue elsewhere. If the user merges it, GitHub closes the issue. If the user
-closes it without merging, the issue may receive another assignment.
+the issue, so the start-time questions find it. If the user merges it, GitHub
+closes the issue. If the user closes it without merging, the issue may receive
+another assignment.
 
 ### Describing an agent round
 
@@ -302,130 +306,96 @@ its input, so nothing else records it:
 - **carry on**: an assignment round whose input relays nothing new, given again
   after a round that did not finish.
 
-### Issue observations and availability
+### Requests
 
-An issue observation records these independent facts, each of which can be true,
-false, or unknown:
+A scheduler tick finds requests in two places: each dispatch label on each open
+issue assigned to the signed-in account, and each piece of open agent work,
+which names its own issue and label. An issue with open agent work of one kind
+appears through that work, so its other labels of that kind make no request row
+of their own.
 
-- **Claimed here**: this _dreamcatcher_ instance has an open agent assignment
-  for the issue.
-- **Claimed elsewhere**: the issue has an open linked pull request other than
-  the pull request belonging to its open local assignment, if any.
-- **Blocked**: an open issue dependency prevents work from starting.
-- **Routing conflict**: the issue carries more than one assignment label.
+For a request with no open work the tick records what decides whether work may
+start. An assignment request that carries the issue's only assignment label is
+asked the two **start-time questions**: which open pull requests linked to the
+issue claim it, and which open issue dependencies block it. They are asked only
+while no open assignment exists, because they decide only whether one may start.
+A conversation request reads the issue's comments. A request whose issue carries
+more than one label of its kind has a routing conflict, and nothing of that kind
+starts while it lasts.
 
-These facts can coexist. In particular, an issue may be claimed both here and
-elsewhere if somebody opens another pull request after _dreamcatcher_ creates
-its assignment. A claimed issue may also become blocked or develop a routing
-conflict after an assignment has started.
+A request with no open work has one of these request statuses:
 
-An issue with a local assignment appears through its agent assignment rather
-than in the report's available issues.
+- **Available**: work starts once an agent slot is free.
+- **Blocked**: an open pull request claims the issue, or an open issue blocks
+  it.
+- **Idle**: a conversation request waits for the user's first comment.
+- **Routing conflict**: the issue carries more than one label of the request's
+  kind.
+- **Unknown**: a read that decides whether work may start failed. A failure to
+  read external state can delay work, but must never cause _dreamcatcher_ to
+  create duplicate or improperly routed work.
 
-An issue is **available for an agent assignment** only when:
+There is no durable issue queue. Requests keep the order in which the scheduler
+listed their issues, oldest first, which is the order in which it starts new
+assignments.
 
-- it is open;
-- it is assigned to the signed-in account;
-- it carries exactly one assignment label;
-- claimed here is known to be false;
-- claimed elsewhere is known to be false;
-- blocked is known to be false; and
-- routing conflict is known to be false.
+### Agent work status
 
-Availability is derived rather than an independent fact. It is false as soon as
-any known fact prevents assignment. If no known fact prevents assignment but a
-required fact is unknown, availability is also unknown. A failure to observe
-external state can delay work, but must never cause _dreamcatcher_ to create
-duplicate or improperly routed work.
+Agent work of either kind has one of these summary statuses. The first that
+applies, in this order, is the status:
 
-There is no durable issue queue. The status report preserves the scheduler's
-order for available issues, which is the order in which it will consider them
-for new assignments.
-
-### Agent assignment status
-
-An agent assignment has one of these summary statuses in a status report:
-
-- **Working**: an agent round is running.
-- **Waiting**: an agent round is required but has not started, or a round has
-  just ended and the scheduler has not inspected its result yet.
-- **Needs user feedback**: no agent round is currently required and the
-  assignment awaits a user post, review decision, merge, or closure.
-- **Fault**: two consecutive agent rounds for this assignment have errored, so
-  no further round starts on its own.
-- **Complete**: a wrap-up round has exited successfully.
-- **Cancelled**: the user has cancelled the assignment, and no round is running.
-- **Unknown**: _dreamcatcher_ cannot determine the assignment's status from what
-  it can currently observe.
+- **Working**: a round is running under the daemon. A cancelled assignment whose
+  round is still stopping is working until the round ends.
+- **Ended**: the work's ending is recorded, and its reason, completed or
+  cancelled, is the detail.
+- **Fault**: two consecutive rounds have errored, so no further round starts on
+  its own. Fault outranks every status but working and ended, so the user can
+  see the fault and retry.
+- **Unknown**: the latest tick could not read what it needed for the work, and
+  the reason is the detail.
+- **Idle**, for a conversation that the latest tick holds back: its issue was
+  not listed, or it carries a second conversation label. No round starts for it,
+  so it is idle whatever its last round did, with the cause as its detail.
+- **Waiting**: a round is due but has not started. Its last round errored or was
+  interrupted, including a round left without an ending by a daemon that has
+  gone; no round has run yet; a round ended after the tick that started it, so
+  no tick has looked since; or the latest tick found something new, which is
+  user posts, issue comments, or a merged or closed pull request whose final
+  turn has not been taken. A free agent slot, or the end of a cooldown, starts
+  it.
+- **Idle**: nothing is due until something new appears in the work's channel.
+  The detail says why: an assignment's pull request is ready for review, still a
+  draft, or merged or closed after its final turn; a conversation's latest round
+  answered, needed no reply, or was stopped.
+- **Unknown**, otherwise: the latest tick has no row for the work, or read
+  nothing for it.
 
 These statuses summarize what matters now; they are not a persisted lifecycle or
 a substitute for the underlying facts. In particular, pull-request state, what
-woke each round, whether another round is required, and assignment health remain
+woke each round, whether another round is required, and the work's health remain
 separate concepts even though they contribute to the summary.
 
-An issue that is claimed here has a corresponding open assignment. That
-assignment can have any assignment status except complete or cancelled.
-
-### Issue conversation status
-
-An issue conversation has these summary statuses. Shared words use the agent
-assignment status meaning:
-
-- **Routing conflict**: more than one configured conversation label matches the
-  issue, so the user must remove all but one before a round can start.
-- **Working**: an agent round is running. Its counterpart is working.
-- **Waiting**: a round is due but has not started, because comments wait to be
-  answered, the first batch included, or because the latest round errored or was
-  interrupted and waits to be given its input again. A free agent slot, or the
-  end of a cooldown, starts it. Its counterpart is waiting.
-- **Idle**: no round is due until the user comments. Its counterpart is needs
-  user feedback.
-- **Fault**: two consecutive rounds have errored, so no further round starts on
-  its own. Fault outranks every status but working, whatever the issue's
-  eligibility, so the user can see the fault and retry. Its counterpart is
-  fault.
-- **Unknown**: _dreamcatcher_ cannot tell whether the issue is eligible or
-  whether comments wait. Its counterpart is unknown.
-- **Ended**: the conversation's ending is recorded, and its reason is the
-  detail. Working outranks it while a round still runs. Its counterparts are
-  complete and cancelled.
-
-Idle differs from needs user feedback on purpose. An assignment at rest has a
-pull request waiting for review, so it asks something of the user. A
-conversation at rest asks nothing. A conversation has no complete status.
-
-An ended conversation is counted apart from active work, as an ended assignment
-is: in a collapsed list of ended conversations on the web home page, and in a
-count of ended conversations in the terminal.
-
-Every open, assigned issue carrying at least one configured conversation label
-has a conversation status from the first scheduler tick that observes it,
-whether or not a work record for the conversation exists yet. Exactly one label
-makes it eligible, while more than one gives it routing conflict status. Once
-the issue carries none of those labels, closes, or becomes unassigned, the
-status report lists its conversation only while a round runs. The conversation's
-own view still shows it, as idle with the reason unless it is in fault.
-Conversations are listed as routing conflict, fault, working, waiting, unknown
-and then idle, since routing conflict requires the user to act and idle does
-not.
+A status report lists the open work of each kind in attention order, fault,
+working, waiting, unknown and then idle, followed by the requests of that kind
+with no open work. Ended work of either kind is counted apart from active work,
+in a collapsed list of ended work on the web home page and in a count of ended
+work in the terminal.
 
 A running round remains working when its issue gains a second conversation
-label, because eligibility does not cancel work already in progress. Its routing
-conflict becomes the summary status after that round ends, unless the
-conversation is then in fault.
-
-These statuses are derived reporting projections, not persisted lifecycle state.
+label, because a routing conflict does not cancel work already in progress. The
+conversation is idle with the conflicting labels as its detail after that round
+ends, unless it is then in fault.
 
 ### Status reports do not control work
 
 A status report may include operational facts such as the repository identity,
 whether the daemon is running, when the last scheduler tick occurred, current
 capacity, whether a global cooldown is active, and the scheduler failures. A
-scheduler failure is a read or a launch that failed in the latest tick, such as
-a failed issue listing, a failed read of an issue's comments, or a round that
-errored before its harness ran, named by its agent work and number. Its issue
-observations, issue conversation statuses and agent assignment statuses are
-projections derived for a person to read.
+scheduler failure is a failure in the latest tick that belongs to no piece of
+agent work, such as a failed issue listing. A failed read for a request is held
+in its request row, and so is a round that errored before its harness ran. Its
+request statuses and agent work statuses are projections derived for a person to
+read.
 
 The status report never schedules work and is never an input to scheduling.
 Scheduling and reporting must nevertheless interpret the same underlying facts
@@ -436,7 +406,7 @@ consistently.
 ### Creating an agent assignment
 
 The scheduler writes the assignment's work record the moment it picks an
-available issue, and starts the first round in the same tick. The record comes
+available request, and starts the first round in the same tick. The record comes
 before any Git or GitHub step, so the assignment exists whatever happens next.
 
 The preparation of the round that opens the pull request fetches main, adds the
@@ -485,11 +455,11 @@ That batch starts a round in the same harness session, and its prompt says that
 the user stopped the previous round.
 
 Closing the issue, removing every configured conversation label, or unassigning
-the signed-in account stops new rounds and takes the conversation off the status
-report once no round runs for it. Adding a second configured conversation label
-also stops new rounds, but keeps the conversation on the report, with a routing
-conflict unless it is in fault. Eligibility must be restored before any later
-round can start.
+the signed-in account stops new rounds, and the status report shows the
+conversation as idle because its issue is not listed. Adding a second configured
+conversation label also stops new rounds, and the conversation is idle with the
+conflicting labels as its detail unless it is in fault. Eligibility must be
+restored before any later round can start.
 
 ### Working through an assignment
 
@@ -510,8 +480,8 @@ An assignment normally progresses as follows:
 ### Scheduling rounds in response to events
 
 Once an assignment exists, its pull request alone governs its rounds until the
-assignment ends. Later ticks still observe the issue's labels, assignee and
-dependencies for the status report, but those facts do not decide that
+assignment ends. Later ticks do not ask the start-time questions for its issue,
+and the issue's labels, assignee and dependencies do not decide that
 assignment's rounds.
 
 One or more new user posts cause an agent round to be scheduled. If a user posts
@@ -547,11 +517,13 @@ other kind of agent work. A failed listing of assignment issues prevents the
 creation of assignments, but not the rounds that existing assignments require. A
 failed listing of conversation issues prevents fresh conversation batches, but
 not a round that gives a listed conversation the input of one that did not
-finish.
+finish. A failed read of the comments of a conversation that could take a round
+prevents fresh batches in the same way, because they start in order of their
+oldest waiting comment.
 
 Existing assignments take precedence over new ones, and among existing
 assignments the order is the order of their identifiers. The scheduler creates
-assignments for available issues in the order it observed them.
+assignments for available requests in the order it listed their issues.
 
 Conversation candidates are ordered by their oldest waiting comment. When both
 an assignment candidate and a conversation candidate are ready, the scheduler

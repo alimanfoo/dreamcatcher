@@ -44,8 +44,8 @@ check requirements. If the work should not land, close it instead.
 
 Either action asks the agent for one final **wrap-up** round. That round
 receives the merged or closed state and any feedback not relayed earlier. Keep
-the daemon running until the assignment becomes **complete**: only a successful
-wrap-up releases it.
+the daemon running until the assignment has **ended** with the detail completed:
+only a successful wrap-up releases it.
 
 ```sh
 dreamcatcher assignment GH123

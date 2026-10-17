@@ -54,8 +54,10 @@ dreamcatcher web --port 8123
 ```
 
 The home page shows daemon facts, any scheduler failures, active and ended
-assignments, issue conversations, and available or blocked issues. Open an
-assignment or conversation to see its rounds and live feed.
+assignments and issue conversations, and the labelled issues that have no work
+yet, with why: available, blocked by an issue or claimed by a pull request,
+waiting for a comment, or carrying conflicting labels. Open an assignment or
+conversation to see its rounds and live feed.
 
 ## Monitor from the terminal
 
@@ -83,22 +85,20 @@ These views refresh automatically in an interactive terminal. Interrupting a
 view closes only that view; it does not stop the daemon or the agent. When a
 view is piped or redirected, it prints one snapshot and returns.
 
-The most useful assignment states are:
+Assignments and conversations share these states:
 
 - **working**: an agent round is running;
-- **waiting**: _dreamcatcher_ is waiting to start or decide the next round; the
-  accompanying detail says which;
-- **needs user feedback**: the pull request is open and no round is required;
+- **waiting**: a round is ready to start, or _dreamcatcher_ is awaiting the next
+  update; the accompanying detail says which;
+- **idle**: no round is due until something new arrives; for an assignment the
+  detail says whether its pull request is ready for review or still a draft, and
+  for a conversation how its latest round ended, or why the conversation is held
+  back;
 - **fault**: repeated errors need attention;
-- **complete**: the pull request is closed or merged and wrap-up succeeded; and
-- **cancelled**: you took the pull request over, and _dreamcatcher_ no longer
-  works on it.
-
-An **idle** conversation has no round due until another eligible comment
-arrives. A conversation marked **waiting** may have a round ready or may be
-awaiting the next scheduler update; its detail says which. **Unknown** means
-_dreamcatcher_ could not establish a current fact; the accompanying detail says
-what it could not read.
+- **unknown**: _dreamcatcher_ could not read what it needed; the accompanying
+  detail says what failed; and
+- **ended**: the work is over, and the detail says whether it completed after a
+  successful wrap-up or you cancelled it.
 
 The [command reference](command-reference.md) gives the complete syntax and
 explains when each view ends. For interruption and failures, continue with
