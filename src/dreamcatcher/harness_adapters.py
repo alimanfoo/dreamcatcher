@@ -39,7 +39,7 @@ def _refuse_invalid_harness_session_identifier(identifier: str, /) -> str:
 def refuse_reportable_harness_session_identifier(
     *, agent_work_identifier: str, identifier: str
 ) -> str:
-    """Return a safe session identifier, or report why its owner cannot use it."""
+    """Return a safe session identifier, or report why the work cannot use it."""
     if not identifier:
         raise ReportableError(
             f"{agent_work_identifier}'s harness session identifier is empty."
@@ -78,8 +78,8 @@ class AgentWorkKind(StrEnum):
 class AgentRoundLaunchRequest:
     """Describe the settled agent-work settings and prompt for one round.
 
-    The work owner fixes the identifier, model, effort and harness config.
-    Every round for that owner runs with them. The prompt is this round's own.
+    The work record fixes the model, effort and harness config, and every round
+    of the work runs with them. The prompt is this round's own.
     """
 
     agent_work_identifier: str

@@ -374,7 +374,7 @@ class AgentWorkStatusReader:
         if isinstance(finding, PullRequestFinding):
             detail = describe_idle_pull_request(finding=finding)
         elif isinstance(finding, IssueCommentsFinding):
-            detail = _describe_answered_round(work=work)
+            detail = _describe_idle_conversation_round(work=work)
         else:
             return _compose_unknown(work=work, row=row)
         return AgentWorkStatus(
@@ -459,8 +459,8 @@ def _describe_what_is_new(*, finding: RequestFinding | None) -> str | None:
     return ", ".join(words) or None
 
 
-def _describe_answered_round(*, work: AgentWork) -> str:
-    """Describe how the latest round of a conversation at rest ended."""
+def _describe_idle_conversation_round(*, work: AgentWork) -> str:
+    """Describe how the latest round of an idle conversation ended."""
     latest = work.rounds[-1]
     duration = compose_round_duration_description(record=latest)
     if latest.outcome is AgentRoundOutcome.STOPPED:

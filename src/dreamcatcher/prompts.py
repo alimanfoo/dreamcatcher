@@ -12,8 +12,8 @@ from dreamcatcher.github import PullRequestSignal
 # never sees it.
 AGENT_POST_MARKER = "<!-- dreamcatcher -->"
 
-# The word that a label's prompt template holds where the issue's number goes.
-# It is the only substitution the dispatcher owns.
+# The word that a recipe's prompt holds where the issue's number goes. It is
+# the only substitution that dreamcatcher makes in it.
 _ISSUE_PLACEHOLDER = "{issue}"
 
 # What every prompt that the daemon composes ends with, whichever harness runs

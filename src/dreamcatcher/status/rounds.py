@@ -98,7 +98,7 @@ def find_stoppable_round_paths(
 
 
 def compose_round_duration_description(*, record: AgentRoundRecord) -> str:
-    """Describe how long a completed, uninterrupted round ran."""
+    """Describe how long a round that ended ran, unless it was interrupted."""
     ending = record.ending
     if ending is None or ending.outcome is AgentRoundOutcome.INTERRUPTED:
         return ""
@@ -160,9 +160,9 @@ def list_round_statuses(*, work: AgentWork, is_working: bool) -> list[AgentRound
 def describe_round_trigger(*, work: AgentWork, number: int) -> str:
     """Describe what woke one round of the work, from the input it was given.
 
-    An assignment round given no input started the assignment. Comments wake
-    every conversation round, so one whose input is still to be written, or
-    never was, says so without a count.
+    An assignment round given no input opened, or tried to open, the pull
+    request. Comments wake every conversation round, so one whose input is
+    still to be written, or never was, says so without a count.
     """
     if work.record.kind is AgentWorkKind.CONVERSATION:
         conversation_input = _read_conversation_input(work=work, number=number)

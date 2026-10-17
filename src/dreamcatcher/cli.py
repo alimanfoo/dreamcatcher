@@ -37,8 +37,8 @@ from dreamcatcher.version import DREAMCATCHER_VERSION
 _ISSUE_REFERENCE_PATTERN = re.compile(r"gh(\d+)\Z", re.IGNORECASE)
 _MAX_INTERVAL_SECONDS = int(TIMEOUT_MAX) - 1
 
-# The help that says what a view does to the terminal it runs in, which the two
-# views that draw a picture over the one before give.
+# The help that says what a view does to the terminal it runs in, which every
+# view that draws a picture over the one before gives.
 _HELP_WHEN_A_VIEW_TAKES_THE_SCREEN = (
     "It takes the whole terminal while it runs, and gives it back when it ends."
 )
@@ -198,7 +198,7 @@ def _build_cli_parser() -> argparse.ArgumentParser:
         help="show one issue's newest assignment, in detail",
         description=(
             "Show an overview of the newest assignment at the issue: what "
-            "its assignment dispatch settled, the rounds it has run, the command that "
+            "its work record holds, the rounds it has run, the command that "
             "resumes the harness session by hand, and the older assignments "
             "at the same issue. It keeps up until the assignment ends after a "
             "successful wrap-up or a cancel. Interrupt it to end it sooner. "

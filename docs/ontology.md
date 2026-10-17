@@ -132,8 +132,9 @@ An **agent round** is one attempt by an assignment or an issue conversation to
 take a turn. It begins when _dreamcatcher_ records it, before anything else
 happens, and it holds everything the attempt does, in this order:
 
-1. the **preparation**, which readies the worktree and, for an assignment whose
-   pull request does not exist yet, makes the branch and opens the pull request;
+1. the **preparation**, which resets a conversation's worktree to main or, for
+   an assignment whose pull request does not exist yet, makes the worktree and
+   branch and opens the pull request, and then freezes the round's input;
 2. the harness invocation, which starts or resumes the harness session with a
    prompt; and
 3. the finishing step after a successful exit, which posts a conversation's

@@ -122,10 +122,11 @@ def render_latest_output(*, latest_output: str | None) -> Text | None:
 def create_table(*, columns: int) -> Table:
     """Return a table whose cells fold instead of truncating.
 
-    The first column names an assignment or an issue, which is what a reader picks
-    a row out by, so it folds onto another line rather than being cut short.
-    Two assignments at one issue differ only in the time in their identifiers,
-    and a cut that reached that far would leave the rows reading the same.
+    The first column names a piece of agent work or an issue, which is what a
+    reader picks a row out by, so it folds onto another line rather than being
+    cut short. Two pieces of work at one issue can differ only in the time in
+    their identifiers, and a cut that reached that far would leave the rows
+    reading the same.
     """
     table = Table(box=None, show_header=False, pad_edge=False)
     for number in range(columns):

@@ -1,6 +1,6 @@
 """Run agent rounds and persist their inputs, output, and outcomes.
 
-A round runs a harness in its owner's worktree and stores its prompt, input,
+A round runs a harness in its work's worktree and stores its prompt, input,
 stop request, raw and rendered output, final output, and lifecycle record in a
 numbered directory. The daemon watches rather than waits, so the round reads
 its streams and records its ending on threads of its own.
@@ -54,8 +54,8 @@ _AGENT_ROUND_RECORD_NAME = "round.json"
 class AgentRoundPaths:
     """Provide the worktree and file paths for a numbered round.
 
-    The round runs in its owner's worktree and writes into the directory its
-    number selects under that owner's rounds directory. Keeping the number
+    The round runs in its work's worktree and writes into the directory its
+    number selects under that work's rounds directory. Keeping the number
     beside that parent makes one value authoritative for both the path and the
     record the round writes. The paths are available before the round creates
     any files.
@@ -163,7 +163,7 @@ class ErroredAgentRoundEnding(DreamcatcherDocument):
     """An agent round ending with an error exit, or a failure around a clean one.
 
     A round errors with a reason when it cannot prepare or spawn its harness,
-    which leaves no exit status, or when its owner cannot finish a round whose
+    which leaves no exit status, or when its finishing step fails after its
     harness exited cleanly.
     """
 
@@ -210,7 +210,7 @@ def _compose_agent_round_ending(
 ) -> SuccessfulAgentRoundEnding | ErroredAgentRoundEnding:
     """Return the terminal outcome observed when a harness exited.
 
-    A failure is what stopped the owner finishing a round whose harness exited
+    A failure is what stopped the finishing step of a round whose harness exited
     cleanly, and it errors the round.
     """
     if failure is not None:
@@ -326,7 +326,7 @@ def _record_agent_round_ending(
 
 @dataclass(frozen=True, kw_only=True)
 class AgentRoundStartRequest:
-    """Describe everything that the round boundary needs to start a round."""
+    """Describe everything that `start_agent_round` needs to start a round."""
 
     harness: AgentHarness
     launch_request: AgentRoundLaunchRequest
@@ -342,7 +342,7 @@ def start_agent_round(
     request: AgentRoundStartRequest,
     clock: Callable[[], datetime] = read_current_time,
 ) -> "AgentRound":
-    """Start a first or resumed round through its owner's harness."""
+    """Start a round through its work's harness, resuming its session if any."""
     harness_adapter = HARNESS_ADAPTERS[request.harness]
     if request.harness_session_identifier is None:
         invocation = harness_adapter.build_first_round(
@@ -430,19 +430,18 @@ class AgentRound:
         """Record the round, prepare it, and run its harness at the paths given.
 
         The record is written first, so the attempt exists before anything else
-        happens. The owner's preparation step then readies the worktree and
-        returns the input to relay, if any. The input and prompt go to files of
-        the round's own before its process starts, and the harness reads the
-        prompt as its stdin. A prompt therefore reaches the harness as it was
-        written however long it is and whatever it holds, and a reader can see
-        afterwards what the round received.
+        happens. The preparation step that the work's kind supplies then readies
+        what the round needs and returns the input to relay, if any. The input
+        and prompt go to files of the round's own before its process starts, and
+        the harness reads the prompt as its stdin. A prompt therefore reaches the
+        harness as it was written however long it is and whatever it holds, and
+        a reader can see afterwards what the round received.
 
         A failure before the harness is running ends the round errored, with the
         failure as its reason and no exit status, and raises
         AgentRoundLaunchError naming the work and the round.
 
-        A round given a finisher lets its owner finish it before it records its
-        ending.
+        A round given a finishing step runs it before it records its ending.
 
         The stop-request watcher waits between its polls through
         `wait_for_round_end`, which is given the seconds to wait and answers
@@ -551,8 +550,8 @@ class AgentRound:
 
         This returns as soon as the round has ended, and does not wait for the
         feed, so that a stream somebody else is still holding cannot hold up
-        the daemon. A round whose harness has already exited is finished by
-        its owner first.
+        the daemon. A round whose harness has already exited runs its finishing
+        step first.
         """
         self._end_process_tree(ending=InterruptedAgentRoundEnding())
         self._round_ended.wait()
@@ -561,7 +560,8 @@ class AgentRound:
         """End the round while preserving a pending user stop request.
 
         A stop request already written when shutdown begins is the reason this
-        round ends, rather than an interruption the next daemon would recover.
+        round ends, rather than an interruption whose input the next round is
+        given again.
         """
         if self.paths.stop_request.is_file():
             ending: _AgentRoundEnding = StoppedAgentRoundEnding(at=self.clock())

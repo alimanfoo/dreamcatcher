@@ -190,7 +190,7 @@ def create_agent_work(
 
     The route's kind is the work's kind. The route selects a recipe in response
     to the preferred harness, and the recipe supplies the settings that the
-    record keeps. Creation writes the record alone; the first round prepares
+    record keeps. Creation writes the record alone, and the rounds prepare
     everything else.
     """
     harness = route.choose_harness(preferred_harness=preferred_harness)

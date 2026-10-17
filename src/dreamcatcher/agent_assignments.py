@@ -1,9 +1,9 @@
 """Open agent assignments' pull requests and read the state only assignments have.
 
 Each assignment has its own identifier, branch, worktree and pull request, and
-several assignments can exist for one issue. Its first round prepares and
-publishes the branch and opens the linked draft pull request, the assignment's
-channel, before the harness runs.
+several assignments can exist for one issue. The round that opens the pull
+request prepares and publishes the branch and opens the linked draft pull
+request, the assignment's channel, before the harness runs.
 """
 
 from collections.abc import Callable, Iterator

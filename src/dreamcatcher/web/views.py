@@ -192,7 +192,7 @@ def compose_conversation_view(
 
 
 def _compose_conversation_facts(*, conversation: AgentWork) -> tuple[StatusFact, ...]:
-    """Return the settings that a conversation settled at its first round."""
+    """Return the settings that a conversation's work record holds."""
     record = conversation.record
     return (
         StatusFact(label="label", value=record.dispatch_label),

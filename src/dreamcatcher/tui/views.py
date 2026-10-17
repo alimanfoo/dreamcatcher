@@ -137,7 +137,7 @@ def _render_conversation(
 def _render_conversation_summary(
     *, state: StateDirectory, status: AgentWorkStatus
 ) -> RenderableType:
-    """Return the issue, and what the first round settled for every round."""
+    """Return the issue, and what the work record holds for every round."""
     conversation = status.work
     record = conversation.record
     table = create_table(columns=2)
@@ -225,7 +225,7 @@ def _render_assignment(
 def _render_assignment_summary(
     *, state: StateDirectory, status: AgentWorkStatus
 ) -> RenderableType:
-    """Return what the assignment dispatch settled for every round."""
+    """Return what the work record holds for every round."""
     assignment = status.work
     record = assignment.record
     table = create_table(columns=2)
