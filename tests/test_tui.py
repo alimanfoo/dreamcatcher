@@ -14,7 +14,13 @@ from io import StringIO
 import pytest
 from clocks import DISPLAY_TIME_ZONE, PINNED
 from conftest import DAEMON_PID, FIXTURES, assert_matches_view_golden
-from records import SCOUT_ROUTES, write_daemon_run, write_feed, write_round
+from records import (
+    SCOUT_ROUTES,
+    read_assignments_for_issue,
+    write_daemon_run,
+    write_feed,
+    write_round,
+)
 from rich.console import Console
 from rich.control import Control
 from rich.text import Text
@@ -37,7 +43,6 @@ from status_fabrications import (
 
 from dreamcatcher.agent_assignments import (
     cancel_assignment,
-    read_assignments_for_issue,
 )
 from dreamcatcher.agent_rounds import (
     AssignmentRoundPurpose,
@@ -175,7 +180,7 @@ def test_identifiers_remain_whole_when_the_assignment_table_folds(tmp_path):
     status = render_status_view(state=state, width=55)
 
     compact = "".join(status.split())
-    assert "GH13-20260819-184158" in compact
+    assert "GH13-20260819-184158-assignment" in compact
     assert "2endedassignments" in compact
 
 
@@ -186,13 +191,13 @@ def test_assignments_are_rendered_in_attention_order(tmp_path):
     rendered = render_status_view(state=state)
 
     identifiers = [
-        "GH20-20260819-184158",
-        "GH9-20260819-184158",
-        "GH13-20260819-184158",
-        "GH31-20260819-184158",
-        "GH35-20260819-184158",
-        "GH44-20260819-184158",
-        "GH40-20260819-184158",
+        "GH20-20260819-184158-assignment",
+        "GH9-20260819-184158-assignment",
+        "GH13-20260819-184158-assignment",
+        "GH31-20260819-184158-assignment",
+        "GH35-20260819-184158-assignment",
+        "GH44-20260819-184158-assignment",
+        "GH40-20260819-184158-assignment",
     ]
     assert [rendered.index(identifier) for identifier in identifiers] == sorted(
         rendered.index(identifier) for identifier in identifiers
@@ -210,7 +215,7 @@ def test_status_output_fits_one_line_without_hiding_later_assignments(width, tmp
 
     assert len(output) == 1
     assert len(output[0]) <= width
-    assert f"GH31-{ASSIGNMENT_TIMESTAMP}" in rendered
+    assert f"GH31-{ASSIGNMENT_TIMESTAMP}-assignment" in rendered
 
 
 def test_ended_assignments_are_summarized(tmp_path):
@@ -220,8 +225,8 @@ def test_ended_assignments_are_summarized(tmp_path):
     rendered = render_status_view(state=state)
 
     assert "2 ended assignments" in rendered
-    assert "GH13-20260818-090000" not in rendered
-    assert "GH13-20260817-090000" not in rendered
+    assert "GH13-20260818-090000-assignment" not in rendered
+    assert "GH13-20260817-090000-assignment" not in rendered
 
 
 def test_only_ended_assignments_are_summarized(tmp_path):
@@ -236,8 +241,8 @@ def test_only_ended_assignments_are_summarized(tmp_path):
     rendered = render_status_view(state=state)
 
     assert "2 ended assignments" in rendered
-    assert "GH12-20260819-184158" not in rendered
-    assert "GH13-20260819-184158" not in rendered
+    assert "GH12-20260819-184158-assignment" not in rendered
+    assert "GH13-20260819-184158-assignment" not in rendered
 
 
 def test_status_shows_only_the_routed_empty_agent_work(tmp_path):
@@ -303,7 +308,7 @@ def test_status_a_reader_watches_keeps_up_with_what_the_daemon_writes(tmp_path):
         "Assign an issue to yourself and label it with dream:smith "
         "to create an assignment." in status
     )
-    assert f"GH13-{ASSIGNMENT_TIMESTAMP}" in status
+    assert f"GH13-{ASSIGNMENT_TIMESTAMP}-assignment" in status
 
 
 def test_status_a_reader_watches_takes_the_screen_and_hands_it_back(tmp_path):
@@ -450,7 +455,7 @@ def test_an_assignment_view_shows_the_round_that_starts_while_it_is_open(tmp_pat
         if len(looks) > 1:
             raise KeyboardInterrupt
         write_round(
-            directory=state.assignments / f"GH20-{ASSIGNMENT_TIMESTAMP}",
+            directory=state.work / f"GH20-{ASSIGNMENT_TIMESTAMP}-assignment",
             number=2,
             record=running(
                 minute=60,
@@ -489,7 +494,7 @@ def test_an_assignment_view_of_an_ended_assignment_never_waits(tmp_path):
         zone=DISPLAY_TIME_ZONE,
     )
 
-    assert f"GH12-{ASSIGNMENT_TIMESTAMP}" in written_to.getvalue()
+    assert f"GH12-{ASSIGNMENT_TIMESTAMP}-assignment" in written_to.getvalue()
 
 
 def test_an_assignment_view_in_fault_keeps_watching(tmp_path):
@@ -535,7 +540,7 @@ def test_an_assignment_view_of_an_ended_assignment_keeps_its_last_picture(
     # Handing the screen back took the picture the view ended on with it, so
     # the view printed that picture where a reader looking the assignment up
     # reads it.
-    assert f"GH12-{ASSIGNMENT_TIMESTAMP}" in kept
+    assert f"GH12-{ASSIGNMENT_TIMESTAMP}-assignment" in kept
 
 
 def followed(*, state, issue: int, wait=refusing) -> str:
@@ -630,7 +635,7 @@ def test_a_following_view_waits_for_the_round_an_assignment_has_yet_to_run(tmp_p
 def test_a_following_view_looks_once_more_when_the_last_round_stops(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
-    directory = state.assignments / f"GH13-{ASSIGNMENT_TIMESTAMP}"
+    directory = state.work / f"GH13-{ASSIGNMENT_TIMESTAMP}-assignment"
     waits = []
 
     def wait(seconds, /):
@@ -651,7 +656,7 @@ def test_a_following_view_looks_once_more_when_the_last_round_stops(tmp_path):
 def test_a_round_that_starts_while_the_view_is_going_arrives_in_it(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
-    directory = state.assignments / f"GH20-{ASSIGNMENT_TIMESTAMP}"
+    directory = state.work / f"GH20-{ASSIGNMENT_TIMESTAMP}-assignment"
     looks = []
 
     def wait(seconds, /):
@@ -725,7 +730,7 @@ def test_a_view_of_a_faulted_assignment_keeps_watching(tmp_path):
 def test_a_following_view_reads_a_round_on_from_where_it_stopped(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
-    directory = state.assignments / f"GH13-{ASSIGNMENT_TIMESTAMP}"
+    directory = state.work / f"GH13-{ASSIGNMENT_TIMESTAMP}-assignment"
     looks = []
 
     def wait(seconds, /):
@@ -759,7 +764,11 @@ def test_a_write_that_never_landed_waits_for_the_look_that_shows_it_whole(tmp_pa
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
     feed = (
-        state.assignments / f"GH13-{ASSIGNMENT_TIMESTAMP}" / "rounds" / "2" / "feed.txt"
+        state.work
+        / f"GH13-{ASSIGNMENT_TIMESTAMP}-assignment"
+        / "rounds"
+        / "2"
+        / "feed.txt"
     )
     looks = []
 
@@ -785,8 +794,8 @@ def test_a_line_the_view_cannot_read_reaches_the_reader_as_it_was_written(tmp_pa
     fabricate_everything(state=state)
     write_text(
         text="the harness said something else\n",
-        path=state.assignments
-        / f"GH13-{ASSIGNMENT_TIMESTAMP}"
+        path=state.work
+        / f"GH13-{ASSIGNMENT_TIMESTAMP}-assignment"
         / "rounds"
         / "2"
         / "feed.txt",
@@ -829,7 +838,7 @@ def viewed_round(
 def test_a_round_view_uses_the_number_persisted_by_the_round(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
-    directory = state.assignments / f"GH12-{ASSIGNMENT_TIMESTAMP}"
+    directory = state.work / f"GH12-{ASSIGNMENT_TIMESTAMP}-assignment"
     write_round(directory=directory, number=4, record=ended(minute=40, number=4))
     write_feed(
         directory=directory,
@@ -879,7 +888,7 @@ def test_a_view_of_a_round_that_has_ended_never_waits(tmp_path):
 def test_a_view_of_a_running_round_ends_when_that_round_does(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
-    directory = state.assignments / f"GH13-{ASSIGNMENT_TIMESTAMP}"
+    directory = state.work / f"GH13-{ASSIGNMENT_TIMESTAMP}-assignment"
     looks = []
 
     def wait(seconds, /):

@@ -12,12 +12,11 @@ from conftest import (
     pages,
     pull_request,
 )
-from records import write_assignment, write_round
+from records import read_assignments, write_assignment, write_round
 
 from dreamcatcher.agent_assignments import (
     AssignmentRoundInput,
     cancel_assignment,
-    read_assignments,
 )
 from dreamcatcher.agent_rounds import (
     AgentRoundRecord,
@@ -42,7 +41,7 @@ from dreamcatcher.scheduler.models import (
 )
 from dreamcatcher.state import StateDirectory
 
-ASSIGNMENT_ID = "GH13-20260819-184158"
+ASSIGNMENT_ID = "GH13-20260819-184158-assignment"
 
 
 @pytest.fixture
@@ -93,7 +92,7 @@ def ran(
         else _compose_agent_round_ending(at=started, status=status)
     )
     write_round(
-        directory=state.assignments / ASSIGNMENT_ID,
+        directory=state.work / ASSIGNMENT_ID,
         number=number,
         record=AgentRoundRecord(
             number=number,
@@ -231,7 +230,7 @@ def test_an_assignment_nobody_has_posted_on_needs_nothing(state, gh):
 def test_a_stopped_assignment_waits_for_feedback(state, gh):
     started = PINNED + timedelta(minutes=1)
     write_round(
-        directory=state.assignments / ASSIGNMENT_ID,
+        directory=state.work / ASSIGNMENT_ID,
         number=1,
         record=AgentRoundRecord(
             number=1,
@@ -251,7 +250,7 @@ def test_a_terminal_pull_request_wraps_up_a_stopped_assignment(
 ):
     started = PINNED + timedelta(minutes=1)
     write_round(
-        directory=state.assignments / ASSIGNMENT_ID,
+        directory=state.work / ASSIGNMENT_ID,
         number=1,
         record=AgentRoundRecord(
             number=1,
@@ -279,7 +278,7 @@ def test_a_terminal_pull_request_wraps_up_a_stopped_assignment(
 def test_a_stopped_assignment_uses_new_feedback_without_recovery(state, gh):
     started = PINNED + timedelta(minutes=1)
     write_round(
-        directory=state.assignments / ASSIGNMENT_ID,
+        directory=state.work / ASSIGNMENT_ID,
         number=1,
         record=AgentRoundRecord(
             number=1,

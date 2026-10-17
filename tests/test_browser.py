@@ -140,7 +140,7 @@ def test_stopping_a_round_asks_first(page: Page, live_web: str) -> None:
 
 
 def test_cancelling_an_assignment_asks_first(page: Page, live_web: str) -> None:
-    page.goto(f"{live_web}/assignments/GH44-20260819-184158")
+    page.goto(f"{live_web}/assignments/GH44-20260819-184158-assignment")
     cancel = page.get_by_role("button", name="cancel assignment")
 
     page.once("dialog", lambda dialog: dialog.dismiss())

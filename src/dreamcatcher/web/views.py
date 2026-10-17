@@ -5,7 +5,7 @@ from datetime import tzinfo
 from pathlib import Path
 from typing import cast
 
-from dreamcatcher.issue_conversations import Conversation
+from dreamcatcher.agent_work import AgentWork
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.status import (
     AgentRoundStatus,
@@ -103,7 +103,7 @@ def _compose_assignment_card(*, status: AssignmentStatus) -> WebAssignmentCard:
         harness=str(assignment.record.harness),
         model=assignment.record.model,
         effort=assignment.record.effort,
-        pull_request=assignment.record.pull_request,
+        pull_request=status.pull_request_observation.number,
         pull_request_state=status.pull_request_state,
         latest_output=status.latest_output,
     )
@@ -177,7 +177,7 @@ def compose_assignment_view(
         identifier=assignment.identifier,
         issue=record.issue,
         title=record.title,
-        pull_request=record.pull_request,
+        pull_request=status.pull_request_observation.number,
         pull_request_state=status.pull_request_state,
         dispatch_label=record.dispatch_label,
         harness=str(record.harness),
@@ -218,9 +218,7 @@ def compose_conversation_view(
     )
 
 
-def _compose_conversation_facts(
-    *, conversation: Conversation
-) -> tuple[StatusFact, ...]:
+def _compose_conversation_facts(*, conversation: AgentWork) -> tuple[StatusFact, ...]:
     """Return the settings that a conversation settled at its first round."""
     record = conversation.record
     return (

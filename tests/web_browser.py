@@ -15,14 +15,14 @@ from status_fabrications import (
 )
 from werkzeug.serving import make_server
 
-from dreamcatcher.agent_assignments import read_assignment
+from dreamcatcher.agent_work import find_agent_work
 from dreamcatcher.documents import append_text
 from dreamcatcher.feed import FeedLine
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.web.app import _create_app
 from dreamcatcher.web.server import WEB_HOST, run_web_server_in_background
 
-BROWSER_ASSIGNMENT_IDENTIFIER = f"GH13-{ASSIGNMENT_TIMESTAMP}"
+BROWSER_ASSIGNMENT_IDENTIFIER = f"GH13-{ASSIGNMENT_TIMESTAMP}-assignment"
 FEED_LINE_COUNT_PER_ROUND = 40
 
 
@@ -35,7 +35,7 @@ def serve_fabricated_web(*, root: Path) -> Generator[str, None, None]:
         state=state,
         conversation_observations=[observed_conversation()],
     )
-    assignment = read_assignment(
+    assignment = find_agent_work(
         state=state,
         identifier=BROWSER_ASSIGNMENT_IDENTIFIER,
     )

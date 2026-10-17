@@ -11,10 +11,7 @@ from flask import Flask, Response, redirect, render_template, request, url_for
 from flask.typing import ResponseReturnValue
 from werkzeug.serving import BaseWSGIServer
 
-from dreamcatcher.agent_assignments import (
-    cancel_assignment,
-    read_assignment,
-)
+from dreamcatcher.agent_assignments import cancel_assignment
 from dreamcatcher.agent_rounds import request_agent_round_stop
 from dreamcatcher.agent_work import request_agent_work_retry
 from dreamcatcher.clock import read_current_time
@@ -229,7 +226,7 @@ def _compose_assignment_live_state(
     return compose_agent_live_state(
         state=state,
         status=status,
-        worktree=assignment.record.worktree,
+        worktree=assignment.worktree,
         zone=zone,
         heading_controls=tuple(heading_controls),
         foot_controls=tuple(foot_controls),
@@ -463,11 +460,16 @@ def _cancel_assignment(
     """
     if not _is_same_origin_request():
         return _CROSS_ORIGIN_POST_RESPONSE
-    assignment = read_assignment(state=state, identifier=identifier)
-    if assignment is None:
+    status = read_assignment_status(
+        state=state,
+        identifier=identifier,
+        daemon=read_dreamcatcher_daemon_status(state=state),
+        clock=clock,
+    )
+    if status is None:
         return _missing_assignment_response(identifier=identifier)
-    if assignment.is_open:
-        cancel_assignment(assignment=assignment, at=clock())
+    if status.assignment.is_open:
+        cancel_assignment(assignment=status.assignment, at=clock())
     return redirect(url_for("show_assignment", identifier=identifier), code=303)
 
 

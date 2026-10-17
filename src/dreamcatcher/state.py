@@ -7,7 +7,7 @@ from pathlib import Path
 from dreamcatcher.documents import DocumentCache, write_text
 
 _STATE_DIRECTORY_NAME = ".dreamcatcher"
-STATE_FORMAT_VERSION = 5
+STATE_FORMAT_VERSION = 6
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -56,24 +56,14 @@ class StateDirectory:
         return self.path / "scheduler.json"
 
     @property
-    def assignment_worktrees(self) -> Path:
-        """The directory holding each assignment worktree by identifier."""
+    def work(self) -> Path:
+        """The directory holding each piece of agent work's files by identifier."""
+        return self.path / "work"
+
+    @property
+    def worktrees(self) -> Path:
+        """The directory holding each piece of agent work's worktree by identifier."""
         return self.path / "worktrees"
-
-    @property
-    def assignments(self) -> Path:
-        """The directory holding each assignment's files by identifier."""
-        return self.path / "assignments"
-
-    @property
-    def conversation_worktrees(self) -> Path:
-        """The directory holding detached issue-conversation worktrees."""
-        return self.path / "conversation-worktrees"
-
-    @property
-    def conversations(self) -> Path:
-        """The directory holding issue conversations by issue identifier."""
-        return self.path / "conversations"
 
     def describe_path(self, *, path: Path) -> str:
         """Return a portable path relative to the checkout when possible."""

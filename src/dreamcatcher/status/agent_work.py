@@ -5,15 +5,14 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import cast
 
-from dreamcatcher.agent_assignments import AssignmentRecord
 from dreamcatcher.agent_rounds import (
     AgentRoundRecord,
     StoppedAgentRoundEnding,
     SuccessfulAgentRoundEnding,
 )
+from dreamcatcher.agent_work import AgentWorkRecord
 from dreamcatcher.harness_adapters import HarnessSessionIdentifier
 from dreamcatcher.harnesses import HARNESS_ADAPTERS
-from dreamcatcher.issue_conversations import ConversationRecord
 from dreamcatcher.scheduler.faults import derive_agent_work_fault
 from dreamcatcher.scheduler.models import SchedulerRecord
 from dreamcatcher.state import StateDirectory
@@ -22,7 +21,7 @@ from dreamcatcher.state import StateDirectory
 def compose_hand_resume_command(
     *,
     is_working: bool,
-    record: AssignmentRecord | ConversationRecord,
+    record: AgentWorkRecord,
     harness_session_identifier: HarnessSessionIdentifier | None,
 ) -> list[str] | None:
     """Return the command for resuming an idle harness session by hand."""

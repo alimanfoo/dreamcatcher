@@ -8,7 +8,9 @@ from clocks import DISPLAY_TIME_ZONE, PINNED
 from conftest import REPOSITORY
 from observations import observed_conversation
 from records import (
+    find_conversation_directory,
     hold_daemon_lock_for_test,
+    read_conversation,
     release_daemon_lock,
     write_feed,
     write_round,
@@ -28,7 +30,6 @@ from dreamcatcher.feed import FeedLine
 from dreamcatcher.issue_conversations import (
     ConversationRoundInput,
     InitialConversationIssue,
-    read_conversation,
 )
 from dreamcatcher.scheduler.models import SchedulerRecord, Truth
 from dreamcatcher.state import StateDirectory
@@ -84,7 +85,7 @@ def test_conversation_page_asks_once_whether_the_daemon_runs(tmp_path, monkeypat
 def test_conversation_page_shows_settings_revision_round_and_feed(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_conversation(state=state, harness_session_identifier=None)
-    directory = state.conversations / "GH8"
+    directory = find_conversation_directory(state=state, issue=8)
     write_text(
         text=(
             '{"type":"system","subtype":"init","model":"claude-opus-5",'
@@ -146,7 +147,7 @@ def test_conversation_page_shows_settings_revision_round_and_feed(tmp_path):
     assert "I found the answer." in page
     assert 'hx-get="/conversations/8/tail"' in page
     assert "<summary>resume by hand</summary>" in page
-    assert "cd .dreamcatcher/v5/conversation-worktrees/GH8" in page
+    assert "cd .dreamcatcher/v6/worktrees/GH8-20260819-184158-conversation" in page
     assert "claude --resume recovered-session" in page
 
 
@@ -198,7 +199,7 @@ def test_an_old_conversation_stop_submission_cannot_stop_the_next_round(tmp_path
     state = StateDirectory(root=tmp_path)
     fabricate_conversation(state=state)
     write_round(
-        directory=state.conversations / "GH8",
+        directory=find_conversation_directory(state=state, issue=8),
         number=2,
         record=AgentRoundRecord(
             number=2,
@@ -358,7 +359,7 @@ def test_conversation_page_shows_a_failed_round_waiting_to_be_recovered(tmp_path
 def _fabricate_faulted_conversation(*, state: StateDirectory) -> None:
     """Save conversation GH8 with two consecutive errored rounds."""
     fabricate_conversation(state=state, status=2, is_eligible=True)
-    directory = state.conversations / "GH8"
+    directory = find_conversation_directory(state=state, issue=8)
     write_round(
         directory=directory,
         number=2,
@@ -523,7 +524,7 @@ def test_conversation_tail_adds_a_later_round_without_repeating_the_first(tmp_pa
     conversation = read_conversation(state=state, issue=8)
     assert conversation is not None
     first_feed = conversation.compose_round_paths(number=1).feed
-    directory = state.conversations / "GH8"
+    directory = find_conversation_directory(state=state, issue=8)
     write_round(
         directory=directory,
         number=2,
@@ -662,7 +663,7 @@ def test_home_lists_conversations_in_attention_order(tmp_path):
     fabricate_conversation(state=state)
     write_running_conversation(state=state, issue=11, started=PINNED)
     write_feed(
-        directory=state.conversations / "GH11",
+        directory=find_conversation_directory(state=state, issue=11),
         number=1,
         lines=[FeedLine(at=PINNED, text="Still working.")],
     )

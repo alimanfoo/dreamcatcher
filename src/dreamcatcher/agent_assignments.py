@@ -1,8 +1,7 @@
-"""Create agent assignments and read their persisted state.
+"""Create agent assignments and read the state that only assignments have.
 
-Each assignment dispatch creates an assignment with its own identifier, branch,
-worktree, assignment directory under the instance state, and pull request.
-Several assignments can exist for one issue.
+Each assignment dispatch creates a piece of agent work with its own identifier,
+branch, worktree and pull request. Several assignments can exist for one issue.
 
 Creation prepares and publishes the assignment's branch, opens its linked draft
 pull request, then records the assignment. The scheduler decides when to create
@@ -10,34 +9,32 @@ each assignment.
 """
 
 from contextlib import suppress
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import cast
 
-from pydantic import AwareDatetime, Field
+from pydantic import AwareDatetime
 
 from dreamcatcher.agent_assignment_pull_requests import (
     find_or_create_assignment_pull_request,
     validate_assignment_pull_request_setup,
 )
 from dreamcatcher.agent_rounds import (
-    AgentRoundOutcome,
     AgentRoundPaths,
-    AgentRoundRecord,
-    AssignmentRoundPurpose,
-    SuccessfulAgentRoundEnding,
     read_agent_round_records,
     request_agent_round_stop,
 )
 from dreamcatcher.agent_work import (
-    read_harness_session_identifier,
-    read_retry_requested_at,
-    read_user_request_time,
-    record_user_request,
+    AgentWork,
+    AgentWorkRecord,
+    cancel_agent_work,
+    compose_agent_work_identifier,
+    read_agent_work,
+    read_cancelled_at,
+    record_agent_work,
 )
 from dreamcatcher.commands import CommandError
-from dreamcatcher.config import AgentHarness, AssignmentRoute, QuotableText
+from dreamcatcher.config import AgentHarness, AssignmentRoute
 from dreamcatcher.documents import (
     DocumentCache,
     DreamcatcherDocument,
@@ -61,8 +58,7 @@ from dreamcatcher.github import (
     PullRequestState,
     UserPost,
 )
-from dreamcatcher.harness_adapters import HarnessConfig, HarnessSessionIdentifier
-from dreamcatcher.harnesses import find_harness_session_identifier
+from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.prompts import compose_assignment_first_round_prompt
 from dreamcatcher.state import StateDirectory
 
@@ -71,19 +67,8 @@ from dreamcatcher.state import StateDirectory
 # that the catcher it replaces left behind.
 _ASSIGNMENT_BRANCH_PREFIX = "dreamcatcher-"
 
-# The file in an assignment's directory saying what the assignment received
-# with.
-_ASSIGNMENT_RECORD_NAME = "assignment.json"
-
-# The file in an assignment's directory holding its latest pull request
-# observation.
+# The file in an assignment's directory holding its pull request observation.
 _PULL_REQUEST_OBSERVATION_RECORD_NAME = "pull-request-observation.json"
-
-# The file in an assignment's directory saying when the user cancelled it.
-_CANCEL_RECORD_NAME = "cancel.json"
-
-# The directory in an assignment's directory holding a directory per round.
-_AGENT_ROUNDS_DIRECTORY_NAME = "rounds"
 
 
 class AssignmentRoundInput(DreamcatcherDocument):
@@ -94,11 +79,13 @@ class AssignmentRoundInput(DreamcatcherDocument):
 
 
 class PullRequestObservation(DreamcatcherDocument):
-    """Model the latest pull request state observed for reporting.
+    """Model the assignment's pull request and the latest state observed of it.
 
-    Scheduling reads the pull request from GitHub, not from this observation.
+    The number never changes. Scheduling reads the pull request's state from
+    GitHub, not from this observation, which keeps it for reporting.
     """
 
+    number: int
     state: PullRequestState
     is_draft: bool
     observed_at: AwareDatetime
@@ -109,178 +96,22 @@ class PullRequestObservation(DreamcatcherDocument):
         return self.state is PullRequestState.OPEN
 
 
-class AssignmentRecord(DreamcatcherDocument):
-    """Model the identities and dispatch settings of an agent assignment.
-
-    Assignment setup writes the record once, and nothing writes it again. Every
-    round reads this record, so later config edits do not change an assignment
-    in progress.
-    """
-
-    issue: int
-    title: str
-    dispatch_label: str
-    branch: str
-    worktree: Path
-    pull_request: int
-    harness: AgentHarness
-    model: QuotableText
-    effort: QuotableText
-    harness_config: HarnessConfig = Field(default_factory=dict)
-    prompt: str
+def compose_assignment_branch(*, identifier: str) -> str:
+    """Return the name of the branch that the assignment with this identifier owns."""
+    return f"{_ASSIGNMENT_BRANCH_PREFIX}{identifier}"
 
 
-@dataclass(frozen=True, kw_only=True)
-class Assignment:
-    """Represent an agent assignment as its persisted state currently reads.
-
-    The directory name is the assignment identifier. The record holds the
-    settings that the assignment dispatch chose. Every fact that changes
-    later, such as the latest pull request observation or a cancel, is read
-    from a file of its own beside the record. The rounds are ordered from
-    oldest to newest.
-
-    The user-post delivery position is read from the newest recorded round input
-    that delivered posts. An assignment that has received none has the beginning
-    of time, so the first relay from its pull request returns the whole history.
-    """
-
-    directory: Path
-    record: AssignmentRecord
-    pull_request_observation: PullRequestObservation
-    harness_session_identifier: HarnessSessionIdentifier | None = None
-    retry_requested_at: datetime | None = None
-    cancelled_at: datetime | None = None
-    rounds: list[AgentRoundRecord] = field(default_factory=list)
-
-    @property
-    def user_post_delivery_position(self) -> str:
-        """The time of the newest user post delivered in a recorded round input."""
-        return read_user_post_delivery_position(assignment=self)
-
-    @property
-    def identifier(self) -> str:
-        """The identifier that the branch, worktree, and files all carry."""
-        return self.directory.name
-
-    @property
-    def is_complete(self) -> bool:
-        """Whether a wrap-up round has exited successfully."""
-        if not self.rounds:
-            return False
-        round = self.rounds[-1]
-        return (
-            round.purpose is AssignmentRoundPurpose.WRAP_UP
-            and round.outcome is AgentRoundOutcome.SUCCESSFUL
-        )
-
-    @property
-    def ended_at(self) -> datetime | None:
-        """When the assignment was cancelled or completed, if it has ended."""
-        if self.cancelled_at is not None:
-            return self.cancelled_at
-        if not self.is_complete:
-            return None
-        return cast("SuccessfulAgentRoundEnding", self.rounds[-1].ending).at
-
-    @property
-    def is_open(self) -> bool:
-        """Whether the assignment has neither completed nor been cancelled."""
-        return self.ended_at is None
-
-    def find_harness_session_identifier(self) -> HarnessSessionIdentifier | None:
-        """Return the recorded or recoverable harness session identifier."""
-        return find_harness_session_identifier(
-            harness=self.record.harness,
-            agent_work_identifier=self.identifier,
-            recorded=self.harness_session_identifier,
-            raw_outputs=(
-                self.compose_round_paths(number=round_record.number).raw_output
-                for round_record in reversed(self.rounds)
-            ),
-        )
-
-    def compose_round_paths(self, *, number: int) -> AgentRoundPaths:
-        """Return the worktree and file paths for a numbered round.
-
-        Every round runs in the assignment's worktree, and writes into a
-        directory named by the number of the round it is.
-
-        Round numbers start at one and increase in execution order.
-        """
-        return AgentRoundPaths(
-            worktree=self.record.worktree,
-            rounds_directory=self.directory / _AGENT_ROUNDS_DIRECTORY_NAME,
-            number=number,
-        )
-
-    @property
-    def next_round_number(self) -> int:
-        """The number the assignment's next round will carry."""
-        return self.rounds[-1].number + 1 if self.rounds else 1
-
-
-def read_assignments(*, state: StateDirectory) -> list[Assignment]:
-    """Return every complete assignment setup, ordered by identifier.
-
-    A worktree under `worktrees/` declares that an assignment exists. Its state
-    sits under `assignments/` in a directory with the same identifier.
-
-    The state directory is also what the round records are read through, so a
-    process that reads the same one again reads only the records that can have
-    changed since.
-
-    Missing state and worktrees without assignment records are incomplete setups,
-    so this read omits them. An invalid record raises ReportableError.
-    """
-    if not state.assignment_worktrees.is_dir():
-        return []
-    directories = [
-        state.assignments / worktree.name
-        for worktree in sorted(state.assignment_worktrees.iterdir())
-        if worktree.is_dir()
-    ]
-    return [
-        _read_assignment(state=state, directory=directory)
-        for directory in directories
-        if (directory / _ASSIGNMENT_RECORD_NAME).exists()
-    ]
-
-
-def read_assignment(*, state: StateDirectory, identifier: str) -> Assignment | None:
-    """Return the assignment with this exact identifier, if its setup finished."""
-    if not state.assignment_worktrees.is_dir():
-        return None
-    worktree = next(
-        (
-            path
-            for path in state.assignment_worktrees.iterdir()
-            if path.is_dir() and path.name == identifier
-        ),
-        None,
+def read_pull_request_observation(*, assignment: AgentWork) -> PullRequestObservation:
+    """Return the assignment's pull request observation."""
+    return read_json(
+        model=PullRequestObservation,
+        path=assignment.directory / _PULL_REQUEST_OBSERVATION_RECORD_NAME,
     )
-    if worktree is None:
-        return None
-    directory = state.assignments / worktree.name
-    if not (directory / _ASSIGNMENT_RECORD_NAME).exists():
-        return None
-    return _read_assignment(state=state, directory=directory)
-
-
-def read_assignments_for_issue(
-    *, state: StateDirectory, issue: int
-) -> list[Assignment]:
-    """Return the assignments at the issue, by identifier."""
-    return [
-        assignment
-        for assignment in read_assignments(state=state)
-        if assignment.record.issue == issue
-    ]
 
 
 def find_open_assignments_by_issue(
-    *, assignments: list[Assignment]
-) -> dict[int, Assignment]:
+    *, assignments: list[AgentWork]
+) -> dict[int, AgentWork]:
     """Return each issue's open assignment, keyed by issue."""
     return {
         assignment.record.issue: assignment
@@ -289,7 +120,7 @@ def find_open_assignments_by_issue(
     }
 
 
-def cancel_assignment(*, assignment: Assignment, at: datetime) -> None:
+def cancel_assignment(*, assignment: AgentWork, at: datetime) -> None:
     """Record that the user has taken an open assignment over.
 
     A round with no ending is asked to stop, so it does not go on pushing to the
@@ -300,10 +131,10 @@ def cancel_assignment(*, assignment: Assignment, at: datetime) -> None:
     """
     if not assignment.is_open:
         raise ReportableError(f"{assignment.identifier} has already ended.")
-    record_user_request(path=assignment.directory / _CANCEL_RECORD_NAME, at=at)
+    cancel_agent_work(work=assignment, at=at)
     rounds = read_agent_round_records(
         cache=DocumentCache(),
-        directory=assignment.directory / _AGENT_ROUNDS_DIRECTORY_NAME,
+        directory=assignment.rounds_directory,
     )
     if rounds and rounds[-1].ending is None:
         request_agent_round_stop(
@@ -311,16 +142,13 @@ def cancel_assignment(*, assignment: Assignment, at: datetime) -> None:
         )
 
 
-def stop_round_if_cancelled(*, assignment: Assignment, paths: AgentRoundPaths) -> None:
+def stop_round_if_cancelled(*, assignment: AgentWork, paths: AgentRoundPaths) -> None:
     """Ask a round that has just started to stop if the user cancelled its work.
 
     Call this once the round's record exists, so that a cancel either lands
     before this read or finds the round itself.
     """
-    cancelled_at = read_user_request_time(
-        path=assignment.directory / _CANCEL_RECORD_NAME
-    )
-    if cancelled_at is not None:
+    if read_cancelled_at(work=assignment) is not None:
         request_agent_round_stop(paths=paths)
 
 
@@ -350,11 +178,9 @@ def _find_incomplete_assignment_identifiers(
 ) -> dict[int, list[str]]:
     """Return each issue's setup identifiers whose record is absent."""
     identifiers_by_issue: dict[int, list[str]] = {}
-    for path in state.assignment_worktrees.glob("GH*-*"):
-        if (
-            not is_linked_worktree(path=path)
-            or (state.assignments / path.name / _ASSIGNMENT_RECORD_NAME).exists()
-        ):
+    recorded = {work.identifier for work in read_agent_work(state=state)}
+    for path in state.worktrees.glob(f"GH*-{AgentWorkKind.ASSIGNMENT}"):
+        if not is_linked_worktree(path=path) or path.name in recorded:
             continue
         issue = int(path.name.split("-", maxsplit=1)[0].removeprefix("GH"))
         identifiers_by_issue.setdefault(issue, []).append(path.name)
@@ -375,7 +201,7 @@ def _inspect_incomplete_assignment_setup(
             f"GH{issue} has several incomplete assignment setups: {identifier_names}."
         )
     identifier = identifiers[0]
-    branch = f"{_ASSIGNMENT_BRANCH_PREFIX}{identifier}"
+    branch = compose_assignment_branch(identifier=identifier)
     try:
         _check_worktree_branch(state=state, identifier=identifier, branch=branch)
         validate_assignment_pull_request_setup(
@@ -400,7 +226,7 @@ class AssignmentCreator:
         preferred_harness: AgentHarness,
         issue: int,
         at: datetime,
-    ) -> Assignment:
+    ) -> AgentWork:
         """Create and publish the issue's assignment with no rounds run yet.
 
         The route selects a recipe in response to the preferred harness. The
@@ -415,7 +241,11 @@ class AssignmentCreator:
         assignment cannot receive another.
         """
         open_assignment = find_open_assignments_by_issue(
-            assignments=read_assignments(state=self.state)
+            assignments=[
+                work
+                for work in read_agent_work(state=self.state)
+                if work.record.kind is AgentWorkKind.ASSIGNMENT
+            ]
         ).get(issue)
         if open_assignment is not None:
             raise ReportableError(
@@ -424,11 +254,13 @@ class AssignmentCreator:
         selected_harness = route.choose_harness(preferred_harness=preferred_harness)
         recipe = route.recipes[selected_harness]
         fetch_main(root=self.state.root)
-        identifier = _find_incomplete_assignment(state=self.state, issue=issue) or (
-            f"GH{issue}-{at:%Y%m%d-%H%M%S}"
+        identifier = _find_incomplete_assignment(
+            state=self.state, issue=issue
+        ) or compose_agent_work_identifier(
+            issue=issue, kind=AgentWorkKind.ASSIGNMENT, at=at
         )
-        branch = f"{_ASSIGNMENT_BRANCH_PREFIX}{identifier}"
-        worktree = self.state.assignment_worktrees / identifier
+        branch = compose_assignment_branch(identifier=identifier)
+        worktree = self.state.worktrees / identifier
         if is_linked_worktree(path=worktree):
             _check_worktree_branch(
                 state=self.state, identifier=identifier, branch=branch
@@ -447,13 +279,11 @@ class AssignmentCreator:
         title, pull_request = find_or_create_assignment_pull_request(
             repository=self.repository, branch=branch, issue=issue
         )
-        record = AssignmentRecord(
+        record = AgentWorkRecord(
             issue=issue,
             title=title,
             dispatch_label=route.label,
-            branch=branch,
-            worktree=worktree,
-            pull_request=pull_request.number,
+            kind=AgentWorkKind.ASSIGNMENT,
             harness=selected_harness,
             model=recipe.model,
             effort=recipe.effort,
@@ -463,22 +293,19 @@ class AssignmentCreator:
             ),
         )
         observation = PullRequestObservation(
+            number=pull_request.number,
             state=pull_request.state,
             is_draft=pull_request.is_draft,
             observed_at=at,
         )
-        directory = self.state.assignments / identifier
 
         # The record marks the setup complete, so every assignment whose setup
         # finished has an observation.
         write_json(
             document=observation,
-            path=directory / _PULL_REQUEST_OBSERVATION_RECORD_NAME,
+            path=self.state.work / identifier / _PULL_REQUEST_OBSERVATION_RECORD_NAME,
         )
-        write_json(document=record, path=directory / _ASSIGNMENT_RECORD_NAME)
-        return Assignment(
-            directory=directory, record=record, pull_request_observation=observation
-        )
+        return record_agent_work(state=self.state, identifier=identifier, record=record)
 
 
 def _find_incomplete_assignment(*, state: StateDirectory, issue: int) -> str | None:
@@ -496,9 +323,7 @@ def _check_worktree_branch(
     *, state: StateDirectory, identifier: str, branch: str
 ) -> None:
     """Require an incomplete setup's worktree to have its assignment branch."""
-    checked_out_branch = read_worktree_branch(
-        worktree=state.assignment_worktrees / identifier
-    )
+    checked_out_branch = read_worktree_branch(worktree=state.worktrees / identifier)
     if checked_out_branch != branch:
         raise ReportableError(
             f"cannot reconcile {identifier}: its worktree has branch "
@@ -506,28 +331,7 @@ def _check_worktree_branch(
         )
 
 
-def _read_assignment(*, state: StateDirectory, directory: Path) -> Assignment:
-    """Return the assignment whose own files sit in this directory."""
-    return Assignment(
-        directory=directory,
-        record=read_json(
-            model=AssignmentRecord, path=directory / _ASSIGNMENT_RECORD_NAME
-        ),
-        pull_request_observation=read_json(
-            model=PullRequestObservation,
-            path=directory / _PULL_REQUEST_OBSERVATION_RECORD_NAME,
-        ),
-        harness_session_identifier=read_harness_session_identifier(directory=directory),
-        retry_requested_at=read_retry_requested_at(directory=directory),
-        cancelled_at=read_user_request_time(path=directory / _CANCEL_RECORD_NAME),
-        rounds=read_agent_round_records(
-            cache=state.document_cache,
-            directory=directory / _AGENT_ROUNDS_DIRECTORY_NAME,
-        ),
-    )
-
-
-def read_user_post_delivery_position(*, assignment: Assignment) -> str:
+def read_user_post_delivery_position(*, assignment: AgentWork) -> str:
     """Return the newest user-post time found in recorded round inputs."""
     for round_record in reversed(assignment.rounds):
         round_input_path = assignment.compose_round_paths(
@@ -542,10 +346,10 @@ def read_user_post_delivery_position(*, assignment: Assignment) -> str:
 
 
 def record_pull_request_observation(
-    *, assignment: Assignment, pull_request: PullRequest, observed_at: datetime
+    *, assignment: AgentWork, pull_request: PullRequest, observed_at: datetime
 ) -> None:
     """Record a pull request state when it differs from the latest observation."""
-    recorded = assignment.pull_request_observation
+    recorded = read_pull_request_observation(assignment=assignment)
     if (
         recorded.state is pull_request.state
         and recorded.is_draft == pull_request.is_draft
@@ -553,6 +357,7 @@ def record_pull_request_observation(
         return
     write_json(
         document=PullRequestObservation(
+            number=pull_request.number,
             state=pull_request.state,
             is_draft=pull_request.is_draft,
             observed_at=observed_at,

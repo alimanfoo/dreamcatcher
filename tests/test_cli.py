@@ -7,6 +7,8 @@ from clocks import PINNED
 from conftest import configure
 from records import (
     hold_daemon_lock_for_test,
+    read_assignments_for_issue,
+    read_conversation,
     write_assignment,
     write_conversation,
     write_feed,
@@ -14,7 +16,6 @@ from records import (
 )
 
 from dreamcatcher import web
-from dreamcatcher.agent_assignments import read_assignments_for_issue
 from dreamcatcher.agent_rounds import (
     AgentRoundRecord,
     AssignmentRoundPurpose,
@@ -28,12 +29,12 @@ from dreamcatcher.daemon import DreamcatcherDaemon
 from dreamcatcher.documents import write_json
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import FeedLine
-from dreamcatcher.issue_conversations import Conversation, read_conversation
+from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.scheduler import derive_agent_work_fault
 from dreamcatcher.scheduler.models import GlobalCooldown, SchedulerRecord
 from dreamcatcher.state import StateDirectory
 
-ASSIGNMENT_ID = "GH13-20260819-184158"
+ASSIGNMENT_ID = "GH13-20260819-184158-assignment"
 
 
 def write_faulted_conversation(*, state: StateDirectory, issue: int) -> None:
@@ -250,7 +251,7 @@ def test_retry_clears_a_conversations_fault(monkeypatch, tmp_path, capsys):
         retry_requested_at=conversation.retry_requested_at,
         most_recent_cooldown_ended=None,
     )
-    assert "conversation-GH13" in capsys.readouterr().out
+    assert "GH13-20260819-184158-conversation" in capsys.readouterr().out
 
 
 def test_retry_clears_assignment_and_conversation_faults(monkeypatch, faulted, capsys):
@@ -280,7 +281,7 @@ def test_retry_reports_when_only_the_assignment_retry_was_saved(
     monkeypatch.setattr("dreamcatcher.cli.read_current_time", lambda: requested)
 
     def refuse_conversation_retry(*, work, at):
-        if isinstance(work, Conversation):
+        if work.record.kind is AgentWorkKind.CONVERSATION:
             raise ReportableError("conversation record is read-only")
         request_agent_work_retry(work=work, at=at)
 
@@ -297,7 +298,7 @@ def test_retry_reports_when_only_the_assignment_retry_was_saved(
     assert conversation.retry_requested_at is None
     error = capsys.readouterr().err
     assert f"{assignment.identifier} can recover" in error
-    assert "conversation-GH13 could not be retried" in error
+    assert "GH13-20260819-184158-conversation could not be retried" in error
     assert "conversation record is read-only" in error
 
 
@@ -399,7 +400,9 @@ def test_cancel_ends_the_newest_assignment_and_stops_its_running_round(
 
 
 def test_cancel_leaves_older_assignments_at_the_issue_alone(monkeypatch, watching):
-    write_assignment(state=watching, identifier="GH13-20260818-090000", issue=13)
+    write_assignment(
+        state=watching, identifier="GH13-20260818-090000-assignment", issue=13
+    )
     monkeypatch.chdir(watching.root)
 
     assert main(argv=["cancel", "GH13"]) == 0
@@ -516,7 +519,7 @@ def test_feed_shows_what_the_assignment_said(monkeypatch, watching, capsys):
     # after the first one rather than alongside it.
     later = PINNED + timedelta(minutes=1)
     write_round(
-        directory=watching.assignments / ASSIGNMENT_ID,
+        directory=watching.work / ASSIGNMENT_ID,
         number=2,
         record=AgentRoundRecord(
             number=2,

@@ -11,16 +11,15 @@ import dreamcatcher
 from dreamcatcher import repository_setup, tui, web
 from dreamcatcher.agent_assignments import (
     cancel_assignment,
-    read_assignments_for_issue,
+    read_pull_request_observation,
 )
 from dreamcatcher.agent_rounds import request_agent_round_stop
-from dreamcatcher.agent_work import request_agent_work_retry
+from dreamcatcher.agent_work import find_newest_agent_work, request_agent_work_retry
 from dreamcatcher.clock import read_current_time
 from dreamcatcher.config import AgentHarness
 from dreamcatcher.daemon import DEFAULT_INTERVAL_SECONDS, DreamcatcherDaemon
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.harness_adapters import AgentWorkKind
-from dreamcatcher.issue_conversations import read_conversation
 from dreamcatcher.scheduler import (
     DEFAULT_MAX_AGENTS,
     derive_agent_work_fault,
@@ -339,9 +338,12 @@ def _run_daemon(*, arguments: argparse.Namespace) -> None:
 def _retry_agent_work(*, arguments: argparse.Namespace) -> None:
     """Clear every current fault at an issue so the daemon may recover it."""
     state = _find_state_directory(root=Path.cwd())
-    issue_assignments = read_assignments_for_issue(state=state, issue=arguments.issue)
-    assignment = issue_assignments[-1] if issue_assignments else None
-    conversation = read_conversation(state=state, issue=arguments.issue)
+    assignment = find_newest_agent_work(
+        state=state, issue=arguments.issue, kind=AgentWorkKind.ASSIGNMENT
+    )
+    conversation = find_newest_agent_work(
+        state=state, issue=arguments.issue, kind=AgentWorkKind.CONVERSATION
+    )
     current_time = read_current_time()
     scheduler_record = read_scheduler_record(state=state, at=current_time)
     most_recent_cooldown_ended = (
@@ -410,14 +412,16 @@ def _stop_agent_work(*, arguments: argparse.Namespace) -> None:
 def _cancel_assignment(*, arguments: argparse.Namespace) -> None:
     """Cancel the newest assignment at an issue so the user can take it over."""
     state = _find_state_directory(root=Path.cwd())
-    issue_assignments = read_assignments_for_issue(state=state, issue=arguments.issue)
-    if not issue_assignments:
+    assignment = find_newest_agent_work(
+        state=state, issue=arguments.issue, kind=AgentWorkKind.ASSIGNMENT
+    )
+    if assignment is None:
         raise ReportableError(f"GH{arguments.issue} has no assignment.")
-    assignment = issue_assignments[-1]
     cancel_assignment(assignment=assignment, at=read_current_time())
+    pull_request = read_pull_request_observation(assignment=assignment).number
     print(
         f"{assignment.identifier} is cancelled. Finish pull request "
-        f"#{assignment.record.pull_request} by hand."
+        f"#{pull_request} by hand."
     )
 
 

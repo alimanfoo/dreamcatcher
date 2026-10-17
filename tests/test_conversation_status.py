@@ -7,7 +7,9 @@ import pytest
 from clocks import PINNED
 from observations import observed_conversation
 from records import (
+    find_conversation_directory,
     hold_daemon_lock_for_test,
+    read_conversation,
     write_conversation,
     write_daemon_run,
     write_feed,
@@ -29,7 +31,6 @@ from dreamcatcher.feed import FeedLine
 from dreamcatcher.issue_conversations import (
     ConversationRoundInput,
     InitialConversationIssue,
-    read_conversation,
 )
 from dreamcatcher.scheduler.models import (
     ConversationObservation,
@@ -82,7 +83,7 @@ def conversation_round(
             at=PINNED + timedelta(minutes=4), status=status, failure=failure
         )
     )
-    directory = state.conversations / "GH8"
+    directory = find_conversation_directory(state=state, issue=8)
     write_round(
         directory=directory,
         number=1,
@@ -329,8 +330,9 @@ def test_an_unrecorded_round_input_shows_what_the_scheduler_reported(
         path=conversation.compose_round_paths(number=1).round_input,
     )
     failure = (
-        "could not inspect saved conversation GH8: Conversation conversation-GH8 "
-        "has input for round 1 without a round record."
+        "could not inspect saved conversation GH8: "
+        "Conversation GH8-20260819-184158-conversation has input for round 1 "
+        "without a round record."
     )
     observe(
         state=conversation_state,
@@ -349,7 +351,7 @@ def test_a_live_round_keeps_an_ineligible_conversation_on_the_report(
     hold_daemon_lock_for_test(path=conversation_state.lock)
     conversation_round(state=conversation_state, status=None)
     write_feed(
-        directory=conversation_state.conversations / "GH8",
+        directory=find_conversation_directory(state=conversation_state, issue=8),
         number=1,
         lines=[
             FeedLine(
@@ -414,7 +416,7 @@ def test_two_current_errors_put_a_conversation_in_fault(conversation_state):
     conversation_round(state=conversation_state, status=2)
     write_second_conversation_error(state=conversation_state)
     write_feed(
-        directory=conversation_state.conversations / "GH8",
+        directory=find_conversation_directory(state=conversation_state, issue=8),
         number=2,
         lines=[
             FeedLine(
@@ -547,7 +549,7 @@ def test_a_round_ending_after_the_latest_tick_waits_for_the_next_update(
         tick=SchedulerRecord(
             at=PINNED,
             conversation_observations=[observed_conversation()],
-            launched_agent_work_identifiers=["conversation-GH8"],
+            launched_agent_work_identifiers=["GH8-20260819-184158-conversation"],
         ),
     )
 
@@ -605,7 +607,7 @@ def test_a_posted_answer_leaves_the_conversation_idle(conversation_state):
 
 
 def test_a_stopped_conversation_waits_for_new_comments(conversation_state):
-    directory = conversation_state.conversations / "GH8"
+    directory = find_conversation_directory(state=conversation_state, issue=8)
     write_round(
         directory=directory,
         number=1,

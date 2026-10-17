@@ -7,6 +7,7 @@ import pytest
 from clocks import PINNED
 from observations import observed_conversation
 from records import (
+    find_conversation_directory,
     hold_daemon_lock_for_test,
     write_conversation,
     write_feed,
@@ -126,7 +127,7 @@ def test_status_lists_the_conversation(tmp_path):
 
 def test_conversation_detail_shows_settings_revision_session_and_round(tmp_path):
     state = conversation_state(root=tmp_path, harness_session_identifier=None)
-    directory = state.conversations / "GH8"
+    directory = find_conversation_directory(state=state, issue=8)
     write_text(
         text=(
             '{"type":"system","subtype":"init","model":"claude-opus-5",'
@@ -184,7 +185,7 @@ def test_conversation_detail_shows_settings_revision_session_and_round(tmp_path)
     assert "discuss" in shown
     assert "successful" in shown
     assert "resume by hand" in shown
-    assert "cd .dreamcatcher/v5/conversation-worktrees/GH8" in shown
+    assert "cd .dreamcatcher/v6/worktrees/GH8-20260819-184158-conversation" in shown
     assert "claude --resume recovered-session" in shown
 
 
@@ -204,7 +205,7 @@ def test_conversation_detail_shows_a_failed_round(tmp_path):
 
 def test_conversation_detail_shows_two_errors_as_a_fault(tmp_path):
     state = conversation_state(root=tmp_path, status=2, is_eligible=True)
-    directory = state.conversations / "GH8"
+    directory = find_conversation_directory(state=state, issue=8)
     write_round(
         directory=directory,
         number=2,
@@ -279,7 +280,7 @@ def test_conversation_feed_follows_a_later_round_without_repeating_the_first(
 
     def wait(seconds, /):
         assert seconds > 0
-        directory = state.conversations / "GH8"
+        directory = find_conversation_directory(state=state, issue=8)
         write_round(
             directory=directory,
             number=2,
@@ -531,7 +532,7 @@ def test_a_conversation_view_of_an_idle_conversation_keeps_watching(tmp_path):
 def test_a_conversation_view_in_fault_keeps_watching(tmp_path):
     state = conversation_state(root=tmp_path, status=2, is_eligible=True)
     write_round(
-        directory=state.conversations / "GH8",
+        directory=find_conversation_directory(state=state, issue=8),
         number=2,
         record=AgentRoundRecord(
             number=2,

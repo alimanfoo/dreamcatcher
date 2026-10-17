@@ -34,7 +34,10 @@ each run their own _dreamcatcher_ instance for the same repository.
 
 A **daemon** is the process that runs a _dreamcatcher_ instance. At most one
 daemon runs an instance at a time. A **daemon run** is one daemon process from
-start to stop.
+start to stop. Each daemon run writes a **daemon run record** when it starts,
+holding its process, preferred harness, version, capacity, interval and the
+dispatch routes it loaded, each as a dispatch label and its kind of agent work.
+Status reports take the labels they name from that record.
 
 ### Issue and issue identifier
 
@@ -48,10 +51,10 @@ as `#123`, as GitHub does.
 An **agent assignment** is _dreamcatcher_'s durable commission to an agent to
 implement one issue.
 
-An **agent assignment identifier** identifies one agent assignment. It combines
-the issue identifier with a timestamp, as in `GH123-20260912-192458`, and is
-distinct from the issue identifier because an issue can receive more than one
-assignment over its lifetime.
+An **agent assignment identifier** is the agent work identifier of one agent
+assignment, as in `GH123-20260912-192458-assignment`. It is distinct from the
+issue identifier because an issue can receive more than one assignment over its
+lifetime.
 
 ### Pull request
 
@@ -66,9 +69,11 @@ answer the user on an issue without implementing a change.
 ### Agent work and agent work identifier
 
 **Agent work** is either an agent assignment or an issue conversation. Its
-**agent work identifier** is the agent assignment identifier for an assignment,
-or the issue identifier prefixed with `conversation-`, as in
-`conversation-GH123`, for an issue conversation.
+**agent work identifier** combines the issue identifier, the time the work was
+created and its kind, as in `GH123-20260912-192458-assignment` or
+`GH123-20260912-193000-conversation`. The kind is in the name for a person
+reading a directory listing, a daemon line or a web address; the work's record
+says it too.
 
 ### Agent harness and harness session
 

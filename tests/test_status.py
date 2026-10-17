@@ -8,6 +8,7 @@ from conftest import REPOSITORY
 from observations import observed_issue
 from records import (
     hold_daemon_lock_for_test,
+    read_assignments,
     write_assignment,
     write_daemon_run,
     write_feed,
@@ -17,9 +18,7 @@ from records import (
 from status_fabrications import fabricate_everything
 
 from dreamcatcher.agent_assignments import (
-    Assignment,
     cancel_assignment,
-    read_assignments,
 )
 from dreamcatcher.agent_rounds import (
     AgentRoundRecord,
@@ -28,6 +27,7 @@ from dreamcatcher.agent_rounds import (
     StoppedAgentRoundEnding,
     _compose_agent_round_ending,
 )
+from dreamcatcher.agent_work import AgentWork
 from dreamcatcher.config import AgentHarness
 from dreamcatcher.daemon import DEFAULT_INTERVAL_SECONDS
 from dreamcatcher.daemon_runs import DaemonRunRecord
@@ -56,7 +56,7 @@ from dreamcatcher.status.assignments import (
     AssignmentStatusValue,
 )
 
-ASSIGNMENT_ID = "GH13-20260819-184158"
+ASSIGNMENT_ID = "GH13-20260819-184158-assignment"
 LOOKED_AT = PINNED + timedelta(hours=2)
 
 
@@ -92,7 +92,7 @@ def ran(
         else _compose_agent_round_ending(at=ended_at, status=status)
     )
     write_round(
-        directory=state.assignments / ASSIGNMENT_ID,
+        directory=state.work / ASSIGNMENT_ID,
         number=number,
         record=AgentRoundRecord(
             number=number,
@@ -108,7 +108,7 @@ def said(*, state: StateDirectory, number: int, texts: Sequence[str]) -> None:
     """Write feed lines one minute after the numbered round began."""
     at = PINNED + timedelta(minutes=number + 1)
     write_feed(
-        directory=state.assignments / ASSIGNMENT_ID,
+        directory=state.work / ASSIGNMENT_ID,
         number=number,
         lines=[FeedLine(at=at, text=text) for text in texts],
     )
@@ -245,7 +245,7 @@ def test_a_terminal_round_status_describes_its_outcome_and_duration(
     state, ending, outcome_description, duration
 ):
     write_round(
-        directory=state.assignments / ASSIGNMENT_ID,
+        directory=state.work / ASSIGNMENT_ID,
         number=1,
         record=AgentRoundRecord(
             number=1,
@@ -322,7 +322,7 @@ def test_status_reads_harness_resume_details_only_when_requested(state, monkeypa
         return "abc-123"
 
     monkeypatch.setattr(
-        Assignment,
+        AgentWork,
         "find_harness_session_identifier",
         recover_harness_session_identifier,
     )
@@ -615,7 +615,7 @@ def test_an_assignment_needing_feedback_with_no_feed_has_no_output(state):
 def test_a_stopped_assignment_needs_user_feedback(state):
     started = PINNED + timedelta(minutes=1)
     write_round(
-        directory=state.assignments / ASSIGNMENT_ID,
+        directory=state.work / ASSIGNMENT_ID,
         number=1,
         record=AgentRoundRecord(
             number=1,
@@ -862,12 +862,12 @@ def test_available_issues_keep_scheduler_order_and_observation_times(state):
 def test_assignments_are_ordered_by_issue_with_the_newest_at_an_issue_first(state):
     write_assignment(
         state=state,
-        identifier="GH13-20260820-090000",
+        identifier="GH13-20260820-090000-assignment",
         issue=13,
     )
     write_assignment(
         state=state,
-        identifier="GH9-20260819-184158",
+        identifier="GH9-20260819-184158-assignment",
         issue=9,
     )
 
@@ -877,8 +877,8 @@ def test_assignments_are_ordered_by_issue_with_the_newest_at_an_issue_first(stat
     ]
 
     assert identifiers == [
-        "GH9-20260819-184158",
-        "GH13-20260820-090000",
+        "GH9-20260819-184158-assignment",
+        "GH13-20260820-090000-assignment",
         ASSIGNMENT_ID,
     ]
 
@@ -886,12 +886,12 @@ def test_assignments_are_ordered_by_issue_with_the_newest_at_an_issue_first(stat
 def test_reading_one_issue_returns_only_its_assignments_newest_first(state):
     write_assignment(
         state=state,
-        identifier="GH13-20260820-090000",
+        identifier="GH13-20260820-090000-assignment",
         issue=13,
     )
     write_assignment(
         state=state,
-        identifier="GH9-20260819-184158",
+        identifier="GH9-20260819-184158-assignment",
         issue=9,
     )
 
@@ -903,13 +903,13 @@ def test_reading_one_issue_returns_only_its_assignments_newest_first(state):
     )
 
     assert [status.assignment.identifier for status in statuses] == [
-        "GH13-20260820-090000",
+        "GH13-20260820-090000-assignment",
         ASSIGNMENT_ID,
     ]
 
 
 def test_reading_one_assignment_uses_its_exact_identifier(state):
-    other_identifier = "GH13-20260820-090000"
+    other_identifier = "GH13-20260820-090000-assignment"
     write_assignment(
         state=state,
         identifier=other_identifier,
@@ -945,7 +945,7 @@ def test_reading_an_unknown_assignment_finds_nothing(state):
     assert (
         read_assignment_status(
             state=state,
-            identifier="GH99-20260820-090000",
+            identifier="GH99-20260820-090000-assignment",
             daemon=read_dreamcatcher_daemon_status(state=state),
             clock=lambda: LOOKED_AT,
         )
@@ -954,8 +954,8 @@ def test_reading_an_unknown_assignment_finds_nothing(state):
 
 
 def test_reading_an_incomplete_assignment_finds_nothing(state):
-    identifier = "GH99-20260820-090000"
-    (state.assignment_worktrees / identifier).mkdir()
+    identifier = "GH99-20260820-090000-assignment"
+    (state.worktrees / identifier).mkdir()
 
     assert (
         read_assignment_status(
@@ -969,13 +969,13 @@ def test_reading_an_incomplete_assignment_finds_nothing(state):
 
 
 def test_reading_one_assignment_does_not_read_an_unrelated_assignment(state):
-    corrupt_identifier = "GH99-20260820-090000"
+    corrupt_identifier = "GH99-20260820-090000-assignment"
     write_assignment(
         state=state,
         identifier=corrupt_identifier,
         issue=99,
     )
-    record = state.assignments / corrupt_identifier / "assignment.json"
+    record = state.work / corrupt_identifier / "work.json"
     record.write_bytes(b"{")
 
     status = read_assignment_status(
@@ -986,7 +986,7 @@ def test_reading_one_assignment_does_not_read_an_unrelated_assignment(state):
     )
     unknown = read_assignment_status(
         state=state,
-        identifier="GH100-20260820-090000",
+        identifier="GH100-20260820-090000-assignment",
         daemon=read_dreamcatcher_daemon_status(state=state),
         clock=lambda: LOOKED_AT,
     )

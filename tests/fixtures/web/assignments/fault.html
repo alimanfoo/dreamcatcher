@@ -39,7 +39,7 @@
             <h1 id="assignment-heading"><a class="assignment-issue" href="https://github.com/alimanfoo/dreamcatcher/issues/9" target="_blank" rel="noopener noreferrer">#9 <span>Issue 9</span></a></h1>
           
           <div class="assignment-heading-actions">
-            <div id="agent-work-retry"><form id="retry-form" class="agent-work-control-form" method="post" action="/assignments/GH9-20260819-184158/retry/2"><button class="agent-work-control retry-control" type="submit">retry</button></form></div>
+            <div id="agent-work-retry"><form id="retry-form" class="agent-work-control-form" method="post" action="/assignments/GH9-20260819-184158-assignment/retry/2"><button class="agent-work-control retry-control" type="submit">retry</button></form></div>
             <span id="agent-work-status" class="chip status-fault">fault</span>
             <a class="pr-chip" href="https://github.com/alimanfoo/dreamcatcher/pull/52" target="_blank" rel="noopener noreferrer">PR #52 draft</a>
           </div>
@@ -80,7 +80,7 @@
           <h1 id="feed-heading">Feed</h1>
           <button class="feed-tail" type="button" aria-controls="records">TAIL ↓</button>
           <input type="hidden" id="cursor" name="cursor" value="2:55">
-          <div id="records" class="feed-records" hx-get="/assignments/GH9-20260819-184158/tail" hx-trigger="every 2s" hx-include="#cursor" hx-select=".feed-line" hx-swap="beforeend">
+          <div id="records" class="feed-records" hx-get="/assignments/GH9-20260819-184158-assignment/tail" hx-trigger="every 2s" hx-include="#cursor" hx-select=".feed-line" hx-swap="beforeend">
             
               <div id="feed-round-1" class="feed-line round-boundary">
   <time>2026-08-20 02:42:58</time>
@@ -99,10 +99,10 @@
         </section>
       </div>
       <div id="agent-work-foot" class="agent-work-foot">
-        <form id="cancel-form" class="agent-work-control-form" method="post" action="/assignments/GH9-20260819-184158/cancel" data-confirmation="Cancel this assignment? dreamcatcher will stop working on it so that you can finish its pull request by hand. This cannot be undone."><button class="agent-work-control cancel-control" type="submit">cancel assignment</button></form>
+        <form id="cancel-form" class="agent-work-control-form" method="post" action="/assignments/GH9-20260819-184158-assignment/cancel" data-confirmation="Cancel this assignment? dreamcatcher will stop working on it so that you can finish its pull request by hand. This cannot be undone."><button class="agent-work-control cancel-control" type="submit">cancel assignment</button></form>
         <details class="manual-recovery">
           <summary>resume by hand</summary>
-          <pre>cd .dreamcatcher/v5/worktrees/GH9-20260819-184158
+          <pre>cd .dreamcatcher/v6/worktrees/GH9-20260819-184158-assignment
 claude --resume abc-123</pre>
         </details></div>
     </div>

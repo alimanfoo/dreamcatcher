@@ -10,8 +10,9 @@ from rich.console import Console, RenderableType
 from rich.padding import Padding
 from rich.text import Text
 
-from dreamcatcher.agent_assignments import Assignment
+from dreamcatcher.agent_assignments import compose_assignment_branch
 from dreamcatcher.agent_rounds import AgentRoundRecord
+from dreamcatcher.agent_work import AgentWork
 from dreamcatcher.clock import WaitForSeconds, read_current_time
 from dreamcatcher.documents import read_lines_from
 from dreamcatcher.errors import ReportableError
@@ -23,7 +24,6 @@ from dreamcatcher.feed import (
     read_feed_line,
 )
 from dreamcatcher.harness_adapters import AgentWorkKind
-from dreamcatcher.issue_conversations import Conversation
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.status import (
     AgentRoundStatus,
@@ -232,7 +232,7 @@ def _render_assignment(
             ),
             _render_harness_resume(
                 state=state,
-                worktree=current_status.assignment.record.worktree,
+                worktree=current_status.assignment.worktree,
                 hand_resume_command=current_status.hand_resume_command,
             ),
             _render_older_assignments(older_statuses=assignment_statuses[1:]),
@@ -250,10 +250,10 @@ def _render_assignment_summary(
     for name, value in (
         ("issue identifier", f"GH{record.issue}"),
         ("agent assignment identifier", assignment.identifier),
-        ("pull request", f"#{record.pull_request}"),
+        ("pull request", f"#{status.pull_request_observation.number}"),
         ("label", record.dispatch_label),
-        ("branch", record.branch),
-        ("worktree", state.describe_path(path=record.worktree)),
+        ("branch", compose_assignment_branch(identifier=assignment.identifier)),
+        ("worktree", state.describe_path(path=assignment.worktree)),
         ("harness", record.harness),
         (
             "harness session identifier",
@@ -443,7 +443,7 @@ def _find_conversation_status_for_issue(
 class _FeedOwnerSnapshot:
     """Hold one feed owner and the status-derived context for its headings."""
 
-    owner: Assignment | Conversation
+    owner: AgentWork
     should_stop_refreshing: bool
     round_details: dict[int, str]
 
@@ -486,7 +486,7 @@ class _FeedView:
     def show_new_output(
         self,
         *,
-        owner: Assignment | Conversation,
+        owner: AgentWork,
         records: Iterable[AgentRoundRecord],
         round_details: dict[int, str],
     ) -> None:
@@ -520,9 +520,7 @@ class _FeedView:
         )
         self.positions[record.number] = 0
 
-    def _show_new_lines(
-        self, *, owner: Assignment | Conversation, round_number: int
-    ) -> None:
+    def _show_new_lines(self, *, owner: AgentWork, round_number: int) -> None:
         """Show lines the round wrote since the previous refresh."""
         feed_path = owner.compose_round_paths(number=round_number).feed
         new_lines, new_position = read_lines_from(

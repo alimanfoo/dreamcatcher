@@ -8,11 +8,11 @@ from dreamcatcher.agent_rounds import (
     AgentRoundOutcome,
     AgentRoundPaths,
 )
+from dreamcatcher.agent_work import AgentWork
 from dreamcatcher.documents import read_text
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.harness_adapters import HarnessSessionIdentifier
 from dreamcatcher.issue_conversations import (
-    Conversation,
     is_no_reply,
     read_conversation_input,
 )
@@ -75,7 +75,7 @@ class ConversationStatus:
 
     issue: int
     title: str
-    conversation: Conversation | None
+    conversation: AgentWork | None
     value: ConversationStatusValue
     detail: str
     latest_output: str | None
@@ -175,7 +175,7 @@ class ConversationStatus:
 class ConversationStatusReader(AgentWorkStatusReader[ConversationStatus]):
     """Derive conversation statuses from local state and the latest tick."""
 
-    conversations: list[Conversation]
+    conversations: list[AgentWork]
 
     @cached_property
     def observations(self) -> dict[int, ConversationObservation]:
@@ -216,7 +216,7 @@ class ConversationStatusReader(AgentWorkStatusReader[ConversationStatus]):
         *,
         issue: int,
         title: str,
-        conversation: Conversation | None,
+        conversation: AgentWork | None,
     ) -> ConversationStatus:
         """Derive one conversation's status from its records and latest tick."""
         status = self._derive_working(
@@ -246,7 +246,7 @@ class ConversationStatusReader(AgentWorkStatusReader[ConversationStatus]):
         *,
         issue: int,
         title: str,
-        conversation: Conversation | None,
+        conversation: AgentWork | None,
     ) -> ConversationStatus | None:
         if conversation is not None and conversation.rounds:
             latest = conversation.rounds[-1]
@@ -271,7 +271,7 @@ class ConversationStatusReader(AgentWorkStatusReader[ConversationStatus]):
         *,
         issue: int,
         title: str,
-        conversation: Conversation | None,
+        conversation: AgentWork | None,
     ) -> ConversationStatus | None:
         ineligibility = self._find_ineligibility(issue=issue)
         if ineligibility is None:
@@ -312,7 +312,7 @@ class ConversationStatusReader(AgentWorkStatusReader[ConversationStatus]):
         *,
         issue: int,
         title: str,
-        conversation: Conversation | None,
+        conversation: AgentWork | None,
     ) -> ConversationStatus | None:
         if conversation is not None and self.has_fault(
             records=conversation.rounds,
@@ -338,7 +338,7 @@ class ConversationStatusReader(AgentWorkStatusReader[ConversationStatus]):
         *,
         issue: int,
         title: str,
-        conversation: Conversation | None,
+        conversation: AgentWork | None,
     ) -> ConversationStatus | None:
         if conversation is not None and is_awaiting_recovery(
             rounds=conversation.rounds, is_daemon_running=self.is_daemon_running
@@ -362,7 +362,7 @@ class ConversationStatusReader(AgentWorkStatusReader[ConversationStatus]):
         *,
         issue: int,
         title: str,
-        conversation: Conversation | None,
+        conversation: AgentWork | None,
     ) -> ConversationStatus:
         if conversation is not None and conversation.rounds:
             latest = conversation.rounds[-1]
@@ -400,7 +400,7 @@ class ConversationStatusReader(AgentWorkStatusReader[ConversationStatus]):
         *,
         issue: int,
         title: str,
-        conversation: Conversation | None,
+        conversation: AgentWork | None,
         value: ConversationStatusValue,
         detail: str,
         latest_output: str | None = None,
@@ -419,7 +419,7 @@ class ConversationStatusReader(AgentWorkStatusReader[ConversationStatus]):
             ),
         )
 
-    def _describe_idle(self, *, conversation: Conversation | None) -> str:
+    def _describe_idle(self, *, conversation: AgentWork | None) -> str:
         if conversation is None or not conversation.rounds:
             return "no comments yet"
         latest = conversation.rounds[-1]

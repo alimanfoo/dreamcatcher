@@ -41,7 +41,7 @@ SCOUT_ROUTES = (RoutedLabel(label="dream:scout", kind=AgentWorkKind.CONVERSATION
 
 # What a fabricated assignment saw of its pull request, unless a test says.
 _OPEN_DRAFT = agent_assignments.PullRequestObservation(
-    state=PullRequestState.OPEN, is_draft=True, observed_at=PINNED
+    number=52, state=PullRequestState.OPEN, is_draft=True, observed_at=PINNED
 )
 
 
@@ -100,29 +100,40 @@ def write_assignment(
 
     The title is `Issue <n>` unless the test gives one.
     """
-    (state.assignment_worktrees / identifier).mkdir(parents=True)
-    directory = state.assignments / identifier
+    (state.worktrees / identifier).mkdir(parents=True)
+    directory = state.work / identifier
     write_json(
-        document=agent_assignments.AssignmentRecord(
+        document=pull_request_observation,
+        path=directory / agent_assignments._PULL_REQUEST_OBSERVATION_RECORD_NAME,
+    )
+    agent_work.record_agent_work(
+        state=state,
+        identifier=identifier,
+        record=agent_work.AgentWorkRecord(
             issue=issue,
             title=f"Issue {issue}" if title is None else title,
             dispatch_label="dream:smith",
-            branch=f"{agent_assignments._ASSIGNMENT_BRANCH_PREFIX}{identifier}",
-            worktree=state.assignment_worktrees / identifier,
-            pull_request=52,
+            kind=AgentWorkKind.ASSIGNMENT,
             harness=AgentHarness.CLAUDE,
             model="opus[1m]",
             effort="xhigh",
             prompt=f"/dream:smith GH{issue}",
         ),
-        path=directory / agent_assignments._ASSIGNMENT_RECORD_NAME,
-    )
-    write_json(
-        document=pull_request_observation,
-        path=directory / agent_assignments._PULL_REQUEST_OBSERVATION_RECORD_NAME,
     )
     _write_harness_session(directory=directory, identifier=harness_session_identifier)
     return directory
+
+
+def compose_conversation_identifier(*, issue: int) -> str:
+    """Return the identifier of the conversation that the tests write at an issue."""
+    return agent_work.compose_agent_work_identifier(
+        issue=issue, kind=AgentWorkKind.CONVERSATION, at=PINNED
+    )
+
+
+def find_conversation_directory(*, state: StateDirectory, issue: int) -> Path:
+    """Return the directory of the conversation that the tests write at an issue."""
+    return state.work / compose_conversation_identifier(issue=issue)
 
 
 def write_conversation(
@@ -133,23 +144,26 @@ def write_conversation(
     harness_session_identifier: str | None = "conversation-session",
 ) -> Path:
     """Write a conversation worktree and record, and return its directory."""
-    worktree = state.conversation_worktrees / f"GH{issue}"
-    worktree.mkdir(parents=True)
-    directory = state.conversations / f"GH{issue}"
-    write_json(
-        document=issue_conversations.ConversationRecord(
+    identifier = compose_conversation_identifier(issue=issue)
+    (state.worktrees / identifier).mkdir(parents=True)
+    work = agent_work.record_agent_work(
+        state=state,
+        identifier=identifier,
+        record=agent_work.AgentWorkRecord(
             issue=issue,
             title=f"Issue {issue}",
             dispatch_label="dream:conversation",
+            kind=AgentWorkKind.CONVERSATION,
             harness=harness,
             model="opus[1m]",
             effort="xhigh",
             prompt=f"/dream:conversation GH{issue}",
         ),
-        path=directory / issue_conversations._CONVERSATION_RECORD_NAME,
     )
-    _write_harness_session(directory=directory, identifier=harness_session_identifier)
-    return directory
+    _write_harness_session(
+        directory=work.directory, identifier=harness_session_identifier
+    )
+    return work.directory
 
 
 def _write_harness_session(*, directory: Path, identifier: str | None) -> None:
@@ -188,7 +202,7 @@ def _round_paths(*, directory: Path, number: int) -> agent_rounds.AgentRoundPath
     """Where the numbered round of the assignment at this directory wrote."""
     return agent_rounds.AgentRoundPaths(
         worktree=directory,
-        rounds_directory=directory / agent_assignments._AGENT_ROUNDS_DIRECTORY_NAME,
+        rounds_directory=directory / agent_work._AGENT_ROUNDS_DIRECTORY_NAME,
         number=number,
     )
 
@@ -236,4 +250,31 @@ def write_final_output(*, directory: Path, number: int, text: str) -> None:
     """Write the final output that one round of the work at this directory reported."""
     write_text(
         text=text, path=_round_paths(directory=directory, number=number).final_output
+    )
+
+
+def read_assignments(*, state: StateDirectory) -> list[agent_work.AgentWork]:
+    """Return every assignment in the state directory, by identifier."""
+    return [
+        work
+        for work in agent_work.read_agent_work(state=state)
+        if work.record.kind is AgentWorkKind.ASSIGNMENT
+    ]
+
+
+def read_assignments_for_issue(
+    *, state: StateDirectory, issue: int
+) -> list[agent_work.AgentWork]:
+    """Return the assignments at the issue, by identifier."""
+    return agent_work.read_agent_work_at_issue(
+        state=state, issue=issue, kind=AgentWorkKind.ASSIGNMENT
+    )
+
+
+def read_conversation(
+    *, state: StateDirectory, issue: int
+) -> agent_work.AgentWork | None:
+    """Return the newest conversation at the issue, if there is one."""
+    return agent_work.find_newest_agent_work(
+        state=state, issue=issue, kind=AgentWorkKind.CONVERSATION
     )

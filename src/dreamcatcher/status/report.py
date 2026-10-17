@@ -5,22 +5,19 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import cast
 
-from dreamcatcher.agent_assignments import (
-    Assignment,
-    find_open_assignments_by_issue,
-    read_assignment,
-    read_assignments,
-    read_assignments_for_issue,
+from dreamcatcher.agent_assignments import find_open_assignments_by_issue
+from dreamcatcher.agent_work import (
+    AgentWork,
+    find_agent_work,
+    find_newest_agent_work,
+    read_agent_work,
+    read_agent_work_at_issue,
 )
 from dreamcatcher.clock import read_current_time
 from dreamcatcher.config import AgentHarness
 from dreamcatcher.daemon_runs import DaemonRunRecord
 from dreamcatcher.documents import read_json_if_exists, read_text
 from dreamcatcher.harness_adapters import AgentWorkKind
-from dreamcatcher.issue_conversations import (
-    read_conversation,
-    read_conversations,
-)
 from dreamcatcher.lock import is_daemon_lock_held
 from dreamcatcher.scheduler.faults import read_scheduler_record
 from dreamcatcher.scheduler.models import (
@@ -255,7 +252,10 @@ def read_status_report(
     """
     daemon = read_dreamcatcher_daemon_status(state=state)
     at, scheduler_record = _read_status_facts(state=state, clock=clock)
-    assignments = read_assignments(state=state)
+    work = read_agent_work(state=state)
+    assignments = [
+        item for item in work if item.record.kind is AgentWorkKind.ASSIGNMENT
+    ]
     assignment_statuses = AssignmentStatusReader(
         state=state,
         at=at,
@@ -268,6 +268,9 @@ def read_status_report(
         at=at,
         is_daemon_running=daemon.is_running,
         scheduler_record=scheduler_record,
+        conversations=[
+            item for item in work if item.record.kind is AgentWorkKind.CONVERSATION
+        ],
     )
     issue_observations = _refresh_issue_observations(
         scheduler_record=scheduler_record,
@@ -356,6 +359,7 @@ def _list_reported_conversation_statuses(
     at: datetime,
     is_daemon_running: bool,
     scheduler_record: SchedulerRecord | None,
+    conversations: list[AgentWork],
 ) -> list[ConversationStatus]:
     """Return the listed conversations in attention order."""
     return sorted(
@@ -366,7 +370,7 @@ def _list_reported_conversation_statuses(
                 at=at,
                 is_daemon_running=is_daemon_running,
                 scheduler_record=scheduler_record,
-                conversations=read_conversations(state=state),
+                conversations=conversations,
             ).list_statuses()
             if status.is_listed
         ),
@@ -379,7 +383,7 @@ def _list_reported_conversation_statuses(
 def _refresh_issue_observations(
     *,
     scheduler_record: SchedulerRecord | None,
-    assignments: list[Assignment],
+    assignments: list[AgentWork],
 ) -> list[IssueObservation]:
     if scheduler_record is None:
         return []
@@ -473,7 +477,9 @@ def read_assignment_statuses_for_issue(
         at=at,
         is_daemon_running=daemon.is_running,
         scheduler_record=scheduler_record,
-        assignments=read_assignments_for_issue(state=state, issue=issue),
+        assignments=read_agent_work_at_issue(
+            state=state, issue=issue, kind=AgentWorkKind.ASSIGNMENT
+        ),
     ).list_statuses()
 
 
@@ -489,8 +495,8 @@ def read_assignment_status(
     The caller reads the daemon status, so a view that also shows it shows the
     same answer that its round statuses came from.
     """
-    assignment = read_assignment(state=state, identifier=identifier)
-    if assignment is None:
+    assignment = find_agent_work(state=state, identifier=identifier)
+    if assignment is None or assignment.record.kind is not AgentWorkKind.ASSIGNMENT:
         return None
     at, scheduler_record = _read_status_facts(state=state, clock=clock)
     return AssignmentStatusReader(
@@ -509,14 +515,16 @@ def read_conversation_status(
     daemon: DreamcatcherDaemonStatus,
     clock: Callable[[], datetime] = read_current_time,
 ) -> ConversationStatus | None:
-    """Read one issue conversation's status by its issue number.
+    """Read the status of the newest issue conversation at an issue.
 
     An issue has a conversation once it has a saved conversation or the latest
     tick observed it through a configured conversation route. The caller reads
     the daemon status, so a view that also shows it shows the same answer that
     its round statuses came from.
     """
-    conversation = read_conversation(state=state, issue=issue)
+    conversation = find_newest_agent_work(
+        state=state, issue=issue, kind=AgentWorkKind.CONVERSATION
+    )
     at, scheduler_record = _read_status_facts(state=state, clock=clock)
     statuses = ConversationStatusReader(
         state=state,

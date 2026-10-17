@@ -9,11 +9,11 @@ from time import sleep
 from typing import TYPE_CHECKING
 
 from dreamcatcher import teardown
-from dreamcatcher.agent_assignments import read_assignments
 from dreamcatcher.agent_rounds import (
     record_agent_round_interruption,
     record_agent_round_stop,
 )
+from dreamcatcher.agent_work import read_agent_work
 from dreamcatcher.clock import WaitForSeconds, read_current_time
 from dreamcatcher.config import AgentHarness, read_dreamcatcher_config
 from dreamcatcher.daemon_runs import DaemonRunRecord, RoutedLabel
@@ -23,7 +23,6 @@ from dreamcatcher.git import require_main_checkout
 from dreamcatcher.github import require_github_identity
 from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.harnesses import require_harnesses_on_path
-from dreamcatcher.issue_conversations import read_conversations
 from dreamcatcher.lock import hold_daemon_lock
 from dreamcatcher.scheduler import (
     DEFAULT_MAX_AGENTS,
@@ -98,7 +97,7 @@ class DreamcatcherDaemon:
 
         Everything a daemon run cannot do without is settled before the loop: the
         harness CLIs, the state directory, the repository's name, the account
-        gh is signed in as, the lock, and the assignments the sweep reads. A daemon
+        gh is signed in as, the lock, and the agent work the sweep reads. A daemon
         run refuses when any of those will not answer, rather than starting a loop
         that could never dispatch. Once the loop is going, a tick that fails
         reports the failure and the next tick tries again. An invalid scheduler
@@ -241,15 +240,11 @@ class DreamcatcherDaemon:
         Windows Job Objects empty when the earlier daemon closes its last
         handle, so termination there is already complete.
         """
-        agent_work = [
-            *read_assignments(state=self.state),
-            *read_conversations(state=self.state),
-        ]
-        for owner in agent_work:
-            for record in owner.rounds:
+        for work in read_agent_work(state=self.state):
+            for record in work.rounds:
                 if record.ending is None:
                     teardown.end_process_tree(pid=record.pid)
-                    paths = owner.compose_round_paths(number=record.number)
+                    paths = work.compose_round_paths(number=record.number)
                     if paths.stop_request.is_file():
                         record_agent_round_stop(
                             record=record, path=paths.record, at=self.clock()

@@ -26,7 +26,6 @@ from records import (
     write_round,
 )
 
-from dreamcatcher.agent_assignments import read_assignment
 from dreamcatcher.agent_rounds import (
     AgentRoundOutcome,
     AgentRoundRecord,
@@ -35,6 +34,7 @@ from dreamcatcher.agent_rounds import (
     _compose_agent_round_ending,
     request_agent_round_stop,
 )
+from dreamcatcher.agent_work import find_agent_work
 from dreamcatcher.config import DREAMCATCHER_CONFIG_NAME, AgentHarness
 from dreamcatcher.daemon import DreamcatcherDaemon
 from dreamcatcher.daemon_runs import DaemonRunRecord, RoutedLabel
@@ -53,7 +53,7 @@ from dreamcatcher.scheduler.models import (
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.version import DREAMCATCHER_VERSION
 
-ASSIGNMENT_ID = "GH13-20260819-184158"
+ASSIGNMENT_ID = "GH13-20260819-184158-assignment"
 
 # What every round the tests here write down says woke it.
 PURPOSE = AssignmentRoundPurpose.IMPLEMENT
@@ -64,7 +64,7 @@ PURPOSE = AssignmentRoundPurpose.IMPLEMENT
 STILL_RUNNING = 30
 
 # The identifier of the assignment created for issue 8.
-CREATED_ASSIGNMENT_ID = "GH8-20260819-184158"
+CREATED_ASSIGNMENT_ID = "GH8-20260819-184158-assignment"
 
 # Where gh keeps the conversation on the pull request that the assignment on disk
 # has open.
@@ -314,7 +314,10 @@ def test_multiple_launches_are_recorded_and_reported(watched, capsys, monkeypatc
     scheduler = create_scheduler(daemon=daemon)
     scheduler_record = SchedulerRecord(
         at=PINNED,
-        launched_agent_work_identifiers=[ASSIGNMENT_ID, "conversation-GH8"],
+        launched_agent_work_identifiers=[
+            ASSIGNMENT_ID,
+            "GH8-20260819-184158-conversation",
+        ],
         failures=["could not refresh assignments"],
     )
     monkeypatch.setattr(scheduler, "tick", lambda *, at: scheduler_record)
@@ -324,7 +327,7 @@ def test_multiple_launches_are_recorded_and_reported(watched, capsys, monkeypatc
     assert recorded(daemon=daemon) == scheduler_record
     assert capsys.readouterr().out == (
         f"2026-08-20 02:41:58  launched rounds for {ASSIGNMENT_ID}, "
-        "conversation-GH8; could not refresh assignments\n"
+        "GH8-20260819-184158-conversation; could not refresh assignments\n"
     )
 
 
@@ -496,7 +499,7 @@ def test_a_pending_stop_survives_daemon_restart(watched, harnesses, gh, left_run
             number=1, started=PINNED, pid=left_running.pid, purpose=PURPOSE
         ),
     )
-    assignment = read_assignment(state=state, identifier=ASSIGNMENT_ID)
+    assignment = find_agent_work(state=state, identifier=ASSIGNMENT_ID)
     assert assignment is not None
     request_agent_round_stop(paths=assignment.compose_round_paths(number=1))
     daemon, _, _ = idling(root=watched)
@@ -614,7 +617,7 @@ def test_a_tick_that_could_not_dispatch_records_the_failure_and_ticks_again(
     # A file where every worktree goes, so no assignment can be created.
     state = StateDirectory(root=ready_repo)
     state.path.mkdir(parents=True)
-    state.assignment_worktrees.write_text("something else is here\n", encoding="utf-8")
+    state.worktrees.write_text("something else is here\n", encoding="utf-8")
     daemon, waiting, _ = idling(root=ready_repo, ticks=2)
 
     daemon.run()
@@ -688,10 +691,10 @@ def test_a_daemon_that_loses_its_lock_runs_no_other_tick_and_stops_rounds(
 def test_a_run_that_cannot_read_an_assignment_refuses_to_start(ready_repo):
     state = StateDirectory(root=ready_repo)
     directory = write_assignment(state=state, identifier=ASSIGNMENT_ID, issue=13)
-    (directory / "assignment.json").write_text("{}", encoding="utf-8")
+    (directory / "work.json").write_text("{}", encoding="utf-8")
     daemon, _, _ = idling(root=ready_repo, ticks=1)
 
-    with pytest.raises(ReportableError, match=r"assignment\.json is not valid"):
+    with pytest.raises(ReportableError, match=r"work\.json is not valid"):
         daemon.run()
 
 
@@ -704,7 +707,7 @@ def test_a_failed_tick_preserves_the_last_scheduler_record(ready_repo, capsys):
     )
     write_json(document=previous, path=daemon.state.scheduler_record)
     directory = write_assignment(state=daemon.state, identifier=ASSIGNMENT_ID, issue=13)
-    (directory / "assignment.json").write_text("{}", encoding="utf-8")
+    (directory / "work.json").write_text("{}", encoding="utf-8")
 
     scheduler = create_scheduler(daemon=daemon)
     daemon.run_scheduler_cycle(scheduler=scheduler, at=daemon.clock())
@@ -712,7 +715,7 @@ def test_a_failed_tick_preserves_the_last_scheduler_record(ready_repo, capsys):
     assert recorded(daemon=daemon) == previous
     output = capsys.readouterr().out
     assert "update failed:" in output
-    assert "assignment.json is not valid" in output
+    assert "work.json is not valid" in output
 
 
 @pytest.mark.parametrize("record", ["{}", "null"])

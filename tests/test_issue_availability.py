@@ -16,13 +16,12 @@ from conftest import (
 )
 from observations import observed_issue
 from pydantic import ValidationError
-from records import write_assignment
+from records import read_assignments, write_assignment
 
 from dreamcatcher.agent_assignments import (
-    Assignment,
     cancel_assignment,
-    read_assignments,
 )
+from dreamcatcher.agent_work import AgentWork
 from dreamcatcher.clock import read_current_time
 from dreamcatcher.config import AgentHarness, DreamcatcherConfig
 from dreamcatcher.scheduler.assignments import AssignmentScheduler
@@ -80,7 +79,7 @@ def gh(fake):
 def observe(
     *,
     config: DreamcatcherConfig,
-    assignments: Sequence[Assignment] = (),
+    assignments: Sequence[AgentWork] = (),
     incomplete_setups: dict[int, str | None] | None = None,
     account: str = POSTED_BY,
 ):
@@ -264,7 +263,7 @@ def test_routing_conflict_is_independent_of_external_claims_and_blockers(gh):
 
 def test_local_and_external_claims_can_both_be_true(gh, tmp_path):
     state = StateDirectory(root=tmp_path)
-    write_assignment(state=state, identifier="GH8-20260819-184158", issue=8)
+    write_assignment(state=state, identifier="GH8-20260819-184158-assignment", issue=8)
     gh.replies(
         stdout=json.dumps(
             {
@@ -295,7 +294,7 @@ def test_local_and_external_claims_can_both_be_true(gh, tmp_path):
 
 def test_a_cancelled_assignments_pull_request_claims_its_issue_elsewhere(gh, tmp_path):
     state = StateDirectory(root=tmp_path)
-    write_assignment(state=state, identifier="GH8-20260819-184158", issue=8)
+    write_assignment(state=state, identifier="GH8-20260819-184158-assignment", issue=8)
     cancel_assignment(
         assignment=read_assignments(state=state)[0], at=read_current_time()
     )
@@ -430,7 +429,9 @@ def test_a_failed_blocker_read_preserves_unknown_evidence(gh):
 
 def test_an_open_local_assignment_is_observed_outside_the_listing(gh, tmp_path):
     state = StateDirectory(root=tmp_path)
-    write_assignment(state=state, identifier="GH13-20260819-184158", issue=13)
+    write_assignment(
+        state=state, identifier="GH13-20260819-184158-assignment", issue=13
+    )
     gh.replies(stdout="[]", to="issue list")
     gh.replies(
         stdout=json.dumps(
@@ -468,7 +469,9 @@ def test_a_local_assignment_remains_observed_when_the_listing_and_issue_read_fai
     gh, tmp_path
 ):
     state = StateDirectory(root=tmp_path)
-    write_assignment(state=state, identifier="GH13-20260819-184158", issue=13)
+    write_assignment(
+        state=state, identifier="GH13-20260819-184158-assignment", issue=13
+    )
     gh.fails(stderr="gh: could not connect to github.com", to="issue list")
     gh.fails(stderr="gh: could not connect to github.com")
 

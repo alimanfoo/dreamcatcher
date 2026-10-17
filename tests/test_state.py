@@ -35,22 +35,20 @@ def test_bootstrap_says_so_when_a_file_sits_where_the_directory_goes(repo):
 def test_the_daemon_files_use_the_versioned_root_and_shared_lock(tmp_path):
     state = StateDirectory(root=tmp_path)
 
-    assert state.path == tmp_path / ".dreamcatcher" / "v5"
+    assert state.path == tmp_path / ".dreamcatcher" / "v6"
     assert state.lock == state.path.parent / "daemon.lock"
     assert state.repository == state.path / "repository"
     assert state.daemon_run_record == state.path / "daemon.json"
     assert state.scheduler_record == state.path / "scheduler.json"
-    assert state.assignment_worktrees == state.path / "worktrees"
-    assert state.assignments == state.path / "assignments"
-    assert state.conversation_worktrees == state.path / "conversation-worktrees"
-    assert state.conversations == state.path / "conversations"
+    assert state.work == state.path / "work"
+    assert state.worktrees == state.path / "worktrees"
 
 
 def test_a_path_the_checkout_holds_reads_from_the_checkout(tmp_path):
     state = StateDirectory(root=tmp_path)
 
-    assert state.describe_path(path=state.assignment_worktrees / "GH13") == (
-        ".dreamcatcher/v5/worktrees/GH13"
+    assert state.describe_path(path=state.worktrees / "GH13") == (
+        ".dreamcatcher/v6/worktrees/GH13"
     )
 
 

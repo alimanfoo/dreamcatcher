@@ -1,32 +1,22 @@
 """Persist issue conversations and prepare their trusted input."""
 
-from dataclasses import dataclass, field
 from datetime import datetime
-from pathlib import Path
 
 from pydantic import Field
 
-from dreamcatcher.agent_rounds import (
-    AgentRoundOutcome,
-    AgentRoundPaths,
-    AgentRoundRecord,
-    read_agent_round_records,
-)
+from dreamcatcher.agent_rounds import AgentRoundOutcome
 from dreamcatcher.agent_work import (
-    read_harness_session_identifier,
-    read_retry_requested_at,
+    AgentWork,
+    AgentWorkRecord,
+    compose_agent_work_identifier,
+    record_agent_work,
 )
-from dreamcatcher.config import (
-    AgentHarness,
-    ConversationRoute,
-    QuotableText,
-)
-from dreamcatcher.documents import DreamcatcherDocument, read_json, write_json
+from dreamcatcher.config import AgentHarness, ConversationRoute
+from dreamcatcher.documents import DreamcatcherDocument, read_json
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.git import (
     add_detached_worktree,
     fetch_main,
-    is_linked_worktree,
     refresh_detached_worktree,
 )
 from dreamcatcher.github import (
@@ -35,19 +25,11 @@ from dreamcatcher.github import (
     UnknownGitHubResponse,
     post_issue_comment,
 )
-from dreamcatcher.harness_adapters import HarnessConfig, HarnessSessionIdentifier
-from dreamcatcher.harnesses import find_harness_session_identifier
+from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.prompts import AGENT_POST_MARKER, compose_issue_instructions
 from dreamcatcher.state import StateDirectory
 
-_CONVERSATION_RECORD_NAME = "conversation.json"
-_CONVERSATION_ROUNDS_DIRECTORY_NAME = "rounds"
 NO_REPLY = "NO_REPLY"
-
-
-def compose_conversation_identifier(*, issue: int) -> str:
-    """Return the agent work identifier for an issue conversation."""
-    return f"conversation-GH{issue}"
 
 
 class InitialConversationIssue(DreamcatcherDocument):
@@ -75,69 +57,7 @@ class IssueCommentDeliveryPosition(DreamcatcherDocument):
     id: int
 
 
-class ConversationRecord(DreamcatcherDocument):
-    """Model one issue conversation's identity and settings.
-
-    Creation writes the record once, and nothing writes it again.
-    """
-
-    issue: int
-    title: str
-    dispatch_label: str
-    harness: AgentHarness
-    model: QuotableText
-    effort: QuotableText
-    harness_config: HarnessConfig = Field(default_factory=dict)
-    prompt: str
-
-
-@dataclass(frozen=True, kw_only=True)
-class Conversation:
-    """Represent one persisted issue conversation as it currently reads.
-
-    The record holds the conversation's settings, and the facts recorded since
-    sit beside it.
-    """
-
-    directory: Path
-    worktree: Path
-    record: ConversationRecord
-    harness_session_identifier: HarnessSessionIdentifier | None = None
-    retry_requested_at: datetime | None = None
-    rounds: list[AgentRoundRecord] = field(default_factory=list)
-
-    @property
-    def identifier(self) -> str:
-        """The identifier that distinguishes this work from an assignment."""
-        return compose_conversation_identifier(issue=self.record.issue)
-
-    @property
-    def next_round_number(self) -> int:
-        """The number that the conversation's next round will carry."""
-        return self.rounds[-1].number + 1 if self.rounds else 1
-
-    def find_harness_session_identifier(self) -> HarnessSessionIdentifier | None:
-        """Return the recorded or recoverable harness session identifier."""
-        return find_harness_session_identifier(
-            harness=self.record.harness,
-            agent_work_identifier=self.identifier,
-            recorded=self.harness_session_identifier,
-            raw_outputs=(
-                self.compose_round_paths(number=round_record.number).raw_output
-                for round_record in reversed(self.rounds)
-            ),
-        )
-
-    def compose_round_paths(self, *, number: int) -> AgentRoundPaths:
-        """Return the paths for one numbered conversation round."""
-        return AgentRoundPaths(
-            worktree=self.worktree,
-            rounds_directory=(self.directory / _CONVERSATION_ROUNDS_DIRECTORY_NAME),
-            number=number,
-        )
-
-
-def is_conversation_ready_for_input(*, conversation: Conversation | None) -> bool:
+def is_conversation_ready_for_input(*, conversation: AgentWork | None) -> bool:
     """Return whether a conversation can accept another comment batch."""
     if conversation is None or not conversation.rounds:
         return True
@@ -147,60 +67,38 @@ def is_conversation_ready_for_input(*, conversation: Conversation | None) -> boo
     }
 
 
-def read_conversations(*, state: StateDirectory) -> list[Conversation]:
-    """Return every recorded issue conversation, ordered by issue."""
-    if not state.conversations.is_dir():
-        return []
-    return [
-        _read_conversation(state=state, directory=directory)
-        for directory in sorted(state.conversations.iterdir())
-        if (directory / _CONVERSATION_RECORD_NAME).is_file()
-    ]
-
-
-def read_conversation(*, state: StateDirectory, issue: int) -> Conversation | None:
-    """Return the conversation for one issue when it exists."""
-    directory = state.conversations / f"GH{issue}"
-    if not (directory / _CONVERSATION_RECORD_NAME).is_file():
-        return None
-    return _read_conversation(state=state, directory=directory)
-
-
 def create_conversation(
     *,
     state: StateDirectory,
     route: ConversationRoute,
     preferred_harness: AgentHarness,
     issue: Issue,
-) -> Conversation:
-    """Create one conversation with no rounds run yet.
+    at: datetime,
+) -> AgentWork:
+    """Create one conversation at the issue with no rounds run yet.
 
-    A new worktree starts at fetched main. A retry reuses the worktree that an
-    earlier attempt left before it wrote the record, and preparing the first
-    round's input resets that worktree to fetched main.
+    The worktree starts at fetched main, and preparing the first round's input
+    resets it to fetched main again.
     """
-    existing = read_conversation(state=state, issue=issue.number)
-    if existing is not None:
-        return existing
     selected_harness = route.choose_harness(preferred_harness=preferred_harness)
     recipe = route.recipes[selected_harness]
-    record = ConversationRecord(
+    record = AgentWorkRecord(
         issue=issue.number,
         title=issue.title,
         dispatch_label=route.label,
+        kind=AgentWorkKind.CONVERSATION,
         harness=selected_harness,
         model=recipe.model,
         effort=recipe.effort,
         harness_config=recipe.config,
         prompt=compose_issue_instructions(template=recipe.prompt, issue=issue.number),
     )
+    identifier = compose_agent_work_identifier(
+        issue=issue.number, kind=AgentWorkKind.CONVERSATION, at=at
+    )
     fetch_main(root=state.root)
-    directory = state.conversations / f"GH{issue.number}"
-    worktree = state.conversation_worktrees / f"GH{issue.number}"
-    if not is_linked_worktree(path=worktree):
-        add_detached_worktree(root=state.root, path=worktree)
-    write_json(document=record, path=directory / _CONVERSATION_RECORD_NAME)
-    return Conversation(directory=directory, worktree=worktree, record=record)
+    add_detached_worktree(root=state.root, path=state.worktrees / identifier)
+    return record_agent_work(state=state, identifier=identifier, record=record)
 
 
 def list_undelivered_issue_comments(
@@ -231,7 +129,7 @@ def list_undelivered_issue_comments(
 def prepare_conversation_input(
     *,
     state: StateDirectory,
-    conversation: Conversation,
+    conversation: AgentWork,
     issue: Issue,
     comments: list[ConversationComment],
 ) -> ConversationRoundInput:
@@ -254,7 +152,7 @@ def prepare_conversation_input(
 
 
 def read_conversation_input(
-    *, conversation: Conversation, number: int
+    *, conversation: AgentWork, number: int
 ) -> ConversationRoundInput:
     """Read and validate the durable input for one conversation round."""
     round_input = _read_conversation_input_document(
@@ -269,7 +167,7 @@ def read_conversation_input(
 
 
 def _read_conversation_input_document(
-    *, conversation: Conversation, number: int
+    *, conversation: AgentWork, number: int
 ) -> ConversationRoundInput:
     """Read and validate one round input without comparing adjacent rounds."""
     round_input = read_json(
@@ -296,7 +194,7 @@ def _read_conversation_input_document(
 
 
 def read_issue_comment_delivery_position(
-    *, conversation: Conversation
+    *, conversation: AgentWork
 ) -> IssueCommentDeliveryPosition | None:
     """Return the newest comment saved in the latest durable round input."""
     if not conversation.rounds:
@@ -341,26 +239,3 @@ def post_conversation_answer(
         raise ReportableError(
             f"could not post the answer on GH{issue}: {response.reason}"
         )
-
-
-def _read_conversation(*, state: StateDirectory, directory: Path) -> Conversation:
-    record = read_json(
-        model=ConversationRecord,
-        path=directory / _CONVERSATION_RECORD_NAME,
-    )
-    if directory.name != f"GH{record.issue}":
-        raise ReportableError(
-            f"{directory} records GH{record.issue}, but its directory is "
-            f"{directory.name}."
-        )
-    return Conversation(
-        directory=directory,
-        worktree=state.conversation_worktrees / directory.name,
-        record=record,
-        harness_session_identifier=read_harness_session_identifier(directory=directory),
-        retry_requested_at=read_retry_requested_at(directory=directory),
-        rounds=read_agent_round_records(
-            cache=state.document_cache,
-            directory=directory / _CONVERSATION_ROUNDS_DIRECTORY_NAME,
-        ),
-    )

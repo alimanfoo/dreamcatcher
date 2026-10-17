@@ -24,7 +24,9 @@ from conftest import (
 from fakes import Line, Stream, recorded
 from recordings import render_harness_recording
 
-from dreamcatcher.agent_assignments import AssignmentRoundInput
+from dreamcatcher.agent_assignments import (
+    AssignmentRoundInput,
+)
 from dreamcatcher.agent_rounds import (
     _AGENT_ROUND_RECORD_NAME,
     _STOP_REQUEST_POLL_INTERVAL_SECONDS,
@@ -570,7 +572,7 @@ def start_conversation_round(
         request=AgentRoundStartRequest(
             harness=AgentHarness.CLAUDE,
             launch_request=AgentRoundLaunchRequest(
-                agent_work_identifier="conversation-GH9",
+                agent_work_identifier="GH9-20260819-184158-conversation",
                 model="opus[1m]",
                 effort="xhigh",
                 prompt=PROMPT,
@@ -677,7 +679,7 @@ def test_a_round_interrupted_as_its_harness_succeeds_is_not_finished(
     paths = compose_round_paths(worktree=worktree, directory=directory)
     finish_round = Mock()
     running = AgentRound(
-        agent_work_identifier="conversation-GH9",
+        agent_work_identifier="GH9-20260819-184158-conversation",
         harness=round_harness(
             invocation=HarnessInvocation(
                 program=sys.executable,
