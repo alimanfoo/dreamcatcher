@@ -36,8 +36,11 @@ ClaudeConfig = Annotated[HarnessConfig, AfterValidator(_refuse_claude_config)]
 
 # What an unattended assignment round may do without being asked. The round
 # runs under `--permission-mode auto`, so this list keeps the port from
-# stalling while it implements and publishes work.
+# stalling while it implements and publishes work, and while it reads the
+# output of a check that failed.
 _CLAUDE_ASSIGNMENT_ALLOWED_TOOLS = (
+    "Bash(gh pr checks:*)",
+    "Bash(gh run view:*)",
     "Bash(gh pr create:*)",
     "Bash(gh pr comment:*)",
     "Bash(gh pr edit:*)",
