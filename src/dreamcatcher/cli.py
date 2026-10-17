@@ -9,10 +9,7 @@ from threading import TIMEOUT_MAX
 
 import dreamcatcher
 from dreamcatcher import repository_setup, tui, web
-from dreamcatcher.agent_assignments import (
-    cancel_assignment,
-    read_assignment_pull_request_number,
-)
+from dreamcatcher.agent_assignments import cancel_assignment
 from dreamcatcher.agent_rounds import request_agent_round_stop
 from dreamcatcher.agent_work import find_newest_agent_work, request_agent_work_retry
 from dreamcatcher.clock import read_current_time
@@ -419,14 +416,7 @@ def _cancel_assignment(*, arguments: argparse.Namespace) -> None:
     if assignment is None:
         raise ReportableError(f"GH{arguments.issue} has no assignment.")
     cancel_assignment(assignment=assignment, at=read_current_time())
-    pull_request = read_assignment_pull_request_number(assignment=assignment)
-    if pull_request is None:
-        print(f"{assignment.identifier} is cancelled before it opened a pull request.")
-    else:
-        print(
-            f"{assignment.identifier} is cancelled. Finish pull request "
-            f"#{pull_request} by hand."
-        )
+    print(f"{assignment.identifier} is cancelled.")
 
 
 def _show_status(*, arguments: argparse.Namespace) -> None:
