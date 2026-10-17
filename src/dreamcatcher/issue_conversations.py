@@ -9,8 +9,8 @@ from dreamcatcher.git import (
     refresh_detached_worktree,
 )
 from dreamcatcher.github import (
-    ConversationComment,
     Issue,
+    IssueComment,
     UnknownGitHubResponse,
     post_issue_comment,
 )
@@ -34,7 +34,7 @@ class ConversationRoundInput(DreamcatcherDocument):
     initial_issue: InitialConversationIssue | None = Field(
         default=None, exclude_if=lambda value: value is None
     )
-    comments: list[ConversationComment]
+    comments: list[IssueComment]
     revision: str
 
 
@@ -47,10 +47,10 @@ class IssueCommentCursor(DreamcatcherDocument):
 
 def list_issue_comments_past_cursor(
     *,
-    comments: list[ConversationComment],
+    comments: list[IssueComment],
     account: str,
     cursor: IssueCommentCursor | None,
-) -> list[ConversationComment]:
+) -> list[IssueComment]:
     """Return eligible comments past the cursor, oldest first."""
     after = (cursor.written_at, cursor.id) if cursor is not None else ("", 0)
     return sorted(
@@ -71,7 +71,7 @@ def prepare_conversation_round(
     state: StateDirectory,
     conversation: AgentWork,
     issue: Issue,
-    comments: list[ConversationComment],
+    comments: list[IssueComment],
     is_resuming: bool,
 ) -> ConversationRoundInput:
     """Reset the worktree to fetched main and freeze the round's eligible input.

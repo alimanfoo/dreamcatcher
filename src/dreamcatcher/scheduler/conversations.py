@@ -6,8 +6,8 @@ from dreamcatcher.agent_work import AgentWork, AgentWorkEndReason, end_agent_wor
 from dreamcatcher.config import DispatchRoute
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.github import (
-    ConversationComment,
     Issue,
+    IssueComment,
     IssueState,
     UnknownGitHubResponse,
     list_issue_comments,
@@ -152,7 +152,7 @@ def _inspect_comments(
 
 def _list_comments_to_answer(
     *, context: SchedulingContext, issue: int, conversation: AgentWork | None
-) -> list[ConversationComment] | ReadFailureFinding:
+) -> list[IssueComment] | ReadFailureFinding:
     """Return the eligible comments that no round has been given yet.
 
     A read that fails answers why.
@@ -179,7 +179,7 @@ def _compose_comment_round(
     *,
     context: SchedulingContext,
     issue: Issue,
-    comments: list[ConversationComment],
+    comments: list[IssueComment],
     work: AgentWork,
 ) -> RoundPlan:
     """Return the plan of a round given the comments waiting at the issue.

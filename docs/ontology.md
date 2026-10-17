@@ -158,9 +158,8 @@ anything new.
 ### User post and feedback
 
 A **user post** is a user-authored contribution to an assignment's pull request.
-It normalizes the different places in which GitHub lets the user write:
-conversation comments, review bodies, review verdicts, and inline review
-comments.
+It normalizes the different places in which GitHub lets the user write: comments
+on the pull request, review bodies, review verdicts, and inline review comments.
 
 Collectively, user posts are **feedback**. _dreamcatcher_ **relays** new user
 posts into a later agent round. Relay is an action, not a separate durable

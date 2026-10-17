@@ -35,7 +35,7 @@ from dreamcatcher.documents import write_json, write_text
 from dreamcatcher.feed import FeedLine
 from dreamcatcher.github import (
     CheckResult,
-    ConversationComment,
+    IssueComment,
     PullRequestMergeState,
     PullRequestState,
 )
@@ -206,7 +206,7 @@ ONE_POST_INPUT = AssignmentRoundInput(
     pull_request_state=PullRequestState.OPEN,
     pull_request_head=HEAD,
     signals=[],
-    user_posts=[ConversationComment.model_validate(comment())],
+    user_posts=[IssueComment.model_validate(comment())],
 )
 
 # What an assignment round given the input of one that did not finish was given,

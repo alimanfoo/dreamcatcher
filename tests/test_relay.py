@@ -13,8 +13,8 @@ from conftest import (
 )
 
 from dreamcatcher.github import (
-    ConversationComment,
     InlineReviewComment,
+    IssueComment,
     PullRequestReview,
     PullRequestReviewVerdict,
     UnknownGitHubResponse,
@@ -82,7 +82,7 @@ def test_the_posts_come_back_oldest_first_whichever_list_each_came_from(
     assert [type(post) for post in past_cursor()] == [
         PullRequestReview,
         InlineReviewComment,
-        ConversationComment,
+        IssueComment,
     ]
 
 
@@ -210,22 +210,22 @@ def test_every_post_the_user_said_something_in_on_a_real_pull_request_comes_back
     # three empty reviews GitHub wrapped the last three inline comments in are
     # gone, while those inline comments come through on their own.
     assert [type(post) for post in past_cursor()] == [
-        ConversationComment,
-        ConversationComment,
-        ConversationComment,
-        ConversationComment,
-        ConversationComment,
-        ConversationComment,
+        IssueComment,
+        IssueComment,
+        IssueComment,
+        IssueComment,
+        IssueComment,
+        IssueComment,
         InlineReviewComment,
         InlineReviewComment,
         InlineReviewComment,
         PullRequestReview,
-        ConversationComment,
+        IssueComment,
         InlineReviewComment,
         InlineReviewComment,
         InlineReviewComment,
-        ConversationComment,
-        ConversationComment,
+        IssueComment,
+        IssueComment,
     ]
 
 

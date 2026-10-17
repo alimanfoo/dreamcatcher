@@ -55,8 +55,8 @@ from dreamcatcher.config import AgentHarness
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import FeedNote, FeedRenderer
 from dreamcatcher.github import (
-    ConversationComment,
     InlineReviewComment,
+    IssueComment,
     PullRequestReview,
     PullRequestState,
 )
@@ -338,7 +338,7 @@ def test_a_round_writes_the_pull_request_state_and_user_posts_it_was_given(
     harness = fake(program="harness")
     harness.replies(stdout="")
     posts = [
-        ConversationComment.model_validate(comment()),
+        IssueComment.model_validate(comment()),
         PullRequestReview.model_validate(
             review(body="have a look", user={"login": POSTED_BY})
         ),

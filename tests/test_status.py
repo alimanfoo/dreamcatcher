@@ -38,7 +38,7 @@ from dreamcatcher.documents import write_text
 from dreamcatcher.feed import FeedLine
 from dreamcatcher.github import (
     CheckResult,
-    ConversationComment,
+    IssueComment,
     PullRequestMergeState,
     PullRequestSignal,
     PullRequestState,
@@ -620,7 +620,7 @@ def test_a_round_says_which_signals_woke_it(state, signals, posts, trigger):
             pull_request_state=PullRequestState.OPEN,
             pull_request_head=HEAD,
             signals=signals,
-            user_posts=[ConversationComment.model_validate(comment())] * posts,
+            user_posts=[IssueComment.model_validate(comment())] * posts,
         ),
     )
 

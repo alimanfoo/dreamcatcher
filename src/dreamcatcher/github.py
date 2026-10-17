@@ -281,10 +281,11 @@ class IssuePullRequestContext(GitHubResponseProjection):
 
 
 class _UserPostProjection(GitHubResponseProjection):
-    """Model the fields shared by every kind of pull request post.
+    """Model the fields shared by every kind of user post and issue comment.
 
-    A comment on the conversation, a review, and a comment on a line of the
-    diff are one document each, and this is what the three have in common.
+    A comment on an issue or a pull request, a review, and a comment on a line
+    of the diff are one document each, and this is what the three have in
+    common.
     Only the time differs in name: a review records when it was submitted, and
     a comment of either kind when it was created.
 
@@ -312,8 +313,8 @@ class _UserPostProjection(GitHubResponseProjection):
         return bool(self.body)
 
 
-class ConversationComment(_UserPostProjection):
-    """Model an ordinary comment in an issue or pull request conversation."""
+class IssueComment(_UserPostProjection):
+    """Model an ordinary comment on an issue or a pull request."""
 
     kind: Literal["comment"] = "comment"
 
@@ -385,7 +386,7 @@ class InlineReviewComment(_UserPostProjection):
         }
 
 
-type UserPost = ConversationComment | PullRequestReview | InlineReviewComment
+type UserPost = IssueComment | PullRequestReview | InlineReviewComment
 
 
 _GITHUB_REPOSITORY_RESPONSE_ADAPTER = TypeAdapter(GitHubRepository)
@@ -403,9 +404,7 @@ _GITHUB_BLOCKING_ISSUE_LIST_RESPONSE_ADAPTER = TypeAdapter(list[list[BlockingIss
 _GITHUB_ISSUE_PULL_REQUEST_CONTEXT_RESPONSE_ADAPTER = TypeAdapter(
     IssuePullRequestContext
 )
-_GITHUB_CONVERSATION_COMMENT_PAGES_ADAPTER = TypeAdapter(
-    list[list[ConversationComment]]
-)
+_GITHUB_CONVERSATION_COMMENT_PAGES_ADAPTER = TypeAdapter(list[list[IssueComment]])
 _GITHUB_POSTED_ISSUE_COMMENT_ADAPTER = TypeAdapter(PostedIssueComment)
 _GITHUB_PULL_REQUEST_REVIEW_PAGES_ADAPTER = TypeAdapter(list[list[PullRequestReview]])
 _GITHUB_INLINE_REVIEW_COMMENT_PAGES_ADAPTER = TypeAdapter(
@@ -690,7 +689,7 @@ def list_blocking_issues(
 def list_user_posts(
     *, repository: str, pull_request: int
 ) -> list[UserPost] | UnknownGitHubResponse:
-    """Return every conversation comment, review, and inline comment.
+    """Return every comment, review, and inline comment on the pull request.
 
     The relay decides which posts from the combined list are past the cursor.
 
@@ -714,7 +713,7 @@ def list_user_posts(
 
 def list_issue_comments(
     *, repository: str, issue: int
-) -> list[ConversationComment] | UnknownGitHubResponse:
+) -> list[IssueComment] | UnknownGitHubResponse:
     """Return every ordinary comment on one issue."""
     return _read_github_pages(
         response_adapter=_GITHUB_CONVERSATION_COMMENT_PAGES_ADAPTER,

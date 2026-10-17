@@ -28,10 +28,10 @@ from dreamcatcher.config import (
 from dreamcatcher.documents import write_json, write_text
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.github import (
-    ConversationComment,
     GitHubLabel,
     GitHubUserAccount,
     Issue,
+    IssueComment,
     IssueState,
 )
 from dreamcatcher.harness_adapters import AgentWorkKind
@@ -98,8 +98,8 @@ def comment(
     body: str,
     author: str = "alimanfoo",
     written_at: str = "2026-09-23T01:00:00Z",
-) -> ConversationComment:
-    return ConversationComment(
+) -> IssueComment:
+    return IssueComment(
         id=identifier,
         author=author,
         written_at=written_at,

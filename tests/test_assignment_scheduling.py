@@ -29,7 +29,7 @@ from dreamcatcher.agent_rounds import (
 from dreamcatcher.config import AgentHarness, read_dreamcatcher_config
 from dreamcatcher.documents import write_json
 from dreamcatcher.github import (
-    ConversationComment,
+    IssueComment,
     PullRequestSignal,
     PullRequestState,
 )
@@ -460,7 +460,7 @@ def test_a_post_at_the_assignment_cursor_wakes_nothing(state, gh):
             pull_request_state=PullRequestState.OPEN,
             pull_request_head=HEAD,
             signals=[],
-            user_posts=[ConversationComment.model_validate(comment())],
+            user_posts=[IssueComment.model_validate(comment())],
         ),
         path=assignment.compose_round_paths(number=1).round_input,
     )
@@ -561,7 +561,7 @@ def relayed(
         pull_request_head=head,
         signals=signals,
         user_posts=[
-            ConversationComment.model_validate(comment(id=number))
+            IssueComment.model_validate(comment(id=number))
             for number in range(1, posts + 1)
         ],
     )

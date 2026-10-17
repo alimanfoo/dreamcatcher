@@ -52,7 +52,7 @@ from dreamcatcher.config import (
 from dreamcatcher.documents import write_json
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.git import add_worktree, fetch_main, make_empty_commit, push_branch
-from dreamcatcher.github import ConversationComment, PullRequestState
+from dreamcatcher.github import IssueComment, PullRequestState
 from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.state import StateDirectory
 
@@ -660,9 +660,7 @@ def test_an_assignment_reads_back_its_user_post_cursor(state, route):
             pull_request_head=HEAD,
             signals=[],
             user_posts=[
-                ConversationComment.model_validate(
-                    comment(created_at="2026-09-03T22:31:51Z")
-                )
+                IssueComment.model_validate(comment(created_at="2026-09-03T22:31:51Z"))
             ],
         ),
         path=created.compose_round_paths(number=1).round_input,
@@ -686,11 +684,7 @@ def test_the_user_post_cursor_scans_past_an_input_that_relayed_no_posts(state, r
     for number, posts in (
         (
             1,
-            [
-                ConversationComment.model_validate(
-                    comment(created_at="2026-09-03T22:31:51Z")
-                )
-            ],
+            [IssueComment.model_validate(comment(created_at="2026-09-03T22:31:51Z"))],
         ),
         (2, []),
     ):

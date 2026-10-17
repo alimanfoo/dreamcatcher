@@ -521,7 +521,7 @@ stateDiagram-v2
 Under `.dreamcatcher/v6/`:
 
 ```text
-daemon.json          process id, harness, version, capacity, interval, and now
+daemon.json          process id, preferred harness, version, capacity, interval, and now
                      the routes: each dispatch label and its kind
 repository
 scheduler.json       one row per request, the cooldown, listing failures;
