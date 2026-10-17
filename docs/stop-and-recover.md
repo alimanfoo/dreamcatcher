@@ -8,7 +8,7 @@ stopping one agent round and stopping the daemon have different consequences.
 | Interrupt standalone `web`, `status`, `assignment`, `conversation` or `feed` | Only that view                                            | The daemon and agents continue.                                                |
 | Run `dreamcatcher stop` or select **stop round** on the web page             | The current agent round                                   | The work waits for input unless a merged or closed pull request needs wrap-up. |
 | Run `dreamcatcher cancel` or select **cancel assignment** on the web page    | The assignment and any running round                      | You finish the pull request by hand. _dreamcatcher_ runs no further rounds.    |
-| Press Ctrl-C in the terminal running `dreamcatcher run`                      | The daemon, its current rounds and the web page it serves | Work that still needs a round can recover after the daemon starts again.       |
+| Press Ctrl-C in the terminal running `dreamcatcher run`                      | The daemon, its current rounds and the web page it serves | Work that still needs a round can run again after the daemon starts again.     |
 
 ## Stop one running round
 
@@ -29,15 +29,16 @@ harness session. The round normally stops within about a second.
 After an assignment round is stopped, an open pull request waits for a new
 comment or review from you. Add that feedback when you are ready to resume. If
 you merge or close the pull request instead, its wrap-up can start without a new
-post.
+post. If you stop the wrap-up round itself, the assignment stays open with no
+round due; cancel it when you no longer want the agent on it.
 
 After a conversation round is stopped, post a new eligible issue comment to
-resume the discussion. The next round is an ordinary response to that input, not
-an automatic recovery of the stopped attempt.
+resume the discussion. The next round answers that input; the stopped round's
+comments are not given again.
 
 Removing an assignment label does not stop an active assignment. For a
-conversation, removing its last matching label makes future batches and recovery
-ineligible, but does not cancel a round already running.
+conversation, removing its last matching label stops every future round, but
+does not cancel a round already running.
 
 ## Take over an assignment's pull request
 
@@ -104,24 +105,25 @@ For a conversation, replace `assignment` and `--assignment` with `conversation`
 and `--conversation`.
 
 Fix the underlying problem first: for example, restore a missing credential,
-repair a project setup command or make a required service available. Then
-request another automatic recovery:
+repair a project setup command or make a required service available. Then clear
+the fault so that the work can run again:
 
 ```sh
 dreamcatcher retry GH123
 ```
 
-`retry` preserves the failed rounds for diagnosis and requests recovery for the
+`retry` preserves the failed rounds for diagnosis and clears the fault of the
 newest faulted assignment and faulted conversation at that issue. It does not
-start an agent itself; the daemon may recover the work on a later scheduler
-update.
+start an agent itself; on a later scheduler update the daemon may start the
+work's next round, given the failed round's input again.
 
 You can instead open the faulted assignment or conversation in the web page that
 `run` opened, and select **Retry**. If the daemon is stopped or ran with
 `--noweb`, start `dreamcatcher web` first. The control is available while the
-page shows that work's status as fault, and it requests recovery for that one
+page shows that work's status as fault, and it clears the fault of that one
 assignment or conversation in the same way. The page records the request even
-while the daemon is stopped, and recovery can start once the daemon runs again.
+while the daemon is stopped, and the next round can start once the daemon runs
+again.
 
 Repeated failures across multiple work items can trigger a 15-minute global
 cooldown. _dreamcatcher_ keeps reporting status but starts no agent rounds

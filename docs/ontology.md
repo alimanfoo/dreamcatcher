@@ -451,12 +451,12 @@ one that failed part way finds most of the steps done and runs the rest.
 
 An open issue becomes a conversation candidate when it carries exactly one
 configured conversation label, is assigned to the signed-in account, and has at
-least one eligible comment from that account after the newest comment in its
-latest round input. An issue with more than one configured conversation label
-has a routing conflict and starts nothing until one label remains. Issue title
-and body alone do not start a round. Assignment ownership, linked pull requests,
-dependencies and assignment-routing conflicts do not govern conversation
-eligibility.
+least one eligible comment from that account after the newest comment given to a
+round that did not error or get interrupted. An issue with more than one
+configured conversation label has a routing conflict and starts nothing until
+one label remains. Issue title and body alone do not start a round. Assignment
+ownership, linked pull requests, dependencies and assignment-routing conflicts
+do not govern conversation eligibility.
 
 _dreamcatcher_ records the chosen conversation route and settings, then starts
 the initial conversation round. Every conversation round's preparation fetches

@@ -53,8 +53,9 @@ update a pull request. To request implementation, prepare an assignment instead.
 
 Conversation eligibility is checked continuously. Closing the issue, removing
 its matching label, adding a second configured conversation label, or removing
-the authenticated account as assignee prevents new comment batches and automatic
-recovery. A round already running may finish and publish its answer.
+the authenticated account as assignee prevents every new round, including one
+that would retry an errored round. A round already running may finish and
+publish its answer.
 
 The current configuration also matters. Removing the issue's only matching
 conversation route pauses it after the daemon restarts. A saved conversation

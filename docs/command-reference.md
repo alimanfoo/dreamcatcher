@@ -21,7 +21,7 @@ prefix is case-insensitive, so `GH123` and `gh123` both name issue 123.
 | -------------- | ---------------------------------------------------- |
 | `init`         | Prepare this repository's main checkout.             |
 | `run`          | Run the daemon for this repository.                  |
-| `retry`        | Allow faulted work at one issue to recover again.    |
+| `retry`        | Allow faulted work at one issue to run again.        |
 | `stop`         | Stop one running assignment or conversation round.   |
 | `cancel`       | Cancel one issue's newest assignment.                |
 | `web`          | Serve the local status report in a browser.          |
@@ -107,16 +107,14 @@ dreamcatcher retry GH<n>
 ```
 
 Record a retry request for any currently faulted work at the issue. The command
-checks the newest assignment and the issue conversation independently and
-requests another recovery for each one that is in fault. It preserves the failed
-round records.
+checks the newest assignment and the issue conversation independently and clears
+the fault of each one that is in fault. It preserves the failed round records.
 
 At least one of those two items must currently be in fault. Otherwise the
 command reports that the issue has no agent work in fault. A successful request
-makes the named work available for recovery on a later scheduler update, outside
-any active global cooldown; it does not start a round itself. The web page's
-retry control writes the same request for the one assignment or conversation it
-shows.
+lets the named work's next round start on a later scheduler update, outside any
+active global cooldown; it does not start a round itself. The web page's retry
+control writes the same request for the one assignment or conversation it shows.
 
 ## `stop`
 

@@ -297,7 +297,7 @@ def test_retry_reports_when_only_the_assignment_retry_was_saved(
     assert assignment.retry_requested_at == requested
     assert conversation.retry_requested_at is None
     error = capsys.readouterr().err
-    assert f"{assignment.identifier} can recover" in error
+    assert f"{assignment.identifier} can run again" in error
     assert "GH13-20260819-184158-conversation could not be retried" in error
     assert "conversation record is read-only" in error
 
