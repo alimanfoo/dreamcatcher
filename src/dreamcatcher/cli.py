@@ -337,7 +337,7 @@ def _run_daemon(*, arguments: argparse.Namespace) -> None:
 
 
 def _retry_agent_work(*, arguments: argparse.Namespace) -> None:
-    """Clear every current fault at an issue so the daemon may run it again."""
+    """Clear the faults of the newest assignment and issue conversation at an issue."""
     state = _find_state_directory(root=Path.cwd())
     assignment = find_newest_agent_work(
         state=state, issue=arguments.issue, kind=AgentWorkKind.ASSIGNMENT

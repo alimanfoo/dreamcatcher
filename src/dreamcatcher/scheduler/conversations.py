@@ -153,7 +153,7 @@ def _inspect_comments(
 def _list_comments_to_answer(
     *, context: SchedulingContext, issue: int, conversation: AgentWork | None
 ) -> list[IssueComment] | ReadFailureFinding:
-    """Return the eligible comments that no round has been given yet.
+    """Return the eligible comments past the cursor.
 
     A read that fails answers why.
     """

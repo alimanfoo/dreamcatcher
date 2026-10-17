@@ -75,9 +75,9 @@ def describe_round_ending(
         if ending.reason is not None:
             detail = f"{detail}: {ending.reason}"
     else:
-        outcome = describe_round_outcome(
+        outcome = _describe_round_outcome(
             record=record,
-            outcome=derive_round_outcome(record=record, is_working=False),
+            outcome=_derive_round_outcome(record=record, is_working=False),
         )
         detail = f"round {record.number} {outcome}"
     line = read_last_feed_line(path=paths.feed)
@@ -109,7 +109,7 @@ def compose_round_duration_description(*, record: AgentRoundRecord) -> str:
     return f"ran {describe_span(span=ending.at - record.started)}"
 
 
-def derive_round_outcome(
+def _derive_round_outcome(
     *, record: AgentRoundRecord, is_working: bool
 ) -> AgentRoundOutcome:
     """Return the round's outcome as a status view shows it.
@@ -123,7 +123,7 @@ def derive_round_outcome(
     return record.outcome
 
 
-def describe_round_outcome(
+def _describe_round_outcome(
     *, record: AgentRoundRecord, outcome: AgentRoundOutcome
 ) -> str:
     """Return the words for the round's outcome.
@@ -156,7 +156,7 @@ def list_round_statuses(*, work: AgentWork, is_working: bool) -> list[AgentRound
                     previous_revision=previous_revision, revision=round_input.revision
                 )
                 previous_revision = round_input.revision
-        outcome = derive_round_outcome(
+        outcome = _derive_round_outcome(
             record=record,
             is_working=is_working and record.number == work.rounds[-1].number,
         )
@@ -168,7 +168,7 @@ def list_round_statuses(*, work: AgentWork, is_working: bool) -> list[AgentRound
                 ),
                 duration_description=compose_round_duration_description(record=record),
                 outcome=outcome,
-                outcome_description=describe_round_outcome(
+                outcome_description=_describe_round_outcome(
                     record=record, outcome=outcome
                 ),
                 revision=revision,

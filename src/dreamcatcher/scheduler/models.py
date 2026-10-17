@@ -53,7 +53,7 @@ class PullRequestFinding(DreamcatcherDocument):
 
 
 class IssueCommentsFinding(DreamcatcherDocument):
-    """Hold how many of the user's issue comments no round has been given."""
+    """Hold how many of the user's eligible issue comments are past the cursor."""
 
     found: Literal["issue comments"] = "issue comments"
     new_comments: NonNegativeInt

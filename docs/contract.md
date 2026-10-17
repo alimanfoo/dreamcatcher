@@ -77,7 +77,7 @@ do. Each such round normally resumes the assignment's harness session where the
 last one left off, so the agent still has what the earlier rounds said in front
 of it, and _dreamcatcher_'s prompt names the round's input. When there is no
 session identifier to resume, _dreamcatcher_ starts a new session with the
-assignment's first prompt followed by the prompt naming the input.
+assignment's configured prompt followed by the prompt naming the input.
 
 #### User posts and feedback
 
@@ -158,8 +158,8 @@ work in hand.
 
 An assignment skill needs nothing of its own for this. The resumed agent
 normally still has its own transcript. A new session instead receives the
-assignment's first prompt before the input, so the skill's initial instructions
-apply again.
+assignment's configured prompt before the input, so the skill's initial
+instructions apply again.
 
 A round that the user stopped took its turn, so its input is not given again. An
 open assignment waits for new feedback, or for a signal at a head not yet

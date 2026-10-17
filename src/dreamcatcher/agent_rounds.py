@@ -379,7 +379,7 @@ def read_agent_round_records(
     The records determine the order. A directory without a record is not a
     round and is omitted.
 
-    A terminal record has had both of its writes, and nothing writes it again,
+    A terminal record has had its last write, and nothing writes it again,
     so the cache keeps it and a later read does not open it. A running record is
     opened on every read, because its ending may arrive later.
     """
