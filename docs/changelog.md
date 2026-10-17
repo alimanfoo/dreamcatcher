@@ -80,7 +80,8 @@ each entry links the pull request or commit that made the change.
 - A conversation belongs to the conversation label that started it. Removing
   that label, unassigning the issue or adding a second conversation label pauses
   it, and undoing the change resumes it in the same harness session. Another
-  conversation label starts a conversation of its own.
+  conversation label starts a conversation of its own once it is the issue's
+  only conversation label.
   ([#568](https://github.com/alimanfoo/dreamcatcher/pull/568))
 - Every assignment and conversation has an identifier that ends in its kind,
   such as `GH12-20261017-093000-assignment`, and an assignment's branch is named
