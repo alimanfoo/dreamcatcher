@@ -1,8 +1,31 @@
 # Compatibility and upgrades
 
-The latest tagged release, v5.6.2, uses state format 5, as v5.0.0 through v5.6.1
-did. v4.0.0 used state format 4, and saved work does not carry across from one
-format to the next.
+The latest tagged release, v6.0.0, uses state format 6. v5.0.0 through v5.6.2
+used state format 5, and v4.0.0 used state format 4. Saved work does not carry
+across from one format to the next.
+
+## Upgrade from v5 to v6.0.0
+
+Before installing v6.0.0:
+
+1. Decide whether you can start issue conversations afresh. If you still need
+   their saved context, postpone the upgrade.
+2. Let every assignment finish its successful wrap-up and reach **complete**, or
+   decide to finish its pull request yourself. v6.0.0 does not carry on an
+   assignment that v5 started, and while its pull request stays open and linked
+   to the issue, it claims the issue, so no new assignment starts there.
+3. Stop the v5 _dreamcatcher_ daemon.
+
+The new release starts with empty local state in `.dreamcatcher/v6/`. It leaves
+`.dreamcatcher/v5/` untouched but does not read it. Existing GitHub issues,
+comments and pull requests remain on GitHub.
+
+A fresh conversation has no saved delivery position. If its issue still has a
+conversation label, the new conversation is given every comment you have posted
+on the issue, and _dreamcatcher_ may answer them again.
+
+There is no state migration. Once you have accepted the fresh start, run the new
+daemon normally from the same main checkout.
 
 ## Upgrade from v4.0.0 to v5.0.0
 

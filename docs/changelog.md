@@ -26,14 +26,96 @@ each entry links the pull request or commit that made the change.
 
 ## Unreleased
 
+## [v6.0.0](https://github.com/alimanfoo/dreamcatcher/releases/tag/v6.0.0) — 2026-10-17
+
+### Breaking
+
+- _dreamcatcher_ moves to state format 6. It keeps its local state in
+  `.dreamcatcher/v6/` and starts with none, so the assignments and conversations
+  that v5 saved are not carried on. Stop a v5 daemon before you start v6.
+  [Compatibility and upgrades](compatibility.md#upgrade-from-v5-to-v600) says
+  what to settle first.
+  ([#561](https://github.com/alimanfoo/dreamcatcher/pull/561))
+
+### Added
+
+- Once an assignment's pull request is ready for review, _dreamcatcher_ wakes
+  the agent without a post from you when the base branch leaves the pull request
+  behind it or in conflict with it, and when a check fails. Each is relayed once
+  for each commit at the head of the pull request, a draft gets neither, and
+  after two attempts in a row at failing checks the agent waits for a post from
+  you. ([#571](https://github.com/alimanfoo/dreamcatcher/pull/571))
+- The views show an assignment's merge state and check result beside draft or
+  ready, and an idle assignment says when its checks are running or still
+  failing after two attempts.
+  ([#571](https://github.com/alimanfoo/dreamcatcher/pull/571))
+- A Claude assignment round may run `gh pr checks` and `gh run view` without
+  being asked, so that it can read why a check failed.
+  ([#571](https://github.com/alimanfoo/dreamcatcher/pull/571))
+- A conversation ends when its issue is closed, and the web home page lists it
+  with your other ended work.
+  ([#568](https://github.com/alimanfoo/dreamcatcher/pull/568))
+
 ### Changed
 
+- Assignments and conversations share one set of states: working, waiting, idle,
+  fault, unknown and ended. The states needs user feedback, complete and
+  cancelled are gone. An assignment that needs your feedback reads as idle, and
+  one that completed or that you cancelled reads as ended with that detail.
+  ([#565](https://github.com/alimanfoo/dreamcatcher/pull/565))
+- `dreamcatcher status` and the web home page list each labelled issue that has
+  no work yet beside the work of its kind, and say why no work has started:
+  available, blocked by an issue, claimed by a pull request, waiting for a
+  comment, carrying conflicting labels, or unknown because a read failed. The
+  sections of available, blocked and routing-conflict issues are gone.
+  ([#565](https://github.com/alimanfoo/dreamcatcher/pull/565))
+- A round that fails before its agent starts, such as an assignment's first
+  round when it cannot push the branch, is an errored round. It counts towards a
+  fault like any other, and the failed setups section is gone from the views.
+  ([#562](https://github.com/alimanfoo/dreamcatcher/pull/562))
+- After a round errors or is interrupted, the next round is given the same input
+  again, with a line saying that the previous round did not finish. The feed and
+  the rounds table say what woke each round.
+  ([#562](https://github.com/alimanfoo/dreamcatcher/pull/562))
+- A conversation belongs to the conversation label that started it. Removing
+  that label, unassigning the issue or adding a second conversation label pauses
+  it, and undoing the change resumes it in the same harness session. Another
+  conversation label starts a conversation of its own.
+  ([#568](https://github.com/alimanfoo/dreamcatcher/pull/568))
+- Every assignment and conversation has an identifier that ends in its kind,
+  such as `GH12-20261017-093000-assignment`, and an assignment's branch is named
+  after it, such as `dreamcatcher-GH12-20261017-093000-assignment`. The
+  `conversation`, `feed`, `stop` and `retry` commands select the newest
+  conversation at the issue.
+  ([#561](https://github.com/alimanfoo/dreamcatcher/pull/561))
+- The web page of an assignment or a conversation is at `/work/<identifier>`.
+  The `/assignments/<identifier>` and `/conversations/<issue>` addresses are
+  gone. ([#561](https://github.com/alimanfoo/dreamcatcher/pull/561))
+- An issue with an open assignment no longer has its blockers and linked pull
+  requests read at every update, so the daemon makes fewer GitHub reads.
+  ([#568](https://github.com/alimanfoo/dreamcatcher/pull/568))
 - The web interface's matrix theme drops its boxes, as the nature theme did.
   Panels become headings over a rule, assignments, issues and conversations are
   rows divided by rules, and the feed and rounds line up with their headings.
   The filled chip alone marks an assignment that needs your feedback, and the
   current round's number shows in inverse video.
   ([#543](https://github.com/alimanfoo/dreamcatcher/pull/543))
+
+### Fixed
+
+- `dreamcatcher status` and the web interface read the dispatch labels that the
+  running daemon loaded, where they read `dreamcatcher.toml` before. They no
+  longer disagree with the daemon after you edit the file, and they still work
+  when it is missing or broken.
+  ([#561](https://github.com/alimanfoo/dreamcatcher/pull/561))
+- Removing conversation label A from an issue and adding label B no longer
+  resumes A's conversation with A's settings. B starts a conversation of its
+  own, and A's stays paused.
+  ([#568](https://github.com/alimanfoo/dreamcatcher/pull/568))
+- An assignment interrupted while it set up its branch, worktree or pull request
+  no longer leaves them behind with no record that names them. The assignment is
+  recorded first, and its next round finishes the setup.
+  ([#562](https://github.com/alimanfoo/dreamcatcher/pull/562))
 
 ## [v5.6.2](https://github.com/alimanfoo/dreamcatcher/releases/tag/v5.6.2) — 2026-10-15
 
