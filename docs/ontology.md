@@ -354,9 +354,9 @@ stays paused.
 
 ### Describing an agent round
 
-Number, what woke the round, and outcome describe different aspects of an agent
-round. The **first round** is round number one. What woke a round is read from
-its input, so nothing else records it:
+Number, trigger and outcome describe different aspects of an agent round. The
+**first round** is round number one. A round's **trigger** is what woke it. It
+is read from the round's input, so nothing else records it:
 
 - **start**: an assignment round with no input, which opens the pull request;
 - a count of posts or comments: the user posts or issue comments relayed, or
