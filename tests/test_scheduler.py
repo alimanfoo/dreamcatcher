@@ -57,7 +57,7 @@ from dreamcatcher.git import (
     make_empty_commit,
     push_branch,
 )
-from dreamcatcher.github import PullRequestState
+from dreamcatcher.github import CheckResult, PullRequestMergeState, PullRequestState
 from dreamcatcher.scheduler import Scheduler, SchedulingContext
 from dreamcatcher.scheduler.faults import is_last_round_unfinished
 from dreamcatcher.scheduler.models import (
@@ -81,6 +81,8 @@ NOTHING_NEW = PullRequestFinding(
     number=PULL_REQUEST,
     state=PullRequestState.OPEN,
     is_draft=True,
+    merge_state=PullRequestMergeState.CLEAN,
+    check_result=CheckResult.PASSING,
     new_posts=0,
     is_final_turn_due=False,
 )
@@ -681,6 +683,8 @@ def test_an_assignment_with_nothing_new_reads_only_its_pull_request_and_posts(
                 number=PULL_REQUEST,
                 state=PullRequestState.OPEN,
                 is_draft=False,
+                merge_state=PullRequestMergeState.CLEAN,
+                check_result=CheckResult.PASSING,
                 new_posts=0,
                 is_final_turn_due=False,
             ),
@@ -1024,6 +1028,8 @@ def test_an_assignment_the_user_has_posted_on_is_told_what_they_said(resuming, g
                 number=PULL_REQUEST,
                 state=PullRequestState.OPEN,
                 is_draft=False,
+                merge_state=PullRequestMergeState.CLEAN,
+                check_result=CheckResult.PASSING,
                 new_posts=1,
                 is_final_turn_due=False,
             ),

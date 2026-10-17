@@ -32,7 +32,12 @@ from dreamcatcher.agent_rounds import (
 from dreamcatcher.agent_work import read_agent_work_at_issue
 from dreamcatcher.documents import write_json, write_text
 from dreamcatcher.feed import FeedLine
-from dreamcatcher.github import ConversationComment, PullRequestState
+from dreamcatcher.github import (
+    CheckResult,
+    ConversationComment,
+    PullRequestMergeState,
+    PullRequestState,
+)
 from dreamcatcher.harness_adapters import AgentWorkKind, HarnessSessionIdentifier
 from dreamcatcher.issue_conversations import (
     ConversationRoundInput,
@@ -78,6 +83,8 @@ def _draft_pull_request(*, new_posts: int = 0) -> PullRequestFinding:
         number=52,
         state=PullRequestState.OPEN,
         is_draft=True,
+        merge_state=PullRequestMergeState.CLEAN,
+        check_result=CheckResult.PASSING,
         new_posts=new_posts,
         is_final_turn_due=False,
     )
@@ -499,6 +506,8 @@ def fabricate_titles_and_pull_request_states(*, state):
                     number=52,
                     state=pull_request_state,
                     is_draft=is_draft,
+                    merge_state=PullRequestMergeState.CLEAN,
+                    check_result=CheckResult.PASSING,
                     new_posts=0,
                     is_final_turn_due=pull_request_state is not PullRequestState.OPEN,
                 ),

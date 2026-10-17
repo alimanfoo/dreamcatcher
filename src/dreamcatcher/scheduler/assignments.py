@@ -98,6 +98,8 @@ def _inspect_pull_request(
         number=read.number,
         state=read.state,
         is_draft=read.is_draft,
+        merge_state=read.merge_state,
+        check_result=read.check_result,
         new_posts=len(posts),
         is_final_turn_due=(
             read.state is not PullRequestState.OPEN

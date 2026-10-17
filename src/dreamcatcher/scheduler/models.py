@@ -14,7 +14,7 @@ from pydantic import (
 )
 
 from dreamcatcher.documents import DreamcatcherDocument
-from dreamcatcher.github import PullRequestState
+from dreamcatcher.github import CheckResult, PullRequestMergeState, PullRequestState
 from dreamcatcher.harness_adapters import AgentWorkKind
 
 GLOBAL_COOLDOWN_DURATION = timedelta(minutes=15)
@@ -36,6 +36,8 @@ class PullRequestFinding(DreamcatcherDocument):
     number: PositiveInt
     state: PullRequestState
     is_draft: bool
+    merge_state: PullRequestMergeState
+    check_result: CheckResult
     new_posts: NonNegativeInt
     is_final_turn_due: bool
 

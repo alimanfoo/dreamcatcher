@@ -35,7 +35,7 @@ from dreamcatcher.daemon import DEFAULT_INTERVAL_SECONDS
 from dreamcatcher.daemon_runs import DaemonRunRecord
 from dreamcatcher.documents import write_text
 from dreamcatcher.feed import FeedLine
-from dreamcatcher.github import PullRequestState
+from dreamcatcher.github import CheckResult, PullRequestMergeState, PullRequestState
 from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.scheduler.models import (
     ConflictingLabelsFinding,
@@ -164,6 +164,8 @@ def pull_request_row(
             number=PULL_REQUEST,
             state=state,
             is_draft=is_draft,
+            merge_state=PullRequestMergeState.CLEAN,
+            check_result=CheckResult.PASSING,
             new_posts=new_posts,
             is_final_turn_due=is_final_turn_due,
         ),
