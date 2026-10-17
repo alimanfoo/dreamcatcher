@@ -10,25 +10,25 @@ Measured on 2026-10-17 at `64ae1b4`, with the v6.0.0 release preparation.
 
 ## Results
 
-| Criterion                              | Measured                                       | Status | Issue |
-| -------------------------------------- | ---------------------------------------------- | ------ | ----- |
-| S1 Modules are cohesive                | 0 modules without one nameable responsibility  | met    |       |
-| S2 Functions do one thing              | 0 functions without one nameable job           | met    |       |
-| S3 Exports are used                    | 30 names without an importer, all permitted    | met    |       |
-| S4 Each thing is done one way          | 1 fact derived more than once                  | short  | #452  |
-| S5 Nothing is suppressed               | 0 `noqa`, 0 `type: ignore`, 3 platform pragmas | met    |       |
-| C1 One vocabulary                      | 1 disagreement left; every other one settled   | short  |       |
-| C2 Enduring documents are true         | 0 contradictions left                          | met    |       |
-| C3 Documentation by purpose            | 4 kinds of page, kept apart                    | met    |       |
-| C4 Formats and contracts are versioned | state format 6, contract 1, both with policy   | met    |       |
-| K1 Structural rules checked by machine | the 4 named rules checked                      | met    |       |
-| K2 Suite is fast and speaks plainly    | 25 seconds on a laptop, 100% branch coverage   | met    |       |
-| K3 Tracker is current                  | 47 issues reviewed; 5 to close, 20 to rewrite  | short  |       |
-| K4 Every change reviewed to standard   | 17 pull requests answered; 3 name no issue     | short  |       |
-| E1 Rules, not cases                    | 9 ledgered, all external; 0 unledgered         | met    |       |
-| E2 Invariants by construction          | 54 optional fields, 1 coupled set              | short  |       |
-| E3 Concept economy                     | 22 concepts; 2 added, 2 removed                | met    |       |
-| E4 Symmetry                            | 14 parallel operations; 1 uneven pair          | short  |       |
+| Criterion                              | Measured                                            | Status | Issue |
+| -------------------------------------- | --------------------------------------------------- | ------ | ----- |
+| S1 Modules are cohesive                | 0 modules without one nameable responsibility       | met    |       |
+| S2 Functions do one thing              | 0 functions without one nameable job                | met    |       |
+| S3 Exports are used                    | 30 names without an importer, all permitted         | met    |       |
+| S4 Each thing is done one way          | 1 fact derived more than once                       | short  | #452  |
+| S5 Nothing is suppressed               | 0 `noqa`, 0 `type: ignore`, 3 platform pragmas      | met    |       |
+| C1 One vocabulary                      | 1 disagreement left; every other one settled        | short  | #576  |
+| C2 Enduring documents are true         | 0 contradictions left                               | met    |       |
+| C3 Documentation by purpose            | 4 kinds of page, kept apart                         | met    |       |
+| C4 Formats and contracts are versioned | state format 6, contract 1, both with policy        | met    |       |
+| K1 Structural rules checked by machine | the 4 named rules checked                           | met    |       |
+| K2 Suite is fast and speaks plainly    | 25 seconds on a laptop, 100% branch coverage        | met    |       |
+| K3 Tracker is current                  | 47 issues reviewed; 6 closed; 20 keep retired words | short  |       |
+| K4 Every change reviewed to standard   | 17 pull requests answered; 3 name no issue          | short  | #579  |
+| E1 Rules, not cases                    | 9 ledgered, all external; 0 unledgered              | met    |       |
+| E2 Invariants by construction          | 54 optional fields, 1 coupled set                   | short  | #577  |
+| E3 Concept economy                     | 22 concepts; 2 added, 2 removed                     | met    |       |
+| E4 Symmetry                            | 14 parallel operations; 1 uneven pair               | short  | #578  |
 
 ## Shortfalls
 
@@ -38,23 +38,21 @@ Measured on 2026-10-17 at `64ae1b4`, with the v6.0.0 release preparation.
   working (#452).
 - **C1.** A conversation whose last round errored reads as waiting, but when the
   comments that round was given have since been deleted, nothing is past its
-  cursor and the scheduler starts no round.
-- **K3.** The triage found 5 open issues whose work is done or no longer
-  applies, 20 that name a concept by a word the ontology no longer uses or
-  describe code that has since gone, and 1 without a type label. The proposals
-  are on #573 for the maintainer to apply.
+  cursor and the scheduler starts no round (#576).
+- **K3.** Twenty open issues still name a concept by a word the ontology no
+  longer uses, or describe code that has since gone. The maintainer chose to
+  leave them, since whoever picks one up reads the current code, so no issue
+  tracks them.
 - **K4.** #536 and #540 prepared v5.6.1 and v5.6.2, and #541 limited the CI
   token. None names an issue or a spec, and the standard still does not say
-  whether a change may serve neither.
+  whether a change may serve neither (#579).
 - **E2.** An errored round ending's exit status and reason are both optional,
   and a validator requires one of them, where two ending types, one with each,
-  would make the empty case unrepresentable.
+  would make the empty case unrepresentable (#577).
 - **E4.** The terminal's detail commands list the older assignments at an issue
   but select only the newest conversation. An issue can now hold several
   conversations, one for each conversation label, so an older or other-label
-  conversation has no detail view or feed command there.
-
-An issue is filed for each shortfall that names none when #573 merges.
+  conversation has no detail view or feed command there (#578).
 
 ## Notes
 
@@ -104,9 +102,10 @@ An issue is filed for each shortfall that names none when #573 merges.
 - **K2.** All 1,179 default tests passed with full branch coverage in 25.13
   seconds. All eight browser tests passed in 9.32 seconds.
 - **K3.** The triage read all 47 open issues apart from #554 and #560 against
-  the ontology and the code. #456, #391, #494, #545 and #575 ask for work that
-  the state format 6 phase did or that no longer applies. #575 also carries no
-  type label.
+  the ontology and the code. The maintainer closed #391, #456, #494, #545 and
+  #575, whose work the state format 6 phase did or which no longer apply, and
+  #428 as a duplicate of #569. #574 asks for work that #573 does, and closes
+  when it merges. Every open issue carries one type label.
 - **K4.** All 17 pull requests answer the seven definition-of-done questions.
   Thirteen close an issue, and #552 names its spec.
 - **E1.** The four special cases reported at v5.6.0 are gone, since the phase
