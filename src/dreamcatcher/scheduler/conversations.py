@@ -7,6 +7,7 @@ from functools import partial
 from dreamcatcher.agent_rounds import AgentRound
 from dreamcatcher.agent_work import (
     AgentWork,
+    create_agent_work,
     find_open_agent_work_by_issue,
     read_agent_work_of_kind,
 )
@@ -20,7 +21,6 @@ from dreamcatcher.github import (
 )
 from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.issue_conversations import (
-    create_conversation,
     is_conversation_ready_for_input,
     list_undelivered_issue_comments,
     post_conversation_answer,
@@ -144,11 +144,12 @@ class ConversationScheduler(
         self, *, candidate: ConversationBatchCandidate, at: datetime
     ) -> AgentRound:
         """Create any new conversation, then start its next round."""
-        conversation = candidate.conversation or create_conversation(
+        conversation = candidate.conversation or create_agent_work(
             state=self.state,
             route=candidate.route,
             preferred_harness=self.preferred_harness,
-            issue=candidate.issue,
+            issue=candidate.issue.number,
+            title=candidate.issue.title,
             at=at,
         )
         harness_session_identifier = conversation.find_harness_session_identifier()

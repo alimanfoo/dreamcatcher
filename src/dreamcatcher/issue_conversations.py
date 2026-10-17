@@ -1,17 +1,9 @@
-"""Persist issue conversations and prepare their trusted input."""
-
-from datetime import datetime
+"""Prepare issue conversations' trusted input and post their answers."""
 
 from pydantic import Field
 
 from dreamcatcher.agent_rounds import AgentRoundOutcome
-from dreamcatcher.agent_work import (
-    AgentWork,
-    AgentWorkRecord,
-    compose_agent_work_identifier,
-    record_agent_work,
-)
-from dreamcatcher.config import AgentHarness, ConversationRoute
+from dreamcatcher.agent_work import AgentWork
 from dreamcatcher.documents import DreamcatcherDocument, read_json
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.git import (
@@ -23,8 +15,7 @@ from dreamcatcher.github import (
     UnknownGitHubResponse,
     post_issue_comment,
 )
-from dreamcatcher.harness_adapters import AgentWorkKind
-from dreamcatcher.prompts import AGENT_POST_MARKER, compose_issue_instructions
+from dreamcatcher.prompts import AGENT_POST_MARKER
 from dreamcatcher.state import StateDirectory
 
 NO_REPLY = "NO_REPLY"
@@ -60,41 +51,6 @@ def is_conversation_ready_for_input(*, conversation: AgentWork | None) -> bool:
     if conversation is None or not conversation.rounds:
         return True
     return conversation.rounds[-1].outcome is not AgentRoundOutcome.RUNNING
-
-
-def create_conversation(
-    *,
-    state: StateDirectory,
-    route: ConversationRoute,
-    preferred_harness: AgentHarness,
-    issue: Issue,
-    at: datetime,
-) -> AgentWork:
-    """Record one conversation at the issue with no rounds run yet.
-
-    Every round's preparation makes the worktree, so creation writes the record
-    alone.
-    """
-    selected_harness = route.choose_harness(preferred_harness=preferred_harness)
-    recipe = route.recipes[selected_harness]
-    record = AgentWorkRecord(
-        issue=issue.number,
-        title=issue.title,
-        dispatch_label=route.label,
-        kind=AgentWorkKind.CONVERSATION,
-        harness=selected_harness,
-        model=recipe.model,
-        effort=recipe.effort,
-        harness_config=recipe.config,
-        prompt=compose_issue_instructions(template=recipe.prompt, issue=issue.number),
-    )
-    return record_agent_work(
-        state=state,
-        identifier=compose_agent_work_identifier(
-            issue=issue.number, kind=AgentWorkKind.CONVERSATION, at=at
-        ),
-        record=record,
-    )
 
 
 def list_undelivered_issue_comments(

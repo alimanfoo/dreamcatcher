@@ -1,12 +1,9 @@
-"""Create agent assignments and read the state that only assignments have.
+"""Open agent assignments' pull requests and read the state only assignments have.
 
-Each assignment dispatch creates a piece of agent work with its own identifier,
-branch, worktree and pull request. Several assignments can exist for one issue.
-
-Creation records the assignment and nothing else. Its first round prepares and
+Each assignment has its own identifier, branch, worktree and pull request, and
+several assignments can exist for one issue. Its first round prepares and
 publishes the branch and opens the linked draft pull request, the assignment's
-channel, before the harness runs. The scheduler decides when to create each
-assignment.
+channel, before the harness runs.
 """
 
 from collections.abc import Callable, Iterator
@@ -26,13 +23,9 @@ from dreamcatcher.agent_rounds import (
 from dreamcatcher.agent_work import (
     AgentWork,
     AgentWorkEndReason,
-    AgentWorkRecord,
-    compose_agent_work_identifier,
     end_agent_work,
-    record_agent_work,
 )
 from dreamcatcher.commands import CommandError
-from dreamcatcher.config import AgentHarness, AssignmentRoute
 from dreamcatcher.documents import (
     DocumentCache,
     DreamcatcherDocument,
@@ -56,8 +49,6 @@ from dreamcatcher.github import (
     PullRequestState,
     UserPost,
 )
-from dreamcatcher.harness_adapters import AgentWorkKind
-from dreamcatcher.prompts import compose_issue_instructions
 from dreamcatcher.state import StateDirectory
 
 # What an assignment's branch is called, before its identifier. The prefix keeps
@@ -144,41 +135,6 @@ def complete_assignment(
     not need.
     """
     end_agent_work(work=assignment, reason=AgentWorkEndReason.COMPLETED, at=clock())
-
-
-def create_assignment(
-    *,
-    state: StateDirectory,
-    route: AssignmentRoute,
-    preferred_harness: AgentHarness,
-    issue: int,
-    title: str,
-    at: datetime,
-) -> AgentWork:
-    """Record the issue's assignment with no rounds run yet.
-
-    The route selects a recipe in response to the preferred harness, and the
-    recipe supplies the settings that the record keeps.
-    """
-    selected_harness = route.choose_harness(preferred_harness=preferred_harness)
-    recipe = route.recipes[selected_harness]
-    return record_agent_work(
-        state=state,
-        identifier=compose_agent_work_identifier(
-            issue=issue, kind=AgentWorkKind.ASSIGNMENT, at=at
-        ),
-        record=AgentWorkRecord(
-            issue=issue,
-            title=title,
-            dispatch_label=route.label,
-            kind=AgentWorkKind.ASSIGNMENT,
-            harness=selected_harness,
-            model=recipe.model,
-            effort=recipe.effort,
-            harness_config=recipe.config,
-            prompt=compose_issue_instructions(template=recipe.prompt, issue=issue),
-        ),
-    )
 
 
 def open_assignment_pull_request(

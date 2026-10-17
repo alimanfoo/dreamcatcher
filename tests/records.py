@@ -114,7 +114,7 @@ def write_assignment(
             document=pull_request_observation,
             path=directory / agent_assignments._PULL_REQUEST_OBSERVATION_RECORD_NAME,
         )
-    agent_work.record_agent_work(
+    agent_work._record_agent_work(
         state=state,
         identifier=identifier,
         record=agent_work.AgentWorkRecord(
@@ -134,7 +134,7 @@ def write_assignment(
 
 def compose_conversation_identifier(*, issue: int) -> str:
     """Return the identifier of the conversation that the tests write at an issue."""
-    return agent_work.compose_agent_work_identifier(
+    return agent_work._compose_agent_work_identifier(
         issue=issue, kind=AgentWorkKind.CONVERSATION, at=PINNED
     )
 
@@ -154,7 +154,7 @@ def write_conversation(
     """Write a conversation worktree and record, and return its directory."""
     identifier = compose_conversation_identifier(issue=issue)
     (state.worktrees / identifier).mkdir(parents=True)
-    work = agent_work.record_agent_work(
+    work = agent_work._record_agent_work(
         state=state,
         identifier=identifier,
         record=agent_work.AgentWorkRecord(

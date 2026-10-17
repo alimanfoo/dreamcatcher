@@ -26,7 +26,6 @@ from dreamcatcher.agent_assignments import (
     cancel_assignment,
     complete_assignment,
     compose_assignment_branch,
-    create_assignment,
     open_assignment_pull_request,
     read_pull_request_observation,
     read_user_post_delivery_position,
@@ -41,6 +40,7 @@ from dreamcatcher.agent_work import (
     AgentWorkEnding,
     AgentWorkEndReason,
     AgentWorkRecord,
+    create_agent_work,
     find_open_agent_work_by_issue,
     read_agent_work_at_issue,
     record_harness_session_identifier,
@@ -66,7 +66,7 @@ BRANCH = f"dreamcatcher-{ASSIGNMENT_ID}"
 
 def record_assignment(*, state, route, preferred_harness=AgentHarness.CLAUDE):
     """Record the assignment at issue 12, as the scheduler does when it picks one."""
-    return create_assignment(
+    return create_agent_work(
         state=state,
         route=route,
         preferred_harness=preferred_harness,
@@ -85,7 +85,7 @@ def open_pull_request(*, state, assignment):
 
 def open_assignment(*, state, route, preferred_harness, issue, at):
     """Record an assignment and open its pull request, as its first round does."""
-    assignment = create_assignment(
+    assignment = create_agent_work(
         state=state,
         route=route,
         preferred_harness=preferred_harness,

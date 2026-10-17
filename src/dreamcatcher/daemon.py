@@ -22,7 +22,6 @@ from dreamcatcher.documents import write_json, write_text
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.git import require_main_checkout
 from dreamcatcher.github import require_github_identity
-from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.harnesses import require_harnesses_on_path
 from dreamcatcher.lock import hold_daemon_lock
 from dreamcatcher.scheduler import (
@@ -128,18 +127,8 @@ class DreamcatcherDaemon:
                     max_agents=self.max_agents,
                     interval_seconds=self.interval,
                     routes=[
-                        *(
-                            RecordedRoute(
-                                label=route.label, kind=AgentWorkKind.ASSIGNMENT
-                            )
-                            for route in self.config.assignment
-                        ),
-                        *(
-                            RecordedRoute(
-                                label=route.label, kind=AgentWorkKind.CONVERSATION
-                            )
-                            for route in self.config.conversation
-                        ),
+                        RecordedRoute(label=route.label, kind=route.kind)
+                        for route in self.config.routes
                     ],
                 ),
                 path=self.state.daemon_run_record,

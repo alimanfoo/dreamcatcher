@@ -3,7 +3,7 @@
 from collections.abc import Set
 from enum import StrEnum
 from pathlib import Path
-from typing import Annotated, Self
+from typing import Annotated, ClassVar, Self
 
 from pydantic import AfterValidator, Field, model_validator
 
@@ -16,6 +16,7 @@ from dreamcatcher.documents import (
     read_toml,
     write_text,
 )
+from dreamcatcher.harness_adapters import AgentWorkKind
 
 DREAMCATCHER_CONFIG_NAME = "dreamcatcher.toml"
 
@@ -66,6 +67,7 @@ class DispatchRoute(DreamcatcherDocument):
     The label is the route's identity, so no two routes carry the same one.
     """
 
+    kind: ClassVar[AgentWorkKind]
     label: str
     claude: ClaudeRecipe | None = None
     codex: CodexRecipe | None = None
@@ -107,9 +109,13 @@ class DispatchRoute(DreamcatcherDocument):
 class AssignmentRoute(DispatchRoute):
     """Map an assignment label to its available dispatch recipes."""
 
+    kind: ClassVar[AgentWorkKind] = AgentWorkKind.ASSIGNMENT
+
 
 class ConversationRoute(DispatchRoute):
     """Map a conversation label to its available dispatch recipes."""
+
+    kind: ClassVar[AgentWorkKind] = AgentWorkKind.CONVERSATION
 
 
 def _identify_routes[Route: DispatchRoute](
@@ -130,14 +136,18 @@ class DreamcatcherConfig(DreamcatcherDocument):
     conversation: list[ConversationRoute] = Field(default_factory=list)
 
     @property
+    def routes(self) -> list[DispatchRoute]:
+        """Every configured route, the assignment routes first."""
+        return [*self.assignment, *self.conversation]
+
+    @property
     def routed_harnesses(self) -> set[AgentHarness]:
         """Every harness that any configured route can select.
 
         A route with one harness selects it regardless of the daemon's preferred
         harness.
         """
-        routes = [*self.assignment, *self.conversation]
-        return {harness for route in routes for harness in route.recipes}
+        return {harness for route in self.routes for harness in route.recipes}
 
     def identify_assignment_routes(self, *, labels: list[str]) -> list[AssignmentRoute]:
         """Return the assignment routes matching the observed labels."""

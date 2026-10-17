@@ -8,7 +8,6 @@ from dreamcatcher.agent_assignments import (
     AssignmentRoundInput,
     PullRequestObservation,
     complete_assignment,
-    create_assignment,
     is_final_turn_taken,
     open_assignment_pull_request,
     read_pull_request_observation,
@@ -18,6 +17,7 @@ from dreamcatcher.agent_assignments import (
 from dreamcatcher.agent_rounds import AgentRound
 from dreamcatcher.agent_work import (
     AgentWork,
+    create_agent_work,
     find_open_agent_work_by_issue,
     read_agent_work_of_kind,
 )
@@ -138,7 +138,7 @@ class AssignmentScheduler(AgentWorkScheduler[AssignmentCandidate, int]):
     def launch(self, *, candidate: AssignmentCandidate, at: datetime) -> AgentRound:
         """Create any new assignment, then start its required round."""
         if isinstance(candidate, NewAssignmentCandidate):
-            assignment = create_assignment(
+            assignment = create_agent_work(
                 state=self.state,
                 route=candidate.route,
                 preferred_harness=self.preferred_harness,
