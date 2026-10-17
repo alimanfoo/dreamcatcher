@@ -53,6 +53,12 @@ each entry links the pull request or commit that made the change.
 - A Claude assignment round may run `gh pr checks` and `gh run view` without
   being asked, so that it can read why a check failed.
   ([#571](https://github.com/alimanfoo/dreamcatcher/pull/571))
+- An assignment round's input file gains two keys: `pull_request_head`, the pull
+  request's head commit when the round started, and `signals`, which lists
+  `out_of_date` or `check_failure` when either woke the round. The agent
+  contract stays at version 1, and an assignment skill may ignore both, since
+  the prompt carries the instructions.
+  ([#571](https://github.com/alimanfoo/dreamcatcher/pull/571))
 - A conversation ends when its issue is closed, and the web home page lists it
   with your other ended work.
   ([#568](https://github.com/alimanfoo/dreamcatcher/pull/568))
@@ -119,6 +125,10 @@ each entry links the pull request or commit that made the change.
   no longer leaves them behind with no record that names them. The assignment is
   recorded first, and its next round finishes the setup.
   ([#562](https://github.com/alimanfoo/dreamcatcher/pull/562))
+- An assignment relays a post by the signed-in account however GitHub writes the
+  login's capitals, and no longer relays a post whose body is only whitespace,
+  as conversations already did.
+  ([#573](https://github.com/alimanfoo/dreamcatcher/pull/573))
 
 ## [v5.6.2](https://github.com/alimanfoo/dreamcatcher/releases/tag/v5.6.2) — 2026-10-15
 
