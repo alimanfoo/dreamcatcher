@@ -437,7 +437,7 @@ def test_conversation_page_shows_two_errors_as_a_fault(tmp_path):
     assert "round 2 errored (exit 2)" in page
 
 
-def test_conversation_before_its_first_round_invites_a_comment(tmp_path):
+def test_conversation_before_its_first_round_has_no_feed_yet(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_conversation(state=state, has_round=False)
     client = application(state=state).test_client()
@@ -450,7 +450,7 @@ def test_conversation_before_its_first_round_invites_a_comment(tmp_path):
     assert 'id="cursor" name="cursor" value="0:0"' in page
     assert "-- no rounds have run --" not in page
     assert "-- no rounds have run --" not in tail
-    assert "Post a comment to start the conversation." in page
+    assert "-- no feed yet --" in page
 
 
 def test_conversation_tail_returns_new_output_and_advances_its_cursor(tmp_path):
