@@ -276,8 +276,10 @@ def _read_agent_work(
         directory=directory,
         worktree=state.worktrees / directory.name,
         record=record,
-        harness_session_identifier=read_harness_session_identifier(directory=directory),
-        retry_requested_at=read_retry_requested_at(directory=directory),
+        harness_session_identifier=_read_harness_session_identifier(
+            directory=directory
+        ),
+        retry_requested_at=_read_retry_requested_at(directory=directory),
         ending=_read_agent_work_ending(directory=directory),
         rounds=read_agent_round_records(
             cache=state.document_cache,
@@ -298,7 +300,7 @@ class _HarnessSessionRecord(DreamcatcherDocument):
     identifier: HarnessSessionIdentifier
 
 
-def read_harness_session_identifier(
+def _read_harness_session_identifier(
     *, directory: Path
 ) -> HarnessSessionIdentifier | None:
     """Return the harness session recorded in the directory, if any."""
@@ -318,7 +320,7 @@ def record_harness_session_identifier(*, work: AgentWork, identifier: str) -> No
     safe_identifier = refuse_reportable_harness_session_identifier(
         agent_work_identifier=work.identifier, identifier=identifier
     )
-    recorded = read_harness_session_identifier(directory=work.directory)
+    recorded = _read_harness_session_identifier(directory=work.directory)
     if recorded == safe_identifier:
         return
     if recorded is not None:
@@ -332,25 +334,25 @@ def record_harness_session_identifier(*, work: AgentWork, identifier: str) -> No
     )
 
 
-def read_user_request_time(*, path: Path) -> datetime | None:
+def _read_user_request_time(*, path: Path) -> datetime | None:
     """Return when the user made the request that the file at path records."""
     record = read_json_if_exists(model=_UserRequestRecord, path=path)
     return None if record is None else record.at
 
 
-def record_user_request(*, path: Path, at: datetime) -> None:
+def _record_user_request(*, path: Path, at: datetime) -> None:
     """Write the time of the user's request to path, replacing any earlier one."""
     write_json(document=_UserRequestRecord(at=at), path=path)
 
 
-def read_retry_requested_at(*, directory: Path) -> datetime | None:
+def _read_retry_requested_at(*, directory: Path) -> datetime | None:
     """Return when the user last asked the agent work here to recover."""
-    return read_user_request_time(path=directory / _RETRY_REQUEST_RECORD_NAME)
+    return _read_user_request_time(path=directory / _RETRY_REQUEST_RECORD_NAME)
 
 
 def request_agent_work_retry(*, work: AgentWork, at: datetime) -> None:
     """Record when the user asked faulted agent work to recover again."""
-    record_user_request(path=work.directory / _RETRY_REQUEST_RECORD_NAME, at=at)
+    _record_user_request(path=work.directory / _RETRY_REQUEST_RECORD_NAME, at=at)
 
 
 def request_round_stop_if_ended(*, work: AgentWork, paths: AgentRoundPaths) -> None:

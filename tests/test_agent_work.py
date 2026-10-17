@@ -16,8 +16,6 @@ from dreamcatcher.agent_work import (
     find_newest_agent_work,
     read_agent_work,
     read_agent_work_at_issue,
-    read_harness_session_identifier,
-    read_retry_requested_at,
     record_harness_session_identifier,
     request_agent_work_retry,
 )
@@ -28,28 +26,35 @@ from dreamcatcher.state import StateDirectory
 IDENTIFIER = "GH12-20260819-184158-assignment"
 
 
-def written_work(*, state: StateDirectory) -> AgentWork:
-    """Write an assignment with no harness session, and return it as read."""
-    write_assignment(
-        state=state, identifier=IDENTIFIER, issue=12, harness_session_identifier=None
-    )
+def read_work(*, state: StateDirectory) -> AgentWork:
+    """Return the assignment that the tests write, as a read finds it now."""
     work = find_agent_work(state=state, identifier=IDENTIFIER)
     assert work is not None
     return work
 
 
+def written_work(*, state: StateDirectory) -> AgentWork:
+    """Write an assignment with no harness session, and return it as read."""
+    write_assignment(
+        state=state, identifier=IDENTIFIER, issue=12, harness_session_identifier=None
+    )
+    return read_work(state=state)
+
+
 def test_work_records_the_harness_session_its_first_round_reports(tmp_path):
-    work = written_work(state=StateDirectory(root=tmp_path))
-    assert read_harness_session_identifier(directory=work.directory) is None
+    state = StateDirectory(root=tmp_path)
+    work = written_work(state=state)
+    assert read_work(state=state).harness_session_identifier is None
 
     record_harness_session_identifier(work=work, identifier="abc-123")
     record_harness_session_identifier(work=work, identifier="abc-123")
 
-    assert read_harness_session_identifier(directory=work.directory) == "abc-123"
+    assert read_work(state=state).harness_session_identifier == "abc-123"
 
 
 def test_work_refuses_a_different_harness_session(tmp_path):
-    work = written_work(state=StateDirectory(root=tmp_path))
+    state = StateDirectory(root=tmp_path)
+    work = written_work(state=state)
     record_harness_session_identifier(work=work, identifier="abc-123")
 
     with pytest.raises(
@@ -61,7 +66,7 @@ def test_work_refuses_a_different_harness_session(tmp_path):
     ):
         record_harness_session_identifier(work=work, identifier="another-session")
 
-    assert read_harness_session_identifier(directory=work.directory) == "abc-123"
+    assert read_work(state=state).harness_session_identifier == "abc-123"
 
 
 @pytest.mark.parametrize(
@@ -76,23 +81,23 @@ def test_work_refuses_a_different_harness_session(tmp_path):
 def test_work_refuses_an_invalid_harness_session_identifier(
     tmp_path, identifier, message
 ):
-    work = written_work(state=StateDirectory(root=tmp_path))
+    state = StateDirectory(root=tmp_path)
+    work = written_work(state=state)
     with pytest.raises(ReportableError, match=message):
         record_harness_session_identifier(work=work, identifier=identifier)
 
-    assert read_harness_session_identifier(directory=work.directory) is None
+    assert read_work(state=state).harness_session_identifier is None
 
 
 def test_the_latest_retry_request_is_the_one_the_work_reads(tmp_path):
-    work = written_work(state=StateDirectory(root=tmp_path))
-    assert read_retry_requested_at(directory=work.directory) is None
+    state = StateDirectory(root=tmp_path)
+    work = written_work(state=state)
+    assert read_work(state=state).retry_requested_at is None
 
     request_agent_work_retry(work=work, at=PINNED)
     request_agent_work_retry(work=work, at=PINNED + timedelta(minutes=1))
 
-    assert read_retry_requested_at(directory=work.directory) == PINNED + timedelta(
-        minutes=1
-    )
+    assert read_work(state=state).retry_requested_at == PINNED + timedelta(minutes=1)
 
 
 def test_a_session_recorded_through_an_earlier_read_keeps_a_later_retry(tmp_path):
