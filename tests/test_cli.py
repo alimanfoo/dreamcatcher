@@ -589,19 +589,19 @@ def test_feed_shows_what_the_conversation_said(monkeypatch, watching, capsys):
     assert "The answer." in capsys.readouterr().out
 
 
-@pytest.mark.parametrize("verb", ["stop", "feed"])
-def test_an_agent_work_command_requires_one_work_kind_selector(verb, capsys):
+@pytest.mark.parametrize("command", ["stop", "feed"])
+def test_an_agent_work_command_requires_one_work_kind_selector(command, capsys):
     with pytest.raises(SystemExit) as exit_info:
-        main(argv=[verb, "GH13"])
+        main(argv=[command, "GH13"])
 
     assert exit_info.value.code == 2
     assert "--assignment --conversation" in capsys.readouterr().err
 
 
-@pytest.mark.parametrize("verb", ["stop", "feed"])
-def test_an_agent_work_command_refuses_two_work_kind_selectors(verb, capsys):
+@pytest.mark.parametrize("command", ["stop", "feed"])
+def test_an_agent_work_command_refuses_two_work_kind_selectors(command, capsys):
     with pytest.raises(SystemExit) as exit_info:
-        main(argv=[verb, "GH13", "--assignment", "--conversation"])
+        main(argv=[command, "GH13", "--assignment", "--conversation"])
 
     assert exit_info.value.code == 2
     assert "not allowed with argument" in capsys.readouterr().err
@@ -615,7 +615,7 @@ def test_a_feed_with_no_issue_to_show_asks_for_one(capsys):
     assert "GH<n>" in capsys.readouterr().err
 
 
-def test_a_round_belongs_to_the_feed_and_to_no_other_verb(capsys):
+def test_a_round_belongs_to_the_feed_and_to_no_other_command(capsys):
     with pytest.raises(SystemExit) as exit_info:
         main(argv=["assignment", "GH13", "--round", "1"])
 
@@ -632,7 +632,7 @@ def test_status_takes_no_issue(capsys):
 
 
 @pytest.mark.parametrize(
-    "verb",
+    "command",
     [
         "init",
         "run",
@@ -646,12 +646,12 @@ def test_status_takes_no_issue(capsys):
         "feed",
     ],
 )
-def test_every_verb_describes_itself_in_its_own_help(verb, capsys):
+def test_every_command_describes_itself_in_its_own_help(command, capsys):
     with pytest.raises(SystemExit) as exit_info:
-        main(argv=[verb, "--help"])
+        main(argv=[command, "--help"])
 
-    # argparse sets the verb's description between the usage line and the
-    # first list of arguments, so a verb that carries none runs the two
+    # argparse sets the command's description between the usage line and the
+    # first list of arguments, so a command that carries none runs the two
     # together and the reader learns nothing but the arguments.
     assert exit_info.value.code == 0
     _, _, described = capsys.readouterr().out.partition("\n\n")
@@ -659,16 +659,16 @@ def test_every_verb_describes_itself_in_its_own_help(verb, capsys):
 
 
 @pytest.mark.parametrize(
-    ("verb", "description"),
+    ("command", "description"),
     [
         ("assignment", "until the assignment ends"),
         ("conversation", "until the conversation ends"),
         ("feed", "until the work ends"),
     ],
 )
-def test_live_view_help_explains_what_ends_each_view(verb, description, capsys):
+def test_live_view_help_explains_what_ends_each_view(command, description, capsys):
     with pytest.raises(SystemExit) as exit_info:
-        main(argv=[verb, "--help"])
+        main(argv=[command, "--help"])
 
     assert exit_info.value.code == 0
     assert description in " ".join(capsys.readouterr().out.split())
@@ -682,12 +682,12 @@ def test_status_help_says_why_a_labelled_issue_has_no_work(capsys):
     assert "with why no work has started" in " ".join(capsys.readouterr().out.split())
 
 
-def test_a_bare_invocation_asks_for_a_verb(capsys):
+def test_a_bare_invocation_asks_for_a_command(capsys):
     with pytest.raises(SystemExit) as exit_info:
         main(argv=[])
 
     assert exit_info.value.code == 2
-    assert "verb" in capsys.readouterr().err
+    assert "command" in capsys.readouterr().err
 
 
 def test_run_starts_a_daemon_on_the_current_directory(monkeypatch, watched, started):

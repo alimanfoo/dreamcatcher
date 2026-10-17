@@ -41,7 +41,7 @@ _HELP_WHEN_A_VIEW_TAKES_THE_SCREEN = (
 )
 
 # The help that says what a view does when nothing is watching it, which every
-# verb gives.
+# command gives.
 _HELP_WHEN_NOTHING_WATCHES = (
     "Piped, redirected or captured, it shows what is there once and returns."
 )
@@ -50,18 +50,22 @@ _HELP_WHEN_NOTHING_WATCHES = (
 def _build_cli_parser() -> argparse.ArgumentParser:
     """Return the parser for the dreamcatcher command line.
 
-    Each verb shows one view, or runs the daemon, and every argument belongs
-    to the verb that takes it. So a verb's own --help describes the whole of
-    what that verb does, and argparse does all the refusing: a verb given an
-    argument it does not take, or given none of the arguments it requires,
-    is refused with that verb's own usage line above the message. Nothing
-    here has to check an argument against the verb it arrived with.
+    Each command shows one view, or runs the daemon, and every argument
+    belongs to the command that takes it. So a command's own --help describes
+    the whole of what that command does, and argparse does all the refusing: a
+    command given an argument it does not take, or given none of the arguments
+    it requires, is refused with that command's own usage line above the
+    message. Nothing here has to check an argument against the command it
+    arrived with.
     """
     parser = argparse.ArgumentParser(
         prog="dreamcatcher", description=dreamcatcher.__doc__
     )
     parser.add_argument("--version", action="version", version=DREAMCATCHER_VERSION)
-    subcommands = parser.add_subparsers(title="verbs", dest="verb", required=True)
+
+    # Nothing reads dest, but argparse names it when a bare invocation omits
+    # the command.
+    subcommands = parser.add_subparsers(title="commands", dest="command", required=True)
     init_parser = subcommands.add_parser(
         "init",
         help="prepare this checkout for the dreamcatcher daemon",
@@ -304,7 +308,7 @@ def _parse_port(value: str, /) -> int:
 
 
 def main(*, argv: Sequence[str] | None = None) -> int:
-    """Run the verb that the arguments name, and return the exit status."""
+    """Run the command that the arguments name, and return the exit status."""
     arguments = _build_cli_parser().parse_args(argv)
     try:
         arguments.act(arguments=arguments)
