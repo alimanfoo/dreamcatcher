@@ -1076,7 +1076,7 @@ def test_a_report_orders_active_assignments_by_attention_and_ended_ones_newest_f
 
 
 def test_an_assignment_keeps_its_section_after_its_routes_are_removed(state):
-    write_daemon_run(state=state, pid=os.getpid(), routed_labels=[])
+    write_daemon_run(state=state, pid=os.getpid(), routes=[])
 
     found = report(state=state)
 
@@ -1110,7 +1110,7 @@ def test_an_assignment_keeps_its_section_after_its_routes_are_removed(state):
                 version="5.3.0",
                 max_agents=3,
                 interval_seconds=DEFAULT_INTERVAL_SECONDS,
-                routed_labels=[],
+                routes=[],
             ),
             DaemonStatusFact(
                 label="daemon",

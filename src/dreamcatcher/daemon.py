@@ -16,7 +16,7 @@ from dreamcatcher.agent_rounds import (
 from dreamcatcher.agent_work import read_agent_work
 from dreamcatcher.clock import WaitForSeconds, read_current_time
 from dreamcatcher.config import AgentHarness, read_dreamcatcher_config
-from dreamcatcher.daemon_runs import DaemonRunRecord, RoutedLabel
+from dreamcatcher.daemon_runs import DaemonRunRecord, RecordedRoute
 from dreamcatcher.documents import write_json, write_text
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.git import require_main_checkout
@@ -126,15 +126,15 @@ class DreamcatcherDaemon:
                     version=DREAMCATCHER_VERSION,
                     max_agents=self.max_agents,
                     interval_seconds=self.interval,
-                    routed_labels=[
+                    routes=[
                         *(
-                            RoutedLabel(
+                            RecordedRoute(
                                 label=route.label, kind=AgentWorkKind.ASSIGNMENT
                             )
                             for route in self.config.assignment
                         ),
                         *(
-                            RoutedLabel(
+                            RecordedRoute(
                                 label=route.label, kind=AgentWorkKind.CONVERSATION
                             )
                             for route in self.config.conversation

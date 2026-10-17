@@ -30,7 +30,7 @@ domain phrase into a class. In particular, it should:
 `daemon.py` owns the lifetime of the daemon that runs a _dreamcatcher_ instance:
 
 - acquire and release the checkout's daemon lock;
-- record the daemon process identifier and the dispatch labels it routes in the
+- record the daemon process identifier and the dispatch routes it loaded in the
   daemon run record as soon as it holds the lock;
 - keep the web server inside the established daemon lifetime when `run` enables
   it;
@@ -591,15 +591,15 @@ and body.
 
 Instance records persist the repository identity and the most recent daemon
 run's harness, _dreamcatcher_ version, capacity, interval, and the dispatch
-labels it routes, each with its kind of agent work. An instance-wide scheduler
-record persists the last tick's result, including its failures, issue,
-assignment and conversation observations, active global cooldown, and the time
-at which the most recent cooldown ended. Its per-work observations preserve
-operational evidence of the tick's interpretation rather than authoritative
-state. Assignments and conversations persist the time of their latest user retry
-request. These boundaries allow fault to remain a derived status: ending a
-cooldown or requesting a retry changes which round errors count towards fault
-rather than writing a lifecycle status.
+routes it loaded, each as a dispatch label and its kind of agent work. An
+instance-wide scheduler record persists the last tick's result, including its
+failures, issue, assignment and conversation observations, active global
+cooldown, and the time at which the most recent cooldown ended. Its per-work
+observations preserve operational evidence of the tick's interpretation rather
+than authoritative state. Assignments and conversations persist the time of
+their latest user retry request. These boundaries allow fault to remain a
+derived status: ending a cooldown or requesting a retry changes which round
+errors count towards fault rather than writing a lifecycle status.
 
 The following are derived rather than persisted as authoritative state:
 

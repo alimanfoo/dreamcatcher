@@ -251,7 +251,7 @@ def test_only_ended_assignments_are_summarized(tmp_path):
 def test_status_shows_only_the_routed_empty_agent_work(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_nothing(state=state)
-    write_daemon_run(state=state, pid=DAEMON_PID, routed_labels=SCOUT_ROUTES)
+    write_daemon_run(state=state, pid=DAEMON_PID, routes=SCOUT_ROUTES)
 
     rendered = render_status_view(state=state)
 

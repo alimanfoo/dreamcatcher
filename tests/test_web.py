@@ -57,7 +57,7 @@ from dreamcatcher.agent_work import (
     find_agent_work,
     read_agent_work_at_issue,
 )
-from dreamcatcher.daemon_runs import RoutedLabel
+from dreamcatcher.daemon_runs import RecordedRoute
 from dreamcatcher.documents import append_text, write_text
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import FeedLine
@@ -166,10 +166,10 @@ def test_an_empty_home_names_every_routed_label(tmp_path):
     write_daemon_run(
         state=state,
         pid=DAEMON_PID,
-        routed_labels=[
+        routes=[
             *SMITH_ROUTES,
             *SCOUT_ROUTES,
-            RoutedLabel(label="dream:zebra", kind=AgentWorkKind.ASSIGNMENT),
+            RecordedRoute(label="dream:zebra", kind=AgentWorkKind.ASSIGNMENT),
         ],
     )
 
@@ -188,7 +188,7 @@ def test_an_empty_home_names_every_routed_label(tmp_path):
 def test_an_empty_home_hides_an_unrouted_assignment_section(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_nothing(state=state)
-    write_daemon_run(state=state, pid=DAEMON_PID, routed_labels=SCOUT_ROUTES)
+    write_daemon_run(state=state, pid=DAEMON_PID, routes=SCOUT_ROUTES)
 
     page = render_home(state=state)
 
