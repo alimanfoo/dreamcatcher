@@ -127,8 +127,8 @@ class RequestRow(DreamcatcherDocument):
     """Record one request that a tick saw, and what the tick found for it.
 
     A request is one dispatch label on one issue. The row names the open agent
-    work the request led to, if any. A row has no finding when the tick read
-    nothing for it, as for work that is in fault.
+    work the request led to, if any. A row has no finding when the tick found
+    nothing to record for it.
     """
 
     issue: PositiveInt

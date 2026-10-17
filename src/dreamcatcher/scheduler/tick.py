@@ -182,7 +182,10 @@ class Scheduler:
             )
         else:
             inspection = inspect_open_conversation(
-                context=self.context, conversation=work, is_fault=is_fault
+                context=self.context,
+                conversation=work,
+                is_fault=is_fault,
+                is_round_running=is_round_running,
             )
         if not is_round_running:
             return inspection

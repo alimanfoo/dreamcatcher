@@ -626,14 +626,18 @@ def test_a_successful_round_breaks_the_error_sequence(ready_repo):
 
 
 def test_a_running_assignment_is_observed_without_starting_another_round(
-    ready_repo, harnesses
+    ready_repo, gh, harnesses
 ):
     harnesses["claude"].streams(
         lines=[Line(text="still working\n")], delay=STILL_RUNNING
     )
     scheduler, clock = create_scheduler(root=ready_repo, max_agents=2)
 
-    observed = scheduler.tick(at=clock())
+    scheduler.tick(at=clock())
+    gh.replies(
+        stdout=pages(items=[comment()]),
+        to=f"api {POST_LIST_PATHS['conversation']}",
+    )
     observed = scheduler.tick(at=clock())
 
     written = (
@@ -651,10 +655,11 @@ def test_a_running_assignment_is_observed_without_starting_another_round(
         request_row(
             issue=8,
             agent_work_identifier=CREATED_ASSIGNMENT_ID,
-            finding=NOTHING_NEW,
+            finding=NOTHING_NEW.model_copy(update={"new_posts": 1}),
         )
     ]
     assert list(scheduler.rounds) == [CREATED_ASSIGNMENT_ID]
+    assert not (written.parent.parent / "2" / "round.json").exists()
 
 
 def test_an_ended_round_is_inspected_while_its_runner_finishes(resuming):

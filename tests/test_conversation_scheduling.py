@@ -1138,6 +1138,32 @@ def test_a_running_conversation_is_observed_without_starting_another_round(
     refresh.assert_not_called()
 
 
+def test_a_running_conversation_finishes_before_a_closed_issue_ends_it(
+    conversation_scheduler, harnesses
+):
+    scheduler, clock, gh = conversation_scheduler
+    offer_conversation(gh=gh, comments=[ask()])
+    answer(harnesses=harnesses, delay=10)
+    scheduler.tick(at=clock())
+    show_conversation_issue(
+        gh=gh,
+        issue=conversation_issue(labels=("dream:conversation",), state="CLOSED"),
+    )
+
+    observed = scheduler.tick(at=clock())
+
+    conversation = read_conversation(state=scheduler.context.state, issue=8)
+    assert conversation is not None
+    assert conversation.ending is None
+    assert observed.rows == [
+        conversation_row(
+            agent_work_identifier=compose_conversation_identifier(issue=8),
+            finding=None,
+        )
+    ]
+    assert count_comment_reads(gh=gh) == 1
+
+
 def test_ready_assignment_rounds_and_conversations_alternate(
     conversation_scheduler, harnesses
 ):

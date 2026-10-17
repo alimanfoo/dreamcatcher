@@ -37,12 +37,17 @@ from dreamcatcher.scheduler.models import (
 
 
 def inspect_open_conversation(
-    *, context: SchedulingContext, conversation: AgentWork, is_fault: bool
+    *,
+    context: SchedulingContext,
+    conversation: AgentWork,
+    is_fault: bool,
+    is_round_running: bool,
 ) -> Inspection:
     """Read an open conversation's issue, then its comments unless paused or in fault.
 
-    A closed issue ends the conversation. A paused conversation's fault does
-    not count, since it starts no round however its rounds ended.
+    A closed issue ends the conversation once its running round finishes. A
+    paused conversation's fault does not count, since it starts no round
+    however its rounds ended.
     """
     unread = compose_open_work_row(work=conversation, finding=None)
     issue = read_issue(repository=context.repository, issue=conversation.record.issue)
@@ -54,11 +59,12 @@ def inspect_open_conversation(
             is_counted_fault=is_fault,
         )
     if issue.state is IssueState.CLOSED:
-        end_agent_work(
-            work=conversation,
-            reason=AgentWorkEndReason.ISSUE_CLOSED,
-            at=context.clock(),
-        )
+        if not is_round_running:
+            end_agent_work(
+                work=conversation,
+                reason=AgentWorkEndReason.ISSUE_CLOSED,
+                at=context.clock(),
+            )
         return Inspection(row=unread)
     pause = _find_pause(context=context, conversation=conversation, issue=issue)
     if pause is not None:
