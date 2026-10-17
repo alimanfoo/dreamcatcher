@@ -36,6 +36,7 @@ from dreamcatcher.agent_rounds import (
     AgentRoundFinisher,
     AgentRoundOutcome,
     AgentRoundPaths,
+    AgentRoundPreparationError,
     AgentRoundRecord,
     AgentRoundStartRequest,
     ErroredAgentRoundEnding,
@@ -907,9 +908,9 @@ def test_a_round_whose_preparation_fails_errors_with_its_reason(
         raise ReportableError("git push failed with status 1: hook refused")
 
     with pytest.raises(
-        ReportableError,
+        AgentRoundPreparationError,
         match=r"^GH9-20260819-184158 round 1 errored: git push failed",
-    ):
+    ) as raised:
         AgentRound(
             agent_work_identifier="GH9-20260819-184158",
             harness=round_harness(),
@@ -918,6 +919,9 @@ def test_a_round_whose_preparation_fails_errors_with_its_reason(
             clock=pinned,
         )
 
+    assert raised.value.agent_work_identifier == "GH9-20260819-184158"
+    assert raised.value.round_number == 1
+    assert raised.value.reason == "git push failed with status 1: hook refused"
     assert written(path=paths.record) == AgentRoundRecord(
         number=1,
         started=PINNED,
