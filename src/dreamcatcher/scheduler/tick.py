@@ -1,7 +1,7 @@
 """Run one scheduler tick over both kinds of agent work."""
 
 from collections.abc import Iterator, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime
 from functools import partial
 
@@ -185,14 +185,10 @@ class Scheduler:
                 context=self.context,
                 conversation=work,
                 is_fault=is_fault,
-                is_round_running=is_round_running,
             )
         if not is_round_running:
             return inspection
-        return Inspection(
-            row=inspection.row,
-            is_counted_fault=inspection.is_counted_fault,
-        )
+        return replace(inspection, candidate=None)
 
     def _inspect_requests(
         self, *, issues: list[Issue], open_work: list[AgentWork]

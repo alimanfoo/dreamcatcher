@@ -1111,7 +1111,7 @@ def test_a_follow_up_refreshes_again_after_a_launch_failure(
 
 
 def test_a_running_conversation_is_observed_without_starting_another_round(
-    conversation_scheduler, harnesses, monkeypatch
+    conversation_scheduler, harnesses
 ):
     scheduler, clock, gh = conversation_scheduler
     scheduler.max_agents = 2
@@ -1119,11 +1119,6 @@ def test_a_running_conversation_is_observed_without_starting_another_round(
     answer(harnesses=harnesses, delay=10)
     scheduler.tick(at=clock())
     offer_conversation(gh=gh, comments=[ask(), ask(identifier=2)])
-    refresh = Mock()
-    monkeypatch.setattr(
-        "dreamcatcher.issue_conversations.refresh_detached_worktree",
-        refresh,
-    )
 
     observed = scheduler.tick(at=clock())
 
@@ -1133,9 +1128,10 @@ def test_a_running_conversation_is_observed_without_starting_another_round(
             finding=IssueCommentsFinding(new_comments=1),
         )
     ]
-    assert len(scheduler.rounds) == 1
+    conversation = read_conversation(state=scheduler.context.state, issue=8)
+    assert conversation is not None
+    assert not conversation.compose_round_paths(number=2).record.exists()
     assert count_comment_reads(gh=gh) == 2
-    refresh.assert_not_called()
 
 
 def test_a_running_conversation_finishes_before_a_closed_issue_ends_it(

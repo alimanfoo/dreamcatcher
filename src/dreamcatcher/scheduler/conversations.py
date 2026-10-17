@@ -41,7 +41,6 @@ def inspect_open_conversation(
     context: SchedulingContext,
     conversation: AgentWork,
     is_fault: bool,
-    is_round_running: bool,
 ) -> Inspection:
     """Read an open conversation's issue, then its comments unless paused or in fault.
 
@@ -59,6 +58,9 @@ def inspect_open_conversation(
             is_counted_fault=is_fault,
         )
     if issue.state is IssueState.CLOSED:
+        is_round_running = bool(
+            conversation.rounds and conversation.rounds[-1].ending is None
+        )
         if not is_round_running:
             end_agent_work(
                 work=conversation,
