@@ -802,7 +802,7 @@ def test_assignment_page_ids_are_unique(tmp_path):
     assert len(identifiers) == len(set(identifiers))
 
 
-def test_assignment_script_follows_only_when_the_feed_was_at_its_end(tmp_path):
+def test_agent_work_script_follows_only_when_the_feed_was_at_its_end(tmp_path):
     state = StateDirectory(root=tmp_path)
     state.bootstrap()
     application = _create_app(
@@ -823,7 +823,7 @@ def test_assignment_script_follows_only_when_the_feed_was_at_its_end(tmp_path):
     assert (
         "if (shouldFollowFeed && nextFeedLineRevealAt <= performance.now())" in script
     )
-    assert 'assignmentSidebar.addEventListener("click"' in script
+    assert 'agentWorkSidebar.addEventListener("click"' in script
     assert 'currentRoundLink?.setAttribute("aria-current", "true")' in script
     assert "focusedRoundLink?.focus({ preventScroll: true })" in script
 
