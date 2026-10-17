@@ -516,7 +516,7 @@ def test_a_first_round_continues_from_what_an_earlier_attempt_left(
     if checkpoint in {"push", "pull request"}:
         push_branch(root=state.root, branch=BRANCH)
     if checkpoint == "pull request":
-        gh.replies(stdout=pull_requests(listed=[(PULL_REQUEST, "OPEN")]), to="pr list")
+        gh.replies(stdout=pull_requests(numbers=[PULL_REQUEST]), to="pr list")
 
     open_pull_request(state=state, assignment=assignment)
 
@@ -542,7 +542,7 @@ def test_a_pull_request_listing_failure_leaves_the_round_to_try_again(state, rou
 
 def test_several_pull_requests_on_the_assignments_branch_are_reported(state, route, gh):
     gh.replies(
-        stdout=pull_requests(listed=[(PULL_REQUEST, "OPEN"), (53, "CLOSED")]),
+        stdout=pull_requests(numbers=[PULL_REQUEST, 53]),
         to="pr list",
     )
     assignment = record_assignment(state=state, route=route)
@@ -562,7 +562,7 @@ def test_a_created_pull_request_that_cannot_be_read_is_adopted_next_time(
     ):
         open_pull_request(state=state, assignment=assignment)
 
-    gh.replies(stdout=pull_requests(listed=[(PULL_REQUEST, "OPEN")]), to="pr list")
+    gh.replies(stdout=pull_requests(numbers=[PULL_REQUEST]), to="pr list")
     open_pull_request(state=state, assignment=assignment)
 
     assert read_assignment_pull_request_number(assignment=assignment) == PULL_REQUEST

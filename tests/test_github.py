@@ -3,10 +3,20 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
-from conftest import POST_LIST_PATHS, POSTED_BY, PULL_REQUEST, pages
+from conftest import (
+    HEAD,
+    POST_LIST_PATHS,
+    POSTED_BY,
+    PULL_REQUEST,
+    check_run,
+    pages,
+    pull_request,
+    status_context,
+)
 
 from dreamcatcher.github import (
     BlockingIssue,
+    CheckResult,
     ConversationComment,
     GitHubLabel,
     GitHubUserAccount,
@@ -15,6 +25,7 @@ from dreamcatcher.github import (
     IssuePullRequestContext,
     IssueState,
     PullRequest,
+    PullRequestMergeState,
     PullRequestReference,
     PullRequestReview,
     PullRequestReviewVerdict,
@@ -263,8 +274,8 @@ def test_the_pull_requests_of_a_branch_come_back_by_number(fake):
     gh.replies(
         stdout=json.dumps(
             [
-                {"number": 28, "state": "OPEN", "isDraft": True},
-                {"number": 25, "state": "MERGED", "isDraft": False},
+                {"number": 28},
+                {"number": 25},
             ]
         )
     )
@@ -295,17 +306,44 @@ def test_a_branch_with_no_pull_request_comes_back_empty(fake):
 
 
 @pytest.mark.parametrize(
-    ("state", "is_open"),
+    ("merge_state", "is_out_of_date"),
     [
-        (PullRequestState.OPEN, True),
-        (PullRequestState.CLOSED, False),
-        (PullRequestState.MERGED, False),
+        (PullRequestMergeState.BEHIND, True),
+        (PullRequestMergeState.DIRTY, True),
+        (PullRequestMergeState.BLOCKED, False),
+        (PullRequestMergeState.CLEAN, False),
+        (PullRequestMergeState.UNKNOWN, False),
     ],
 )
-def test_a_pull_request_reports_whether_it_is_open(state, is_open):
-    pull_request = PullRequest(number=28, state=state, isDraft=False)
+def test_a_branch_behind_its_base_or_in_conflict_with_it_is_out_of_date(
+    merge_state, is_out_of_date
+):
+    assert merge_state.is_out_of_date is is_out_of_date
 
-    assert pull_request.is_open is is_open
+
+@pytest.mark.parametrize(
+    ("checks", "result"),
+    [
+        ([], CheckResult.NONE),
+        ([check_run(), check_run(conclusion="NEUTRAL")], CheckResult.PASSING),
+        ([check_run(conclusion="SKIPPED")], CheckResult.PASSING),
+        ([check_run(), check_run(status="IN_PROGRESS")], CheckResult.RUNNING),
+        ([check_run(status="QUEUED")], CheckResult.RUNNING),
+        (
+            [check_run(status="IN_PROGRESS"), check_run(conclusion="FAILURE")],
+            CheckResult.FAILING,
+        ),
+        ([check_run(conclusion="CANCELLED")], CheckResult.FAILING),
+        ([status_context(state="SUCCESS")], CheckResult.PASSING),
+        ([status_context(state="PENDING")], CheckResult.RUNNING),
+        ([status_context(state="EXPECTED")], CheckResult.RUNNING),
+        ([status_context(state="ERROR")], CheckResult.FAILING),
+    ],
+)
+def test_a_pull_requests_checks_add_up_to_one_result(checks, result):
+    found = PullRequest.model_validate_json(pull_request(state="OPEN", checks=checks))
+
+    assert found.check_result is result
 
 
 def test_a_linked_draft_pull_request_is_opened_for_the_assignment_branch(fake):
@@ -348,11 +386,21 @@ def test_a_linked_draft_pull_request_is_opened_for_the_assignment_branch(fake):
 
 def test_a_pull_request_is_read_by_its_persisted_identity(fake):
     gh = fake(program="gh")
-    gh.replies(stdout=json.dumps({"number": 28, "state": "MERGED", "isDraft": False}))
+    gh.replies(stdout=pull_request(state="OPEN", number=28, merge_state="BEHIND"))
 
     found = read_pull_request(repository=REPOSITORY, pull_request=28)
 
-    assert found == PullRequest(number=28, state=PullRequestState.MERGED, isDraft=False)
+    assert isinstance(found, PullRequest)
+    assert (found.number, found.state, found.is_draft) == (
+        28,
+        PullRequestState.OPEN,
+        False,
+    )
+    assert (found.merge_state, found.head, found.check_result) == (
+        PullRequestMergeState.BEHIND,
+        HEAD,
+        CheckResult.PASSING,
+    )
     assert gh.calls[0].arguments == [
         "pr",
         "view",
@@ -360,7 +408,7 @@ def test_a_pull_request_is_read_by_its_persisted_identity(fake):
         "--repo",
         REPOSITORY,
         "--json",
-        "number,state,isDraft",
+        "number,state,isDraft,mergeStateStatus,headRefOid,statusCheckRollup",
     ]
 
 
@@ -377,7 +425,7 @@ def test_an_issue_answers_with_its_open_linked_pull_requests(fake):
         to="issue view",
     )
     gh.replies(
-        stdout=json.dumps({"number": 28, "state": "OPEN", "isDraft": True}),
+        stdout=pull_request(state="OPEN", number=28, is_draft=True),
         to="pr view",
     )
 
@@ -403,7 +451,7 @@ def test_an_issue_answers_with_its_open_linked_pull_requests(fake):
         "--repo",
         REPOSITORY,
         "--json",
-        "number,state,isDraft",
+        "number,state,isDraft,mergeStateStatus,headRefOid,statusCheckRollup",
     ]
 
 
@@ -420,7 +468,7 @@ def test_a_finished_linked_pull_request_does_not_claim_the_issue(fake):
         to="issue view",
     )
     gh.replies(
-        stdout=json.dumps({"number": 28, "state": "MERGED", "isDraft": False}),
+        stdout=pull_request(state="MERGED", number=28, merge_state="UNKNOWN"),
         to="pr view",
     )
 

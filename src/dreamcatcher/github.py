@@ -7,7 +7,7 @@ from datetime import datetime
 from enum import StrEnum
 from itertools import chain
 from pathlib import Path
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 
 from pydantic import (
     AliasChoices,
@@ -145,17 +145,98 @@ _ISSUE_RESPONSE_FIELDS = ",".join(
 )
 
 
+class PullRequestMergeState(StrEnum):
+    """List the merge states that GitHub reports for a pull request."""
+
+    BEHIND = "BEHIND"
+    BLOCKED = "BLOCKED"
+    CLEAN = "CLEAN"
+    DIRTY = "DIRTY"
+    DRAFT = "DRAFT"
+    HAS_HOOKS = "HAS_HOOKS"
+    UNKNOWN = "UNKNOWN"
+    UNSTABLE = "UNSTABLE"
+
+    @property
+    def is_out_of_date(self) -> bool:
+        """Whether the branch is behind its base or conflicts with it."""
+        return self in {PullRequestMergeState.BEHIND, PullRequestMergeState.DIRTY}
+
+
+class CheckResult(StrEnum):
+    """List what one check, or every check at a pull request's head, adds up to."""
+
+    NONE = "none"
+    PASSING = "passing"
+    RUNNING = "running"
+    FAILING = "failing"
+
+
+# The conclusions of a finished check run that are not a failure.
+_PASSING_CHECK_CONCLUSIONS = frozenset({"SUCCESS", "NEUTRAL", "SKIPPED"})
+
+# The states of a status context that has not finished.
+_RUNNING_STATUS_CONTEXT_STATES = frozenset({"EXPECTED", "PENDING"})
+
+
+class CheckRun(GitHubResponseProjection):
+    """Model a check run, which reports a status and, once completed, a conclusion."""
+
+    kind: Literal["CheckRun"] = Field(alias="__typename")
+    status: str
+    conclusion: str
+
+    @property
+    def result(self) -> CheckResult:
+        """Whether the check is running, passed or failed."""
+        if self.status != "COMPLETED":
+            return CheckResult.RUNNING
+        if self.conclusion in _PASSING_CHECK_CONCLUSIONS:
+            return CheckResult.PASSING
+        return CheckResult.FAILING
+
+
+class StatusContext(GitHubResponseProjection):
+    """Model a status context, the older kind of check, which reports one state."""
+
+    kind: Literal["StatusContext"] = Field(alias="__typename")
+    state: str
+
+    @property
+    def result(self) -> CheckResult:
+        """Whether the check is running, passed or failed."""
+        if self.state in _RUNNING_STATUS_CONTEXT_STATES:
+            return CheckResult.RUNNING
+        if self.state == "SUCCESS":
+            return CheckResult.PASSING
+        return CheckResult.FAILING
+
+
+type PullRequestCheck = Annotated[CheckRun | StatusContext, Field(discriminator="kind")]
+
+
 class PullRequest(GitHubResponseProjection):
-    """Model a pull request and its current state."""
+    """Model a pull request, where its branch stands, and its checks at its head."""
 
     number: int
     state: PullRequestState
     is_draft: bool = Field(alias="isDraft")
+    merge_state: PullRequestMergeState = Field(alias="mergeStateStatus")
+    head: str = Field(alias="headRefOid")
+    checks: list[PullRequestCheck] = Field(alias="statusCheckRollup")
 
     @property
-    def is_open(self) -> bool:
-        """Whether the pull request is open."""
-        return self.state is PullRequestState.OPEN
+    def check_result(self) -> CheckResult:
+        """What the checks at the head add up to.
+
+        One failed check fails them all, even while others run, and one check
+        still running keeps the rest from passing.
+        """
+        results = {check.result for check in self.checks}
+        for result in (CheckResult.FAILING, CheckResult.RUNNING, CheckResult.PASSING):
+            if result in results:
+                return result
+        return CheckResult.NONE
 
 
 class BlockingIssue(GitHubResponseProjection):
@@ -549,7 +630,7 @@ def read_pull_request(
             "--repo",
             repository,
             "--json",
-            "number,state,isDraft",
+            "number,state,isDraft,mergeStateStatus,headRefOid,statusCheckRollup",
         ],
     )
 

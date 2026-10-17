@@ -34,6 +34,9 @@ PULL_REQUEST = 52
 
 POSTED_BY = "alimanfoo"
 
+# The head commit that pull request is at, unless a test moves it.
+HEAD = "3aa91fcd8f64716f7c44d904d6891025bd606f1a"
+
 DAEMON_PID = 4242
 
 # When the tests say the user posted on that pull request, and the piece of the
@@ -170,21 +173,63 @@ def inline_comment(**fields: object) -> dict:
     } | fields
 
 
-def pull_requests(*, listed: Sequence[tuple[int, str]]) -> str:
+def pull_requests(*, numbers: Sequence[int]) -> str:
     """Return what gh answers a pull request listing with."""
-    return json.dumps(
-        [
-            {"number": number, "state": state, "isDraft": state == "OPEN"}
-            for number, state in listed
-        ]
-    )
+    return json.dumps([{"number": number} for number in numbers])
+
+
+def check_run(*, status: str = "COMPLETED", conclusion: str = "SUCCESS") -> dict:
+    """Return one check run as gh reports it among a pull request's checks.
+
+    A check run still going reports an empty conclusion.
+    """
+    return {
+        "__typename": "CheckRun",
+        "name": "checks (ubuntu-latest)",
+        "workflowName": "CI",
+        "status": status,
+        "conclusion": "" if status != "COMPLETED" else conclusion,
+        "startedAt": POSTED_AT,
+        "completedAt": POSTED_AT if status == "COMPLETED" else "0001-01-01T00:00:00Z",
+        "detailsUrl": f"https://github.com/{REPOSITORY}/actions/runs/1/job/2",
+    }
+
+
+def status_context(*, state: str) -> dict:
+    """Return one status context as gh reports it among a pull request's checks."""
+    return {
+        "__typename": "StatusContext",
+        "context": "ci/legacy",
+        "state": state,
+        "startedAt": POSTED_AT,
+        "targetUrl": "https://ci.example.com/build/1",
+    }
 
 
 def pull_request(
-    *, state: str, number: int = PULL_REQUEST, is_draft: bool = False
+    *,
+    state: str,
+    number: int = PULL_REQUEST,
+    is_draft: bool = False,
+    merge_state: str = "CLEAN",
+    head: str = HEAD,
+    checks: Sequence[dict] = (check_run(),),
 ) -> str:
-    """Return what gh answers when reading one pull request."""
-    return json.dumps({"number": number, "state": state, "isDraft": is_draft})
+    """Return what gh answers when reading one pull request.
+
+    Unless a test says otherwise the pull request is up to date with its base and
+    its one check passed.
+    """
+    return json.dumps(
+        {
+            "number": number,
+            "state": state,
+            "isDraft": is_draft,
+            "mergeStateStatus": merge_state,
+            "headRefOid": head,
+            "statusCheckRollup": list(checks),
+        }
+    )
 
 
 def pages(*, items: Sequence[dict]) -> str:

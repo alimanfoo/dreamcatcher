@@ -773,9 +773,7 @@ def test_a_round_after_one_that_failed_part_way_finishes_its_preparation(
     if checkpoint in {"push", "pull request"}:
         push_branch(root=ready_repo, branch=branch)
     if checkpoint == "pull request":
-        offered.replies(
-            stdout=pull_requests(listed=[(PULL_REQUEST, "OPEN")]), to="pr list"
-        )
+        offered.replies(stdout=pull_requests(numbers=[PULL_REQUEST]), to="pr list")
     scheduler, clock = create_scheduler(root=ready_repo)
 
     observed = scheduler.tick(at=clock())
