@@ -232,10 +232,7 @@ def _render_assignment_summary(
     for name, value in (
         ("issue identifier", f"GH{record.issue}"),
         ("agent assignment identifier", assignment.identifier),
-        (
-            "pull request",
-            "none yet" if status.pull_request is None else f"#{status.pull_request}",
-        ),
+        ("pull request", _describe_pull_request(status=status)),
         ("label", record.dispatch_label),
         ("branch", compose_assignment_branch(identifier=assignment.identifier)),
         ("worktree", state.describe_path(path=assignment.worktree)),
@@ -249,6 +246,15 @@ def _render_assignment_summary(
     ):
         table.add_row(Text(name), Text(str(value)))
     return render_section(heading="assignment", body=table)
+
+
+def _describe_pull_request(*, status: AgentWorkStatus) -> str:
+    """Return the pull request's number and where it stands, when that is known."""
+    if status.pull_request is None:
+        return "none yet"
+    if status.pull_request_state is None:
+        return f"#{status.pull_request}"
+    return f"#{status.pull_request} {status.pull_request_state}"
 
 
 def _render_round_statuses(

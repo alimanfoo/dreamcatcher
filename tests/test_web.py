@@ -1620,7 +1620,14 @@ def test_pull_request_state_remains_without_a_repository_record(tmp_path):
 
     page = render_home(state=state)
 
-    for pull_request_state in ("draft", "ready", "merged", "closed"):
+    for pull_request_state in (
+        "draft",
+        "ready, checks passing",
+        "merged",
+        "closed",
+        "ready, behind, checks running",
+        "ready, checks failing",
+    ):
         assert f'<span class="pr-chip">PR #52 {pull_request_state}</span>' in page
 
 

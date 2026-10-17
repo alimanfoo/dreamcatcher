@@ -494,11 +494,55 @@ def fabricate_titles_and_pull_request_states(*, state):
     """Write assignments and issues carrying every web reporting fact."""
     holding(state=state)
     pull_request_rows = []
-    for issue, title, pull_request_state, is_draft in (
-        (10, "Draft assignment", PullRequestState.OPEN, True),
-        (11, "Ready assignment", PullRequestState.OPEN, False),
-        (12, "Merged assignment", PullRequestState.MERGED, False),
-        (13, "Closed assignment", PullRequestState.CLOSED, False),
+    for issue, title, pull_request_state, is_draft, merge_state, check_result in (
+        (
+            10,
+            "Draft assignment",
+            PullRequestState.OPEN,
+            True,
+            PullRequestMergeState.BLOCKED,
+            CheckResult.NONE,
+        ),
+        (
+            11,
+            "Ready assignment",
+            PullRequestState.OPEN,
+            False,
+            PullRequestMergeState.CLEAN,
+            CheckResult.PASSING,
+        ),
+        (
+            12,
+            "Merged assignment",
+            PullRequestState.MERGED,
+            False,
+            PullRequestMergeState.UNKNOWN,
+            CheckResult.PASSING,
+        ),
+        (
+            13,
+            "Closed assignment",
+            PullRequestState.CLOSED,
+            False,
+            PullRequestMergeState.CLEAN,
+            CheckResult.PASSING,
+        ),
+        (
+            15,
+            "Behind assignment",
+            PullRequestState.OPEN,
+            False,
+            PullRequestMergeState.BEHIND,
+            CheckResult.RUNNING,
+        ),
+        (
+            16,
+            "Red assignment",
+            PullRequestState.OPEN,
+            False,
+            PullRequestMergeState.BLOCKED,
+            CheckResult.FAILING,
+        ),
     ):
         write_assignment(
             state=state,
@@ -514,11 +558,11 @@ def fabricate_titles_and_pull_request_states(*, state):
                     number=52,
                     state=pull_request_state,
                     is_draft=is_draft,
-                    merge_state=PullRequestMergeState.CLEAN,
-                    check_result=CheckResult.PASSING,
+                    merge_state=merge_state,
+                    check_result=check_result,
                     new_posts=0,
                     new_signals=[],
-                    is_check_failure_withheld=False,
+                    is_check_failure_withheld=check_result is CheckResult.FAILING,
                     is_final_turn_due=pull_request_state is not PullRequestState.OPEN,
                 ),
             )

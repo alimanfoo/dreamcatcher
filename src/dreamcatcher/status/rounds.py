@@ -20,6 +20,7 @@ from dreamcatcher.issue_conversations import (
     ConversationRoundInput,
     read_conversation_input,
 )
+from dreamcatcher.status.findings import describe_signal
 from dreamcatcher.words import describe_count, describe_span
 
 
@@ -176,9 +177,12 @@ def describe_round_trigger(*, work: AgentWork, number: int) -> str:
         return "start"
     if assignment_input.pull_request_state is not PullRequestState.OPEN:
         return assignment_input.pull_request_state.lower()
+    words = [describe_signal(signal=signal) for signal in assignment_input.signals]
     if assignment_input.user_posts:
-        return describe_count(number=len(assignment_input.user_posts), noun="post")
-    return "carry on"
+        words.insert(
+            0, describe_count(number=len(assignment_input.user_posts), noun="post")
+        )
+    return ", ".join(words) or "carry on"
 
 
 def _read_conversation_input(

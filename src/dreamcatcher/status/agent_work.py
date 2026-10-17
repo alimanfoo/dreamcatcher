@@ -41,8 +41,11 @@ from dreamcatcher.state import StateDirectory
 from dreamcatcher.status.findings import (
     describe_comments_to_answer,
     describe_conflicting_labels,
+    describe_idle_pull_request,
     describe_pause,
+    describe_pull_request,
     describe_read_failure,
+    describe_signal,
 )
 from dreamcatcher.status.rounds import (
     AgentRoundStatus,
@@ -117,7 +120,7 @@ class AgentWorkStatus:
 
     @property
     def pull_request_state(self) -> str | None:
-        """The pull request's state in status-report words, when it is known.
+        """Where the pull request stands in status-report words, when it is known.
 
         The latest tick's read of an open assignment's pull request gives it.
         Otherwise it is the merged or closed state that the newest relayed round
@@ -128,9 +131,7 @@ class AgentWorkStatus:
             return None
         finding = None if self.row is None else self.row.finding
         if self.work.is_open and isinstance(finding, PullRequestFinding):
-            if finding.state is not PullRequestState.OPEN:
-                return finding.state.value.lower()
-            return "draft" if finding.is_draft else "ready"
+            return describe_pull_request(finding=finding)
         relayed = read_relayed_pull_request_state(assignment=self.work)
         if relayed is None or relayed is PullRequestState.OPEN:
             return None
@@ -371,13 +372,7 @@ class AgentWorkStatusReader:
     ) -> AgentWorkStatus:
         finding = None if row is None else row.finding
         if isinstance(finding, PullRequestFinding):
-            detail = (
-                "ready for review"
-                if finding.state is PullRequestState.OPEN and not finding.is_draft
-                else "draft"
-                if finding.state is PullRequestState.OPEN
-                else finding.state.value.lower()
-            )
+            detail = describe_idle_pull_request(finding=finding)
         elif isinstance(finding, IssueCommentsFinding):
             detail = _describe_answered_round(work=work)
         else:
@@ -455,10 +450,11 @@ def _describe_signal(*, finding: RequestFinding | None) -> str | None:
         return None
     if finding.is_final_turn_due:
         return f"the pull request is {finding.state.value.lower()}"
+    words = [describe_signal(signal=signal) for signal in finding.new_signals]
     if finding.new_posts:
         posts = describe_count(number=finding.new_posts, noun="new post")
-        return f"{posts} to answer"
-    return None
+        words.insert(0, f"{posts} to answer")
+    return ", ".join(words) or None
 
 
 def _describe_answered_round(*, work: AgentWork) -> str:

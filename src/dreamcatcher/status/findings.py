@@ -1,7 +1,26 @@
 """Word what a scheduler tick found, once for every status that shows it."""
 
+from dreamcatcher.github import (
+    CheckResult,
+    PullRequestMergeState,
+    PullRequestSignal,
+    PullRequestState,
+)
 from dreamcatcher.harness_adapters import AgentWorkKind
+from dreamcatcher.scheduler.models import PullRequestFinding
 from dreamcatcher.words import describe_count
+
+# How a pull request's chip names a merge state that the user may act on.
+_MERGE_STATE_WORDS = {
+    PullRequestMergeState.BEHIND: "behind",
+    PullRequestMergeState.DIRTY: "conflicting",
+}
+
+# What each signal says, wherever a status names what woke or will wake a round.
+_SIGNAL_WORDS = {
+    PullRequestSignal.OUT_OF_DATE: "out of date",
+    PullRequestSignal.CHECK_FAILURE: "checks failed",
+}
 
 
 def describe_comments_to_answer(*, count: int) -> str:
@@ -22,3 +41,47 @@ def describe_pause(*, cause: str) -> str:
 def describe_read_failure(*, reason: str) -> str:
     """Say why the tick could not tell what it needed."""
     return f"cannot tell: {reason}"
+
+
+def describe_signal(*, signal: PullRequestSignal) -> str:
+    """Say what a pull request signal tells the agent."""
+    return _SIGNAL_WORDS[signal]
+
+
+def describe_pull_request(*, finding: PullRequestFinding) -> str:
+    """Say where a pull request stands.
+
+    An open one is draft or ready, followed by a merge state the user may act on
+    and what its checks add up to. Any other names its state alone.
+    """
+    if finding.state is not PullRequestState.OPEN:
+        return finding.state.lower()
+    words = ["draft" if finding.is_draft else "ready"]
+    if finding.merge_state in _MERGE_STATE_WORDS:
+        words.append(_MERGE_STATE_WORDS[finding.merge_state])
+    if finding.check_result is not CheckResult.NONE:
+        words.append(f"checks {finding.check_result}")
+    return ", ".join(words)
+
+
+def describe_idle_pull_request(*, finding: PullRequestFinding) -> str:
+    """Say where a pull request that raised nothing new has got to.
+
+    A ready pull request names the first that holds of out of date, failing
+    checks and running checks, and is ready for review otherwise.
+    """
+    if finding.state is not PullRequestState.OPEN:
+        return finding.state.lower()
+    if finding.is_draft:
+        return "draft"
+    return next(
+        words
+        for holds, words in (
+            (finding.merge_state.is_out_of_date, "out of date"),
+            (finding.is_check_failure_withheld, "checks failing after two attempts"),
+            (finding.check_result is CheckResult.FAILING, "checks failing"),
+            (finding.check_result is CheckResult.RUNNING, "checks running"),
+            (True, "ready for review"),
+        )
+        if holds
+    )
