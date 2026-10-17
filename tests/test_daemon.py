@@ -25,6 +25,7 @@ from records import (
     write_daemon_run,
     write_round,
 )
+from rows import request_row
 
 from dreamcatcher.agent_rounds import (
     AgentRoundOutcome,
@@ -42,11 +43,9 @@ from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.lock import _HeldDaemonLock, hold_daemon_lock, is_daemon_lock_held
 from dreamcatcher.scheduler import AssignmentScheduler, ConversationScheduler, Scheduler
 from dreamcatcher.scheduler.models import (
-    AgentWorkObservation,
     GlobalCooldown,
-    ObservedFact,
     SchedulerRecord,
-    Truth,
+    StartedRound,
 )
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.version import DREAMCATCHER_VERSION
@@ -254,15 +253,11 @@ def test_a_successful_scheduler_tick_is_recorded_and_reported(
     scheduler = create_scheduler(daemon=daemon)
     scheduler_record = SchedulerRecord(
         at=PINNED,
-        launched_agent_work_identifiers=[ASSIGNMENT_ID],
-        assignment_observations=[
-            AgentWorkObservation(
-                identifier=ASSIGNMENT_ID,
+        rows=[
+            request_row(
                 issue=13,
-                requires_round=ObservedFact(
-                    value=Truth.TRUE,
-                    evidence="waiting",
-                ),
+                agent_work_identifier=ASSIGNMENT_ID,
+                started_round=StartedRound(number=1),
             )
         ],
     )
@@ -277,10 +272,9 @@ def test_a_successful_scheduler_tick_is_recorded_and_reported(
 
     assert recorded(daemon=daemon) == scheduler_record
     written_record = daemon.state.scheduler_record.read_text(encoding="utf-8")
-    assert json.loads(written_record)["launched_agent_work_identifiers"] == [
-        ASSIGNMENT_ID
-    ]
-    assert f'"identifier": "{ASSIGNMENT_ID}"' in written_record
+    assert [
+        row["agent_work_identifier"] for row in json.loads(written_record)["rows"]
+    ] == [ASSIGNMENT_ID]
     assert (
         capsys.readouterr().out
         == f"2026-08-20 02:41:58  launched round for {ASSIGNMENT_ID}\n"
@@ -292,9 +286,18 @@ def test_multiple_launches_are_recorded_and_reported(watched, capsys, monkeypatc
     scheduler = create_scheduler(daemon=daemon)
     scheduler_record = SchedulerRecord(
         at=PINNED,
-        launched_agent_work_identifiers=[
-            ASSIGNMENT_ID,
-            "GH8-20260819-184158-conversation",
+        rows=[
+            request_row(
+                issue=13,
+                agent_work_identifier=ASSIGNMENT_ID,
+                started_round=StartedRound(number=1),
+            ),
+            request_row(
+                issue=8,
+                kind=AgentWorkKind.CONVERSATION,
+                agent_work_identifier="GH8-20260819-184158-conversation",
+                started_round=StartedRound(number=1),
+            ),
         ],
         failures=["could not refresh assignments"],
     )
@@ -306,6 +309,34 @@ def test_multiple_launches_are_recorded_and_reported(watched, capsys, monkeypatc
     assert capsys.readouterr().out == (
         f"2026-08-20 02:41:58  launched rounds for {ASSIGNMENT_ID}, "
         "GH8-20260819-184158-conversation; could not refresh assignments\n"
+    )
+
+
+def test_a_round_that_errored_before_its_harness_ran_is_reported_from_its_row(
+    watched, capsys, monkeypatch
+):
+    daemon, _, _ = idling(root=watched, ticks=1)
+    scheduler = create_scheduler(daemon=daemon)
+    scheduler_record = SchedulerRecord(
+        at=PINNED,
+        rows=[
+            request_row(
+                issue=13,
+                agent_work_identifier=ASSIGNMENT_ID,
+                started_round=StartedRound(
+                    number=1, preparation_failure="git push failed\nhook refused"
+                ),
+            )
+        ],
+    )
+    monkeypatch.setattr(scheduler, "tick", lambda *, at: scheduler_record)
+
+    daemon.run_scheduler_cycle(scheduler=scheduler, at=PINNED)
+
+    assert scheduler_record.failures == []
+    assert capsys.readouterr().out == (
+        f"2026-08-20 02:41:58  nothing launched; {ASSIGNMENT_ID} round 1 errored: "
+        "git push failed hook refused\n"
     )
 
 
@@ -581,7 +612,7 @@ def test_a_tick_whose_listing_failed_records_what_it_could_not_read(
     daemon.run()
 
     assert "could not connect" in sole_failure(daemon=daemon)
-    assert recorded(daemon=daemon).issue_observations == []
+    assert recorded(daemon=daemon).rows == []
     output = capsys.readouterr().out
     assert output.startswith(
         f"2026-08-20 02:41:58  dreamcatcher v{DREAMCATCHER_VERSION} is running\n"
@@ -606,7 +637,7 @@ def test_tick_output_escapes_text_the_stream_cannot_encode(
     assert b"gh: wait \\u2014 try again" in buffered.getvalue()
 
 
-def test_a_tick_that_could_not_dispatch_records_the_failure_and_ticks_again(
+def test_a_tick_whose_round_could_not_prepare_records_it_and_ticks_again(
     ready_repo,
 ):
     # A file where every worktree goes, so no assignment can be created.
@@ -618,8 +649,14 @@ def test_a_tick_that_could_not_dispatch_records_the_failure_and_ticks_again(
     daemon.run()
 
     assert waiting.waited == [300, 300]
-    assert "git worktree add" in sole_failure(daemon=daemon)
-    assert recorded(daemon=daemon).launched_agent_work_identifiers == []
+    record = recorded(daemon=daemon)
+    assert record.failures == []
+    assert record.launched_agent_work_identifiers == []
+    [row] = record.rows
+    assert row.started_round is not None
+    assert row.started_round.number == 2
+    assert row.started_round.preparation_failure is not None
+    assert "git worktree add" in row.started_round.preparation_failure
 
 
 def test_a_run_that_cannot_be_told_which_repository_this_is_refuses(

@@ -272,8 +272,8 @@ body::after {
   letter-spacing: 0.14em;
 }
 
-.assignment-card,
-.issue-row {
+.agent-work-card,
+.request-row {
   padding: 16px 0;
 }
 
@@ -339,23 +339,19 @@ body::after {
 }
 
 .status-working,
-.issue-available {
+.status-available {
   color: var(--working);
   text-shadow: none;
 }
 
 /* Only the states that need the user take a fill. */
 
-.status-needs-user-feedback,
 .status-routing-conflict,
-.issue-routing-conflict,
 .status-fault {
   padding-inline: 12px;
 }
 
-.status-needs-user-feedback,
-.status-routing-conflict,
-.issue-routing-conflict {
+.status-routing-conflict {
   color: var(--feedback-ink);
   background: var(--feedback-surface);
 }
@@ -366,19 +362,16 @@ body::after {
 }
 
 .status-waiting,
-.status-complete,
-.status-cancelled,
 .status-ended,
 .status-idle,
 .status-unknown,
-.issue-blocked {
+.status-blocked {
   color: var(--dim);
 }
 
 .assignment-detail,
 .assignment-meta,
-.labels,
-.evidence {
+.labels {
   color: var(--dim);
 }
 

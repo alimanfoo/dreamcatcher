@@ -513,8 +513,8 @@ Under `.dreamcatcher/v6/`:
 daemon.json          process id, harness, version, capacity, interval, and now
                      the routes: each dispatch label and its kind
 repository
-scheduler.json       one row per request, the cooldown, listing failures,
-                     launched identifiers
+scheduler.json       one row per request, the cooldown, listing failures;
+                     the launched identifiers are read from the rows
 work/<identifier>/
     work.json        issue, label, kind, title, harness, model, effort,
                      harness config, prompt
@@ -574,14 +574,18 @@ There is one status derivation for both kinds of agent work, in this order:
 2. Ended, when `ended.json` exists, with its reason as the detail. An ended
    assignment's pull request state is the one its last round's input carried.
 3. Fault, when the fault rule says so.
-4. Unknown, when there is no scheduler record, or the row's read failed.
-5. Waiting, in any of three cases: the row found a signal, and the round it
-   started, if any, has ended since the tick, so the next tick has not yet
-   looked; the last round errored or was interrupted, which includes a round
-   with no outcome while no daemon runs; or no round has run yet.
-6. Idle, otherwise, with a detail from the row: ready for review, answered,
-   checks running, checks failing after two attempts, out of date, or paused
-   with its cause.
+4. Unknown, when the row's read failed.
+5. Idle, for a paused conversation, with its cause as the detail. The tick
+   starts no round for it, so it does not wait even when its last round errored.
+6. Waiting, in any of four cases: the row found a signal, or the round the tick
+   started, or any round when the tick read nothing for the work, has ended
+   since the tick, so the next tick has not yet looked; the last round errored
+   or was interrupted, which includes a round with no outcome while no daemon
+   runs; no round has run yet; or an assignment's pull request is not yet open.
+7. Idle, otherwise, with a detail from the row: ready for review, draft,
+   answered, checks running, checks failing after two attempts, or out of date.
+8. Unknown, when there is no scheduler record, or it holds no row for the work
+   or read nothing for it.
 
 The ontology's status values needs user feedback, routing conflict, complete and
 cancelled go. The first becomes idle with "ready for review", the second a

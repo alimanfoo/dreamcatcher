@@ -3,7 +3,7 @@
 from dataclasses import dataclass, field
 from datetime import datetime
 
-from dreamcatcher.agent_rounds import AgentRound
+from dreamcatcher.agent_rounds import AgentRound, AgentRoundPreparationError
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.scheduler.assignments import (
@@ -21,8 +21,9 @@ from dreamcatcher.scheduler.faults import (
 )
 from dreamcatcher.scheduler.models import (
     DEFAULT_MAX_AGENTS,
+    RequestRow,
     SchedulerRecord,
-    mark_round_started,
+    StartedRound,
 )
 from dreamcatcher.state import StateDirectory
 
@@ -49,15 +50,43 @@ def _choose_next_work_kind(
     return None
 
 
-def _read_candidate_issue(
+def _read_candidate_request(
     *, work_kind: AgentWorkKind, candidates: _ReadyAgentWork
-) -> int:
+) -> tuple[int, str]:
+    """Return the issue and dispatch label of the next candidate of this kind."""
     if work_kind is AgentWorkKind.ASSIGNMENT:
         candidate = candidates.assignments[0]
         if isinstance(candidate, NewAssignmentCandidate):
-            return candidate.issue
-        return candidate.assignment.record.issue
-    return candidates.conversations[0].issue.number
+            return candidate.issue, candidate.route.label
+        record = candidate.assignment.record
+        return record.issue, record.dispatch_label
+    conversation_candidate = candidates.conversations[0]
+    if conversation_candidate.conversation is None:
+        return conversation_candidate.issue.number, conversation_candidate.route.label
+    record = conversation_candidate.conversation.record
+    return record.issue, record.dispatch_label
+
+
+def _mark_row_started(
+    *,
+    rows: list[RequestRow],
+    request: tuple[int, str],
+    agent_work_identifier: str,
+    started_round: StartedRound,
+) -> list[RequestRow]:
+    """Return the rows with the request's row naming its work and the started round."""
+    issue, label = request
+    return [
+        row.model_copy(
+            update={
+                "agent_work_identifier": agent_work_identifier,
+                "started_round": started_round,
+            }
+        )
+        if row.issue == issue and row.dispatch_label == label
+        else row
+        for row in rows
+    ]
 
 
 @dataclass(kw_only=True)
@@ -85,13 +114,12 @@ class Scheduler:
         running now. A failure reaches the daemon, which reports it before the
         next tick tries again.
 
-        Every tick observes relevant issues so that status stays current while
-        open work runs or waits for capacity. A failed read prevents only the
-        launches that depend on what it would have read.
+        Every tick writes a row for each request it sees, so that status stays
+        current while open work runs or waits for capacity. A failed read
+        prevents only the launches that depend on what it would have read.
 
         A global cooldown prevents every launch but does not prevent reads, so
-        assignment and conversation observations remain current while the
-        cooldown is active.
+        the rows remain current while the cooldown is active.
         """
         self._forget_ended_rounds()
         previous_record = read_scheduler_record(state=self.state, at=at)
@@ -120,9 +148,7 @@ class Scheduler:
                 if previous_record is None
                 else previous_record.most_recent_cooldown_ended
             ),
-            issue_observations=assignment_inspection.issue_observations,
-            assignment_observations=assignment_inspection.observations,
-            conversation_observations=conversation_inspection.observations,
+            rows=[*assignment_inspection.rows, *conversation_inspection.rows],
         )
         if cooldown is not None:
             return record
@@ -151,9 +177,11 @@ class Scheduler:
     ) -> SchedulerRecord:
         """Fill free capacity while alternating between ready work kinds.
 
-        A launch that fails takes no slot, and the next candidate is tried.
+        A launch that fails takes no slot, and the next candidate is tried. The
+        row of each request names the round started for it, and why that round
+        errored if it did so before its harness ran. A launch that fails before
+        any round exists is a scheduler failure.
         """
-        launched_identifiers: list[str] = []
         while not self.is_at_capacity:
             work_kind = _choose_next_work_kind(
                 candidates=candidates,
@@ -162,7 +190,7 @@ class Scheduler:
             if work_kind is None:
                 break
             self._last_selected_work_kind = work_kind
-            issue = _read_candidate_issue(
+            request = _read_candidate_request(
                 work_kind=work_kind,
                 candidates=candidates,
             )
@@ -172,23 +200,32 @@ class Scheduler:
                     candidates=candidates,
                     at=record.at,
                 )
+            except AgentRoundPreparationError as failure:
+                identifier = failure.agent_work_identifier
+                started_round = StartedRound(
+                    number=failure.round_number,
+                    preparation_failure=failure.reason,
+                )
             except ReportableError as failure:
                 record = record.model_copy(
                     update={"failures": [*record.failures, str(failure)]}
                 )
                 continue
-            identifier = launched_round.agent_work_identifier
-            self.rounds[identifier] = launched_round
-            record = self._mark_round_started(
-                record=record,
-                round_=launched_round,
-                issue=issue,
-                work_kind=work_kind,
+            else:
+                identifier = launched_round.agent_work_identifier
+                self.rounds[identifier] = launched_round
+                started_round = StartedRound(number=launched_round.record.number)
+            record = record.model_copy(
+                update={
+                    "rows": _mark_row_started(
+                        rows=record.rows,
+                        request=request,
+                        agent_work_identifier=identifier,
+                        started_round=started_round,
+                    )
+                }
             )
-            launched_identifiers.append(identifier)
-        return record.model_copy(
-            update={"launched_agent_work_identifiers": launched_identifiers}
-        )
+        return record
 
     def _launch_next_candidate(
         self,
@@ -206,48 +243,3 @@ class Scheduler:
             candidate=candidates.conversations.pop(0),
             at=at,
         )
-
-    def _mark_round_started(
-        self,
-        *,
-        record: SchedulerRecord,
-        round_: AgentRound,
-        issue: int,
-        work_kind: AgentWorkKind,
-    ) -> SchedulerRecord:
-        identifier = round_.agent_work_identifier
-        round_number = round_.record.number
-        if work_kind is AgentWorkKind.CONVERSATION:
-            observations = [
-                mark_round_started(
-                    observation=observation,
-                    identifier=identifier,
-                    issue=issue,
-                    round_number=round_number,
-                )
-                if observation.issue == issue
-                else observation
-                for observation in record.conversation_observations
-            ]
-            return record.model_copy(update={"conversation_observations": observations})
-        observation = next(
-            (
-                observation
-                for observation in record.assignment_observations
-                if observation.identifier == identifier
-            ),
-            None,
-        )
-        started = mark_round_started(
-            observation=observation,
-            identifier=identifier,
-            issue=issue,
-            round_number=round_number,
-        )
-        observations = [
-            started if item.identifier == identifier else item
-            for item in record.assignment_observations
-        ]
-        if observation is None:
-            observations.append(started)
-        return record.model_copy(update={"assignment_observations": observations})

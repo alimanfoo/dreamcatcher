@@ -25,7 +25,12 @@ from dreamcatcher.harness_adapters import (
     HarnessSessionIdentifier,
 )
 from dreamcatcher.prompts import compose_round_prompt
-from dreamcatcher.scheduler.models import AgentWorkInspection, SchedulerRecord
+from dreamcatcher.scheduler.models import (
+    AgentWorkInspection,
+    RequestFinding,
+    RequestRow,
+    SchedulerRecord,
+)
 from dreamcatcher.state import StateDirectory
 
 
@@ -37,8 +42,23 @@ class RouteIssueListing:
     failures: list[str]
 
 
+def compose_agent_work_row(
+    *, work: AgentWork, finding: RequestFinding | None
+) -> RequestRow:
+    """Return the row of the request that led to open work, with what the tick found."""
+    record = work.record
+    return RequestRow(
+        issue=record.issue,
+        title=record.title,
+        dispatch_label=record.dispatch_label,
+        kind=record.kind,
+        agent_work_identifier=work.identifier,
+        finding=finding,
+    )
+
+
 @dataclass(frozen=True, kw_only=True)
-class AgentWorkScheduler[CandidateT, ObservationT, RankT](ABC):
+class AgentWorkScheduler[CandidateT, RankT](ABC):
     """Hold the facts that every kind of agent work needs for scheduling."""
 
     repository: str
@@ -51,7 +71,7 @@ class AgentWorkScheduler[CandidateT, ObservationT, RankT](ABC):
     @abstractmethod
     def inspect(
         self, *, previous_record: SchedulerRecord | None, at: datetime
-    ) -> AgentWorkInspection[CandidateT, ObservationT]:
+    ) -> AgentWorkInspection[CandidateT]:
         """Inspect this kind of agent work."""
 
     @abstractmethod

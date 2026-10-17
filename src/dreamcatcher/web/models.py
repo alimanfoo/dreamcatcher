@@ -4,24 +4,28 @@ from dataclasses import dataclass
 from typing import Literal, Protocol
 
 from dreamcatcher.agent_rounds import AgentRoundPaths, AgentRoundRecord
+from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.status import (
     AgentRoundRevision,
-    AgentWorkStatusSection,
-    AssignmentStatusValue,
-    ConversationStatusValue,
+    AgentWorkStatusValue,
     DreamcatcherDaemonStatus,
+    RequestStatus,
     StatusFact,
 )
 
 
 @dataclass(frozen=True, kw_only=True)
-class WebAssignmentCard:
-    """Represent the values rendered in one assignment card."""
+class WebAgentWorkCard:
+    """Represent the values rendered in one card for agent work of either kind.
+
+    Only an assignment has a pull request.
+    """
 
     identifier: str
+    kind: AgentWorkKind
     issue: int
     title: str
-    status: AssignmentStatusValue
+    status: AgentWorkStatusValue
     detail: str
     dispatch_label: str
     harness: str
@@ -29,23 +33,6 @@ class WebAssignmentCard:
     effort: str
     pull_request: int | None
     pull_request_state: str | None
-    latest_output: str | None
-
-
-@dataclass(frozen=True, kw_only=True)
-class WebConversationCard:
-    """Represent the values rendered in one issue-conversation card.
-
-    A conversation the tick has found but not yet saved has no identifier, and
-    so no page to open.
-    """
-
-    identifier: str | None
-    issue: int
-    title: str
-    status: ConversationStatusValue
-    detail: str
-    settings: str | None
     latest_output: str | None
 
 
@@ -117,7 +104,7 @@ class WebAgentWorkControl:
 class WebAgentLiveState:
     """Represent the values of an agent page that its tail refreshes."""
 
-    status: AssignmentStatusValue | ConversationStatusValue
+    status: AgentWorkStatusValue
     detail: str
     rounds: tuple[WebAgentRound, ...]
     heading_controls: tuple[WebAgentWorkControl, ...]
@@ -157,17 +144,6 @@ class WebAssignmentView:
 
 
 @dataclass(frozen=True, kw_only=True)
-class WebIssueRow:
-    """Represent one issue row in the home view."""
-
-    issue: int
-    title: str | None
-    labels: str
-    status: str
-    evidence: tuple[str | int, ...]
-
-
-@dataclass(frozen=True, kw_only=True)
 class WebConversationView:
     """Represent every value that the conversation template lays out."""
 
@@ -184,6 +160,21 @@ class WebConversationView:
 
 
 @dataclass(frozen=True, kw_only=True)
+class WebAgentWorkSection:
+    """Represent one kind of agent work as a section of the home page.
+
+    The section lists the active work, then the requests with no open work,
+    then the guidance, then the ended work.
+    """
+
+    heading: str
+    empty_message: str | None
+    active: tuple[WebAgentWorkCard, ...]
+    requests: tuple[RequestStatus, ...]
+    ended: tuple[WebAgentWorkCard, ...]
+
+
+@dataclass(frozen=True, kw_only=True)
 class WebHomeView:
     """Represent every value that the home template lays out."""
 
@@ -191,13 +182,7 @@ class WebHomeView:
     github_repository_url: str | None
     daemon: DreamcatcherDaemonStatus
     instance_facts: tuple[StatusFact, ...]
-    assignment_section: AgentWorkStatusSection | None
-    conversation_section: AgentWorkStatusSection | None
-    active_conversations: tuple[WebConversationCard, ...]
-    ended_conversations: tuple[WebConversationCard, ...]
-    active_assignments: tuple[WebAssignmentCard, ...]
-    ended_assignments: tuple[WebAssignmentCard, ...]
-    issues: tuple[WebIssueRow, ...]
+    sections: tuple[WebAgentWorkSection, ...]
 
 
 class WebFeedOwner(Protocol):

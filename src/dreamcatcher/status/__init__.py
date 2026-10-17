@@ -1,17 +1,9 @@
 """Read status reports for a dreamcatcher instance."""
 
-# The status report carries these scheduler records, and presentation imports
-# no scheduler module, so the status face carries them to presentation.
-from dreamcatcher.scheduler.models import IssueObservation, Truth
-from dreamcatcher.status.assignments import (
-    ASSIGNMENT_STATUS_VALUES_IN_ATTENTION_ORDER,
-    AssignmentStatus,
-    AssignmentStatusValue,
-)
-from dreamcatcher.status.conversations import (
-    CONVERSATION_STATUS_VALUES_IN_ATTENTION_ORDER,
-    ConversationStatus,
-    ConversationStatusValue,
+from dreamcatcher.status.agent_work import (
+    AGENT_WORK_STATUS_VALUES_IN_ATTENTION_ORDER,
+    AgentWorkStatus,
+    AgentWorkStatusValue,
 )
 from dreamcatcher.status.report import (
     AgentWorkStatusSection,
@@ -26,24 +18,22 @@ from dreamcatcher.status.report import (
     read_repository,
     read_status_report,
 )
+from dreamcatcher.status.requests import RequestReason, RequestStatus
 from dreamcatcher.status.rounds import AgentRoundRevision, AgentRoundStatus
 
 __all__ = [
-    "ASSIGNMENT_STATUS_VALUES_IN_ATTENTION_ORDER",
-    "CONVERSATION_STATUS_VALUES_IN_ATTENTION_ORDER",
+    "AGENT_WORK_STATUS_VALUES_IN_ATTENTION_ORDER",
     "AgentRoundRevision",
     "AgentRoundStatus",
+    "AgentWorkStatus",
     "AgentWorkStatusSection",
-    "AssignmentStatus",
-    "AssignmentStatusValue",
-    "ConversationStatus",
-    "ConversationStatusValue",
+    "AgentWorkStatusValue",
     "DaemonStatusFact",
     "DreamcatcherDaemonStatus",
     "DreamcatcherStatusReport",
-    "IssueObservation",
+    "RequestReason",
+    "RequestStatus",
     "StatusFact",
-    "Truth",
     "read_agent_work_status",
     "read_assignment_statuses_for_issue",
     "read_conversation_status",

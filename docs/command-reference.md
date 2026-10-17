@@ -146,9 +146,9 @@ the issue as work outside _dreamcatcher_. The worktree and branch stay in place,
 so you can carry on in the assignment's worktree. An assignment cancelled before
 its first round opened a pull request has none to finish, and the command says
 so; any worktree or branch that round made also stays in place. The cancelled
-assignment shows as **cancelled** on the web home page and in
-`dreamcatcher assignment`, and `dreamcatcher status` counts it among the ended
-assignments.
+assignment shows as **ended** with the detail cancelled on the web home page and
+in `dreamcatcher assignment`, and `dreamcatcher status` counts it among the
+ended assignments.
 
 The issue must have an assignment, and that assignment must not have ended. A
 cancel cannot be undone. The command writes only local state, does not contact
@@ -181,9 +181,9 @@ port is already in use.
 dreamcatcher status
 ```
 
-Show the repository and daemon facts, issue conversations, assignments,
-available issues in dispatch order, blocked issues, and assignment routing
-conflicts.
+Show the repository and daemon facts, assignments and issue conversations, and
+each labelled issue that has no work yet, in dispatch order, with why no work
+has started.
 
 In an interactive terminal the view refreshes and occupies the terminal until
 interrupted. When output is piped, redirected or captured, it prints one
@@ -212,9 +212,8 @@ dreamcatcher conversation GH<n>
 Show the issue conversation's settings, harness session, worktree, code revision
 and rounds, with a hand-resume command when one is available.
 
-In an interactive terminal it refreshes while the status report lists the
-conversation. When output is piped, redirected or captured, it prints one
-snapshot and returns.
+In an interactive terminal it refreshes until the conversation ends. When output
+is piped, redirected or captured, it prints one snapshot and returns.
 
 ## `feed`
 
@@ -229,10 +228,10 @@ Exactly one owner selector is required:
 - `--conversation` selects the issue conversation.
 
 Without `--round`, the command shows all of that work's rounds and follows later
-output until an assignment ends or the status report stops listing a
-conversation. `--round N` selects one exact integer round number and ends when
-that round ends. The corresponding `assignment` or `conversation` view lists the
-available round numbers; requesting a round that does not exist is an error.
+output until the work ends. `--round N` selects one exact integer round number
+and ends when that round ends. The corresponding `assignment` or `conversation`
+view lists the available round numbers; requesting a round that does not exist
+is an error.
 
 A feed prints incrementally so terminal scrollback is preserved. When its output
 is piped, redirected or captured, it prints the currently recorded output once

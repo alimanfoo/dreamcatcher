@@ -234,8 +234,8 @@ body::after {
   text-transform: uppercase;
 }
 
-.assignment-card,
-.issue-row {
+.agent-work-card,
+.request-row {
   min-width: 0;
   padding: var(--space-6) 0;
   border-bottom: var(--line) solid var(--rule-inner);
@@ -305,10 +305,8 @@ body::after {
   content: "]";
 }
 
-.status-needs-user-feedback,
 .status-routing-conflict,
-.issue-routing-conflict,
-.issue-available {
+.status-available {
   color: var(--background);
   background: var(--phosphor);
 }
@@ -320,11 +318,9 @@ body::after {
 
 .status-waiting,
 .status-unknown,
-.status-complete,
-.status-cancelled,
 .status-ended,
 .status-idle,
-.issue-blocked {
+.status-blocked {
   color: var(--dim);
 }
 
@@ -332,22 +328,20 @@ body::after {
   text-shadow: var(--shadow);
 }
 
-.issue-routing-conflict .issue-number {
+.status-routing-conflict .issue-number {
   color: var(--background);
 }
 
 .assignment-detail,
 .latest-output,
 .labels,
-.evidence,
 .error-message {
   margin: var(--space-3) 0 0;
 }
 
 .assignment-detail,
 .assignment-meta,
-.labels,
-.evidence {
+.labels {
   color: var(--dim);
 }
 

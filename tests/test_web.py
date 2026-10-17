@@ -14,7 +14,6 @@ from unittest.mock import MagicMock
 import pytest
 from clocks import DISPLAY_TIME_ZONE, PINNED
 from conftest import DAEMON_PID, FIXTURES, REPOSITORY, assert_matches_view_golden
-from observations import observed_conversation, observed_issue
 from records import (
     MERGED_INPUT,
     SCOUT_ROUTES,
@@ -29,6 +28,7 @@ from records import (
 from status_fabrications import (
     LOOKED_AT,
     STATUS_REPORTS,
+    conversation_row,
     ended,
     fabricate_a_dead_daemon,
     fabricate_a_silent_round,
@@ -64,11 +64,11 @@ from dreamcatcher.feed import FeedLine
 from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.scheduler.models import (
     GlobalCooldown,
+    IssueCommentsFinding,
     SchedulerRecord,
-    Truth,
 )
 from dreamcatcher.state import StateDirectory
-from dreamcatcher.status import AssignmentStatusValue, ConversationStatusValue
+from dreamcatcher.status import AgentWorkStatusValue
 from dreamcatcher.web import serve_web, serve_web_in_background
 from dreamcatcher.web.app import _create_app
 from dreamcatcher.web.server import (
@@ -76,7 +76,6 @@ from dreamcatcher.web.server import (
     WEB_HOST,
     run_web_server_in_background,
 )
-from dreamcatcher.web.views import _compose_issue_row
 
 WEB_STATUS_REPORTS = {
     **STATUS_REPORTS,
@@ -640,7 +639,7 @@ def test_a_home_card_links_to_its_exact_assignment(tmp_path):
     assert card.index('class="pr-chip"') > card.index('class="assignment-detail"')
 
 
-def test_feedback_card_keeps_its_compact_actions_inside_the_heading(tmp_path):
+def test_a_card_keeps_its_compact_actions_inside_the_heading(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
 
@@ -654,11 +653,8 @@ def test_feedback_card_keeps_its_compact_actions_inside_the_heading(tmp_path):
     card_start = page.index('<article id="assignment-GH20-20260819-184158-assignment"')
     card = page[card_start : page.index("</article>", card_start)]
 
-    assert (
-        '<span class="chip status-needs-user-feedback">needs user feedback</span>'
-        in card
-    )
-    assert "[NEEDS USER FEEDBACK]" not in card
+    assert '<span class="chip status-idle">idle</span>' in card
+    assert "[IDLE]" not in card
     assert re.search(
         r"\.card-heading \{[^}]*display: grid;"
         r"[^}]*grid-template-columns: minmax\(0, 1fr\) max-content;",
@@ -674,7 +670,10 @@ def test_status_classes_do_not_depend_on_status_wording(tmp_path, monkeypatch):
     state = StateDirectory(root=tmp_path)
     fabricate_conversation(state=state)
     fabricate_everything(
-        state=state, conversation_observations=[observed_conversation()]
+        state=state,
+        conversation_rows=[
+            conversation_row(finding=IssueCommentsFinding(new_comments=0))
+        ],
     )
 
     # A real rewording changes each member's string value, which patching
@@ -683,10 +682,7 @@ def test_status_classes_do_not_depend_on_status_wording(tmp_path, monkeypatch):
 
     reworded = StrEnum(
         "reworded",
-        {
-            status.name: f"reworded {status}"
-            for status in (*AssignmentStatusValue, *ConversationStatusValue)
-        },
+        {status.name: f"reworded {status}" for status in AgentWorkStatusValue},
     )
 
     compose_home_view = web_app_module.compose_home_view
@@ -696,13 +692,15 @@ def test_status_classes_do_not_depend_on_status_wording(tmp_path, monkeypatch):
         view = compose_home_view(**kwargs)
         return replace(
             view,
-            active_conversations=tuple(
-                replace(card, status=reworded[card.status.name])
-                for card in view.active_conversations
-            ),
-            active_assignments=tuple(
-                replace(card, status=reworded[card.status.name])
-                for card in view.active_assignments
+            sections=tuple(
+                replace(
+                    section,
+                    active=tuple(
+                        replace(card, status=reworded[card.status.name])
+                        for card in section.active
+                    ),
+                )
+                for section in view.sections
             ),
         )
 
@@ -729,21 +727,17 @@ def test_status_classes_do_not_depend_on_status_wording(tmp_path, monkeypatch):
         conversation_start : home.index("</article>", conversation_start)
     ]
 
-    assert (
-        '<span class="chip status-needs-user-feedback">'
-        "reworded needs user feedback</span>"
-    ) in card
+    assert '<span class="chip status-idle">reworded idle</span>' in card
     assert '<span class="chip status-idle">reworded idle</span>' in conversation_card
     assert (
-        '<span id="agent-work-status" class="chip status-needs-user-feedback">'
-        "reworded needs user feedback</span>"
+        '<span id="agent-work-status" class="chip status-idle">reworded idle</span>'
     ) in assignment_page
     assert (
         '<span id="agent-work-status" class="chip status-idle">reworded idle</span>'
     ) in conversation_page
 
 
-def test_assignment_feedback_status_uses_the_status_wording(tmp_path):
+def test_an_idle_assignment_status_uses_the_status_wording(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
 
@@ -752,11 +746,8 @@ def test_assignment_feedback_status_uses_the_status_wording(tmp_path):
         identifier="GH20-20260819-184158-assignment",
     )
 
-    assert (
-        '<span id="agent-work-status" '
-        'class="chip status-needs-user-feedback">needs user feedback</span>'
-    ) in page
-    assert "[NEEDS USER FEEDBACK]" not in page
+    assert ('<span id="agent-work-status" class="chip status-idle">idle</span>') in page
+    assert "[IDLE]" not in page
 
 
 def test_assignment_page_polls_its_tail_from_the_last_complete_line(tmp_path):
@@ -842,7 +833,7 @@ def test_ended_assignment_cards_are_separated_by_rules(tmp_path):
     ended = page[page.index('<details class="ended-work">') :]
     assert '<article id="assignment-' in ended
     assert re.search(
-        r"\.assignment-card,[^{]*\{[^}]*border-bottom: var\(--line\) solid",
+        r"\.agent-work-card,[^{]*\{[^}]*border-bottom: var\(--line\) solid",
         stylesheet,
         re.DOTALL,
     )
@@ -1522,41 +1513,30 @@ def test_the_home_page_autoescapes_feed_output(tmp_path):
     assert "<script>alert('no')</script>" not in page
 
 
-def test_issue_references_link_to_github_with_hash_notation(tmp_path):
+def test_issue_and_pull_request_numbers_link_to_github_with_hash_notation(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
 
     page = render_home(state=state)
 
     issue_url = f"https://github.com/{REPOSITORY}/issues/50"
+    pull_request_url = f"https://github.com/{REPOSITORY}/pull/61"
     github_attributes = 'target="_blank" rel="noopener noreferrer"'
     assert f'href="{issue_url}" {github_attributes}>#50</a>' in page
     assert (
-        '<span class="chip issue-blocked">blocked by '
+        '<span class="chip status-blocked">blocked by '
         f'<a class="issue-number" href="{issue_url}" '
-        f"{github_attributes}>#50</a>" in page
+        f"{github_attributes}>#50</a></span>" in page
     )
     assert (
-        '<span class="chip issue-routing-conflict">multiple '
-        "assignment labels: dream:less, dream:smith; blocked by "
-        f'<a class="issue-number" href="{issue_url}" '
-        f"{github_attributes}>#50</a>" in page
+        '<span class="chip status-blocked">claimed by '
+        f'<a class="issue-number" href="{pull_request_url}" '
+        f"{github_attributes}>#61</a>; blocked by" in page
     )
-    assert "blocked by GH50" not in page
-
-
-def test_an_assignment_label_that_looks_like_an_issue_reference_remains_text():
-    evidence = "multiple assignment labels: dream:smith, GH123"
-    observation = observed_issue(
-        issue=53,
-        assignment_labels=("dream:smith", "GH123"),
-        values={"routing_conflict": Truth.TRUE},
-        evidence={"routing_conflict": evidence},
+    assert (
+        '<span class="chip status-routing-conflict">multiple assignment '
+        "labels: dream:less, dream:smith</span>" in page
     )
-
-    row = _compose_issue_row(observation=observation)
-
-    assert row.evidence == (evidence,)
 
 
 def test_a_pull_request_links_to_github_before_its_state_is_observed(tmp_path):
@@ -1572,13 +1552,15 @@ def test_a_pull_request_links_to_github_before_its_state_is_observed(tmp_path):
     )
 
 
-def test_dashboard_groups_issues_with_assignments(tmp_path):
+def test_dashboard_groups_assignment_requests_with_assignments(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
 
     page = render_home(state=state)
 
-    assert page.index('id="assignments-heading"') < page.index('id="issue-50"')
+    assert page.index('id="assignments-heading"') < page.index(
+        'id="request-50-dream:smith"'
+    )
     assert 'id="issues-heading"' not in page
     assert 'id="conversations-heading"' not in page
 

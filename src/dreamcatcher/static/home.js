@@ -2,9 +2,9 @@
 
 const outputAnimations = new Set();
 
-function latestOutputsByAssignment(home) {
+function latestOutputsByWork(home) {
   const outputs = new Map();
-  for (const card of home.querySelectorAll(".assignment-card")) {
+  for (const card of home.querySelectorAll(".agent-work-card")) {
     outputs.set(card.id, card.querySelector(".latest-output"));
   }
   return outputs;
@@ -21,13 +21,13 @@ document.body.addEventListener("htmx:beforeSwap", (event) => {
   if (currentHome === null || updatedHome === null) {
     return;
   }
-  const currentOutputs = latestOutputsByAssignment(currentHome);
-  const updatedOutputs = latestOutputsByAssignment(updatedHome);
-  const assignmentIdentifiers = new Set([
+  const currentOutputs = latestOutputsByWork(currentHome);
+  const updatedOutputs = latestOutputsByWork(updatedHome);
+  const workIdentifiers = new Set([
     ...currentOutputs.keys(),
     ...updatedOutputs.keys(),
   ]);
-  for (const identifier of assignmentIdentifiers) {
+  for (const identifier of workIdentifiers) {
     const currentOutput = currentOutputs.get(identifier) ?? null;
     const updatedOutput = updatedOutputs.get(identifier) ?? null;
     if (currentOutput?.textContent === updatedOutput?.textContent) {

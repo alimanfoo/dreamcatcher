@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING
 
 from dreamcatcher import teardown
 from dreamcatcher.agent_rounds import (
+    describe_round_preparation_failure,
     record_agent_round_interruption,
     record_agent_round_stop,
 )
@@ -262,7 +263,11 @@ class DreamcatcherDaemon:
 def _describe_tick_outcome(
     *, record: SchedulerRecord, is_at_capacity: bool, zone: tzinfo | None
 ) -> str:
-    """Say what the tick launched, then the cooldown, capacity and failures."""
+    """Say what the tick launched, then the cooldown, capacity and failures.
+
+    A round that errored before its harness ran is named with its reason among
+    the failures.
+    """
     facts = [_describe_launches(identifiers=record.launched_agent_work_identifiers)]
     if record.cooldown is not None:
         facts.append(
@@ -270,7 +275,19 @@ def _describe_tick_outcome(
         )
     if is_at_capacity:
         facts.append("agent capacity full")
-    facts.extend(" ".join(failure.split()) for failure in record.failures)
+    failures = [
+        *record.failures,
+        *(
+            describe_round_preparation_failure(
+                agent_work_identifier=identifier,
+                round_number=started_round.number,
+                reason=started_round.preparation_failure,
+            )
+            for identifier, started_round in record.started_rounds.items()
+            if started_round.preparation_failure is not None
+        ),
+    ]
+    facts.extend(" ".join(failure.split()) for failure in failures)
     return "; ".join(facts)
 
 

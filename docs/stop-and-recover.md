@@ -55,9 +55,9 @@ cancel cannot be undone.
 
 _dreamcatcher_ asks a running round to stop, runs no further rounds for the
 assignment, and stops relaying your comments and reviews on its pull request.
-The assignment shows as **cancelled** on the web home page and in
-`dreamcatcher assignment`, and `dreamcatcher status` counts it among the ended
-assignments.
+The assignment shows as **ended** with the detail cancelled on the web home page
+and in `dreamcatcher assignment`, and `dreamcatcher status` counts it among the
+ended assignments.
 
 Carry on in the assignment's worktree, which still has the branch checked out.
 Once no round is running, and when _dreamcatcher_ has learned the agent's

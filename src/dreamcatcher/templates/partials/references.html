@@ -1,0 +1,7 @@
+{% macro github_reference(number, path) -%}
+  {% if view.github_repository_url -%}
+    <a class="issue-number" href="{{ view.github_repository_url }}/{{ path }}/{{ number }}" target="_blank" rel="noopener noreferrer">#{{ number }}</a>
+  {%- else -%}
+    <strong class="issue-number">#{{ number }}</strong>
+  {%- endif %}
+{%- endmacro %}

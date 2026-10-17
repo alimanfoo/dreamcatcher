@@ -68,9 +68,9 @@ The scheduler package owns all decisions about what work starts and when.
 
 One scheduler tick:
 
-1. observes the relevant local, process, configuration, and GitHub facts;
+1. reads the relevant local, process, configuration, and GitHub facts;
 2. ranks the assignment candidates, considering existing assignment rounds
-   before dispatching a new assignment for the oldest available issue;
+   before dispatching a new assignment for the oldest available request;
 3. ranks the conversation candidates by their oldest waiting comment;
 4. starts a global cooldown when the counted faults call for one, and launches
    nothing while a cooldown is active;
@@ -78,28 +78,36 @@ One scheduler tick:
    either kind's internal order;
 6. performs scheduling actions until the daemon run's requested capacity is full
    or no candidate remains; and
-7. returns a `SchedulerRecord` for operational reporting.
+7. returns a `SchedulerRecord`, holding one request row per request, for
+   operational reporting.
+
+Alternation advances when a kind is selected, including when its start fails,
+and begins afresh after a daemon restart.
 
 The daemon persists the returned `SchedulerRecord` and reports it in its output.
 A scheduler tick that fails before returning one is reported in daemon output
 and leaves the last complete scheduler record in place. An invalid scheduler
 record ends the daemon because retrying cannot repair the document.
 
-If an issue read fails, the tick records the failure and prevents only the
-launches that depend on those facts. A later tick retries the failed read. New
-conversation rounds launch in order of their oldest waiting comment across all
-issues, so a failed read for any conversation that awaits new comments prevents
-every new conversation round in that tick. A round that gives a conversation the
-input of one that did not finish does not depend on that order, so it still
-launches.
+If a read for a request fails, the tick holds the reason in that request's row
+and prevents only the launches that depend on what it would have read. A failed
+listing is a scheduler failure, because it belongs to no request, and the rows
+of open conversations that it did not return hold its reason, so they read as
+unknown. A later tick retries the failed read. New conversation rounds launch in
+order of their oldest waiting comment across all issues, so a failed comment
+read for any conversation that awaits new comments prevents every new
+conversation round in that tick. A round that gives a conversation the input of
+one that did not finish does not depend on that order, so it still launches.
 
-A launch that fails takes no agent slot. The tick records the failure, keeps
-every round that it already started, and goes on to the next candidate. A round
-that errored before its harness ran is recorded on its agent work, and the
-failure names that work and the round.
+A launch that fails takes no agent slot. The tick keeps every round that it
+already started and goes on to the next candidate. A round that errored before
+its harness ran is recorded on its agent work, and the request's row names the
+round and its reason, which the daemon's output line repeats. A launch that
+fails before any round exists, such as a work record that cannot be written, is
+a scheduler failure.
 
 The scheduler uses two distinct lower-level operations: creating an agent
-assignment and starting an agent round. When it selects an available issue, it
+assignment and starting an agent round. When it selects an available request, it
 writes the assignment's work record and starts the first round in the same
 scheduling action. The record comes first, before any Git or GitHub step, so the
 assignment exists however the round goes. An assignment without a pull request
@@ -116,10 +124,10 @@ to relay, or whose last round errored or was interrupted, is a candidate unless
 its last round is running or it is in fault.
 
 Scheduling should expose pure, read-only functions for interpretations that
-status reporting also needs, particularly whether an issue is available for an
-agent assignment and what round an assignment requires next. The status
-subsystem may reuse those functions. The scheduler must never consume a status
-report or presentation model.
+status reporting also needs, particularly whether agent work is in fault and
+whether its last round did not finish. The status subsystem may reuse those
+functions. The scheduler must never consume a status report or presentation
+model.
 
 Scheduling priority is derived from current facts rather than persisted as a
 queue.
@@ -337,19 +345,18 @@ interface.
 
 Status reporting owns the read-only status model and constructs a
 `DreamcatcherStatusReport` containing the repository identity, instance and
-daemon facts, `IssueObservation` entries, `ConversationStatus` entries, and
-`AssignmentStatus` entries.
+daemon facts, an `AgentWorkStatus` for every piece of agent work, and a
+`RequestStatus` for every request with no open work.
 
 Status construction may read:
 
-- assignment and round records;
-- conversation and conversation-round records;
+- agent work and round records;
 - raw harness output and the matching harness adapter when it must recover a
   harness session identifier or build a hand-resume command;
 - current child-process state;
 - the instance's repository record and daemon-run record;
-- scheduler records, including issue observations, assignment and conversation
-  observations, the active global cooldown, and the latest tick;
+- the scheduler record, with its request rows, the active global cooldown, and
+  the latest tick;
 - the latest rendered feed output needed for a useful summary.
 
 It may call the scheduler's pure interpretation functions, but it cannot invoke
@@ -363,49 +370,37 @@ Status reads the dispatch labels from the daemon run record, never from
 to show, the section's heading, and any guidance for an empty section. The
 presentations make none of those choices themselves.
 
-An `IssueObservation` represents claimed here, claimed elsewhere, blocked, and
-routing conflict as independent facts which may each be true, false, or unknown;
-its availability is derived from those facts together with whether the issue is
-open, assigned to the instance's user, and carries exactly one assignment label.
-The report includes available issues in the scheduler's dispatch order. It also
-includes issues with known routing conflicts or open blockers, together with the
-scheduler's recorded evidence. An `AssignmentStatus` is one summary status from
-the ontology.
+The scheduler record holds one `RequestRow` for each request the tick saw. A row
+names the issue, its title, the dispatch label, the kind, and the identifier of
+the open agent work, if any. It holds what the tick found as a typed finding:
 
-An `AgentWorkObservation` records the tick's interpretation of one open work
-item. It carries the agent work identifier, issue and one `ObservedFact` saying
-whether it requires a round and why. A conversation the tick observes before it
-is saved has no identifier yet. Status reads this observation because view
-commands cannot reach GitHub. It is the last tick's interpretation kept as
-operational evidence, not authoritative state.
+- for an assignment whose pull request the tick read, the pull request's number,
+  state and draft flag and the count of user posts past the cursor;
+- for a conversation whose comments the tick read, the count of comments past
+  the cursor;
+- for an assignment request with no open work, the open linked pull requests and
+  the open blocking issues, as numbers;
+- for a request whose issue carries two labels of its kind, those labels;
+- for an open conversation the listing did not return, that it was not listed;
+- for a read that failed, the reason, in place of what it would have found.
 
-The scheduler record holds one `ConversationObservation`, extending
-`AgentWorkObservation`, for each open, assigned issue that carries at least one
-configured conversation label. Each observation additionally records:
+A row has no finding when the tick read nothing for it, as for work whose round
+is running, work in fault, or an assignment whose first round has not opened its
+pull request. A row also names the round the tick started for it and, when that
+round errored before its harness ran, the reason. Apart from those reasons for a
+failure, no row holds a sentence meant for a person. Status composes the words
+from these values once, and keeps the issue and pull request numbers as numbers,
+so both presentations link them and neither parses text.
 
-- the issue and its title;
-- an `ObservedFact` that says whether more than one conversation route matches.
+`AgentWorkStatus` is one summary status from the ontology, derived in one chain
+for both kinds of agent work. `RequestStatus` gives a request with no open work
+its request status and its reasons, each as words with the issues or pull
+requests it names.
 
-The tick observes a matching issue even when no conversation's work record
-exists for it yet. So status lists a conversation from the first tick that sees
-its issue, and reports a routing conflict before any round starts.
-
-An issue with no observation is not eligible. Status stops listing its
-conversation once no round runs for it.
-
-If the tick cannot list the matching issues, it copies the previous tick's
-observations and marks each fact unknown.
-
-A `ConversationStatus` is one summary status from the ontology.
-
-The scheduler record also names every assignment or conversation whose round the
-tick launched, in launch order. Alternation advances when a kind is selected,
-including when its start fails, and begins afresh after a daemon restart. Each
-launched work item keeps an observation whose `requires_round` fact is false and
-says which round started. If that round ends after the scheduler record, status
+A round that ended after the scheduler record, when that tick started the round
+or read nothing for the work, is one that no tick has looked at since, so status
 reports that the work is waiting for the next update. An ending that predates
-the record should already have been observed, so an unexplained absence remains
-unknown.
+the record should already have been read, so a missing row remains unknown.
 
 ### TUI
 
@@ -513,8 +508,7 @@ that race each other each land whole. A one-value process file may remain simple
 text where a model would add no meaning.
 
 State-directory objects provide paths and document access. They do not answer
-domain questions such as whether an assignment is complete or an issue is
-available for an agent assignment.
+domain questions such as whether an assignment has ended or a request may start.
 
 ### Git, commands, prompts, and feeds
 
@@ -557,7 +551,7 @@ erasing another's. These files persist:
 
 - for an assignment, once the round that opens its pull request has done so,
   that pull request's number and latest observed state, draft flag, and
-  observation time;
+  observation time, which the work pages and cards show;
 - the harness session identifier, once known;
 - the time of the user's latest retry request, when one has been made;
 - the time and the reason the work ended, once it has ended.
@@ -587,23 +581,21 @@ Instance records persist the repository identity and the most recent daemon
 run's harness, _dreamcatcher_ version, capacity, interval, and the dispatch
 routes it loaded, each as a dispatch label and its kind of agent work. An
 instance-wide scheduler record persists the last tick's result, including its
-failures, issue, assignment and conversation observations, active global
-cooldown, and the time at which the most recent cooldown ended. Its per-work
-observations preserve operational evidence of the tick's interpretation rather
-than authoritative state. Assignments and conversations persist the time of
-their latest user retry request. These boundaries allow fault to remain a
-derived status: ending a cooldown or requesting a retry changes which round
-errors count towards fault rather than writing a lifecycle status.
+failures, its request rows, the active global cooldown, and the time at which
+the most recent cooldown ended. Its rows preserve operational evidence of what
+the tick read rather than authoritative state. Assignments and conversations
+persist the time of their latest user retry request. These boundaries allow
+fault to remain a derived status: ending a cooldown or requesting a retry
+changes which round errors count towards fault rather than writing a lifecycle
+status.
 
 The following are derived rather than persisted as authoritative state:
 
-- whether an issue is claimed here or elsewhere;
-- whether an issue is blocked, has an assignment or conversation routing
-  conflict, or is available for an agent assignment;
+- which requests exist, and whether a request with no open work may start;
 - whether either kind of agent work is in fault;
-- whether an assignment requires an agent round or needs user feedback;
+- whether agent work requires a round;
 - what input the next round is given; and
-- every issue conversation and agent assignment status shown in a status report.
+- every agent work status and request status shown in a status report.
 
 Mutable external facts, including issue state, assignees, labels, dependencies,
 linked pull requests, pull-request draft/readiness/terminal state, and user

@@ -149,7 +149,7 @@ def test_cancelling_an_assignment_asks_first(page: Page, live_web: str) -> None:
 
     page.once("dialog", lambda dialog: dialog.accept())
     cancel.click()
-    expect(page.locator("#agent-work-status")).to_have_text("cancelled")
+    expect(page.locator("#agent-work-status")).to_have_text("ended")
     expect(cancel).to_have_count(0)
 
 
@@ -167,11 +167,11 @@ def test_dark_nature_uses_the_dusk_palette_and_follows_the_night(
         "color",
         "rgb(179, 203, 166)",
     )
-    expect(page.locator(".status-needs-user-feedback")).to_have_css(
+    expect(page.locator(".status-routing-conflict").first).to_have_css(
         "color",
         "rgb(22, 21, 42)",
     )
-    expect(page.locator(".assignment-card").first).to_have_css(
+    expect(page.locator(".agent-work-card").first).to_have_css(
         "border-bottom-color",
         "rgba(236, 230, 220, 0.1)",
     )

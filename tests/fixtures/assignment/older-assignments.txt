@@ -1,5 +1,5 @@
 newest agent assignment GH13-20260819-184158-assignment
-needs user feedback  last output 1h 58m ago
+idle  draft
 
 assignment
   issue identifier             GH13                                                      
@@ -21,5 +21,5 @@ resume by hand
   claude --resume abc-123                                      
 
 older assignments
-  agent assignment GH13-20260818-090000-assignment  complete  2 rounds
-  agent assignment GH13-20260817-090000-assignment  complete  2 rounds
+  agent assignment GH13-20260818-090000-assignment  ended  completed
+  agent assignment GH13-20260817-090000-assignment  ended  completed

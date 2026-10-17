@@ -1,38 +1,32 @@
 """Compose Flask-free models for dreamcatcher's web views."""
 
-import re
 from datetime import tzinfo
 from pathlib import Path
 
 from dreamcatcher.agent_work import AgentWork
+from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.status import (
     AgentRoundStatus,
-    AssignmentStatus,
-    ConversationStatus,
+    AgentWorkStatus,
     DreamcatcherDaemonStatus,
     DreamcatcherStatusReport,
-    IssueObservation,
     StatusFact,
-    Truth,
     read_repository,
 )
 from dreamcatcher.web.feed import read_agent_feed
 from dreamcatcher.web.models import (
     WebAgentLiveState,
     WebAgentRound,
+    WebAgentWorkCard,
     WebAgentWorkControl,
-    WebAssignmentCard,
+    WebAgentWorkSection,
     WebAssignmentView,
-    WebConversationCard,
     WebConversationView,
     WebHandResume,
     WebHomeView,
-    WebIssueRow,
 )
 from dreamcatcher.words import describe_time
-
-_ISSUE_REFERENCE_PATTERN = re.compile(r"(?<!\w)(?:GH|#)(\d+)\b(?!-)")
 
 
 def _compose_hand_resume(
@@ -66,71 +60,53 @@ def compose_home_view(*, report: DreamcatcherStatusReport) -> WebHomeView:
         ),
         daemon=daemon,
         instance_facts=report.instance_facts,
-        assignment_section=report.assignment_section,
-        conversation_section=report.conversation_section,
-        active_conversations=tuple(
-            _compose_conversation_card(status=status)
-            for status in report.active_conversation_statuses
-        ),
-        ended_conversations=tuple(
-            _compose_conversation_card(status=status)
-            for status in report.ended_conversation_statuses
-        ),
-        active_assignments=tuple(
-            _compose_assignment_card(status=status)
-            for status in report.active_assignment_statuses
-        ),
-        ended_assignments=tuple(
-            _compose_assignment_card(status=status)
-            for status in report.ended_assignment_statuses
-        ),
-        issues=tuple(
-            _compose_issue_row(observation=issue) for issue in report.issue_observations
+        sections=tuple(
+            section
+            for kind in AgentWorkKind
+            if (section := _compose_section(report=report, kind=kind)) is not None
         ),
     )
 
 
-def _compose_assignment_card(*, status: AssignmentStatus) -> WebAssignmentCard:
-    assignment = status.assignment
-    return WebAssignmentCard(
-        identifier=assignment.identifier,
-        issue=assignment.record.issue,
-        title=assignment.record.title,
+def _compose_section(
+    *, report: DreamcatcherStatusReport, kind: AgentWorkKind
+) -> WebAgentWorkSection | None:
+    """Return the home page's section for one kind, when the report shows one."""
+    section = report.describe_section(kind=kind)
+    if section is None:
+        return None
+    return WebAgentWorkSection(
+        heading=section.heading,
+        empty_message=section.empty_message,
+        active=tuple(
+            _compose_work_card(status=status)
+            for status in report.list_active_work_statuses(kind=kind)
+        ),
+        requests=tuple(report.list_request_statuses(kind=kind)),
+        ended=tuple(
+            _compose_work_card(status=status)
+            for status in report.list_ended_work_statuses(kind=kind)
+        ),
+    )
+
+
+def _compose_work_card(*, status: AgentWorkStatus) -> WebAgentWorkCard:
+    """Return the values shown for one piece of agent work on the home page."""
+    work = status.work
+    record = work.record
+    return WebAgentWorkCard(
+        identifier=work.identifier,
+        kind=record.kind,
+        issue=record.issue,
+        title=record.title,
         status=status.value,
         detail=status.detail,
-        dispatch_label=assignment.record.dispatch_label,
-        harness=str(assignment.record.harness),
-        model=assignment.record.model,
-        effort=assignment.record.effort,
+        dispatch_label=record.dispatch_label,
+        harness=str(record.harness),
+        model=record.model,
+        effort=record.effort,
         pull_request=status.pull_request,
         pull_request_state=status.pull_request_state,
-        latest_output=status.latest_output,
-    )
-
-
-def _compose_conversation_card(*, status: ConversationStatus) -> WebConversationCard:
-    """Return the values shown for one issue conversation on the home page.
-
-    A conversation settles its settings when its first round launches.
-    """
-    conversation = status.conversation
-    return WebConversationCard(
-        identifier=None if conversation is None else conversation.identifier,
-        issue=status.issue,
-        title=status.title,
-        status=status.value,
-        detail=status.detail,
-        settings=(
-            None
-            if conversation is None
-            else " · ".join(
-                [
-                    str(conversation.record.harness),
-                    conversation.record.model,
-                    conversation.record.effort,
-                ]
-            )
-        ),
         latest_output=status.latest_output,
     )
 
@@ -138,7 +114,7 @@ def _compose_conversation_card(*, status: ConversationStatus) -> WebConversation
 def compose_agent_live_state(
     *,
     state: StateDirectory,
-    status: AssignmentStatus | ConversationStatus,
+    status: AgentWorkStatus,
     worktree: Path | None,
     zone: tzinfo | None,
     heading_controls: tuple[WebAgentWorkControl, ...],
@@ -160,13 +136,13 @@ def compose_agent_live_state(
 def compose_assignment_view(
     *,
     state: StateDirectory,
-    status: AssignmentStatus,
+    status: AgentWorkStatus,
     daemon: DreamcatcherDaemonStatus,
     live: WebAgentLiveState,
     zone: tzinfo | None,
 ) -> WebAssignmentView:
     """Return the values shown on one assignment page."""
-    assignment = status.assignment
+    assignment = status.work
     record = assignment.record
     repository = read_repository(state=state)
     feed = read_agent_feed(owner=assignment, zone=zone, rounds=live.rounds)
@@ -192,13 +168,13 @@ def compose_assignment_view(
 def compose_conversation_view(
     *,
     state: StateDirectory,
-    conversation: AgentWork,
-    status: ConversationStatus,
+    status: AgentWorkStatus,
     daemon: DreamcatcherDaemonStatus,
     live: WebAgentLiveState,
     zone: tzinfo | None,
 ) -> WebConversationView:
     """Return the values shown on one issue-conversation page."""
+    conversation = status.work
     repository = read_repository(state=state)
     feed = read_agent_feed(owner=conversation, zone=zone, rounds=live.rounds)
     return WebConversationView(
@@ -206,8 +182,8 @@ def compose_conversation_view(
         github_repository_url=_compose_github_repository_url(repository=repository),
         daemon=daemon,
         identifier=conversation.identifier,
-        issue=status.issue,
-        title=status.title,
+        issue=conversation.record.issue,
+        title=conversation.record.title,
         facts=_compose_conversation_facts(conversation=conversation),
         live=live,
         feed_rounds=feed.rounds,
@@ -240,40 +216,4 @@ def _compose_agent_rounds(
             revision=round_status.revision,
         )
         for round_status in round_statuses
-    )
-
-
-def _compose_issue_row(*, observation: IssueObservation) -> WebIssueRow:
-    if observation.routing_conflict.value is Truth.TRUE:
-        status = "routing-conflict"
-    elif observation.blocked.value is Truth.TRUE:
-        status = "blocked"
-    else:
-        status = "available"
-    evidence: list[str | int] = (
-        [observation.routing_conflict.evidence]
-        if observation.routing_conflict.value is Truth.TRUE
-        else []
-    )
-    if observation.blocked.value is Truth.TRUE:
-        if evidence:
-            evidence.append("; ")
-        evidence.extend(
-            _compose_issue_references(evidence=observation.blocked.evidence)
-        )
-    details = observation.details
-    return WebIssueRow(
-        issue=observation.issue,
-        title=None if details is None else details.title,
-        labels=", ".join([] if details is None else details.assignment_labels),
-        status=status,
-        evidence=tuple(evidence),
-    )
-
-
-def _compose_issue_references(*, evidence: str) -> tuple[str | int, ...]:
-    return tuple(
-        int(part) if index % 2 else part
-        for index, part in enumerate(_ISSUE_REFERENCE_PATTERN.split(evidence))
-        if part
     )

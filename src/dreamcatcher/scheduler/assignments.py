@@ -3,7 +3,6 @@
 from dataclasses import dataclass
 from datetime import datetime
 from functools import partial
-from typing import cast
 
 from dreamcatcher.agent_assignments import (
     AssignmentRoundInput,
@@ -33,23 +32,23 @@ from dreamcatcher.github import (
 from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.prompts import compose_assignment_input_prompt
 from dreamcatcher.relay import list_undelivered_user_posts
-from dreamcatcher.scheduler.agent_work import AgentWorkScheduler
+from dreamcatcher.scheduler.agent_work import (
+    AgentWorkScheduler,
+    compose_agent_work_row,
+)
 from dreamcatcher.scheduler.faults import (
     derive_agent_work_fault,
     is_last_round_unfinished,
 )
-from dreamcatcher.scheduler.issues import observe_issues
+from dreamcatcher.scheduler.issues import list_assignment_requests
 from dreamcatcher.scheduler.models import (
-    NO_ROUND_HAS_RUN,
     AgentWorkInspection,
-    AgentWorkObservation,
-    IssueObservation,
-    ObservedFact,
-    ObservedIssueDetails,
+    PullRequestFinding,
+    ReadFailureFinding,
+    RequestRow,
     SchedulerRecord,
-    Truth,
+    StartTimeFinding,
 )
-from dreamcatcher.words import describe_count
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -87,62 +86,49 @@ type AssignmentCandidate = (
 
 
 @dataclass(frozen=True, kw_only=True)
-class AssignmentInspection(
-    AgentWorkInspection[AssignmentCandidate, AgentWorkObservation]
-):
-    """Collect assignment inspection facts and issue observations."""
-
-    issue_observations: list[IssueObservation]
-
-
-@dataclass(frozen=True, kw_only=True)
 class _AssignmentItemInspection:
-    candidate: AssignmentCandidate | None
-    observation: AgentWorkObservation
+    row: RequestRow
+    candidate: AssignmentCandidate | None = None
     is_fault: bool = False
 
 
-class AssignmentScheduler(
-    AgentWorkScheduler[
-        AssignmentCandidate,
-        AgentWorkObservation,
-        int,
-    ]
-):
+class AssignmentScheduler(AgentWorkScheduler[AssignmentCandidate, int]):
     """Inspect, rank and launch assignment work."""
 
     def inspect(
         self, *, previous_record: SchedulerRecord | None, at: datetime
-    ) -> AssignmentInspection:
-        """Inspect all assignment work and return one ranked bundle."""
+    ) -> AgentWorkInspection[AssignmentCandidate]:
+        """Inspect all assignment work and return one ranked bundle.
+
+        A failed listing starts no new assignment, but open assignments are
+        still inspected, because they are found on disk.
+        """
         assignments = read_agent_work_of_kind(
             state=self.state, kind=AgentWorkKind.ASSIGNMENT
         )
-        issue_result = observe_issues(scheduler=self, assignments=assignments)
-        issue_observations = [
-            observation.model_copy(update={"observed_at": at})
-            for observation in issue_result.observations
+        requests = list_assignment_requests(scheduler=self, assignments=assignments)
+        inspected = [
+            self._inspect_assignment(
+                assignment=assignment,
+                most_recent_cooldown_ended=(
+                    None
+                    if previous_record is None
+                    else previous_record.most_recent_cooldown_ended
+                ),
+                observed_at=at,
+            )
+            for assignment in find_open_agent_work_by_issue(work=assignments).values()
         ]
-        inspected = self._inspect_assignments(
-            assignments=assignments,
-            most_recent_cooldown_ended=(
-                None
-                if previous_record is None
-                else previous_record.most_recent_cooldown_ended
-            ),
-            observed_at=at,
-        )
         candidates = [
             item.candidate for item in inspected if item.candidate is not None
         ]
-        if not issue_result.failures:
-            candidates.extend(self._compose_new_candidates(issue_observations))
-        return AssignmentInspection(
+        if not requests.failures:
+            candidates.extend(self._compose_new_candidates(rows=requests.rows))
+        return AgentWorkInspection(
             candidates=sorted(candidates, key=self.rank),
-            observations=[item.observation for item in inspected],
+            rows=[*(item.row for item in inspected), *requests.rows],
             fault_count=sum(item.is_fault for item in inspected),
-            failures=issue_result.failures,
-            issue_observations=issue_observations,
+            failures=requests.failures,
         )
 
     def rank(self, candidate: AssignmentCandidate, /) -> int:
@@ -199,26 +185,6 @@ class AssignmentScheduler(
             ),
         )
 
-    def _inspect_assignments(
-        self,
-        *,
-        assignments: list[AgentWork],
-        most_recent_cooldown_ended: datetime | None,
-        observed_at: datetime,
-    ) -> list[_AssignmentItemInspection]:
-        inspected: list[_AssignmentItemInspection] = []
-        for assignment in find_open_agent_work_by_issue(work=assignments).values():
-            if assignment.rounds and assignment.rounds[-1].ending is None:
-                continue
-            inspected.append(
-                self._inspect_assignment(
-                    assignment=assignment,
-                    most_recent_cooldown_ended=most_recent_cooldown_ended,
-                    observed_at=observed_at,
-                )
-            )
-        return inspected
-
     def _inspect_assignment(
         self,
         *,
@@ -226,32 +192,25 @@ class AssignmentScheduler(
         most_recent_cooldown_ended: datetime | None,
         observed_at: datetime,
     ) -> _AssignmentItemInspection:
+        """Inspect one open assignment, reading its pull request once it has one.
+
+        Nothing is read for an assignment whose round is running or that is in
+        fault, since neither can start a round.
+        """
+        unread = compose_agent_work_row(work=assignment, finding=None)
+        if assignment.rounds and assignment.rounds[-1].ending is None:
+            return _AssignmentItemInspection(row=unread)
         if derive_agent_work_fault(
             rounds=assignment.rounds,
             retry_requested_at=assignment.retry_requested_at,
             most_recent_cooldown_ended=most_recent_cooldown_ended,
         ):
-            return _AssignmentItemInspection(
-                candidate=None,
-                observation=_compose_assignment_observation(
-                    assignment=assignment,
-                    evidence="in fault",
-                    value=Truth.FALSE,
-                ),
-                is_fault=True,
-            )
+            return _AssignmentItemInspection(row=unread, is_fault=True)
         observation = read_pull_request_observation(assignment=assignment)
         if observation is None:
             return _AssignmentItemInspection(
+                row=unread,
                 candidate=PullRequestOpeningCandidate(assignment=assignment),
-                observation=_compose_assignment_observation(
-                    assignment=assignment,
-                    evidence=(
-                        _describe_unfinished_round(assignment=assignment)
-                        if assignment.rounds
-                        else NO_ROUND_HAS_RUN
-                    ),
-                ),
             )
         return self._inspect_pull_request(
             assignment=assignment,
@@ -266,60 +225,27 @@ class AssignmentScheduler(
         observation: PullRequestObservation,
         observed_at: datetime,
     ) -> _AssignmentItemInspection:
-        """Inspect an assignment's pull request and pending user posts."""
+        """Inspect an assignment's pull request and the user posts past its cursor.
+
+        A round is due for user posts past the cursor, for a merged or closed
+        pull request whose final turn has not been taken, or to give again the
+        input of a round that did not finish.
+        """
         pull_request = read_pull_request(
             repository=self.repository, pull_request=observation.number
         )
         if isinstance(pull_request, UnknownGitHubResponse):
             return _AssignmentItemInspection(
-                candidate=None,
-                observation=_compose_assignment_observation(
-                    assignment=assignment,
-                    evidence=f"cannot read its pull request: {pull_request.reason}",
-                    value=Truth.UNKNOWN,
-                ),
+                row=compose_agent_work_row(
+                    work=assignment,
+                    finding=ReadFailureFinding(reason=pull_request.reason),
+                )
             )
         record_pull_request_observation(
             assignment=assignment,
             pull_request=pull_request,
             observed_at=observed_at,
         )
-        candidate_or_observation = self._inspect_pending_round(
-            assignment=assignment,
-            pull_request=pull_request,
-        )
-        if isinstance(candidate_or_observation, AgentWorkObservation):
-            return _AssignmentItemInspection(
-                candidate=None, observation=candidate_or_observation
-            )
-        if candidate_or_observation is None:
-            return _AssignmentItemInspection(
-                candidate=None,
-                observation=_compose_assignment_observation(
-                    assignment=assignment,
-                    evidence="no round required",
-                    value=Truth.FALSE,
-                ),
-            )
-        return _AssignmentItemInspection(
-            candidate=candidate_or_observation,
-            observation=_compose_assignment_observation(
-                assignment=assignment,
-                evidence=_describe_assignment_candidate(
-                    candidate=candidate_or_observation
-                ),
-            ),
-        )
-
-    def _inspect_pending_round(
-        self, *, assignment: AgentWork, pull_request: PullRequest
-    ) -> AssignmentRoundCandidate | AgentWorkObservation | None:
-        """Return the round the assignment needs, if any.
-
-        A round is needed for user posts past the cursor, for a merged or closed
-        pull request whose final turn has not been taken, or to give again the
-        input of a round that did not finish.
-        """
         undelivered_posts = list_undelivered_user_posts(
             repository=self.repository,
             pull_request=pull_request.number,
@@ -327,70 +253,52 @@ class AssignmentScheduler(
             delivery_position=read_user_post_delivery_position(assignment=assignment),
         )
         if isinstance(undelivered_posts, UnknownGitHubResponse):
-            return _compose_assignment_observation(
-                assignment=assignment,
-                evidence=(
-                    f"cannot tell what the user posted: {undelivered_posts.reason}"
-                ),
-                value=Truth.UNKNOWN,
+            return _AssignmentItemInspection(
+                row=compose_agent_work_row(
+                    work=assignment,
+                    finding=ReadFailureFinding(reason=undelivered_posts.reason),
+                )
             )
-        if not (
-            undelivered_posts
-            or (
+        finding = PullRequestFinding(
+            number=pull_request.number,
+            state=pull_request.state,
+            is_draft=pull_request.is_draft,
+            new_posts=len(undelivered_posts),
+            is_final_turn_due=(
                 pull_request.state is not PullRequestState.OPEN
                 and not is_final_turn_taken(assignment=assignment)
-            )
+            ),
+        )
+        row = compose_agent_work_row(work=assignment, finding=finding)
+        if not (
+            finding.new_posts
+            or finding.is_final_turn_due
             or is_last_round_unfinished(
                 rounds=assignment.rounds, is_daemon_running=True
             )
         ):
-            return None
-        return AssignmentRoundCandidate(
-            assignment=assignment,
-            pull_request=pull_request,
-            undelivered_posts=undelivered_posts,
+            return _AssignmentItemInspection(row=row)
+        return _AssignmentItemInspection(
+            row=row,
+            candidate=AssignmentRoundCandidate(
+                assignment=assignment,
+                pull_request=pull_request,
+                undelivered_posts=undelivered_posts,
+            ),
         )
 
     def _compose_new_candidates(
-        self, observations: list[IssueObservation], /
+        self, *, rows: list[RequestRow]
     ) -> list[NewAssignmentCandidate]:
+        """Return a new assignment for each request that nothing claims or blocks."""
         return [
             NewAssignmentCandidate(
-                issue=observation.issue,
-                title=cast("ObservedIssueDetails", observation.details).title,
+                issue=row.issue,
+                title=row.title,
                 route=self.config.identify_assignment_routes(
-                    labels=cast(
-                        "ObservedIssueDetails", observation.details
-                    ).assignment_labels
+                    labels=[row.dispatch_label]
                 )[0],
             )
-            for observation in observations
-            if observation.availability.value is Truth.TRUE
+            for row in rows
+            if isinstance(row.finding, StartTimeFinding) and row.finding.is_clear
         ]
-
-
-def _describe_assignment_candidate(*, candidate: AssignmentRoundCandidate) -> str:
-    if candidate.pull_request.state is not PullRequestState.OPEN:
-        return f"the pull request is {candidate.pull_request.state.lower()}"
-    if candidate.undelivered_posts:
-        posts = describe_count(number=len(candidate.undelivered_posts), noun="new post")
-        return f"{posts} to answer"
-    return _describe_unfinished_round(assignment=candidate.assignment)
-
-
-def _describe_unfinished_round(*, assignment: AgentWork) -> str:
-    latest_round = assignment.rounds[-1]
-    return f"round {latest_round.number} {latest_round.outcome}, to try again"
-
-
-def _compose_assignment_observation(
-    *,
-    assignment: AgentWork,
-    evidence: str,
-    value: Truth = Truth.TRUE,
-) -> AgentWorkObservation:
-    return AgentWorkObservation(
-        identifier=assignment.identifier,
-        issue=assignment.record.issue,
-        requires_round=ObservedFact(value=value, evidence=evidence),
-    )
