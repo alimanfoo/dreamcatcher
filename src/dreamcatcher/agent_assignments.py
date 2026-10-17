@@ -99,7 +99,8 @@ def cancel_assignment(*, assignment: AgentWork, at: datetime) -> None:
 
     The ending is written before the running round is asked to stop, so a round
     that starts at the same moment either receives the stop request here or sees
-    the ending itself.
+    the ending itself. An assignment that has already ended raises
+    ReportableError.
     """
     if not assignment.is_open:
         raise ReportableError(f"{assignment.identifier} has already ended.")
