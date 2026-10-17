@@ -38,7 +38,7 @@ def describe_read_failure(*, reason: str) -> str:
 
 
 def describe_signal(*, signal: PullRequestSignal) -> str:
-    """Say what a pull request signal tells the agent."""
+    """Say what a status calls a pull request signal that woke or will wake a round."""
     return _SIGNAL_WORDS[signal]
 
 
