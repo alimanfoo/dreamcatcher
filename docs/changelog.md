@@ -26,6 +26,12 @@ each entry links the pull request or commit that made the change.
 
 ## Unreleased
 
+### Changed
+
+- The empty commit that starts an assignment now uses the checkout's Git author
+  and skips CI. Checks begin with the agent's first real commit instead.
+  ([#582](https://github.com/alimanfoo/dreamcatcher/pull/582))
+
 ## [v6.0.0](https://github.com/alimanfoo/dreamcatcher/releases/tag/v6.0.0) — 2026-10-17
 
 ### Breaking
