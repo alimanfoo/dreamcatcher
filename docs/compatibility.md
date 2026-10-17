@@ -20,9 +20,9 @@ The new release starts with empty local state in `.dreamcatcher/v6/`. It leaves
 `.dreamcatcher/v5/` untouched but does not read it. Existing GitHub issues,
 comments and pull requests remain on GitHub.
 
-A fresh conversation has no saved delivery position. If its issue still has a
-conversation label, the new conversation is given every comment you have posted
-on the issue, and _dreamcatcher_ may answer them again.
+A fresh conversation has read none of the issue's comments. If its issue still
+has a conversation label, the new conversation is given every comment you have
+posted on the issue, and _dreamcatcher_ may answer them again.
 
 There is no state migration. Once you have accepted the fresh start, run the new
 daemon normally from the same main checkout.
@@ -41,9 +41,9 @@ The new release starts with empty local state in `.dreamcatcher/v5/`. It leaves
 `.dreamcatcher/v4/` untouched but does not read it. Existing GitHub issues,
 comments and pull requests remain on GitHub.
 
-A fresh conversation has no saved delivery position. If its issue still has a
-conversation label, _dreamcatcher_ may treat existing eligible comments as new
-input and answer them again.
+A fresh conversation has read none of the issue's comments. If its issue still
+has a conversation label, _dreamcatcher_ may treat existing eligible comments as
+new input and answer them again.
 
 There is no state migration. Once you have accepted the fresh start, run the new
 daemon normally from the same main checkout.

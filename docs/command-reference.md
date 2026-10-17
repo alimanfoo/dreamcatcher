@@ -145,8 +145,8 @@ command asks it to stop, without the conditions that `stop` requires.
 _dreamcatcher_ leaves the pull request as it is, and while it is open it claims
 the issue as work outside _dreamcatcher_. The worktree and branch stay in place,
 so you can carry on in the assignment's worktree. An assignment cancelled before
-its first round opened a pull request has none to finish, and the command says
-so; any worktree or branch that round made also stays in place. The cancelled
+any round opened a pull request has none to finish, and the command says so; any
+worktree or branch that a round made also stays in place. The cancelled
 assignment shows as **ended** with the detail cancelled on the web home page and
 in `dreamcatcher assignment`, and `dreamcatcher status` counts it among the
 ended assignments.

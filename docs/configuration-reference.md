@@ -134,8 +134,9 @@ label, harness, prompt, model, effort and harness config chosen when it was
 created; later configuration changes do not rewrite that record.
 
 A conversation belongs to the conversation label that started it. Another
-conversation label on the same issue starts a conversation of its own, with that
-label's route and recipe.
+conversation label starts a conversation of its own, with that label's route and
+recipe, once it is the only conversation label on the issue. While both are on
+the issue, the labels conflict and nothing starts.
 
 A matching label selects a route but does not by itself make an issue ready for
 dispatch. [From issue to pull request](tutorial.md) explains how to prepare an

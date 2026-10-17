@@ -1,9 +1,10 @@
 # Review an assignment
 
-_dreamcatcher_ opens a draft pull request before the assignment's first agent
-round. That early draft proves the branch and communication channel exist; it is
-not a claim that the implementation is finished. Begin your normal code review
-when the assignment skill marks the pull request ready for review.
+_dreamcatcher_ opens a draft pull request in the assignment's first round,
+before the agent starts. That early draft proves the branch and communication
+channel exist; it is not a claim that the implementation is finished. Begin your
+normal code review when the assignment skill marks the pull request ready for
+review.
 
 You need the daemon running for feedback and final wrap-up to reach the agent.
 Use the web home page or `dreamcatcher assignment GH123` to confirm which pull
