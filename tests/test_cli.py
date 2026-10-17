@@ -6,6 +6,7 @@ import pytest
 from clocks import PINNED
 from conftest import configure
 from records import (
+    MERGED_INPUT,
     hold_daemon_lock_for_test,
     read_conversation,
     write_assignment,
@@ -17,8 +18,6 @@ from records import (
 from dreamcatcher import web
 from dreamcatcher.agent_rounds import (
     AgentRoundRecord,
-    AssignmentRoundPurpose,
-    ConversationRoundPurpose,
     _compose_agent_round_ending,
 )
 from dreamcatcher.agent_work import read_agent_work_at_issue, request_agent_work_retry
@@ -48,7 +47,6 @@ def write_faulted_conversation(*, state: StateDirectory, issue: int) -> None:
                 number=number,
                 started=ended,
                 pid=1,
-                purpose=ConversationRoundPurpose.DISCUSS,
                 ending=_compose_agent_round_ending(at=ended, status=number),
             ),
         )
@@ -69,7 +67,6 @@ def watching(tmp_path):
             number=1,
             started=PINNED,
             pid=1,
-            purpose=AssignmentRoundPurpose.IMPLEMENT,
         ),
     )
     write_feed(
@@ -123,7 +120,6 @@ def faulted(tmp_path):
                 number=number,
                 started=ended,
                 pid=1,
-                purpose=AssignmentRoundPurpose.IMPLEMENT,
                 ending=_compose_agent_round_ending(at=ended, status=number),
             ),
         )
@@ -378,7 +374,6 @@ def test_stop_requests_an_issue_conversations_running_round(
             number=1,
             started=PINNED,
             pid=1,
-            purpose=ConversationRoundPurpose.DISCUSS,
         ),
     )
     monkeypatch.chdir(tmp_path)
@@ -478,7 +473,6 @@ def test_stop_refuses_a_round_without_a_resumable_session(
             number=1,
             started=PINNED,
             pid=1,
-            purpose=AssignmentRoundPurpose.IMPLEMENT,
         ),
     )
     monkeypatch.chdir(tmp_path)
@@ -511,7 +505,6 @@ def test_stop_refuses_a_conversation_round_without_a_resumable_session(
             number=1,
             started=PINNED,
             pid=1,
-            purpose=ConversationRoundPurpose.DISCUSS,
         ),
     )
     monkeypatch.chdir(tmp_path)
@@ -539,20 +532,20 @@ def test_feed_shows_what_the_assignment_said(monkeypatch, watching, capsys):
             number=2,
             started=later,
             pid=1,
-            purpose=AssignmentRoundPurpose.WRAP_UP,
             ending=_compose_agent_round_ending(at=later, status=0),
         ),
+        round_input=MERGED_INPUT,
     )
 
     assert main(argv=["feed", "GH13", "--assignment"]) == 0
-    assert "round 1: implement" in capsys.readouterr().out
+    assert "round 1: start" in capsys.readouterr().out
 
 
 def test_feed_naming_a_round_shows_that_rounds_feed(monkeypatch, watching, capsys):
     monkeypatch.chdir(watching.root)
 
     assert main(argv=["feed", "GH13", "--assignment", "--round", "1"]) == 0
-    assert "round 1: implement" in capsys.readouterr().out
+    assert "round 1: start" in capsys.readouterr().out
 
 
 def test_conversation_shows_its_local_detail(monkeypatch, watching, capsys):
@@ -572,7 +565,6 @@ def test_feed_shows_what_the_conversation_said(monkeypatch, watching, capsys):
             number=1,
             started=PINNED,
             pid=1,
-            purpose=ConversationRoundPurpose.DISCUSS,
             ending=_compose_agent_round_ending(at=PINNED, status=0),
         ),
     )

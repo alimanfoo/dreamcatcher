@@ -29,8 +29,6 @@ from records import (
 from dreamcatcher.agent_rounds import (
     AgentRoundOutcome,
     AgentRoundRecord,
-    AssignmentRoundPurpose,
-    ConversationRoundPurpose,
     _compose_agent_round_ending,
     request_agent_round_stop,
 )
@@ -56,7 +54,6 @@ from dreamcatcher.version import DREAMCATCHER_VERSION
 ASSIGNMENT_ID = "GH13-20260819-184158-assignment"
 
 # What every round the tests here write down says woke it.
-PURPOSE = AssignmentRoundPurpose.IMPLEMENT
 
 # How long a scripted harness waits after its first line, so a round the daemon
 # launched is certainly still running at the next tick. The waits these tests
@@ -474,9 +471,7 @@ def test_a_round_the_daemon_before_this_one_left_running_is_ended(
     write_round(
         directory=directory,
         number=1,
-        record=AgentRoundRecord(
-            number=1, started=PINNED, pid=left_running.pid, purpose=PURPOSE
-        ),
+        record=AgentRoundRecord(number=1, started=PINNED, pid=left_running.pid),
     )
     daemon, _, _ = idling(root=watched)
 
@@ -495,9 +490,7 @@ def test_a_pending_stop_survives_daemon_restart(watched, harnesses, gh, left_run
     write_round(
         directory=directory,
         number=1,
-        record=AgentRoundRecord(
-            number=1, started=PINNED, pid=left_running.pid, purpose=PURPOSE
-        ),
+        record=AgentRoundRecord(number=1, started=PINNED, pid=left_running.pid),
     )
     assignment = find_agent_work(state=state, identifier=ASSIGNMENT_ID)
     assert assignment is not None
@@ -524,7 +517,6 @@ def test_a_conversation_round_left_running_is_ended(
             number=1,
             started=PINNED,
             pid=left_running.pid,
-            purpose=ConversationRoundPurpose.DISCUSS,
         ),
     )
     daemon, _, _ = idling(root=watched)
@@ -551,7 +543,6 @@ def test_a_round_that_recorded_an_ending_is_left_running_by_the_sweep(
             number=1,
             started=PINNED,
             pid=left_running.pid,
-            purpose=PURPOSE,
             ending=_compose_agent_round_ending(at=PINNED, status=0),
         ),
     )

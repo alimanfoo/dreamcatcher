@@ -1,5 +1,5 @@
 newest agent assignment GH13-20260819-184158-assignment
-working  round 2, address feedback, running 1h 30m, has said nothing yet
+working  round 2, 1 post, running 1h 30m, has said nothing yet
 
 assignment
   issue identifier             GH13                                                      
@@ -14,5 +14,5 @@ assignment
   effort                       xhigh                                                     
 
 rounds
-  2  address feedback  2026-08-20 03:11:58          running   
-  1  implement         2026-08-20 02:42:58  ran 4m  successful
+  2  1 post  2026-08-20 03:11:58          running   
+  1  start   2026-08-20 02:42:58  ran 4m  successful

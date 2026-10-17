@@ -7,7 +7,6 @@ from records import read_conversation
 
 from dreamcatcher.agent_rounds import (
     AgentRoundRecord,
-    ConversationRoundPurpose,
     ErroredAgentRoundEnding,
     InterruptedAgentRoundEnding,
     StoppedAgentRoundEnding,
@@ -294,7 +293,6 @@ def test_a_conversation_numbers_its_rounds_by_their_records(tmp_path):
     write_json(
         document=AgentRoundRecord(
             number=1,
-            purpose=ConversationRoundPurpose.DISCUSS,
             started=PINNED,
             pid=123,
         ),
@@ -312,7 +310,6 @@ def test_a_conversation_recovers_a_session_reported_by_a_later_round(tmp_path):
         write_json(
             document=AgentRoundRecord(
                 number=number,
-                purpose=ConversationRoundPurpose.DISCUSS,
                 started=PINNED,
                 pid=1,
             ),
@@ -366,7 +363,6 @@ def test_the_delivery_position_comes_from_the_latest_relayed_round(
         write_json(
             document=AgentRoundRecord(
                 number=number,
-                purpose=ConversationRoundPurpose.DISCUSS,
                 started=PINNED,
                 pid=123,
                 ending=endings.get(number, SuccessfulAgentRoundEnding(at=PINNED)),
@@ -402,7 +398,6 @@ def test_the_delivery_position_refuses_a_round_without_comments(tmp_path):
     write_json(
         document=AgentRoundRecord(
             number=1,
-            purpose=ConversationRoundPurpose.DISCUSS,
             started=PINNED,
             pid=123,
             ending=SuccessfulAgentRoundEnding(at=PINNED),
@@ -447,7 +442,6 @@ def test_the_delivery_position_refuses_inconsistent_round_input(
     write_json(
         document=AgentRoundRecord(
             number=1,
-            purpose=ConversationRoundPurpose.DISCUSS,
             started=PINNED,
             pid=123,
             ending=SuccessfulAgentRoundEnding(at=PINNED),

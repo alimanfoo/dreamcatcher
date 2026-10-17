@@ -7,6 +7,7 @@ from clocks import PINNED
 from conftest import REPOSITORY
 from observations import observed_issue
 from records import (
+    MERGED_INPUT,
     hold_daemon_lock_for_test,
     read_assignments,
     write_assignment,
@@ -18,11 +19,11 @@ from records import (
 from status_fabrications import fabricate_everything
 
 from dreamcatcher.agent_assignments import (
+    AssignmentRoundInput,
     cancel_assignment,
 )
 from dreamcatcher.agent_rounds import (
     AgentRoundRecord,
-    AssignmentRoundPurpose,
     InterruptedAgentRoundEnding,
     StoppedAgentRoundEnding,
     _compose_agent_round_ending,
@@ -94,9 +95,9 @@ def ran(
     *,
     state: StateDirectory,
     number: int,
-    purpose: AssignmentRoundPurpose = AssignmentRoundPurpose.IMPLEMENT,
     status: int | None = 0,
     ended_at=PINNED,
+    round_input: AssignmentRoundInput | None = None,
 ) -> None:
     """Write one round for the fixture's assignment."""
     started = PINNED + timedelta(minutes=number)
@@ -110,11 +111,11 @@ def ran(
         number=number,
         record=AgentRoundRecord(
             number=number,
-            purpose=purpose,
             started=started,
             pid=1,
             ending=ending,
         ),
+        round_input=round_input,
     )
 
 
@@ -234,7 +235,7 @@ def test_a_live_round_reports_work_and_its_latest_output(running):
     assert found.daemon.pid == os.getpid()
     assert found.running_agents == 1
     assert status.value is AssignmentStatusValue.WORKING
-    assert status.detail == "round 1, implement, running 1h 59m, last output 1h 58m ago"
+    assert status.detail == "round 1, start, running 1h 59m, last output 1h 58m ago"
     assert status.latest_output == "[Bash] pytest"
     assert status.hand_resume_command is None
 
@@ -263,7 +264,6 @@ def test_a_terminal_round_status_describes_its_outcome_and_duration(
         number=1,
         record=AgentRoundRecord(
             number=1,
-            purpose=AssignmentRoundPurpose.IMPLEMENT,
             started=PINNED,
             pid=1,
             ending=ending,
@@ -306,7 +306,6 @@ def test_status_recovers_the_harness_session_and_builds_its_resume_command(tmp_p
         number=1,
         record=AgentRoundRecord(
             number=1,
-            purpose=AssignmentRoundPurpose.IMPLEMENT,
             started=PINNED,
             pid=1,
             ending=_compose_agent_round_ending(
@@ -362,7 +361,6 @@ def test_status_with_no_harness_session_has_no_resume_command(tmp_path):
         number=1,
         record=AgentRoundRecord(
             number=1,
-            purpose=AssignmentRoundPurpose.IMPLEMENT,
             started=PINNED,
             pid=1,
             ending=_compose_agent_round_ending(
@@ -383,7 +381,7 @@ def test_a_live_round_that_has_said_nothing_reports_that(running):
     status = only_assignment(state=running)
 
     assert status.value is AssignmentStatusValue.WORKING
-    assert status.detail == "round 1, implement, running 1h 59m, has said nothing yet"
+    assert status.detail == "round 1, start, running 1h 59m, has said nothing yet"
     assert status.latest_output is None
 
 
@@ -405,7 +403,7 @@ def test_an_unfinished_round_waits_for_recovery(state, round_status, detail):
 
 def test_a_successful_wrap_up_is_complete(state):
     ran(state=state, number=1)
-    ran(state=state, number=2, purpose=AssignmentRoundPurpose.WRAP_UP)
+    ran(state=state, number=2, round_input=MERGED_INPUT)
 
     status = only_assignment(state=state)
 
@@ -469,7 +467,7 @@ def test_an_assignment_that_has_run_no_round_waits_for_its_first(state):
     status = only_assignment(state=state)
 
     assert status.value is AssignmentStatusValue.WAITING
-    assert status.detail == "next round, implement"
+    assert status.detail == "no round has run yet"
     assert not status.has_ended
 
 
@@ -495,7 +493,7 @@ def test_a_required_round_reports_the_scheduler_reason(state):
     status = only_assignment(state=state)
 
     assert status.value is AssignmentStatusValue.WAITING
-    assert status.detail == "next round, implement"
+    assert status.detail == "1 new post to answer"
 
 
 def test_an_unknown_assignment_observation_reports_unknown(state):
@@ -633,7 +631,6 @@ def test_a_stopped_assignment_needs_user_feedback(state):
         number=1,
         record=AgentRoundRecord(
             number=1,
-            purpose=AssignmentRoundPurpose.IMPLEMENT,
             started=started,
             pid=1,
             ending=StoppedAgentRoundEnding(at=started + timedelta(minutes=4)),
@@ -822,7 +819,7 @@ def test_an_open_local_assignment_removes_its_issue_from_available_work(state):
 
 
 def test_a_complete_local_assignment_no_longer_claims_its_observed_issue(state):
-    ran(state=state, number=1, purpose=AssignmentRoundPurpose.WRAP_UP)
+    ran(state=state, number=1, round_input=MERGED_INPUT)
     observation = observed_issue(
         issue=13,
         values={"claimed_here": Truth.TRUE},

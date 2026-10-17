@@ -1,12 +1,14 @@
 """Fabricate local status-report states shared by presentation tests."""
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from datetime import timedelta
+from types import MappingProxyType
 
 from clocks import PINNED
-from conftest import ASSIGNMENT_LABEL, DAEMON_PID, REPOSITORY
+from conftest import ASSIGNMENT_LABEL, DAEMON_PID, REPOSITORY, comment
 from observations import observed_conversation, observed_issue
 from records import (
+    MERGED_INPUT,
     hold_daemon_lock_for_test,
     release_daemon_lock,
     write_assignment,
@@ -19,19 +21,18 @@ from records import (
 )
 
 from dreamcatcher.agent_assignments import (
+    AssignmentRoundInput,
     PullRequestObservation,
     cancel_assignment,
 )
 from dreamcatcher.agent_rounds import (
     AgentRoundRecord,
-    AssignmentRoundPurpose,
-    ConversationRoundPurpose,
     _compose_agent_round_ending,
 )
 from dreamcatcher.agent_work import read_agent_work_at_issue
 from dreamcatcher.documents import write_json, write_text
 from dreamcatcher.feed import FeedLine
-from dreamcatcher.github import PullRequestState
+from dreamcatcher.github import ConversationComment, PullRequestState
 from dreamcatcher.harness_adapters import AgentWorkKind, HarnessSessionIdentifier
 from dreamcatcher.issue_conversations import (
     ConversationRoundInput,
@@ -122,7 +123,6 @@ def fabricate_conversation(
         number=1,
         record=AgentRoundRecord(
             number=1,
-            purpose=ConversationRoundPurpose.DISCUSS,
             started=PINNED,
             pid=1,
             ending=_compose_agent_round_ending(
@@ -157,8 +157,27 @@ def fabricate_conversation(
     write_final_output(directory=directory, number=1, text="The answer.")
 
 
-def written(*, state, issue: int, records: Sequence[AgentRoundRecord]):
-    """Write an assignment for the issue, with these rounds behind it."""
+# What an assignment round woken by one post from the user was given.
+ONE_POST_INPUT = AssignmentRoundInput(
+    pull_request_state=PullRequestState.OPEN,
+    user_posts=[ConversationComment.model_validate(comment())],
+)
+
+# What an assignment round given the input of one that did not finish was given,
+# when that input held no posts.
+CARRY_ON_INPUT = AssignmentRoundInput(
+    pull_request_state=PullRequestState.OPEN, user_posts=[]
+)
+
+
+def written(
+    *,
+    state,
+    issue: int,
+    records: Sequence[AgentRoundRecord],
+    round_inputs: Mapping[int, AssignmentRoundInput] = MappingProxyType({}),
+):
+    """Write an assignment for the issue, with these rounds and their inputs."""
     directory = write_assignment(
         state=state,
         identifier=f"GH{issue}-{ASSIGNMENT_TIMESTAMP}-assignment",
@@ -166,7 +185,12 @@ def written(*, state, issue: int, records: Sequence[AgentRoundRecord]):
         harness_session_identifier=(HARNESS_SESSION_IDENTIFIER if records else None),
     )
     for number, record in enumerate(records, start=1):
-        write_round(directory=directory, number=number, record=record)
+        write_round(
+            directory=directory,
+            number=number,
+            record=record,
+            round_input=round_inputs.get(number),
+        )
     return directory
 
 
@@ -175,7 +199,6 @@ def ended(
     minute: int,
     number: int = 1,
     status: int = 0,
-    purpose: AssignmentRoundPurpose = AssignmentRoundPurpose.IMPLEMENT,
 ):
     """Return a round that started that minute and ran for four minutes."""
     started = PINNED + timedelta(minutes=minute)
@@ -183,7 +206,6 @@ def ended(
         number=number,
         started=started,
         pid=1,
-        purpose=purpose,
         ending=_compose_agent_round_ending(
             at=started + timedelta(minutes=4), status=status
         ),
@@ -194,14 +216,12 @@ def running(
     *,
     minute: int,
     number: int = 1,
-    purpose: AssignmentRoundPurpose = AssignmentRoundPurpose.IMPLEMENT,
 ):
     """Return a round that started that minute and is still running."""
     return AgentRoundRecord(
         number=number,
         started=PINNED + timedelta(minutes=minute),
         pid=1,
-        purpose=purpose,
     )
 
 
@@ -228,14 +248,8 @@ def fabricate_everything(
     directory = written(
         state=state,
         issue=13,
-        records=[
-            ended(minute=1),
-            running(
-                minute=30,
-                number=2,
-                purpose=AssignmentRoundPurpose.ADDRESS_FEEDBACK,
-            ),
-        ],
+        records=[ended(minute=1), running(minute=30, number=2)],
+        round_inputs={2: ONE_POST_INPUT},
     )
     write_feed(directory=directory, number=1, lines=SAID)
     write_feed(
@@ -255,6 +269,7 @@ def fabricate_everything(
         state=state,
         issue=9,
         records=[ended(minute=1, status=1), ended(minute=2, number=2, status=2)],
+        round_inputs={2: CARRY_ON_INPUT},
     )
     write_feed(
         directory=faulted_directory,
@@ -269,10 +284,8 @@ def fabricate_everything(
     written(
         state=state,
         issue=12,
-        records=[
-            ended(minute=1),
-            ended(minute=2, number=2, purpose=AssignmentRoundPurpose.WRAP_UP),
-        ],
+        records=[ended(minute=1), ended(minute=2, number=2)],
+        round_inputs={2: MERGED_INPUT},
     )
     written(state=state, issue=44, records=[])
     written(state=state, issue=70, records=[ended(minute=1)])
@@ -428,28 +441,31 @@ def fabricate_repeat_assignments(*, state):
     """Write three assignments at one issue to show repeat assignment dispatches."""
     write_text(text=f"{REPOSITORY}\n", path=state.repository)
     write_daemon_run(state=state, pid=DAEMON_PID)
-    for stamp, rounds in (
+    for stamp, rounds, round_inputs in (
         (
             "20260817-090000",
-            (
-                ended(minute=1),
-                ended(minute=2, number=2, purpose=AssignmentRoundPurpose.WRAP_UP),
-            ),
+            (ended(minute=1), ended(minute=2, number=2)),
+            (None, MERGED_INPUT),
         ),
         (
             "20260818-090000",
-            (
-                ended(minute=1),
-                ended(minute=2, number=2, purpose=AssignmentRoundPurpose.WRAP_UP),
-            ),
+            (ended(minute=1), ended(minute=2, number=2)),
+            (None, MERGED_INPUT),
         ),
-        ("20260819-184158", (ended(minute=1),)),
+        ("20260819-184158", (ended(minute=1),), (None,)),
     ):
         directory = write_assignment(
             state=state, identifier=f"GH13-{stamp}-assignment", issue=13
         )
-        for number, record in enumerate(rounds, start=1):
-            write_round(directory=directory, number=number, record=record)
+        for number, (record, round_input) in enumerate(
+            zip(rounds, round_inputs, strict=True), start=1
+        ):
+            write_round(
+                directory=directory,
+                number=number,
+                record=record,
+                round_input=round_input,
+            )
         write_feed(
             directory=directory,
             number=len(rounds),
@@ -482,14 +498,8 @@ def fabricate_a_silent_round(*, state):
     directory = written(
         state=state,
         issue=13,
-        records=[
-            ended(minute=1),
-            running(
-                minute=30,
-                number=2,
-                purpose=AssignmentRoundPurpose.ADDRESS_FEEDBACK,
-            ),
-        ],
+        records=[ended(minute=1), running(minute=30, number=2)],
+        round_inputs={2: ONE_POST_INPUT},
     )
     write_feed(
         directory=directory,

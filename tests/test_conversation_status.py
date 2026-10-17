@@ -22,7 +22,6 @@ from records import (
 
 from dreamcatcher.agent_rounds import (
     AgentRoundRecord,
-    ConversationRoundPurpose,
     StoppedAgentRoundEnding,
     _compose_agent_round_ending,
 )
@@ -91,7 +90,6 @@ def conversation_round(
         number=1,
         record=AgentRoundRecord(
             number=1,
-            purpose=ConversationRoundPurpose.DISCUSS,
             started=PINNED,
             pid=1,
             ending=ending,
@@ -134,7 +132,6 @@ def write_second_conversation_error(*, state: StateDirectory) -> None:
         number=2,
         record=AgentRoundRecord(
             number=2,
-            purpose=ConversationRoundPurpose.DISCUSS,
             started=PINNED + timedelta(minutes=5),
             pid=2,
             ending=_compose_agent_round_ending(
@@ -371,7 +368,7 @@ def test_a_live_round_keeps_an_ineligible_conversation_on_the_report(
         heading="conversations", empty_message=None
     )
     assert found.value is ConversationStatusValue.WORKING
-    assert found.detail == ("round 1, discuss, running 2h 0m, last output 1h 59m ago")
+    assert found.detail == ("round 1, 1 comment, running 2h 0m, last output 1h 59m ago")
     assert found.latest_output == "I am reading the scheduler."
     assert found.is_listed
     assert found.round_statuses[0].outcome_description == "running"
@@ -390,7 +387,7 @@ def test_a_live_conversation_that_has_said_nothing_reports_that(
     found = status(state=conversation_state)
 
     assert found.value is ConversationStatusValue.WORKING
-    assert found.detail == "round 1, discuss, running 2h 0m, has said nothing yet"
+    assert found.detail == "round 1, 1 comment, running 2h 0m, has said nothing yet"
     assert found.latest_output is None
 
 
@@ -614,7 +611,6 @@ def test_a_stopped_conversation_waits_for_new_comments(conversation_state):
         number=1,
         record=AgentRoundRecord(
             number=1,
-            purpose=ConversationRoundPurpose.DISCUSS,
             started=PINNED,
             pid=1,
             ending=StoppedAgentRoundEnding(at=PINNED + timedelta(minutes=4)),

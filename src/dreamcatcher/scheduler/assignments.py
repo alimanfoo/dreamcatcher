@@ -15,11 +15,7 @@ from dreamcatcher.agent_assignments import (
     read_user_post_delivery_position,
     record_pull_request_observation,
 )
-from dreamcatcher.agent_rounds import (
-    AgentRound,
-    AgentRoundPlan,
-    AssignmentRoundPurpose,
-)
+from dreamcatcher.agent_rounds import AgentRound
 from dreamcatcher.agent_work import (
     AgentWork,
     find_open_agent_work_by_issue,
@@ -51,7 +47,6 @@ from dreamcatcher.scheduler.models import (
     ObservedIssueDetails,
     SchedulerRecord,
     Truth,
-    derive_round_purpose,
 )
 from dreamcatcher.words import describe_count
 
@@ -156,13 +151,7 @@ class AssignmentScheduler(
         """Rank an assignment candidate when `sorted` passes it by position."""
         if isinstance(candidate, FirstAssignmentRoundCandidate):
             return 0
-        if isinstance(candidate, NewAssignmentCandidate):
-            return 3
-        if derive_round_purpose(pull_request=candidate.pull_request) is (
-            AssignmentRoundPurpose.WRAP_UP
-        ):
-            return 1
-        return 2
+        return 1 if isinstance(candidate, NewAssignmentCandidate) else 0
 
     def launch(self, *, candidate: AssignmentCandidate, at: datetime) -> AgentRound:
         """Create any new assignment, then start its required round."""
@@ -177,19 +166,14 @@ class AssignmentScheduler(
             candidate = FirstAssignmentRoundCandidate(assignment=assignment)
         if isinstance(candidate, FirstAssignmentRoundCandidate):
             return self._start_round(
-                assignment=candidate.assignment,
-                plan=AgentRoundPlan(purpose=AssignmentRoundPurpose.IMPLEMENT),
-                input_prompt=None,
+                assignment=candidate.assignment, round_input=None, input_prompt=None
             )
         assignment = candidate.assignment
         return self._start_round(
             assignment=assignment,
-            plan=AgentRoundPlan(
-                purpose=derive_round_purpose(pull_request=candidate.pull_request),
-                input=AssignmentRoundInput(
-                    pull_request_state=candidate.pull_request.state,
-                    user_posts=candidate.undelivered_posts,
-                ),
+            round_input=AssignmentRoundInput(
+                pull_request_state=candidate.pull_request.state,
+                user_posts=candidate.undelivered_posts,
             ),
             input_prompt=compose_assignment_input_prompt(
                 pull_request=candidate.pull_request.number,
@@ -363,18 +347,18 @@ class AssignmentScheduler(
         self,
         *,
         assignment: AgentWork,
-        plan: AgentRoundPlan[AssignmentRoundInput],
+        round_input: AssignmentRoundInput | None,
         input_prompt: str | None,
     ) -> AgentRound:
         return self.start_round(
             work=assignment,
             harness_session_identifier=assignment.find_harness_session_identifier(),
-            plan=plan,
+            round_input=round_input,
             input_prompt=input_prompt,
             finish_round=(
                 None
-                if plan.input is None
-                or plan.input.pull_request_state is PullRequestState.OPEN
+                if round_input is None
+                or round_input.pull_request_state is PullRequestState.OPEN
                 else partial(
                     complete_assignment, assignment=assignment, clock=self.clock
                 )

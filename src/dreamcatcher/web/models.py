@@ -54,7 +54,7 @@ class WebAgentRound:
     """Represent one round row on an agent-work page."""
 
     number: int
-    purpose: str
+    trigger: str
     started: str
     duration: str
     outcome: str

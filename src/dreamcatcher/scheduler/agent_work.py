@@ -9,7 +9,6 @@ from functools import partial
 from dreamcatcher.agent_rounds import (
     AgentRound,
     AgentRoundFinisher,
-    AgentRoundPlan,
     AgentRoundStartRequest,
     start_agent_round,
 )
@@ -68,7 +67,7 @@ class AgentWorkScheduler[CandidateT, ObservationT, RankT](ABC):
         *,
         work: AgentWork,
         harness_session_identifier: HarnessSessionIdentifier | None,
-        plan: AgentRoundPlan[DreamcatcherDocument],
+        round_input: DreamcatcherDocument | None,
         input_prompt: str | None,
         finish_round: AgentRoundFinisher | None,
     ) -> AgentRound:
@@ -105,7 +104,7 @@ class AgentWorkScheduler[CandidateT, ObservationT, RankT](ABC):
                 ),
                 finish_round=finish_round,
                 paths=paths,
-                plan=plan,
+                round_input=round_input,
             ),
             clock=self.clock,
         )

@@ -521,7 +521,7 @@ body::after {
   background: var(--round-current-surface);
 }
 
-.round-purpose,
+.round-trigger,
 .round-outcome {
   color: var(--bright);
   font-weight: 500;

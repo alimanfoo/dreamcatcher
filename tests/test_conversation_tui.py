@@ -21,7 +21,6 @@ from rich.console import Console
 
 from dreamcatcher.agent_rounds import (
     AgentRoundRecord,
-    ConversationRoundPurpose,
     _compose_agent_round_ending,
 )
 from dreamcatcher.agent_work import AgentWorkEndReason
@@ -61,7 +60,6 @@ def conversation_state(
         number=1,
         record=AgentRoundRecord(
             number=1,
-            purpose=ConversationRoundPurpose.DISCUSS,
             started=PINNED,
             pid=1,
             ending=_compose_agent_round_ending(
@@ -142,7 +140,6 @@ def test_conversation_detail_shows_settings_revision_session_and_round(tmp_path)
         number=2,
         record=AgentRoundRecord(
             number=2,
-            purpose=ConversationRoundPurpose.DISCUSS,
             started=PINNED + timedelta(minutes=6),
             pid=2,
             ending=_compose_agent_round_ending(
@@ -184,7 +181,7 @@ def test_conversation_detail_shows_settings_revision_session_and_round(tmp_path)
     assert "abc123" in shown
     assert "def456" in shown
     assert "opus[1m]" in shown
-    assert "discuss" in shown
+    assert "1 comment" in shown
     assert "successful" in shown
     assert "resume by hand" in shown
     assert "cd .dreamcatcher/v6/worktrees/GH8-20260819-184158-conversation" in shown
@@ -213,7 +210,6 @@ def test_conversation_detail_shows_two_errors_as_a_fault(tmp_path):
         number=2,
         record=AgentRoundRecord(
             number=2,
-            purpose=ConversationRoundPurpose.DISCUSS,
             started=PINNED + timedelta(minutes=5),
             pid=2,
             ending=_compose_agent_round_ending(
@@ -263,7 +259,7 @@ def test_conversation_feed_shows_its_saved_activity(tmp_path):
     )
 
     shown = written.getvalue()
-    assert "round 1: discuss" in shown
+    assert "round 1: 1 comment" in shown
     assert "I found the answer." in shown
 
 
@@ -287,7 +283,6 @@ def test_conversation_feed_follows_a_later_round_without_repeating_the_first(
             number=2,
             record=AgentRoundRecord(
                 number=2,
-                purpose=ConversationRoundPurpose.DISCUSS,
                 started=PINNED + timedelta(minutes=6),
                 pid=2,
                 ending=_compose_agent_round_ending(
@@ -336,9 +331,9 @@ def test_conversation_feed_follows_a_later_round_without_repeating_the_first(
     )
 
     shown = written.getvalue()
-    assert shown.count("round 1: discuss") == 1
+    assert shown.count("round 1: 1 comment") == 1
     assert shown.count("I found the answer.") == 1
-    assert shown.count("round 2: discuss") == 1
+    assert shown.count("round 2: 1 comment") == 1
     assert shown.count("code revision abc123 -> def456") == 1
     assert shown.count("I found the follow-up answer.") == 1
 
@@ -537,7 +532,6 @@ def test_a_conversation_view_in_fault_keeps_watching(tmp_path):
         number=2,
         record=AgentRoundRecord(
             number=2,
-            purpose=ConversationRoundPurpose.DISCUSS,
             started=PINNED + timedelta(minutes=5),
             pid=2,
             ending=_compose_agent_round_ending(

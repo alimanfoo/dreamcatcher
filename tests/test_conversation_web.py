@@ -23,7 +23,6 @@ from status_fabrications import fabricate_conversation, fabricate_everything
 import dreamcatcher.status.report as report_module
 from dreamcatcher.agent_rounds import (
     AgentRoundRecord,
-    ConversationRoundPurpose,
     _compose_agent_round_ending,
 )
 from dreamcatcher.agent_work import AgentWorkEndReason
@@ -106,7 +105,6 @@ def test_conversation_page_shows_settings_revision_round_and_feed(tmp_path):
         number=2,
         record=AgentRoundRecord(
             number=2,
-            purpose=ConversationRoundPurpose.DISCUSS,
             started=PINNED + timedelta(minutes=6),
             pid=2,
             ending=_compose_agent_round_ending(
@@ -154,7 +152,7 @@ def test_conversation_page_shows_settings_revision_round_and_feed(tmp_path):
     assert f"code revision abc123 -&gt; {revision}" in page
     assert revision in page
     assert "opus[1m] · xhigh" in page
-    assert "discuss" in page
+    assert "1 comment" in page
     assert "I found the answer." in page
     assert 'hx-get="/work/GH8-20260819-184158-conversation/tail"' in page
     assert "<summary>resume by hand</summary>" in page
@@ -220,7 +218,6 @@ def test_an_old_conversation_stop_submission_cannot_stop_the_next_round(tmp_path
         number=2,
         record=AgentRoundRecord(
             number=2,
-            purpose=ConversationRoundPurpose.DISCUSS,
             started=PINNED + timedelta(minutes=5),
             pid=1,
         ),
@@ -388,7 +385,6 @@ def _fabricate_faulted_conversation(*, state: StateDirectory) -> None:
         number=2,
         record=AgentRoundRecord(
             number=2,
-            purpose=ConversationRoundPurpose.DISCUSS,
             started=PINNED + timedelta(minutes=5),
             pid=2,
             ending=_compose_agent_round_ending(
@@ -564,7 +560,6 @@ def test_conversation_tail_adds_a_later_round_without_repeating_the_first(tmp_pa
         number=2,
         record=AgentRoundRecord(
             number=2,
-            purpose=ConversationRoundPurpose.DISCUSS,
             started=PINNED + timedelta(minutes=6),
             pid=2,
             ending=_compose_agent_round_ending(
@@ -617,7 +612,7 @@ def test_conversation_tail_adds_a_later_round_without_repeating_the_first(tmp_pa
     assert "I found the answer." not in response.text
     assert 'id="agent-work-detail"' in response.text
     assert "issue is not eligible for conversation" in response.text
-    assert response.text.count("round 2: discuss") == 1
+    assert response.text.count("round 2: 1 comment") == 1
     assert response.text.count("code revision abc123 -&gt; def456") == 1
     assert response.text.count("I found the follow-up answer.") == 1
 

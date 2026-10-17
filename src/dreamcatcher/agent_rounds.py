@@ -141,24 +141,6 @@ class _AgentRoundHarness:
         return output
 
 
-class AssignmentRoundPurpose(StrEnum):
-    """The kinds of assignment work that an agent round advances."""
-
-    IMPLEMENT = "implement"
-    ADDRESS_FEEDBACK = "address feedback"
-    WRAP_UP = "wrap up"
-
-
-class ConversationRoundPurpose(StrEnum):
-    """The kind of conversation work that an agent round advances."""
-
-    DISCUSS = "discuss"
-
-
-# Every round records its purpose, so the shared record holds either owner's.
-type _AgentRoundPurpose = AssignmentRoundPurpose | ConversationRoundPurpose
-
-
 class AgentRoundOutcome(StrEnum):
     """The possible outcomes of an agent round."""
 
@@ -235,10 +217,12 @@ def _compose_agent_round_ending(
 
 
 class AgentRoundRecord(DreamcatcherDocument):
-    """Model an agent round's identity, purpose, and outcome."""
+    """Model an agent round's identity and outcome.
+
+    What woke the round is in its input, so the record does not repeat it.
+    """
 
     number: PositiveInt
-    purpose: _AgentRoundPurpose
     started: AwareDatetime
     pid: PositiveInt
     ending: _AgentRoundEnding | None = None
@@ -296,14 +280,6 @@ def _record_agent_round_ending(
 
 
 @dataclass(frozen=True, kw_only=True)
-class AgentRoundPlan[RoundInputT: DreamcatcherDocument]:
-    """Describe the decisions and input that a new round executes."""
-
-    purpose: _AgentRoundPurpose
-    input: RoundInputT | None = None
-
-
-@dataclass(frozen=True, kw_only=True)
 class AgentRoundStartRequest:
     """Describe everything that the round boundary needs to start a round."""
 
@@ -313,7 +289,7 @@ class AgentRoundStartRequest:
     record_harness_session_identifier: HarnessSessionIdentifierRecorder
     finish_round: AgentRoundFinisher | None
     paths: "AgentRoundPaths"
-    plan: AgentRoundPlan[DreamcatcherDocument]
+    round_input: DreamcatcherDocument | None
 
 
 def start_agent_round(
@@ -344,7 +320,7 @@ def start_agent_round(
             ),
         ),
         paths=request.paths,
-        plan=request.plan,
+        round_input=request.round_input,
         finish_round=request.finish_round,
         clock=clock,
     )
@@ -401,7 +377,7 @@ class AgentRound:
         agent_work_identifier: str,
         harness: _AgentRoundHarness,
         paths: AgentRoundPaths,
-        plan: AgentRoundPlan[DreamcatcherDocument],
+        round_input: DreamcatcherDocument | None,
         finish_round: AgentRoundFinisher | None = None,
         clock: Callable[[], datetime] = read_current_time,
         wait_for_round_end: Callable[[float], bool] | None = None,
@@ -435,8 +411,8 @@ class AgentRound:
         self._final_output_settled = Flag()
         self._feed_write_lock = Lock()
         self._termination_lock = Lock()
-        if plan.input is not None:
-            write_json(document=plan.input, path=paths.round_input)
+        if round_input is not None:
+            write_json(document=round_input, path=paths.round_input)
         write_text(text=harness.invocation.prompt, path=paths.prompt)
         remove_file(path=paths.final_output)
         self.harness_process = spawn_command(
@@ -448,7 +424,6 @@ class AgentRound:
         try:
             self.record = AgentRoundRecord(
                 number=paths.number,
-                purpose=plan.purpose,
                 started=self.started_at,
                 pid=self.harness_process.pid,
             )

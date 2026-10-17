@@ -15,6 +15,7 @@ from conftest import (
     pull_requests,
 )
 from records import (
+    MERGED_INPUT,
     read_assignments,
     write_assignment,
     write_round,
@@ -35,7 +36,6 @@ from dreamcatcher.agent_assignments import (
 from dreamcatcher.agent_rounds import (
     AgentRoundPaths,
     AgentRoundRecord,
-    AssignmentRoundPurpose,
     InterruptedAgentRoundEnding,
     _compose_agent_round_ending,
 )
@@ -322,9 +322,9 @@ def test_open_assignments_are_found_by_issue_across_assignment_histories(fabrica
                 number=1,
                 started=PINNED,
                 pid=1,
-                purpose=AssignmentRoundPurpose.WRAP_UP,
                 ending=_compose_agent_round_ending(at=PINNED, status=0),
             ),
+            round_input=MERGED_INPUT,
         )
     write_assignment(
         state=fabricated, identifier="GH14-20260819-090000-assignment", issue=14
@@ -345,7 +345,6 @@ def ended(*, status, minute=0, number: int = 1):
         number=number,
         started=started,
         pid=1,
-        purpose=AssignmentRoundPurpose.IMPLEMENT,
         ending=_compose_agent_round_ending(at=started, status=status),
     )
 
@@ -356,7 +355,6 @@ def running(*, minute=0, number: int = 1):
         number=number,
         started=PINNED + timedelta(minutes=minute),
         pid=1,
-        purpose=AssignmentRoundPurpose.IMPLEMENT,
     )
 
 
@@ -680,9 +678,9 @@ def test_an_issue_whose_assignment_finished_can_receive_another(state, route):
             number=1,
             started=PINNED,
             pid=1,
-            purpose=AssignmentRoundPurpose.WRAP_UP,
             ending=_compose_agent_round_ending(at=PINNED, status=0),
         ),
+        round_input=MERGED_INPUT,
     )
 
     second = create_assignment(
@@ -721,7 +719,6 @@ def test_an_issue_whose_final_work_is_unfinished_cannot_receive_another(
             number=1,
             started=PINNED,
             pid=1,
-            purpose=AssignmentRoundPurpose.WRAP_UP,
             ending=ending,
         ),
     )
@@ -1021,7 +1018,6 @@ def test_an_assignment_recovers_a_session_reported_by_a_later_round(fabricated):
             number=number,
             record=AgentRoundRecord(
                 number=number,
-                purpose=AssignmentRoundPurpose.IMPLEMENT,
                 started=PINNED,
                 pid=1,
             ),
@@ -1137,7 +1133,6 @@ def test_an_assignment_reads_back_its_user_post_delivery_position(state, route):
         number=1,
         record=AgentRoundRecord(
             number=1,
-            purpose=AssignmentRoundPurpose.IMPLEMENT,
             started=PINNED,
             pid=1,
             ending=_compose_agent_round_ending(at=PINNED, status=0),
@@ -1188,7 +1183,6 @@ def test_the_user_post_delivery_position_scans_past_an_input_that_delivered_no_p
             number=number,
             record=AgentRoundRecord(
                 number=number,
-                purpose=AssignmentRoundPurpose.IMPLEMENT,
                 started=PINNED + timedelta(minutes=number),
                 pid=1,
                 ending=_compose_agent_round_ending(at=PINNED, status=0),
@@ -1225,7 +1219,6 @@ def test_an_assignments_rounds_read_back_in_number_order(state, route):
             number=3,
             started=PINNED,
             pid=1,
-            purpose=AssignmentRoundPurpose.IMPLEMENT,
         ),
     )
     write_round(
@@ -1235,7 +1228,6 @@ def test_an_assignments_rounds_read_back_in_number_order(state, route):
             number=1,
             started=later,
             pid=1,
-            purpose=AssignmentRoundPurpose.IMPLEMENT,
             ending=_compose_agent_round_ending(at=later, status=0),
         ),
     )
@@ -1266,7 +1258,6 @@ def test_a_round_record_must_carry_the_number_of_its_directory(state, route):
             number=3,
             started=PINNED,
             pid=1,
-            purpose=AssignmentRoundPurpose.IMPLEMENT,
         ),
     )
 

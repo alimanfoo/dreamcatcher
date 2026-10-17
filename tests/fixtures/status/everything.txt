@@ -10,12 +10,12 @@ assignments
   GH20-20260819-184158-assignment  needs user feedback  last output 2h 0m ago                       
   GH9-20260819-184158-assignment   fault                round 2 errored (exit 2)                    
   [failed] You hit your spend cap.                                                                  
-  GH13-20260819-184158-assignment  working              round 2, address feedback, running 1h 30m,  
-                                                        last output 1h 29m ago                      
+  GH13-20260819-184158-assignment  working              round 2, 1 post, running 1h 30m, last output
+                                                        1h 29m ago                                  
   The agent is explaining a long change that would otherwise wrap onto another line and move every …
-  GH31-20260819-184158-assignment  waiting              next round, implement                       
+  GH31-20260819-184158-assignment  waiting              1 new post to answer                        
   GH35-20260819-184158-assignment  waiting              round 1 errored (exit 2)                    
-  GH44-20260819-184158-assignment  waiting              next round, implement                       
+  GH44-20260819-184158-assignment  waiting              no round has run yet                        
   GH40-20260819-184158-assignment  unknown              no current scheduler observation            
   GH50  dream:smith              available                                                          
   GH51  dream:smith              available                                                          

@@ -6,19 +6,22 @@ from functools import cached_property
 from typing import cast
 
 from dreamcatcher.agent_assignments import (
+    AssignmentRoundInput,
     PullRequestObservation,
     read_pull_request_observation,
 )
 from dreamcatcher.agent_rounds import AgentRoundPaths
 from dreamcatcher.agent_work import AgentWork, AgentWorkEndReason
+from dreamcatcher.documents import read_json_if_exists
 from dreamcatcher.feed import read_last_feed_line
+from dreamcatcher.github import PullRequestState
 from dreamcatcher.harness_adapters import HarnessSessionIdentifier
 from dreamcatcher.scheduler.faults import is_last_round_unfinished
 from dreamcatcher.scheduler.models import (
+    NO_ROUND_HAS_RUN,
     AgentWorkObservation,
     SchedulerRecord,
     Truth,
-    derive_round_purpose,
 )
 from dreamcatcher.status.agent_work import (
     AgentWorkStatusReader,
@@ -110,6 +113,9 @@ class AssignmentStatus:
         return [
             AgentRoundStatus(
                 record=record,
+                trigger_description=describe_assignment_round_trigger(
+                    assignment=assignment, number=record.number
+                ),
                 duration_description=compose_round_duration_description(record=record),
                 outcome_description=describe_round_outcome(
                     record=record,
@@ -215,6 +221,9 @@ class AssignmentStatusReader(AgentWorkStatusReader[AssignmentStatus]):
             if self.is_round_working(record=latest):
                 detail, latest_output = describe_running_round(
                     record=latest,
+                    trigger_description=describe_assignment_round_trigger(
+                        assignment=assignment, number=latest.number
+                    ),
                     paths=assignment.compose_round_paths(number=latest.number),
                     at=self.at,
                 )
@@ -276,7 +285,7 @@ class AssignmentStatusReader(AgentWorkStatusReader[AssignmentStatus]):
             return self._compose(
                 assignment=assignment,
                 value=AssignmentStatusValue.WAITING,
-                detail="next round, implement",
+                detail=NO_ROUND_HAS_RUN,
             )
         if self.scheduler_record is None:
             return self._compose(
@@ -312,13 +321,10 @@ class AssignmentStatusReader(AgentWorkStatusReader[AssignmentStatus]):
                 detail=observation.requires_round.evidence,
             )
         if observation.requires_round.value is Truth.TRUE:
-            purpose = derive_round_purpose(
-                pull_request=read_pull_request_observation(assignment=assignment)
-            )
             return self._compose(
                 assignment=assignment,
                 value=AssignmentStatusValue.WAITING,
-                detail=f"next round, {purpose}",
+                detail=observation.requires_round.evidence,
             )
         return self._compose(
             assignment=assignment,
@@ -350,3 +356,21 @@ class AssignmentStatusReader(AgentWorkStatusReader[AssignmentStatus]):
         if line is None:
             return "no output"
         return f"last output {describe_span(span=self.at - line.at)} ago"
+
+
+def describe_assignment_round_trigger(*, assignment: AgentWork, number: int) -> str:
+    """Describe what woke one round of the assignment, from the input it was given.
+
+    A round given no input started the assignment.
+    """
+    round_input = read_json_if_exists(
+        model=AssignmentRoundInput,
+        path=assignment.compose_round_paths(number=number).round_input,
+    )
+    if round_input is None:
+        return "start"
+    if round_input.pull_request_state is not PullRequestState.OPEN:
+        return round_input.pull_request_state.lower()
+    if round_input.user_posts:
+        return describe_count(number=len(round_input.user_posts), noun="post")
+    return "carry on"

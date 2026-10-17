@@ -35,8 +35,6 @@ import dreamcatcher.scheduler.assignments as assignments_module
 from dreamcatcher.agent_rounds import (
     AgentRoundOutcome,
     AgentRoundRecord,
-    AssignmentRoundPurpose,
-    ConversationRoundPurpose,
     ErroredAgentRoundEnding,
     SuccessfulAgentRoundEnding,
     request_agent_round_stop,
@@ -309,7 +307,6 @@ def write_faulted_conversation(
             number=number,
             record=AgentRoundRecord(
                 number=number,
-                purpose=ConversationRoundPurpose.DISCUSS,
                 started=at + timedelta(minutes=number - 1),
                 pid=number,
                 ending=ErroredAgentRoundEnding(
@@ -350,7 +347,6 @@ def write_faulted_assignment(
             number=number,
             record=AgentRoundRecord(
                 number=number,
-                purpose=AssignmentRoundPurpose.IMPLEMENT,
                 started=at + timedelta(minutes=number - 1),
                 pid=number,
                 ending=ErroredAgentRoundEnding(
@@ -391,7 +387,6 @@ def test_an_initial_conversation_freezes_input_runs_claude_and_publishes_once(
     conversation = read_conversation(state=scheduler.assignments.state, issue=8)
     assert conversation is not None
     assert conversation.harness_session_identifier == "conversation-session"
-    assert conversation.rounds[0].purpose is ConversationRoundPurpose.DISCUSS
     assert conversation.rounds[0].outcome is AgentRoundOutcome.SUCCESSFUL
     paths = conversation.compose_round_paths(number=1)
     frozen = read_json(model=ConversationRoundInput, path=paths.round_input)
@@ -1439,7 +1434,6 @@ def test_a_daemon_orphan_is_given_its_comments_again_in_its_saved_session(
         number=1,
         record=AgentRoundRecord(
             number=1,
-            purpose=ConversationRoundPurpose.DISCUSS,
             started=clock(),
             pid=left_running.pid,
         ),
@@ -1709,7 +1703,6 @@ def test_an_ineligible_conversation_does_not_recover_its_errored_round(
         number=1,
         record=AgentRoundRecord(
             number=1,
-            purpose=ConversationRoundPurpose.DISCUSS,
             started=clock(),
             pid=1,
             ending=ErroredAgentRoundEnding(at=clock(), status=2),
@@ -1755,7 +1748,6 @@ def test_a_relayed_round_whose_input_cannot_be_read_is_a_scheduler_failure(
         number=1,
         record=AgentRoundRecord(
             number=1,
-            purpose=ConversationRoundPurpose.DISCUSS,
             started=clock(),
             pid=1,
             ending=SuccessfulAgentRoundEnding(at=clock()),

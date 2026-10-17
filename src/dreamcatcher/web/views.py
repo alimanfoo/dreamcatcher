@@ -237,7 +237,7 @@ def _compose_agent_rounds(
     return tuple(
         WebAgentRound(
             number=round_status.record.number,
-            purpose=round_status.purpose_description,
+            trigger=round_status.trigger_description,
             started=describe_time(at=round_status.record.started, zone=zone),
             duration=round_status.duration_description,
             outcome=str(round_status.record.outcome),

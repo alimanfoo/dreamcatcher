@@ -4,11 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from functools import partial
 
-from dreamcatcher.agent_rounds import (
-    AgentRound,
-    AgentRoundPlan,
-    ConversationRoundPurpose,
-)
+from dreamcatcher.agent_rounds import AgentRound
 from dreamcatcher.agent_work import (
     AgentWork,
     find_open_agent_work_by_issue,
@@ -147,9 +143,7 @@ class ConversationScheduler(
         return self.start_round(
             work=conversation,
             harness_session_identifier=harness_session_identifier,
-            plan=AgentRoundPlan(
-                purpose=ConversationRoundPurpose.DISCUSS, input=round_input
-            ),
+            round_input=round_input,
             input_prompt=compose_conversation_input_prompt(
                 issue=conversation.record.issue,
                 round_input=conversation.compose_round_paths(

@@ -15,6 +15,7 @@ import pytest
 from clocks import DISPLAY_TIME_ZONE, PINNED
 from conftest import DAEMON_PID, FIXTURES, assert_matches_view_golden
 from records import (
+    MERGED_INPUT,
     SCOUT_ROUTES,
     write_daemon_run,
     write_feed,
@@ -26,6 +27,7 @@ from rich.text import Text
 from status_fabrications import (
     ASSIGNMENT_TIMESTAMP,
     LOOKED_AT,
+    ONE_POST_INPUT,
     SAID,
     STATUS_REPORTS,
     ended,
@@ -42,9 +44,6 @@ from status_fabrications import (
 
 from dreamcatcher.agent_assignments import (
     cancel_assignment,
-)
-from dreamcatcher.agent_rounds import (
-    AssignmentRoundPurpose,
 )
 from dreamcatcher.agent_work import read_agent_work_at_issue
 from dreamcatcher.documents import append_text, write_text
@@ -231,8 +230,12 @@ def test_ended_assignments_are_summarized(tmp_path):
 
 def test_only_ended_assignments_are_summarized(tmp_path):
     state = StateDirectory(root=tmp_path)
-    completed_round = ended(minute=1, purpose=AssignmentRoundPurpose.WRAP_UP)
-    written(state=state, issue=12, records=[completed_round])
+    written(
+        state=state,
+        issue=12,
+        records=[ended(minute=1)],
+        round_inputs={1: MERGED_INPUT},
+    )
     written(state=state, issue=13, records=[ended(minute=1)])
     cancel_assignment(
         assignment=read_agent_work_at_issue(
@@ -376,7 +379,7 @@ def test_assignment_latest_output_is_indented_on_one_line(tmp_path):
     directory = written(
         state=state,
         issue=13,
-        records=[running(minute=1, purpose=AssignmentRoundPurpose.IMPLEMENT)],
+        records=[running(minute=1)],
     )
     write_feed(
         directory=directory,
@@ -425,7 +428,7 @@ def test_assignment_status_alone_is_coloured_and_latest_output_is_dim(tmp_path):
     )
     rendered = console.export_text(styles=True)
 
-    assert "\x1b[32mworking\x1b[0m  round 2, address feedback, running" in rendered
+    assert "\x1b[32mworking\x1b[0m  round 2, 1 post, running" in rendered
     assert "\x1b[2m[Bash] pytest\x1b[0m" in rendered
 
 
@@ -457,11 +460,8 @@ def test_an_assignment_view_shows_the_round_that_starts_while_it_is_open(tmp_pat
         write_round(
             directory=state.work / f"GH20-{ASSIGNMENT_TIMESTAMP}-assignment",
             number=2,
-            record=running(
-                minute=60,
-                number=2,
-                purpose=AssignmentRoundPurpose.ADDRESS_FEEDBACK,
-            ),
+            record=running(minute=60, number=2),
+            round_input=ONE_POST_INPUT,
         )
 
     show_assignment_view(
@@ -477,7 +477,7 @@ def test_an_assignment_view_shows_the_round_that_starts_while_it_is_open(tmp_pat
     # reader, so the view stayed open through the gap and drew the round that
     # answered what they posted.
     assert looks == [_VIEW_REFRESH_INTERVAL, _VIEW_REFRESH_INTERVAL]
-    assert "address feedback" in written_to.getvalue()
+    assert "1 post" in written_to.getvalue()
 
 
 def test_an_assignment_view_of_an_ended_assignment_never_waits(tmp_path):
@@ -643,7 +643,8 @@ def test_a_following_view_looks_once_more_when_the_last_round_stops(tmp_path):
         write_round(
             directory=directory,
             number=2,
-            record=ended(minute=30, number=2, purpose=AssignmentRoundPurpose.WRAP_UP),
+            record=ended(minute=30, number=2),
+            round_input=MERGED_INPUT,
         )
 
     followed(state=state, issue=13, wait=wait)
@@ -666,11 +667,8 @@ def test_a_round_that_starts_while_the_view_is_going_arrives_in_it(tmp_path):
         write_round(
             directory=directory,
             number=2,
-            record=running(
-                minute=60,
-                number=2,
-                purpose=AssignmentRoundPurpose.ADDRESS_FEEDBACK,
-            ),
+            record=running(minute=60, number=2),
+            round_input=ONE_POST_INPUT,
         )
         write_feed(
             directory=directory,
@@ -685,16 +683,16 @@ def test_a_round_that_starts_while_the_view_is_going_arrives_in_it(tmp_path):
     # The pull request was waiting for the reader when the view opened, and the
     # round that answers what they posted started while the view was going, so
     # the reader reads its feed while it is still running.
-    assert "round 2: address feedback" in feed
+    assert "round 2: 1 post" in feed
     assert "[Bash] git commit" in feed
-    assert feed.count("round 1: implement") == 1
+    assert feed.count("round 1: start") == 1
 
 
 def test_a_view_of_an_ended_assignment_never_waits(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
 
-    assert "round 2: wrap up" in followed(state=state, issue=12)
+    assert "round 2: merged" in followed(state=state, issue=12)
 
 
 def test_a_following_view_waits_for_the_next_daemon(tmp_path):
@@ -723,7 +721,7 @@ def test_a_view_of_a_faulted_assignment_keeps_watching(tmp_path):
         waits.append(seconds)
         raise KeyboardInterrupt
 
-    assert "round 2: implement" in followed(state=state, issue=9, wait=interrupting)
+    assert "round 2: carry on" in followed(state=state, issue=9, wait=interrupting)
     assert waits
 
 
@@ -848,7 +846,7 @@ def test_a_round_view_uses_the_number_persisted_by_the_round(tmp_path):
 
     shown = viewed_round(state=state, issue=12, number=4)
 
-    assert "round 4: implement" in shown
+    assert "round 4: start" in shown
     assert "[Bash] git status" in shown
     with pytest.raises(ReportableError, match="has no round 3"):
         viewed_round(state=state, issue=12, number=3)
@@ -859,8 +857,7 @@ def test_one_round_of_an_assignment_reads_on_its_own(tmp_path):
     fabricate_everything(state=state)
 
     assert viewed_round(state=state, issue=13, number=2) == (
-        "2026-08-20 03:11:58  round 2: address feedback\n"
-        "2026-08-20 03:12:58  [Bash] pytest\n"
+        "2026-08-20 03:11:58  round 2: 1 post\n2026-08-20 03:12:58  [Bash] pytest\n"
     )
 
 
@@ -870,7 +867,7 @@ def test_a_round_that_wrote_no_feed_shows_the_line_that_opens_it(tmp_path):
 
     assert (
         viewed_round(state=state, issue=12, number=1)
-        == "2026-08-20 02:42:58  round 1: implement\n"
+        == "2026-08-20 02:42:58  round 1: start\n"
     )
 
 
@@ -882,7 +879,7 @@ def test_a_view_of_a_round_that_has_ended_never_waits(tmp_path):
     # so it ends there rather than wait for what round 2 says next.
     shown = viewed_round(state=state, issue=13, number=1, is_terminal=True)
 
-    assert "round 1: implement" in shown
+    assert "round 1: start" in shown
 
 
 def test_a_view_of_a_running_round_ends_when_that_round_does(tmp_path):

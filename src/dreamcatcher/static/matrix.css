@@ -589,7 +589,7 @@ body::after {
 }
 
 .round-number,
-.round-purpose,
+.round-trigger,
 .round-outcome {
   font-weight: 700;
 }
@@ -600,7 +600,7 @@ body::after {
   min-width: 0;
 }
 
-.round-purpose {
+.round-trigger {
   color: var(--bright);
 }
 

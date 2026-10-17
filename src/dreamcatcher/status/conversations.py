@@ -13,6 +13,7 @@ from dreamcatcher.documents import read_text
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.harness_adapters import HarnessSessionIdentifier
 from dreamcatcher.issue_conversations import (
+    ConversationRoundInput,
     is_no_reply,
     read_conversation_input,
 )
@@ -34,6 +35,7 @@ from dreamcatcher.status.rounds import (
     describe_running_round,
     find_stoppable_round_paths,
 )
+from dreamcatcher.words import describe_count
 
 
 class ConversationStatusValue(StrEnum):
@@ -158,22 +160,21 @@ class ConversationStatus:
         statuses: list[AgentRoundStatus] = []
         previous_revision = None
         for record in conversation.rounds:
+            round_input = _read_round_input(
+                conversation=conversation, number=record.number
+            )
             round_revision = None
-            try:
-                round_input = read_conversation_input(
-                    conversation=conversation,
-                    number=record.number,
-                )
-                revision = round_input.revision
+            if round_input is not None:
                 round_revision = _compose_round_revision(
-                    previous_revision=previous_revision, revision=revision
+                    previous_revision=previous_revision, revision=round_input.revision
                 )
-                previous_revision = revision
-            except ReportableError:
-                pass
+                previous_revision = round_input.revision
             statuses.append(
                 AgentRoundStatus(
                     record=record,
+                    trigger_description=_describe_round_trigger(
+                        round_input=round_input
+                    ),
                     duration_description=compose_round_duration_description(
                         record=record
                     ),
@@ -277,6 +278,11 @@ class ConversationStatusReader(AgentWorkStatusReader[ConversationStatus]):
             if self.is_round_working(record=latest):
                 detail, latest_output = describe_running_round(
                     record=latest,
+                    trigger_description=_describe_round_trigger(
+                        round_input=_read_round_input(
+                            conversation=conversation, number=latest.number
+                        )
+                    ),
                     paths=conversation.compose_round_paths(number=latest.number),
                     at=self.at,
                 )
@@ -474,6 +480,23 @@ class ConversationStatusReader(AgentWorkStatusReader[ConversationStatus]):
             "no reply needed" if is_no_reply(final_output=final_output) else "answered"
         )
         return f"round {latest.number}, {answer}, {duration}"
+
+
+def _read_round_input(
+    *, conversation: AgentWork, number: int
+) -> ConversationRoundInput | None:
+    """Return one round's input, or None when it cannot be read."""
+    try:
+        return read_conversation_input(conversation=conversation, number=number)
+    except ReportableError:
+        return None
+
+
+def _describe_round_trigger(*, round_input: ConversationRoundInput | None) -> str:
+    """Describe what woke a conversation round, from the input it was given."""
+    if round_input is None:
+        return "no input"
+    return describe_count(number=len(round_input.comments), noun="comment")
 
 
 def _compose_round_revision(

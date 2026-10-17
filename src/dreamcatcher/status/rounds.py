@@ -27,22 +27,22 @@ class AgentRoundStatus:
     """Describe one agent round for a status view."""
 
     record: AgentRoundRecord
+    trigger_description: str
     duration_description: str
     outcome_description: str
     revision: AgentRoundRevision | None = None
 
-    @property
-    def purpose_description(self) -> str:
-        """The work the round advances."""
-        return self.record.purpose
-
 
 def describe_running_round(
-    *, record: AgentRoundRecord, paths: AgentRoundPaths, at: datetime
+    *,
+    record: AgentRoundRecord,
+    trigger_description: str,
+    paths: AgentRoundPaths,
+    at: datetime,
 ) -> tuple[str, str | None]:
-    """Describe a running round and return its latest output."""
+    """Describe a running round and what woke it, and return its latest output."""
     detail = (
-        f"round {record.number}, {record.purpose}, "
+        f"round {record.number}, {trigger_description}, "
         f"running {describe_span(span=at - record.started)}"
     )
     line = read_last_feed_line(path=paths.feed)
