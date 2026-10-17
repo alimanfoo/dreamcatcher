@@ -192,7 +192,7 @@ def test_conversation_detail_shows_settings_revision_session_and_round(tmp_path)
     )
 
     shown = written.getvalue()
-    assert "issue conversation GH8" in shown
+    assert "newest issue conversation GH8-" in shown
     assert "recovered-session" in shown
     assert "abc123" in shown
     assert "def456" in shown
@@ -551,7 +551,7 @@ def test_an_ended_conversation_view_never_waits(tmp_path, status):
         wait=refusing,
     )
 
-    assert "issue conversation GH8" in written.getvalue()
+    assert "newest issue conversation GH8-" in written.getvalue()
 
 
 def test_a_conversation_view_of_an_idle_conversation_keeps_watching(tmp_path):

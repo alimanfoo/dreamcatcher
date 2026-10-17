@@ -569,7 +569,7 @@ def test_conversation_shows_its_local_detail(monkeypatch, watching, capsys):
     monkeypatch.chdir(watching.root)
 
     assert main(argv=["conversation", "GH8"]) == 0
-    assert "issue conversation GH8" in capsys.readouterr().out
+    assert "newest issue conversation GH8-" in capsys.readouterr().out
 
 
 def test_feed_shows_what_the_conversation_said(monkeypatch, watching, capsys):

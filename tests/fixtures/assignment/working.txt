@@ -3,16 +3,16 @@ working  round 2, 1 post, running 1h 30m, last output 1h 29m ago
   [Bash] pytest
 
 assignment
-  issue identifier             GH13                                                      
-  agent assignment identifier  GH13-20260819-184158-assignment                           
-  pull request                 #52                                                       
-  label                        dream:smith                                               
-  branch                       dreamcatcher-GH13-20260819-184158-assignment              
-  worktree                     .dreamcatcher/v6/worktrees/GH13-20260819-184158-assignment
-  harness                      claude                                                    
-  harness session identifier   abc-123                                                   
-  model                        opus[1m]                                                  
-  effort                       xhigh                                                     
+  issue identifier            GH13                                                      
+  agent work identifier       GH13-20260819-184158-assignment                           
+  pull request                #52                                                       
+  label                       dream:smith                                               
+  branch                      dreamcatcher-GH13-20260819-184158-assignment              
+  worktree                    .dreamcatcher/v6/worktrees/GH13-20260819-184158-assignment
+  harness                     claude                                                    
+  harness session identifier  abc-123                                                   
+  model                       opus[1m]                                                  
+  effort                      xhigh                                                     
 
 rounds
   2  1 post  2026-08-20 03:11:58          running   

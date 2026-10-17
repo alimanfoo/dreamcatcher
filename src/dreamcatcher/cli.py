@@ -181,11 +181,12 @@ def _build_cli_parser() -> argparse.ArgumentParser:
     web_parser.set_defaults(act=_show_web)
     status_parser = subcommands.add_parser(
         "status",
-        help="show the instance, its agent work, and the labelled issues waiting",
+        help="show the instance, its agent work, and the requests waiting",
         description=(
             "Show instance and daemon facts, each assignment and conversation, "
-            "and each labelled issue that has no work yet, in dispatch order, "
-            "with why no work has started. It refreshes automatically "
+            "and each request that has no work yet, which is one dispatch label "
+            "on an issue, in dispatch order, with why no work has started. It "
+            "refreshes automatically "
             "until you interrupt it. "
             + _HELP_WHEN_A_VIEW_TAKES_THE_SCREEN
             + " "
@@ -212,10 +213,11 @@ def _build_cli_parser() -> argparse.ArgumentParser:
     assignment_parser.set_defaults(act=_show_assignment)
     conversation_parser = subcommands.add_parser(
         "conversation",
-        help="show one issue conversation, in detail",
+        help="show one issue's newest conversation, in detail",
         description=(
-            "Show an issue conversation's chosen settings, harness session, worktree, "
-            "code revision, and rounds. It keeps up until the conversation "
+            "Show the newest issue conversation at the issue: what its work "
+            "record holds, its harness session, worktree, code revision, and "
+            "rounds. It keeps up until the conversation "
             "ends. "
             + _HELP_WHEN_A_VIEW_TAKES_THE_SCREEN
             + " "
@@ -262,7 +264,7 @@ def _add_agent_work_selector(*, parser: argparse.ArgumentParser) -> None:
         dest="work_kind",
         action="store_const",
         const=AgentWorkKind.CONVERSATION,
-        help="select the issue conversation",
+        help="select the newest issue conversation at the issue",
     )
 
 
@@ -395,7 +397,7 @@ def _stop_agent_work(*, arguments: argparse.Namespace) -> None:
             state=state, issue=arguments.issue, daemon=daemon
         )
         paths = None if status is None else status.stoppable_round_paths
-        work_description = "issue conversation"
+        work_description = "newest issue conversation"
     if paths is None:
         raise ReportableError(
             f"The {work_description} at GH{arguments.issue} has no running round "

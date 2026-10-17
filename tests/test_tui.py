@@ -383,7 +383,7 @@ def test_an_assignment_with_no_pull_request_yet_says_so(tmp_path):
         pull_request=None,
     )
 
-    assert "pull request                 none yet" in viewed(state=state, issue=13)
+    assert "pull request                none yet" in viewed(state=state, issue=13)
 
 
 def test_assignment_latest_output_is_indented_on_one_line(tmp_path):

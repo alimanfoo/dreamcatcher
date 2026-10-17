@@ -120,7 +120,7 @@ def _render_conversation(
     )
     return combine_renderable_parts(
         parts=[
-            Text(f"issue conversation GH{status.work.record.issue}"),
+            Text(f"newest issue conversation {status.work.identifier}"),
             rendered_status,
             render_latest_output(latest_output=status.latest_output),
             _render_conversation_summary(state=state, status=status),
@@ -143,6 +143,7 @@ def _render_conversation_summary(
     table = create_table(columns=2)
     for name, value in (
         ("issue identifier", f"GH{record.issue}"),
+        ("agent work identifier", conversation.identifier),
         ("title", record.title),
         ("label", record.dispatch_label),
         ("worktree", state.describe_path(path=conversation.worktree)),
@@ -231,7 +232,7 @@ def _render_assignment_summary(
     table = create_table(columns=2)
     for name, value in (
         ("issue identifier", f"GH{record.issue}"),
-        ("agent assignment identifier", assignment.identifier),
+        ("agent work identifier", assignment.identifier),
         ("pull request", _describe_pull_request(status=status)),
         ("label", record.dispatch_label),
         ("branch", compose_assignment_branch(identifier=assignment.identifier)),
