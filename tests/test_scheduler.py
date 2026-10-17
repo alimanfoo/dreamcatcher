@@ -87,7 +87,7 @@ NOTHING_NEW = PullRequestFinding(
     new_posts=0,
     new_signals=[],
     is_check_failure_withheld=False,
-    is_final_turn_due=False,
+    is_wrap_up_due=False,
 )
 
 
@@ -691,7 +691,7 @@ def test_an_assignment_with_nothing_new_reads_only_its_pull_request_and_posts(
                 new_posts=0,
                 new_signals=[],
                 is_check_failure_withheld=False,
-                is_final_turn_due=False,
+                is_wrap_up_due=False,
             ),
         )
     ]
@@ -1043,7 +1043,7 @@ def test_an_assignment_the_user_has_posted_on_is_told_what_they_said(resuming, g
                 new_posts=1,
                 new_signals=[],
                 is_check_failure_withheld=False,
-                is_final_turn_due=False,
+                is_wrap_up_due=False,
             ),
             started_round=StartedRound(number=2),
         )

@@ -422,7 +422,7 @@ Agent work of either kind has one of these summary statuses:
   signal. A free agent slot, or the end of a cooldown, starts it.
 - **Idle**: nothing is due until something new appears in the work's channel.
   The detail says why: an assignment's pull request is ready for review, still a
-  draft, merged or closed after its final turn, out of date at a head already
+  draft, merged or closed after its wrap-up round, out of date at a head already
   relayed, failing its checks, failing them after two attempts under the relay
   rule, or running its checks; a conversation's latest round answered, needed no
   reply, or was stopped; or a conversation is paused, and the detail is the

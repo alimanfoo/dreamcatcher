@@ -89,7 +89,7 @@ def _draft_pull_request(*, new_posts: int = 0) -> PullRequestFinding:
         new_posts=new_posts,
         new_signals=[],
         is_check_failure_withheld=False,
-        is_final_turn_due=False,
+        is_wrap_up_due=False,
     )
 
 
@@ -563,7 +563,7 @@ def fabricate_titles_and_pull_request_states(*, state):
                     new_posts=0,
                     new_signals=[],
                     is_check_failure_withheld=check_result is CheckResult.FAILING,
-                    is_final_turn_due=pull_request_state is not PullRequestState.OPEN,
+                    is_wrap_up_due=pull_request_state is not PullRequestState.OPEN,
                 ),
             )
         )

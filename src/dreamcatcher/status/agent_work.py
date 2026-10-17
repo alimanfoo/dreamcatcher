@@ -448,7 +448,7 @@ def _describe_what_is_new(*, finding: RequestFinding | None) -> str | None:
         return describe_comments_to_answer(count=finding.new_comments)
     if not isinstance(finding, PullRequestFinding):
         return None
-    if finding.is_final_turn_due:
+    if finding.is_wrap_up_due:
         return f"the pull request is {finding.state.lower()}"
     words = [describe_signal(signal=signal) for signal in finding.new_signals]
     if finding.new_posts:

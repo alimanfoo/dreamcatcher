@@ -49,7 +49,7 @@ class PullRequestFinding(DreamcatcherDocument):
     new_posts: NonNegativeInt
     new_signals: list[PullRequestSignal]
     is_check_failure_withheld: bool
-    is_final_turn_due: bool
+    is_wrap_up_due: bool
 
 
 class IssueCommentsFinding(DreamcatcherDocument):

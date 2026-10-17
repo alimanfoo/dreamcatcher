@@ -160,7 +160,7 @@ def pull_request_row(
     new_posts: int = 0,
     state: PullRequestState = PullRequestState.OPEN,
     is_draft: bool = False,
-    is_final_turn_due: bool = False,
+    is_wrap_up_due: bool = False,
     started_round: StartedRound | None = None,
 ) -> RequestRow:
     """Return the row of the fixture's assignment with what its pull request held."""
@@ -176,7 +176,7 @@ def pull_request_row(
             new_posts=new_posts,
             new_signals=[],
             is_check_failure_withheld=False,
-            is_final_turn_due=is_final_turn_due,
+            is_wrap_up_due=is_wrap_up_due,
         ),
         started_round=started_round,
     )
@@ -681,13 +681,13 @@ def test_new_posts_found_by_the_tick_make_the_assignment_wait(state):
 
 
 @pytest.mark.parametrize("pull_request_state", ["MERGED", "CLOSED"])
-def test_a_finished_pull_request_waits_for_the_final_turn(state, pull_request_state):
+def test_a_finished_pull_request_waits_for_its_wrap_up_round(state, pull_request_state):
     ran(state=state, number=1)
     tick_with(
         state=state,
         rows=[
             pull_request_row(
-                state=PullRequestState(pull_request_state), is_final_turn_due=True
+                state=PullRequestState(pull_request_state), is_wrap_up_due=True
             )
         ],
     )
@@ -781,7 +781,7 @@ def test_a_draft_pull_request_with_nothing_new_is_idle_as_a_draft(state):
     assert only_assignment(state=state).detail == "draft"
 
 
-def test_a_finished_pull_request_whose_final_turn_was_taken_is_idle(state):
+def test_a_finished_pull_request_whose_wrap_up_round_took_its_turn_is_idle(state):
     write_round(
         directory=state.work / ASSIGNMENT_ID,
         number=1,

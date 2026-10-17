@@ -185,7 +185,7 @@ def read_relayed_pull_request_state(
     return None if latest is None else latest.pull_request_state
 
 
-def is_final_turn_taken(*, assignment: AgentWork) -> bool:
+def is_wrap_up_relayed(*, assignment: AgentWork) -> bool:
     """Return whether a merged or closed pull request has been relayed."""
     state = read_relayed_pull_request_state(assignment=assignment)
     return state is not None and state is not PullRequestState.OPEN

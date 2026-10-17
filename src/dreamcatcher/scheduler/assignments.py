@@ -5,7 +5,7 @@ from functools import partial
 from dreamcatcher.agent_assignments import (
     AssignmentRoundInput,
     complete_assignment,
-    is_final_turn_taken,
+    is_wrap_up_relayed,
     open_assignment_pull_request,
     read_assignment_pull_request_number,
     read_user_post_cursor,
@@ -73,7 +73,7 @@ def _inspect_pull_request(
     """Inspect an assignment's pull request and what is past its cursor there.
 
     A round is due for user posts or signals past the cursor, for a merged or
-    closed pull request whose final turn has not been taken, or to give again
+    closed pull request not yet relayed to a wrap-up round, or to give again
     the input of a round that did not finish.
     """
     read = read_pull_request(repository=context.repository, pull_request=pull_request)
@@ -105,16 +105,16 @@ def _inspect_pull_request(
         new_posts=len(posts),
         new_signals=signals.new_signals,
         is_check_failure_withheld=signals.is_check_failure_withheld,
-        is_final_turn_due=(
+        is_wrap_up_due=(
             read.state is not PullRequestState.OPEN
-            and not is_final_turn_taken(assignment=assignment)
+            and not is_wrap_up_relayed(assignment=assignment)
         ),
     )
     row = compose_agent_work_row(work=assignment, finding=finding)
     if not (
         finding.new_posts
         or finding.new_signals
-        or finding.is_final_turn_due
+        or finding.is_wrap_up_due
         or is_last_round_unfinished(rounds=assignment.rounds, is_daemon_running=True)
     ):
         return Inspection(row=row)
