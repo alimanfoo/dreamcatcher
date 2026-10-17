@@ -50,11 +50,11 @@ class _RoundComposer(Protocol):
 class Candidate:
     """Open work the tick may start a round for, or a request it may start work for.
 
-    The work is the open work, or the route of the work that a request would
+    It holds the open work, or the route of the work that a request would
     create.
     """
 
-    work: AgentWork | DispatchRoute
+    work_or_route: AgentWork | DispatchRoute
     compose_round: _RoundComposer
 
 

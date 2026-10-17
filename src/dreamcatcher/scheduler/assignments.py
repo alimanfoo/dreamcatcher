@@ -58,7 +58,7 @@ def inspect_open_assignment(
         return Inspection(
             row=unread,
             candidate=Candidate(
-                work=assignment,
+                work_or_route=assignment,
                 compose_round=partial(_compose_opening_round, context=context),
             ),
         )
@@ -121,7 +121,7 @@ def _inspect_pull_request(
     return Inspection(
         row=row,
         candidate=Candidate(
-            work=assignment,
+            work_or_route=assignment,
             compose_round=partial(
                 _compose_relay_round,
                 context=context,
@@ -151,7 +151,7 @@ def inspect_assignment_request(
     return Inspection(
         row=row,
         candidate=Candidate(
-            work=route,
+            work_or_route=route,
             compose_round=partial(_compose_opening_round, context=context),
         ),
     )

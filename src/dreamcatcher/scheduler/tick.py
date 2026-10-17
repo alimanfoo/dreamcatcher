@@ -332,11 +332,11 @@ class Scheduler:
         round whose work has ended by the time it starts is asked to stop.
         """
         work = (
-            candidate.work
-            if isinstance(candidate.work, AgentWork)
+            candidate.work_or_route
+            if isinstance(candidate.work_or_route, AgentWork)
             else create_agent_work(
                 state=self.context.state,
-                route=candidate.work,
+                route=candidate.work_or_route,
                 preferred_harness=self.preferred_harness,
                 issue=row.issue,
                 title=row.title,

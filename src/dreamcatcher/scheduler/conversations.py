@@ -67,7 +67,7 @@ def inspect_open_conversation(
     if is_fault:
         return Inspection(row=unread, is_counted_fault=True)
     return _inspect_comments(
-        context=context, issue=issue, work=conversation, row=unread
+        context=context, issue=issue, work_or_route=conversation, row=unread
     )
 
 
@@ -112,25 +112,25 @@ def inspect_conversation_request(
 
     A new conversation starts when one of them waits.
     """
-    return _inspect_comments(context=context, issue=issue, work=route, row=row)
+    return _inspect_comments(context=context, issue=issue, work_or_route=route, row=row)
 
 
 def _inspect_comments(
     *,
     context: SchedulingContext,
     issue: Issue,
-    work: AgentWork | DispatchRoute,
+    work_or_route: AgentWork | DispatchRoute,
     row: RequestRow,
 ) -> Inspection:
     """Read the comments at the issue and return a candidate when some wait.
 
-    The work is the open conversation, or the route of the one that would
+    It reads for the open conversation, or for the route of the one that would
     start, and the row is the request's row before the read.
     """
     comments = _list_comments_to_answer(
         context=context,
         issue=issue.number,
-        conversation=work if isinstance(work, AgentWork) else None,
+        conversation=(work_or_route if isinstance(work_or_route, AgentWork) else None),
     )
     if isinstance(comments, ReadFailureFinding):
         return Inspection(row=row.model_copy(update={"finding": comments}))
@@ -142,7 +142,7 @@ def _inspect_comments(
     return Inspection(
         row=row,
         candidate=Candidate(
-            work=work,
+            work_or_route=work_or_route,
             compose_round=partial(
                 _compose_comment_round, context=context, issue=issue, comments=comments
             ),
