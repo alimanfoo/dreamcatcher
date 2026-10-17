@@ -41,7 +41,7 @@ from dreamcatcher.scheduler.inspection import (
     Inspection,
     RequestInspector,
     SchedulingContext,
-    compose_agent_work_row,
+    compose_open_work_row,
 )
 from dreamcatcher.scheduler.models import (
     DEFAULT_MAX_AGENTS,
@@ -172,7 +172,7 @@ class Scheduler:
         round.
         """
         if work.rounds and work.rounds[-1].ending is None:
-            return Inspection(row=compose_agent_work_row(work=work, finding=None))
+            return Inspection(row=compose_open_work_row(work=work, finding=None))
         is_fault = derive_agent_work_fault(
             rounds=work.rounds,
             retry_requested_at=work.retry_requested_at,

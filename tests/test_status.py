@@ -174,7 +174,7 @@ def pull_request_row(
             merge_state=PullRequestMergeState.CLEAN,
             check_result=CheckResult.PASSING,
             new_posts=new_posts,
-            new_signals=[],
+            new_pull_request_signals=[],
             is_check_failure_withheld=False,
             is_wrap_up_due=is_wrap_up_due,
         ),
@@ -590,7 +590,7 @@ def test_signals_found_by_the_tick_make_the_assignment_wait(state):
         rows=[
             pull_request_row_holding(
                 new_posts=1,
-                new_signals=[
+                new_pull_request_signals=[
                     PullRequestSignal.OUT_OF_DATE,
                     PullRequestSignal.CHECK_FAILURE,
                 ],

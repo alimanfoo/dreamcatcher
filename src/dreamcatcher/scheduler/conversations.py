@@ -25,7 +25,7 @@ from dreamcatcher.scheduler.inspection import (
     Inspection,
     RoundPlan,
     SchedulingContext,
-    compose_agent_work_row,
+    compose_open_work_row,
 )
 from dreamcatcher.scheduler.models import (
     ConflictingLabelsFinding,
@@ -45,11 +45,11 @@ def inspect_open_conversation(
     A closed issue ends the conversation. A paused conversation's fault does
     not count, since it starts no round however its rounds ended.
     """
-    unread = compose_agent_work_row(work=conversation, finding=None)
+    unread = compose_open_work_row(work=conversation, finding=None)
     issue = read_issue(repository=context.repository, issue=conversation.record.issue)
     if isinstance(issue, UnknownGitHubResponse):
         return Inspection(
-            row=compose_agent_work_row(
+            row=compose_open_work_row(
                 work=conversation, finding=ReadFailureFinding(reason=issue.reason)
             ),
             is_counted_fault=is_fault,
@@ -63,7 +63,7 @@ def inspect_open_conversation(
         return Inspection(row=unread)
     pause = _find_pause(context=context, conversation=conversation, issue=issue)
     if pause is not None:
-        return Inspection(row=compose_agent_work_row(work=conversation, finding=pause))
+        return Inspection(row=compose_open_work_row(work=conversation, finding=pause))
     if is_fault:
         return Inspection(row=unread, is_counted_fault=True)
     return _inspect_comments(

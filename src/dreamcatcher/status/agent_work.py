@@ -450,7 +450,9 @@ def _describe_what_is_new(*, finding: RequestFinding | None) -> str | None:
         return None
     if finding.is_wrap_up_due:
         return f"the pull request is {finding.state.lower()}"
-    words = [describe_signal(signal=signal) for signal in finding.new_signals]
+    words = [
+        describe_signal(signal=signal) for signal in finding.new_pull_request_signals
+    ]
     if finding.new_posts:
         posts = describe_count(number=finding.new_posts, noun="new post")
         words.insert(0, f"{posts} to answer")

@@ -61,7 +61,7 @@ class AssignmentRoundInput(DreamcatcherDocument):
     """Model where an assignment's pull request stood and what a round relayed.
 
     The head is the pull request's head commit when the round started, which is
-    the commit that each relayed signal was raised at.
+    the commit that each relayed pull request signal was raised at.
     """
 
     pull_request_state: PullRequestState

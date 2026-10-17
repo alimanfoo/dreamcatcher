@@ -108,8 +108,8 @@ def compose_assignment_input_prompt(
 ) -> str:
     """Return the words that direct an assignment round to its input file.
 
-    The input file holds the pull request state, the signals and the batch of
-    user posts. One line for each signal opens the words.
+    The input file holds the pull request state, the pull request signals and
+    the batch of user posts. One line for each signal opens the words.
     """
     return "".join(_SIGNAL_LINES[signal] for signal in signals) + (
         _ASSIGNMENT_INPUT_PROMPT.format(

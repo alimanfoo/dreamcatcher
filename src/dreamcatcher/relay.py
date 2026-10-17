@@ -1,9 +1,9 @@
 """Select what is past an agent assignment's cursor in its pull request.
 
-The relay returns user posts and signals without writing state. The inputs of
-the rounds that took their turn record what each relayed. Posts written through
-the shared GitHub account are user input only when they do not carry the agent
-marker.
+The relay returns user posts and pull request signals without writing state.
+The inputs of the rounds that took their turn record what each relayed. Posts
+written through the shared GitHub account are user input only when they do not
+carry the agent marker.
 """
 
 from dataclasses import dataclass
@@ -27,23 +27,28 @@ from dreamcatcher.prompts import AGENT_POST_MARKER
 
 @dataclass(frozen=True, kw_only=True)
 class PullRequestSignals:
-    """Hold the signals past an assignment's cursor, and whether one was held back."""
+    """Hold the pull request signals past an assignment's cursor.
 
-    new_signals: list[PullRequestSignal]
+    A check failure the relay rule withholds is left out, and flagged.
+    """
+
+    new_pull_request_signals: list[PullRequestSignal]
     is_check_failure_withheld: bool
 
 
 def find_pull_request_signals(
     *, assignment: AgentWork, pull_request: PullRequest
 ) -> PullRequestSignals:
-    """Return the signals that the pull request raises at a head not yet relayed.
+    """Return the pull request signals raised at a head not yet relayed.
 
     Only an open pull request that is ready for review raises one, because a
     draft means that the agent has not finished. A check failure that the relay
     rule withholds is not new.
     """
     if pull_request.state is not PullRequestState.OPEN or pull_request.is_draft:
-        return PullRequestSignals(new_signals=[], is_check_failure_withheld=False)
+        return PullRequestSignals(
+            new_pull_request_signals=[], is_check_failure_withheld=False
+        )
     raised = [
         signal
         for signal, is_raised in (
@@ -62,7 +67,9 @@ def find_pull_request_signals(
     )
     if is_withheld:
         raised.remove(PullRequestSignal.CHECK_FAILURE)
-    return PullRequestSignals(new_signals=raised, is_check_failure_withheld=is_withheld)
+    return PullRequestSignals(
+        new_pull_request_signals=raised, is_check_failure_withheld=is_withheld
+    )
 
 
 def list_user_posts_past_cursor(

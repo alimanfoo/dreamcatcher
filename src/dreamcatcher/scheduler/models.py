@@ -47,7 +47,7 @@ class PullRequestFinding(DreamcatcherDocument):
     merge_state: PullRequestMergeState
     check_result: CheckResult
     new_posts: NonNegativeInt
-    new_signals: list[PullRequestSignal]
+    new_pull_request_signals: list[PullRequestSignal]
     is_check_failure_withheld: bool
     is_wrap_up_due: bool
 

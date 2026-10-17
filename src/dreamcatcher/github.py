@@ -213,7 +213,7 @@ class StatusContext(GitHubResponseProjection):
 
 
 class PullRequestSignal(StrEnum):
-    """List the signals that an assignment round records in its `signals` key."""
+    """List the pull request signals, which an assignment round records in `signals`."""
 
     OUT_OF_DATE = "out_of_date"
     CHECK_FAILURE = "check_failure"

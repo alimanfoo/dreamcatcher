@@ -87,7 +87,7 @@ def _draft_pull_request(*, new_posts: int = 0) -> PullRequestFinding:
         merge_state=PullRequestMergeState.CLEAN,
         check_result=CheckResult.PASSING,
         new_posts=new_posts,
-        new_signals=[],
+        new_pull_request_signals=[],
         is_check_failure_withheld=False,
         is_wrap_up_due=False,
     )
@@ -561,7 +561,7 @@ def fabricate_titles_and_pull_request_states(*, state):
                     merge_state=merge_state,
                     check_result=check_result,
                     new_posts=0,
-                    new_signals=[],
+                    new_pull_request_signals=[],
                     is_check_failure_withheld=check_result is CheckResult.FAILING,
                     is_wrap_up_due=pull_request_state is not PullRequestState.OPEN,
                 ),

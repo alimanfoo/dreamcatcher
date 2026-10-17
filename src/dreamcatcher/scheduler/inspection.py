@@ -85,7 +85,7 @@ class RequestInspector(Protocol):
         """Return what the request's row holds, given the row before any read."""
 
 
-def compose_agent_work_row(
+def compose_open_work_row(
     *, work: AgentWork, finding: RequestFinding | None
 ) -> RequestRow:
     """Return the row of the request that led to open work, with what the tick found."""
