@@ -169,7 +169,7 @@ def open_assignment_pull_request(
     )
 
 
-def read_user_post_delivery_position(*, assignment: AgentWork) -> str:
+def read_user_post_cursor(*, assignment: AgentWork) -> str:
     """Return the newest user-post time among the posts already relayed."""
     for round_input in _read_relayed_inputs(assignment=assignment):
         if round_input.user_posts:

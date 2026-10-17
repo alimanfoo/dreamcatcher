@@ -2133,14 +2133,14 @@ def test_a_failed_comment_read_records_its_reason_and_starts_nothing(
     assert row == conversation_row(finding=row.finding)
 
 
-def test_a_failed_delivery_position_read_is_recorded_in_its_row(
+def test_a_failed_cursor_read_is_recorded_in_its_row(
     conversation_scheduler, monkeypatch
 ):
     scheduler, clock, gh = conversation_scheduler
     write_conversation(state=scheduler.context.state, issue=8)
     offer_conversation(gh=gh, comments=[])
     monkeypatch.setattr(
-        "dreamcatcher.scheduler.conversations.read_issue_comment_delivery_position",
+        "dreamcatcher.scheduler.conversations.read_issue_comment_cursor",
         Mock(side_effect=ReportableError("could not read the round input")),
     )
 

@@ -27,7 +27,7 @@ from dreamcatcher.agent_assignments import (
     compose_assignment_branch,
     open_assignment_pull_request,
     read_assignment_pull_request_number,
-    read_user_post_delivery_position,
+    read_user_post_cursor,
 )
 from dreamcatcher.agent_rounds import (
     AgentRoundPaths,
@@ -624,9 +624,7 @@ def test_an_assignment_recovers_a_session_reported_by_a_later_round(fabricated):
     assert recovered == "replacement-session"
 
 
-def test_an_assignment_with_no_delivered_user_post_has_an_empty_delivery_position(
-    state, route
-):
+def test_an_assignment_with_no_relayed_user_post_has_an_empty_cursor(state, route):
     open_assignment(
         state=state,
         route=route,
@@ -635,13 +633,10 @@ def test_an_assignment_with_no_delivered_user_post_has_an_empty_delivery_positio
         at=PINNED,
     )
 
-    assert (
-        read_user_post_delivery_position(assignment=read_assignments(state=state)[0])
-        == ""
-    )
+    assert read_user_post_cursor(assignment=read_assignments(state=state)[0]) == ""
 
 
-def test_an_assignment_reads_back_its_user_post_delivery_position(state, route):
+def test_an_assignment_reads_back_its_user_post_cursor(state, route):
     created = open_assignment(
         state=state,
         route=route,
@@ -674,14 +669,12 @@ def test_an_assignment_reads_back_its_user_post_delivery_position(state, route):
     )
 
     assert (
-        read_user_post_delivery_position(assignment=read_assignments(state=state)[0])
+        read_user_post_cursor(assignment=read_assignments(state=state)[0])
         == "2026-09-03T22:31:51Z"
     )
 
 
-def test_the_user_post_delivery_position_scans_past_an_input_that_delivered_no_posts(
-    state, route
-):
+def test_the_user_post_cursor_scans_past_an_input_that_relayed_no_posts(state, route):
     created = open_assignment(
         state=state,
         route=route,
@@ -722,7 +715,7 @@ def test_the_user_post_delivery_position_scans_past_an_input_that_delivered_no_p
         )
 
     assert (
-        read_user_post_delivery_position(assignment=read_assignments(state=state)[0])
+        read_user_post_cursor(assignment=read_assignments(state=state)[0])
         == "2026-09-03T22:31:51Z"
     )
 

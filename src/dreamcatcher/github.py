@@ -290,13 +290,13 @@ class _UserPostProjection(GitHubResponseProjection):
 
     The time stays as GitHub's ISO-8601 string. Every populated value ends in
     `Z`, so the relay can sort and compare values as text. An unsubmitted review
-    has no time and therefore sorts before every delivery position.
+    has no time and therefore sorts before every cursor.
 
     A post whose author GitHub no longer knows, one from a deleted account, is
     likewise authored by nobody, and so is nobody's to relay.
 
-    Each concrete post names its kind because all three kinds are delivered in
-    one serialized list.
+    Each concrete post names its kind because all three kinds are relayed in one
+    serialized list.
     """
 
     id: int
@@ -692,7 +692,7 @@ def list_user_posts(
 ) -> list[UserPost] | UnknownGitHubResponse:
     """Return every conversation comment, review, and inline comment.
 
-    The relay decides which posts from the combined list to deliver.
+    The relay decides which posts from the combined list are past the cursor.
 
     A source the tool could not read answers unknown for the whole pull
     request, since the source it cannot see is the one that might hold the post

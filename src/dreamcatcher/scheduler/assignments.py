@@ -8,7 +8,7 @@ from dreamcatcher.agent_assignments import (
     is_final_turn_taken,
     open_assignment_pull_request,
     read_assignment_pull_request_number,
-    read_user_post_delivery_position,
+    read_user_post_cursor,
 )
 from dreamcatcher.agent_work import AgentWork
 from dreamcatcher.config import DispatchRoute
@@ -25,7 +25,7 @@ from dreamcatcher.github import (
     read_pull_request,
 )
 from dreamcatcher.prompts import compose_assignment_input_prompt
-from dreamcatcher.relay import find_pull_request_signals, list_undelivered_user_posts
+from dreamcatcher.relay import find_pull_request_signals, list_user_posts_past_cursor
 from dreamcatcher.scheduler.faults import is_last_round_unfinished
 from dreamcatcher.scheduler.inspection import (
     Candidate,
@@ -83,11 +83,11 @@ def _inspect_pull_request(
                 work=assignment, finding=ReadFailureFinding(reason=read.reason)
             )
         )
-    posts = list_undelivered_user_posts(
+    posts = list_user_posts_past_cursor(
         repository=context.repository,
         pull_request=read.number,
         account=context.account,
-        delivery_position=read_user_post_delivery_position(assignment=assignment),
+        cursor=read_user_post_cursor(assignment=assignment),
     )
     if isinstance(posts, UnknownGitHubResponse):
         return Inspection(

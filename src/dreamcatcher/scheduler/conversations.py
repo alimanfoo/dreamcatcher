@@ -14,10 +14,10 @@ from dreamcatcher.github import (
     read_issue,
 )
 from dreamcatcher.issue_conversations import (
-    list_undelivered_issue_comments,
+    list_issue_comments_past_cursor,
     post_conversation_answer,
     prepare_conversation_round,
-    read_issue_comment_delivery_position,
+    read_issue_comment_cursor,
 )
 from dreamcatcher.prompts import compose_conversation_input_prompt
 from dreamcatcher.scheduler.inspection import (
@@ -153,7 +153,7 @@ def _inspect_comments(
 def _list_comments_to_answer(
     *, context: SchedulingContext, issue: int, conversation: AgentWork | None
 ) -> list[ConversationComment] | ReadFailureFinding:
-    """Return the trusted comments that no round has been given yet.
+    """Return the eligible comments that no round has been given yet.
 
     A read that fails answers why.
     """
@@ -161,17 +161,17 @@ def _list_comments_to_answer(
     if isinstance(comment_response, UnknownGitHubResponse):
         return ReadFailureFinding(reason=comment_response.reason)
     try:
-        delivery_position = (
+        cursor = (
             None
             if conversation is None
-            else read_issue_comment_delivery_position(conversation=conversation)
+            else read_issue_comment_cursor(conversation=conversation)
         )
     except ReportableError as failure:
         return ReadFailureFinding(reason=str(failure))
-    return list_undelivered_issue_comments(
+    return list_issue_comments_past_cursor(
         comments=comment_response,
         account=context.account,
-        delivery_position=delivery_position,
+        cursor=cursor,
     )
 
 

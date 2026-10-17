@@ -65,15 +65,15 @@ def find_pull_request_signals(
     return PullRequestSignals(new_signals=raised, is_check_failure_withheld=is_withheld)
 
 
-def list_undelivered_user_posts(
-    *, repository: str, pull_request: int, account: str, delivery_position: str
+def list_user_posts_past_cursor(
+    *, repository: str, pull_request: int, account: str, cursor: str
 ) -> list[UserPost] | UnknownGitHubResponse:
-    """Return user posts after the delivery position, oldest first.
+    """Return user posts past the cursor, oldest first.
 
     The account is the one gh is signed in as, which is the user's own.
 
-    An empty delivery position is the beginning of time, so the first read considers the
-    pull request's whole history.
+    An empty cursor is the beginning of time, so the first read considers the pull
+    request's whole history.
 
     Reading the posts can fail, and the failure travels, so a caller can say
     in one line why it relayed nothing.
@@ -85,20 +85,16 @@ def list_undelivered_user_posts(
         (
             post
             for post in user_posts
-            if _is_undelivered_user_post(
-                post=post, account=account, delivery_position=delivery_position
-            )
+            if _is_user_post_past_cursor(post=post, account=account, cursor=cursor)
         ),
         key=lambda post: post.written_at,
     )
 
 
-def _is_undelivered_user_post(
-    *, post: UserPost, account: str, delivery_position: str
-) -> bool:
-    """Return whether the relay should deliver the post.
+def _is_user_post_past_cursor(*, post: UserPost, account: str, cursor: str) -> bool:
+    """Return whether the post is past the cursor and the user's to relay.
 
-    The post has to be newer than the delivery position, or the assignment has
+    The post has to be newer than the cursor, or the assignment has
     already received it. GitHub sends each time as an ISO-8601 string ending in a
     Z, and one such string compares against another as text.
 
@@ -106,7 +102,7 @@ def _is_undelivered_user_post(
     marker, and the post must say something.
     """
     return (
-        post.written_at > delivery_position
+        post.written_at > cursor
         and post.author == account
         and AGENT_POST_MARKER not in post.body
         and post.is_speaking

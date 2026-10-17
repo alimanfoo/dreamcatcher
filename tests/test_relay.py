@@ -21,46 +21,46 @@ from dreamcatcher.github import (
     UserPost,
 )
 from dreamcatcher.prompts import AGENT_POST_MARKER
-from dreamcatcher.relay import list_undelivered_user_posts
+from dreamcatcher.relay import list_user_posts_past_cursor
 
 # A time before anything the tests say the user posted.
 BEFORE = "2026-09-03T16:49:35Z"
 
 
-def undelivered(*, delivery_position: str = "") -> list[UserPost]:
+def past_cursor(*, cursor: str = "") -> list[UserPost]:
     """What the user newly posted, given that gh answered every post list."""
-    found = list_undelivered_user_posts(
+    found = list_user_posts_past_cursor(
         repository=REPOSITORY,
         pull_request=PULL_REQUEST,
         account=POSTED_BY,
-        delivery_position=delivery_position,
+        cursor=cursor,
     )
     assert not isinstance(found, UnknownGitHubResponse)
     return found
 
 
 def test_a_pull_request_nobody_has_posted_on_has_nothing_to_relay(gh_with_no_posts):
-    assert undelivered() == []
+    assert past_cursor() == []
 
 
-def test_an_assignment_with_an_empty_delivery_position_receives_the_whole_history(
+def test_an_assignment_with_an_empty_cursor_receives_the_whole_history(
     gh_with_no_posts,
 ):
     gh_with_no_posts.replies(
         stdout=pages(items=[comment()]), to=f"api {POST_LIST_PATHS['conversation']}"
     )
 
-    assert [post.id for post in undelivered()] == [1]
+    assert [post.id for post in past_cursor()] == [1]
 
 
-def test_a_post_at_the_assignment_delivery_position_does_not_come_back(
+def test_a_post_at_the_assignment_cursor_does_not_come_back(
     gh_with_no_posts,
 ):
     gh_with_no_posts.replies(
         stdout=pages(items=[comment()]), to=f"api {POST_LIST_PATHS['conversation']}"
     )
 
-    assert undelivered(delivery_position=POSTED_AT) == []
+    assert past_cursor(cursor=POSTED_AT) == []
 
 
 def test_the_posts_come_back_oldest_first_whichever_list_each_came_from(
@@ -79,7 +79,7 @@ def test_the_posts_come_back_oldest_first_whichever_list_each_came_from(
         to=f"api {POST_LIST_PATHS['inline-comments']}",
     )
 
-    assert [type(post) for post in undelivered()] == [
+    assert [type(post) for post in past_cursor()] == [
         PullRequestReview,
         InlineReviewComment,
         ConversationComment,
@@ -96,7 +96,7 @@ def test_a_post_carrying_the_marker_is_the_assignments_own_and_does_not_come_bac
         to=f"api {POST_LIST_PATHS['conversation']}",
     )
 
-    assert undelivered() == []
+    assert past_cursor() == []
 
 
 def test_a_post_from_another_account_does_not_come_back(gh_with_no_posts):
@@ -105,7 +105,7 @@ def test_a_post_from_another_account_does_not_come_back(gh_with_no_posts):
         to=f"api {POST_LIST_PATHS['conversation']}",
     )
 
-    assert undelivered() == []
+    assert past_cursor() == []
 
 
 def test_a_post_whose_account_github_no_longer_knows_does_not_come_back(
@@ -116,7 +116,7 @@ def test_a_post_whose_account_github_no_longer_knows_does_not_come_back(
         to=f"api {POST_LIST_PATHS['conversation']}",
     )
 
-    assert undelivered() == []
+    assert past_cursor() == []
 
 
 def test_the_empty_review_github_wrapped_an_inline_reply_in_does_not_come_back(
@@ -130,7 +130,7 @@ def test_the_empty_review_github_wrapped_an_inline_reply_in_does_not_come_back(
         to=f"api {POST_LIST_PATHS['inline-comments']}",
     )
 
-    assert [type(post) for post in undelivered()] == [InlineReviewComment]
+    assert [type(post) for post in past_cursor()] == [InlineReviewComment]
 
 
 @pytest.mark.parametrize(
@@ -146,7 +146,7 @@ def test_a_review_that_reached_a_verdict_comes_back_with_an_empty_body(
         to=f"api {POST_LIST_PATHS['reviews']}",
     )
 
-    assert [post.id for post in undelivered()] == [2]
+    assert [post.id for post in past_cursor()] == [2]
 
 
 def test_a_review_nobody_has_submitted_yet_does_not_come_back(gh_with_no_posts):
@@ -156,7 +156,7 @@ def test_a_review_nobody_has_submitted_yet_does_not_come_back(gh_with_no_posts):
         stdout=pages(items=[unsubmitted]), to=f"api {POST_LIST_PATHS['reviews']}"
     )
 
-    assert undelivered() == []
+    assert past_cursor() == []
 
 
 def test_a_suggestion_over_a_range_comes_back_with_its_lines_and_its_diff(
@@ -175,7 +175,7 @@ def test_a_suggestion_over_a_range_comes_back_with_its_lines_and_its_diff(
         to=f"api {POST_LIST_PATHS['inline-comments']}",
     )
 
-    suggestion = undelivered()[0]
+    suggestion = past_cursor()[0]
 
     assert isinstance(suggestion, InlineReviewComment)
     assert (suggestion.start_line, suggestion.line) == (1, 3)
@@ -192,11 +192,11 @@ def test_a_read_that_failed_says_so_rather_than_reading_as_nothing_posted(
         to=f"api {POST_LIST_PATHS['reviews']}",
     )
 
-    found = list_undelivered_user_posts(
+    found = list_user_posts_past_cursor(
         repository=REPOSITORY,
         pull_request=PULL_REQUEST,
         account=POSTED_BY,
-        delivery_position=POSTED_AT,
+        cursor=POSTED_AT,
     )
 
     assert isinstance(found, UnknownGitHubResponse)
@@ -209,7 +209,7 @@ def test_every_post_the_user_said_something_in_on_a_real_pull_request_comes_back
     # The three lists interleave by the time each post was written, and the
     # three empty reviews GitHub wrapped the last three inline comments in are
     # gone, while those inline comments come through on their own.
-    assert [type(post) for post in undelivered()] == [
+    assert [type(post) for post in past_cursor()] == [
         ConversationComment,
         ConversationComment,
         ConversationComment,
@@ -237,7 +237,7 @@ def test_a_comment_on_a_whole_file_says_so_rather_than_naming_line_one(
         to=f"api {POST_LIST_PATHS['inline-comments']}",
     )
 
-    written = undelivered()
+    written = past_cursor()
 
     assert [type(post) for post in written] == [InlineReviewComment]
     assert [
@@ -258,6 +258,6 @@ def test_a_comment_gh_says_nothing_about_the_subject_of_reads_as_one_on_a_line(
 
     assert [
         post.subject_type
-        for post in undelivered()
+        for post in past_cursor()
         if isinstance(post, InlineReviewComment)
     ] == ["line"]

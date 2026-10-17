@@ -33,7 +33,7 @@ import dreamcatcher.scheduler.tick as tick_module
 from dreamcatcher.agent_assignments import (
     AssignmentRoundInput,
     read_assignment_pull_request_number,
-    read_user_post_delivery_position,
+    read_user_post_cursor,
 )
 from dreamcatcher.agent_rounds import (
     AgentRoundRecord,
@@ -953,7 +953,7 @@ def test_a_terminal_round_after_an_error_without_a_session_receives_wrap_up_inpu
     assert round_input["pull_request_state"] == PullRequestState.MERGED
     assert "--resume" not in harnesses["claude"].calls[-1].arguments
     assignment = read_assignments(state=scheduler.context.state)[0]
-    assert read_user_post_delivery_position(assignment=assignment) == POSTED_AT
+    assert read_user_post_cursor(assignment=assignment) == POSTED_AT
 
 
 def test_a_round_after_an_errored_one_is_given_its_posts_again(resuming, gh, harnesses):
@@ -969,7 +969,7 @@ def test_a_round_after_an_errored_one_is_given_its_posts_again(resuming, gh, har
     scheduler.tick(at=clock())
     finish_rounds(scheduler=scheduler)
     assignment = read_assignments(state=scheduler.context.state)[0]
-    assert read_user_post_delivery_position(assignment=assignment) == ""
+    assert read_user_post_cursor(assignment=assignment) == ""
     ending = assignment.rounds[-1].ending
     assert isinstance(ending, ErroredAgentRoundEnding)
     request_agent_work_retry(work=assignment, at=ending.at + timedelta(seconds=1))

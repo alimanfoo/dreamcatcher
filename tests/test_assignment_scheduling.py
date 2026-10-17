@@ -449,7 +449,7 @@ def test_a_batch_of_posts_says_how_many_it_holds(state, gh):
     assert len(resume.user_posts) == 2
 
 
-def test_a_post_at_the_assignment_delivery_position_wakes_nothing(state, gh):
+def test_a_post_at_the_assignment_cursor_wakes_nothing(state, gh):
     ran(state=state, number=1)
     gh.replies(
         stdout=pages(items=[comment()]), to=f"api {POST_LIST_PATHS['conversation']}"
