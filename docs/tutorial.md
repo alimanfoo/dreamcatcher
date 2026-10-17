@@ -41,7 +41,7 @@ gh --version
 claude --version
 ```
 
-This installs the current development version of _dreamcatcher_ from GitHub.
+This installs the latest release of _dreamcatcher_ from PyPI.
 
 ## 2. Sign in to GitHub and Claude
 
@@ -179,10 +179,11 @@ ready for review. Claude then works in that child worktree.
 
 ## 7. Watch the assignment
 
-Your browser opens the web home page when the daemon starts. Select `GH123` to
-see its rounds and live feed. The page reads local state, so it can show
-activity without publishing the agent's working notes to GitHub. You can also
-follow the same feed in a second terminal:
+Your browser opens the web home page when the daemon starts. Select the `>` on
+the card for issue #123 to open the assignment and see its rounds and live feed.
+The page reads local state, so it can show activity without publishing the
+agent's working notes to GitHub. You can also follow the same feed in a second
+terminal:
 
 ```sh
 dreamcatcher feed GH123 --assignment

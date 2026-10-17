@@ -26,11 +26,28 @@ each entry links the pull request or commit that made the change.
 
 ## Unreleased
 
+## [v6.1.0](https://github.com/alimanfoo/dreamcatcher/releases/tag/v6.1.0) — 2026-10-18
+
 ### Changed
 
 - The empty commit that starts an assignment now uses the checkout's Git author
   and skips CI. Checks begin with the agent's first real commit instead.
   ([#582](https://github.com/alimanfoo/dreamcatcher/pull/582))
+- `dreamcatcher cancel` says only that the assignment is cancelled. It no longer
+  reads the pull request to name it in the message.
+  ([#580](https://github.com/alimanfoo/dreamcatcher/pull/580))
+- An idle assignment's detail no longer repeats the merge state and check result
+  that its pull request chip shows. It says ready for review, draft, merged or
+  closed, or that checks are still failing after two attempts.
+  ([#584](https://github.com/alimanfoo/dreamcatcher/pull/584))
+- The views say main moved, where they said out of date, for a round that main
+  moving on woke. The pull request chip says behind main or conflicts with main
+  in place of out of date.
+  ([#588](https://github.com/alimanfoo/dreamcatcher/pull/588))
+
+- `dreamcatcher --help` lists its commands under "commands", where it said
+  "verbs", and a bare `dreamcatcher` asks for a command.
+  ([#591](https://github.com/alimanfoo/dreamcatcher/pull/591))
 
 ### Fixed
 

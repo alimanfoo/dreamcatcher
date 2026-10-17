@@ -105,8 +105,7 @@ class DreamcatcherDaemon:
         checkout.
 
         The repository and signed-in account are fixed for the daemon run. The account
-        identifies user posts before the marker excludes the assignment's own
-        posts.
+        identifies user posts before the marker excludes the agent's own posts.
 
         The companion starts after the daemon's startup checks pass and ends with the
         daemon.

@@ -58,8 +58,8 @@ For each harness that the configuration routes work to, it checks that the
 harness is installed and signed in, and installs the dream plugin. Then it
 creates every route label that the repository lacks.
 
-The daemon and setup refuse a checkout for the same reasons, because both call
-the main-checkout check in `git.py`, the repository and account check in
+The daemon and setup share the checks they both make, because both call the
+main-checkout check in `git.py`, the repository and account check in
 `github.py`, and the harness check in `harnesses.py`. Every setup step leaves
 alone what is already in place. Setup makes no scheduling decision and starts no
 agent work.
@@ -83,7 +83,7 @@ One scheduler tick:
    issue and each piece of open agent work, which names its own issue and label;
 3. inspects each piece of open work's channel: an assignment's pull request and
    user posts, or a conversation's issue and then its comments, ending the
-   conversation if the issue is closed;
+   conversation if the issue is closed and no round of it is running;
 4. for each request with no open work, skips an assignment label whose issue
    already has an open assignment, checks for a routing conflict, then asks the
    start-time questions or reads the comments;
