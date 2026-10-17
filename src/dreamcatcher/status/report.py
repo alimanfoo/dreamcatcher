@@ -211,6 +211,20 @@ class DreamcatcherStatusReport:
         )
 
     @property
+    def active_conversation_statuses(self) -> list[ConversationStatus]:
+        """The conversations that are current work, in attention order."""
+        return [status for status in self.conversation_statuses if status.is_current]
+
+    @property
+    def ended_conversation_statuses(self) -> list[ConversationStatus]:
+        """The conversations that have ended, most recently ended first."""
+        return sorted(
+            (status for status in self.conversation_statuses if status.has_ended),
+            key=lambda status: cast("AgentWorkEnding", status.ending).at,
+            reverse=True,
+        )
+
+    @property
     def ended_assignment_statuses(self) -> list[AssignmentStatus]:
         """The assignments that have ended, most recently ended first."""
         return sorted(
@@ -288,6 +302,9 @@ def read_status_report(
         or reported_issue_observations
     )
     has_conversation_work = bool(conversation_statuses)
+    has_current_conversation_work = any(
+        status.is_current for status in conversation_statuses
+    )
     assignment_empty_message = (
         None
         if not assignment_labels
@@ -340,7 +357,7 @@ def read_status_report(
             heading="conversations",
             labels=conversation_labels,
             has_any_work=has_conversation_work,
-            has_current_work=has_conversation_work,
+            has_current_work=has_current_conversation_work,
             empty_message=conversation_empty_message,
         ),
     )
@@ -361,7 +378,7 @@ def _list_reported_conversation_statuses(
     scheduler_record: SchedulerRecord | None,
     conversations: list[AgentWork],
 ) -> list[ConversationStatus]:
-    """Return the listed conversations in attention order."""
+    """Return the listed and the ended conversations in attention order."""
     return sorted(
         (
             status
@@ -372,7 +389,7 @@ def _list_reported_conversation_statuses(
                 scheduler_record=scheduler_record,
                 conversations=conversations,
             ).list_statuses()
-            if status.is_listed
+            if status.is_listed or status.has_ended
         ),
         key=lambda status: CONVERSATION_STATUS_VALUES_IN_ATTENTION_ORDER.index(
             status.value

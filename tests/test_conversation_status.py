@@ -7,11 +7,13 @@ import pytest
 from clocks import PINNED
 from observations import observed_conversation
 from records import (
+    SCOUT_ROUTES,
     find_conversation_directory,
     hold_daemon_lock_for_test,
     read_conversation,
     write_conversation,
     write_daemon_run,
+    write_ending,
     write_feed,
     write_final_output,
     write_round,
@@ -24,7 +26,7 @@ from dreamcatcher.agent_rounds import (
     StoppedAgentRoundEnding,
     _compose_agent_round_ending,
 )
-from dreamcatcher.agent_work import request_agent_work_retry
+from dreamcatcher.agent_work import AgentWorkEndReason, request_agent_work_retry
 from dreamcatcher.config import AgentHarness
 from dreamcatcher.documents import read_json, write_json
 from dreamcatcher.feed import FeedLine
@@ -747,3 +749,76 @@ def test_a_round_revision_keeps_its_whole_value():
 
     assert found.value == "0123456789abcdef"
     assert found.description == "code revision 0123456789abcdef"
+
+
+def end_conversation(*, state: StateDirectory, minutes: int = 10) -> None:
+    """Record that the fixture conversation ended that many minutes in."""
+    write_ending(
+        directory=find_conversation_directory(state=state, issue=8),
+        reason=AgentWorkEndReason.COMPLETED,
+        at=PINNED + timedelta(minutes=minutes),
+    )
+
+
+def test_an_ended_conversation_reads_as_ended_with_its_reason(conversation_state):
+    conversation_round(state=conversation_state)
+    end_conversation(state=conversation_state)
+
+    found = status(state=conversation_state)
+
+    assert found.value is ConversationStatusValue.ENDED
+    assert found.detail == "completed"
+    assert found.has_ended
+    assert not found.is_current
+
+
+def test_a_running_round_keeps_an_ended_conversation_working(conversation_state):
+    hold_daemon_lock_for_test(path=conversation_state.lock)
+    conversation_round(state=conversation_state, status=None)
+    end_conversation(state=conversation_state)
+
+    assert status(state=conversation_state).value is ConversationStatusValue.WORKING
+
+
+def test_the_report_lists_ended_conversations_apart_newest_first(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    write_daemon_run(state=state, pid=os.getpid(), routes=SCOUT_ROUTES)
+    for issue, minutes in ((8, 10), (9, 20)):
+        write_ending(
+            directory=write_conversation(state=state, issue=issue),
+            reason=AgentWorkEndReason.COMPLETED,
+            at=PINNED + timedelta(minutes=minutes),
+        )
+    write_tick(
+        state=state,
+        tick=SchedulerRecord(
+            at=PINNED, conversation_observations=[observed_conversation(issue=10)]
+        ),
+    )
+
+    report = read_status_report(state=state, clock=lambda: LOOKED_AT)
+
+    assert [status.issue for status in report.active_conversation_statuses] == [10]
+    assert [status.issue for status in report.ended_conversation_statuses] == [9, 8]
+    assert report.conversation_section == AgentWorkStatusSection(
+        heading="conversations", empty_message=None
+    )
+
+
+def test_a_section_of_ended_conversations_alone_gives_its_guidance(
+    conversation_state,
+):
+    write_daemon_run(state=conversation_state, pid=os.getpid(), routes=SCOUT_ROUTES)
+    end_conversation(state=conversation_state)
+    observe(state=conversation_state, observations=[])
+
+    report = read_status_report(state=conversation_state, clock=lambda: LOOKED_AT)
+
+    assert report.active_conversation_statuses == []
+    assert report.conversation_section == AgentWorkStatusSection(
+        heading="conversations",
+        empty_message=(
+            "Assign an issue to yourself, label it with dream:scout and post a "
+            "comment to start a conversation."
+        ),
+    )

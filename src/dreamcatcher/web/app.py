@@ -234,7 +234,7 @@ def _show_work_tail(
         should_stop_polling=(
             status.has_ended
             if isinstance(status, AssignmentStatus)
-            else not status.is_listed
+            else not status.is_current
         ),
         zone=zone,
     )

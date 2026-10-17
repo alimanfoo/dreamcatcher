@@ -13,7 +13,6 @@ from dreamcatcher.state import StateDirectory
 from dreamcatcher.status import (
     AgentWorkStatusSection,
     AssignmentStatus,
-    ConversationStatus,
     DreamcatcherStatusReport,
     IssueObservation,
     Truth,
@@ -70,10 +69,7 @@ def _render_status(*, report: DreamcatcherStatusReport) -> RenderableType:
             Text(report.repository or "repository unknown", style="bold"),
             _render_instance_status(report=report),
             _render_assignments(report=report, section=report.assignment_section),
-            _render_conversations(
-                conversations=report.conversation_statuses,
-                section=report.conversation_section,
-            ),
+            _render_conversations(report=report, section=report.conversation_section),
         ]
     )
 
@@ -182,19 +178,29 @@ def _render_assignment_rows(
 
 
 def _render_conversations(
-    *,
-    conversations: Sequence[ConversationStatus],
-    section: AgentWorkStatusSection | None,
+    *, report: DreamcatcherStatusReport, section: AgentWorkStatusSection | None
 ) -> RenderableType | None:
+    """Render conversation work as one section, mirroring the web home view.
+
+    Orders current conversations, any guidance, and the ended-conversation count
+    in that sequence.
+    """
     if section is None:
         return None
+    rows: list[RenderableType] = []
+    active = report.active_conversation_statuses
+    if active:
+        table = create_table(columns=3)
+        for status in active:
+            table.add_row(
+                Text(f"GH{status.issue}"),
+                Text(str(status.value), style=CONVERSATION_STATUS_STYLES[status.value]),
+                Text(status.detail),
+            )
+        rows.append(table)
     if section.empty_message is not None:
-        return render_section(heading=section.heading, body=Text(section.empty_message))
-    table = create_table(columns=3)
-    for status in conversations:
-        table.add_row(
-            Text(f"GH{status.issue}"),
-            Text(str(status.value), style=CONVERSATION_STATUS_STYLES[status.value]),
-            Text(status.detail),
-        )
-    return render_section(heading=section.heading, body=table)
+        rows.append(Text(section.empty_message))
+    ended = report.ended_conversation_statuses
+    if ended:
+        rows.append(Text(describe_count(number=len(ended), noun="ended conversation")))
+    return render_section(heading=section.heading, body=Group(*rows))

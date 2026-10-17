@@ -69,9 +69,13 @@ def compose_home_view(*, report: DreamcatcherStatusReport) -> WebHomeView:
         instance_facts=report.instance_facts,
         assignment_section=report.assignment_section,
         conversation_section=report.conversation_section,
-        conversations=tuple(
+        active_conversations=tuple(
             _compose_conversation_card(status=status)
-            for status in report.conversation_statuses
+            for status in report.active_conversation_statuses
+        ),
+        ended_conversations=tuple(
+            _compose_conversation_card(status=status)
+            for status in report.ended_conversation_statuses
         ),
         active_assignments=tuple(
             _compose_assignment_card(status=status)

@@ -369,6 +369,7 @@ body::after {
 .status-waiting,
 .status-complete,
 .status-cancelled,
+.status-ended,
 .status-idle,
 .status-unknown,
 .issue-blocked {
@@ -449,7 +450,7 @@ body::after {
   background: var(--control-hover-strong-surface);
 }
 
-.ended-assignments summary,
+.ended-work summary,
 .empty,
 .assignment-navigation {
   color: var(--dim);

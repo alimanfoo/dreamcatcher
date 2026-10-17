@@ -394,10 +394,17 @@ assignment status meaning:
   fault.
 - **Unknown**: _dreamcatcher_ cannot tell whether the issue is eligible or
   whether comments wait. Its counterpart is unknown.
+- **Ended**: the conversation's ending is recorded, and its reason is the
+  detail. Working outranks it while a round still runs. Its counterparts are
+  complete and cancelled.
 
 Idle differs from needs user feedback on purpose. An assignment at rest has a
 pull request waiting for review, so it asks something of the user. A
 conversation at rest asks nothing. A conversation has no complete status.
+
+An ended conversation appears with ended assignments, in the collapsed list of
+ended work on the web home page and in the terminal's count. Nothing ends a
+conversation yet.
 
 Every open, assigned issue carrying at least one configured conversation label
 has a conversation status from the first scheduler tick that observes it,

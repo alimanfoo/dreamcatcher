@@ -193,7 +193,8 @@ class WebHomeView:
     instance_facts: tuple[StatusFact, ...]
     assignment_section: AgentWorkStatusSection | None
     conversation_section: AgentWorkStatusSection | None
-    conversations: tuple[WebConversationCard, ...]
+    active_conversations: tuple[WebConversationCard, ...]
+    ended_conversations: tuple[WebConversationCard, ...]
     active_assignments: tuple[WebAssignmentCard, ...]
     ended_assignments: tuple[WebAssignmentCard, ...]
     failed_setups: tuple[WebIssueRow, ...]

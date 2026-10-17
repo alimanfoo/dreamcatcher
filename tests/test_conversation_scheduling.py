@@ -27,6 +27,7 @@ from records import (
     read_conversation,
     write_assignment,
     write_conversation,
+    write_ending,
     write_round,
 )
 
@@ -41,6 +42,7 @@ from dreamcatcher.agent_rounds import (
 )
 from dreamcatcher.agent_work import (
     _HARNESS_SESSION_RECORD_NAME,
+    AgentWorkEndReason,
     record_harness_session_identifier,
 )
 from dreamcatcher.config import AgentHarness, read_dreamcatcher_config
@@ -2187,3 +2189,23 @@ def test_an_unrelated_comment_failure_does_not_block_recovery(
     assert failure.startswith("could not read comments for GH9:")
     assert "network unavailable" in failure
     assert observed.conversation_observations[1].requires_round.value is (Truth.UNKNOWN)
+
+
+def test_an_ended_conversation_is_left_alone_and_a_comment_starts_another(
+    conversation_scheduler, harnesses
+):
+    scheduler, clock, gh = conversation_scheduler
+    ended = write_conversation(state=scheduler.assignments.state, issue=8)
+    write_ending(
+        directory=ended,
+        reason=AgentWorkEndReason.COMPLETED,
+        at=clock(),
+    )
+    offer_conversation(gh=gh, comments=[ask()])
+    answer(harnesses=harnesses)
+
+    launched = scheduler.tick(at=clock())
+
+    [identifier] = launched.launched_agent_work_identifiers
+    assert identifier != ended.name
+    assert not (ended / "rounds").exists()

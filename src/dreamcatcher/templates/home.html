@@ -22,7 +22,7 @@
           {% endfor %}
           {% if view.assignment_section.empty_message %}<p class="empty">{{ view.assignment_section.empty_message }}</p>{% endif %}
           {% if view.ended_assignments %}
-            <details class="ended-assignments">
+            <details class="ended-work">
               <summary>+ {{ view.ended_assignments|length }} ended</summary>
               {%- for assignment in view.ended_assignments %}
                 {% include "partials/assignment-card.html" %}
@@ -33,10 +33,18 @@
         {% if view.conversation_section %}
           <section class="panel" aria-labelledby="conversations-heading">
             <h1 id="conversations-heading">{{ view.conversation_section.heading|capitalize }}</h1>
-            {% for conversation in view.conversations %}
+            {% for conversation in view.active_conversations %}
               {% include "partials/conversation-card.html" %}
             {% endfor %}
             {% if view.conversation_section.empty_message %}<p class="empty">{{ view.conversation_section.empty_message }}</p>{% endif %}
+            {% if view.ended_conversations %}
+              <details class="ended-work">
+                <summary>+ {{ view.ended_conversations|length }} ended</summary>
+                {%- for conversation in view.ended_conversations %}
+                  {% include "partials/conversation-card.html" %}
+                {%- endfor %}
+              </details>
+            {% endif %}
           </section>
         {% endif %}
       </div>

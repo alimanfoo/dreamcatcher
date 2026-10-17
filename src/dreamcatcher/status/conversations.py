@@ -8,7 +8,7 @@ from dreamcatcher.agent_rounds import (
     AgentRoundOutcome,
     AgentRoundPaths,
 )
-from dreamcatcher.agent_work import AgentWork
+from dreamcatcher.agent_work import AgentWork, AgentWorkEnding
 from dreamcatcher.documents import read_text
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.harness_adapters import HarnessSessionIdentifier
@@ -43,7 +43,8 @@ class ConversationStatusValue(StrEnum):
     that the user must remove all but one conversation label before work can
     start. Idle takes the place of needs user feedback, because a conversation
     at rest has posted its answer and asks nothing of the user. Fault takes two
-    consecutive errored rounds.
+    consecutive errored rounds. Ended means that the conversation's ending is
+    recorded.
     """
 
     ROUTING_CONFLICT = "routing conflict"
@@ -52,9 +53,11 @@ class ConversationStatusValue(StrEnum):
     IDLE = "idle"
     FAULT = "fault"
     UNKNOWN = "unknown"
+    ENDED = "ended"
 
 
-# Idle comes last because a conversation at rest asks nothing of the user.
+# Idle comes after the others because a conversation at rest asks nothing of the
+# user, and ended comes last because nothing more happens to it.
 CONVERSATION_STATUS_VALUES_IN_ATTENTION_ORDER = (
     ConversationStatusValue.ROUTING_CONFLICT,
     ConversationStatusValue.FAULT,
@@ -62,6 +65,7 @@ CONVERSATION_STATUS_VALUES_IN_ATTENTION_ORDER = (
     ConversationStatusValue.WAITING,
     ConversationStatusValue.UNKNOWN,
     ConversationStatusValue.IDLE,
+    ConversationStatusValue.ENDED,
 )
 
 
@@ -80,6 +84,21 @@ class ConversationStatus:
     detail: str
     latest_output: str | None
     is_listed: bool
+
+    @property
+    def ending(self) -> AgentWorkEnding | None:
+        """When and why the conversation ended, if it has."""
+        return None if self.conversation is None else self.conversation.ending
+
+    @property
+    def has_ended(self) -> bool:
+        """Whether the conversation has ended and no round of it is still running."""
+        return self.value is ConversationStatusValue.ENDED
+
+    @property
+    def is_current(self) -> bool:
+        """Whether the status report lists the conversation as current work."""
+        return self.is_listed and not self.has_ended
 
     @cached_property
     def harness_session_identifier(self) -> HarnessSessionIdentifier | None:
@@ -190,7 +209,9 @@ class ConversationStatusReader(AgentWorkStatusReader[ConversationStatus]):
     def list_statuses(self) -> list[ConversationStatus]:
         """Return saved and observed conversation statuses in issue order."""
         saved_issues = {
-            conversation.record.issue for conversation in self.conversations
+            conversation.record.issue
+            for conversation in self.conversations
+            if conversation.is_open
         }
         statuses = [
             self.derive(
@@ -222,6 +243,9 @@ class ConversationStatusReader(AgentWorkStatusReader[ConversationStatus]):
         status = self._derive_working(
             issue=issue, title=title, conversation=conversation
         )
+        if status is not None:
+            return status
+        status = self._derive_ended(issue=issue, title=title, conversation=conversation)
         if status is not None:
             return status
         status = self._derive_fault(issue=issue, title=title, conversation=conversation)
@@ -265,6 +289,23 @@ class ConversationStatusReader(AgentWorkStatusReader[ConversationStatus]):
                     latest_output=latest_output,
                 )
         return None
+
+    def _derive_ended(
+        self,
+        *,
+        issue: int,
+        title: str,
+        conversation: AgentWork | None,
+    ) -> ConversationStatus | None:
+        if conversation is None or conversation.ending is None:
+            return None
+        return self._compose(
+            issue=issue,
+            title=title,
+            conversation=conversation,
+            value=ConversationStatusValue.ENDED,
+            detail=str(conversation.ending.reason),
+        )
 
     def _derive_eligibility(
         self,

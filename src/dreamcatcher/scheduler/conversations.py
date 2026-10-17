@@ -100,7 +100,7 @@ class ConversationScheduler(
         conversations_by_issue = {
             work.record.issue: work
             for work in read_agent_work(state=self.state)
-            if work.record.kind is AgentWorkKind.CONVERSATION
+            if work.record.kind is AgentWorkKind.CONVERSATION and work.is_open
         }
         most_recent_cooldown_ended = (
             None

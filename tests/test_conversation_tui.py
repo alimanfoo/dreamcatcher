@@ -10,6 +10,7 @@ from records import (
     find_conversation_directory,
     hold_daemon_lock_for_test,
     write_conversation,
+    write_ending,
     write_feed,
     write_final_output,
     write_round,
@@ -23,6 +24,7 @@ from dreamcatcher.agent_rounds import (
     ConversationRoundPurpose,
     _compose_agent_round_ending,
 )
+from dreamcatcher.agent_work import AgentWorkEndReason
 from dreamcatcher.documents import write_json, write_text
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import FeedLine
@@ -590,3 +592,40 @@ def assert_conversation_views_keep_watching(*, state: StateDirectory) -> None:
     )
 
     assert len(waits) == 2
+
+
+def end_conversation(*, state: StateDirectory) -> None:
+    """Record that the conversation at issue 8 ended."""
+    write_ending(
+        directory=find_conversation_directory(state=state, issue=8),
+        reason=AgentWorkEndReason.COMPLETED,
+        at=PINNED + timedelta(minutes=10),
+    )
+
+
+def test_status_counts_an_ended_conversation(tmp_path):
+    state = conversation_state(root=tmp_path, is_eligible=True)
+    end_conversation(state=state)
+    console, written = rendered_console()
+
+    show_status_view(state=state, console=console, clock=lambda: PINNED)
+
+    shown = written.getvalue()
+    assert "1 ended conversation" in shown
+    assert "answered" not in shown
+
+
+def test_a_view_of_an_ended_conversation_still_listed_never_waits(tmp_path):
+    state = conversation_state(root=tmp_path, is_eligible=True)
+    end_conversation(state=state)
+    console, written = watched_console()
+
+    show_conversation_view(
+        state=state,
+        issue=8,
+        console=console,
+        clock=lambda: PINNED,
+        wait=refusing,
+    )
+
+    assert "ended  completed" in written.getvalue()

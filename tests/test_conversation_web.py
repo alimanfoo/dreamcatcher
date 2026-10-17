@@ -12,6 +12,7 @@ from records import (
     hold_daemon_lock_for_test,
     read_conversation,
     release_daemon_lock,
+    write_ending,
     write_feed,
     write_round,
     write_running_conversation,
@@ -25,6 +26,7 @@ from dreamcatcher.agent_rounds import (
     ConversationRoundPurpose,
     _compose_agent_round_ending,
 )
+from dreamcatcher.agent_work import AgentWorkEndReason
 from dreamcatcher.documents import append_text, write_json, write_text
 from dreamcatcher.feed import FeedLine
 from dreamcatcher.issue_conversations import (
@@ -724,3 +726,22 @@ def test_home_lists_conversations_in_attention_order(tmp_path):
     assert "status-working" in page
     assert "status-unknown" in page
     assert '<p class="latest-output"><span>agent</span> Still working.</p>' in page
+
+
+def test_home_collapses_an_ended_conversation(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    fabricate_everything(state=state)
+    fabricate_conversation(state=state)
+    write_ending(
+        directory=find_conversation_directory(state=state, issue=8),
+        reason=AgentWorkEndReason.COMPLETED,
+        at=PINNED + timedelta(minutes=10),
+    )
+
+    page = application(state=state).test_client().get("/").text
+
+    conversations = page[page.index('id="conversations-heading"') :]
+    ended = conversations[conversations.index('<details class="ended-work">') :]
+    assert "<summary>+ 1 ended</summary>" in ended
+    assert 'id="conversation-GH8"' in ended
+    assert '<span class="chip status-ended">ended</span>' in ended
