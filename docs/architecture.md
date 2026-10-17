@@ -163,13 +163,15 @@ conversation's worktree never acquires an implementation branch or a pull
 request.
 
 Each tick reads an open conversation's issue before its comments, so open
-conversations do not depend on the listing. The tick continues both reads while
-a round runs. A closed issue ends the conversation with the reason "issue
-closed" once its running round finishes. A conversation whose label is off its
-issue, whose issue is not assigned to the signed-in account, or whose issue
-carries another configured conversation label is paused: the tick reads no
-comments for it and starts no round. A conversation belongs to the label that
-started it, so another label on the same issue is a request of its own.
+conversations do not depend on the listing. The tick keeps reading the issue
+while a round runs, and also reads its comments while the issue remains open and
+the conversation is not paused. A closed issue ends the conversation with the
+reason "issue closed" once its running round finishes. A conversation whose
+label is off its issue, whose issue is not assigned to the signed-in account, or
+whose issue carries another configured conversation label is paused: the tick
+reads no comments for it and starts no round. A conversation belongs to the
+label that started it, so another label on the same issue is a request of its
+own.
 
 The signed-in GitHub account identifies eligible issue comments. Marked
 _dreamcatcher_ comments, comments by other accounts and blank comments are
