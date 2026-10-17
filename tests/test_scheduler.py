@@ -925,7 +925,7 @@ def test_a_follow_up_without_a_harness_session_starts_a_new_one_with_its_input(
 
     assert observed.launched_agent_work_identifiers == [ASSIGNMENT_ID]
     prompt = written_round(scheduler=scheduler, number=2, name="prompt.txt")
-    assert prompt.startswith("/dream:smith GH13\n\nUser-posts prompt")
+    assert prompt.startswith("/dream:smith GH13\n\nAssignment input")
     assert "--resume" not in harnesses["claude"].calls[-1].arguments
 
 
@@ -946,7 +946,7 @@ def test_a_terminal_round_after_an_error_without_a_session_receives_wrap_up_inpu
     assert observed.launched_agent_work_identifiers == [ASSIGNMENT_ID]
     prompt = written_round(scheduler=scheduler, number=2, name="prompt.txt")
     assert prompt.startswith("/dream:smith GH13\n\nYour previous round did not finish.")
-    assert "User-posts prompt" in prompt
+    assert "Assignment input for pull request" in prompt
     round_input = json.loads(
         written_round(scheduler=scheduler, number=2, name="round-input.json")
     )

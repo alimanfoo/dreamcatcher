@@ -60,20 +60,20 @@ their output, fix the cause, and push.
 
 """
 
-# What a round resumed from the pull request asks for. It ports from the catcher
-# this tool replaces, word for word. The user's own words are never in it: the
-# posts go to a file, and this names the file. The file also says where the
-# pull request has got to, which is what tells a round that answers the user
-# from a round that wraps a merged or closed pull request up, so one prompt
-# serves both.
-_ASSIGNMENT_INPUT_PROMPT = """User-posts prompt for pull request #{pull_request}:
+# What an assignment round is given once its pull request exists. The user's own
+# words are never in it: the posts go to a file, and this names the file. The
+# file also says where the pull request has got to, which is what tells a round
+# that answers the user from a round that wraps a merged or closed pull request
+# up, so one prompt serves both. A round woken by a signal alone has no posts,
+# and the signal's line before this prompt says what to do.
+_ASSIGNMENT_INPUT_PROMPT = """Assignment input for pull request #{pull_request}:
 
   {round_input}
 
 Read that JSON file. Read pull_request_state before anything else. If
 pull_request_state is MERGED or CLOSED, finish per your assignment's rules.
-Otherwise act on user_posts per your assignment's rules. End your turn when
-done."""
+Otherwise act on every post in user_posts, if it holds any, per your
+assignment's rules. End your turn when done."""
 
 _CONVERSATION_INPUT_PROMPT = """Issue-conversation input for GH{issue}:
 

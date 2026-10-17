@@ -193,9 +193,12 @@ being merged or closed before its wrap-up round has taken its turn;
 **out-of-date**, a pull request that is ready for review and behind its base
 branch or in conflict with it; and **check-failure**, a pull request that is
 ready for review with a finished check that failed. A draft raises neither of
-the last two, because the agent has not finished. Each of the last two is
-relayed at most once for each head commit of the pull request, so it is raised
-again only once the head moves.
+the last two, because the agent has not finished. GitHub reports a branch as
+behind its base only when the repository requires branches to be up to date
+before merging, so elsewhere a pull request that falls behind without a conflict
+raises no out-of-date signal. Each of the last two is relayed at most once for
+each head commit of the pull request, so it is raised again only once the head
+moves.
 
 The **relay rule** gives an agent two attempts at a red build on its own. A
 check-failure is withheld when the last two rounds whose input is behind the

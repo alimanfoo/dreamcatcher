@@ -127,7 +127,7 @@ def test_the_assignment_input_prompt_names_the_pull_request_and_the_file(
         pull_request=52, round_input=round_input, signals=[]
     )
 
-    assert composed.startswith("User-posts prompt for pull request #52:")
+    assert composed.startswith("Assignment input for pull request #52:")
     assert str(round_input) in composed
 
 
@@ -141,7 +141,7 @@ def test_each_signal_opens_the_assignment_input_prompt_with_its_line(tmp_path):
     out_of_date, check_failure, input_prompt = composed.split("\n\n", 2)
     assert out_of_date.startswith("Your pull request is behind its base branch")
     assert check_failure.startswith("Checks failed on your pull request's latest")
-    assert input_prompt.startswith("User-posts prompt for pull request #52:")
+    assert input_prompt.startswith("Assignment input for pull request #52:")
 
 
 def test_a_signal_line_follows_the_line_about_the_previous_round(tmp_path):
@@ -158,7 +158,7 @@ def test_a_signal_line_follows_the_line_about_the_previous_round(tmp_path):
 
     assert prompt.startswith("Your previous round did not finish.")
     assert prompt.index("Your previous round") < prompt.index("Checks failed")
-    assert prompt.index("Checks failed") < prompt.index("User-posts prompt")
+    assert prompt.index("Checks failed") < prompt.index("Assignment input")
 
 
 def test_the_conversation_input_prompt_names_its_input_and_host_boundary(tmp_path):
