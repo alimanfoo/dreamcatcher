@@ -236,8 +236,16 @@ def write_text(*, text: str, path: Path) -> None:
     directory is not a bug in the tool, and the user can act on either, so it
     reads as a message.
     """
-    with _stage_text(text=text, path=path) as staged:
+    staged = path.with_name(f"{path.name}.{uuid4().hex}{_STAGED_WRITE_SUFFIX}")
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with staged.open("x", encoding="utf-8", newline="") as opened:
+            opened.write(text)
         staged.replace(path)
+    except OSError as error:
+        with suppress(OSError):
+            staged.unlink(missing_ok=True)
+        raise ReportableError(f"cannot write {path}: {error}.") from error
 
 
 def append_text(*, text: str, path: Path) -> None:
@@ -260,45 +268,6 @@ def append_text(*, text: str, path: Path) -> None:
 def write_json(*, document: DreamcatcherDocument, path: Path) -> None:
     """Write the document to path as JSON."""
     write_text(text=document.model_dump_json(indent=2) + "\n", path=path)
-
-
-def write_json_if_absent(*, document: DreamcatcherDocument, path: Path) -> bool:
-    """Write the document to path as JSON unless a document is already there.
-
-    Return whether this write landed. The staged file is linked into place, and
-    the link fails when the target exists, so of writes that race each other the
-    first to land is the one the target keeps.
-
-    Raise ReportableError when the write fails for any other reason, as
-    write_text does.
-    """
-    with _stage_text(
-        text=document.model_dump_json(indent=2) + "\n", path=path
-    ) as staged:
-        try:
-            path.hardlink_to(staged)
-        except FileExistsError:
-            return False
-    return True
-
-
-@contextmanager
-def _stage_text(*, text: str, path: Path) -> Generator[Path, None, None]:
-    """Write text to a file of its own beside path, and remove it afterwards.
-
-    Raise ReportableError when a write or a move of the staged file fails.
-    """
-    staged = path.with_name(f"{path.name}.{uuid4().hex}{_STAGED_WRITE_SUFFIX}")
-    try:
-        path.parent.mkdir(parents=True, exist_ok=True)
-        with staged.open("x", encoding="utf-8", newline="") as opened:
-            opened.write(text)
-        yield staged
-    except OSError as error:
-        raise ReportableError(f"cannot write {path}: {error}.") from error
-    finally:
-        with suppress(OSError):
-            staged.unlink(missing_ok=True)
 
 
 def remove_file(*, path: Path) -> None:

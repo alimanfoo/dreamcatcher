@@ -112,18 +112,18 @@ def read_pull_request_observation(*, assignment: AgentWork) -> PullRequestObserv
     )
 
 
-def cancel_assignment(*, assignment: AgentWork, at: datetime) -> bool:
+def cancel_assignment(*, assignment: AgentWork, at: datetime) -> None:
     """Record that the user has taken an open assignment over.
 
     A round with no ending is asked to stop, so it does not go on pushing to the
     branch. The ending is written before the rounds are read again, so a round
     that starts at the same moment is either asked to stop here or finds the
-    ending through request_round_stop_if_ended. Return whether this call
-    cancelled the assignment, so an assignment that has already ended is left as
-    it is.
+    ending through request_round_stop_if_ended. An assignment that has already
+    ended raises ReportableError.
     """
-    if not end_agent_work(work=assignment, reason=AgentWorkEndReason.CANCELLED, at=at):
-        return False
+    if not assignment.is_open:
+        raise ReportableError(f"{assignment.identifier} has already ended.")
+    end_agent_work(work=assignment, reason=AgentWorkEndReason.CANCELLED, at=at)
     rounds = read_agent_round_records(
         cache=DocumentCache(),
         directory=assignment.rounds_directory,
@@ -132,7 +132,6 @@ def cancel_assignment(*, assignment: AgentWork, at: datetime) -> bool:
         request_agent_round_stop(
             paths=assignment.compose_round_paths(number=rounds[-1].number)
         )
-    return True
 
 
 def complete_assignment(
@@ -143,8 +142,8 @@ def complete_assignment(
 ) -> None:
     """Record that the assignment completed, as its wrap-up round finishes.
 
-    An assignment the user cancelled first stays cancelled. A round finisher
-    receives the round's final output, which completion does not need.
+    A round finisher receives the round's final output, which completion does
+    not need.
     """
     end_agent_work(work=assignment, reason=AgentWorkEndReason.COMPLETED, at=clock())
 

@@ -28,7 +28,6 @@ from dreamcatcher.documents import (
     read_json,
     read_json_if_exists,
     write_json,
-    write_json_if_absent,
 )
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.harness_adapters import (
@@ -366,14 +365,9 @@ def request_round_stop_if_ended(*, work: AgentWork, paths: AgentRoundPaths) -> N
 
 def end_agent_work(
     *, work: AgentWork, reason: AgentWorkEndReason, at: datetime
-) -> bool:
-    """Record that the agent work ended, and why, unless an ending is recorded.
-
-    Return whether this call recorded the ending. Work ends once, so of endings
-    recorded at the same moment, such as a cancel and a completion, the first to
-    land is the one that stands.
-    """
-    return write_json_if_absent(
+) -> None:
+    """Record that the agent work ended, and why."""
+    write_json(
         document=AgentWorkEnding(at=at, reason=reason),
         path=work.directory / _ENDING_RECORD_NAME,
     )

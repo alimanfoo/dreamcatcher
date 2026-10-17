@@ -417,8 +417,7 @@ def _cancel_assignment(*, arguments: argparse.Namespace) -> None:
     )
     if assignment is None:
         raise ReportableError(f"GH{arguments.issue} has no assignment.")
-    if not cancel_assignment(assignment=assignment, at=read_current_time()):
-        raise ReportableError(f"{assignment.identifier} has already ended.")
+    cancel_assignment(assignment=assignment, at=read_current_time())
     pull_request = read_pull_request_observation(assignment=assignment).number
     print(
         f"{assignment.identifier} is cancelled. Finish pull request "
