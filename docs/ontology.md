@@ -488,15 +488,15 @@ and runs the rest.
 
 A conversation request with no open conversation under its label starts one when
 its issue carries no other configured conversation label and has at least one
-eligible comment from the signed-in account. An issue with more than one
-configured conversation label has a routing conflict and starts nothing until
-one label remains. Issue title and body alone do not start a round. Assignment
-ownership, linked pull requests, dependencies and assignment-routing conflicts
-do not govern conversations.
+**eligible comment**: a comment by the signed-in account that says something and
+does not carry the marker that _dreamcatcher_ asks every agent post to end with.
+An issue with more than one configured conversation label has a routing conflict
+and starts nothing until one label remains. Issue title and body alone do not
+start a round. Assignment ownership, linked pull requests, dependencies and
+assignment-routing conflicts do not govern conversations.
 
 An open conversation that is not paused takes a round when it has at least one
-eligible comment after the newest comment given to a round that did not error or
-get interrupted.
+eligible comment past its cursor.
 
 _dreamcatcher_ records the chosen conversation route and settings, then starts
 the initial conversation round. Every conversation round's preparation fetches
@@ -576,11 +576,12 @@ preparation again. An assignment in fault starts no round, including a wrap-up
 round, until a retry request or the end of a global cooldown clears the fault.
 
 A stopped assignment round took its turn, so what it was given is not given
-again. While its pull request remains open, it waits for a new user post.
-Merging or closing the pull request starts a wrap-up round without waiting for a
-post. Either event gives the new round a prompt saying that the user stopped the
-previous round. Because the fault rule counts only two consecutive errored
-rounds, a stopped round ends a run of errors.
+again. While its pull request remains open, it waits for a new user post or a
+pull request signal at a head not yet relayed. Merging or closing the pull
+request starts a wrap-up round without waiting for a post. Either event gives
+the new round a prompt saying that the user stopped the previous round. Because
+the fault rule counts only two consecutive errored rounds, a stopped round ends
+a run of errors.
 
 ### Scheduling work
 
@@ -588,10 +589,12 @@ The scheduler creates agent work and starts agent rounds, the same way for both
 kinds. Each tick reads every piece of agent work from disk, lists the issues
 under each dispatch label, inspects the channel of each piece of open work, and
 decides for each request with no open work whether work may start. A
-**candidate** is open work with something new past its cursor, an assignment
-whose pull request is not open yet, or work whose last round errored or was
-interrupted, unless its last round is running or it is in fault; or a request
-whose work may start.
+**candidate** is open work with something new past its cursor, unless its last
+round is running or it is in fault; or a request whose work may start. The
+cursor leaves out the input of a round that errored or was interrupted, so that
+input is new again. An assignment is also a candidate when its pull request is
+not open yet, or when its last round errored or was interrupted, because it is
+then given its pull request's state again even with nothing new.
 
 A failed read prevents only the launches that depend on it. A failed listing for
 a dispatch label starts no work for the issues it would have listed, but open
