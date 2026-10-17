@@ -16,6 +16,7 @@ from clocks import DISPLAY_TIME_ZONE, PINNED
 from conftest import DAEMON_PID, FIXTURES, REPOSITORY, assert_matches_view_golden
 from observations import observed_conversation, observed_issue
 from records import (
+    MERGED_INPUT,
     SCOUT_ROUTES,
     SMITH_ROUTES,
     release_daemon_lock,
@@ -48,7 +49,6 @@ from dreamcatcher.agent_assignments import (
 )
 from dreamcatcher.agent_rounds import (
     AgentRoundRecord,
-    AssignmentRoundPurpose,
     StoppedAgentRoundEnding,
 )
 from dreamcatcher.agent_work import (
@@ -227,6 +227,25 @@ def test_assignment_page_shows_the_common_agent_work_facts(tmp_path):
     assert "<dt>model</dt><dd>opus[1m] · xhigh</dd>" in page
     assert "<dt>assignment</dt>" not in page
     assert "<dt>session</dt>" not in page
+
+
+def test_an_assignment_with_no_pull_request_yet_says_so_on_its_card_and_page(
+    tmp_path,
+):
+    state = StateDirectory(root=tmp_path)
+    state.bootstrap()
+    write_daemon_run(state=state, pid=DAEMON_PID)
+    identifier = "GH13-20260819-184158-assignment"
+    write_assignment(
+        state=state, identifier=identifier, issue=13, pull_request_observation=None
+    )
+
+    home = render_home(state=state)
+    page = render_assignment(state=state, identifier=identifier)
+
+    assert '<span class="pr-chip">no pull request yet</span>' in home
+    assert '<span class="pr-chip">no pull request yet</span>' in page
+    assert "/pull/" not in page
 
 
 def test_assignment_page_asks_once_whether_the_daemon_runs(tmp_path, monkeypatch):
@@ -589,7 +608,6 @@ def test_a_stopped_round_is_shown_as_stopped(tmp_path):
         records=[
             AgentRoundRecord(
                 number=1,
-                purpose=AssignmentRoundPurpose.IMPLEMENT,
                 started=PINNED,
                 pid=1,
                 ending=StoppedAgentRoundEnding(at=PINNED + timedelta(minutes=2)),
@@ -837,18 +855,14 @@ def test_ended_assignments_are_ordered_by_when_they_ended(tmp_path):
     written(
         state=state,
         issue=10,
-        records=[
-            ended(minute=1),
-            ended(minute=2, number=2, purpose=AssignmentRoundPurpose.WRAP_UP),
-        ],
+        records=[ended(minute=1), ended(minute=2, number=2)],
+        round_inputs={2: MERGED_INPUT},
     )
     written(
         state=state,
         issue=20,
-        records=[
-            ended(minute=1),
-            ended(minute=20, number=2, purpose=AssignmentRoundPurpose.WRAP_UP),
-        ],
+        records=[ended(minute=1), ended(minute=20, number=2)],
+        round_inputs={2: MERGED_INPUT},
     )
     written(state=state, issue=30, records=[ended(minute=1)])
     cancel_assignment(
@@ -1128,7 +1142,7 @@ def test_a_tail_before_any_round_opens_the_first_round_when_it_arrives(tmp_path)
     started = _read_tail(state=state, identifier=identifier, cursor="0:0")
 
     assert started.status_code == 200
-    assert started.text.count("round 1: implement") == 1
+    assert started.text.count("round 1: start") == 1
     assert "the first line" in started.text
     assert 'id="empty-feed" hx-swap-oob="delete"' in started.text
     assert _read_cursor(response=started).startswith("1:")
@@ -1200,7 +1214,7 @@ def test_an_ended_round_moves_to_the_next_round_after_an_empty_read(tmp_path):
 
     assert response.status_code == 200
     assert "already read" not in response.text
-    assert response.text.count("round 2: implement") == 1
+    assert response.text.count("round 2: start") == 1
     assert "new round output" in response.text
     assert _read_cursor(response=response).startswith("2:")
 

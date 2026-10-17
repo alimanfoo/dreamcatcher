@@ -104,8 +104,9 @@ pull request continue to govern later rounds. Use the controls in
 An issue is eligible for a conversation when it is open, assigned to the
 authenticated account and carries exactly one configured conversation label.
 Those conditions remain active throughout the conversation. Closing or
-unassigning the issue, or removing its last conversation label, pauses new
-questions and automatic recovery. A round already running may still finish.
+unassigning the issue, or removing its last conversation label, pauses every new
+round, including one that would retry an errored round. A round already running
+may still finish.
 
 One assignment label and one conversation label may coexist on an issue because
 they select different kinds of work.

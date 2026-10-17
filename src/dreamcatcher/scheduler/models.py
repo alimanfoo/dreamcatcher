@@ -4,11 +4,10 @@ from collections.abc import Container
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from enum import StrEnum
-from typing import Annotated, Protocol, Self, overload
+from typing import Annotated, Self, overload
 
 from pydantic import AfterValidator, AwareDatetime, Field, model_validator
 
-from dreamcatcher.agent_rounds import AssignmentRoundPurpose
 from dreamcatcher.documents import DreamcatcherDocument
 
 GLOBAL_COOLDOWN_DURATION = timedelta(minutes=15)
@@ -67,7 +66,6 @@ class IssueObservation(DreamcatcherDocument):
     is_assigned_to_user: ObservedFact
     claimed_here: ObservedFact
     claimed_elsewhere: ObservedFact
-    setup_failure: str | None = None
     blocked: ObservedFact
     routing_conflict: ObservedFact
 
@@ -242,26 +240,3 @@ def _find_preventing_fact(*, observation: IssueObservation) -> ObservedFact | No
             evidence="carries no configured assignment label",
         )
     return None
-
-
-class _PullRequestRoundFacts(Protocol):
-    """Describe the pull-request facts that choose a round purpose."""
-
-    @property
-    def is_open(self) -> bool:
-        """Whether the pull request is open."""
-
-    @property
-    def is_draft(self) -> bool:
-        """Whether the pull request is a draft."""
-
-
-def derive_round_purpose(
-    *, pull_request: _PullRequestRoundFacts
-) -> AssignmentRoundPurpose:
-    """Return the purpose that the pull request currently requires."""
-    if not pull_request.is_open:
-        return AssignmentRoundPurpose.WRAP_UP
-    if pull_request.is_draft:
-        return AssignmentRoundPurpose.IMPLEMENT
-    return AssignmentRoundPurpose.ADDRESS_FEEDBACK

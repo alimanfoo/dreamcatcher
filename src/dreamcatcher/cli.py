@@ -130,7 +130,7 @@ def _build_cli_parser() -> argparse.ArgumentParser:
         description=(
             "Clear the current faults of the newest assignment and issue "
             "conversation after you have fixed what caused their rounds to "
-            "fail. The daemon may recover them on the next scheduler update "
+            "fail. The daemon may run them again on the next scheduler update "
             "outside a global cooldown."
         ),
     )
@@ -184,8 +184,8 @@ def _build_cli_parser() -> argparse.ArgumentParser:
         help="show the instance, conversation, issue, and assignment status",
         description=(
             "Show instance and daemon facts, each conversation and assignment, "
-            "failed assignment setups, available issues in dispatch order, blocked "
-            "issues, and assignment routing conflicts. It refreshes automatically "
+            "available issues in dispatch order, blocked issues, and assignment "
+            "routing conflicts. It refreshes automatically "
             "until you interrupt it. "
             + _HELP_WHEN_A_VIEW_TAKES_THE_SCREEN
             + " "
@@ -336,7 +336,7 @@ def _run_daemon(*, arguments: argparse.Namespace) -> None:
 
 
 def _retry_agent_work(*, arguments: argparse.Namespace) -> None:
-    """Clear every current fault at an issue so the daemon may recover it."""
+    """Clear every current fault at an issue so the daemon may run it again."""
     state = _find_state_directory(root=Path.cwd())
     assignment = find_newest_agent_work(
         state=state, issue=arguments.issue, kind=AgentWorkKind.ASSIGNMENT
@@ -368,9 +368,9 @@ def _retry_agent_work(*, arguments: argparse.Namespace) -> None:
             try:
                 request_agent_work_retry(work=conversation, at=current_time)
             except ReportableError as failure:
-                recovered = ", ".join(retried)
+                cleared = ", ".join(retried)
                 raise ReportableError(
-                    f"{recovered} can recover on a later scheduler update, but "
+                    f"{cleared} can run again on a later scheduler update, but "
                     f"{conversation.identifier} could not be retried: {failure}"
                 ) from failure
         else:
@@ -378,7 +378,7 @@ def _retry_agent_work(*, arguments: argparse.Namespace) -> None:
         retried.append(conversation.identifier)
     if not retried:
         raise ReportableError(f"GH{arguments.issue} has no agent work in fault.")
-    print(f"{', '.join(retried)} can recover on a later scheduler update.")
+    print(f"{', '.join(retried)} can run again on a later scheduler update.")
 
 
 def _stop_agent_work(*, arguments: argparse.Namespace) -> None:
@@ -418,11 +418,14 @@ def _cancel_assignment(*, arguments: argparse.Namespace) -> None:
     if assignment is None:
         raise ReportableError(f"GH{arguments.issue} has no assignment.")
     cancel_assignment(assignment=assignment, at=read_current_time())
-    pull_request = read_pull_request_observation(assignment=assignment).number
-    print(
-        f"{assignment.identifier} is cancelled. Finish pull request "
-        f"#{pull_request} by hand."
-    )
+    observation = read_pull_request_observation(assignment=assignment)
+    if observation is None:
+        print(f"{assignment.identifier} is cancelled before it opened a pull request.")
+    else:
+        print(
+            f"{assignment.identifier} is cancelled. Finish pull request "
+            f"#{observation.number} by hand."
+        )
 
 
 def _show_status(*, arguments: argparse.Namespace) -> None:

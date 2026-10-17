@@ -6,6 +6,7 @@ import pytest
 from clocks import PINNED
 from conftest import configure
 from records import (
+    MERGED_INPUT,
     hold_daemon_lock_for_test,
     read_conversation,
     write_assignment,
@@ -17,8 +18,6 @@ from records import (
 from dreamcatcher import web
 from dreamcatcher.agent_rounds import (
     AgentRoundRecord,
-    AssignmentRoundPurpose,
-    ConversationRoundPurpose,
     _compose_agent_round_ending,
 )
 from dreamcatcher.agent_work import read_agent_work_at_issue, request_agent_work_retry
@@ -48,8 +47,6 @@ def write_faulted_conversation(*, state: StateDirectory, issue: int) -> None:
                 number=number,
                 started=ended,
                 pid=1,
-                purpose=ConversationRoundPurpose.DISCUSS,
-                is_recovery=number > 1,
                 ending=_compose_agent_round_ending(at=ended, status=number),
             ),
         )
@@ -70,7 +67,6 @@ def watching(tmp_path):
             number=1,
             started=PINNED,
             pid=1,
-            purpose=AssignmentRoundPurpose.IMPLEMENT,
         ),
     )
     write_feed(
@@ -124,7 +120,6 @@ def faulted(tmp_path):
                 number=number,
                 started=ended,
                 pid=1,
-                purpose=AssignmentRoundPurpose.IMPLEMENT,
                 ending=_compose_agent_round_ending(at=ended, status=number),
             ),
         )
@@ -302,7 +297,7 @@ def test_retry_reports_when_only_the_assignment_retry_was_saved(
     assert assignment.retry_requested_at == requested
     assert conversation.retry_requested_at is None
     error = capsys.readouterr().err
-    assert f"{assignment.identifier} can recover" in error
+    assert f"{assignment.identifier} can run again" in error
     assert "GH13-20260819-184158-conversation could not be retried" in error
     assert "conversation record is read-only" in error
 
@@ -379,7 +374,6 @@ def test_stop_requests_an_issue_conversations_running_round(
             number=1,
             started=PINNED,
             pid=1,
-            purpose=ConversationRoundPurpose.DISCUSS,
         ),
     )
     monkeypatch.chdir(tmp_path)
@@ -407,6 +401,24 @@ def test_cancel_ends_the_newest_assignment_and_stops_its_running_round(
     assert assignment.compose_round_paths(number=1).stop_request.is_file()
     assert capsys.readouterr().out == (
         f"{ASSIGNMENT_ID} is cancelled. Finish pull request #52 by hand.\n"
+    )
+
+
+def test_cancel_of_an_assignment_with_no_pull_request_says_so(
+    monkeypatch, tmp_path, capsys
+):
+    configure(root=tmp_path)
+    state = StateDirectory(root=tmp_path)
+    state.bootstrap()
+    write_assignment(
+        state=state, identifier=ASSIGNMENT_ID, issue=13, pull_request_observation=None
+    )
+    monkeypatch.chdir(tmp_path)
+
+    assert main(argv=["cancel", "GH13"]) == 0
+
+    assert capsys.readouterr().out == (
+        f"{ASSIGNMENT_ID} is cancelled before it opened a pull request.\n"
     )
 
 
@@ -479,7 +491,6 @@ def test_stop_refuses_a_round_without_a_resumable_session(
             number=1,
             started=PINNED,
             pid=1,
-            purpose=AssignmentRoundPurpose.IMPLEMENT,
         ),
     )
     monkeypatch.chdir(tmp_path)
@@ -512,7 +523,6 @@ def test_stop_refuses_a_conversation_round_without_a_resumable_session(
             number=1,
             started=PINNED,
             pid=1,
-            purpose=ConversationRoundPurpose.DISCUSS,
         ),
     )
     monkeypatch.chdir(tmp_path)
@@ -540,20 +550,20 @@ def test_feed_shows_what_the_assignment_said(monkeypatch, watching, capsys):
             number=2,
             started=later,
             pid=1,
-            purpose=AssignmentRoundPurpose.WRAP_UP,
             ending=_compose_agent_round_ending(at=later, status=0),
         ),
+        round_input=MERGED_INPUT,
     )
 
     assert main(argv=["feed", "GH13", "--assignment"]) == 0
-    assert "round 1: implement" in capsys.readouterr().out
+    assert "round 1: start" in capsys.readouterr().out
 
 
 def test_feed_naming_a_round_shows_that_rounds_feed(monkeypatch, watching, capsys):
     monkeypatch.chdir(watching.root)
 
     assert main(argv=["feed", "GH13", "--assignment", "--round", "1"]) == 0
-    assert "round 1: implement" in capsys.readouterr().out
+    assert "round 1: start" in capsys.readouterr().out
 
 
 def test_conversation_shows_its_local_detail(monkeypatch, watching, capsys):
@@ -573,7 +583,6 @@ def test_feed_shows_what_the_conversation_said(monkeypatch, watching, capsys):
             number=1,
             started=PINNED,
             pid=1,
-            purpose=ConversationRoundPurpose.DISCUSS,
             ending=_compose_agent_round_ending(at=PINNED, status=0),
         ),
     )

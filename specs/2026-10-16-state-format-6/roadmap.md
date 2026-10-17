@@ -77,10 +77,11 @@ before any Git or GitHub step.
   nothing when its result exists.
 - A failure in preparation records an errored outcome with the reason and no
   exit status, and the views word it without one.
-- The cursor is read from the latest round whose outcome is successful or
-  stopped, so a round that errored or was interrupted has its input given again,
-  with the did-not-finish line prefixed to the prompt as the stopped line is
-  today.
+- The cursor is read from the latest round whose outcome is not errored or
+  interrupted, so a round that errored or was interrupted has its input given
+  again, with the did-not-finish line prefixed to the prompt as the stopped line
+  is today. A running round's input counts as relayed, so what it holds is not
+  new while it runs.
 - The recovery prompts, the recovery flag, the purpose field and
   `resolve_harness_session` go. The feed's round line and the rounds table say
   what woke the round, from its input.
@@ -115,6 +116,11 @@ paths as they are, and read by one status derivation.
 - For a request with no open work the row holds why nothing started: the open
   linked pull requests, the open blocking issues, or the conflicting labels.
 - For a read that failed the row holds the failure reason in place of the facts.
+- The row carries the round the tick started and, when that round errored in
+  preparation, its reason. The scheduler failures then keep only listing
+  failures, as the design says. Until this stage, the tick also appends a round
+  that errored in preparation to the failures, so the daemon's output line can
+  name it, and the views show it twice.
 - `ObservedFact`, `Truth`, `IssueObservation`, `AgentWorkObservation` and
   `ConversationObservation` go.
 - Status becomes one derivation for both kinds, with the values working, ended,

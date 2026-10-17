@@ -21,7 +21,7 @@ prefix is case-insensitive, so `GH123` and `gh123` both name issue 123.
 | -------------- | ---------------------------------------------------- |
 | `init`         | Prepare this repository's main checkout.             |
 | `run`          | Run the daemon for this repository.                  |
-| `retry`        | Allow faulted work at one issue to recover again.    |
+| `retry`        | Allow faulted work at one issue to run again.        |
 | `stop`         | Stop one running assignment or conversation round.   |
 | `cancel`       | Cancel one issue's newest assignment.                |
 | `web`          | Serve the local status report in a browser.          |
@@ -107,16 +107,14 @@ dreamcatcher retry GH<n>
 ```
 
 Record a retry request for any currently faulted work at the issue. The command
-checks the newest assignment and the issue conversation independently and
-requests another recovery for each one that is in fault. It preserves the failed
-round records.
+checks the newest assignment and the issue conversation independently and clears
+the fault of each one that is in fault. It preserves the failed round records.
 
 At least one of those two items must currently be in fault. Otherwise the
 command reports that the issue has no agent work in fault. A successful request
-makes the named work available for recovery on a later scheduler update, outside
-any active global cooldown; it does not start a round itself. The web page's
-retry control writes the same request for the one assignment or conversation it
-shows.
+lets the named work's next round start on a later scheduler update, outside any
+active global cooldown; it does not start a round itself. The web page's retry
+control writes the same request for the one assignment or conversation it shows.
 
 ## `stop`
 
@@ -145,9 +143,12 @@ command asks it to stop, without the conditions that `stop` requires.
 
 _dreamcatcher_ leaves the pull request as it is, and while it is open it claims
 the issue as work outside _dreamcatcher_. The worktree and branch stay in place,
-so you can carry on in the assignment's worktree. The cancelled assignment shows
-as **cancelled** on the web home page and in `dreamcatcher assignment`, and
-`dreamcatcher status` counts it among the ended assignments.
+so you can carry on in the assignment's worktree. An assignment cancelled before
+its first round opened a pull request has none to finish, and the command says
+so; any worktree or branch that round made also stays in place. The cancelled
+assignment shows as **cancelled** on the web home page and in
+`dreamcatcher assignment`, and `dreamcatcher status` counts it among the ended
+assignments.
 
 The issue must have an assignment, and that assignment must not have ended. A
 cancel cannot be undone. The command writes only local state, does not contact
@@ -180,9 +181,9 @@ port is already in use.
 dreamcatcher status
 ```
 
-Show the repository and daemon facts, issue conversations, assignments, failed
-assignment setups, available issues in dispatch order, blocked issues, and
-assignment routing conflicts.
+Show the repository and daemon facts, issue conversations, assignments,
+available issues in dispatch order, blocked issues, and assignment routing
+conflicts.
 
 In an interactive terminal the view refreshes and occupies the terminal until
 interrupted. When output is piped, redirected or captured, it prints one

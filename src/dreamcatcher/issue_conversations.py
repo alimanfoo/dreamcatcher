@@ -1,6 +1,5 @@
 """Persist issue conversations and prepare their trusted input."""
 
-from contextlib import suppress
 from datetime import datetime
 
 from pydantic import Field
@@ -12,15 +11,11 @@ from dreamcatcher.agent_work import (
     compose_agent_work_identifier,
     record_agent_work,
 )
-from dreamcatcher.commands import CommandError
 from dreamcatcher.config import AgentHarness, ConversationRoute
 from dreamcatcher.documents import DreamcatcherDocument, read_json
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.git import (
-    add_detached_worktree,
-    fetch_main,
     refresh_detached_worktree,
-    remove_worktree,
 )
 from dreamcatcher.github import (
     ConversationComment,
@@ -64,10 +59,7 @@ def is_conversation_ready_for_input(*, conversation: AgentWork | None) -> bool:
     """Return whether a conversation can accept another comment batch."""
     if conversation is None or not conversation.rounds:
         return True
-    return conversation.rounds[-1].outcome in {
-        AgentRoundOutcome.SUCCESSFUL,
-        AgentRoundOutcome.STOPPED,
-    }
+    return conversation.rounds[-1].outcome is not AgentRoundOutcome.RUNNING
 
 
 def create_conversation(
@@ -78,11 +70,10 @@ def create_conversation(
     issue: Issue,
     at: datetime,
 ) -> AgentWork:
-    """Create one conversation at the issue with no rounds run yet.
+    """Record one conversation at the issue with no rounds run yet.
 
-    The worktree starts at fetched main, and preparing the first round's input
-    resets it to fetched main again. A record that cannot be written takes the
-    worktree with it, since a later attempt has an identifier of its own.
+    Every round's preparation makes the worktree, so creation writes the record
+    alone.
     """
     selected_harness = route.choose_harness(preferred_harness=preferred_harness)
     recipe = route.recipes[selected_harness]
@@ -97,18 +88,13 @@ def create_conversation(
         harness_config=recipe.config,
         prompt=compose_issue_instructions(template=recipe.prompt, issue=issue.number),
     )
-    identifier = compose_agent_work_identifier(
-        issue=issue.number, kind=AgentWorkKind.CONVERSATION, at=at
+    return record_agent_work(
+        state=state,
+        identifier=compose_agent_work_identifier(
+            issue=issue.number, kind=AgentWorkKind.CONVERSATION, at=at
+        ),
+        record=record,
     )
-    fetch_main(root=state.root)
-    worktree = state.worktrees / identifier
-    add_detached_worktree(root=state.root, path=worktree)
-    try:
-        return record_agent_work(state=state, identifier=identifier, record=record)
-    except ReportableError:
-        with suppress(CommandError):
-            remove_worktree(root=state.root, path=worktree)
-        raise
 
 
 def list_undelivered_issue_comments(
@@ -136,25 +122,29 @@ def list_undelivered_issue_comments(
     )
 
 
-def prepare_conversation_input(
+def prepare_conversation_round(
     *,
     state: StateDirectory,
     conversation: AgentWork,
     issue: Issue,
     comments: list[ConversationComment],
+    is_resuming: bool,
 ) -> ConversationRoundInput:
-    """Refresh the worktree and freeze one issue's trusted round input."""
+    """Reset the worktree to fetched main and freeze the round's trusted input.
+
+    A round that starts a new harness session is given the issue's title and
+    body too, because the session has not seen them.
+    """
     revision = refresh_detached_worktree(
         root=state.root,
         worktree=conversation.worktree,
     )
-    is_initial = not conversation.rounds
     return ConversationRoundInput(
         issue=issue.number,
         initial_issue=(
-            InitialConversationIssue(title=issue.title, body=issue.body)
-            if is_initial
-            else None
+            None
+            if is_resuming
+            else InitialConversationIssue(title=issue.title, body=issue.body)
         ),
         comments=comments,
         revision=revision,
@@ -165,21 +155,6 @@ def read_conversation_input(
     *, conversation: AgentWork, number: int
 ) -> ConversationRoundInput:
     """Read and validate the durable input for one conversation round."""
-    round_input = _read_conversation_input_document(
-        conversation=conversation, number=number
-    )
-    if number == 1 and round_input.initial_issue is None:
-        raise ReportableError(
-            f"Conversation {conversation.identifier} round 1 input does not "
-            "contain its initial issue title and body."
-        )
-    return round_input
-
-
-def _read_conversation_input_document(
-    *, conversation: AgentWork, number: int
-) -> ConversationRoundInput:
-    """Read and validate one round input without comparing adjacent rounds."""
     round_input = read_json(
         model=ConversationRoundInput,
         path=conversation.compose_round_paths(number=number).round_input,
@@ -206,19 +181,17 @@ def _read_conversation_input_document(
 def read_issue_comment_delivery_position(
     *, conversation: AgentWork
 ) -> IssueCommentDeliveryPosition | None:
-    """Return the newest comment saved in the latest durable round input."""
-    if not conversation.rounds:
+    """Return the newest comment already relayed.
+
+    A round stopped before its preparation wrote an input relayed nothing.
+    """
+    relayed = conversation.list_relayed_inputs()
+    if not relayed:
         return None
-    latest_round = conversation.rounds[-1]
-    round_input = read_conversation_input(
-        conversation=conversation,
-        number=latest_round.number,
-    )
-    newest = round_input.comments[-1]
-    return IssueCommentDeliveryPosition(
-        written_at=newest.written_at,
-        id=newest.id,
-    )
+    newest = read_conversation_input(
+        conversation=conversation, number=relayed[0].number
+    ).comments[-1]
+    return IssueCommentDeliveryPosition(written_at=newest.written_at, id=newest.id)
 
 
 def is_no_reply(*, final_output: str) -> bool:

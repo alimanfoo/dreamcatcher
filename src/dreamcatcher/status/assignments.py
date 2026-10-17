@@ -6,19 +6,22 @@ from functools import cached_property
 from typing import cast
 
 from dreamcatcher.agent_assignments import (
+    AssignmentRoundInput,
     PullRequestObservation,
     read_pull_request_observation,
 )
 from dreamcatcher.agent_rounds import AgentRoundPaths
 from dreamcatcher.agent_work import AgentWork, AgentWorkEndReason
+from dreamcatcher.documents import read_json_if_exists
 from dreamcatcher.feed import read_last_feed_line
+from dreamcatcher.github import PullRequestState
 from dreamcatcher.harness_adapters import HarnessSessionIdentifier
-from dreamcatcher.scheduler.faults import is_awaiting_recovery
+from dreamcatcher.scheduler.faults import is_last_round_unfinished
 from dreamcatcher.scheduler.models import (
+    NO_ROUND_HAS_RUN,
     AgentWorkObservation,
     SchedulerRecord,
     Truth,
-    derive_round_purpose,
 )
 from dreamcatcher.status.agent_work import (
     AgentWorkStatusReader,
@@ -84,21 +87,30 @@ class AssignmentStatus:
         return not self.has_ended
 
     @cached_property
-    def pull_request_observation(self) -> PullRequestObservation:
-        """The assignment's pull request as last observed."""
+    def pull_request_observation(self) -> PullRequestObservation | None:
+        """The assignment's pull request as last observed, once a round opened it."""
         return read_pull_request_observation(assignment=self.assignment)
+
+    @property
+    def pull_request(self) -> int | None:
+        """The number of the assignment's pull request, once a round opened it."""
+        observation = self.pull_request_observation
+        return None if observation is None else observation.number
 
     @property
     def pull_request_state(self) -> str | None:
         """The latest observed pull-request state in status-report words.
 
         A cancelled assignment has none, because nothing observes its pull
-        request once the user has taken it over.
+        request once the user has taken it over, and neither does one whose
+        pull request no round has opened yet.
         """
         ending = self.assignment.ending
         if ending is not None and ending.reason is AgentWorkEndReason.CANCELLED:
             return None
         observation = self.pull_request_observation
+        if observation is None:
+            return None
         if observation.is_open:
             return "draft" if observation.is_draft else "ready"
         return observation.state.value.lower()
@@ -110,6 +122,9 @@ class AssignmentStatus:
         return [
             AgentRoundStatus(
                 record=record,
+                trigger_description=_describe_round_trigger(
+                    assignment=assignment, number=record.number
+                ),
                 duration_description=compose_round_duration_description(record=record),
                 outcome_description=describe_round_outcome(
                     record=record,
@@ -201,7 +216,7 @@ class AssignmentStatusReader(AgentWorkStatusReader[AssignmentStatus]):
         status = self._derive_fault(assignment=assignment)
         if status is not None:
             return status
-        status = self._derive_awaiting_recovery(assignment=assignment)
+        status = self._derive_unfinished(assignment=assignment)
         if status is not None:
             return status
         status = self._derive_unobserved(assignment=assignment)
@@ -215,6 +230,9 @@ class AssignmentStatusReader(AgentWorkStatusReader[AssignmentStatus]):
             if self.is_round_working(record=latest):
                 detail, latest_output = describe_running_round(
                     record=latest,
+                    trigger_description=_describe_round_trigger(
+                        assignment=assignment, number=latest.number
+                    ),
                     paths=assignment.compose_round_paths(number=latest.number),
                     at=self.at,
                 )
@@ -254,10 +272,8 @@ class AssignmentStatusReader(AgentWorkStatusReader[AssignmentStatus]):
             )
         return None
 
-    def _derive_awaiting_recovery(
-        self, *, assignment: AgentWork
-    ) -> AssignmentStatus | None:
-        if is_awaiting_recovery(
+    def _derive_unfinished(self, *, assignment: AgentWork) -> AssignmentStatus | None:
+        if is_last_round_unfinished(
             rounds=assignment.rounds, is_daemon_running=self.is_daemon_running
         ):
             latest = assignment.rounds[-1]
@@ -278,7 +294,7 @@ class AssignmentStatusReader(AgentWorkStatusReader[AssignmentStatus]):
             return self._compose(
                 assignment=assignment,
                 value=AssignmentStatusValue.WAITING,
-                detail="next round, implement",
+                detail=NO_ROUND_HAS_RUN,
             )
         if self.scheduler_record is None:
             return self._compose(
@@ -314,13 +330,10 @@ class AssignmentStatusReader(AgentWorkStatusReader[AssignmentStatus]):
                 detail=observation.requires_round.evidence,
             )
         if observation.requires_round.value is Truth.TRUE:
-            purpose = derive_round_purpose(
-                pull_request=read_pull_request_observation(assignment=assignment)
-            )
             return self._compose(
                 assignment=assignment,
                 value=AssignmentStatusValue.WAITING,
-                detail=f"next round, {purpose}",
+                detail=observation.requires_round.evidence,
             )
         return self._compose(
             assignment=assignment,
@@ -352,3 +365,21 @@ class AssignmentStatusReader(AgentWorkStatusReader[AssignmentStatus]):
         if line is None:
             return "no output"
         return f"last output {describe_span(span=self.at - line.at)} ago"
+
+
+def _describe_round_trigger(*, assignment: AgentWork, number: int) -> str:
+    """Describe what woke one round of the assignment, from the input it was given.
+
+    A round given no input started the assignment.
+    """
+    round_input = read_json_if_exists(
+        model=AssignmentRoundInput,
+        path=assignment.compose_round_paths(number=number).round_input,
+    )
+    if round_input is None:
+        return "start"
+    if round_input.pull_request_state is not PullRequestState.OPEN:
+        return round_input.pull_request_state.lower()
+    if round_input.user_posts:
+        return describe_count(number=len(round_input.user_posts), noun="post")
+    return "carry on"

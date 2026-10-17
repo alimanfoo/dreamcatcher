@@ -80,14 +80,12 @@ def observe(
     *,
     config: DreamcatcherConfig,
     assignments: Sequence[AgentWork] = (),
-    incomplete_setups: dict[int, str | None] | None = None,
     account: str = POSTED_BY,
 ):
     """Return the issue observations after asserting that the listing succeeded."""
     found = observe_issues(
         scheduler=create_assignment_scheduler(config=config, account=account),
         assignments=list(assignments),
-        incomplete_setups=({} if incomplete_setups is None else incomplete_setups),
     )
     assert found.failures == []
     return found.observations
@@ -199,7 +197,6 @@ def test_a_listing_failure_makes_the_whole_observation_unknown(gh):
             config=config_with_routes(labels=[ASSIGNMENT_LABEL])
         ),
         assignments=[],
-        incomplete_setups={},
     )
 
     assert found.observations == []
@@ -227,7 +224,6 @@ def test_a_later_route_failure_preserves_earlier_issue_observations(gh):
             config=config_with_routes(labels=[ASSIGNMENT_LABEL, "dream:less"])
         ),
         assignments=[],
-        incomplete_setups={},
     )
 
     assert len(found.failures) == 1
@@ -292,6 +288,35 @@ def test_local_and_external_claims_can_both_be_true(gh, tmp_path):
     assert found.claimed_elsewhere.evidence == "a pull request is open on it: #28"
 
 
+def test_an_assignment_that_has_not_opened_its_pull_request_owns_none(gh, tmp_path):
+    state = StateDirectory(root=tmp_path)
+    write_assignment(
+        state=state,
+        identifier="GH8-20260819-184158-assignment",
+        issue=8,
+        pull_request_observation=None,
+    )
+    gh.replies(
+        stdout=json.dumps(
+            {"number": 8, "closedByPullRequestsReferences": [{"number": 28}]}
+        ),
+        to="issue view",
+    )
+    gh.replies(
+        stdout=json.dumps({"number": 28, "state": "OPEN", "isDraft": True}),
+        to="pr view",
+    )
+
+    found = observe(
+        config=config_with_routes(labels=[ASSIGNMENT_LABEL]),
+        assignments=read_assignments(state=state),
+    )[0]
+
+    assert found.claimed_here.value is Truth.TRUE
+    assert found.claimed_elsewhere.evidence == "a pull request is open on it: #28"
+    assert found.availability.value is Truth.FALSE
+
+
 def test_a_cancelled_assignments_pull_request_claims_its_issue_elsewhere(gh, tmp_path):
     state = StateDirectory(root=tmp_path)
     write_assignment(state=state, identifier="GH8-20260819-184158-assignment", issue=8)
@@ -326,66 +351,6 @@ def test_a_cancelled_assignments_pull_request_claims_its_issue_elsewhere(gh, tmp
     assert found.availability.value is Truth.FALSE
 
 
-def test_a_recoverable_setup_is_not_treated_as_an_external_claim(gh):
-    found = observe(
-        config=config_with_routes(labels=[ASSIGNMENT_LABEL]),
-        incomplete_setups={8: None},
-    )[0]
-
-    assert found.claimed_elsewhere.value is Truth.FALSE
-    assert found.setup_failure is None
-
-
-def test_a_setup_that_cannot_be_recovered_leaves_the_claim_unknown(gh):
-    found = observe(
-        config=config_with_routes(labels=[ASSIGNMENT_LABEL]),
-        incomplete_setups={8: "assignment setup failed"},
-    )[0]
-
-    assert found.claimed_elsewhere.value is Truth.UNKNOWN
-    assert found.claimed_elsewhere.evidence == "assignment setup failed"
-    assert found.setup_failure == "assignment setup failed"
-
-
-def test_a_setup_failure_survives_a_failed_linked_pull_request_read(gh):
-    gh.fails(stderr="gh: could not connect to github.com", to="issue view")
-
-    found = observe(
-        config=config_with_routes(labels=[ASSIGNMENT_LABEL]),
-        incomplete_setups={8: "assignment setup failed"},
-    )[0]
-
-    assert found.claimed_elsewhere.value is Truth.UNKNOWN
-    assert found.claimed_elsewhere.evidence == "assignment setup failed"
-    assert found.setup_failure == "assignment setup failed"
-
-
-def test_a_setup_failure_keeps_a_proven_external_claim(gh):
-    gh.replies(
-        stdout=json.dumps(
-            {
-                "number": 8,
-                "title": "The issue title",
-                "closedByPullRequestsReferences": [{"number": PULL_REQUEST}],
-            }
-        ),
-        to="issue view",
-    )
-    gh.replies(
-        stdout=json.dumps({"number": PULL_REQUEST, "state": "OPEN", "isDraft": True}),
-        to="pr view",
-    )
-
-    found = observe(
-        config=config_with_routes(labels=[ASSIGNMENT_LABEL]),
-        incomplete_setups={8: "assignment setup failed"},
-    )[0]
-
-    assert found.claimed_elsewhere.value is Truth.TRUE
-    assert found.claimed_elsewhere.evidence == "a pull request is open on it: #52"
-    assert found.setup_failure == "assignment setup failed"
-
-
 def test_a_failed_linked_pull_request_read_preserves_unknown_evidence(gh):
     gh.fails(stderr="gh: the issue is not there", to="issue view")
 
@@ -397,7 +362,6 @@ def test_a_failed_linked_pull_request_read_preserves_unknown_evidence(gh):
         "cannot tell whether a pull request claims it"
         in found.claimed_elsewhere.evidence
     )
-    assert found.setup_failure is None
 
 
 def test_open_blockers_are_observed_independently(gh):
@@ -481,7 +445,6 @@ def test_a_local_assignment_remains_observed_when_the_listing_and_issue_read_fai
             state=state,
         ),
         assignments=read_assignments(state=state),
-        incomplete_setups={},
     )
 
     assert len(found.failures) == 1
@@ -492,32 +455,3 @@ def test_a_local_assignment_remains_observed_when_the_listing_and_issue_read_fai
     assert observation.is_assigned_to_user.value is Truth.UNKNOWN
     assert observation.routing_conflict.value is Truth.UNKNOWN
     assert observation.claimed_here.value is Truth.TRUE
-
-
-def test_an_incomplete_setup_is_observed_outside_the_listing(gh):
-    gh.replies(stdout="[]", to="issue list")
-    gh.replies(
-        stdout=json.dumps(
-            {
-                "number": 13,
-                "title": "Issue 13",
-                "createdAt": LATER,
-                "state": "CLOSED",
-                "assignees": [],
-                "labels": [],
-            }
-        ),
-        to=(
-            f"issue view 13 --repo {REPOSITORY} --json "
-            "number,title,body,createdAt,state,assignees,labels"
-        ),
-    )
-
-    found = observe(
-        config=config_with_routes(labels=[ASSIGNMENT_LABEL]),
-        incomplete_setups={13: "assignment setup failed"},
-    )
-
-    assert [observation.issue for observation in found] == [13]
-    assert found[0].claimed_elsewhere.value is Truth.UNKNOWN
-    assert found[0].claimed_elsewhere.evidence == "assignment setup failed"

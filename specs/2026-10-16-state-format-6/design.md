@@ -313,11 +313,13 @@ tick found. Its steps, in order:
    observation with the pull request's number. A pull request found on the
    assignment's own branch is adopted whatever its state, and round one looks at
    no other pull request, since the start-time questions already asked whether
-   one claims the issue. For an assignment whose pull request exists: nothing.
-   For every conversation round: fetch main and reset the detached worktree to
-   it, adding the worktree when it is missing, as today's refresh does. Each
-   step does nothing when its result already exists, so a round that follows a
-   failed one re-runs the step and finds most of it done.
+   one claims the issue. A pull request it creates takes its title from the work
+   record, so making the channel reads nothing from the issue. For an assignment
+   whose pull request exists: nothing. For every conversation round: fetch main
+   and reset the detached worktree to it, adding the worktree when it is
+   missing, as today's refresh does. Each step does nothing when its result
+   already exists, so a round that follows a failed one re-runs the step and
+   finds most of it done.
 3. Write the input file, when there is anything to relay, and the prompt. A
    prompt is built from up to three parts: the recipe's initial prompt, which is
    the agent's standing instructions; the input prompt, which tells the agent to
@@ -325,6 +327,7 @@ tick found. Its steps, in order:
    session to resume, the prompt begins with the initial prompt, because a new
    session has not seen it, and a conversation's input then also includes the
    issue's title and body. With a session, the prompt is the input prompt alone.
+   Prefix lines go before the input prompt, so a round with no input has none.
    The prefix lines are: the previous round was stopped by you; the previous
    round did not finish; the pull request is out of date; the checks failed.
 4. Spawn the harness, resuming the recorded harness session when there is one
@@ -363,15 +366,18 @@ stateDiagram-v2
     Interrupted --> [*]
 ```
 
-Successful and stopped advance the cursor. Errored and interrupted do not, so
-the next round is given the same input again.
+Successful and stopped advance the cursor, and a running round's input counts as
+relayed while it runs. Errored and interrupted do not, so the next round is
+given the same input again.
 
 The feed's line at the start of each round, and the rounds table on a work page,
 say what woke the round, from its input: "round 1: start", "round 3: 2 posts",
-"round 4: checks failed", "round 5: merged", "round 2: 1 comment". The
-ontology's round purpose, implement, address feedback, wrap up and discuss,
-goes, because what woke a round says more than a purpose did and needs nothing
-stored.
+"round 4: checks failed", "round 5: merged", "round 2: 1 comment". An assignment
+round whose input relays nothing new, given again after a round that did not
+finish, says "carry on", and a conversation round whose preparation has not
+written an input, or failed before it did, says "comments". The ontology's round
+purpose, implement, address feedback, wrap up and discuss, goes, because what
+woke a round says more than a purpose did and needs nothing stored.
 
 ## The cursor and the signals, exactly
 
@@ -381,8 +387,9 @@ and the list of other signals relayed, which can include out-of-date and
 check-failure. For a conversation it holds the issue comments relayed and the
 revision, as today.
 
-The cursor is read from the latest round whose outcome is successful or stopped.
-A round whose outcome is errored or interrupted does not advance it. So:
+The cursor is read from the latest round whose outcome is not errored or
+interrupted: successful, stopped, or still running. A round whose outcome is
+errored or interrupted does not advance it. So:
 
 - The delivery position for user posts or issue comments, which is the
   ontology's name for the newest one relayed, is the newest in that round's

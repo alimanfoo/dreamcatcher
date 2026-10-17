@@ -3,7 +3,6 @@
 import re
 from datetime import tzinfo
 from pathlib import Path
-from typing import cast
 
 from dreamcatcher.agent_work import AgentWork
 from dreamcatcher.state import StateDirectory
@@ -85,10 +84,6 @@ def compose_home_view(*, report: DreamcatcherStatusReport) -> WebHomeView:
             _compose_assignment_card(status=status)
             for status in report.ended_assignment_statuses
         ),
-        failed_setups=tuple(
-            _compose_failed_setup_row(observation=setup)
-            for setup in report.failed_assignment_setups
-        ),
         issues=tuple(
             _compose_issue_row(observation=issue) for issue in report.issue_observations
         ),
@@ -107,7 +102,7 @@ def _compose_assignment_card(*, status: AssignmentStatus) -> WebAssignmentCard:
         harness=str(assignment.record.harness),
         model=assignment.record.model,
         effort=assignment.record.effort,
-        pull_request=status.pull_request_observation.number,
+        pull_request=status.pull_request,
         pull_request_state=status.pull_request_state,
         latest_output=status.latest_output,
     )
@@ -182,7 +177,7 @@ def compose_assignment_view(
         identifier=assignment.identifier,
         issue=record.issue,
         title=record.title,
-        pull_request=status.pull_request_observation.number,
+        pull_request=status.pull_request,
         pull_request_state=status.pull_request_state,
         dispatch_label=record.dispatch_label,
         harness=str(record.harness),
@@ -237,7 +232,7 @@ def _compose_agent_rounds(
     return tuple(
         WebAgentRound(
             number=round_status.record.number,
-            purpose=round_status.purpose_description,
+            trigger=round_status.trigger_description,
             started=describe_time(at=round_status.record.started, zone=zone),
             duration=round_status.duration_description,
             outcome=str(round_status.record.outcome),
@@ -255,31 +250,11 @@ def _compose_issue_row(*, observation: IssueObservation) -> WebIssueRow:
         status = "blocked"
     else:
         status = "available"
-    return _compose_observed_issue_row(
-        observation=observation,
-        status=status,
-        leading_evidence=(),
+    evidence: list[str | int] = (
+        [observation.routing_conflict.evidence]
+        if observation.routing_conflict.value is Truth.TRUE
+        else []
     )
-
-
-def _compose_failed_setup_row(*, observation: IssueObservation) -> WebIssueRow:
-    return _compose_observed_issue_row(
-        observation=observation,
-        status="failed-setup",
-        leading_evidence=(cast("str", observation.setup_failure),),
-    )
-
-
-def _compose_observed_issue_row(
-    *,
-    observation: IssueObservation,
-    status: str,
-    leading_evidence: tuple[str, ...],
-) -> WebIssueRow:
-    plain_evidence = list(leading_evidence)
-    if observation.routing_conflict.value is Truth.TRUE:
-        plain_evidence.append(observation.routing_conflict.evidence)
-    evidence: list[str | int] = ["; ".join(plain_evidence)] if plain_evidence else []
     if observation.blocked.value is Truth.TRUE:
         if evidence:
             evidence.append("; ")

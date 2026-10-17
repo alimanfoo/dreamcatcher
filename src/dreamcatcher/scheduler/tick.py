@@ -13,7 +13,6 @@ from dreamcatcher.scheduler.assignments import (
 )
 from dreamcatcher.scheduler.conversations import (
     ConversationBatchCandidate,
-    ConversationCandidate,
     ConversationScheduler,
 )
 from dreamcatcher.scheduler.faults import (
@@ -31,7 +30,7 @@ from dreamcatcher.state import StateDirectory
 @dataclass(kw_only=True)
 class _ReadyAgentWork:
     assignments: list[AssignmentCandidate]
-    conversations: list[ConversationCandidate]
+    conversations: list[ConversationBatchCandidate]
 
 
 def _choose_next_work_kind(
@@ -58,10 +57,7 @@ def _read_candidate_issue(
         if isinstance(candidate, NewAssignmentCandidate):
             return candidate.issue
         return candidate.assignment.record.issue
-    candidate = candidates.conversations[0]
-    if isinstance(candidate, ConversationBatchCandidate):
-        return candidate.issue.number
-    return candidate.conversation.record.issue
+    return candidates.conversations[0].issue.number
 
 
 @dataclass(kw_only=True)
@@ -153,7 +149,10 @@ class Scheduler:
         record: SchedulerRecord,
         candidates: _ReadyAgentWork,
     ) -> SchedulerRecord:
-        """Fill free capacity while alternating between ready work kinds."""
+        """Fill free capacity while alternating between ready work kinds.
+
+        A launch that fails takes no slot, and the next candidate is tried.
+        """
         launched_identifiers: list[str] = []
         while not self.is_at_capacity:
             work_kind = _choose_next_work_kind(
@@ -177,7 +176,6 @@ class Scheduler:
                 record = record.model_copy(
                     update={"failures": [*record.failures, str(failure)]}
                 )
-                self._clear_candidates(work_kind=work_kind, candidates=candidates)
                 continue
             identifier = launched_round.agent_work_identifier
             self.rounds[identifier] = launched_round
@@ -253,11 +251,3 @@ class Scheduler:
         if observation is None:
             observations.append(started)
         return record.model_copy(update={"assignment_observations": observations})
-
-    def _clear_candidates(
-        self, *, work_kind: AgentWorkKind, candidates: _ReadyAgentWork
-    ) -> None:
-        if work_kind is AgentWorkKind.ASSIGNMENT:
-            candidates.assignments.clear()
-        else:
-            candidates.conversations.clear()

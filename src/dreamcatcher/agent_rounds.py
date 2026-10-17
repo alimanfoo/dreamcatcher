@@ -18,7 +18,7 @@ from typing import Annotated, Literal, Protocol, Self
 from pydantic import AwareDatetime, Field, PositiveInt, model_validator
 
 from dreamcatcher.clock import read_current_time
-from dreamcatcher.commands import spawn_command
+from dreamcatcher.commands import ChildProcess, spawn_command
 from dreamcatcher.config import AgentHarness
 from dreamcatcher.documents import (
     DocumentCache,
@@ -141,24 +141,6 @@ class _AgentRoundHarness:
         return output
 
 
-class AssignmentRoundPurpose(StrEnum):
-    """The kinds of assignment work that an agent round advances."""
-
-    IMPLEMENT = "implement"
-    ADDRESS_FEEDBACK = "address feedback"
-    WRAP_UP = "wrap up"
-
-
-class ConversationRoundPurpose(StrEnum):
-    """The kind of conversation work that an agent round advances."""
-
-    DISCUSS = "discuss"
-
-
-# Every round records its purpose, so the shared record holds either owner's.
-type _AgentRoundPurpose = AssignmentRoundPurpose | ConversationRoundPurpose
-
-
 class AgentRoundOutcome(StrEnum):
     """The possible outcomes of an agent round."""
 
@@ -178,22 +160,26 @@ class SuccessfulAgentRoundEnding(DreamcatcherDocument):
 
 
 class ErroredAgentRoundEnding(DreamcatcherDocument):
-    """An agent round ending with an error exit, or a failure after a clean one.
+    """An agent round ending with an error exit, or a failure around a clean one.
 
-    A round whose harness exited cleanly errors when its owner cannot finish it,
-    and its reason says why.
+    A round errors with a reason when it cannot prepare or spawn its harness,
+    which leaves no exit status, or when its owner cannot finish a round whose
+    harness exited cleanly.
     """
 
     outcome: Literal[AgentRoundOutcome.ERRORED] = AgentRoundOutcome.ERRORED
     at: AwareDatetime
-    status: int
+    status: int | None = None
     reason: str | None = None
 
     @model_validator(mode="after")
-    def _refuse_unexplained_success(self) -> Self:
-        """Keep a clean exit out of an errored ending that gives no reason."""
-        if self.status == 0 and self.reason is None:
-            raise ValueError("an errored round cannot have exit status 0 and no reason")
+    def _refuse_unexplained_error(self) -> Self:
+        """Require a reason unless the harness exited with an error status."""
+        if self.status in {None, 0} and self.reason is None:
+            raise ValueError(
+                "an errored round needs a reason unless its harness exited "
+                "with an error status"
+            )
         return self
 
 
@@ -235,13 +221,16 @@ def _compose_agent_round_ending(
 
 
 class AgentRoundRecord(DreamcatcherDocument):
-    """Model an agent round's identity, purpose, recovery, and outcome."""
+    """Model an agent round's identity, process, and outcome.
+
+    The record is written as the round begins, before its harness has a process,
+    and again once the process is spawned and when the round ends. What woke the
+    round is in its input, so the record does not repeat it.
+    """
 
     number: PositiveInt
-    purpose: _AgentRoundPurpose
-    is_recovery: bool = False
     started: AwareDatetime
-    pid: PositiveInt
+    pid: PositiveInt | None = None
     ending: _AgentRoundEnding | None = None
 
     @property
@@ -250,6 +239,14 @@ class AgentRoundRecord(DreamcatcherDocument):
         if self.ending is None:
             return AgentRoundOutcome.RUNNING
         return self.ending.outcome
+
+    @property
+    def is_unfinished(self) -> bool:
+        """Whether the round errored or was interrupted before taking its turn."""
+        return self.outcome in {
+            AgentRoundOutcome.ERRORED,
+            AgentRoundOutcome.INTERRUPTED,
+        }
 
 
 def record_agent_round_interruption(
@@ -297,15 +294,6 @@ def _record_agent_round_ending(
 
 
 @dataclass(frozen=True, kw_only=True)
-class AgentRoundPlan[RoundInputT: DreamcatcherDocument]:
-    """Describe the decisions and input that a new round executes."""
-
-    purpose: _AgentRoundPurpose
-    is_recovery: bool
-    input: RoundInputT | None = None
-
-
-@dataclass(frozen=True, kw_only=True)
 class AgentRoundStartRequest:
     """Describe everything that the round boundary needs to start a round."""
 
@@ -315,7 +303,7 @@ class AgentRoundStartRequest:
     record_harness_session_identifier: HarnessSessionIdentifierRecorder
     finish_round: AgentRoundFinisher | None
     paths: "AgentRoundPaths"
-    plan: AgentRoundPlan[DreamcatcherDocument]
+    prepare_round: Callable[[], DreamcatcherDocument | None]
 
 
 def start_agent_round(
@@ -346,7 +334,7 @@ def start_agent_round(
             ),
         ),
         paths=request.paths,
-        plan=request.plan,
+        prepare_round=request.prepare_round,
         finish_round=request.finish_round,
         clock=clock,
     )
@@ -403,18 +391,24 @@ class AgentRound:
         agent_work_identifier: str,
         harness: _AgentRoundHarness,
         paths: AgentRoundPaths,
-        plan: AgentRoundPlan[DreamcatcherDocument],
+        prepare_round: Callable[[], DreamcatcherDocument | None],
         finish_round: AgentRoundFinisher | None = None,
         clock: Callable[[], datetime] = read_current_time,
         wait_for_round_end: Callable[[float], bool] | None = None,
     ) -> None:
-        """Run the harness as a round at the paths it was given.
+        """Record the round, prepare it, and run its harness at the paths given.
 
-        The input and prompt go to files of the round's own before its process
-        starts, and the harness reads the prompt as its stdin. A prompt therefore
-        reaches the harness as it was written however long it is and whatever it
-        holds, and a reader can see afterwards what the round received. A failure
-        to write either file stops the round before it starts.
+        The record is written first, so the attempt exists before anything else
+        happens. The owner's preparation step then readies the worktree and
+        returns the input to relay, if any. The input and prompt go to files of
+        the round's own before its process starts, and the harness reads the
+        prompt as its stdin. A prompt therefore reaches the harness as it was
+        written however long it is and whatever it holds, and a reader can see
+        afterwards what the round received.
+
+        A failure before the harness is running ends the round errored, with the
+        failure as its reason and no exit status, and raises ReportableError
+        naming the work and the round.
 
         A round given a finisher lets its owner finish it before it records its
         ending.
@@ -437,31 +431,19 @@ class AgentRound:
         self._final_output_settled = Flag()
         self._feed_write_lock = Lock()
         self._termination_lock = Lock()
-        if plan.input is not None:
-            write_json(document=plan.input, path=paths.round_input)
-        write_text(text=harness.invocation.prompt, path=paths.prompt)
-        remove_file(path=paths.final_output)
-        self.harness_process = spawn_command(
-            program=harness.invocation.program,
-            arguments=harness.invocation.arguments,
-            cwd=paths.worktree,
-            stdin=paths.prompt,
-        )
+        self.record = AgentRoundRecord(number=paths.number, started=self.started_at)
+        write_json(document=self.record, path=paths.record)
         try:
-            self.record = AgentRoundRecord(
-                number=paths.number,
-                purpose=plan.purpose,
-                is_recovery=plan.is_recovery,
-                started=self.started_at,
-                pid=self.harness_process.pid,
+            self.harness_process = self._prepare_and_spawn(prepare_round=prepare_round)
+        except ReportableError as failure:
+            self.record = _record_agent_round_ending(
+                record=self.record,
+                ending=ErroredAgentRoundEnding(at=clock(), reason=str(failure)),
+                path=paths.record,
             )
-            write_json(document=self.record, path=self.paths.record)
-        except ReportableError:
-            # A round nothing recorded is a round nothing will watch or find
-            # again, so it does not run on.
-            self.harness_process.kill()
-            self.harness_process.wait()
-            raise
+            raise ReportableError(
+                f"{agent_work_identifier} round {paths.number} errored: {failure}"
+            ) from failure
         self._stream_readers = [
             Thread(
                 target=self._read_stream_until_finished,
@@ -484,6 +466,34 @@ class AgentRound:
             target=self._record_ending_and_join_streams, daemon=True
         )
         self._ending_recorder.start()
+
+    def _prepare_and_spawn(
+        self, *, prepare_round: Callable[[], DreamcatcherDocument | None]
+    ) -> ChildProcess:
+        """Prepare the round, write its input and prompt, and spawn its harness.
+
+        The process id joins the record once the harness is spawned. A process
+        that cannot be recorded is killed, since nothing would watch it.
+        """
+        round_input = prepare_round()
+        if round_input is not None:
+            write_json(document=round_input, path=self.paths.round_input)
+        write_text(text=self.harness.invocation.prompt, path=self.paths.prompt)
+        remove_file(path=self.paths.final_output)
+        process = spawn_command(
+            program=self.harness.invocation.program,
+            arguments=self.harness.invocation.arguments,
+            cwd=self.paths.worktree,
+            stdin=self.paths.prompt,
+        )
+        try:
+            self.record = self.record.model_copy(update={"pid": process.pid})
+            write_json(document=self.record, path=self.paths.record)
+        except ReportableError:
+            process.kill()
+            process.wait()
+            raise
+        return process
 
     @property
     def is_alive(self) -> bool:
@@ -549,11 +559,15 @@ class AgentRound:
             self.harness_process.kill()
 
     def _watch_for_stop_request(self) -> None:
-        """Stop the round promptly when its request file appears."""
-        while not self._wait_for_round_end(_STOP_REQUEST_POLL_INTERVAL_SECONDS):
-            if self.paths.stop_request.is_file():
-                self._end_process_tree(ending=StoppedAgentRoundEnding(at=self.clock()))
+        """Stop the round promptly when its request file appears.
+
+        The first look comes before any wait, so a request made while the round
+        was preparing stops the harness as soon as it spawns.
+        """
+        while not self.paths.stop_request.is_file():
+            if self._wait_for_round_end(_STOP_REQUEST_POLL_INTERVAL_SECONDS):
                 return
+        self._end_process_tree(ending=StoppedAgentRoundEnding(at=self.clock()))
 
     def _read_stream_until_finished(self, *, read_stream: Callable[[], None]) -> None:
         """Read one output stream and interrupt the round if persistence fails.

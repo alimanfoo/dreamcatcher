@@ -23,7 +23,6 @@ from status_fabrications import fabricate_conversation, fabricate_everything
 import dreamcatcher.status.report as report_module
 from dreamcatcher.agent_rounds import (
     AgentRoundRecord,
-    ConversationRoundPurpose,
     _compose_agent_round_ending,
 )
 from dreamcatcher.agent_work import AgentWorkEndReason
@@ -106,7 +105,6 @@ def test_conversation_page_shows_settings_revision_round_and_feed(tmp_path):
         number=2,
         record=AgentRoundRecord(
             number=2,
-            purpose=ConversationRoundPurpose.DISCUSS,
             started=PINNED + timedelta(minutes=6),
             pid=2,
             ending=_compose_agent_round_ending(
@@ -154,7 +152,7 @@ def test_conversation_page_shows_settings_revision_round_and_feed(tmp_path):
     assert f"code revision abc123 -&gt; {revision}" in page
     assert revision in page
     assert "opus[1m] · xhigh" in page
-    assert "discuss" in page
+    assert "1 comment" in page
     assert "I found the answer." in page
     assert 'hx-get="/work/GH8-20260819-184158-conversation/tail"' in page
     assert "<summary>resume by hand</summary>" in page
@@ -220,7 +218,6 @@ def test_an_old_conversation_stop_submission_cannot_stop_the_next_round(tmp_path
         number=2,
         record=AgentRoundRecord(
             number=2,
-            purpose=ConversationRoundPurpose.DISCUSS,
             started=PINNED + timedelta(minutes=5),
             pid=1,
         ),
@@ -364,7 +361,7 @@ def test_conversation_page_with_an_unreadable_input_still_renders(tmp_path):
     assert "I found the answer." in response.text
 
 
-def test_conversation_page_shows_a_failed_round_waiting_to_be_recovered(tmp_path):
+def test_conversation_page_shows_a_failed_round_waiting_to_run_again(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_conversation(state=state, status=2, is_eligible=True)
 
@@ -388,8 +385,6 @@ def _fabricate_faulted_conversation(*, state: StateDirectory) -> None:
         number=2,
         record=AgentRoundRecord(
             number=2,
-            purpose=ConversationRoundPurpose.DISCUSS,
-            is_recovery=True,
             started=PINNED + timedelta(minutes=5),
             pid=2,
             ending=_compose_agent_round_ending(
@@ -427,7 +422,6 @@ def test_conversation_page_shows_two_errors_as_a_fault(tmp_path):
 
     assert "status-fault" in page
     assert "round 2 errored (exit 2)" in page
-    assert "(recovery)" in page
 
 
 def test_conversation_before_its_first_round_invites_a_comment(tmp_path):
@@ -566,7 +560,6 @@ def test_conversation_tail_adds_a_later_round_without_repeating_the_first(tmp_pa
         number=2,
         record=AgentRoundRecord(
             number=2,
-            purpose=ConversationRoundPurpose.DISCUSS,
             started=PINNED + timedelta(minutes=6),
             pid=2,
             ending=_compose_agent_round_ending(
@@ -619,7 +612,7 @@ def test_conversation_tail_adds_a_later_round_without_repeating_the_first(tmp_pa
     assert "I found the answer." not in response.text
     assert 'id="agent-work-detail"' in response.text
     assert "issue is not eligible for conversation" in response.text
-    assert response.text.count("round 2: discuss") == 1
+    assert response.text.count("round 2: 1 comment") == 1
     assert response.text.count("code revision abc123 -&gt; def456") == 1
     assert response.text.count("I found the follow-up answer.") == 1
 

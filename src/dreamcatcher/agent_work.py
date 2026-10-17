@@ -46,7 +46,7 @@ _WORK_RECORD_NAME = "work.json"
 # continue.
 _HARNESS_SESSION_RECORD_NAME = "harness-session.json"
 
-# The file in a work directory saying when the user last asked it to recover.
+# The file in a work directory saying when the user last asked it to run again.
 _RETRY_REQUEST_RECORD_NAME = "retry-request.json"
 
 # The file in a work directory saying when and why the work ended.
@@ -117,6 +117,20 @@ class AgentWork:
     def is_open(self) -> bool:
         """Whether the work has not ended."""
         return self.ending is None
+
+    def list_relayed_inputs(self) -> list[AgentRoundPaths]:
+        """Return the paths of the rounds whose input is relayed, newest first.
+
+        The inputs of these rounds are behind the cursor. A round that did not
+        finish its turn is left out, so what it was given is given again. Every
+        other round given an input has relayed it, a running round included.
+        """
+        paths = (
+            self.compose_round_paths(number=record.number)
+            for record in reversed(self.rounds)
+            if not record.is_unfinished
+        )
+        return [path for path in paths if path.round_input.exists()]
 
     @property
     def rounds_directory(self) -> Path:
@@ -218,7 +232,7 @@ def find_agent_work(*, state: StateDirectory, identifier: str) -> AgentWork | No
     Only that work's own files are read, so another piece of work that cannot be
     read does not hide this one.
     """
-    if not is_agent_work_recorded(state=state, identifier=identifier):
+    if not _is_agent_work_recorded(state=state, identifier=identifier):
         return None
     directory = state.work / identifier
     return _read_agent_work(
@@ -228,7 +242,7 @@ def find_agent_work(*, state: StateDirectory, identifier: str) -> AgentWork | No
     )
 
 
-def is_agent_work_recorded(*, state: StateDirectory, identifier: str) -> bool:
+def _is_agent_work_recorded(*, state: StateDirectory, identifier: str) -> bool:
     """Return whether agent work with this exact identifier has its record.
 
     The identifier names a directory directly under `work/`, so one that would
@@ -346,12 +360,12 @@ def _record_user_request(*, path: Path, at: datetime) -> None:
 
 
 def _read_retry_requested_at(*, directory: Path) -> datetime | None:
-    """Return when the user last asked the agent work here to recover."""
+    """Return when the user last asked the agent work here to run again."""
     return _read_user_request_time(path=directory / _RETRY_REQUEST_RECORD_NAME)
 
 
 def request_agent_work_retry(*, work: AgentWork, at: datetime) -> None:
-    """Record when the user asked faulted agent work to recover again."""
+    """Record when the user asked faulted agent work to run again."""
     _record_user_request(path=work.directory / _RETRY_REQUEST_RECORD_NAME, at=at)
 
 

@@ -4,12 +4,27 @@ from abc import ABC, abstractmethod
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from datetime import datetime
+from functools import partial
 
-from dreamcatcher.agent_rounds import AgentRound
+from dreamcatcher.agent_rounds import (
+    AgentRound,
+    AgentRoundFinisher,
+    AgentRoundStartRequest,
+    start_agent_round,
+)
+from dreamcatcher.agent_work import (
+    AgentWork,
+    record_harness_session_identifier,
+    request_round_stop_if_ended,
+)
 from dreamcatcher.config import AgentHarness, DispatchRoute, DreamcatcherConfig
-from dreamcatcher.errors import ReportableError
+from dreamcatcher.documents import DreamcatcherDocument
 from dreamcatcher.github import Issue, UnknownGitHubResponse, list_issues
-from dreamcatcher.harness_adapters import HarnessSessionIdentifier
+from dreamcatcher.harness_adapters import (
+    AgentRoundLaunchRequest,
+    HarnessSessionIdentifier,
+)
+from dreamcatcher.prompts import compose_round_prompt
 from dreamcatcher.scheduler.models import AgentWorkInspection, SchedulerRecord
 from dreamcatcher.state import StateDirectory
 
@@ -20,14 +35,6 @@ class RouteIssueListing:
 
     issues: list[Issue]
     failures: list[str]
-
-
-@dataclass(frozen=True, kw_only=True)
-class HarnessSessionResumption:
-    """Hold the session and prompt with which to start a round."""
-
-    identifier: HarnessSessionIdentifier | None
-    prompt: str
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -55,33 +62,55 @@ class AgentWorkScheduler[CandidateT, ObservationT, RankT](ABC):
     def launch(self, *, candidate: CandidateT, at: datetime) -> AgentRound:
         """Launch one candidate for this kind of agent work."""
 
-    def resolve_harness_session(
+    def start_round(
         self,
         *,
-        agent_work_identifier: str,
-        has_rounds: bool,
+        work: AgentWork,
         harness_session_identifier: HarnessSessionIdentifier | None,
-        is_recovery: bool,
-        prompt: str,
-        replacement_session_prompt: str,
-    ) -> HarnessSessionResumption:
-        """Choose whether to resume a session or begin a replacement."""
-        if not has_rounds:
-            return HarnessSessionResumption(identifier=None, prompt=prompt)
+        prepare_round: Callable[[], DreamcatcherDocument | None],
+        input_prompt: str | None,
+        finish_round: AgentRoundFinisher | None,
+    ) -> AgentRound:
+        """Start the work's next round, resuming the harness session when given one.
+
+        The round runs the preparation step before its harness. A round whose
+        work has ended by the time it starts is asked to stop.
+        """
         if harness_session_identifier is not None:
-            return HarnessSessionResumption(
-                identifier=harness_session_identifier,
-                prompt=prompt,
+            record_harness_session_identifier(
+                work=work, identifier=harness_session_identifier
             )
-        if not is_recovery:
-            raise ReportableError(
-                f"Could not resume {agent_work_identifier}: its first round did not "
-                "report a harness session identifier."
-            )
-        return HarnessSessionResumption(
-            identifier=None,
-            prompt=replacement_session_prompt,
+        paths = work.compose_round_paths(number=work.next_round_number)
+        started_round = start_agent_round(
+            request=AgentRoundStartRequest(
+                harness=work.record.harness,
+                launch_request=AgentRoundLaunchRequest(
+                    agent_work_identifier=work.identifier,
+                    model=work.record.model,
+                    effort=work.record.effort,
+                    harness_config=work.record.harness_config,
+                    prompt=compose_round_prompt(
+                        instructions=work.record.prompt,
+                        is_resuming=harness_session_identifier is not None,
+                        input_prompt=input_prompt,
+                        previous_outcome=(
+                            work.rounds[-1].outcome if work.rounds else None
+                        ),
+                    ),
+                    work_kind=work.record.kind,
+                ),
+                harness_session_identifier=harness_session_identifier,
+                record_harness_session_identifier=partial(
+                    record_harness_session_identifier, work=work
+                ),
+                finish_round=finish_round,
+                paths=paths,
+                prepare_round=prepare_round,
+            ),
+            clock=self.clock,
         )
+        request_round_stop_if_ended(work=work, paths=paths)
+        return started_round
 
     def list_route_issues(
         self, *, routes: Sequence[DispatchRoute]

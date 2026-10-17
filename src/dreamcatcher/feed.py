@@ -53,26 +53,18 @@ class FeedLine:
 def compose_agent_round_boundary(
     *,
     number: int,
-    purpose: str,
-    is_recovery: bool,
+    trigger: str,
     at: datetime,
     detail: str | None = None,
 ) -> FeedLine:
-    """Return the line that opens a round, saying what work it advances.
+    """Return the line that opens a round, saying what woke it.
 
     A feed holds one round, so nothing writes this line as the round runs.
     Whoever reads an agent work item's rounds in order writes it between them,
     stamped with the time that round started.
     """
-    description = describe_agent_round_start(purpose=purpose, is_recovery=is_recovery)
-    if detail is not None:
-        description = f"{description}; {detail}"
+    description = trigger if detail is None else f"{trigger}; {detail}"
     return FeedLine(at=at, text=f"round {number}: {description}")
-
-
-def describe_agent_round_start(*, purpose: str, is_recovery: bool) -> str:
-    """Describe the work a round advances and whether it recovers another."""
-    return f"{purpose} (recovery)" if is_recovery else purpose
 
 
 def read_feed_line(*, written_line: str) -> FeedLine | None:

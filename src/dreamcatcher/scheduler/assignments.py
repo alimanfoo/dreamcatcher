@@ -6,28 +6,21 @@ from functools import partial
 from typing import cast
 
 from dreamcatcher.agent_assignments import (
-    AssignmentCreator,
     AssignmentRoundInput,
+    PullRequestObservation,
     complete_assignment,
-    inspect_incomplete_assignment_setups,
+    create_assignment,
+    is_final_turn_taken,
+    open_assignment_pull_request,
     read_pull_request_observation,
     read_user_post_delivery_position,
     record_pull_request_observation,
 )
-from dreamcatcher.agent_rounds import (
-    AgentRound,
-    AgentRoundOutcome,
-    AgentRoundPlan,
-    AgentRoundStartRequest,
-    AssignmentRoundPurpose,
-    start_agent_round,
-)
+from dreamcatcher.agent_rounds import AgentRound
 from dreamcatcher.agent_work import (
     AgentWork,
     find_open_agent_work_by_issue,
     read_agent_work_of_kind,
-    record_harness_session_identifier,
-    request_round_stop_if_ended,
 )
 from dreamcatcher.config import AssignmentRoute
 from dreamcatcher.github import (
@@ -37,14 +30,14 @@ from dreamcatcher.github import (
     UserPost,
     read_pull_request,
 )
-from dreamcatcher.harness_adapters import AgentRoundLaunchRequest, AgentWorkKind
-from dreamcatcher.prompts import (
-    ASSIGNMENT_RECOVERY_PROMPT,
-    compose_assignment_input_prompt,
-)
+from dreamcatcher.harness_adapters import AgentWorkKind
+from dreamcatcher.prompts import compose_assignment_input_prompt
 from dreamcatcher.relay import list_undelivered_user_posts
 from dreamcatcher.scheduler.agent_work import AgentWorkScheduler
-from dreamcatcher.scheduler.faults import derive_agent_work_fault, is_awaiting_recovery
+from dreamcatcher.scheduler.faults import (
+    derive_agent_work_fault,
+    is_last_round_unfinished,
+)
 from dreamcatcher.scheduler.issues import observe_issues
 from dreamcatcher.scheduler.models import (
     NO_ROUND_HAS_RUN,
@@ -55,7 +48,6 @@ from dreamcatcher.scheduler.models import (
     ObservedIssueDetails,
     SchedulerRecord,
     Truth,
-    derive_round_purpose,
 )
 from dreamcatcher.words import describe_count
 
@@ -70,8 +62,12 @@ class NewAssignmentCandidate:
 
 
 @dataclass(frozen=True, kw_only=True)
-class FirstAssignmentRoundCandidate:
-    """Describe an assignment that has not started its first round."""
+class PullRequestOpeningCandidate:
+    """Describe an assignment whose next round opens its pull request.
+
+    A round that failed part way through opening it leaves the assignment here,
+    and the next round runs the same preparation again.
+    """
 
     assignment: AgentWork
 
@@ -83,11 +79,10 @@ class AssignmentRoundCandidate:
     assignment: AgentWork
     pull_request: PullRequest
     undelivered_posts: list[UserPost]
-    is_recovery: bool
 
 
 type AssignmentCandidate = (
-    NewAssignmentCandidate | FirstAssignmentRoundCandidate | AssignmentRoundCandidate
+    NewAssignmentCandidate | PullRequestOpeningCandidate | AssignmentRoundCandidate
 )
 
 
@@ -123,14 +118,7 @@ class AssignmentScheduler(
         assignments = read_agent_work_of_kind(
             state=self.state, kind=AgentWorkKind.ASSIGNMENT
         )
-        issue_result = observe_issues(
-            scheduler=self,
-            assignments=assignments,
-            incomplete_setups=inspect_incomplete_assignment_setups(
-                state=self.state,
-                repository=self.repository,
-            ),
-        )
+        issue_result = observe_issues(scheduler=self, assignments=assignments)
         issue_observations = [
             observation.model_copy(update={"observed_at": at})
             for observation in issue_result.observations
@@ -159,66 +147,55 @@ class AssignmentScheduler(
 
     def rank(self, candidate: AssignmentCandidate, /) -> int:
         """Rank an assignment candidate when `sorted` passes it by position."""
-        if isinstance(candidate, FirstAssignmentRoundCandidate):
-            return 0
-        if isinstance(candidate, NewAssignmentCandidate):
-            return 4
-        if candidate.is_recovery:
-            return 1
-        if derive_round_purpose(pull_request=candidate.pull_request) is (
-            AssignmentRoundPurpose.WRAP_UP
-        ):
-            return 2
-        return 3
+        return 1 if isinstance(candidate, NewAssignmentCandidate) else 0
 
     def launch(self, *, candidate: AssignmentCandidate, at: datetime) -> AgentRound:
         """Create any new assignment, then start its required round."""
         if isinstance(candidate, NewAssignmentCandidate):
-            creator = AssignmentCreator(state=self.state, repository=self.repository)
-            assignment = creator.create(
+            assignment = create_assignment(
+                state=self.state,
                 route=candidate.route,
                 preferred_harness=self.preferred_harness,
                 issue=candidate.issue,
+                title=candidate.title,
                 at=at,
             )
-            candidate = FirstAssignmentRoundCandidate(assignment=assignment)
-        if isinstance(candidate, FirstAssignmentRoundCandidate):
-            return self._start_round(
-                assignment=candidate.assignment,
-                plan=AgentRoundPlan(
-                    purpose=AssignmentRoundPurpose.IMPLEMENT,
-                    is_recovery=False,
-                ),
-                next_round_prompt=candidate.assignment.record.prompt,
-            )
-        purpose = derive_round_purpose(pull_request=candidate.pull_request)
-        if (
-            candidate.is_recovery
-            and candidate.pull_request.state is PullRequestState.OPEN
-        ):
-            return self._start_round(
-                assignment=candidate.assignment,
-                plan=AgentRoundPlan(purpose=purpose, is_recovery=True),
-                next_round_prompt=ASSIGNMENT_RECOVERY_PROMPT,
-            )
+            candidate = PullRequestOpeningCandidate(assignment=assignment)
         assignment = candidate.assignment
-        was_stopped = assignment.rounds[-1].outcome is AgentRoundOutcome.STOPPED
-        return self._start_round(
-            assignment=assignment,
-            plan=AgentRoundPlan(
-                purpose=purpose,
-                is_recovery=candidate.is_recovery,
-                input=AssignmentRoundInput(
-                    pull_request_state=candidate.pull_request.state,
-                    user_posts=candidate.undelivered_posts,
+        if isinstance(candidate, PullRequestOpeningCandidate):
+            return self.start_round(
+                work=assignment,
+                harness_session_identifier=assignment.find_harness_session_identifier(),
+                prepare_round=partial(
+                    open_assignment_pull_request,
+                    state=self.state,
+                    repository=self.repository,
+                    assignment=assignment,
+                    clock=self.clock,
                 ),
-            ),
-            next_round_prompt=compose_assignment_input_prompt(
+                input_prompt=None,
+                finish_round=None,
+            )
+        round_input = AssignmentRoundInput(
+            pull_request_state=candidate.pull_request.state,
+            user_posts=candidate.undelivered_posts,
+        )
+        return self.start_round(
+            work=assignment,
+            harness_session_identifier=assignment.find_harness_session_identifier(),
+            prepare_round=lambda: round_input,
+            input_prompt=compose_assignment_input_prompt(
                 pull_request=candidate.pull_request.number,
                 round_input=assignment.compose_round_paths(
                     number=assignment.next_round_number
                 ).round_input,
-                was_stopped=was_stopped,
+            ),
+            finish_round=(
+                None
+                if round_input.pull_request_state is PullRequestState.OPEN
+                else partial(
+                    complete_assignment, assignment=assignment, clock=self.clock
+                )
             ),
         )
 
@@ -249,14 +226,6 @@ class AssignmentScheduler(
         most_recent_cooldown_ended: datetime | None,
         observed_at: datetime,
     ) -> _AssignmentItemInspection:
-        if not assignment.rounds:
-            candidate = FirstAssignmentRoundCandidate(assignment=assignment)
-            return _AssignmentItemInspection(
-                candidate=candidate,
-                observation=_compose_assignment_observation(
-                    assignment=assignment, evidence=NO_ROUND_HAS_RUN
-                ),
-            )
         if derive_agent_work_fault(
             rounds=assignment.rounds,
             retry_requested_at=assignment.retry_requested_at,
@@ -271,18 +240,35 @@ class AssignmentScheduler(
                 ),
                 is_fault=True,
             )
+        observation = read_pull_request_observation(assignment=assignment)
+        if observation is None:
+            return _AssignmentItemInspection(
+                candidate=PullRequestOpeningCandidate(assignment=assignment),
+                observation=_compose_assignment_observation(
+                    assignment=assignment,
+                    evidence=(
+                        _describe_unfinished_round(assignment=assignment)
+                        if assignment.rounds
+                        else NO_ROUND_HAS_RUN
+                    ),
+                ),
+            )
         return self._inspect_pull_request(
             assignment=assignment,
+            observation=observation,
             observed_at=observed_at,
         )
 
     def _inspect_pull_request(
-        self, *, assignment: AgentWork, observed_at: datetime
+        self,
+        *,
+        assignment: AgentWork,
+        observation: PullRequestObservation,
+        observed_at: datetime,
     ) -> _AssignmentItemInspection:
         """Inspect an assignment's pull request and pending user posts."""
         pull_request = read_pull_request(
-            repository=self.repository,
-            pull_request=read_pull_request_observation(assignment=assignment).number,
+            repository=self.repository, pull_request=observation.number
         )
         if isinstance(pull_request, UnknownGitHubResponse):
             return _AssignmentItemInspection(
@@ -328,16 +314,12 @@ class AssignmentScheduler(
     def _inspect_pending_round(
         self, *, assignment: AgentWork, pull_request: PullRequest
     ) -> AssignmentRoundCandidate | AgentWorkObservation | None:
-        is_recovery = is_awaiting_recovery(
-            rounds=assignment.rounds, is_daemon_running=True
-        )
-        if is_recovery and pull_request.state is PullRequestState.OPEN:
-            return AssignmentRoundCandidate(
-                assignment=assignment,
-                pull_request=pull_request,
-                undelivered_posts=[],
-                is_recovery=is_recovery,
-            )
+        """Return the round the assignment needs, if any.
+
+        A round is needed for user posts past the cursor, for a merged or closed
+        pull request whose final turn has not been taken, or to give again the
+        input of a round that did not finish.
+        """
         undelivered_posts = list_undelivered_user_posts(
             repository=self.repository,
             pull_request=pull_request.number,
@@ -352,13 +334,21 @@ class AssignmentScheduler(
                 ),
                 value=Truth.UNKNOWN,
             )
-        if not undelivered_posts and pull_request.state is PullRequestState.OPEN:
+        if not (
+            undelivered_posts
+            or (
+                pull_request.state is not PullRequestState.OPEN
+                and not is_final_turn_taken(assignment=assignment)
+            )
+            or is_last_round_unfinished(
+                rounds=assignment.rounds, is_daemon_running=True
+            )
+        ):
             return None
         return AssignmentRoundCandidate(
             assignment=assignment,
             pull_request=pull_request,
             undelivered_posts=undelivered_posts,
-            is_recovery=is_recovery,
         )
 
     def _compose_new_candidates(
@@ -378,71 +368,19 @@ class AssignmentScheduler(
             if observation.availability.value is Truth.TRUE
         ]
 
-    def _start_round(
-        self,
-        *,
-        assignment: AgentWork,
-        plan: AgentRoundPlan[AssignmentRoundInput],
-        next_round_prompt: str,
-    ) -> AgentRound:
-        resumption = self.resolve_harness_session(
-            agent_work_identifier=assignment.identifier,
-            has_rounds=bool(assignment.rounds),
-            harness_session_identifier=assignment.find_harness_session_identifier(),
-            is_recovery=plan.is_recovery,
-            prompt=next_round_prompt,
-            replacement_session_prompt=(
-                f"{assignment.record.prompt}\n\n{next_round_prompt}"
-            ),
-        )
-        if resumption.identifier is not None:
-            record_harness_session_identifier(
-                work=assignment,
-                identifier=resumption.identifier,
-            )
-        paths = assignment.compose_round_paths(number=assignment.next_round_number)
-        started_round = start_agent_round(
-            request=AgentRoundStartRequest(
-                harness=assignment.record.harness,
-                launch_request=AgentRoundLaunchRequest(
-                    agent_work_identifier=assignment.identifier,
-                    model=assignment.record.model,
-                    effort=assignment.record.effort,
-                    harness_config=assignment.record.harness_config,
-                    prompt=resumption.prompt,
-                ),
-                harness_session_identifier=resumption.identifier,
-                record_harness_session_identifier=partial(
-                    record_harness_session_identifier,
-                    work=assignment,
-                ),
-                finish_round=(
-                    None
-                    if plan.input is None
-                    or plan.input.pull_request_state is PullRequestState.OPEN
-                    else partial(
-                        complete_assignment, assignment=assignment, clock=self.clock
-                    )
-                ),
-                paths=paths,
-                plan=plan,
-            ),
-            clock=self.clock,
-        )
-        request_round_stop_if_ended(work=assignment, paths=paths)
-        return started_round
-
 
 def _describe_assignment_candidate(*, candidate: AssignmentRoundCandidate) -> str:
-    if candidate.is_recovery:
-        latest_round = candidate.assignment.rounds[-1]
-        return f"round {latest_round.number} {latest_round.outcome}, to recover"
     if candidate.pull_request.state is not PullRequestState.OPEN:
         return f"the pull request is {candidate.pull_request.state.lower()}"
-    return (
-        f"{describe_count(number=len(candidate.undelivered_posts), noun='new post')} "
-        "to answer"
-    )
+    if candidate.undelivered_posts:
+        posts = describe_count(number=len(candidate.undelivered_posts), noun="new post")
+        return f"{posts} to answer"
+    return _describe_unfinished_round(assignment=candidate.assignment)
+
+
+def _describe_unfinished_round(*, assignment: AgentWork) -> str:
+    latest_round = assignment.rounds[-1]
+    return f"round {latest_round.number} {latest_round.outcome}, to try again"
 
 
 def _compose_assignment_observation(

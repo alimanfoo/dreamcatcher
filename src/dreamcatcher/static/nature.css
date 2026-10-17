@@ -273,8 +273,7 @@ body::after {
 }
 
 .assignment-card,
-.issue-row,
-.failed-setup-row {
+.issue-row {
   padding: 16px 0;
 }
 
@@ -456,10 +455,6 @@ body::after {
   color: var(--dim);
 }
 
-.failed-setup-row {
-  color: var(--danger);
-}
-
 .assignment-content {
   gap: 24px;
 }
@@ -521,7 +516,7 @@ body::after {
   background: var(--round-current-surface);
 }
 
-.round-purpose,
+.round-trigger,
 .round-outcome {
   color: var(--bright);
   font-weight: 500;

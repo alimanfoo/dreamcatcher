@@ -68,7 +68,7 @@ def add_worktree(*, root: Path, path: Path, branch: str) -> None:
     )
 
 
-def add_detached_worktree(*, root: Path, path: Path) -> None:
+def _add_detached_worktree(*, root: Path, path: Path) -> None:
     """Create a detached worktree at origin/main."""
     run_command(
         program="git",
@@ -78,16 +78,14 @@ def add_detached_worktree(*, root: Path, path: Path) -> None:
 
 
 def refresh_detached_worktree(*, root: Path, worktree: Path) -> str:
-    """Move a detached worktree to fetched main and return its revision.
+    """Put a detached worktree at fetched main and return its revision.
 
-    Discard every local change and commit before moving it.
+    A missing worktree is added. An existing one has every local change and
+    commit discarded before it moves.
     """
-    if not is_linked_worktree(path=worktree):
-        raise ReportableError(
-            f"Could not refresh detached worktree at {worktree}: "
-            "it is not a linked worktree."
-        )
     fetch_main(root=root)
+    if not is_linked_worktree(path=worktree):
+        _add_detached_worktree(root=root, path=worktree)
     run_command(program="git", arguments=["clean", "-ffdx"], cwd=worktree)
     run_command(
         program="git",
@@ -142,13 +140,6 @@ def _read_worktree_revision(*, worktree: Path) -> str:
     ).strip()
 
 
-def read_worktree_branch(*, worktree: Path) -> str:
-    """Return the branch checked out in an assignment worktree."""
-    return run_command(
-        program="git", arguments=["branch", "--show-current"], cwd=worktree
-    ).strip()
-
-
 def has_commits_since_main(*, worktree: Path) -> bool:
     """Return whether the worktree's branch has moved beyond origin/main."""
     count = run_command(
@@ -187,8 +178,8 @@ def make_empty_commit(*, worktree: Path, message: str) -> None:
 def push_branch(*, root: Path, branch: str) -> None:
     """Push the placeholder branch to origin and set its upstream.
 
-    The assignment setup skips repository hooks because no agent work has
-    started. The agent's later pushes still run the hooks.
+    A first round's preparation skips repository hooks because the agent has
+    not run yet. The agent's later pushes still run the hooks.
     """
     run_command(
         program="git",

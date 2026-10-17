@@ -1,8 +1,7 @@
-from pathlib import Path
-
 import pytest
 from conftest import CONFIG
 
+from dreamcatcher.agent_rounds import AgentRoundOutcome
 from dreamcatcher.config import (
     DREAMCATCHER_CONFIG_NAME,
     AgentHarness,
@@ -11,12 +10,10 @@ from dreamcatcher.config import (
 from dreamcatcher.prompts import (
     _AGENT_POST_INSTRUCTIONS,
     AGENT_POST_MARKER,
-    ASSIGNMENT_RECOVERY_PROMPT,
-    CONVERSATION_RECOVERY_PROMPT,
-    compose_assignment_first_round_prompt,
     compose_assignment_input_prompt,
-    compose_conversation_first_round_prompt,
     compose_conversation_input_prompt,
+    compose_issue_instructions,
+    compose_round_prompt,
 )
 
 # What each harness's template in the test config renders as for issue 12. A
@@ -26,41 +23,98 @@ OPENINGS = {
     AgentHarness.CODEX: "$dream:smith GH12",
 }
 
+# The words that direct a round to an input file, for the tests that compose a
+# whole prompt around them.
+INPUT_PROMPT = "Read the input."
+
 
 def test_a_template_holding_other_words_in_braces_keeps_them():
-    assert compose_assignment_first_round_prompt(
+    assert compose_issue_instructions(
         template="read {the design} for GH{issue}", issue=12
-    ).startswith("read {the design} for GH12\n")
+    ) == ("read {the design} for GH12")
 
 
 @pytest.mark.parametrize("harness", list(AgentHarness))
-def test_the_prompt_that_opens_an_assignment_is_its_template_then_the_postscript(
+def test_a_round_with_nothing_to_relay_is_given_its_instructions_then_the_postscript(
     tmp_path, harness
 ):
     (tmp_path / DREAMCATCHER_CONFIG_NAME).write_text(CONFIG, encoding="utf-8")
     recipe = read_dreamcatcher_config(root=tmp_path).assignment[0].recipes[harness]
 
-    composed = compose_assignment_first_round_prompt(template=recipe.prompt, issue=12)
+    composed = compose_round_prompt(
+        instructions=compose_issue_instructions(template=recipe.prompt, issue=12),
+        is_resuming=False,
+        input_prompt=None,
+        previous_outcome=None,
+    )
 
     assert composed == OPENINGS[harness] + _AGENT_POST_INSTRUCTIONS
 
 
-def test_assignment_recovery_says_the_last_round_stopped_short():
-    assert ASSIGNMENT_RECOVERY_PROMPT.startswith("Your previous round did not finish.")
-    assert ASSIGNMENT_RECOVERY_PROMPT.endswith(_AGENT_POST_INSTRUCTIONS)
+@pytest.mark.parametrize("is_resuming", [False, True])
+def test_a_round_with_no_input_is_given_its_instructions_resumed_or_not(is_resuming):
+    composed = compose_round_prompt(
+        instructions="/dream:smith GH12",
+        is_resuming=is_resuming,
+        input_prompt=None,
+        previous_outcome=AgentRoundOutcome.ERRORED,
+    )
+
+    assert composed == "/dream:smith GH12" + _AGENT_POST_INSTRUCTIONS
 
 
-def test_conversation_recovery_returns_a_complete_postable_answer():
-    prompt = " ".join(CONVERSATION_RECOVERY_PROMPT.split())
+def test_a_new_session_is_given_its_instructions_before_its_input():
+    composed = compose_round_prompt(
+        instructions="/dream:scout GH12",
+        is_resuming=False,
+        input_prompt=INPUT_PROMPT,
+        previous_outcome=None,
+    )
 
-    assert "cut short, or its answer could not be posted" in prompt
-    assert "issue actions may already have succeeded" in prompt
-    assert "Inspect GitHub before repeating any action." in prompt
-    assert (
-        "complete answer, as Markdown ready for dreamcatcher to post, or exactly "
-        "NO_REPLY."
-    ) in prompt
-    assert CONVERSATION_RECOVERY_PROMPT.endswith(_AGENT_POST_INSTRUCTIONS)
+    assert composed == (
+        f"/dream:scout GH12\n\n{INPUT_PROMPT}{_AGENT_POST_INSTRUCTIONS}"
+    )
+
+
+def test_a_resumed_session_is_given_its_input_alone():
+    composed = compose_round_prompt(
+        instructions="/dream:smith GH12",
+        is_resuming=True,
+        input_prompt=INPUT_PROMPT,
+        previous_outcome=AgentRoundOutcome.SUCCESSFUL,
+    )
+
+    assert composed == INPUT_PROMPT + _AGENT_POST_INSTRUCTIONS
+
+
+@pytest.mark.parametrize(
+    ("previous_outcome", "opening"),
+    [
+        (
+            AgentRoundOutcome.STOPPED,
+            "The user stopped your previous round before it\nfinished.",
+        ),
+        (AgentRoundOutcome.ERRORED, "Your previous round did not finish."),
+        (AgentRoundOutcome.INTERRUPTED, "Your previous round did not finish."),
+    ],
+)
+def test_input_after_a_round_that_ended_short_says_why(previous_outcome, opening):
+    resumed = compose_round_prompt(
+        instructions="/dream:smith GH12",
+        is_resuming=True,
+        input_prompt=INPUT_PROMPT,
+        previous_outcome=previous_outcome,
+    )
+    fresh = compose_round_prompt(
+        instructions="/dream:smith GH12",
+        is_resuming=False,
+        input_prompt=INPUT_PROMPT,
+        previous_outcome=previous_outcome,
+    )
+
+    assert resumed.startswith(opening)
+    assert "new input says what to do next" in " ".join(resumed.split())
+    assert fresh.startswith(f"/dream:smith GH12\n\n{opening}")
 
 
 def test_the_assignment_input_prompt_names_the_pull_request_and_the_file(
@@ -72,38 +126,16 @@ def test_the_assignment_input_prompt_names_the_pull_request_and_the_file(
 
     assert composed.startswith("User-posts prompt for pull request #52:")
     assert str(round_input) in composed
-    assert composed.endswith(_AGENT_POST_INSTRUCTIONS)
 
 
-def test_input_after_a_stop_explains_why_the_previous_round_ended(tmp_path):
+def test_the_conversation_input_prompt_names_its_input_and_host_boundary(tmp_path):
     round_input = tmp_path / "round-input.json"
 
-    assignment = compose_assignment_input_prompt(
-        pull_request=52, round_input=round_input, was_stopped=True
-    )
-    conversation = compose_conversation_input_prompt(
-        issue=52, round_input=round_input, was_stopped=True
-    )
+    composed = compose_conversation_input_prompt(issue=52, round_input=round_input)
 
-    opening = "The user stopped your previous round before it\nfinished."
-    assert assignment.startswith(opening)
-    assert conversation.startswith(opening)
-    assert "new input says what to do next" in assignment
-
-
-def test_the_conversation_first_round_prompt_names_its_input_and_host_boundary(
-    tmp_path,
-):
-    round_input = tmp_path / "round-input.json"
-
-    composed = compose_conversation_first_round_prompt(
-        instructions="/dream:conversation GH52",
-        issue=52,
-        round_input=round_input,
-    )
-
-    assert composed.startswith("/dream:conversation GH52")
+    assert composed.startswith("Issue-conversation input for GH52:")
     assert str(round_input) in composed
+    assert "/dream:conversation" not in composed
     assert "make issue changes on\nGitHub when the user asks" in composed
     assert "do not repeat an action that an earlier attempt completed" in composed
     assert (
@@ -114,43 +146,20 @@ def test_the_conversation_first_round_prompt_names_its_input_and_host_boundary(
     assert "Do not\nfetch issue comments yourself" in composed
     assert "open or change a pull request" in composed
     assert "post the\nconversation reply yourself" in composed
-    assert composed.endswith(_AGENT_POST_INSTRUCTIONS)
-
-
-def test_the_conversation_input_prompt_names_only_its_new_input(tmp_path):
-    round_input = tmp_path / "round-input.json"
-
-    composed = compose_conversation_input_prompt(issue=52, round_input=round_input)
-
-    assert composed.startswith("Issue-conversation input for GH52:")
-    assert str(round_input) in composed
-    assert "/dream:conversation" not in composed
-    assert "make issue changes on\nGitHub when the user asks" in composed
-    assert "do not repeat an action that an earlier attempt completed" in composed
-    assert "Do not edit\nproject source, mutate Git, or implement a change" in composed
-    assert "Do not\nfetch issue comments yourself" in composed
     assert "revision" in composed
+
+
+@pytest.mark.parametrize("input_prompt", [None, INPUT_PROMPT])
+@pytest.mark.parametrize("is_resuming", [False, True])
+def test_every_round_prompt_the_daemon_composes_asks_for_the_marker(
+    input_prompt, is_resuming
+):
+    composed = compose_round_prompt(
+        instructions="/dream:smith GH12",
+        is_resuming=is_resuming,
+        input_prompt=input_prompt,
+        previous_outcome=AgentRoundOutcome.STOPPED,
+    )
+
     assert composed.endswith(_AGENT_POST_INSTRUCTIONS)
-
-
-def test_every_agent_work_prompt_the_daemon_composes_asks_for_the_marker(tmp_path):
-    composed = [
-        compose_assignment_first_round_prompt(template="/dream:smith GH12", issue=12),
-        ASSIGNMENT_RECOVERY_PROMPT,
-        compose_assignment_input_prompt(
-            pull_request=52,
-            round_input=Path("round-input.json"),
-        ),
-        compose_conversation_first_round_prompt(
-            instructions="/dream:conversation GH52",
-            issue=52,
-            round_input=tmp_path / "round-input.json",
-        ),
-        compose_conversation_input_prompt(
-            issue=52,
-            round_input=tmp_path / "round-input.json",
-        ),
-        CONVERSATION_RECOVERY_PROMPT,
-    ]
-
-    assert all(AGENT_POST_MARKER in prompt for prompt in composed)
+    assert AGENT_POST_MARKER in composed

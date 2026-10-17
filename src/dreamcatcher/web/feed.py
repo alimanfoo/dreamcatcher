@@ -122,11 +122,7 @@ def _read_tail_round(
     if is_opening_round:
         lines = (
             _compose_web_round_boundary(
-                record=record,
-                zone=zone,
-                detail=_find_round_revision_description(
-                    rounds=rounds, number=record.number
-                ),
+                record=record, round_=_find_web_round(rounds=rounds, number=number)
             ),
             *lines,
         )
@@ -147,17 +143,16 @@ def _resolve_feed_cursor(
 
 
 def _compose_web_round_boundary(
-    *, record: AgentRoundRecord, zone: tzinfo | None, detail: str | None = None
+    *, record: AgentRoundRecord, round_: WebAgentRound
 ) -> WebFeedLine:
     boundary = compose_agent_round_boundary(
         number=record.number,
-        purpose=record.purpose,
-        is_recovery=record.is_recovery,
+        trigger=round_.trigger,
         at=record.started,
-        detail=detail,
+        detail=None if round_.revision is None else round_.revision.description,
     )
     return WebFeedLine(
-        timestamp=describe_time(at=boundary.at, zone=zone),
+        timestamp=round_.started,
         label=None,
         detail=boundary.text,
         is_boundary=True,
@@ -193,10 +188,7 @@ def read_agent_feed(
                 lines=(
                     _compose_web_round_boundary(
                         record=record,
-                        zone=zone,
-                        detail=_find_round_revision_description(
-                            rounds=rounds, number=record.number
-                        ),
+                        round_=_find_web_round(rounds=rounds, number=record.number),
                     ),
                     *(
                         _compose_web_feed_line(written_line=written_line, zone=zone)
@@ -211,18 +203,13 @@ def read_agent_feed(
     )
 
 
-def _find_round_revision_description(
-    *, rounds: tuple[WebAgentRound, ...], number: int
-) -> str | None:
-    """Return one web round's revision description when it has one."""
-    return next(
-        (
-            None if round_.revision is None else round_.revision.description
-            for round_ in rounds
-            if round_.number == number
-        ),
-        None,
-    )
+def _find_web_round(*, rounds: tuple[WebAgentRound, ...], number: int) -> WebAgentRound:
+    """Return the round row with this number.
+
+    The rows and the feeds are read from the same agent work, so every round
+    whose feed is read has a row.
+    """
+    return next(round_ for round_ in rounds if round_.number == number)
 
 
 def _compose_web_feed_line(*, written_line: str, zone: tzinfo | None) -> WebFeedLine:

@@ -235,16 +235,14 @@ body::after {
 }
 
 .assignment-card,
-.issue-row,
-.failed-setup-row {
+.issue-row {
   min-width: 0;
   padding: var(--space-6) 0;
   border-bottom: var(--line) solid var(--rule-inner);
 }
 
 .card-heading,
-.assignment-meta,
-.failed-setup-row {
+.assignment-meta {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
@@ -425,11 +423,6 @@ body::after {
   cursor: pointer;
 }
 
-.failed-setup-row {
-  justify-content: flex-start;
-  color: var(--amber);
-}
-
 .empty {
   margin: var(--space-5) 0;
 }
@@ -589,7 +582,7 @@ body::after {
 }
 
 .round-number,
-.round-purpose,
+.round-trigger,
 .round-outcome {
   font-weight: 700;
 }
@@ -600,7 +593,7 @@ body::after {
   min-width: 0;
 }
 
-.round-purpose {
+.round-trigger {
   color: var(--bright);
 }
 

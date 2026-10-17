@@ -9,7 +9,7 @@ from dreamcatcher.agent_rounds import (
     AgentRoundRecord,
     ErroredAgentRoundEnding,
 )
-from dreamcatcher.feed import describe_agent_round_start, read_last_feed_line
+from dreamcatcher.feed import read_last_feed_line
 from dreamcatcher.harness_adapters import HarnessSessionIdentifier
 from dreamcatcher.words import describe_span
 
@@ -27,27 +27,22 @@ class AgentRoundStatus:
     """Describe one agent round for a status view."""
 
     record: AgentRoundRecord
+    trigger_description: str
     duration_description: str
     outcome_description: str
     revision: AgentRoundRevision | None = None
 
-    @property
-    def purpose_description(self) -> str:
-        """The work the round advances, marked when it recovers another round."""
-        return describe_agent_round_start(
-            purpose=self.record.purpose, is_recovery=self.record.is_recovery
-        )
-
 
 def describe_running_round(
-    *, record: AgentRoundRecord, paths: AgentRoundPaths, at: datetime
+    *,
+    record: AgentRoundRecord,
+    trigger_description: str,
+    paths: AgentRoundPaths,
+    at: datetime,
 ) -> tuple[str, str | None]:
-    """Describe a running round and return its latest output."""
-    purpose = describe_agent_round_start(
-        purpose=record.purpose, is_recovery=record.is_recovery
-    )
+    """Describe a running round and what woke it, and return its latest output."""
     detail = (
-        f"round {record.number}, {purpose}, "
+        f"round {record.number}, {trigger_description}, "
         f"running {describe_span(span=at - record.started)}"
     )
     line = read_last_feed_line(path=paths.feed)
@@ -63,7 +58,9 @@ def describe_round_ending(
     """Describe a round that is no longer running and return its latest output."""
     ending = record.ending
     if isinstance(ending, ErroredAgentRoundEnding):
-        detail = f"round {record.number} errored (exit {ending.status})"
+        detail = f"round {record.number} errored"
+        if ending.status is not None:
+            detail = f"{detail} (exit {ending.status})"
         if ending.reason is not None:
             detail = f"{detail}: {ending.reason}"
     else:
@@ -103,9 +100,9 @@ def describe_round_outcome(*, record: AgentRoundRecord, is_working: bool) -> str
 
     A round that recorded no ending never finished. It is running when a daemon
     is still there to run it, and interrupted once that daemon has gone, since
-    a round cannot outlive its daemon. A round that errored for a reason, after
-    its harness exited cleanly, reads as errored alone, since its exit status
-    says nothing and its reason is too long for a list of rounds.
+    a round cannot outlive its daemon. A round that errored for a reason reads as
+    errored alone, since its exit status, if it has one, says nothing and its
+    reason is too long for a list of rounds.
     """
     if isinstance(record.ending, ErroredAgentRoundEnding):
         if record.ending.reason is not None:

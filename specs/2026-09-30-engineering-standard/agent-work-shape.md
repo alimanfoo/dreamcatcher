@@ -31,7 +31,7 @@ now has its citation.
    [Agent work composition](../../docs/ontology.md#agent-work-composition))
 4. Both recover an errored or interrupted round automatically, and two
    consecutive errors put the work in fault.
-   ([Recovery round](../../docs/ontology.md#recovery-round),
+   ([Recovery round](../../docs/ontology.md),
    [Handling errors and global cooldown](../../docs/ontology.md#handling-errors-and-global-cooldown))
 5. Both share the daemon's capacity and the global cooldown, and a user retry
    clears a fault the same way for each.
@@ -68,8 +68,7 @@ now has its citation.
    ([Creating an agent assignment](../../docs/ontology.md#creating-an-agent-assignment),
    [Starting an issue conversation](../../docs/ontology.md#starting-an-issue-conversation))
 3. An assignment round's purpose comes from pull request state. A conversation
-   round is always a discussion.
-   ([Round purpose](../../docs/ontology.md#round-purpose))
+   round is always a discussion. ([Round purpose](../../docs/ontology.md))
 4. Beside the batch, an assignment round's input carries the pull request state,
    which a wrap-up round acts on. A conversation round's input carries the main
    revision it investigates, and the first one also carries the issue title and

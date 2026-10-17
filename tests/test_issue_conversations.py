@@ -7,7 +7,10 @@ from records import read_conversation
 
 from dreamcatcher.agent_rounds import (
     AgentRoundRecord,
-    ConversationRoundPurpose,
+    ErroredAgentRoundEnding,
+    InterruptedAgentRoundEnding,
+    StoppedAgentRoundEnding,
+    SuccessfulAgentRoundEnding,
 )
 from dreamcatcher.agent_work import (
     AgentWork,
@@ -38,7 +41,7 @@ from dreamcatcher.issue_conversations import (
     create_conversation,
     list_undelivered_issue_comments,
     post_conversation_answer,
-    prepare_conversation_input,
+    prepare_conversation_round,
     read_conversation_input,
     read_issue_comment_delivery_position,
 )
@@ -104,8 +107,8 @@ def comment(
     )
 
 
-def test_a_conversation_gets_a_detached_worktree_at_fetched_main(cloned):
-    state = StateDirectory(root=cloned)
+def test_a_conversation_is_recorded_without_a_worktree(tmp_path):
+    state = StateDirectory(root=tmp_path)
 
     created = create_conversation(
         state=state,
@@ -117,34 +120,12 @@ def test_a_conversation_gets_a_detached_worktree_at_fetched_main(cloned):
 
     assert created.identifier == "GH8-20260819-184158-conversation"
     assert created.worktree == state.worktrees / created.identifier
-    assert created.worktree.joinpath(".git").is_file()
+    assert not created.worktree.exists()
     assert created.record.kind is AgentWorkKind.CONVERSATION
     assert created.record.title == "Why does this happen?"
     assert created.record.harness == AgentHarness.CLAUDE
     assert created.record.dispatch_label == "dream:conversation"
     assert read_agent_work(state=state) == [created]
-
-
-def test_a_conversation_whose_record_cannot_be_written_leaves_no_worktree(
-    cloned, monkeypatch
-):
-    state = StateDirectory(root=cloned)
-
-    def fail_record_write(*, document, path):
-        raise ReportableError(f"cannot write the record at {path}")
-
-    monkeypatch.setattr("dreamcatcher.agent_work.write_json", fail_record_write)
-
-    with pytest.raises(ReportableError, match="cannot write the record"):
-        create_conversation(
-            state=state,
-            route=conversation_route(),
-            preferred_harness=AgentHarness.CLAUDE,
-            issue=issue(),
-            at=PINNED,
-        )
-
-    assert not (state.worktrees / "GH8-20260819-184158-conversation").exists()
 
 
 def test_a_new_conversation_records_the_preferred_harness_recipe(cloned):
@@ -199,7 +180,21 @@ def test_only_new_unmarked_comments_from_the_account_are_delivered():
     ] == [1, 3, 4]
 
 
-def test_round_input_freezes_the_issue_comments_and_revision(cloned):
+@pytest.mark.parametrize(
+    ("is_resuming", "initial_issue"),
+    [
+        (
+            False,
+            InitialConversationIssue(
+                title="Why does this happen?", body="Explain the scheduler."
+            ),
+        ),
+        (True, None),
+    ],
+)
+def test_round_input_freezes_the_issue_comments_and_revision(
+    cloned, is_resuming, initial_issue
+):
     state = StateDirectory(root=cloned)
     conversation = create_conversation(
         state=state,
@@ -209,37 +204,19 @@ def test_round_input_freezes_the_issue_comments_and_revision(cloned):
         at=PINNED,
     )
 
-    frozen = prepare_conversation_input(
+    frozen = prepare_conversation_round(
         state=state,
         conversation=conversation,
         issue=issue(),
         comments=[comment(identifier=1, body="Please explain.")],
+        is_resuming=is_resuming,
     )
 
     assert frozen.issue == 8
-    assert frozen.initial_issue == InitialConversationIssue(
-        title="Why does this happen?",
-        body="Explain the scheduler.",
-    )
+    assert frozen.initial_issue == initial_issue
     assert frozen.comments[0].body == "Please explain."
     assert frozen.revision
-
-
-def test_an_initial_round_requires_the_issue_text(tmp_path):
-    state = StateDirectory(root=tmp_path)
-    conversation = write_conversation(state=state)
-    path = conversation.compose_round_paths(number=1).round_input
-    write_json(
-        document=ConversationRoundInput(
-            issue=8,
-            comments=[comment(identifier=1, body="Question")],
-            revision="abc123",
-        ),
-        path=path,
-    )
-
-    with pytest.raises(ReportableError, match="initial issue title and body"):
-        read_conversation_input(conversation=conversation, number=1)
+    assert conversation.worktree.joinpath(".git").is_file()
 
 
 def test_a_follow_up_can_omit_the_issue_text(tmp_path):
@@ -295,7 +272,6 @@ def test_a_conversation_numbers_its_rounds_by_their_records(tmp_path):
     write_json(
         document=AgentRoundRecord(
             number=1,
-            purpose=ConversationRoundPurpose.DISCUSS,
             started=PINNED,
             pid=123,
         ),
@@ -313,8 +289,6 @@ def test_a_conversation_recovers_a_session_reported_by_a_later_round(tmp_path):
         write_json(
             document=AgentRoundRecord(
                 number=number,
-                purpose=ConversationRoundPurpose.DISCUSS,
-                is_recovery=number == 2,
                 started=PINNED,
                 pid=1,
             ),
@@ -335,10 +309,23 @@ def test_a_conversation_recovers_a_session_reported_by_a_later_round(tmp_path):
     assert recovered == "replacement-session"
 
 
-def test_the_delivery_position_comes_from_the_latest_round_input(tmp_path):
+@pytest.mark.parametrize(
+    ("third_round_ending", "newest_identifier"),
+    [
+        (SuccessfulAgentRoundEnding(at=PINNED), 5),
+        (StoppedAgentRoundEnding(at=PINNED), 5),
+        (ErroredAgentRoundEnding(at=PINNED, status=1), 4),
+        (InterruptedAgentRoundEnding(), 4),
+        (None, 5),
+    ],
+)
+def test_the_delivery_position_comes_from_the_latest_relayed_round(
+    tmp_path, third_round_ending, newest_identifier
+):
     state = StateDirectory(root=tmp_path)
     conversation = write_conversation(state=state)
-    for number, identifier in ((1, 3), (2, 4)):
+    endings = {3: third_round_ending}
+    for number, identifier in ((1, 3), (2, 4), (3, 5)):
         paths = conversation.compose_round_paths(number=number)
         write_json(
             document=ConversationRoundInput(
@@ -355,9 +342,9 @@ def test_the_delivery_position_comes_from_the_latest_round_input(tmp_path):
         write_json(
             document=AgentRoundRecord(
                 number=number,
-                purpose=ConversationRoundPurpose.DISCUSS,
                 started=PINNED,
                 pid=123,
+                ending=endings.get(number, SuccessfulAgentRoundEnding(at=PINNED)),
             ),
             path=paths.record,
         )
@@ -367,8 +354,39 @@ def test_the_delivery_position_comes_from_the_latest_round_input(tmp_path):
     delivery_position = read_issue_comment_delivery_position(conversation=reread)
 
     assert delivery_position == IssueCommentDeliveryPosition(
-        written_at="2026-09-23T01:00:00Z", id=4
+        written_at="2026-09-23T01:00:00Z", id=newest_identifier
     )
+
+
+def test_a_stopped_round_that_wrote_no_input_leaves_the_delivery_position(
+    tmp_path,
+):
+    state = StateDirectory(root=tmp_path)
+    conversation = write_conversation(state=state)
+    first = conversation.compose_round_paths(number=1)
+    write_json(
+        document=ConversationRoundInput(
+            issue=8,
+            comments=[comment(identifier=3, body="Question")],
+            revision="abc123",
+        ),
+        path=first.round_input,
+    )
+    for number in (1, 2):
+        write_json(
+            document=AgentRoundRecord(
+                number=number,
+                started=PINNED,
+                ending=StoppedAgentRoundEnding(at=PINNED),
+            ),
+            path=conversation.compose_round_paths(number=number).record,
+        )
+    reread = read_conversation(state=state, issue=8)
+    assert reread is not None
+
+    assert read_issue_comment_delivery_position(
+        conversation=reread
+    ) == IssueCommentDeliveryPosition(written_at="2026-09-23T01:00:00Z", id=3)
 
 
 def test_the_delivery_position_refuses_a_round_without_comments(tmp_path):
@@ -390,9 +408,9 @@ def test_the_delivery_position_refuses_a_round_without_comments(tmp_path):
     write_json(
         document=AgentRoundRecord(
             number=1,
-            purpose=ConversationRoundPurpose.DISCUSS,
             started=PINNED,
             pid=123,
+            ending=SuccessfulAgentRoundEnding(at=PINNED),
         ),
         path=paths.record,
     )
@@ -434,9 +452,9 @@ def test_the_delivery_position_refuses_inconsistent_round_input(
     write_json(
         document=AgentRoundRecord(
             number=1,
-            purpose=ConversationRoundPurpose.DISCUSS,
             started=PINNED,
             pid=123,
+            ending=SuccessfulAgentRoundEnding(at=PINNED),
         ),
         path=paths.record,
     )

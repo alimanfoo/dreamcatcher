@@ -27,7 +27,7 @@ class WebAssignmentCard:
     harness: str
     model: str
     effort: str
-    pull_request: int
+    pull_request: int | None
     pull_request_state: str | None
     latest_output: str | None
 
@@ -54,7 +54,7 @@ class WebAgentRound:
     """Represent one round row on an agent-work page."""
 
     number: int
-    purpose: str
+    trigger: str
     started: str
     duration: str
     outcome: str
@@ -145,7 +145,7 @@ class WebAssignmentView:
     identifier: str
     issue: int
     title: str
-    pull_request: int
+    pull_request: int | None
     pull_request_state: str | None
     dispatch_label: str
     harness: str
@@ -197,7 +197,6 @@ class WebHomeView:
     ended_conversations: tuple[WebConversationCard, ...]
     active_assignments: tuple[WebAssignmentCard, ...]
     ended_assignments: tuple[WebAssignmentCard, ...]
-    failed_setups: tuple[WebIssueRow, ...]
     issues: tuple[WebIssueRow, ...]
 
 

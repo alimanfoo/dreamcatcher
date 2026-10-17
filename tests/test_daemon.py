@@ -29,8 +29,6 @@ from records import (
 from dreamcatcher.agent_rounds import (
     AgentRoundOutcome,
     AgentRoundRecord,
-    AssignmentRoundPurpose,
-    ConversationRoundPurpose,
     _compose_agent_round_ending,
     request_agent_round_stop,
 )
@@ -54,9 +52,6 @@ from dreamcatcher.state import StateDirectory
 from dreamcatcher.version import DREAMCATCHER_VERSION
 
 ASSIGNMENT_ID = "GH13-20260819-184158-assignment"
-
-# What every round the tests here write down says woke it.
-PURPOSE = AssignmentRoundPurpose.IMPLEMENT
 
 # How long a scripted harness waits after its first line, so a round the daemon
 # launched is certainly still running at the next tick. The waits these tests
@@ -122,23 +117,6 @@ def idling(
     daemon.clock = ticking
     daemon.wait = waiting
     return daemon, waiting, ticking
-
-
-def settling(*, root, ticks: int = 1) -> DreamcatcherDaemon:
-    """A daemon that lets each round it launches finish before the next tick.
-
-    A round the daemon still holds is ended as the run goes down, so a test
-    that reads what a round wrote lets the round finish while the run is still
-    going.
-    """
-    daemon, _, _ = idling(root=root, ticks=ticks)
-
-    def settle() -> None:
-        for agent_round in list(daemon.rounds.values()):
-            agent_round.wait()
-
-    daemon.wait = Interrupting(ticks=ticks, settle=settle)
-    return daemon
 
 
 def create_scheduler(*, daemon: DreamcatcherDaemon) -> Scheduler:
@@ -474,9 +452,7 @@ def test_a_round_the_daemon_before_this_one_left_running_is_ended(
     write_round(
         directory=directory,
         number=1,
-        record=AgentRoundRecord(
-            number=1, started=PINNED, pid=left_running.pid, purpose=PURPOSE
-        ),
+        record=AgentRoundRecord(number=1, started=PINNED, pid=left_running.pid),
     )
     daemon, _, _ = idling(root=watched)
 
@@ -489,15 +465,36 @@ def test_a_round_the_daemon_before_this_one_left_running_is_ended(
     assert record.outcome is AgentRoundOutcome.INTERRUPTED
 
 
+def test_a_round_left_preparing_is_interrupted_with_nothing_to_end(
+    watched, monkeypatch
+):
+    directory = write_assignment(
+        state=StateDirectory(root=watched), identifier=ASSIGNMENT_ID, issue=13
+    )
+    write_round(
+        directory=directory,
+        number=1,
+        record=AgentRoundRecord(number=1, started=PINNED),
+    )
+    ended = Mock()
+    monkeypatch.setattr("dreamcatcher.daemon.teardown.end_process_tree", ended)
+
+    DreamcatcherDaemon(root=watched, harness=AgentHarness.CLAUDE)._sweep_orphans()
+
+    ended.assert_not_called()
+    record = AgentRoundRecord.model_validate_json(
+        (directory / "rounds" / "1" / "round.json").read_text(encoding="utf-8")
+    )
+    assert record.outcome is AgentRoundOutcome.INTERRUPTED
+
+
 def test_a_pending_stop_survives_daemon_restart(watched, harnesses, gh, left_running):
     state = StateDirectory(root=watched)
     directory = write_assignment(state=state, identifier=ASSIGNMENT_ID, issue=13)
     write_round(
         directory=directory,
         number=1,
-        record=AgentRoundRecord(
-            number=1, started=PINNED, pid=left_running.pid, purpose=PURPOSE
-        ),
+        record=AgentRoundRecord(number=1, started=PINNED, pid=left_running.pid),
     )
     assignment = find_agent_work(state=state, identifier=ASSIGNMENT_ID)
     assert assignment is not None
@@ -524,7 +521,6 @@ def test_a_conversation_round_left_running_is_ended(
             number=1,
             started=PINNED,
             pid=left_running.pid,
-            purpose=ConversationRoundPurpose.DISCUSS,
         ),
     )
     daemon, _, _ = idling(root=watched)
@@ -551,7 +547,6 @@ def test_a_round_that_recorded_an_ending_is_left_running_by_the_sweep(
             number=1,
             started=PINNED,
             pid=left_running.pid,
-            purpose=PURPOSE,
             ending=_compose_agent_round_ending(at=PINNED, status=0),
         ),
     )

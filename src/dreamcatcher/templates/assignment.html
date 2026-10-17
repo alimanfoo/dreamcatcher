@@ -14,7 +14,7 @@
           <div class="assignment-heading-actions">
             {% include "partials/agent-work-retry.html" %}
             {% include "partials/agent-work-status.html" %}
-            {% if view.github_repository_url %}<a class="pr-chip" href="{{ view.github_repository_url }}/pull/{{ view.pull_request }}" target="_blank" rel="noopener noreferrer">PR #{{ view.pull_request }}{% if view.pull_request_state %} {{ view.pull_request_state }}{% endif %}</a>{% else %}<span class="pr-chip">PR #{{ view.pull_request }}{% if view.pull_request_state %} {{ view.pull_request_state }}{% endif %}</span>{% endif %}
+            {% if view.pull_request is none %}<span class="pr-chip">no pull request yet</span>{% elif view.github_repository_url %}<a class="pr-chip" href="{{ view.github_repository_url }}/pull/{{ view.pull_request }}" target="_blank" rel="noopener noreferrer">PR #{{ view.pull_request }}{% if view.pull_request_state %} {{ view.pull_request_state }}{% endif %}</a>{% else %}<span class="pr-chip">PR #{{ view.pull_request }}{% if view.pull_request_state %} {{ view.pull_request_state }}{% endif %}</span>{% endif %}
           </div>
         </div>
         {% include "partials/agent-work-detail.html" %}

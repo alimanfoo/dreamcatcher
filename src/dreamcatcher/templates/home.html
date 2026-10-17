@@ -11,12 +11,6 @@
           {% for assignment in view.active_assignments %}
             {% include "partials/assignment-card.html" %}
           {% endfor %}
-          {% if view.failed_setups %}
-            <p class="assignment-group-label">Failed assignment setups</p>
-            {% for setup in view.failed_setups %}
-              {% include "partials/failed-setup-row.html" %}
-            {% endfor %}
-          {% endif %}
           {% for issue in view.issues %}
             {% include "partials/issue-row.html" %}
           {% endfor %}

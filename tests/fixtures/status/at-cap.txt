@@ -8,7 +8,6 @@ instance
   scheduler failures  could not list issues for dream:less: could not connect
 
 assignments
-  GH13-20260819-184158-assignment  working  round 1, implement, running 1h 30m, last output 1h 29m  
-                                            ago                                                     
-  [Bash] pytest                                                                                     
-  GH20-20260819-184158-assignment  waiting  next round, implement                                   
+  GH13-20260819-184158-assignment  working  round 1, start, running 1h 30m, last output 1h 29m ago
+  [Bash] pytest                                                                                   
+  GH20-20260819-184158-assignment  waiting  1 new post to answer                                  

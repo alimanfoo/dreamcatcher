@@ -58,7 +58,7 @@ class AgentWorkStatusReader[AgentWorkStatus](ABC):
         records: list[AgentRoundRecord],
         retry_requested_at: datetime | None,
     ) -> bool:
-        """Return whether consecutive errors have exhausted automatic recovery."""
+        """Return whether two consecutive errored rounds put the work in fault."""
         most_recent_cooldown_ended = (
             None
             if self.scheduler_record is None

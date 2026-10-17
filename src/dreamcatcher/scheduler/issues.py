@@ -44,7 +44,6 @@ def observe_issues(
     *,
     scheduler: AgentWorkScheduler,
     assignments: list[AgentWork],
-    incomplete_setups: dict[int, str | None],
 ) -> IssueObservationResult:
     """Observe every issue considered for assignment or claimed by this instance."""
     listing = scheduler.list_route_issues(routes=scheduler.config.assignment)
@@ -52,8 +51,7 @@ def observe_issues(
     issue_responses_by_number: dict[int, Issue | UnknownGitHubResponse] = {
         issue.number: issue for issue in listing.issues
     }
-    local_issue_numbers = open_assignments.keys() | incomplete_setups.keys()
-    for issue in local_issue_numbers - issue_responses_by_number.keys():
+    for issue in open_assignments.keys() - issue_responses_by_number.keys():
         issue_responses_by_number[issue] = read_issue(
             repository=scheduler.repository, issue=issue
         )
@@ -61,7 +59,6 @@ def observe_issues(
         _observe_issue(
             scheduler=scheduler,
             assignments=open_assignments,
-            incomplete_setups=incomplete_setups,
             issue=issue,
             issue_response=issue_response,
         )
@@ -84,7 +81,6 @@ def _observe_issue(
     *,
     scheduler: AgentWorkScheduler,
     assignments: dict[int, AgentWork],
-    incomplete_setups: dict[int, str | None],
     issue: int,
     issue_response: Issue | UnknownGitHubResponse,
 ) -> IssueObservation:
@@ -100,11 +96,9 @@ def _observe_issue(
         ),
         claimed_elsewhere=_observe_external_claim(
             scheduler=scheduler,
-            assignments=assignments,
-            incomplete_setups=incomplete_setups,
+            assignment=assignments.get(issue),
             issue=issue,
         ),
-        setup_failure=incomplete_setups.get(issue),
         blocked=_observe_blocking_issues(
             repository=scheduler.repository,
             issue=issue,
@@ -170,62 +164,48 @@ def _observe_assignment_routing_conflict(*, labels: list[str]) -> ObservedFact:
 def _observe_external_claim(
     *,
     scheduler: AgentWorkScheduler,
-    assignments: dict[int, AgentWork],
-    incomplete_setups: dict[int, str | None],
+    assignment: AgentWork | None,
     issue: int,
 ) -> ObservedFact:
-    """Observe whether an open linked pull request claims the issue elsewhere."""
-    setup_failure = incomplete_setups.get(issue)
-    if issue in incomplete_setups and setup_failure is None:
-        return ObservedFact(
-            value=Truth.FALSE,
-            evidence="no pull request outside this checkout claims it",
-        )
+    """Observe whether an open linked pull request claims the issue elsewhere.
+
+    The open assignment's own pull request, once a round has opened it, is no
+    claim from elsewhere.
+    """
     pull_request_context = read_issue_pull_request_context(
         repository=scheduler.repository, issue=issue
     )
     if isinstance(pull_request_context, UnknownGitHubResponse):
-        return _unknown_external_claim(
-            setup_failure=setup_failure,
-            response=pull_request_context,
+        return ObservedFact(
+            value=Truth.UNKNOWN,
+            evidence=(
+                "cannot tell whether a pull request claims it: "
+                + pull_request_context.reason
+            ),
         )
-    assignment = assignments.get(issue)
-    owned = (
+    observation = (
         None
         if assignment is None
-        else read_pull_request_observation(assignment=assignment).number
+        else read_pull_request_observation(assignment=assignment)
     )
+    owned = None if observation is None else observation.number
     external = [
         pull_request
         for pull_request in pull_request_context.pull_requests
         if pull_request.number != owned
     ]
-    external_pull_requests = ", ".join(
-        f"#{pull_request.number}" for pull_request in external
-    )
     if external:
+        external_pull_requests = ", ".join(
+            f"#{pull_request.number}" for pull_request in external
+        )
         return ObservedFact(
             value=Truth.TRUE,
             evidence=f"a pull request is open on it: {external_pull_requests}",
-        )
-    if setup_failure is not None:
-        return ObservedFact(
-            value=Truth.UNKNOWN,
-            evidence=setup_failure,
         )
     return ObservedFact(
         value=Truth.FALSE,
         evidence="no pull request outside this checkout claims it",
     )
-
-
-def _unknown_external_claim(
-    *, setup_failure: str | None, response: UnknownGitHubResponse
-) -> ObservedFact:
-    evidence = setup_failure or (
-        "cannot tell whether a pull request claims it: " + response.reason
-    )
-    return ObservedFact(value=Truth.UNKNOWN, evidence=evidence)
 
 
 def _observe_blocking_issues(*, repository: str, issue: int) -> ObservedFact:

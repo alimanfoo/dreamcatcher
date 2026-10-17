@@ -21,7 +21,7 @@ from dreamcatcher import (
 from dreamcatcher.config import AgentHarness
 from dreamcatcher.daemon import DEFAULT_INTERVAL_SECONDS
 from dreamcatcher.daemon_runs import DaemonRunRecord, RecordedRoute
-from dreamcatcher.documents import write_json, write_text
+from dreamcatcher.documents import DreamcatcherDocument, write_json, write_text
 from dreamcatcher.feed import FeedLine
 from dreamcatcher.github import PullRequestState
 from dreamcatcher.harness_adapters import AgentWorkKind
@@ -38,6 +38,11 @@ SMITH_ROUTES = (RecordedRoute(label="dream:smith", kind=AgentWorkKind.ASSIGNMENT
 
 # The routes of a daemon run that loaded one conversation label and nothing else.
 SCOUT_ROUTES = (RecordedRoute(label="dream:scout", kind=AgentWorkKind.CONVERSATION),)
+
+# What a round that wraps a merged pull request up was given.
+MERGED_INPUT = agent_assignments.AssignmentRoundInput(
+    pull_request_state=PullRequestState.MERGED, user_posts=[]
+)
 
 # What a fabricated assignment saw of its pull request, unless a test says.
 _OPEN_DRAFT = agent_assignments.PullRequestObservation(
@@ -94,18 +99,21 @@ def write_assignment(
     issue: int,
     harness_session_identifier: str | None = "abc-123",
     title: str | None = None,
-    pull_request_observation: agent_assignments.PullRequestObservation = _OPEN_DRAFT,
+    pull_request_observation: agent_assignments.PullRequestObservation
+    | None = _OPEN_DRAFT,
 ) -> Path:
     """Write an assignment's worktree and its records, and return its own directory.
 
-    The title is `Issue <n>` unless the test gives one.
+    The title is `Issue <n>` unless the test gives one. An assignment given no
+    pull request observation is one whose first round has not opened it.
     """
     (state.worktrees / identifier).mkdir(parents=True)
     directory = state.work / identifier
-    write_json(
-        document=pull_request_observation,
-        path=directory / agent_assignments._PULL_REQUEST_OBSERVATION_RECORD_NAME,
-    )
+    if pull_request_observation is not None:
+        write_json(
+            document=pull_request_observation,
+            path=directory / agent_assignments._PULL_REQUEST_OBSERVATION_RECORD_NAME,
+        )
     agent_work.record_agent_work(
         state=state,
         identifier=identifier,
@@ -176,24 +184,31 @@ def _write_harness_session(*, directory: Path, identifier: str | None) -> None:
 
 
 def write_round(
-    *, directory: Path, number: int, record: agent_rounds.AgentRoundRecord
+    *,
+    directory: Path,
+    number: int,
+    record: agent_rounds.AgentRoundRecord,
+    round_input: DreamcatcherDocument | None = None,
 ) -> agent_rounds.AgentRoundRecord:
-    """Write the record of one round of the assignment at this directory.
+    """Write the record of one round of the work at this directory, and its input.
 
-    A successful wrap-up round also completes its assignment, as the round's
-    finisher records before its ending.
+    A successful round given a merged or closed pull request also completes its
+    assignment, as the round's finisher records before its ending.
     """
-    if record.purpose is agent_rounds.AssignmentRoundPurpose.WRAP_UP and isinstance(
-        record.ending, agent_rounds.SuccessfulAgentRoundEnding
+    paths = _round_paths(directory=directory, number=number)
+    if round_input is not None:
+        write_json(document=round_input, path=paths.round_input)
+    if (
+        isinstance(round_input, agent_assignments.AssignmentRoundInput)
+        and round_input.pull_request_state is not PullRequestState.OPEN
+        and isinstance(record.ending, agent_rounds.SuccessfulAgentRoundEnding)
     ):
         write_ending(
             directory=directory,
             reason=agent_work.AgentWorkEndReason.COMPLETED,
             at=record.ending.at,
         )
-    write_json(
-        document=record, path=_round_paths(directory=directory, number=number).record
-    )
+    write_json(document=record, path=paths.record)
     return record
 
 
@@ -242,7 +257,6 @@ def write_running_conversation(
         number=1,
         record=agent_rounds.AgentRoundRecord(
             number=1,
-            purpose=agent_rounds.ConversationRoundPurpose.DISCUSS,
             started=started,
             pid=1,
         ),

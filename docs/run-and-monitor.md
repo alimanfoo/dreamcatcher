@@ -54,9 +54,8 @@ dreamcatcher web --port 8123
 ```
 
 The home page shows daemon facts, any scheduler failures, active and ended
-assignments, issue conversations, failed assignment setups, and available or
-blocked issues. Open an assignment or conversation to see its rounds and live
-feed.
+assignments, issue conversations, and available or blocked issues. Open an
+assignment or conversation to see its rounds and live feed.
 
 ## Monitor from the terminal
 
