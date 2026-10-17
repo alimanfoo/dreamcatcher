@@ -197,7 +197,7 @@ def _compose_conversation_facts(*, conversation: AgentWork) -> tuple[StatusFact,
     return (
         StatusFact(label="label", value=record.dispatch_label),
         StatusFact(label="harness", value=str(record.harness)),
-        StatusFact(label="model", value=f"{record.model} · {record.effort}"),
+        StatusFact(label="model · effort", value=f"{record.model} · {record.effort}"),
     )
 
 

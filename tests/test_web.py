@@ -223,7 +223,7 @@ def test_assignment_page_shows_the_common_agent_work_facts(tmp_path):
     assert page.count("<dt>") == 3
     assert "<dt>label</dt><dd>dream:smith</dd>" in page
     assert "<dt>harness</dt><dd>claude</dd>" in page
-    assert "<dt>model</dt><dd>opus[1m] · xhigh</dd>" in page
+    assert "<dt>model · effort</dt><dd>opus[1m] · xhigh</dd>" in page
     assert "<dt>assignment</dt>" not in page
     assert "<dt>session</dt>" not in page
 

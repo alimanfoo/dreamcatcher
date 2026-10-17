@@ -158,7 +158,7 @@ def test_conversation_page_shows_settings_revision_round_and_feed(tmp_path):
     assert page.count("<dt>") == 3
     assert "<dt>label</dt><dd>dream:conversation</dd>" in page
     assert "<dt>harness</dt><dd>claude</dd>" in page
-    assert "<dt>model</dt><dd>opus[1m] · xhigh</dd>" in page
+    assert "<dt>model · effort</dt><dd>opus[1m] · xhigh</dd>" in page
     assert "<dt>worktree</dt>" not in page
     assert "<dt>session</dt>" not in page
     assert "abc123" in page
