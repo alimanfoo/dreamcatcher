@@ -309,8 +309,12 @@ class _UserPostProjection(GitHubResponseProjection):
 
     @property
     def is_speaking(self) -> bool:
-        """Whether the post has a body."""
-        return bool(self.body)
+        """Whether the post's body says something."""
+        return bool(self.body.strip())
+
+    def is_written_by(self, *, account: str) -> bool:
+        """Return whether the account wrote the post, as GitHub matches a login."""
+        return self.author.casefold() == account.casefold()
 
 
 class IssueComment(_UserPostProjection):
@@ -404,7 +408,7 @@ _GITHUB_BLOCKING_ISSUE_LIST_RESPONSE_ADAPTER = TypeAdapter(list[list[BlockingIss
 _GITHUB_ISSUE_PULL_REQUEST_CONTEXT_RESPONSE_ADAPTER = TypeAdapter(
     IssuePullRequestContext
 )
-_GITHUB_CONVERSATION_COMMENT_PAGES_ADAPTER = TypeAdapter(list[list[IssueComment]])
+_GITHUB_ISSUE_COMMENT_PAGES_ADAPTER = TypeAdapter(list[list[IssueComment]])
 _GITHUB_POSTED_ISSUE_COMMENT_ADAPTER = TypeAdapter(PostedIssueComment)
 _GITHUB_PULL_REQUEST_REVIEW_PAGES_ADAPTER = TypeAdapter(list[list[PullRequestReview]])
 _GITHUB_INLINE_REVIEW_COMMENT_PAGES_ADAPTER = TypeAdapter(
@@ -413,10 +417,10 @@ _GITHUB_INLINE_REVIEW_COMMENT_PAGES_ADAPTER = TypeAdapter(
 
 # The three lists a pull request's posts arrive in: what each holds, the kind of
 # thing GitHub keeps it under, and what it is called there. A pull request's own
-# conversation is the conversation of the issue that shares its number, which is
-# why that one is kept under the issues.
+# comments are the comments of the issue that shares its number, which is why
+# they are kept under the issues.
 _GITHUB_USER_POST_ENDPOINTS = (
-    (_GITHUB_CONVERSATION_COMMENT_PAGES_ADAPTER, "issues", "comments"),
+    (_GITHUB_ISSUE_COMMENT_PAGES_ADAPTER, "issues", "comments"),
     (_GITHUB_PULL_REQUEST_REVIEW_PAGES_ADAPTER, "pulls", "reviews"),
     (_GITHUB_INLINE_REVIEW_COMMENT_PAGES_ADAPTER, "pulls", "comments"),
 )
@@ -716,7 +720,7 @@ def list_issue_comments(
 ) -> list[IssueComment] | UnknownGitHubResponse:
     """Return every ordinary comment on one issue."""
     return _read_github_pages(
-        response_adapter=_GITHUB_CONVERSATION_COMMENT_PAGES_ADAPTER,
+        response_adapter=_GITHUB_ISSUE_COMMENT_PAGES_ADAPTER,
         endpoint=f"repos/{repository}/issues/{issue}/comments",
     )
 

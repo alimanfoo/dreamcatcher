@@ -110,7 +110,7 @@ def _is_user_post_past_cursor(*, post: UserPost, account: str, cursor: str) -> b
     """
     return (
         post.written_at > cursor
-        and post.author == account
+        and post.is_written_by(account=account)
         and AGENT_POST_MARKER not in post.body
         and post.is_speaking
     )

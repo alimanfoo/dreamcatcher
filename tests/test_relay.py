@@ -108,6 +108,26 @@ def test_a_post_from_another_account_does_not_come_back(gh_with_no_posts):
     assert past_cursor() == []
 
 
+def test_a_post_from_the_account_written_in_other_capitals_comes_back(
+    gh_with_no_posts,
+):
+    gh_with_no_posts.replies(
+        stdout=pages(items=[comment(user={"login": POSTED_BY.upper()})]),
+        to=f"api {POST_LIST_PATHS['conversation']}",
+    )
+
+    assert [type(post) for post in past_cursor()] == [IssueComment]
+
+
+def test_a_post_whose_body_is_only_whitespace_does_not_come_back(gh_with_no_posts):
+    gh_with_no_posts.replies(
+        stdout=pages(items=[comment(body=" \n\t")]),
+        to=f"api {POST_LIST_PATHS['conversation']}",
+    )
+
+    assert past_cursor() == []
+
+
 def test_a_post_whose_account_github_no_longer_knows_does_not_come_back(
     gh_with_no_posts,
 ):

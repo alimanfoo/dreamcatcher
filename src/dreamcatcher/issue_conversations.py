@@ -57,8 +57,8 @@ def list_issue_comments_past_cursor(
         (
             comment
             for comment in comments
-            if comment.author.casefold() == account.casefold()
-            and bool(comment.body.strip())
+            if comment.is_written_by(account=account)
+            and comment.is_speaking
             and AGENT_POST_MARKER not in comment.body
             and (comment.written_at, comment.id) > after
         ),
