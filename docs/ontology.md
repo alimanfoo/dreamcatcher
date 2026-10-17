@@ -75,6 +75,11 @@ created and its kind, as in `GH123-20260912-192458-assignment` or
 reading a directory listing, a daemon line or a web address; the work's record
 says it too.
 
+Each piece of agent work has one **work record**, written once when the work is
+created. It holds the issue, the dispatch label, the kind of agent work, the
+issue title and the harness settings the dispatch recipe gave, so later
+configuration edits do not change work in progress.
+
 ### Agent harness and harness session
 
 An **agent harness** is a program, such as Claude Code or Codex, through which
@@ -187,14 +192,14 @@ An **issue observation** records the independent facts that one scheduler tick
 found for an issue. Its availability is derived from those facts.
 
 An **agent assignment status** is an assignment's single summary status in a
-status report. It summarizes the assignment record, recorded rounds, live
+status report. It summarizes the assignment's work record, recorded rounds, live
 process state, and the latest scheduler evidence about whether another round was
 required or launched.
 
 An **issue conversation status** is a conversation's single summary status in a
-status report. It is derived from the conversation record, its latest round, the
-daemon process, and the latest scheduler evidence about whether its issue is
-eligible and whether comments wait to be answered.
+status report. It is derived from the conversation's work record, its latest
+round, the daemon process, and the latest scheduler evidence about whether its
+issue is eligible and whether comments wait to be answered.
 
 ### Global cooldown
 
@@ -407,13 +412,14 @@ count of ended conversations in the terminal.
 
 Every open, assigned issue carrying at least one configured conversation label
 has a conversation status from the first scheduler tick that observes it,
-whether or not a conversation record exists yet. Exactly one label makes it
-eligible, while more than one gives it routing conflict status. Once the issue
-carries none of those labels, closes, or becomes unassigned, the status report
-lists its conversation only while a round runs. The conversation's own view
-still shows it, as idle with the reason unless it is in fault. Conversations are
-listed as routing conflict, fault, working, waiting, unknown and then idle,
-since routing conflict requires the user to act and idle does not.
+whether or not a work record for the conversation exists yet. Exactly one label
+makes it eligible, while more than one gives it routing conflict status. Once
+the issue carries none of those labels, closes, or becomes unassigned, the
+status report lists its conversation only while a round runs. The conversation's
+own view still shows it, as idle with the reason unless it is in fault.
+Conversations are listed as routing conflict, fault, working, waiting, unknown
+and then idle, since routing conflict requires the user to act and idle does
+not.
 
 A running round remains working when its issue gains a second conversation
 label, because eligibility does not cancel work already in progress. Its routing

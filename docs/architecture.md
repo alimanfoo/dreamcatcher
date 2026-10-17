@@ -103,9 +103,9 @@ assignment and starting an agent round. When it selects an available issue, it
 performs both operations in one scheduling action, starting the first round as
 soon as assignment setup succeeds. Keeping the operations separate preserves
 clear ownership. If the combined action is interrupted between the operations,
-the assignment record shows that its first round is missing, and the scheduler
-ranks finishing the action ahead of every other assignment candidate. This does
-not create a separate class of normally scheduled work.
+the assignment's work record shows that its first round is missing, and the
+scheduler ranks finishing the action ahead of every other assignment candidate.
+This does not create a separate class of normally scheduled work.
 
 For every new round, the scheduler derives purpose and recovery independently. A
 terminal pull request requires wrap up; otherwise a draft pull request calls for
@@ -125,8 +125,8 @@ queue.
 
 ### Issue conversations
 
-`issue_conversations.py` owns conversation records and their durable operations.
-An initial conversation freezes its issue title, body, trusted comment batch and
+`issue_conversations.py` owns the durable operations of issue conversations. An
+initial conversation freezes its issue title, body, trusted comment batch and
 fetched main revision, then runs in a detached worktree. A conversation's
 worktree never acquires an implementation branch or a pull request.
 
@@ -393,9 +393,9 @@ configured conversation label. Each observation additionally records:
 - the issue and its title;
 - an `ObservedFact` that says whether more than one conversation route matches.
 
-The tick observes a matching issue even when it has no conversation record yet.
-So status lists a conversation from the first tick that sees its issue, and
-reports a routing conflict before any round starts.
+The tick observes a matching issue even when no conversation's work record
+exists for it yet. So status lists a conversation from the first tick that sees
+its issue, and reports a routing conflict before any round starts.
 
 An issue with no observation is not eligible. Status stops listing its
 conversation once no round runs for it.
