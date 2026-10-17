@@ -192,15 +192,16 @@ of an agent assignment. It should provide cohesive operations to:
 - find the open assignment for an issue;
 - name the assignment's branch from its identifier;
 - read and record its pull request observation;
-- read the user-post delivery position from recorded round inputs; and
+- read the user-post delivery position from recorded round inputs;
+- complete an assignment as its wrap-up round finishes; and
 - cancel an assignment.
 
 `agent_work.py` owns what both kinds of agent work share: the work record, the
 agent work identifier, and the one reader through which the scheduler, status,
 the commands and the views list agent work of either kind. It also records the
 facts that change later for both kinds: the harness session identifier, when the
-user requests another recovery attempt after resolving a fault, and when the
-user cancels an assignment.
+user requests another recovery attempt after resolving a fault, and when and why
+the work ended.
 
 Assignment setup coordinates lower-level Git, GitHub, configuration, and
 document operations. As one recoverable workflow it:
@@ -227,9 +228,11 @@ must reuse or remove those artifacts as appropriate and must not create a second
 branch or pull request. If the work record already exists, the scheduler
 continues to the first round instead of recreating the assignment.
 
-The assignment remains open until the module recognizes a successful wrap-up
-round or the user cancels it. A merged or closed pull request calls for wrap up
-but does not by itself complete the assignment.
+The assignment remains open until its ending is recorded. A wrap-up round, one
+whose input carries a merged or closed pull request, records the ending with the
+reason "completed" in its finishing step, after its harness exits successfully.
+A cancel records it with the reason "cancelled". A merged or closed pull request
+calls for wrap up but does not by itself complete the assignment.
 
 The assignment module coordinates the workflow but does not implement Git
 commands, parse GitHub responses, launch harnesses, or choose when work should
@@ -434,11 +437,11 @@ daemon still owns the live process and lifecycle transition: the round watches
 the request, kills its harness process tree, and records its stopped ending.
 
 The web interface and the `cancel` command can cancel an assignment. A cancel
-goes through the agent-assignment boundary, which records the time of the cancel
-in a file of its own and then writes a stop request for any round that has no
-ending. The scheduler starts no further rounds for the assignment. A round that
-it starts as the cancel lands is stopped too, because the scheduler reads the
-cancel again once that round's record exists.
+goes through the agent-assignment boundary, which records the assignment's
+ending, with the reason "cancelled", and then writes a stop request for any
+round that has no ending. The scheduler starts no further rounds for the
+assignment. A round that it starts as the cancel lands is stopped too, because
+the scheduler reads the ending again once that round's record exists.
 
 The web interface can also request a retry for agent work that status derives as
 in fault. It writes the retry request time into the directory of the assignment
@@ -559,7 +562,7 @@ erasing another's. These files persist:
   flag, and observation time;
 - the harness session identifier, once known;
 - the time of the user's latest retry request, when one has been made;
-- the time of the cancel, when the user has cancelled the assignment.
+- the time and the reason the work ended, once it has ended.
 
 A round record persists:
 
@@ -599,7 +602,7 @@ The following are derived rather than persisted as authoritative state:
 - whether an issue is claimed here or elsewhere;
 - whether an issue is blocked, has an assignment or conversation routing
   conflict, or is available for an agent assignment;
-- whether an assignment is complete or either kind of agent work is in fault;
+- whether either kind of agent work is in fault;
 - whether an assignment requires an agent round or needs user feedback;
 - what round purpose and recovery flag are required next; and
 - every issue conversation and agent assignment status shown in a status report.

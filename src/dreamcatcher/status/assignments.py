@@ -10,7 +10,7 @@ from dreamcatcher.agent_assignments import (
     read_pull_request_observation,
 )
 from dreamcatcher.agent_rounds import AgentRoundPaths
-from dreamcatcher.agent_work import AgentWork
+from dreamcatcher.agent_work import AgentWork, AgentWorkEndReason
 from dreamcatcher.feed import read_last_feed_line
 from dreamcatcher.harness_adapters import HarnessSessionIdentifier
 from dreamcatcher.scheduler.faults import is_awaiting_recovery
@@ -46,6 +46,12 @@ class AssignmentStatusValue(StrEnum):
     CANCELLED = "cancelled"
     UNKNOWN = "unknown"
 
+
+# The status of an assignment that has ended, by why it ended.
+_ENDED_STATUS_VALUES = {
+    AgentWorkEndReason.COMPLETED: AssignmentStatusValue.COMPLETE,
+    AgentWorkEndReason.CANCELLED: AssignmentStatusValue.CANCELLED,
+}
 
 ASSIGNMENT_STATUS_VALUES_IN_ATTENTION_ORDER = (
     AssignmentStatusValue.NEEDS_USER_FEEDBACK,
@@ -87,8 +93,8 @@ class AssignmentStatus:
         A cancelled assignment has none, because nothing observes its pull
         request once the user has taken it over.
         """
-        assignment = self.assignment
-        if assignment.cancelled_at is not None:
+        ending = self.assignment.ending
+        if ending is not None and ending.reason is AgentWorkEndReason.CANCELLED:
             return None
         observation = self.pull_request_observation
         if observation.is_open:
@@ -219,15 +225,12 @@ class AssignmentStatusReader(AgentWorkStatusReader[AssignmentStatus]):
         return None
 
     def _derive_ended(self, *, assignment: AgentWork) -> AssignmentStatus | None:
-        if assignment.is_open:
+        ending = assignment.ending
+        if ending is None:
             return None
         return self._compose(
             assignment=assignment,
-            value=(
-                AssignmentStatusValue.COMPLETE
-                if assignment.cancelled_at is None
-                else AssignmentStatusValue.CANCELLED
-            ),
+            value=_ENDED_STATUS_VALUES[ending.reason],
             detail=describe_count(number=len(assignment.rounds), noun="round"),
         )
 

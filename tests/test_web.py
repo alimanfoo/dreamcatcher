@@ -52,7 +52,7 @@ from dreamcatcher.agent_rounds import (
     AssignmentRoundPurpose,
     StoppedAgentRoundEnding,
 )
-from dreamcatcher.agent_work import find_agent_work
+from dreamcatcher.agent_work import AgentWorkEnding, AgentWorkEndReason, find_agent_work
 from dreamcatcher.daemon_runs import RoutedLabel
 from dreamcatcher.documents import append_text, write_text
 from dreamcatcher.errors import ReportableError
@@ -411,7 +411,9 @@ def test_assignment_page_cancels_its_assignment(tmp_path):
     assert response.location == f"/assignments/{identifier}"
     assignment = find_agent_work(state=state, identifier=identifier)
     assert assignment is not None
-    assert assignment.cancelled_at == LOOKED_AT
+    assert assignment.ending == AgentWorkEnding(
+        at=LOOKED_AT, reason=AgentWorkEndReason.CANCELLED
+    )
     assert assignment.compose_round_paths(number=2).stop_request.is_file()
 
 
@@ -471,7 +473,9 @@ def test_a_stale_assignment_cancel_changes_nothing(tmp_path):
     assert response.status_code == 303
     assignment = find_agent_work(state=state, identifier=identifier)
     assert assignment is not None
-    assert assignment.cancelled_at == PINNED + timedelta(minutes=10)
+    assert assignment.ending == AgentWorkEnding(
+        at=PINNED + timedelta(minutes=10), reason=AgentWorkEndReason.CANCELLED
+    )
 
 
 def test_an_unknown_assignment_cannot_be_cancelled(tmp_path):

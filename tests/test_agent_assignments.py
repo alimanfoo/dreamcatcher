@@ -26,6 +26,7 @@ from dreamcatcher.agent_assignments import (
     AssignmentRoundInput,
     PullRequestObservation,
     cancel_assignment,
+    complete_assignment,
     compose_assignment_branch,
     find_open_assignments_by_issue,
     inspect_incomplete_assignment_setups,
@@ -41,6 +42,8 @@ from dreamcatcher.agent_rounds import (
     _compose_agent_round_ending,
 )
 from dreamcatcher.agent_work import (
+    AgentWorkEnding,
+    AgentWorkEndReason,
     AgentWorkRecord,
     record_harness_session_identifier,
     request_agent_work_retry,
@@ -367,49 +370,22 @@ def test_a_round_an_assignment_has_run_is_found_by_the_number_it_ran_as(fabricat
     )
 
 
-def test_an_assignment_that_has_run_no_round_is_not_complete(fabricated):
-    assignment = standing(state=fabricated, rounds=[])
+def test_an_assignment_is_open_until_its_ending_is_recorded(fabricated):
+    assignment = standing(state=fabricated, rounds=[ended(status=0)])
 
-    assert not assignment.is_complete
+    assert assignment.is_open
 
 
-def test_a_successful_wrap_up_completes_an_assignment(fabricated):
-    assignment = standing(
-        state=fabricated,
-        rounds=[
-            ended(status=0),
-            AgentRoundRecord(
-                number=2,
-                started=PINNED + timedelta(minutes=1),
-                pid=1,
-                purpose=AssignmentRoundPurpose.WRAP_UP,
-                is_recovery=True,
-                ending=_compose_agent_round_ending(
-                    at=PINNED + timedelta(minutes=1), status=0
-                ),
-            ),
-        ],
+def test_completing_an_assignment_records_its_ending(fabricated):
+    assignment = standing(state=fabricated, rounds=[ended(status=0)])
+
+    complete_assignment(assignment=assignment, clock=lambda: PINNED, final_output=None)
+
+    completed = read_assignments(state=fabricated)[0]
+    assert completed.ending == AgentWorkEnding(
+        at=PINNED, reason=AgentWorkEndReason.COMPLETED
     )
-
-    assert assignment.is_complete
-
-
-def test_only_the_final_round_can_complete_an_assignment(fabricated):
-    assignment = standing(
-        state=fabricated,
-        rounds=[
-            AgentRoundRecord(
-                number=1,
-                started=PINNED,
-                pid=1,
-                purpose=AssignmentRoundPurpose.WRAP_UP,
-                ending=_compose_agent_round_ending(at=PINNED, status=0),
-            ),
-            ended(status=0, minute=1, number=2),
-        ],
-    )
-
-    assert not assignment.is_complete
+    assert not completed.is_open
 
 
 def test_a_cancelled_assignment_records_when_and_is_no_longer_open(fabricated):
@@ -418,7 +394,9 @@ def test_a_cancelled_assignment_records_when_and_is_no_longer_open(fabricated):
     cancel_assignment(assignment=assignment, at=PINNED + timedelta(hours=1))
 
     cancelled = read_assignments(state=fabricated)[0]
-    assert cancelled.cancelled_at == PINNED + timedelta(hours=1)
+    assert cancelled.ending == AgentWorkEnding(
+        at=PINNED + timedelta(hours=1), reason=AgentWorkEndReason.CANCELLED
+    )
     assert not cancelled.is_open
     assert find_open_assignments_by_issue(assignments=[cancelled]) == {}
 
@@ -453,7 +431,9 @@ def test_recording_later_facts_leaves_the_assignment_record_as_it_was(fabricated
         is PullRequestState.MERGED
     )
     assert recorded.retry_requested_at == PINNED
-    assert recorded.cancelled_at == PINNED
+    assert recorded.ending == AgentWorkEnding(
+        at=PINNED, reason=AgentWorkEndReason.CANCELLED
+    )
     assert recorded.harness_session_identifier == "abc-123"
 
 
@@ -496,41 +476,9 @@ def test_an_assignment_that_has_ended_cannot_be_cancelled(fabricated):
             at=PINNED + timedelta(hours=1),
         )
 
-    assert read_assignments(state=fabricated)[0].cancelled_at == PINNED
-
-
-@pytest.mark.parametrize(
-    "record",
-    [
-        AgentRoundRecord(
-            number=1,
-            started=PINNED,
-            pid=1,
-            purpose=AssignmentRoundPurpose.IMPLEMENT,
-            ending=_compose_agent_round_ending(at=PINNED, status=0),
-        ),
-        AgentRoundRecord(
-            number=1,
-            started=PINNED,
-            pid=1,
-            purpose=AssignmentRoundPurpose.WRAP_UP,
-            ending=_compose_agent_round_ending(at=PINNED, status=1),
-        ),
-        AgentRoundRecord(
-            number=1,
-            started=PINNED,
-            pid=1,
-            purpose=AssignmentRoundPurpose.WRAP_UP,
-            ending=InterruptedAgentRoundEnding(),
-        ),
-    ],
-)
-def test_anything_other_than_a_successful_wrap_up_leaves_an_assignment_open(
-    fabricated, record
-):
-    assignment = standing(state=fabricated, rounds=[record])
-
-    assert not assignment.is_complete
+    assert read_assignments(state=fabricated)[0].ending == AgentWorkEnding(
+        at=PINNED, reason=AgentWorkEndReason.CANCELLED
+    )
 
 
 def endings(*, state):

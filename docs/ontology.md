@@ -265,7 +265,9 @@ will run.
 ### Completing an assignment
 
 An assignment becomes **complete** only when a wrap-up round exits successfully.
-A successful implementation or feedback round does not complete the assignment.
+That round records the assignment's ending, with the reason "completed", as it
+finishes. A successful implementation or feedback round does not complete the
+assignment.
 
 If the pull request was merged, GitHub closes the issue and there can be no
 later assignment for it. If the pull request was closed without being merged,
@@ -278,9 +280,12 @@ The user can **cancel** an open assignment to finish its pull request by hand. A
 cancelled assignment is no longer open, so _dreamcatcher_ runs no further rounds
 for it and relays no further user posts from its pull request. A round that is
 running when the user cancels is asked to stop, and the assignment is working
-until that round ends. A cancel cannot be undone.
+until that round ends. A cancel records the assignment's ending, with the reason
+"cancelled", and cannot be undone.
 
-An assignment that is complete or cancelled has **ended**.
+Agent work is open until its ending is recorded, with the time and the reason,
+and then it has **ended**. An assignment ends when it is complete or cancelled.
+An issue conversation does not yet end.
 
 _dreamcatcher_ leaves the pull request as it is, and while it is open it claims
 the issue elsewhere. If the user merges it, GitHub closes the issue. If the user

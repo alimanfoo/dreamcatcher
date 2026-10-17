@@ -44,6 +44,7 @@ from dreamcatcher.agent_rounds import (
 )
 from dreamcatcher.agent_work import (
     _HARNESS_SESSION_RECORD_NAME,
+    AgentWorkEndReason,
     request_agent_work_retry,
 )
 from dreamcatcher.config import AgentHarness, read_dreamcatcher_config
@@ -1180,6 +1181,25 @@ def test_a_pull_request_that_is_finished_gets_one_last_round(resuming, gh, state
         "pull_request_state": state_name,
         "user_posts": [],
     }
+    [completed] = read_assignments(state=scheduler.assignments.state)
+    assert completed.ending is not None
+    assert completed.ending.reason is AgentWorkEndReason.COMPLETED
+
+
+def test_a_last_round_that_fails_leaves_its_assignment_open(resuming, gh, harnesses):
+    ran(root=resuming, number=1, purpose=AssignmentRoundPurpose.IMPLEMENT)
+    gh.replies(stdout=pull_request(state="MERGED"), to="pr view")
+    harnesses["claude"].streams(lines=[], status=1)
+    scheduler, clock = create_scheduler(root=resuming)
+
+    scheduler.tick(at=clock())
+    finish_rounds(scheduler=scheduler)
+
+    assert record_of(scheduler=scheduler, number=2).purpose is (
+        AssignmentRoundPurpose.WRAP_UP
+    )
+    [assignment] = read_assignments(state=scheduler.assignments.state)
+    assert assignment.is_open
 
 
 def test_an_assignment_that_has_had_its_last_round_gets_no_other(resuming, gh):

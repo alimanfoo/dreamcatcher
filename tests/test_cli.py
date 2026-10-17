@@ -408,9 +408,9 @@ def test_cancel_leaves_older_assignments_at_the_issue_alone(monkeypatch, watchin
     assert main(argv=["cancel", "GH13"]) == 0
 
     older, newest = read_assignments_for_issue(state=watching, issue=13)
-    assert older.cancelled_at is None
+    assert older.is_open
     assert newest.identifier == ASSIGNMENT_ID
-    assert newest.cancelled_at is not None
+    assert not newest.is_open
 
 
 def test_cancel_refuses_an_issue_with_no_assignment(monkeypatch, tmp_path, capsys):

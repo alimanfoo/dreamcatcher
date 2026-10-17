@@ -178,11 +178,33 @@ def _write_harness_session(*, directory: Path, identifier: str | None) -> None:
 def write_round(
     *, directory: Path, number: int, record: agent_rounds.AgentRoundRecord
 ) -> agent_rounds.AgentRoundRecord:
-    """Write the record of one round of the assignment at this directory."""
+    """Write the record of one round of the assignment at this directory.
+
+    A successful wrap-up round also completes its assignment, as the round's
+    finisher records before its ending.
+    """
+    if record.purpose is agent_rounds.AssignmentRoundPurpose.WRAP_UP and isinstance(
+        record.ending, agent_rounds.SuccessfulAgentRoundEnding
+    ):
+        write_ending(
+            directory=directory,
+            reason=agent_work.AgentWorkEndReason.COMPLETED,
+            at=record.ending.at,
+        )
     write_json(
         document=record, path=_round_paths(directory=directory, number=number).record
     )
     return record
+
+
+def write_ending(
+    *, directory: Path, reason: agent_work.AgentWorkEndReason, at: datetime
+) -> None:
+    """Record that the work at this directory ended, and why."""
+    write_json(
+        document=agent_work.AgentWorkEnding(at=at, reason=reason),
+        path=directory / agent_work._ENDING_RECORD_NAME,
+    )
 
 
 def write_feed(*, directory: Path, number: int, lines: Sequence[FeedLine]) -> None:

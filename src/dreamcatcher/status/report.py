@@ -8,6 +8,7 @@ from typing import cast
 from dreamcatcher.agent_assignments import find_open_assignments_by_issue
 from dreamcatcher.agent_work import (
     AgentWork,
+    AgentWorkEnding,
     find_agent_work,
     find_newest_agent_work,
     read_agent_work,
@@ -215,7 +216,7 @@ class DreamcatcherStatusReport:
         """The assignments that have ended, most recently ended first."""
         return sorted(
             (status for status in self.assignment_statuses if status.has_ended),
-            key=lambda status: cast("datetime", status.assignment.ended_at),
+            key=lambda status: cast("AgentWorkEnding", status.assignment.ending).at,
             reverse=True,
         )
 

@@ -10,18 +10,16 @@ writers in different processes or threads never erase each other's facts.
 
 from dataclasses import dataclass, field
 from datetime import datetime
+from enum import StrEnum
 from pathlib import Path
-from typing import cast
 
 from pydantic import AwareDatetime, Field
 
 from dreamcatcher.agent_rounds import (
-    AgentRoundOutcome,
     AgentRoundPaths,
     AgentRoundRecord,
-    AssignmentRoundPurpose,
-    SuccessfulAgentRoundEnding,
     read_agent_round_records,
+    request_agent_round_stop,
 )
 from dreamcatcher.config import AgentHarness, QuotableText
 from dreamcatcher.documents import (
@@ -50,8 +48,8 @@ _HARNESS_SESSION_RECORD_NAME = "harness-session.json"
 # The file in a work directory saying when the user last asked it to recover.
 _RETRY_REQUEST_RECORD_NAME = "retry-request.json"
 
-# The file in a work directory saying when the user cancelled it.
-_CANCEL_RECORD_NAME = "cancel.json"
+# The file in a work directory saying when and why the work ended.
+_ENDING_RECORD_NAME = "ended.json"
 
 # The directory in a work directory holding a directory per round.
 _AGENT_ROUNDS_DIRECTORY_NAME = "rounds"
@@ -75,6 +73,20 @@ class AgentWorkRecord(DreamcatcherDocument):
     prompt: str
 
 
+class AgentWorkEndReason(StrEnum):
+    """The reasons agent work ends."""
+
+    COMPLETED = "completed"
+    CANCELLED = "cancelled"
+
+
+class AgentWorkEnding(DreamcatcherDocument):
+    """Model when and why a piece of agent work ended."""
+
+    at: AwareDatetime
+    reason: AgentWorkEndReason
+
+
 @dataclass(frozen=True, kw_only=True)
 class AgentWork:
     """Represent one piece of agent work as its persisted state currently reads.
@@ -83,6 +95,8 @@ class AgentWork:
     settings that the dispatch chose, and every fact that changes later is read
     from a file of its own beside the record. The rounds are ordered from oldest
     to newest.
+
+    Agent work is open until its ending is recorded.
     """
 
     directory: Path
@@ -90,7 +104,7 @@ class AgentWork:
     record: AgentWorkRecord
     harness_session_identifier: HarnessSessionIdentifier | None = None
     retry_requested_at: datetime | None = None
-    cancelled_at: datetime | None = None
+    ending: AgentWorkEnding | None = None
     rounds: list[AgentRoundRecord] = field(default_factory=list)
 
     @property
@@ -99,29 +113,9 @@ class AgentWork:
         return self.directory.name
 
     @property
-    def is_complete(self) -> bool:
-        """Whether a wrap-up round has exited successfully."""
-        if not self.rounds:
-            return False
-        round = self.rounds[-1]
-        return (
-            round.purpose is AssignmentRoundPurpose.WRAP_UP
-            and round.outcome is AgentRoundOutcome.SUCCESSFUL
-        )
-
-    @property
-    def ended_at(self) -> datetime | None:
-        """When the work was cancelled or completed, if it has ended."""
-        if self.cancelled_at is not None:
-            return self.cancelled_at
-        if not self.is_complete:
-            return None
-        return cast("SuccessfulAgentRoundEnding", self.rounds[-1].ending).at
-
-    @property
     def is_open(self) -> bool:
-        """Whether the work has neither completed nor been cancelled."""
-        return self.ended_at is None
+        """Whether the work has not ended."""
+        return self.ending is None
 
     @property
     def rounds_directory(self) -> Path:
@@ -239,7 +233,7 @@ def _read_agent_work(*, state: StateDirectory, directory: Path) -> AgentWork:
         record=read_json(model=AgentWorkRecord, path=directory / _WORK_RECORD_NAME),
         harness_session_identifier=read_harness_session_identifier(directory=directory),
         retry_requested_at=read_retry_requested_at(directory=directory),
-        cancelled_at=read_user_request_time(path=directory / _CANCEL_RECORD_NAME),
+        ending=_read_agent_work_ending(directory=directory),
         rounds=read_agent_round_records(
             cache=state.document_cache,
             directory=directory / _AGENT_ROUNDS_DIRECTORY_NAME,
@@ -314,11 +308,27 @@ def request_agent_work_retry(*, work: AgentWork, at: datetime) -> None:
     record_user_request(path=work.directory / _RETRY_REQUEST_RECORD_NAME, at=at)
 
 
-def read_cancelled_at(*, work: AgentWork) -> datetime | None:
-    """Return when the user cancelled the agent work, read afresh from its file."""
-    return read_user_request_time(path=work.directory / _CANCEL_RECORD_NAME)
+def stop_round_if_ended(*, work: AgentWork, paths: AgentRoundPaths) -> None:
+    """Ask a round that has just started to stop if its work has ended.
+
+    Call this once the round's record exists, so that an ending recorded at the
+    same moment either lands before this read or finds the round itself.
+    """
+    if _read_agent_work_ending(directory=work.directory) is not None:
+        request_agent_round_stop(paths=paths)
 
 
-def cancel_agent_work(*, work: AgentWork, at: datetime) -> None:
-    """Record when the user cancelled the agent work."""
-    record_user_request(path=work.directory / _CANCEL_RECORD_NAME, at=at)
+def end_agent_work(
+    *, work: AgentWork, reason: AgentWorkEndReason, at: datetime
+) -> None:
+    """Record that the agent work ended, and why."""
+    write_json(
+        document=AgentWorkEnding(at=at, reason=reason),
+        path=work.directory / _ENDING_RECORD_NAME,
+    )
+
+
+def _read_agent_work_ending(*, directory: Path) -> AgentWorkEnding | None:
+    return read_json_if_exists(
+        model=AgentWorkEnding, path=directory / _ENDING_RECORD_NAME
+    )

@@ -8,6 +8,7 @@ pull request, then records the assignment. The scheduler decides when to create
 each assignment.
 """
 
+from collections.abc import Callable
 from contextlib import suppress
 from dataclasses import dataclass
 from datetime import datetime
@@ -20,17 +21,16 @@ from dreamcatcher.agent_assignment_pull_requests import (
     validate_assignment_pull_request_setup,
 )
 from dreamcatcher.agent_rounds import (
-    AgentRoundPaths,
     read_agent_round_records,
     request_agent_round_stop,
 )
 from dreamcatcher.agent_work import (
     AgentWork,
+    AgentWorkEndReason,
     AgentWorkRecord,
-    cancel_agent_work,
     compose_agent_work_identifier,
+    end_agent_work,
     read_agent_work,
-    read_cancelled_at,
     record_agent_work,
 )
 from dreamcatcher.commands import CommandError
@@ -124,14 +124,14 @@ def cancel_assignment(*, assignment: AgentWork, at: datetime) -> None:
     """Record that the user has taken an open assignment over.
 
     A round with no ending is asked to stop, so it does not go on pushing to the
-    branch. The cancel is written before the rounds are read again, so a round
+    branch. The ending is written before the rounds are read again, so a round
     that starts at the same moment is either asked to stop here or finds the
-    cancel through stop_round_if_cancelled. An assignment that has already
-    ended raises ReportableError.
+    ending through stop_round_if_ended. An assignment that has already ended
+    raises ReportableError.
     """
     if not assignment.is_open:
         raise ReportableError(f"{assignment.identifier} has already ended.")
-    cancel_agent_work(work=assignment, at=at)
+    end_agent_work(work=assignment, reason=AgentWorkEndReason.CANCELLED, at=at)
     rounds = read_agent_round_records(
         cache=DocumentCache(),
         directory=assignment.rounds_directory,
@@ -142,14 +142,18 @@ def cancel_assignment(*, assignment: AgentWork, at: datetime) -> None:
         )
 
 
-def stop_round_if_cancelled(*, assignment: AgentWork, paths: AgentRoundPaths) -> None:
-    """Ask a round that has just started to stop if the user cancelled its work.
+def complete_assignment(
+    *,
+    assignment: AgentWork,
+    clock: Callable[[], datetime],
+    final_output: str | None,
+) -> None:
+    """Record that the assignment completed, as its wrap-up round finishes.
 
-    Call this once the round's record exists, so that a cancel either lands
-    before this read or finds the round itself.
+    A round finisher receives the round's final output, which completion does
+    not need.
     """
-    if read_cancelled_at(work=assignment) is not None:
-        request_agent_round_stop(paths=paths)
+    end_agent_work(work=assignment, reason=AgentWorkEndReason.COMPLETED, at=clock())
 
 
 def inspect_incomplete_assignment_setups(

@@ -8,12 +8,12 @@ from typing import cast
 from dreamcatcher.agent_assignments import (
     AssignmentCreator,
     AssignmentRoundInput,
+    complete_assignment,
     find_open_assignments_by_issue,
     inspect_incomplete_assignment_setups,
     read_pull_request_observation,
     read_user_post_delivery_position,
     record_pull_request_observation,
-    stop_round_if_cancelled,
 )
 from dreamcatcher.agent_rounds import (
     AgentRound,
@@ -27,6 +27,7 @@ from dreamcatcher.agent_work import (
     AgentWork,
     read_agent_work,
     record_harness_session_identifier,
+    stop_round_if_ended,
 )
 from dreamcatcher.config import AssignmentRoute
 from dreamcatcher.github import (
@@ -419,13 +420,20 @@ class AssignmentScheduler(
                     record_harness_session_identifier,
                     work=assignment,
                 ),
-                finish_round=None,
+                finish_round=(
+                    None
+                    if plan.input is None
+                    or plan.input.pull_request_state is PullRequestState.OPEN
+                    else partial(
+                        complete_assignment, assignment=assignment, clock=self.clock
+                    )
+                ),
                 paths=paths,
                 plan=plan,
             ),
             clock=self.clock,
         )
-        stop_round_if_cancelled(assignment=assignment, paths=paths)
+        stop_round_if_ended(work=assignment, paths=paths)
         return started_round
 
 
