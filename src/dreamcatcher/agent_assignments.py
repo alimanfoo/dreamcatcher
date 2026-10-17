@@ -218,7 +218,7 @@ def is_check_failure_withheld(*, assignment: AgentWork) -> bool:
 
 def _read_relayed_inputs(*, assignment: AgentWork) -> Iterator[AssignmentRoundInput]:
     """Yield the inputs already relayed, newest first."""
-    for paths in assignment.list_relayed_inputs():
+    for paths in assignment.list_relayed_round_paths():
         yield read_json(model=AssignmentRoundInput, path=paths.round_input)
 
 

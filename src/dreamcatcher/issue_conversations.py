@@ -127,7 +127,7 @@ def read_issue_comment_cursor(*, conversation: AgentWork) -> IssueCommentCursor 
 
     A round stopped before its preparation wrote an input relayed nothing.
     """
-    relayed = conversation.list_relayed_inputs()
+    relayed = conversation.list_relayed_round_paths()
     if not relayed:
         return None
     newest = read_conversation_input(

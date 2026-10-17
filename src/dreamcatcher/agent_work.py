@@ -120,7 +120,7 @@ class AgentWork:
         """Whether the work has not ended."""
         return self.ending is None
 
-    def list_relayed_inputs(self) -> list[AgentRoundPaths]:
+    def list_relayed_round_paths(self) -> list[AgentRoundPaths]:
         """Return the paths of the rounds whose input is relayed, newest first.
 
         The inputs of these rounds are behind the cursor. A round that did not
