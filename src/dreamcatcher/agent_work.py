@@ -72,7 +72,7 @@ class AgentWorkRecord(DreamcatcherDocument):
     model: QuotableText
     effort: QuotableText
     harness_config: HarnessConfig = Field(default_factory=dict)
-    prompt: str
+    instructions: str
 
 
 class AgentWorkEndReason(StrEnum):
@@ -207,7 +207,9 @@ def create_agent_work(
             model=recipe.model,
             effort=recipe.effort,
             harness_config=recipe.config,
-            prompt=compose_issue_instructions(template=recipe.prompt, issue=issue),
+            instructions=compose_issue_instructions(
+                template=recipe.prompt, issue=issue
+            ),
         ),
     )
 

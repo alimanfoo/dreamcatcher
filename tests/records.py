@@ -129,7 +129,7 @@ def write_assignment(
             harness=AgentHarness.CLAUDE,
             model="opus[1m]",
             effort="xhigh",
-            prompt=f"/dream:smith GH{issue}",
+            instructions=f"/dream:smith GH{issue}",
         ),
     )
     _write_harness_session(directory=directory, identifier=harness_session_identifier)
@@ -169,7 +169,7 @@ def write_conversation(
             harness=harness,
             model="opus[1m]",
             effort="xhigh",
-            prompt=f"/dream:conversation GH{issue}",
+            instructions=f"/dream:conversation GH{issue}",
         ),
     )
     _write_harness_session(

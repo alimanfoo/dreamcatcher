@@ -359,7 +359,7 @@ class Scheduler:
                     effort=work.record.effort,
                     harness_config=work.record.harness_config,
                     prompt=compose_round_prompt(
-                        instructions=work.record.prompt,
+                        instructions=work.record.instructions,
                         is_resuming=harness_session_identifier is not None,
                         input_prompt=plan.input_prompt,
                         previous_outcome=(

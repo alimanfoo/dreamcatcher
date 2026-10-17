@@ -574,7 +574,9 @@ The same record serves both kinds of agent work. It persists:
   holds the record and the worktree;
 - the issue title captured at creation;
 - the dispatch label and the kind of agent work;
-- the selected harness, model, effort, harness config and prompt.
+- the selected harness, model, effort and harness config;
+- the work's instructions, which are the recipe's prompt with the issue filled
+  in.
 
 An assignment's branch is named from its identifier, and its pull request number
 is in `pull-request.json`.

@@ -528,7 +528,7 @@ scheduler.json       one row per request, the cooldown, listing failures;
                      the launched identifiers are read from the rows
 work/<identifier>/
     work.json        issue, label, kind, title, harness, model, effort,
-                     harness config, prompt
+                     harness config, instructions
     pull-request.json
                      assignment only, written once by round one: the pull
                      request's number
