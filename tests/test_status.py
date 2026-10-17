@@ -571,10 +571,10 @@ def test_an_open_assignment_reports_where_the_tick_found_its_pull_request(
                 "merge_state": PullRequestMergeState.BEHIND,
                 "check_result": CheckResult.FAILING,
             },
-            "out of date",
+            "ready for review",
         ),
-        ({"check_result": CheckResult.FAILING}, "checks failing"),
-        ({"check_result": CheckResult.RUNNING}, "checks running"),
+        ({"check_result": CheckResult.FAILING}, "ready for review"),
+        ({"check_result": CheckResult.RUNNING}, "ready for review"),
         ({"check_result": CheckResult.NONE}, "ready for review"),
     ],
 )

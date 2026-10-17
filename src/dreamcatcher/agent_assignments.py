@@ -132,11 +132,12 @@ def open_assignment_pull_request(
 
     This is the preparation of a round whose assignment has no pull request
     yet. It fetches main, adds the worktree on the assignment's branch, makes
-    an empty commit, pushes, adopts the pull request already on the branch or
-    opens a draft, and records the pull request. A round after one that failed
-    part way finds the worktree, the commit and the pull request that the
-    earlier attempt made, and makes none of them again. A worktree that cannot
-    be added is removed with its branch, so the next attempt adds both afresh.
+    an empty commit whose message skips CI, pushes, adopts the pull request
+    already on the branch or opens a draft, and records the pull request. A
+    round after one that failed part way finds the worktree, the commit and the
+    pull request that the earlier attempt made, and makes none of them again. A
+    worktree that cannot be added is removed with its branch, so the next
+    attempt adds both afresh.
     """
     issue = assignment.record.issue
     branch = compose_assignment_branch(identifier=assignment.identifier)
@@ -150,7 +151,7 @@ def open_assignment_pull_request(
             )
             raise
     if not has_commits_since_main(worktree=assignment.worktree):
-        make_empty_commit(worktree=assignment.worktree, message=f"GH{issue}")
+        make_empty_commit(worktree=assignment.worktree, message=f"GH{issue} [skip ci]")
     push_branch(root=state.root, branch=branch)
     pull_request = find_or_create_assignment_pull_request(
         repository=repository,
