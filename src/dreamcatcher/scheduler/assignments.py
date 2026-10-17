@@ -33,7 +33,10 @@ from dreamcatcher.github import (
 from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.prompts import compose_assignment_input_prompt
 from dreamcatcher.relay import list_undelivered_user_posts
-from dreamcatcher.scheduler.agent_work import AgentWorkScheduler
+from dreamcatcher.scheduler.agent_work import (
+    AgentWorkScheduler,
+    compose_agent_work_row,
+)
 from dreamcatcher.scheduler.faults import (
     derive_agent_work_fault,
     is_last_round_unfinished,
@@ -46,6 +49,9 @@ from dreamcatcher.scheduler.models import (
     IssueObservation,
     ObservedFact,
     ObservedIssueDetails,
+    PullRequestFinding,
+    ReadFailure,
+    RequestRow,
     SchedulerRecord,
     Truth,
 )
@@ -98,7 +104,8 @@ class AssignmentInspection(
 @dataclass(frozen=True, kw_only=True)
 class _AssignmentItemInspection:
     candidate: AssignmentCandidate | None
-    observation: AgentWorkObservation
+    observation: AgentWorkObservation | None
+    row: RequestRow
     is_fault: bool = False
 
 
@@ -139,7 +146,10 @@ class AssignmentScheduler(
             candidates.extend(self._compose_new_candidates(issue_observations))
         return AssignmentInspection(
             candidates=sorted(candidates, key=self.rank),
-            observations=[item.observation for item in inspected],
+            observations=[
+                item.observation for item in inspected if item.observation is not None
+            ],
+            rows=[*(item.row for item in inspected), *issue_result.rows],
             fault_count=sum(item.is_fault for item in inspected),
             failures=issue_result.failures,
             issue_observations=issue_observations,
@@ -209,6 +219,13 @@ class AssignmentScheduler(
         inspected: list[_AssignmentItemInspection] = []
         for assignment in find_open_agent_work_by_issue(work=assignments).values():
             if assignment.rounds and assignment.rounds[-1].ending is None:
+                inspected.append(
+                    _AssignmentItemInspection(
+                        candidate=None,
+                        observation=None,
+                        row=compose_agent_work_row(work=assignment, finding=None),
+                    )
+                )
                 continue
             inspected.append(
                 self._inspect_assignment(
@@ -238,6 +255,7 @@ class AssignmentScheduler(
                     evidence="in fault",
                     value=Truth.FALSE,
                 ),
+                row=compose_agent_work_row(work=assignment, finding=None),
                 is_fault=True,
             )
         observation = read_pull_request_observation(assignment=assignment)
@@ -252,6 +270,7 @@ class AssignmentScheduler(
                         else NO_ROUND_HAS_RUN
                     ),
                 ),
+                row=compose_agent_work_row(work=assignment, finding=None),
             )
         return self._inspect_pull_request(
             assignment=assignment,
@@ -278,48 +297,15 @@ class AssignmentScheduler(
                     evidence=f"cannot read its pull request: {pull_request.reason}",
                     value=Truth.UNKNOWN,
                 ),
+                row=compose_agent_work_row(
+                    work=assignment, finding=ReadFailure(reason=pull_request.reason)
+                ),
             )
         record_pull_request_observation(
             assignment=assignment,
             pull_request=pull_request,
             observed_at=observed_at,
         )
-        candidate_or_observation = self._inspect_pending_round(
-            assignment=assignment,
-            pull_request=pull_request,
-        )
-        if isinstance(candidate_or_observation, AgentWorkObservation):
-            return _AssignmentItemInspection(
-                candidate=None, observation=candidate_or_observation
-            )
-        if candidate_or_observation is None:
-            return _AssignmentItemInspection(
-                candidate=None,
-                observation=_compose_assignment_observation(
-                    assignment=assignment,
-                    evidence="no round required",
-                    value=Truth.FALSE,
-                ),
-            )
-        return _AssignmentItemInspection(
-            candidate=candidate_or_observation,
-            observation=_compose_assignment_observation(
-                assignment=assignment,
-                evidence=_describe_assignment_candidate(
-                    candidate=candidate_or_observation
-                ),
-            ),
-        )
-
-    def _inspect_pending_round(
-        self, *, assignment: AgentWork, pull_request: PullRequest
-    ) -> AssignmentRoundCandidate | AgentWorkObservation | None:
-        """Return the round the assignment needs, if any.
-
-        A round is needed for user posts past the cursor, for a merged or closed
-        pull request whose final turn has not been taken, or to give again the
-        input of a round that did not finish.
-        """
         undelivered_posts = list_undelivered_user_posts(
             repository=self.repository,
             pull_request=pull_request.number,
@@ -327,28 +313,55 @@ class AssignmentScheduler(
             delivery_position=read_user_post_delivery_position(assignment=assignment),
         )
         if isinstance(undelivered_posts, UnknownGitHubResponse):
-            return _compose_assignment_observation(
-                assignment=assignment,
-                evidence=(
-                    f"cannot tell what the user posted: {undelivered_posts.reason}"
+            return _AssignmentItemInspection(
+                candidate=None,
+                observation=_compose_assignment_observation(
+                    assignment=assignment,
+                    evidence=(
+                        f"cannot tell what the user posted: {undelivered_posts.reason}"
+                    ),
+                    value=Truth.UNKNOWN,
                 ),
-                value=Truth.UNKNOWN,
+                row=compose_agent_work_row(
+                    work=assignment,
+                    finding=ReadFailure(reason=undelivered_posts.reason),
+                ),
             )
-        if not (
-            undelivered_posts
-            or (
-                pull_request.state is not PullRequestState.OPEN
-                and not is_final_turn_taken(assignment=assignment)
-            )
-            or is_last_round_unfinished(
-                rounds=assignment.rounds, is_daemon_running=True
-            )
-        ):
-            return None
-        return AssignmentRoundCandidate(
+        row = compose_agent_work_row(
+            work=assignment,
+            finding=PullRequestFinding(
+                number=pull_request.number,
+                state=pull_request.state,
+                is_draft=pull_request.is_draft,
+                new_posts=len(undelivered_posts),
+            ),
+        )
+        if not _is_round_due(
             assignment=assignment,
             pull_request=pull_request,
             undelivered_posts=undelivered_posts,
+        ):
+            return _AssignmentItemInspection(
+                candidate=None,
+                observation=_compose_assignment_observation(
+                    assignment=assignment,
+                    evidence="no round required",
+                    value=Truth.FALSE,
+                ),
+                row=row,
+            )
+        candidate = AssignmentRoundCandidate(
+            assignment=assignment,
+            pull_request=pull_request,
+            undelivered_posts=undelivered_posts,
+        )
+        return _AssignmentItemInspection(
+            candidate=candidate,
+            observation=_compose_assignment_observation(
+                assignment=assignment,
+                evidence=_describe_assignment_candidate(candidate=candidate),
+            ),
+            row=row,
         )
 
     def _compose_new_candidates(
@@ -367,6 +380,28 @@ class AssignmentScheduler(
             for observation in observations
             if observation.availability.value is Truth.TRUE
         ]
+
+
+def _is_round_due(
+    *,
+    assignment: AgentWork,
+    pull_request: PullRequest,
+    undelivered_posts: list[UserPost],
+) -> bool:
+    """Return whether the assignment needs a round.
+
+    A round is needed for user posts past the cursor, for a merged or closed
+    pull request whose final turn has not been taken, or to give again the
+    input of a round that did not finish.
+    """
+    return bool(
+        undelivered_posts
+        or (
+            pull_request.state is not PullRequestState.OPEN
+            and not is_final_turn_taken(assignment=assignment)
+        )
+        or is_last_round_unfinished(rounds=assignment.rounds, is_daemon_running=True)
+    )
 
 
 def _describe_assignment_candidate(*, candidate: AssignmentRoundCandidate) -> str:

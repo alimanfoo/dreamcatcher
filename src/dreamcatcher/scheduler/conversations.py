@@ -28,17 +28,27 @@ from dreamcatcher.issue_conversations import (
     read_issue_comment_delivery_position,
 )
 from dreamcatcher.prompts import compose_conversation_input_prompt
-from dreamcatcher.scheduler.agent_work import AgentWorkScheduler, RouteIssueListing
+from dreamcatcher.scheduler.agent_work import (
+    AgentWorkScheduler,
+    RouteIssueListing,
+    compose_agent_work_row,
+)
 from dreamcatcher.scheduler.faults import (
     derive_agent_work_fault,
     is_last_round_unfinished,
 )
 from dreamcatcher.scheduler.models import (
     AgentWorkInspection,
+    ConflictingLabelsFinding,
     ConversationObservation,
+    IssueCommentsFinding,
     ObservedFact,
+    ReadFailure,
+    RequestFinding,
+    RequestRow,
     SchedulerRecord,
     Truth,
+    UnlistedIssueFinding,
 )
 from dreamcatcher.words import describe_count
 
@@ -56,8 +66,18 @@ class ConversationBatchCandidate:
 @dataclass(frozen=True, kw_only=True)
 class _ConversationInspection:
     observation: ConversationObservation
+    rows: list[RequestRow]
     candidate: ConversationBatchCandidate | None
     is_fault: bool = False
+
+
+@dataclass(frozen=True, kw_only=True)
+class _ListedConversationInspection:
+    candidates: list[ConversationBatchCandidate]
+    observations: list[ConversationObservation]
+    rows: list[RequestRow]
+    fault_count: int
+    failures: list[str]
 
 
 class ConversationScheduler(
@@ -84,23 +104,23 @@ class ConversationScheduler(
             if previous_record is None
             else previous_record.most_recent_cooldown_ended
         )
-        candidates, observations, fault_count, failures = (
-            self._inspect_listed_conversations(
-                listing=listing,
-                conversations_by_issue=conversations_by_issue,
-                most_recent_cooldown_ended=most_recent_cooldown_ended,
-            )
+        listed = self._inspect_listed_conversations(
+            listing=listing,
+            conversations_by_issue=conversations_by_issue,
+            most_recent_cooldown_ended=most_recent_cooldown_ended,
         )
+        observations = list(listed.observations)
         carried_observations = _carry_forward_unlisted_observations(
             listing=listing, previous_record=previous_record
         )
         observations.extend(carried_observations)
-        fault_count += _count_carried_conversation_faults(
+        fault_count = listed.fault_count + _count_carried_conversation_faults(
             observations=carried_observations,
             conversations_by_issue=conversations_by_issue,
             most_recent_cooldown_ended=most_recent_cooldown_ended,
         )
-        if failures:
+        candidates = listed.candidates
+        if listed.failures:
             candidates = [
                 candidate
                 for candidate in candidates
@@ -112,8 +132,14 @@ class ConversationScheduler(
         return AgentWorkInspection(
             candidates=sorted(candidates, key=self.rank),
             observations=observations,
+            rows=[
+                *listed.rows,
+                *_compose_unlisted_conversation_rows(
+                    listing=listing, conversations_by_issue=conversations_by_issue
+                ),
+            ],
             fault_count=fault_count,
-            failures=failures,
+            failures=listed.failures,
         )
 
     def rank(self, candidate: ConversationBatchCandidate, /) -> tuple[str, int]:
@@ -163,14 +189,10 @@ class ConversationScheduler(
         listing: RouteIssueListing,
         conversations_by_issue: dict[int, AgentWork],
         most_recent_cooldown_ended: datetime | None,
-    ) -> tuple[
-        list[ConversationBatchCandidate],
-        list[ConversationObservation],
-        int,
-        list[str],
-    ]:
+    ) -> _ListedConversationInspection:
         candidates: list[ConversationBatchCandidate] = []
         observations: list[ConversationObservation] = []
+        rows: list[RequestRow] = []
         fault_count = 0
         failures = list(listing.failures)
         for issue in listing.issues:
@@ -183,6 +205,7 @@ class ConversationScheduler(
             if inspection is None:
                 continue
             observations.append(inspection.observation)
+            rows.extend(inspection.rows)
             fault_count += inspection.is_fault
             if inspection.candidate is not None:
                 candidates.append(inspection.candidate)
@@ -191,7 +214,13 @@ class ConversationScheduler(
                 and inspection.observation.requires_round.value is Truth.UNKNOWN
             ):
                 failures.append(inspection.observation.requires_round.evidence)
-        return candidates, observations, fault_count, failures
+        return _ListedConversationInspection(
+            candidates=candidates,
+            observations=observations,
+            rows=rows,
+            fault_count=fault_count,
+            failures=failures,
+        )
 
     def _inspect_listed_issue(
         self,
@@ -213,7 +242,8 @@ class ConversationScheduler(
                 conversation=conversation,
                 most_recent_cooldown_ended=most_recent_cooldown_ended,
             )
-        labels = ", ".join(sorted((route.label for route in routes), key=str.casefold))
+        labels = sorted((route.label for route in routes), key=str.casefold)
+        finding = ConflictingLabelsFinding(labels=labels)
         return _ConversationInspection(
             observation=ConversationObservation(
                 identifier=None if conversation is None else conversation.identifier,
@@ -225,8 +255,20 @@ class ConversationScheduler(
                 ),
                 routing_conflict=ObservedFact(
                     value=Truth.TRUE,
-                    evidence=f"carries more than one conversation label: {labels}",
+                    evidence=(
+                        "carries more than one conversation label: " + ", ".join(labels)
+                    ),
                 ),
+            ),
+            rows=(
+                [
+                    _compose_new_conversation_row(
+                        issue=issue, label=label, finding=finding
+                    )
+                    for label in labels
+                ]
+                if conversation is None
+                else [compose_agent_work_row(work=conversation, finding=finding)]
             ),
             candidate=None,
         )
@@ -247,7 +289,7 @@ class ConversationScheduler(
         )
         if fault is not None:
             return fault
-        comments, requires_round = self._observe_comments(
+        comments, requires_round, finding = self._observe_comments(
             issue=issue.number,
             conversation=conversation,
         )
@@ -265,14 +307,28 @@ class ConversationScheduler(
                 conversation=conversation,
                 route=route,
             )
-        return _ConversationInspection(observation=observation, candidate=candidate)
+        return _ConversationInspection(
+            observation=observation,
+            rows=[
+                _compose_new_conversation_row(
+                    issue=issue, label=route.label, finding=finding
+                )
+                if conversation is None
+                else compose_agent_work_row(work=conversation, finding=finding)
+            ],
+            candidate=candidate,
+        )
 
     def _observe_comments(
         self,
         *,
         issue: int,
         conversation: AgentWork | None,
-    ) -> tuple[list[ConversationComment], ObservedFact]:
+    ) -> tuple[
+        list[ConversationComment],
+        ObservedFact,
+        IssueCommentsFinding | ReadFailure,
+    ]:
         try:
             comments = _list_comments_to_answer(
                 repository=self.repository,
@@ -281,19 +337,28 @@ class ConversationScheduler(
                 conversation=conversation,
             )
         except ReportableError as failure:
-            return [], ObservedFact(value=Truth.UNKNOWN, evidence=str(failure))
-        return comments, (
-            ObservedFact(
-                value=Truth.TRUE,
-                evidence=(
-                    f"{describe_count(number=len(comments), noun='comment')} to answer"
-                ),
+            return (
+                [],
+                ObservedFact(value=Truth.UNKNOWN, evidence=str(failure)),
+                ReadFailure(reason=str(failure)),
             )
-            if comments
-            else ObservedFact(
-                value=Truth.FALSE,
-                evidence="no round required",
-            )
+        return (
+            comments,
+            (
+                ObservedFact(
+                    value=Truth.TRUE,
+                    evidence=(
+                        f"{describe_count(number=len(comments), noun='comment')} "
+                        "to answer"
+                    ),
+                )
+                if comments
+                else ObservedFact(
+                    value=Truth.FALSE,
+                    evidence="no round required",
+                )
+            ),
+            IssueCommentsFinding(new_comments=len(comments)),
         )
 
 
@@ -373,6 +438,7 @@ def _inspect_conversation_fault(
                 evidence="in fault",
             ),
         ),
+        rows=[compose_agent_work_row(work=conversation, finding=None)],
         candidate=None,
         is_fault=True,
     )
@@ -394,3 +460,36 @@ def _count_carried_conversation_faults(
         for observation in observations
         if (conversation := conversations_by_issue.get(observation.issue)) is not None
     )
+
+
+def _compose_new_conversation_row(
+    *, issue: Issue, label: str, finding: RequestFinding
+) -> RequestRow:
+    """Return the row of a conversation request that has no open conversation."""
+    return RequestRow(
+        issue=issue.number,
+        title=issue.title,
+        dispatch_label=label,
+        kind=AgentWorkKind.CONVERSATION,
+        finding=finding,
+    )
+
+
+def _compose_unlisted_conversation_rows(
+    *, listing: RouteIssueListing, conversations_by_issue: dict[int, AgentWork]
+) -> list[RequestRow]:
+    """Return the rows of open conversations whose issues the listing did not return.
+
+    A failed listing may be why, so the row holds the failure.
+    """
+    listed_issues = {issue.number for issue in listing.issues}
+    finding = (
+        ReadFailure(reason="; ".join(listing.failures))
+        if listing.failures
+        else UnlistedIssueFinding()
+    )
+    return [
+        compose_agent_work_row(work=conversation, finding=finding)
+        for issue, conversation in sorted(conversations_by_issue.items())
+        if issue not in listed_issues
+    ]

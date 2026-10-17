@@ -120,6 +120,7 @@ def found(
     if inspected.candidate is not None:
         assert not isinstance(inspected.candidate, NewAssignmentCandidate)
         return inspected.candidate
+    assert inspected.observation is not None
     if inspected.observation.requires_round.value is not Truth.FALSE:
         return inspected.observation
     return None
@@ -162,6 +163,7 @@ def test_a_first_round_that_failed_before_its_pull_request_is_tried_again(
     )
 
     assert isinstance(inspected.candidate, PullRequestOpeningCandidate)
+    assert inspected.observation is not None
     assert inspected.observation.requires_round == ObservedFact(
         value=Truth.TRUE, evidence="round 1 errored, to try again"
     )

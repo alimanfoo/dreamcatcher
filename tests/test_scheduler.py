@@ -7,6 +7,7 @@ from unittest.mock import Mock
 import pytest
 from clocks import PINNED, Ticking
 from conftest import (
+    ASSIGNMENT_LABEL,
     FILED,
     LATER,
     POST_LIST_PATHS,
@@ -56,13 +57,19 @@ from dreamcatcher.git import (
     push_branch,
 )
 from dreamcatcher.github import PullRequestState
+from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.scheduler import AssignmentScheduler, ConversationScheduler, Scheduler
 from dreamcatcher.scheduler.faults import is_last_round_unfinished
 from dreamcatcher.scheduler.models import (
     AgentWorkObservation,
     GlobalCooldown,
     ObservedFact,
+    PullRequestFinding,
+    RequestFinding,
+    RequestRow,
     SchedulerRecord,
+    StartedRound,
+    StartTimeFinding,
     Truth,
     derive_issue_availability,
 )
@@ -87,6 +94,29 @@ def observed_assignment(
         identifier=identifier,
         issue=issue,
         requires_round=ObservedFact(value=value, evidence=evidence),
+    )
+
+
+# What the start-time questions answer for an issue nothing claims or blocks.
+UNCLAIMED = StartTimeFinding(linked_pull_requests=[], blocking_issues=[])
+
+
+def assignment_row(
+    *,
+    issue: int,
+    agent_work: str | None = None,
+    finding: RequestFinding | None = None,
+    started_round: StartedRound | None = None,
+) -> RequestRow:
+    """Return the row of the request the assignment label makes on that issue."""
+    return RequestRow(
+        issue=issue,
+        title=f"Issue {issue}",
+        dispatch_label=ASSIGNMENT_LABEL,
+        kind=AgentWorkKind.ASSIGNMENT,
+        agent_work=agent_work,
+        finding=finding,
+        started_round=started_round,
     )
 
 
@@ -277,6 +307,14 @@ def test_a_tick_assigns_the_oldest_issue_nothing_stands_in_the_way_of(
     assert (assignment / "work.json").exists()
     assert observed.issue_observations[0].observed_at == observed.at
     assert observed.launched_agent_work_identifiers == [CREATED_ASSIGNMENT_ID]
+    assert observed.rows == [
+        assignment_row(
+            issue=8,
+            agent_work=CREATED_ASSIGNMENT_ID,
+            finding=UNCLAIMED,
+            started_round=StartedRound(number=1),
+        )
+    ]
     assert (
         harnesses["claude"].calls[0].directory
         == (scheduler.assignments.state.worktrees / CREATED_ASSIGNMENT_ID).resolve()
@@ -323,6 +361,21 @@ def test_a_tick_fills_free_capacity_with_available_issues(ready_repo, offered):
         "GH9-20260819-184158-assignment",
     ]
     assert scheduler.is_at_capacity
+    assert observed.rows == [
+        assignment_row(
+            issue=8,
+            agent_work=CREATED_ASSIGNMENT_ID,
+            finding=UNCLAIMED,
+            started_round=StartedRound(number=1),
+        ),
+        assignment_row(
+            issue=9,
+            agent_work="GH9-20260819-184158-assignment",
+            finding=UNCLAIMED,
+            started_round=StartedRound(number=1),
+        ),
+        assignment_row(issue=10, finding=UNCLAIMED),
+    ]
     assert (
         scheduler.assignments.state.worktrees / "GH9-20260819-184158-assignment"
     ).exists()
@@ -361,6 +414,23 @@ def test_a_failed_launch_goes_on_to_the_next_candidate(
         "GH10-20260819-184158-assignment",
     ]
     assert observed.failures == ["could not create an assignment for GH9"]
+    assert observed.rows[1] == assignment_row(issue=9, finding=UNCLAIMED)
+
+
+def test_a_round_that_cannot_open_its_pull_request_is_named_in_its_row(
+    ready_repo, offered
+):
+    offered.fails(stderr="gh: pull request create failed", to="pr create")
+    scheduler, clock = create_scheduler(root=ready_repo)
+
+    observed = scheduler.tick(at=clock())
+
+    [row] = observed.rows
+    assert row.agent_work == CREATED_ASSIGNMENT_ID
+    assert row.started_round is not None
+    assert row.started_round.number == 1
+    assert row.started_round.preparation_failure is not None
+    assert "pull request create failed" in row.started_round.preparation_failure
 
 
 def test_a_second_tick_judges_an_assigned_issue_handled(ready_repo):
@@ -712,6 +782,18 @@ def test_an_assignment_with_an_open_pull_request_and_nothing_new_is_not_waiting(
     ]
     assignment = read_assignments(state=scheduler.assignments.state)[0]
     assert assignment.record.title == "Issue 13"
+    assert observed.rows == [
+        assignment_row(
+            issue=13,
+            agent_work=ASSIGNMENT_ID,
+            finding=PullRequestFinding(
+                number=PULL_REQUEST,
+                state=PullRequestState.OPEN,
+                is_draft=False,
+                new_posts=0,
+            ),
+        )
+    ]
     assert read_pull_request_observation(
         assignment=assignment
     ) == PullRequestObservation(
@@ -838,6 +920,7 @@ def test_an_assignment_with_a_round_that_has_no_ending_starts_nothing(resuming):
 
     assert observed.launched_agent_work_identifiers == []
     assert observed.assignment_observations == []
+    assert observed.rows == [assignment_row(issue=13, agent_work=ASSIGNMENT_ID)]
     assert not (
         scheduler.assignments.state.work
         / ASSIGNMENT_ID
@@ -1060,6 +1143,19 @@ def test_an_assignment_the_user_has_posted_on_is_told_what_they_said(resuming, g
     )
     assert round_input["pull_request_state"] == "OPEN"
     assert [post["kind"] for post in round_input["user_posts"]] == ["comment"]
+    assert observed.rows == [
+        assignment_row(
+            issue=13,
+            agent_work=ASSIGNMENT_ID,
+            finding=PullRequestFinding(
+                number=PULL_REQUEST,
+                state=PullRequestState.OPEN,
+                is_draft=False,
+                new_posts=1,
+            ),
+            started_round=StartedRound(number=2),
+        )
+    ]
     assert str(
         scheduler.assignments.state.work
         / ASSIGNMENT_ID

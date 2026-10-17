@@ -50,6 +50,7 @@ from dreamcatcher.daemon import DreamcatcherDaemon
 from dreamcatcher.documents import read_json, write_json
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.git import _add_detached_worktree, _read_worktree_revision
+from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.issue_conversations import (
     NO_REPLY,
     ConversationRoundInput,
@@ -60,11 +61,18 @@ from dreamcatcher.prompts import (
 )
 from dreamcatcher.scheduler import AssignmentScheduler, ConversationScheduler, Scheduler
 from dreamcatcher.scheduler.models import (
+    ConflictingLabelsFinding,
     ConversationObservation,
     GlobalCooldown,
+    IssueCommentsFinding,
     ObservedFact,
+    ReadFailure,
+    RequestFinding,
+    RequestRow,
     SchedulerRecord,
+    StartedRound,
     Truth,
+    UnlistedIssueFinding,
 )
 from dreamcatcher.state import StateDirectory
 
@@ -205,6 +213,27 @@ def offer_conversation(
     gh.replies(
         stdout=pages(items=comments),
         to=f"api repos/{REPOSITORY}/issues/8/comments?per_page=100",
+    )
+
+
+def conversation_row(
+    *,
+    finding: RequestFinding | None,
+    issue: int = 8,
+    title: str = "Why does this happen?",
+    label: str = "dream:conversation",
+    agent_work: str | None = None,
+    started_round: StartedRound | None = None,
+) -> RequestRow:
+    """Return the row of the request that a conversation label makes on an issue."""
+    return RequestRow(
+        issue=issue,
+        title=title,
+        dispatch_label=label,
+        kind=AgentWorkKind.CONVERSATION,
+        agent_work=agent_work,
+        finding=finding,
+        started_round=started_round,
     )
 
 
@@ -490,6 +519,11 @@ def test_an_issue_with_two_conversation_labels_has_a_routing_conflict(
                 ),
             ),
         )
+    ]
+    conflict = ConflictingLabelsFinding(labels=["dream:conversation", "dream:scout"])
+    assert observed.rows == [
+        conversation_row(finding=conflict),
+        conversation_row(label="dream:scout", finding=conflict),
     ]
     assert count_comment_reads(gh=gh) == 0
     assert read_conversation(state=scheduler.assignments.state, issue=8) is None
@@ -873,6 +907,16 @@ def test_a_failed_conversation_refresh_is_an_errored_round(
     assert observed.failures == [
         "GH8-20260819-184158-conversation round 2 errored: could not fetch main"
     ]
+    assert observed.rows == [
+        conversation_row(
+            title="Why does this happen?",
+            agent_work="GH8-20260819-184158-conversation",
+            finding=IssueCommentsFinding(new_comments=1),
+            started_round=StartedRound(
+                number=2, preparation_failure="could not fetch main"
+            ),
+        )
+    ]
     assert observed.launched_agent_work_identifiers == []
     conversation = read_conversation(state=scheduler.assignments.state, issue=8)
     assert conversation is not None
@@ -1158,6 +1202,9 @@ def test_an_issue_without_a_trusted_unmarked_comment_does_not_start(
         value=Truth.FALSE,
         evidence="no round required",
     )
+    assert observed.rows == [
+        conversation_row(finding=IssueCommentsFinding(new_comments=0))
+    ]
     assert harnesses["claude"].calls == []
     assert read_conversation(state=scheduler.assignments.state, issue=8) is None
 
@@ -1621,6 +1668,14 @@ def test_a_failed_conversation_listing_prevents_launches(conversation_scheduler)
             ),
         )
     ]
+    assert observed.rows == [
+        conversation_row(
+            issue=5,
+            title="Issue 5",
+            agent_work=compose_conversation_identifier(issue=5),
+            finding=ReadFailure(reason=failure),
+        )
+    ]
 
 
 def test_a_failed_route_listing_still_refreshes_healthy_routes(
@@ -1719,6 +1774,13 @@ def test_an_ineligible_saved_conversation_is_not_polled(conversation_scheduler):
     observed = scheduler.tick(at=clock())
 
     assert observed.conversation_observations == []
+    assert observed.rows == [
+        conversation_row(
+            title="Issue 8",
+            agent_work=compose_conversation_identifier(issue=8),
+            finding=UnlistedIssueFinding(),
+        )
+    ]
     assert count_comment_reads(gh=gh) == 0
 
 
@@ -1909,6 +1971,7 @@ def test_a_failed_comment_listing_prevents_launches(conversation_scheduler):
         value=Truth.UNKNOWN,
         evidence=failure,
     )
+    assert observed.rows == [conversation_row(finding=ReadFailure(reason=failure))]
 
 
 def test_a_failed_delivery_position_read_is_a_scheduler_failure(

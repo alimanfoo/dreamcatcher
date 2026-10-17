@@ -4,25 +4,24 @@ from collections.abc import Container
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from enum import StrEnum
-from typing import Annotated, Self, overload
+from typing import Annotated, Literal, Self, overload
 
-from pydantic import AfterValidator, AwareDatetime, Field, model_validator
+from pydantic import (
+    AfterValidator,
+    AwareDatetime,
+    Field,
+    NonNegativeInt,
+    PositiveInt,
+    model_validator,
+)
 
 from dreamcatcher.documents import DreamcatcherDocument
+from dreamcatcher.github import PullRequestState
+from dreamcatcher.harness_adapters import AgentWorkKind
 
 GLOBAL_COOLDOWN_DURATION = timedelta(minutes=15)
 DEFAULT_MAX_AGENTS = 1
 NO_ROUND_HAS_RUN = "no round has run yet"
-
-
-@dataclass(frozen=True, kw_only=True)
-class AgentWorkInspection[CandidateT, ObservationT]:
-    """Collect one kind's ranked candidates, observations, faults and failures."""
-
-    candidates: list[CandidateT]
-    observations: list[ObservationT]
-    fault_count: int
-    failures: list[str]
 
 
 def _normalize_utc(at: datetime, /) -> datetime:
@@ -143,6 +142,100 @@ def mark_round_started(
     )
 
 
+class PullRequestFinding(DreamcatcherDocument):
+    """Hold what the tick read of an open assignment's pull request."""
+
+    found: Literal["pull request"] = "pull request"
+    number: PositiveInt
+    state: PullRequestState
+    is_draft: bool
+    new_posts: NonNegativeInt
+
+
+class IssueCommentsFinding(DreamcatcherDocument):
+    """Hold how many of the user's issue comments no round has been given."""
+
+    found: Literal["issue comments"] = "issue comments"
+    new_comments: NonNegativeInt
+
+
+class StartTimeFinding(DreamcatcherDocument):
+    """Hold the open pull requests that claim an issue and the open issues blocking it.
+
+    Work may start for the request when both are empty.
+    """
+
+    found: Literal["start-time answers"] = "start-time answers"
+    linked_pull_requests: list[PositiveInt]
+    blocking_issues: list[PositiveInt]
+
+
+class ConflictingLabelsFinding(DreamcatcherDocument):
+    """Hold the dispatch labels of one kind that an issue carries together."""
+
+    found: Literal["conflicting labels"] = "conflicting labels"
+    labels: list[str] = Field(min_length=2)
+
+
+class UnlistedIssueFinding(DreamcatcherDocument):
+    """Say that the listing did not return the issue of open work."""
+
+    found: Literal["issue not listed"] = "issue not listed"
+
+
+class ReadFailure(DreamcatcherDocument):
+    """Hold why a read failed, in place of what it would have found."""
+
+    found: Literal["read failed"] = "read failed"
+    reason: str
+
+
+type RequestFinding = Annotated[
+    PullRequestFinding
+    | IssueCommentsFinding
+    | StartTimeFinding
+    | ConflictingLabelsFinding
+    | UnlistedIssueFinding
+    | ReadFailure,
+    Field(discriminator="found"),
+]
+
+
+class StartedRound(DreamcatcherDocument):
+    """Name the round that a tick started, and why it errored before its harness ran."""
+
+    number: PositiveInt
+    preparation_failure: str | None = None
+
+
+class RequestRow(DreamcatcherDocument):
+    """Record one request that a tick saw, and what the tick found for it.
+
+    A request is one dispatch label on one issue. The row names the open agent
+    work the request led to, if any. A row has no finding when the tick read
+    nothing for it, as for work whose round is running or that is in fault.
+    """
+
+    issue: PositiveInt
+    title: str
+    dispatch_label: str
+    kind: AgentWorkKind
+    agent_work: str | None = None
+    finding: RequestFinding | None = None
+    started_round: StartedRound | None = None
+
+
+@dataclass(frozen=True, kw_only=True)
+class AgentWorkInspection[CandidateT, ObservationT]:
+    """Collect one kind's ranked candidates, rows, faults and failures."""
+
+    candidates: list[CandidateT]
+    observations: list[ObservationT]
+    rows: list[RequestRow]
+    fault_count: int
+    failures: list[str]
+
+
 class GlobalCooldown(DreamcatcherDocument):
     """Model an interval during which the scheduler starts no agent work."""
 
@@ -163,6 +256,7 @@ class SchedulerRecord(DreamcatcherDocument):
     at: _UtcDateTime
     failures: list[str] = Field(default_factory=list)
     launched_agent_work_identifiers: list[str] = Field(default_factory=list)
+    rows: list[RequestRow] = Field(default_factory=list)
     issue_observations: list[IssueObservation] = Field(default_factory=list)
     assignment_observations: list[AgentWorkObservation] = Field(default_factory=list)
     conversation_observations: list[ConversationObservation] = Field(

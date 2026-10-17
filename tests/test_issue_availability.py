@@ -24,10 +24,15 @@ from dreamcatcher.agent_assignments import (
 from dreamcatcher.agent_work import AgentWork
 from dreamcatcher.clock import read_current_time
 from dreamcatcher.config import AgentHarness, DreamcatcherConfig
+from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.scheduler.assignments import AssignmentScheduler
 from dreamcatcher.scheduler.issues import observe_issues
 from dreamcatcher.scheduler.models import (
+    ConflictingLabelsFinding,
     ObservedFact,
+    ReadFailure,
+    RequestRow,
+    StartTimeFinding,
     Truth,
     derive_issue_availability,
 )
@@ -455,3 +460,90 @@ def test_a_local_assignment_remains_observed_when_the_listing_and_issue_read_fai
     assert observation.is_assigned_to_user.value is Truth.UNKNOWN
     assert observation.routing_conflict.value is Truth.UNKNOWN
     assert observation.claimed_here.value is Truth.TRUE
+
+
+def rows_for(*, config: DreamcatcherConfig, assignments: Sequence[AgentWork] = ()):
+    """Return the request rows that observing the issues composed."""
+    return observe_issues(
+        scheduler=create_assignment_scheduler(config=config),
+        assignments=list(assignments),
+    ).rows
+
+
+def test_a_request_row_holds_the_open_blockers_as_numbers(gh):
+    gh.replies(
+        stdout=pages(
+            items=[
+                {"number": 7, "state": "closed"},
+                {"number": 9, "state": "open"},
+            ]
+        ),
+        to="api",
+    )
+
+    rows = rows_for(config=config_with_routes(labels=[ASSIGNMENT_LABEL]))
+
+    assert rows == [
+        RequestRow(
+            issue=8,
+            title="Issue 8",
+            dispatch_label=ASSIGNMENT_LABEL,
+            kind=AgentWorkKind.ASSIGNMENT,
+            finding=StartTimeFinding(linked_pull_requests=[], blocking_issues=[9]),
+        )
+    ]
+
+
+def test_a_request_row_holds_the_open_linked_pull_requests_as_numbers(gh):
+    gh.replies(
+        stdout=json.dumps(
+            {"number": 8, "closedByPullRequestsReferences": [{"number": 28}]}
+        ),
+        to="issue view",
+    )
+    gh.replies(
+        stdout=json.dumps({"number": 28, "state": "OPEN", "isDraft": True}),
+        to="pr view",
+    )
+
+    [row] = rows_for(config=config_with_routes(labels=[ASSIGNMENT_LABEL]))
+
+    assert row.finding == StartTimeFinding(
+        linked_pull_requests=[28], blocking_issues=[]
+    )
+
+
+def test_each_of_two_assignment_labels_is_a_request_with_conflicting_labels(gh):
+    issue = json.loads(listing(issues=[(8, FILED)]))[0]
+    issue["labels"] = [{"name": ASSIGNMENT_LABEL}, {"name": "dream:less"}]
+    gh.replies(stdout=json.dumps([issue]), to="issue list")
+
+    rows = rows_for(config=config_with_routes(labels=[ASSIGNMENT_LABEL, "dream:less"]))
+
+    conflict = ConflictingLabelsFinding(labels=["dream:less", ASSIGNMENT_LABEL])
+    assert [(row.dispatch_label, row.finding) for row in rows] == [
+        ("dream:less", conflict),
+        (ASSIGNMENT_LABEL, conflict),
+    ]
+
+
+@pytest.mark.parametrize("read", ["issue view", "api"])
+def test_a_failed_start_time_read_is_held_in_the_request_row(gh, read):
+    gh.fails(stderr="gh: could not connect to github.com", to=read)
+
+    [row] = rows_for(config=config_with_routes(labels=[ASSIGNMENT_LABEL]))
+
+    assert isinstance(row.finding, ReadFailure)
+    assert "could not connect" in row.finding.reason
+
+
+def test_an_issue_with_an_open_assignment_has_no_request_row_of_its_own(gh, tmp_path):
+    state = StateDirectory(root=tmp_path)
+    write_assignment(state=state, identifier="GH8-20260819-184158-assignment", issue=8)
+
+    rows = rows_for(
+        config=config_with_routes(labels=[ASSIGNMENT_LABEL]),
+        assignments=read_assignments(state=state),
+    )
+
+    assert rows == []

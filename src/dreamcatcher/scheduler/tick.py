@@ -3,7 +3,7 @@
 from dataclasses import dataclass, field
 from datetime import datetime
 
-from dreamcatcher.agent_rounds import AgentRound
+from dreamcatcher.agent_rounds import AgentRound, AgentRoundPreparationError
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.scheduler.assignments import (
@@ -21,7 +21,9 @@ from dreamcatcher.scheduler.faults import (
 )
 from dreamcatcher.scheduler.models import (
     DEFAULT_MAX_AGENTS,
+    RequestRow,
     SchedulerRecord,
+    StartedRound,
     mark_round_started,
 )
 from dreamcatcher.state import StateDirectory
@@ -49,15 +51,43 @@ def _choose_next_work_kind(
     return None
 
 
-def _read_candidate_issue(
+def _read_candidate_request(
     *, work_kind: AgentWorkKind, candidates: _ReadyAgentWork
-) -> int:
+) -> tuple[int, str]:
+    """Return the issue and dispatch label of the next candidate of this kind."""
     if work_kind is AgentWorkKind.ASSIGNMENT:
         candidate = candidates.assignments[0]
         if isinstance(candidate, NewAssignmentCandidate):
-            return candidate.issue
-        return candidate.assignment.record.issue
-    return candidates.conversations[0].issue.number
+            return candidate.issue, candidate.route.label
+        record = candidate.assignment.record
+        return record.issue, record.dispatch_label
+    conversation_candidate = candidates.conversations[0]
+    if conversation_candidate.conversation is None:
+        return conversation_candidate.issue.number, conversation_candidate.route.label
+    record = conversation_candidate.conversation.record
+    return record.issue, record.dispatch_label
+
+
+def _mark_row_started(
+    *,
+    rows: list[RequestRow],
+    request: tuple[int, str],
+    agent_work_identifier: str,
+    started_round: StartedRound,
+) -> list[RequestRow]:
+    """Return the rows with the request's row naming its work and the started round."""
+    issue, label = request
+    return [
+        row.model_copy(
+            update={
+                "agent_work": agent_work_identifier,
+                "started_round": started_round,
+            }
+        )
+        if row.issue == issue and row.dispatch_label == label
+        else row
+        for row in rows
+    ]
 
 
 @dataclass(kw_only=True)
@@ -123,6 +153,7 @@ class Scheduler:
             issue_observations=assignment_inspection.issue_observations,
             assignment_observations=assignment_inspection.observations,
             conversation_observations=conversation_inspection.observations,
+            rows=[*assignment_inspection.rows, *conversation_inspection.rows],
         )
         if cooldown is not None:
             return record
@@ -162,7 +193,7 @@ class Scheduler:
             if work_kind is None:
                 break
             self._last_selected_work_kind = work_kind
-            issue = _read_candidate_issue(
+            request = _read_candidate_request(
                 work_kind=work_kind,
                 candidates=candidates,
             )
@@ -172,6 +203,22 @@ class Scheduler:
                     candidates=candidates,
                     at=record.at,
                 )
+            except AgentRoundPreparationError as failure:
+                record = record.model_copy(
+                    update={
+                        "failures": [*record.failures, str(failure)],
+                        "rows": _mark_row_started(
+                            rows=record.rows,
+                            request=request,
+                            agent_work_identifier=failure.agent_work_identifier,
+                            started_round=StartedRound(
+                                number=failure.round_number,
+                                preparation_failure=failure.reason,
+                            ),
+                        ),
+                    }
+                )
+                continue
             except ReportableError as failure:
                 record = record.model_copy(
                     update={"failures": [*record.failures, str(failure)]}
@@ -182,8 +229,17 @@ class Scheduler:
             record = self._mark_round_started(
                 record=record,
                 round_=launched_round,
-                issue=issue,
+                issue=request[0],
                 work_kind=work_kind,
+            ).model_copy(
+                update={
+                    "rows": _mark_row_started(
+                        rows=record.rows,
+                        request=request,
+                        agent_work_identifier=identifier,
+                        started_round=StartedRound(number=launched_round.record.number),
+                    )
+                }
             )
             launched_identifiers.append(identifier)
         return record.model_copy(
