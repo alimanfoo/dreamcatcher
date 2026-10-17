@@ -75,10 +75,7 @@ def describe_round_ending(
         if ending.reason is not None:
             detail = f"{detail}: {ending.reason}"
     else:
-        outcome = _describe_round_outcome(
-            record=record,
-            outcome=_derive_round_outcome(record=record, is_working=False),
-        )
+        outcome = _derive_round_outcome(record=record, is_working=False)
         detail = f"round {record.number} {outcome}"
     line = read_last_feed_line(path=paths.feed)
     return detail, None if line is None else line.text.strip()

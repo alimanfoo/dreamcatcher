@@ -317,7 +317,7 @@ def codex_answer(
 
 
 def ask(*, identifier: int = 1, body: str = "Please explain.") -> dict:
-    """Return one trusted ordinary issue comment."""
+    """Return one eligible ordinary issue comment."""
     return comment(id=identifier, created_at=ASKED, body=body)
 
 
@@ -1244,7 +1244,7 @@ def test_a_failed_assignment_candidate_does_not_block_a_ready_conversation(
     ]
 
 
-def test_an_issue_without_a_trusted_unmarked_comment_does_not_start(
+def test_an_issue_without_an_eligible_comment_does_not_start(
     conversation_scheduler, harnesses
 ):
     scheduler, clock, gh = conversation_scheduler

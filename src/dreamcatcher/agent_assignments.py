@@ -122,11 +122,7 @@ def complete_assignment(
     clock: Callable[[], datetime],
     final_output: str | None,
 ) -> None:
-    """Record that the assignment completed, as its wrap-up round finishes.
-
-    A round finisher receives the round's final output, which completion does
-    not need.
-    """
+    """Record that the assignment completed, as its wrap-up round finishes."""
     end_agent_work(work=assignment, reason=AgentWorkEndReason.COMPLETED, at=clock())
 
 

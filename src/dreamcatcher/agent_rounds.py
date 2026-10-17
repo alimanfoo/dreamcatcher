@@ -662,10 +662,10 @@ class AgentRound:
                 stream_reader.join()
 
     def _finish_round(self, *, status: int) -> str | None:
-        """Let the owner finish a successful round, and return why it could not.
+        """Run the finishing step of a successful round, and return why it failed.
 
-        A finisher that raises fails the round, and the feed says why too. An
-        interrupted round is not finished.
+        A finishing step that raises fails the round, and the feed says why too.
+        An interrupted round is not finished.
         """
         if self.finish_round is None or status != 0 or self.forced_ending is not None:
             return None

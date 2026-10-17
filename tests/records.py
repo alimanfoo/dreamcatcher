@@ -197,7 +197,7 @@ def write_round(
     """Write the record of one round of the work at this directory, and its input.
 
     A successful round given a merged or closed pull request also completes its
-    assignment, as the round's finisher records before its ending.
+    assignment, as the round's finishing step records before its ending.
     """
     paths = _round_paths(directory=directory, number=number)
     if round_input is not None:
