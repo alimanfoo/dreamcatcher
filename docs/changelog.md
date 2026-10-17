@@ -45,6 +45,10 @@ each entry links the pull request or commit that made the change.
   in place of out of date.
   ([#588](https://github.com/alimanfoo/dreamcatcher/pull/588))
 
+- `dreamcatcher --help` lists its commands under "commands", where it said
+  "verbs", and a bare `dreamcatcher` asks for a command.
+  ([#591](https://github.com/alimanfoo/dreamcatcher/pull/591))
+
 ### Fixed
 
 - An assignment's pull request chip keeps showing whether the pull request is
