@@ -91,9 +91,9 @@ The next tick lists the issues under each route and finds a request: issue 20,
 start-time questions through GitHub: does an open pull request already claim
 issue 20, and does an open issue block it? Neither, so the request is a
 candidate to start. There is capacity, so the tick writes the assignment's
-record, `work/GH20-20261017-091500/work.json`, naming the issue, the label, the
-kind, the title, and the harness settings the route's recipe gives. From this
-moment the assignment exists, and the label no longer matters to it.
+record, `work/GH20-20261017-091500-assignment/work.json`, naming the issue, the
+label, the kind, the title, and the harness settings the route's recipe gives.
+From this moment the assignment exists, and the label no longer matters to it.
 
 The tick then starts round one. It writes `rounds/1/round.json` with the number
 and start time and no process id, because nothing has been spawned yet. Round
@@ -112,9 +112,9 @@ request once, asking for its state, draft flag, mergeable state, head commit and
 checks, and reads its posts. The cursor says no posts have been delivered and no
 signal has been relayed. The pull request is ready, mergeable, green and has no
 posts from you, so nothing is past the cursor. The row for this request in
-`scheduler.json` says: live work `GH20-...`, pull request #88, ready, nothing
-new. The home page shows the assignment as idle, "ready for review", reading the
-pull request's state from the row.
+`scheduler.json` says: live work `GH20-...-assignment`, pull request #88, ready,
+nothing new. The home page shows the assignment as idle, "ready for review",
+reading the pull request's state from the row.
 
 You review and request changes. Next tick, the posts read returns your review,
 which is after the cursor. That is a signal. The tick starts round two: its
@@ -387,12 +387,16 @@ work/<identifier>/
 worktrees/<identifier>/
 ```
 
-The identifier is `GH<n>-<timestamp>` for both kinds, as assignments use today.
-Two collections replace four, one record name replaces two, and `cancel.json` is
-absorbed into `ended.json`. Nothing under `rounds/` changes except that
-`round.json` loses its purpose and recovery fields and its process id becomes
-absent until the harness is spawned, and `round-input.json` for an assignment
-gains the head commit and the relayed signals.
+The identifier is `GH<n>-<timestamp>-<kind>` for both kinds, as in
+`GH20-20261017-091500-assignment` or `GH15-20261017-093000-conversation`. The
+kind is in the name for the person reading a directory listing, a daemon line or
+a web address, and the record says it too, as the issue number is in both today;
+nothing cross-checks them. The assignment's branch carries the same name after
+its prefix. Two collections replace four, one record name replaces two, and
+`cancel.json` is absorbed into `ended.json`. Nothing under `rounds/` changes
+except that `round.json` loses its purpose and recovery fields and its process
+id becomes absent until the harness is spawned, and `round-input.json` for an
+assignment gains the head commit and the relayed signals.
 
 The purpose of a round, implement, address feedback, wrap up or discuss, and
 whether it followed a round that did not finish, are worked out where they are
