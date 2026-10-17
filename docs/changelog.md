@@ -42,9 +42,10 @@ each entry links the pull request or commit that made the change.
 - Once an assignment's pull request is ready for review, _dreamcatcher_ wakes
   the agent without a post from you when the base branch leaves the pull request
   behind it or in conflict with it, and when a check fails. Each is relayed once
-  for each commit at the head of the pull request, a draft gets neither, and
-  after two attempts in a row at failing checks the agent waits for a post from
-  you. ([#571](https://github.com/alimanfoo/dreamcatcher/pull/571))
+  for each commit at the head of the pull request, and a draft gets neither.
+  After two rounds in a row woken by failing checks, a failing check does not
+  wake the agent again until a round has something else to relay, such as a post
+  from you. ([#571](https://github.com/alimanfoo/dreamcatcher/pull/571))
 - The views show an assignment's merge state and check result beside draft or
   ready, and an idle assignment says when its checks are running or still
   failing after two attempts.
@@ -86,8 +87,9 @@ each entry links the pull request or commit that made the change.
 - Every assignment and conversation has an identifier that ends in its kind,
   such as `GH12-20261017-093000-assignment`, and an assignment's branch is named
   after it, such as `dreamcatcher-GH12-20261017-093000-assignment`. The
-  `conversation`, `feed`, `stop` and `retry` commands select the newest
-  conversation at the issue.
+  `conversation` command, and `feed` and `stop` with `--conversation`, select
+  the newest conversation at the issue, and `retry` clears the faults of the
+  newest assignment and the newest conversation.
   ([#561](https://github.com/alimanfoo/dreamcatcher/pull/561))
 - The web page of an assignment or a conversation is at `/work/<identifier>`.
   The `/assignments/<identifier>` and `/conversations/<issue>` addresses are

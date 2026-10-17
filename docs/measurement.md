@@ -26,7 +26,7 @@ Measured on 2026-10-17 at `64ae1b4`, with the v6.0.0 release preparation.
 | K3 Tracker is current                  | 47 issues reviewed; 5 to close, 20 to rewrite  | short  |       |
 | K4 Every change reviewed to standard   | 17 pull requests answered; 3 name no issue     | short  |       |
 | E1 Rules, not cases                    | 9 ledgered, all external; 0 unledgered         | met    |       |
-| E2 Invariants by construction          | 54 optional fields, 0 coupled sets             | met    |       |
+| E2 Invariants by construction          | 54 optional fields, 1 coupled set              | short  |       |
 | E3 Concept economy                     | 22 concepts; 2 added, 2 removed                | met    |       |
 | E4 Symmetry                            | 14 parallel operations; 1 uneven pair          | short  |       |
 
@@ -46,10 +46,13 @@ Measured on 2026-10-17 at `64ae1b4`, with the v6.0.0 release preparation.
 - **K4.** #536 and #540 prepared v5.6.1 and v5.6.2, and #541 limited the CI
   token. None names an issue or a spec, and the standard still does not say
   whether a change may serve neither.
-- **E4.** The commands and the terminal show every assignment at an issue but
-  only the newest conversation. An issue can now hold several conversations, one
-  for each conversation label, so an older or other-label conversation cannot be
-  shown.
+- **E2.** An errored round ending's exit status and reason are both optional,
+  and a validator requires one of them, where two ending types, one with each,
+  would make the empty case unrepresentable.
+- **E4.** The terminal's detail commands list the older assignments at an issue
+  but select only the newest conversation. An issue can now hold several
+  conversations, one for each conversation label, so an older or other-label
+  conversation has no detail view or feed command there.
 
 An issue is filed for each shortfall that names none when #573 merges.
 
@@ -60,8 +63,8 @@ An issue is filed for each shortfall that names none when #573 merges.
   shares the web controls between the two kinds of agent work, #544 derives
   status classes from status values, #530 bounds K4 to the pull requests since
   the last major or minor release, and #536 and #540 prepared v5.6.1 and v5.6.2.
-  #552 and the five stages #561, #562, #565, #568 and #571 move the state format
-  to 6, under the state format 6 phase. #573 prepares v6.0.0.
+  #552 specified the state format 6 phase, and its five stages #561, #562, #565,
+  #568 and #571 move the state format to 6. #573 prepares v6.0.0.
 - **S1, S2.** The largest modules are `github.py` (792 lines), `agent_rounds.py`
   (705) and `tui/views.py` (532). `github.py` grew by 89 lines, as the pull
   request read took on the merge state, the head commit and the checks, and it
@@ -111,8 +114,7 @@ An issue is filed for each shortfall that names none when #573 merges.
   rule, and the request rows carry numbers as data. All 9 ledger entries remain
   in the code.
 - **E2.** The count fell from 61 to 54. The errored round ending's exit status
-  became optional, and a validator requires it or a reason, which a type split
-  could carry instead.
+  became optional when a round could error before its harness ran.
 - **E3.** The phase added the channel and cursor and the signal, and removed the
   round purpose and the recovery round, keeping the ontology at 22 concepts.
 - **E4.** The phase merged creation, retry, the harness session, the status
