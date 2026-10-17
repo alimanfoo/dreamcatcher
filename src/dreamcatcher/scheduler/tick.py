@@ -1,7 +1,7 @@
 """Run one scheduler tick over both kinds of agent work."""
 
 from collections.abc import Iterator, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime
 from functools import partial
 
@@ -41,7 +41,6 @@ from dreamcatcher.scheduler.inspection import (
     Inspection,
     RequestInspector,
     SchedulingContext,
-    compose_open_work_row,
 )
 from dreamcatcher.scheduler.models import (
     DEFAULT_MAX_AGENTS,
@@ -168,23 +167,27 @@ class Scheduler:
     ) -> Inspection:
         """Inspect one piece of open work through its kind's channel.
 
-        Nothing is read for work whose round is running, since it can start no
-        round.
+        A running round prevents another round from starting, but its channel
+        is still read so that the request row stays current.
         """
-        if work.rounds and work.rounds[-1].ending is None:
-            return Inspection(row=compose_open_work_row(work=work, finding=None))
         is_fault = derive_agent_work_fault(
             rounds=work.rounds,
             retry_requested_at=work.retry_requested_at,
             most_recent_cooldown_ended=most_recent_cooldown_ended,
         )
         if work.record.kind is AgentWorkKind.ASSIGNMENT:
-            return inspect_open_assignment(
+            inspection = inspect_open_assignment(
                 context=self.context, assignment=work, is_fault=is_fault
             )
-        return inspect_open_conversation(
-            context=self.context, conversation=work, is_fault=is_fault
-        )
+        else:
+            inspection = inspect_open_conversation(
+                context=self.context,
+                conversation=work,
+                is_fault=is_fault,
+            )
+        if not work.is_round_running:
+            return inspection
+        return replace(inspection, candidate=None)
 
     def _inspect_requests(
         self, *, issues: list[Issue], open_work: list[AgentWork]

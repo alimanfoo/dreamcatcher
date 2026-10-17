@@ -120,6 +120,11 @@ class AgentWork:
         """Whether the work has not ended."""
         return self.ending is None
 
+    @property
+    def is_round_running(self) -> bool:
+        """Whether the latest round has no ending."""
+        return bool(self.rounds and self.rounds[-1].ending is None)
+
     def list_relayed_round_paths(self) -> list[AgentRoundPaths]:
         """Return the paths of the rounds whose input is relayed, newest first.
 
