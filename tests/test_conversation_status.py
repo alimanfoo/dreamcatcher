@@ -763,6 +763,7 @@ def end_conversation(*, state: StateDirectory, minutes: int = 10) -> None:
 def test_an_ended_conversation_reads_as_ended_with_its_reason(conversation_state):
     conversation_round(state=conversation_state)
     end_conversation(state=conversation_state)
+    observe(state=conversation_state, observations=[])
 
     found = status(state=conversation_state)
 
@@ -822,3 +823,14 @@ def test_a_section_of_ended_conversations_alone_gives_its_guidance(
             "comment to start a conversation."
         ),
     )
+
+
+def test_the_status_at_an_issue_is_its_current_conversation_over_an_ended_one(
+    conversation_state,
+):
+    end_conversation(state=conversation_state)
+
+    found = status(state=conversation_state)
+
+    assert found.conversation is None
+    assert found.value is ConversationStatusValue.IDLE

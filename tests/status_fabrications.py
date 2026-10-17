@@ -8,7 +8,6 @@ from conftest import ASSIGNMENT_LABEL, DAEMON_PID, REPOSITORY
 from observations import observed_conversation, observed_issue
 from records import (
     hold_daemon_lock_for_test,
-    read_assignments_for_issue,
     release_daemon_lock,
     write_assignment,
     write_conversation,
@@ -29,10 +28,11 @@ from dreamcatcher.agent_rounds import (
     ConversationRoundPurpose,
     _compose_agent_round_ending,
 )
+from dreamcatcher.agent_work import read_agent_work_at_issue
 from dreamcatcher.documents import write_json, write_text
 from dreamcatcher.feed import FeedLine
 from dreamcatcher.github import PullRequestState
-from dreamcatcher.harness_adapters import HarnessSessionIdentifier
+from dreamcatcher.harness_adapters import AgentWorkKind, HarnessSessionIdentifier
 from dreamcatcher.issue_conversations import (
     ConversationRoundInput,
     InitialConversationIssue,
@@ -280,7 +280,9 @@ def fabricate_everything(
     written(state=state, issue=44, records=[])
     written(state=state, issue=70, records=[ended(minute=1)])
     cancel_assignment(
-        assignment=read_assignments_for_issue(state=state, issue=70)[0],
+        assignment=read_agent_work_at_issue(
+            state=state, issue=70, kind=AgentWorkKind.ASSIGNMENT
+        )[0],
         at=PINNED + timedelta(minutes=10),
     )
     write_tick(

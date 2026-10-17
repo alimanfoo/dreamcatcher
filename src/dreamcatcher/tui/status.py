@@ -180,11 +180,7 @@ def _render_assignment_rows(
 def _render_conversations(
     *, report: DreamcatcherStatusReport, section: AgentWorkStatusSection | None
 ) -> RenderableType | None:
-    """Render conversation work as one section, mirroring the web home view.
-
-    Orders current conversations, any guidance, and the ended-conversation count
-    in that sequence.
-    """
+    """Render conversation work as one section, as the web home view does."""
     if section is None:
         return None
     rows: list[RenderableType] = []

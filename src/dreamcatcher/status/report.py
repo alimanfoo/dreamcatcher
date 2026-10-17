@@ -537,12 +537,13 @@ def read_conversation_status(
     daemon: DreamcatcherDaemonStatus,
     clock: Callable[[], datetime] = read_current_time,
 ) -> ConversationStatus | None:
-    """Read the status of the newest issue conversation at an issue.
+    """Read the status of the current or newest issue conversation at an issue.
 
     An issue has a conversation once it has a saved conversation or the latest
-    tick observed it through a configured conversation route. The caller reads
-    the daemon status, so a view that also shows it shows the same answer that
-    its round statuses came from.
+    tick observed it through a configured conversation route. A current
+    conversation is chosen over an ended one. The caller reads the daemon
+    status, so a view that also shows it shows the same answer that its round
+    statuses came from.
     """
     conversation = find_newest_agent_work(
         state=state, issue=issue, kind=AgentWorkKind.CONVERSATION
@@ -555,4 +556,8 @@ def read_conversation_status(
         scheduler_record=scheduler_record,
         conversations=[] if conversation is None else [conversation],
     ).list_statuses()
-    return next((status for status in statuses if status.issue == issue), None)
+    at_issue = sorted(
+        (status for status in statuses if status.issue == issue),
+        key=lambda status: status.has_ended,
+    )
+    return at_issue[0] if at_issue else None

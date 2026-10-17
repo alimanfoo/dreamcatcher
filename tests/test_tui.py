@@ -16,7 +16,6 @@ from clocks import DISPLAY_TIME_ZONE, PINNED
 from conftest import DAEMON_PID, FIXTURES, assert_matches_view_golden
 from records import (
     SCOUT_ROUTES,
-    read_assignments_for_issue,
     write_daemon_run,
     write_feed,
     write_round,
@@ -47,6 +46,7 @@ from dreamcatcher.agent_assignments import (
 from dreamcatcher.agent_rounds import (
     AssignmentRoundPurpose,
 )
+from dreamcatcher.agent_work import read_agent_work_at_issue
 from dreamcatcher.documents import append_text, write_text
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import FeedLine
@@ -235,7 +235,10 @@ def test_only_ended_assignments_are_summarized(tmp_path):
     written(state=state, issue=12, records=[completed_round])
     written(state=state, issue=13, records=[ended(minute=1)])
     cancel_assignment(
-        assignment=read_assignments_for_issue(state=state, issue=13)[0], at=PINNED
+        assignment=read_agent_work_at_issue(
+            state=state, issue=13, kind=AgentWorkKind.ASSIGNMENT
+        )[0],
+        at=PINNED,
     )
 
     rendered = render_status_view(state=state)

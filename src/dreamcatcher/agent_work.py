@@ -8,6 +8,7 @@ and each write replaces that file whole without merging into what was there. So
 writers in different processes or threads never erase each other's facts.
 """
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import StrEnum
@@ -27,6 +28,7 @@ from dreamcatcher.documents import (
     read_json,
     read_json_if_exists,
     write_json,
+    write_json_once,
 )
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.harness_adapters import (
@@ -181,24 +183,26 @@ def read_agent_work(*, state: StateDirectory) -> list[AgentWork]:
     process that reads the same one again reads only the records that can have
     changed since.
     """
-    if not state.work.is_dir():
-        return []
-    return [
-        _read_agent_work(state=state, directory=directory)
-        for directory in sorted(state.work.iterdir())
-        if (directory / _WORK_RECORD_NAME).is_file()
-    ]
+    return _read_selected_agent_work(state=state, is_selected=lambda record: True)
+
+
+def read_agent_work_of_kind(
+    *, state: StateDirectory, kind: AgentWorkKind
+) -> list[AgentWork]:
+    """Return the agent work of one kind, ordered by identifier."""
+    return _read_selected_agent_work(
+        state=state, is_selected=lambda record: record.kind is kind
+    )
 
 
 def read_agent_work_at_issue(
     *, state: StateDirectory, issue: int, kind: AgentWorkKind
 ) -> list[AgentWork]:
     """Return the agent work of one kind at the issue, oldest first."""
-    return [
-        work
-        for work in read_agent_work(state=state)
-        if work.record.issue == issue and work.record.kind is kind
-    ]
+    return _read_selected_agent_work(
+        state=state,
+        is_selected=lambda record: record.issue == issue and record.kind is kind,
+    )
 
 
 def find_newest_agent_work(
@@ -215,22 +219,58 @@ def find_agent_work(*, state: StateDirectory, identifier: str) -> AgentWork | No
     Only that work's own files are read, so another piece of work that cannot be
     read does not hide this one.
     """
-    if not state.work.is_dir():
+    if not is_agent_work_recorded(state=state, identifier=identifier):
         return None
-    directory = next(
-        (path for path in state.work.iterdir() if path.name == identifier), None
+    directory = state.work / identifier
+    return _read_agent_work(
+        state=state,
+        directory=directory,
+        record=read_json(model=AgentWorkRecord, path=directory / _WORK_RECORD_NAME),
     )
-    if directory is None or not (directory / _WORK_RECORD_NAME).is_file():
-        return None
-    return _read_agent_work(state=state, directory=directory)
 
 
-def _read_agent_work(*, state: StateDirectory, directory: Path) -> AgentWork:
-    """Return the agent work whose own files sit in this directory."""
+def is_agent_work_recorded(*, state: StateDirectory, identifier: str) -> bool:
+    """Return whether agent work with this exact identifier has its record.
+
+    The identifier must name a directory under `work/` exactly, so a name that
+    reaches elsewhere finds nothing.
+    """
+    return state.work.is_dir() and any(
+        directory.name == identifier and (directory / _WORK_RECORD_NAME).is_file()
+        for directory in state.work.iterdir()
+    )
+
+
+def _read_selected_agent_work(
+    *, state: StateDirectory, is_selected: Callable[[AgentWorkRecord], bool]
+) -> list[AgentWork]:
+    """Return the agent work whose record is selected, ordered by identifier.
+
+    Each record is read first, so work that is not selected costs one read.
+    """
+    if not state.work.is_dir():
+        return []
+    selected = []
+    for directory in sorted(state.work.iterdir()):
+        path = directory / _WORK_RECORD_NAME
+        if not path.is_file():
+            continue
+        record = read_json(model=AgentWorkRecord, path=path)
+        if is_selected(record):
+            selected.append(
+                _read_agent_work(state=state, directory=directory, record=record)
+            )
+    return selected
+
+
+def _read_agent_work(
+    *, state: StateDirectory, directory: Path, record: AgentWorkRecord
+) -> AgentWork:
+    """Return the agent work whose record is read and whose files are here."""
     return AgentWork(
         directory=directory,
         worktree=state.worktrees / directory.name,
-        record=read_json(model=AgentWorkRecord, path=directory / _WORK_RECORD_NAME),
+        record=record,
         harness_session_identifier=read_harness_session_identifier(directory=directory),
         retry_requested_at=read_retry_requested_at(directory=directory),
         ending=_read_agent_work_ending(directory=directory),
@@ -320,9 +360,14 @@ def stop_round_if_ended(*, work: AgentWork, paths: AgentRoundPaths) -> None:
 
 def end_agent_work(
     *, work: AgentWork, reason: AgentWorkEndReason, at: datetime
-) -> None:
-    """Record that the agent work ended, and why."""
-    write_json(
+) -> bool:
+    """Record that the agent work ended, and why, unless an ending is recorded.
+
+    Return whether this call recorded the ending. Work ends once, so of endings
+    recorded at the same moment, such as a cancel and a completion, the first to
+    land is the one that stands.
+    """
+    return write_json_once(
         document=AgentWorkEnding(at=at, reason=reason),
         path=work.directory / _ENDING_RECORD_NAME,
     )

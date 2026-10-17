@@ -61,7 +61,7 @@ def test_home_lists_a_conversation_and_links_to_its_page(tmp_path):
     )
     assert 'class="assignment-card' in page
     assert '<h1 id="conversations-heading">Conversations</h1>' in page
-    assert 'id="conversation-GH8"' in page
+    assert 'id="conversation-GH8-20260819-184158-conversation"' in page
     conversation_link = (
         'class="assignment-open" href="/work/GH8-20260819-184158-conversation" '
         'target="_blank" '
@@ -717,10 +717,10 @@ def test_home_lists_conversations_in_attention_order(tmp_path):
     page = application(state=state).test_client().get("/").text
 
     assert (
-        page.index('id="conversation-GH11"')
+        page.index('id="conversation-GH11-20260819-184158-conversation"')
         < page.index('id="conversation-GH10"')
         < page.index('id="conversation-GH12"')
-        < page.index('id="conversation-GH8"')
+        < page.index('id="conversation-GH8-20260819-184158-conversation"')
         < page.index('id="conversation-GH9"')
     )
     assert "status-working" in page
@@ -743,5 +743,5 @@ def test_home_collapses_an_ended_conversation(tmp_path):
     conversations = page[page.index('id="conversations-heading"') :]
     ended = conversations[conversations.index('<details class="ended-work">') :]
     assert "<summary>+ 1 ended</summary>" in ended
-    assert 'id="conversation-GH8"' in ended
+    assert 'id="conversation-GH8-20260819-184158-conversation"' in ended
     assert '<span class="chip status-ended">ended</span>' in ended

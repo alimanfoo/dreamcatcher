@@ -125,6 +125,28 @@ def test_a_conversation_gets_a_detached_worktree_at_fetched_main(cloned):
     assert read_agent_work(state=state) == [created]
 
 
+def test_a_conversation_whose_record_cannot_be_written_leaves_no_worktree(
+    cloned, monkeypatch
+):
+    state = StateDirectory(root=cloned)
+
+    def fail_record_write(*, document, path):
+        raise ReportableError(f"cannot write the record at {path}")
+
+    monkeypatch.setattr("dreamcatcher.agent_work.write_json", fail_record_write)
+
+    with pytest.raises(ReportableError, match="cannot write the record"):
+        create_conversation(
+            state=state,
+            route=conversation_route(),
+            preferred_harness=AgentHarness.CLAUDE,
+            issue=issue(),
+            at=PINNED,
+        )
+
+    assert not (state.worktrees / "GH8-20260819-184158-conversation").exists()
+
+
 def test_a_new_conversation_records_the_preferred_harness_recipe(cloned):
     state = StateDirectory(root=cloned)
     route = ConversationRoute(

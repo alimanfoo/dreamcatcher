@@ -1,5 +1,6 @@
 """Persist issue conversations and prepare their trusted input."""
 
+from contextlib import suppress
 from datetime import datetime
 
 from pydantic import Field
@@ -11,6 +12,7 @@ from dreamcatcher.agent_work import (
     compose_agent_work_identifier,
     record_agent_work,
 )
+from dreamcatcher.commands import CommandError
 from dreamcatcher.config import AgentHarness, ConversationRoute
 from dreamcatcher.documents import DreamcatcherDocument, read_json
 from dreamcatcher.errors import ReportableError
@@ -18,6 +20,7 @@ from dreamcatcher.git import (
     add_detached_worktree,
     fetch_main,
     refresh_detached_worktree,
+    remove_worktree,
 )
 from dreamcatcher.github import (
     ConversationComment,
@@ -78,7 +81,8 @@ def create_conversation(
     """Create one conversation at the issue with no rounds run yet.
 
     The worktree starts at fetched main, and preparing the first round's input
-    resets it to fetched main again.
+    resets it to fetched main again. A record that cannot be written takes the
+    worktree with it, since a later attempt has an identifier of its own.
     """
     selected_harness = route.choose_harness(preferred_harness=preferred_harness)
     recipe = route.recipes[selected_harness]
@@ -97,8 +101,14 @@ def create_conversation(
         issue=issue.number, kind=AgentWorkKind.CONVERSATION, at=at
     )
     fetch_main(root=state.root)
-    add_detached_worktree(root=state.root, path=state.worktrees / identifier)
-    return record_agent_work(state=state, identifier=identifier, record=record)
+    worktree = state.worktrees / identifier
+    add_detached_worktree(root=state.root, path=worktree)
+    try:
+        return record_agent_work(state=state, identifier=identifier, record=record)
+    except ReportableError:
+        with suppress(CommandError):
+            remove_worktree(root=state.root, path=worktree)
+        raise
 
 
 def list_undelivered_issue_comments(

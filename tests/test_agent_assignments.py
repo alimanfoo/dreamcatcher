@@ -16,7 +16,6 @@ from conftest import (
 )
 from records import (
     read_assignments,
-    read_assignments_for_issue,
     write_assignment,
     write_round,
 )
@@ -45,6 +44,7 @@ from dreamcatcher.agent_work import (
     AgentWorkEnding,
     AgentWorkEndReason,
     AgentWorkRecord,
+    read_agent_work_at_issue,
     record_harness_session_identifier,
     request_agent_work_retry,
 )
@@ -58,6 +58,7 @@ from dreamcatcher.documents import write_json
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.git import add_worktree, fetch_main, make_empty_commit, push_branch
 from dreamcatcher.github import ConversationComment, PullRequest, PullRequestState
+from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.state import StateDirectory
 
 ASSIGNMENT_ID = "GH12-20260819-184158-assignment"
@@ -297,7 +298,9 @@ def test_assignments_at_one_issue_are_read_behind_the_assignment_boundary(fabric
         state=fabricated, identifier="GH12-20260820-090000-assignment", issue=12
     )
 
-    assignments = read_assignments_for_issue(state=fabricated, issue=12)
+    assignments = read_agent_work_at_issue(
+        state=fabricated, issue=12, kind=AgentWorkKind.ASSIGNMENT
+    )
 
     assert [assignment.identifier for assignment in assignments] == [
         "GH12-20260818-090000-assignment",
@@ -386,6 +389,33 @@ def test_completing_an_assignment_records_its_ending(fabricated):
         at=PINNED, reason=AgentWorkEndReason.COMPLETED
     )
     assert not completed.is_open
+
+
+def test_a_completion_after_a_cancel_leaves_the_assignment_cancelled(fabricated):
+    assignment = standing(state=fabricated, rounds=[ended(status=0)])
+    cancel_assignment(assignment=assignment, at=PINNED)
+
+    complete_assignment(
+        assignment=assignment,
+        clock=lambda: PINNED + timedelta(minutes=1),
+        final_output=None,
+    )
+
+    assert read_assignments(state=fabricated)[0].ending == AgentWorkEnding(
+        at=PINNED, reason=AgentWorkEndReason.CANCELLED
+    )
+
+
+def test_a_cancel_after_a_completion_it_did_not_see_is_refused(fabricated):
+    assignment = standing(state=fabricated, rounds=[ended(status=0)])
+    complete_assignment(assignment=assignment, clock=lambda: PINNED, final_output=None)
+
+    with pytest.raises(ReportableError, match="has already ended"):
+        cancel_assignment(assignment=assignment, at=PINNED + timedelta(minutes=1))
+
+    assert read_assignments(state=fabricated)[0].ending == AgentWorkEnding(
+        at=PINNED, reason=AgentWorkEndReason.COMPLETED
+    )
 
 
 def test_a_cancelled_assignment_records_when_and_is_no_longer_open(fabricated):

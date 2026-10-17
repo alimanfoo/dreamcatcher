@@ -25,7 +25,7 @@ from dreamcatcher.agent_rounds import (
 )
 from dreamcatcher.agent_work import (
     AgentWork,
-    read_agent_work,
+    read_agent_work_of_kind,
     record_harness_session_identifier,
     stop_round_if_ended,
 )
@@ -120,11 +120,9 @@ class AssignmentScheduler(
         self, *, previous_record: SchedulerRecord | None, at: datetime
     ) -> AssignmentInspection:
         """Inspect all assignment work and return one ranked bundle."""
-        assignments = [
-            work
-            for work in read_agent_work(state=self.state)
-            if work.record.kind is AgentWorkKind.ASSIGNMENT
-        ]
+        assignments = read_agent_work_of_kind(
+            state=self.state, kind=AgentWorkKind.ASSIGNMENT
+        )
         issue_result = observe_issues(
             scheduler=self,
             assignments=assignments,

@@ -615,8 +615,8 @@ def test_status_counts_an_ended_conversation(tmp_path):
     assert "answered" not in shown
 
 
-def test_a_view_of_an_ended_conversation_still_listed_never_waits(tmp_path):
-    state = conversation_state(root=tmp_path, is_eligible=True)
+def test_a_view_of_an_ended_conversation_never_waits(tmp_path):
+    state = conversation_state(root=tmp_path)
     end_conversation(state=state)
     console, written = watched_console()
 

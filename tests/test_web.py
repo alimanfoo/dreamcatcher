@@ -18,7 +18,6 @@ from observations import observed_conversation, observed_issue
 from records import (
     SCOUT_ROUTES,
     SMITH_ROUTES,
-    read_assignments_for_issue,
     release_daemon_lock,
     write_assignment,
     write_daemon_run,
@@ -52,7 +51,12 @@ from dreamcatcher.agent_rounds import (
     AssignmentRoundPurpose,
     StoppedAgentRoundEnding,
 )
-from dreamcatcher.agent_work import AgentWorkEnding, AgentWorkEndReason, find_agent_work
+from dreamcatcher.agent_work import (
+    AgentWorkEnding,
+    AgentWorkEndReason,
+    find_agent_work,
+    read_agent_work_at_issue,
+)
 from dreamcatcher.daemon_runs import RoutedLabel
 from dreamcatcher.documents import append_text, write_text
 from dreamcatcher.errors import ReportableError
@@ -700,7 +704,9 @@ def test_status_classes_do_not_depend_on_status_wording(tmp_path, monkeypatch):
     conversation_page = render_conversation(state=state, issue=8)
     card_start = home.index('<article id="assignment-GH20-20260819-184158-assignment"')
     card = home[card_start : home.index("</article>", card_start)]
-    conversation_start = home.index('<article id="conversation-GH8"')
+    conversation_start = home.index(
+        '<article id="conversation-GH8-20260819-184158-conversation"'
+    )
     conversation_card = home[
         conversation_start : home.index("</article>", conversation_start)
     ]
@@ -846,7 +852,9 @@ def test_ended_assignments_are_ordered_by_when_they_ended(tmp_path):
     )
     written(state=state, issue=30, records=[ended(minute=1)])
     cancel_assignment(
-        assignment=read_assignments_for_issue(state=state, issue=30)[0],
+        assignment=read_agent_work_at_issue(
+            state=state, issue=30, kind=AgentWorkKind.ASSIGNMENT
+        )[0],
         at=PINNED + timedelta(minutes=10),
     )
 

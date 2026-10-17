@@ -7,7 +7,6 @@ from clocks import PINNED
 from conftest import configure
 from records import (
     hold_daemon_lock_for_test,
-    read_assignments_for_issue,
     read_conversation,
     write_assignment,
     write_conversation,
@@ -22,7 +21,7 @@ from dreamcatcher.agent_rounds import (
     ConversationRoundPurpose,
     _compose_agent_round_ending,
 )
-from dreamcatcher.agent_work import request_agent_work_retry
+from dreamcatcher.agent_work import read_agent_work_at_issue, request_agent_work_retry
 from dreamcatcher.cli import _MAX_INTERVAL_SECONDS, main
 from dreamcatcher.config import AgentHarness
 from dreamcatcher.daemon import DreamcatcherDaemon
@@ -223,7 +222,9 @@ def test_retry_clears_the_newest_assignments_fault(monkeypatch, faulted, capsys)
 
     assert main(argv=["retry", "GH13"]) == 0
 
-    assignment = read_assignments_for_issue(state=faulted, issue=13)[-1]
+    assignment = read_agent_work_at_issue(
+        state=faulted, issue=13, kind=AgentWorkKind.ASSIGNMENT
+    )[-1]
     assert assignment.retry_requested_at == requested
     assert not derive_agent_work_fault(
         rounds=assignment.rounds,
@@ -262,7 +263,9 @@ def test_retry_clears_assignment_and_conversation_faults(monkeypatch, faulted, c
 
     assert main(argv=["retry", "GH13"]) == 0
 
-    assignment = read_assignments_for_issue(state=faulted, issue=13)[-1]
+    assignment = read_agent_work_at_issue(
+        state=faulted, issue=13, kind=AgentWorkKind.ASSIGNMENT
+    )[-1]
     conversation = read_conversation(state=faulted, issue=13)
     assert conversation is not None
     assert assignment.retry_requested_at == requested
@@ -291,7 +294,9 @@ def test_retry_reports_when_only_the_assignment_retry_was_saved(
 
     assert main(argv=["retry", "GH13"]) == 1
 
-    assignment = read_assignments_for_issue(state=faulted, issue=13)[-1]
+    assignment = read_agent_work_at_issue(
+        state=faulted, issue=13, kind=AgentWorkKind.ASSIGNMENT
+    )[-1]
     conversation = read_conversation(state=faulted, issue=13)
     assert conversation is not None
     assert assignment.retry_requested_at == requested
@@ -321,7 +326,9 @@ def test_retry_refuses_a_fault_an_elapsed_cooldown_cleared(
 
     assert main(argv=["retry", "GH13"]) == 1
 
-    assignment = read_assignments_for_issue(state=faulted, issue=13)[-1]
+    assignment = read_agent_work_at_issue(
+        state=faulted, issue=13, kind=AgentWorkKind.ASSIGNMENT
+    )[-1]
     assert assignment.retry_requested_at is None
     assert "no agent work in fault" in capsys.readouterr().err
 
@@ -350,7 +357,9 @@ def test_stop_requests_the_newest_assignments_running_round(
 
     assert main(argv=["stop", "GH13", "--assignment"]) == 0
 
-    assignment = read_assignments_for_issue(state=watching, issue=13)[-1]
+    assignment = read_agent_work_at_issue(
+        state=watching, issue=13, kind=AgentWorkKind.ASSIGNMENT
+    )[-1]
     paths = assignment.compose_round_paths(number=1)
     assert paths.stop_request.read_text(encoding="utf-8") == ""
     assert "newest assignment round 1 at GH13" in capsys.readouterr().out
@@ -391,7 +400,9 @@ def test_cancel_ends_the_newest_assignment_and_stops_its_running_round(
 
     assert main(argv=["cancel", "GH13"]) == 0
 
-    assignment = read_assignments_for_issue(state=watching, issue=13)[-1]
+    assignment = read_agent_work_at_issue(
+        state=watching, issue=13, kind=AgentWorkKind.ASSIGNMENT
+    )[-1]
     assert not assignment.is_open
     assert assignment.compose_round_paths(number=1).stop_request.is_file()
     assert capsys.readouterr().out == (
@@ -407,7 +418,9 @@ def test_cancel_leaves_older_assignments_at_the_issue_alone(monkeypatch, watchin
 
     assert main(argv=["cancel", "GH13"]) == 0
 
-    older, newest = read_assignments_for_issue(state=watching, issue=13)
+    older, newest = read_agent_work_at_issue(
+        state=watching, issue=13, kind=AgentWorkKind.ASSIGNMENT
+    )
     assert older.is_open
     assert newest.identifier == ASSIGNMENT_ID
     assert not newest.is_open
@@ -473,7 +486,9 @@ def test_stop_refuses_a_round_without_a_resumable_session(
 
     assert main(argv=["stop", "GH13", "--assignment"]) == 1
 
-    assignment = read_assignments_for_issue(state=state, issue=13)[-1]
+    assignment = read_agent_work_at_issue(
+        state=state, issue=13, kind=AgentWorkKind.ASSIGNMENT
+    )[-1]
     paths = assignment.compose_round_paths(number=1)
     assert not paths.stop_request.exists()
     assert "has no running round that can be stopped" in capsys.readouterr().err

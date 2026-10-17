@@ -30,7 +30,8 @@ from dreamcatcher.agent_work import (
     AgentWorkRecord,
     compose_agent_work_identifier,
     end_agent_work,
-    read_agent_work,
+    is_agent_work_recorded,
+    read_agent_work_of_kind,
     record_agent_work,
 )
 from dreamcatcher.commands import CommandError
@@ -81,8 +82,9 @@ class AssignmentRoundInput(DreamcatcherDocument):
 class PullRequestObservation(DreamcatcherDocument):
     """Model the assignment's pull request and the latest state observed of it.
 
-    The number never changes. Scheduling reads the pull request's state from
-    GitHub, not from this observation, which keeps it for reporting.
+    Creation records the number, and the scheduler reads that pull request by
+    it. Scheduling reads the pull request's state from GitHub, not from this
+    observation, which keeps it for reporting.
     """
 
     number: int
@@ -129,9 +131,8 @@ def cancel_assignment(*, assignment: AgentWork, at: datetime) -> None:
     ending through stop_round_if_ended. An assignment that has already ended
     raises ReportableError.
     """
-    if not assignment.is_open:
+    if not end_agent_work(work=assignment, reason=AgentWorkEndReason.CANCELLED, at=at):
         raise ReportableError(f"{assignment.identifier} has already ended.")
-    end_agent_work(work=assignment, reason=AgentWorkEndReason.CANCELLED, at=at)
     rounds = read_agent_round_records(
         cache=DocumentCache(),
         directory=assignment.rounds_directory,
@@ -150,8 +151,8 @@ def complete_assignment(
 ) -> None:
     """Record that the assignment completed, as its wrap-up round finishes.
 
-    A round finisher receives the round's final output, which completion does
-    not need.
+    An assignment the user cancelled first stays cancelled. A round finisher
+    receives the round's final output, which completion does not need.
     """
     end_agent_work(work=assignment, reason=AgentWorkEndReason.COMPLETED, at=clock())
 
@@ -182,9 +183,10 @@ def _find_incomplete_assignment_identifiers(
 ) -> dict[int, list[str]]:
     """Return each issue's setup identifiers whose record is absent."""
     identifiers_by_issue: dict[int, list[str]] = {}
-    recorded = {work.identifier for work in read_agent_work(state=state)}
     for path in state.worktrees.glob(f"GH*-{AgentWorkKind.ASSIGNMENT}"):
-        if not is_linked_worktree(path=path) or path.name in recorded:
+        if not is_linked_worktree(path=path) or is_agent_work_recorded(
+            state=state, identifier=path.name
+        ):
             continue
         issue = int(path.name.split("-", maxsplit=1)[0].removeprefix("GH"))
         identifiers_by_issue.setdefault(issue, []).append(path.name)
@@ -245,11 +247,9 @@ class AssignmentCreator:
         assignment cannot receive another.
         """
         open_assignment = find_open_assignments_by_issue(
-            assignments=[
-                work
-                for work in read_agent_work(state=self.state)
-                if work.record.kind is AgentWorkKind.ASSIGNMENT
-            ]
+            assignments=read_agent_work_of_kind(
+                state=self.state, kind=AgentWorkKind.ASSIGNMENT
+            )
         ).get(issue)
         if open_assignment is not None:
             raise ReportableError(
