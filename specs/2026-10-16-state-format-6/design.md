@@ -117,15 +117,14 @@ agent does, and pushes head C. Round three's outcome is successful.
 
 Next tick, the checks at head C are still running. Nothing is past the cursor:
 no user post, no finished check that failed, and the pull request is mergeable
-again. The row says idle, "ready for review". A tick later the checks finish
-red. That is a **check-failure** signal at head C, which the cursor has never
-seen. Round four is woken for it, with the prompt saying the checks failed; the
-agent fixes the test and pushes head D. Had D come back red too, round five
-would have been woken for it in the same way, and had the agent's next head come
-back red as well, the relay rule, described below, would have withheld it rather
-than wake the agent a third time: the row would say idle, "checks failing after
-two attempts", and the next thing to wake the assignment would be a post from
-you.
+again. The row says idle, "checks running". A tick later the checks finish red.
+That is a **check-failure** signal at head C, which the cursor has never seen.
+Round four is woken for it, with the prompt saying the checks failed; the agent
+fixes the test and pushes head D. Had D come back red too, round five would have
+been woken for it in the same way, and had the agent's next head come back red
+as well, the relay rule, described below, would have withheld it rather than
+wake the agent a third time: the row would say idle, "checks failing after two
+attempts", and the next thing to wake the assignment would be a post from you.
 
 D is green. You merge. Next tick, reading the pull request says it is merged,
 and the cursor says no round has yet been given a merged or closed state. That
@@ -595,7 +594,9 @@ There is one status derivation for both kinds of agent work, in this order:
    or was interrupted, which includes a round with no outcome while no daemon
    runs; no round has run yet; or an assignment's pull request is not yet open.
 7. Idle, otherwise, with a detail from the row: ready for review, draft,
-   answered, or checks failing after two attempts.
+   answered, checks running, checks failing, checks failing after two attempts,
+   or out of date. Checks failing without the relay rule means the agent was
+   told of the failure at this head and pushed nothing.
 8. Unknown, when there is no scheduler record, or it holds no row for the work
    or read nothing for it.
 
