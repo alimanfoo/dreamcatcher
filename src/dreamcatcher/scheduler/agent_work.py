@@ -70,7 +70,7 @@ class AgentWorkScheduler[CandidateT, RankT](ABC):
 
     @abstractmethod
     def inspect(
-        self, *, previous_record: SchedulerRecord | None, at: datetime
+        self, *, previous_record: SchedulerRecord | None
     ) -> AgentWorkInspection[CandidateT]:
         """Inspect this kind of agent work."""
 

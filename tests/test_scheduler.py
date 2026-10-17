@@ -702,12 +702,7 @@ def test_an_assignment_with_an_open_pull_request_and_nothing_new_is_not_waiting(
     ]
     assert read_pull_request_observation(
         assignment=assignment
-    ) == PullRequestObservation(
-        number=52,
-        state=PullRequestState.OPEN,
-        is_draft=False,
-        observed_at=PINNED,
-    )
+    ) == PullRequestObservation(number=52)
 
 
 def test_an_assignment_that_has_run_no_round_at_all_gets_its_first(ready_repo):

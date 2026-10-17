@@ -124,10 +124,10 @@ class Scheduler:
         self._forget_ended_rounds()
         previous_record = read_scheduler_record(state=self.state, at=at)
         assignment_inspection = self.assignments.inspect(
-            previous_record=previous_record, at=at
+            previous_record=previous_record
         )
         conversation_inspection = self.conversations.inspect(
-            previous_record=previous_record, at=at
+            previous_record=previous_record
         )
         cooldown = start_cooldown_if_required(
             active=None if previous_record is None else previous_record.cooldown,

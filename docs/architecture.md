@@ -195,21 +195,21 @@ last-message output file on first and resumed invocations.
 `agent_assignments.py` owns the durable representation and lifecycle operations
 of an agent assignment. It should provide cohesive operations to:
 
-- create an assignment by writing its work record;
 - open the assignment's pull request, as the preparation of a round whose
   assignment has none;
 - name the assignment's branch from its identifier;
-- read and record its pull request observation;
-- read the user-post delivery position, and whether the final turn has been
-  taken, from recorded round inputs;
+- read its pull request observation;
+- read the user-post delivery position, the pull request state last relayed, and
+  whether the final turn has been taken, from recorded round inputs;
 - complete an assignment as its wrap-up round finishes; and
 - cancel an assignment.
 
 `agent_work.py` owns what both kinds of agent work share: the work record, the
-agent work identifier, and the one reader through which the scheduler, status,
-the commands and the views list agent work of either kind. It also records the
-facts that change later for both kinds: the harness session identifier, when the
-user retries work after resolving a fault, and when and why the work ended.
+agent work identifier, creating work of either kind from its dispatch route, and
+the one reader through which the scheduler, status, the commands and the views
+list agent work of either kind. It also records the facts that change later for
+both kinds: the harness session identifier, when the user retries work after
+resolving a fault, and when and why the work ended.
 
 Creating an assignment writes its work record and nothing else. The preparation
 step of a round whose assignment has no pull request observation coordinates
@@ -221,7 +221,8 @@ lower-level Git, GitHub and document operations. It:
    branch;
 4. adopts the pull request already on the branch, whatever its state, or opens a
    linked draft pull request; and
-5. writes the pull request observation.
+5. writes the pull request observation, which holds the pull request's number
+   and nothing else.
 
 Each step does nothing when its result already exists, and a worktree that
 cannot be added is removed with its branch. The assignment identifier names the
@@ -295,10 +296,11 @@ GitHub commands. It owns projections and operations for:
 - reading and normalizing user posts from comments, reviews, verdicts, and
   inline comments.
 
-An agent assignment persists its pull-request identity and, separately, the
-latest state and draft flag that a scheduler tick observed for reporting.
-Scheduling does not read that observation. It reads the current state from
-GitHub when it needs it.
+An agent assignment persists its pull request's number and nothing else about
+it. Scheduling reads the current state from GitHub when it needs it, and the
+request row carries what the tick read to the views. An assignment the tick read
+nothing for shows the merged or closed state its newest relayed round input
+carried, if any.
 
 GitHub owns its documents and may add fields, so its responses remain tolerant
 projections. Documents owned by _dreamcatcher_ remain strict.
@@ -550,8 +552,7 @@ web interface and a command can each record a fact at the same moment without
 erasing another's. These files persist:
 
 - for an assignment, once the round that opens its pull request has done so,
-  that pull request's number and latest observed state, draft flag, and
-  observation time, which the work pages and cards show;
+  that pull request's number, written once;
 - the harness session identifier, once known;
 - the time of the user's latest retry request, when one has been made;
 - the time and the reason the work ended, once it has ended.

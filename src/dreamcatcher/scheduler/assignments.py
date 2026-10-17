@@ -12,7 +12,6 @@ from dreamcatcher.agent_assignments import (
     open_assignment_pull_request,
     read_pull_request_observation,
     read_user_post_delivery_position,
-    record_pull_request_observation,
 )
 from dreamcatcher.agent_rounds import AgentRound
 from dreamcatcher.agent_work import (
@@ -96,7 +95,7 @@ class AssignmentScheduler(AgentWorkScheduler[AssignmentCandidate, int]):
     """Inspect, rank and launch assignment work."""
 
     def inspect(
-        self, *, previous_record: SchedulerRecord | None, at: datetime
+        self, *, previous_record: SchedulerRecord | None
     ) -> AgentWorkInspection[AssignmentCandidate]:
         """Inspect all assignment work and return one ranked bundle.
 
@@ -115,7 +114,6 @@ class AssignmentScheduler(AgentWorkScheduler[AssignmentCandidate, int]):
                     if previous_record is None
                     else previous_record.most_recent_cooldown_ended
                 ),
-                observed_at=at,
             )
             for assignment in find_open_agent_work_by_issue(work=assignments).values()
         ]
@@ -157,7 +155,6 @@ class AssignmentScheduler(AgentWorkScheduler[AssignmentCandidate, int]):
                     state=self.state,
                     repository=self.repository,
                     assignment=assignment,
-                    clock=self.clock,
                 ),
                 input_prompt=None,
                 finish_round=None,
@@ -190,7 +187,6 @@ class AssignmentScheduler(AgentWorkScheduler[AssignmentCandidate, int]):
         *,
         assignment: AgentWork,
         most_recent_cooldown_ended: datetime | None,
-        observed_at: datetime,
     ) -> _AssignmentItemInspection:
         """Inspect one open assignment, reading its pull request once it has one.
 
@@ -215,7 +211,6 @@ class AssignmentScheduler(AgentWorkScheduler[AssignmentCandidate, int]):
         return self._inspect_pull_request(
             assignment=assignment,
             observation=observation,
-            observed_at=observed_at,
         )
 
     def _inspect_pull_request(
@@ -223,7 +218,6 @@ class AssignmentScheduler(AgentWorkScheduler[AssignmentCandidate, int]):
         *,
         assignment: AgentWork,
         observation: PullRequestObservation,
-        observed_at: datetime,
     ) -> _AssignmentItemInspection:
         """Inspect an assignment's pull request and the user posts past its cursor.
 
@@ -241,11 +235,6 @@ class AssignmentScheduler(AgentWorkScheduler[AssignmentCandidate, int]):
                     finding=ReadFailureFinding(reason=pull_request.reason),
                 )
             )
-        record_pull_request_observation(
-            assignment=assignment,
-            pull_request=pull_request,
-            observed_at=observed_at,
-        )
         undelivered_posts = list_undelivered_user_posts(
             repository=self.repository,
             pull_request=pull_request.number,

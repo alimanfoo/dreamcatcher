@@ -29,7 +29,6 @@ from dreamcatcher.agent_assignments import (
     open_assignment_pull_request,
     read_pull_request_observation,
     read_user_post_delivery_position,
-    record_pull_request_observation,
 )
 from dreamcatcher.agent_rounds import (
     AgentRoundPaths,
@@ -55,7 +54,7 @@ from dreamcatcher.config import (
 from dreamcatcher.documents import write_json
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.git import add_worktree, fetch_main, make_empty_commit, push_branch
-from dreamcatcher.github import ConversationComment, PullRequest, PullRequestState
+from dreamcatcher.github import ConversationComment, PullRequestState
 from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.state import StateDirectory
 
@@ -79,7 +78,7 @@ def record_assignment(*, state, route, preferred_harness=AgentHarness.CLAUDE):
 def open_pull_request(*, state, assignment):
     """Open the assignment's pull request, as its first round does."""
     open_assignment_pull_request(
-        state=state, repository=REPOSITORY, assignment=assignment, clock=lambda: PINNED
+        state=state, repository=REPOSITORY, assignment=assignment
     )
 
 
@@ -94,7 +93,7 @@ def open_assignment(*, state, route, preferred_harness, issue, at):
         at=at,
     )
     open_assignment_pull_request(
-        state=state, repository=REPOSITORY, assignment=assignment, clock=lambda: at
+        state=state, repository=REPOSITORY, assignment=assignment
     )
     return assignment
 
@@ -206,12 +205,7 @@ def test_an_assignment_records_its_settled_dispatch_recipe(state, route):
     assert assignment.record.dispatch_label == "dream:smith"
     assert read_pull_request_observation(
         assignment=assignment
-    ) == PullRequestObservation(
-        number=PULL_REQUEST,
-        state=PullRequestState.OPEN,
-        is_draft=True,
-        observed_at=PINNED,
-    )
+    ) == PullRequestObservation(number=PULL_REQUEST)
     assert assignment.record.harness == AgentHarness.CLAUDE
     assert assignment.record.model == "opus[1m]"
     assert assignment.record.effort == "xhigh"
@@ -412,22 +406,12 @@ def test_recording_later_facts_leaves_the_assignment_record_as_it_was(fabricated
     record = assignment.directory / "work.json"
     created = record.read_bytes()
 
-    record_pull_request_observation(
-        assignment=assignment,
-        pull_request=PullRequest(
-            number=PULL_REQUEST, state=PullRequestState.MERGED, is_draft=False
-        ),
-        observed_at=PINNED,
-    )
     record_harness_session_identifier(work=assignment, identifier="abc-123")
     request_agent_work_retry(work=assignment, at=PINNED)
     cancel_assignment(assignment=assignment, at=PINNED)
 
     assert record.read_bytes() == created
     recorded = read_assignments(state=fabricated)[0]
-    observation = read_pull_request_observation(assignment=recorded)
-    assert observation is not None
-    assert observation.state is PullRequestState.MERGED
     assert recorded.retry_requested_at == PINNED
     assert recorded.ending == AgentWorkEnding(
         at=PINNED, reason=AgentWorkEndReason.CANCELLED
@@ -677,67 +661,6 @@ def test_an_assignment_recovers_a_session_reported_by_a_later_round(fabricated):
     recovered = assignment.find_harness_session_identifier()
 
     assert recovered == "replacement-session"
-
-
-def test_an_assignment_records_a_changed_pull_request_observation(fabricated):
-    write_assignment(state=fabricated, identifier=ASSIGNMENT_ID, issue=12)
-    assignment = read_assignments(state=fabricated)[0]
-    record_pull_request_observation(
-        assignment=assignment,
-        pull_request=PullRequest(
-            number=PULL_REQUEST,
-            state=PullRequestState.OPEN,
-            is_draft=True,
-        ),
-        observed_at=PINNED,
-    )
-
-    record_pull_request_observation(
-        assignment=assignment,
-        pull_request=PullRequest(
-            number=PULL_REQUEST,
-            state=PullRequestState.OPEN,
-            is_draft=False,
-        ),
-        observed_at=PINNED + timedelta(minutes=1),
-    )
-
-    recorded = read_assignments(state=fabricated)[0]
-    assert read_pull_request_observation(assignment=recorded) == PullRequestObservation(
-        number=PULL_REQUEST,
-        state=PullRequestState.OPEN,
-        is_draft=False,
-        observed_at=PINNED + timedelta(minutes=1),
-    )
-
-
-def test_an_unchanged_pull_request_observation_is_not_written_again(fabricated):
-    directory = write_assignment(
-        state=fabricated,
-        identifier=ASSIGNMENT_ID,
-        issue=12,
-    )
-    assignment = read_assignments(state=fabricated)[0]
-    pull_request = PullRequest(
-        number=PULL_REQUEST,
-        state=PullRequestState.OPEN,
-        is_draft=True,
-    )
-    record_pull_request_observation(
-        assignment=assignment,
-        pull_request=pull_request,
-        observed_at=PINNED,
-    )
-    path = directory / "pull-request-observation.json"
-    before = path.read_bytes()
-
-    record_pull_request_observation(
-        assignment=assignment,
-        pull_request=pull_request,
-        observed_at=PINNED + timedelta(minutes=1),
-    )
-
-    assert path.read_bytes() == before
 
 
 def test_an_assignment_with_no_delivered_user_post_has_an_empty_delivery_position(

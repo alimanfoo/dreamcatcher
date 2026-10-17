@@ -8,8 +8,8 @@ from functools import cached_property
 from typing import cast
 
 from dreamcatcher.agent_assignments import (
-    PullRequestObservation,
     read_pull_request_observation,
+    read_relayed_pull_request_state,
 )
 from dreamcatcher.agent_rounds import (
     AgentRoundOutcome,
@@ -18,7 +18,7 @@ from dreamcatcher.agent_rounds import (
     StoppedAgentRoundEnding,
     SuccessfulAgentRoundEnding,
 )
-from dreamcatcher.agent_work import AgentWork, AgentWorkEndReason
+from dreamcatcher.agent_work import AgentWork
 from dreamcatcher.documents import read_text
 from dreamcatcher.github import PullRequestState
 from dreamcatcher.harness_adapters import AgentWorkKind, HarnessSessionIdentifier
@@ -90,6 +90,7 @@ class AgentWorkStatus:
     """Describe the derived summary status of one piece of agent work."""
 
     work: AgentWork
+    row: RequestRow | None
     value: AgentWorkStatusValue
     detail: str
     latest_output: str | None
@@ -110,33 +111,31 @@ class AgentWorkStatus:
         return self.value is AgentWorkStatusValue.WORKING
 
     @cached_property
-    def pull_request_observation(self) -> PullRequestObservation | None:
-        """The assignment's pull request as last observed, once a round opened it."""
-        return read_pull_request_observation(assignment=self.work)
-
-    @property
     def pull_request(self) -> int | None:
         """The number of the assignment's pull request, once a round opened it."""
-        observation = self.pull_request_observation
+        observation = read_pull_request_observation(assignment=self.work)
         return None if observation is None else observation.number
 
     @property
     def pull_request_state(self) -> str | None:
-        """The latest observed pull-request state in status-report words.
+        """The pull request's state in status-report words, when it is known.
 
-        A cancelled assignment has none, because nothing observes its pull
-        request once the user has taken it over, and neither does one whose
-        pull request no round has opened yet.
+        The latest tick's read of an open assignment's pull request gives it.
+        Otherwise it is the merged or closed state that the newest relayed round
+        input carried, as for an assignment that has ended. An assignment whose
+        pull request no round has opened yet has none.
         """
-        ending = self.work.ending
-        if ending is not None and ending.reason is AgentWorkEndReason.CANCELLED:
+        if self.pull_request is None:
             return None
-        observation = self.pull_request_observation
-        if observation is None:
+        finding = None if self.row is None else self.row.finding
+        if self.work.is_open and isinstance(finding, PullRequestFinding):
+            if finding.state is not PullRequestState.OPEN:
+                return finding.state.value.lower()
+            return "draft" if finding.is_draft else "ready"
+        relayed = read_relayed_pull_request_state(assignment=self.work)
+        if relayed is None or relayed is PullRequestState.OPEN:
             return None
-        if observation.is_open:
-            return "draft" if observation.is_draft else "ready"
-        return observation.state.value.lower()
+        return relayed.value.lower()
 
     @cached_property
     def round_statuses(self) -> list[AgentRoundStatus]:
@@ -186,7 +185,7 @@ class AgentWorkStatus:
         )
 
 
-type _StatusStep = Callable[[AgentWork], AgentWorkStatus | None]
+type _StatusStep = Callable[[AgentWork, RequestRow | None], AgentWorkStatus | None]
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -225,13 +224,16 @@ class AgentWorkStatusReader:
             self._derive_unscheduled_conversation,
             self._derive_waiting,
         )
+        row = self.rows_by_work.get(work.identifier)
         for step in steps:
-            status = step(work)
+            status = step(work, row)
             if status is not None:
                 return status
-        return self._derive_idle(work)
+        return self._derive_idle(work, row)
 
-    def _derive_working(self, work: AgentWork, /) -> AgentWorkStatus | None:
+    def _derive_working(
+        self, work: AgentWork, row: RequestRow | None, /
+    ) -> AgentWorkStatus | None:
         if not work.rounds or not self._is_round_working(record=work.rounds[-1]):
             return None
         latest = work.rounds[-1]
@@ -243,22 +245,28 @@ class AgentWorkStatusReader:
         )
         return AgentWorkStatus(
             work=work,
+            row=row,
             value=AgentWorkStatusValue.WORKING,
             detail=detail,
             latest_output=latest_output,
         )
 
-    def _derive_ended(self, work: AgentWork, /) -> AgentWorkStatus | None:
+    def _derive_ended(
+        self, work: AgentWork, row: RequestRow | None, /
+    ) -> AgentWorkStatus | None:
         if work.ending is None:
             return None
         return AgentWorkStatus(
             work=work,
+            row=row,
             value=AgentWorkStatusValue.ENDED,
             detail=str(work.ending.reason),
             latest_output=None,
         )
 
-    def _derive_fault(self, work: AgentWork, /) -> AgentWorkStatus | None:
+    def _derive_fault(
+        self, work: AgentWork, row: RequestRow | None, /
+    ) -> AgentWorkStatus | None:
         if not derive_agent_work_fault(
             rounds=work.rounds,
             retry_requested_at=work.retry_requested_at,
@@ -275,28 +283,29 @@ class AgentWorkStatusReader:
         )
         return AgentWorkStatus(
             work=work,
+            row=row,
             value=AgentWorkStatusValue.FAULT,
             detail=detail,
             latest_output=latest_output,
         )
 
-    def _derive_unknown(self, work: AgentWork, /) -> AgentWorkStatus | None:
-        row = self.rows_by_work.get(work.identifier)
+    def _derive_unknown(
+        self, work: AgentWork, row: RequestRow | None, /
+    ) -> AgentWorkStatus | None:
         if row is None or not isinstance(row.finding, ReadFailureFinding):
             return None
         return _compose_unknown(
-            work=work, detail=describe_read_failure(reason=row.finding.reason)
+            work=work, row=row, detail=describe_read_failure(reason=row.finding.reason)
         )
 
     def _derive_unscheduled_conversation(
-        self, work: AgentWork, /
+        self, work: AgentWork, row: RequestRow | None, /
     ) -> AgentWorkStatus | None:
         """Derive the idle status of a conversation that the tick starts no round for.
 
         The tick starts no round for a conversation whose issue the listing did
         not return or carries a second conversation label, so neither waits.
         """
-        row = self.rows_by_work.get(work.identifier)
         finding = None if row is None else row.finding
         if isinstance(finding, ConflictingLabelsFinding):
             detail = describe_conflicting_labels(
@@ -308,12 +317,15 @@ class AgentWorkStatusReader:
             return None
         return AgentWorkStatus(
             work=work,
+            row=row,
             value=AgentWorkStatusValue.IDLE,
             detail=detail,
             latest_output=None,
         )
 
-    def _derive_waiting(self, work: AgentWork, /) -> AgentWorkStatus | None:
+    def _derive_waiting(
+        self, work: AgentWork, row: RequestRow | None, /
+    ) -> AgentWorkStatus | None:
         """Derive the status of work that a round is due for, if it is due.
 
         A round is due once the last round did not finish, before the first
@@ -329,27 +341,29 @@ class AgentWorkStatusReader:
             detail, _ = describe_round_ending(
                 record=latest, paths=work.compose_round_paths(number=latest.number)
             )
-            return _compose_waiting(work=work, detail=detail)
+            return _compose_waiting(work=work, row=row, detail=detail)
         if not work.rounds:
-            return _compose_waiting(work=work, detail="no round has run yet")
+            return _compose_waiting(work=work, row=row, detail="no round has run yet")
         if (
             work.record.kind is AgentWorkKind.ASSIGNMENT
             and read_pull_request_observation(assignment=work) is None
         ):
-            return _compose_waiting(work=work, detail="no pull request yet")
+            return _compose_waiting(work=work, row=row, detail="no pull request yet")
         latest = work.rounds[-1]
-        row = self.rows_by_work.get(work.identifier)
         if self._did_round_end_after_latest_tick(record=latest, row=row):
             return _compose_waiting(
-                work=work, detail=f"round {latest.number} ended, awaiting next update"
+                work=work,
+                row=row,
+                detail=f"round {latest.number} ended, awaiting next update",
             )
         signal = None if row is None else _describe_signal(finding=row.finding)
         if signal is None:
             return None
-        return _compose_waiting(work=work, detail=signal)
+        return _compose_waiting(work=work, row=row, detail=signal)
 
-    def _derive_idle(self, work: AgentWork, /) -> AgentWorkStatus:
-        row = self.rows_by_work.get(work.identifier)
+    def _derive_idle(
+        self, work: AgentWork, row: RequestRow | None, /
+    ) -> AgentWorkStatus:
         finding = None if row is None else row.finding
         if isinstance(finding, PullRequestFinding):
             detail = (
@@ -362,9 +376,10 @@ class AgentWorkStatusReader:
         elif isinstance(finding, IssueCommentsFinding):
             detail = _describe_answered_round(work=work)
         else:
-            return _compose_unknown(work=work)
+            return _compose_unknown(work=work, row=row)
         return AgentWorkStatus(
             work=work,
+            row=row,
             value=AgentWorkStatusValue.IDLE,
             detail=detail,
             latest_output=None,
@@ -401,19 +416,26 @@ class AgentWorkStatusReader:
 
 
 def _compose_unknown(
-    *, work: AgentWork, detail: str = "not seen by the latest update"
+    *,
+    work: AgentWork,
+    row: RequestRow | None,
+    detail: str = "not seen by the latest update",
 ) -> AgentWorkStatus:
     return AgentWorkStatus(
         work=work,
+        row=row,
         value=AgentWorkStatusValue.UNKNOWN,
         detail=detail,
         latest_output=None,
     )
 
 
-def _compose_waiting(*, work: AgentWork, detail: str) -> AgentWorkStatus:
+def _compose_waiting(
+    *, work: AgentWork, row: RequestRow | None, detail: str
+) -> AgentWorkStatus:
     return AgentWorkStatus(
         work=work,
+        row=row,
         value=AgentWorkStatusValue.WAITING,
         detail=detail,
         latest_output=None,

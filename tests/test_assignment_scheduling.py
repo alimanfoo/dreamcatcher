@@ -109,7 +109,6 @@ def found(
     inspected = create_assignment_scheduler(state=state)._inspect_assignment(
         assignment=assignment,
         most_recent_cooldown_ended=None,
-        observed_at=PINNED,
     )
     if inspected.candidate is not None:
         assert not isinstance(inspected.candidate, NewAssignmentCandidate)
@@ -152,7 +151,7 @@ def test_a_first_round_that_failed_before_its_pull_request_is_tried_again(
     assignment = read_assignments(state=state)[0]
 
     inspected = create_assignment_scheduler(state=state)._inspect_assignment(
-        assignment=assignment, most_recent_cooldown_ended=None, observed_at=PINNED
+        assignment=assignment, most_recent_cooldown_ended=None
     )
 
     assert isinstance(inspected.candidate, PullRequestOpeningCandidate)
@@ -181,7 +180,6 @@ def test_an_assignment_whose_first_round_failed_twice_is_in_fault(tmp_path):
     inspected = create_assignment_scheduler(state=state)._inspect_assignment(
         assignment=read_assignments(state=state)[0],
         most_recent_cooldown_ended=None,
-        observed_at=PINNED,
     )
 
     assert inspected.candidate is None
@@ -364,9 +362,7 @@ def test_a_cancelled_assignment_is_not_inspected_for_rounds(state, gh):
     gh.replies(stdout="[]", to="issue list")
     cancel_assignment(assignment=read_assignments(state=state)[0], at=PINNED)
 
-    inspection = create_assignment_scheduler(state=state).inspect(
-        previous_record=None, at=PINNED
-    )
+    inspection = create_assignment_scheduler(state=state).inspect(previous_record=None)
 
     assert inspection.rows == []
     assert inspection.candidates == []

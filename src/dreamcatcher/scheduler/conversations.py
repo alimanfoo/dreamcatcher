@@ -73,7 +73,7 @@ class ConversationScheduler(
     """Inspect, rank and launch conversation work."""
 
     def inspect(
-        self, *, previous_record: SchedulerRecord | None, at: datetime
+        self, *, previous_record: SchedulerRecord | None
     ) -> AgentWorkInspection[ConversationBatchCandidate]:
         """Inspect the listed issues and the open conversations, and rank the work.
 

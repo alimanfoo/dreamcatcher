@@ -23,7 +23,6 @@ from rows import UNCLAIMED, request_row
 
 from dreamcatcher.agent_assignments import (
     AssignmentRoundInput,
-    PullRequestObservation,
     cancel_assignment,
 )
 from dreamcatcher.agent_rounds import (
@@ -478,6 +477,7 @@ def fabricate_a_silent_round(*, state):
 def fabricate_titles_and_pull_request_states(*, state):
     """Write assignments and issues carrying every web reporting fact."""
     holding(state=state)
+    pull_request_rows = []
     for issue, title, pull_request_state, is_draft in (
         (10, "Draft assignment", PullRequestState.OPEN, True),
         (11, "Ready assignment", PullRequestState.OPEN, False),
@@ -489,13 +489,19 @@ def fabricate_titles_and_pull_request_states(*, state):
             identifier=f"GH{issue}-{ASSIGNMENT_TIMESTAMP}-assignment",
             issue=issue,
             title=title,
-            pull_request_observation=PullRequestObservation(
-                number=52,
-                state=pull_request_state,
-                is_draft=is_draft,
-                observed_at=PINNED,
-            ),
             harness_session_identifier=None,
+        )
+        pull_request_rows.append(
+            _assignment_row(
+                issue=issue,
+                finding=PullRequestFinding(
+                    number=52,
+                    state=pull_request_state,
+                    is_draft=is_draft,
+                    new_posts=0,
+                    is_final_turn_due=pull_request_state is not PullRequestState.OPEN,
+                ),
+            )
         )
     write_assignment(
         state=state,
@@ -516,7 +522,8 @@ def fabricate_titles_and_pull_request_states(*, state):
                         linked_pull_requests=[], blocking_issues=[20]
                     ),
                 ),
-                *(_assignment_row(issue=issue) for issue in (10, 11, 12, 13, 14)),
+                *pull_request_rows,
+                _assignment_row(issue=14),
             ],
         ),
     )

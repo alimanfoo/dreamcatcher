@@ -44,10 +44,8 @@ MERGED_INPUT = agent_assignments.AssignmentRoundInput(
     pull_request_state=PullRequestState.MERGED, user_posts=[]
 )
 
-# What a fabricated assignment saw of its pull request, unless a test says.
-_OPEN_DRAFT = agent_assignments.PullRequestObservation(
-    number=52, state=PullRequestState.OPEN, is_draft=True, observed_at=PINNED
-)
+# The pull request a fabricated assignment opened, unless a test says.
+_PULL_REQUEST_52 = agent_assignments.PullRequestObservation(number=52)
 
 
 def write_daemon_run(
@@ -100,7 +98,7 @@ def write_assignment(
     harness_session_identifier: str | None = "abc-123",
     title: str | None = None,
     pull_request_observation: agent_assignments.PullRequestObservation
-    | None = _OPEN_DRAFT,
+    | None = _PULL_REQUEST_52,
 ) -> Path:
     """Write an assignment's worktree and its records, and return its own directory.
 
