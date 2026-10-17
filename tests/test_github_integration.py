@@ -5,7 +5,6 @@ from pathlib import Path
 import pytest
 
 from dreamcatcher.github import (
-    Issue,
     IssuePullRequestContext,
     PullRequest,
     PullRequestState,
@@ -16,7 +15,6 @@ from dreamcatcher.github import (
     list_issues,
     list_labels,
     list_pull_requests,
-    read_issue,
     read_issue_pull_request_context,
 )
 
@@ -56,10 +54,6 @@ def test_gh_takes_the_whole_issue_listing_command():
     assert isinstance(
         list_issues(repository=REPOSITORY, label="dream:smith", assignee="@me"), list
     )
-
-
-def test_gh_reports_one_issues_state_assignees_and_labels():
-    assert isinstance(read_issue(repository=REPOSITORY, issue=145), Issue)
 
 
 def test_a_merged_pull_request_comes_back_merged():

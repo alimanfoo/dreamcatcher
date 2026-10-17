@@ -262,7 +262,11 @@ class DreamcatcherDaemon:
 def _describe_tick_outcome(
     *, record: SchedulerRecord, is_at_capacity: bool, zone: tzinfo | None
 ) -> str:
-    """Say what the tick launched, then the cooldown, capacity and failures."""
+    """Say what the tick launched, then the cooldown, capacity and failures.
+
+    A round that errored before its harness ran is named with its reason among
+    the failures.
+    """
     facts = [_describe_launches(identifiers=record.launched_agent_work_identifiers)]
     if record.cooldown is not None:
         facts.append(
@@ -270,7 +274,17 @@ def _describe_tick_outcome(
         )
     if is_at_capacity:
         facts.append("agent capacity full")
-    facts.extend(" ".join(failure.split()) for failure in record.failures)
+    failures = [
+        *record.failures,
+        *(
+            f"{row.agent_work} round {row.started_round.number} errored: "
+            f"{row.started_round.preparation_failure}"
+            for row in record.rows
+            if row.started_round is not None
+            and row.started_round.preparation_failure is not None
+        ),
+    ]
+    facts.extend(" ".join(failure.split()) for failure in failures)
     return "; ".join(facts)
 
 

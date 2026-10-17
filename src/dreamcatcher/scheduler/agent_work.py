@@ -58,7 +58,7 @@ def compose_agent_work_row(
 
 
 @dataclass(frozen=True, kw_only=True)
-class AgentWorkScheduler[CandidateT, ObservationT, RankT](ABC):
+class AgentWorkScheduler[CandidateT, RankT](ABC):
     """Hold the facts that every kind of agent work needs for scheduling."""
 
     repository: str
@@ -71,7 +71,7 @@ class AgentWorkScheduler[CandidateT, ObservationT, RankT](ABC):
     @abstractmethod
     def inspect(
         self, *, previous_record: SchedulerRecord | None, at: datetime
-    ) -> AgentWorkInspection[CandidateT, ObservationT]:
+    ) -> AgentWorkInspection[CandidateT]:
         """Inspect this kind of agent work."""
 
     @abstractmethod

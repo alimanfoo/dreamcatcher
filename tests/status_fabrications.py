@@ -329,7 +329,6 @@ def fabricate_everything(
         state=state,
         tick=SchedulerRecord(
             at=PINNED + timedelta(hours=1, minutes=58),
-            launched_agent_work_identifiers=[f"GH13-{ASSIGNMENT_TIMESTAMP}-assignment"],
             rows=[
                 request_row(issue=50, finding=UNCLAIMED),
                 request_row(issue=51, finding=UNCLAIMED),
@@ -467,7 +466,6 @@ def fabricate_a_silent_round(*, state):
         state=state,
         tick=SchedulerRecord(
             at=PINNED + timedelta(hours=1, minutes=58),
-            launched_agent_work_identifiers=[f"GH13-{ASSIGNMENT_TIMESTAMP}-assignment"],
             rows=[_assignment_row(issue=13, started_round=StartedRound(number=2))],
         ),
     )

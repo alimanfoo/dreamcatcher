@@ -34,11 +34,7 @@ from dreamcatcher.scheduler.assignments import (
     NewAssignmentCandidate,
     PullRequestOpeningCandidate,
 )
-from dreamcatcher.scheduler.models import (
-    AgentWorkObservation,
-    ObservedFact,
-    Truth,
-)
+from dreamcatcher.scheduler.models import ReadFailure
 from dreamcatcher.state import StateDirectory
 
 ASSIGNMENT_ID = "GH13-20260819-184158-assignment"
@@ -105,9 +101,7 @@ def ran(
 
 def found(
     *, state
-) -> (
-    PullRequestOpeningCandidate | AssignmentRoundCandidate | AgentWorkObservation | None
-):
+) -> PullRequestOpeningCandidate | AssignmentRoundCandidate | ReadFailure | None:
     """What the one assignment in that state directory needs next."""
     assignment = read_assignments(state=state)[0]
     if not assignment.is_open:
@@ -120,9 +114,8 @@ def found(
     if inspected.candidate is not None:
         assert not isinstance(inspected.candidate, NewAssignmentCandidate)
         return inspected.candidate
-    assert inspected.observation is not None
-    if inspected.observation.requires_round.value is not Truth.FALSE:
-        return inspected.observation
+    if isinstance(inspected.row.finding, ReadFailure):
+        return inspected.row.finding
     return None
 
 
@@ -163,10 +156,7 @@ def test_a_first_round_that_failed_before_its_pull_request_is_tried_again(
     )
 
     assert isinstance(inspected.candidate, PullRequestOpeningCandidate)
-    assert inspected.observation is not None
-    assert inspected.observation.requires_round == ObservedFact(
-        value=Truth.TRUE, evidence="round 1 errored, to try again"
-    )
+    assert inspected.row.finding is None
 
 
 def test_an_assignment_whose_first_round_failed_twice_is_in_fault(tmp_path):
@@ -371,16 +361,16 @@ def test_a_cancelled_assignment_is_not_inspected_for_rounds(state, gh):
     gh.replies(
         stdout=pages(items=[comment()]), to=f"api {POST_LIST_PATHS['conversation']}"
     )
+    gh.replies(stdout="[]", to="issue list")
     cancel_assignment(assignment=read_assignments(state=state)[0], at=PINNED)
 
-    inspected = create_assignment_scheduler(state=state)._inspect_assignments(
-        assignments=read_assignments(state=state),
-        most_recent_cooldown_ended=None,
-        observed_at=PINNED,
+    inspection = create_assignment_scheduler(state=state).inspect(
+        previous_record=None, at=PINNED
     )
 
-    assert inspected == []
-    assert gh.calls == []
+    assert inspection.rows == []
+    assert inspection.candidates == []
+    assert [call.arguments[:2] for call in gh.calls] == [["issue", "list"]]
 
 
 def test_a_round_started_for_an_assignment_cancelled_after_inspection_stops(
@@ -526,18 +516,17 @@ def test_a_last_round_that_was_carried_on_is_still_the_last_round(state, gh):
     assert found(state=state) is None
 
 
-def test_a_pull_request_read_that_failed_leaves_the_assignment_waiting(state, gh):
+def test_a_pull_request_read_that_failed_is_held_in_the_row(state, gh):
     ran(state=state, number=1)
     gh.fails(stderr="gh: could not connect to github.com", to="pr view")
 
     waiting = found(state=state)
 
-    assert isinstance(waiting, AgentWorkObservation)
-    assert waiting.requires_round.evidence.startswith("cannot read its pull request")
-    assert waiting.requires_round.value is Truth.UNKNOWN
+    assert isinstance(waiting, ReadFailure)
+    assert "could not connect" in waiting.reason
 
 
-def test_a_relay_read_that_failed_leaves_the_assignment_waiting(state, gh):
+def test_a_relay_read_that_failed_is_held_in_the_row(state, gh):
     ran(state=state, number=1)
     gh.fails(
         stderr="gh: could not connect to github.com",
@@ -546,11 +535,8 @@ def test_a_relay_read_that_failed_leaves_the_assignment_waiting(state, gh):
 
     waiting = found(state=state)
 
-    assert isinstance(waiting, AgentWorkObservation)
-    assert waiting.requires_round.evidence.startswith(
-        "cannot tell what the user posted"
-    )
-    assert waiting.requires_round.value is Truth.UNKNOWN
+    assert isinstance(waiting, ReadFailure)
+    assert "could not connect" in waiting.reason
 
 
 def test_existing_work_comes_before_new_work(state):
