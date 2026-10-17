@@ -7,7 +7,7 @@ from datetime import datetime
 from enum import StrEnum
 from itertools import chain
 from pathlib import Path
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 
 from pydantic import (
     AliasChoices,
@@ -145,17 +145,105 @@ _ISSUE_RESPONSE_FIELDS = ",".join(
 )
 
 
+class PullRequestMergeState(StrEnum):
+    """List the merge states that GitHub reports for a pull request."""
+
+    BEHIND = "BEHIND"
+    BLOCKED = "BLOCKED"
+    CLEAN = "CLEAN"
+    DIRTY = "DIRTY"
+    DRAFT = "DRAFT"
+    HAS_HOOKS = "HAS_HOOKS"
+    UNKNOWN = "UNKNOWN"
+    UNSTABLE = "UNSTABLE"
+
+    @property
+    def is_out_of_date(self) -> bool:
+        """Whether the branch is behind its base or conflicts with it."""
+        return self in {PullRequestMergeState.BEHIND, PullRequestMergeState.DIRTY}
+
+
+class CheckResult(StrEnum):
+    """List what one check, or every check at a pull request's head, adds up to."""
+
+    NONE = "none"
+    PASSING = "passing"
+    RUNNING = "running"
+    FAILING = "failing"
+
+
+# The conclusions of a finished check run that are not a failure.
+_PASSING_CHECK_CONCLUSIONS = frozenset({"SUCCESS", "NEUTRAL", "SKIPPED"})
+
+# The states of a status context that has not finished.
+_RUNNING_STATUS_CONTEXT_STATES = frozenset({"EXPECTED", "PENDING"})
+
+
+class CheckRun(GitHubResponseProjection):
+    """Model a check run, which reports a status and, once completed, a conclusion."""
+
+    kind: Literal["CheckRun"] = Field(alias="__typename")
+    status: str
+    conclusion: str
+
+    @property
+    def result(self) -> CheckResult:
+        """Whether the check is running, passed or failed."""
+        if self.status != "COMPLETED":
+            return CheckResult.RUNNING
+        if self.conclusion in _PASSING_CHECK_CONCLUSIONS:
+            return CheckResult.PASSING
+        return CheckResult.FAILING
+
+
+class StatusContext(GitHubResponseProjection):
+    """Model a status context, the older kind of check, which reports one state."""
+
+    kind: Literal["StatusContext"] = Field(alias="__typename")
+    state: str
+
+    @property
+    def result(self) -> CheckResult:
+        """Whether the check is running, passed or failed."""
+        if self.state in _RUNNING_STATUS_CONTEXT_STATES:
+            return CheckResult.RUNNING
+        if self.state == "SUCCESS":
+            return CheckResult.PASSING
+        return CheckResult.FAILING
+
+
+class PullRequestSignal(StrEnum):
+    """List the signals that an assignment round records in its `signals` key."""
+
+    OUT_OF_DATE = "out_of_date"
+    CHECK_FAILURE = "check_failure"
+
+
+type PullRequestCheck = Annotated[CheckRun | StatusContext, Field(discriminator="kind")]
+
+
 class PullRequest(GitHubResponseProjection):
-    """Model a pull request and its current state."""
+    """Model a pull request, where its branch stands, and its checks at its head."""
 
     number: int
     state: PullRequestState
     is_draft: bool = Field(alias="isDraft")
+    merge_state: PullRequestMergeState = Field(alias="mergeStateStatus")
+    head: str = Field(alias="headRefOid")
+    checks: list[PullRequestCheck] = Field(alias="statusCheckRollup")
 
     @property
-    def is_open(self) -> bool:
-        """Whether the pull request is open."""
-        return self.state is PullRequestState.OPEN
+    def check_result(self) -> CheckResult:
+        """What the checks at the head add up to.
+
+        One failed check fails them all, even while others run, and one check
+        still running keeps the rest from passing.
+        """
+        results = {check.result for check in self.checks}
+        for result in (CheckResult.FAILING, CheckResult.RUNNING, CheckResult.PASSING):
+            if result in results:
+                return result
+        return CheckResult.NONE
 
 
 class BlockingIssue(GitHubResponseProjection):
@@ -171,8 +259,8 @@ class BlockingIssue(GitHubResponseProjection):
         return str(value).upper()
 
 
-class LinkedPullRequest(GitHubResponseProjection):
-    """Model a pull request that GitHub links to an issue."""
+class PullRequestReference(GitHubResponseProjection):
+    """Model a pull request known only by its number."""
 
     number: int
 
@@ -187,7 +275,7 @@ class IssuePullRequestContext(GitHubResponseProjection):
     """
 
     issue: int = Field(alias="number")
-    pull_requests: list[LinkedPullRequest] = Field(
+    pull_requests: list[PullRequestReference] = Field(
         alias="closedByPullRequestsReferences"
     )
 
@@ -306,7 +394,10 @@ _GITHUB_ACCOUNT_RESPONSE_ADAPTER = TypeAdapter(GitHubUserAccount)
 _GITHUB_LABEL_PAGES_ADAPTER = TypeAdapter(list[list[GitHubLabel]])
 _GITHUB_ISSUE_LIST_RESPONSE_ADAPTER = TypeAdapter(list[Issue])
 _GITHUB_ISSUE_RESPONSE_ADAPTER = TypeAdapter(Issue)
-_GITHUB_PULL_REQUEST_LIST_RESPONSE_ADAPTER = TypeAdapter(list[PullRequest])
+_GITHUB_PULL_REQUEST_REFERENCE_LIST_RESPONSE_ADAPTER = TypeAdapter(
+    list[PullRequestReference]
+)
+_GITHUB_PULL_REQUEST_REFERENCE_RESPONSE_ADAPTER = TypeAdapter(PullRequestReference)
 _GITHUB_PULL_REQUEST_RESPONSE_ADAPTER = TypeAdapter(PullRequest)
 _GITHUB_BLOCKING_ISSUE_LIST_RESPONSE_ADAPTER = TypeAdapter(list[list[BlockingIssue]])
 _GITHUB_ISSUE_PULL_REQUEST_CONTEXT_RESPONSE_ADAPTER = TypeAdapter(
@@ -472,14 +563,14 @@ def read_issue(*, repository: str, issue: int) -> Issue | UnknownGitHubResponse:
 
 def list_pull_requests(
     *, repository: str, branch: str
-) -> list[PullRequest] | UnknownGitHubResponse:
+) -> list[PullRequestReference] | UnknownGitHubResponse:
     """Return pull requests whose head is the branch, within gh's result limit.
 
     A branch usually has one, and an empty list means it has none. Which of
     several counts is the caller's rule, not this read's.
     """
     return _read_github_response(
-        response_adapter=_GITHUB_PULL_REQUEST_LIST_RESPONSE_ADAPTER,
+        response_adapter=_GITHUB_PULL_REQUEST_REFERENCE_LIST_RESPONSE_ADAPTER,
         arguments=[
             "pr",
             "list",
@@ -490,14 +581,14 @@ def list_pull_requests(
             "--state",
             "all",
             "--json",
-            "number,state,isDraft",
+            "number",
         ],
     )
 
 
 def create_pull_request(
     *, repository: str, branch: str, issue: int, title: str
-) -> PullRequest | UnknownGitHubResponse:
+) -> PullRequestReference | UnknownGitHubResponse:
     """Open the branch's draft pull request, linked to the issue, and return it.
 
     An unknown response means that creation succeeded but the pull request's
@@ -521,7 +612,10 @@ def create_pull_request(
             f"Closes #{issue}",
         ],
     ).strip()
-    pull_request = _read_pull_request(repository=repository, reference=reference)
+    pull_request = _read_github_response(
+        response_adapter=_GITHUB_PULL_REQUEST_REFERENCE_RESPONSE_ADAPTER,
+        arguments=["pr", "view", reference, "--repo", repository, "--json", "number"],
+    )
     if isinstance(pull_request, UnknownGitHubResponse):
         return UnknownGitHubResponse(
             reason=f"created the pull request for {branch} but cannot read it: "
@@ -534,23 +628,16 @@ def read_pull_request(
     *, repository: str, pull_request: int
 ) -> PullRequest | UnknownGitHubResponse:
     """Return the pull request with this persisted identity."""
-    return _read_pull_request(repository=repository, reference=str(pull_request))
-
-
-def _read_pull_request(
-    *, repository: str, reference: str
-) -> PullRequest | UnknownGitHubResponse:
-    """Return one pull request named by a number or URL."""
     return _read_github_response(
         response_adapter=_GITHUB_PULL_REQUEST_RESPONSE_ADAPTER,
         arguments=[
             "pr",
             "view",
-            reference,
+            str(pull_request),
             "--repo",
             repository,
             "--json",
-            "number,state,isDraft",
+            "number,state,isDraft,mergeStateStatus,headRefOid,statusCheckRollup",
         ],
     )
 

@@ -2,7 +2,7 @@
 
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.github import (
-    PullRequest,
+    PullRequestReference,
     UnknownGitHubResponse,
     create_pull_request,
     list_pull_requests,
@@ -11,7 +11,7 @@ from dreamcatcher.github import (
 
 def find_or_create_assignment_pull_request(
     *, repository: str, branch: str, issue: int, title: str
-) -> PullRequest:
+) -> PullRequestReference:
     """Return the pull request on the assignment's branch, opening a draft if none.
 
     A pull request already on the branch is the assignment's own, whatever its
@@ -31,7 +31,9 @@ def find_or_create_assignment_pull_request(
     return pull_request
 
 
-def _find_branch_pull_request(*, repository: str, branch: str) -> PullRequest | None:
+def _find_branch_pull_request(
+    *, repository: str, branch: str
+) -> PullRequestReference | None:
     """Return the sole pull request on the branch, when it has one."""
     pull_requests = list_pull_requests(repository=repository, branch=branch)
     if isinstance(pull_requests, UnknownGitHubResponse):

@@ -7,12 +7,13 @@ from conftest import (
     POSTED_BY,
     PULL_REQUEST,
     REPOSITORY,
+    check_run,
     comment,
     configure,
     pages,
     pull_request,
 )
-from records import MERGED_INPUT, read_assignments, write_assignment, write_round
+from records import HEAD, MERGED_INPUT, read_assignments, write_assignment, write_round
 
 from dreamcatcher.agent_assignments import (
     AssignmentRoundInput,
@@ -27,14 +28,25 @@ from dreamcatcher.agent_rounds import (
 )
 from dreamcatcher.config import AgentHarness, read_dreamcatcher_config
 from dreamcatcher.documents import write_json
-from dreamcatcher.github import ConversationComment, PullRequestState
+from dreamcatcher.github import (
+    ConversationComment,
+    PullRequestSignal,
+    PullRequestState,
+)
 from dreamcatcher.scheduler import Scheduler, SchedulingContext
 from dreamcatcher.scheduler.assignments import inspect_open_assignment
 from dreamcatcher.scheduler.inspection import Inspection
-from dreamcatcher.scheduler.models import ReadFailureFinding
+from dreamcatcher.scheduler.models import PullRequestFinding, ReadFailureFinding
 from dreamcatcher.state import StateDirectory
 
 ASSIGNMENT_ID = "GH13-20260819-184158-assignment"
+
+# Head commits that the agent pushed after the tests' own HEAD, in order.
+PUSHED = "b4e9a1c2d3f405162738495a6b7c8d9e0f1a2b3c"
+PUSHED_AGAIN = "c5f0b2d3e4a516273849506b7c8d9e0f1a2b3c4d"
+
+# What gh reports among the checks of a pull request whose build went red.
+RED = (check_run(conclusion="FAILURE"),)
 
 # What found answers for an assignment whose next round opens its pull request.
 OPENS_PULL_REQUEST = "opens the pull request"
@@ -252,6 +264,8 @@ def test_a_terminal_pull_request_makes_an_interrupted_round_a_wrap_up(state, gh)
         number=2,
         round_input=AssignmentRoundInput(
             pull_request_state=resume.pull_request_state,
+            pull_request_head=HEAD,
+            signals=[],
             user_posts=resume.user_posts,
         ),
     )
@@ -325,7 +339,10 @@ def test_a_stopped_last_round_is_not_given_the_finished_pull_request_again(
     )
     write_json(
         document=AssignmentRoundInput(
-            pull_request_state=PullRequestState(pull_request_state), user_posts=[]
+            pull_request_state=PullRequestState(pull_request_state),
+            pull_request_head=HEAD,
+            signals=[],
+            user_posts=[],
         ),
         path=read_assignments(state=state)[0].compose_round_paths(number=1).round_input,
     )
@@ -441,6 +458,8 @@ def test_a_post_at_the_assignment_delivery_position_wakes_nothing(state, gh):
     write_json(
         document=AssignmentRoundInput(
             pull_request_state=PullRequestState.OPEN,
+            pull_request_head=HEAD,
+            signals=[],
             user_posts=[ConversationComment.model_validate(comment())],
         ),
         path=assignment.compose_round_paths(number=1).round_input,
@@ -531,3 +550,299 @@ def test_a_failed_user_post_read_leaves_the_assignment_unknown(state, gh):
 
     assert isinstance(waiting, ReadFailureFinding)
     assert "could not connect" in waiting.reason
+
+
+def relayed(
+    *, signals: list[PullRequestSignal], head: str = HEAD, posts: int = 0
+) -> AssignmentRoundInput:
+    """Return the input of a round that relayed these signals at this head."""
+    return AssignmentRoundInput(
+        pull_request_state=PullRequestState.OPEN,
+        pull_request_head=head,
+        signals=signals,
+        user_posts=[
+            ConversationComment.model_validate(comment(id=number))
+            for number in range(1, posts + 1)
+        ],
+    )
+
+
+def pull_request_finding(*, state) -> PullRequestFinding:
+    """Return what the tick found of the one assignment's pull request."""
+    finding = inspect(state=state).row.finding
+    assert isinstance(finding, PullRequestFinding)
+    return finding
+
+
+@pytest.mark.parametrize("merge_state", ["BEHIND", "DIRTY"])
+def test_a_ready_pull_request_that_main_moved_under_wakes_its_assignment(
+    state, gh, merge_state
+):
+    ran(state=state, number=1)
+    gh.replies(stdout=pull_request(state="OPEN", merge_state=merge_state), to="pr view")
+
+    resume = found(state=state)
+
+    assert isinstance(resume, AssignmentRoundInput)
+    assert resume.signals == [PullRequestSignal.OUT_OF_DATE]
+    assert resume.pull_request_head == HEAD
+    assert pull_request_finding(state=state).new_signals == [
+        PullRequestSignal.OUT_OF_DATE
+    ]
+
+
+def test_an_out_of_date_pull_request_is_relayed_once_at_each_head(state, gh):
+    ran(state=state, number=1)
+    ran(
+        state=state,
+        number=2,
+        round_input=relayed(signals=[PullRequestSignal.OUT_OF_DATE]),
+    )
+    gh.replies(stdout=pull_request(state="OPEN", merge_state="BEHIND"), to="pr view")
+
+    assert found(state=state) is None
+
+
+def test_main_moving_again_after_a_push_wakes_the_assignment_again(state, gh):
+    ran(state=state, number=1)
+    ran(
+        state=state,
+        number=2,
+        round_input=relayed(signals=[PullRequestSignal.OUT_OF_DATE]),
+    )
+    gh.replies(
+        stdout=pull_request(state="OPEN", merge_state="BEHIND", head=PUSHED),
+        to="pr view",
+    )
+
+    resume = found(state=state)
+
+    assert isinstance(resume, AssignmentRoundInput)
+    assert resume.signals == [PullRequestSignal.OUT_OF_DATE]
+    assert resume.pull_request_head == PUSHED
+
+
+@pytest.mark.parametrize(
+    "checks", [(check_run(),), (check_run(status="IN_PROGRESS"),), ()]
+)
+def test_a_green_running_or_unchecked_pull_request_wakes_nothing(state, gh, checks):
+    ran(state=state, number=1)
+    gh.replies(stdout=pull_request(state="OPEN", checks=checks), to="pr view")
+
+    assert found(state=state) is None
+
+
+def test_a_red_check_wakes_the_assignment(state, gh):
+    ran(state=state, number=1)
+    gh.replies(stdout=pull_request(state="OPEN", checks=RED), to="pr view")
+
+    resume = found(state=state)
+
+    assert isinstance(resume, AssignmentRoundInput)
+    assert resume.signals == [PullRequestSignal.CHECK_FAILURE]
+
+
+def test_a_red_check_is_relayed_once_at_each_head(state, gh):
+    ran(state=state, number=1)
+    ran(
+        state=state,
+        number=2,
+        round_input=relayed(signals=[PullRequestSignal.CHECK_FAILURE]),
+    )
+    gh.replies(stdout=pull_request(state="OPEN", checks=RED), to="pr view")
+
+    assert found(state=state) is None
+    assert not pull_request_finding(state=state).is_check_failure_withheld
+
+
+def test_a_red_check_after_one_attempt_wakes_the_assignment_a_second_time(state, gh):
+    ran(state=state, number=1)
+    ran(
+        state=state,
+        number=2,
+        round_input=relayed(signals=[PullRequestSignal.CHECK_FAILURE]),
+    )
+    gh.replies(stdout=pull_request(state="OPEN", checks=RED, head=PUSHED), to="pr view")
+
+    resume = found(state=state)
+
+    assert isinstance(resume, AssignmentRoundInput)
+    assert resume.signals == [PullRequestSignal.CHECK_FAILURE]
+
+
+def test_a_red_check_after_two_attempts_waits_for_the_user(state, gh):
+    ran(state=state, number=1)
+    ran(
+        state=state,
+        number=2,
+        round_input=relayed(signals=[PullRequestSignal.CHECK_FAILURE]),
+    )
+    ran(
+        state=state,
+        number=3,
+        round_input=relayed(signals=[PullRequestSignal.CHECK_FAILURE], head=PUSHED),
+    )
+    gh.replies(
+        stdout=pull_request(state="OPEN", checks=RED, head=PUSHED_AGAIN), to="pr view"
+    )
+
+    assert found(state=state) is None
+    finding = pull_request_finding(state=state)
+    assert finding.new_signals == []
+    assert finding.is_check_failure_withheld
+
+
+def test_a_post_after_two_attempts_still_wakes_the_assignment(state, gh):
+    ran(state=state, number=1)
+    ran(
+        state=state,
+        number=2,
+        round_input=relayed(signals=[PullRequestSignal.CHECK_FAILURE]),
+    )
+    ran(
+        state=state,
+        number=3,
+        round_input=relayed(signals=[PullRequestSignal.CHECK_FAILURE], head=PUSHED),
+    )
+    gh.replies(
+        stdout=pull_request(state="OPEN", checks=RED, head=PUSHED_AGAIN), to="pr view"
+    )
+    gh.replies(
+        stdout=pages(items=[comment(created_at="2026-09-04T09:00:00Z")]),
+        to=f"api {POST_LIST_PATHS['conversation']}",
+    )
+
+    resume = found(state=state)
+
+    assert isinstance(resume, AssignmentRoundInput)
+    assert resume.signals == []
+    assert len(resume.user_posts) == 1
+
+
+def test_a_round_woken_by_a_post_breaks_a_run_of_red_checks(state, gh):
+    ran(state=state, number=1)
+    ran(
+        state=state,
+        number=2,
+        round_input=relayed(signals=[PullRequestSignal.CHECK_FAILURE]),
+    )
+    ran(state=state, number=3, round_input=relayed(signals=[], head=PUSHED, posts=1))
+    gh.replies(
+        stdout=pull_request(state="OPEN", checks=RED, head=PUSHED_AGAIN), to="pr view"
+    )
+
+    resume = found(state=state)
+
+    assert isinstance(resume, AssignmentRoundInput)
+    assert resume.signals == [PullRequestSignal.CHECK_FAILURE]
+
+
+def test_a_round_that_errored_does_not_count_as_an_attempt(state, gh):
+    ran(state=state, number=1)
+    ran(
+        state=state,
+        number=2,
+        round_input=relayed(signals=[PullRequestSignal.CHECK_FAILURE]),
+    )
+    ran(
+        state=state,
+        number=3,
+        status=1,
+        round_input=relayed(signals=[PullRequestSignal.CHECK_FAILURE], head=PUSHED),
+    )
+    gh.replies(stdout=pull_request(state="OPEN", checks=RED, head=PUSHED), to="pr view")
+
+    resume = found(state=state)
+
+    assert isinstance(resume, AssignmentRoundInput)
+    assert resume.signals == [PullRequestSignal.CHECK_FAILURE]
+
+
+def test_a_draft_raises_neither_signal(state, gh):
+    ran(state=state, number=1)
+    gh.replies(
+        stdout=pull_request(
+            state="OPEN", is_draft=True, merge_state="BEHIND", checks=RED
+        ),
+        to="pr view",
+    )
+
+    assert found(state=state) is None
+    assert pull_request_finding(state=state).new_signals == []
+
+
+def test_a_merged_pull_request_raises_no_signal_in_its_last_round(state, gh):
+    ran(state=state, number=1)
+    gh.replies(
+        stdout=pull_request(state="MERGED", merge_state="UNKNOWN", checks=RED),
+        to="pr view",
+    )
+
+    resume = found(state=state)
+
+    assert isinstance(resume, AssignmentRoundInput)
+    assert resume.pull_request_state is PullRequestState.MERGED
+    assert resume.signals == []
+
+
+def test_a_round_woken_by_a_signal_is_told_of_it_before_its_input(state, gh):
+    ran(state=state, number=1)
+    gh.replies(stdout=pull_request(state="OPEN", checks=RED), to="pr view")
+    candidate = inspect(state=state).candidate
+    assert candidate is not None
+
+    plan = candidate.compose_round(work=read_assignments(state=state)[0])
+
+    assert plan.input_prompt is not None
+    assert plan.input_prompt.startswith("Checks failed on your pull request's")
+
+
+def test_each_signal_is_relayed_against_its_own_last_head(state, gh):
+    ran(state=state, number=1)
+    ran(
+        state=state,
+        number=2,
+        round_input=relayed(signals=[PullRequestSignal.CHECK_FAILURE], head=PUSHED),
+    )
+    ran(
+        state=state,
+        number=3,
+        round_input=relayed(signals=[PullRequestSignal.OUT_OF_DATE], head=PUSHED_AGAIN),
+    )
+    gh.replies(
+        stdout=pull_request(
+            state="OPEN", merge_state="BEHIND", checks=RED, head=PUSHED_AGAIN
+        ),
+        to="pr view",
+    )
+
+    resume = found(state=state)
+
+    assert isinstance(resume, AssignmentRoundInput)
+    assert resume.signals == [PullRequestSignal.CHECK_FAILURE]
+
+
+def test_a_withheld_check_failure_leaves_an_out_of_date_signal_to_relay(state, gh):
+    ran(state=state, number=1)
+    ran(
+        state=state,
+        number=2,
+        round_input=relayed(signals=[PullRequestSignal.CHECK_FAILURE]),
+    )
+    ran(
+        state=state,
+        number=3,
+        round_input=relayed(signals=[PullRequestSignal.CHECK_FAILURE], head=PUSHED),
+    )
+    gh.replies(
+        stdout=pull_request(
+            state="OPEN", merge_state="DIRTY", checks=RED, head=PUSHED_AGAIN
+        ),
+        to="pr view",
+    )
+
+    resume = found(state=state)
+
+    assert isinstance(resume, AssignmentRoundInput)
+    assert resume.signals == [PullRequestSignal.OUT_OF_DATE]
+    assert pull_request_finding(state=state).is_check_failure_withheld

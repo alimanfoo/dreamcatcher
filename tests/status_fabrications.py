@@ -7,6 +7,7 @@ from types import MappingProxyType
 from clocks import PINNED
 from conftest import ASSIGNMENT_LABEL, DAEMON_PID, REPOSITORY, comment
 from records import (
+    HEAD,
     MERGED_INPUT,
     compose_conversation_identifier,
     hold_daemon_lock_for_test,
@@ -32,7 +33,12 @@ from dreamcatcher.agent_rounds import (
 from dreamcatcher.agent_work import read_agent_work_at_issue
 from dreamcatcher.documents import write_json, write_text
 from dreamcatcher.feed import FeedLine
-from dreamcatcher.github import ConversationComment, PullRequestState
+from dreamcatcher.github import (
+    CheckResult,
+    ConversationComment,
+    PullRequestMergeState,
+    PullRequestState,
+)
 from dreamcatcher.harness_adapters import AgentWorkKind, HarnessSessionIdentifier
 from dreamcatcher.issue_conversations import (
     ConversationRoundInput,
@@ -78,7 +84,11 @@ def _draft_pull_request(*, new_posts: int = 0) -> PullRequestFinding:
         number=52,
         state=PullRequestState.OPEN,
         is_draft=True,
+        merge_state=PullRequestMergeState.CLEAN,
+        check_result=CheckResult.PASSING,
         new_posts=new_posts,
+        new_signals=[],
+        is_check_failure_withheld=False,
         is_final_turn_due=False,
     )
 
@@ -194,13 +204,18 @@ def fabricate_conversation(
 # What an assignment round woken by one post from the user was given.
 ONE_POST_INPUT = AssignmentRoundInput(
     pull_request_state=PullRequestState.OPEN,
+    pull_request_head=HEAD,
+    signals=[],
     user_posts=[ConversationComment.model_validate(comment())],
 )
 
 # What an assignment round given the input of one that did not finish was given,
 # when that input held no posts.
 CARRY_ON_INPUT = AssignmentRoundInput(
-    pull_request_state=PullRequestState.OPEN, user_posts=[]
+    pull_request_state=PullRequestState.OPEN,
+    pull_request_head=HEAD,
+    signals=[],
+    user_posts=[],
 )
 
 
@@ -479,11 +494,55 @@ def fabricate_titles_and_pull_request_states(*, state):
     """Write assignments and issues carrying every web reporting fact."""
     holding(state=state)
     pull_request_rows = []
-    for issue, title, pull_request_state, is_draft in (
-        (10, "Draft assignment", PullRequestState.OPEN, True),
-        (11, "Ready assignment", PullRequestState.OPEN, False),
-        (12, "Merged assignment", PullRequestState.MERGED, False),
-        (13, "Closed assignment", PullRequestState.CLOSED, False),
+    for issue, title, pull_request_state, is_draft, merge_state, check_result in (
+        (
+            10,
+            "Draft assignment",
+            PullRequestState.OPEN,
+            True,
+            PullRequestMergeState.BLOCKED,
+            CheckResult.NONE,
+        ),
+        (
+            11,
+            "Ready assignment",
+            PullRequestState.OPEN,
+            False,
+            PullRequestMergeState.CLEAN,
+            CheckResult.PASSING,
+        ),
+        (
+            12,
+            "Merged assignment",
+            PullRequestState.MERGED,
+            False,
+            PullRequestMergeState.UNKNOWN,
+            CheckResult.PASSING,
+        ),
+        (
+            13,
+            "Closed assignment",
+            PullRequestState.CLOSED,
+            False,
+            PullRequestMergeState.CLEAN,
+            CheckResult.PASSING,
+        ),
+        (
+            15,
+            "Behind assignment",
+            PullRequestState.OPEN,
+            False,
+            PullRequestMergeState.BEHIND,
+            CheckResult.RUNNING,
+        ),
+        (
+            16,
+            "Red assignment",
+            PullRequestState.OPEN,
+            False,
+            PullRequestMergeState.BLOCKED,
+            CheckResult.FAILING,
+        ),
     ):
         write_assignment(
             state=state,
@@ -499,7 +558,11 @@ def fabricate_titles_and_pull_request_states(*, state):
                     number=52,
                     state=pull_request_state,
                     is_draft=is_draft,
+                    merge_state=merge_state,
+                    check_result=check_result,
                     new_posts=0,
+                    new_signals=[],
+                    is_check_failure_withheld=check_result is CheckResult.FAILING,
                     is_final_turn_due=pull_request_state is not PullRequestState.OPEN,
                 ),
             )

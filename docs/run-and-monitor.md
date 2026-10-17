@@ -91,9 +91,9 @@ Assignments and conversations share these states:
 - **waiting**: a round is ready to start, or _dreamcatcher_ is awaiting the next
   update; the accompanying detail says which;
 - **idle**: no round is due until something new arrives; for an assignment the
-  detail says whether its pull request is ready for review or still a draft, and
-  for a conversation how its latest round ended, or why the conversation is held
-  back;
+  detail says whether its pull request is ready for review, still a draft, out
+  of date, running its checks or failing them, and for a conversation how its
+  latest round ended, or why the conversation is held back;
 - **fault**: repeated errors need attention;
 - **unknown**: _dreamcatcher_ could not read what it needed; the accompanying
   detail says what failed; and

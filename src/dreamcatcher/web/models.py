@@ -32,7 +32,7 @@ class WebAgentWorkCard:
     model: str
     effort: str
     pull_request: int | None
-    pull_request_state: str | None
+    pull_request_summary: str | None
     latest_output: str | None
 
 
@@ -133,7 +133,7 @@ class WebAssignmentView:
     issue: int
     title: str
     pull_request: int | None
-    pull_request_state: str | None
+    pull_request_summary: str | None
     dispatch_label: str
     harness: str
     model: str

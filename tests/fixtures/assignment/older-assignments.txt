@@ -4,7 +4,7 @@ idle  draft
 assignment
   issue identifier             GH13                                                      
   agent assignment identifier  GH13-20260819-184158-assignment                           
-  pull request                 #52                                                       
+  pull request                 #52 draft                                                 
   label                        dream:smith                                               
   branch                       dreamcatcher-GH13-20260819-184158-assignment              
   worktree                     .dreamcatcher/v6/worktrees/GH13-20260819-184158-assignment

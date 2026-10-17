@@ -127,13 +127,16 @@ is running or it is in fault. This does not create a separate class of normally
 scheduled work.
 
 Every new round is given the input that past rounds have not yet relayed. An
-assignment round's input holds the pull request state and the user posts after
-the delivery position, and a conversation round's input holds the comments after
-it. The delivery position and whether the final turn has been taken are read
-from the inputs of the rounds that did not error or get interrupted, so a round
-that did not finish has its input given again. Existing work with something new
-to relay, or whose last round errored or was interrupted, is a candidate unless
-its last round is running or it is in fault.
+assignment round's input holds the pull request state and head commit, the
+out-of-date and check-failure signals raised at a head not yet relayed, and the
+user posts after the delivery position, and a conversation round's input holds
+the comments after it. The delivery position, the head at which each signal was
+last relayed, whether the relay rule withholds a check-failure, and whether the
+final turn has been taken are read from the inputs of the rounds that did not
+error or get interrupted, so a round that did not finish has its input given
+again. Existing work with something new to relay, or whose last round errored or
+was interrupted, is a candidate unless its last round is running or it is in
+fault.
 
 Scheduling should expose pure, read-only functions for interpretations that
 status reporting also needs, particularly whether agent work is in fault and
@@ -220,8 +223,9 @@ of an agent assignment. It should provide cohesive operations to:
   assignment has none;
 - name the assignment's branch from its identifier;
 - read its pull request number;
-- read the user-post delivery position, the pull request state last relayed, and
-  whether the final turn has been taken, from recorded round inputs;
+- read the user-post delivery position, the pull request state last relayed, the
+  head at which each signal was last relayed, whether the relay rule withholds,
+  and whether the final turn has been taken, from recorded round inputs;
 - complete an assignment as its wrap-up round finishes; and
 - cancel an assignment.
 
@@ -282,14 +286,14 @@ operations to:
   finds a round record that an earlier daemon left without an ending.
 
 `agent_assignments.py` owns `AssignmentRoundInput`, the pull request state and
-relayed user posts that an assignment round receives beside its prompt once its
-pull request exists. `issue_conversations.py` owns `ConversationRoundInput`,
-which freezes the issue, trusted comments and investigated revision for a
-conversation round. The round runner writes whichever input the owner's
-preparation returns without reading it, and it hands the final output to the
-owner's finisher without knowing what the owner does with it. The round module
-therefore stays clear of Git and GitHub, and each kind's own module owns what
-its steps write.
+head commit, the relayed signals and the relayed user posts that an assignment
+round receives beside its prompt once its pull request exists.
+`issue_conversations.py` owns `ConversationRoundInput`, which freezes the issue,
+trusted comments and investigated revision for a conversation round. The round
+runner writes whichever input the owner's preparation returns without reading
+it, and it hands the final output to the owner's finisher without knowing what
+the owner does with it. The round module therefore stays clear of Git and
+GitHub, and each kind's own module owns what its steps write.
 
 The scheduler decides the input and the prompt a new round has. The round
 boundary executes and records that decision; it does not inspect the pull
@@ -310,7 +314,8 @@ GitHub commands. It owns projections and operations for:
 - the repository's labels, and creating a label;
 - issue title, state, assignees, labels, and dependencies;
 - linked pull requests;
-- pull-request identity, draft state, readiness, and terminal state;
+- pull-request identity, draft state, readiness, terminal state, merge state,
+  head commit, and what its checks add up to;
 - creating the linked draft pull request; and
 - reading ordinary issue comments and posting a conversation answer; and
 - reading and normalizing user posts from comments, reviews, verdicts, and
@@ -325,19 +330,24 @@ carried, if any.
 GitHub owns its documents and may add fields, so its responses remain tolerant
 projections. Documents owned by _dreamcatcher_ remain strict.
 
-### User-post relay
+### Relay
 
-`relay.py` owns the act of selecting user posts not yet delivered to the agent,
-oldest first. It compares normalized user posts from the GitHub boundary with
-the assignment's delivery position, read from the newest recorded round input
-that contains posts.
+`relay.py` owns what is past an assignment's cursor in its pull request. It
+selects the user posts not yet delivered to the agent, oldest first, by
+comparing normalized user posts from the GitHub boundary with the assignment's
+delivery position, read from the newest recorded round input that contains
+posts. It raises the out-of-date and check-failure signals of a pull request
+that is open and ready for review, each at a head commit at which no recorded
+round input relayed it, and leaves out a check-failure that the relay rule
+withholds.
 
 Relay does not define a separate inbox domain entity and does not decide when a
-round should run. The scheduler determines whether unrelayed user posts require
-work; the relay selects the posts, the scheduler places them in the round's
-input, and the round input records the newest post accepted for delivery before
-its process starts. Posts made while a round is running remain beyond that
-position and are available to a later round.
+round should run. The scheduler determines whether unrelayed posts or other
+signals require work; the relay selects them, the scheduler places them in the
+round's input, and the round input records the posts and other signals accepted
+for delivery, with the head they were raised at, before its process starts.
+Posts made while a round is running remain beyond that position and are
+available to a later round.
 
 ### Harness adapters
 
@@ -397,7 +407,9 @@ names the issue, its title, the dispatch label, the kind, and the identifier of
 the open agent work, if any. It holds what the tick found as a typed finding:
 
 - for an assignment whose pull request the tick read, the pull request's number,
-  state and draft flag and the count of user posts past the cursor;
+  state, draft flag, merge state and check result, the count of user posts and
+  the signals past the cursor, and whether the relay rule withheld a
+  check-failure;
 - for a conversation whose comments the tick read, the count of comments past
   the cursor;
 - for an assignment request with no open work, the open linked pull requests and
@@ -588,7 +600,8 @@ A round record persists:
   final output the harness reports.
 
 An assignment round input that carries user posts establishes the delivery
-position at its newest post. The assignment reads that position by scanning the
+position at its newest post, and one that carries a signal records the head at
+which it was relayed. The assignment reads that position by scanning the
 recorded inputs of its rounds that did not error or get interrupted, from newest
 to oldest. What woke a round is read from its input rather than recorded.
 
@@ -620,9 +633,9 @@ The following are derived rather than persisted as authoritative state:
 - every agent work status and request status shown in a status report.
 
 Mutable external facts, including issue state, assignees, labels, dependencies,
-linked pull requests, pull-request draft/readiness/terminal state, and user
-posts, are read from GitHub. A failed read produces an unknown fact and
-conservative inaction rather than a guessed answer.
+linked pull requests, pull-request draft/readiness/terminal state, merge state,
+head commit and checks, and user posts, are read from GitHub. A failed read
+produces an unknown fact and conservative inaction rather than a guessed answer.
 
 ## Dependency direction
 

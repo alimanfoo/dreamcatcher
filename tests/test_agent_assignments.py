@@ -6,6 +6,7 @@ import pytest
 from clocks import PINNED
 from conftest import (
     CONFIG,
+    HEAD,
     PULL_REQUEST,
     REPOSITORY,
     comment,
@@ -516,7 +517,7 @@ def test_a_first_round_continues_from_what_an_earlier_attempt_left(
     if checkpoint in {"push", "pull request"}:
         push_branch(root=state.root, branch=BRANCH)
     if checkpoint == "pull request":
-        gh.replies(stdout=pull_requests(listed=[(PULL_REQUEST, "OPEN")]), to="pr list")
+        gh.replies(stdout=pull_requests(numbers=[PULL_REQUEST]), to="pr list")
 
     open_pull_request(state=state, assignment=assignment)
 
@@ -542,7 +543,7 @@ def test_a_pull_request_listing_failure_leaves_the_round_to_try_again(state, rou
 
 def test_several_pull_requests_on_the_assignments_branch_are_reported(state, route, gh):
     gh.replies(
-        stdout=pull_requests(listed=[(PULL_REQUEST, "OPEN"), (53, "CLOSED")]),
+        stdout=pull_requests(numbers=[PULL_REQUEST, 53]),
         to="pr list",
     )
     assignment = record_assignment(state=state, route=route)
@@ -562,7 +563,7 @@ def test_a_created_pull_request_that_cannot_be_read_is_adopted_next_time(
     ):
         open_pull_request(state=state, assignment=assignment)
 
-    gh.replies(stdout=pull_requests(listed=[(PULL_REQUEST, "OPEN")]), to="pr list")
+    gh.replies(stdout=pull_requests(numbers=[PULL_REQUEST]), to="pr list")
     open_pull_request(state=state, assignment=assignment)
 
     assert read_assignment_pull_request_number(assignment=assignment) == PULL_REQUEST
@@ -661,6 +662,8 @@ def test_an_assignment_reads_back_its_user_post_delivery_position(state, route):
     write_json(
         document=AssignmentRoundInput(
             pull_request_state=PullRequestState.OPEN,
+            pull_request_head=HEAD,
+            signals=[],
             user_posts=[
                 ConversationComment.model_validate(
                     comment(created_at="2026-09-03T22:31:51Z")
@@ -711,6 +714,8 @@ def test_the_user_post_delivery_position_scans_past_an_input_that_delivered_no_p
         write_json(
             document=AssignmentRoundInput(
                 pull_request_state=PullRequestState.OPEN,
+                pull_request_head=HEAD,
+                signals=[],
                 user_posts=posts,
             ),
             path=created.compose_round_paths(number=number).round_input,

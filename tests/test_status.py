@@ -4,8 +4,9 @@ from datetime import timedelta
 
 import pytest
 from clocks import PINNED
-from conftest import ASSIGNMENT_LABEL, PULL_REQUEST, REPOSITORY
+from conftest import ASSIGNMENT_LABEL, PULL_REQUEST, REPOSITORY, comment
 from records import (
+    HEAD,
     MERGED_INPUT,
     hold_daemon_lock_for_test,
     read_assignments,
@@ -35,7 +36,13 @@ from dreamcatcher.daemon import DEFAULT_INTERVAL_SECONDS
 from dreamcatcher.daemon_runs import DaemonRunRecord
 from dreamcatcher.documents import write_text
 from dreamcatcher.feed import FeedLine
-from dreamcatcher.github import PullRequestState
+from dreamcatcher.github import (
+    CheckResult,
+    ConversationComment,
+    PullRequestMergeState,
+    PullRequestSignal,
+    PullRequestState,
+)
 from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.scheduler.models import (
     ConflictingLabelsFinding,
@@ -164,7 +171,11 @@ def pull_request_row(
             number=PULL_REQUEST,
             state=state,
             is_draft=is_draft,
+            merge_state=PullRequestMergeState.CLEAN,
+            check_result=CheckResult.PASSING,
             new_posts=new_posts,
+            new_signals=[],
+            is_check_failure_withheld=False,
             is_final_turn_due=is_final_turn_due,
         ),
         started_round=started_round,
@@ -495,32 +506,145 @@ def test_a_cancelled_assignment_has_ended_rather_than_being_in_fault(state):
     assert status.value is AgentWorkStatusValue.ENDED
 
 
-@pytest.mark.parametrize(("is_draft", "words"), [(True, "draft"), (False, "ready")])
-def test_an_open_assignment_reports_the_pull_request_state_the_tick_read(
-    state, is_draft, words
+def pull_request_row_holding(**facts: object) -> RequestRow:
+    """Return the row of the fixture's assignment, its pull request holding these."""
+    row = pull_request_row()
+    assert row.finding is not None
+    finding = PullRequestFinding.model_validate(row.finding.model_dump() | facts)
+    return row.model_copy(update={"finding": finding})
+
+
+@pytest.mark.parametrize(
+    ("facts", "words"),
+    [
+        ({"is_draft": True}, "draft"),
+        ({"check_result": CheckResult.NONE}, "ready"),
+        (
+            {"is_draft": True, "check_result": CheckResult.RUNNING},
+            "draft, checks running",
+        ),
+        (
+            {
+                "merge_state": PullRequestMergeState.BEHIND,
+                "check_result": CheckResult.RUNNING,
+            },
+            "ready, out of date, checks running",
+        ),
+        (
+            {
+                "merge_state": PullRequestMergeState.DIRTY,
+                "check_result": CheckResult.FAILING,
+            },
+            "ready, out of date, checks failing",
+        ),
+    ],
+)
+def test_an_open_assignment_reports_where_the_tick_found_its_pull_request(
+    state, facts, words
 ):
     ran(state=state, number=1)
-    tick_with(state=state, rows=[pull_request_row(is_draft=is_draft)])
+    tick_with(state=state, rows=[pull_request_row_holding(**facts)])
 
-    assert only_assignment(state=state).pull_request_state == words
+    assert only_assignment(state=state).pull_request_summary == words
 
 
-def test_an_assignment_the_tick_read_nothing_for_reports_no_pull_request_state(state):
+@pytest.mark.parametrize(
+    ("facts", "detail"),
+    [
+        (
+            {
+                "merge_state": PullRequestMergeState.BEHIND,
+                "check_result": CheckResult.FAILING,
+                "is_check_failure_withheld": True,
+            },
+            "checks failing after two attempts",
+        ),
+        (
+            {
+                "merge_state": PullRequestMergeState.BEHIND,
+                "check_result": CheckResult.FAILING,
+            },
+            "out of date",
+        ),
+        ({"check_result": CheckResult.FAILING}, "checks failing"),
+        ({"check_result": CheckResult.RUNNING}, "checks running"),
+        ({"check_result": CheckResult.NONE}, "ready for review"),
+    ],
+)
+def test_a_ready_pull_request_with_nothing_new_says_where_it_has_got_to(
+    state, facts, detail
+):
+    ran(state=state, number=1)
+    tick_with(state=state, rows=[pull_request_row_holding(**facts)])
+
+    status = only_assignment(state=state)
+
+    assert status.value is AgentWorkStatusValue.IDLE
+    assert status.detail == detail
+
+
+def test_signals_found_by_the_tick_make_the_assignment_wait(state):
+    ran(state=state, number=1)
+    tick_with(
+        state=state,
+        rows=[
+            pull_request_row_holding(
+                new_posts=1,
+                new_signals=[
+                    PullRequestSignal.OUT_OF_DATE,
+                    PullRequestSignal.CHECK_FAILURE,
+                ],
+            )
+        ],
+    )
+
+    status = only_assignment(state=state)
+
+    assert status.value is AgentWorkStatusValue.WAITING
+    assert status.detail == "1 new post to answer, out of date, checks failed"
+
+
+@pytest.mark.parametrize(
+    ("signals", "posts", "trigger"),
+    [
+        ([PullRequestSignal.CHECK_FAILURE], 0, "checks failed"),
+        ([PullRequestSignal.OUT_OF_DATE], 1, "1 post, out of date"),
+        ([], 0, "carry on"),
+    ],
+)
+def test_a_round_says_which_signals_woke_it(state, signals, posts, trigger):
+    ran(
+        state=state,
+        number=1,
+        round_input=AssignmentRoundInput(
+            pull_request_state=PullRequestState.OPEN,
+            pull_request_head=HEAD,
+            signals=signals,
+            user_posts=[ConversationComment.model_validate(comment())] * posts,
+        ),
+    )
+
+    round_status = only_assignment(state=state).round_statuses[0]
+
+    assert round_status.trigger_description == trigger
+
+
+def test_an_assignment_the_tick_read_nothing_for_reports_no_pull_request_summary(state):
     ran(state=state, number=1, status=None)
     tick_with(
         state=state, rows=[request_row(issue=13, agent_work_identifier=ASSIGNMENT_ID)]
     )
 
-    assert only_assignment(state=state).pull_request_state is None
+    assert only_assignment(state=state).pull_request_summary is None
 
 
-def test_a_cancelled_assignment_stops_reporting_its_pull_request_state(state):
+def test_a_cancelled_assignment_stops_reporting_its_pull_request_summary(state):
     ran(state=state, number=1)
     tick_with(state=state, rows=[pull_request_row(is_draft=True)])
 
     cancel(state=state)
 
-    assert only_assignment(state=state).pull_request_state is None
+    assert only_assignment(state=state).pull_request_summary is None
 
 
 @pytest.mark.parametrize("status", [0, None])
@@ -533,7 +657,7 @@ def test_a_wrapped_up_assignment_reports_the_state_its_last_round_was_given(
         state=state, rows=[request_row(issue=13, agent_work_identifier=ASSIGNMENT_ID)]
     )
 
-    assert only_assignment(state=state).pull_request_state == "merged"
+    assert only_assignment(state=state).pull_request_summary == "merged"
 
 
 def test_an_assignment_that_has_run_no_round_waits_for_its_first(state):

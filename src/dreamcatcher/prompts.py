@@ -3,6 +3,7 @@
 from pathlib import Path
 
 from dreamcatcher.agent_rounds import AgentRoundOutcome
+from dreamcatcher.github import PullRequestSignal
 
 # The line that every post an agent makes on GitHub ends with. The daemon and the
 # agent share one GitHub account, so this is what tells the two apart: a post
@@ -45,20 +46,34 @@ says what to do next.
 
 """
 
-# What a round resumed from the pull request asks for. It ports from the catcher
-# this tool replaces, word for word. The user's own words are never in it: the
-# posts go to a file, and this names the file. The file also says where the
-# pull request has got to, which is what tells a round that answers the user
-# from a round that wraps a merged or closed pull request up, so one prompt
-# serves both.
-_ASSIGNMENT_INPUT_PROMPT = """User-posts prompt for pull request #{pull_request}:
+# What opens the input of a round woken because the pull request is behind its
+# base branch or conflicts with it.
+_OUT_OF_DATE_LINE = """Your pull request is behind its base branch or conflicts with
+it. Merge the base branch in, resolve any conflicts, and push.
+
+"""
+
+# What opens the input of a round woken because a check failed at the pull
+# request's head.
+_CHECK_FAILURE_LINE = """Checks failed on your pull request's latest commit. Read
+their output, fix the cause, and push.
+
+"""
+
+# What an assignment round is given once its pull request exists. The user's own
+# words are never in it: the posts go to a file, and this names the file. The
+# file also says where the pull request has got to, which is what tells a round
+# that answers the user from a round that wraps a merged or closed pull request
+# up, so one prompt serves both. A round woken by a signal alone has no posts,
+# and the signal's line before this prompt says what to do.
+_ASSIGNMENT_INPUT_PROMPT = """Assignment input for pull request #{pull_request}:
 
   {round_input}
 
 Read that JSON file. Read pull_request_state before anything else. If
 pull_request_state is MERGED or CLOSED, finish per your assignment's rules.
-Otherwise act on user_posts per your assignment's rules. End your turn when
-done."""
+Otherwise act on every post in user_posts, if it holds any, per your
+assignment's rules. End your turn when done."""
 
 _CONVERSATION_INPUT_PROMPT = """Issue-conversation input for GH{issue}:
 
@@ -88,13 +103,18 @@ def compose_issue_instructions(*, template: str, issue: int) -> str:
     return template.replace(_ISSUE_PLACEHOLDER, str(issue))
 
 
-def compose_assignment_input_prompt(*, pull_request: int, round_input: Path) -> str:
+def compose_assignment_input_prompt(
+    *, pull_request: int, round_input: Path, signals: list[PullRequestSignal]
+) -> str:
     """Return the words that direct an assignment round to its input file.
 
-    The input file holds the pull request state and the batch of user posts.
+    The input file holds the pull request state, the signals and the batch of
+    user posts. One line for each signal opens the words.
     """
-    return _ASSIGNMENT_INPUT_PROMPT.format(
-        pull_request=pull_request, round_input=round_input
+    return "".join(_SIGNAL_LINES[signal] for signal in signals) + (
+        _ASSIGNMENT_INPUT_PROMPT.format(
+            pull_request=pull_request, round_input=round_input
+        )
     )
 
 
@@ -128,4 +148,10 @@ _PREVIOUS_ROUND_LINES = {
     AgentRoundOutcome.STOPPED: _STOPPED_ROUND_LINE,
     AgentRoundOutcome.ERRORED: _UNFINISHED_ROUND_LINE,
     AgentRoundOutcome.INTERRUPTED: _UNFINISHED_ROUND_LINE,
+}
+
+# What opens a round's input, for each signal it relays.
+_SIGNAL_LINES = {
+    PullRequestSignal.OUT_OF_DATE: _OUT_OF_DATE_LINE,
+    PullRequestSignal.CHECK_FAILURE: _CHECK_FAILURE_LINE,
 }

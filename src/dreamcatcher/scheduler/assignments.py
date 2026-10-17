@@ -16,6 +16,7 @@ from dreamcatcher.github import (
     Issue,
     IssueState,
     PullRequest,
+    PullRequestSignal,
     PullRequestState,
     UnknownGitHubResponse,
     UserPost,
@@ -24,7 +25,7 @@ from dreamcatcher.github import (
     read_pull_request,
 )
 from dreamcatcher.prompts import compose_assignment_input_prompt
-from dreamcatcher.relay import list_undelivered_user_posts
+from dreamcatcher.relay import find_pull_request_signals, list_undelivered_user_posts
 from dreamcatcher.scheduler.faults import is_last_round_unfinished
 from dreamcatcher.scheduler.inspection import (
     Candidate,
@@ -69,11 +70,11 @@ def inspect_open_assignment(
 def _inspect_pull_request(
     *, context: SchedulingContext, assignment: AgentWork, pull_request: int
 ) -> Inspection:
-    """Inspect an assignment's pull request and the user posts past its cursor.
+    """Inspect an assignment's pull request and what is past its cursor there.
 
-    A round is due for user posts past the cursor, for a merged or closed pull
-    request whose final turn has not been taken, or to give again the input of
-    a round that did not finish.
+    A round is due for user posts or signals past the cursor, for a merged or
+    closed pull request whose final turn has not been taken, or to give again
+    the input of a round that did not finish.
     """
     read = read_pull_request(repository=context.repository, pull_request=pull_request)
     if isinstance(read, UnknownGitHubResponse):
@@ -94,11 +95,16 @@ def _inspect_pull_request(
                 work=assignment, finding=ReadFailureFinding(reason=posts.reason)
             )
         )
+    signals = find_pull_request_signals(assignment=assignment, pull_request=read)
     finding = PullRequestFinding(
         number=read.number,
         state=read.state,
         is_draft=read.is_draft,
+        merge_state=read.merge_state,
+        check_result=read.check_result,
         new_posts=len(posts),
+        new_signals=signals.new_signals,
+        is_check_failure_withheld=signals.is_check_failure_withheld,
         is_final_turn_due=(
             read.state is not PullRequestState.OPEN
             and not is_final_turn_taken(assignment=assignment)
@@ -107,6 +113,7 @@ def _inspect_pull_request(
     row = compose_agent_work_row(work=assignment, finding=finding)
     if not (
         finding.new_posts
+        or finding.new_signals
         or finding.is_final_turn_due
         or is_last_round_unfinished(rounds=assignment.rounds, is_daemon_running=True)
     ):
@@ -120,6 +127,7 @@ def _inspect_pull_request(
                 context=context,
                 pull_request=read,
                 posts=posts,
+                signals=signals.new_signals,
             ),
         ),
     )
@@ -193,15 +201,19 @@ def _compose_relay_round(
     context: SchedulingContext,
     pull_request: PullRequest,
     posts: list[UserPost],
+    signals: list[PullRequestSignal],
     work: AgentWork,
 ) -> RoundPlan:
-    """Return the plan of a round given the pull request's state and new posts.
+    """Return the plan of a round given the pull request's state, signals and posts.
 
     A round given a merged or closed pull request is the wrap-up round, and it
     records that the assignment completed as it finishes.
     """
     round_input = AssignmentRoundInput(
-        pull_request_state=pull_request.state, user_posts=posts
+        pull_request_state=pull_request.state,
+        pull_request_head=pull_request.head,
+        signals=signals,
+        user_posts=posts,
     )
     return RoundPlan(
         prepare_round=lambda: round_input,
@@ -210,6 +222,7 @@ def _compose_relay_round(
             round_input=work.compose_round_paths(
                 number=work.next_round_number
             ).round_input,
+            signals=signals,
         ),
         finish_round=(
             None

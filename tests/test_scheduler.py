@@ -8,6 +8,7 @@ import pytest
 from clocks import PINNED, Ticking
 from conftest import (
     FILED,
+    HEAD,
     LATER,
     POST_LIST_PATHS,
     POSTED_AT,
@@ -57,7 +58,7 @@ from dreamcatcher.git import (
     make_empty_commit,
     push_branch,
 )
-from dreamcatcher.github import PullRequestState
+from dreamcatcher.github import CheckResult, PullRequestMergeState, PullRequestState
 from dreamcatcher.scheduler import Scheduler, SchedulingContext
 from dreamcatcher.scheduler.faults import is_last_round_unfinished
 from dreamcatcher.scheduler.models import (
@@ -81,7 +82,11 @@ NOTHING_NEW = PullRequestFinding(
     number=PULL_REQUEST,
     state=PullRequestState.OPEN,
     is_draft=True,
+    merge_state=PullRequestMergeState.CLEAN,
+    check_result=CheckResult.PASSING,
     new_posts=0,
+    new_signals=[],
+    is_check_failure_withheld=False,
     is_final_turn_due=False,
 )
 
@@ -681,7 +686,11 @@ def test_an_assignment_with_nothing_new_reads_only_its_pull_request_and_posts(
                 number=PULL_REQUEST,
                 state=PullRequestState.OPEN,
                 is_draft=False,
+                merge_state=PullRequestMergeState.CLEAN,
+                check_result=CheckResult.PASSING,
                 new_posts=0,
+                new_signals=[],
+                is_check_failure_withheld=False,
                 is_final_turn_due=False,
             ),
         )
@@ -773,9 +782,7 @@ def test_a_round_after_one_that_failed_part_way_finishes_its_preparation(
     if checkpoint in {"push", "pull request"}:
         push_branch(root=ready_repo, branch=branch)
     if checkpoint == "pull request":
-        offered.replies(
-            stdout=pull_requests(listed=[(PULL_REQUEST, "OPEN")]), to="pr list"
-        )
+        offered.replies(stdout=pull_requests(numbers=[PULL_REQUEST]), to="pr list")
     scheduler, clock = create_scheduler(root=ready_repo)
 
     observed = scheduler.tick(at=clock())
@@ -918,7 +925,7 @@ def test_a_follow_up_without_a_harness_session_starts_a_new_one_with_its_input(
 
     assert observed.launched_agent_work_identifiers == [ASSIGNMENT_ID]
     prompt = written_round(scheduler=scheduler, number=2, name="prompt.txt")
-    assert prompt.startswith("/dream:smith GH13\n\nUser-posts prompt")
+    assert prompt.startswith("/dream:smith GH13\n\nAssignment input")
     assert "--resume" not in harnesses["claude"].calls[-1].arguments
 
 
@@ -939,7 +946,7 @@ def test_a_terminal_round_after_an_error_without_a_session_receives_wrap_up_inpu
     assert observed.launched_agent_work_identifiers == [ASSIGNMENT_ID]
     prompt = written_round(scheduler=scheduler, number=2, name="prompt.txt")
     assert prompt.startswith("/dream:smith GH13\n\nYour previous round did not finish.")
-    assert "User-posts prompt" in prompt
+    assert "Assignment input for pull request" in prompt
     round_input = json.loads(
         written_round(scheduler=scheduler, number=2, name="round-input.json")
     )
@@ -998,7 +1005,12 @@ def test_a_round_after_an_interrupted_one_is_given_the_input_again(resuming):
     )
     assert json.loads(
         written_round(scheduler=scheduler, number=2, name="round-input.json")
-    ) == {"pull_request_state": "OPEN", "user_posts": []}
+    ) == {
+        "pull_request_state": "OPEN",
+        "pull_request_head": HEAD,
+        "signals": [],
+        "user_posts": [],
+    }
 
 
 def test_an_assignment_the_user_has_posted_on_is_told_what_they_said(resuming, gh):
@@ -1026,7 +1038,11 @@ def test_an_assignment_the_user_has_posted_on_is_told_what_they_said(resuming, g
                 number=PULL_REQUEST,
                 state=PullRequestState.OPEN,
                 is_draft=False,
+                merge_state=PullRequestMergeState.CLEAN,
+                check_result=CheckResult.PASSING,
                 new_posts=1,
+                new_signals=[],
+                is_check_failure_withheld=False,
                 is_final_turn_due=False,
             ),
             started_round=StartedRound(number=2),
@@ -1097,6 +1113,8 @@ def test_a_pull_request_that_is_finished_gets_one_last_round(resuming, gh, state
         written_round(scheduler=scheduler, number=2, name="round-input.json")
     ) == {
         "pull_request_state": state_name,
+        "pull_request_head": HEAD,
+        "signals": [],
         "user_posts": [],
     }
     [completed] = read_assignments(state=scheduler.context.state)

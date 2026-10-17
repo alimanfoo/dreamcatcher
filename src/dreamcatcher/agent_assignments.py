@@ -9,6 +9,7 @@ channel, before the harness runs.
 from collections.abc import Callable, Iterator
 from contextlib import suppress
 from datetime import datetime
+from itertools import islice
 from pathlib import Path
 
 from pydantic import PositiveInt
@@ -44,7 +45,7 @@ from dreamcatcher.git import (
     push_branch,
     remove_worktree,
 )
-from dreamcatcher.github import PullRequestState, UserPost
+from dreamcatcher.github import PullRequestSignal, PullRequestState, UserPost
 from dreamcatcher.state import StateDirectory
 
 # What an assignment's branch is called, before its identifier. The prefix keeps
@@ -57,9 +58,15 @@ _PULL_REQUEST_RECORD_NAME = "pull-request.json"
 
 
 class AssignmentRoundInput(DreamcatcherDocument):
-    """Model the pull request state and user posts delivered to an assignment round."""
+    """Model where an assignment's pull request stood and what a round relayed.
+
+    The head is the pull request's head commit when the round started, which is
+    the commit that each relayed signal was raised at.
+    """
 
     pull_request_state: PullRequestState
+    pull_request_head: str
+    signals: list[PullRequestSignal]
     user_posts: list[UserPost]
 
 
@@ -182,6 +189,31 @@ def is_final_turn_taken(*, assignment: AgentWork) -> bool:
     """Return whether a merged or closed pull request has been relayed."""
     state = read_relayed_pull_request_state(assignment=assignment)
     return state is not None and state is not PullRequestState.OPEN
+
+
+def read_signal_relay_head(
+    *, assignment: AgentWork, signal: PullRequestSignal
+) -> str | None:
+    """Return the head commit at which the signal was last relayed, if ever."""
+    for round_input in _read_relayed_inputs(assignment=assignment):
+        if signal in round_input.signals:
+            return round_input.pull_request_head
+    return None
+
+
+def is_check_failure_withheld(*, assignment: AgentWork) -> bool:
+    """Return whether the relay rule withholds a check failure.
+
+    It does when the last two relayed inputs both carried one, which gives an
+    agent two attempts at a red build on its own. A round that relayed no check
+    failure starts the count again, and one that did not finish its turn is not
+    counted, since its input is given again.
+    """
+    latest_two = list(islice(_read_relayed_inputs(assignment=assignment), 2))
+    return len(latest_two) == 2 and all(
+        PullRequestSignal.CHECK_FAILURE in round_input.signals
+        for round_input in latest_two
+    )
 
 
 def _read_relayed_inputs(*, assignment: AgentWork) -> Iterator[AssignmentRoundInput]:

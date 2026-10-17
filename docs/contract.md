@@ -86,9 +86,12 @@ _dreamcatcher_'s prompt names a JSON file and asks the agent to read it.
 `user_posts` holds every user post not delivered to an earlier round, oldest
 first. These posts are the user's feedback.
 
-`pull_request_state` is one of `OPEN`, `MERGED` or `CLOSED`. Every object in
-`user_posts` has `kind`, `id`, `author`, `written_at` and `body`. Its `kind`
-determines the remaining fields:
+`pull_request_state` is one of `OPEN`, `MERGED` or `CLOSED`. `pull_request_head`
+is the pull request's head commit when the round started. `signals` lists what
+else in the pull request woke the round, as described below, and is empty for a
+round that the user's posts alone woke. Every object in `user_posts` has `kind`,
+`id`, `author`, `written_at` and `body`. Its `kind` determines the remaining
+fields:
 
 - `comment` adds no fields;
 - `review` adds `verdict`; and
@@ -107,6 +110,29 @@ post in `user_posts` and reply on the pull request. _dreamcatcher_ derives the
 assignment's user-post delivery position from its recorded round inputs, so
 later updates do not select those posts again.
 
+#### An out-of-date pull request or failing checks
+
+_dreamcatcher_ also wakes the agent when a pull request that is ready for review
+needs work that no user asked for. `signals` then holds one or both of these
+values, and _dreamcatcher_'s prompt opens with one line for each, before it
+names the input:
+
+- `out_of_date`: the pull request is behind its base branch or conflicts with
+  it. The line asks the agent to merge the base branch in, resolve any
+  conflicts, and push.
+- `check_failure`: a check failed at the pull request's head. The line asks the
+  agent to read the checks' output, fix the cause, and push.
+
+Each is relayed once for each head commit, so an agent that pushes nothing is
+not woken again for the same one. After two rounds in a row relayed a check
+failure, _dreamcatcher_ withholds the next one until a round relays something
+else, such as a user post. A draft raises neither.
+
+An assignment skill needs nothing of its own for this. The prompt's lines carry
+the instructions, and a skill may ignore `pull_request_head` and `signals`. The
+assignment's harness may run `gh pr checks` and `gh run view` without asking, so
+the agent can read the output of a check that failed.
+
 #### A merged or closed pull request
 
 _dreamcatcher_ gives the agent a wrap-up round when the user merges or closes
@@ -123,11 +149,12 @@ An assignment skill must instruct the agent to wind the work up when
 
 A round that was interrupted or errored did not finish its turn, so the next
 round is given the same input again: `user_posts` holds the posts that round was
-given and any that arrived since, and `pull_request_state` says where the pull
-request has got to now. _dreamcatcher_'s prompt opens with a line saying that
-the previous round did not finish, and that some of what it did may already be
-done, before it names the input. `user_posts` may be empty, in which case the
-agent carries on with the work in hand.
+given and any that arrived since, `signals` holds the signals it was given that
+still hold, and `pull_request_state` says where the pull request has got to now.
+_dreamcatcher_'s prompt opens with a line saying that the previous round did not
+finish, and that some of what it did may already be done, before it names the
+input. `user_posts` may be empty, in which case the agent carries on with the
+work in hand.
 
 An assignment skill needs nothing of its own for this. The resumed agent
 normally still has its own transcript. A new session instead receives the

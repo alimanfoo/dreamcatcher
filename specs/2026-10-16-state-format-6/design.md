@@ -120,11 +120,11 @@ no user post, no finished check that failed, and the pull request is mergeable
 again. The row says idle, "checks running". A tick later the checks finish red.
 That is a **check-failure** signal at head C, which the cursor has never seen.
 Round four is woken for it, with the prompt saying the checks failed; the agent
-fixes the test and pushes head D. If D comes back red too, that is a second
-consecutive check failure at a new head, and the relay rule, described below,
-declines to wake the agent a third time: the row says idle, "checks failing
-after two attempts", and the next thing that wakes the assignment is a post from
-you.
+fixes the test and pushes head D. Had D come back red too, round five would have
+been woken for it in the same way, and had the agent's next head come back red
+as well, the relay rule, described below, would have withheld it rather than
+wake the agent a third time: the row would say idle, "checks failing after two
+attempts", and the next thing to wake the assignment would be a post from you.
 
 D is green. You merge. Next tick, reading the pull request says it is merged,
 and the cursor says no round has yet been given a merged or closed state. That
@@ -412,8 +412,9 @@ Given what the tick read, the signals are:
   conflicting with it, and its head differs from the head at which out-of-date
   was last relayed. A draft is left alone because the agent has not finished.
 - Check-failure: the pull request is open, not a draft, a finished check at the
-  current head has failed, its head differs from the head at which check-failure
-  was last relayed, and the relay rule below allows it.
+  current head has failed, whether or not others still run, its head differs
+  from the head at which check-failure was last relayed, and the relay rule
+  below allows it.
 - Final turn: the pull request is merged or closed and the final turn has not
   been taken.
 
@@ -422,18 +423,22 @@ repository. Each entry is a check run with a `status` of `COMPLETED` or
 `IN_PROGRESS` and a `conclusion` that is `SUCCESS` when done and empty while
 running; an older kind of check, a status context, reports a `state` instead. A
 finished check has failed when its status is completed and its conclusion is
-anything but success, neutral or skipped. "Checks running" means any check still
-in progress. While required checks run the merge state is `BLOCKED`, which is
-why out-of-date tests for `BEHIND` and `DIRTY` only, and a merged pull request
-reports `UNKNOWN`, which the final-turn signal never asks about.
+anything but success, neutral or skipped, and a status context has failed when
+its state is anything but success, pending or expected. "Checks running" means
+no check has failed and at least one is still in progress. While required checks
+run the merge state is `BLOCKED`, which is why out-of-date tests for `BEHIND`
+and `DIRTY` only, and a merged pull request reports `UNKNOWN`, which the
+final-turn signal never asks about.
 
 The **relay rule** is what stops an agent that keeps pushing red. A check
-failure is not relayed when the last two rounds both relayed a check failure. A
-round woken by anything else, a user post or a merge, breaks the run. So the
-agent gets two attempts at a red build on its own, and then waits for you. The
-row says why, and a post from you wakes it again. This is a rule about what to
-relay, not a new kind of failure, so faults, retries and the global cooldown are
-untouched by it.
+failure is withheld when the last two rounds whose input is behind the cursor
+both relayed a check failure, so an errored or interrupted round does not count,
+since its input is given again. A round that relayed no check failure, such as
+one woken by a user post alone, starts the count again. So the agent gets two
+attempts at a red build on its own, and then waits for you. The row says why,
+and a post from you wakes it again. This is a rule about what to relay, not a
+new kind of failure, so faults, retries and the global cooldown are untouched by
+it.
 
 ## Faults
 
@@ -555,10 +560,11 @@ number, its title, the dispatch label, the kind, and the identifier of the open
 agent work if any. Beside that it holds what the tick found, as typed values:
 
 - For open work with a channel: what was new, as the count of user posts or
-  issue comments and the list of other signals; the number of the round the tick
-  started for it, when it started one; and the channel facts the views need,
-  which for an assignment are the pull request number, state, draft flag, merge
-  state, head and check result.
+  issue comments and the list of other signals, and whether the relay rule
+  withheld a check failure; the number of the round the tick started for it,
+  when it started one; and the channel facts the views need, which for an
+  assignment are the pull request number, state, draft flag, merge state and
+  check result.
 - For a paused conversation: that it is paused, and which of the three causes.
 - For a request with no open work: why nothing started, as the open linked pull
   requests, the open blocking issues, the conflicting labels, or that no comment
@@ -589,7 +595,9 @@ There is one status derivation for both kinds of agent work, in this order:
    or was interrupted, which includes a round with no outcome while no daemon
    runs; no round has run yet; or an assignment's pull request is not yet open.
 7. Idle, otherwise, with a detail from the row: ready for review, draft,
-   answered, checks running, checks failing after two attempts, or out of date.
+   answered, checks running, checks failing, checks failing after two attempts,
+   or out of date. Checks failing without the relay rule means the agent was
+   told of the failure at this head and pushed nothing.
 8. Unknown, when there is no scheduler record, or it holds no row for the work
    or read nothing for it.
 
@@ -621,14 +629,15 @@ keep their `--assignment` and `--conversation` flags to say which kind.
 
 ## The agent's side
 
-The assignment input file gains two keys, the head commit and the other signals
-relayed, which an assignment skill may ignore. The prompt gains two possible
-prefix lines, for out-of-date and for check failures, in the same place the
-stopped line goes. `docs/contract.md` documents the keys and the lines, and
-drops its sections on recovery rounds, which no longer exist. An agent asked to
-fix a red build has to read the check output, so the assignment harness
-permissions gain the `gh` commands that read checks and runs; today Claude's
-assignment allow list has neither.
+The assignment input file gains two keys, `pull_request_head` and `signals`, the
+latter holding `out_of_date` or `check_failure`, which an assignment skill may
+ignore. The prompt gains two possible prefix lines, for out-of-date and for
+check failures, in the same place the stopped line goes. `docs/contract.md`
+documents the keys and the lines, and drops its sections on recovery rounds,
+which no longer exist. An agent asked to fix a red build has to read the check
+output, so Claude's assignment allow list gains `gh pr checks` and
+`gh run view`. Codex needs no change, because its assignment rounds already run
+commands that read GitHub in a sandbox with network access.
 
 ## What changes, and what goes away
 
@@ -712,9 +721,9 @@ What changes but stays:
 - `agent_assignments.py` and `issue_conversations.py` shrink to the parts of the
   work record and channel each kind owns, and the shared parts move to
   `agent_work.py`, which already holds the harness session and retry records.
-- `relay.py` grows from user posts to all four assignment signals, or a sibling
-  does the same for the issue channel; either way one module answers "what is
-  past the cursor" for a channel.
+- `relay.py` grows from user posts to the out-of-date and check-failure signals,
+  so it answers what is past an assignment's cursor apart from the final turn,
+  which the inspection reads from the cursor directly.
 - `prompts.py` gains two prefix lines and loses two prompts.
 - `daemon_runs.py` gains the routes. `daemon.py` writes them.
 - `status/`: one reader, one status type, one row type for requests.
@@ -765,12 +774,13 @@ because the input already holds that and it says more.
 
 ## What's still open
 
-1. The contract version. The input file's two new keys are additive and the
-   prompt's two new lines are instructions in words, so a version 1 skill still
-   works. Whether to call that version 2 is a documentation decision.
-2. The assignment harness permissions need the commands that read check output.
-   Which ones, for Claude and for Codex, is for the build.
-3. Issues #550, #551 and #425 need amending to match the brief and this design,
-   and #455, #393 and #457 should close in favour of them.
-4. Whether an errored round counts towards the relay rule's two rounds is for
-   the build.
+Nothing. The signals stage settled the four questions this section held:
+
+1. The contract stays at version 1, because the two input keys are additive and
+   the two prompt lines are instructions in words.
+2. Claude's assignment allow list gains `gh pr checks` and `gh run view`, and
+   Codex needs nothing.
+3. Issues #550, #551, #455, #393 and #457 were closed in favour of this phase,
+   and #425 was delivered by stage 2.
+4. An errored or interrupted round does not count towards the relay rule's two
+   rounds.

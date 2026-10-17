@@ -41,8 +41,11 @@ from dreamcatcher.state import StateDirectory
 from dreamcatcher.status.findings import (
     describe_comments_to_answer,
     describe_conflicting_labels,
+    describe_idle_pull_request,
     describe_pause,
+    describe_pull_request,
     describe_read_failure,
+    describe_signal,
 )
 from dreamcatcher.status.rounds import (
     AgentRoundStatus,
@@ -116,8 +119,8 @@ class AgentWorkStatus:
         return read_assignment_pull_request_number(assignment=self.work)
 
     @property
-    def pull_request_state(self) -> str | None:
-        """The pull request's state in status-report words, when it is known.
+    def pull_request_summary(self) -> str | None:
+        """Where the pull request stands in status-report words, when it is known.
 
         The latest tick's read of an open assignment's pull request gives it.
         Otherwise it is the merged or closed state that the newest relayed round
@@ -128,9 +131,7 @@ class AgentWorkStatus:
             return None
         finding = None if self.row is None else self.row.finding
         if self.work.is_open and isinstance(finding, PullRequestFinding):
-            if finding.state is not PullRequestState.OPEN:
-                return finding.state.value.lower()
-            return "draft" if finding.is_draft else "ready"
+            return describe_pull_request(finding=finding)
         relayed = read_relayed_pull_request_state(assignment=self.work)
         if relayed is None or relayed is PullRequestState.OPEN:
             return None
@@ -361,23 +362,17 @@ class AgentWorkStatusReader:
                 row=row,
                 detail=f"round {latest.number} ended, awaiting next update",
             )
-        signal = None if row is None else _describe_signal(finding=row.finding)
-        if signal is None:
+        news = None if row is None else _describe_what_is_new(finding=row.finding)
+        if news is None:
             return None
-        return _compose_waiting(work=work, row=row, detail=signal)
+        return _compose_waiting(work=work, row=row, detail=news)
 
     def _derive_idle(
         self, *, work: AgentWork, row: RequestRow | None
     ) -> AgentWorkStatus:
         finding = None if row is None else row.finding
         if isinstance(finding, PullRequestFinding):
-            detail = (
-                "ready for review"
-                if finding.state is PullRequestState.OPEN and not finding.is_draft
-                else "draft"
-                if finding.state is PullRequestState.OPEN
-                else finding.state.value.lower()
-            )
+            detail = describe_idle_pull_request(finding=finding)
         elif isinstance(finding, IssueCommentsFinding):
             detail = _describe_answered_round(work=work)
         else:
@@ -447,18 +442,19 @@ def _compose_waiting(
     )
 
 
-def _describe_signal(*, finding: RequestFinding | None) -> str | None:
+def _describe_what_is_new(*, finding: RequestFinding | None) -> str | None:
     """Describe what the latest tick found new in the work's channel, if anything."""
     if isinstance(finding, IssueCommentsFinding) and finding.new_comments:
         return describe_comments_to_answer(count=finding.new_comments)
     if not isinstance(finding, PullRequestFinding):
         return None
     if finding.is_final_turn_due:
-        return f"the pull request is {finding.state.value.lower()}"
+        return f"the pull request is {finding.state.lower()}"
+    words = [describe_signal(signal=signal) for signal in finding.new_signals]
     if finding.new_posts:
         posts = describe_count(number=finding.new_posts, noun="new post")
-        return f"{posts} to answer"
-    return None
+        words.insert(0, f"{posts} to answer")
+    return ", ".join(words) or None
 
 
 def _describe_answered_round(*, work: AgentWork) -> str:

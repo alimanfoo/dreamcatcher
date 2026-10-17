@@ -17,6 +17,7 @@ from conftest import (
     REPOSITORY,
     listing,
     pages,
+    pull_request,
 )
 from records import read_assignments, write_assignment
 from rows import UNCLAIMED, request_row
@@ -170,7 +171,7 @@ def test_a_request_names_the_open_pull_requests_that_claim_it(gh, state):
         to="issue view",
     )
     gh.replies(
-        stdout=json.dumps({"number": 28, "state": "OPEN", "isDraft": True}),
+        stdout=pull_request(state="OPEN", number=28, is_draft=True),
         to="pr view",
     )
 
@@ -198,7 +199,7 @@ def test_a_cancelled_assignments_pull_request_claims_its_issue(gh, state):
         to="issue view",
     )
     gh.replies(
-        stdout=json.dumps({"number": PULL_REQUEST, "state": "OPEN", "isDraft": False}),
+        stdout=pull_request(state="OPEN"),
         to="pr view",
     )
 

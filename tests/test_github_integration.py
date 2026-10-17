@@ -6,8 +6,7 @@ import pytest
 
 from dreamcatcher.github import (
     IssuePullRequestContext,
-    PullRequest,
-    PullRequestState,
+    PullRequestReference,
     _identify_github_account,
     _identify_github_repository,
     can_push_to_repository,
@@ -56,14 +55,11 @@ def test_gh_takes_the_whole_issue_listing_command():
     )
 
 
-def test_a_merged_pull_request_comes_back_merged():
+def test_a_merged_pull_request_is_found_on_its_branch():
     found = list_pull_requests(repository=REPOSITORY, branch=MERGED_BRANCH)
 
     assert isinstance(found, list)
-    assert (
-        PullRequest(number=MERGED, state=PullRequestState.MERGED, isDraft=False)
-        in found
-    )
+    assert PullRequestReference(number=MERGED) in found
 
 
 def test_a_branch_that_never_existed_comes_back_empty():

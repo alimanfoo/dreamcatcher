@@ -37,6 +37,26 @@ dreamcatcher feed GH123 --assignment
 If another decision is needed after the agent responds, add a new pull-request
 comment or review for the next exchange.
 
+## Out-of-date branches and failing checks
+
+Once the pull request is ready for review, _dreamcatcher_ also wakes the agent
+without a post from you. When the base branch moves and leaves the pull request
+behind it or in conflict with it, the agent is asked to merge the base branch in
+and push. When a check fails, the agent is asked to read its output, fix the
+cause and push. Each is relayed once for each commit at the head of the pull
+request, and a draft gets neither.
+
+GitHub reports a branch as behind its base only when the repository requires
+branches to be up to date before merging. In a repository that does not, a pull
+request that falls behind main without a conflict wakes nobody until it
+conflicts with main or you post. If you want such a pull request brought up to
+date, ask the agent on the pull request.
+
+If the checks fail after two attempts in a row, _dreamcatcher_ stops waking the
+agent for them, and the assignment shows as idle with the detail "checks failing
+after two attempts". A post from you wakes the agent again, and gives it two
+more attempts.
+
 ## Merge or close
 
 Merge the pull request when the change meets your repository's normal review and
