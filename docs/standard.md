@@ -156,11 +156,13 @@ not progress towards the standard. Meeting the criteria is.
 
 - Measure: rules in the architecture that have failed review more than once,
   that a small and exact check could enforce, and that no machine checks.
-- Bar: zero. The import boundaries for `subprocess`, Rich and Flask, and the
-  dependency direction between modules, are the four checked today. Review
+- Bar: zero. The import boundaries for `subprocess`, Rich and Flask, the
+  dependency direction between modules, and the names that presentation must not
+  use to rediscover what status derives, are the five checked today. Review
   checks every other rule in the architecture until it fails more than once.
-- Check: ruff's subprocess rule and one test that asserts the first-party, Rich,
-  and Flask dependency direction over the import graph.
+- Check: ruff's subprocess rule, and one test module that asserts the
+  first-party, Rich and Flask dependency direction over the import graph and
+  keeps presentation from naming what status derives.
 
 **K2. The suite is fast and speaks the user's language.**
 
