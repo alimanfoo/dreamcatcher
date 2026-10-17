@@ -451,7 +451,7 @@ def test_an_issue_answers_with_its_open_linked_pull_requests(fake):
         "--repo",
         REPOSITORY,
         "--json",
-        "state",
+        "number,state,isDraft,mergeStateStatus,headRefOid,statusCheckRollup",
     ]
 
 

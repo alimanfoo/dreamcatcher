@@ -265,12 +265,6 @@ class PullRequestReference(GitHubResponseProjection):
     number: int
 
 
-class _PullRequestStateProjection(GitHubResponseProjection):
-    """Model the one fact the start-time question reads of a linked pull request."""
-
-    state: PullRequestState
-
-
 class IssuePullRequestContext(GitHubResponseProjection):
     """Model the pull requests linked to an issue.
 
@@ -405,7 +399,6 @@ _GITHUB_PULL_REQUEST_REFERENCE_LIST_RESPONSE_ADAPTER = TypeAdapter(
 )
 _GITHUB_PULL_REQUEST_REFERENCE_RESPONSE_ADAPTER = TypeAdapter(PullRequestReference)
 _GITHUB_PULL_REQUEST_RESPONSE_ADAPTER = TypeAdapter(PullRequest)
-_GITHUB_PULL_REQUEST_STATE_RESPONSE_ADAPTER = TypeAdapter(_PullRequestStateProjection)
 _GITHUB_BLOCKING_ISSUE_LIST_RESPONSE_ADAPTER = TypeAdapter(list[list[BlockingIssue]])
 _GITHUB_ISSUE_PULL_REQUEST_CONTEXT_RESPONSE_ADAPTER = TypeAdapter(
     IssuePullRequestContext
@@ -674,17 +667,8 @@ def read_issue_pull_request_context(
         return linked_response
     open_pull_requests = []
     for linked_pull_request in linked_response.pull_requests:
-        pull_request = _read_github_response(
-            response_adapter=_GITHUB_PULL_REQUEST_STATE_RESPONSE_ADAPTER,
-            arguments=[
-                "pr",
-                "view",
-                str(linked_pull_request.number),
-                "--repo",
-                repository,
-                "--json",
-                "state",
-            ],
+        pull_request = read_pull_request(
+            repository=repository, pull_request=linked_pull_request.number
         )
         if isinstance(pull_request, UnknownGitHubResponse):
             return pull_request

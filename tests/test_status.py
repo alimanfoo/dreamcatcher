@@ -524,14 +524,14 @@ def pull_request_row_holding(**facts: object) -> RequestRow:
                 "merge_state": PullRequestMergeState.BEHIND,
                 "check_result": CheckResult.RUNNING,
             },
-            "ready, behind, checks running",
+            "ready, out of date, checks running",
         ),
         (
             {
                 "merge_state": PullRequestMergeState.DIRTY,
                 "check_result": CheckResult.FAILING,
             },
-            "ready, conflicting, checks failing",
+            "ready, out of date, checks failing",
         ),
     ],
 )

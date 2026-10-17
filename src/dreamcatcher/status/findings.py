@@ -2,19 +2,12 @@
 
 from dreamcatcher.github import (
     CheckResult,
-    PullRequestMergeState,
     PullRequestSignal,
     PullRequestState,
 )
 from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.scheduler.models import PullRequestFinding
 from dreamcatcher.words import describe_count
-
-# How a pull request's chip names a merge state that the user may act on.
-_MERGE_STATE_WORDS = {
-    PullRequestMergeState.BEHIND: "behind",
-    PullRequestMergeState.DIRTY: "conflicting",
-}
 
 # What each signal says, wherever a status names what woke or will wake a round.
 _SIGNAL_WORDS = {
@@ -51,14 +44,14 @@ def describe_signal(*, signal: PullRequestSignal) -> str:
 def describe_pull_request(*, finding: PullRequestFinding) -> str:
     """Say where a pull request stands.
 
-    An open one is draft or ready, followed by a merge state the user may act on
-    and what its checks add up to. Any other names its state alone.
+    An open one is draft or ready, followed by whether it is out of date and what
+    its checks add up to. Any other names its state alone.
     """
     if finding.state is not PullRequestState.OPEN:
         return finding.state.lower()
     words = ["draft" if finding.is_draft else "ready"]
-    if finding.merge_state in _MERGE_STATE_WORDS:
-        words.append(_MERGE_STATE_WORDS[finding.merge_state])
+    if finding.merge_state.is_out_of_date:
+        words.append("out of date")
     if finding.check_result is not CheckResult.NONE:
         words.append(f"checks {finding.check_result}")
     return ", ".join(words)

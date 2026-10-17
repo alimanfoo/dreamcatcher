@@ -449,7 +449,7 @@ def _describe_what_is_new(*, finding: RequestFinding | None) -> str | None:
     if not isinstance(finding, PullRequestFinding):
         return None
     if finding.is_final_turn_due:
-        return f"the pull request is {finding.state.value.lower()}"
+        return f"the pull request is {finding.state.lower()}"
     words = [describe_signal(signal=signal) for signal in finding.new_signals]
     if finding.new_posts:
         posts = describe_count(number=finding.new_posts, noun="new post")
