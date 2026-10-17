@@ -617,6 +617,20 @@ def test_a_stopped_round_is_shown_as_stopped(tmp_path):
     assert 'class="round-outcome outcome-stopped">stopped</span>' in page
 
 
+def test_a_round_its_gone_daemon_left_unended_is_shown_as_interrupted(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    fabricate_a_dead_daemon(state=state)
+    written(
+        state=state,
+        issue=61,
+        records=[AgentRoundRecord(number=1, started=PINNED, pid=1)],
+    )
+
+    page = render_assignment(state=state, identifier="GH61-20260819-184158-assignment")
+
+    assert 'class="round-outcome outcome-interrupted">interrupted</span>' in page
+
+
 def test_a_home_card_links_to_its_exact_assignment(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
