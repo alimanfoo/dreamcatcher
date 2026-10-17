@@ -11,7 +11,7 @@ from dreamcatcher.agent_assignments import (
     read_user_post_delivery_position,
 )
 from dreamcatcher.agent_work import AgentWork
-from dreamcatcher.config import AssignmentRoute
+from dreamcatcher.config import DispatchRoute
 from dreamcatcher.github import (
     Issue,
     IssueState,
@@ -129,7 +129,7 @@ def inspect_assignment_request(
     *,
     context: SchedulingContext,
     issue: Issue,
-    route: AssignmentRoute,
+    route: DispatchRoute,
     row: RequestRow,
 ) -> Inspection:
     """Ask the start-time questions of an assignment request with no open work.

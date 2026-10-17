@@ -3,7 +3,7 @@
 from functools import partial
 
 from dreamcatcher.agent_work import AgentWork, AgentWorkEndReason, end_agent_work
-from dreamcatcher.config import ConversationRoute
+from dreamcatcher.config import DispatchRoute
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.github import (
     ConversationComment,
@@ -105,7 +105,7 @@ def inspect_conversation_request(
     *,
     context: SchedulingContext,
     issue: Issue,
-    route: ConversationRoute,
+    route: DispatchRoute,
     row: RequestRow,
 ) -> Inspection:
     """Read the comments at a conversation request with no open conversation.
@@ -119,7 +119,7 @@ def _inspect_comments(
     *,
     context: SchedulingContext,
     issue: Issue,
-    work: AgentWork | ConversationRoute,
+    work: AgentWork | DispatchRoute,
     row: RequestRow,
 ) -> Inspection:
     """Read the comments at the issue and return a candidate when some wait.

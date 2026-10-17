@@ -1,6 +1,6 @@
 """Run one scheduler tick over both kinds of agent work."""
 
-from collections.abc import Iterator
+from collections.abc import Iterator, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime
 from functools import partial
@@ -221,13 +221,13 @@ class Scheduler:
                 inspect_request=inspect_conversation_request,
             )
 
-    def _inspect_requests_of_kind[RouteT: DispatchRoute](
+    def _inspect_requests_of_kind(
         self,
         *,
         issue: Issue,
-        routes: list[RouteT],
+        routes: Sequence[DispatchRoute],
         answered: set[tuple[int, str]],
-        inspect_request: RequestInspector[RouteT],
+        inspect_request: RequestInspector,
     ) -> Iterator[Inspection]:
         """Inspect each label of one kind on the issue that no open work answers.
 

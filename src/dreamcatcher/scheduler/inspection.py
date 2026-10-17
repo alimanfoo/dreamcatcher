@@ -39,7 +39,7 @@ class RoundPlan:
     finish_round: AgentRoundFinisher | None
 
 
-class RoundComposer(Protocol):
+class _RoundComposer(Protocol):
     """Compose the plan of a candidate's next round, once its work exists."""
 
     def __call__(self, *, work: AgentWork) -> RoundPlan:
@@ -55,7 +55,7 @@ class Candidate:
     """
 
     work: AgentWork | DispatchRoute
-    compose_round: RoundComposer
+    compose_round: _RoundComposer
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -71,7 +71,7 @@ class Inspection:
     is_counted_fault: bool = False
 
 
-class RequestInspector[RouteT: DispatchRoute](Protocol):
+class RequestInspector(Protocol):
     """Inspect one label of a kind on a listed issue that no open work answers."""
 
     def __call__(
@@ -79,7 +79,7 @@ class RequestInspector[RouteT: DispatchRoute](Protocol):
         *,
         context: SchedulingContext,
         issue: Issue,
-        route: RouteT,
+        route: DispatchRoute,
         row: RequestRow,
     ) -> Inspection:
         """Return what the request's row holds, given the row before any read."""
