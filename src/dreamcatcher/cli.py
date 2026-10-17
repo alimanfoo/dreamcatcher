@@ -37,8 +37,8 @@ from dreamcatcher.version import DREAMCATCHER_VERSION
 _ISSUE_REFERENCE_PATTERN = re.compile(r"gh(\d+)\Z", re.IGNORECASE)
 _MAX_INTERVAL_SECONDS = int(TIMEOUT_MAX) - 1
 
-# The help that says what a view does to the terminal it runs in, which the two
-# views that draw a picture over the one before give.
+# The help that says what a view does to the terminal it runs in, which every
+# view that draws a picture over the one before gives.
 _HELP_WHEN_A_VIEW_TAKES_THE_SCREEN = (
     "It takes the whole terminal while it runs, and gives it back when it ends."
 )
@@ -181,11 +181,12 @@ def _build_cli_parser() -> argparse.ArgumentParser:
     web_parser.set_defaults(act=_show_web)
     status_parser = subcommands.add_parser(
         "status",
-        help="show the instance, its agent work, and the labelled issues waiting",
+        help="show the instance, its agent work, and the labels waiting for work",
         description=(
             "Show instance and daemon facts, each assignment and conversation, "
-            "and each labelled issue that has no work yet, in dispatch order, "
-            "with why no work has started. It refreshes automatically "
+            "and each dispatch label on an issue that has no work yet, in "
+            "dispatch order, with why no work has started. It "
+            "refreshes automatically "
             "until you interrupt it. "
             + _HELP_WHEN_A_VIEW_TAKES_THE_SCREEN
             + " "
@@ -198,7 +199,7 @@ def _build_cli_parser() -> argparse.ArgumentParser:
         help="show one issue's newest assignment, in detail",
         description=(
             "Show an overview of the newest assignment at the issue: what "
-            "its assignment dispatch settled, the rounds it has run, the command that "
+            "its work record holds, the rounds it has run, the command that "
             "resumes the harness session by hand, and the older assignments "
             "at the same issue. It keeps up until the assignment ends after a "
             "successful wrap-up or a cancel. Interrupt it to end it sooner. "
@@ -212,10 +213,11 @@ def _build_cli_parser() -> argparse.ArgumentParser:
     assignment_parser.set_defaults(act=_show_assignment)
     conversation_parser = subcommands.add_parser(
         "conversation",
-        help="show one issue conversation, in detail",
+        help="show one issue's newest conversation, in detail",
         description=(
-            "Show an issue conversation's chosen settings, harness session, worktree, "
-            "code revision, and rounds. It keeps up until the conversation "
+            "Show the newest issue conversation at the issue: what its work "
+            "record holds, its harness session, worktree, code revision, and "
+            "rounds. It keeps up until the conversation "
             "ends. "
             + _HELP_WHEN_A_VIEW_TAKES_THE_SCREEN
             + " "
@@ -249,20 +251,20 @@ def _build_cli_parser() -> argparse.ArgumentParser:
 
 
 def _add_agent_work_selector(*, parser: argparse.ArgumentParser) -> None:
-    owner_group = parser.add_mutually_exclusive_group(required=True)
-    owner_group.add_argument(
+    work_kind_group = parser.add_mutually_exclusive_group(required=True)
+    work_kind_group.add_argument(
         "--assignment",
         dest="work_kind",
         action="store_const",
         const=AgentWorkKind.ASSIGNMENT,
         help="select the newest assignment at the issue",
     )
-    owner_group.add_argument(
+    work_kind_group.add_argument(
         "--conversation",
         dest="work_kind",
         action="store_const",
         const=AgentWorkKind.CONVERSATION,
-        help="select the issue conversation",
+        help="select the newest issue conversation at the issue",
     )
 
 
@@ -322,7 +324,7 @@ def _set_up_repository(*, arguments: argparse.Namespace) -> None:
 def _run_daemon(*, arguments: argparse.Namespace) -> None:
     daemon = DreamcatcherDaemon(
         root=Path.cwd(),
-        harness=AgentHarness(arguments.harness),
+        preferred_harness=AgentHarness(arguments.harness),
         interval=arguments.interval,
         max_agents=arguments.max_agents,
     )
@@ -335,7 +337,7 @@ def _run_daemon(*, arguments: argparse.Namespace) -> None:
 
 
 def _retry_agent_work(*, arguments: argparse.Namespace) -> None:
-    """Clear every current fault at an issue so the daemon may run it again."""
+    """Clear the faults of the newest assignment and issue conversation at an issue."""
     state = _find_state_directory(root=Path.cwd())
     assignment = find_newest_agent_work(
         state=state, issue=arguments.issue, kind=AgentWorkKind.ASSIGNMENT
@@ -395,7 +397,7 @@ def _stop_agent_work(*, arguments: argparse.Namespace) -> None:
             state=state, issue=arguments.issue, daemon=daemon
         )
         paths = None if status is None else status.stoppable_round_paths
-        work_description = "issue conversation"
+        work_description = "newest issue conversation"
     if paths is None:
         raise ReportableError(
             f"The {work_description} at GH{arguments.issue} has no running round "

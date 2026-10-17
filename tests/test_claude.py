@@ -47,7 +47,7 @@ def assistant(*, blocks: Sequence[dict], parent: str | None = None) -> str:
 
 
 def test_an_assignment_round_may_read_the_output_of_its_checks():
-    allowed = CLAUDE_ADAPTER.build_first_round(
+    allowed = CLAUDE_ADAPTER.build_new_session_round(
         request=ROUND_LAUNCH_REQUEST, final_output_path=FINAL_OUTPUT_PATH
     ).arguments[CLAUDE_BASE_ARGUMENTS.index("--allowedTools") + 1]
 
@@ -56,8 +56,8 @@ def test_an_assignment_round_may_read_the_output_of_its_checks():
 
 
 # Neither command names the prompt, which is what has Claude read it from stdin.
-def test_a_first_round_names_its_configured_model_and_effort():
-    assert CLAUDE_ADAPTER.build_first_round(
+def test_a_new_session_round_names_its_configured_model_and_effort():
+    assert CLAUDE_ADAPTER.build_new_session_round(
         request=ROUND_LAUNCH_REQUEST,
         final_output_path=FINAL_OUTPUT_PATH,
     ) == HarnessInvocation(
@@ -89,7 +89,7 @@ def test_a_conversation_round_allows_issue_tools_and_denies_implementation_tools
     )
 
     invocations = [
-        CLAUDE_ADAPTER.build_first_round(
+        CLAUDE_ADAPTER.build_new_session_round(
             request=request, final_output_path=FINAL_OUTPUT_PATH
         ),
         CLAUDE_ADAPTER.build_resumed_round(

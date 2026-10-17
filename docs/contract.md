@@ -77,13 +77,13 @@ do. Each such round normally resumes the assignment's harness session where the
 last one left off, so the agent still has what the earlier rounds said in front
 of it, and _dreamcatcher_'s prompt names the round's input. When there is no
 session identifier to resume, _dreamcatcher_ starts a new session with the
-assignment's first prompt followed by the prompt naming the input.
+assignment's configured prompt followed by the prompt naming the input.
 
 #### User posts and feedback
 
 _dreamcatcher_'s prompt names a JSON file and asks the agent to read it.
 `pull_request_state` in that file says where the pull request has got to, and
-`user_posts` holds every user post not delivered to an earlier round, oldest
+`user_posts` holds every user post that no earlier round has relayed, oldest
 first. These posts are the user's feedback.
 
 `pull_request_state` is one of `OPEN`, `MERGED` or `CLOSED`. `pull_request_head`
@@ -100,22 +100,22 @@ fields:
 
 The list includes only posts by the account through which `gh` was authenticated
 that have a body, or a review verdict of `APPROVED` or `CHANGES_REQUESTED`. It
-excludes the agent's own posts and omits anything at or before the latest
-delivery position. A review's `verdict` can also be `COMMENTED`, `DISMISSED` or
-`PENDING` when its body says something.
+excludes the agent's own posts and omits anything at or before the newest post
+that an earlier round relayed. A review's `verdict` can also be `COMMENTED`,
+`DISMISSED` or `PENDING` when its body says something.
 
 An assignment skill must instruct the agent to read `pull_request_state` before
 anything else, and, when `pull_request_state` reads `OPEN`, to act on every user
-post in `user_posts` and reply on the pull request. _dreamcatcher_ derives the
-assignment's user-post delivery position from its recorded round inputs, so
-later updates do not select those posts again.
+post in `user_posts` and reply on the pull request. _dreamcatcher_ reads how far
+the agent has read from its recorded round inputs, so later updates do not
+select those posts again.
 
 #### An out-of-date pull request or failing checks
 
 _dreamcatcher_ also wakes the agent when a pull request that is ready for review
 needs work that no user asked for. `signals` then holds one or both of these
-values, and _dreamcatcher_'s prompt opens with one line for each, before it
-names the input:
+values, and the part of _dreamcatcher_'s prompt that names the input opens with
+one line for each, after any line about the previous round:
 
 - `out_of_date`: the pull request is behind its base branch or conflicts with
   it. The line asks the agent to merge the base branch in, resolve any
@@ -123,10 +123,10 @@ names the input:
 - `check_failure`: a check failed at the pull request's head. The line asks the
   agent to read the checks' output, fix the cause, and push.
 
-Each is relayed once for each head commit, so an agent that pushes nothing is
-not woken again for the same one. After two rounds in a row relayed a check
-failure, _dreamcatcher_ withholds the next one until a round relays something
-else, such as a user post. A draft raises neither.
+A round that takes its turn relays each once for each head commit, so an agent
+that pushes nothing is not woken again for the same one. After two rounds in a
+row relayed a check failure, _dreamcatcher_ withholds the next one until a round
+relays something else, such as a user post. A draft raises neither.
 
 An assignment skill needs nothing of its own for this. The prompt's lines carry
 the instructions, and a skill may ignore `pull_request_head` and `signals`. The
@@ -158,14 +158,14 @@ work in hand.
 
 An assignment skill needs nothing of its own for this. The resumed agent
 normally still has its own transcript. A new session instead receives the
-assignment's first prompt before the input, so the skill's initial instructions
-apply again.
+assignment's configured prompt before the input, so the skill's initial
+instructions apply again.
 
 A round that the user stopped took its turn, so its input is not given again. An
-open assignment waits for new feedback before it resumes, and that next prompt
-says the earlier round was stopped before directing the agent to the new input.
-A merged or closed pull request can proceed to its wrap-up round without new
-feedback.
+open assignment waits for new feedback, or for a signal at a head not yet
+relayed, before it resumes, and that next prompt says the earlier round was
+stopped before directing the agent to the new input. A merged or closed pull
+request can proceed to its wrap-up round without new feedback.
 
 ## Conversation skill contract
 

@@ -6,6 +6,7 @@ from datetime import tzinfo
 from pathlib import Path
 
 from dreamcatcher.agent_rounds import AgentRoundRecord
+from dreamcatcher.agent_work import AgentWork
 from dreamcatcher.documents import is_complete_line_position, read_lines_from
 from dreamcatcher.feed import compose_agent_round_boundary, read_feed_line
 from dreamcatcher.web.models import (
@@ -15,7 +16,6 @@ from dreamcatcher.web.models import (
     WebAgentTail,
     WebFeedCursor,
     WebFeedLine,
-    WebFeedOwner,
     WebFeedRound,
 )
 from dreamcatcher.words import describe_time
@@ -32,11 +32,11 @@ class _WebRoundFeed:
 
 
 class InvalidFeedCursorError(Exception):
-    """Report a cursor that cannot identify a complete feed position."""
+    """Report a feed cursor that cannot identify a complete feed position."""
 
 
-def _encode_feed_cursor(*, cursor: WebFeedCursor) -> str:
-    return f"{cursor.round_number}:{cursor.position}"
+def _encode_feed_cursor(*, feed_cursor: WebFeedCursor) -> str:
+    return f"{feed_cursor.round_number}:{feed_cursor.position}"
 
 
 def decode_feed_cursor(*, value: str) -> WebFeedCursor:
@@ -48,32 +48,32 @@ def decode_feed_cursor(*, value: str) -> WebFeedCursor:
     if match is None:
         raise InvalidFeedCursorError
     try:
-        cursor = WebFeedCursor(
+        feed_cursor = WebFeedCursor(
             round_number=int(match["round"]),
             position=int(match["position"]),
         )
     except ValueError:
         raise InvalidFeedCursorError from None
-    if cursor.round_number == 0 and cursor.position != 0:
+    if feed_cursor.round_number == 0 and feed_cursor.position != 0:
         raise InvalidFeedCursorError
-    return cursor
+    return feed_cursor
 
 
 def read_agent_tail(
     *,
-    owner: WebFeedOwner,
+    work: AgentWork,
     live: WebAgentLiveState,
-    cursor: WebFeedCursor,
+    feed_cursor: WebFeedCursor,
     zone: tzinfo | None,
 ) -> WebAgentTail:
-    """Read feed output written after one cursor for any agent work."""
-    round_feeds = _list_round_feeds(owner=owner)
+    """Read feed output written after one feed cursor for any agent work."""
+    round_feeds = _list_round_feeds(work=work)
     number, position, is_opening_round = _resolve_feed_cursor(
-        cursor=cursor,
+        feed_cursor=feed_cursor,
         round_feeds=round_feeds,
     )
     feed_rounds = []
-    next_cursor = cursor
+    next_feed_cursor = feed_cursor
     while (round_feed := round_feeds.get(number)) is not None:
         feed_round, position, should_stop = _read_tail_round(
             round_feed=round_feed,
@@ -85,17 +85,17 @@ def read_agent_tail(
         )
         if feed_round is not None:
             feed_rounds.append(feed_round)
-        next_cursor = WebFeedCursor(round_number=number, position=position)
+        next_feed_cursor = WebFeedCursor(round_number=number, position=position)
         if should_stop:
             break
         number += 1
         position = 0
         is_opening_round = True
     return WebAgentTail(
-        cursor=_encode_feed_cursor(cursor=next_cursor),
+        feed_cursor=_encode_feed_cursor(feed_cursor=next_feed_cursor),
         feed_rounds=tuple(feed_rounds),
         live=live,
-        has_empty_feed_placeholder=cursor.round_number == 0,
+        has_empty_feed_placeholder=feed_cursor.round_number == 0,
     )
 
 
@@ -132,14 +132,14 @@ def _read_tail_round(
 
 def _resolve_feed_cursor(
     *,
-    cursor: WebFeedCursor,
+    feed_cursor: WebFeedCursor,
     round_feeds: dict[int, _WebRoundFeed],
 ) -> tuple[int, int, bool]:
-    if cursor.round_number == 0:
+    if feed_cursor.round_number == 0:
         return 1, 0, True
-    if cursor.round_number not in round_feeds:
+    if feed_cursor.round_number not in round_feeds:
         raise InvalidFeedCursorError
-    return cursor.round_number, cursor.position, False
+    return feed_cursor.round_number, feed_cursor.position, False
 
 
 def _compose_web_round_boundary(
@@ -159,29 +159,29 @@ def _compose_web_round_boundary(
     )
 
 
-def _list_round_feeds(*, owner: WebFeedOwner) -> dict[int, _WebRoundFeed]:
+def _list_round_feeds(*, work: AgentWork) -> dict[int, _WebRoundFeed]:
     """Return every saved round of the agent work with its feed, by number."""
     return {
         record.number: _WebRoundFeed(
-            record=record, feed=owner.compose_round_paths(number=record.number).feed
+            record=record, feed=work.compose_round_paths(number=record.number).feed
         )
-        for record in owner.rounds
+        for record in work.rounds
     }
 
 
 def read_agent_feed(
     *,
-    owner: WebFeedOwner,
+    work: AgentWork,
     zone: tzinfo | None,
     rounds: tuple[WebAgentRound, ...],
 ) -> WebAgentFeed:
     """Read the complete saved feed for any agent work."""
     feed_rounds = []
-    cursor = WebFeedCursor(round_number=0, position=0)
-    for round_feed in _list_round_feeds(owner=owner).values():
+    feed_cursor = WebFeedCursor(round_number=0, position=0)
+    for round_feed in _list_round_feeds(work=work).values():
         record = round_feed.record
         written_lines, position = read_lines_from(path=round_feed.feed, position=0)
-        cursor = WebFeedCursor(round_number=record.number, position=position)
+        feed_cursor = WebFeedCursor(round_number=record.number, position=position)
         feed_rounds.append(
             WebFeedRound(
                 number=record.number,
@@ -199,7 +199,7 @@ def read_agent_feed(
         )
     return WebAgentFeed(
         rounds=tuple(feed_rounds),
-        cursor=_encode_feed_cursor(cursor=cursor),
+        feed_cursor=_encode_feed_cursor(feed_cursor=feed_cursor),
     )
 
 

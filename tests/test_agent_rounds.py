@@ -35,9 +35,9 @@ from dreamcatcher.agent_rounds import (
     _STOP_REQUEST_POLL_INTERVAL_SECONDS,
     AgentRound,
     AgentRoundFinisher,
+    AgentRoundLaunchError,
     AgentRoundOutcome,
     AgentRoundPaths,
-    AgentRoundPreparationError,
     AgentRoundRecord,
     AgentRoundStartRequest,
     ErroredAgentRoundEnding,
@@ -55,8 +55,8 @@ from dreamcatcher.config import AgentHarness
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import FeedNote, FeedRenderer
 from dreamcatcher.github import (
-    ConversationComment,
     InlineReviewComment,
+    IssueComment,
     PullRequestReview,
     PullRequestState,
 )
@@ -150,7 +150,7 @@ class Unrenderable(HarnessAdapter):
     ) -> list[list[str]]:
         return []
 
-    def build_first_round(
+    def build_new_session_round(
         self, *, request: AgentRoundLaunchRequest, final_output_path: Path
     ) -> HarnessInvocation:
         return HarnessInvocation(
@@ -274,7 +274,7 @@ def test_a_round_gives_the_harness_its_prompt_to_read(fake, worktree, directory)
     assert running.paths.prompt.read_text(encoding="utf-8") == PROMPT
 
 
-def test_a_first_round_builds_its_harness_invocation(fake, worktree, directory):
+def test_a_new_session_round_builds_its_harness_invocation(fake, worktree, directory):
     harness = fake(program="claude")
     harness.replies(stdout="")
 
@@ -338,7 +338,7 @@ def test_a_round_writes_the_pull_request_state_and_user_posts_it_was_given(
     harness = fake(program="harness")
     harness.replies(stdout="")
     posts = [
-        ConversationComment.model_validate(comment()),
+        IssueComment.model_validate(comment()),
         PullRequestReview.model_validate(
             review(body="have a look", user={"login": POSTED_BY})
         ),
@@ -562,7 +562,7 @@ def stream_final_result(*, result: str) -> str:
 def start_conversation_round(
     *, paths: AgentRoundPaths, finish_round: AgentRoundFinisher | None
 ) -> AgentRound:
-    """Start a conversation round that its owner may finish."""
+    """Start a conversation round with a finishing step."""
     return start_agent_round(
         request=AgentRoundStartRequest(
             harness=AgentHarness.CLAUDE,
@@ -912,7 +912,7 @@ def test_a_round_whose_preparation_fails_errors_with_its_reason(
         raise ReportableError("git push failed with status 1: hook refused")
 
     with pytest.raises(
-        AgentRoundPreparationError,
+        AgentRoundLaunchError,
         match=r"^GH9-20260819-184158 round 1 errored: git push failed",
     ) as raised:
         AgentRound(

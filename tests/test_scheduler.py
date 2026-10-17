@@ -33,7 +33,7 @@ import dreamcatcher.scheduler.tick as tick_module
 from dreamcatcher.agent_assignments import (
     AssignmentRoundInput,
     read_assignment_pull_request_number,
-    read_user_post_delivery_position,
+    read_user_post_cursor,
 )
 from dreamcatcher.agent_rounds import (
     AgentRoundRecord,
@@ -85,9 +85,9 @@ NOTHING_NEW = PullRequestFinding(
     merge_state=PullRequestMergeState.CLEAN,
     check_result=CheckResult.PASSING,
     new_posts=0,
-    new_signals=[],
+    new_pull_request_signals=[],
     is_check_failure_withheld=False,
-    is_final_turn_due=False,
+    is_wrap_up_due=False,
 )
 
 
@@ -366,8 +366,8 @@ def test_a_round_that_cannot_open_its_pull_request_is_named_in_its_row(
     assert row.agent_work_identifier == CREATED_ASSIGNMENT_ID
     assert row.started_round is not None
     assert row.started_round.number == 1
-    assert row.started_round.preparation_failure is not None
-    assert "pull request create failed" in row.started_round.preparation_failure
+    assert row.started_round.launch_failure is not None
+    assert "pull request create failed" in row.started_round.launch_failure
 
 
 def test_a_second_tick_judges_an_assigned_issue_handled(ready_repo):
@@ -689,9 +689,9 @@ def test_an_assignment_with_nothing_new_reads_only_its_pull_request_and_posts(
                 merge_state=PullRequestMergeState.CLEAN,
                 check_result=CheckResult.PASSING,
                 new_posts=0,
-                new_signals=[],
+                new_pull_request_signals=[],
                 is_check_failure_withheld=False,
-                is_final_turn_due=False,
+                is_wrap_up_due=False,
             ),
         )
     ]
@@ -821,7 +821,7 @@ def test_an_assignment_with_a_round_that_has_no_ending_starts_nothing(resuming):
     ).exists()
 
 
-def test_a_resume_recovers_the_harness_session_from_the_first_rounds_raw_stream(
+def test_a_resume_finds_the_harness_session_in_the_first_rounds_raw_stream(
     resuming, harnesses
 ):
     ran(root=resuming, number=1, status=1)
@@ -953,7 +953,7 @@ def test_a_terminal_round_after_an_error_without_a_session_receives_wrap_up_inpu
     assert round_input["pull_request_state"] == PullRequestState.MERGED
     assert "--resume" not in harnesses["claude"].calls[-1].arguments
     assignment = read_assignments(state=scheduler.context.state)[0]
-    assert read_user_post_delivery_position(assignment=assignment) == POSTED_AT
+    assert read_user_post_cursor(assignment=assignment) == POSTED_AT
 
 
 def test_a_round_after_an_errored_one_is_given_its_posts_again(resuming, gh, harnesses):
@@ -969,7 +969,7 @@ def test_a_round_after_an_errored_one_is_given_its_posts_again(resuming, gh, har
     scheduler.tick(at=clock())
     finish_rounds(scheduler=scheduler)
     assignment = read_assignments(state=scheduler.context.state)[0]
-    assert read_user_post_delivery_position(assignment=assignment) == ""
+    assert read_user_post_cursor(assignment=assignment) == ""
     ending = assignment.rounds[-1].ending
     assert isinstance(ending, ErroredAgentRoundEnding)
     request_agent_work_retry(work=assignment, at=ending.at + timedelta(seconds=1))
@@ -1041,9 +1041,9 @@ def test_an_assignment_the_user_has_posted_on_is_told_what_they_said(resuming, g
                 merge_state=PullRequestMergeState.CLEAN,
                 check_result=CheckResult.PASSING,
                 new_posts=1,
-                new_signals=[],
+                new_pull_request_signals=[],
                 is_check_failure_withheld=False,
-                is_final_turn_due=False,
+                is_wrap_up_due=False,
             ),
             started_round=StartedRound(number=2),
         )

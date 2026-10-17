@@ -144,7 +144,7 @@ class AgentWorkStatus:
 
     @cached_property
     def harness_session_identifier(self) -> HarnessSessionIdentifier | None:
-        """The recorded or recoverable harness session identifier."""
+        """The recorded harness session identifier, or else one found in output."""
         return self.work.find_harness_session_identifier()
 
     @cached_property
@@ -374,7 +374,7 @@ class AgentWorkStatusReader:
         if isinstance(finding, PullRequestFinding):
             detail = describe_idle_pull_request(finding=finding)
         elif isinstance(finding, IssueCommentsFinding):
-            detail = _describe_answered_round(work=work)
+            detail = _describe_idle_conversation_round(work=work)
         else:
             return _compose_unknown(work=work, row=row)
         return AgentWorkStatus(
@@ -448,17 +448,19 @@ def _describe_what_is_new(*, finding: RequestFinding | None) -> str | None:
         return describe_comments_to_answer(count=finding.new_comments)
     if not isinstance(finding, PullRequestFinding):
         return None
-    if finding.is_final_turn_due:
+    if finding.is_wrap_up_due:
         return f"the pull request is {finding.state.lower()}"
-    words = [describe_signal(signal=signal) for signal in finding.new_signals]
+    words = [
+        describe_signal(signal=signal) for signal in finding.new_pull_request_signals
+    ]
     if finding.new_posts:
         posts = describe_count(number=finding.new_posts, noun="new post")
         words.insert(0, f"{posts} to answer")
     return ", ".join(words) or None
 
 
-def _describe_answered_round(*, work: AgentWork) -> str:
-    """Describe how the latest round of a conversation at rest ended."""
+def _describe_idle_conversation_round(*, work: AgentWork) -> str:
+    """Describe how the latest round of an idle conversation ended."""
     latest = work.rounds[-1]
     duration = compose_round_duration_description(record=latest)
     if latest.outcome is AgentRoundOutcome.STOPPED:

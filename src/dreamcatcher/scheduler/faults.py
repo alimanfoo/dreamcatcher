@@ -93,7 +93,7 @@ def start_cooldown_if_required(
     fault_count: int,
     at: datetime,
 ) -> GlobalCooldown | None:
-    """Start a cooldown when two agent work items are currently in fault."""
+    """Start a cooldown when the tick counted two faults."""
     if active is not None:
         return active
     if fault_count < 2:

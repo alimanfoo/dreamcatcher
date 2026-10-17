@@ -39,7 +39,7 @@ def _refuse_invalid_harness_session_identifier(identifier: str, /) -> str:
 def refuse_reportable_harness_session_identifier(
     *, agent_work_identifier: str, identifier: str
 ) -> str:
-    """Return a safe session identifier, or report why its owner cannot use it."""
+    """Return a safe session identifier, or report why the work cannot use it."""
     if not identifier:
         raise ReportableError(
             f"{agent_work_identifier}'s harness session identifier is empty."
@@ -78,8 +78,8 @@ class AgentWorkKind(StrEnum):
 class AgentRoundLaunchRequest:
     """Describe the settled agent-work settings and prompt for one round.
 
-    The work owner fixes the identifier, model, effort and harness config.
-    Every round for that owner runs with them. The prompt is this round's own.
+    The work record fixes the model, effort and harness config, and every round
+    of the work runs with them. The prompt is this round's own.
     """
 
     agent_work_identifier: str
@@ -135,10 +135,10 @@ class HarnessAdapter(ABC):
         """
 
     @abstractmethod
-    def build_first_round(
+    def build_new_session_round(
         self, *, request: AgentRoundLaunchRequest, final_output_path: Path
     ) -> HarnessInvocation:
-        """Return how to run an agent work item's first round.
+        """Return how to run a round that starts a new harness session.
 
         A harness that writes its final output to a file uses the round-owned
         path supplied here. A harness whose stream reports the final output

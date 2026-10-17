@@ -457,16 +457,16 @@ def test_cancel_refuses_an_assignment_that_has_already_ended(
     assert capsys.readouterr().err == f"{ASSIGNMENT_ID} has already ended.\n"
 
 
-@pytest.mark.parametrize("owner", ["--assignment", "--conversation"])
+@pytest.mark.parametrize("selector", ["--assignment", "--conversation"])
 def test_stop_refuses_an_issue_without_the_selected_agent_work(
-    monkeypatch, tmp_path, capsys, owner
+    monkeypatch, tmp_path, capsys, selector
 ):
     state = StateDirectory(root=tmp_path)
     state.bootstrap()
     state.path.mkdir()
     monkeypatch.chdir(tmp_path)
 
-    assert main(argv=["stop", "GH13", owner]) == 1
+    assert main(argv=["stop", "GH13", selector]) == 1
     assert "has no running round that can be stopped" in capsys.readouterr().err
 
 
@@ -569,7 +569,7 @@ def test_conversation_shows_its_local_detail(monkeypatch, watching, capsys):
     monkeypatch.chdir(watching.root)
 
     assert main(argv=["conversation", "GH8"]) == 0
-    assert "issue conversation GH8" in capsys.readouterr().out
+    assert "newest issue conversation GH8-" in capsys.readouterr().out
 
 
 def test_feed_shows_what_the_conversation_said(monkeypatch, watching, capsys):
@@ -596,7 +596,7 @@ def test_feed_shows_what_the_conversation_said(monkeypatch, watching, capsys):
 
 
 @pytest.mark.parametrize("verb", ["stop", "feed"])
-def test_an_agent_work_command_requires_one_owner_selector(verb, capsys):
+def test_an_agent_work_command_requires_one_work_kind_selector(verb, capsys):
     with pytest.raises(SystemExit) as exit_info:
         main(argv=[verb, "GH13"])
 
@@ -605,7 +605,7 @@ def test_an_agent_work_command_requires_one_owner_selector(verb, capsys):
 
 
 @pytest.mark.parametrize("verb", ["stop", "feed"])
-def test_an_agent_work_command_refuses_two_owner_selectors(verb, capsys):
+def test_an_agent_work_command_refuses_two_work_kind_selectors(verb, capsys):
     with pytest.raises(SystemExit) as exit_info:
         main(argv=[verb, "GH13", "--assignment", "--conversation"])
 
@@ -701,7 +701,7 @@ def test_run_starts_a_daemon_on_the_current_directory(monkeypatch, watched, star
 
     assert main(argv=["run", "--harness", "claude"]) == 0
     assert started[0].state.root == watched
-    assert started[0].harness is AgentHarness.CLAUDE
+    assert started[0].preferred_harness is AgentHarness.CLAUDE
     assert started[0].interval == 120
     assert started[0].max_agents == 1
 
@@ -727,7 +727,7 @@ def test_the_harness_flag_says_what_to_run_rounds_with(monkeypatch, watched, sta
     monkeypatch.chdir(watched)
 
     assert main(argv=["run", "--harness", "codex"]) == 0
-    assert started[0].harness is AgentHarness.CODEX
+    assert started[0].preferred_harness is AgentHarness.CODEX
 
 
 def test_run_uses_the_requested_interval_and_agent_cap(monkeypatch, watched, started):

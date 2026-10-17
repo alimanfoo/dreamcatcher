@@ -317,7 +317,7 @@ def codex_answer(
 
 
 def ask(*, identifier: int = 1, body: str = "Please explain.") -> dict:
-    """Return one trusted ordinary issue comment."""
+    """Return one eligible ordinary issue comment."""
     return comment(id=identifier, created_at=ASKED, body=body)
 
 
@@ -475,7 +475,7 @@ def test_each_conversation_label_selects_its_own_route(
     conversation = read_conversation(state=scheduler.context.state, issue=8)
     assert conversation is not None
     assert conversation.record.dispatch_label == "dream:scout"
-    assert conversation.record.prompt == "/dream:scout GH8"
+    assert conversation.record.instructions == "/dream:scout GH8"
     assert conversation.record.effort == "high"
 
 
@@ -982,9 +982,7 @@ def test_a_failed_conversation_refresh_is_an_errored_round(
             title="Why does this happen?",
             agent_work_identifier="GH8-20260819-184158-conversation",
             finding=IssueCommentsFinding(new_comments=1),
-            started_round=StartedRound(
-                number=2, preparation_failure="could not fetch main"
-            ),
+            started_round=StartedRound(number=2, launch_failure="could not fetch main"),
         )
     ]
     assert observed.launched_agent_work_identifiers == []
@@ -1034,7 +1032,7 @@ def test_a_round_whose_input_cannot_be_saved_errors_and_the_next_refreshes(
     refreshed_revision = _read_worktree_revision(worktree=conversation.worktree)
     assert failed.failures == []
     assert failed.rows[0].started_round == StartedRound(
-        number=2, preparation_failure="could not save conversation input"
+        number=2, launch_failure="could not save conversation input"
     )
     assert not conversation.compose_round_paths(number=2).round_input.exists()
     offer_conversation(gh=gh, comments=comments)
@@ -1090,7 +1088,7 @@ def test_a_follow_up_refreshes_again_after_a_launch_failure(
     )
     assert failed.failures == []
     assert failed.rows[0].started_round == StartedRound(
-        number=2, preparation_failure="could not launch conversation"
+        number=2, launch_failure="could not launch conversation"
     )
     (scheduler.context.state.root / "README.md").write_bytes(b"second move\n")
     commit(path=scheduler.context.state.root, message="move main twice")
@@ -1246,7 +1244,7 @@ def test_a_failed_assignment_candidate_does_not_block_a_ready_conversation(
     ]
 
 
-def test_an_issue_without_a_trusted_unmarked_comment_does_not_start(
+def test_an_issue_without_an_eligible_comment_does_not_start(
     conversation_scheduler, harnesses
 ):
     scheduler, clock, gh = conversation_scheduler
@@ -1520,14 +1518,14 @@ def test_two_errored_rounds_put_a_conversation_in_fault(
 
     offer_conversation(gh=gh, comments=[ask()])
     answer(harnesses=harnesses, status=2)
-    recovery = scheduler.tick(at=clock())
+    retried = scheduler.tick(at=clock())
     finish(scheduler=scheduler)
 
     conversation = read_conversation(state=scheduler.context.state, issue=8)
     assert conversation is not None
     assert conversation.rounds[0].outcome is AgentRoundOutcome.ERRORED
     assert conversation.rounds[1].outcome is AgentRoundOutcome.ERRORED
-    assert recovery.launched_agent_work_identifiers == [
+    assert retried.launched_agent_work_identifiers == [
         "GH8-20260819-184158-conversation"
     ]
     assert len(harnesses["claude"].calls) == 2
@@ -1575,7 +1573,7 @@ def test_a_daemon_orphan_is_given_its_comments_again_in_its_saved_session(
     )
     daemon = DreamcatcherDaemon(
         root=scheduler.context.state.root,
-        harness=AgentHarness.CLAUDE,
+        preferred_harness=AgentHarness.CLAUDE,
     )
     daemon._sweep_orphans()
     assert gone(pid=left_running.pid)
@@ -2133,14 +2131,14 @@ def test_a_failed_comment_read_records_its_reason_and_starts_nothing(
     assert row == conversation_row(finding=row.finding)
 
 
-def test_a_failed_delivery_position_read_is_recorded_in_its_row(
+def test_a_failed_cursor_read_is_recorded_in_its_row(
     conversation_scheduler, monkeypatch
 ):
     scheduler, clock, gh = conversation_scheduler
     write_conversation(state=scheduler.context.state, issue=8)
     offer_conversation(gh=gh, comments=[])
     monkeypatch.setattr(
-        "dreamcatcher.scheduler.conversations.read_issue_comment_delivery_position",
+        "dreamcatcher.scheduler.conversations.read_issue_comment_cursor",
         Mock(side_effect=ReportableError("could not read the round input")),
     )
 
@@ -2336,8 +2334,8 @@ def test_a_conversation_worktree_that_cannot_be_added_errors_its_round(
     [row] = observed.rows
     assert row.started_round is not None
     assert row.started_round.number == 1
-    assert row.started_round.preparation_failure is not None
-    assert "git worktree add --detach" in row.started_round.preparation_failure
+    assert row.started_round.launch_failure is not None
+    assert "git worktree add --detach" in row.started_round.launch_failure
     assert observed.launched_agent_work_identifiers == []
 
 

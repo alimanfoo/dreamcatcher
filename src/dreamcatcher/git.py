@@ -178,8 +178,9 @@ def make_empty_commit(*, worktree: Path, message: str) -> None:
 def push_branch(*, root: Path, branch: str) -> None:
     """Push the placeholder branch to origin and set its upstream.
 
-    A first round's preparation skips repository hooks because the agent has
-    not run yet. The agent's later pushes still run the hooks.
+    The preparation of the round that opens the pull request skips repository
+    hooks, because the agent has not run yet. The agent's later pushes still
+    run the hooks.
     """
     run_command(
         program="git",

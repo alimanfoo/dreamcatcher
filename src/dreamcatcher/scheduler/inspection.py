@@ -50,11 +50,11 @@ class _RoundComposer(Protocol):
 class Candidate:
     """Open work the tick may start a round for, or a request it may start work for.
 
-    The work is the open work, or the route of the work that a request would
+    It holds the open work, or the route of the work that a request would
     create.
     """
 
-    work: AgentWork | DispatchRoute
+    work_or_route: AgentWork | DispatchRoute
     compose_round: _RoundComposer
 
 
@@ -85,7 +85,7 @@ class RequestInspector(Protocol):
         """Return what the request's row holds, given the row before any read."""
 
 
-def compose_agent_work_row(
+def compose_open_work_row(
     *, work: AgentWork, finding: RequestFinding | None
 ) -> RequestRow:
     """Return the row of the request that led to open work, with what the tick found."""

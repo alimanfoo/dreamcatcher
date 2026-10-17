@@ -1,4 +1,4 @@
-"""Prepare issue conversations' trusted input and post their answers."""
+"""Prepare issue conversations' eligible input and post their answers."""
 
 from pydantic import Field
 
@@ -9,8 +9,8 @@ from dreamcatcher.git import (
     refresh_detached_worktree,
 )
 from dreamcatcher.github import (
-    ConversationComment,
     Issue,
+    IssueComment,
     UnknownGitHubResponse,
     post_issue_comment,
 )
@@ -21,53 +21,28 @@ NO_REPLY = "NO_REPLY"
 
 
 class InitialConversationIssue(DreamcatcherDocument):
-    """Model the issue text delivered only with a conversation's first round."""
+    """Model the issue text given to a round that starts a new harness session."""
 
     title: str
     body: str
 
 
 class ConversationRoundInput(DreamcatcherDocument):
-    """Model the trusted issue input frozen for one conversation round."""
+    """Model the eligible issue input frozen for one conversation round."""
 
     issue: int
     initial_issue: InitialConversationIssue | None = Field(
         default=None, exclude_if=lambda value: value is None
     )
-    comments: list[ConversationComment]
+    comments: list[IssueComment]
     revision: str
 
 
-class IssueCommentDeliveryPosition(DreamcatcherDocument):
-    """Identify the newest issue comment accepted for delivery."""
+class IssueCommentCursor(DreamcatcherDocument):
+    """Identify the newest issue comment behind a conversation's cursor."""
 
     written_at: str
     id: int
-
-
-def list_undelivered_issue_comments(
-    *,
-    comments: list[ConversationComment],
-    account: str,
-    delivery_position: IssueCommentDeliveryPosition | None,
-) -> list[ConversationComment]:
-    """Return trusted comments after the delivery position, oldest first."""
-    after = (
-        (delivery_position.written_at, delivery_position.id)
-        if delivery_position is not None
-        else ("", 0)
-    )
-    return sorted(
-        (
-            comment
-            for comment in comments
-            if comment.author.casefold() == account.casefold()
-            and bool(comment.body.strip())
-            and AGENT_POST_MARKER not in comment.body
-            and (comment.written_at, comment.id) > after
-        ),
-        key=lambda comment: (comment.written_at, comment.id),
-    )
 
 
 def prepare_conversation_round(
@@ -75,10 +50,10 @@ def prepare_conversation_round(
     state: StateDirectory,
     conversation: AgentWork,
     issue: Issue,
-    comments: list[ConversationComment],
+    comments: list[IssueComment],
     is_resuming: bool,
 ) -> ConversationRoundInput:
-    """Reset the worktree to fetched main and freeze the round's trusted input.
+    """Reset the worktree to fetched main and freeze the round's eligible input.
 
     A round that starts a new harness session is given the issue's title and
     body too, because the session has not seen them.
@@ -110,7 +85,7 @@ def read_conversation_input(
     if not round_input.comments:
         raise ReportableError(
             f"Conversation {conversation.identifier} round {number} "
-            "has no delivered issue comments."
+            "relayed no issue comments."
         )
     if round_input.issue != conversation.record.issue:
         raise ReportableError(
@@ -126,20 +101,18 @@ def read_conversation_input(
     return round_input
 
 
-def read_issue_comment_delivery_position(
-    *, conversation: AgentWork
-) -> IssueCommentDeliveryPosition | None:
+def read_issue_comment_cursor(*, conversation: AgentWork) -> IssueCommentCursor | None:
     """Return the newest comment already relayed.
 
     A round stopped before its preparation wrote an input relayed nothing.
     """
-    relayed = conversation.list_relayed_inputs()
+    relayed = conversation.list_relayed_round_paths()
     if not relayed:
         return None
     newest = read_conversation_input(
         conversation=conversation, number=relayed[0].number
     ).comments[-1]
-    return IssueCommentDeliveryPosition(written_at=newest.written_at, id=newest.id)
+    return IssueCommentCursor(written_at=newest.written_at, id=newest.id)
 
 
 def is_no_reply(*, final_output: str) -> bool:

@@ -151,7 +151,7 @@ body::after {
 }
 
 .home-content,
-.assignment-content,
+.agent-work-content,
 .error-page {
   width: min(100%, var(--page-width));
   margin: 0 auto;
@@ -226,14 +226,6 @@ body::after {
   text-transform: uppercase;
 }
 
-.assignment-group-label {
-  margin: var(--space-6) 0 0;
-  color: var(--dim);
-  font-size: var(--font-size);
-  letter-spacing: var(--letter-chip);
-  text-transform: uppercase;
-}
-
 .agent-work-card,
 .request-row {
   min-width: 0;
@@ -242,7 +234,7 @@ body::after {
 }
 
 .card-heading,
-.assignment-meta {
+.agent-work-meta {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
@@ -264,14 +256,14 @@ body::after {
   font-weight: 700;
 }
 
-.assignment-navigation,
-.assignment-issue {
+.agent-work-navigation,
+.agent-work-issue {
   color: inherit;
   text-decoration: none;
 }
 
-.assignment-navigation:hover,
-.assignment-issue:hover {
+.agent-work-navigation:hover,
+.agent-work-issue:hover {
   color: var(--phosphor);
   text-shadow: var(--shadow);
 }
@@ -332,15 +324,15 @@ body::after {
   color: var(--background);
 }
 
-.assignment-detail,
+.agent-work-detail,
 .latest-output,
 .labels,
 .error-message {
   margin: var(--space-3) 0 0;
 }
 
-.assignment-detail,
-.assignment-meta,
+.agent-work-detail,
+.agent-work-meta,
 .labels {
   color: var(--dim);
 }
@@ -377,7 +369,7 @@ body::after {
   }
 }
 
-.assignment-meta {
+.agent-work-meta {
   margin-top: var(--space-4);
 }
 
@@ -389,7 +381,7 @@ body::after {
 }
 
 .pr-chip,
-.assignment-open {
+.agent-work-open {
   flex: none;
   padding: var(--space-1) var(--space-5);
   color: var(--phosphor);
@@ -398,12 +390,12 @@ body::after {
 }
 
 .pr-chip:hover,
-.assignment-open:hover {
+.agent-work-open:hover {
   color: var(--bright);
   background: var(--tint);
 }
 
-.assignment-open {
+.agent-work-open {
   font-weight: 700;
 }
 
@@ -425,34 +417,34 @@ body::after {
   padding-top: calc(var(--space-12) * 2);
 }
 
-.assignment-navigation {
+.agent-work-navigation {
   color: var(--dim);
 }
 
-.assignment-content {
+.agent-work-content {
   display: grid;
   gap: var(--space-9);
 }
 
-.assignment-overview {
+.agent-work-overview {
   display: grid;
   gap: var(--space-5);
 }
 
-.assignment-heading {
+.agent-work-heading {
   display: grid;
   grid-template-columns: minmax(0, 1fr) max-content;
   align-items: start;
   gap: var(--space-6);
 }
 
-.assignment-heading h1 {
+.agent-work-heading h1 {
   min-width: 0;
   margin: 0;
   font-size: calc(var(--font-size) * 1.45);
 }
 
-.assignment-heading-actions {
+.agent-work-heading-actions {
   display: flex;
   flex-wrap: nowrap;
   align-items: baseline;
@@ -480,29 +472,29 @@ body::after {
 
 .agent-work-control:hover,
 .agent-work-control:focus-visible,
-.manual-recovery summary:hover,
-.manual-recovery summary:focus-visible {
+.hand-resume summary:hover,
+.hand-resume summary:focus-visible {
   color: var(--bright);
 }
 
-.assignment-issue {
+.agent-work-issue {
   color: var(--phosphor);
   font-weight: 700;
 }
 
-.assignment-issue span {
+.agent-work-issue span {
   color: var(--bright);
   font-weight: 600;
 }
 
-.assignment-facts {
+.agent-work-facts {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-4) 0;
   margin: 0;
 }
 
-.assignment-facts > div {
+.agent-work-facts > div {
   display: flex;
   gap: var(--space-3);
   min-width: 0;
@@ -511,30 +503,30 @@ body::after {
   border-right: var(--line) solid var(--rule);
 }
 
-.assignment-facts > div:last-child {
+.agent-work-facts > div:last-child {
   padding-right: 0;
   margin-right: 0;
   border-right: 0;
 }
 
-.assignment-facts dt {
+.agent-work-facts dt {
   color: var(--phosphor);
   font-weight: 400;
 }
 
-.assignment-facts dd {
+.agent-work-facts dd {
   overflow-wrap: anywhere;
   margin: 0;
 }
 
-.assignment-workspace {
+.agent-work-workspace {
   display: grid;
   grid-template-columns: minmax(240px, 320px) minmax(0, 1fr);
   gap: var(--space-11);
   align-items: start;
 }
 
-.assignment-sidebar {
+.agent-work-sidebar {
   position: sticky;
   top: var(--space-8);
   display: grid;
@@ -614,25 +606,25 @@ body::after {
   display: none;
 }
 
-.manual-recovery {
+.hand-resume {
   flex: 1 1 20em;
   min-width: 0;
 }
 
 .stop-control,
 .cancel-control,
-.manual-recovery summary {
+.hand-resume summary {
   color: var(--amber);
   font-size: 0.9em;
 }
 
-.manual-recovery summary {
+.hand-resume summary {
   cursor: pointer;
   font-weight: 700;
   letter-spacing: var(--letter-label);
 }
 
-.manual-recovery pre {
+.hand-resume pre {
   overflow-x: auto;
   margin: 0;
   padding: var(--space-6) var(--space-7);
@@ -726,11 +718,11 @@ body::after {
 }
 
 @media (max-width: 900px) {
-  .assignment-workspace {
+  .agent-work-workspace {
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .assignment-sidebar {
+  .agent-work-sidebar {
     position: static;
   }
 }
@@ -738,7 +730,7 @@ body::after {
 @media (max-width: 700px) {
   .site-header,
   .home-content,
-  .assignment-content,
+  .agent-work-content,
   .error-page {
     padding-right: var(--space-8);
     padding-left: var(--space-8);
@@ -748,8 +740,8 @@ body::after {
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .assignment-meta,
-  .assignment-heading-actions {
+  .agent-work-meta,
+  .agent-work-heading-actions {
     align-items: flex-start;
   }
 

@@ -39,6 +39,7 @@ class AgentRoundStatus:
     record: AgentRoundRecord
     trigger_description: str
     duration_description: str
+    outcome: AgentRoundOutcome
     outcome_description: str
     revision: AgentRoundRevision | None = None
 
@@ -74,7 +75,7 @@ def describe_round_ending(
         if ending.reason is not None:
             detail = f"{detail}: {ending.reason}"
     else:
-        outcome = describe_round_outcome(record=record, is_working=False)
+        outcome = _derive_round_outcome(record=record, is_working=False)
         detail = f"round {record.number} {outcome}"
     line = read_last_feed_line(path=paths.feed)
     return detail, None if line is None else line.text.strip()
@@ -98,29 +99,41 @@ def find_stoppable_round_paths(
 
 
 def compose_round_duration_description(*, record: AgentRoundRecord) -> str:
-    """Describe how long a completed, uninterrupted round ran."""
+    """Describe how long a round that ended ran, unless it was interrupted."""
     ending = record.ending
     if ending is None or ending.outcome is AgentRoundOutcome.INTERRUPTED:
         return ""
     return f"ran {describe_span(span=ending.at - record.started)}"
 
 
-def describe_round_outcome(*, record: AgentRoundRecord, is_working: bool) -> str:
-    """Return how the round ended, or what it is doing instead.
+def _derive_round_outcome(
+    *, record: AgentRoundRecord, is_working: bool
+) -> AgentRoundOutcome:
+    """Return the round's outcome as a status view shows it.
 
     A round that recorded no ending never finished. It is running when a daemon
     is still there to run it, and interrupted once that daemon has gone, since
-    a round cannot outlive its daemon. A round that errored for a reason reads as
-    errored alone, since its exit status, if it has one, says nothing and its
-    reason is too long for a list of rounds.
+    a round cannot outlive its daemon.
+    """
+    if record.ending is None and not is_working:
+        return AgentRoundOutcome.INTERRUPTED
+    return record.outcome
+
+
+def _describe_round_outcome(
+    *, record: AgentRoundRecord, outcome: AgentRoundOutcome
+) -> str:
+    """Return the words for the round's outcome.
+
+    A round that errored for a reason reads as errored alone, since its exit
+    status, if it has one, says nothing and its reason is too long for a list of
+    rounds.
     """
     if isinstance(record.ending, ErroredAgentRoundEnding):
         if record.ending.reason is not None:
             return str(AgentRoundOutcome.ERRORED)
         return f"errored (exit {record.ending.status})"
-    if record.ending is None and not is_working:
-        return str(AgentRoundOutcome.INTERRUPTED)
-    return str(record.outcome)
+    return str(outcome)
 
 
 def list_round_statuses(*, work: AgentWork, is_working: bool) -> list[AgentRoundStatus]:
@@ -140,6 +153,10 @@ def list_round_statuses(*, work: AgentWork, is_working: bool) -> list[AgentRound
                     previous_revision=previous_revision, revision=round_input.revision
                 )
                 previous_revision = round_input.revision
+        outcome = _derive_round_outcome(
+            record=record,
+            is_working=is_working and record.number == work.rounds[-1].number,
+        )
         statuses.append(
             AgentRoundStatus(
                 record=record,
@@ -147,9 +164,9 @@ def list_round_statuses(*, work: AgentWork, is_working: bool) -> list[AgentRound
                     work=work, number=record.number
                 ),
                 duration_description=compose_round_duration_description(record=record),
-                outcome_description=describe_round_outcome(
-                    record=record,
-                    is_working=is_working and record.number == work.rounds[-1].number,
+                outcome=outcome,
+                outcome_description=_describe_round_outcome(
+                    record=record, outcome=outcome
                 ),
                 revision=revision,
             )
@@ -160,9 +177,9 @@ def list_round_statuses(*, work: AgentWork, is_working: bool) -> list[AgentRound
 def describe_round_trigger(*, work: AgentWork, number: int) -> str:
     """Describe what woke one round of the work, from the input it was given.
 
-    An assignment round given no input started the assignment. Comments wake
-    every conversation round, so one whose input is still to be written, or
-    never was, says so without a count.
+    An assignment round given no input opened, or tried to open, the pull
+    request. Comments wake every conversation round, so one whose input is
+    still to be written, or never was, says so without a count.
     """
     if work.record.kind is AgentWorkKind.CONVERSATION:
         conversation_input = _read_conversation_input(work=work, number=number)

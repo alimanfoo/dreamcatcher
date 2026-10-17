@@ -72,9 +72,9 @@ def test_home_lists_a_conversation_and_links_to_its_page(tmp_path):
     )
     assert 'class="agent-work-card' in page
     assert '<h1 id="conversations-heading">Conversations</h1>' in page
-    assert 'id="conversation-GH8-20260819-184158-conversation"' in page
+    assert 'id="GH8-20260819-184158-conversation"' in page
     conversation_link = (
-        'class="assignment-open" href="/work/GH8-20260819-184158-conversation" '
+        'class="agent-work-open" href="/work/GH8-20260819-184158-conversation" '
         'target="_blank" '
         'rel="noopener noreferrer" '
         'aria-label="Open conversation GH8-20260819-184158-conversation '
@@ -158,7 +158,7 @@ def test_conversation_page_shows_settings_revision_round_and_feed(tmp_path):
     assert page.count("<dt>") == 3
     assert "<dt>label</dt><dd>dream:conversation</dd>" in page
     assert "<dt>harness</dt><dd>claude</dd>" in page
-    assert "<dt>model</dt><dd>opus[1m] · xhigh</dd>" in page
+    assert "<dt>model · effort</dt><dd>opus[1m] · xhigh</dd>" in page
     assert "<dt>worktree</dt>" not in page
     assert "<dt>session</dt>" not in page
     assert "abc123" in page
@@ -437,7 +437,7 @@ def test_conversation_page_shows_two_errors_as_a_fault(tmp_path):
     assert "round 2 errored (exit 2)" in page
 
 
-def test_conversation_before_its_first_round_invites_a_comment(tmp_path):
+def test_conversation_before_its_first_round_has_no_feed_yet(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_conversation(state=state, has_round=False)
     client = application(state=state).test_client()
@@ -450,7 +450,7 @@ def test_conversation_before_its_first_round_invites_a_comment(tmp_path):
     assert 'id="cursor" name="cursor" value="0:0"' in page
     assert "-- no rounds have run --" not in page
     assert "-- no rounds have run --" not in tail
-    assert "Post a comment to start the conversation." in page
+    assert "-- no feed yet --" in page
 
 
 def test_conversation_tail_returns_new_output_and_advances_its_cursor(tmp_path):
@@ -745,8 +745,8 @@ def test_home_lists_conversations_in_attention_order_before_requests(tmp_path):
     page = application(state=state).test_client().get("/").text
 
     assert (
-        page.index('id="conversation-GH11-20260819-184158-conversation"')
-        < page.index('id="conversation-GH8-20260819-184158-conversation"')
+        page.index('id="GH11-20260819-184158-conversation"')
+        < page.index('id="GH8-20260819-184158-conversation"')
         < page.index('id="request-9-dream:conversation"')
         < page.index('id="request-10-dream:conversation"')
         < page.index('id="request-12-dream:conversation"')
@@ -771,5 +771,5 @@ def test_home_collapses_an_ended_conversation(tmp_path):
     conversations = page[page.index('id="conversations-heading"') :]
     ended = conversations[conversations.index('<details class="ended-work">') :]
     assert "<summary>+ 1 ended</summary>" in ended
-    assert 'id="conversation-GH8-20260819-184158-conversation"' in ended
+    assert 'id="GH8-20260819-184158-conversation"' in ended
     assert '<span class="chip status-ended">ended</span>' in ended

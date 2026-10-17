@@ -5,10 +5,10 @@ from functools import partial
 from dreamcatcher.agent_assignments import (
     AssignmentRoundInput,
     complete_assignment,
-    is_final_turn_taken,
+    is_wrap_up_relayed,
     open_assignment_pull_request,
     read_assignment_pull_request_number,
-    read_user_post_delivery_position,
+    read_user_post_cursor,
 )
 from dreamcatcher.agent_work import AgentWork
 from dreamcatcher.config import DispatchRoute
@@ -25,14 +25,14 @@ from dreamcatcher.github import (
     read_pull_request,
 )
 from dreamcatcher.prompts import compose_assignment_input_prompt
-from dreamcatcher.relay import find_pull_request_signals, list_undelivered_user_posts
+from dreamcatcher.relay import find_pull_request_signals, list_user_posts_past_cursor
 from dreamcatcher.scheduler.faults import is_last_round_unfinished
 from dreamcatcher.scheduler.inspection import (
     Candidate,
     Inspection,
     RoundPlan,
     SchedulingContext,
-    compose_agent_work_row,
+    compose_open_work_row,
 )
 from dreamcatcher.scheduler.models import (
     PullRequestFinding,
@@ -50,7 +50,7 @@ def inspect_open_assignment(
     An assignment in fault reads nothing. One whose pull request no round has
     opened yet calls for the round that opens it.
     """
-    unread = compose_agent_work_row(work=assignment, finding=None)
+    unread = compose_open_work_row(work=assignment, finding=None)
     if is_fault:
         return Inspection(row=unread, is_counted_fault=True)
     pull_request = read_assignment_pull_request_number(assignment=assignment)
@@ -58,7 +58,7 @@ def inspect_open_assignment(
         return Inspection(
             row=unread,
             candidate=Candidate(
-                work=assignment,
+                work_or_route=assignment,
                 compose_round=partial(_compose_opening_round, context=context),
             ),
         )
@@ -72,30 +72,30 @@ def _inspect_pull_request(
 ) -> Inspection:
     """Inspect an assignment's pull request and what is past its cursor there.
 
-    A round is due for user posts or signals past the cursor, for a merged or
-    closed pull request whose final turn has not been taken, or to give again
-    the input of a round that did not finish.
+    A round is due for user posts or pull request signals past the cursor, for
+    a merged or closed pull request not yet relayed to a wrap-up round, or to
+    give again the input of a round that did not finish.
     """
     read = read_pull_request(repository=context.repository, pull_request=pull_request)
     if isinstance(read, UnknownGitHubResponse):
         return Inspection(
-            row=compose_agent_work_row(
+            row=compose_open_work_row(
                 work=assignment, finding=ReadFailureFinding(reason=read.reason)
             )
         )
-    posts = list_undelivered_user_posts(
+    posts = list_user_posts_past_cursor(
         repository=context.repository,
         pull_request=read.number,
         account=context.account,
-        delivery_position=read_user_post_delivery_position(assignment=assignment),
+        cursor=read_user_post_cursor(assignment=assignment),
     )
     if isinstance(posts, UnknownGitHubResponse):
         return Inspection(
-            row=compose_agent_work_row(
+            row=compose_open_work_row(
                 work=assignment, finding=ReadFailureFinding(reason=posts.reason)
             )
         )
-    signals = find_pull_request_signals(assignment=assignment, pull_request=read)
+    found = find_pull_request_signals(assignment=assignment, pull_request=read)
     finding = PullRequestFinding(
         number=read.number,
         state=read.state,
@@ -103,31 +103,31 @@ def _inspect_pull_request(
         merge_state=read.merge_state,
         check_result=read.check_result,
         new_posts=len(posts),
-        new_signals=signals.new_signals,
-        is_check_failure_withheld=signals.is_check_failure_withheld,
-        is_final_turn_due=(
+        new_pull_request_signals=found.new_pull_request_signals,
+        is_check_failure_withheld=found.is_check_failure_withheld,
+        is_wrap_up_due=(
             read.state is not PullRequestState.OPEN
-            and not is_final_turn_taken(assignment=assignment)
+            and not is_wrap_up_relayed(assignment=assignment)
         ),
     )
-    row = compose_agent_work_row(work=assignment, finding=finding)
+    row = compose_open_work_row(work=assignment, finding=finding)
     if not (
         finding.new_posts
-        or finding.new_signals
-        or finding.is_final_turn_due
+        or finding.new_pull_request_signals
+        or finding.is_wrap_up_due
         or is_last_round_unfinished(rounds=assignment.rounds, is_daemon_running=True)
     ):
         return Inspection(row=row)
     return Inspection(
         row=row,
         candidate=Candidate(
-            work=assignment,
+            work_or_route=assignment,
             compose_round=partial(
                 _compose_relay_round,
                 context=context,
                 pull_request=read,
                 posts=posts,
-                signals=signals.new_signals,
+                pull_request_signals=found.new_pull_request_signals,
             ),
         ),
     )
@@ -151,7 +151,7 @@ def inspect_assignment_request(
     return Inspection(
         row=row,
         candidate=Candidate(
-            work=route,
+            work_or_route=route,
             compose_round=partial(_compose_opening_round, context=context),
         ),
     )
@@ -201,10 +201,10 @@ def _compose_relay_round(
     context: SchedulingContext,
     pull_request: PullRequest,
     posts: list[UserPost],
-    signals: list[PullRequestSignal],
+    pull_request_signals: list[PullRequestSignal],
     work: AgentWork,
 ) -> RoundPlan:
-    """Return the plan of a round given the pull request's state, signals and posts.
+    """Return the plan of a round given the pull request, its signals and posts.
 
     A round given a merged or closed pull request is the wrap-up round, and it
     records that the assignment completed as it finishes.
@@ -212,7 +212,7 @@ def _compose_relay_round(
     round_input = AssignmentRoundInput(
         pull_request_state=pull_request.state,
         pull_request_head=pull_request.head,
-        signals=signals,
+        signals=pull_request_signals,
         user_posts=posts,
     )
     return RoundPlan(
@@ -222,7 +222,7 @@ def _compose_relay_round(
             round_input=work.compose_round_paths(
                 number=work.next_round_number
             ).round_input,
-            signals=signals,
+            pull_request_signals=pull_request_signals,
         ),
         finish_round=(
             None

@@ -35,7 +35,7 @@ def _compose_hand_resume(
     worktree: Path | None,
     command: list[str] | None,
 ) -> WebHandResume | None:
-    """Return the web values for a manual session resume, when available."""
+    """Return the web values for a hand resume, when available."""
     if worktree is None or command is None:
         return None
     return WebHandResume(
@@ -120,7 +120,7 @@ def compose_agent_live_state(
     heading_controls: tuple[WebAgentWorkControl, ...],
     foot_controls: tuple[WebAgentWorkControl, ...],
 ) -> WebAgentLiveState:
-    """Return the values of an agent page that its tail refreshes."""
+    """Return the values of an agent-work page that its tail refreshes."""
     return WebAgentLiveState(
         status=status.value,
         detail=status.detail,
@@ -145,7 +145,7 @@ def compose_assignment_view(
     assignment = status.work
     record = assignment.record
     repository = read_repository(state=state)
-    feed = read_agent_feed(owner=assignment, zone=zone, rounds=live.rounds)
+    feed = read_agent_feed(work=assignment, zone=zone, rounds=live.rounds)
     return WebAssignmentView(
         repository=repository or "repository unknown",
         github_repository_url=_compose_github_repository_url(repository=repository),
@@ -161,7 +161,7 @@ def compose_assignment_view(
         effort=record.effort,
         live=live,
         feed_rounds=feed.rounds,
-        feed_cursor=feed.cursor,
+        feed_cursor=feed.feed_cursor,
     )
 
 
@@ -176,7 +176,7 @@ def compose_conversation_view(
     """Return the values shown on one issue-conversation page."""
     conversation = status.work
     repository = read_repository(state=state)
-    feed = read_agent_feed(owner=conversation, zone=zone, rounds=live.rounds)
+    feed = read_agent_feed(work=conversation, zone=zone, rounds=live.rounds)
     return WebConversationView(
         repository=repository or "repository unknown",
         github_repository_url=_compose_github_repository_url(repository=repository),
@@ -187,17 +187,17 @@ def compose_conversation_view(
         facts=_compose_conversation_facts(conversation=conversation),
         live=live,
         feed_rounds=feed.rounds,
-        feed_cursor=feed.cursor,
+        feed_cursor=feed.feed_cursor,
     )
 
 
 def _compose_conversation_facts(*, conversation: AgentWork) -> tuple[StatusFact, ...]:
-    """Return the settings that a conversation settled at its first round."""
+    """Return the settings that a conversation's work record holds."""
     record = conversation.record
     return (
         StatusFact(label="label", value=record.dispatch_label),
         StatusFact(label="harness", value=str(record.harness)),
-        StatusFact(label="model", value=f"{record.model} · {record.effort}"),
+        StatusFact(label="model · effort", value=f"{record.model} · {record.effort}"),
     )
 
 
@@ -211,7 +211,7 @@ def _compose_agent_rounds(
             trigger=round_status.trigger_description,
             started=describe_time(at=round_status.record.started, zone=zone),
             duration=round_status.duration_description,
-            outcome=str(round_status.record.outcome),
+            outcome=str(round_status.outcome),
             outcome_description=round_status.outcome_description,
             revision=round_status.revision,
         )

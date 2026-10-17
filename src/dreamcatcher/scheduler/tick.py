@@ -7,7 +7,7 @@ from functools import partial
 
 from dreamcatcher.agent_rounds import (
     AgentRound,
-    AgentRoundPreparationError,
+    AgentRoundLaunchError,
     AgentRoundStartRequest,
     start_agent_round,
 )
@@ -41,7 +41,7 @@ from dreamcatcher.scheduler.inspection import (
     Inspection,
     RequestInspector,
     SchedulingContext,
-    compose_agent_work_row,
+    compose_open_work_row,
 )
 from dreamcatcher.scheduler.models import (
     DEFAULT_MAX_AGENTS,
@@ -172,7 +172,7 @@ class Scheduler:
         round.
         """
         if work.rounds and work.rounds[-1].ending is None:
-            return Inspection(row=compose_agent_work_row(work=work, finding=None))
+            return Inspection(row=compose_open_work_row(work=work, finding=None))
         is_fault = derive_agent_work_fault(
             rounds=work.rounds,
             retry_requested_at=work.retry_requested_at,
@@ -279,11 +279,11 @@ class Scheduler:
             self._last_selected_work_kind = row.kind
             try:
                 launched = self._launch(row=row, candidate=candidate, at=record.at)
-            except AgentRoundPreparationError as failure:
+            except AgentRoundLaunchError as failure:
                 identifier = failure.agent_work_identifier
                 started_round = StartedRound(
                     number=failure.round_number,
-                    preparation_failure=failure.reason,
+                    launch_failure=failure.reason,
                 )
             except ReportableError as failure:
                 failures.append(str(failure))
@@ -332,11 +332,11 @@ class Scheduler:
         round whose work has ended by the time it starts is asked to stop.
         """
         work = (
-            candidate.work
-            if isinstance(candidate.work, AgentWork)
+            candidate.work_or_route
+            if isinstance(candidate.work_or_route, AgentWork)
             else create_agent_work(
                 state=self.context.state,
-                route=candidate.work,
+                route=candidate.work_or_route,
                 preferred_harness=self.preferred_harness,
                 issue=row.issue,
                 title=row.title,
@@ -359,7 +359,7 @@ class Scheduler:
                     effort=work.record.effort,
                     harness_config=work.record.harness_config,
                     prompt=compose_round_prompt(
-                        instructions=work.record.prompt,
+                        instructions=work.record.instructions,
                         is_resuming=harness_session_identifier is not None,
                         input_prompt=plan.input_prompt,
                         previous_outcome=(

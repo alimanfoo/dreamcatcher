@@ -16,7 +16,7 @@
   </head>
   <body hx-ext="morph">
     
-  <main class="assignment-page">
+  <main class="agent-work-page">
     <header class="site-header">
   <div class="repository"><img class="mark" src="/static/dreamcatcher-mark-ink.png" alt="dreamcatcher"><span class="repository-links"><a class="repository-link" href="https://github.com/alimanfoo/dreamcatcher" target="_blank" rel="noopener noreferrer">alimanfoo/dreamcatcher</a><span aria-hidden="true">·</span><a class="repository-link" href="https://github.com/alimanfoo/dreamcatcher/issues" target="_blank" rel="noopener noreferrer">issues</a><span aria-hidden="true">·</span><a class="repository-link" href="https://github.com/alimanfoo/dreamcatcher/pulls" target="_blank" rel="noopener noreferrer">pulls</a></span></div>
   <div class="site-actions">
@@ -31,29 +31,29 @@
     </nav>
   </div>
 </header>
-    <div class="assignment-content">
-      <a class="assignment-navigation" href="/">&lt; home</a>
-      <section class="assignment-overview" aria-labelledby="assignment-heading">
-        <div class="assignment-heading">
+    <div class="agent-work-content">
+      <a class="agent-work-navigation" href="/">&lt; home</a>
+      <section class="agent-work-overview" aria-labelledby="agent-work-heading">
+        <div class="agent-work-heading">
           
-            <h1 id="assignment-heading"><a class="assignment-issue" href="https://github.com/alimanfoo/dreamcatcher/issues/13" target="_blank" rel="noopener noreferrer">#13 <span>Issue 13</span></a></h1>
+            <h1 id="agent-work-heading"><a class="agent-work-issue" href="https://github.com/alimanfoo/dreamcatcher/issues/13" target="_blank" rel="noopener noreferrer">#13 <span>Issue 13</span></a></h1>
           
-          <div class="assignment-heading-actions">
+          <div class="agent-work-heading-actions">
             <div id="agent-work-retry"></div>
             <span id="agent-work-status" class="chip status-working">working</span>
             <a class="pr-chip" href="https://github.com/alimanfoo/dreamcatcher/pull/52" target="_blank" rel="noopener noreferrer">PR #52</a>
           </div>
         </div>
-        <p id="agent-work-detail" class="assignment-detail">round 2, 1 post, running 1h 30m, has said nothing yet</p>
-        <dl class="assignment-facts">
+        <p id="agent-work-detail" class="agent-work-detail">round 2, 1 post, running 1h 30m, has said nothing yet</p>
+        <dl class="agent-work-facts">
           <div><dt>label</dt><dd>dream:smith</dd></div>
           <div><dt>harness</dt><dd>claude</dd></div>
-          <div><dt>model</dt><dd>opus[1m] · xhigh</dd></div>
+          <div><dt>model · effort</dt><dd>opus[1m] · xhigh</dd></div>
         </dl>
       </section>
-      <div class="assignment-workspace">
-        <div class="assignment-sidebar">
-          <aside id="assignment-rounds" class="panel" aria-labelledby="rounds-heading">
+      <div class="agent-work-workspace">
+        <div class="agent-work-sidebar">
+          <aside id="agent-work-rounds" class="panel" aria-labelledby="rounds-heading">
   <h1 id="rounds-heading">Rounds</h1>
   
     <a class="round-link" href="#feed-round-1" aria-controls="feed-round-1">
@@ -76,7 +76,7 @@
   
 </aside>
         </div>
-        <section class="panel assignment-feed" aria-labelledby="feed-heading">
+        <section class="panel agent-work-feed" aria-labelledby="feed-heading">
           <h1 id="feed-heading">Feed</h1>
           <button class="feed-tail" type="button" aria-controls="records">TAIL ↓</button>
           <input type="hidden" id="cursor" name="cursor" value="2:0">
@@ -99,11 +99,11 @@
         </section>
       </div>
       <div id="agent-work-foot" class="agent-work-foot">
-        <form id="stop-form" class="agent-work-control-form" method="post" action="/work/GH13-20260819-184158-assignment/stop/2" data-confirmation="Stop this round? dreamcatcher will stop the agent now and wait for new input from you before it starts another round."><button class="agent-work-control stop-control" type="submit">stop round</button></form>
+        <form id="stop-form" class="agent-work-control-form" method="post" action="/work/GH13-20260819-184158-assignment/stop/2" data-confirmation="Stop this round? dreamcatcher will stop the agent now and wait for something new before it starts another round."><button class="agent-work-control stop-control" type="submit">stop round</button></form>
         <form id="cancel-form" class="agent-work-control-form" method="post" action="/work/GH13-20260819-184158-assignment/cancel" data-confirmation="Cancel this assignment? dreamcatcher will stop working on it so that you can finish its pull request by hand. This cannot be undone."><button class="agent-work-control cancel-control" type="submit">cancel assignment</button></form></div>
     </div>
   </main>
-  <script src="/static/assignment.js"></script>
+  <script src="/static/agent-work.js"></script>
 
   </body>
 </html>

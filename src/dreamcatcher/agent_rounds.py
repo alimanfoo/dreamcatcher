@@ -1,6 +1,6 @@
 """Run agent rounds and persist their inputs, output, and outcomes.
 
-A round runs a harness in its owner's worktree and stores its prompt, input,
+A round runs a harness in its work's worktree and stores its prompt, input,
 stop request, raw and rendered output, final output, and lifecycle record in a
 numbered directory. The daemon watches rather than waits, so the round reads
 its streams and records its ending on threads of its own.
@@ -54,8 +54,8 @@ _AGENT_ROUND_RECORD_NAME = "round.json"
 class AgentRoundPaths:
     """Provide the worktree and file paths for a numbered round.
 
-    The round runs in its owner's worktree and writes into the directory its
-    number selects under that owner's rounds directory. Keeping the number
+    The round runs in its work's worktree and writes into the directory its
+    number selects under that work's rounds directory. Keeping the number
     beside that parent makes one value authoritative for both the path and the
     record the round writes. The paths are available before the round creates
     any files.
@@ -92,7 +92,7 @@ class AgentRoundPaths:
 
     @property
     def round_input(self) -> Path:
-        """The file holding the input that the round's owner delivered."""
+        """The file holding the input that the round relays."""
         return self.directory / "round-input.json"
 
     @property
@@ -163,7 +163,7 @@ class ErroredAgentRoundEnding(DreamcatcherDocument):
     """An agent round ending with an error exit, or a failure around a clean one.
 
     A round errors with a reason when it cannot prepare or spawn its harness,
-    which leaves no exit status, or when its owner cannot finish a round whose
+    which leaves no exit status, or when its finishing step fails after its
     harness exited cleanly.
     """
 
@@ -210,7 +210,7 @@ def _compose_agent_round_ending(
 ) -> SuccessfulAgentRoundEnding | ErroredAgentRoundEnding:
     """Return the terminal outcome observed when a harness exited.
 
-    A failure is what stopped the owner finishing a round whose harness exited
+    A failure is what stopped the finishing step of a round whose harness exited
     cleanly, and it errors the round.
     """
     if failure is not None:
@@ -249,14 +249,14 @@ class AgentRoundRecord(DreamcatcherDocument):
         }
 
 
-def describe_round_preparation_failure(
+def describe_round_launch_failure(
     *, agent_work_identifier: str, round_number: int, reason: str
 ) -> str:
     """Say which round of which work errored before its harness ran, and why."""
     return f"{agent_work_identifier} round {round_number} errored: {reason}"
 
 
-class AgentRoundPreparationError(ReportableError):
+class AgentRoundLaunchError(ReportableError):
     """Report a round that ended errored before its harness ran.
 
     The round's record already holds the errored ending. The error carries the
@@ -269,7 +269,7 @@ class AgentRoundPreparationError(ReportableError):
     ) -> None:
         """Hold the round that errored and say which one it was."""
         super().__init__(
-            describe_round_preparation_failure(
+            describe_round_launch_failure(
                 agent_work_identifier=agent_work_identifier,
                 round_number=round_number,
                 reason=reason,
@@ -326,7 +326,7 @@ def _record_agent_round_ending(
 
 @dataclass(frozen=True, kw_only=True)
 class AgentRoundStartRequest:
-    """Describe everything that the round boundary needs to start a round."""
+    """Describe everything that `start_agent_round` needs to start a round."""
 
     harness: AgentHarness
     launch_request: AgentRoundLaunchRequest
@@ -342,10 +342,10 @@ def start_agent_round(
     request: AgentRoundStartRequest,
     clock: Callable[[], datetime] = read_current_time,
 ) -> "AgentRound":
-    """Start a first or resumed round through its owner's harness."""
+    """Start a round through its work's harness, resuming its session if any."""
     harness_adapter = HARNESS_ADAPTERS[request.harness]
     if request.harness_session_identifier is None:
-        invocation = harness_adapter.build_first_round(
+        invocation = harness_adapter.build_new_session_round(
             request=request.launch_request,
             final_output_path=request.paths.final_output,
         )
@@ -379,7 +379,7 @@ def read_agent_round_records(
     The records determine the order. A directory without a record is not a
     round and is omitted.
 
-    A terminal record has had both of its writes, and nothing writes it again,
+    A terminal record has had its last write, and nothing writes it again,
     so the cache keeps it and a later read does not open it. A running record is
     opened on every read, because its ending may arrive later.
     """
@@ -430,19 +430,18 @@ class AgentRound:
         """Record the round, prepare it, and run its harness at the paths given.
 
         The record is written first, so the attempt exists before anything else
-        happens. The owner's preparation step then readies the worktree and
-        returns the input to relay, if any. The input and prompt go to files of
-        the round's own before its process starts, and the harness reads the
-        prompt as its stdin. A prompt therefore reaches the harness as it was
-        written however long it is and whatever it holds, and a reader can see
-        afterwards what the round received.
+        happens. The preparation step that the work's kind supplies then readies
+        what the round needs and returns the input to relay, if any. The input
+        and prompt go to files of the round's own before its process starts, and
+        the harness reads the prompt as its stdin. A prompt therefore reaches the
+        harness as it was written however long it is and whatever it holds, and
+        a reader can see afterwards what the round received.
 
         A failure before the harness is running ends the round errored, with the
         failure as its reason and no exit status, and raises
-        AgentRoundPreparationError naming the work and the round.
+        AgentRoundLaunchError naming the work and the round.
 
-        A round given a finisher lets its owner finish it before it records its
-        ending.
+        A round given a finishing step runs it before it records its ending.
 
         The stop-request watcher waits between its polls through
         `wait_for_round_end`, which is given the seconds to wait and answers
@@ -472,7 +471,7 @@ class AgentRound:
                 ending=ErroredAgentRoundEnding(at=clock(), reason=str(failure)),
                 path=paths.record,
             )
-            raise AgentRoundPreparationError(
+            raise AgentRoundLaunchError(
                 agent_work_identifier=agent_work_identifier,
                 round_number=paths.number,
                 reason=str(failure),
@@ -551,8 +550,8 @@ class AgentRound:
 
         This returns as soon as the round has ended, and does not wait for the
         feed, so that a stream somebody else is still holding cannot hold up
-        the daemon. A round whose harness has already exited is finished by
-        its owner first.
+        the daemon. A round whose harness has already exited runs its finishing
+        step first.
         """
         self._end_process_tree(ending=InterruptedAgentRoundEnding())
         self._round_ended.wait()
@@ -561,7 +560,8 @@ class AgentRound:
         """End the round while preserving a pending user stop request.
 
         A stop request already written when shutdown begins is the reason this
-        round ends, rather than an interruption the next daemon would recover.
+        round ends, rather than an interruption whose input the next round is
+        given again.
         """
         if self.paths.stop_request.is_file():
             ending: _AgentRoundEnding = StoppedAgentRoundEnding(at=self.clock())
@@ -662,10 +662,10 @@ class AgentRound:
                 stream_reader.join()
 
     def _finish_round(self, *, status: int) -> str | None:
-        """Let the owner finish a successful round, and return why it could not.
+        """Run the finishing step of a successful round, and return why it failed.
 
-        A finisher that raises fails the round, and the feed says why too. An
-        interrupted round is not finished.
+        A finishing step that raises fails the round, and the feed says why too.
+        An interrupted round is not finished.
         """
         if self.finish_round is None or status != 0 or self.forced_ending is not None:
             return None

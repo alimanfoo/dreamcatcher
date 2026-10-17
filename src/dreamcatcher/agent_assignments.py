@@ -1,9 +1,9 @@
 """Open agent assignments' pull requests and read the state only assignments have.
 
 Each assignment has its own identifier, branch, worktree and pull request, and
-several assignments can exist for one issue. Its first round prepares and
-publishes the branch and opens the linked draft pull request, the assignment's
-channel, before the harness runs.
+several assignments can exist for one issue. The round that opens the pull
+request prepares and publishes the branch and opens the linked draft pull
+request, the assignment's channel, before the harness runs.
 """
 
 from collections.abc import Callable, Iterator
@@ -61,7 +61,7 @@ class AssignmentRoundInput(DreamcatcherDocument):
     """Model where an assignment's pull request stood and what a round relayed.
 
     The head is the pull request's head commit when the round started, which is
-    the commit that each relayed signal was raised at.
+    the commit that each relayed pull request signal was raised at.
     """
 
     pull_request_state: PullRequestState
@@ -122,11 +122,7 @@ def complete_assignment(
     clock: Callable[[], datetime],
     final_output: str | None,
 ) -> None:
-    """Record that the assignment completed, as its wrap-up round finishes.
-
-    A round finisher receives the round's final output, which completion does
-    not need.
-    """
+    """Record that the assignment completed, as its wrap-up round finishes."""
     end_agent_work(work=assignment, reason=AgentWorkEndReason.COMPLETED, at=clock())
 
 
@@ -169,7 +165,7 @@ def open_assignment_pull_request(
     )
 
 
-def read_user_post_delivery_position(*, assignment: AgentWork) -> str:
+def read_user_post_cursor(*, assignment: AgentWork) -> str:
     """Return the newest user-post time among the posts already relayed."""
     for round_input in _read_relayed_inputs(assignment=assignment):
         if round_input.user_posts:
@@ -185,7 +181,7 @@ def read_relayed_pull_request_state(
     return None if latest is None else latest.pull_request_state
 
 
-def is_final_turn_taken(*, assignment: AgentWork) -> bool:
+def is_wrap_up_relayed(*, assignment: AgentWork) -> bool:
     """Return whether a merged or closed pull request has been relayed."""
     state = read_relayed_pull_request_state(assignment=assignment)
     return state is not None and state is not PullRequestState.OPEN
@@ -218,7 +214,7 @@ def is_check_failure_withheld(*, assignment: AgentWork) -> bool:
 
 def _read_relayed_inputs(*, assignment: AgentWork) -> Iterator[AssignmentRoundInput]:
     """Yield the inputs already relayed, newest first."""
-    for paths in assignment.list_relayed_inputs():
+    for paths in assignment.list_relayed_round_paths():
         yield read_json(model=AssignmentRoundInput, path=paths.round_input)
 
 

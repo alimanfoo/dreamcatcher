@@ -23,7 +23,7 @@ class DaemonRunRecord(DreamcatcherDocument):
     """
 
     pid: PositiveInt
-    harness: AgentHarness
+    preferred_harness: AgentHarness
     version: str = Field(min_length=1)
     max_agents: PositiveInt
     interval_seconds: PositiveInt

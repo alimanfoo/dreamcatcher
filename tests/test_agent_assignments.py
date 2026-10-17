@@ -27,7 +27,7 @@ from dreamcatcher.agent_assignments import (
     compose_assignment_branch,
     open_assignment_pull_request,
     read_assignment_pull_request_number,
-    read_user_post_delivery_position,
+    read_user_post_cursor,
 )
 from dreamcatcher.agent_rounds import (
     AgentRoundPaths,
@@ -52,7 +52,7 @@ from dreamcatcher.config import (
 from dreamcatcher.documents import write_json
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.git import add_worktree, fetch_main, make_empty_commit, push_branch
-from dreamcatcher.github import ConversationComment, PullRequestState
+from dreamcatcher.github import IssueComment, PullRequestState
 from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.state import StateDirectory
 
@@ -74,14 +74,14 @@ def record_assignment(*, state, route, preferred_harness=AgentHarness.CLAUDE):
 
 
 def open_pull_request(*, state, assignment):
-    """Open the assignment's pull request, as its first round does."""
+    """Open the assignment's pull request, as the round that opens it does."""
     open_assignment_pull_request(
         state=state, repository=REPOSITORY, assignment=assignment
     )
 
 
 def open_assignment(*, state, route, preferred_harness, issue, at):
-    """Record an assignment and open its pull request, as its first round does."""
+    """Record an assignment and open its pull request, as its opening round does."""
     assignment = create_agent_work(
         state=state,
         route=route,
@@ -206,7 +206,7 @@ def test_an_assignment_records_its_settled_dispatch_recipe(state, route):
     assert assignment.record.model == "opus[1m]"
     assert assignment.record.effort == "xhigh"
     assert assignment.record.harness_config == {}
-    assert assignment.record.prompt == "/dream:smith GH12"
+    assert assignment.record.instructions == "/dream:smith GH12"
     record = state.work / ASSIGNMENT_ID / "work.json"
     assert '"dispatch_label": "dream:smith"' in record.read_text(encoding="utf-8")
 
@@ -247,7 +247,7 @@ def test_an_assignment_runs_on_the_harness_the_run_named(state, route):
 
     assert assignment.record.harness == AgentHarness.CODEX
     assert assignment.record.model == "gpt-5.6-sol"
-    assert assignment.record.prompt == "$dream:smith GH12"
+    assert assignment.record.instructions == "$dream:smith GH12"
 
 
 def test_a_new_assignment_has_run_no_rounds_and_its_next_is_its_first(state, route):
@@ -587,7 +587,7 @@ def test_an_assignment_reads_back_with_its_settled_dispatch_recipe(state, route)
     assert read_assignments(state=state) == [created]
 
 
-def test_an_assignment_recovers_a_session_reported_by_a_later_round(fabricated):
+def test_an_assignment_finds_a_session_reported_by_a_later_round(fabricated):
     directory = write_assignment(
         state=fabricated,
         identifier=ASSIGNMENT_ID,
@@ -619,14 +619,12 @@ def test_an_assignment_recovers_a_session_reported_by_a_later_round(fabricated):
         ).encode()
     )
 
-    recovered = assignment.find_harness_session_identifier()
+    found = assignment.find_harness_session_identifier()
 
-    assert recovered == "replacement-session"
+    assert found == "replacement-session"
 
 
-def test_an_assignment_with_no_delivered_user_post_has_an_empty_delivery_position(
-    state, route
-):
+def test_an_assignment_with_no_relayed_user_post_has_an_empty_cursor(state, route):
     open_assignment(
         state=state,
         route=route,
@@ -635,13 +633,10 @@ def test_an_assignment_with_no_delivered_user_post_has_an_empty_delivery_positio
         at=PINNED,
     )
 
-    assert (
-        read_user_post_delivery_position(assignment=read_assignments(state=state)[0])
-        == ""
-    )
+    assert read_user_post_cursor(assignment=read_assignments(state=state)[0]) == ""
 
 
-def test_an_assignment_reads_back_its_user_post_delivery_position(state, route):
+def test_an_assignment_reads_back_its_user_post_cursor(state, route):
     created = open_assignment(
         state=state,
         route=route,
@@ -665,23 +660,19 @@ def test_an_assignment_reads_back_its_user_post_delivery_position(state, route):
             pull_request_head=HEAD,
             signals=[],
             user_posts=[
-                ConversationComment.model_validate(
-                    comment(created_at="2026-09-03T22:31:51Z")
-                )
+                IssueComment.model_validate(comment(created_at="2026-09-03T22:31:51Z"))
             ],
         ),
         path=created.compose_round_paths(number=1).round_input,
     )
 
     assert (
-        read_user_post_delivery_position(assignment=read_assignments(state=state)[0])
+        read_user_post_cursor(assignment=read_assignments(state=state)[0])
         == "2026-09-03T22:31:51Z"
     )
 
 
-def test_the_user_post_delivery_position_scans_past_an_input_that_delivered_no_posts(
-    state, route
-):
+def test_the_user_post_cursor_scans_past_an_input_that_relayed_no_posts(state, route):
     created = open_assignment(
         state=state,
         route=route,
@@ -693,11 +684,7 @@ def test_the_user_post_delivery_position_scans_past_an_input_that_delivered_no_p
     for number, posts in (
         (
             1,
-            [
-                ConversationComment.model_validate(
-                    comment(created_at="2026-09-03T22:31:51Z")
-                )
-            ],
+            [IssueComment.model_validate(comment(created_at="2026-09-03T22:31:51Z"))],
         ),
         (2, []),
     ):
@@ -722,7 +709,7 @@ def test_the_user_post_delivery_position_scans_past_an_input_that_delivered_no_p
         )
 
     assert (
-        read_user_post_delivery_position(assignment=read_assignments(state=state)[0])
+        read_user_post_cursor(assignment=read_assignments(state=state)[0])
         == "2026-09-03T22:31:51Z"
     )
 

@@ -47,13 +47,13 @@ class PullRequestFinding(DreamcatcherDocument):
     merge_state: PullRequestMergeState
     check_result: CheckResult
     new_posts: NonNegativeInt
-    new_signals: list[PullRequestSignal]
+    new_pull_request_signals: list[PullRequestSignal]
     is_check_failure_withheld: bool
-    is_final_turn_due: bool
+    is_wrap_up_due: bool
 
 
 class IssueCommentsFinding(DreamcatcherDocument):
-    """Hold how many of the user's issue comments no round has been given."""
+    """Hold how many of the user's eligible issue comments are past the cursor."""
 
     found: Literal["issue comments"] = "issue comments"
     new_comments: NonNegativeInt
@@ -80,9 +80,11 @@ class ConflictingLabelsFinding(DreamcatcherDocument):
 
 
 class PauseCause(StrEnum):
-    """The reasons an open conversation pauses, other than a routing conflict.
+    """The causes of a pause that the issue's labels and assignee give alone.
 
-    The tick checks them in this order, and a routing conflict after them.
+    The tick checks them in this order. A second conversation label is the
+    third cause, which the tick checks after them and holds as the conflicting
+    labels.
     """
 
     LABEL_REMOVED = "label removed"
@@ -90,7 +92,7 @@ class PauseCause(StrEnum):
 
 
 class PausedFinding(DreamcatcherDocument):
-    """Say why the tick starts no round for an open conversation until it resumes."""
+    """Say which of the causes that the issue gives alone pauses a conversation."""
 
     found: Literal["paused"] = "paused"
     cause: PauseCause
@@ -118,7 +120,7 @@ class StartedRound(DreamcatcherDocument):
     """Name the round that a tick started, and why it errored before its harness ran."""
 
     number: PositiveInt
-    preparation_failure: str | None = None
+    launch_failure: str | None = None
 
 
 class RequestRow(DreamcatcherDocument):
@@ -155,8 +157,9 @@ class GlobalCooldown(DreamcatcherDocument):
 class SchedulerRecord(DreamcatcherDocument):
     """Record what one scheduler tick found and started.
 
-    The tick writes one row per request it saw. Its failures are those that
-    belong to no piece of agent work, such as a failed issue listing.
+    The tick writes one row per request it saw. Its failures are those that no
+    row holds: a failed issue listing, or a launch that failed before its round
+    was recorded.
     """
 
     at: _UtcDateTime
@@ -180,5 +183,5 @@ class SchedulerRecord(DreamcatcherDocument):
         return [
             identifier
             for identifier, started_round in self.started_rounds.items()
-            if started_round.preparation_failure is None
+            if started_round.launch_failure is None
         ]

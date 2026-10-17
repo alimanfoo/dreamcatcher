@@ -29,7 +29,7 @@ from dreamcatcher.agent_rounds import (
 from dreamcatcher.config import AgentHarness, read_dreamcatcher_config
 from dreamcatcher.documents import write_json
 from dreamcatcher.github import (
-    ConversationComment,
+    IssueComment,
     PullRequestSignal,
     PullRequestState,
 )
@@ -449,7 +449,7 @@ def test_a_batch_of_posts_says_how_many_it_holds(state, gh):
     assert len(resume.user_posts) == 2
 
 
-def test_a_post_at_the_assignment_delivery_position_wakes_nothing(state, gh):
+def test_a_post_at_the_assignment_cursor_wakes_nothing(state, gh):
     ran(state=state, number=1)
     gh.replies(
         stdout=pages(items=[comment()]), to=f"api {POST_LIST_PATHS['conversation']}"
@@ -460,7 +460,7 @@ def test_a_post_at_the_assignment_delivery_position_wakes_nothing(state, gh):
             pull_request_state=PullRequestState.OPEN,
             pull_request_head=HEAD,
             signals=[],
-            user_posts=[ConversationComment.model_validate(comment())],
+            user_posts=[IssueComment.model_validate(comment())],
         ),
         path=assignment.compose_round_paths(number=1).round_input,
     )
@@ -561,7 +561,7 @@ def relayed(
         pull_request_head=head,
         signals=signals,
         user_posts=[
-            ConversationComment.model_validate(comment(id=number))
+            IssueComment.model_validate(comment(id=number))
             for number in range(1, posts + 1)
         ],
     )
@@ -586,7 +586,7 @@ def test_a_ready_pull_request_that_main_moved_under_wakes_its_assignment(
     assert isinstance(resume, AssignmentRoundInput)
     assert resume.signals == [PullRequestSignal.OUT_OF_DATE]
     assert resume.pull_request_head == HEAD
-    assert pull_request_finding(state=state).new_signals == [
+    assert pull_request_finding(state=state).new_pull_request_signals == [
         PullRequestSignal.OUT_OF_DATE
     ]
 
@@ -688,7 +688,7 @@ def test_a_red_check_after_two_attempts_waits_for_the_user(state, gh):
 
     assert found(state=state) is None
     finding = pull_request_finding(state=state)
-    assert finding.new_signals == []
+    assert finding.new_pull_request_signals == []
     assert finding.is_check_failure_withheld
 
 
@@ -768,7 +768,7 @@ def test_a_draft_raises_neither_signal(state, gh):
     )
 
     assert found(state=state) is None
-    assert pull_request_finding(state=state).new_signals == []
+    assert pull_request_finding(state=state).new_pull_request_signals == []
 
 
 def test_a_merged_pull_request_raises_no_signal_in_its_last_round(state, gh):

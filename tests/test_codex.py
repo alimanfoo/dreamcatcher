@@ -41,8 +41,8 @@ def completed(**item) -> str:
 
 
 # Each command ends in the word that has Codex read its prompt from stdin.
-def test_a_first_round_runs_where_it_is_launched_under_codexs_own_reviewer():
-    assert CODEX_ADAPTER.build_first_round(
+def test_a_new_session_round_runs_where_it_is_launched_under_codexs_own_reviewer():
+    assert CODEX_ADAPTER.build_new_session_round(
         request=ROUND_LAUNCH_REQUEST,
         final_output_path=FINAL_OUTPUT_PATH,
     ) == HarnessInvocation(
@@ -90,7 +90,7 @@ def test_a_resume_replays_the_settings_and_the_permissions_codex_forgets():
 @pytest.mark.parametrize(
     "build_round",
     [
-        lambda request: CODEX_ADAPTER.build_first_round(
+        lambda request: CODEX_ADAPTER.build_new_session_round(
             request=request, final_output_path=FINAL_OUTPUT_PATH
         ),
         lambda request: CODEX_ADAPTER.build_resumed_round(
@@ -125,7 +125,7 @@ def test_every_round_passes_the_harness_config_as_toml(build_round):
 
 
 def test_a_first_conversation_round_can_write_with_network_without_approval():
-    assert CODEX_ADAPTER.build_first_round(
+    assert CODEX_ADAPTER.build_new_session_round(
         request=CONVERSATION_LAUNCH_REQUEST,
         final_output_path=FINAL_OUTPUT_PATH,
     ) == HarnessInvocation(
@@ -177,7 +177,7 @@ def test_a_resumed_conversation_can_write_with_network_without_approval():
 
 def test_a_conversation_refuses_a_final_output_path_windows_cannot_carry():
     with pytest.raises(ReportableError, match="percent sign"):
-        CODEX_ADAPTER.build_first_round(
+        CODEX_ADAPTER.build_new_session_round(
             request=CONVERSATION_LAUNCH_REQUEST,
             final_output_path=Path("rounds") / "%TEMP%" / "final.md",
         )

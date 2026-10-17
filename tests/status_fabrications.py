@@ -35,7 +35,7 @@ from dreamcatcher.documents import write_json, write_text
 from dreamcatcher.feed import FeedLine
 from dreamcatcher.github import (
     CheckResult,
-    ConversationComment,
+    IssueComment,
     PullRequestMergeState,
     PullRequestState,
 )
@@ -87,9 +87,9 @@ def _draft_pull_request(*, new_posts: int = 0) -> PullRequestFinding:
         merge_state=PullRequestMergeState.CLEAN,
         check_result=CheckResult.PASSING,
         new_posts=new_posts,
-        new_signals=[],
+        new_pull_request_signals=[],
         is_check_failure_withheld=False,
-        is_final_turn_due=False,
+        is_wrap_up_due=False,
     )
 
 
@@ -206,7 +206,7 @@ ONE_POST_INPUT = AssignmentRoundInput(
     pull_request_state=PullRequestState.OPEN,
     pull_request_head=HEAD,
     signals=[],
-    user_posts=[ConversationComment.model_validate(comment())],
+    user_posts=[IssueComment.model_validate(comment())],
 )
 
 # What an assignment round given the input of one that did not finish was given,
@@ -561,9 +561,9 @@ def fabricate_titles_and_pull_request_states(*, state):
                     merge_state=merge_state,
                     check_result=check_result,
                     new_posts=0,
-                    new_signals=[],
+                    new_pull_request_signals=[],
                     is_check_failure_withheld=check_result is CheckResult.FAILING,
-                    is_final_turn_due=pull_request_state is not PullRequestState.OPEN,
+                    is_wrap_up_due=pull_request_state is not PullRequestState.OPEN,
                 ),
             )
         )

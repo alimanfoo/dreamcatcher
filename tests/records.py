@@ -68,7 +68,7 @@ def write_daemon_run(
     write_json(
         document=DaemonRunRecord(
             pid=pid,
-            harness=harness,
+            preferred_harness=harness,
             version=version,
             max_agents=max_agents,
             interval_seconds=DEFAULT_INTERVAL_SECONDS,
@@ -109,7 +109,7 @@ def write_assignment(
     """Write an assignment's worktree and its records, and return its own directory.
 
     The title is `Issue <n>` unless the test gives one. An assignment given no
-    pull request is one whose first round has not opened it.
+    pull request is one that no round has opened yet.
     """
     (state.worktrees / identifier).mkdir(parents=True)
     directory = state.work / identifier
@@ -129,7 +129,7 @@ def write_assignment(
             harness=AgentHarness.CLAUDE,
             model="opus[1m]",
             effort="xhigh",
-            prompt=f"/dream:smith GH{issue}",
+            instructions=f"/dream:smith GH{issue}",
         ),
     )
     _write_harness_session(directory=directory, identifier=harness_session_identifier)
@@ -169,7 +169,7 @@ def write_conversation(
             harness=harness,
             model="opus[1m]",
             effort="xhigh",
-            prompt=f"/dream:conversation GH{issue}",
+            instructions=f"/dream:conversation GH{issue}",
         ),
     )
     _write_harness_session(
@@ -197,7 +197,7 @@ def write_round(
     """Write the record of one round of the work at this directory, and its input.
 
     A successful round given a merged or closed pull request also completes its
-    assignment, as the round's finisher records before its ending.
+    assignment, as the round's finishing step records before its ending.
     """
     paths = _round_paths(directory=directory, number=number)
     if round_input is not None:

@@ -28,22 +28,21 @@ from dreamcatcher.config import (
 from dreamcatcher.documents import write_json, write_text
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.github import (
-    ConversationComment,
     GitHubLabel,
     GitHubUserAccount,
     Issue,
+    IssueComment,
     IssueState,
 )
 from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.issue_conversations import (
     ConversationRoundInput,
     InitialConversationIssue,
-    IssueCommentDeliveryPosition,
-    list_undelivered_issue_comments,
+    IssueCommentCursor,
     post_conversation_answer,
     prepare_conversation_round,
     read_conversation_input,
-    read_issue_comment_delivery_position,
+    read_issue_comment_cursor,
 )
 from dreamcatcher.prompts import AGENT_POST_MARKER
 from dreamcatcher.state import StateDirectory
@@ -87,7 +86,7 @@ def write_conversation(*, state: StateDirectory, number: int = 8) -> AgentWork:
             harness=AgentHarness.CLAUDE,
             model="opus[1m]",
             effort="xhigh",
-            prompt=f"/dream:conversation GH{number}",
+            instructions=f"/dream:conversation GH{number}",
         ),
     )
 
@@ -98,8 +97,8 @@ def comment(
     body: str,
     author: str = "alimanfoo",
     written_at: str = "2026-09-23T01:00:00Z",
-) -> ConversationComment:
-    return ConversationComment(
+) -> IssueComment:
+    return IssueComment(
         id=identifier,
         author=author,
         written_at=written_at,
@@ -151,35 +150,9 @@ def test_a_new_conversation_records_the_preferred_harness_recipe(cloned):
     )
 
     assert created.record.harness == AgentHarness.CODEX
-    assert created.record.prompt == "$dream:conversation GH8"
+    assert created.record.instructions == "$dream:conversation GH8"
     assert created.record.model == "gpt-5.6-sol"
     assert created.record.effort == "high"
-
-
-def test_only_new_unmarked_comments_from_the_account_are_delivered():
-    delivery_position = IssueCommentDeliveryPosition(
-        written_at="2026-09-23T01:00:00Z", id=2
-    )
-    comments = [
-        comment(identifier=4, body="later in the list"),
-        comment(identifier=1, body="before the delivery position"),
-        comment(identifier=3, body="first after the delivery position"),
-        comment(identifier=5, body="somebody else", author="mallory"),
-        comment(identifier=6, body=f"agent answer\n{AGENT_POST_MARKER}"),
-        comment(identifier=7, body="  "),
-    ]
-
-    delivered = list_undelivered_issue_comments(
-        comments=comments, account="ALIMANFOO", delivery_position=delivery_position
-    )
-
-    assert [item.id for item in delivered] == [3, 4]
-    assert [
-        item.id
-        for item in list_undelivered_issue_comments(
-            comments=comments, account="alimanfoo", delivery_position=None
-        )
-    ] == [1, 3, 4]
 
 
 @pytest.mark.parametrize(
@@ -285,7 +258,7 @@ def test_a_conversation_numbers_its_rounds_by_their_records(tmp_path):
     assert reread.next_round_number == 2
 
 
-def test_a_conversation_recovers_a_session_reported_by_a_later_round(tmp_path):
+def test_a_conversation_finds_a_session_reported_by_a_later_round(tmp_path):
     conversation = write_conversation(state=StateDirectory(root=tmp_path))
     for number in (1, 2):
         paths = conversation.compose_round_paths(number=number)
@@ -307,9 +280,9 @@ def test_a_conversation_recovers_a_session_reported_by_a_later_round(tmp_path):
     reread = read_conversation(state=StateDirectory(root=tmp_path), issue=8)
     assert reread is not None
 
-    recovered = reread.find_harness_session_identifier()
+    found = reread.find_harness_session_identifier()
 
-    assert recovered == "replacement-session"
+    assert found == "replacement-session"
 
 
 @pytest.mark.parametrize(
@@ -322,7 +295,7 @@ def test_a_conversation_recovers_a_session_reported_by_a_later_round(tmp_path):
         (None, 5),
     ],
 )
-def test_the_delivery_position_comes_from_the_latest_relayed_round(
+def test_the_cursor_comes_from_the_latest_relayed_round(
     tmp_path, third_round_ending, newest_identifier
 ):
     state = StateDirectory(root=tmp_path)
@@ -354,14 +327,14 @@ def test_the_delivery_position_comes_from_the_latest_relayed_round(
     reread = read_conversation(state=state, issue=8)
     assert reread is not None
 
-    delivery_position = read_issue_comment_delivery_position(conversation=reread)
+    cursor = read_issue_comment_cursor(conversation=reread)
 
-    assert delivery_position == IssueCommentDeliveryPosition(
+    assert cursor == IssueCommentCursor(
         written_at="2026-09-23T01:00:00Z", id=newest_identifier
     )
 
 
-def test_a_stopped_round_that_wrote_no_input_leaves_the_delivery_position(
+def test_a_stopped_round_that_wrote_no_input_leaves_the_cursor(
     tmp_path,
 ):
     state = StateDirectory(root=tmp_path)
@@ -387,12 +360,12 @@ def test_a_stopped_round_that_wrote_no_input_leaves_the_delivery_position(
     reread = read_conversation(state=state, issue=8)
     assert reread is not None
 
-    assert read_issue_comment_delivery_position(
-        conversation=reread
-    ) == IssueCommentDeliveryPosition(written_at="2026-09-23T01:00:00Z", id=3)
+    assert read_issue_comment_cursor(conversation=reread) == IssueCommentCursor(
+        written_at="2026-09-23T01:00:00Z", id=3
+    )
 
 
-def test_the_delivery_position_refuses_a_round_without_comments(tmp_path):
+def test_the_cursor_refuses_a_round_without_comments(tmp_path):
     state = StateDirectory(root=tmp_path)
     conversation = write_conversation(state=state)
     paths = conversation.compose_round_paths(number=1)
@@ -420,8 +393,8 @@ def test_the_delivery_position_refuses_a_round_without_comments(tmp_path):
     reread = read_conversation(state=state, issue=8)
     assert reread is not None
 
-    with pytest.raises(ReportableError, match="has no delivered issue comments"):
-        read_issue_comment_delivery_position(conversation=reread)
+    with pytest.raises(ReportableError, match="relayed no issue comments"):
+        read_issue_comment_cursor(conversation=reread)
 
 
 @pytest.mark.parametrize(
@@ -431,7 +404,7 @@ def test_the_delivery_position_refuses_a_round_without_comments(tmp_path):
         (8, [4, 3], "comments are not strictly ordered"),
     ],
 )
-def test_the_delivery_position_refuses_inconsistent_round_input(
+def test_the_cursor_refuses_inconsistent_round_input(
     tmp_path, input_issue, comment_identifiers, message
 ):
     state = StateDirectory(root=tmp_path)
@@ -465,7 +438,7 @@ def test_the_delivery_position_refuses_inconsistent_round_input(
     assert reread is not None
 
     with pytest.raises(ReportableError, match=message):
-        read_issue_comment_delivery_position(conversation=reread)
+        read_issue_comment_cursor(conversation=reread)
 
 
 def test_an_answer_is_posted_trimmed_and_marked(fake):

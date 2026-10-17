@@ -132,8 +132,9 @@ An **agent round** is one attempt by an assignment or an issue conversation to
 take a turn. It begins when _dreamcatcher_ records it, before anything else
 happens, and it holds everything the attempt does, in this order:
 
-1. the **preparation**, which readies the worktree and, for an assignment whose
-   pull request does not exist yet, makes the branch and opens the pull request;
+1. the **preparation**, which resets a conversation's worktree to main or, for
+   an assignment whose pull request does not exist yet, makes the worktree and
+   branch and opens the pull request, and then freezes the round's input;
 2. the harness invocation, which starts or resumes the harness session with a
    prompt; and
 3. the finishing step after a successful exit, which posts a conversation's
@@ -157,9 +158,8 @@ anything new.
 ### User post and feedback
 
 A **user post** is a user-authored contribution to an assignment's pull request.
-It normalizes the different places in which GitHub lets the user write:
-conversation comments, review bodies, review verdicts, and inline review
-comments.
+It normalizes the different places in which GitHub lets the user write: comments
+on the pull request, review bodies, review verdicts, and inline review comments.
 
 Collectively, user posts are **feedback**. _dreamcatcher_ **relays** new user
 posts into a later agent round. Relay is an action, not a separate durable
@@ -192,13 +192,15 @@ cursor. An assignment has four: a user post past the cursor; its pull request
 being merged or closed before its wrap-up round has taken its turn;
 **out-of-date**, a pull request that is ready for review and behind its base
 branch or in conflict with it; and **check-failure**, a pull request that is
-ready for review with a finished check that failed. A draft raises neither of
-the last two, because the agent has not finished. GitHub reports a branch as
-behind its base only when the repository requires branches to be up to date
-before merging, so elsewhere a pull request that falls behind without a conflict
-raises no out-of-date signal. Each of the last two is relayed at most once for
-each head commit of the pull request, so it is raised again only once the head
-moves.
+ready for review with a finished check that failed. The last two are the **pull
+request signals**, which _dreamcatcher_ raises from the pull request's merge
+state and checks rather than from anything the user did. A draft raises neither,
+because the agent has not finished. GitHub reports a branch as behind its base
+only when the repository requires branches to be up to date before merging, so
+elsewhere a pull request that falls behind without a conflict raises no
+out-of-date signal. A round that takes its turn relays each pull request signal
+at most once for each head commit of the pull request, so the signal is raised
+again only once the head moves.
 
 The **relay rule** gives an agent two attempts at a red build on its own. A
 check-failure is withheld when the last two rounds whose input is behind the
@@ -352,9 +354,9 @@ stays paused.
 
 ### Describing an agent round
 
-Number, what woke the round, and outcome describe different aspects of an agent
-round. The **first round** is round number one. What woke a round is read from
-its input, so nothing else records it:
+Number, trigger and outcome describe different aspects of an agent round. The
+**first round** is round number one. A round's **trigger** is what woke it. It
+is read from the round's input, so nothing else records it:
 
 - **start**: an assignment round with no input, which opens the pull request;
 - a count of posts or comments: the user posts or issue comments relayed, or
@@ -362,7 +364,7 @@ its input, so nothing else records it:
 - **out of date** or **checks failed**: the other signals an assignment round
   relayed, after any count of posts;
 - **merged** or **closed**: the state of a finished pull request, which calls
-  for the assignment's last round, its **wrap-up round**;
+  for the assignment's final round, its **wrap-up round**;
 - **carry on**: an assignment round whose input relays nothing new, given again
   after a round that did not finish.
 
@@ -422,7 +424,7 @@ Agent work of either kind has one of these summary statuses:
   signal. A free agent slot, or the end of a cooldown, starts it.
 - **Idle**: nothing is due until something new appears in the work's channel.
   The detail says why: an assignment's pull request is ready for review, still a
-  draft, merged or closed after its final turn, out of date at a head already
+  draft, merged or closed after its wrap-up round, out of date at a head already
   relayed, failing its checks, failing them after two attempts under the relay
   rule, or running its checks; a conversation's latest round answered, needed no
   reply, or was stopped; or a conversation is paused, and the detail is the
@@ -455,11 +457,11 @@ conversation is paused after that round ends, unless it is then in fault.
 A status report may include operational facts such as the repository identity,
 whether the daemon is running, when the last scheduler tick occurred, current
 capacity, whether a global cooldown is active, and the scheduler failures. A
-scheduler failure is a failure in the latest tick that belongs to no piece of
-agent work, such as a failed issue listing. A failed read for a request is held
-in its request row, and so is a round that errored before its harness ran. Its
-request statuses and agent work statuses are projections derived for a person to
-read.
+scheduler failure is a failure in the latest tick that no request row holds: a
+failed issue listing, or a launch that failed before its round was recorded. A
+failed read for a request is held in its request row, and so is a round that
+errored before its harness ran. Its request statuses and agent work statuses are
+projections derived for a person to read.
 
 The status report never schedules work and is never an input to scheduling.
 Scheduling and reporting must nevertheless interpret the same underlying facts
@@ -486,15 +488,15 @@ and runs the rest.
 
 A conversation request with no open conversation under its label starts one when
 its issue carries no other configured conversation label and has at least one
-eligible comment from the signed-in account. An issue with more than one
-configured conversation label has a routing conflict and starts nothing until
-one label remains. Issue title and body alone do not start a round. Assignment
-ownership, linked pull requests, dependencies and assignment-routing conflicts
-do not govern conversations.
+**eligible comment**: a comment by the signed-in account that says something and
+does not carry the marker that _dreamcatcher_ asks every agent post to end with.
+An issue with more than one configured conversation label has a routing conflict
+and starts nothing until one label remains. Issue title and body alone do not
+start a round. Assignment ownership, linked pull requests, dependencies and
+assignment-routing conflicts do not govern conversations.
 
 An open conversation that is not paused takes a round when it has at least one
-eligible comment after the newest comment given to a round that did not error or
-get interrupted.
+eligible comment past its cursor.
 
 _dreamcatcher_ records the chosen conversation route and settings, then starts
 the initial conversation round. Every conversation round's preparation fetches
@@ -574,11 +576,12 @@ preparation again. An assignment in fault starts no round, including a wrap-up
 round, until a retry request or the end of a global cooldown clears the fault.
 
 A stopped assignment round took its turn, so what it was given is not given
-again. While its pull request remains open, it waits for a new user post.
-Merging or closing the pull request starts a wrap-up round without waiting for a
-post. Either event gives the new round a prompt saying that the user stopped the
-previous round. Because the fault rule counts only two consecutive errored
-rounds, a stopped round ends a run of errors.
+again. While its pull request remains open, it waits for a new user post or a
+pull request signal at a head not yet relayed. Merging or closing the pull
+request starts a wrap-up round without waiting for a post. Either event gives
+the new round a prompt saying that the user stopped the previous round. Because
+the fault rule counts only two consecutive errored rounds, a stopped round ends
+a run of errors.
 
 ### Scheduling work
 
@@ -586,10 +589,12 @@ The scheduler creates agent work and starts agent rounds, the same way for both
 kinds. Each tick reads every piece of agent work from disk, lists the issues
 under each dispatch label, inspects the channel of each piece of open work, and
 decides for each request with no open work whether work may start. A
-**candidate** is open work with something new past its cursor, an assignment
-whose pull request is not open yet, or work whose last round errored or was
-interrupted, unless its last round is running or it is in fault; or a request
-whose work may start.
+**candidate** is open work with something new past its cursor, unless its last
+round is running or it is in fault; or a request whose work may start. The
+cursor leaves out the input of a round that errored or was interrupted, so that
+input is new again. An assignment is also a candidate when its pull request is
+not open yet, or when its last round errored or was interrupted, because it is
+then given its pull request's state again even with nothing new.
 
 A failed read prevents only the launches that depend on it. A failed listing for
 a dispatch label starts no work for the issues it would have listed, but open

@@ -12,8 +12,8 @@ from dreamcatcher.github import PullRequestSignal
 # never sees it.
 AGENT_POST_MARKER = "<!-- dreamcatcher -->"
 
-# The word that a label's prompt template holds where the issue's number goes.
-# It is the only substitution the dispatcher owns.
+# The word that a recipe's prompt holds where the issue's number goes. It is
+# the only substitution that dreamcatcher makes in it.
 _ISSUE_PLACEHOLDER = "{issue}"
 
 # What every prompt that the daemon composes ends with, whichever harness runs
@@ -104,14 +104,17 @@ def compose_issue_instructions(*, template: str, issue: int) -> str:
 
 
 def compose_assignment_input_prompt(
-    *, pull_request: int, round_input: Path, signals: list[PullRequestSignal]
+    *,
+    pull_request: int,
+    round_input: Path,
+    pull_request_signals: list[PullRequestSignal],
 ) -> str:
     """Return the words that direct an assignment round to its input file.
 
-    The input file holds the pull request state, the signals and the batch of
-    user posts. One line for each signal opens the words.
+    The input file holds the pull request state, the pull request signals and
+    the batch of user posts. One line for each signal opens the words.
     """
-    return "".join(_SIGNAL_LINES[signal] for signal in signals) + (
+    return "".join(_SIGNAL_LINES[signal] for signal in pull_request_signals) + (
         _ASSIGNMENT_INPUT_PROMPT.format(
             pull_request=pull_request, round_input=round_input
         )

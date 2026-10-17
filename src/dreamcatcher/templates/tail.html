@@ -2,11 +2,11 @@
   {%- for line in feed_round.lines -%}{% include "partials/feed-line.html" %}{%- endfor -%}
 {%- endfor -%}
 {%- if tail.has_empty_feed_placeholder and tail.feed_rounds -%}<p id="empty-feed" hx-swap-oob="delete"></p>{%- endif -%}
-<input type="hidden" id="cursor" name="cursor" value="{{ tail.cursor }}" hx-swap-oob="true">
+<input type="hidden" id="cursor" name="cursor" value="{{ tail.feed_cursor }}" hx-swap-oob="true">
 {%- with view=tail, is_tail=true -%}
   {%- include "partials/agent-work-status.html" -%}
   {%- include "partials/agent-work-retry.html" -%}
   {%- include "partials/agent-work-detail.html" -%}
-  {%- include "partials/assignment-rounds.html" -%}
+  {%- include "partials/agent-work-rounds.html" -%}
   {%- include "partials/agent-work-foot.html" -%}
 {%- endwith %}

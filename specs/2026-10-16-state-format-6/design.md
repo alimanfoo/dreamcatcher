@@ -178,7 +178,7 @@ assignment there are four: a user post by you after the cursor; the pull request
 being ready for review and out of date, meaning behind main or conflicting with
 it, at a head commit the agent has not been told about; a finished check having
 failed at a head the agent has not been told about; and the pull request having
-been merged or closed without the agent having had its final turn.
+been merged or closed without the agent having had its wrap-up round.
 
 An **agent round** is one attempt to take a turn. This redefines the ontology's
 round, which today is one activation of the harness. A round now holds
@@ -395,18 +395,17 @@ The cursor is read from the latest round whose outcome is not errored or
 interrupted: successful, stopped, or still running. A round whose outcome is
 errored or interrupted does not advance it. So:
 
-- The delivery position for user posts or issue comments, which is the
-  ontology's name for the newest one relayed, is the newest in that round's
-  input, or in the latest such input that held any.
+- The cursor for user posts or issue comments, which is the newest one relayed,
+  is the newest in that round's input, or in the latest such input that held
+  any.
 - The head at which out-of-date was last relayed is the head recorded by the
   latest such round whose input relayed it, and likewise for check-failure.
-- The final turn has been taken when the latest such round's input carried a
-  merged or closed state.
+- A wrap-up round has been given the finished pull request when the latest such
+  round's input carried a merged or closed state.
 
 Given what the tick read, the signals are:
 
-- User posts after the delivery position, or issue comments after it for a
-  conversation.
+- User posts past the cursor, or issue comments past it for a conversation.
 - Out-of-date: the pull request is open, not a draft, its merge state is
   `BEHIND` or `DIRTY`, which is how GitHub reports a branch behind its base or
   conflicting with it, and its head differs from the head at which out-of-date
@@ -415,8 +414,8 @@ Given what the tick read, the signals are:
   current head has failed, whether or not others still run, its head differs
   from the head at which check-failure was last relayed, and the relay rule
   below allows it.
-- Final turn: the pull request is merged or closed and the final turn has not
-  been taken.
+- Wrap-up: the pull request is merged or closed and no wrap-up round has been
+  given it.
 
 How `gh pr view --json statusCheckRollup` reports checks was checked on this
 repository. Each entry is a check run with a `status` of `COMPLETED` or
@@ -512,7 +511,7 @@ stateDiagram-v2
         Idle --> Paused : conversation only: label off,<br/>issue unassigned, or second label
         Paused --> Idle : label back, reassigned,<br/>or second label removed
     }
-    Open --> Ended : assignment: final turn after merge or close<br/>conversation: issue closed<br/>either: cancel
+    Open --> Ended : assignment: wrap-up round after merge or close<br/>conversation: issue closed<br/>either: cancel
     Ended --> [*]
 ```
 
@@ -521,14 +520,14 @@ stateDiagram-v2
 Under `.dreamcatcher/v6/`:
 
 ```text
-daemon.json          process id, harness, version, capacity, interval, and now
+daemon.json          process id, preferred harness, version, capacity, interval, and now
                      the routes: each dispatch label and its kind
 repository
 scheduler.json       one row per request, the cooldown, listing failures;
                      the launched identifiers are read from the rows
 work/<identifier>/
     work.json        issue, label, kind, title, harness, model, effort,
-                     harness config, prompt
+                     harness config, instructions
     pull-request.json
                      assignment only, written once by round one: the pull
                      request's number
@@ -722,7 +721,7 @@ What changes but stays:
   work record and channel each kind owns, and the shared parts move to
   `agent_work.py`, which already holds the harness session and retry records.
 - `relay.py` grows from user posts to the out-of-date and check-failure signals,
-  so it answers what is past an assignment's cursor apart from the final turn,
+  so it answers what is past an assignment's cursor apart from the wrap-up,
   which the inspection reads from the cursor directly.
 - `prompts.py` gains two prefix lines and loses two prompts.
 - `daemon_runs.py` gains the routes. `daemon.py` writes them.

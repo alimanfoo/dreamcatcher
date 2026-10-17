@@ -213,7 +213,7 @@ class StatusContext(GitHubResponseProjection):
 
 
 class PullRequestSignal(StrEnum):
-    """List the signals that an assignment round records in its `signals` key."""
+    """List the pull request signals, which an assignment round records in `signals`."""
 
     OUT_OF_DATE = "out_of_date"
     CHECK_FAILURE = "check_failure"
@@ -281,22 +281,23 @@ class IssuePullRequestContext(GitHubResponseProjection):
 
 
 class _UserPostProjection(GitHubResponseProjection):
-    """Model the fields shared by every kind of pull request post.
+    """Model the fields shared by every kind of user post and issue comment.
 
-    A comment on the conversation, a review, and a comment on a line of the
-    diff are one document each, and this is what the three have in common.
+    A comment on an issue or a pull request, a review, and a comment on a line
+    of the diff are one document each, and this is what the three have in
+    common.
     Only the time differs in name: a review records when it was submitted, and
     a comment of either kind when it was created.
 
     The time stays as GitHub's ISO-8601 string. Every populated value ends in
     `Z`, so the relay can sort and compare values as text. An unsubmitted review
-    has no time and therefore sorts before every delivery position.
+    has no time and therefore sorts before every cursor.
 
     A post whose author GitHub no longer knows, one from a deleted account, is
     likewise authored by nobody, and so is nobody's to relay.
 
-    Each concrete post names its kind because all three kinds are delivered in
-    one serialized list.
+    Each concrete post names its kind because all three kinds are relayed in one
+    serialized list.
     """
 
     id: int
@@ -308,12 +309,16 @@ class _UserPostProjection(GitHubResponseProjection):
 
     @property
     def is_speaking(self) -> bool:
-        """Whether the post has a body."""
-        return bool(self.body)
+        """Whether the post's body says something."""
+        return bool(self.body.strip())
+
+    def is_written_by(self, *, account: str) -> bool:
+        """Return whether the account wrote the post, as GitHub matches a login."""
+        return self.author.casefold() == account.casefold()
 
 
-class ConversationComment(_UserPostProjection):
-    """Model an ordinary comment in an issue or pull request conversation."""
+class IssueComment(_UserPostProjection):
+    """Model an ordinary comment on an issue or a pull request."""
 
     kind: Literal["comment"] = "comment"
 
@@ -385,7 +390,7 @@ class InlineReviewComment(_UserPostProjection):
         }
 
 
-type UserPost = ConversationComment | PullRequestReview | InlineReviewComment
+type UserPost = IssueComment | PullRequestReview | InlineReviewComment
 
 
 _GITHUB_REPOSITORY_RESPONSE_ADAPTER = TypeAdapter(GitHubRepository)
@@ -403,9 +408,7 @@ _GITHUB_BLOCKING_ISSUE_LIST_RESPONSE_ADAPTER = TypeAdapter(list[list[BlockingIss
 _GITHUB_ISSUE_PULL_REQUEST_CONTEXT_RESPONSE_ADAPTER = TypeAdapter(
     IssuePullRequestContext
 )
-_GITHUB_CONVERSATION_COMMENT_PAGES_ADAPTER = TypeAdapter(
-    list[list[ConversationComment]]
-)
+_GITHUB_ISSUE_COMMENT_PAGES_ADAPTER = TypeAdapter(list[list[IssueComment]])
 _GITHUB_POSTED_ISSUE_COMMENT_ADAPTER = TypeAdapter(PostedIssueComment)
 _GITHUB_PULL_REQUEST_REVIEW_PAGES_ADAPTER = TypeAdapter(list[list[PullRequestReview]])
 _GITHUB_INLINE_REVIEW_COMMENT_PAGES_ADAPTER = TypeAdapter(
@@ -414,10 +417,10 @@ _GITHUB_INLINE_REVIEW_COMMENT_PAGES_ADAPTER = TypeAdapter(
 
 # The three lists a pull request's posts arrive in: what each holds, the kind of
 # thing GitHub keeps it under, and what it is called there. A pull request's own
-# conversation is the conversation of the issue that shares its number, which is
-# why that one is kept under the issues.
+# comments are the comments of the issue that shares its number, which is why
+# they are kept under the issues.
 _GITHUB_USER_POST_ENDPOINTS = (
-    (_GITHUB_CONVERSATION_COMMENT_PAGES_ADAPTER, "issues", "comments"),
+    (_GITHUB_ISSUE_COMMENT_PAGES_ADAPTER, "issues", "comments"),
     (_GITHUB_PULL_REQUEST_REVIEW_PAGES_ADAPTER, "pulls", "reviews"),
     (_GITHUB_INLINE_REVIEW_COMMENT_PAGES_ADAPTER, "pulls", "comments"),
 )
@@ -690,9 +693,9 @@ def list_blocking_issues(
 def list_user_posts(
     *, repository: str, pull_request: int
 ) -> list[UserPost] | UnknownGitHubResponse:
-    """Return every conversation comment, review, and inline comment.
+    """Return every comment, review, and inline comment on the pull request.
 
-    The relay decides which posts from the combined list to deliver.
+    The relay decides which posts from the combined list are past the cursor.
 
     A source the tool could not read answers unknown for the whole pull
     request, since the source it cannot see is the one that might hold the post
@@ -714,10 +717,10 @@ def list_user_posts(
 
 def list_issue_comments(
     *, repository: str, issue: int
-) -> list[ConversationComment] | UnknownGitHubResponse:
+) -> list[IssueComment] | UnknownGitHubResponse:
     """Return every ordinary comment on one issue."""
     return _read_github_pages(
-        response_adapter=_GITHUB_CONVERSATION_COMMENT_PAGES_ADAPTER,
+        response_adapter=_GITHUB_ISSUE_COMMENT_PAGES_ADAPTER,
         endpoint=f"repos/{repository}/issues/{issue}/comments",
     )
 

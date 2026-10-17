@@ -93,7 +93,7 @@ class DreamcatcherDaemonStatus:
     @property
     def preferred_harness(self) -> AgentHarness | None:
         """The preferred harness given to the current or latest `dreamcatcher run`."""
-        return None if self.run is None else self.run.harness
+        return None if self.run is None else self.run.preferred_harness
 
     @property
     def dreamcatcher_version(self) -> str | None:

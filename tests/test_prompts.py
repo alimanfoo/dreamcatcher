@@ -124,7 +124,7 @@ def test_the_assignment_input_prompt_names_the_pull_request_and_the_file(
     round_input = tmp_path / "round-input.json"
 
     composed = compose_assignment_input_prompt(
-        pull_request=52, round_input=round_input, signals=[]
+        pull_request=52, round_input=round_input, pull_request_signals=[]
     )
 
     assert composed.startswith("Assignment input for pull request #52:")
@@ -135,7 +135,10 @@ def test_each_signal_opens_the_assignment_input_prompt_with_its_line(tmp_path):
     composed = compose_assignment_input_prompt(
         pull_request=52,
         round_input=tmp_path / "round-input.json",
-        signals=[PullRequestSignal.OUT_OF_DATE, PullRequestSignal.CHECK_FAILURE],
+        pull_request_signals=[
+            PullRequestSignal.OUT_OF_DATE,
+            PullRequestSignal.CHECK_FAILURE,
+        ],
     )
 
     out_of_date, check_failure, input_prompt = composed.split("\n\n", 2)
@@ -151,7 +154,7 @@ def test_a_signal_line_follows_the_line_about_the_previous_round(tmp_path):
         input_prompt=compose_assignment_input_prompt(
             pull_request=52,
             round_input=tmp_path / "round-input.json",
-            signals=[PullRequestSignal.CHECK_FAILURE],
+            pull_request_signals=[PullRequestSignal.CHECK_FAILURE],
         ),
         previous_outcome=AgentRoundOutcome.ERRORED,
     )

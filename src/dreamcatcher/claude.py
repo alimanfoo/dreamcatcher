@@ -35,7 +35,7 @@ def _refuse_claude_config(config: HarnessConfig, /) -> HarnessConfig:
 ClaudeConfig = Annotated[HarnessConfig, AfterValidator(_refuse_claude_config)]
 
 # What an unattended assignment round may do without being asked. The round
-# runs under `--permission-mode auto`, so this list keeps the port from
+# runs under `--permission-mode auto`, so this list keeps the round from
 # stalling while it implements and publishes work, and while it reads the
 # output of a check that failed.
 _CLAUDE_ASSIGNMENT_ALLOWED_TOOLS = (
@@ -130,10 +130,10 @@ class _ClaudeHarnessAdapter(HarnessAdapter):
             ["plugin", "install", plugin, "--scope", "user"],
         ]
 
-    def build_first_round(
+    def build_new_session_round(
         self, *, request: AgentRoundLaunchRequest, final_output_path: Path
     ) -> HarnessInvocation:
-        """Return how to run a first round.
+        """Return how to run a round that starts a new harness session.
 
         The command names no prompt, which is how Claude knows to read one
         from stdin.

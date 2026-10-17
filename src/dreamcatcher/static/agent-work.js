@@ -2,7 +2,7 @@
 
 const feed = document.querySelector(".feed-records");
 const feedTail = document.querySelector(".feed-tail");
-const assignmentSidebar = document.querySelector(".assignment-sidebar");
+const agentWorkSidebar = document.querySelector(".agent-work-sidebar");
 const outputTypingDuration = Number.parseFloat(
   getComputedStyle(document.documentElement).getPropertyValue(
     "--output-typing-duration",
@@ -92,12 +92,12 @@ if (feed !== null) {
       updateFeedTailVisibility();
     }
     feedLineCountBeforeSwap = feed.querySelectorAll(".feed-line").length;
-    const currentRoundLink = assignmentSidebar?.querySelector(
+    const currentRoundLink = agentWorkSidebar?.querySelector(
       '.round-link[aria-current="true"]',
     );
     const focusedRoundLink = document.activeElement?.closest(".round-link");
     currentRoundHash = currentRoundLink?.hash ?? null;
-    focusedRoundHash = assignmentSidebar?.contains(focusedRoundLink)
+    focusedRoundHash = agentWorkSidebar?.contains(focusedRoundLink)
       ? focusedRoundLink.hash
       : null;
   });
@@ -109,19 +109,19 @@ if (feed !== null) {
     if (shouldFollowFeed && nextFeedLineRevealAt <= performance.now()) {
       feed.scrollTop = feed.scrollHeight;
     }
-    const currentRoundLink = assignmentSidebar?.querySelector(
+    const currentRoundLink = agentWorkSidebar?.querySelector(
       `.round-link[href="${currentRoundHash}"]`,
     );
     currentRoundLink?.setAttribute("aria-current", "true");
-    const focusedRoundLink = assignmentSidebar?.querySelector(
+    const focusedRoundLink = agentWorkSidebar?.querySelector(
       `.round-link[href="${focusedRoundHash}"]`,
     );
     focusedRoundLink?.focus({ preventScroll: true });
   });
 }
 
-if (assignmentSidebar !== null) {
-  assignmentSidebar.addEventListener("click", (event) => {
+if (agentWorkSidebar !== null) {
+  agentWorkSidebar.addEventListener("click", (event) => {
     const roundLink = event.target.closest(".round-link");
     if (feed === null || roundLink === null) {
       return;
@@ -133,7 +133,7 @@ if (assignmentSidebar !== null) {
     event.preventDefault();
     shouldFollowFeed = false;
     updateFeedTailVisibility();
-    for (const otherLink of assignmentSidebar.querySelectorAll(".round-link")) {
+    for (const otherLink of agentWorkSidebar.querySelectorAll(".round-link")) {
       otherLink.removeAttribute("aria-current");
     }
     roundLink.setAttribute("aria-current", "true");

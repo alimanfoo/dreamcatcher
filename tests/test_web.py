@@ -223,7 +223,7 @@ def test_assignment_page_shows_the_common_agent_work_facts(tmp_path):
     assert page.count("<dt>") == 3
     assert "<dt>label</dt><dd>dream:smith</dd>" in page
     assert "<dt>harness</dt><dd>claude</dd>" in page
-    assert "<dt>model</dt><dd>opus[1m] · xhigh</dd>" in page
+    assert "<dt>model · effort</dt><dd>opus[1m] · xhigh</dd>" in page
     assert "<dt>assignment</dt>" not in page
     assert "<dt>session</dt>" not in page
 
@@ -617,6 +617,20 @@ def test_a_stopped_round_is_shown_as_stopped(tmp_path):
     assert 'class="round-outcome outcome-stopped">stopped</span>' in page
 
 
+def test_a_round_its_gone_daemon_left_unended_is_shown_as_interrupted(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    fabricate_a_dead_daemon(state=state)
+    written(
+        state=state,
+        issue=61,
+        records=[AgentRoundRecord(number=1, started=PINNED, pid=1)],
+    )
+
+    page = render_assignment(state=state, identifier="GH61-20260819-184158-assignment")
+
+    assert 'class="round-outcome outcome-interrupted">interrupted</span>' in page
+
+
 def test_a_home_card_links_to_its_exact_assignment(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
@@ -624,17 +638,17 @@ def test_a_home_card_links_to_its_exact_assignment(tmp_path):
     page = render_home(state=state)
 
     assignment_link = (
-        'class="assignment-open" href="/work/GH13-20260819-184158-assignment" '
+        'class="agent-work-open" href="/work/GH13-20260819-184158-assignment" '
         'target="_blank" rel="noopener noreferrer" '
         'aria-label="Open assignment GH13-20260819-184158-assignment '
         '(opens in new tab)"'
     )
     assert assignment_link in page
     assert page.count('href="/work/GH13-20260819-184158-assignment"') == 1
-    card_start = page.index('<article id="assignment-GH13-20260819-184158-assignment"')
+    card_start = page.index('<article id="GH13-20260819-184158-assignment"')
     card = page[card_start : page.index("</article>", card_start)]
-    assert card.index(assignment_link) < card.index('class="assignment-detail"')
-    assert card.index('class="pr-chip"') > card.index('class="assignment-detail"')
+    assert card.index(assignment_link) < card.index('class="agent-work-detail"')
+    assert card.index('class="pr-chip"') > card.index('class="agent-work-detail"')
 
 
 def test_a_card_keeps_its_compact_actions_inside_the_heading(tmp_path):
@@ -648,7 +662,7 @@ def test_a_card_keeps_its_compact_actions_inside_the_heading(tmp_path):
     stylesheet = (
         application.test_client().get("/static/matrix.css").get_data(as_text=True)
     )
-    card_start = page.index('<article id="assignment-GH20-20260819-184158-assignment"')
+    card_start = page.index('<article id="GH20-20260819-184158-assignment"')
     card = page[card_start : page.index("</article>", card_start)]
 
     assert '<span class="chip status-idle">idle</span>' in card
@@ -716,11 +730,9 @@ def test_status_classes_do_not_depend_on_status_wording(tmp_path, monkeypatch):
         state=state, identifier="GH20-20260819-184158-assignment"
     )
     conversation_page = render_conversation(state=state, issue=8)
-    card_start = home.index('<article id="assignment-GH20-20260819-184158-assignment"')
+    card_start = home.index('<article id="GH20-20260819-184158-assignment"')
     card = home[card_start : home.index("</article>", card_start)]
-    conversation_start = home.index(
-        '<article id="conversation-GH8-20260819-184158-conversation"'
-    )
+    conversation_start = home.index('<article id="GH8-20260819-184158-conversation"')
     conversation_card = home[
         conversation_start : home.index("</article>", conversation_start)
     ]
@@ -790,14 +802,14 @@ def test_assignment_page_ids_are_unique(tmp_path):
     assert len(identifiers) == len(set(identifiers))
 
 
-def test_assignment_script_follows_only_when_the_feed_was_at_its_end(tmp_path):
+def test_agent_work_script_follows_only_when_the_feed_was_at_its_end(tmp_path):
     state = StateDirectory(root=tmp_path)
     state.bootstrap()
     application = _create_app(
         state=state, clock=lambda: LOOKED_AT, zone=DISPLAY_TIME_ZONE
     )
 
-    response = application.test_client().get("/static/assignment.js")
+    response = application.test_client().get("/static/agent-work.js")
     script = response.get_data(as_text=True)
 
     assert response.status_code == 200
@@ -811,7 +823,7 @@ def test_assignment_script_follows_only_when_the_feed_was_at_its_end(tmp_path):
     assert (
         "if (shouldFollowFeed && nextFeedLineRevealAt <= performance.now())" in script
     )
-    assert 'assignmentSidebar.addEventListener("click"' in script
+    assert 'agentWorkSidebar.addEventListener("click"' in script
     assert 'currentRoundLink?.setAttribute("aria-current", "true")' in script
     assert "focusedRoundLink?.focus({ preventScroll: true })" in script
 
@@ -829,7 +841,7 @@ def test_ended_assignment_cards_are_separated_by_rules(tmp_path):
     )
 
     ended = page[page.index('<details class="ended-work">') :]
-    assert '<article id="assignment-' in ended
+    assert 'class="agent-work-card"' in ended
     assert re.search(
         r"\.agent-work-card,[^{]*\{[^}]*border-bottom: var\(--line\) solid",
         stylesheet,
@@ -868,11 +880,7 @@ def test_ended_assignments_are_ordered_by_when_they_ended(tmp_path):
         "dream:smith to create an assignment." in page
     )
     assert "+ 3 ended</summary>" in page
-    assert (
-        page.index("assignment-GH20-")
-        < page.index("assignment-GH30-")
-        < page.index("assignment-GH10-")
-    )
+    assert page.index('id="GH20-') < page.index('id="GH30-') < page.index('id="GH10-')
 
 
 def test_home_page_types_replaced_assignment_output(tmp_path):
@@ -1316,17 +1324,17 @@ def test_assignment_heading_keeps_its_chips_in_the_top_right(tmp_path):
     )
 
     assert re.search(
-        r"\.assignment-heading \{[^}]*display: grid;"
+        r"\.agent-work-heading \{[^}]*display: grid;"
         r"[^}]*grid-template-columns: minmax\(0, 1fr\) max-content;"
         r"[^}]*align-items: start;",
         stylesheet,
         re.DOTALL,
     )
     assert re.search(
-        r"\.assignment-heading h1 \{[^}]*min-width: 0;", stylesheet, re.DOTALL
+        r"\.agent-work-heading h1 \{[^}]*min-width: 0;", stylesheet, re.DOTALL
     )
     assert re.search(
-        r"\.assignment-heading-actions \{[^}]*flex-wrap: nowrap;",
+        r"\.agent-work-heading-actions \{[^}]*flex-wrap: nowrap;",
         stylesheet,
         re.DOTALL,
     )
@@ -1344,9 +1352,9 @@ def test_assignment_rounds_link_to_the_feed_in_ascending_order(tmp_path):
     )
 
     assert round_links == [("1", "01"), ("2", "02")]
-    assert 'class="assignment-workspace"' in page
+    assert 'class="agent-work-workspace"' in page
     assert 'class="feed-records"' in page
-    assert 'src="/static/assignment.js"' in page
+    assert 'src="/static/agent-work.js"' in page
 
 
 def test_an_errored_rounds_style_uses_its_outcome_alone(tmp_path):
@@ -1370,7 +1378,7 @@ def test_hand_resume_command_is_collapsed(tmp_path):
         application.test_client().get("/static/matrix.css").get_data(as_text=True)
     )
 
-    assert '<details class="manual-recovery">' in page
+    assert '<details class="hand-resume">' in page
     assert "<summary>resume by hand</summary>" in page
     assert "escape hatch" not in page
     assert 'class="panel resume-command"' not in page
@@ -1385,7 +1393,7 @@ def test_assignment_page_offers_a_control_that_jumps_to_the_feed_tail(tmp_path):
     application = _create_app(
         state=state, clock=lambda: LOOKED_AT, zone=DISPLAY_TIME_ZONE
     )
-    response = application.test_client().get("/static/assignment.js")
+    response = application.test_client().get("/static/agent-work.js")
     script = response.get_data(as_text=True)
 
     assert (
@@ -1447,7 +1455,7 @@ def test_assignment_reporting_remains_without_a_repository_record(tmp_path):
 
     page = render_assignment(state=state, identifier="GH10-20260819-184158-assignment")
 
-    assert '<strong class="assignment-issue">#10' in page
+    assert '<strong class="agent-work-issue">#10' in page
     assert '<span class="pr-chip">PR #52 draft</span>' in page
 
 

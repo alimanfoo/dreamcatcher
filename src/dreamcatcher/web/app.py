@@ -36,7 +36,6 @@ from dreamcatcher.web.feed import (
 from dreamcatcher.web.models import (
     WebAgentLiveState,
     WebAgentWorkControl,
-    WebFeedOwner,
 )
 from dreamcatcher.web.server import (
     WEB_HOST,
@@ -216,7 +215,7 @@ def _show_work_tail(
     zone: tzinfo | None,
     identifier: str,
 ) -> str | tuple[str, int]:
-    """Render the work's feed output written after the requested cursor."""
+    """Render the work's feed output written after the requested feed cursor."""
     work = find_agent_work(state=state, identifier=identifier)
     if work is None:
         return _missing_work_response(identifier=identifier)
@@ -226,8 +225,8 @@ def _show_work_tail(
         daemon=read_dreamcatcher_daemon_status(state=state),
         clock=clock,
     )
-    return _show_agent_tail(
-        owner=work,
+    return _render_work_tail(
+        work=work,
         live=_compose_work_live_state(state=state, work=work, status=status, zone=zone),
         should_stop_polling=not status.is_active,
         zone=zone,
@@ -320,20 +319,20 @@ def _is_same_origin_request() -> bool:
     return request.headers.get("Origin") == request.host_url.removesuffix("/")
 
 
-def _show_agent_tail(
+def _render_work_tail(
     *,
-    owner: WebFeedOwner,
+    work: AgentWork,
     live: WebAgentLiveState,
     should_stop_polling: bool,
     zone: tzinfo | None,
 ) -> str | tuple[str, int]:
     """Render incremental feed output for a piece of agent work."""
     try:
-        cursor = decode_feed_cursor(value=request.args.get("cursor", ""))
+        feed_cursor = decode_feed_cursor(value=request.args.get("cursor", ""))
         tail = read_agent_tail(
-            owner=owner,
+            work=work,
             live=live,
-            cursor=cursor,
+            feed_cursor=feed_cursor,
             zone=zone,
         )
     except InvalidFeedCursorError:

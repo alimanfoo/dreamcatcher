@@ -17,8 +17,8 @@ from dreamcatcher.clock import read_current_time
 from dreamcatcher.documents import read_last_line
 from dreamcatcher.words import UTC_TIMESTAMP_FORMAT, format_utc_timestamp
 
-# A note's detail can be as long as a whole file, so the line is clipped. The
-# figure is the port's, wide enough for a command or a path.
+# A note's detail can be as long as a whole file, so the line is clipped, at a
+# width that holds a command or a path.
 _FEED_LINE_WIDTH = 200
 
 # What a subagent's lines are set in from, so the main thread stays easy to

@@ -30,9 +30,9 @@ _NETWORK_ACCESS_SETTING = {"sandbox_workspace_write.network_access": True}
 # needs no word of its own for this.
 _STDIN_ARGUMENT = "-"
 
-# What an unattended assignment resume may do without being asked. Its first
-# round gets this from `--approve-for-me`, but a resume does not keep it, so the
-# resumed command has to set the same permissions again itself.
+# What an unattended assignment resume may do without being asked. A round that
+# starts a new session gets this from `--approve-for-me`, but a resume does not
+# keep it, so the resumed command has to set the same permissions again itself.
 _ASSIGNMENT_RESUME_PERMISSION_SETTINGS = {
     "sandbox_mode": "workspace-write",
     **_NETWORK_ACCESS_SETTING,
@@ -121,10 +121,10 @@ class _CodexHarnessAdapter(HarnessAdapter):
             ["plugin", "add", plugin],
         ]
 
-    def build_first_round(
+    def build_new_session_round(
         self, *, request: AgentRoundLaunchRequest, final_output_path: Path
     ) -> HarnessInvocation:
-        """Return how to run an agent work item's first round.
+        """Return how to run a round that starts a new harness session.
 
         The command does not say which directory to work in, so whoever runs
         it has to run it in the agent work item's worktree.

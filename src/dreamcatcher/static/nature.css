@@ -192,7 +192,7 @@ body::after {
 }
 
 .home-content,
-.assignment-content,
+.agent-work-content,
 .error-page {
   position: relative;
   z-index: 1;
@@ -216,13 +216,13 @@ body::after {
 }
 
 .facts,
-.assignment-facts {
+.agent-work-facts {
   row-gap: 6px;
   color: var(--dim);
 }
 
 .fact,
-.assignment-facts > div {
+.agent-work-facts > div {
   align-items: baseline;
   gap: 8px;
   padding-right: 16px;
@@ -232,7 +232,7 @@ body::after {
 }
 
 .fact dt,
-.assignment-facts dt {
+.agent-work-facts dt {
   color: var(--dim);
   font-size: 12px;
   letter-spacing: 0.14em;
@@ -240,7 +240,7 @@ body::after {
 }
 
 .fact dd,
-.assignment-facts dd {
+.agent-work-facts dd {
   color: var(--bright);
   font-weight: 500;
 }
@@ -266,12 +266,6 @@ body::after {
   text-shadow: none;
 }
 
-.assignment-group-label {
-  color: var(--dim);
-  font-size: 12px;
-  letter-spacing: 0.14em;
-}
-
 .agent-work-card,
 .request-row {
   padding: 16px 0;
@@ -294,8 +288,8 @@ body::after {
 }
 
 .issue-number:hover,
-.assignment-navigation:hover,
-.assignment-issue:hover {
+.agent-work-navigation:hover,
+.agent-work-issue:hover {
   color: var(--link-hover);
   text-shadow: none;
 }
@@ -369,8 +363,8 @@ body::after {
   color: var(--dim);
 }
 
-.assignment-detail,
-.assignment-meta,
+.agent-work-detail,
+.agent-work-meta,
 .labels {
   color: var(--dim);
 }
@@ -392,7 +386,7 @@ body::after {
 }
 
 .card-heading-actions,
-.assignment-heading-actions {
+.agent-work-heading-actions {
   align-items: center;
   gap: 10px;
 }
@@ -425,7 +419,7 @@ body::after {
   background: transparent;
 }
 
-.assignment-open {
+.agent-work-open {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -437,26 +431,26 @@ body::after {
   border-radius: 50%;
 }
 
-.assignment-open:hover {
+.agent-work-open:hover {
   color: var(--bright);
   background: var(--control-hover-strong-surface);
 }
 
 .ended-work summary,
 .empty,
-.assignment-navigation {
+.agent-work-navigation {
   color: var(--dim);
 }
 
-.assignment-content {
+.agent-work-content {
   gap: 24px;
 }
 
-.assignment-overview {
+.agent-work-overview {
   gap: 14px;
 }
 
-.assignment-heading h1 {
+.agent-work-heading h1 {
   color: var(--bright);
   font-family: Georgia, "Times New Roman", serif;
   font-size: 36px;
@@ -464,21 +458,21 @@ body::after {
   line-height: 1.2;
 }
 
-.assignment-issue,
-.assignment-issue span {
+.agent-work-issue,
+.agent-work-issue span {
   color: inherit;
   font-weight: inherit;
 }
 
-.assignment-issue {
+.agent-work-issue {
   color: var(--link);
 }
 
-.assignment-workspace {
+.agent-work-workspace {
   gap: 28px;
 }
 
-.assignment-sidebar {
+.agent-work-sidebar {
   gap: 16px;
 }
 
@@ -552,7 +546,7 @@ body::after {
 
 .stop-control,
 .cancel-control,
-.manual-recovery summary {
+.hand-resume summary {
   color: var(--danger);
 }
 
@@ -560,12 +554,12 @@ body::after {
 .stop-control:focus-visible,
 .cancel-control:hover,
 .cancel-control:focus-visible,
-.manual-recovery summary:hover,
-.manual-recovery summary:focus-visible {
+.hand-resume summary:hover,
+.hand-resume summary:focus-visible {
   color: var(--danger-hover);
 }
 
-.manual-recovery pre {
+.hand-resume pre {
   color: var(--bright);
   background: var(--code-surface);
   border: 0;
@@ -622,7 +616,7 @@ body::after {
 @media (max-width: 700px) {
   .site-header,
   .home-content,
-  .assignment-content,
+  .agent-work-content,
   .error-page {
     padding-right: 20px;
     padding-left: 20px;

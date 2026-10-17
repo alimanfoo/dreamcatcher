@@ -6,26 +6,25 @@ from dreamcatcher.agent_work import AgentWork, AgentWorkEndReason, end_agent_wor
 from dreamcatcher.config import DispatchRoute
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.github import (
-    ConversationComment,
     Issue,
+    IssueComment,
     IssueState,
     UnknownGitHubResponse,
-    list_issue_comments,
     read_issue,
 )
 from dreamcatcher.issue_conversations import (
-    list_undelivered_issue_comments,
     post_conversation_answer,
     prepare_conversation_round,
-    read_issue_comment_delivery_position,
+    read_issue_comment_cursor,
 )
 from dreamcatcher.prompts import compose_conversation_input_prompt
+from dreamcatcher.relay import list_issue_comments_past_cursor
 from dreamcatcher.scheduler.inspection import (
     Candidate,
     Inspection,
     RoundPlan,
     SchedulingContext,
-    compose_agent_work_row,
+    compose_open_work_row,
 )
 from dreamcatcher.scheduler.models import (
     ConflictingLabelsFinding,
@@ -45,11 +44,11 @@ def inspect_open_conversation(
     A closed issue ends the conversation. A paused conversation's fault does
     not count, since it starts no round however its rounds ended.
     """
-    unread = compose_agent_work_row(work=conversation, finding=None)
+    unread = compose_open_work_row(work=conversation, finding=None)
     issue = read_issue(repository=context.repository, issue=conversation.record.issue)
     if isinstance(issue, UnknownGitHubResponse):
         return Inspection(
-            row=compose_agent_work_row(
+            row=compose_open_work_row(
                 work=conversation, finding=ReadFailureFinding(reason=issue.reason)
             ),
             is_counted_fault=is_fault,
@@ -63,11 +62,11 @@ def inspect_open_conversation(
         return Inspection(row=unread)
     pause = _find_pause(context=context, conversation=conversation, issue=issue)
     if pause is not None:
-        return Inspection(row=compose_agent_work_row(work=conversation, finding=pause))
+        return Inspection(row=compose_open_work_row(work=conversation, finding=pause))
     if is_fault:
         return Inspection(row=unread, is_counted_fault=True)
     return _inspect_comments(
-        context=context, issue=issue, work=conversation, row=unread
+        context=context, issue=issue, work_or_route=conversation, row=unread
     )
 
 
@@ -112,25 +111,25 @@ def inspect_conversation_request(
 
     A new conversation starts when one of them waits.
     """
-    return _inspect_comments(context=context, issue=issue, work=route, row=row)
+    return _inspect_comments(context=context, issue=issue, work_or_route=route, row=row)
 
 
 def _inspect_comments(
     *,
     context: SchedulingContext,
     issue: Issue,
-    work: AgentWork | DispatchRoute,
+    work_or_route: AgentWork | DispatchRoute,
     row: RequestRow,
 ) -> Inspection:
     """Read the comments at the issue and return a candidate when some wait.
 
-    The work is the open conversation, or the route of the one that would
+    It reads for the open conversation, or for the route of the one that would
     start, and the row is the request's row before the read.
     """
     comments = _list_comments_to_answer(
         context=context,
         issue=issue.number,
-        conversation=work if isinstance(work, AgentWork) else None,
+        conversation=(work_or_route if isinstance(work_or_route, AgentWork) else None),
     )
     if isinstance(comments, ReadFailureFinding):
         return Inspection(row=row.model_copy(update={"finding": comments}))
@@ -142,7 +141,7 @@ def _inspect_comments(
     return Inspection(
         row=row,
         candidate=Candidate(
-            work=work,
+            work_or_route=work_or_route,
             compose_round=partial(
                 _compose_comment_round, context=context, issue=issue, comments=comments
             ),
@@ -152,34 +151,35 @@ def _inspect_comments(
 
 def _list_comments_to_answer(
     *, context: SchedulingContext, issue: int, conversation: AgentWork | None
-) -> list[ConversationComment] | ReadFailureFinding:
-    """Return the trusted comments that no round has been given yet.
+) -> list[IssueComment] | ReadFailureFinding:
+    """Return the eligible comments past the cursor.
 
     A read that fails answers why.
     """
-    comment_response = list_issue_comments(repository=context.repository, issue=issue)
-    if isinstance(comment_response, UnknownGitHubResponse):
-        return ReadFailureFinding(reason=comment_response.reason)
     try:
-        delivery_position = (
+        cursor = (
             None
             if conversation is None
-            else read_issue_comment_delivery_position(conversation=conversation)
+            else read_issue_comment_cursor(conversation=conversation)
         )
     except ReportableError as failure:
         return ReadFailureFinding(reason=str(failure))
-    return list_undelivered_issue_comments(
-        comments=comment_response,
+    comments = list_issue_comments_past_cursor(
+        repository=context.repository,
+        issue=issue,
         account=context.account,
-        delivery_position=delivery_position,
+        cursor=cursor,
     )
+    if isinstance(comments, UnknownGitHubResponse):
+        return ReadFailureFinding(reason=comments.reason)
+    return comments
 
 
 def _compose_comment_round(
     *,
     context: SchedulingContext,
     issue: Issue,
-    comments: list[ConversationComment],
+    comments: list[IssueComment],
     work: AgentWork,
 ) -> RoundPlan:
     """Return the plan of a round given the comments waiting at the issue.

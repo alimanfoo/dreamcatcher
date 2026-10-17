@@ -17,11 +17,11 @@ from conftest import (
 from dreamcatcher.github import (
     BlockingIssue,
     CheckResult,
-    ConversationComment,
     GitHubLabel,
     GitHubUserAccount,
     InlineReviewComment,
     Issue,
+    IssueComment,
     IssuePullRequestContext,
     IssueState,
     PullRequest,
@@ -578,7 +578,7 @@ def test_the_posts_of_a_pull_request_come_from_all_three_of_its_lists(gh_with_no
     )
 
     assert [(type(post), post.id) for post in posted()] == [
-        (ConversationComment, 1),
+        (IssueComment, 1),
         (PullRequestReview, 2),
         (InlineReviewComment, 3),
     ]
@@ -616,7 +616,7 @@ def test_every_post_a_real_pull_request_carries_reads_back(gh_with_recorded_post
     found = posted()
 
     assert [type(post) for post in found] == (
-        [ConversationComment] * 9 + [PullRequestReview] * 4 + [InlineReviewComment] * 6
+        [IssueComment] * 9 + [PullRequestReview] * 4 + [InlineReviewComment] * 6
     )
     assert all(post.author == POSTED_BY for post in found)
 

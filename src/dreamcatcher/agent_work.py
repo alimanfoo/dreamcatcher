@@ -72,7 +72,7 @@ class AgentWorkRecord(DreamcatcherDocument):
     model: QuotableText
     effort: QuotableText
     harness_config: HarnessConfig = Field(default_factory=dict)
-    prompt: str
+    instructions: str
 
 
 class AgentWorkEndReason(StrEnum):
@@ -120,7 +120,7 @@ class AgentWork:
         """Whether the work has not ended."""
         return self.ending is None
 
-    def list_relayed_inputs(self) -> list[AgentRoundPaths]:
+    def list_relayed_round_paths(self) -> list[AgentRoundPaths]:
         """Return the paths of the rounds whose input is relayed, newest first.
 
         The inputs of these rounds are behind the cursor. A round that did not
@@ -145,7 +145,7 @@ class AgentWork:
         return self.rounds[-1].number + 1 if self.rounds else 1
 
     def find_harness_session_identifier(self) -> HarnessSessionIdentifier | None:
-        """Return the recorded or recoverable harness session identifier."""
+        """Return the recorded harness session identifier, or one found in output."""
         return find_harness_session_identifier(
             harness=self.record.harness,
             agent_work_identifier=self.identifier,
@@ -190,7 +190,7 @@ def create_agent_work(
 
     The route's kind is the work's kind. The route selects a recipe in response
     to the preferred harness, and the recipe supplies the settings that the
-    record keeps. Creation writes the record alone; the first round prepares
+    record keeps. Creation writes the record alone, and the rounds prepare
     everything else.
     """
     harness = route.choose_harness(preferred_harness=preferred_harness)
@@ -207,7 +207,9 @@ def create_agent_work(
             model=recipe.model,
             effort=recipe.effort,
             harness_config=recipe.config,
-            prompt=compose_issue_instructions(template=recipe.prompt, issue=issue),
+            instructions=compose_issue_instructions(
+                template=recipe.prompt, issue=issue
+            ),
         ),
     )
 
