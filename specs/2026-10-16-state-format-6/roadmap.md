@@ -48,9 +48,10 @@ two paths over it.
   daemon run record.
 
 Done when the suite passes; a daemon carries an assignment and a conversation
-end to end under the new layout; nothing a user sees has changed except the
-addresses of the work pages; and the status report renders with
-`dreamcatcher.toml` missing. Closes #483 and the naming half of #393.
+end to end under the new layout; nothing a user sees has changed except the work
+identifiers, which now end in their kind, and the addresses of the work pages;
+and the status report renders with `dreamcatcher.toml` missing. Closes #483 and
+the naming half of #393.
 
 Leaves for later every change to rounds, the tick, the scheduler record and the
 signals, except that a conversation observation has no identifier until its

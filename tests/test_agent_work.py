@@ -180,3 +180,15 @@ def test_a_work_record_that_is_not_an_object_is_reportable(tmp_path):
 
     with pytest.raises(ReportableError, match=r"work\.json"):
         read_agent_work(state=state)
+
+
+def test_an_identifier_that_reaches_outside_the_work_directory_names_no_work(
+    tmp_path,
+):
+    state = StateDirectory(root=tmp_path)
+    write_assignment(state=state, identifier=IDENTIFIER, issue=12)
+    (state.path / "work.json").write_bytes(
+        (state.work / IDENTIFIER / "work.json").read_bytes()
+    )
+
+    assert find_agent_work(state=state, identifier="..") is None

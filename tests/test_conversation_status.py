@@ -783,7 +783,7 @@ def test_a_running_round_keeps_an_ended_conversation_working(conversation_state)
 
 def test_the_report_lists_ended_conversations_apart_newest_first(tmp_path):
     state = StateDirectory(root=tmp_path)
-    write_daemon_run(state=state, pid=os.getpid(), routes=SCOUT_ROUTES)
+    write_daemon_run(state=state, pid=os.getpid(), routed_labels=SCOUT_ROUTES)
     for issue, minutes in ((8, 10), (9, 20)):
         write_ending(
             directory=write_conversation(state=state, issue=issue),
@@ -809,7 +809,9 @@ def test_the_report_lists_ended_conversations_apart_newest_first(tmp_path):
 def test_a_section_of_ended_conversations_alone_gives_its_guidance(
     conversation_state,
 ):
-    write_daemon_run(state=conversation_state, pid=os.getpid(), routes=SCOUT_ROUTES)
+    write_daemon_run(
+        state=conversation_state, pid=os.getpid(), routed_labels=SCOUT_ROUTES
+    )
     end_conversation(state=conversation_state)
     observe(state=conversation_state, observations=[])
 

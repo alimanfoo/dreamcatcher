@@ -36,7 +36,7 @@ A **daemon** is the process that runs a _dreamcatcher_ instance. At most one
 daemon runs an instance at a time. A **daemon run** is one daemon process from
 start to stop. Each daemon run writes a **daemon run record** when it starts,
 holding its process, preferred harness, version, capacity, interval and the
-dispatch routes it loaded, each as a dispatch label and its kind of agent work.
+dispatch labels of the routes it loaded, each with its kind of agent work.
 Status reports take the labels they name from that record.
 
 ### Issue and issue identifier
@@ -285,7 +285,6 @@ until that round ends. A cancel records the assignment's ending, with the reason
 
 Agent work is open until its ending is recorded, with the time and the reason,
 and then it has **ended**. An assignment ends when it is complete or cancelled.
-An issue conversation does not yet end.
 
 _dreamcatcher_ leaves the pull request as it is, and while it is open it claims
 the issue elsewhere. If the user merges it, GitHub closes the issue. If the user
@@ -402,9 +401,9 @@ Idle differs from needs user feedback on purpose. An assignment at rest has a
 pull request waiting for review, so it asks something of the user. A
 conversation at rest asks nothing. A conversation has no complete status.
 
-An ended conversation appears with ended assignments, in the collapsed list of
-ended work on the web home page and in the terminal's count. Nothing ends a
-conversation yet.
+An ended conversation is counted apart from current work, as an ended assignment
+is: in a collapsed list of ended conversations on the web home page, and in a
+count of ended conversations in the terminal.
 
 Every open, assigned issue carrying at least one configured conversation label
 has a conversation status from the first scheduler tick that observes it,

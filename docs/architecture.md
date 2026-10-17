@@ -30,7 +30,7 @@ domain phrase into a class. In particular, it should:
 `daemon.py` owns the lifetime of the daemon that runs a _dreamcatcher_ instance:
 
 - acquire and release the checkout's daemon lock;
-- record the daemon process identifier and the dispatch routes it loaded in the
+- record the daemon process identifier and the dispatch labels it routes in the
   daemon run record as soon as it holds the lock;
 - keep the web server inside the established daemon lifetime when `run` enables
   it;
@@ -381,8 +381,8 @@ single row also includes any recorded routing-conflict or blocker evidence.
 
 An `AgentWorkObservation` records the tick's interpretation of one open work
 item. It carries the agent work identifier, issue and one `ObservedFact` saying
-whether it requires a round and why. A conversation the tick observes before its
-first round has no identifier yet. Status reads this observation because view
+whether it requires a round and why. A conversation the tick observes before it
+is saved has no identifier yet. Status reads this observation because view
 commands cannot reach GitHub. It is the last tick's interpretation kept as
 operational evidence, not authoritative state.
 
@@ -591,8 +591,8 @@ and body.
 
 Instance records persist the repository identity and the most recent daemon
 run's harness, _dreamcatcher_ version, capacity, interval, and the dispatch
-routes it loaded, each as a label and its kind of agent work. An instance-wide
-scheduler record persists the last tick's result, including its failures, issue,
+labels it routes, each with its kind of agent work. An instance-wide scheduler
+record persists the last tick's result, including its failures, issue,
 assignment and conversation observations, active global cooldown, and the time
 at which the most recent cooldown ended. Its per-work observations preserve
 operational evidence of the tick's interpretation rather than authoritative

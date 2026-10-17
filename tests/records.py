@@ -52,7 +52,7 @@ def write_daemon_run(
     harness: AgentHarness = AgentHarness.CLAUDE,
     version: str = "3.0.0.beta1",
     max_agents: int = 1,
-    routes: Sequence[RoutedLabel] = SMITH_ROUTES,
+    routed_labels: Sequence[RoutedLabel] = SMITH_ROUTES,
 ) -> None:
     """Write the facts fixed for one daemon run."""
     write_json(
@@ -62,7 +62,7 @@ def write_daemon_run(
             version=version,
             max_agents=max_agents,
             interval_seconds=DEFAULT_INTERVAL_SECONDS,
-            routes=list(routes),
+            routed_labels=list(routed_labels),
         ),
         path=state.daemon_run_record,
     )

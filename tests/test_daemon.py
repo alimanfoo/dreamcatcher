@@ -386,7 +386,7 @@ def test_the_daemon_bootstraps_the_state_directory_and_releases_the_lock(
         version=DREAMCATCHER_VERSION,
         max_agents=1,
         interval_seconds=300,
-        routes=[RoutedLabel(label="dream:smith", kind=AgentWorkKind.ASSIGNMENT)],
+        routed_labels=[RoutedLabel(label="dream:smith", kind=AgentWorkKind.ASSIGNMENT)],
     )
     assert not is_daemon_lock_held(path=daemon.state.lock)
 

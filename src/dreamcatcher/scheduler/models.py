@@ -80,8 +80,8 @@ class IssueObservation(DreamcatcherDocument):
 class AgentWorkObservation(DreamcatcherDocument):
     """Model whether one agent work item requires a round and why.
 
-    A conversation that the tick observed before its first round has no
-    identifier yet.
+    A conversation that the tick observed before it was saved has no identifier
+    yet.
     """
 
     identifier: str | None

@@ -126,7 +126,7 @@ class DreamcatcherDaemon:
                     version=DREAMCATCHER_VERSION,
                     max_agents=self.max_agents,
                     interval_seconds=self.interval,
-                    routes=[
+                    routed_labels=[
                         *(
                             RoutedLabel(
                                 label=route.label, kind=AgentWorkKind.ASSIGNMENT

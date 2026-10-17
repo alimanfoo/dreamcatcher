@@ -232,11 +232,13 @@ def find_agent_work(*, state: StateDirectory, identifier: str) -> AgentWork | No
 def is_agent_work_recorded(*, state: StateDirectory, identifier: str) -> bool:
     """Return whether agent work with this exact identifier has its record.
 
-    An identifier that is not one plain name, such as `..`, names no work.
+    The identifier names a directory directly under `work/`, so one that would
+    reach elsewhere, such as `..`, names no work.
     """
+    directory = state.work / identifier
     return (
-        Path(identifier).name == identifier
-        and (state.work / identifier / _WORK_RECORD_NAME).is_file()
+        directory.resolve().parent == state.work.resolve()
+        and (directory / _WORK_RECORD_NAME).is_file()
     )
 
 
