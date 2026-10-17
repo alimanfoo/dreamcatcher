@@ -183,8 +183,11 @@ work a request led to is what is stored.
 
 A **request row** is what one scheduler tick found for one request, held as
 typed values rather than sentences. It names the open agent work the request led
-to, if any, and holds what the tick read for it, the reason a read failed in
-place of what it would have found, and the round the tick started for it.
+to, if any, and the round the tick started for it. Its **finding** is what the
+tick read for the request, such as the pull request's state and the user posts
+past the cursor, the open pull requests that claim the issue and the open issues
+that block it, or the conflicting labels. When a read fails, the finding holds
+the reason in place of what the read would have found.
 
 An **agent work status** is one piece of agent work's single summary status in a
 status report, derived the same way for both kinds from the work's record, its
@@ -380,7 +383,7 @@ woke each round, whether another round is required, and the work's health remain
 separate concepts even though they contribute to the summary.
 
 A status report lists the open work of each kind in attention order, fault,
-working, waiting, unknown and then idle, followed by the requests of that kind
+working, waiting, idle and then unknown, followed by the requests of that kind
 with no open work. Ended work of either kind is counted apart from active work,
 in a collapsed list of ended work on the web home page and in a count of ended
 work in the terminal.

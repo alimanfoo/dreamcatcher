@@ -371,8 +371,7 @@ body::after {
 
 .assignment-detail,
 .assignment-meta,
-.labels,
-.evidence {
+.labels {
   color: var(--dim);
 }
 

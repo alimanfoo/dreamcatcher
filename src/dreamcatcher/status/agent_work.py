@@ -79,8 +79,8 @@ AGENT_WORK_STATUS_VALUES_IN_ATTENTION_ORDER = (
     AgentWorkStatusValue.FAULT,
     AgentWorkStatusValue.WORKING,
     AgentWorkStatusValue.WAITING,
-    AgentWorkStatusValue.UNKNOWN,
     AgentWorkStatusValue.IDLE,
+    AgentWorkStatusValue.UNKNOWN,
     AgentWorkStatusValue.ENDED,
 )
 

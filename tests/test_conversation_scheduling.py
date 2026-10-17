@@ -1838,9 +1838,7 @@ def test_a_relayed_round_whose_input_cannot_be_read_launches_nothing(
     assert observed.failures == []
     [row] = observed.rows
     assert isinstance(row.finding, ReadFailureFinding)
-    assert row.finding.reason.startswith(
-        f"could not read delivered comments: {round_input}"
-    )
+    assert row.finding.reason.startswith(f"{round_input} is not valid")
     assert observed.launched_agent_work_identifiers == []
     assert harnesses["claude"].calls == []
 
@@ -1967,7 +1965,8 @@ def test_a_failed_comment_listing_prevents_launches(conversation_scheduler):
     assert observed.launched_agent_work_identifiers == []
     [row] = observed.rows
     assert isinstance(row.finding, ReadFailureFinding)
-    assert row.finding.reason.startswith("could not read comments:")
+    assert "issues/8/comments" in row.finding.reason
+    assert row.finding.reason.endswith("network unavailable")
     assert row == conversation_row(finding=row.finding)
 
 
@@ -1987,7 +1986,7 @@ def test_a_failed_delivery_position_read_is_recorded_in_its_row(
     assert observed.failures == []
     [row] = observed.rows
     assert isinstance(row.finding, ReadFailureFinding)
-    assert row.finding.reason.startswith("could not read delivered comments:")
+    assert row.finding.reason == "could not read the round input"
     assert row == conversation_row(
         title="Issue 8",
         agent_work_identifier=compose_conversation_identifier(issue=8),
@@ -2084,7 +2083,7 @@ def test_a_partial_comment_scan_does_not_launch_or_starve_later_reads(
     assert [row.issue for row in observed.rows] == [8, 9, 10]
     failed_read = observed.rows[1].finding
     assert isinstance(failed_read, ReadFailureFinding)
-    assert failed_read.reason.startswith("could not read comments:")
+    assert "issues/9/comments" in failed_read.reason
     assert any("issues/10/comments" in " ".join(call.arguments) for call in gh.calls)
     assert observed.launched_agent_work_identifiers == []
 
@@ -2319,7 +2318,7 @@ def test_an_unrelated_comment_failure_does_not_block_an_unfinished_round(
     assert observed.failures == []
     failed_read = observed.rows[1].finding
     assert isinstance(failed_read, ReadFailureFinding)
-    assert failed_read.reason.startswith("could not read comments:")
+    assert "issues/9/comments" in failed_read.reason
     assert "network unavailable" in failed_read.reason
 
 

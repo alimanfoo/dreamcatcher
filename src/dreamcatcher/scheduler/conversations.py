@@ -51,7 +51,7 @@ from dreamcatcher.scheduler.models import (
 
 @dataclass(frozen=True, kw_only=True)
 class ConversationBatchCandidate:
-    """Describe an eligible issue with trusted comments waiting."""
+    """Describe a conversation request or conversation with trusted comments waiting."""
 
     issue: Issue
     comments: list[ConversationComment]
@@ -284,9 +284,7 @@ def _list_comments_to_answer(
     """
     comment_response = list_issue_comments(repository=repository, issue=issue)
     if isinstance(comment_response, UnknownGitHubResponse):
-        return ReadFailureFinding(
-            reason=f"could not read comments: {comment_response.reason}"
-        )
+        return ReadFailureFinding(reason=comment_response.reason)
     try:
         delivery_position = (
             None
@@ -294,9 +292,7 @@ def _list_comments_to_answer(
             else read_issue_comment_delivery_position(conversation=conversation)
         )
     except ReportableError as failure:
-        return ReadFailureFinding(
-            reason=f"could not read delivered comments: {failure}"
-        )
+        return ReadFailureFinding(reason=str(failure))
     return list_undelivered_issue_comments(
         comments=comment_response,
         account=account,

@@ -335,15 +335,13 @@ body::after {
 .assignment-detail,
 .latest-output,
 .labels,
-.evidence,
 .error-message {
   margin: var(--space-3) 0 0;
 }
 
 .assignment-detail,
 .assignment-meta,
-.labels,
-.evidence {
+.labels {
   color: var(--dim);
 }
 

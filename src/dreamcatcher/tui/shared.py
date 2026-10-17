@@ -16,7 +16,7 @@ from dreamcatcher.status import AGENT_WORK_STATUS_VALUES_IN_ATTENTION_ORDER
 AGENT_WORK_STATUS_STYLES = dict(
     zip(
         AGENT_WORK_STATUS_VALUES_IN_ATTENTION_ORDER,
-        ("red", "green", "cyan", "magenta", "dim", "dim"),
+        ("red", "green", "cyan", "dim", "magenta", "dim"),
         strict=True,
     )
 )
