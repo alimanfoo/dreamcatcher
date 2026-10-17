@@ -13,7 +13,6 @@ from dreamcatcher.scheduler.assignments import (
 )
 from dreamcatcher.scheduler.conversations import (
     ConversationBatchCandidate,
-    ConversationCandidate,
     ConversationScheduler,
 )
 from dreamcatcher.scheduler.faults import (
@@ -31,7 +30,7 @@ from dreamcatcher.state import StateDirectory
 @dataclass(kw_only=True)
 class _ReadyAgentWork:
     assignments: list[AssignmentCandidate]
-    conversations: list[ConversationCandidate]
+    conversations: list[ConversationBatchCandidate]
 
 
 def _choose_next_work_kind(
@@ -58,10 +57,7 @@ def _read_candidate_issue(
         if isinstance(candidate, NewAssignmentCandidate):
             return candidate.issue
         return candidate.assignment.record.issue
-    candidate = candidates.conversations[0]
-    if isinstance(candidate, ConversationBatchCandidate):
-        return candidate.issue.number
-    return candidate.conversation.record.issue
+    return candidates.conversations[0].issue.number
 
 
 @dataclass(kw_only=True)

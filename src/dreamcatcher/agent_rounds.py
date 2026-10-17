@@ -235,11 +235,10 @@ def _compose_agent_round_ending(
 
 
 class AgentRoundRecord(DreamcatcherDocument):
-    """Model an agent round's identity, purpose, recovery, and outcome."""
+    """Model an agent round's identity, purpose, and outcome."""
 
     number: PositiveInt
     purpose: _AgentRoundPurpose
-    is_recovery: bool = False
     started: AwareDatetime
     pid: PositiveInt
     ending: _AgentRoundEnding | None = None
@@ -301,7 +300,6 @@ class AgentRoundPlan[RoundInputT: DreamcatcherDocument]:
     """Describe the decisions and input that a new round executes."""
 
     purpose: _AgentRoundPurpose
-    is_recovery: bool
     input: RoundInputT | None = None
 
 
@@ -451,7 +449,6 @@ class AgentRound:
             self.record = AgentRoundRecord(
                 number=paths.number,
                 purpose=plan.purpose,
-                is_recovery=plan.is_recovery,
                 started=self.started_at,
                 pid=self.harness_process.pid,
             )

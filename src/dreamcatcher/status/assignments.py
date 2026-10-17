@@ -13,7 +13,7 @@ from dreamcatcher.agent_rounds import AgentRoundPaths
 from dreamcatcher.agent_work import AgentWork, AgentWorkEndReason
 from dreamcatcher.feed import read_last_feed_line
 from dreamcatcher.harness_adapters import HarnessSessionIdentifier
-from dreamcatcher.scheduler.faults import is_awaiting_recovery
+from dreamcatcher.scheduler.faults import is_last_round_unfinished
 from dreamcatcher.scheduler.models import (
     AgentWorkObservation,
     SchedulerRecord,
@@ -201,7 +201,7 @@ class AssignmentStatusReader(AgentWorkStatusReader[AssignmentStatus]):
         status = self._derive_fault(assignment=assignment)
         if status is not None:
             return status
-        status = self._derive_awaiting_recovery(assignment=assignment)
+        status = self._derive_unfinished(assignment=assignment)
         if status is not None:
             return status
         status = self._derive_unobserved(assignment=assignment)
@@ -254,10 +254,8 @@ class AssignmentStatusReader(AgentWorkStatusReader[AssignmentStatus]):
             )
         return None
 
-    def _derive_awaiting_recovery(
-        self, *, assignment: AgentWork
-    ) -> AssignmentStatus | None:
-        if is_awaiting_recovery(
+    def _derive_unfinished(self, *, assignment: AgentWork) -> AssignmentStatus | None:
+        if is_last_round_unfinished(
             rounds=assignment.rounds, is_daemon_running=self.is_daemon_running
         ):
             latest = assignment.rounds[-1]

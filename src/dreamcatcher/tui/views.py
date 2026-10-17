@@ -507,7 +507,6 @@ class _FeedView:
         round_heading = compose_agent_round_boundary(
             number=record.number,
             purpose=record.purpose,
-            is_recovery=record.is_recovery,
             at=record.started,
             detail=detail,
         )

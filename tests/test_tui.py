@@ -425,10 +425,7 @@ def test_assignment_status_alone_is_coloured_and_latest_output_is_dim(tmp_path):
     )
     rendered = console.export_text(styles=True)
 
-    assert (
-        "\x1b[32mworking\x1b[0m  round 2, address feedback (recovery), running"
-        in rendered
-    )
+    assert "\x1b[32mworking\x1b[0m  round 2, address feedback, running" in rendered
     assert "\x1b[2m[Bash] pytest\x1b[0m" in rendered
 
 
@@ -862,7 +859,7 @@ def test_one_round_of_an_assignment_reads_on_its_own(tmp_path):
     fabricate_everything(state=state)
 
     assert viewed_round(state=state, issue=13, number=2) == (
-        "2026-08-20 03:11:58  round 2: address feedback (recovery)\n"
+        "2026-08-20 03:11:58  round 2: address feedback\n"
         "2026-08-20 03:12:58  [Bash] pytest\n"
     )
 

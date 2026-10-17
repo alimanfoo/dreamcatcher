@@ -49,7 +49,6 @@ def write_faulted_conversation(*, state: StateDirectory, issue: int) -> None:
                 started=ended,
                 pid=1,
                 purpose=ConversationRoundPurpose.DISCUSS,
-                is_recovery=number > 1,
                 ending=_compose_agent_round_ending(at=ended, status=number),
             ),
         )

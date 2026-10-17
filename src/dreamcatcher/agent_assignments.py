@@ -8,7 +8,7 @@ pull request, then records the assignment. The scheduler decides when to create
 each assignment.
 """
 
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from contextlib import suppress
 from dataclasses import dataclass
 from datetime import datetime
@@ -61,7 +61,7 @@ from dreamcatcher.github import (
     UserPost,
 )
 from dreamcatcher.harness_adapters import AgentWorkKind
-from dreamcatcher.prompts import compose_assignment_first_round_prompt
+from dreamcatcher.prompts import compose_issue_instructions
 from dreamcatcher.state import StateDirectory
 
 # What an assignment's branch is called, before its identifier. The prefix keeps
@@ -283,9 +283,7 @@ class AssignmentCreator:
             model=recipe.model,
             effort=recipe.effort,
             harness_config=recipe.config,
-            prompt=compose_assignment_first_round_prompt(
-                template=recipe.prompt, issue=issue
-            ),
+            prompt=compose_issue_instructions(template=recipe.prompt, issue=issue),
         )
         observation = PullRequestObservation(
             number=pull_request.number,
@@ -327,17 +325,30 @@ def _check_worktree_branch(
 
 
 def read_user_post_delivery_position(*, assignment: AgentWork) -> str:
-    """Return the newest user-post time found in recorded round inputs."""
-    for round_record in reversed(assignment.rounds):
-        round_input_path = assignment.compose_round_paths(
-            number=round_record.number
-        ).round_input
-        if not round_input_path.exists():
-            continue
-        round_input = read_json(model=AssignmentRoundInput, path=round_input_path)
+    """Return the newest user-post time among the posts already relayed."""
+    for round_input in _read_relayed_inputs(assignment=assignment):
         if round_input.user_posts:
             return round_input.user_posts[-1].written_at
     return ""
+
+
+def is_final_turn_taken(*, assignment: AgentWork) -> bool:
+    """Return whether a merged or closed pull request has been relayed."""
+    latest = next(_read_relayed_inputs(assignment=assignment), None)
+    return latest is not None and latest.pull_request_state is not PullRequestState.OPEN
+
+
+def _read_relayed_inputs(*, assignment: AgentWork) -> Iterator[AssignmentRoundInput]:
+    """Yield the inputs already relayed, newest first.
+
+    A first round is given no input, so it yields nothing.
+    """
+    for round_record in reversed(assignment.relayed_rounds):
+        round_input_path = assignment.compose_round_paths(
+            number=round_record.number
+        ).round_input
+        if round_input_path.exists():
+            yield read_json(model=AssignmentRoundInput, path=round_input_path)
 
 
 def record_pull_request_observation(

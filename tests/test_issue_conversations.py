@@ -8,6 +8,10 @@ from records import read_conversation
 from dreamcatcher.agent_rounds import (
     AgentRoundRecord,
     ConversationRoundPurpose,
+    ErroredAgentRoundEnding,
+    InterruptedAgentRoundEnding,
+    StoppedAgentRoundEnding,
+    SuccessfulAgentRoundEnding,
 )
 from dreamcatcher.agent_work import (
     AgentWork,
@@ -199,7 +203,21 @@ def test_only_new_unmarked_comments_from_the_account_are_delivered():
     ] == [1, 3, 4]
 
 
-def test_round_input_freezes_the_issue_comments_and_revision(cloned):
+@pytest.mark.parametrize(
+    ("is_resuming", "initial_issue"),
+    [
+        (
+            False,
+            InitialConversationIssue(
+                title="Why does this happen?", body="Explain the scheduler."
+            ),
+        ),
+        (True, None),
+    ],
+)
+def test_round_input_freezes_the_issue_comments_and_revision(
+    cloned, is_resuming, initial_issue
+):
     state = StateDirectory(root=cloned)
     conversation = create_conversation(
         state=state,
@@ -214,32 +232,13 @@ def test_round_input_freezes_the_issue_comments_and_revision(cloned):
         conversation=conversation,
         issue=issue(),
         comments=[comment(identifier=1, body="Please explain.")],
+        is_resuming=is_resuming,
     )
 
     assert frozen.issue == 8
-    assert frozen.initial_issue == InitialConversationIssue(
-        title="Why does this happen?",
-        body="Explain the scheduler.",
-    )
+    assert frozen.initial_issue == initial_issue
     assert frozen.comments[0].body == "Please explain."
     assert frozen.revision
-
-
-def test_an_initial_round_requires_the_issue_text(tmp_path):
-    state = StateDirectory(root=tmp_path)
-    conversation = write_conversation(state=state)
-    path = conversation.compose_round_paths(number=1).round_input
-    write_json(
-        document=ConversationRoundInput(
-            issue=8,
-            comments=[comment(identifier=1, body="Question")],
-            revision="abc123",
-        ),
-        path=path,
-    )
-
-    with pytest.raises(ReportableError, match="initial issue title and body"):
-        read_conversation_input(conversation=conversation, number=1)
 
 
 def test_a_follow_up_can_omit_the_issue_text(tmp_path):
@@ -314,7 +313,6 @@ def test_a_conversation_recovers_a_session_reported_by_a_later_round(tmp_path):
             document=AgentRoundRecord(
                 number=number,
                 purpose=ConversationRoundPurpose.DISCUSS,
-                is_recovery=number == 2,
                 started=PINNED,
                 pid=1,
             ),
@@ -335,10 +333,23 @@ def test_a_conversation_recovers_a_session_reported_by_a_later_round(tmp_path):
     assert recovered == "replacement-session"
 
 
-def test_the_delivery_position_comes_from_the_latest_round_input(tmp_path):
+@pytest.mark.parametrize(
+    ("third_round_ending", "newest_identifier"),
+    [
+        (SuccessfulAgentRoundEnding(at=PINNED), 5),
+        (StoppedAgentRoundEnding(at=PINNED), 5),
+        (ErroredAgentRoundEnding(at=PINNED, status=1), 4),
+        (InterruptedAgentRoundEnding(), 4),
+        (None, 5),
+    ],
+)
+def test_the_delivery_position_comes_from_the_latest_relayed_round(
+    tmp_path, third_round_ending, newest_identifier
+):
     state = StateDirectory(root=tmp_path)
     conversation = write_conversation(state=state)
-    for number, identifier in ((1, 3), (2, 4)):
+    endings = {3: third_round_ending}
+    for number, identifier in ((1, 3), (2, 4), (3, 5)):
         paths = conversation.compose_round_paths(number=number)
         write_json(
             document=ConversationRoundInput(
@@ -358,6 +369,7 @@ def test_the_delivery_position_comes_from_the_latest_round_input(tmp_path):
                 purpose=ConversationRoundPurpose.DISCUSS,
                 started=PINNED,
                 pid=123,
+                ending=endings.get(number, SuccessfulAgentRoundEnding(at=PINNED)),
             ),
             path=paths.record,
         )
@@ -367,7 +379,7 @@ def test_the_delivery_position_comes_from_the_latest_round_input(tmp_path):
     delivery_position = read_issue_comment_delivery_position(conversation=reread)
 
     assert delivery_position == IssueCommentDeliveryPosition(
-        written_at="2026-09-23T01:00:00Z", id=4
+        written_at="2026-09-23T01:00:00Z", id=newest_identifier
     )
 
 
@@ -393,6 +405,7 @@ def test_the_delivery_position_refuses_a_round_without_comments(tmp_path):
             purpose=ConversationRoundPurpose.DISCUSS,
             started=PINNED,
             pid=123,
+            ending=SuccessfulAgentRoundEnding(at=PINNED),
         ),
         path=paths.record,
     )
@@ -437,6 +450,7 @@ def test_the_delivery_position_refuses_inconsistent_round_input(
             purpose=ConversationRoundPurpose.DISCUSS,
             started=PINNED,
             pid=123,
+            ending=SuccessfulAgentRoundEnding(at=PINNED),
         ),
         path=paths.record,
     )

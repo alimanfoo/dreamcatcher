@@ -99,34 +99,19 @@ def test_a_subagents_lines_are_indented_under_the_timestamp():
 
 
 @pytest.mark.parametrize(
-    ("number", "purpose", "is_recovery", "description"),
-    [
-        (1, "implement", False, "implement"),
-        (2, "implement", True, "implement (recovery)"),
-        (2, "wrap up", False, "wrap up"),
-        (2, "address feedback", False, "address feedback"),
-    ],
+    ("number", "purpose"),
+    [(1, "implement"), (2, "wrap up"), (2, "address feedback")],
 )
-def test_a_round_boundary_names_its_purpose_and_recovery_independently(
-    number, purpose, is_recovery, description
-):
-    boundary = compose_agent_round_boundary(
-        number=number,
-        purpose=purpose,
-        is_recovery=is_recovery,
-        at=PINNED,
-    )
+def test_a_round_boundary_names_its_purpose(number, purpose):
+    boundary = compose_agent_round_boundary(number=number, purpose=purpose, at=PINNED)
 
-    assert boundary.render() == (
-        f"2026-08-19T18:41:58Z  round {number}: {description}\n"
-    )
+    assert boundary.render() == (f"2026-08-19T18:41:58Z  round {number}: {purpose}\n")
 
 
 def test_a_round_boundary_can_name_the_rounds_detail():
     boundary = compose_agent_round_boundary(
         number=2,
         purpose="discuss",
-        is_recovery=False,
         at=PINNED,
         detail="code revision abc123 -> def456",
     )

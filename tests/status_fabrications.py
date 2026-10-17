@@ -195,7 +195,6 @@ def running(
     minute: int,
     number: int = 1,
     purpose: AssignmentRoundPurpose = AssignmentRoundPurpose.IMPLEMENT,
-    is_recovery: bool = False,
 ):
     """Return a round that started that minute and is still running."""
     return AgentRoundRecord(
@@ -203,7 +202,6 @@ def running(
         started=PINNED + timedelta(minutes=minute),
         pid=1,
         purpose=purpose,
-        is_recovery=is_recovery,
     )
 
 
@@ -236,7 +234,6 @@ def fabricate_everything(
                 minute=30,
                 number=2,
                 purpose=AssignmentRoundPurpose.ADDRESS_FEEDBACK,
-                is_recovery=True,
             ),
         ],
     )
@@ -332,7 +329,7 @@ def fabricate_everything(
                 _observed_assignment(
                     identifier=f"GH35-{ASSIGNMENT_TIMESTAMP}-assignment",
                     issue=35,
-                    evidence="round 1 errored, to recover",
+                    evidence="round 1 errored, to try again",
                 ),
                 _observed_assignment(
                     identifier=f"GH9-{ASSIGNMENT_TIMESTAMP}-assignment",

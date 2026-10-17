@@ -389,7 +389,6 @@ def _fabricate_faulted_conversation(*, state: StateDirectory) -> None:
         record=AgentRoundRecord(
             number=2,
             purpose=ConversationRoundPurpose.DISCUSS,
-            is_recovery=True,
             started=PINNED + timedelta(minutes=5),
             pid=2,
             ending=_compose_agent_round_ending(
@@ -427,7 +426,6 @@ def test_conversation_page_shows_two_errors_as_a_fault(tmp_path):
 
     assert "status-fault" in page
     assert "round 2 errored (exit 2)" in page
-    assert "(recovery)" in page
 
 
 def test_conversation_before_its_first_round_invites_a_comment(tmp_path):

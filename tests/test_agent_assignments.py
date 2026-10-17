@@ -202,7 +202,7 @@ def test_an_assignment_records_its_settled_dispatch_recipe(state, route):
     assert assignment.record.model == "opus[1m]"
     assert assignment.record.effort == "xhigh"
     assert assignment.record.harness_config == {}
-    assert assignment.record.prompt.startswith("/dream:smith GH12\n")
+    assert assignment.record.prompt == "/dream:smith GH12"
     record = state.work / ASSIGNMENT_ID / "work.json"
     assert '"dispatch_label": "dream:smith"' in record.read_text(encoding="utf-8")
 
@@ -259,7 +259,7 @@ def test_an_assignment_runs_on_the_harness_the_run_named(state, route):
 
     assert assignment.record.harness == AgentHarness.CODEX
     assert assignment.record.model == "gpt-5.6-sol"
-    assert assignment.record.prompt.startswith("$dream:smith GH12\n")
+    assert assignment.record.prompt == "$dream:smith GH12"
 
 
 def test_a_new_assignment_has_run_no_rounds_and_its_next_is_its_first(state, route):
@@ -1022,7 +1022,6 @@ def test_an_assignment_recovers_a_session_reported_by_a_later_round(fabricated):
             record=AgentRoundRecord(
                 number=number,
                 purpose=AssignmentRoundPurpose.IMPLEMENT,
-                is_recovery=number == 2,
                 started=PINNED,
                 pid=1,
             ),

@@ -135,7 +135,6 @@ def write_second_conversation_error(*, state: StateDirectory) -> None:
         record=AgentRoundRecord(
             number=2,
             purpose=ConversationRoundPurpose.DISCUSS,
-            is_recovery=True,
             started=PINNED + timedelta(minutes=5),
             pid=2,
             ending=_compose_agent_round_ending(

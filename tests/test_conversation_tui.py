@@ -214,7 +214,6 @@ def test_conversation_detail_shows_two_errors_as_a_fault(tmp_path):
         record=AgentRoundRecord(
             number=2,
             purpose=ConversationRoundPurpose.DISCUSS,
-            is_recovery=True,
             started=PINNED + timedelta(minutes=5),
             pid=2,
             ending=_compose_agent_round_ending(
@@ -249,7 +248,7 @@ def test_conversation_detail_shows_two_errors_as_a_fault(tmp_path):
 
     shown = written.getvalue()
     assert "fault  round 2 errored (exit 2)" in shown
-    assert "discuss (recovery)" in shown
+    assert "round 2 errored" in shown
 
 
 def test_conversation_feed_shows_its_saved_activity(tmp_path):
@@ -539,7 +538,6 @@ def test_a_conversation_view_in_fault_keeps_watching(tmp_path):
         record=AgentRoundRecord(
             number=2,
             purpose=ConversationRoundPurpose.DISCUSS,
-            is_recovery=True,
             started=PINNED + timedelta(minutes=5),
             pid=2,
             ending=_compose_agent_round_ending(

@@ -152,7 +152,6 @@ def _compose_web_round_boundary(
     boundary = compose_agent_round_boundary(
         number=record.number,
         purpose=record.purpose,
-        is_recovery=record.is_recovery,
         at=record.started,
         detail=detail,
     )

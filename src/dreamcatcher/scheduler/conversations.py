@@ -6,17 +6,13 @@ from functools import partial
 
 from dreamcatcher.agent_rounds import (
     AgentRound,
-    AgentRoundOutcome,
     AgentRoundPlan,
-    AgentRoundStartRequest,
     ConversationRoundPurpose,
-    start_agent_round,
 )
 from dreamcatcher.agent_work import (
     AgentWork,
     find_open_agent_work_by_issue,
     read_agent_work_of_kind,
-    record_harness_session_identifier,
 )
 from dreamcatcher.config import ConversationRoute
 from dreamcatcher.errors import ReportableError
@@ -26,26 +22,20 @@ from dreamcatcher.github import (
     UnknownGitHubResponse,
     list_issue_comments,
 )
-from dreamcatcher.harness_adapters import AgentRoundLaunchRequest, AgentWorkKind
+from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.issue_conversations import (
-    ConversationRoundInput,
     create_conversation,
     is_conversation_ready_for_input,
     list_undelivered_issue_comments,
     post_conversation_answer,
     prepare_conversation_input,
-    read_conversation_input,
     read_issue_comment_delivery_position,
 )
-from dreamcatcher.prompts import (
-    CONVERSATION_RECOVERY_PROMPT,
-    compose_conversation_first_round_prompt,
-    compose_conversation_input_prompt,
-)
+from dreamcatcher.prompts import compose_conversation_input_prompt
 from dreamcatcher.scheduler.agent_work import AgentWorkScheduler, RouteIssueListing
 from dreamcatcher.scheduler.faults import (
     derive_agent_work_fault,
-    is_awaiting_recovery,
+    is_last_round_unfinished,
 )
 from dreamcatcher.scheduler.models import (
     AgentWorkInspection,
@@ -68,34 +58,24 @@ class ConversationBatchCandidate:
 
 
 @dataclass(frozen=True, kw_only=True)
-class ConversationRecoveryCandidate:
-    """Describe an eligible conversation with unfinished work to recover."""
-
-    conversation: AgentWork
-
-
-type ConversationCandidate = ConversationBatchCandidate | ConversationRecoveryCandidate
-
-
-@dataclass(frozen=True, kw_only=True)
 class _ConversationInspection:
     observation: ConversationObservation
-    candidate: ConversationCandidate | None
+    candidate: ConversationBatchCandidate | None
     is_fault: bool = False
 
 
 class ConversationScheduler(
     AgentWorkScheduler[
-        ConversationCandidate,
+        ConversationBatchCandidate,
         ConversationObservation,
-        tuple[int, str, int],
+        tuple[str, int],
     ]
 ):
     """Inspect, rank and launch conversation work."""
 
     def inspect(
         self, *, previous_record: SchedulerRecord | None, at: datetime
-    ) -> AgentWorkInspection[ConversationCandidate, ConversationObservation]:
+    ) -> AgentWorkInspection[ConversationBatchCandidate, ConversationObservation]:
         """Observe matching issues and return conversation work ready to run."""
         listing = self.list_route_issues(routes=self.config.conversation)
         conversations_by_issue = find_open_agent_work_by_issue(
@@ -128,7 +108,10 @@ class ConversationScheduler(
             candidates = [
                 candidate
                 for candidate in candidates
-                if isinstance(candidate, ConversationRecoveryCandidate)
+                if candidate.conversation is not None
+                and is_last_round_unfinished(
+                    rounds=candidate.conversation.rounds, is_daemon_running=True
+                )
             ]
         return AgentWorkInspection(
             candidates=sorted(candidates, key=self.rank),
@@ -137,23 +120,15 @@ class ConversationScheduler(
             failures=failures,
         )
 
-    def rank(self, candidate: ConversationCandidate, /) -> tuple[int, str, int]:
+    def rank(self, candidate: ConversationBatchCandidate, /) -> tuple[str, int]:
         """Rank a conversation candidate when `sorted` passes it by position."""
-        if isinstance(candidate, ConversationRecoveryCandidate):
-            return (0, "", candidate.conversation.record.issue)
         first_comment = candidate.comments[0]
-        return (1, first_comment.written_at, first_comment.id)
+        return (first_comment.written_at, first_comment.id)
 
-    def launch(self, *, candidate: ConversationCandidate, at: datetime) -> AgentRound:
-        """Prepare a conversation's required work and start its next round."""
-        request = self._prepare_round_start_request(candidate=candidate, at=at)
-        return start_agent_round(request=request, clock=self.clock)
-
-    def _prepare_round_start_request(
-        self, *, candidate: ConversationCandidate, at: datetime
-    ) -> AgentRoundStartRequest:
-        if isinstance(candidate, ConversationRecoveryCandidate):
-            return self._prepare_recovery_round(conversation=candidate.conversation)
+    def launch(
+        self, *, candidate: ConversationBatchCandidate, at: datetime
+    ) -> AgentRound:
+        """Create any new conversation, then start its next round."""
         conversation = candidate.conversation or create_conversation(
             state=self.state,
             route=candidate.route,
@@ -161,94 +136,31 @@ class ConversationScheduler(
             issue=candidate.issue,
             at=at,
         )
+        harness_session_identifier = conversation.find_harness_session_identifier()
         round_input = prepare_conversation_input(
             state=self.state,
             conversation=conversation,
             issue=candidate.issue,
             comments=candidate.comments,
+            is_resuming=harness_session_identifier is not None,
         )
-        paths = conversation.compose_round_paths(number=conversation.next_round_number)
-        return self._compose_round_start_request(
-            conversation=conversation,
-            next_round_prompt=compose_conversation_input_prompt(
+        return self.start_round(
+            work=conversation,
+            harness_session_identifier=harness_session_identifier,
+            plan=AgentRoundPlan(
+                purpose=ConversationRoundPurpose.DISCUSS, input=round_input
+            ),
+            input_prompt=compose_conversation_input_prompt(
                 issue=conversation.record.issue,
-                round_input=paths.round_input,
-                was_stopped=(
-                    bool(conversation.rounds)
-                    and conversation.rounds[-1].outcome is AgentRoundOutcome.STOPPED
-                ),
-            ),
-            plan=AgentRoundPlan(
-                purpose=ConversationRoundPurpose.DISCUSS,
-                is_recovery=False,
-                input=round_input,
-            ),
-        )
-
-    def _prepare_recovery_round(
-        self, *, conversation: AgentWork
-    ) -> AgentRoundStartRequest:
-        latest_round = conversation.rounds[-1]
-        return self._compose_round_start_request(
-            conversation=conversation,
-            next_round_prompt=CONVERSATION_RECOVERY_PROMPT,
-            plan=AgentRoundPlan(
-                purpose=ConversationRoundPurpose.DISCUSS,
-                is_recovery=True,
-                input=read_conversation_input(
-                    conversation=conversation,
-                    number=latest_round.number,
-                ),
-            ),
-        )
-
-    def _compose_round_start_request(
-        self,
-        *,
-        conversation: AgentWork,
-        next_round_prompt: str,
-        plan: AgentRoundPlan[ConversationRoundInput],
-    ) -> AgentRoundStartRequest:
-        paths = conversation.compose_round_paths(number=conversation.next_round_number)
-        first_round_prompt = compose_conversation_first_round_prompt(
-            instructions=conversation.record.prompt,
-            issue=conversation.record.issue,
-            round_input=paths.round_input,
-        )
-        resumption = self.resolve_harness_session(
-            agent_work_identifier=conversation.identifier,
-            has_rounds=bool(conversation.rounds),
-            harness_session_identifier=(
-                conversation.find_harness_session_identifier()
-                if conversation.rounds
-                else None
-            ),
-            is_recovery=plan.is_recovery,
-            prompt=(next_round_prompt if conversation.rounds else first_round_prompt),
-            replacement_session_prompt=first_round_prompt,
-        )
-        return AgentRoundStartRequest(
-            harness=conversation.record.harness,
-            launch_request=AgentRoundLaunchRequest(
-                agent_work_identifier=conversation.identifier,
-                model=conversation.record.model,
-                effort=conversation.record.effort,
-                harness_config=conversation.record.harness_config,
-                prompt=resumption.prompt,
-                work_kind=AgentWorkKind.CONVERSATION,
-            ),
-            harness_session_identifier=resumption.identifier,
-            record_harness_session_identifier=partial(
-                record_harness_session_identifier,
-                work=conversation,
+                round_input=conversation.compose_round_paths(
+                    number=conversation.next_round_number
+                ).round_input,
             ),
             finish_round=partial(
                 post_conversation_answer,
                 repository=self.repository,
                 issue=conversation.record.issue,
             ),
-            paths=paths,
-            plan=plan,
         )
 
     def _inspect_listed_conversations(
@@ -258,12 +170,12 @@ class ConversationScheduler(
         conversations_by_issue: dict[int, AgentWork],
         most_recent_cooldown_ended: datetime | None,
     ) -> tuple[
-        list[ConversationCandidate],
+        list[ConversationBatchCandidate],
         list[ConversationObservation],
         int,
         list[str],
     ]:
-        candidates: list[ConversationCandidate] = []
+        candidates: list[ConversationBatchCandidate] = []
         observations: list[ConversationObservation] = []
         fault_count = 0
         failures = list(listing.failures)
@@ -334,13 +246,13 @@ class ConversationScheduler(
         most_recent_cooldown_ended: datetime | None,
     ) -> _ConversationInspection:
         """Observe one eligible issue and return a candidate when ready."""
-        recovery = _inspect_conversation_recovery(
+        fault = _inspect_conversation_fault(
             issue=issue,
             conversation=conversation,
             most_recent_cooldown_ended=most_recent_cooldown_ended,
         )
-        if recovery is not None:
-            return recovery
+        if fault is not None:
+            return fault
         comments, requires_round = self._observe_comments(
             issue=issue.number,
             conversation=conversation,
@@ -445,51 +357,31 @@ def _carry_forward_unlisted_observations(
     ]
 
 
-def _inspect_conversation_recovery(
+def _inspect_conversation_fault(
     *,
     issue: Issue,
     conversation: AgentWork | None,
     most_recent_cooldown_ended: datetime | None,
 ) -> _ConversationInspection | None:
-    if conversation is not None and derive_agent_work_fault(
+    if conversation is None or not derive_agent_work_fault(
         rounds=conversation.rounds,
         retry_requested_at=conversation.retry_requested_at,
         most_recent_cooldown_ended=most_recent_cooldown_ended,
     ):
-        return _ConversationInspection(
-            observation=ConversationObservation(
-                identifier=conversation.identifier,
-                issue=issue.number,
-                title=issue.title,
-                requires_round=ObservedFact(
-                    value=Truth.FALSE,
-                    evidence="in fault",
-                ),
+        return None
+    return _ConversationInspection(
+        observation=ConversationObservation(
+            identifier=conversation.identifier,
+            issue=issue.number,
+            title=issue.title,
+            requires_round=ObservedFact(
+                value=Truth.FALSE,
+                evidence="in fault",
             ),
-            candidate=None,
-            is_fault=True,
-        )
-    if conversation is not None and is_awaiting_recovery(
-        rounds=conversation.rounds, is_daemon_running=True
-    ):
-        return _ConversationInspection(
-            observation=ConversationObservation(
-                identifier=conversation.identifier,
-                issue=issue.number,
-                title=issue.title,
-                requires_round=ObservedFact(
-                    value=Truth.TRUE,
-                    evidence=(
-                        f"round {conversation.rounds[-1].number} "
-                        f"{conversation.rounds[-1].outcome}, to recover"
-                    ),
-                ),
-            ),
-            candidate=ConversationRecoveryCandidate(
-                conversation=conversation,
-            ),
-        )
-    return None
+        ),
+        candidate=None,
+        is_fault=True,
+    )
 
 
 def _count_carried_conversation_faults(

@@ -1,4 +1,4 @@
-"""Derive agent-work recovery and faults, and manage the global cooldown."""
+"""Derive unfinished rounds and agent-work faults, and manage the global cooldown."""
 
 from datetime import datetime
 
@@ -17,10 +17,10 @@ from dreamcatcher.scheduler.models import (
 from dreamcatcher.state import StateDirectory
 
 
-def is_awaiting_recovery(
+def is_last_round_unfinished(
     *, rounds: list[AgentRoundRecord], is_daemon_running: bool
 ) -> bool:
-    """Return whether the latest round was interrupted or errored.
+    """Return whether the latest round errored or was interrupted.
 
     A round with no ending is running while a daemon runs it, and interrupted
     once that daemon has gone, since a round cannot outlive its daemon.

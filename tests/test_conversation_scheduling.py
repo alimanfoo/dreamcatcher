@@ -38,6 +38,7 @@ from dreamcatcher.agent_rounds import (
     AssignmentRoundPurpose,
     ConversationRoundPurpose,
     ErroredAgentRoundEnding,
+    SuccessfulAgentRoundEnding,
     request_agent_round_stop,
 )
 from dreamcatcher.agent_work import (
@@ -57,7 +58,6 @@ from dreamcatcher.issue_conversations import (
 )
 from dreamcatcher.prompts import (
     AGENT_POST_MARKER,
-    CONVERSATION_RECOVERY_PROMPT,
 )
 from dreamcatcher.scheduler import AssignmentScheduler, ConversationScheduler, Scheduler
 from dreamcatcher.scheduler.models import (
@@ -68,6 +68,9 @@ from dreamcatcher.scheduler.models import (
     Truth,
 )
 from dreamcatcher.state import StateDirectory
+
+# What a round's prompt opens with when the round before it did not finish.
+UNFINISHED_ROUND_OPENING = "Your previous round did not finish."
 
 CONVERSATION_CONFIG = """[[conversation]]
 label = "dream:conversation"
@@ -307,7 +310,6 @@ def write_faulted_conversation(
             record=AgentRoundRecord(
                 number=number,
                 purpose=ConversationRoundPurpose.DISCUSS,
-                is_recovery=number > 1,
                 started=at + timedelta(minutes=number - 1),
                 pid=number,
                 ending=ErroredAgentRoundEnding(
@@ -349,7 +351,6 @@ def write_faulted_assignment(
             record=AgentRoundRecord(
                 number=number,
                 purpose=AssignmentRoundPurpose.IMPLEMENT,
-                is_recovery=number > 1,
                 started=at + timedelta(minutes=number - 1),
                 pid=number,
                 ending=ErroredAgentRoundEnding(
@@ -633,7 +634,7 @@ def test_codex_no_reply_and_missing_output_post_nothing(
     assert not any(call.arguments[:4] == POST_PATH.split() for call in gh.calls)
 
 
-def test_codex_recovery_keeps_its_session_revision_and_permissions(
+def test_a_codex_round_after_an_error_keeps_its_session_revision_and_permissions(
     codex_conversation_scheduler, harnesses
 ):
     scheduler, clock, gh = codex_conversation_scheduler
@@ -656,21 +657,21 @@ def test_codex_recovery_keeps_its_session_revision_and_permissions(
 
     conversation = read_conversation(state=scheduler.assignments.state, issue=8)
     assert conversation is not None
-    assert conversation.rounds[1].is_recovery
     recovered_input = read_json(
         model=ConversationRoundInput,
         path=conversation.compose_round_paths(number=2).round_input,
     )
-    assert recovered_input == first_input
+    assert recovered_input == first_input.model_copy(update={"initial_issue": None})
     resumed = harnesses["codex"].calls[1]
     assert 'sandbox_mode="workspace-write"' in resumed.arguments
     assert "sandbox_workspace_write.network_access=true" in resumed.arguments
     assert 'approval_policy="never"' in resumed.arguments
     assert resumed.arguments[-2:] == ["conversation-codex-session", "-"]
-    assert resumed.prompt == CONVERSATION_RECOVERY_PROMPT
+    assert resumed.prompt.startswith(UNFINISHED_ROUND_OPENING)
+    assert "Issue-conversation input for GH8:" in resumed.prompt
 
 
-def test_codex_recovery_starts_a_new_session_when_the_first_never_reported_one(
+def test_a_codex_round_after_an_error_starts_a_new_session_when_none_was_reported(
     codex_conversation_scheduler, harnesses
 ):
     scheduler, clock, gh = codex_conversation_scheduler
@@ -698,7 +699,6 @@ def test_codex_recovery_starts_a_new_session_when_the_first_never_reported_one(
 
     conversation = read_conversation(state=scheduler.assignments.state, issue=8)
     assert conversation is not None
-    assert conversation.rounds[1].is_recovery
     recovered_input = read_json(
         model=ConversationRoundInput,
         path=conversation.compose_round_paths(number=2).round_input,
@@ -803,7 +803,6 @@ def test_a_stopped_conversation_waits_for_new_feedback(
     assert launched.launched_agent_work_identifiers == [
         "GH8-20260819-184158-conversation"
     ]
-    assert not conversation.rounds[1].is_recovery
     # The stopped round's harness may have been ended before it recorded its
     # call, so the revised round's call is the last one rather than the second.
     assert (
@@ -1295,6 +1294,11 @@ def test_the_cooldown_boundary_clears_conversation_faults(
             "--label dream:conversation"
         ),
     )
+    for issue in (8, 9):
+        gh.replies(
+            stdout=pages(items=[ask()]),
+            to=f"api repos/{REPOSITORY}/issues/{issue}/comments?per_page=100",
+        )
     answer(harnesses=harnesses, body=NO_REPLY)
 
     observed = scheduler.tick(at=cooldown_ends)
@@ -1308,8 +1312,8 @@ def test_the_cooldown_boundary_clears_conversation_faults(
     ]
 
 
-def test_a_failed_post_recovers_the_same_batch_before_new_comments(
-    conversation_scheduler, harnesses, monkeypatch
+def test_a_failed_post_gives_its_comments_again_with_new_ones(
+    conversation_scheduler, harnesses
 ):
     scheduler, clock, gh = conversation_scheduler
     offer_conversation(gh=gh, comments=[ask()])
@@ -1323,14 +1327,9 @@ def test_a_failed_post_recovers_the_same_batch_before_new_comments(
         model=ConversationRoundInput,
         path=conversation.compose_round_paths(number=1).round_input,
     )
-    comment_reads = count_comment_reads(gh=gh)
     offer_conversation(gh=gh, comments=[ask(), ask(identifier=2)])
-    answer(harnesses=harnesses, body="The recovered answer.")
+    answer(harnesses=harnesses, body="The answer, posted this time.")
     gh.replies(stdout=json.dumps({"id": 99}), to=POST_PATH)
-    monkeypatch.setattr(
-        "dreamcatcher.issue_conversations.refresh_detached_worktree",
-        Mock(side_effect=ReportableError("recovery refreshed main")),
-    )
 
     observed = scheduler.tick(at=clock())
     finish(scheduler=scheduler)
@@ -1348,17 +1347,18 @@ def test_a_failed_post_recovers_the_same_batch_before_new_comments(
     assert observed.launched_agent_work_identifiers == [
         "GH8-20260819-184158-conversation"
     ]
-    assert count_comment_reads(gh=gh) == comment_reads
     assert len(conversation.rounds) == 2
-    assert conversation.rounds[1].is_recovery
-    recovered_input = read_json(
+    given_again = read_json(
         model=ConversationRoundInput,
         path=conversation.compose_round_paths(number=2).round_input,
     )
-    assert recovered_input == first_input
+    assert given_again == ConversationRoundInput(
+        issue=8, comments=[ask(), ask(identifier=2)], revision=first_input.revision
+    )
     resumed = harnesses["claude"].calls[1]
     assert resumed.arguments[-2:] == ["--resume", "conversation-session"]
-    assert resumed.prompt == CONVERSATION_RECOVERY_PROMPT
+    assert resumed.prompt.startswith(UNFINISHED_ROUND_OPENING)
+    assert "Issue-conversation input for GH8:" in resumed.prompt
 
 
 def test_no_reply_completes_without_posting_a_comment(
@@ -1397,7 +1397,6 @@ def test_two_errored_rounds_stop_automatic_conversation_recovery(
     assert conversation is not None
     assert conversation.rounds[0].outcome is AgentRoundOutcome.ERRORED
     assert conversation.rounds[1].outcome is AgentRoundOutcome.ERRORED
-    assert conversation.rounds[1].is_recovery
     assert recovery.launched_agent_work_identifiers == [
         "GH8-20260819-184158-conversation"
     ]
@@ -1411,7 +1410,7 @@ def test_two_errored_rounds_stop_automatic_conversation_recovery(
     assert len(harnesses["claude"].calls) == 2
 
 
-def test_a_daemon_orphan_recovers_in_its_saved_session(
+def test_a_daemon_orphan_is_given_its_comments_again_in_its_saved_session(
     conversation_scheduler, harnesses, left_running
 ):
     scheduler, clock, gh = conversation_scheduler
@@ -1463,15 +1462,17 @@ def test_a_daemon_orphan_recovers_in_its_saved_session(
     assert observed.launched_agent_work_identifiers == [
         "GH8-20260819-184158-conversation"
     ]
-    assert conversation.rounds[1].is_recovery
     recovered_input = read_json(
         model=ConversationRoundInput,
         path=conversation.compose_round_paths(number=2).round_input,
     )
-    assert recovered_input == first_input
+    assert recovered_input == ConversationRoundInput(
+        issue=8, comments=[ask(), ask(identifier=2)], revision=first_input.revision
+    )
     resumed = harnesses["claude"].calls[0]
     assert resumed.arguments[-2:] == ["--resume", "conversation-session"]
-    assert resumed.prompt == CONVERSATION_RECOVERY_PROMPT
+    assert resumed.prompt.startswith(UNFINISHED_ROUND_OPENING)
+    assert "Issue-conversation input for GH8:" in resumed.prompt
 
 
 def test_recovery_finds_a_session_identifier_left_in_raw_output(
@@ -1497,7 +1498,8 @@ def test_recovery_finds_a_session_identifier_left_in_raw_output(
     ]
     resumed = harnesses["claude"].calls[1]
     assert resumed.arguments[-2:] == ["--resume", "conversation-session"]
-    assert resumed.prompt == CONVERSATION_RECOVERY_PROMPT
+    assert resumed.prompt.startswith(UNFINISHED_ROUND_OPENING)
+    assert "Issue-conversation input for GH8:" in resumed.prompt
 
 
 def test_a_first_round_without_a_session_recovers_as_a_new_first_round(
@@ -1521,14 +1523,13 @@ def test_a_first_round_without_a_session_recovers_as_a_new_first_round(
         "GH8-20260819-184158-conversation"
     ]
     assert conversation.harness_session_identifier == "conversation-session"
-    assert conversation.rounds[1].is_recovery
     restarted = harnesses["claude"].calls[1]
     assert "--resume" not in restarted.arguments
     assert restarted.prompt.startswith("/dream:conversation GH8")
     assert "Issue-conversation input for GH8:" in restarted.prompt
 
 
-def test_a_follow_up_refuses_to_replace_a_missing_saved_session(
+def test_a_follow_up_without_a_saved_session_starts_a_new_one(
     conversation_scheduler, harnesses
 ):
     scheduler, clock, gh = conversation_scheduler
@@ -1543,15 +1544,23 @@ def test_a_follow_up_refuses_to_replace_a_missing_saved_session(
     (conversation.directory / _HARNESS_SESSION_RECORD_NAME).unlink()
     conversation.compose_round_paths(number=1).raw_output.unlink()
     offer_conversation(gh=gh, comments=[ask(), ask(identifier=2)])
+    answer(harnesses=harnesses)
 
     observed = scheduler.tick(at=clock())
+    finish(scheduler=scheduler)
 
-    [failure] = observed.failures
-    assert failure.startswith(
-        "Could not resume GH8-20260819-184158-conversation: "
-        "its first round did not report"
+    assert observed.launched_agent_work_identifiers == [
+        "GH8-20260819-184158-conversation"
+    ]
+    restarted = harnesses["claude"].calls[1]
+    assert "--resume" not in restarted.arguments
+    assert restarted.prompt.startswith("/dream:conversation GH8")
+    follow_up = read_json(
+        model=ConversationRoundInput,
+        path=conversation.compose_round_paths(number=2).round_input,
     )
-    assert len(harnesses["claude"].calls) == 1
+    assert follow_up.initial_issue is not None
+    assert [comment.id for comment in follow_up.comments] == [2]
 
 
 def test_a_failed_conversation_listing_prevents_launches(conversation_scheduler):
@@ -1736,7 +1745,7 @@ def test_ineligible_conversation_faults_do_not_start_the_global_cooldown(
     assert count_comment_reads(gh=gh) == 0
 
 
-def test_a_recovery_whose_saved_input_cannot_be_read_is_a_scheduler_failure(
+def test_a_relayed_round_whose_input_cannot_be_read_is_a_scheduler_failure(
     conversation_scheduler, harnesses
 ):
     scheduler, clock, gh = conversation_scheduler
@@ -1749,7 +1758,7 @@ def test_a_recovery_whose_saved_input_cannot_be_read_is_a_scheduler_failure(
             purpose=ConversationRoundPurpose.DISCUSS,
             started=clock(),
             pid=1,
-            ending=ErroredAgentRoundEnding(at=clock(), status=2),
+            ending=SuccessfulAgentRoundEnding(at=clock()),
         ),
     )
     offer_conversation(gh=gh, comments=[ask()])
@@ -1757,7 +1766,9 @@ def test_a_recovery_whose_saved_input_cannot_be_read_is_a_scheduler_failure(
     observed = scheduler.tick(at=clock())
 
     round_input = directory / "rounds" / "1" / "round-input.json"
-    assert observed.failures == [f"{round_input} does not exist."]
+    assert observed.failures == [
+        f"could not read delivered comments for GH8: {round_input} does not exist."
+    ]
     assert observed.launched_agent_work_identifiers == []
     assert harnesses["claude"].calls == []
 

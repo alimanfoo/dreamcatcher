@@ -2,6 +2,8 @@
 
 from pathlib import Path
 
+from dreamcatcher.agent_rounds import AgentRoundOutcome
+
 # The line that every post an agent makes on GitHub ends with. The daemon and the
 # agent share one GitHub account, so this is what tells the two apart: a post
 # carrying it is the agent's own, and the relay leaves it alone. It is a fixed
@@ -28,31 +30,18 @@ reading the post sees the line. Every post counts: a pull request's
 description, a comment, a reply on a line of the diff, and an issue you file."""
 
 
-# What a round that carries on from an unfinished one asks for. The transcript
-# that the harness resumes carries the work itself, so the words say only that
-# the round before this one stopped short. A round somebody interrupted and a
-# round that errored both read that way, and either is recovered from where it
-# stopped.
-ASSIGNMENT_RECOVERY_PROMPT = (
-    """Your previous round did not finish. Carry on from where it stopped, and
-end your turn when the work is done."""
-    + _AGENT_POST_INSTRUCTIONS
-)
-
-CONVERSATION_RECOVERY_PROMPT = (
-    """Your earlier round was cut short, or its
-answer could not be posted. Carry on from where it stopped.
-
-Some issue actions may already have succeeded. Inspect GitHub before repeating
-any action.
-
-Your final message must be the complete answer, as Markdown ready for
-dreamcatcher to post, or exactly NO_REPLY."""
-    + _AGENT_POST_INSTRUCTIONS
-)
-
-_STOPPED_ROUND_FEEDBACK_PROMPT = """The user stopped your previous round before it
+# What opens the input of a round whose previous round the user stopped.
+_STOPPED_ROUND_LINE = """The user stopped your previous round before it
 finished. The new input says what to do next.
+
+"""
+
+# What opens the input of a round whose previous round errored or was
+# interrupted. The round is given the same input again, with anything that has
+# arrived since, and some of what the previous round did may already be done.
+_UNFINISHED_ROUND_LINE = """Your previous round did not finish. Some of what it
+did may already be done, so check before you repeat an action. The new input
+says what to do next.
 
 """
 
@@ -71,8 +60,7 @@ pull_request_state is MERGED or CLOSED, finish per your assignment's rules.
 Otherwise act on user_posts per your assignment's rules. End your turn when
 done."""
 
-_CONVERSATION_INPUT_PROMPT = (
-    """Issue-conversation input for GH{issue}:
+_CONVERSATION_INPUT_PROMPT = """Issue-conversation input for GH{issue}:
 
   {round_input}
 
@@ -89,70 +77,55 @@ your final output. The `revision` field names the checked-out commit.
 
 Return Markdown ready for dreamcatcher to post, or exactly NO_REPLY when no
 reply is needed."""
-    + _AGENT_POST_INSTRUCTIONS
-)
-
-
-def compose_assignment_first_round_prompt(*, template: str, issue: int) -> str:
-    """Return the first-round prompt for an assignment on an issue.
-
-    The selected recipe supplies the template, and the issue's
-    number replaces the placeholder in it. Anything else that the template
-    holds in braces reaches the first round as it was written. An assignment's
-    first round has no input file, so the assignment record stores this whole
-    prompt.
-    """
-    instructions = compose_issue_instructions(template=template, issue=issue)
-    return instructions + _AGENT_POST_INSTRUCTIONS
 
 
 def compose_issue_instructions(*, template: str, issue: int) -> str:
-    """Fill the issue placeholder in a recipe's prompt instructions."""
+    """Fill the issue placeholder in a recipe's prompt instructions.
+
+    Anything else that the template holds in braces reaches the agent as it was
+    written.
+    """
     return template.replace(_ISSUE_PLACEHOLDER, str(issue))
 
 
-def compose_assignment_input_prompt(
-    *, pull_request: int, round_input: Path, was_stopped: bool = False
-) -> str:
-    """Return the prompt that directs a resumed assignment round to its input file.
+def compose_assignment_input_prompt(*, pull_request: int, round_input: Path) -> str:
+    """Return the words that direct an assignment round to its input file.
 
     The input file holds the pull request state and the batch of user posts.
     """
-    prompt = (
-        _ASSIGNMENT_INPUT_PROMPT.format(
-            pull_request=pull_request,
-            round_input=round_input,
-        )
-        + _AGENT_POST_INSTRUCTIONS
+    return _ASSIGNMENT_INPUT_PROMPT.format(
+        pull_request=pull_request, round_input=round_input
     )
-    return _prefix_stopped_round_feedback(prompt=prompt) if was_stopped else prompt
 
 
-def compose_conversation_first_round_prompt(
-    *, instructions: str, issue: int, round_input: Path
+def compose_conversation_input_prompt(*, issue: int, round_input: Path) -> str:
+    """Return the words that direct a conversation round to its input file."""
+    return _CONVERSATION_INPUT_PROMPT.format(issue=issue, round_input=round_input)
+
+
+def compose_round_prompt(
+    *,
+    instructions: str,
+    is_resuming: bool,
+    input_prompt: str | None,
+    previous_outcome: AgentRoundOutcome | None,
 ) -> str:
-    """Return the first-round prompt for an issue conversation.
+    """Return the whole prompt for one round of agent work.
 
-    The conversation record stores only the recipe instructions, so the
-    scheduler composes this prompt when the first round launches, from those
-    instructions and the input file that the round reads.
+    A round that resumes a harness session and has input to relay is given that
+    input alone. Any other round begins with the work's instructions, because a
+    new session has not seen them. The input opens with a line saying why the
+    previous round ended when the user stopped it or it did not finish.
     """
-    round_prompt = compose_conversation_input_prompt(
-        issue=issue, round_input=round_input
-    )
-    return f"{instructions}\n\n{round_prompt}"
+    parts = [] if is_resuming and input_prompt is not None else [instructions]
+    if input_prompt is not None:
+        parts.append(_PREVIOUS_ROUND_LINES.get(previous_outcome, "") + input_prompt)
+    return "\n\n".join(parts) + _AGENT_POST_INSTRUCTIONS
 
 
-def compose_conversation_input_prompt(
-    *, issue: int, round_input: Path, was_stopped: bool = False
-) -> str:
-    """Return the prompt that directs a conversation round to its saved input."""
-    prompt = _CONVERSATION_INPUT_PROMPT.format(
-        issue=issue,
-        round_input=round_input,
-    )
-    return _prefix_stopped_round_feedback(prompt=prompt) if was_stopped else prompt
-
-
-def _prefix_stopped_round_feedback(*, prompt: str) -> str:
-    return _STOPPED_ROUND_FEEDBACK_PROMPT + prompt
+# What opens a round's input, by how the previous round ended.
+_PREVIOUS_ROUND_LINES = {
+    AgentRoundOutcome.STOPPED: _STOPPED_ROUND_LINE,
+    AgentRoundOutcome.ERRORED: _UNFINISHED_ROUND_LINE,
+    AgentRoundOutcome.INTERRUPTED: _UNFINISHED_ROUND_LINE,
+}

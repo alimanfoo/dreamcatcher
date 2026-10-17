@@ -64,10 +64,7 @@ def is_conversation_ready_for_input(*, conversation: AgentWork | None) -> bool:
     """Return whether a conversation can accept another comment batch."""
     if conversation is None or not conversation.rounds:
         return True
-    return conversation.rounds[-1].outcome in {
-        AgentRoundOutcome.SUCCESSFUL,
-        AgentRoundOutcome.STOPPED,
-    }
+    return conversation.rounds[-1].outcome is not AgentRoundOutcome.RUNNING
 
 
 def create_conversation(
@@ -142,19 +139,23 @@ def prepare_conversation_input(
     conversation: AgentWork,
     issue: Issue,
     comments: list[ConversationComment],
+    is_resuming: bool,
 ) -> ConversationRoundInput:
-    """Refresh the worktree and freeze one issue's trusted round input."""
+    """Refresh the worktree and freeze one issue's trusted round input.
+
+    A round that starts a new harness session is given the issue's title and
+    body too, because the session has not seen them.
+    """
     revision = refresh_detached_worktree(
         root=state.root,
         worktree=conversation.worktree,
     )
-    is_initial = not conversation.rounds
     return ConversationRoundInput(
         issue=issue.number,
         initial_issue=(
-            InitialConversationIssue(title=issue.title, body=issue.body)
-            if is_initial
-            else None
+            None
+            if is_resuming
+            else InitialConversationIssue(title=issue.title, body=issue.body)
         ),
         comments=comments,
         revision=revision,
@@ -165,21 +166,6 @@ def read_conversation_input(
     *, conversation: AgentWork, number: int
 ) -> ConversationRoundInput:
     """Read and validate the durable input for one conversation round."""
-    round_input = _read_conversation_input_document(
-        conversation=conversation, number=number
-    )
-    if number == 1 and round_input.initial_issue is None:
-        raise ReportableError(
-            f"Conversation {conversation.identifier} round 1 input does not "
-            "contain its initial issue title and body."
-        )
-    return round_input
-
-
-def _read_conversation_input_document(
-    *, conversation: AgentWork, number: int
-) -> ConversationRoundInput:
-    """Read and validate one round input without comparing adjacent rounds."""
     round_input = read_json(
         model=ConversationRoundInput,
         path=conversation.compose_round_paths(number=number).round_input,
@@ -206,13 +192,12 @@ def _read_conversation_input_document(
 def read_issue_comment_delivery_position(
     *, conversation: AgentWork
 ) -> IssueCommentDeliveryPosition | None:
-    """Return the newest comment saved in the latest durable round input."""
-    if not conversation.rounds:
+    """Return the newest comment already relayed."""
+    if not conversation.relayed_rounds:
         return None
-    latest_round = conversation.rounds[-1]
     round_input = read_conversation_input(
         conversation=conversation,
-        number=latest_round.number,
+        number=conversation.relayed_rounds[-1].number,
     )
     newest = round_input.comments[-1]
     return IssueCommentDeliveryPosition(

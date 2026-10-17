@@ -57,9 +57,8 @@ from dreamcatcher.git import (
     push_branch,
 )
 from dreamcatcher.github import PullRequestState
-from dreamcatcher.prompts import ASSIGNMENT_RECOVERY_PROMPT
 from dreamcatcher.scheduler import AssignmentScheduler, ConversationScheduler, Scheduler
-from dreamcatcher.scheduler.faults import is_awaiting_recovery
+from dreamcatcher.scheduler.faults import is_last_round_unfinished
 from dreamcatcher.scheduler.models import (
     AgentWorkObservation,
     GlobalCooldown,
@@ -210,7 +209,6 @@ def ran(
     number: int,
     purpose: AssignmentRoundPurpose,
     status: int | None = 0,
-    is_recovery: bool = False,
 ) -> None:
     """Write down a round of the assignment on disk, ended as the status says.
 
@@ -229,7 +227,6 @@ def ran(
         record=AgentRoundRecord(
             number=number,
             purpose=purpose,
-            is_recovery=is_recovery,
             started=started,
             pid=1,
             ending=ending,
@@ -251,7 +248,6 @@ def write_faulted_assignment(*, root, identifier: str, issue: int) -> None:
             record=AgentRoundRecord(
                 number=number,
                 purpose=PURPOSE,
-                is_recovery=number == 2,
                 started=started,
                 pid=1,
                 ending=_compose_agent_round_ending(at=started, status=status),
@@ -400,7 +396,6 @@ def test_a_completed_assignment_releases_its_issue(ready_repo):
         record=AgentRoundRecord(
             number=1,
             purpose=AssignmentRoundPurpose.WRAP_UP,
-            is_recovery=False,
             started=PINNED,
             pid=1,
             ending=_compose_agent_round_ending(at=PINNED, status=0),
@@ -443,7 +438,7 @@ def test_a_tick_at_the_cap_says_the_cap_is_what_each_assignment_waits_on(
         observed_assignment(
             identifier=ASSIGNMENT_ID,
             issue=13,
-            evidence="round 1 errored, to recover",
+            evidence="round 1 errored, to try again",
         )
     ]
 
@@ -574,7 +569,7 @@ def test_one_faulted_assignment_does_not_block_unrelated_work(ready_repo):
         issue=13,
     )
     ran(root=ready_repo, number=1, purpose=PURPOSE, status=1)
-    ran(root=ready_repo, number=2, purpose=PURPOSE, status=1, is_recovery=True)
+    ran(root=ready_repo, number=2, purpose=PURPOSE, status=1)
     scheduler, clock = create_scheduler(root=ready_repo)
 
     observed = scheduler.tick(at=clock())
@@ -758,9 +753,8 @@ def test_an_assignment_that_has_run_no_round_at_all_gets_its_first(ready_repo):
     first = record_of(scheduler=scheduler, number=1)
     assert first.number == 1
     assert first.purpose is AssignmentRoundPurpose.IMPLEMENT
-    assert not first.is_recovery
-    assert written_round(scheduler=scheduler, number=1, name="prompt.txt") == (
-        "/dream:smith GH13"
+    assert written_round(scheduler=scheduler, number=1, name="prompt.txt").startswith(
+        "/dream:smith GH13\n\nEnd every post you make on GitHub"
     )
 
 
@@ -962,7 +956,7 @@ def test_a_codex_assignment_round_passes_its_recorded_harness_config(
     assert arguments[setting - 1] == "-c"
 
 
-def test_a_recovery_without_a_harness_session_starts_a_new_first_round(
+def test_an_unfinished_round_without_a_harness_session_starts_a_new_session(
     resuming, harnesses
 ):
     ran(root=resuming, number=1, purpose=PURPOSE, status=1)
@@ -975,12 +969,10 @@ def test_a_recovery_without_a_harness_session_starts_a_new_first_round(
     faulted = scheduler.tick(at=clock())
 
     assert observed.launched_agent_work_identifiers == [ASSIGNMENT_ID]
-    assert written_round(scheduler=scheduler, number=2, name="prompt.txt") == (
-        f"/dream:smith GH13\n\n{ASSIGNMENT_RECOVERY_PROMPT}"
+    assert written_round(scheduler=scheduler, number=2, name="prompt.txt").startswith(
+        "/dream:smith GH13\n\nYour previous round did not finish."
     )
     assert "--resume" not in harnesses["claude"].calls[-1].arguments
-    recovered = record_of(scheduler=scheduler, number=2)
-    assert recovered.is_recovery
     assert faulted.assignment_observations == [
         observed_assignment(
             identifier=ASSIGNMENT_ID,
@@ -991,7 +983,7 @@ def test_a_recovery_without_a_harness_session_starts_a_new_first_round(
     ]
 
 
-def test_a_follow_up_without_a_harness_session_still_needs_its_session(
+def test_a_follow_up_without_a_harness_session_starts_a_new_one_with_its_input(
     resuming, gh, harnesses
 ):
     ran(root=resuming, number=1, purpose=PURPOSE)
@@ -1003,15 +995,15 @@ def test_a_follow_up_without_a_harness_session_still_needs_its_session(
     scheduler, clock = create_scheduler(root=resuming)
 
     observed = scheduler.tick(at=clock())
+    finish_rounds(scheduler=scheduler)
 
-    assert sole_failure(observed=observed) == (
-        f"Could not resume {ASSIGNMENT_ID}: its first round did not report a "
-        "harness session identifier."
-    )
-    assert harnesses["claude"].calls == []
+    assert observed.launched_agent_work_identifiers == [ASSIGNMENT_ID]
+    prompt = written_round(scheduler=scheduler, number=2, name="prompt.txt")
+    assert prompt.startswith("/dream:smith GH13\n\nUser-posts prompt")
+    assert "--resume" not in harnesses["claude"].calls[-1].arguments
 
 
-def test_a_terminal_recovery_without_a_session_receives_wrap_up_input(
+def test_a_terminal_round_after_an_error_without_a_session_receives_wrap_up_input(
     resuming, gh, harnesses
 ):
     ran(root=resuming, number=1, purpose=PURPOSE, status=1)
@@ -1027,7 +1019,8 @@ def test_a_terminal_recovery_without_a_session_receives_wrap_up_input(
 
     assert observed.launched_agent_work_identifiers == [ASSIGNMENT_ID]
     prompt = written_round(scheduler=scheduler, number=2, name="prompt.txt")
-    assert prompt.startswith("/dream:smith GH13\n\nUser-posts prompt")
+    assert prompt.startswith("/dream:smith GH13\n\nYour previous round did not finish.")
+    assert "User-posts prompt" in prompt
     round_input = json.loads(
         written_round(scheduler=scheduler, number=2, name="round-input.json")
     )
@@ -1037,9 +1030,7 @@ def test_a_terminal_recovery_without_a_session_receives_wrap_up_input(
     assert read_user_post_delivery_position(assignment=assignment) == POSTED_AT
 
 
-def test_a_failed_replacement_session_does_not_redeliver_recorded_feedback(
-    resuming, gh, harnesses
-):
+def test_a_round_after_an_errored_one_is_given_its_posts_again(resuming, gh, harnesses):
     ran(root=resuming, number=1, purpose=PURPOSE, status=1)
     forget_harness_session_identifier(root=resuming)
     gh.replies(stdout=pull_request(state="MERGED"), to="pr view")
@@ -1052,7 +1043,7 @@ def test_a_failed_replacement_session_does_not_redeliver_recorded_feedback(
     scheduler.tick(at=clock())
     finish_rounds(scheduler=scheduler)
     assignment = read_assignments(state=scheduler.assignments.state)[0]
-    assert read_user_post_delivery_position(assignment=assignment) == POSTED_AT
+    assert read_user_post_delivery_position(assignment=assignment) == ""
     ending = assignment.rounds[-1].ending
     assert isinstance(ending, ErroredAgentRoundEnding)
     request_agent_work_retry(work=assignment, at=ending.at + timedelta(seconds=1))
@@ -1064,10 +1055,10 @@ def test_a_failed_replacement_session_does_not_redeliver_recorded_feedback(
     round_input = json.loads(
         written_round(scheduler=scheduler, number=3, name="round-input.json")
     )
-    assert round_input["user_posts"] == []
+    assert [post["kind"] for post in round_input["user_posts"]] == ["comment"]
 
 
-def test_a_carried_on_round_records_recovery_independently(resuming):
+def test_a_round_after_an_interrupted_one_is_given_the_input_again(resuming):
     write_round(
         directory=StateDirectory(root=resuming).work / ASSIGNMENT_ID,
         number=1,
@@ -1086,7 +1077,12 @@ def test_a_carried_on_round_records_recovery_independently(resuming):
 
     recovered = record_of(scheduler=scheduler, number=2)
     assert recovered.purpose is AssignmentRoundPurpose.IMPLEMENT
-    assert recovered.is_recovery
+    assert written_round(scheduler=scheduler, number=2, name="prompt.txt").startswith(
+        "Your previous round did not finish."
+    )
+    assert json.loads(
+        written_round(scheduler=scheduler, number=2, name="round-input.json")
+    ) == {"pull_request_state": "OPEN", "user_posts": []}
 
 
 def test_an_assignment_the_user_has_posted_on_is_told_what_they_said(resuming, gh):
@@ -1103,7 +1099,6 @@ def test_an_assignment_the_user_has_posted_on_is_told_what_they_said(resuming, g
     assert observed.launched_agent_work_identifiers == [ASSIGNMENT_ID]
     feedback = record_of(scheduler=scheduler, number=2)
     assert feedback.purpose is AssignmentRoundPurpose.ADDRESS_FEEDBACK
-    assert not feedback.is_recovery
     round_input = json.loads(
         written_round(scheduler=scheduler, number=2, name="round-input.json")
     )
@@ -1174,7 +1169,6 @@ def test_a_pull_request_that_is_finished_gets_one_last_round(resuming, gh, state
     assert observed.launched_agent_work_identifiers == [ASSIGNMENT_ID]
     wrap_up = record_of(scheduler=scheduler, number=2)
     assert wrap_up.purpose is AssignmentRoundPurpose.WRAP_UP
-    assert not wrap_up.is_recovery
     assert json.loads(
         written_round(scheduler=scheduler, number=2, name="round-input.json")
     ) == {
@@ -1242,7 +1236,6 @@ def test_a_last_round_that_was_interrupted_is_carried_on_as_the_last_round(
     # The carry-on finished what the last round started, so no second one runs.
     recovered = record_of(scheduler=scheduler, number=3)
     assert recovered.purpose is AssignmentRoundPurpose.WRAP_UP
-    assert recovered.is_recovery
     assert not (
         scheduler.assignments.state.work / ASSIGNMENT_ID / "rounds" / "4"
     ).exists()
@@ -1375,7 +1368,7 @@ def test_the_cooldown_boundary_clears_faults_and_permits_recovery(ready_repo):
         observed_assignment(
             identifier=SECOND_ASSIGNMENT_ID,
             issue=14,
-            evidence="round 2 errored, to recover",
+            evidence="round 2 errored, to try again",
         ),
     ]
 
@@ -1446,10 +1439,10 @@ def test_only_an_interrupted_or_errored_last_round_awaits_recovery(
     )
 
     assert (
-        is_awaiting_recovery(rounds=[record], is_daemon_running=is_daemon_running)
+        is_last_round_unfinished(rounds=[record], is_daemon_running=is_daemon_running)
         is is_awaited
     )
 
 
 def test_agent_work_that_has_run_no_round_awaits_no_recovery():
-    assert not is_awaiting_recovery(rounds=[], is_daemon_running=False)
+    assert not is_last_round_unfinished(rounds=[], is_daemon_running=False)

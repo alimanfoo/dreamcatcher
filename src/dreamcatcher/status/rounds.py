@@ -9,7 +9,7 @@ from dreamcatcher.agent_rounds import (
     AgentRoundRecord,
     ErroredAgentRoundEnding,
 )
-from dreamcatcher.feed import describe_agent_round_start, read_last_feed_line
+from dreamcatcher.feed import read_last_feed_line
 from dreamcatcher.harness_adapters import HarnessSessionIdentifier
 from dreamcatcher.words import describe_span
 
@@ -33,21 +33,16 @@ class AgentRoundStatus:
 
     @property
     def purpose_description(self) -> str:
-        """The work the round advances, marked when it recovers another round."""
-        return describe_agent_round_start(
-            purpose=self.record.purpose, is_recovery=self.record.is_recovery
-        )
+        """The work the round advances."""
+        return self.record.purpose
 
 
 def describe_running_round(
     *, record: AgentRoundRecord, paths: AgentRoundPaths, at: datetime
 ) -> tuple[str, str | None]:
     """Describe a running round and return its latest output."""
-    purpose = describe_agent_round_start(
-        purpose=record.purpose, is_recovery=record.is_recovery
-    )
     detail = (
-        f"round {record.number}, {purpose}, "
+        f"round {record.number}, {record.purpose}, "
         f"running {describe_span(span=at - record.started)}"
     )
     line = read_last_feed_line(path=paths.feed)

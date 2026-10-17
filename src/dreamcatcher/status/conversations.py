@@ -16,7 +16,7 @@ from dreamcatcher.issue_conversations import (
     is_no_reply,
     read_conversation_input,
 )
-from dreamcatcher.scheduler.faults import is_awaiting_recovery
+from dreamcatcher.scheduler.faults import is_last_round_unfinished
 from dreamcatcher.scheduler.models import (
     ConversationObservation,
     Truth,
@@ -256,7 +256,7 @@ class ConversationStatusReader(AgentWorkStatusReader[ConversationStatus]):
         )
         if status is not None:
             return status
-        status = self._derive_awaiting_recovery(
+        status = self._derive_unfinished(
             issue=issue, title=title, conversation=conversation
         )
         if status is not None:
@@ -374,14 +374,14 @@ class ConversationStatusReader(AgentWorkStatusReader[ConversationStatus]):
             )
         return None
 
-    def _derive_awaiting_recovery(
+    def _derive_unfinished(
         self,
         *,
         issue: int,
         title: str,
         conversation: AgentWork | None,
     ) -> ConversationStatus | None:
-        if conversation is not None and is_awaiting_recovery(
+        if conversation is not None and is_last_round_unfinished(
             rounds=conversation.rounds, is_daemon_running=self.is_daemon_running
         ):
             latest = conversation.rounds[-1]
