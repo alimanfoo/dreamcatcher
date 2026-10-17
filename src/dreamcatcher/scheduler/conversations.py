@@ -14,6 +14,7 @@ from dreamcatcher.agent_rounds import (
 )
 from dreamcatcher.agent_work import (
     AgentWork,
+    find_open_agent_work_by_issue,
     read_agent_work_of_kind,
     record_harness_session_identifier,
 )
@@ -97,13 +98,11 @@ class ConversationScheduler(
     ) -> AgentWorkInspection[ConversationCandidate, ConversationObservation]:
         """Observe matching issues and return conversation work ready to run."""
         listing = self.list_route_issues(routes=self.config.conversation)
-        conversations_by_issue = {
-            work.record.issue: work
-            for work in read_agent_work_of_kind(
+        conversations_by_issue = find_open_agent_work_by_issue(
+            work=read_agent_work_of_kind(
                 state=self.state, kind=AgentWorkKind.CONVERSATION
             )
-            if work.is_open
-        }
+        )
         most_recent_cooldown_ended = (
             None
             if previous_record is None

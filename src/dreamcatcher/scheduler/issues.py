@@ -3,10 +3,9 @@
 from dataclasses import dataclass
 
 from dreamcatcher.agent_assignments import (
-    find_open_assignments_by_issue,
     read_pull_request_observation,
 )
-from dreamcatcher.agent_work import AgentWork
+from dreamcatcher.agent_work import AgentWork, find_open_agent_work_by_issue
 from dreamcatcher.github import (
     Issue,
     IssueState,
@@ -49,7 +48,7 @@ def observe_issues(
 ) -> IssueObservationResult:
     """Observe every issue considered for assignment or claimed by this instance."""
     listing = scheduler.list_route_issues(routes=scheduler.config.assignment)
-    open_assignments = find_open_assignments_by_issue(assignments=assignments)
+    open_assignments = find_open_agent_work_by_issue(work=assignments)
     issue_responses_by_number: dict[int, Issue | UnknownGitHubResponse] = {
         issue.number: issue for issue in listing.issues
     }

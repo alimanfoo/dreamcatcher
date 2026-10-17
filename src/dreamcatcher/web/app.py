@@ -231,11 +231,7 @@ def _show_work_tail(
     return _show_agent_tail(
         owner=work,
         live=_compose_work_live_state(state=state, work=work, status=status, zone=zone),
-        should_stop_polling=(
-            status.has_ended
-            if isinstance(status, AssignmentStatus)
-            else not status.is_current
-        ),
+        should_stop_polling=not status.is_current,
         zone=zone,
     )
 

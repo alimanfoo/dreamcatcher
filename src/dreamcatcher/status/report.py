@@ -5,11 +5,11 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import cast
 
-from dreamcatcher.agent_assignments import find_open_assignments_by_issue
 from dreamcatcher.agent_work import (
     AgentWork,
     AgentWorkEnding,
     find_newest_agent_work,
+    find_open_agent_work_by_issue,
     read_agent_work,
     read_agent_work_at_issue,
 )
@@ -204,7 +204,7 @@ class DreamcatcherStatusReport:
     def active_assignment_statuses(self) -> list[AssignmentStatus]:
         """The assignments that have not ended, in attention order."""
         return sorted(
-            (status for status in self.assignment_statuses if not status.has_ended),
+            (status for status in self.assignment_statuses if status.is_current),
             key=lambda status: ASSIGNMENT_STATUS_VALUES_IN_ATTENTION_ORDER.index(
                 status.value
             ),
@@ -297,7 +297,7 @@ def read_status_report(
     assignment_labels = daemon.list_labels(kind=AgentWorkKind.ASSIGNMENT)
     conversation_labels = daemon.list_labels(kind=AgentWorkKind.CONVERSATION)
     has_current_assignment_work = bool(
-        any(not status.has_ended for status in assignment_statuses)
+        any(status.is_current for status in assignment_statuses)
         or failed_assignment_setups
         or reported_issue_observations
     )
@@ -404,9 +404,7 @@ def _refresh_issue_observations(
 ) -> list[IssueObservation]:
     if scheduler_record is None:
         return []
-    open_assignment_issues = find_open_assignments_by_issue(
-        assignments=assignments
-    ).keys()
+    open_assignment_issues = find_open_agent_work_by_issue(work=assignments).keys()
     return [
         observation.model_copy(
             update={

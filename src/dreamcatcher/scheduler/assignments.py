@@ -9,7 +9,6 @@ from dreamcatcher.agent_assignments import (
     AssignmentCreator,
     AssignmentRoundInput,
     complete_assignment,
-    find_open_assignments_by_issue,
     inspect_incomplete_assignment_setups,
     read_pull_request_observation,
     read_user_post_delivery_position,
@@ -25,9 +24,10 @@ from dreamcatcher.agent_rounds import (
 )
 from dreamcatcher.agent_work import (
     AgentWork,
+    find_open_agent_work_by_issue,
     read_agent_work_of_kind,
     record_harness_session_identifier,
-    stop_round_if_ended,
+    request_round_stop_if_ended,
 )
 from dreamcatcher.config import AssignmentRoute
 from dreamcatcher.github import (
@@ -230,9 +230,7 @@ class AssignmentScheduler(
         observed_at: datetime,
     ) -> list[_AssignmentItemInspection]:
         inspected: list[_AssignmentItemInspection] = []
-        for assignment in find_open_assignments_by_issue(
-            assignments=assignments
-        ).values():
+        for assignment in find_open_agent_work_by_issue(work=assignments).values():
             if assignment.rounds and assignment.rounds[-1].ending is None:
                 continue
             inspected.append(
@@ -431,7 +429,7 @@ class AssignmentScheduler(
             ),
             clock=self.clock,
         )
-        stop_round_if_ended(work=assignment, paths=paths)
+        request_round_stop_if_ended(work=assignment, paths=paths)
         return started_round
 
 

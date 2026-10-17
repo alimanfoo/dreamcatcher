@@ -76,10 +76,12 @@ class AssignmentStatus:
     @property
     def has_ended(self) -> bool:
         """Whether the assignment has ended and no round of it is still running."""
-        return self.value in {
-            AssignmentStatusValue.COMPLETE,
-            AssignmentStatusValue.CANCELLED,
-        }
+        return self.value in _ENDED_STATUS_VALUES.values()
+
+    @property
+    def is_current(self) -> bool:
+        """Whether the status report lists the assignment as current work."""
+        return not self.has_ended
 
     @cached_property
     def pull_request_observation(self) -> PullRequestObservation:

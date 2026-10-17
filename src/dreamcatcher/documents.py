@@ -262,7 +262,7 @@ def write_json(*, document: DreamcatcherDocument, path: Path) -> None:
     write_text(text=document.model_dump_json(indent=2) + "\n", path=path)
 
 
-def write_json_once(*, document: DreamcatcherDocument, path: Path) -> bool:
+def write_json_if_absent(*, document: DreamcatcherDocument, path: Path) -> bool:
     """Write the document to path as JSON unless a document is already there.
 
     Return whether this write landed. The staged file is linked into place, and

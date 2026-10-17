@@ -28,7 +28,7 @@ from dreamcatcher.documents import (
     read_json,
     read_json_if_exists,
     write_json,
-    write_json_once,
+    write_json_if_absent,
 )
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.harness_adapters import (
@@ -232,13 +232,17 @@ def find_agent_work(*, state: StateDirectory, identifier: str) -> AgentWork | No
 def is_agent_work_recorded(*, state: StateDirectory, identifier: str) -> bool:
     """Return whether agent work with this exact identifier has its record.
 
-    The identifier must name a directory under `work/` exactly, so a name that
-    reaches elsewhere finds nothing.
+    An identifier that is not one plain name, such as `..`, names no work.
     """
-    return state.work.is_dir() and any(
-        directory.name == identifier and (directory / _WORK_RECORD_NAME).is_file()
-        for directory in state.work.iterdir()
+    return (
+        Path(identifier).name == identifier
+        and (state.work / identifier / _WORK_RECORD_NAME).is_file()
     )
+
+
+def find_open_agent_work_by_issue(*, work: list[AgentWork]) -> dict[int, AgentWork]:
+    """Return the open work among these, keyed by issue."""
+    return {item.record.issue: item for item in work if item.is_open}
 
 
 def _read_selected_agent_work(
@@ -348,7 +352,7 @@ def request_agent_work_retry(*, work: AgentWork, at: datetime) -> None:
     record_user_request(path=work.directory / _RETRY_REQUEST_RECORD_NAME, at=at)
 
 
-def stop_round_if_ended(*, work: AgentWork, paths: AgentRoundPaths) -> None:
+def request_round_stop_if_ended(*, work: AgentWork, paths: AgentRoundPaths) -> None:
     """Ask a round that has just started to stop if its work has ended.
 
     Call this once the round's record exists, so that an ending recorded at the
@@ -367,7 +371,7 @@ def end_agent_work(
     recorded at the same moment, such as a cancel and a completion, the first to
     land is the one that stands.
     """
-    return write_json_once(
+    return write_json_if_absent(
         document=AgentWorkEnding(at=at, reason=reason),
         path=work.directory / _ENDING_RECORD_NAME,
     )

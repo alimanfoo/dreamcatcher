@@ -30,6 +30,7 @@ from dreamcatcher.agent_work import (
     AgentWorkRecord,
     compose_agent_work_identifier,
     end_agent_work,
+    find_open_agent_work_by_issue,
     is_agent_work_recorded,
     read_agent_work_of_kind,
     record_agent_work,
@@ -111,28 +112,18 @@ def read_pull_request_observation(*, assignment: AgentWork) -> PullRequestObserv
     )
 
 
-def find_open_assignments_by_issue(
-    *, assignments: list[AgentWork]
-) -> dict[int, AgentWork]:
-    """Return each issue's open assignment, keyed by issue."""
-    return {
-        assignment.record.issue: assignment
-        for assignment in assignments
-        if assignment.is_open
-    }
-
-
-def cancel_assignment(*, assignment: AgentWork, at: datetime) -> None:
+def cancel_assignment(*, assignment: AgentWork, at: datetime) -> bool:
     """Record that the user has taken an open assignment over.
 
     A round with no ending is asked to stop, so it does not go on pushing to the
     branch. The ending is written before the rounds are read again, so a round
     that starts at the same moment is either asked to stop here or finds the
-    ending through stop_round_if_ended. An assignment that has already ended
-    raises ReportableError.
+    ending through request_round_stop_if_ended. Return whether this call
+    cancelled the assignment, so an assignment that has already ended is left as
+    it is.
     """
     if not end_agent_work(work=assignment, reason=AgentWorkEndReason.CANCELLED, at=at):
-        raise ReportableError(f"{assignment.identifier} has already ended.")
+        return False
     rounds = read_agent_round_records(
         cache=DocumentCache(),
         directory=assignment.rounds_directory,
@@ -141,6 +132,7 @@ def cancel_assignment(*, assignment: AgentWork, at: datetime) -> None:
         request_agent_round_stop(
             paths=assignment.compose_round_paths(number=rounds[-1].number)
         )
+    return True
 
 
 def complete_assignment(
@@ -246,8 +238,8 @@ class AssignmentCreator:
         leave evidence for a later recovery. An issue with an open local
         assignment cannot receive another.
         """
-        open_assignment = find_open_assignments_by_issue(
-            assignments=read_agent_work_of_kind(
+        open_assignment = find_open_agent_work_by_issue(
+            work=read_agent_work_of_kind(
                 state=self.state, kind=AgentWorkKind.ASSIGNMENT
             )
         ).get(issue)

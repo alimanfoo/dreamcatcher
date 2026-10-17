@@ -54,11 +54,11 @@ The state format is an integer independent of the release version. A change that
 makes the structure or meaning of persisted records incompatible increments it;
 several releases may share one state format.
 
-_dreamcatcher_ reads and writes only the directory for its own format, such as
-`.dreamcatcher/v5/`, and ignores other format directories without changing them.
-The daemon lock at `.dreamcatcher/daemon.lock` is shared across formats. v4.0.0
-and earlier use `.dreamcatcher/daemon.pid` instead, so stop an older daemon
-before you start v5.0.0 or later.
+_dreamcatcher_ reads and writes only the directory for its own format, and
+ignores other format directories without changing them. The daemon lock at
+`.dreamcatcher/daemon.lock` is shared across formats. v4.0.0 and earlier use
+`.dreamcatcher/daemon.pid` instead, so stop an older daemon before you start
+v5.0.0 or later.
 
 A different format starts with empty local state. No migration is promised.
 

@@ -27,7 +27,6 @@ from dreamcatcher.agent_assignments import (
     cancel_assignment,
     complete_assignment,
     compose_assignment_branch,
-    find_open_assignments_by_issue,
     inspect_incomplete_assignment_setups,
     read_pull_request_observation,
     read_user_post_delivery_position,
@@ -44,6 +43,7 @@ from dreamcatcher.agent_work import (
     AgentWorkEnding,
     AgentWorkEndReason,
     AgentWorkRecord,
+    find_open_agent_work_by_issue,
     read_agent_work_at_issue,
     record_harness_session_identifier,
     request_agent_work_retry,
@@ -331,7 +331,7 @@ def test_open_assignments_are_found_by_issue_across_assignment_histories(fabrica
     )
     assignments = read_assignments(state=fabricated)
 
-    open_assignments = find_open_assignments_by_issue(assignments=assignments)
+    open_assignments = find_open_agent_work_by_issue(work=assignments)
 
     assert 12 not in open_assignments
     assert 13 not in open_assignments
@@ -406,12 +406,13 @@ def test_a_completion_after_a_cancel_leaves_the_assignment_cancelled(fabricated)
     )
 
 
-def test_a_cancel_after_a_completion_it_did_not_see_is_refused(fabricated):
+def test_a_cancel_after_a_completion_it_did_not_see_changes_nothing(fabricated):
     assignment = standing(state=fabricated, rounds=[ended(status=0)])
     complete_assignment(assignment=assignment, clock=lambda: PINNED, final_output=None)
 
-    with pytest.raises(ReportableError, match="has already ended"):
-        cancel_assignment(assignment=assignment, at=PINNED + timedelta(minutes=1))
+    assert not cancel_assignment(
+        assignment=assignment, at=PINNED + timedelta(minutes=1)
+    )
 
     assert read_assignments(state=fabricated)[0].ending == AgentWorkEnding(
         at=PINNED, reason=AgentWorkEndReason.COMPLETED
@@ -428,7 +429,7 @@ def test_a_cancelled_assignment_records_when_and_is_no_longer_open(fabricated):
         at=PINNED + timedelta(hours=1), reason=AgentWorkEndReason.CANCELLED
     )
     assert not cancelled.is_open
-    assert find_open_assignments_by_issue(assignments=[cancelled]) == {}
+    assert find_open_agent_work_by_issue(work=[cancelled]) == {}
 
 
 def test_recording_later_facts_leaves_the_assignment_record_as_it_was(fabricated):
@@ -496,15 +497,14 @@ def test_cancelling_leaves_an_ended_round_alone(fabricated):
     assert not assignment.compose_round_paths(number=1).stop_request.exists()
 
 
-def test_an_assignment_that_has_ended_cannot_be_cancelled(fabricated):
+def test_an_assignment_that_has_ended_cannot_be_cancelled_again(fabricated):
     assignment = standing(state=fabricated, rounds=[])
-    cancel_assignment(assignment=assignment, at=PINNED)
+    assert cancel_assignment(assignment=assignment, at=PINNED)
 
-    with pytest.raises(ReportableError, match=f"{ASSIGNMENT_ID} has already ended"):
-        cancel_assignment(
-            assignment=read_assignments(state=fabricated)[0],
-            at=PINNED + timedelta(hours=1),
-        )
+    assert not cancel_assignment(
+        assignment=read_assignments(state=fabricated)[0],
+        at=PINNED + timedelta(hours=1),
+    )
 
     assert read_assignments(state=fabricated)[0].ending == AgentWorkEnding(
         at=PINNED, reason=AgentWorkEndReason.CANCELLED

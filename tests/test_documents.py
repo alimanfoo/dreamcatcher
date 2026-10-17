@@ -13,7 +13,7 @@ from dreamcatcher.documents import (
     read_lines_from,
     read_toml,
     remove_file,
-    write_json_once,
+    write_json_if_absent,
     write_text,
 )
 from dreamcatcher.errors import ReportableError
@@ -342,8 +342,8 @@ def test_a_write_that_fails_says_so_and_leaves_nothing_of_itself(tmp_path):
 def test_a_write_once_lands_only_where_nothing_is(tmp_path):
     written = tmp_path / "records" / "ended.json"
 
-    first = write_json_once(document=Sample(name="first"), path=written)
-    second = write_json_once(document=Sample(name="second"), path=written)
+    first = write_json_if_absent(document=Sample(name="first"), path=written)
+    second = write_json_if_absent(document=Sample(name="second"), path=written)
 
     assert (first, second) == (True, False)
     assert read_json(model=Sample, path=written) == Sample(name="first")
@@ -355,7 +355,7 @@ def test_a_write_once_that_fails_says_so_and_leaves_nothing_of_itself(tmp_path):
     not_a_directory.write_bytes(b"")
 
     with pytest.raises(ReportableError, match="cannot write"):
-        write_json_once(
+        write_json_if_absent(
             document=Sample(name="first"), path=not_a_directory / "ended.json"
         )
 
