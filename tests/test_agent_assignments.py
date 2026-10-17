@@ -74,14 +74,14 @@ def record_assignment(*, state, route, preferred_harness=AgentHarness.CLAUDE):
 
 
 def open_pull_request(*, state, assignment):
-    """Open the assignment's pull request, as its first round does."""
+    """Open the assignment's pull request, as the round that opens it does."""
     open_assignment_pull_request(
         state=state, repository=REPOSITORY, assignment=assignment
     )
 
 
 def open_assignment(*, state, route, preferred_harness, issue, at):
-    """Record an assignment and open its pull request, as its first round does."""
+    """Record an assignment and open its pull request, as its opening round does."""
     assignment = create_agent_work(
         state=state,
         route=route,

@@ -135,10 +135,10 @@ class HarnessAdapter(ABC):
         """
 
     @abstractmethod
-    def build_first_round(
+    def build_new_session_round(
         self, *, request: AgentRoundLaunchRequest, final_output_path: Path
     ) -> HarnessInvocation:
-        """Return how to run an agent work item's first round.
+        """Return how to run a round that starts a new harness session.
 
         A harness that writes its final output to a file uses the round-owned
         path supplied here. A harness whose stream reports the final output

@@ -109,7 +109,7 @@ def write_assignment(
     """Write an assignment's worktree and its records, and return its own directory.
 
     The title is `Issue <n>` unless the test gives one. An assignment given no
-    pull request is one whose first round has not opened it.
+    pull request is one that no round has opened yet.
     """
     (state.worktrees / identifier).mkdir(parents=True)
     directory = state.work / identifier

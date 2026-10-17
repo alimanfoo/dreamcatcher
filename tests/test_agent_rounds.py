@@ -150,7 +150,7 @@ class Unrenderable(HarnessAdapter):
     ) -> list[list[str]]:
         return []
 
-    def build_first_round(
+    def build_new_session_round(
         self, *, request: AgentRoundLaunchRequest, final_output_path: Path
     ) -> HarnessInvocation:
         return HarnessInvocation(
@@ -274,7 +274,7 @@ def test_a_round_gives_the_harness_its_prompt_to_read(fake, worktree, directory)
     assert running.paths.prompt.read_text(encoding="utf-8") == PROMPT
 
 
-def test_a_first_round_builds_its_harness_invocation(fake, worktree, directory):
+def test_a_new_session_round_builds_its_harness_invocation(fake, worktree, directory):
     harness = fake(program="claude")
     harness.replies(stdout="")
 

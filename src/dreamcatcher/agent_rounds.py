@@ -345,7 +345,7 @@ def start_agent_round(
     """Start a round through its work's harness, resuming its session if any."""
     harness_adapter = HARNESS_ADAPTERS[request.harness]
     if request.harness_session_identifier is None:
-        invocation = harness_adapter.build_first_round(
+        invocation = harness_adapter.build_new_session_round(
             request=request.launch_request,
             final_output_path=request.paths.final_output,
         )

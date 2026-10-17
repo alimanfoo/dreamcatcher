@@ -130,10 +130,10 @@ class _ClaudeHarnessAdapter(HarnessAdapter):
             ["plugin", "install", plugin, "--scope", "user"],
         ]
 
-    def build_first_round(
+    def build_new_session_round(
         self, *, request: AgentRoundLaunchRequest, final_output_path: Path
     ) -> HarnessInvocation:
-        """Return how to run a first round.
+        """Return how to run a round that starts a new harness session.
 
         The command names no prompt, which is how Claude knows to read one
         from stdin.
