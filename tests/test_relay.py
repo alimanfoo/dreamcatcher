@@ -20,8 +20,12 @@ from dreamcatcher.github import (
     UnknownGitHubResponse,
     UserPost,
 )
+from dreamcatcher.issue_conversations import IssueCommentCursor
 from dreamcatcher.prompts import AGENT_POST_MARKER
-from dreamcatcher.relay import list_user_posts_past_cursor
+from dreamcatcher.relay import (
+    list_issue_comments_past_cursor,
+    list_user_posts_past_cursor,
+)
 
 # A time before anything the tests say the user posted.
 BEFORE = "2026-09-03T16:49:35Z"
@@ -281,3 +285,28 @@ def test_a_comment_gh_says_nothing_about_the_subject_of_reads_as_one_on_a_line(
         for post in past_cursor()
         if isinstance(post, InlineReviewComment)
     ] == ["line"]
+
+
+def test_only_eligible_issue_comments_past_the_cursor_come_back(fake):
+    fake(program="gh").replies(
+        stdout=pages(
+            items=[
+                comment(id=4, created_at=POSTED_AT, body="later in the list"),
+                comment(id=1, created_at=BEFORE, body="before the cursor"),
+                comment(id=3, created_at=POSTED_AT, body="first after the cursor"),
+                comment(id=5, user={"login": "mallory"}, body="somebody else"),
+                comment(id=6, body=f"agent answer\n{AGENT_POST_MARKER}"),
+                comment(id=7, body="  "),
+            ]
+        )
+    )
+
+    def past(*, cursor: IssueCommentCursor | None) -> list[int]:
+        found = list_issue_comments_past_cursor(
+            repository=REPOSITORY, issue=8, account=POSTED_BY.upper(), cursor=cursor
+        )
+        assert not isinstance(found, UnknownGitHubResponse)
+        return [item.id for item in found]
+
+    assert past(cursor=IssueCommentCursor(written_at=POSTED_AT, id=2)) == [3, 4]
+    assert past(cursor=None) == [1, 3, 4]

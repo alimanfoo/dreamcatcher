@@ -45,27 +45,6 @@ class IssueCommentCursor(DreamcatcherDocument):
     id: int
 
 
-def list_issue_comments_past_cursor(
-    *,
-    comments: list[IssueComment],
-    account: str,
-    cursor: IssueCommentCursor | None,
-) -> list[IssueComment]:
-    """Return eligible comments past the cursor, oldest first."""
-    after = (cursor.written_at, cursor.id) if cursor is not None else ("", 0)
-    return sorted(
-        (
-            comment
-            for comment in comments
-            if comment.is_written_by(account=account)
-            and comment.is_speaking
-            and AGENT_POST_MARKER not in comment.body
-            and (comment.written_at, comment.id) > after
-        ),
-        key=lambda comment: (comment.written_at, comment.id),
-    )
-
-
 def prepare_conversation_round(
     *,
     state: StateDirectory,

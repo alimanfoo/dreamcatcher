@@ -39,7 +39,6 @@ from dreamcatcher.issue_conversations import (
     ConversationRoundInput,
     InitialConversationIssue,
     IssueCommentCursor,
-    list_issue_comments_past_cursor,
     post_conversation_answer,
     prepare_conversation_round,
     read_conversation_input,
@@ -154,30 +153,6 @@ def test_a_new_conversation_records_the_preferred_harness_recipe(cloned):
     assert created.record.instructions == "$dream:conversation GH8"
     assert created.record.model == "gpt-5.6-sol"
     assert created.record.effort == "high"
-
-
-def test_only_new_unmarked_comments_from_the_account_are_relayed():
-    cursor = IssueCommentCursor(written_at="2026-09-23T01:00:00Z", id=2)
-    comments = [
-        comment(identifier=4, body="later in the list"),
-        comment(identifier=1, body="before the cursor"),
-        comment(identifier=3, body="first after the cursor"),
-        comment(identifier=5, body="somebody else", author="mallory"),
-        comment(identifier=6, body=f"agent answer\n{AGENT_POST_MARKER}"),
-        comment(identifier=7, body="  "),
-    ]
-
-    relayed = list_issue_comments_past_cursor(
-        comments=comments, account="ALIMANFOO", cursor=cursor
-    )
-
-    assert [item.id for item in relayed] == [3, 4]
-    assert [
-        item.id
-        for item in list_issue_comments_past_cursor(
-            comments=comments, account="alimanfoo", cursor=None
-        )
-    ] == [1, 3, 4]
 
 
 @pytest.mark.parametrize(

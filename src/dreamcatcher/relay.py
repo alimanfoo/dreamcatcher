@@ -1,9 +1,10 @@
-"""Select what is past an agent assignment's cursor in its pull request.
+"""Select what is past a piece of agent work's cursor in its channel.
 
-The relay returns user posts and pull request signals without writing state.
+The relay returns the user posts and pull request signals past an assignment's
+cursor, and the issue comments past a conversation's, without writing state.
 The inputs of the rounds that took their turn record what each relayed. Posts
-written through the shared GitHub account are user input only when they do not
-carry the agent marker.
+and comments written through the shared GitHub account are user input only when
+they do not carry the agent marker.
 """
 
 from dataclasses import dataclass
@@ -15,13 +16,16 @@ from dreamcatcher.agent_assignments import (
 from dreamcatcher.agent_work import AgentWork
 from dreamcatcher.github import (
     CheckResult,
+    IssueComment,
     PullRequest,
     PullRequestSignal,
     PullRequestState,
     UnknownGitHubResponse,
     UserPost,
+    list_issue_comments,
     list_user_posts,
 )
+from dreamcatcher.issue_conversations import IssueCommentCursor
 from dreamcatcher.prompts import AGENT_POST_MARKER
 
 
@@ -80,7 +84,8 @@ def list_user_posts_past_cursor(
     The account is the one gh is signed in as, which is the user's own.
 
     An empty cursor is the beginning of time, so the first read considers the pull
-    request's whole history.
+    request's whole history. GitHub sends each time as an ISO-8601 string ending
+    in a Z, so the cursor compares against it as text.
 
     Reading the posts can fail, and the failure travels, so a caller can say
     in one line why it relayed nothing.
@@ -92,25 +97,47 @@ def list_user_posts_past_cursor(
         (
             post
             for post in user_posts
-            if _is_user_post_past_cursor(post=post, account=account, cursor=cursor)
+            if post.written_at > cursor and _is_eligible(post=post, account=account)
         ),
         key=lambda post: post.written_at,
     )
 
 
-def _is_user_post_past_cursor(*, post: UserPost, account: str, cursor: str) -> bool:
-    """Return whether the post is past the cursor and the user's to relay.
+def list_issue_comments_past_cursor(
+    *, repository: str, issue: int, account: str, cursor: IssueCommentCursor | None
+) -> list[IssueComment] | UnknownGitHubResponse:
+    """Return the eligible issue comments past the cursor, oldest first.
 
-    The post has to be newer than the cursor, or the assignment has
-    already received it. GitHub sends each time as an ISO-8601 string ending in a
-    Z, and one such string compares against another as text.
+    No cursor is the beginning of time, so the first read considers every
+    comment on the issue. Comments written in the same second are told apart by
+    their ids, which GitHub gives in the order they were written.
+
+    Reading the comments can fail, and the failure travels, so a caller can say
+    in one line why it relayed nothing.
+    """
+    comments = list_issue_comments(repository=repository, issue=issue)
+    if isinstance(comments, UnknownGitHubResponse):
+        return comments
+    after = (cursor.written_at, cursor.id) if cursor is not None else ("", 0)
+    return sorted(
+        (
+            comment
+            for comment in comments
+            if (comment.written_at, comment.id) > after
+            and _is_eligible(post=comment, account=account)
+        ),
+        key=lambda comment: (comment.written_at, comment.id),
+    )
+
+
+def _is_eligible(*, post: UserPost, account: str) -> bool:
+    """Return whether the post is the user's to relay.
 
     The author must be the signed-in user, the body must not carry the agent
     marker, and the post must say something.
     """
     return (
-        post.written_at > cursor
-        and post.is_written_by(account=account)
+        post.is_written_by(account=account)
         and AGENT_POST_MARKER not in post.body
         and post.is_speaking
     )

@@ -10,16 +10,15 @@ from dreamcatcher.github import (
     IssueComment,
     IssueState,
     UnknownGitHubResponse,
-    list_issue_comments,
     read_issue,
 )
 from dreamcatcher.issue_conversations import (
-    list_issue_comments_past_cursor,
     post_conversation_answer,
     prepare_conversation_round,
     read_issue_comment_cursor,
 )
 from dreamcatcher.prompts import compose_conversation_input_prompt
+from dreamcatcher.relay import list_issue_comments_past_cursor
 from dreamcatcher.scheduler.inspection import (
     Candidate,
     Inspection,
@@ -157,9 +156,6 @@ def _list_comments_to_answer(
 
     A read that fails answers why.
     """
-    comment_response = list_issue_comments(repository=context.repository, issue=issue)
-    if isinstance(comment_response, UnknownGitHubResponse):
-        return ReadFailureFinding(reason=comment_response.reason)
     try:
         cursor = (
             None
@@ -168,11 +164,15 @@ def _list_comments_to_answer(
         )
     except ReportableError as failure:
         return ReadFailureFinding(reason=str(failure))
-    return list_issue_comments_past_cursor(
-        comments=comment_response,
+    comments = list_issue_comments_past_cursor(
+        repository=context.repository,
+        issue=issue,
         account=context.account,
         cursor=cursor,
     )
+    if isinstance(comments, UnknownGitHubResponse):
+        return ReadFailureFinding(reason=comments.reason)
+    return comments
 
 
 def _compose_comment_round(
