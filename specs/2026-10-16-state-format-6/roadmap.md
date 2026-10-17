@@ -192,14 +192,13 @@ Delivers the two new reasons an assignment takes a turn.
   relayed, and the cursor reads back the head at which each was last relayed.
 - The tick raises out-of-date for a ready pull request whose merge state is
   `BEHIND` or `DIRTY` at a head not yet relayed, and check-failure for a ready
-  pull request with a completed check whose conclusion is not success, neutral
-  or skipped at a head not yet relayed. It declines a check failure when the
-  last two rounds both relayed one.
+  pull request with a finished check that failed at a head not yet relayed. It
+  declines a check failure when the last two rounds whose input is behind the
+  cursor both relayed one.
 - The prompt gains one prefix line for each signal.
 - The views show the merge state and check result beside draft or ready, with
   "checks running" and "checks failing after two attempts" as idle details.
-- The assignment harness permissions for Claude and Codex gain the commands that
-  read check output.
+- The assignment harness permissions gain the commands that read check output.
 - `docs/contract.md` documents the two input keys and the two lines, and the
   ontology defines the signal and the relay rule.
 - The batch's issues are amended or closed as the design's open list says.

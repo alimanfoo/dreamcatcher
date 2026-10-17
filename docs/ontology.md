@@ -198,10 +198,10 @@ relayed at most once for each head commit of the pull request, so it is raised
 again only once the head moves.
 
 The **relay rule** gives an agent two attempts at a red build on its own. A
-check-failure is not relayed when the last two rounds that took their turn both
-relayed one, so the work stays idle until another signal, such as a user post,
-wakes it. A round that relayed no check-failure breaks the run, and a round that
-did not finish its turn does not count.
+check-failure is not relayed when the last two rounds whose input is behind the
+cursor both relayed one, so the work stays idle until another signal, such as a
+user post, wakes it. A round that relayed no check-failure breaks the run, and a
+round that did not finish its turn does not count.
 
 ### Status report
 

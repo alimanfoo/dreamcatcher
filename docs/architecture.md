@@ -632,9 +632,9 @@ The following are derived rather than persisted as authoritative state:
 - every agent work status and request status shown in a status report.
 
 Mutable external facts, including issue state, assignees, labels, dependencies,
-linked pull requests, pull-request draft/readiness/terminal state, and user
-posts, are read from GitHub. A failed read produces an unknown fact and
-conservative inaction rather than a guessed answer.
+linked pull requests, pull-request draft/readiness/terminal state, merge state,
+head commit and checks, and user posts, are read from GitHub. A failed read
+produces an unknown fact and conservative inaction rather than a guessed answer.
 
 ## Dependency direction
 

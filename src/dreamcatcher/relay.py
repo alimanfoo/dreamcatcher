@@ -29,7 +29,7 @@ from dreamcatcher.prompts import AGENT_POST_MARKER
 class PullRequestSignals:
     """Hold the signals past an assignment's cursor, and whether one was held back."""
 
-    new: list[PullRequestSignal]
+    new_signals: list[PullRequestSignal]
     is_check_failure_withheld: bool
 
 
@@ -43,7 +43,7 @@ def find_pull_request_signals(
     rule declines is withheld rather than new.
     """
     if pull_request.state is not PullRequestState.OPEN or pull_request.is_draft:
-        return PullRequestSignals(new=[], is_check_failure_withheld=False)
+        return PullRequestSignals(new_signals=[], is_check_failure_withheld=False)
     raised = [
         signal
         for signal, is_raised in (
@@ -64,7 +64,7 @@ def find_pull_request_signals(
     if is_check_failure_withheld:
         raised.remove(PullRequestSignal.CHECK_FAILURE)
     return PullRequestSignals(
-        new=raised, is_check_failure_withheld=is_check_failure_withheld
+        new_signals=raised, is_check_failure_withheld=is_check_failure_withheld
     )
 
 

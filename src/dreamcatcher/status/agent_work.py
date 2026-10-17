@@ -362,10 +362,10 @@ class AgentWorkStatusReader:
                 row=row,
                 detail=f"round {latest.number} ended, awaiting next update",
             )
-        signal = None if row is None else _describe_signal(finding=row.finding)
-        if signal is None:
+        news = None if row is None else _describe_what_is_new(finding=row.finding)
+        if news is None:
             return None
-        return _compose_waiting(work=work, row=row, detail=signal)
+        return _compose_waiting(work=work, row=row, detail=news)
 
     def _derive_idle(
         self, *, work: AgentWork, row: RequestRow | None
@@ -442,7 +442,7 @@ def _compose_waiting(
     )
 
 
-def _describe_signal(*, finding: RequestFinding | None) -> str | None:
+def _describe_what_is_new(*, finding: RequestFinding | None) -> str | None:
     """Describe what the latest tick found new in the work's channel, if anything."""
     if isinstance(finding, IssueCommentsFinding) and finding.new_comments:
         return describe_comments_to_answer(count=finding.new_comments)

@@ -795,3 +795,54 @@ def test_a_round_woken_by_a_signal_is_told_of_it_before_its_input(state, gh):
 
     assert plan.input_prompt is not None
     assert plan.input_prompt.startswith("Checks failed on your pull request's")
+
+
+def test_each_signal_is_relayed_against_its_own_last_head(state, gh):
+    ran(state=state, number=1)
+    ran(
+        state=state,
+        number=2,
+        round_input=relayed(signals=[PullRequestSignal.CHECK_FAILURE], head=PUSHED),
+    )
+    ran(
+        state=state,
+        number=3,
+        round_input=relayed(signals=[PullRequestSignal.OUT_OF_DATE], head=PUSHED_AGAIN),
+    )
+    gh.replies(
+        stdout=pull_request(
+            state="OPEN", merge_state="BEHIND", checks=RED, head=PUSHED_AGAIN
+        ),
+        to="pr view",
+    )
+
+    resume = found(state=state)
+
+    assert isinstance(resume, AssignmentRoundInput)
+    assert resume.signals == [PullRequestSignal.CHECK_FAILURE]
+
+
+def test_a_withheld_check_failure_leaves_an_out_of_date_signal_to_relay(state, gh):
+    ran(state=state, number=1)
+    ran(
+        state=state,
+        number=2,
+        round_input=relayed(signals=[PullRequestSignal.CHECK_FAILURE]),
+    )
+    ran(
+        state=state,
+        number=3,
+        round_input=relayed(signals=[PullRequestSignal.CHECK_FAILURE], head=PUSHED),
+    )
+    gh.replies(
+        stdout=pull_request(
+            state="OPEN", merge_state="DIRTY", checks=RED, head=PUSHED_AGAIN
+        ),
+        to="pr view",
+    )
+
+    resume = found(state=state)
+
+    assert isinstance(resume, AssignmentRoundInput)
+    assert resume.signals == [PullRequestSignal.OUT_OF_DATE]
+    assert pull_request_finding(state=state).is_check_failure_withheld

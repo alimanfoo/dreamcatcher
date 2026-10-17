@@ -547,10 +547,20 @@ def test_an_open_assignment_reports_where_the_tick_found_its_pull_request(
 @pytest.mark.parametrize(
     ("facts", "detail"),
     [
-        ({"merge_state": PullRequestMergeState.BEHIND}, "out of date"),
         (
-            {"check_result": CheckResult.FAILING, "is_check_failure_withheld": True},
+            {
+                "merge_state": PullRequestMergeState.BEHIND,
+                "check_result": CheckResult.FAILING,
+                "is_check_failure_withheld": True,
+            },
             "checks failing after two attempts",
+        ),
+        (
+            {
+                "merge_state": PullRequestMergeState.BEHIND,
+                "check_result": CheckResult.FAILING,
+            },
+            "out of date",
         ),
         ({"check_result": CheckResult.FAILING}, "checks failing"),
         ({"check_result": CheckResult.RUNNING}, "checks running"),

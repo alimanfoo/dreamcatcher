@@ -103,7 +103,7 @@ def _inspect_pull_request(
         merge_state=read.merge_state,
         check_result=read.check_result,
         new_posts=len(posts),
-        new_signals=signals.new,
+        new_signals=signals.new_signals,
         is_check_failure_withheld=signals.is_check_failure_withheld,
         is_final_turn_due=(
             read.state is not PullRequestState.OPEN
@@ -127,7 +127,7 @@ def _inspect_pull_request(
                 context=context,
                 pull_request=read,
                 posts=posts,
-                signals=signals.new,
+                signals=signals.new_signals,
             ),
         ),
     )

@@ -67,8 +67,9 @@ def describe_pull_request(*, finding: PullRequestFinding) -> str:
 def describe_idle_pull_request(*, finding: PullRequestFinding) -> str:
     """Say where a pull request that raised nothing new has got to.
 
-    A ready pull request names the first that holds of out of date, failing
-    checks and running checks, and is ready for review otherwise.
+    A ready pull request names the first that holds of a check failure that the
+    relay rule withheld, out of date, failing checks and running checks, and is
+    ready for review otherwise.
     """
     if finding.state is not PullRequestState.OPEN:
         return finding.state.lower()
@@ -77,8 +78,8 @@ def describe_idle_pull_request(*, finding: PullRequestFinding) -> str:
     return next(
         words
         for holds, words in (
-            (finding.merge_state.is_out_of_date, "out of date"),
             (finding.is_check_failure_withheld, "checks failing after two attempts"),
+            (finding.merge_state.is_out_of_date, "out of date"),
             (finding.check_result is CheckResult.FAILING, "checks failing"),
             (finding.check_result is CheckResult.RUNNING, "checks running"),
             (True, "ready for review"),
