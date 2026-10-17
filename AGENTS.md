@@ -272,6 +272,11 @@ $env:PYTHONWARNDEFAULTENCODING = "1"; uv run pytest --regenerate-view-goldens
 
 - Keep changes lean. Add nothing a requirement or the design doesn't call for;
   prefer deleting over adding. One way to do each thing, always.
+- A bug is wrong behaviour when everything else has worked, and ordinary actions
+  reproduce it: labelling, commenting, cancelling, editing a file, stopping the
+  daemon. Steps that need something to fail at the right moment, such as a
+  write, describe a hypothesis, not a bug. File one of those only if state would
+  be lost or corrupted.
 - Give every issue you file its type label, `bug`, `enhancement` or
   `maintenance`, and no other label. Leave it unassigned. Which skill picks an
   issue up, and who works on it, are the user's to say, and a label or an
