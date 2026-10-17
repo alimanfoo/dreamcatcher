@@ -161,7 +161,7 @@ def compose_assignment_view(
         effort=record.effort,
         live=live,
         feed_rounds=feed.rounds,
-        feed_cursor=feed.cursor,
+        feed_cursor=feed.feed_cursor,
     )
 
 
@@ -187,7 +187,7 @@ def compose_conversation_view(
         facts=_compose_conversation_facts(conversation=conversation),
         live=live,
         feed_rounds=feed.rounds,
-        feed_cursor=feed.cursor,
+        feed_cursor=feed.feed_cursor,
     )
 
 

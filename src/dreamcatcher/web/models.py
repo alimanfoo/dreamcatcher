@@ -78,10 +78,10 @@ class WebFeedRound:
 
 @dataclass(frozen=True, kw_only=True)
 class WebAgentFeed:
-    """Represent a complete agent feed and the cursor after its last line."""
+    """Represent a complete agent feed and the feed cursor after its last line."""
 
     rounds: tuple[WebFeedRound, ...]
-    cursor: str
+    feed_cursor: str
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -116,7 +116,7 @@ class WebAgentLiveState:
 class WebAgentTail:
     """Represent one incremental agent-feed response."""
 
-    cursor: str
+    feed_cursor: str
     feed_rounds: tuple[WebFeedRound, ...]
     live: WebAgentLiveState
     has_empty_feed_placeholder: bool

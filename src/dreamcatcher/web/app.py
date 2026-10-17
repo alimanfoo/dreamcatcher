@@ -216,7 +216,7 @@ def _show_work_tail(
     zone: tzinfo | None,
     identifier: str,
 ) -> str | tuple[str, int]:
-    """Render the work's feed output written after the requested cursor."""
+    """Render the work's feed output written after the requested feed cursor."""
     work = find_agent_work(state=state, identifier=identifier)
     if work is None:
         return _missing_work_response(identifier=identifier)
@@ -329,11 +329,11 @@ def _show_agent_tail(
 ) -> str | tuple[str, int]:
     """Render incremental feed output for a piece of agent work."""
     try:
-        cursor = decode_feed_cursor(value=request.args.get("cursor", ""))
+        feed_cursor = decode_feed_cursor(value=request.args.get("cursor", ""))
         tail = read_agent_tail(
             owner=owner,
             live=live,
-            cursor=cursor,
+            feed_cursor=feed_cursor,
             zone=zone,
         )
     except InvalidFeedCursorError:
