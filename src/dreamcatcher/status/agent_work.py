@@ -1,11 +1,10 @@
 """Derive the status of agent work of either kind."""
 
-from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
 from functools import cached_property
-from typing import cast
+from typing import Protocol, cast
 
 from dreamcatcher.agent_assignments import (
     read_pull_request_observation,
@@ -184,7 +183,13 @@ class AgentWorkStatus:
         )
 
 
-type _StatusStep = Callable[[AgentWork, RequestRow | None], AgentWorkStatus | None]
+class _StatusStep(Protocol):
+    """Derive one status from work and its row, or nothing when it does not apply."""
+
+    def __call__(
+        self, *, work: AgentWork, row: RequestRow | None
+    ) -> AgentWorkStatus | None:
+        """Return the status this step derives, if it applies."""
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -225,13 +230,13 @@ class AgentWorkStatusReader:
         )
         row = self.rows_by_work.get(work.identifier)
         for step in steps:
-            status = step(work, row)
+            status = step(work=work, row=row)
             if status is not None:
                 return status
-        return self._derive_idle(work, row)
+        return self._derive_idle(work=work, row=row)
 
     def _derive_working(
-        self, work: AgentWork, row: RequestRow | None, /
+        self, *, work: AgentWork, row: RequestRow | None
     ) -> AgentWorkStatus | None:
         if not work.rounds or not self._is_round_working(record=work.rounds[-1]):
             return None
@@ -251,7 +256,7 @@ class AgentWorkStatusReader:
         )
 
     def _derive_ended(
-        self, work: AgentWork, row: RequestRow | None, /
+        self, *, work: AgentWork, row: RequestRow | None
     ) -> AgentWorkStatus | None:
         if work.ending is None:
             return None
@@ -264,7 +269,7 @@ class AgentWorkStatusReader:
         )
 
     def _derive_fault(
-        self, work: AgentWork, row: RequestRow | None, /
+        self, *, work: AgentWork, row: RequestRow | None
     ) -> AgentWorkStatus | None:
         if not derive_agent_work_fault(
             rounds=work.rounds,
@@ -289,7 +294,7 @@ class AgentWorkStatusReader:
         )
 
     def _derive_unknown(
-        self, work: AgentWork, row: RequestRow | None, /
+        self, *, work: AgentWork, row: RequestRow | None
     ) -> AgentWorkStatus | None:
         if row is None or not isinstance(row.finding, ReadFailureFinding):
             return None
@@ -298,7 +303,7 @@ class AgentWorkStatusReader:
         )
 
     def _derive_paused(
-        self, work: AgentWork, row: RequestRow | None, /
+        self, *, work: AgentWork, row: RequestRow | None
     ) -> AgentWorkStatus | None:
         """Derive the idle status of a paused conversation, which waits for nothing."""
         finding = None if row is None else row.finding
@@ -313,7 +318,7 @@ class AgentWorkStatusReader:
         )
 
     def _derive_waiting(
-        self, work: AgentWork, row: RequestRow | None, /
+        self, *, work: AgentWork, row: RequestRow | None
     ) -> AgentWorkStatus | None:
         """Derive the status of work that a round is due for, if it is due.
 
@@ -351,7 +356,7 @@ class AgentWorkStatusReader:
         return _compose_waiting(work=work, row=row, detail=signal)
 
     def _derive_idle(
-        self, work: AgentWork, row: RequestRow | None, /
+        self, *, work: AgentWork, row: RequestRow | None
     ) -> AgentWorkStatus:
         finding = None if row is None else row.finding
         if isinstance(finding, PullRequestFinding):

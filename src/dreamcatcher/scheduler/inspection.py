@@ -9,6 +9,7 @@ from dreamcatcher.agent_rounds import AgentRoundFinisher
 from dreamcatcher.agent_work import AgentWork
 from dreamcatcher.config import DispatchRoute, DreamcatcherConfig
 from dreamcatcher.documents import DreamcatcherDocument
+from dreamcatcher.github import Issue
 from dreamcatcher.scheduler.models import RequestFinding, RequestRow
 from dreamcatcher.state import StateDirectory
 
@@ -63,12 +64,26 @@ class Candidate:
 class Inspection:
     """Hold the row the tick writes for one request, and what it may start for it.
 
-    A fault counts towards a global cooldown.
+    The work is in fault when its fault counts towards a global cooldown.
     """
 
     row: RequestRow
     candidate: Candidate | None = None
     is_fault: bool = False
+
+
+class RequestInspector[RouteT: DispatchRoute](Protocol):
+    """Inspect one label of a kind on a listed issue that no open work answers."""
+
+    def __call__(
+        self,
+        *,
+        context: SchedulingContext,
+        issue: Issue,
+        route: RouteT,
+        row: RequestRow,
+    ) -> Inspection:
+        """Return what the request's row holds, given the row before any read."""
 
 
 def compose_agent_work_row(

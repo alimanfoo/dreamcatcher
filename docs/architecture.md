@@ -153,13 +153,14 @@ missing, and freezes the trusted comment batch and that revision. A
 conversation's worktree never acquires an implementation branch or a pull
 request.
 
-Each tick reads an open conversation's issue before its comments, so open
-conversations do not depend on the listing. A closed issue ends the conversation
-with the reason "issue closed". A conversation whose label is off its issue,
-whose issue is not assigned to the signed-in account, or whose issue carries
-another configured conversation label is paused: the tick reads no comments for
-it and starts no round. A conversation belongs to the label that started it, so
-another label on the same issue is a request of its own.
+Each tick reads an open conversation's issue before its comments, unless its
+round is running, so open conversations do not depend on the listing. A closed
+issue ends the conversation with the reason "issue closed". A conversation whose
+label is off its issue, whose issue is not assigned to the signed-in account, or
+whose issue carries another configured conversation label is paused: the tick
+reads no comments for it and starts no round. A conversation belongs to the
+label that started it, so another label on the same issue is a request of its
+own.
 
 The signed-in GitHub account identifies trusted issue comments. Marked
 _dreamcatcher_ comments, comments by other accounts and blank comments are

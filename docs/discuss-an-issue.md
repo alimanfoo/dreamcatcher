@@ -52,10 +52,11 @@ update a pull request. To request implementation, prepare an assignment instead.
 ## Pause, resume or end a conversation
 
 Each conversation belongs to the label that started it. _dreamcatcher_ checks
-its issue at every update. Removing that label, adding a second configured
-conversation label, or removing the authenticated account as assignee pauses the
-conversation: no new round starts, including one that would retry an errored
-round. A round already running may finish and publish its answer.
+its issue at every update while no round of it is running. Removing that label,
+adding a second configured conversation label, or removing the authenticated
+account as assignee pauses the conversation: no new round starts, including one
+that would retry an errored round. A round already running may finish and
+publish its answer.
 
 Undo the change to resume the conversation. It continues in the same harness
 session, and comments posted while it was paused are delivered to it. It keeps

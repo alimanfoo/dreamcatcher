@@ -18,7 +18,7 @@ from dreamcatcher.agent_work import (
     record_harness_session_identifier,
     request_round_stop_if_ended,
 )
-from dreamcatcher.config import AgentHarness
+from dreamcatcher.config import AgentHarness, DispatchRoute
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.github import Issue, UnknownGitHubResponse, list_issues
 from dreamcatcher.harness_adapters import AgentRoundLaunchRequest, AgentWorkKind
@@ -39,11 +39,13 @@ from dreamcatcher.scheduler.faults import (
 from dreamcatcher.scheduler.inspection import (
     Candidate,
     Inspection,
+    RequestInspector,
     SchedulingContext,
     compose_agent_work_row,
 )
 from dreamcatcher.scheduler.models import (
     DEFAULT_MAX_AGENTS,
+    ConflictingLabelsFinding,
     RequestRow,
     SchedulerRecord,
     StartedRound,
@@ -86,8 +88,8 @@ class Scheduler:
         dispatch labels on the listed issues. Open work is inspected first, in
         identifier order, then the requests with no open work, in listing
         order, and that is the order in which candidates start. A failed
-        listing starts no work for the issues it would have listed, and leaves
-        open work inspected.
+        listing starts no work for an issue that no other listing returns, and
+        leaves open work inspected.
 
         A global cooldown prevents every launch but does not prevent reads, so
         the rows remain current while the cooldown is active.
@@ -212,28 +214,52 @@ class Scheduler:
         config = self.context.config
         for issue in issues:
             labels = [label.name for label in issue.labels]
-            assignment_routes = config.identify_assignment_routes(labels=labels)
-            conversation_routes = config.identify_conversation_routes(labels=labels)
-            yield from (
-                inspect_assignment_request(
-                    context=self.context,
+            if issue.number not in assigned_issues:
+                yield from self._inspect_requests_of_kind(
                     issue=issue,
-                    route=route,
-                    routes=assignment_routes,
+                    routes=config.identify_assignment_routes(labels=labels),
+                    answered=answered,
+                    inspect_request=inspect_assignment_request,
                 )
-                for route in assignment_routes
-                if issue.number not in assigned_issues
+            yield from self._inspect_requests_of_kind(
+                issue=issue,
+                routes=config.identify_conversation_routes(labels=labels),
+                answered=answered,
+                inspect_request=inspect_conversation_request,
             )
-            yield from (
-                inspect_conversation_request(
-                    context=self.context,
-                    issue=issue,
-                    route=route,
-                    routes=conversation_routes,
+
+    def _inspect_requests_of_kind[RouteT: DispatchRoute](
+        self,
+        *,
+        issue: Issue,
+        routes: list[RouteT],
+        answered: set[tuple[int, str]],
+        inspect_request: RequestInspector[RouteT],
+    ) -> Iterator[Inspection]:
+        """Inspect each label of one kind on the issue that no open work answers.
+
+        The routes are every route of the kind that the issue's labels select.
+        Two labels of one kind start nothing, so each is a request with
+        conflicting labels and nothing is read for it.
+        """
+        for route in routes:
+            if (issue.number, route.label.casefold()) in answered:
+                continue
+            row = RequestRow(
+                issue=issue.number,
+                title=issue.title,
+                dispatch_label=route.label,
+                kind=route.kind,
+            )
+            if len(routes) > 1:
+                finding = ConflictingLabelsFinding(
+                    labels=[conflicting.label for conflicting in routes]
                 )
-                for route in conversation_routes
-                if (issue.number, route.label.casefold()) not in answered
-            )
+                yield Inspection(row=row.model_copy(update={"finding": finding}))
+            else:
+                yield inspect_request(
+                    context=self.context, issue=issue, route=route, row=row
+                )
 
     def _launch_candidates(
         self, *, record: SchedulerRecord, candidates: list[Candidate]

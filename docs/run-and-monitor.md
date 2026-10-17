@@ -97,8 +97,9 @@ Assignments and conversations share these states:
 - **fault**: repeated errors need attention;
 - **unknown**: _dreamcatcher_ could not read what it needed; the accompanying
   detail says what failed; and
-- **ended**: the work is over, and the detail says whether it completed after a
-  successful wrap-up or you cancelled it.
+- **ended**: the work is over, and the detail says why: an assignment completed
+  after a successful wrap-up or you cancelled it, or a conversation's issue was
+  closed.
 
 The [command reference](command-reference.md) gives the complete syntax and
 explains when each view ends. For interruption and failures, continue with

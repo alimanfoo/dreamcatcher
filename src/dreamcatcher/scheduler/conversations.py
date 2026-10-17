@@ -13,7 +13,6 @@ from dreamcatcher.github import (
     list_issue_comments,
     read_issue,
 )
-from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.issue_conversations import (
     list_undelivered_issue_comments,
     post_conversation_answer,
@@ -29,7 +28,6 @@ from dreamcatcher.scheduler.inspection import (
     compose_agent_work_row,
 )
 from dreamcatcher.scheduler.models import (
-    ConflictingLabelsFinding,
     IssueCommentsFinding,
     PauseCause,
     PausedFinding,
@@ -99,25 +97,12 @@ def inspect_conversation_request(
     context: SchedulingContext,
     issue: Issue,
     route: ConversationRoute,
-    routes: list[ConversationRoute],
+    row: RequestRow,
 ) -> Inspection:
-    """Inspect one conversation label on a listed issue with no open conversation.
+    """Read the comments at a conversation request with no open conversation.
 
-    The routes are every conversation route the issue's labels select. Two
-    conversation labels start nothing, so the comments are read only at an
-    issue with one, and a new conversation starts when one of them waits.
+    A new conversation starts when one of them waits.
     """
-    row = RequestRow(
-        issue=issue.number,
-        title=issue.title,
-        dispatch_label=route.label,
-        kind=AgentWorkKind.CONVERSATION,
-    )
-    if len(routes) > 1:
-        finding = ConflictingLabelsFinding(
-            labels=[conflicting.label for conflicting in routes]
-        )
-        return Inspection(row=row.model_copy(update={"finding": finding}))
     return _inspect_comments(context=context, issue=issue, work=route, row=row)
 
 

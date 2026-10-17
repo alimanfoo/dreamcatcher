@@ -556,9 +556,10 @@ The scheduler creates agent work and starts agent rounds, the same way for both
 kinds. Each tick reads every piece of agent work from disk, lists the issues
 under each dispatch label, inspects the channel of each piece of open work, and
 decides for each request with no open work whether work may start. A
-**candidate** is open work with something new past its cursor, or whose last
-round errored or was interrupted, unless its last round is running or it is in
-fault; or a request whose work may start.
+**candidate** is open work with something new past its cursor, an assignment
+whose pull request is not open yet, or work whose last round errored or was
+interrupted, unless its last round is running or it is in fault; or a request
+whose work may start.
 
 A failed read prevents only the launches that depend on it. A failed listing for
 a dispatch label starts no work for the issues it would have listed, but open

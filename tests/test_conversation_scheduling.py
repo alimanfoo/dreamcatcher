@@ -1964,8 +1964,19 @@ def test_a_relayed_round_whose_input_cannot_be_read_launches_nothing(
     assert harnesses["claude"].calls == []
 
 
+@pytest.mark.parametrize(
+    ("issue", "cause"),
+    [
+        (conversation_issue(labels=()), PauseCause.LABEL_REMOVED),
+        (
+            conversation_issue(labels=("dream:conversation",), assignees=()),
+            PauseCause.ISSUE_UNASSIGNED,
+        ),
+    ],
+    ids=["label removed", "issue unassigned"],
+)
 def test_a_resumed_conversation_is_given_comments_posted_while_it_was_paused(
-    conversation_scheduler, harnesses
+    conversation_scheduler, harnesses, issue, cause
 ):
     scheduler, clock, gh = conversation_scheduler
     offer_conversation(gh=gh, comments=[ask()])
@@ -1975,14 +1986,14 @@ def test_a_resumed_conversation_is_given_comments_posted_while_it_was_paused(
     finish(scheduler=scheduler)
     scheduler.tick(at=clock())
     comment_reads_before = count_comment_reads(gh=gh)
-    show_conversation_issue(gh=gh, issue=conversation_issue(labels=()))
+    show_conversation_issue(gh=gh, issue=issue)
 
     paused = scheduler.tick(at=clock())
 
     assert paused.rows == [
         conversation_row(
             agent_work_identifier=compose_conversation_identifier(issue=8),
-            finding=PAUSED,
+            finding=PausedFinding(cause=cause),
         )
     ]
     assert count_comment_reads(gh=gh) == comment_reads_before
@@ -1993,6 +2004,7 @@ def test_a_resumed_conversation_is_given_comments_posted_while_it_was_paused(
     answer(harnesses=harnesses, body="The later answer.")
 
     resumed = scheduler.tick(at=clock())
+    finish(scheduler=scheduler)
 
     assert resumed.launched_agent_work_identifiers == [
         "GH8-20260819-184158-conversation"
@@ -2006,7 +2018,8 @@ def test_a_resumed_conversation_is_given_comments_posted_while_it_was_paused(
     assert [item.body for item in later_input.comments] == [
         "A question posted while paused"
     ]
-    assert conversation.harness_session_identifier == "conversation-session"
+    resumed_call = harnesses["claude"].calls[1]
+    assert resumed_call.arguments[-2:] == ["--resume", "conversation-session"]
 
 
 def test_an_open_conversation_carries_on_when_its_route_is_removed(

@@ -661,12 +661,11 @@ def test_a_round_that_replaces_a_finishing_runner_is_reported(resuming, gh):
     finish_rounds(scheduler=scheduler)
 
 
-def test_an_assignment_with_an_open_pull_request_and_nothing_new_is_not_waiting(
+def test_an_assignment_with_nothing_new_reads_only_its_pull_request_and_posts(
     resuming, gh
 ):
     ran(root=resuming, number=1)
-    issue = json.loads(listing(issues=[(13, FILED)]))[0]
-    gh.replies(stdout=json.dumps(issue), to="issue view")
+    gh.replies(stdout=listing(issues=[(13, FILED)]), to="issue list")
     gh.replies(stdout=pull_request(state="OPEN"), to="pr view")
     scheduler, clock = create_scheduler(root=resuming)
 
@@ -691,6 +690,12 @@ def test_an_assignment_with_an_open_pull_request_and_nothing_new_is_not_waiting(
     assert read_pull_request_observation(
         assignment=assignment
     ) == PullRequestObservation(number=52)
+    calls = [" ".join(call.arguments) for call in gh.calls]
+    assert not [
+        call
+        for call in calls
+        if call.startswith("issue view") or "/dependencies/" in call
+    ]
 
 
 def test_an_assignment_that_has_run_no_round_at_all_gets_its_first(ready_repo):

@@ -23,7 +23,6 @@ from dreamcatcher.github import (
     read_issue_pull_request_context,
     read_pull_request,
 )
-from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.prompts import compose_assignment_input_prompt
 from dreamcatcher.relay import list_undelivered_user_posts
 from dreamcatcher.scheduler.faults import is_last_round_unfinished
@@ -35,7 +34,6 @@ from dreamcatcher.scheduler.inspection import (
     compose_agent_work_row,
 )
 from dreamcatcher.scheduler.models import (
-    ConflictingLabelsFinding,
     PullRequestFinding,
     ReadFailureFinding,
     RequestRow,
@@ -134,26 +132,12 @@ def inspect_assignment_request(
     context: SchedulingContext,
     issue: Issue,
     route: AssignmentRoute,
-    routes: list[AssignmentRoute],
+    row: RequestRow,
 ) -> Inspection:
-    """Inspect one assignment label on a listed issue with no open assignment.
+    """Ask the start-time questions of an assignment request with no open work.
 
-    The routes are every assignment route the issue's labels select. Two
-    assignment labels start nothing, so the start-time questions are asked only
-    of an issue with one, and a new assignment starts when both answers are
-    empty.
+    A new assignment starts when both answers are empty.
     """
-    row = RequestRow(
-        issue=issue.number,
-        title=issue.title,
-        dispatch_label=route.label,
-        kind=AgentWorkKind.ASSIGNMENT,
-    )
-    if len(routes) > 1:
-        finding = ConflictingLabelsFinding(
-            labels=[conflicting.label for conflicting in routes]
-        )
-        return Inspection(row=row.model_copy(update={"finding": finding}))
     answers = _ask_start_time_questions(context=context, issue=issue.number)
     row = row.model_copy(update={"finding": answers})
     if not (isinstance(answers, StartTimeFinding) and answers.is_clear):
