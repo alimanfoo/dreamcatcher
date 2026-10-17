@@ -324,7 +324,7 @@ def _set_up_repository(*, arguments: argparse.Namespace) -> None:
 def _run_daemon(*, arguments: argparse.Namespace) -> None:
     daemon = DreamcatcherDaemon(
         root=Path.cwd(),
-        harness=AgentHarness(arguments.harness),
+        preferred_harness=AgentHarness(arguments.harness),
         interval=arguments.interval,
         max_agents=arguments.max_agents,
     )

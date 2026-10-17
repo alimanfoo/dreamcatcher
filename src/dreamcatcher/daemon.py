@@ -68,7 +68,7 @@ class DreamcatcherDaemon:
         self,
         *,
         root: Path,
-        harness: AgentHarness,
+        preferred_harness: AgentHarness,
         interval: int = DEFAULT_INTERVAL_SECONDS,
         max_agents: int = DEFAULT_MAX_AGENTS,
         zone: tzinfo | None = None,
@@ -78,7 +78,7 @@ class DreamcatcherDaemon:
         Report times use the machine's local zone when zone is None.
         """
         require_main_checkout(root=root)
-        self.harness = harness
+        self.preferred_harness = preferred_harness
         self.interval = interval
         self.max_agents = max_agents
         self.zone = zone
@@ -114,14 +114,14 @@ class DreamcatcherDaemon:
         # A label carrying one dispatch recipe runs on that harness whatever the
         # preference, so every harness a route can settle a label on must be there.
         require_harnesses_on_path(
-            harnesses={self.harness, *self.config.routed_harnesses}
+            harnesses={self.preferred_harness, *self.config.routed_harnesses}
         )
         with hold_daemon_lock(path=self.state.lock) as daemon_lock:
             self.state.bootstrap()
             write_json(
                 document=DaemonRunRecord(
                     pid=os.getpid(),
-                    preferred_harness=self.harness,
+                    preferred_harness=self.preferred_harness,
                     version=DREAMCATCHER_VERSION,
                     max_agents=self.max_agents,
                     interval_seconds=self.interval,
@@ -142,7 +142,7 @@ class DreamcatcherDaemon:
                     state=self.state,
                     clock=self.clock,
                 ),
-                preferred_harness=self.harness,
+                preferred_harness=self.preferred_harness,
                 rounds=self.rounds,
                 max_agents=self.max_agents,
             )

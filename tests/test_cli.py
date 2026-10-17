@@ -701,7 +701,7 @@ def test_run_starts_a_daemon_on_the_current_directory(monkeypatch, watched, star
 
     assert main(argv=["run", "--harness", "claude"]) == 0
     assert started[0].state.root == watched
-    assert started[0].harness is AgentHarness.CLAUDE
+    assert started[0].preferred_harness is AgentHarness.CLAUDE
     assert started[0].interval == 120
     assert started[0].max_agents == 1
 
@@ -727,7 +727,7 @@ def test_the_harness_flag_says_what_to_run_rounds_with(monkeypatch, watched, sta
     monkeypatch.chdir(watched)
 
     assert main(argv=["run", "--harness", "codex"]) == 0
-    assert started[0].harness is AgentHarness.CODEX
+    assert started[0].preferred_harness is AgentHarness.CODEX
 
 
 def test_run_uses_the_requested_interval_and_agent_cap(monkeypatch, watched, started):

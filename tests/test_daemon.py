@@ -108,7 +108,7 @@ def idling(
     ticking = Ticking(step=300)
     daemon = DreamcatcherDaemon(
         root=root,
-        harness=AgentHarness.CLAUDE,
+        preferred_harness=AgentHarness.CLAUDE,
         interval=300,
         max_agents=max_agents,
         zone=DISPLAY_TIME_ZONE,
@@ -128,7 +128,7 @@ def create_scheduler(*, daemon: DreamcatcherDaemon) -> Scheduler:
             state=daemon.state,
             clock=daemon.clock,
         ),
-        preferred_harness=daemon.harness,
+        preferred_harness=daemon.preferred_harness,
         rounds=daemon.rounds,
     )
 
@@ -413,32 +413,34 @@ def test_a_second_daemon_refuses_while_the_first_holds_the_repo(
     assert capsys.readouterr().out == ""
 
 
-def test_the_daemon_runs_the_harness_it_was_given(watched):
+def test_the_daemon_prefers_the_harness_it_was_given(watched):
     assert (
-        DreamcatcherDaemon(root=watched, harness=AgentHarness.CODEX).harness
+        DreamcatcherDaemon(
+            root=watched, preferred_harness=AgentHarness.CODEX
+        ).preferred_harness
         is AgentHarness.CODEX
     )
 
 
 def test_a_checkout_with_no_config_names_the_file_it_needs(repo):
     with pytest.raises(ReportableError, match=DREAMCATCHER_CONFIG_NAME):
-        DreamcatcherDaemon(root=repo, harness=AgentHarness.CLAUDE)
+        DreamcatcherDaemon(root=repo, preferred_harness=AgentHarness.CLAUDE)
 
 
 def test_a_directory_that_is_not_a_repository_is_refused(tmp_path):
     with pytest.raises(ReportableError, match="main checkout"):
-        DreamcatcherDaemon(root=tmp_path, harness=AgentHarness.CLAUDE)
+        DreamcatcherDaemon(root=tmp_path, preferred_harness=AgentHarness.CLAUDE)
 
 
 def test_a_linked_worktree_is_refused(tmp_path):
     (tmp_path / ".git").write_text("gitdir: elsewhere\n", encoding="utf-8")
 
     with pytest.raises(ReportableError, match="main checkout"):
-        DreamcatcherDaemon(root=tmp_path, harness=AgentHarness.CLAUDE)
+        DreamcatcherDaemon(root=tmp_path, preferred_harness=AgentHarness.CLAUDE)
 
 
 def test_the_state_directory_sits_in_the_checkout(watched):
-    daemon = DreamcatcherDaemon(root=watched, harness=AgentHarness.CLAUDE)
+    daemon = DreamcatcherDaemon(root=watched, preferred_harness=AgentHarness.CLAUDE)
 
     assert daemon.state == StateDirectory(root=watched)
 
@@ -456,7 +458,7 @@ def test_a_run_refuses_when_a_harness_it_could_dispatch_to_is_not_installed(
 def test_a_run_refuses_when_the_harness_it_was_named_is_not_installed(repo, alone):
     (repo / DREAMCATCHER_CONFIG_NAME).write_text(SMITH_CLAUDE, encoding="utf-8")
     alone(programs=["claude"])
-    daemon = DreamcatcherDaemon(root=repo, harness=AgentHarness.CODEX)
+    daemon = DreamcatcherDaemon(root=repo, preferred_harness=AgentHarness.CODEX)
     daemon.wait = Interrupting(ticks=1)
 
     with pytest.raises(ReportableError, match="codex is not on the PATH"):
@@ -499,7 +501,9 @@ def test_a_round_left_preparing_is_interrupted_with_nothing_to_end(
     ended = Mock()
     monkeypatch.setattr("dreamcatcher.daemon.teardown.end_process_tree", ended)
 
-    DreamcatcherDaemon(root=watched, harness=AgentHarness.CLAUDE)._sweep_orphans()
+    DreamcatcherDaemon(
+        root=watched, preferred_harness=AgentHarness.CLAUDE
+    )._sweep_orphans()
 
     ended.assert_not_called()
     record = AgentRoundRecord.model_validate_json(
@@ -653,7 +657,7 @@ def test_a_run_that_cannot_be_told_which_repository_this_is_refuses(
 ):
     configure(root=cloned)
     gh.fails(stderr="gh: no such remote", to="repo view")
-    daemon = DreamcatcherDaemon(root=cloned, harness=AgentHarness.CLAUDE)
+    daemon = DreamcatcherDaemon(root=cloned, preferred_harness=AgentHarness.CLAUDE)
     daemon.wait = Interrupting(ticks=1)
 
     with pytest.raises(ReportableError, match="cannot tell which repository"):
@@ -754,7 +758,7 @@ def test_a_run_that_cannot_be_told_which_account_gh_is_signed_in_as_refuses(
 ):
     configure(root=cloned)
     gh.fails(stderr="gh: you are not logged in", to="api user")
-    daemon = DreamcatcherDaemon(root=cloned, harness=AgentHarness.CLAUDE)
+    daemon = DreamcatcherDaemon(root=cloned, preferred_harness=AgentHarness.CLAUDE)
     daemon.wait = Interrupting(ticks=1)
 
     with pytest.raises(ReportableError, match="cannot tell which account"):

@@ -1573,7 +1573,7 @@ def test_a_daemon_orphan_is_given_its_comments_again_in_its_saved_session(
     )
     daemon = DreamcatcherDaemon(
         root=scheduler.context.state.root,
-        harness=AgentHarness.CLAUDE,
+        preferred_harness=AgentHarness.CLAUDE,
     )
     daemon._sweep_orphans()
     assert gone(pid=left_running.pid)
