@@ -431,6 +431,10 @@ markup and styles.
 after the daemon's startup checks pass and stops when the daemon ends.
 `dreamcatcher web` serves the same interface by itself for manual control.
 
+Every piece of agent work, of either kind, has its page at `/work/<identifier>`,
+and its feed tail and controls below that address. A conversation the tick has
+found but not yet saved has no page.
+
 The web interface can ask a running round to stop. It writes a same-origin stop
 request through the agent-round boundary, into that round's own directory. The
 daemon still owns the live process and lifecycle transition: the round watches

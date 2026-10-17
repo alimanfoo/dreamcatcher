@@ -103,7 +103,7 @@ def render_assignment(*, state: StateDirectory, identifier: str) -> str:
     application = _create_app(
         state=state, clock=lambda: LOOKED_AT, zone=DISPLAY_TIME_ZONE
     )
-    response = application.test_client().get(f"/assignments/{identifier}")
+    response = application.test_client().get(f"/work/{identifier}")
     assert response.status_code == 200
     return response.get_data(as_text=True)
 
@@ -113,7 +113,9 @@ def render_conversation(*, state: StateDirectory, issue: int) -> str:
     application = _create_app(
         state=state, clock=lambda: LOOKED_AT, zone=DISPLAY_TIME_ZONE
     )
-    response = application.test_client().get(f"/conversations/{issue}")
+    response = application.test_client().get(
+        f"/work/GH{issue}-20260819-184158-conversation"
+    )
     assert response.status_code == 200
     return response.get_data(as_text=True)
 
@@ -123,7 +125,7 @@ def _read_tail(*, state: StateDirectory, identifier: str, cursor: str) -> TestRe
         state=state, clock=lambda: LOOKED_AT, zone=DISPLAY_TIME_ZONE
     )
     return application.test_client().get(
-        f"/assignments/{identifier}/tail",
+        f"/work/{identifier}/tail",
         query_string={"cursor": cursor},
     )
 
@@ -243,25 +245,25 @@ def test_assignment_page_requests_a_stop_for_its_running_round(tmp_path):
     )
     client = application.test_client()
 
-    page = client.get(f"/assignments/{identifier}")
+    page = client.get(f"/work/{identifier}")
 
     assert page.status_code == 200
-    assert f'action="/assignments/{identifier}/stop/2"' in page.text
+    assert f'action="/work/{identifier}/stop/2"' in page.text
 
     response = client.post(
-        f"/assignments/{identifier}/stop/2",
+        f"/work/{identifier}/stop/2",
         headers={"Origin": "http://localhost"},
     )
 
     assert response.status_code == 303
-    assert response.location == f"/assignments/{identifier}"
+    assert response.location == f"/work/{identifier}"
     assignment = find_agent_work(state=state, identifier=identifier)
     assert assignment is not None
     paths = assignment.compose_round_paths(number=2)
     assert paths.stop_request.read_text(encoding="utf-8") == ""
     assert (
-        f'action="/assignments/{identifier}/stop/2"'
-        not in client.get(f"/assignments/{identifier}").text
+        f'action="/work/{identifier}/stop/2"'
+        not in client.get(f"/work/{identifier}").text
     )
 
 
@@ -272,7 +274,7 @@ def test_an_old_assignment_stop_submission_cannot_stop_the_next_round(tmp_path):
     client = _create_app(state=state, clock=lambda: LOOKED_AT).test_client()
 
     response = client.post(
-        f"/assignments/{identifier}/stop/1",
+        f"/work/{identifier}/stop/1",
         headers={"Origin": "http://localhost"},
     )
 
@@ -290,7 +292,7 @@ def test_assignment_stop_requests_must_come_from_the_page(tmp_path, origin):
     client = _create_app(state=state, clock=lambda: LOOKED_AT).test_client()
     headers = {} if origin is None else {"Origin": origin}
 
-    response = client.post(f"/assignments/{identifier}/stop/2", headers=headers)
+    response = client.post(f"/work/{identifier}/stop/2", headers=headers)
 
     assert response.status_code == 403
     assignment = find_agent_work(state=state, identifier=identifier)
@@ -312,17 +314,14 @@ def test_assignment_stop_control_needs_a_daemon_and_harness_session(tmp_path):
 
     without_session = render_assignment(state=state, identifier=identifier)
 
-    assert f'action="/assignments/{identifier}/stop/1"' not in without_session
+    assert f'action="/work/{identifier}/stop/1"' not in without_session
 
     release_daemon_lock(path=state.lock)
     without_daemon = render_assignment(
         state=state, identifier="GH13-20260819-184158-assignment"
     )
 
-    assert (
-        'action="/assignments/GH13-20260819-184158-assignment/stop/2"'
-        not in without_daemon
-    )
+    assert 'action="/work/GH13-20260819-184158-assignment/stop/2"' not in without_daemon
 
 
 def test_assignment_tail_updates_the_stop_and_cancel_controls(tmp_path):
@@ -330,10 +329,10 @@ def test_assignment_tail_updates_the_stop_and_cancel_controls(tmp_path):
     fabricate_everything(state=state)
     identifier = "GH13-20260819-184158-assignment"
     client = _create_app(state=state, clock=lambda: LOOKED_AT).test_client()
-    page = client.get(f"/assignments/{identifier}")
+    page = client.get(f"/work/{identifier}")
 
     response = client.get(
-        f"/assignments/{identifier}/tail",
+        f"/work/{identifier}/tail",
         query_string={"cursor": _read_cursor(response=page)},
     )
 
@@ -342,8 +341,8 @@ def test_assignment_tail_updates_the_stop_and_cancel_controls(tmp_path):
         '<div id="agent-work-foot" class="agent-work-foot" '
         'hx-swap-oob="morph">' in response.text
     )
-    assert f'action="/assignments/{identifier}/stop/2"' in response.text
-    assert f'action="/assignments/{identifier}/cancel"' in response.text
+    assert f'action="/work/{identifier}/stop/2"' in response.text
+    assert f'action="/work/{identifier}/cancel"' in response.text
 
 
 def test_assignment_tail_offers_a_hand_resume_only_while_no_round_runs(tmp_path):
@@ -351,12 +350,12 @@ def test_assignment_tail_offers_a_hand_resume_only_while_no_round_runs(tmp_path)
     fabricate_everything(state=state)
     identifier = "GH13-20260819-184158-assignment"
     client = _create_app(state=state, clock=lambda: LOOKED_AT).test_client()
-    page = client.get(f"/assignments/{identifier}")
+    page = client.get(f"/work/{identifier}")
     query = {"cursor": _read_cursor(response=page)}
 
-    working = client.get(f"/assignments/{identifier}/tail", query_string=query)
+    working = client.get(f"/work/{identifier}/tail", query_string=query)
     release_daemon_lock(path=state.lock)
-    without_daemon = client.get(f"/assignments/{identifier}/tail", query_string=query)
+    without_daemon = client.get(f"/work/{identifier}/tail", query_string=query)
 
     assert "<summary>resume by hand</summary>" not in working.text
     assert "<summary>resume by hand</summary>" in without_daemon.text
@@ -370,7 +369,7 @@ def test_a_stale_assignment_stop_request_is_already_done(tmp_path):
     client = _create_app(state=state, clock=lambda: LOOKED_AT).test_client()
 
     response = client.post(
-        f"/assignments/{identifier}/stop/2",
+        f"/work/{identifier}/stop/2",
         headers={"Origin": "http://localhost"},
     )
 
@@ -385,7 +384,7 @@ def test_an_unknown_assignment_cannot_receive_a_stop_request(tmp_path):
     client = _create_app(state=state, clock=lambda: LOOKED_AT).test_client()
 
     response = client.post(
-        "/assignments/unknown/stop/1",
+        "/work/unknown/stop/1",
         headers={"Origin": "http://localhost"},
     )
 
@@ -398,17 +397,17 @@ def test_assignment_page_cancels_its_assignment(tmp_path):
     identifier = "GH13-20260819-184158-assignment"
     client = _create_app(state=state, clock=lambda: LOOKED_AT).test_client()
 
-    page = client.get(f"/assignments/{identifier}")
+    page = client.get(f"/work/{identifier}")
 
-    assert f'action="/assignments/{identifier}/cancel"' in page.text
+    assert f'action="/work/{identifier}/cancel"' in page.text
 
     response = client.post(
-        f"/assignments/{identifier}/cancel",
+        f"/work/{identifier}/cancel",
         headers={"Origin": "http://localhost"},
     )
 
     assert response.status_code == 303
-    assert response.location == f"/assignments/{identifier}"
+    assert response.location == f"/work/{identifier}"
     assignment = find_agent_work(state=state, identifier=identifier)
     assert assignment is not None
     assert assignment.ending == AgentWorkEnding(
@@ -451,7 +450,7 @@ def test_assignment_cancels_must_come_from_the_page(tmp_path, origin):
     client = _create_app(state=state, clock=lambda: LOOKED_AT).test_client()
     headers = {} if origin is None else {"Origin": origin}
 
-    response = client.post(f"/assignments/{identifier}/cancel", headers=headers)
+    response = client.post(f"/work/{identifier}/cancel", headers=headers)
 
     assert response.status_code == 403
     assignment = find_agent_work(state=state, identifier=identifier)
@@ -466,7 +465,7 @@ def test_a_stale_assignment_cancel_changes_nothing(tmp_path):
     client = _create_app(state=state, clock=lambda: LOOKED_AT).test_client()
 
     response = client.post(
-        f"/assignments/{identifier}/cancel",
+        f"/work/{identifier}/cancel",
         headers={"Origin": "http://localhost"},
     )
 
@@ -483,7 +482,7 @@ def test_an_unknown_assignment_cannot_be_cancelled(tmp_path):
     client = _create_app(state=state, clock=lambda: LOOKED_AT).test_client()
 
     response = client.post(
-        "/assignments/unknown/cancel",
+        "/work/unknown/cancel",
         headers={"Origin": "http://localhost"},
     )
 
@@ -496,23 +495,23 @@ def test_assignment_page_requests_a_retry_for_its_fault(tmp_path):
     identifier = "GH9-20260819-184158-assignment"
     client = _create_app(state=state, clock=lambda: LOOKED_AT).test_client()
 
-    page = client.get(f"/assignments/{identifier}")
+    page = client.get(f"/work/{identifier}")
 
-    assert f'action="/assignments/{identifier}/retry/2"' in page.text
+    assert f'action="/work/{identifier}/retry/2"' in page.text
 
     response = client.post(
-        f"/assignments/{identifier}/retry/2",
+        f"/work/{identifier}/retry/2",
         headers={"Origin": "http://localhost"},
     )
 
     assert response.status_code == 303
-    assert response.location == f"/assignments/{identifier}"
+    assert response.location == f"/work/{identifier}"
     assignment = find_agent_work(state=state, identifier=identifier)
     assert assignment is not None
     assert assignment.retry_requested_at == LOOKED_AT
     assert (
-        f'action="/assignments/{identifier}/retry/2"'
-        not in client.get(f"/assignments/{identifier}").text
+        f'action="/work/{identifier}/retry/2"'
+        not in client.get(f"/work/{identifier}").text
     )
 
 
@@ -524,7 +523,7 @@ def test_assignment_tail_offers_the_retry_control(tmp_path):
     response = _read_tail(state=state, identifier=identifier, cursor="1:0")
 
     assert '<div id="agent-work-retry" hx-swap-oob="morph">' in response.text
-    assert f'action="/assignments/{identifier}/retry/2"' in response.text
+    assert f'action="/work/{identifier}/retry/2"' in response.text
 
 
 @pytest.mark.parametrize(
@@ -539,7 +538,7 @@ def test_an_assignment_retry_needs_its_fault_at_the_submitted_round(
     client = _create_app(state=state, clock=lambda: LOOKED_AT).test_client()
 
     response = client.post(
-        f"/assignments/{identifier}/retry/{number}",
+        f"/work/{identifier}/retry/{number}",
         headers={"Origin": "http://localhost"},
     )
 
@@ -557,7 +556,7 @@ def test_assignment_retry_requests_must_come_from_the_page(tmp_path, origin):
     client = _create_app(state=state, clock=lambda: LOOKED_AT).test_client()
     headers = {} if origin is None else {"Origin": origin}
 
-    response = client.post(f"/assignments/{identifier}/retry/2", headers=headers)
+    response = client.post(f"/work/{identifier}/retry/2", headers=headers)
 
     assert response.status_code == 403
     assignment = find_agent_work(state=state, identifier=identifier)
@@ -570,7 +569,7 @@ def test_an_unknown_assignment_cannot_receive_a_retry_request(tmp_path):
     client = _create_app(state=state, clock=lambda: LOOKED_AT).test_client()
 
     response = client.post(
-        "/assignments/unknown/retry/2",
+        "/work/unknown/retry/2",
         headers={"Origin": "http://localhost"},
     )
 
@@ -606,13 +605,13 @@ def test_a_home_card_links_to_its_exact_assignment(tmp_path):
     page = render_home(state=state)
 
     assignment_link = (
-        'class="assignment-open" href="/assignments/GH13-20260819-184158-assignment" '
+        'class="assignment-open" href="/work/GH13-20260819-184158-assignment" '
         'target="_blank" rel="noopener noreferrer" '
         'aria-label="Open assignment GH13-20260819-184158-assignment '
         '(opens in new tab)"'
     )
     assert assignment_link in page
-    assert page.count('href="/assignments/GH13-20260819-184158-assignment"') == 1
+    assert page.count('href="/work/GH13-20260819-184158-assignment"') == 1
     card_start = page.index('<article id="assignment-GH13-20260819-184158-assignment"')
     card = page[card_start : page.index("</article>", card_start)]
     assert card.index(assignment_link) < card.index('class="assignment-detail"')
@@ -747,7 +746,7 @@ def test_assignment_page_polls_its_tail_from_the_last_complete_line(tmp_path):
     assert f'id="cursor" name="cursor" value="2:{feed_path.stat().st_size}"' in page
     assert (
         f'id="records" class="feed-records" '
-        f'hx-get="/assignments/{identifier}/tail" hx-trigger="every 2s" '
+        f'hx-get="/work/{identifier}/tail" hx-trigger="every 2s" '
         'hx-include="#cursor" hx-select=".feed-line" hx-swap="beforeend"' in page
     )
 
@@ -941,7 +940,7 @@ def test_every_complete_page_uses_the_dreamcatcher_mark_as_its_favicon(tmp_path)
     pages = (
         render_home(state=state),
         render_assignment(state=state, identifier="GH13-20260819-184158-assignment"),
-        app.test_client().get("/assignments/unknown").text,
+        app.test_client().get("/work/unknown").text,
     )
 
     favicon = (
@@ -1026,13 +1025,11 @@ def test_an_unknown_assignment_renders_a_404_page(tmp_path):
         state=state, clock=lambda: LOOKED_AT, zone=DISPLAY_TIME_ZONE
     )
 
-    response = application.test_client().get(
-        "/assignments/GH99-20260819-184158-assignment"
-    )
+    response = application.test_client().get("/work/GH99-20260819-184158-assignment")
 
     assert response.status_code == 404
     assert (
-        "No agent assignment here has identifier GH99-20260819-184158-assignment."
+        "No agent work here has identifier GH99-20260819-184158-assignment."
         in response.get_data(as_text=True)
     )
 
@@ -1049,7 +1046,7 @@ def test_an_unknown_assignment_tail_renders_a_404_page(tmp_path):
 
     assert response.status_code == 404
     assert (
-        "No agent assignment here has identifier GH99-20260819-184158-assignment."
+        "No agent work here has identifier GH99-20260819-184158-assignment."
         in response.text
     )
 
@@ -1452,9 +1449,7 @@ def test_an_assignment_page_reports_a_repository_record_that_will_not_read(tmp_p
         state=state, clock=lambda: LOOKED_AT, zone=DISPLAY_TIME_ZONE
     )
 
-    response = application.test_client().get(
-        "/assignments/GH13-20260819-184158-assignment"
-    )
+    response = application.test_client().get("/work/GH13-20260819-184158-assignment")
 
     assert response.status_code == 500
     assert "cannot read" in response.get_data(as_text=True)

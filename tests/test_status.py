@@ -27,7 +27,7 @@ from dreamcatcher.agent_rounds import (
     StoppedAgentRoundEnding,
     _compose_agent_round_ending,
 )
-from dreamcatcher.agent_work import AgentWork
+from dreamcatcher.agent_work import AgentWork, find_agent_work
 from dreamcatcher.config import AgentHarness
 from dreamcatcher.daemon import DEFAULT_INTERVAL_SECONDS
 from dreamcatcher.daemon_runs import DaemonRunRecord
@@ -46,7 +46,7 @@ from dreamcatcher.status import (
     DaemonStatusFact,
     DreamcatcherDaemonStatus,
     StatusFact,
-    read_assignment_status,
+    read_agent_work_status,
     read_assignment_statuses_for_issue,
     read_dreamcatcher_daemon_status,
     read_status_report,
@@ -58,6 +58,20 @@ from dreamcatcher.status.assignments import (
 
 ASSIGNMENT_ID = "GH13-20260819-184158-assignment"
 LOOKED_AT = PINNED + timedelta(hours=2)
+
+
+def read_work_status(
+    *,
+    state: StateDirectory,
+    identifier: str,
+    daemon: DreamcatcherDaemonStatus,
+    clock,
+):
+    """Read the status of the work with this identifier, as a work page does."""
+    work = find_agent_work(state=state, identifier=identifier)
+    if work is None:
+        return None
+    return read_agent_work_status(state=state, work=work, daemon=daemon, clock=clock)
 
 
 @pytest.fixture
@@ -916,7 +930,7 @@ def test_reading_one_assignment_uses_its_exact_identifier(state):
         issue=13,
     )
 
-    status = read_assignment_status(
+    status = read_work_status(
         state=state,
         identifier=other_identifier,
         daemon=read_dreamcatcher_daemon_status(state=state),
@@ -930,7 +944,7 @@ def test_reading_one_assignment_uses_its_exact_identifier(state):
 def test_reading_one_assignment_uses_the_daemon_status_it_is_given(state):
     ran(state=state, number=1, status=None)
 
-    status = read_assignment_status(
+    status = read_work_status(
         state=state,
         identifier=ASSIGNMENT_ID,
         daemon=DreamcatcherDaemonStatus(is_running=True, run=None),
@@ -943,7 +957,7 @@ def test_reading_one_assignment_uses_the_daemon_status_it_is_given(state):
 
 def test_reading_an_unknown_assignment_finds_nothing(state):
     assert (
-        read_assignment_status(
+        read_work_status(
             state=state,
             identifier="GH99-20260820-090000-assignment",
             daemon=read_dreamcatcher_daemon_status(state=state),
@@ -958,7 +972,7 @@ def test_reading_an_incomplete_assignment_finds_nothing(state):
     (state.worktrees / identifier).mkdir()
 
     assert (
-        read_assignment_status(
+        read_work_status(
             state=state,
             identifier=identifier,
             daemon=read_dreamcatcher_daemon_status(state=state),
@@ -978,13 +992,13 @@ def test_reading_one_assignment_does_not_read_an_unrelated_assignment(state):
     record = state.work / corrupt_identifier / "work.json"
     record.write_bytes(b"{")
 
-    status = read_assignment_status(
+    status = read_work_status(
         state=state,
         identifier=ASSIGNMENT_ID,
         daemon=read_dreamcatcher_daemon_status(state=state),
         clock=lambda: LOOKED_AT,
     )
-    unknown = read_assignment_status(
+    unknown = read_work_status(
         state=state,
         identifier="GH100-20260820-090000-assignment",
         daemon=read_dreamcatcher_daemon_status(state=state),

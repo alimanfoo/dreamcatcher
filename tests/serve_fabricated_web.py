@@ -12,12 +12,12 @@ from web_browser import (
 
 PAGES = (
     ("Home", "/"),
-    ("Working assignment", f"/assignments/{BROWSER_ASSIGNMENT_IDENTIFIER}"),
-    ("Complete assignment", "/assignments/GH12-20260819-184158-assignment"),
-    ("Cancelled assignment", "/assignments/GH70-20260819-184158-assignment"),
-    ("Faulted assignment", "/assignments/GH9-20260819-184158-assignment"),
-    ("Waiting assignment", "/assignments/GH44-20260819-184158-assignment"),
-    ("Conversation", "/conversations/8"),
+    ("Working assignment", f"/work/{BROWSER_ASSIGNMENT_IDENTIFIER}"),
+    ("Complete assignment", "/work/GH12-20260819-184158-assignment"),
+    ("Cancelled assignment", "/work/GH70-20260819-184158-assignment"),
+    ("Faulted assignment", "/work/GH9-20260819-184158-assignment"),
+    ("Waiting assignment", "/work/GH44-20260819-184158-assignment"),
+    ("Conversation", "/work/GH8-20260819-184158-conversation"),
 )
 
 

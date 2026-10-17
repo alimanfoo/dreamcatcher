@@ -116,6 +116,7 @@ def _compose_conversation_card(*, status: ConversationStatus) -> WebConversation
     """
     conversation = status.conversation
     return WebConversationCard(
+        identifier=None if conversation is None else conversation.identifier,
         issue=status.issue,
         title=status.title,
         status=status.value,
@@ -192,26 +193,23 @@ def compose_assignment_view(
 def compose_conversation_view(
     *,
     state: StateDirectory,
+    conversation: AgentWork,
     status: ConversationStatus,
     daemon: DreamcatcherDaemonStatus,
     live: WebAgentLiveState,
     zone: tzinfo | None,
 ) -> WebConversationView:
     """Return the values shown on one issue-conversation page."""
-    conversation = status.conversation
     repository = read_repository(state=state)
     feed = read_agent_feed(owner=conversation, zone=zone, rounds=live.rounds)
     return WebConversationView(
         repository=repository or "repository unknown",
         github_repository_url=_compose_github_repository_url(repository=repository),
         daemon=daemon,
+        identifier=conversation.identifier,
         issue=status.issue,
         title=status.title,
-        facts=(
-            ()
-            if conversation is None
-            else _compose_conversation_facts(conversation=conversation)
-        ),
+        facts=_compose_conversation_facts(conversation=conversation),
         live=live,
         feed_rounds=feed.rounds,
         feed_cursor=feed.cursor,

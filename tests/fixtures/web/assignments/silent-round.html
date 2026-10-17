@@ -80,7 +80,7 @@
           <h1 id="feed-heading">Feed</h1>
           <button class="feed-tail" type="button" aria-controls="records">TAIL ↓</button>
           <input type="hidden" id="cursor" name="cursor" value="2:0">
-          <div id="records" class="feed-records" hx-get="/assignments/GH13-20260819-184158-assignment/tail" hx-trigger="every 2s" hx-include="#cursor" hx-select=".feed-line" hx-swap="beforeend">
+          <div id="records" class="feed-records" hx-get="/work/GH13-20260819-184158-assignment/tail" hx-trigger="every 2s" hx-include="#cursor" hx-select=".feed-line" hx-swap="beforeend">
             
               <div id="feed-round-1" class="feed-line round-boundary">
   <time>2026-08-20 02:42:58</time>
@@ -99,8 +99,8 @@
         </section>
       </div>
       <div id="agent-work-foot" class="agent-work-foot">
-        <form id="stop-form" class="agent-work-control-form" method="post" action="/assignments/GH13-20260819-184158-assignment/stop/2" data-confirmation="Stop this round? dreamcatcher will stop the agent now and wait for new input from you before it starts another round."><button class="agent-work-control stop-control" type="submit">stop round</button></form>
-        <form id="cancel-form" class="agent-work-control-form" method="post" action="/assignments/GH13-20260819-184158-assignment/cancel" data-confirmation="Cancel this assignment? dreamcatcher will stop working on it so that you can finish its pull request by hand. This cannot be undone."><button class="agent-work-control cancel-control" type="submit">cancel assignment</button></form></div>
+        <form id="stop-form" class="agent-work-control-form" method="post" action="/work/GH13-20260819-184158-assignment/stop/2" data-confirmation="Stop this round? dreamcatcher will stop the agent now and wait for new input from you before it starts another round."><button class="agent-work-control stop-control" type="submit">stop round</button></form>
+        <form id="cancel-form" class="agent-work-control-form" method="post" action="/work/GH13-20260819-184158-assignment/cancel" data-confirmation="Cancel this assignment? dreamcatcher will stop working on it so that you can finish its pull request by hand. This cannot be undone."><button class="agent-work-control cancel-control" type="submit">cancel assignment</button></form></div>
     </div>
   </main>
   <script src="/static/assignment.js"></script>

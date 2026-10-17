@@ -9,7 +9,6 @@ from dreamcatcher.agent_assignments import find_open_assignments_by_issue
 from dreamcatcher.agent_work import (
     AgentWork,
     AgentWorkEnding,
-    find_agent_work,
     find_newest_agent_work,
     read_agent_work,
     read_agent_work_at_issue,
@@ -484,29 +483,34 @@ def read_assignment_statuses_for_issue(
     ).list_statuses()
 
 
-def read_assignment_status(
+def read_agent_work_status(
     *,
     state: StateDirectory,
-    identifier: str,
+    work: AgentWork,
     daemon: DreamcatcherDaemonStatus,
     clock: Callable[[], datetime] = read_current_time,
-) -> AssignmentStatus | None:
-    """Read one agent assignment's status by its exact identifier.
+) -> AssignmentStatus | ConversationStatus:
+    """Read the status of one piece of agent work, of either kind.
 
     The caller reads the daemon status, so a view that also shows it shows the
     same answer that its round statuses came from.
     """
-    assignment = find_agent_work(state=state, identifier=identifier)
-    if assignment is None or assignment.record.kind is not AgentWorkKind.ASSIGNMENT:
-        return None
     at, scheduler_record = _read_status_facts(state=state, clock=clock)
-    return AssignmentStatusReader(
+    if work.record.kind is AgentWorkKind.ASSIGNMENT:
+        return AssignmentStatusReader(
+            state=state,
+            at=at,
+            is_daemon_running=daemon.is_running,
+            scheduler_record=scheduler_record,
+            assignments=[work],
+        ).derive(assignment=work)
+    return ConversationStatusReader(
         state=state,
         at=at,
         is_daemon_running=daemon.is_running,
         scheduler_record=scheduler_record,
-        assignments=[assignment],
-    ).derive(assignment=assignment)
+        conversations=[work],
+    ).derive(issue=work.record.issue, title=work.record.title, conversation=work)
 
 
 def read_conversation_status(

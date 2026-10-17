@@ -3,7 +3,7 @@
     <div>{{ issue_reference(conversation.issue) }} <span class="title">{{ conversation.title }}</span></div>
     <span class="card-heading-actions">
       <span class="chip {{ status_class(conversation.status) }}">{{ conversation.status }}</span>
-      <a class="assignment-open" href="{{ url_for('show_conversation', issue=conversation.issue) }}" target="_blank" rel="noopener noreferrer" aria-label="Open conversation #{{ conversation.issue }} (opens in new tab)">&gt;</a>
+      {% if conversation.identifier %}<a class="assignment-open" href="{{ url_for('show_work', identifier=conversation.identifier) }}" target="_blank" rel="noopener noreferrer" aria-label="Open conversation #{{ conversation.issue }} (opens in new tab)">&gt;</a>{% endif %}
     </span>
   </div>
   <p class="assignment-detail">{{ conversation.detail }}</p>
