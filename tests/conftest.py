@@ -309,12 +309,14 @@ def seeded_checkout(seeded_upstream, tmp_path_factory):
 
 @pytest.fixture
 def cloned(seeded_checkout, seeded_upstream, tmp_path):
-    """Return a main checkout of upstream, with an origin/main to cut from."""
+    """Return a main checkout with an origin and a throwaway author identity."""
     upstream = tmp_path / "upstream.git"
     shutil.copytree(seeded_upstream, upstream)
     checkout = tmp_path / "checkout"
     shutil.copytree(seeded_checkout, checkout)
     git(arguments=["remote", "set-url", "origin", str(upstream)], cwd=checkout)
+    git(arguments=["config", "user.name", "A Test"], cwd=checkout)
+    git(arguments=["config", "user.email", "test@example.com"], cwd=checkout)
     return checkout
 
 
