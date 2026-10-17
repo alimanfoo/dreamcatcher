@@ -95,7 +95,7 @@ def _inspect_pull_request(
                 work=assignment, finding=ReadFailureFinding(reason=posts.reason)
             )
         )
-    signals = find_pull_request_signals(assignment=assignment, pull_request=read)
+    found = find_pull_request_signals(assignment=assignment, pull_request=read)
     finding = PullRequestFinding(
         number=read.number,
         state=read.state,
@@ -103,8 +103,8 @@ def _inspect_pull_request(
         merge_state=read.merge_state,
         check_result=read.check_result,
         new_posts=len(posts),
-        new_pull_request_signals=signals.new_pull_request_signals,
-        is_check_failure_withheld=signals.is_check_failure_withheld,
+        new_pull_request_signals=found.new_pull_request_signals,
+        is_check_failure_withheld=found.is_check_failure_withheld,
         is_wrap_up_due=(
             read.state is not PullRequestState.OPEN
             and not is_wrap_up_relayed(assignment=assignment)
@@ -127,7 +127,7 @@ def _inspect_pull_request(
                 context=context,
                 pull_request=read,
                 posts=posts,
-                signals=signals.new_pull_request_signals,
+                pull_request_signals=found.new_pull_request_signals,
             ),
         ),
     )
@@ -201,10 +201,10 @@ def _compose_relay_round(
     context: SchedulingContext,
     pull_request: PullRequest,
     posts: list[UserPost],
-    signals: list[PullRequestSignal],
+    pull_request_signals: list[PullRequestSignal],
     work: AgentWork,
 ) -> RoundPlan:
-    """Return the plan of a round given the pull request's state, its signals and posts.
+    """Return the plan of a round given the pull request, its signals and posts.
 
     A round given a merged or closed pull request is the wrap-up round, and it
     records that the assignment completed as it finishes.
@@ -212,7 +212,7 @@ def _compose_relay_round(
     round_input = AssignmentRoundInput(
         pull_request_state=pull_request.state,
         pull_request_head=pull_request.head,
-        signals=signals,
+        signals=pull_request_signals,
         user_posts=posts,
     )
     return RoundPlan(
@@ -222,7 +222,7 @@ def _compose_relay_round(
             round_input=work.compose_round_paths(
                 number=work.next_round_number
             ).round_input,
-            signals=signals,
+            pull_request_signals=pull_request_signals,
         ),
         finish_round=(
             None

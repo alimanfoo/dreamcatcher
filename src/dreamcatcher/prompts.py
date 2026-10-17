@@ -104,14 +104,17 @@ def compose_issue_instructions(*, template: str, issue: int) -> str:
 
 
 def compose_assignment_input_prompt(
-    *, pull_request: int, round_input: Path, signals: list[PullRequestSignal]
+    *,
+    pull_request: int,
+    round_input: Path,
+    pull_request_signals: list[PullRequestSignal],
 ) -> str:
     """Return the words that direct an assignment round to its input file.
 
     The input file holds the pull request state, the pull request signals and
     the batch of user posts. One line for each signal opens the words.
     """
-    return "".join(_SIGNAL_LINES[signal] for signal in signals) + (
+    return "".join(_SIGNAL_LINES[signal] for signal in pull_request_signals) + (
         _ASSIGNMENT_INPUT_PROMPT.format(
             pull_request=pull_request, round_input=round_input
         )
