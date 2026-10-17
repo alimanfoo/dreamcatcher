@@ -64,22 +64,38 @@ agent work.
 
 ### Scheduling
 
-The scheduler package owns all decisions about what work starts and when.
+The scheduler package owns all decisions about what work starts and when. The
+tick in `tick.py` has one path for both kinds of agent work. Each kind's module,
+`assignments.py` or `conversations.py`, supplies only what differs by kind: how
+it inspects the channel of open work, how it decides whether a request with no
+open work may start, and how it composes a round's plan.
 
 One scheduler tick:
 
-1. reads the relevant local, process, configuration, and GitHub facts;
-2. ranks the assignment candidates, considering existing assignment rounds
-   before dispatching a new assignment for the oldest available request;
-3. ranks the conversation candidates by their oldest waiting comment;
-4. starts a global cooldown when the counted faults call for one, and launches
+1. reads every piece of agent work from disk, and lists the open issues assigned
+   to the signed-in account under each dispatch label;
+2. builds the requests from two sources, each dispatch label on each listed
+   issue and each piece of open agent work, which names its own issue and label;
+3. inspects each piece of open work's channel: an assignment's pull request and
+   user posts, or a conversation's issue and then its comments, ending the
+   conversation if the issue is closed;
+4. for each request with no open work, skips an assignment label whose issue
+   already has an open assignment, checks for a routing conflict, then asks the
+   start-time questions or reads the comments;
+5. starts a global cooldown when the counted faults call for one, and launches
    nothing while a cooldown is active;
-5. alternates between the two kinds when both have candidates, without changing
-   either kind's internal order;
-6. performs scheduling actions until the daemon run's requested capacity is full
-   or no candidate remains; and
+6. launches candidates until the daemon run's requested capacity is full or no
+   candidate remains, open work first in identifier order and then new requests
+   in listing order, alternating between the two kinds while both have
+   candidates; and
 7. returns a `SchedulerRecord`, holding one request row per request, for
    operational reporting.
+
+A candidate is open work the tick may start a round for, or a request it may
+start work for. It carries a composer that builds the round's plan once the work
+exists: the preparation that runs inside the round, the input prompt, and the
+finishing step. The tick creates the work of a new request, then starts the
+round the plan describes, so creating and launching are one path for both kinds.
 
 Alternation advances when a kind is selected, including when its start fails,
 and begins afresh after a daemon restart.
@@ -91,13 +107,10 @@ record ends the daemon because retrying cannot repair the document.
 
 If a read for a request fails, the tick holds the reason in that request's row
 and prevents only the launches that depend on what it would have read. A failed
-listing is a scheduler failure, because it belongs to no request, and the rows
-of open conversations that it did not return hold its reason, so they read as
-unknown. A later tick retries the failed read. New conversation rounds launch in
-order of their oldest waiting comment across all issues, so a failed comment
-read for any conversation that awaits new comments prevents every new
-conversation round in that tick. A round that gives a conversation the input of
-one that did not finish does not depend on that order, so it still launches.
+listing is a scheduler failure, because it belongs to no request, and it starts
+no work for the issues it would have listed. Open work is found on disk and
+reads its own channel, so a failed listing leaves it inspected. A later tick
+retries the failed read.
 
 A launch that fails takes no agent slot. The tick keeps every round that it
 already started and goes on to the next candidate. A round that errored before
@@ -106,13 +119,12 @@ round and its reason, which the daemon's output line repeats. A launch that
 fails before any round exists, such as a work record that cannot be written, is
 a scheduler failure.
 
-The scheduler uses two distinct lower-level operations: creating an agent
-assignment and starting an agent round. When it selects an available request, it
-writes the assignment's work record and starts the first round in the same
-scheduling action. The record comes first, before any Git or GitHub step, so the
-assignment exists however the round goes. An assignment without a pull request
-observation is due a round that opens it, unless its last round is running or it
-is in fault. This does not create a separate class of normally scheduled work.
+When the tick selects a request, it writes the work record and starts the first
+round in the same scheduling action. The record comes first, before any Git or
+GitHub step, so the work exists however the round goes. An assignment without a
+recorded pull request number is due a round that opens it, unless its last round
+is running or it is in fault. This does not create a separate class of normally
+scheduled work.
 
 Every new round is given the input that past rounds have not yet relayed. An
 assignment round's input holds the pull request state and the user posts after
@@ -140,6 +152,15 @@ preparation resets the detached worktree to fetched main, adding it when it is
 missing, and freezes the trusted comment batch and that revision. A
 conversation's worktree never acquires an implementation branch or a pull
 request.
+
+Each tick reads an open conversation's issue before its comments, unless its
+round is running, so open conversations do not depend on the listing. A closed
+issue ends the conversation with the reason "issue closed". A conversation whose
+label is off its issue, whose issue is not assigned to the signed-in account, or
+whose issue carries another configured conversation label is paused: the tick
+reads no comments for it and starts no round. A conversation belongs to the
+label that started it, so another label on the same issue is a request of its
+own.
 
 The signed-in GitHub account identifies trusted issue comments. Marked
 _dreamcatcher_ comments, comments by other accounts and blank comments are
@@ -195,24 +216,24 @@ last-message output file on first and resumed invocations.
 `agent_assignments.py` owns the durable representation and lifecycle operations
 of an agent assignment. It should provide cohesive operations to:
 
-- create an assignment by writing its work record;
 - open the assignment's pull request, as the preparation of a round whose
   assignment has none;
 - name the assignment's branch from its identifier;
-- read and record its pull request observation;
-- read the user-post delivery position, and whether the final turn has been
-  taken, from recorded round inputs;
+- read its pull request number;
+- read the user-post delivery position, the pull request state last relayed, and
+  whether the final turn has been taken, from recorded round inputs;
 - complete an assignment as its wrap-up round finishes; and
 - cancel an assignment.
 
 `agent_work.py` owns what both kinds of agent work share: the work record, the
-agent work identifier, and the one reader through which the scheduler, status,
-the commands and the views list agent work of either kind. It also records the
-facts that change later for both kinds: the harness session identifier, when the
-user retries work after resolving a fault, and when and why the work ended.
+agent work identifier, creating work of either kind from its dispatch route, and
+the one reader through which the scheduler, status, the commands and the views
+list agent work of either kind. It also records the facts that change later for
+both kinds: the harness session identifier, when the user retries work after
+resolving a fault, and when and why the work ended.
 
 Creating an assignment writes its work record and nothing else. The preparation
-step of a round whose assignment has no pull request observation coordinates
+step of a round whose assignment has no recorded pull request number coordinates
 lower-level Git, GitHub and document operations. It:
 
 1. fetches the current main branch;
@@ -221,7 +242,7 @@ lower-level Git, GitHub and document operations. It:
    branch;
 4. adopts the pull request already on the branch, whatever its state, or opens a
    linked draft pull request; and
-5. writes the pull request observation.
+5. writes the pull request's number to `pull-request.json`.
 
 Each step does nothing when its result already exists, and a worktree that
 cannot be added is removed with its branch. The assignment identifier names the
@@ -295,10 +316,11 @@ GitHub commands. It owns projections and operations for:
 - reading and normalizing user posts from comments, reviews, verdicts, and
   inline comments.
 
-An agent assignment persists its pull-request identity and, separately, the
-latest state and draft flag that a scheduler tick observed for reporting.
-Scheduling does not read that observation. It reads the current state from
-GitHub when it needs it.
+An agent assignment persists its pull request's number and nothing else about
+it. Scheduling reads the current state from GitHub when it needs it, and the
+request row carries what the tick read to the views. An assignment the tick read
+nothing for shows the merged or closed state its newest relayed round input
+carried, if any.
 
 GitHub owns its documents and may add fields, so its responses remain tolerant
 projections. Documents owned by _dreamcatcher_ remain strict.
@@ -380,8 +402,9 @@ the open agent work, if any. It holds what the tick found as a typed finding:
   the cursor;
 - for an assignment request with no open work, the open linked pull requests and
   the open blocking issues, as numbers;
-- for a request whose issue carries two labels of its kind, those labels;
-- for an open conversation the listing did not return, that it was not listed;
+- for a request or an open conversation whose issue carries two labels of its
+  kind, those labels;
+- for a conversation paused for any other reason, the cause;
 - for a read that failed, the reason, in place of what it would have found.
 
 A row has no finding when the tick read nothing for it, as for work whose round
@@ -542,7 +565,7 @@ The same record serves both kinds of agent work. It persists:
 - the selected harness, model, effort, harness config and prompt.
 
 An assignment's branch is named from its identifier, and its pull request number
-is in its pull request observation.
+is in `pull-request.json`.
 
 Every fact that changes later has a file of its own beside the record. Each
 write replaces that file whole and merges nothing into it, so the daemon, the
@@ -550,8 +573,7 @@ web interface and a command can each record a fact at the same moment without
 erasing another's. These files persist:
 
 - for an assignment, once the round that opens its pull request has done so,
-  that pull request's number and latest observed state, draft flag, and
-  observation time, which the work pages and cards show;
+  that pull request's number, written once;
 - the harness session identifier, once known;
 - the time of the user's latest retry request, when one has been made;
 - the time and the reason the work ended, once it has ended.
@@ -571,11 +593,11 @@ recorded inputs of its rounds that did not error or get interrupted, from newest
 to oldest. What woke a round is read from its input rather than recorded.
 
 A conversation's harness session identifier and latest user retry request each
-have a file of their own beside its record, as an assignment's do. The route and
-recipe remain frozen when a different configured conversation label later makes
-the issue eligible. Each round input persists its investigated revision and the
-trusted comments accepted for delivery; the input of a round that starts a new
-harness session also persists the issue title and body.
+have a file of their own beside its record, as an assignment's do. Its route and
+recipe stay frozen for its life; a different conversation label on the issue
+starts a conversation of its own. Each round input persists its investigated
+revision and the trusted comments accepted for delivery; the input of a round
+that starts a new harness session also persists the issue title and body.
 
 Instance records persist the repository identity and the most recent daemon
 run's harness, _dreamcatcher_ version, capacity, interval, and the dispatch

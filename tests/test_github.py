@@ -33,6 +33,7 @@ from dreamcatcher.github import (
     list_pull_requests,
     list_user_posts,
     post_issue_comment,
+    read_issue,
     read_issue_pull_request_context,
     read_pull_request,
 )
@@ -168,6 +169,42 @@ def test_a_listing_carries_each_issue_and_when_it_was_filed(fake):
         "open",
         "--limit",
         "500",
+        "--json",
+        "number,title,body,createdAt,state,assignees,labels",
+    ]
+
+
+def test_an_issue_is_read_by_its_number_whatever_its_state(fake):
+    gh = fake(program="gh")
+    gh.replies(
+        stdout=json.dumps(
+            {
+                "number": 8,
+                "title": "The issue title",
+                "createdAt": "2026-08-19T18:41:58Z",
+                "state": "CLOSED",
+                "assignees": [],
+                "labels": [{"name": "dream:scout"}],
+            }
+        )
+    )
+
+    found = read_issue(repository=REPOSITORY, issue=8)
+
+    assert found == Issue(
+        number=8,
+        title="The issue title",
+        created_at=datetime(2026, 8, 19, 18, 41, 58, tzinfo=UTC),
+        state=IssueState.CLOSED,
+        assignees=[],
+        labels=[GitHubLabel(name="dream:scout")],
+    )
+    assert gh.calls[0].arguments == [
+        "issue",
+        "view",
+        "8",
+        "--repo",
+        REPOSITORY,
         "--json",
         "number,title,body,createdAt,state,assignees,labels",
     ]
@@ -607,6 +644,7 @@ def test_a_recorded_inline_comment_carries_the_diff_it_was_written_against(
             ),
             id="a listing",
         ),
+        pytest.param(lambda: read_issue(repository=REPOSITORY, issue=9), id="an issue"),
         pytest.param(
             lambda: list_pull_requests(repository=REPOSITORY, branch=BRANCH),
             id="the pull requests",

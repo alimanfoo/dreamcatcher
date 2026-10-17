@@ -76,11 +76,8 @@ _dreamcatcher_ passes each entry to every Codex round. The
 [configuration reference](configuration-reference.md#codex-config) says which
 values it accepts and which settings it keeps for itself.
 
-Existing assignments keep the label, harness and recipe they started with.
-Conversations also keep their saved recipe and session, but their issue must
-still match exactly one current conversation route. Removing its only matching
-route pauses a conversation after the daemon restarts; adding a matching route
-again can resume it without changing its saved recipe.
+Existing assignments and conversations keep the label, harness and recipe they
+started with, even if their route is later removed.
 
 See the [configuration reference](configuration-reference.md) for a two-harness
 example and every accepted setting.
@@ -101,12 +98,12 @@ label after dispatch does not stop the active assignment: its saved route and
 pull request continue to govern later rounds. Use the controls in
 [Stop and recover work](stop-and-recover.md) when you need to intervene.
 
-An issue is eligible for a conversation when it is open, assigned to the
-authenticated account and carries exactly one configured conversation label.
-Those conditions remain active throughout the conversation. Closing or
-unassigning the issue, or removing its last conversation label, pauses every new
-round, including one that would retry an errored round. A round already running
-may still finish.
+A conversation starts on an open issue that is assigned to the authenticated
+account and carries exactly one configured conversation label, once you post a
+comment. Unassigning the issue, removing the conversation's label or adding a
+second conversation label pauses the conversation, and closing the issue ends
+it. [Discuss an issue](discuss-an-issue.md#pause-resume-or-end-a-conversation)
+explains both.
 
 One assignment label and one conversation label may coexist on an issue because
 they select different kinds of work.

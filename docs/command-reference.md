@@ -107,8 +107,9 @@ dreamcatcher retry GH<n>
 ```
 
 Record a retry request for any currently faulted work at the issue. The command
-checks the newest assignment and the issue conversation independently and clears
-the fault of each one that is in fault. It preserves the failed round records.
+checks the newest assignment and the newest issue conversation independently and
+clears the fault of each one that is in fault. It preserves the failed round
+records.
 
 At least one of those two items must currently be in fault. Otherwise the
 command reports that the issue has no agent work in fault. A successful request
@@ -124,7 +125,7 @@ dreamcatcher stop GH<n> (--assignment | --conversation)
 
 Request a stop for the current round of the selected agent work. The
 `--assignment` option selects the newest assignment at the issue, and
-`--conversation` selects the issue conversation.
+`--conversation` selects the newest issue conversation.
 
 The round must be running under the daemon, have a resumable harness session,
 and have no pending stop request. The command writes the same local stop request
@@ -209,8 +210,8 @@ output is piped, redirected or captured, it prints one snapshot and returns.
 dreamcatcher conversation GH<n>
 ```
 
-Show the issue conversation's settings, harness session, worktree, code revision
-and rounds, with a hand-resume command when one is available.
+Show the newest issue conversation's settings, harness session, worktree, code
+revision and rounds, with a hand-resume command when one is available.
 
 In an interactive terminal it refreshes until the conversation ends. When output
 is piped, redirected or captured, it prints one snapshot and returns.
@@ -225,7 +226,7 @@ Show the agent actions and output recorded for one kind of work at the issue.
 Exactly one owner selector is required:
 
 - `--assignment` selects the newest assignment at the issue.
-- `--conversation` selects the issue conversation.
+- `--conversation` selects the newest issue conversation at the issue.
 
 Without `--round`, the command shows all of that work's rounds and follows later
 output until the work ends. `--round N` selects one exact integer round number

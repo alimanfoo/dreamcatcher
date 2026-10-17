@@ -22,7 +22,7 @@ from dreamcatcher.agent_rounds import (
     read_agent_round_records,
     request_agent_round_stop,
 )
-from dreamcatcher.config import AgentHarness, QuotableText
+from dreamcatcher.config import AgentHarness, DispatchRoute, QuotableText
 from dreamcatcher.documents import (
     DreamcatcherDocument,
     read_json,
@@ -37,6 +37,7 @@ from dreamcatcher.harness_adapters import (
     refuse_reportable_harness_session_identifier,
 )
 from dreamcatcher.harnesses import find_harness_session_identifier
+from dreamcatcher.prompts import compose_issue_instructions
 from dreamcatcher.state import StateDirectory
 
 # The file in a work directory saying what the work was created with.
@@ -79,6 +80,7 @@ class AgentWorkEndReason(StrEnum):
 
     COMPLETED = "completed"
     CANCELLED = "cancelled"
+    ISSUE_CLOSED = "issue closed"
 
 
 class AgentWorkEnding(DreamcatcherDocument):
@@ -168,14 +170,49 @@ class AgentWork:
         )
 
 
-def compose_agent_work_identifier(
+def _compose_agent_work_identifier(
     *, issue: int, kind: AgentWorkKind, at: datetime
 ) -> str:
     """Return the identifier of the work of this kind created at the issue at `at`."""
     return f"GH{issue}-{at:%Y%m%d-%H%M%S}-{kind}"
 
 
-def record_agent_work(
+def create_agent_work(
+    *,
+    state: StateDirectory,
+    route: DispatchRoute,
+    preferred_harness: AgentHarness,
+    issue: int,
+    title: str,
+    at: datetime,
+) -> AgentWork:
+    """Record the work that the route asks for at the issue, with no rounds run yet.
+
+    The route's kind is the work's kind. The route selects a recipe in response
+    to the preferred harness, and the recipe supplies the settings that the
+    record keeps. Creation writes the record alone; the first round prepares
+    everything else.
+    """
+    harness = route.choose_harness(preferred_harness=preferred_harness)
+    recipe = route.recipes[harness]
+    return _record_agent_work(
+        state=state,
+        identifier=_compose_agent_work_identifier(issue=issue, kind=route.kind, at=at),
+        record=AgentWorkRecord(
+            issue=issue,
+            title=title,
+            dispatch_label=route.label,
+            kind=route.kind,
+            harness=harness,
+            model=recipe.model,
+            effort=recipe.effort,
+            harness_config=recipe.config,
+            prompt=compose_issue_instructions(template=recipe.prompt, issue=issue),
+        ),
+    )
+
+
+def _record_agent_work(
     *, state: StateDirectory, identifier: str, record: AgentWorkRecord
 ) -> AgentWork:
     """Write the record that makes the agent work exist, and return the work."""
@@ -197,15 +234,6 @@ def read_agent_work(*, state: StateDirectory) -> list[AgentWork]:
     changed since.
     """
     return _read_selected_agent_work(state=state, is_selected=lambda record: True)
-
-
-def read_agent_work_of_kind(
-    *, state: StateDirectory, kind: AgentWorkKind
-) -> list[AgentWork]:
-    """Return the agent work of one kind, ordered by identifier."""
-    return _read_selected_agent_work(
-        state=state, is_selected=lambda record: record.kind is kind
-    )
 
 
 def read_agent_work_at_issue(
@@ -253,11 +281,6 @@ def _is_agent_work_recorded(*, state: StateDirectory, identifier: str) -> bool:
         directory.resolve().parent == state.work.resolve()
         and (directory / _WORK_RECORD_NAME).is_file()
     )
-
-
-def find_open_agent_work_by_issue(*, work: list[AgentWork]) -> dict[int, AgentWork]:
-    """Return the open work among these, keyed by issue."""
-    return {item.record.issue: item for item in work if item.is_open}
 
 
 def _read_selected_agent_work(

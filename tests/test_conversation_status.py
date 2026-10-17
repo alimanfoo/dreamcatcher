@@ -38,12 +38,13 @@ from dreamcatcher.issue_conversations import (
 from dreamcatcher.scheduler.models import (
     ConflictingLabelsFinding,
     IssueCommentsFinding,
+    PauseCause,
+    PausedFinding,
     ReadFailureFinding,
     RequestFinding,
     RequestRow,
     SchedulerRecord,
     StartedRound,
-    UnlistedIssueFinding,
 )
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.status import (
@@ -58,6 +59,9 @@ from dreamcatcher.status.requests import RequestStatusValue
 from dreamcatcher.status.rounds import _compose_round_revision
 
 LOOKED_AT = PINNED + timedelta(hours=2)
+
+# What the tick records for a conversation whose label came off its issue.
+PAUSED = PausedFinding(cause=PauseCause.LABEL_REMOVED)
 
 
 @pytest.fixture
@@ -267,17 +271,18 @@ def test_a_conversation_no_tick_has_observed_is_unknown(conversation_state):
     assert found.detail == "not seen by the latest update"
 
 
-def test_a_conversation_whose_issue_is_not_listed_is_idle_and_stays_on_the_report(
-    conversation_state,
+@pytest.mark.parametrize("cause", list(PauseCause))
+def test_a_paused_conversation_is_idle_with_its_cause_and_stays_on_the_report(
+    conversation_state, cause
 ):
     conversation_round(state=conversation_state)
-    observe(state=conversation_state, finding=UnlistedIssueFinding())
+    observe(state=conversation_state, finding=PausedFinding(cause=cause))
 
     found = status(state=conversation_state)
     report = read_status_report(state=conversation_state, clock=lambda: LOOKED_AT)
 
     assert found.value is AgentWorkStatusValue.IDLE
-    assert found.detail == "issue not listed"
+    assert found.detail == f"paused, {cause}"
     assert report.list_active_work_statuses(kind=AgentWorkKind.CONVERSATION) == [found]
 
 
@@ -318,7 +323,7 @@ def test_an_unrecorded_round_input_shows_what_the_scheduler_reported(
     assert found.detail == f"cannot tell: {failure}"
 
 
-def test_a_live_round_shows_a_conversation_whose_issue_is_not_listed_as_working(
+def test_a_live_round_shows_a_paused_conversation_as_working(
     conversation_state,
 ):
     hold_daemon_lock_for_test(path=conversation_state.lock)
@@ -333,7 +338,7 @@ def test_a_live_round_shows_a_conversation_whose_issue_is_not_listed_as_working(
             )
         ],
     )
-    observe(state=conversation_state, finding=UnlistedIssueFinding())
+    observe(state=conversation_state, finding=PAUSED)
 
     report = read_status_report(state=conversation_state, clock=lambda: LOOKED_AT)
     found = report.work_statuses[0]
@@ -411,12 +416,11 @@ def test_two_current_errors_put_a_conversation_in_fault(conversation_state):
     "finding",
     [
         ConflictingLabelsFinding(labels=["discuss", "scout"]),
-        UnlistedIssueFinding(),
         ReadFailureFinding(
             reason="could not read comments for GH8: network unavailable"
         ),
     ],
-    ids=["conflicting labels", "not listed", "unknown"],
+    ids=["paused", "unknown"],
 )
 def test_a_conversation_fault_takes_precedence_over_what_the_tick_found(
     conversation_state, finding
@@ -446,7 +450,7 @@ def test_a_conversation_fault_shows_before_any_tick_observes_it(conversation_sta
 def test_a_retry_clears_a_conversation_fault(conversation_state):
     conversation_round(state=conversation_state, status=2)
     write_second_conversation_error(state=conversation_state)
-    observe(state=conversation_state, finding=UnlistedIssueFinding())
+    observe(state=conversation_state, finding=PAUSED)
     conversation = read_conversation(state=conversation_state, issue=8)
     assert conversation is not None
     request_agent_work_retry(work=conversation, at=PINNED + timedelta(minutes=9))
@@ -454,7 +458,7 @@ def test_a_retry_clears_a_conversation_fault(conversation_state):
     found = status(state=conversation_state)
 
     assert found.value is AgentWorkStatusValue.IDLE
-    assert found.detail == "issue not listed"
+    assert found.detail == "paused, label removed"
 
 
 @pytest.mark.parametrize(
@@ -500,16 +504,31 @@ def test_a_round_ending_after_the_latest_tick_waits_for_the_next_update(
     assert found.detail == "round 1 ended, awaiting next update"
 
 
-def test_an_errored_round_at_an_issue_that_is_not_listed_does_not_wait(
+def test_a_conversation_with_two_conversation_labels_is_paused_saying_so(
     conversation_state,
 ):
-    conversation_round(state=conversation_state, status=2)
-    observe(state=conversation_state, finding=UnlistedIssueFinding())
+    conversation_round(state=conversation_state)
+    observe(
+        state=conversation_state,
+        finding=ConflictingLabelsFinding(labels=["discuss", "scout"]),
+    )
 
     found = status(state=conversation_state)
 
     assert found.value is AgentWorkStatusValue.IDLE
-    assert found.detail == "issue not listed"
+    assert found.detail == "paused, multiple conversation labels: discuss, scout"
+
+
+def test_an_errored_round_of_a_paused_conversation_does_not_wait(
+    conversation_state,
+):
+    conversation_round(state=conversation_state, status=2)
+    observe(state=conversation_state, finding=PAUSED)
+
+    found = status(state=conversation_state)
+
+    assert found.value is AgentWorkStatusValue.IDLE
+    assert found.detail == "paused, label removed"
 
 
 def test_a_round_that_needed_no_reply_says_so(conversation_state):
@@ -613,21 +632,6 @@ def test_an_issue_nobody_has_commented_on_waits_for_a_comment(tmp_path):
     assert request.reasons == (RequestReason(words="waiting for a comment"),)
 
 
-def test_a_conversation_with_two_conversation_labels_is_idle_saying_so(
-    conversation_state,
-):
-    conversation_round(state=conversation_state)
-    observe(
-        state=conversation_state,
-        finding=ConflictingLabelsFinding(labels=["discuss", "scout"]),
-    )
-
-    found = status(state=conversation_state)
-
-    assert found.value is AgentWorkStatusValue.IDLE
-    assert found.detail == "multiple conversation labels: discuss, scout"
-
-
 def test_an_unobserved_issue_with_no_record_has_no_conversation(conversation_state):
     assert (
         read_conversation_status(
@@ -669,7 +673,7 @@ def end_conversation(*, state: StateDirectory, minutes: int = 10) -> None:
     """Record that the fixture conversation ended that many minutes in."""
     write_ending(
         directory=find_conversation_directory(state=state, issue=8),
-        reason=AgentWorkEndReason.COMPLETED,
+        reason=AgentWorkEndReason.ISSUE_CLOSED,
         at=PINNED + timedelta(minutes=minutes),
     )
 
@@ -677,12 +681,12 @@ def end_conversation(*, state: StateDirectory, minutes: int = 10) -> None:
 def test_an_ended_conversation_reads_as_ended_with_its_reason(conversation_state):
     conversation_round(state=conversation_state)
     end_conversation(state=conversation_state)
-    observe(state=conversation_state, finding=UnlistedIssueFinding())
+    observe(state=conversation_state, finding=PAUSED)
 
     found = status(state=conversation_state)
 
     assert found.value is AgentWorkStatusValue.ENDED
-    assert found.detail == "completed"
+    assert found.detail == "issue closed"
     assert found.has_ended
     assert not found.is_active
 
@@ -701,7 +705,7 @@ def test_the_report_lists_ended_conversations_apart_newest_first(tmp_path):
     for issue, minutes in ((8, 10), (9, 20)):
         write_ending(
             directory=write_conversation(state=state, issue=issue),
-            reason=AgentWorkEndReason.COMPLETED,
+            reason=AgentWorkEndReason.ISSUE_CLOSED,
             at=PINNED + timedelta(minutes=minutes),
         )
     write_tick(
@@ -739,7 +743,7 @@ def test_a_section_of_ended_conversations_alone_gives_its_guidance(
 ):
     write_daemon_run(state=conversation_state, pid=os.getpid(), routes=SCOUT_ROUTES)
     end_conversation(state=conversation_state)
-    observe(state=conversation_state, finding=UnlistedIssueFinding())
+    observe(state=conversation_state, finding=PAUSED)
 
     report = read_status_report(state=conversation_state, clock=lambda: LOOKED_AT)
 

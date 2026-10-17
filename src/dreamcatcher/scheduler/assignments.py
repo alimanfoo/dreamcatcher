@@ -1,304 +1,219 @@
-"""Inspect assignments and prepare the rounds that they require."""
+"""Inspect assignments' pull requests and compose the rounds they call for."""
 
-from dataclasses import dataclass
-from datetime import datetime
 from functools import partial
 
 from dreamcatcher.agent_assignments import (
     AssignmentRoundInput,
-    PullRequestObservation,
     complete_assignment,
-    create_assignment,
     is_final_turn_taken,
     open_assignment_pull_request,
-    read_pull_request_observation,
+    read_assignment_pull_request_number,
     read_user_post_delivery_position,
-    record_pull_request_observation,
 )
-from dreamcatcher.agent_rounds import AgentRound
-from dreamcatcher.agent_work import (
-    AgentWork,
-    find_open_agent_work_by_issue,
-    read_agent_work_of_kind,
-)
-from dreamcatcher.config import AssignmentRoute
+from dreamcatcher.agent_work import AgentWork
+from dreamcatcher.config import DispatchRoute
 from dreamcatcher.github import (
+    Issue,
+    IssueState,
     PullRequest,
     PullRequestState,
     UnknownGitHubResponse,
     UserPost,
+    list_blocking_issues,
+    read_issue_pull_request_context,
     read_pull_request,
 )
-from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.prompts import compose_assignment_input_prompt
 from dreamcatcher.relay import list_undelivered_user_posts
-from dreamcatcher.scheduler.agent_work import (
-    AgentWorkScheduler,
+from dreamcatcher.scheduler.faults import is_last_round_unfinished
+from dreamcatcher.scheduler.inspection import (
+    Candidate,
+    Inspection,
+    RoundPlan,
+    SchedulingContext,
     compose_agent_work_row,
 )
-from dreamcatcher.scheduler.faults import (
-    derive_agent_work_fault,
-    is_last_round_unfinished,
-)
-from dreamcatcher.scheduler.issues import list_assignment_requests
 from dreamcatcher.scheduler.models import (
-    AgentWorkInspection,
     PullRequestFinding,
     ReadFailureFinding,
     RequestRow,
-    SchedulerRecord,
     StartTimeFinding,
 )
 
 
-@dataclass(frozen=True, kw_only=True)
-class NewAssignmentCandidate:
-    """Describe an available issue ready for a new assignment."""
+def inspect_open_assignment(
+    *, context: SchedulingContext, assignment: AgentWork, is_fault: bool
+) -> Inspection:
+    """Inspect an open assignment, reading its pull request once it has one.
 
-    issue: int
-    title: str
-    route: AssignmentRoute
-
-
-@dataclass(frozen=True, kw_only=True)
-class PullRequestOpeningCandidate:
-    """Describe an assignment whose next round opens its pull request.
-
-    A round that failed part way through opening it leaves the assignment here,
-    and the next round runs the same preparation again.
+    An assignment in fault reads nothing. One whose pull request no round has
+    opened yet calls for the round that opens it.
     """
-
-    assignment: AgentWork
-
-
-@dataclass(frozen=True, kw_only=True)
-class AssignmentRoundCandidate:
-    """Describe an existing assignment ready for another round."""
-
-    assignment: AgentWork
-    pull_request: PullRequest
-    undelivered_posts: list[UserPost]
-
-
-type AssignmentCandidate = (
-    NewAssignmentCandidate | PullRequestOpeningCandidate | AssignmentRoundCandidate
-)
-
-
-@dataclass(frozen=True, kw_only=True)
-class _AssignmentItemInspection:
-    row: RequestRow
-    candidate: AssignmentCandidate | None = None
-    is_fault: bool = False
-
-
-class AssignmentScheduler(AgentWorkScheduler[AssignmentCandidate, int]):
-    """Inspect, rank and launch assignment work."""
-
-    def inspect(
-        self, *, previous_record: SchedulerRecord | None, at: datetime
-    ) -> AgentWorkInspection[AssignmentCandidate]:
-        """Inspect all assignment work and return one ranked bundle.
-
-        A failed listing starts no new assignment, but open assignments are
-        still inspected, because they are found on disk.
-        """
-        assignments = read_agent_work_of_kind(
-            state=self.state, kind=AgentWorkKind.ASSIGNMENT
-        )
-        requests = list_assignment_requests(scheduler=self, assignments=assignments)
-        inspected = [
-            self._inspect_assignment(
-                assignment=assignment,
-                most_recent_cooldown_ended=(
-                    None
-                    if previous_record is None
-                    else previous_record.most_recent_cooldown_ended
-                ),
-                observed_at=at,
-            )
-            for assignment in find_open_agent_work_by_issue(work=assignments).values()
-        ]
-        candidates = [
-            item.candidate for item in inspected if item.candidate is not None
-        ]
-        if not requests.failures:
-            candidates.extend(self._compose_new_candidates(rows=requests.rows))
-        return AgentWorkInspection(
-            candidates=sorted(candidates, key=self.rank),
-            rows=[*(item.row for item in inspected), *requests.rows],
-            fault_count=sum(item.is_fault for item in inspected),
-            failures=requests.failures,
-        )
-
-    def rank(self, candidate: AssignmentCandidate, /) -> int:
-        """Rank an assignment candidate when `sorted` passes it by position."""
-        return 1 if isinstance(candidate, NewAssignmentCandidate) else 0
-
-    def launch(self, *, candidate: AssignmentCandidate, at: datetime) -> AgentRound:
-        """Create any new assignment, then start its required round."""
-        if isinstance(candidate, NewAssignmentCandidate):
-            assignment = create_assignment(
-                state=self.state,
-                route=candidate.route,
-                preferred_harness=self.preferred_harness,
-                issue=candidate.issue,
-                title=candidate.title,
-                at=at,
-            )
-            candidate = PullRequestOpeningCandidate(assignment=assignment)
-        assignment = candidate.assignment
-        if isinstance(candidate, PullRequestOpeningCandidate):
-            return self.start_round(
+    unread = compose_agent_work_row(work=assignment, finding=None)
+    if is_fault:
+        return Inspection(row=unread, is_counted_fault=True)
+    pull_request = read_assignment_pull_request_number(assignment=assignment)
+    if pull_request is None:
+        return Inspection(
+            row=unread,
+            candidate=Candidate(
                 work=assignment,
-                harness_session_identifier=assignment.find_harness_session_identifier(),
-                prepare_round=partial(
-                    open_assignment_pull_request,
-                    state=self.state,
-                    repository=self.repository,
-                    assignment=assignment,
-                    clock=self.clock,
-                ),
-                input_prompt=None,
-                finish_round=None,
-            )
-        round_input = AssignmentRoundInput(
-            pull_request_state=candidate.pull_request.state,
-            user_posts=candidate.undelivered_posts,
+                compose_round=partial(_compose_opening_round, context=context),
+            ),
         )
-        return self.start_round(
+    return _inspect_pull_request(
+        context=context, assignment=assignment, pull_request=pull_request
+    )
+
+
+def _inspect_pull_request(
+    *, context: SchedulingContext, assignment: AgentWork, pull_request: int
+) -> Inspection:
+    """Inspect an assignment's pull request and the user posts past its cursor.
+
+    A round is due for user posts past the cursor, for a merged or closed pull
+    request whose final turn has not been taken, or to give again the input of
+    a round that did not finish.
+    """
+    read = read_pull_request(repository=context.repository, pull_request=pull_request)
+    if isinstance(read, UnknownGitHubResponse):
+        return Inspection(
+            row=compose_agent_work_row(
+                work=assignment, finding=ReadFailureFinding(reason=read.reason)
+            )
+        )
+    posts = list_undelivered_user_posts(
+        repository=context.repository,
+        pull_request=read.number,
+        account=context.account,
+        delivery_position=read_user_post_delivery_position(assignment=assignment),
+    )
+    if isinstance(posts, UnknownGitHubResponse):
+        return Inspection(
+            row=compose_agent_work_row(
+                work=assignment, finding=ReadFailureFinding(reason=posts.reason)
+            )
+        )
+    finding = PullRequestFinding(
+        number=read.number,
+        state=read.state,
+        is_draft=read.is_draft,
+        new_posts=len(posts),
+        is_final_turn_due=(
+            read.state is not PullRequestState.OPEN
+            and not is_final_turn_taken(assignment=assignment)
+        ),
+    )
+    row = compose_agent_work_row(work=assignment, finding=finding)
+    if not (
+        finding.new_posts
+        or finding.is_final_turn_due
+        or is_last_round_unfinished(rounds=assignment.rounds, is_daemon_running=True)
+    ):
+        return Inspection(row=row)
+    return Inspection(
+        row=row,
+        candidate=Candidate(
             work=assignment,
-            harness_session_identifier=assignment.find_harness_session_identifier(),
-            prepare_round=lambda: round_input,
-            input_prompt=compose_assignment_input_prompt(
-                pull_request=candidate.pull_request.number,
-                round_input=assignment.compose_round_paths(
-                    number=assignment.next_round_number
-                ).round_input,
+            compose_round=partial(
+                _compose_relay_round,
+                context=context,
+                pull_request=read,
+                posts=posts,
             ),
-            finish_round=(
-                None
-                if round_input.pull_request_state is PullRequestState.OPEN
-                else partial(
-                    complete_assignment, assignment=assignment, clock=self.clock
-                )
-            ),
-        )
+        ),
+    )
 
-    def _inspect_assignment(
-        self,
-        *,
-        assignment: AgentWork,
-        most_recent_cooldown_ended: datetime | None,
-        observed_at: datetime,
-    ) -> _AssignmentItemInspection:
-        """Inspect one open assignment, reading its pull request once it has one.
 
-        Nothing is read for an assignment whose round is running or that is in
-        fault, since neither can start a round.
-        """
-        unread = compose_agent_work_row(work=assignment, finding=None)
-        if assignment.rounds and assignment.rounds[-1].ending is None:
-            return _AssignmentItemInspection(row=unread)
-        if derive_agent_work_fault(
-            rounds=assignment.rounds,
-            retry_requested_at=assignment.retry_requested_at,
-            most_recent_cooldown_ended=most_recent_cooldown_ended,
-        ):
-            return _AssignmentItemInspection(row=unread, is_fault=True)
-        observation = read_pull_request_observation(assignment=assignment)
-        if observation is None:
-            return _AssignmentItemInspection(
-                row=unread,
-                candidate=PullRequestOpeningCandidate(assignment=assignment),
-            )
-        return self._inspect_pull_request(
-            assignment=assignment,
-            observation=observation,
-            observed_at=observed_at,
-        )
+def inspect_assignment_request(
+    *,
+    context: SchedulingContext,
+    issue: Issue,
+    route: DispatchRoute,
+    row: RequestRow,
+) -> Inspection:
+    """Ask the start-time questions of an assignment request with no open work.
 
-    def _inspect_pull_request(
-        self,
-        *,
-        assignment: AgentWork,
-        observation: PullRequestObservation,
-        observed_at: datetime,
-    ) -> _AssignmentItemInspection:
-        """Inspect an assignment's pull request and the user posts past its cursor.
+    A new assignment starts when both answers are empty.
+    """
+    answers = _ask_start_time_questions(context=context, issue=issue.number)
+    row = row.model_copy(update={"finding": answers})
+    if not (isinstance(answers, StartTimeFinding) and answers.is_clear):
+        return Inspection(row=row)
+    return Inspection(
+        row=row,
+        candidate=Candidate(
+            work=route,
+            compose_round=partial(_compose_opening_round, context=context),
+        ),
+    )
 
-        A round is due for user posts past the cursor, for a merged or closed
-        pull request whose final turn has not been taken, or to give again the
-        input of a round that did not finish.
-        """
-        pull_request = read_pull_request(
-            repository=self.repository, pull_request=observation.number
-        )
-        if isinstance(pull_request, UnknownGitHubResponse):
-            return _AssignmentItemInspection(
-                row=compose_agent_work_row(
-                    work=assignment,
-                    finding=ReadFailureFinding(reason=pull_request.reason),
-                )
-            )
-        record_pull_request_observation(
-            assignment=assignment,
-            pull_request=pull_request,
-            observed_at=observed_at,
-        )
-        undelivered_posts = list_undelivered_user_posts(
-            repository=self.repository,
+
+def _ask_start_time_questions(
+    *, context: SchedulingContext, issue: int
+) -> StartTimeFinding | ReadFailureFinding:
+    """Return the open pull requests claiming the issue and open issues blocking it."""
+    pull_request_context = read_issue_pull_request_context(
+        repository=context.repository, issue=issue
+    )
+    if isinstance(pull_request_context, UnknownGitHubResponse):
+        return ReadFailureFinding(reason=pull_request_context.reason)
+    blocking = list_blocking_issues(repository=context.repository, issue=issue)
+    if isinstance(blocking, UnknownGitHubResponse):
+        return ReadFailureFinding(reason=blocking.reason)
+    return StartTimeFinding(
+        linked_pull_requests=[
+            pull_request.number for pull_request in pull_request_context.pull_requests
+        ],
+        blocking_issues=[
+            blocker.number for blocker in blocking if blocker.state is IssueState.OPEN
+        ],
+    )
+
+
+def _compose_opening_round(*, context: SchedulingContext, work: AgentWork) -> RoundPlan:
+    """Return the plan of a round whose preparation opens the pull request.
+
+    The round has no input, so its prompt is the agent's instructions alone.
+    """
+    return RoundPlan(
+        prepare_round=partial(
+            open_assignment_pull_request,
+            state=context.state,
+            repository=context.repository,
+            assignment=work,
+        ),
+        input_prompt=None,
+        finish_round=None,
+    )
+
+
+def _compose_relay_round(
+    *,
+    context: SchedulingContext,
+    pull_request: PullRequest,
+    posts: list[UserPost],
+    work: AgentWork,
+) -> RoundPlan:
+    """Return the plan of a round given the pull request's state and new posts.
+
+    A round given a merged or closed pull request is the wrap-up round, and it
+    records that the assignment completed as it finishes.
+    """
+    round_input = AssignmentRoundInput(
+        pull_request_state=pull_request.state, user_posts=posts
+    )
+    return RoundPlan(
+        prepare_round=lambda: round_input,
+        input_prompt=compose_assignment_input_prompt(
             pull_request=pull_request.number,
-            account=self.account,
-            delivery_position=read_user_post_delivery_position(assignment=assignment),
-        )
-        if isinstance(undelivered_posts, UnknownGitHubResponse):
-            return _AssignmentItemInspection(
-                row=compose_agent_work_row(
-                    work=assignment,
-                    finding=ReadFailureFinding(reason=undelivered_posts.reason),
-                )
-            )
-        finding = PullRequestFinding(
-            number=pull_request.number,
-            state=pull_request.state,
-            is_draft=pull_request.is_draft,
-            new_posts=len(undelivered_posts),
-            is_final_turn_due=(
-                pull_request.state is not PullRequestState.OPEN
-                and not is_final_turn_taken(assignment=assignment)
-            ),
-        )
-        row = compose_agent_work_row(work=assignment, finding=finding)
-        if not (
-            finding.new_posts
-            or finding.is_final_turn_due
-            or is_last_round_unfinished(
-                rounds=assignment.rounds, is_daemon_running=True
-            )
-        ):
-            return _AssignmentItemInspection(row=row)
-        return _AssignmentItemInspection(
-            row=row,
-            candidate=AssignmentRoundCandidate(
-                assignment=assignment,
-                pull_request=pull_request,
-                undelivered_posts=undelivered_posts,
-            ),
-        )
-
-    def _compose_new_candidates(
-        self, *, rows: list[RequestRow]
-    ) -> list[NewAssignmentCandidate]:
-        """Return a new assignment for each request that nothing claims or blocks."""
-        return [
-            NewAssignmentCandidate(
-                issue=row.issue,
-                title=row.title,
-                route=self.config.identify_assignment_routes(
-                    labels=[row.dispatch_label]
-                )[0],
-            )
-            for row in rows
-            if isinstance(row.finding, StartTimeFinding) and row.finding.is_clear
-        ]
+            round_input=work.compose_round_paths(
+                number=work.next_round_number
+            ).round_input,
+        ),
+        finish_round=(
+            None
+            if pull_request.state is PullRequestState.OPEN
+            else partial(complete_assignment, assignment=work, clock=context.clock)
+        ),
+    )

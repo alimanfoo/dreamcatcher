@@ -26,10 +26,10 @@ The title and issue body provide context, but they do not start a conversation
 on their own. A comment is the request to answer. Comments from other accounts
 are not delivered as user questions.
 
-At its next update while the issue is eligible, _dreamcatcher_ asks the
-configured harness to examine current `origin/main` and publishes the successful
-final answer as a marked issue comment. Its progress and tool activity remain in
-the local feed rather than becoming partial GitHub replies.
+At its next update, _dreamcatcher_ asks the configured harness to examine
+current `origin/main` and publishes the successful final answer as a marked
+issue comment. Its progress and tool activity remain in the local feed rather
+than becoming partial GitHub replies.
 
 Monitor it on the web home page or in the terminal:
 
@@ -49,20 +49,26 @@ it, make suitable issue changes such as filing a follow-up issue. An issue
 conversation investigates; it does not implement project changes or create and
 update a pull request. To request implementation, prepare an assignment instead.
 
-## Pause or resume eligibility
+## Pause, resume or end a conversation
 
-Conversation eligibility is checked continuously. Closing the issue, removing
-its matching label, adding a second configured conversation label, or removing
-the authenticated account as assignee prevents every new round, including one
+Each conversation belongs to the label that started it. _dreamcatcher_ checks
+its issue at every update while no round of it is running. Removing that label,
+adding a second configured conversation label, or removing the authenticated
+account as assignee pauses the conversation: no new round starts, including one
 that would retry an errored round. A round already running may finish and
 publish its answer.
 
-The current configuration also matters. Removing the issue's only matching
-conversation route pauses it after the daemon restarts. A saved conversation
-keeps its original recipe and session even if a different configured label later
-makes it eligible again.
+Undo the change to resume the conversation. It continues in the same harness
+session, and comments posted while it was paused are delivered to it. It keeps
+its original recipe even if its route is removed from `dreamcatcher.toml`.
 
-_dreamcatcher_ keeps the saved conversation. If the issue later becomes eligible
-again, comments posted while it was paused can be delivered and the saved
-session can continue. To stop just the round that is running, follow
+Closing the issue ends the conversation, and the web home page lists it with
+your other ended work. If the issue is reopened with its label, a new
+conversation starts and is given every comment you have posted on the issue.
+
+Taking one conversation label off and putting another on pauses the first
+conversation and starts a new one under the new label, with a session of its
+own. The new conversation is given every comment you have posted on the issue.
+
+To stop just the round that is running, follow
 [Stop and recover work](stop-and-recover.md).

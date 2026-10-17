@@ -1,288 +1,163 @@
-"""Inspect issue conversations and prepare their next rounds."""
+"""Inspect conversations' issues and compose the rounds their comments call for."""
 
-from dataclasses import dataclass
-from datetime import datetime
 from functools import partial
 
-from dreamcatcher.agent_rounds import AgentRound
-from dreamcatcher.agent_work import (
-    AgentWork,
-    find_open_agent_work_by_issue,
-    read_agent_work_of_kind,
-)
-from dreamcatcher.config import ConversationRoute
+from dreamcatcher.agent_work import AgentWork, AgentWorkEndReason, end_agent_work
+from dreamcatcher.config import DispatchRoute
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.github import (
     ConversationComment,
     Issue,
+    IssueState,
     UnknownGitHubResponse,
     list_issue_comments,
+    read_issue,
 )
-from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.issue_conversations import (
-    create_conversation,
-    is_conversation_ready_for_input,
     list_undelivered_issue_comments,
     post_conversation_answer,
     prepare_conversation_round,
     read_issue_comment_delivery_position,
 )
 from dreamcatcher.prompts import compose_conversation_input_prompt
-from dreamcatcher.scheduler.agent_work import (
-    AgentWorkScheduler,
-    RouteIssueListing,
+from dreamcatcher.scheduler.inspection import (
+    Candidate,
+    Inspection,
+    RoundPlan,
+    SchedulingContext,
     compose_agent_work_row,
 )
-from dreamcatcher.scheduler.faults import (
-    derive_agent_work_fault,
-    is_last_round_unfinished,
-)
 from dreamcatcher.scheduler.models import (
-    AgentWorkInspection,
     ConflictingLabelsFinding,
     IssueCommentsFinding,
+    PauseCause,
+    PausedFinding,
     ReadFailureFinding,
-    RequestFinding,
     RequestRow,
-    SchedulerRecord,
-    UnlistedIssueFinding,
 )
 
 
-@dataclass(frozen=True, kw_only=True)
-class ConversationBatchCandidate:
-    """Describe a conversation request or conversation with trusted comments waiting."""
+def inspect_open_conversation(
+    *, context: SchedulingContext, conversation: AgentWork, is_fault: bool
+) -> Inspection:
+    """Read an open conversation's issue, then its comments unless paused or in fault.
 
-    issue: Issue
-    comments: list[ConversationComment]
-    conversation: AgentWork | None
-    route: ConversationRoute
-
-
-@dataclass(frozen=True, kw_only=True)
-class _ConversationInspection:
-    rows: list[RequestRow]
-    candidate: ConversationBatchCandidate | None = None
-    is_fault: bool = False
-    is_blocking_fresh_batches: bool = False
-
-
-class ConversationScheduler(
-    AgentWorkScheduler[ConversationBatchCandidate, tuple[str, int]]
-):
-    """Inspect, rank and launch conversation work."""
-
-    def inspect(
-        self, *, previous_record: SchedulerRecord | None, at: datetime
-    ) -> AgentWorkInspection[ConversationBatchCandidate]:
-        """Inspect the listed issues and the open conversations, and rank the work.
-
-        Fresh batches start in order of their oldest waiting comment, so a
-        failed listing, or a failed comment read for a conversation that could
-        take a round, leaves only rounds that give a conversation the input of
-        one that did not finish. The faults of open conversations that a failed
-        listing did not return still count towards a cooldown.
-        """
-        listing = self.list_route_issues(routes=self.config.conversation)
-        conversations_by_issue = find_open_agent_work_by_issue(
-            work=read_agent_work_of_kind(
-                state=self.state, kind=AgentWorkKind.CONVERSATION
-            )
+    A closed issue ends the conversation. A paused conversation's fault does
+    not count, since it starts no round however its rounds ended.
+    """
+    unread = compose_agent_work_row(work=conversation, finding=None)
+    issue = read_issue(repository=context.repository, issue=conversation.record.issue)
+    if isinstance(issue, UnknownGitHubResponse):
+        return Inspection(
+            row=compose_agent_work_row(
+                work=conversation, finding=ReadFailureFinding(reason=issue.reason)
+            ),
+            is_counted_fault=is_fault,
         )
-        most_recent_cooldown_ended = (
-            None
-            if previous_record is None
-            else previous_record.most_recent_cooldown_ended
-        )
-        listed = [
-            inspection
-            for issue in listing.issues
-            if (
-                inspection := self._inspect_listed_issue(
-                    issue=issue,
-                    conversation=conversations_by_issue.get(issue.number),
-                    most_recent_cooldown_ended=most_recent_cooldown_ended,
-                )
-            )
-            is not None
-        ]
-        unlisted = _inspect_unlisted_conversations(
-            listing=listing,
-            conversations_by_issue=conversations_by_issue,
-            most_recent_cooldown_ended=most_recent_cooldown_ended,
-        )
-        candidates = [
-            inspection.candidate
-            for inspection in listed
-            if inspection.candidate is not None
-        ]
-        if listing.failures or any(
-            inspection.is_blocking_fresh_batches for inspection in listed
-        ):
-            candidates = [
-                candidate
-                for candidate in candidates
-                if candidate.conversation is not None
-                and is_last_round_unfinished(
-                    rounds=candidate.conversation.rounds, is_daemon_running=True
-                )
-            ]
-        inspections = [*listed, *unlisted]
-        return AgentWorkInspection(
-            candidates=sorted(candidates, key=self.rank),
-            rows=[row for inspection in inspections for row in inspection.rows],
-            fault_count=sum(inspection.is_fault for inspection in inspections),
-            failures=listing.failures,
-        )
-
-    def rank(self, candidate: ConversationBatchCandidate, /) -> tuple[str, int]:
-        """Rank a conversation candidate when `sorted` passes it by position."""
-        first_comment = candidate.comments[0]
-        return (first_comment.written_at, first_comment.id)
-
-    def launch(
-        self, *, candidate: ConversationBatchCandidate, at: datetime
-    ) -> AgentRound:
-        """Create any new conversation, then start its next round."""
-        conversation = candidate.conversation or create_conversation(
-            state=self.state,
-            route=candidate.route,
-            preferred_harness=self.preferred_harness,
-            issue=candidate.issue,
-            at=at,
-        )
-        harness_session_identifier = conversation.find_harness_session_identifier()
-        return self.start_round(
+    if issue.state is IssueState.CLOSED:
+        end_agent_work(
             work=conversation,
-            harness_session_identifier=harness_session_identifier,
-            prepare_round=partial(
-                prepare_conversation_round,
-                state=self.state,
-                conversation=conversation,
-                issue=candidate.issue,
-                comments=candidate.comments,
-                is_resuming=harness_session_identifier is not None,
-            ),
-            input_prompt=compose_conversation_input_prompt(
-                issue=conversation.record.issue,
-                round_input=conversation.compose_round_paths(
-                    number=conversation.next_round_number
-                ).round_input,
-            ),
-            finish_round=partial(
-                post_conversation_answer,
-                repository=self.repository,
-                issue=conversation.record.issue,
-            ),
+            reason=AgentWorkEndReason.ISSUE_CLOSED,
+            at=context.clock(),
         )
+        return Inspection(row=unread)
+    pause = _find_pause(context=context, conversation=conversation, issue=issue)
+    if pause is not None:
+        return Inspection(row=compose_agent_work_row(work=conversation, finding=pause))
+    if is_fault:
+        return Inspection(row=unread, is_counted_fault=True)
+    return _inspect_comments(
+        context=context, issue=issue, work=conversation, row=unread
+    )
 
-    def _inspect_listed_issue(
-        self,
-        *,
-        issue: Issue,
-        conversation: AgentWork | None,
-        most_recent_cooldown_ended: datetime | None,
-    ) -> _ConversationInspection | None:
-        """Inspect one listed issue that carries a conversation label.
 
-        An issue with two conversation labels starts nothing, so its comments
-        are not read.
-        """
-        routes = self.config.identify_conversation_routes(
-            labels=[label.name for label in issue.labels]
-        )
-        if not routes:
-            return None
-        if len(routes) == 1:
-            return self._inspect_conversation(
-                route=routes[0],
-                issue=issue,
-                conversation=conversation,
-                most_recent_cooldown_ended=most_recent_cooldown_ended,
-            )
-        finding = ConflictingLabelsFinding(
-            labels=sorted((route.label for route in routes), key=str.casefold)
-        )
-        if conversation is not None:
-            return _ConversationInspection(
-                rows=[compose_agent_work_row(work=conversation, finding=finding)]
-            )
-        return _ConversationInspection(
-            rows=[
-                _compose_new_conversation_row(issue=issue, label=label, finding=finding)
-                for label in finding.labels
-            ]
-        )
+def _find_pause(
+    *, context: SchedulingContext, conversation: AgentWork, issue: Issue
+) -> PausedFinding | ConflictingLabelsFinding | None:
+    """Return why the open conversation at this open issue is paused, if it is.
 
-    def _inspect_conversation(
-        self,
-        *,
-        route: ConversationRoute,
-        issue: Issue,
-        conversation: AgentWork | None,
-        most_recent_cooldown_ended: datetime | None,
-    ) -> _ConversationInspection:
-        """Read the comments at one listed issue and return a candidate when ready.
+    A second configured conversation label on the issue is a routing conflict,
+    held as the labels. The conversation's own label counts whether or not its
+    route is still configured.
+    """
+    labels = [label.name for label in issue.labels]
+    label = conversation.record.dispatch_label.casefold()
+    if label not in {name.casefold() for name in labels}:
+        return PausedFinding(cause=PauseCause.LABEL_REMOVED)
+    account = context.account.casefold()
+    if account not in {assignee.login.casefold() for assignee in issue.assignees}:
+        return PausedFinding(cause=PauseCause.ISSUE_UNASSIGNED)
+    others = [
+        route.label
+        for route in context.config.identify_conversation_routes(labels=labels)
+        if route.label.casefold() != label
+    ]
+    if others:
+        return ConflictingLabelsFinding(
+            labels=sorted(
+                [conversation.record.dispatch_label, *others], key=str.casefold
+            )
+        )
+    return None
 
-        Nothing is read for a conversation in fault.
-        """
-        if conversation is not None and derive_agent_work_fault(
-            rounds=conversation.rounds,
-            retry_requested_at=conversation.retry_requested_at,
-            most_recent_cooldown_ended=most_recent_cooldown_ended,
-        ):
-            return _ConversationInspection(
-                rows=[compose_agent_work_row(work=conversation, finding=None)],
-                is_fault=True,
-            )
-        comments = _list_comments_to_answer(
-            repository=self.repository,
-            account=self.account,
-            issue=issue.number,
-            conversation=conversation,
-        )
-        finding = (
-            comments
-            if isinstance(comments, ReadFailureFinding)
-            else IssueCommentsFinding(new_comments=len(comments))
-        )
-        row = (
-            _compose_new_conversation_row(
-                issue=issue, label=route.label, finding=finding
-            )
-            if conversation is None
-            else compose_agent_work_row(work=conversation, finding=finding)
-        )
-        is_ready = is_conversation_ready_for_input(conversation=conversation)
-        if isinstance(comments, ReadFailureFinding):
-            return _ConversationInspection(
-                rows=[row], is_blocking_fresh_batches=is_ready
-            )
-        if not comments or not is_ready:
-            return _ConversationInspection(rows=[row])
-        return _ConversationInspection(
-            rows=[row],
-            candidate=ConversationBatchCandidate(
-                issue=issue,
-                comments=comments,
-                conversation=conversation,
-                route=route,
+
+def inspect_conversation_request(
+    *,
+    context: SchedulingContext,
+    issue: Issue,
+    route: DispatchRoute,
+    row: RequestRow,
+) -> Inspection:
+    """Read the comments at a conversation request with no open conversation.
+
+    A new conversation starts when one of them waits.
+    """
+    return _inspect_comments(context=context, issue=issue, work=route, row=row)
+
+
+def _inspect_comments(
+    *,
+    context: SchedulingContext,
+    issue: Issue,
+    work: AgentWork | DispatchRoute,
+    row: RequestRow,
+) -> Inspection:
+    """Read the comments at the issue and return a candidate when some wait.
+
+    The work is the open conversation, or the route of the one that would
+    start, and the row is the request's row before the read.
+    """
+    comments = _list_comments_to_answer(
+        context=context,
+        issue=issue.number,
+        conversation=work if isinstance(work, AgentWork) else None,
+    )
+    if isinstance(comments, ReadFailureFinding):
+        return Inspection(row=row.model_copy(update={"finding": comments}))
+    row = row.model_copy(
+        update={"finding": IssueCommentsFinding(new_comments=len(comments))}
+    )
+    if not comments:
+        return Inspection(row=row)
+    return Inspection(
+        row=row,
+        candidate=Candidate(
+            work=work,
+            compose_round=partial(
+                _compose_comment_round, context=context, issue=issue, comments=comments
             ),
-        )
+        ),
+    )
 
 
 def _list_comments_to_answer(
-    *,
-    repository: str,
-    account: str,
-    issue: int,
-    conversation: AgentWork | None,
+    *, context: SchedulingContext, issue: int, conversation: AgentWork | None
 ) -> list[ConversationComment] | ReadFailureFinding:
     """Return the trusted comments that no round has been given yet.
 
     A read that fails answers why.
     """
-    comment_response = list_issue_comments(repository=repository, issue=issue)
+    comment_response = list_issue_comments(repository=context.repository, issue=issue)
     if isinstance(comment_response, UnknownGitHubResponse):
         return ReadFailureFinding(reason=comment_response.reason)
     try:
@@ -295,51 +170,41 @@ def _list_comments_to_answer(
         return ReadFailureFinding(reason=str(failure))
     return list_undelivered_issue_comments(
         comments=comment_response,
-        account=account,
+        account=context.account,
         delivery_position=delivery_position,
     )
 
 
-def _compose_new_conversation_row(
-    *, issue: Issue, label: str, finding: RequestFinding
-) -> RequestRow:
-    """Return the row of a conversation request that has no open conversation."""
-    return RequestRow(
-        issue=issue.number,
-        title=issue.title,
-        dispatch_label=label,
-        kind=AgentWorkKind.CONVERSATION,
-        finding=finding,
-    )
-
-
-def _inspect_unlisted_conversations(
+def _compose_comment_round(
     *,
-    listing: RouteIssueListing,
-    conversations_by_issue: dict[int, AgentWork],
-    most_recent_cooldown_ended: datetime | None,
-) -> list[_ConversationInspection]:
-    """Inspect the open conversations whose issues the listing did not return.
+    context: SchedulingContext,
+    issue: Issue,
+    comments: list[ConversationComment],
+    work: AgentWork,
+) -> RoundPlan:
+    """Return the plan of a round given the comments waiting at the issue.
 
-    A failed listing may be why, so the row holds the failure and a fault
-    still counts.
+    A round that starts a new harness session is given the issue's title and
+    body too, and every round posts its answer as it finishes.
     """
-    listed_issues = {issue.number for issue in listing.issues}
-    finding = (
-        ReadFailureFinding(reason="; ".join(listing.failures))
-        if listing.failures
-        else UnlistedIssueFinding()
+    return RoundPlan(
+        prepare_round=partial(
+            prepare_conversation_round,
+            state=context.state,
+            conversation=work,
+            issue=issue,
+            comments=comments,
+            is_resuming=work.find_harness_session_identifier() is not None,
+        ),
+        input_prompt=compose_conversation_input_prompt(
+            issue=work.record.issue,
+            round_input=work.compose_round_paths(
+                number=work.next_round_number
+            ).round_input,
+        ),
+        finish_round=partial(
+            post_conversation_answer,
+            repository=context.repository,
+            issue=work.record.issue,
+        ),
     )
-    return [
-        _ConversationInspection(
-            rows=[compose_agent_work_row(work=conversation, finding=finding)],
-            is_fault=bool(listing.failures)
-            and derive_agent_work_fault(
-                rounds=conversation.rounds,
-                retry_requested_at=conversation.retry_requested_at,
-                most_recent_cooldown_ended=most_recent_cooldown_ended,
-            ),
-        )
-        for issue, conversation in sorted(conversations_by_issue.items())
-        if issue not in listed_issues
-    ]

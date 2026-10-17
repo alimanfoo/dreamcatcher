@@ -495,19 +495,45 @@ def test_a_cancelled_assignment_has_ended_rather_than_being_in_fault(state):
     assert status.value is AgentWorkStatusValue.ENDED
 
 
-def test_a_cancelled_assignment_stops_reporting_its_pull_request_state(tmp_path):
-    state = StateDirectory(root=tmp_path)
-    write_assignment(
-        state=state,
-        identifier=ASSIGNMENT_ID,
-        issue=13,
-        title="The issue title",
+@pytest.mark.parametrize(("is_draft", "words"), [(True, "draft"), (False, "ready")])
+def test_an_open_assignment_reports_the_pull_request_state_the_tick_read(
+    state, is_draft, words
+):
+    ran(state=state, number=1)
+    tick_with(state=state, rows=[pull_request_row(is_draft=is_draft)])
+
+    assert only_assignment(state=state).pull_request_state == words
+
+
+def test_an_assignment_the_tick_read_nothing_for_reports_no_pull_request_state(state):
+    ran(state=state, number=1, status=None)
+    tick_with(
+        state=state, rows=[request_row(issue=13, agent_work_identifier=ASSIGNMENT_ID)]
     )
-    assert only_assignment(state=state).pull_request_state == "draft"
+
+    assert only_assignment(state=state).pull_request_state is None
+
+
+def test_a_cancelled_assignment_stops_reporting_its_pull_request_state(state):
+    ran(state=state, number=1)
+    tick_with(state=state, rows=[pull_request_row(is_draft=True)])
 
     cancel(state=state)
 
     assert only_assignment(state=state).pull_request_state is None
+
+
+@pytest.mark.parametrize("status", [0, None])
+def test_a_wrapped_up_assignment_reports_the_state_its_last_round_was_given(
+    state, status
+):
+    ran(state=state, number=1)
+    ran(state=state, number=2, status=status, round_input=MERGED_INPUT)
+    tick_with(
+        state=state, rows=[request_row(issue=13, agent_work_identifier=ASSIGNMENT_ID)]
+    )
+
+    assert only_assignment(state=state).pull_request_state == "merged"
 
 
 def test_an_assignment_that_has_run_no_round_waits_for_its_first(state):
@@ -804,9 +830,7 @@ def test_a_request_that_an_open_pull_request_claims_is_blocked(state):
 
 def test_an_assignment_whose_pull_request_is_not_yet_open_waits_for_it(tmp_path):
     state = StateDirectory(root=tmp_path)
-    write_assignment(
-        state=state, identifier=ASSIGNMENT_ID, issue=13, pull_request_observation=None
-    )
+    write_assignment(state=state, identifier=ASSIGNMENT_ID, issue=13, pull_request=None)
     ran(state=state, number=1)
     tick_with(
         state=state,

@@ -143,7 +143,11 @@ def test_the_conversation_input_prompt_names_its_input_and_host_boundary(tmp_pat
         in composed
     )
     assert "Do not edit\nproject source, mutate Git, or implement a change" in composed
-    assert "Do not\nfetch issue comments yourself" in composed
+    assert (
+        "closing\nthe issue ends the conversation and removing its label or assignee "
+        "pauses it" in composed
+    )
+    assert "Do\nnot fetch issue comments yourself" in composed
     assert "open or change a pull request" in composed
     assert "post the\nconversation reply yourself" in composed
     assert "revision" in composed

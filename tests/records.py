@@ -44,10 +44,8 @@ MERGED_INPUT = agent_assignments.AssignmentRoundInput(
     pull_request_state=PullRequestState.MERGED, user_posts=[]
 )
 
-# What a fabricated assignment saw of its pull request, unless a test says.
-_OPEN_DRAFT = agent_assignments.PullRequestObservation(
-    number=52, state=PullRequestState.OPEN, is_draft=True, observed_at=PINNED
-)
+# The number of the pull request a fabricated assignment opened, unless a test says.
+_PULL_REQUEST_52 = 52
 
 
 def write_daemon_run(
@@ -99,22 +97,21 @@ def write_assignment(
     issue: int,
     harness_session_identifier: str | None = "abc-123",
     title: str | None = None,
-    pull_request_observation: agent_assignments.PullRequestObservation
-    | None = _OPEN_DRAFT,
+    pull_request: int | None = _PULL_REQUEST_52,
 ) -> Path:
     """Write an assignment's worktree and its records, and return its own directory.
 
     The title is `Issue <n>` unless the test gives one. An assignment given no
-    pull request observation is one whose first round has not opened it.
+    pull request is one whose first round has not opened it.
     """
     (state.worktrees / identifier).mkdir(parents=True)
     directory = state.work / identifier
-    if pull_request_observation is not None:
+    if pull_request is not None:
         write_json(
-            document=pull_request_observation,
-            path=directory / agent_assignments._PULL_REQUEST_OBSERVATION_RECORD_NAME,
+            document=agent_assignments._PullRequestRecord(number=pull_request),
+            path=directory / agent_assignments._PULL_REQUEST_RECORD_NAME,
         )
-    agent_work.record_agent_work(
+    agent_work._record_agent_work(
         state=state,
         identifier=identifier,
         record=agent_work.AgentWorkRecord(
@@ -134,7 +131,7 @@ def write_assignment(
 
 def compose_conversation_identifier(*, issue: int) -> str:
     """Return the identifier of the conversation that the tests write at an issue."""
-    return agent_work.compose_agent_work_identifier(
+    return agent_work._compose_agent_work_identifier(
         issue=issue, kind=AgentWorkKind.CONVERSATION, at=PINNED
     )
 
@@ -154,7 +151,7 @@ def write_conversation(
     """Write a conversation worktree and record, and return its directory."""
     identifier = compose_conversation_identifier(issue=issue)
     (state.worktrees / identifier).mkdir(parents=True)
-    work = agent_work.record_agent_work(
+    work = agent_work._record_agent_work(
         state=state,
         identifier=identifier,
         record=agent_work.AgentWorkRecord(
@@ -291,9 +288,11 @@ def write_final_output(*, directory: Path, number: int, text: str) -> None:
 
 def read_assignments(*, state: StateDirectory) -> list[agent_work.AgentWork]:
     """Return every assignment in the state directory, by identifier."""
-    return agent_work.read_agent_work_of_kind(
-        state=state, kind=AgentWorkKind.ASSIGNMENT
-    )
+    return [
+        work
+        for work in agent_work.read_agent_work(state=state)
+        if work.record.kind is AgentWorkKind.ASSIGNMENT
+    ]
 
 
 def read_conversation(

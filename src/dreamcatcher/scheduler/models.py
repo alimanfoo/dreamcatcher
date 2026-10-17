@@ -1,7 +1,7 @@
 """Persistent scheduler records and shared scheduling facts."""
 
-from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
+from enum import StrEnum
 from typing import Annotated, Literal, Self
 
 from pydantic import (
@@ -67,10 +67,21 @@ class ConflictingLabelsFinding(DreamcatcherDocument):
     labels: list[str] = Field(min_length=2)
 
 
-class UnlistedIssueFinding(DreamcatcherDocument):
-    """Say that the listing did not return the issue of open work."""
+class PauseCause(StrEnum):
+    """The reasons an open conversation pauses, other than a routing conflict.
 
-    found: Literal["issue not listed"] = "issue not listed"
+    The tick checks them in this order, and a routing conflict after them.
+    """
+
+    LABEL_REMOVED = "label removed"
+    ISSUE_UNASSIGNED = "issue unassigned"
+
+
+class PausedFinding(DreamcatcherDocument):
+    """Say why the tick starts no round for an open conversation until it resumes."""
+
+    found: Literal["paused"] = "paused"
+    cause: PauseCause
 
 
 class ReadFailureFinding(DreamcatcherDocument):
@@ -85,7 +96,7 @@ type RequestFinding = Annotated[
     | IssueCommentsFinding
     | StartTimeFinding
     | ConflictingLabelsFinding
-    | UnlistedIssueFinding
+    | PausedFinding
     | ReadFailureFinding,
     Field(discriminator="found"),
 ]
@@ -113,16 +124,6 @@ class RequestRow(DreamcatcherDocument):
     agent_work_identifier: str | None = None
     finding: RequestFinding | None = None
     started_round: StartedRound | None = None
-
-
-@dataclass(frozen=True, kw_only=True)
-class AgentWorkInspection[CandidateT]:
-    """Collect one kind's ranked candidates, rows, faults and listing failures."""
-
-    candidates: list[CandidateT]
-    rows: list[RequestRow]
-    fault_count: int
-    failures: list[str]
 
 
 class GlobalCooldown(DreamcatcherDocument):

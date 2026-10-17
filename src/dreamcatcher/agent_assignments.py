@@ -1,12 +1,9 @@
-"""Create agent assignments and read the state that only assignments have.
+"""Open agent assignments' pull requests and read the state only assignments have.
 
-Each assignment dispatch creates a piece of agent work with its own identifier,
-branch, worktree and pull request. Several assignments can exist for one issue.
-
-Creation records the assignment and nothing else. Its first round prepares and
+Each assignment has its own identifier, branch, worktree and pull request, and
+several assignments can exist for one issue. Its first round prepares and
 publishes the branch and opens the linked draft pull request, the assignment's
-channel, before the harness runs. The scheduler decides when to create each
-assignment.
+channel, before the harness runs.
 """
 
 from collections.abc import Callable, Iterator
@@ -14,7 +11,7 @@ from contextlib import suppress
 from datetime import datetime
 from pathlib import Path
 
-from pydantic import AwareDatetime
+from pydantic import PositiveInt
 
 from dreamcatcher.agent_assignment_pull_requests import (
     find_or_create_assignment_pull_request,
@@ -26,13 +23,9 @@ from dreamcatcher.agent_rounds import (
 from dreamcatcher.agent_work import (
     AgentWork,
     AgentWorkEndReason,
-    AgentWorkRecord,
-    compose_agent_work_identifier,
     end_agent_work,
-    record_agent_work,
 )
 from dreamcatcher.commands import CommandError
-from dreamcatcher.config import AgentHarness, AssignmentRoute
 from dreamcatcher.documents import (
     DocumentCache,
     DreamcatcherDocument,
@@ -51,13 +44,7 @@ from dreamcatcher.git import (
     push_branch,
     remove_worktree,
 )
-from dreamcatcher.github import (
-    PullRequest,
-    PullRequestState,
-    UserPost,
-)
-from dreamcatcher.harness_adapters import AgentWorkKind
-from dreamcatcher.prompts import compose_issue_instructions
+from dreamcatcher.github import PullRequestState, UserPost
 from dreamcatcher.state import StateDirectory
 
 # What an assignment's branch is called, before its identifier. The prefix keeps
@@ -65,8 +52,8 @@ from dreamcatcher.state import StateDirectory
 # that the catcher it replaces left behind.
 _ASSIGNMENT_BRANCH_PREFIX = "dreamcatcher-"
 
-# The file in an assignment's directory holding its pull request observation.
-_PULL_REQUEST_OBSERVATION_RECORD_NAME = "pull-request-observation.json"
+# The file in an assignment's directory holding its pull request's number.
+_PULL_REQUEST_RECORD_NAME = "pull-request.json"
 
 
 class AssignmentRoundInput(DreamcatcherDocument):
@@ -76,23 +63,14 @@ class AssignmentRoundInput(DreamcatcherDocument):
     user_posts: list[UserPost]
 
 
-class PullRequestObservation(DreamcatcherDocument):
-    """Model the assignment's pull request and the latest state observed of it.
+class _PullRequestRecord(DreamcatcherDocument):
+    """Model the number of the assignment's pull request.
 
-    The round that opens the pull request records the number, and the scheduler
-    reads that pull request by it. Scheduling reads the pull request's state
-    from GitHub, not from this observation, which keeps it for reporting.
+    The round that opens the pull request writes it once, and the scheduler
+    reads the pull request by it.
     """
 
-    number: int
-    state: PullRequestState
-    is_draft: bool
-    observed_at: AwareDatetime
-
-    @property
-    def is_open(self) -> bool:
-        """Whether the pull request was open when observed."""
-        return self.state is PullRequestState.OPEN
+    number: PositiveInt
 
 
 def compose_assignment_branch(*, identifier: str) -> str:
@@ -100,14 +78,13 @@ def compose_assignment_branch(*, identifier: str) -> str:
     return f"{_ASSIGNMENT_BRANCH_PREFIX}{identifier}"
 
 
-def read_pull_request_observation(
-    *, assignment: AgentWork
-) -> PullRequestObservation | None:
-    """Return the assignment's pull request observation, once a round has opened it."""
-    return read_json_if_exists(
-        model=PullRequestObservation,
-        path=assignment.directory / _PULL_REQUEST_OBSERVATION_RECORD_NAME,
+def read_assignment_pull_request_number(*, assignment: AgentWork) -> int | None:
+    """Return the number of the assignment's pull request, once a round opened it."""
+    record = read_json_if_exists(
+        model=_PullRequestRecord,
+        path=assignment.directory / _PULL_REQUEST_RECORD_NAME,
     )
+    return None if record is None else record.number
 
 
 def cancel_assignment(*, assignment: AgentWork, at: datetime) -> None:
@@ -146,47 +123,8 @@ def complete_assignment(
     end_agent_work(work=assignment, reason=AgentWorkEndReason.COMPLETED, at=clock())
 
 
-def create_assignment(
-    *,
-    state: StateDirectory,
-    route: AssignmentRoute,
-    preferred_harness: AgentHarness,
-    issue: int,
-    title: str,
-    at: datetime,
-) -> AgentWork:
-    """Record the issue's assignment with no rounds run yet.
-
-    The route selects a recipe in response to the preferred harness, and the
-    recipe supplies the settings that the record keeps.
-    """
-    selected_harness = route.choose_harness(preferred_harness=preferred_harness)
-    recipe = route.recipes[selected_harness]
-    return record_agent_work(
-        state=state,
-        identifier=compose_agent_work_identifier(
-            issue=issue, kind=AgentWorkKind.ASSIGNMENT, at=at
-        ),
-        record=AgentWorkRecord(
-            issue=issue,
-            title=title,
-            dispatch_label=route.label,
-            kind=AgentWorkKind.ASSIGNMENT,
-            harness=selected_harness,
-            model=recipe.model,
-            effort=recipe.effort,
-            harness_config=recipe.config,
-            prompt=compose_issue_instructions(template=recipe.prompt, issue=issue),
-        ),
-    )
-
-
 def open_assignment_pull_request(
-    *,
-    state: StateDirectory,
-    repository: str,
-    assignment: AgentWork,
-    clock: Callable[[], datetime],
+    *, state: StateDirectory, repository: str, assignment: AgentWork
 ) -> None:
     """Publish the assignment's branch and record its draft pull request.
 
@@ -212,15 +150,15 @@ def open_assignment_pull_request(
     if not has_commits_since_main(worktree=assignment.worktree):
         make_empty_commit(worktree=assignment.worktree, message=f"GH{issue}")
     push_branch(root=state.root, branch=branch)
-    record_pull_request_observation(
-        assignment=assignment,
-        pull_request=find_or_create_assignment_pull_request(
-            repository=repository,
-            branch=branch,
-            issue=issue,
-            title=assignment.record.title,
-        ),
-        observed_at=clock(),
+    pull_request = find_or_create_assignment_pull_request(
+        repository=repository,
+        branch=branch,
+        issue=issue,
+        title=assignment.record.title,
+    )
+    write_json(
+        document=_PullRequestRecord(number=pull_request.number),
+        path=assignment.directory / _PULL_REQUEST_RECORD_NAME,
     )
 
 
@@ -232,41 +170,24 @@ def read_user_post_delivery_position(*, assignment: AgentWork) -> str:
     return ""
 
 
+def read_relayed_pull_request_state(
+    *, assignment: AgentWork
+) -> PullRequestState | None:
+    """Return the pull request state that the newest relayed round input carried."""
+    latest = next(_read_relayed_inputs(assignment=assignment), None)
+    return None if latest is None else latest.pull_request_state
+
+
 def is_final_turn_taken(*, assignment: AgentWork) -> bool:
     """Return whether a merged or closed pull request has been relayed."""
-    latest = next(_read_relayed_inputs(assignment=assignment), None)
-    return latest is not None and latest.pull_request_state is not PullRequestState.OPEN
+    state = read_relayed_pull_request_state(assignment=assignment)
+    return state is not None and state is not PullRequestState.OPEN
 
 
 def _read_relayed_inputs(*, assignment: AgentWork) -> Iterator[AssignmentRoundInput]:
     """Yield the inputs already relayed, newest first."""
     for paths in assignment.list_relayed_inputs():
         yield read_json(model=AssignmentRoundInput, path=paths.round_input)
-
-
-def record_pull_request_observation(
-    *, assignment: AgentWork, pull_request: PullRequest, observed_at: datetime
-) -> None:
-    """Record the pull request when it differs from the latest observation.
-
-    An assignment with no observation yet records this one, its first.
-    """
-    recorded = read_pull_request_observation(assignment=assignment)
-    if (
-        recorded is not None
-        and recorded.state is pull_request.state
-        and recorded.is_draft == pull_request.is_draft
-    ):
-        return
-    write_json(
-        document=PullRequestObservation(
-            number=pull_request.number,
-            state=pull_request.state,
-            is_draft=pull_request.is_draft,
-            observed_at=observed_at,
-        ),
-        path=assignment.directory / _PULL_REQUEST_OBSERVATION_RECORD_NAME,
-    )
 
 
 def _discard_worktree_and_branch(

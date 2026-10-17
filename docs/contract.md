@@ -192,8 +192,8 @@ to read source and Git history, run code, reproduce a suspected bug, and make
 issue changes on GitHub when the user asks, such as filing or linking a
 subissue. Before making a GitHub change, the agent must inspect GitHub and must
 not repeat an action that an earlier attempt completed. It must not close the
-conversation issue or change its assignees or labels, because _dreamcatcher_
-needs the issue to remain eligible until the answer is published. It must not
+conversation issue or change its assignees or labels, because closing the issue
+ends the conversation and removing its label or assignee pauses it. It must not
 fetch issue comments itself: the saved input is the comment set it must answer.
 
 Its instructions must not tell the agent to implement a change, edit project
@@ -210,13 +210,13 @@ errored.
 ### Rounds that did not finish and stopped rounds
 
 Issue conversations run through Claude or Codex and keep the harness chosen at
-creation. While the issue remains eligible, the round after an interrupted or
-errored one is given that round's comments again, with any that arrived since,
-against a refreshed worktree. Its prompt opens by saying that the previous round
-did not finish. It resumes the recorded harness session, or starts a new session
-with the configured prompt and the issue's title and body when no session
-identifier was recorded. The configured conversation prompt needs no special
-instructions for this.
+creation. While the conversation is not paused, the round after an interrupted
+or errored one is given that round's comments again, with any that arrived
+since, against a refreshed worktree. Its prompt opens by saying that the
+previous round did not finish. It resumes the recorded harness session, or
+starts a new session with the configured prompt and the issue's title and body
+when no session identifier was recorded. The configured conversation prompt
+needs no special instructions for this.
 
 A conversation round that the user stopped waits for a new eligible comment. The
 next round begins by saying that the earlier round was stopped.

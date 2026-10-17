@@ -41,7 +41,7 @@ from dreamcatcher.documents import read_json, write_json, write_text
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.lock import _HeldDaemonLock, hold_daemon_lock, is_daemon_lock_held
-from dreamcatcher.scheduler import AssignmentScheduler, ConversationScheduler, Scheduler
+from dreamcatcher.scheduler import Scheduler, SchedulingContext
 from dreamcatcher.scheduler.models import (
     GlobalCooldown,
     SchedulerRecord,
@@ -119,27 +119,16 @@ def idling(
 
 
 def create_scheduler(*, daemon: DreamcatcherDaemon) -> Scheduler:
-    """Create both kind schedulers for one daemon test."""
-    assignments = AssignmentScheduler(
-        repository=REPOSITORY,
-        account=POSTED_BY,
-        config=daemon.config,
-        state=daemon.state,
-        preferred_harness=daemon.harness,
-        clock=daemon.clock,
-    )
-    conversations = ConversationScheduler(
-        repository=REPOSITORY,
-        account=POSTED_BY,
-        config=daemon.config,
-        state=daemon.state,
-        preferred_harness=daemon.harness,
-        clock=daemon.clock,
-    )
+    """Create the scheduler for one daemon test."""
     return Scheduler(
-        state=daemon.state,
-        assignments=assignments,
-        conversations=conversations,
+        context=SchedulingContext(
+            repository=REPOSITORY,
+            account=POSTED_BY,
+            config=daemon.config,
+            state=daemon.state,
+            clock=daemon.clock,
+        ),
+        preferred_harness=daemon.harness,
         rounds=daemon.rounds,
     )
 

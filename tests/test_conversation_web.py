@@ -40,9 +40,10 @@ from dreamcatcher.issue_conversations import (
 from dreamcatcher.scheduler.models import (
     ConflictingLabelsFinding,
     IssueCommentsFinding,
+    PauseCause,
+    PausedFinding,
     ReadFailureFinding,
     SchedulerRecord,
-    UnlistedIssueFinding,
 )
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.web.app import _create_app
@@ -62,7 +63,7 @@ def application(*, state: StateDirectory):
 def test_home_lists_a_conversation_and_links_to_its_page(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
-    fabricate_conversation(state=state, is_listed=True)
+    fabricate_conversation(state=state, is_paused=False)
 
     page = application(state=state).test_client().get("/").text
 
@@ -375,7 +376,7 @@ def test_conversation_page_with_an_unreadable_input_still_renders(tmp_path):
 
 def test_conversation_page_shows_a_failed_round_waiting_to_run_again(tmp_path):
     state = StateDirectory(root=tmp_path)
-    fabricate_conversation(state=state, status=2, is_listed=True)
+    fabricate_conversation(state=state, status=2, is_paused=False)
 
     page = (
         application(state=state)
@@ -390,7 +391,7 @@ def test_conversation_page_shows_a_failed_round_waiting_to_run_again(tmp_path):
 
 def _fabricate_faulted_conversation(*, state: StateDirectory) -> None:
     """Save conversation GH8 with two consecutive errored rounds."""
-    fabricate_conversation(state=state, status=2, is_listed=True)
+    fabricate_conversation(state=state, status=2, is_paused=False)
     directory = find_conversation_directory(state=state, issue=8)
     write_round(
         directory=directory,
@@ -505,7 +506,7 @@ def test_an_ended_conversation_stops_empty_tail_polling(tmp_path):
 
 def test_a_waiting_conversation_keeps_empty_tail_polling(tmp_path):
     state = StateDirectory(root=tmp_path)
-    fabricate_conversation(state=state, has_round=False, is_listed=True)
+    fabricate_conversation(state=state, has_round=False, is_paused=False)
 
     response = (
         application(state=state)
@@ -539,7 +540,7 @@ def test_a_faulted_conversation_keeps_empty_tail_polling(tmp_path):
 
 def test_a_routing_conflict_keeps_empty_conversation_tail_polling(tmp_path):
     state = StateDirectory(root=tmp_path)
-    fabricate_conversation(state=state, is_listed=True)
+    fabricate_conversation(state=state, is_paused=False)
     write_tick(
         state=state,
         tick=SchedulerRecord(
@@ -569,7 +570,7 @@ def test_a_routing_conflict_keeps_empty_conversation_tail_polling(tmp_path):
 
 def test_conversation_tail_adds_a_later_round_without_repeating_the_first(tmp_path):
     state = StateDirectory(root=tmp_path)
-    fabricate_conversation(state=state, is_listed=True)
+    fabricate_conversation(state=state, is_paused=False)
     conversation = read_conversation(state=state, issue=8)
     assert conversation is not None
     first_feed = conversation.compose_round_paths(number=1).feed
@@ -614,7 +615,9 @@ def test_conversation_tail_adds_a_later_round_without_repeating_the_first(tmp_pa
         state=state,
         tick=SchedulerRecord(
             at=PINNED,
-            rows=[conversation_row(finding=UnlistedIssueFinding())],
+            rows=[
+                conversation_row(finding=PausedFinding(cause=PauseCause.LABEL_REMOVED))
+            ],
         ),
     )
 
@@ -630,7 +633,7 @@ def test_conversation_tail_adds_a_later_round_without_repeating_the_first(tmp_pa
     assert response.status_code == 200
     assert "I found the answer." not in response.text
     assert 'id="agent-work-detail"' in response.text
-    assert "issue not listed" in response.text
+    assert "paused, label removed" in response.text
     assert response.text.count("round 2: 1 comment") == 1
     assert response.text.count("code revision abc123 -&gt; def456") == 1
     assert response.text.count("I found the follow-up answer.") == 1

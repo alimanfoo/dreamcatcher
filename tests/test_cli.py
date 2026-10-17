@@ -410,9 +410,7 @@ def test_cancel_of_an_assignment_with_no_pull_request_says_so(
     configure(root=tmp_path)
     state = StateDirectory(root=tmp_path)
     state.bootstrap()
-    write_assignment(
-        state=state, identifier=ASSIGNMENT_ID, issue=13, pull_request_observation=None
-    )
+    write_assignment(state=state, identifier=ASSIGNMENT_ID, issue=13, pull_request=None)
     monkeypatch.chdir(tmp_path)
 
     assert main(argv=["cancel", "GH13"]) == 0

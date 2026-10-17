@@ -15,8 +15,9 @@ from dreamcatcher.agent_rounds import (
 from dreamcatcher.agent_work import (
     AgentWork,
     AgentWorkRecord,
+    _record_agent_work,
+    create_agent_work,
     read_agent_work,
-    record_agent_work,
 )
 from dreamcatcher.config import (
     AgentHarness,
@@ -38,7 +39,6 @@ from dreamcatcher.issue_conversations import (
     ConversationRoundInput,
     InitialConversationIssue,
     IssueCommentDeliveryPosition,
-    create_conversation,
     list_undelivered_issue_comments,
     post_conversation_answer,
     prepare_conversation_round,
@@ -76,7 +76,7 @@ def issue(*, number: int = 8) -> Issue:
 
 
 def write_conversation(*, state: StateDirectory, number: int = 8) -> AgentWork:
-    return record_agent_work(
+    return _record_agent_work(
         state=state,
         identifier=f"GH{number}-20260923-010000-conversation",
         record=AgentWorkRecord(
@@ -110,11 +110,12 @@ def comment(
 def test_a_conversation_is_recorded_without_a_worktree(tmp_path):
     state = StateDirectory(root=tmp_path)
 
-    created = create_conversation(
+    created = create_agent_work(
         state=state,
         route=conversation_route(),
         preferred_harness=AgentHarness.CLAUDE,
-        issue=issue(),
+        issue=8,
+        title="Why does this happen?",
         at=PINNED,
     )
 
@@ -140,11 +141,12 @@ def test_a_new_conversation_records_the_preferred_harness_recipe(cloned):
         ),
     )
 
-    created = create_conversation(
+    created = create_agent_work(
         state=state,
         route=route,
         preferred_harness=AgentHarness.CODEX,
-        issue=issue(),
+        issue=8,
+        title="Why does this happen?",
         at=PINNED,
     )
 
@@ -196,11 +198,12 @@ def test_round_input_freezes_the_issue_comments_and_revision(
     cloned, is_resuming, initial_issue
 ):
     state = StateDirectory(root=cloned)
-    conversation = create_conversation(
+    conversation = create_agent_work(
         state=state,
         route=conversation_route(),
         preferred_harness=AgentHarness.CLAUDE,
-        issue=issue(),
+        issue=8,
+        title="Why does this happen?",
         at=PINNED,
     )
 

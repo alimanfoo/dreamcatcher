@@ -171,6 +171,19 @@ The **scheduler** decides what work _dreamcatcher_ starts and when. It decides
 once per **scheduler tick**, and the daemon runs one tick per interval. Users
 see a scheduler tick called an update.
 
+### Channel and cursor
+
+A piece of agent work's **channel** is the GitHub object through which the agent
+and the user talk: an assignment's pull request, or a conversation's issue. An
+assignment's channel exists once the round that opens its pull request has done
+so.
+
+The **cursor** is how far the agent has read in its channel. Nothing stores it
+on its own: it is read back from the inputs of the rounds that took their turn
+or are still running, so the input of a round that errored or was interrupted is
+given again. Anything in the channel past the cursor is new, and something new
+calls for a round.
+
 ### Status report
 
 A **status report** is _dreamcatcher_'s read-only account of a _dreamcatcher_
@@ -243,8 +256,9 @@ Each issue conversation has exactly one:
 - agent harness.
 
 It has no branch or pull request, so the issue is its communication channel. A
-_dreamcatcher_ instance has at most one issue conversation for an issue, and it
-keeps the conversation after the issue stops being eligible.
+conversation belongs to the dispatch label that started it. A _dreamcatcher_
+instance has at most one open issue conversation for each conversation label on
+an issue, and it keeps a paused conversation until the issue closes.
 
 Each conversation round input records the comment batch and the main revision. A
 round that starts a new harness session also records the issue title and body.
@@ -289,11 +303,30 @@ until that round ends. A cancel records the assignment's ending, with the reason
 
 Agent work is open until its ending is recorded, with the time and the reason,
 and then it has **ended**. An assignment ends when it is complete or cancelled.
+A conversation ends when its issue closes.
 
 _dreamcatcher_ leaves the pull request as it is, and while it is open it claims
 the issue, so no new assignment starts for the issue. If the user merges it,
 GitHub closes the issue. If the user closes it without merging, the issue may
 receive another assignment.
+
+### Pausing and ending a conversation
+
+An open conversation is **paused** while its own dispatch label is off its
+issue, the issue is not assigned to the signed-in account, or the issue carries
+another configured conversation label. Paused is derived each tick from the
+issue, not recorded. A paused conversation starts no round, its comments are not
+read, and its fault does not count towards a global cooldown. Removing the cause
+resumes it in the same harness session, and it is then given every comment
+posted since its last finished round.
+
+When a tick finds a conversation's issue closed, it records the conversation's
+ending with the reason "issue closed". A round that is running when the issue
+closes finishes first, because nothing is read for work whose round is running.
+
+A paused conversation does not block a new one under another label. Taking label
+A off an issue and adding label B starts a fresh conversation under B, while A's
+stays paused.
 
 ### Describing an agent round
 
@@ -313,18 +346,20 @@ its input, so nothing else records it:
 
 A scheduler tick finds requests in two places: each dispatch label on each open
 issue assigned to the signed-in account, and each piece of open agent work,
-which names its own issue and label. An issue with open agent work of one kind
-appears through that work, so its other labels of that kind make no request row
-of their own.
+which names its own issue and label. Open work answers the request it came from.
+An open assignment also answers every assignment label on its issue, so those
+labels make no request row of their own. A conversation answers only its own
+label, so another conversation label on its issue is a request of its own.
 
 For a request with no open work the tick records what decides whether work may
-start. An assignment request that carries the issue's only assignment label is
-asked the **start-time questions**: which open pull requests linked to the issue
-claim it, and which open issue dependencies block it. They are asked only while
-no open assignment exists, because they decide only whether one may start. A
-conversation request reads the issue's comments. A request whose issue carries
-more than one label of its kind has a routing conflict, and nothing of that kind
-starts while it lasts.
+start, and the tick makes these reads only for an issue whose open work does not
+answer the request. An assignment request that carries the issue's only
+assignment label is asked the **start-time questions**: which open pull requests
+linked to the issue claim it, and which open issue dependencies block it. They
+are asked only while no open assignment exists, because they decide only whether
+one may start. A conversation request reads the issue's comments. A request
+whose issue carries more than one label of its kind has a routing conflict, and
+nothing of that kind starts while it lasts.
 
 A request with no open work has one of these request statuses:
 
@@ -348,8 +383,8 @@ Agent work of either kind has one of these summary statuses:
 
 - **Working**: a round is running under the daemon. A cancelled assignment whose
   round is still stopping is working until the round ends.
-- **Ended**: the work's ending is recorded, and its reason, completed or
-  cancelled, is the detail.
+- **Ended**: the work's ending is recorded, and its reason, completed, cancelled
+  or issue closed, is the detail.
 - **Fault**: two consecutive rounds have errored, so no further round starts on
   its own.
 - **Unknown**: the latest tick could not read what it needed for the work, and
@@ -366,16 +401,15 @@ Agent work of either kind has one of these summary statuses:
 - **Idle**: nothing is due until something new appears in the work's channel.
   The detail says why: an assignment's pull request is ready for review, still a
   draft, or merged or closed after its final turn; a conversation's latest round
-  answered, needed no reply, or was stopped; or the tick starts no round for a
-  conversation, because its issue was not listed or carries a second
-  conversation label.
+  answered, needed no reply, or was stopped; or a conversation is paused, and
+  the detail is the cause.
 
 The statuses are decided in an order. Working comes first, then ended, then
 fault, so the user can see a fault and retry whatever else is true. A failed
-read comes next, as unknown. A conversation that the tick starts no round for is
-idle before it can be waiting, because no round will start however its last
-round ended. Then come waiting and idle, and work that the latest tick has no
-row for, or read nothing for, is unknown when nothing else applies.
+read comes next, as unknown. A paused conversation is idle before it can be
+waiting, because no round will start however its last round ended. Then come
+waiting and idle, and work that the latest tick has no row for, or read nothing
+for, is unknown when nothing else applies.
 
 These statuses summarize what matters now; they are not a persisted lifecycle or
 a substitute for the underlying facts. In particular, pull-request state, what
@@ -390,8 +424,7 @@ work in the terminal.
 
 A running round remains working when its issue gains a second conversation
 label, because a routing conflict does not cancel work already in progress. The
-conversation is idle with the conflicting labels as its detail after that round
-ends, unless it is then in fault.
+conversation is paused after that round ends, unless it is then in fault.
 
 ### Status reports do not control work
 
@@ -427,24 +460,28 @@ and runs the rest.
 
 ### Starting an issue conversation
 
-An open issue becomes a conversation candidate when it carries exactly one
-configured conversation label, is assigned to the signed-in account, and has at
-least one eligible comment from that account after the newest comment given to a
-round that did not error or get interrupted. An issue with more than one
+A conversation request with no open conversation under its label starts one when
+its issue carries no other configured conversation label and has at least one
+eligible comment from the signed-in account. An issue with more than one
 configured conversation label has a routing conflict and starts nothing until
 one label remains. Issue title and body alone do not start a round. Assignment
 ownership, linked pull requests, dependencies and assignment-routing conflicts
-do not govern conversation eligibility.
+do not govern conversations.
+
+An open conversation that is not paused takes a round when it has at least one
+eligible comment after the newest comment given to a round that did not error or
+get interrupted.
 
 _dreamcatcher_ records the chosen conversation route and settings, then starts
 the initial conversation round. Every conversation round's preparation fetches
 main and resets the detached worktree to it, adding the worktree when it is
 missing, and then freezes the round's input. The recorded route and settings
-stay frozen if a different configured label later makes the issue eligible. The
-round shares the daemon's capacity and global cooldown with assignment rounds.
-Before a conversation round records a successful ending, _dreamcatcher_ requires
-its answer and posts it on the issue. An answer of `NO_REPLY` means no post is
-needed. A missing answer or failed post makes the round errored.
+stay frozen for the life of the conversation, even if its route is later removed
+from the configuration. The round shares the daemon's capacity and global
+cooldown with assignment rounds. Before a conversation round records a
+successful ending, _dreamcatcher_ requires its answer and posts it on the issue.
+An answer of `NO_REPLY` means no post is needed. A missing answer or failed post
+makes the round errored.
 
 After the round ends, another eligible comment batch resumes the same harness
 session in another conversation round. Resetting the worktree deletes every
@@ -461,12 +498,9 @@ again. The conversation is idle until another eligible comment batch arrives.
 That batch starts a round in the same harness session, and its prompt says that
 the user stopped the previous round.
 
-Closing the issue, removing every configured conversation label, or unassigning
-the signed-in account stops new rounds, and the status report shows the
-conversation as idle because its issue is not listed. Adding a second configured
-conversation label also stops new rounds, and the conversation is idle with the
-conflicting labels as its detail unless it is in fault. Eligibility must be
-restored before any later round can start.
+Removing the conversation's label, unassigning the signed-in account, or adding
+a second configured conversation label pauses the conversation, and closing the
+issue ends it, as the rules for pausing and ending a conversation say.
 
 ### Working through an assignment
 
@@ -518,26 +552,26 @@ rounds, a stopped round ends a run of errors.
 
 ### Scheduling work
 
-The scheduler creates agent assignments and starts agent rounds. A failed issue
-read prevents only the launches that depend on it, so it never prevents the
-other kind of agent work. A failed listing of assignment issues prevents the
-creation of assignments, but not the rounds that existing assignments require. A
-failed listing of conversation issues prevents fresh conversation batches, but
-not a round that gives a listed conversation the input of one that did not
-finish. A failed read of the comments of a conversation that could take a round
-prevents fresh batches in the same way, because they start in order of their
-oldest waiting comment.
+The scheduler creates agent work and starts agent rounds, the same way for both
+kinds. Each tick reads every piece of agent work from disk, lists the issues
+under each dispatch label, inspects the channel of each piece of open work, and
+decides for each request with no open work whether work may start. A
+**candidate** is open work with something new past its cursor, an assignment
+whose pull request is not open yet, or work whose last round errored or was
+interrupted, unless its last round is running or it is in fault; or a request
+whose work may start.
 
-Existing assignments take precedence over new ones, and among existing
-assignments the order is the order of their identifiers. The scheduler creates
-assignments for available requests in the order it listed their issues.
+A failed read prevents only the launches that depend on it. A failed listing for
+a dispatch label starts no work for the issues it would have listed, but open
+work reads its own channel, so the listing does not affect it.
 
-Conversation candidates are ordered by their oldest waiting comment. When both
-an assignment candidate and a conversation candidate are ready, the scheduler
-alternates which kind receives each free slot until capacity is full or no
-candidate remains. When only one kind is ready, it proceeds without waiting for
-the other. A launch that fails takes no slot, and the scheduler goes on to the
-next candidate.
+Existing work takes precedence over new work. Among existing work the order is
+the order of the identifiers, and new work starts in the order in which the
+scheduler listed its issues. When both an assignment candidate and a
+conversation candidate are ready, the scheduler alternates which kind receives
+each free slot until capacity is full or no candidate remains. When only one
+kind is ready, it proceeds without waiting for the other. A launch that fails
+takes no slot, and the scheduler goes on to the next candidate.
 
 ### Handling errors and global cooldown
 
@@ -545,12 +579,12 @@ _dreamcatcher_ does not diagnose any error as global when it happens. One piece
 of agent work's first consecutive error calls for another round, given the same
 input, and its second makes that work in fault. A round that errored in its
 preparation counts like any other. The scheduler counts every assignment in
-fault. It counts a conversation in fault while its issue is eligible, or while a
-failed issue listing leaves that eligibility unknown. Two counted faults, in any
-combination, are evidence of a shared problem and start a global cooldown. When
-the cooldown ends, _dreamcatcher_ clears those faults and rounds may start
-again. This deliberately simple policy prevents one work-specific failure from
-blocking all other work.
+fault. It counts a conversation in fault unless the conversation is paused,
+including when a failed read of its issue leaves that unknown. Two counted
+faults, in any combination, are evidence of a shared problem and start a global
+cooldown. When the cooldown ends, _dreamcatcher_ clears those faults and rounds
+may start again. This deliberately simple policy prevents one work-specific
+failure from blocking all other work.
 
 After resolving an issue-specific problem, the user may request a retry. A
 request from the command line clears any current fault on the newest assignment

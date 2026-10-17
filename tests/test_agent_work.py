@@ -11,7 +11,7 @@ from records import (
 
 from dreamcatcher.agent_work import (
     AgentWork,
-    compose_agent_work_identifier,
+    _compose_agent_work_identifier,
     find_agent_work,
     find_newest_agent_work,
     read_agent_work,
@@ -126,7 +126,7 @@ def test_a_session_recorded_through_an_earlier_read_keeps_a_later_retry(tmp_path
 
 def test_an_identifier_names_the_issue_the_time_and_the_kind():
     assert (
-        compose_agent_work_identifier(
+        _compose_agent_work_identifier(
             issue=20, kind=AgentWorkKind.CONVERSATION, at=PINNED
         )
         == "GH20-20260819-184158-conversation"

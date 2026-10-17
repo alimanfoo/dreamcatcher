@@ -305,6 +305,7 @@ _GITHUB_REPOSITORY_PERMISSION_RESPONSE_ADAPTER = TypeAdapter(GitHubRepositoryPer
 _GITHUB_ACCOUNT_RESPONSE_ADAPTER = TypeAdapter(GitHubUserAccount)
 _GITHUB_LABEL_PAGES_ADAPTER = TypeAdapter(list[list[GitHubLabel]])
 _GITHUB_ISSUE_LIST_RESPONSE_ADAPTER = TypeAdapter(list[Issue])
+_GITHUB_ISSUE_RESPONSE_ADAPTER = TypeAdapter(Issue)
 _GITHUB_PULL_REQUEST_LIST_RESPONSE_ADAPTER = TypeAdapter(list[PullRequest])
 _GITHUB_PULL_REQUEST_RESPONSE_ADAPTER = TypeAdapter(PullRequest)
 _GITHUB_BLOCKING_ISSUE_LIST_RESPONSE_ADAPTER = TypeAdapter(list[list[BlockingIssue]])
@@ -447,6 +448,22 @@ def list_issues(
             "open",
             "--limit",
             _ISSUE_LISTING_LIMIT,
+            "--json",
+            _ISSUE_RESPONSE_FIELDS,
+        ],
+    )
+
+
+def read_issue(*, repository: str, issue: int) -> Issue | UnknownGitHubResponse:
+    """Return the issue with this number, whatever its state."""
+    return _read_github_response(
+        response_adapter=_GITHUB_ISSUE_RESPONSE_ADAPTER,
+        arguments=[
+            "issue",
+            "view",
+            str(issue),
+            "--repo",
+            repository,
             "--json",
             _ISSUE_RESPONSE_FIELDS,
         ],

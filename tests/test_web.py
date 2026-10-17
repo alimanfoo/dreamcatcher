@@ -235,9 +235,7 @@ def test_an_assignment_with_no_pull_request_yet_says_so_on_its_card_and_page(
     state.bootstrap()
     write_daemon_run(state=state, pid=DAEMON_PID)
     identifier = "GH13-20260819-184158-assignment"
-    write_assignment(
-        state=state, identifier=identifier, issue=13, pull_request_observation=None
-    )
+    write_assignment(state=state, identifier=identifier, issue=13, pull_request=None)
 
     home = render_home(state=state)
     page = render_assignment(state=state, identifier=identifier)

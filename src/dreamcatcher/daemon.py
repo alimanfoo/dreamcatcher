@@ -22,15 +22,13 @@ from dreamcatcher.documents import write_json, write_text
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.git import require_main_checkout
 from dreamcatcher.github import require_github_identity
-from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.harnesses import require_harnesses_on_path
 from dreamcatcher.lock import hold_daemon_lock
 from dreamcatcher.scheduler import (
     DEFAULT_MAX_AGENTS,
-    AssignmentScheduler,
-    ConversationScheduler,
     InvalidSchedulerRecordError,
     Scheduler,
+    SchedulingContext,
 )
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.version import DREAMCATCHER_VERSION
@@ -128,44 +126,23 @@ class DreamcatcherDaemon:
                     max_agents=self.max_agents,
                     interval_seconds=self.interval,
                     routes=[
-                        *(
-                            RecordedRoute(
-                                label=route.label, kind=AgentWorkKind.ASSIGNMENT
-                            )
-                            for route in self.config.assignment
-                        ),
-                        *(
-                            RecordedRoute(
-                                label=route.label, kind=AgentWorkKind.CONVERSATION
-                            )
-                            for route in self.config.conversation
-                        ),
+                        RecordedRoute(label=route.label, kind=route.kind)
+                        for route in self.config.routes
                     ],
                 ),
                 path=self.state.daemon_run_record,
             )
             identity = require_github_identity(root=self.state.root)
             write_text(text=f"{identity.repository}\n", path=self.state.repository)
-            assignments = AssignmentScheduler(
-                repository=identity.repository,
-                account=identity.account,
-                config=self.config,
-                state=self.state,
-                preferred_harness=self.harness,
-                clock=self.clock,
-            )
-            conversations = ConversationScheduler(
-                repository=identity.repository,
-                account=identity.account,
-                config=self.config,
-                state=self.state,
-                preferred_harness=self.harness,
-                clock=self.clock,
-            )
             scheduler = Scheduler(
-                state=self.state,
-                assignments=assignments,
-                conversations=conversations,
+                context=SchedulingContext(
+                    repository=identity.repository,
+                    account=identity.account,
+                    config=self.config,
+                    state=self.state,
+                    clock=self.clock,
+                ),
+                preferred_harness=self.harness,
                 rounds=self.rounds,
                 max_agents=self.max_agents,
             )

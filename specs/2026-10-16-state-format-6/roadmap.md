@@ -166,7 +166,8 @@ Delivers the tick in its one shape.
   become one inspect, one candidate type and one rank. `scheduler/issues.py`
   goes.
 - An issue with open work costs no read beyond its channel.
-- The pull request observation shrinks to the number, written once by round one.
+- The pull request observation becomes `pull-request.json`, holding the number
+  written once by round one.
 - The ontology and architecture docs describe the tick, the channel, the cursor,
   pausing and ending, and the ontology drops availability and conversation
   eligibility.
