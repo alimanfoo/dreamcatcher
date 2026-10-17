@@ -8,13 +8,14 @@ from rich.console import Console, Group, RenderableType
 from rich.text import Text
 
 from dreamcatcher.clock import WaitForSeconds, read_current_time
+from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.status import (
     AgentWorkStatusSection,
     AssignmentStatus,
     DreamcatcherStatusReport,
-    IssueObservation,
-    Truth,
+    RequestReason,
+    RequestStatus,
     read_status_report,
 )
 from dreamcatcher.tui.shared import (
@@ -38,7 +39,7 @@ def show_status_view(
     wait: WaitForSeconds = sleep,
     zone: tzinfo | None = None,
 ) -> None:
-    """Show instance, assignment, issue and conversation status until interrupted.
+    """Show instance, assignment, request and conversation status until interrupted.
 
     A non-terminal or dumb terminal renders one report and returns.
     """
@@ -86,13 +87,15 @@ def _render_assignments(
 ) -> RenderableType | None:
     """Render assignment work as one section, mirroring the web home view.
 
-    Orders active assignments, issue observations, and the ended-assignment
-    count in that sequence.
+    Orders active assignments, requests with no open assignment, and the
+    ended-assignment count in that sequence.
     """
     if section is None:
         return None
     rows = _render_assignment_rows(assignments=report.active_assignment_statuses)
-    rows += _render_issue_observations(issues=report.issue_observations)
+    rows += _render_request_rows(
+        requests=report.list_request_statuses(kind=AgentWorkKind.ASSIGNMENT)
+    )
     if section.empty_message is not None:
         rows.append(Text(section.empty_message))
     ended = report.ended_assignment_statuses
@@ -101,37 +104,34 @@ def _render_assignments(
     return render_section(heading=section.heading, body=Group(*rows))
 
 
-def _render_issue_observations(
-    *, issues: Sequence[IssueObservation]
-) -> list[RenderableType]:
-    """Render the issue observations as one table, status inline per row."""
-    rows = [
-        (
-            issue,
-            ", ".join([] if issue.details is None else issue.details.assignment_labels),
-            _describe_issue_observation(observation=issue),
-        )
-        for issue in issues
-    ]
-    if not rows:
+def _render_request_rows(*, requests: Sequence[RequestStatus]) -> list[RenderableType]:
+    """Render the requests with no open work as one table, reasons inline per row."""
+    if not requests:
         return []
     table = create_table(columns=3)
-    for issue, middle, status in rows:
-        table.add_row(Text(f"GH{issue.issue}"), Text(middle), Text(status))
+    for request in requests:
+        table.add_row(
+            Text(f"GH{request.issue}"),
+            Text(request.dispatch_label),
+            Text(
+                "; ".join(
+                    _render_request_reason(reason=reason) for reason in request.reasons
+                )
+                or str(request.value)
+            ),
+        )
     return [table]
 
 
-def _describe_issue_observation(*, observation: IssueObservation) -> str:
-    evidence = _describe_issue_evidence(observation=observation)
-    return "; ".join(evidence) if evidence else "available"
-
-
-def _describe_issue_evidence(*, observation: IssueObservation) -> list[str]:
-    return [
-        fact.evidence
-        for fact in (observation.routing_conflict, observation.blocked)
-        if fact.value is Truth.TRUE
+def _render_request_reason(*, reason: RequestReason) -> str:
+    """Return one reason's words followed by the issues and pull requests it names."""
+    references = [
+        *(f"GH{number}" for number in reason.issues),
+        *(f"#{number}" for number in reason.pull_requests),
     ]
+    if not references:
+        return reason.words
+    return f"{reason.words} {', '.join(references)}"
 
 
 def _render_assignment_rows(
@@ -176,6 +176,9 @@ def _render_conversations(
                 Text(status.detail),
             )
         rows.append(table)
+    rows += _render_request_rows(
+        requests=report.list_request_statuses(kind=AgentWorkKind.CONVERSATION)
+    )
     if section.empty_message is not None:
         rows.append(Text(section.empty_message))
     ended = report.ended_conversation_statuses

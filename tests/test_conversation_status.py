@@ -19,6 +19,7 @@ from records import (
     write_round,
     write_tick,
 )
+from rows import request_row
 
 from dreamcatcher.agent_rounds import (
     AgentRoundRecord,
@@ -29,18 +30,23 @@ from dreamcatcher.agent_work import AgentWorkEndReason, request_agent_work_retry
 from dreamcatcher.config import AgentHarness
 from dreamcatcher.documents import read_json, write_json
 from dreamcatcher.feed import FeedLine
+from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.issue_conversations import (
     ConversationRoundInput,
     InitialConversationIssue,
 )
 from dreamcatcher.scheduler.models import (
     ConversationObservation,
+    IssueCommentsFinding,
+    RequestRow,
     SchedulerRecord,
     Truth,
 )
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.status import (
     AgentWorkStatusSection,
+    RequestReason,
+    RequestStatusValue,
     read_conversation_status,
     read_dreamcatcher_daemon_status,
     read_status_report,
@@ -626,69 +632,53 @@ def test_a_stopped_conversation_waits_for_new_comments(conversation_state):
     assert found.round_statuses[0].outcome_description == "stopped"
 
 
-def test_an_eligible_issue_is_a_conversation_before_its_record_exists(tmp_path):
-    state = StateDirectory(root=tmp_path)
-    observe(
-        state=state,
-        observations=[
-            observed_conversation(
-                issue=9, value=Truth.TRUE, evidence="1 comment to answer"
-            )
-        ],
-    )
-
+def conversation_requests(*, state: StateDirectory, rows: list[RequestRow]):
+    """Return the conversation requests that a tick writing these rows reports."""
+    write_tick(state=state, tick=SchedulerRecord(at=PINNED, rows=rows))
     report = read_status_report(state=state, clock=lambda: LOOKED_AT)
-    found = read_conversation_status(
-        state=state, issue=9, daemon=read_dreamcatcher_daemon_status(state=state)
-    )
-
-    assert found is not None
-    assert report.conversation_statuses == [found]
-    assert found.conversation is None
-    assert found.issue == 9
-    assert found.title == "Issue 9"
-    assert found.value is ConversationStatusValue.WAITING
-    assert found.detail == "1 comment to answer"
-    assert found.round_statuses == []
-    assert found.harness_session_identifier is None
-    assert found.hand_resume_command is None
+    return report.list_request_statuses(kind=AgentWorkKind.CONVERSATION)
 
 
-def test_an_eligible_issue_nobody_has_commented_on_is_idle(tmp_path):
+def test_an_issue_with_a_comment_waiting_is_a_request_until_its_conversation_starts(
+    tmp_path,
+):
     state = StateDirectory(root=tmp_path)
-    observe(state=state, observations=[observed_conversation(issue=9)])
 
-    found = read_conversation_status(
-        state=state, issue=9, daemon=read_dreamcatcher_daemon_status(state=state)
-    )
-
-    assert found is not None
-    assert found.value is ConversationStatusValue.IDLE
-    assert found.detail == "no comments yet"
-
-
-def test_an_unsaved_conversation_with_two_routes_reports_its_conflict(tmp_path):
-    state = StateDirectory(root=tmp_path)
-    conflict = "carries more than one conversation label: discuss, scout"
-    observe(
+    [request] = conversation_requests(
         state=state,
-        observations=[
-            observed_conversation(
+        rows=[
+            request_row(
                 issue=9,
-                routing_conflict=Truth.TRUE,
-                routing_conflict_evidence=conflict,
+                kind=AgentWorkKind.CONVERSATION,
+                finding=IssueCommentsFinding(new_comments=1),
             )
         ],
     )
 
-    found = read_conversation_status(
-        state=state, issue=9, daemon=read_dreamcatcher_daemon_status(state=state)
+    assert request.value is RequestStatusValue.AVAILABLE
+    assert request.reasons == (RequestReason(words="1 comment to answer"),)
+    assert (
+        read_conversation_status(
+            state=state, issue=9, daemon=read_dreamcatcher_daemon_status(state=state)
+        )
+        is None
     )
 
-    assert found is not None
-    assert found.value is ConversationStatusValue.ROUTING_CONFLICT
-    assert found.detail == conflict
-    assert found.is_listed
+
+def test_an_issue_nobody_has_commented_on_waits_for_a_comment(tmp_path):
+    [request] = conversation_requests(
+        state=StateDirectory(root=tmp_path),
+        rows=[
+            request_row(
+                issue=9,
+                kind=AgentWorkKind.CONVERSATION,
+                finding=IssueCommentsFinding(new_comments=0),
+            )
+        ],
+    )
+
+    assert request.value is RequestStatusValue.IDLE
+    assert request.reasons == (RequestReason(words="waiting for a comment"),)
 
 
 def test_a_saved_conversation_with_two_routes_reports_its_conflict(
@@ -790,13 +780,24 @@ def test_the_report_lists_ended_conversations_apart_newest_first(tmp_path):
     write_tick(
         state=state,
         tick=SchedulerRecord(
-            at=PINNED, conversation_observations=[observed_conversation(issue=10)]
+            at=PINNED,
+            rows=[
+                request_row(
+                    issue=10,
+                    kind=AgentWorkKind.CONVERSATION,
+                    finding=IssueCommentsFinding(new_comments=0),
+                )
+            ],
         ),
     )
 
     report = read_status_report(state=state, clock=lambda: LOOKED_AT)
 
-    assert [status.issue for status in report.active_conversation_statuses] == [10]
+    assert report.active_conversation_statuses == []
+    assert [
+        request.issue
+        for request in report.list_request_statuses(kind=AgentWorkKind.CONVERSATION)
+    ] == [10]
     assert [status.issue for status in report.ended_conversation_statuses] == [9, 8]
     assert report.conversation_section == AgentWorkStatusSection(
         heading="conversations", empty_message=None
@@ -822,12 +823,12 @@ def test_a_section_of_ended_conversations_alone_gives_its_guidance(
     )
 
 
-def test_the_status_at_an_issue_is_its_open_conversation_over_an_ended_one(
+def test_the_status_at_an_issue_whose_conversation_ended_is_ended(
     conversation_state,
 ):
     end_conversation(state=conversation_state)
 
     found = status(state=conversation_state)
 
-    assert found.conversation is None
-    assert found.value is ConversationStatusValue.IDLE
+    assert found.conversation is not None
+    assert found.value is ConversationStatusValue.ENDED

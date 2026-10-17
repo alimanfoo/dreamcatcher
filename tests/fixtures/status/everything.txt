@@ -17,10 +17,10 @@ assignments
   GH35-20260819-184158-assignment  waiting              round 1 errored (exit 2)                    
   GH44-20260819-184158-assignment  waiting              no round has run yet                        
   GH40-20260819-184158-assignment  unknown              no current scheduler observation            
-  GH50  dream:smith              available                                                          
-  GH51  dream:smith              available                                                          
-  GH52  dream:smith              blocked by GH50                                                    
-  GH53  dream:smith, dream:less  multiple assignment labels: dream:less, dream:smith                
-  GH54  dream:smith, dream:less  multiple assignment labels: dream:less, dream:smith; blocked by    
-                                 GH50                                                               
+  GH50  dream:smith  available                                                                      
+  GH51  dream:smith  available                                                                      
+  GH52  dream:smith  blocked by GH50                                                                
+  GH53  dream:less   conflicting labels dream:less, dream:smith                                     
+  GH53  dream:smith  conflicting labels dream:less, dream:smith                                     
+  GH55  dream:smith  claimed by #61; blocked by GH50, GH51                                          
   2 ended assignments                                                                               

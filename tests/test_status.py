@@ -4,8 +4,7 @@ from datetime import timedelta
 
 import pytest
 from clocks import PINNED
-from conftest import REPOSITORY
-from observations import observed_issue
+from conftest import ASSIGNMENT_LABEL, REPOSITORY
 from records import (
     MERGED_INPUT,
     hold_daemon_lock_for_test,
@@ -16,6 +15,7 @@ from records import (
     write_round,
     write_tick,
 )
+from rows import UNCLAIMED, request_row
 from status_fabrications import fabricate_everything
 
 from dreamcatcher.agent_assignments import (
@@ -35,11 +35,15 @@ from dreamcatcher.daemon import DEFAULT_INTERVAL_SECONDS
 from dreamcatcher.daemon_runs import DaemonRunRecord
 from dreamcatcher.documents import write_text
 from dreamcatcher.feed import FeedLine
+from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.scheduler.models import (
     AgentWorkObservation,
+    ConflictingLabelsFinding,
     GlobalCooldown,
     ObservedFact,
+    ReadFailure,
     SchedulerRecord,
+    StartTimeFinding,
     Truth,
 )
 from dreamcatcher.state import StateDirectory
@@ -47,6 +51,9 @@ from dreamcatcher.status import (
     AgentWorkStatusSection,
     DaemonStatusFact,
     DreamcatcherDaemonStatus,
+    RequestReason,
+    RequestStatus,
+    RequestStatusValue,
     StatusFact,
     read_agent_work_status,
     read_assignment_statuses_for_issue,
@@ -171,7 +178,7 @@ def test_an_empty_instance_reports_unknown_capacity_and_no_work(tmp_path):
     assert found.daemon.max_agents is None
     assert found.running_agents == 0
     assert found.active_global_cooldown is None
-    assert found.issue_observations == []
+    assert found.request_statuses == []
     assert found.assignment_statuses == []
 
 
@@ -757,140 +764,117 @@ def test_a_stopped_daemon_has_no_current_scheduler_failures(state):
     assert report(state=state).scheduler_failure_summary is None
 
 
-def test_a_blocked_issue_is_reported_with_its_evidence(state):
+def test_a_blocked_request_names_its_claims_and_blockers_as_numbers(state):
     write_tick(
         state=state,
         tick=SchedulerRecord(
             at=PINNED,
-            issue_observations=[
-                observed_issue(
+            rows=[
+                request_row(
                     issue=20,
-                    values={"blocked": Truth.TRUE},
-                    evidence={"blocked": "blocked by GH10"},
+                    finding=StartTimeFinding(
+                        linked_pull_requests=[28], blocking_issues=[10, 11]
+                    ),
                 )
             ],
         ),
     )
 
-    status_report = report(state=state)
+    [request] = report(state=state).request_statuses
 
-    assert [issue.issue for issue in status_report.issue_observations] == [20]
-    assert status_report.issue_observations[0].blocked.evidence == "blocked by GH10"
-
-
-def test_a_routing_conflict_and_blocker_are_reported_once_with_their_evidence(state):
-    write_tick(
-        state=state,
-        tick=SchedulerRecord(
-            at=PINNED,
-            issue_observations=[
-                observed_issue(
-                    issue=20,
-                    values={
-                        "routing_conflict": Truth.TRUE,
-                        "blocked": Truth.TRUE,
-                    },
-                    evidence={
-                        "routing_conflict": "multiple assignment labels",
-                        "blocked": "blocked by GH10",
-                    },
-                )
-            ],
-        ),
-    )
-
-    status_report = report(state=state)
-
-    assert [issue.issue for issue in status_report.issue_observations] == [20]
-    assert (
-        status_report.issue_observations[0].routing_conflict.evidence
-        == "multiple assignment labels"
-    )
-    assert status_report.issue_observations[0].blocked.evidence == "blocked by GH10"
-
-
-def test_a_routing_conflict_without_a_blocker_is_reported(state):
-    write_tick(
-        state=state,
-        tick=SchedulerRecord(
-            at=PINNED,
-            issue_observations=[
-                observed_issue(
-                    issue=20,
-                    values={"routing_conflict": Truth.TRUE},
-                    evidence={"routing_conflict": "multiple assignment labels"},
-                )
-            ],
-        ),
-    )
-
-    status_report = report(state=state)
-
-    assert [issue.issue for issue in status_report.issue_observations] == [20]
-
-
-def test_an_open_local_assignment_removes_its_issue_from_available_work(state):
-    write_tick(
-        state=state,
-        tick=SchedulerRecord(
-            at=PINNED,
-            issue_observations=[observed_issue(issue=13)],
-        ),
-    )
-
-    assert report(state=state).issue_observations == []
-
-
-def test_a_complete_local_assignment_no_longer_claims_its_observed_issue(state):
-    ran(state=state, number=1, round_input=MERGED_INPUT)
-    observation = observed_issue(
-        issue=13,
-        values={"claimed_here": Truth.TRUE},
-    )
-    write_tick(
-        state=state,
-        tick=SchedulerRecord(at=PINNED, issue_observations=[observation]),
-    )
-
-    issue = report(state=state).issue_observations[0]
-
-    assert issue.claimed_here.value is Truth.FALSE
-    assert issue.availability.value is Truth.TRUE
-
-
-def test_an_issue_with_no_local_assignment_is_not_claimed_here(state):
-    observation = observed_issue(
+    assert request == RequestStatus(
         issue=20,
-        values={"claimed_here": Truth.TRUE},
+        title="Issue 20",
+        dispatch_label=ASSIGNMENT_LABEL,
+        kind=AgentWorkKind.ASSIGNMENT,
+        value=RequestStatusValue.BLOCKED,
+        reasons=(
+            RequestReason(words="claimed by", pull_requests=(28,)),
+            RequestReason(words="blocked by", issues=(10, 11)),
+        ),
     )
+
+
+def test_a_request_nothing_claims_or_blocks_is_available(state):
     write_tick(
         state=state,
-        tick=SchedulerRecord(at=PINNED, issue_observations=[observation]),
+        tick=SchedulerRecord(
+            at=PINNED, rows=[request_row(issue=20, finding=UNCLAIMED)]
+        ),
     )
 
-    issue = report(state=state).issue_observations[0]
+    [request] = report(state=state).request_statuses
 
-    assert issue.claimed_here.value is Truth.FALSE
-    assert issue.availability.value is Truth.TRUE
+    assert request.value is RequestStatusValue.AVAILABLE
+    assert request.reasons == ()
 
 
-def test_available_issues_keep_scheduler_order_and_observation_times(state):
+def test_two_labels_of_one_kind_are_a_routing_conflict_named_in_each_row(state):
+    conflict = ConflictingLabelsFinding(labels=["dream:less", ASSIGNMENT_LABEL])
     write_tick(
         state=state,
         tick=SchedulerRecord(
             at=PINNED,
-            issue_observations=[
-                observed_issue(issue=20),
-                observed_issue(issue=21).model_copy(update={"observed_at": LOOKED_AT}),
+            rows=[
+                request_row(issue=20, label="dream:less", finding=conflict),
+                request_row(issue=20, finding=conflict),
             ],
         ),
     )
 
-    issues = report(state=state).issue_observations
+    requests = report(state=state).request_statuses
 
-    assert [issue.issue for issue in issues] == [20, 21]
-    assert issues[0].observed_at == PINNED
-    assert issues[1].observed_at == LOOKED_AT
+    assert [(request.dispatch_label, request.value) for request in requests] == [
+        ("dream:less", RequestStatusValue.ROUTING_CONFLICT),
+        (ASSIGNMENT_LABEL, RequestStatusValue.ROUTING_CONFLICT),
+    ]
+    assert requests[0].reasons == (
+        RequestReason(words="conflicting labels dream:less, dream:smith"),
+    )
+
+
+def test_a_request_whose_read_failed_is_unknown_with_the_reason(state):
+    write_tick(
+        state=state,
+        tick=SchedulerRecord(
+            at=PINNED,
+            rows=[request_row(issue=20, finding=ReadFailure(reason="gh: offline"))],
+        ),
+    )
+
+    [request] = report(state=state).request_statuses
+
+    assert request.value is RequestStatusValue.UNKNOWN
+    assert request.reasons == (RequestReason(words="cannot tell: gh: offline"),)
+
+
+def test_a_request_that_led_to_open_work_is_reported_through_its_work(state):
+    write_tick(
+        state=state,
+        tick=SchedulerRecord(
+            at=PINNED,
+            rows=[request_row(issue=13, agent_work=ASSIGNMENT_ID, finding=UNCLAIMED)],
+        ),
+    )
+
+    assert report(state=state).request_statuses == []
+
+
+def test_requests_keep_the_order_the_tick_saw_them_in(state):
+    write_tick(
+        state=state,
+        tick=SchedulerRecord(
+            at=PINNED,
+            rows=[
+                request_row(issue=21, finding=UNCLAIMED),
+                request_row(issue=20, finding=UNCLAIMED),
+            ],
+        ),
+    )
+
+    requests = report(state=state).request_statuses
+
+    assert [request.issue for request in requests] == [21, 20]
 
 
 def test_assignments_are_ordered_by_issue_with_the_newest_at_an_issue_first(state):

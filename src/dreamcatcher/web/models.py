@@ -10,6 +10,7 @@ from dreamcatcher.status import (
     AssignmentStatusValue,
     ConversationStatusValue,
     DreamcatcherDaemonStatus,
+    RequestStatus,
     StatusFact,
 )
 
@@ -34,18 +35,14 @@ class WebAssignmentCard:
 
 @dataclass(frozen=True, kw_only=True)
 class WebConversationCard:
-    """Represent the values rendered in one issue-conversation card.
+    """Represent the values rendered in one issue-conversation card."""
 
-    A conversation the tick has found but not yet saved has no identifier, and
-    so no page to open.
-    """
-
-    identifier: str | None
+    identifier: str
     issue: int
     title: str
     status: ConversationStatusValue
     detail: str
-    settings: str | None
+    settings: str
     latest_output: str | None
 
 
@@ -157,17 +154,6 @@ class WebAssignmentView:
 
 
 @dataclass(frozen=True, kw_only=True)
-class WebIssueRow:
-    """Represent one issue row in the home view."""
-
-    issue: int
-    title: str | None
-    labels: str
-    status: str
-    evidence: tuple[str | int, ...]
-
-
-@dataclass(frozen=True, kw_only=True)
 class WebConversationView:
     """Represent every value that the conversation template lays out."""
 
@@ -197,7 +183,8 @@ class WebHomeView:
     ended_conversations: tuple[WebConversationCard, ...]
     active_assignments: tuple[WebAssignmentCard, ...]
     ended_assignments: tuple[WebAssignmentCard, ...]
-    issues: tuple[WebIssueRow, ...]
+    assignment_requests: tuple[RequestStatus, ...]
+    conversation_requests: tuple[RequestStatus, ...]
 
 
 class WebFeedOwner(Protocol):

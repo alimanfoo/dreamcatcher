@@ -1,0 +1,7 @@
+{% from "partials/status-class.html" import status_class %}{% from "partials/references.html" import issue_reference, pull_request_reference with context %}<article id="request-{{ request.issue }}-{{ request.dispatch_label }}" class="issue-row" aria-label="Issue #{{ request.issue }} {{ request.dispatch_label }}">
+  <div class="card-heading">
+    <div>{{ issue_reference(request.issue) }} <span class="title">{{ request.title }}</span></div>
+    <span class="chip {{ status_class(request.value) }}">{% for reason in request.reasons %}{% if not loop.first %}; {% endif %}{{ reason.words }}{% for number in reason.issues %}{% if loop.first %} {% else %}, {% endif %}{{ issue_reference(number) }}{% endfor %}{% for number in reason.pull_requests %}{% if loop.first %} {% else %}, {% endif %}{{ pull_request_reference(number) }}{% endfor %}{% else %}{{ request.value }}{% endfor %}</span>
+  </div>
+  <p class="labels">{{ request.dispatch_label }}</p>
+</article>

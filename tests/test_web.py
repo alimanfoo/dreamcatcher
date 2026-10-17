@@ -14,7 +14,7 @@ from unittest.mock import MagicMock
 import pytest
 from clocks import DISPLAY_TIME_ZONE, PINNED
 from conftest import DAEMON_PID, FIXTURES, REPOSITORY, assert_matches_view_golden
-from observations import observed_conversation, observed_issue
+from observations import observed_conversation
 from records import (
     MERGED_INPUT,
     SCOUT_ROUTES,
@@ -65,7 +65,6 @@ from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.scheduler.models import (
     GlobalCooldown,
     SchedulerRecord,
-    Truth,
 )
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.status import AssignmentStatusValue, ConversationStatusValue
@@ -76,7 +75,6 @@ from dreamcatcher.web.server import (
     WEB_HOST,
     run_web_server_in_background,
 )
-from dreamcatcher.web.views import _compose_issue_row
 
 WEB_STATUS_REPORTS = {
     **STATUS_REPORTS,
@@ -1522,41 +1520,30 @@ def test_the_home_page_autoescapes_feed_output(tmp_path):
     assert "<script>alert('no')</script>" not in page
 
 
-def test_issue_references_link_to_github_with_hash_notation(tmp_path):
+def test_issue_and_pull_request_numbers_link_to_github_with_hash_notation(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
 
     page = render_home(state=state)
 
     issue_url = f"https://github.com/{REPOSITORY}/issues/50"
+    pull_request_url = f"https://github.com/{REPOSITORY}/pull/61"
     github_attributes = 'target="_blank" rel="noopener noreferrer"'
     assert f'href="{issue_url}" {github_attributes}>#50</a>' in page
     assert (
-        '<span class="chip issue-blocked">blocked by '
+        '<span class="chip status-blocked">blocked by '
         f'<a class="issue-number" href="{issue_url}" '
-        f"{github_attributes}>#50</a>" in page
+        f"{github_attributes}>#50</a></span>" in page
     )
     assert (
-        '<span class="chip issue-routing-conflict">multiple '
-        "assignment labels: dream:less, dream:smith; blocked by "
-        f'<a class="issue-number" href="{issue_url}" '
-        f"{github_attributes}>#50</a>" in page
+        '<span class="chip status-blocked">claimed by '
+        f'<a class="issue-number" href="{pull_request_url}" '
+        f"{github_attributes}>#61</a>; blocked by" in page
     )
-    assert "blocked by GH50" not in page
-
-
-def test_an_assignment_label_that_looks_like_an_issue_reference_remains_text():
-    evidence = "multiple assignment labels: dream:smith, GH123"
-    observation = observed_issue(
-        issue=53,
-        assignment_labels=("dream:smith", "GH123"),
-        values={"routing_conflict": Truth.TRUE},
-        evidence={"routing_conflict": evidence},
+    assert (
+        '<span class="chip status-routing-conflict">conflicting labels '
+        "dream:less, dream:smith</span>" in page
     )
-
-    row = _compose_issue_row(observation=observation)
-
-    assert row.evidence == (evidence,)
 
 
 def test_a_pull_request_links_to_github_before_its_state_is_observed(tmp_path):
@@ -1572,13 +1559,15 @@ def test_a_pull_request_links_to_github_before_its_state_is_observed(tmp_path):
     )
 
 
-def test_dashboard_groups_issues_with_assignments(tmp_path):
+def test_dashboard_groups_assignment_requests_with_assignments(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
 
     page = render_home(state=state)
 
-    assert page.index('id="assignments-heading"') < page.index('id="issue-50"')
+    assert page.index('id="assignments-heading"') < page.index(
+        'id="request-50-dream:smith"'
+    )
     assert 'id="issues-heading"' not in page
     assert 'id="conversations-heading"' not in page
 

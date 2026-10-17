@@ -307,8 +307,7 @@ body::after {
 
 .status-needs-user-feedback,
 .status-routing-conflict,
-.issue-routing-conflict,
-.issue-available {
+.status-available {
   color: var(--background);
   background: var(--phosphor);
 }
@@ -324,7 +323,7 @@ body::after {
 .status-cancelled,
 .status-ended,
 .status-idle,
-.issue-blocked {
+.status-blocked {
   color: var(--dim);
 }
 
@@ -332,7 +331,7 @@ body::after {
   text-shadow: var(--shadow);
 }
 
-.issue-routing-conflict .issue-number {
+.status-routing-conflict .issue-number {
   color: var(--background);
 }
 

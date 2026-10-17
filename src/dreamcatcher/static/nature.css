@@ -339,7 +339,7 @@ body::after {
 }
 
 .status-working,
-.issue-available {
+.status-available {
   color: var(--working);
   text-shadow: none;
 }
@@ -348,14 +348,12 @@ body::after {
 
 .status-needs-user-feedback,
 .status-routing-conflict,
-.issue-routing-conflict,
 .status-fault {
   padding-inline: 12px;
 }
 
 .status-needs-user-feedback,
-.status-routing-conflict,
-.issue-routing-conflict {
+.status-routing-conflict {
   color: var(--feedback-ink);
   background: var(--feedback-surface);
 }
@@ -371,7 +369,7 @@ body::after {
 .status-ended,
 .status-idle,
 .status-unknown,
-.issue-blocked {
+.status-blocked {
   color: var(--dim);
 }
 

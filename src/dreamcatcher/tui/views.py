@@ -114,12 +114,7 @@ def _render_conversation(
     status: ConversationStatus,
     zone: tzinfo | None,
 ) -> RenderableType:
-    """Render one issue conversation and its saved rounds.
-
-    A conversation settles its settings when its first round launches, so one
-    with no saved conversation yet shows only its issue.
-    """
-    conversation = status.conversation
+    """Render one issue conversation and its saved rounds."""
     status_value = str(status.value)
     rendered_status = Text(f"{status_value}  {status.detail}")
     rendered_status.stylize(
@@ -132,14 +127,10 @@ def _render_conversation(
             render_latest_output(latest_output=status.latest_output),
             _render_conversation_summary(state=state, status=status),
             _render_round_statuses(round_statuses=status.round_statuses, zone=zone),
-            (
-                None
-                if conversation is None
-                else _render_harness_resume(
-                    state=state,
-                    worktree=conversation.worktree,
-                    hand_resume_command=status.hand_resume_command,
-                )
+            _render_harness_resume(
+                state=state,
+                worktree=status.conversation.worktree,
+                hand_resume_command=status.hand_resume_command,
             ),
         ]
     )
@@ -149,28 +140,22 @@ def _render_conversation_summary(
     *, state: StateDirectory, status: ConversationStatus
 ) -> RenderableType:
     """Return the issue, and what the first round settled for every round."""
-    facts: list[tuple[str, object]] = [
+    conversation = status.conversation
+    record = conversation.record
+    table = create_table(columns=2)
+    for name, value in (
         ("issue identifier", f"GH{status.issue}"),
         ("title", status.title),
-    ]
-    conversation = status.conversation
-    if conversation is not None:
-        record = conversation.record
-        facts.extend(
-            [
-                ("label", record.dispatch_label),
-                ("worktree", state.describe_path(path=conversation.worktree)),
-                ("harness", record.harness),
-                (
-                    "harness session identifier",
-                    status.harness_session_identifier or "not recorded",
-                ),
-                ("model", record.model),
-                ("effort", record.effort),
-            ]
-        )
-    table = create_table(columns=2)
-    for name, value in facts:
+        ("label", record.dispatch_label),
+        ("worktree", state.describe_path(path=conversation.worktree)),
+        ("harness", record.harness),
+        (
+            "harness session identifier",
+            status.harness_session_identifier or "not recorded",
+        ),
+        ("model", record.model),
+        ("effort", record.effort),
+    ):
         table.add_row(Text(name), Text(str(value)))
     return render_section(heading="conversation", body=table)
 
@@ -455,10 +440,6 @@ def _find_feed_owner(
     """Return the selected feed owner and whether to stop refreshing its feed."""
     if work_kind is AgentWorkKind.CONVERSATION:
         status = _find_conversation_status_for_issue(state=state, issue=issue)
-        if status.conversation is None:
-            raise ReportableError(
-                f"The conversation at GH{issue} has not run a round yet."
-            )
         return _FeedOwnerSnapshot(
             owner=status.conversation,
             should_stop_refreshing=not status.is_active,

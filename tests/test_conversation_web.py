@@ -18,6 +18,7 @@ from records import (
     write_running_conversation,
     write_tick,
 )
+from rows import request_row
 from status_fabrications import fabricate_conversation, fabricate_everything
 
 import dreamcatcher.status.report as report_module
@@ -28,11 +29,17 @@ from dreamcatcher.agent_rounds import (
 from dreamcatcher.agent_work import AgentWorkEndReason
 from dreamcatcher.documents import append_text, write_json, write_text
 from dreamcatcher.feed import FeedLine
+from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.issue_conversations import (
     ConversationRoundInput,
     InitialConversationIssue,
 )
-from dreamcatcher.scheduler.models import SchedulerRecord, Truth
+from dreamcatcher.scheduler.models import (
+    IssueCommentsFinding,
+    ReadFailure,
+    SchedulerRecord,
+    Truth,
+)
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.web.app import _create_app
 
@@ -652,34 +659,37 @@ def test_missing_conversation_pages_answer_not_found(tmp_path):
 
 
 def fabricate_unsaved_conversation(*, state: StateDirectory) -> None:
-    """Write a tick that observed GH9 with a comment to answer and no record."""
+    """Write a tick that found a comment to answer at GH9, which has no record."""
     write_text(text=f"{REPOSITORY}\n", path=state.repository)
     write_tick(
         state=state,
         tick=SchedulerRecord(
             at=PINNED,
-            conversation_observations=[
-                observed_conversation(
-                    issue=9, value=Truth.TRUE, evidence="1 comment to answer"
+            rows=[
+                request_row(
+                    issue=9,
+                    kind=AgentWorkKind.CONVERSATION,
+                    finding=IssueCommentsFinding(new_comments=1),
                 )
             ],
         ),
     )
 
 
-def test_home_lists_an_eligible_issue_before_its_conversation_is_saved(tmp_path):
+def test_home_lists_a_conversation_request_before_its_conversation_is_saved(
+    tmp_path,
+):
     state = StateDirectory(root=tmp_path)
     fabricate_unsaved_conversation(state=state)
 
     page = application(state=state).test_client().get("/").text
 
-    assert 'id="conversation-GH9"' in page
+    assert 'id="request-9-dream:conversation"' in page
     assert "Open conversation #9" not in page
-    assert "1 comment to answer" in page
-    assert "assignment-meta" not in page
+    assert '<span class="chip status-available">1 comment to answer</span>' in page
 
 
-def test_home_lists_conversations_in_attention_order(tmp_path):
+def test_home_lists_conversations_in_attention_order_before_requests(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_conversation(state=state)
     write_running_conversation(state=state, issue=11, started=PINNED)
@@ -695,13 +705,23 @@ def test_home_lists_conversations_in_attention_order(tmp_path):
             at=PINNED,
             conversation_observations=[
                 observed_conversation(issue=8),
-                observed_conversation(issue=9),
-                observed_conversation(
-                    issue=10, value=Truth.TRUE, evidence="1 comment to answer"
-                ),
                 observed_conversation(issue=11),
-                observed_conversation(
-                    issue=12, value=Truth.UNKNOWN, evidence="cannot tell"
+            ],
+            rows=[
+                request_row(
+                    issue=9,
+                    kind=AgentWorkKind.CONVERSATION,
+                    finding=IssueCommentsFinding(new_comments=0),
+                ),
+                request_row(
+                    issue=10,
+                    kind=AgentWorkKind.CONVERSATION,
+                    finding=IssueCommentsFinding(new_comments=1),
+                ),
+                request_row(
+                    issue=12,
+                    kind=AgentWorkKind.CONVERSATION,
+                    finding=ReadFailure(reason="gh: offline"),
                 ),
             ],
         ),
@@ -711,13 +731,13 @@ def test_home_lists_conversations_in_attention_order(tmp_path):
 
     assert (
         page.index('id="conversation-GH11-20260819-184158-conversation"')
-        < page.index('id="conversation-GH10"')
-        < page.index('id="conversation-GH12"')
         < page.index('id="conversation-GH8-20260819-184158-conversation"')
-        < page.index('id="conversation-GH9"')
+        < page.index('id="request-9-dream:conversation"')
+        < page.index('id="request-10-dream:conversation"')
+        < page.index('id="request-12-dream:conversation"')
     )
     assert "status-working" in page
-    assert "status-unknown" in page
+    assert '<span class="chip status-unknown">cannot tell: gh: offline</span>' in page
     assert '<p class="latest-output"><span>agent</span> Still working.</p>' in page
 
 

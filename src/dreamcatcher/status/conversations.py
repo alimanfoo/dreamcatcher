@@ -73,24 +73,28 @@ CONVERSATION_STATUS_VALUES_IN_ATTENTION_ORDER = (
 
 @dataclass(frozen=True, kw_only=True)
 class ConversationStatus:
-    """Describe an issue conversation's derived summary status.
+    """Describe an issue conversation's derived summary status."""
 
-    A matching issue has a status from the first tick that observes it, but no
-    saved conversation until its first round launches.
-    """
-
-    issue: int
-    title: str
-    conversation: AgentWork | None
+    conversation: AgentWork
     value: ConversationStatusValue
     detail: str
     latest_output: str | None
     is_listed: bool
 
     @property
+    def issue(self) -> int:
+        """The number of the conversation's issue."""
+        return self.conversation.record.issue
+
+    @property
+    def title(self) -> str:
+        """The title of the conversation's issue when the conversation started."""
+        return self.conversation.record.title
+
+    @property
     def ending(self) -> AgentWorkEnding | None:
         """When and why the conversation ended, if it has."""
-        return None if self.conversation is None else self.conversation.ending
+        return self.conversation.ending
 
     @property
     def has_ended(self) -> bool:
@@ -105,30 +109,23 @@ class ConversationStatus:
     @cached_property
     def harness_session_identifier(self) -> HarnessSessionIdentifier | None:
         """The recorded or recoverable harness session identifier."""
-        conversation = self.conversation
-        if conversation is None:
-            return None
-        return conversation.find_harness_session_identifier()
+        return self.conversation.find_harness_session_identifier()
 
     @cached_property
     def hand_resume_command(self) -> list[str] | None:
         """The hand-resume command when nobody is running the session."""
-        conversation = self.conversation
-        if conversation is None:
-            return None
         return compose_hand_resume_command(
             is_working=self.value is ConversationStatusValue.WORKING,
-            record=conversation.record,
+            record=self.conversation.record,
             harness_session_identifier=self.harness_session_identifier,
         )
 
     @property
     def faulted_round_number(self) -> int | None:
         """The latest round while the conversation is in fault, else None."""
-        conversation = self.conversation
-        if conversation is None or self.value is not ConversationStatusValue.FAULT:
+        if self.value is not ConversationStatusValue.FAULT:
             return None
-        return conversation.rounds[-1].number
+        return self.conversation.rounds[-1].number
 
     @cached_property
     def stoppable_round_paths(self) -> AgentRoundPaths | None:
@@ -144,7 +141,7 @@ class ConversationStatus:
             harness_session_identifier=harness_session_identifier,
             paths=(
                 None
-                if conversation is None or not conversation.rounds
+                if not conversation.rounds
                 else conversation.compose_round_paths(
                     number=conversation.rounds[-1].number
                 )
@@ -155,8 +152,6 @@ class ConversationStatus:
     def round_statuses(self) -> list[AgentRoundStatus]:
         """The derived status of every round in conversation order."""
         conversation = self.conversation
-        if conversation is None:
-            return []
         statuses: list[AgentRoundStatus] = []
         previous_revision = None
         for record in conversation.rounds:
@@ -208,72 +203,42 @@ class ConversationStatusReader(AgentWorkStatusReader[ConversationStatus]):
         }
 
     def list_statuses(self) -> list[ConversationStatus]:
-        """Return saved and observed conversation statuses in issue order."""
-        saved_issues = {
-            conversation.record.issue
-            for conversation in self.conversations
-            if conversation.is_open
-        }
+        """Return the conversations' statuses in issue order."""
         statuses = [
-            self.derive(
-                issue=conversation.record.issue,
-                title=conversation.record.title,
-                conversation=conversation,
-            )
+            self.derive(conversation=conversation)
             for conversation in self.conversations
         ]
-        statuses.extend(
-            self.derive(
-                issue=observation.issue,
-                title=observation.title,
-                conversation=None,
-            )
-            for observation in self.observations.values()
-            if observation.issue not in saved_issues
-        )
         return sorted(statuses, key=lambda status: status.issue)
 
     def derive(
         self,
         *,
-        issue: int,
-        title: str,
-        conversation: AgentWork | None,
+        conversation: AgentWork,
     ) -> ConversationStatus:
         """Derive one conversation's status from its records and latest tick."""
-        status = self._derive_working(
-            issue=issue, title=title, conversation=conversation
-        )
+        status = self._derive_working(conversation=conversation)
         if status is not None:
             return status
-        status = self._derive_ended(issue=issue, title=title, conversation=conversation)
+        status = self._derive_ended(conversation=conversation)
         if status is not None:
             return status
-        status = self._derive_fault(issue=issue, title=title, conversation=conversation)
+        status = self._derive_fault(conversation=conversation)
         if status is not None:
             return status
-        status = self._derive_eligibility(
-            issue=issue, title=title, conversation=conversation
-        )
+        status = self._derive_eligibility(conversation=conversation)
         if status is not None:
             return status
-        status = self._derive_unfinished(
-            issue=issue, title=title, conversation=conversation
-        )
+        status = self._derive_unfinished(conversation=conversation)
         if status is not None:
             return status
-        return self._derive_observation(
-            issue=issue, title=title, conversation=conversation
-        )
+        return self._derive_observation(conversation=conversation)
 
     def _derive_working(
         self,
         *,
-        issue: int,
-        title: str,
-        conversation: AgentWork | None,
+        conversation: AgentWork,
     ) -> ConversationStatus | None:
-        if conversation is not None and conversation.rounds:
+        if conversation.rounds:
             latest = conversation.rounds[-1]
             if self.is_round_working(record=latest):
                 detail, latest_output = describe_running_round(
@@ -287,8 +252,6 @@ class ConversationStatusReader(AgentWorkStatusReader[ConversationStatus]):
                     at=self.at,
                 )
                 return self._compose(
-                    issue=issue,
-                    title=title,
                     conversation=conversation,
                     value=ConversationStatusValue.WORKING,
                     detail=detail,
@@ -299,15 +262,11 @@ class ConversationStatusReader(AgentWorkStatusReader[ConversationStatus]):
     def _derive_ended(
         self,
         *,
-        issue: int,
-        title: str,
-        conversation: AgentWork | None,
+        conversation: AgentWork,
     ) -> ConversationStatus | None:
-        if conversation is None or conversation.ending is None:
+        if conversation.ending is None:
             return None
         return self._compose(
-            issue=issue,
-            title=title,
             conversation=conversation,
             value=ConversationStatusValue.ENDED,
             detail=str(conversation.ending.reason),
@@ -316,17 +275,13 @@ class ConversationStatusReader(AgentWorkStatusReader[ConversationStatus]):
     def _derive_eligibility(
         self,
         *,
-        issue: int,
-        title: str,
-        conversation: AgentWork | None,
+        conversation: AgentWork,
     ) -> ConversationStatus | None:
-        ineligibility = self._find_ineligibility(issue=issue)
+        ineligibility = self._find_ineligibility(issue=conversation.record.issue)
         if ineligibility is None:
             return None
         value, detail = ineligibility
         return self._compose(
-            issue=issue,
-            title=title,
             conversation=conversation,
             value=value,
             detail=detail,
@@ -357,11 +312,9 @@ class ConversationStatusReader(AgentWorkStatusReader[ConversationStatus]):
     def _derive_fault(
         self,
         *,
-        issue: int,
-        title: str,
-        conversation: AgentWork | None,
+        conversation: AgentWork,
     ) -> ConversationStatus | None:
-        if conversation is not None and self.has_fault(
+        if self.has_fault(
             records=conversation.rounds,
             retry_requested_at=conversation.retry_requested_at,
         ):
@@ -371,8 +324,6 @@ class ConversationStatusReader(AgentWorkStatusReader[ConversationStatus]):
                 paths=conversation.compose_round_paths(number=latest.number),
             )
             return self._compose(
-                issue=issue,
-                title=title,
                 conversation=conversation,
                 value=ConversationStatusValue.FAULT,
                 detail=detail,
@@ -383,11 +334,9 @@ class ConversationStatusReader(AgentWorkStatusReader[ConversationStatus]):
     def _derive_unfinished(
         self,
         *,
-        issue: int,
-        title: str,
-        conversation: AgentWork | None,
+        conversation: AgentWork,
     ) -> ConversationStatus | None:
-        if conversation is not None and is_last_round_unfinished(
+        if is_last_round_unfinished(
             rounds=conversation.rounds, is_daemon_running=self.is_daemon_running
         ):
             latest = conversation.rounds[-1]
@@ -396,8 +345,6 @@ class ConversationStatusReader(AgentWorkStatusReader[ConversationStatus]):
                 paths=conversation.compose_round_paths(number=latest.number),
             )
             return self._compose(
-                issue=issue,
-                title=title,
                 conversation=conversation,
                 value=ConversationStatusValue.WAITING,
                 detail=detail,
@@ -407,11 +354,9 @@ class ConversationStatusReader(AgentWorkStatusReader[ConversationStatus]):
     def _derive_observation(
         self,
         *,
-        issue: int,
-        title: str,
-        conversation: AgentWork | None,
+        conversation: AgentWork,
     ) -> ConversationStatus:
-        if conversation is not None and conversation.rounds:
+        if conversation.rounds:
             latest = conversation.rounds[-1]
             if self.did_round_end_after_latest_tick(
                 identifier=conversation.identifier,
@@ -419,24 +364,18 @@ class ConversationStatusReader(AgentWorkStatusReader[ConversationStatus]):
                 is_observed=True,
             ):
                 return self._compose(
-                    issue=issue,
-                    title=title,
                     conversation=conversation,
                     value=ConversationStatusValue.WAITING,
                     detail=f"round {latest.number} ended, awaiting next update",
                 )
-        requires_round = self.observations[issue].requires_round
+        requires_round = self.observations[conversation.record.issue].requires_round
         if requires_round.value is Truth.TRUE:
             return self._compose(
-                issue=issue,
-                title=title,
                 conversation=conversation,
                 value=ConversationStatusValue.WAITING,
                 detail=requires_round.evidence,
             )
         return self._compose(
-            issue=issue,
-            title=title,
             conversation=conversation,
             value=ConversationStatusValue.IDLE,
             detail=self._describe_idle(conversation=conversation),
@@ -445,16 +384,12 @@ class ConversationStatusReader(AgentWorkStatusReader[ConversationStatus]):
     def _compose(
         self,
         *,
-        issue: int,
-        title: str,
-        conversation: AgentWork | None,
+        conversation: AgentWork,
         value: ConversationStatusValue,
         detail: str,
         latest_output: str | None = None,
     ) -> ConversationStatus:
         return ConversationStatus(
-            issue=issue,
-            title=title,
             conversation=conversation,
             value=value,
             detail=detail,
@@ -462,12 +397,12 @@ class ConversationStatusReader(AgentWorkStatusReader[ConversationStatus]):
             is_listed=(
                 value is ConversationStatusValue.WORKING
                 or self.scheduler_record is None
-                or issue in self.observations
+                or conversation.record.issue in self.observations
             ),
         )
 
-    def _describe_idle(self, *, conversation: AgentWork | None) -> str:
-        if conversation is None or not conversation.rounds:
+    def _describe_idle(self, *, conversation: AgentWork) -> str:
+        if not conversation.rounds:
             return "no comments yet"
         latest = conversation.rounds[-1]
         duration = compose_round_duration_description(record=latest)

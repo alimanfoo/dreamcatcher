@@ -30,6 +30,7 @@ from records import (
     write_ending,
     write_round,
 )
+from rows import request_row
 
 import dreamcatcher.scheduler.assignments as assignments_module
 from dreamcatcher import agent_rounds
@@ -221,16 +222,16 @@ def conversation_row(
     finding: RequestFinding | None,
     issue: int = 8,
     title: str = "Why does this happen?",
-    label: str = "dream:conversation",
+    label: str | None = None,
     agent_work: str | None = None,
     started_round: StartedRound | None = None,
 ) -> RequestRow:
-    """Return the row of the request that a conversation label makes on an issue."""
-    return RequestRow(
+    """Return the row of a conversation request at the issue the tests offer."""
+    return request_row(
         issue=issue,
-        title=title,
-        dispatch_label=label,
         kind=AgentWorkKind.CONVERSATION,
+        title=title,
+        label=label,
         agent_work=agent_work,
         finding=finding,
         started_round=started_round,

@@ -1,10 +1,10 @@
 """Compose Flask-free models for dreamcatcher's web views."""
 
-import re
 from datetime import tzinfo
 from pathlib import Path
 
 from dreamcatcher.agent_work import AgentWork
+from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.status import (
     AgentRoundStatus,
@@ -12,9 +12,7 @@ from dreamcatcher.status import (
     ConversationStatus,
     DreamcatcherDaemonStatus,
     DreamcatcherStatusReport,
-    IssueObservation,
     StatusFact,
-    Truth,
     read_repository,
 )
 from dreamcatcher.web.feed import read_agent_feed
@@ -28,11 +26,8 @@ from dreamcatcher.web.models import (
     WebConversationView,
     WebHandResume,
     WebHomeView,
-    WebIssueRow,
 )
 from dreamcatcher.words import describe_time
-
-_ISSUE_REFERENCE_PATTERN = re.compile(r"(?<!\w)(?:GH|#)(\d+)\b(?!-)")
 
 
 def _compose_hand_resume(
@@ -84,8 +79,11 @@ def compose_home_view(*, report: DreamcatcherStatusReport) -> WebHomeView:
             _compose_assignment_card(status=status)
             for status in report.ended_assignment_statuses
         ),
-        issues=tuple(
-            _compose_issue_row(observation=issue) for issue in report.issue_observations
+        assignment_requests=tuple(
+            report.list_request_statuses(kind=AgentWorkKind.ASSIGNMENT)
+        ),
+        conversation_requests=tuple(
+            report.list_request_statuses(kind=AgentWorkKind.CONVERSATION)
         ),
     )
 
@@ -109,27 +107,20 @@ def _compose_assignment_card(*, status: AssignmentStatus) -> WebAssignmentCard:
 
 
 def _compose_conversation_card(*, status: ConversationStatus) -> WebConversationCard:
-    """Return the values shown for one issue conversation on the home page.
-
-    A conversation settles its settings when its first round launches.
-    """
+    """Return the values shown for one issue conversation on the home page."""
     conversation = status.conversation
     return WebConversationCard(
-        identifier=None if conversation is None else conversation.identifier,
+        identifier=conversation.identifier,
         issue=status.issue,
         title=status.title,
         status=status.value,
         detail=status.detail,
-        settings=(
-            None
-            if conversation is None
-            else " · ".join(
-                [
-                    str(conversation.record.harness),
-                    conversation.record.model,
-                    conversation.record.effort,
-                ]
-            )
+        settings=" · ".join(
+            [
+                str(conversation.record.harness),
+                conversation.record.model,
+                conversation.record.effort,
+            ]
         ),
         latest_output=status.latest_output,
     )
@@ -240,40 +231,4 @@ def _compose_agent_rounds(
             revision=round_status.revision,
         )
         for round_status in round_statuses
-    )
-
-
-def _compose_issue_row(*, observation: IssueObservation) -> WebIssueRow:
-    if observation.routing_conflict.value is Truth.TRUE:
-        status = "routing-conflict"
-    elif observation.blocked.value is Truth.TRUE:
-        status = "blocked"
-    else:
-        status = "available"
-    evidence: list[str | int] = (
-        [observation.routing_conflict.evidence]
-        if observation.routing_conflict.value is Truth.TRUE
-        else []
-    )
-    if observation.blocked.value is Truth.TRUE:
-        if evidence:
-            evidence.append("; ")
-        evidence.extend(
-            _compose_issue_references(evidence=observation.blocked.evidence)
-        )
-    details = observation.details
-    return WebIssueRow(
-        issue=observation.issue,
-        title=None if details is None else details.title,
-        labels=", ".join([] if details is None else details.assignment_labels),
-        status=status,
-        evidence=tuple(evidence),
-    )
-
-
-def _compose_issue_references(*, evidence: str) -> tuple[str | int, ...]:
-    return tuple(
-        int(part) if index % 2 else part
-        for index, part in enumerate(_ISSUE_REFERENCE_PATTERN.split(evidence))
-        if part
     )

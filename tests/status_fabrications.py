@@ -6,7 +6,7 @@ from types import MappingProxyType
 
 from clocks import PINNED
 from conftest import ASSIGNMENT_LABEL, DAEMON_PID, REPOSITORY, comment
-from observations import observed_conversation, observed_issue
+from observations import observed_conversation
 from records import (
     MERGED_INPUT,
     hold_daemon_lock_for_test,
@@ -19,6 +19,7 @@ from records import (
     write_round,
     write_tick,
 )
+from rows import UNCLAIMED, request_row
 
 from dreamcatcher.agent_assignments import (
     AssignmentRoundInput,
@@ -41,9 +42,11 @@ from dreamcatcher.issue_conversations import (
 from dreamcatcher.scheduler.models import (
     NO_ROUND_HAS_RUN,
     AgentWorkObservation,
+    ConflictingLabelsFinding,
     ConversationObservation,
     ObservedFact,
     SchedulerRecord,
+    StartTimeFinding,
     Truth,
 )
 from dreamcatcher.state import StateDirectory
@@ -90,7 +93,7 @@ SAID = (
     FeedLine(at=PINNED + timedelta(minutes=5), text="[result] success"),
 )
 
-DOUBLE_LABELLED = "multiple assignment labels: dream:less, dream:smith"
+DOUBLE_LABELLED = ConflictingLabelsFinding(labels=["dream:less", ASSIGNMENT_LABEL])
 
 
 def fabricate_conversation(
@@ -300,31 +303,22 @@ def fabricate_everything(
         tick=SchedulerRecord(
             at=PINNED + timedelta(hours=1, minutes=58),
             launched_agent_work_identifiers=[f"GH13-{ASSIGNMENT_TIMESTAMP}-assignment"],
-            issue_observations=[
-                observed_issue(issue=50),
-                observed_issue(issue=51),
-                observed_issue(
+            rows=[
+                request_row(issue=50, finding=UNCLAIMED),
+                request_row(issue=51, finding=UNCLAIMED),
+                request_row(
                     issue=52,
-                    values={"blocked": Truth.TRUE},
-                    evidence={"blocked": "blocked by GH50"},
+                    finding=StartTimeFinding(
+                        linked_pull_requests=[], blocking_issues=[50]
+                    ),
                 ),
-                observed_issue(
-                    issue=53,
-                    assignment_labels=(ASSIGNMENT_LABEL, "dream:less"),
-                    values={"routing_conflict": Truth.TRUE},
-                    evidence={"routing_conflict": DOUBLE_LABELLED},
-                ),
-                observed_issue(
-                    issue=54,
-                    assignment_labels=(ASSIGNMENT_LABEL, "dream:less"),
-                    values={
-                        "routing_conflict": Truth.TRUE,
-                        "blocked": Truth.TRUE,
-                    },
-                    evidence={
-                        "routing_conflict": DOUBLE_LABELLED,
-                        "blocked": "blocked by GH50",
-                    },
+                request_row(issue=53, label="dream:less", finding=DOUBLE_LABELLED),
+                request_row(issue=53, finding=DOUBLE_LABELLED),
+                request_row(
+                    issue=55,
+                    finding=StartTimeFinding(
+                        linked_pull_requests=[61], blocking_issues=[50, 51]
+                    ),
                 ),
             ],
             assignment_observations=[
@@ -534,13 +528,14 @@ def fabricate_titles_and_pull_request_states(*, state):
         state=state,
         tick=SchedulerRecord(
             at=PINNED + timedelta(hours=1, minutes=58),
-            issue_observations=[
-                observed_issue(issue=20, title="Available issue"),
-                observed_issue(
+            rows=[
+                request_row(issue=20, title="Available issue", finding=UNCLAIMED),
+                request_row(
                     issue=21,
                     title="Blocked issue",
-                    values={"blocked": Truth.TRUE},
-                    evidence={"blocked": "blocked by GH20"},
+                    finding=StartTimeFinding(
+                        linked_pull_requests=[], blocking_issues=[20]
+                    ),
                 ),
             ],
             assignment_observations=assignment_observations,

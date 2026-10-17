@@ -18,6 +18,7 @@ from records import (
     write_tick,
 )
 from rich.console import Console
+from rows import request_row
 
 from dreamcatcher.agent_rounds import (
     AgentRoundRecord,
@@ -32,7 +33,12 @@ from dreamcatcher.issue_conversations import (
     ConversationRoundInput,
     InitialConversationIssue,
 )
-from dreamcatcher.scheduler.models import SchedulerRecord, Truth
+from dreamcatcher.scheduler.models import (
+    IssueCommentsFinding,
+    ReadFailure,
+    SchedulerRecord,
+    Truth,
+)
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.tui import (
     show_conversation_view,
@@ -379,15 +385,17 @@ def test_a_missing_conversation_round_says_how_many_exist(tmp_path):
 
 
 def unsaved_conversation_state(*, root) -> StateDirectory:
-    """Return state whose latest tick observed GH9 with a comment to answer."""
+    """Return state whose latest tick found a comment to answer at GH9."""
     state = StateDirectory(root=root)
     write_tick(
         state=state,
         tick=SchedulerRecord(
             at=PINNED,
-            conversation_observations=[
-                observed_conversation(
-                    issue=9, value=Truth.TRUE, evidence="1 comment to answer"
+            rows=[
+                request_row(
+                    issue=9,
+                    kind=AgentWorkKind.CONVERSATION,
+                    finding=IssueCommentsFinding(new_comments=1),
                 )
             ],
         ),
@@ -395,7 +403,9 @@ def unsaved_conversation_state(*, root) -> StateDirectory:
     return state
 
 
-def test_status_lists_an_eligible_issue_before_its_conversation_is_saved(tmp_path):
+def test_status_lists_a_conversation_request_before_its_conversation_is_saved(
+    tmp_path,
+):
     state = unsaved_conversation_state(root=tmp_path)
     console, written = rendered_console()
 
@@ -407,32 +417,32 @@ def test_status_lists_an_eligible_issue_before_its_conversation_is_saved(tmp_pat
 
     shown = written.getvalue()
     assert "GH9" in shown
-    assert "waiting" in shown
+    assert "dream:conversation" in shown
     assert "1 comment to answer" in shown
 
 
-def test_conversation_detail_before_its_first_round_shows_its_issue(tmp_path):
-    state = unsaved_conversation_state(root=tmp_path)
-    console, written = rendered_console()
-
-    show_conversation_view(
-        state=state,
-        issue=9,
-        console=console,
-        clock=lambda: PINNED,
-    )
-
-    shown = written.getvalue()
-    assert "issue conversation GH9" in shown
-    assert "Issue 9" in shown
-    assert "agent harness" not in shown
-
-
-def test_a_conversation_feed_before_its_first_round_says_so(tmp_path):
+def test_conversation_detail_before_the_conversation_starts_says_there_is_none(
+    tmp_path,
+):
     state = unsaved_conversation_state(root=tmp_path)
     console, _ = rendered_console()
 
-    with pytest.raises(ReportableError, match="GH9 has not run a round yet"):
+    with pytest.raises(ReportableError, match="No conversation here for GH9"):
+        show_conversation_view(
+            state=state,
+            issue=9,
+            console=console,
+            clock=lambda: PINNED,
+        )
+
+
+def test_a_conversation_feed_before_the_conversation_starts_says_there_is_none(
+    tmp_path,
+):
+    state = unsaved_conversation_state(root=tmp_path)
+    console, _ = rendered_console()
+
+    with pytest.raises(ReportableError, match="No conversation here for GH9"):
         show_feed_view(
             state=state,
             issue=9,
@@ -441,7 +451,7 @@ def test_a_conversation_feed_before_its_first_round_says_so(tmp_path):
         )
 
 
-def test_conversations_are_listed_in_attention_order(tmp_path):
+def test_conversations_are_listed_in_attention_order_before_requests(tmp_path):
     state = conversation_state(root=tmp_path)
     write_running_conversation(state=state, issue=11, started=PINNED)
     hold_daemon_lock_for_test(path=state.lock)
@@ -451,13 +461,23 @@ def test_conversations_are_listed_in_attention_order(tmp_path):
             at=PINNED,
             conversation_observations=[
                 observed_conversation(issue=8),
-                observed_conversation(issue=9),
-                observed_conversation(
-                    issue=10, value=Truth.TRUE, evidence="1 comment to answer"
-                ),
                 observed_conversation(issue=11),
-                observed_conversation(
-                    issue=12, value=Truth.UNKNOWN, evidence="cannot tell"
+            ],
+            rows=[
+                request_row(
+                    issue=9,
+                    kind=AgentWorkKind.CONVERSATION,
+                    finding=IssueCommentsFinding(new_comments=0),
+                ),
+                request_row(
+                    issue=10,
+                    kind=AgentWorkKind.CONVERSATION,
+                    finding=IssueCommentsFinding(new_comments=1),
+                ),
+                request_row(
+                    issue=12,
+                    kind=AgentWorkKind.CONVERSATION,
+                    finding=ReadFailure(reason="gh: offline"),
                 ),
             ],
         ),
@@ -473,13 +493,14 @@ def test_conversations_are_listed_in_attention_order(tmp_path):
     shown = written.getvalue()
     assert (
         shown.index("GH11")
-        < shown.index("GH10")
-        < shown.index("GH12")
         < shown.index("GH8")
         < shown.index("GH9")
+        < shown.index("GH10")
+        < shown.index("GH12")
     )
     assert "working" in shown
-    assert "unknown" in shown
+    assert "waiting for a comment" in shown
+    assert "cannot tell: gh: offline" in shown
 
 
 def watched_console() -> tuple[Console, StringIO]:

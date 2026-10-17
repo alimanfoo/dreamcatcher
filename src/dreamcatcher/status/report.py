@@ -9,7 +9,6 @@ from dreamcatcher.agent_work import (
     AgentWork,
     AgentWorkEnding,
     find_newest_agent_work,
-    find_open_agent_work_by_issue,
     read_agent_work,
     read_agent_work_at_issue,
 )
@@ -20,13 +19,7 @@ from dreamcatcher.documents import read_json_if_exists, read_text
 from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.lock import is_daemon_lock_held
 from dreamcatcher.scheduler.faults import read_scheduler_record
-from dreamcatcher.scheduler.models import (
-    GlobalCooldown,
-    IssueObservation,
-    SchedulerRecord,
-    Truth,
-    observe_claimed_here,
-)
+from dreamcatcher.scheduler.models import GlobalCooldown, SchedulerRecord
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.status.assignments import (
     ASSIGNMENT_STATUS_VALUES_IN_ATTENTION_ORDER,
@@ -40,6 +33,7 @@ from dreamcatcher.status.conversations import (
     ConversationStatusReader,
     ConversationStatusValue,
 )
+from dreamcatcher.status.requests import RequestStatus, describe_request
 from dreamcatcher.words import describe_countdown, describe_span
 
 
@@ -144,7 +138,7 @@ class DreamcatcherStatusReport:
     scheduler_failure_summary: str | None
     running_agents: int
     active_global_cooldown: GlobalCooldown | None
-    issue_observations: list[IssueObservation]
+    request_statuses: list[RequestStatus]
     assignment_statuses: list[AssignmentStatus]
     conversation_statuses: list[ConversationStatus]
     assignment_section: AgentWorkStatusSection | None
@@ -199,6 +193,10 @@ class DreamcatcherStatusReport:
             if value is not None
         )
 
+    def list_request_statuses(self, *, kind: AgentWorkKind) -> list[RequestStatus]:
+        """Return the requests of one kind with no open work, in the tick's order."""
+        return _select_request_statuses(statuses=self.request_statuses, kind=kind)
+
     @property
     def active_assignment_statuses(self) -> list[AssignmentStatus]:
         """The assignments that have not ended, in attention order."""
@@ -249,6 +247,12 @@ def _describe_agent_work_section(
     )
 
 
+def _select_request_statuses(
+    *, statuses: list[RequestStatus], kind: AgentWorkKind
+) -> list[RequestStatus]:
+    return [status for status in statuses if status.kind is kind]
+
+
 def _describe_route_labels(*, labels: tuple[str, ...]) -> str:
     if len(labels) == 1:
         return labels[0]
@@ -285,22 +289,29 @@ def read_status_report(
             item for item in work if item.record.kind is AgentWorkKind.CONVERSATION
         ],
     )
-    issue_observations = _refresh_issue_observations(
-        scheduler_record=scheduler_record,
-        assignments=assignments,
+    request_statuses = (
+        []
+        if scheduler_record is None
+        else [
+            describe_request(row=row)
+            for row in scheduler_record.rows
+            if row.agent_work is None
+        ]
     )
-    reported_issue_observations = _select_issue_observations(
-        observations=issue_observations
+    assignment_requests = _select_request_statuses(
+        statuses=request_statuses, kind=AgentWorkKind.ASSIGNMENT
+    )
+    conversation_requests = _select_request_statuses(
+        statuses=request_statuses, kind=AgentWorkKind.CONVERSATION
     )
     assignment_labels = daemon.list_labels(kind=AgentWorkKind.ASSIGNMENT)
     conversation_labels = daemon.list_labels(kind=AgentWorkKind.CONVERSATION)
     has_active_assignment_work = bool(
-        any(status.is_active for status in assignment_statuses)
-        or reported_issue_observations
+        any(status.is_active for status in assignment_statuses) or assignment_requests
     )
-    has_conversation_work = bool(conversation_statuses)
-    has_active_conversation_work = any(
-        status.is_active for status in conversation_statuses
+    has_active_conversation_work = bool(
+        any(status.is_active for status in conversation_statuses)
+        or conversation_requests
     )
     assignment_empty_message = (
         None
@@ -335,20 +346,20 @@ def read_status_report(
         active_global_cooldown=(
             None if scheduler_record is None else scheduler_record.cooldown
         ),
-        issue_observations=reported_issue_observations,
+        request_statuses=request_statuses,
         assignment_statuses=assignment_statuses,
         conversation_statuses=conversation_statuses,
         assignment_section=_describe_agent_work_section(
             heading="assignments",
             labels=assignment_labels,
-            has_any_work=bool(assignment_statuses or reported_issue_observations),
+            has_any_work=bool(assignment_statuses or assignment_requests),
             has_active_work=has_active_assignment_work,
             empty_message=assignment_empty_message,
         ),
         conversation_section=_describe_agent_work_section(
             heading="conversations",
             labels=conversation_labels,
-            has_any_work=has_conversation_work,
+            has_any_work=bool(conversation_statuses or conversation_requests),
             has_active_work=has_active_conversation_work,
             empty_message=conversation_empty_message,
         ),
@@ -389,28 +400,6 @@ def _list_reported_conversation_statuses(
     )
 
 
-def _refresh_issue_observations(
-    *,
-    scheduler_record: SchedulerRecord | None,
-    assignments: list[AgentWork],
-) -> list[IssueObservation]:
-    if scheduler_record is None:
-        return []
-    open_assignment_issues = find_open_agent_work_by_issue(work=assignments).keys()
-    return [
-        observation.model_copy(
-            update={
-                "claimed_here": observe_claimed_here(
-                    issue=observation.issue,
-                    open_assignment_issues=open_assignment_issues,
-                ),
-                "observed_at": observation.observed_at or scheduler_record.at,
-            }
-        )
-        for observation in scheduler_record.issue_observations
-    ]
-
-
 def _count_running_agents(
     *,
     assignments: list[AssignmentStatus],
@@ -419,21 +408,6 @@ def _count_running_agents(
     return sum(
         status.value is AssignmentStatusValue.WORKING for status in assignments
     ) + sum(status.value is ConversationStatusValue.WORKING for status in conversations)
-
-
-def _select_issue_observations(
-    *, observations: list[IssueObservation]
-) -> list[IssueObservation]:
-    return [
-        observation
-        for observation in observations
-        if Truth.TRUE
-        in (
-            observation.routing_conflict.value,
-            observation.availability.value,
-            observation.blocked.value,
-        )
-    ]
 
 
 def read_repository(*, state: StateDirectory) -> str | None:
@@ -504,7 +478,7 @@ def read_agent_work_status(
         is_daemon_running=daemon.is_running,
         scheduler_record=scheduler_record,
         conversations=[work],
-    ).derive(issue=work.record.issue, title=work.record.title, conversation=work)
+    ).derive(conversation=work)
 
 
 def read_conversation_status(
@@ -514,27 +488,21 @@ def read_conversation_status(
     daemon: DreamcatcherDaemonStatus,
     clock: Callable[[], datetime] = read_current_time,
 ) -> ConversationStatus | None:
-    """Read the status of the issue conversation at an issue.
+    """Read the status of the newest issue conversation at an issue, if there is one.
 
-    An issue has a conversation once it has a saved conversation or the latest
-    tick observed it through a configured conversation route. A conversation
-    that has not ended is chosen over one that has. The caller reads the daemon
-    status, so a view that also shows it shows the same answer that its round
-    statuses came from.
+    The caller reads the daemon status, so a view that also shows it shows the
+    same answer that its round statuses came from.
     """
     conversation = find_newest_agent_work(
         state=state, issue=issue, kind=AgentWorkKind.CONVERSATION
     )
+    if conversation is None:
+        return None
     at, scheduler_record = _read_status_facts(state=state, clock=clock)
-    statuses = ConversationStatusReader(
+    return ConversationStatusReader(
         state=state,
         at=at,
         is_daemon_running=daemon.is_running,
         scheduler_record=scheduler_record,
-        conversations=[] if conversation is None else [conversation],
-    ).list_statuses()
-    at_issue = sorted(
-        (status for status in statuses if status.issue == issue),
-        key=lambda status: status.has_ended,
-    )
-    return at_issue[0] if at_issue else None
+        conversations=[conversation],
+    ).derive(conversation=conversation)

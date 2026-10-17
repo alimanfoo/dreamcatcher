@@ -11,8 +11,8 @@
           {% for assignment in view.active_assignments %}
             {% include "partials/assignment-card.html" %}
           {% endfor %}
-          {% for issue in view.issues %}
-            {% include "partials/issue-row.html" %}
+          {% for request in view.assignment_requests %}
+            {% include "partials/request-row.html" %}
           {% endfor %}
           {% if view.assignment_section.empty_message %}<p class="empty">{{ view.assignment_section.empty_message }}</p>{% endif %}
           {% if view.ended_assignments %}
@@ -29,6 +29,9 @@
             <h1 id="conversations-heading">{{ view.conversation_section.heading|capitalize }}</h1>
             {% for conversation in view.active_conversations %}
               {% include "partials/conversation-card.html" %}
+            {% endfor %}
+            {% for request in view.conversation_requests %}
+              {% include "partials/request-row.html" %}
             {% endfor %}
             {% if view.conversation_section.empty_message %}<p class="empty">{{ view.conversation_section.empty_message }}</p>{% endif %}
             {% if view.ended_conversations %}
