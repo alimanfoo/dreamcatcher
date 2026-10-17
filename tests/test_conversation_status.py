@@ -5,12 +5,15 @@ from datetime import timedelta
 
 import pytest
 from clocks import PINNED
-from conftest import configure
 from observations import observed_conversation
 from records import (
+    SCOUT_ROUTES,
+    find_conversation_directory,
     hold_daemon_lock_for_test,
+    read_conversation,
     write_conversation,
     write_daemon_run,
+    write_ending,
     write_feed,
     write_final_output,
     write_round,
@@ -23,14 +26,13 @@ from dreamcatcher.agent_rounds import (
     StoppedAgentRoundEnding,
     _compose_agent_round_ending,
 )
-from dreamcatcher.agent_work import request_agent_work_retry
+from dreamcatcher.agent_work import AgentWorkEndReason, request_agent_work_retry
 from dreamcatcher.config import AgentHarness
 from dreamcatcher.documents import read_json, write_json
 from dreamcatcher.feed import FeedLine
 from dreamcatcher.issue_conversations import (
     ConversationRoundInput,
     InitialConversationIssue,
-    read_conversation,
 )
 from dreamcatcher.scheduler.models import (
     ConversationObservation,
@@ -55,7 +57,6 @@ LOOKED_AT = PINNED + timedelta(hours=2)
 @pytest.fixture
 def conversation_state(tmp_path):
     """Return local state containing one issue conversation."""
-    configure(root=tmp_path)
     state = StateDirectory(root=tmp_path)
     write_daemon_run(state=state, pid=os.getpid())
     write_conversation(state=state, issue=8)
@@ -84,7 +85,7 @@ def conversation_round(
             at=PINNED + timedelta(minutes=4), status=status, failure=failure
         )
     )
-    directory = state.conversations / "GH8"
+    directory = find_conversation_directory(state=state, issue=8)
     write_round(
         directory=directory,
         number=1,
@@ -331,8 +332,9 @@ def test_an_unrecorded_round_input_shows_what_the_scheduler_reported(
         path=conversation.compose_round_paths(number=1).round_input,
     )
     failure = (
-        "could not inspect saved conversation GH8: Conversation conversation-GH8 "
-        "has input for round 1 without a round record."
+        "could not inspect saved conversation GH8: "
+        "Conversation GH8-20260819-184158-conversation has input for round 1 "
+        "without a round record."
     )
     observe(
         state=conversation_state,
@@ -351,7 +353,7 @@ def test_a_live_round_keeps_an_ineligible_conversation_on_the_report(
     hold_daemon_lock_for_test(path=conversation_state.lock)
     conversation_round(state=conversation_state, status=None)
     write_feed(
-        directory=conversation_state.conversations / "GH8",
+        directory=find_conversation_directory(state=conversation_state, issue=8),
         number=1,
         lines=[
             FeedLine(
@@ -416,7 +418,7 @@ def test_two_current_errors_put_a_conversation_in_fault(conversation_state):
     conversation_round(state=conversation_state, status=2)
     write_second_conversation_error(state=conversation_state)
     write_feed(
-        directory=conversation_state.conversations / "GH8",
+        directory=find_conversation_directory(state=conversation_state, issue=8),
         number=2,
         lines=[
             FeedLine(
@@ -549,7 +551,7 @@ def test_a_round_ending_after_the_latest_tick_waits_for_the_next_update(
         tick=SchedulerRecord(
             at=PINNED,
             conversation_observations=[observed_conversation()],
-            launched_agent_work_identifiers=["conversation-GH8"],
+            launched_agent_work_identifiers=["GH8-20260819-184158-conversation"],
         ),
     )
 
@@ -607,7 +609,7 @@ def test_a_posted_answer_leaves_the_conversation_idle(conversation_state):
 
 
 def test_a_stopped_conversation_waits_for_new_comments(conversation_state):
-    directory = conversation_state.conversations / "GH8"
+    directory = find_conversation_directory(state=conversation_state, issue=8)
     write_round(
         directory=directory,
         number=1,
@@ -628,7 +630,6 @@ def test_a_stopped_conversation_waits_for_new_comments(conversation_state):
 
 
 def test_an_eligible_issue_is_a_conversation_before_its_record_exists(tmp_path):
-    configure(root=tmp_path)
     state = StateDirectory(root=tmp_path)
     observe(
         state=state,
@@ -748,3 +749,88 @@ def test_a_round_revision_keeps_its_whole_value():
 
     assert found.value == "0123456789abcdef"
     assert found.description == "code revision 0123456789abcdef"
+
+
+def end_conversation(*, state: StateDirectory, minutes: int = 10) -> None:
+    """Record that the fixture conversation ended that many minutes in."""
+    write_ending(
+        directory=find_conversation_directory(state=state, issue=8),
+        reason=AgentWorkEndReason.COMPLETED,
+        at=PINNED + timedelta(minutes=minutes),
+    )
+
+
+def test_an_ended_conversation_reads_as_ended_with_its_reason(conversation_state):
+    conversation_round(state=conversation_state)
+    end_conversation(state=conversation_state)
+    observe(state=conversation_state, observations=[])
+
+    found = status(state=conversation_state)
+
+    assert found.value is ConversationStatusValue.ENDED
+    assert found.detail == "completed"
+    assert found.has_ended
+    assert not found.is_active
+
+
+def test_a_running_round_keeps_an_ended_conversation_working(conversation_state):
+    hold_daemon_lock_for_test(path=conversation_state.lock)
+    conversation_round(state=conversation_state, status=None)
+    end_conversation(state=conversation_state)
+
+    assert status(state=conversation_state).value is ConversationStatusValue.WORKING
+
+
+def test_the_report_lists_ended_conversations_apart_newest_first(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    write_daemon_run(state=state, pid=os.getpid(), routes=SCOUT_ROUTES)
+    for issue, minutes in ((8, 10), (9, 20)):
+        write_ending(
+            directory=write_conversation(state=state, issue=issue),
+            reason=AgentWorkEndReason.COMPLETED,
+            at=PINNED + timedelta(minutes=minutes),
+        )
+    write_tick(
+        state=state,
+        tick=SchedulerRecord(
+            at=PINNED, conversation_observations=[observed_conversation(issue=10)]
+        ),
+    )
+
+    report = read_status_report(state=state, clock=lambda: LOOKED_AT)
+
+    assert [status.issue for status in report.active_conversation_statuses] == [10]
+    assert [status.issue for status in report.ended_conversation_statuses] == [9, 8]
+    assert report.conversation_section == AgentWorkStatusSection(
+        heading="conversations", empty_message=None
+    )
+
+
+def test_a_section_of_ended_conversations_alone_gives_its_guidance(
+    conversation_state,
+):
+    write_daemon_run(state=conversation_state, pid=os.getpid(), routes=SCOUT_ROUTES)
+    end_conversation(state=conversation_state)
+    observe(state=conversation_state, observations=[])
+
+    report = read_status_report(state=conversation_state, clock=lambda: LOOKED_AT)
+
+    assert report.active_conversation_statuses == []
+    assert report.conversation_section == AgentWorkStatusSection(
+        heading="conversations",
+        empty_message=(
+            "Assign an issue to yourself, label it with dream:scout and post a "
+            "comment to start a conversation."
+        ),
+    )
+
+
+def test_the_status_at_an_issue_is_its_open_conversation_over_an_ended_one(
+    conversation_state,
+):
+    end_conversation(state=conversation_state)
+
+    found = status(state=conversation_state)
+
+    assert found.conversation is None
+    assert found.value is ConversationStatusValue.IDLE

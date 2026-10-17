@@ -11,20 +11,21 @@ from flask import Flask, Response, redirect, render_template, request, url_for
 from flask.typing import ResponseReturnValue
 from werkzeug.serving import BaseWSGIServer
 
-from dreamcatcher.agent_assignments import (
-    cancel_assignment,
-    read_assignment,
-)
+from dreamcatcher.agent_assignments import cancel_assignment
 from dreamcatcher.agent_rounds import request_agent_round_stop
-from dreamcatcher.agent_work import request_agent_work_retry
+from dreamcatcher.agent_work import (
+    AgentWork,
+    find_agent_work,
+    request_agent_work_retry,
+)
 from dreamcatcher.clock import read_current_time
 from dreamcatcher.errors import ReportableError
+from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.status import (
     AssignmentStatus,
     ConversationStatus,
-    read_assignment_status,
-    read_conversation_status,
+    read_agent_work_status,
     read_dreamcatcher_daemon_status,
     read_status_report,
 )
@@ -72,9 +73,8 @@ def _create_app(
 
     Pages read persisted status and feeds. A same-origin stop request can write
     into the running round's directory, and a same-origin retry request or
-    cancel into the directory of the assignment or conversation that it
-    names. Page times use the
-    machine's local zone when zone is None.
+    cancel into the directory of the agent work that it names. Page times use
+    the machine's local zone when zone is None.
     """
     app = Flask(__name__, static_folder="../static", template_folder="../templates")
     app.config["TRUSTED_HOSTS"] = [WEB_HOST, "localhost"]
@@ -84,13 +84,12 @@ def _create_app(
         endpoint="show_home",
         view_func=partial(_show_home, state=state, clock=clock),
     )
-    _register_assignment_routes(app=app, state=state, clock=clock, zone=zone)
-    _register_conversation_routes(app=app, state=state, clock=clock, zone=zone)
+    _register_work_routes(app=app, state=state, clock=clock, zone=zone)
     app.register_error_handler(ReportableError, _show_reportable_error)
     return app
 
 
-def _register_assignment_routes(
+def _register_work_routes(
     *,
     app: Flask,
     state: StateDirectory,
@@ -98,62 +97,31 @@ def _register_assignment_routes(
     zone: tzinfo | None,
 ) -> None:
     app.add_url_rule(
-        "/assignments/<identifier>",
-        endpoint="show_assignment",
-        view_func=partial(_show_assignment, state=state, clock=clock, zone=zone),
+        "/work/<identifier>",
+        endpoint="show_work",
+        view_func=partial(_show_work, state=state, clock=clock, zone=zone),
     )
     app.add_url_rule(
-        "/assignments/<identifier>/tail",
-        endpoint="show_assignment_tail",
-        view_func=partial(_show_assignment_tail, state=state, clock=clock, zone=zone),
+        "/work/<identifier>/tail",
+        endpoint="show_work_tail",
+        view_func=partial(_show_work_tail, state=state, clock=clock, zone=zone),
     )
     app.add_url_rule(
-        "/assignments/<identifier>/stop/<int:number>",
-        endpoint="request_assignment_stop",
-        view_func=partial(_request_assignment_stop, state=state, clock=clock),
+        "/work/<identifier>/stop/<int:number>",
+        endpoint="request_work_stop",
+        view_func=partial(_request_work_stop, state=state, clock=clock),
         methods=["POST"],
     )
     app.add_url_rule(
-        "/assignments/<identifier>/retry/<int:number>",
-        endpoint="request_assignment_retry",
-        view_func=partial(_request_assignment_retry, state=state, clock=clock),
+        "/work/<identifier>/retry/<int:number>",
+        endpoint="request_work_retry",
+        view_func=partial(_request_work_retry, state=state, clock=clock),
         methods=["POST"],
     )
     app.add_url_rule(
-        "/assignments/<identifier>/cancel",
+        "/work/<identifier>/cancel",
         endpoint="cancel_assignment",
         view_func=partial(_cancel_assignment, state=state, clock=clock),
-        methods=["POST"],
-    )
-
-
-def _register_conversation_routes(
-    *,
-    app: Flask,
-    state: StateDirectory,
-    clock: Callable[[], datetime],
-    zone: tzinfo | None,
-) -> None:
-    app.add_url_rule(
-        "/conversations/<int:issue>",
-        endpoint="show_conversation",
-        view_func=partial(_show_conversation, state=state, clock=clock, zone=zone),
-    )
-    app.add_url_rule(
-        "/conversations/<int:issue>/tail",
-        endpoint="show_conversation_tail",
-        view_func=partial(_show_conversation_tail, state=state, clock=clock, zone=zone),
-    )
-    app.add_url_rule(
-        "/conversations/<int:issue>/stop/<int:number>",
-        endpoint="request_conversation_stop",
-        view_func=partial(_request_conversation_stop, state=state, clock=clock),
-        methods=["POST"],
-    )
-    app.add_url_rule(
-        "/conversations/<int:issue>/retry/<int:number>",
-        endpoint="request_conversation_retry",
-        view_func=partial(_request_conversation_retry, state=state, clock=clock),
         methods=["POST"],
     )
 
@@ -164,37 +132,48 @@ def _show_home(*, state: StateDirectory, clock: Callable[[], datetime]) -> str:
     return render_template("home.html", view=compose_home_view(report=report))
 
 
-def _show_assignment(
+def _show_work(
     *,
     state: StateDirectory,
     clock: Callable[[], datetime],
     zone: tzinfo | None,
     identifier: str,
 ) -> str | tuple[str, int]:
-    """Render one assignment page, or a missing response."""
+    """Render the page of one piece of agent work, or a missing response."""
+    work = find_agent_work(state=state, identifier=identifier)
+    if work is None:
+        return _missing_work_response(identifier=identifier)
     daemon = read_dreamcatcher_daemon_status(state=state)
-    status = read_assignment_status(
-        state=state, identifier=identifier, daemon=daemon, clock=clock
-    )
-    if status is None:
-        return _missing_assignment_response(identifier=identifier)
+    status = read_agent_work_status(state=state, work=work, daemon=daemon, clock=clock)
+    live = _compose_work_live_state(state=state, work=work, status=status, zone=zone)
+    if isinstance(status, AssignmentStatus):
+        return render_template(
+            "assignment.html",
+            view=compose_assignment_view(
+                state=state, status=status, daemon=daemon, live=live, zone=zone
+            ),
+        )
     return render_template(
-        "assignment.html",
-        view=compose_assignment_view(
+        "conversation.html",
+        view=compose_conversation_view(
             state=state,
+            conversation=work,
             status=status,
             daemon=daemon,
-            live=_compose_assignment_live_state(state=state, status=status, zone=zone),
+            live=live,
             zone=zone,
         ),
     )
 
 
-def _compose_assignment_live_state(
-    *, state: StateDirectory, status: AssignmentStatus, zone: tzinfo | None
+def _compose_work_live_state(
+    *,
+    state: StateDirectory,
+    work: AgentWork,
+    status: AssignmentStatus | ConversationStatus,
+    zone: tzinfo | None,
 ) -> WebAgentLiveState:
-    assignment = status.assignment
-    identifier = assignment.identifier
+    identifier = work.identifier
     heading_controls = []
     foot_controls = []
     paths = status.stoppable_round_paths
@@ -203,9 +182,7 @@ def _compose_assignment_live_state(
             WebAgentWorkControl(
                 action="stop",
                 url=url_for(
-                    "request_assignment_stop",
-                    identifier=identifier,
-                    number=paths.number,
+                    "request_work_stop", identifier=identifier, number=paths.number
                 ),
             )
         )
@@ -214,12 +191,10 @@ def _compose_assignment_live_state(
         heading_controls.append(
             WebAgentWorkControl(
                 action="retry",
-                url=url_for(
-                    "request_assignment_retry", identifier=identifier, number=number
-                ),
+                url=url_for("request_work_retry", identifier=identifier, number=number),
             )
         )
-    if assignment.is_open:
+    if _can_cancel(work=work):
         foot_controls.append(
             WebAgentWorkControl(
                 action="cancel",
@@ -229,226 +204,91 @@ def _compose_assignment_live_state(
     return compose_agent_live_state(
         state=state,
         status=status,
-        worktree=assignment.record.worktree,
+        worktree=work.worktree,
         zone=zone,
         heading_controls=tuple(heading_controls),
         foot_controls=tuple(foot_controls),
     )
 
 
-def _show_assignment_tail(
+def _show_work_tail(
     *,
     state: StateDirectory,
     clock: Callable[[], datetime],
     zone: tzinfo | None,
     identifier: str,
 ) -> str | tuple[str, int]:
-    """Render assignment feed output written after the requested cursor."""
-    status = read_assignment_status(
+    """Render the work's feed output written after the requested cursor."""
+    work = find_agent_work(state=state, identifier=identifier)
+    if work is None:
+        return _missing_work_response(identifier=identifier)
+    status = read_agent_work_status(
         state=state,
-        identifier=identifier,
+        work=work,
         daemon=read_dreamcatcher_daemon_status(state=state),
         clock=clock,
     )
-    if status is None:
-        return _missing_assignment_response(identifier=identifier)
     return _show_agent_tail(
-        owner=status.assignment,
-        live=_compose_assignment_live_state(state=state, status=status, zone=zone),
-        should_stop_polling=status.has_ended,
+        owner=work,
+        live=_compose_work_live_state(state=state, work=work, status=status, zone=zone),
+        should_stop_polling=not status.is_active,
         zone=zone,
     )
 
 
-def _show_conversation(
-    *,
-    state: StateDirectory,
-    clock: Callable[[], datetime],
-    zone: tzinfo | None,
-    issue: int,
-) -> str | tuple[str, int]:
-    """Render one issue-conversation page, or a missing response."""
-    daemon = read_dreamcatcher_daemon_status(state=state)
-    status = read_conversation_status(
-        state=state, issue=issue, daemon=daemon, clock=clock
-    )
-    if status is None:
-        return _missing_conversation_response(issue=issue)
-    return render_template(
-        "conversation.html",
-        view=compose_conversation_view(
-            state=state,
-            status=status,
-            daemon=daemon,
-            live=_compose_conversation_live_state(
-                state=state, status=status, zone=zone
-            ),
-            zone=zone,
-        ),
-    )
-
-
-def _compose_conversation_live_state(
-    *, state: StateDirectory, status: ConversationStatus, zone: tzinfo | None
-) -> WebAgentLiveState:
-    conversation = status.conversation
-    heading_controls = []
-    foot_controls = []
-    paths = status.stoppable_round_paths
-    if paths is not None:
-        foot_controls.append(
-            WebAgentWorkControl(
-                action="stop",
-                url=url_for(
-                    "request_conversation_stop",
-                    issue=status.issue,
-                    number=paths.number,
-                ),
-            )
-        )
-    number = status.faulted_round_number
-    if number is not None:
-        heading_controls.append(
-            WebAgentWorkControl(
-                action="retry",
-                url=url_for(
-                    "request_conversation_retry", issue=status.issue, number=number
-                ),
-            )
-        )
-    return compose_agent_live_state(
-        state=state,
-        status=status,
-        worktree=None if conversation is None else conversation.worktree,
-        zone=zone,
-        heading_controls=tuple(heading_controls),
-        foot_controls=tuple(foot_controls),
-    )
-
-
-def _show_conversation_tail(
-    *,
-    state: StateDirectory,
-    clock: Callable[[], datetime],
-    zone: tzinfo | None,
-    issue: int,
-) -> str | tuple[str, int]:
-    """Render conversation feed output written after the requested cursor."""
-    status = read_conversation_status(
-        state=state,
-        issue=issue,
-        daemon=read_dreamcatcher_daemon_status(state=state),
-        clock=clock,
-    )
-    if status is None:
-        return _missing_conversation_response(issue=issue)
-    return _show_agent_tail(
-        owner=status.conversation,
-        live=_compose_conversation_live_state(state=state, status=status, zone=zone),
-        should_stop_polling=not status.is_listed,
-        zone=zone,
-    )
-
-
-def _request_assignment_stop(
+def _request_work_stop(
     *,
     state: StateDirectory,
     clock: Callable[[], datetime],
     identifier: str,
     number: int,
 ) -> ResponseReturnValue:
-    """Request a stop for one assignment's live round."""
+    """Request a stop for one piece of agent work's live round.
+
+    A submission whose round is no longer the live one changes nothing.
+    """
     if not _is_same_origin_request():
         return _CROSS_ORIGIN_POST_RESPONSE
-    status = read_assignment_status(
+    work = find_agent_work(state=state, identifier=identifier)
+    if work is None:
+        return _missing_work_response(identifier=identifier)
+    status = read_agent_work_status(
         state=state,
-        identifier=identifier,
+        work=work,
         daemon=read_dreamcatcher_daemon_status(state=state),
         clock=clock,
     )
-    if status is None:
-        return _missing_assignment_response(identifier=identifier)
     paths = status.stoppable_round_paths
     if paths is not None and paths.number == number:
         request_agent_round_stop(paths=paths)
-    return redirect(url_for("show_assignment", identifier=identifier), code=303)
+    return redirect(url_for("show_work", identifier=identifier), code=303)
 
 
-def _request_conversation_stop(
-    *,
-    state: StateDirectory,
-    clock: Callable[[], datetime],
-    issue: int,
-    number: int,
-) -> ResponseReturnValue:
-    """Request a stop for one issue conversation's live round."""
-    if not _is_same_origin_request():
-        return _CROSS_ORIGIN_POST_RESPONSE
-    status = read_conversation_status(
-        state=state,
-        issue=issue,
-        daemon=read_dreamcatcher_daemon_status(state=state),
-        clock=clock,
-    )
-    if status is None:
-        return _missing_conversation_response(issue=issue)
-    paths = status.stoppable_round_paths
-    if paths is not None and paths.number == number:
-        request_agent_round_stop(paths=paths)
-    return redirect(url_for("show_conversation", issue=issue), code=303)
-
-
-def _request_assignment_retry(
+def _request_work_retry(
     *,
     state: StateDirectory,
     clock: Callable[[], datetime],
     identifier: str,
     number: int,
 ) -> ResponseReturnValue:
-    """Request a retry of one faulted assignment.
+    """Request a retry of one faulted piece of agent work.
 
     A submission whose round is no longer the faulted one changes nothing.
     """
     if not _is_same_origin_request():
         return _CROSS_ORIGIN_POST_RESPONSE
-    status = read_assignment_status(
+    work = find_agent_work(state=state, identifier=identifier)
+    if work is None:
+        return _missing_work_response(identifier=identifier)
+    status = read_agent_work_status(
         state=state,
-        identifier=identifier,
+        work=work,
         daemon=read_dreamcatcher_daemon_status(state=state),
         clock=clock,
     )
-    if status is None:
-        return _missing_assignment_response(identifier=identifier)
     if status.faulted_round_number == number:
-        request_agent_work_retry(work=status.assignment, at=clock())
-    return redirect(url_for("show_assignment", identifier=identifier), code=303)
-
-
-def _request_conversation_retry(
-    *,
-    state: StateDirectory,
-    clock: Callable[[], datetime],
-    issue: int,
-    number: int,
-) -> ResponseReturnValue:
-    """Request a retry of one faulted issue conversation.
-
-    A submission whose round is no longer the faulted one changes nothing.
-    """
-    if not _is_same_origin_request():
-        return _CROSS_ORIGIN_POST_RESPONSE
-    status = read_conversation_status(
-        state=state,
-        issue=issue,
-        daemon=read_dreamcatcher_daemon_status(state=state),
-        clock=clock,
-    )
-    if status is None:
-        return _missing_conversation_response(issue=issue)
-    conversation = status.conversation
-    if conversation is not None and status.faulted_round_number == number:
-        request_agent_work_retry(work=conversation, at=clock())
-    return redirect(url_for("show_conversation", issue=issue), code=303)
+        request_agent_work_retry(work=work, at=clock())
+    return redirect(url_for("show_work", identifier=identifier), code=303)
 
 
 def _cancel_assignment(
@@ -459,16 +299,22 @@ def _cancel_assignment(
 ) -> ResponseReturnValue:
     """Cancel one assignment so the user can finish its pull request by hand.
 
-    A submission for an assignment that has already ended changes nothing.
+    A submission for work that cannot be cancelled, such as an assignment that
+    has already ended, changes nothing.
     """
     if not _is_same_origin_request():
         return _CROSS_ORIGIN_POST_RESPONSE
-    assignment = read_assignment(state=state, identifier=identifier)
-    if assignment is None:
-        return _missing_assignment_response(identifier=identifier)
-    if assignment.is_open:
-        cancel_assignment(assignment=assignment, at=clock())
-    return redirect(url_for("show_assignment", identifier=identifier), code=303)
+    work = find_agent_work(state=state, identifier=identifier)
+    if work is None:
+        return _missing_work_response(identifier=identifier)
+    if _can_cancel(work=work):
+        cancel_assignment(assignment=work, at=clock())
+    return redirect(url_for("show_work", identifier=identifier), code=303)
+
+
+def _can_cancel(*, work: AgentWork) -> bool:
+    """Return whether the work is an assignment that is still open."""
+    return work.record.kind is AgentWorkKind.ASSIGNMENT and work.is_open
 
 
 def _is_same_origin_request() -> bool:
@@ -478,12 +324,12 @@ def _is_same_origin_request() -> bool:
 
 def _show_agent_tail(
     *,
-    owner: WebFeedOwner | None,
+    owner: WebFeedOwner,
     live: WebAgentLiveState,
     should_stop_polling: bool,
     zone: tzinfo | None,
 ) -> str | tuple[str, int]:
-    """Render incremental feed output for an assignment or conversation."""
+    """Render incremental feed output for a piece of agent work."""
     try:
         cursor = decode_feed_cursor(value=request.args.get("cursor", ""))
         tail = read_agent_tail(
@@ -505,27 +351,12 @@ def _show_agent_tail(
     )
 
 
-def _missing_assignment_response(*, identifier: str) -> tuple[str, int]:
-    """Render the response for an unknown assignment identifier."""
+def _missing_work_response(*, identifier: str) -> tuple[str, int]:
+    """Render the response for an unknown agent work identifier."""
     return (
         render_template(
             "error.html",
-            message=f"No agent assignment here has identifier {identifier}.",
-        ),
-        404,
-    )
-
-
-def _missing_conversation_response(*, issue: int) -> tuple[str, int]:
-    """Render the response for an issue with no conversation.
-
-    An issue has a conversation once it has a saved conversation or the latest
-    tick observed it through a configured conversation route.
-    """
-    return (
-        render_template(
-            "error.html",
-            message=f"No issue conversation here is for #{issue}.",
+            message=f"No agent work here has identifier {identifier}.",
         ),
         404,
     )

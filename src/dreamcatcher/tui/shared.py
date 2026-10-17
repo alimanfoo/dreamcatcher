@@ -27,7 +27,7 @@ ASSIGNMENT_STATUS_STYLES = dict(
 CONVERSATION_STATUS_STYLES = dict(
     zip(
         CONVERSATION_STATUS_VALUES_IN_ATTENTION_ORDER,
-        ("yellow", "red", "green", "cyan", "magenta", "dim"),
+        ("yellow", "red", "green", "cyan", "magenta", "dim", "dim"),
         strict=True,
     )
 )

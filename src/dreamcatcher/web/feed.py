@@ -61,7 +61,7 @@ def decode_feed_cursor(*, value: str) -> WebFeedCursor:
 
 def read_agent_tail(
     *,
-    owner: WebFeedOwner | None,
+    owner: WebFeedOwner,
     live: WebAgentLiveState,
     cursor: WebFeedCursor,
     zone: tzinfo | None,
@@ -164,13 +164,8 @@ def _compose_web_round_boundary(
     )
 
 
-def _list_round_feeds(*, owner: WebFeedOwner | None) -> dict[int, _WebRoundFeed]:
-    """Return every saved round of the agent work with its feed, by number.
-
-    Agent work with no saved record yet has run no round.
-    """
-    if owner is None:
-        return {}
+def _list_round_feeds(*, owner: WebFeedOwner) -> dict[int, _WebRoundFeed]:
+    """Return every saved round of the agent work with its feed, by number."""
     return {
         record.number: _WebRoundFeed(
             record=record, feed=owner.compose_round_paths(number=record.number).feed
@@ -181,7 +176,7 @@ def _list_round_feeds(*, owner: WebFeedOwner | None) -> dict[int, _WebRoundFeed]
 
 def read_agent_feed(
     *,
-    owner: WebFeedOwner | None,
+    owner: WebFeedOwner,
     zone: tzinfo | None,
     rounds: tuple[WebAgentRound, ...],
 ) -> WebAgentFeed:

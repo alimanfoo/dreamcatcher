@@ -34,8 +34,13 @@ class WebAssignmentCard:
 
 @dataclass(frozen=True, kw_only=True)
 class WebConversationCard:
-    """Represent the values rendered in one issue-conversation card."""
+    """Represent the values rendered in one issue-conversation card.
 
+    A conversation the tick has found but not yet saved has no identifier, and
+    so no page to open.
+    """
+
+    identifier: str | None
     issue: int
     title: str
     status: ConversationStatusValue
@@ -169,6 +174,7 @@ class WebConversationView:
     repository: str
     github_repository_url: str | None
     daemon: DreamcatcherDaemonStatus
+    identifier: str
     issue: int
     title: str
     facts: tuple[StatusFact, ...]
@@ -187,7 +193,8 @@ class WebHomeView:
     instance_facts: tuple[StatusFact, ...]
     assignment_section: AgentWorkStatusSection | None
     conversation_section: AgentWorkStatusSection | None
-    conversations: tuple[WebConversationCard, ...]
+    active_conversations: tuple[WebConversationCard, ...]
+    ended_conversations: tuple[WebConversationCard, ...]
     active_assignments: tuple[WebAssignmentCard, ...]
     ended_assignments: tuple[WebAssignmentCard, ...]
     failed_setups: tuple[WebIssueRow, ...]

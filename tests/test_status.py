@@ -4,10 +4,11 @@ from datetime import timedelta
 
 import pytest
 from clocks import PINNED
-from conftest import REPOSITORY, configure
+from conftest import REPOSITORY
 from observations import observed_issue
 from records import (
     hold_daemon_lock_for_test,
+    read_assignments,
     write_assignment,
     write_daemon_run,
     write_feed,
@@ -17,9 +18,7 @@ from records import (
 from status_fabrications import fabricate_everything
 
 from dreamcatcher.agent_assignments import (
-    Assignment,
     cancel_assignment,
-    read_assignments,
 )
 from dreamcatcher.agent_rounds import (
     AgentRoundRecord,
@@ -28,7 +27,8 @@ from dreamcatcher.agent_rounds import (
     StoppedAgentRoundEnding,
     _compose_agent_round_ending,
 )
-from dreamcatcher.config import DREAMCATCHER_CONFIG_NAME, AgentHarness
+from dreamcatcher.agent_work import AgentWork, find_agent_work
+from dreamcatcher.config import AgentHarness
 from dreamcatcher.daemon import DEFAULT_INTERVAL_SECONDS
 from dreamcatcher.daemon_runs import DaemonRunRecord
 from dreamcatcher.documents import write_text
@@ -46,7 +46,7 @@ from dreamcatcher.status import (
     DaemonStatusFact,
     DreamcatcherDaemonStatus,
     StatusFact,
-    read_assignment_status,
+    read_agent_work_status,
     read_assignment_statuses_for_issue,
     read_dreamcatcher_daemon_status,
     read_status_report,
@@ -56,14 +56,27 @@ from dreamcatcher.status.assignments import (
     AssignmentStatusValue,
 )
 
-ASSIGNMENT_ID = "GH13-20260819-184158"
+ASSIGNMENT_ID = "GH13-20260819-184158-assignment"
 LOOKED_AT = PINNED + timedelta(hours=2)
+
+
+def read_work_status(
+    *,
+    state: StateDirectory,
+    identifier: str,
+    daemon: DreamcatcherDaemonStatus,
+    clock,
+):
+    """Read the status of the work with this identifier, as a work page does."""
+    work = find_agent_work(state=state, identifier=identifier)
+    if work is None:
+        return None
+    return read_agent_work_status(state=state, work=work, daemon=daemon, clock=clock)
 
 
 @pytest.fixture
 def state(tmp_path):
-    """A configured state directory holding one assignment."""
-    configure(root=tmp_path)
+    """A state directory holding one assignment, and a daemon run routing it."""
     directory = StateDirectory(root=tmp_path)
     write_daemon_run(state=directory, pid=os.getpid(), max_agents=3)
     write_assignment(state=directory, identifier=ASSIGNMENT_ID, issue=13)
@@ -93,7 +106,7 @@ def ran(
         else _compose_agent_round_ending(at=ended_at, status=status)
     )
     write_round(
-        directory=state.assignments / ASSIGNMENT_ID,
+        directory=state.work / ASSIGNMENT_ID,
         number=number,
         record=AgentRoundRecord(
             number=number,
@@ -109,7 +122,7 @@ def said(*, state: StateDirectory, number: int, texts: Sequence[str]) -> None:
     """Write feed lines one minute after the numbered round began."""
     at = PINNED + timedelta(minutes=number + 1)
     write_feed(
-        directory=state.assignments / ASSIGNMENT_ID,
+        directory=state.work / ASSIGNMENT_ID,
         number=number,
         lines=[FeedLine(at=at, text=text) for text in texts],
     )
@@ -140,7 +153,6 @@ def idle_observation() -> AgentWorkObservation:
 
 
 def test_an_empty_instance_reports_unknown_capacity_and_no_work(tmp_path):
-    configure(root=tmp_path)
     found = read_status_report(
         state=StateDirectory(root=tmp_path),
         clock=lambda: LOOKED_AT,
@@ -161,12 +173,14 @@ def test_an_empty_instance_reports_unknown_capacity_and_no_work(tmp_path):
     assert found.assignment_statuses == []
 
 
-def test_an_empty_report_describes_only_its_configured_agent_work(tmp_path):
-    configure(root=tmp_path)
-    found = read_status_report(
-        state=StateDirectory(root=tmp_path),
-        clock=lambda: LOOKED_AT,
-    )
+def test_an_empty_report_names_the_labels_the_daemon_routes_without_a_config(
+    tmp_path,
+):
+    state = StateDirectory(root=tmp_path)
+    write_daemon_run(state=state, pid=os.getpid())
+
+    found = read_status_report(state=state, clock=lambda: LOOKED_AT)
+
     assert found.assignment_section == AgentWorkStatusSection(
         heading="assignments",
         empty_message=(
@@ -201,7 +215,6 @@ def test_the_instance_records_name_the_harness_and_version(state):
 
 
 def test_a_live_daemon_that_has_not_named_its_run_has_no_pid(tmp_path):
-    configure(root=tmp_path)
     state = StateDirectory(root=tmp_path)
     hold_daemon_lock_for_test(path=state.lock)
 
@@ -246,7 +259,7 @@ def test_a_terminal_round_status_describes_its_outcome_and_duration(
     state, ending, outcome_description, duration
 ):
     write_round(
-        directory=state.assignments / ASSIGNMENT_ID,
+        directory=state.work / ASSIGNMENT_ID,
         number=1,
         record=AgentRoundRecord(
             number=1,
@@ -281,7 +294,6 @@ def test_an_unended_round_status_follows_the_daemon(
 
 
 def test_status_recovers_the_harness_session_and_builds_its_resume_command(tmp_path):
-    configure(root=tmp_path)
     state = StateDirectory(root=tmp_path)
     directory = write_assignment(
         state=state,
@@ -324,7 +336,7 @@ def test_status_reads_harness_resume_details_only_when_requested(state, monkeypa
         return "abc-123"
 
     monkeypatch.setattr(
-        Assignment,
+        AgentWork,
         "find_harness_session_identifier",
         recover_harness_session_identifier,
     )
@@ -338,7 +350,6 @@ def test_status_reads_harness_resume_details_only_when_requested(state, monkeypa
 
 
 def test_status_with_no_harness_session_has_no_resume_command(tmp_path):
-    configure(root=tmp_path)
     state = StateDirectory(root=tmp_path)
     directory = write_assignment(
         state=state,
@@ -440,7 +451,6 @@ def test_a_cancelled_assignment_is_cancelled_rather_than_in_fault(state):
 
 
 def test_a_cancelled_assignment_stops_reporting_its_pull_request_state(tmp_path):
-    configure(root=tmp_path)
     state = StateDirectory(root=tmp_path)
     write_assignment(
         state=state,
@@ -619,7 +629,7 @@ def test_an_assignment_needing_feedback_with_no_feed_has_no_output(state):
 def test_a_stopped_assignment_needs_user_feedback(state):
     started = PINNED + timedelta(minutes=1)
     write_round(
-        directory=state.assignments / ASSIGNMENT_ID,
+        directory=state.work / ASSIGNMENT_ID,
         number=1,
         record=AgentRoundRecord(
             number=1,
@@ -866,12 +876,12 @@ def test_available_issues_keep_scheduler_order_and_observation_times(state):
 def test_assignments_are_ordered_by_issue_with_the_newest_at_an_issue_first(state):
     write_assignment(
         state=state,
-        identifier="GH13-20260820-090000",
+        identifier="GH13-20260820-090000-assignment",
         issue=13,
     )
     write_assignment(
         state=state,
-        identifier="GH9-20260819-184158",
+        identifier="GH9-20260819-184158-assignment",
         issue=9,
     )
 
@@ -881,8 +891,8 @@ def test_assignments_are_ordered_by_issue_with_the_newest_at_an_issue_first(stat
     ]
 
     assert identifiers == [
-        "GH9-20260819-184158",
-        "GH13-20260820-090000",
+        "GH9-20260819-184158-assignment",
+        "GH13-20260820-090000-assignment",
         ASSIGNMENT_ID,
     ]
 
@@ -890,12 +900,12 @@ def test_assignments_are_ordered_by_issue_with_the_newest_at_an_issue_first(stat
 def test_reading_one_issue_returns_only_its_assignments_newest_first(state):
     write_assignment(
         state=state,
-        identifier="GH13-20260820-090000",
+        identifier="GH13-20260820-090000-assignment",
         issue=13,
     )
     write_assignment(
         state=state,
-        identifier="GH9-20260819-184158",
+        identifier="GH9-20260819-184158-assignment",
         issue=9,
     )
 
@@ -907,20 +917,20 @@ def test_reading_one_issue_returns_only_its_assignments_newest_first(state):
     )
 
     assert [status.assignment.identifier for status in statuses] == [
-        "GH13-20260820-090000",
+        "GH13-20260820-090000-assignment",
         ASSIGNMENT_ID,
     ]
 
 
 def test_reading_one_assignment_uses_its_exact_identifier(state):
-    other_identifier = "GH13-20260820-090000"
+    other_identifier = "GH13-20260820-090000-assignment"
     write_assignment(
         state=state,
         identifier=other_identifier,
         issue=13,
     )
 
-    status = read_assignment_status(
+    status = read_work_status(
         state=state,
         identifier=other_identifier,
         daemon=read_dreamcatcher_daemon_status(state=state),
@@ -934,7 +944,7 @@ def test_reading_one_assignment_uses_its_exact_identifier(state):
 def test_reading_one_assignment_uses_the_daemon_status_it_is_given(state):
     ran(state=state, number=1, status=None)
 
-    status = read_assignment_status(
+    status = read_work_status(
         state=state,
         identifier=ASSIGNMENT_ID,
         daemon=DreamcatcherDaemonStatus(is_running=True, run=None),
@@ -947,9 +957,9 @@ def test_reading_one_assignment_uses_the_daemon_status_it_is_given(state):
 
 def test_reading_an_unknown_assignment_finds_nothing(state):
     assert (
-        read_assignment_status(
+        read_work_status(
             state=state,
-            identifier="GH99-20260820-090000",
+            identifier="GH99-20260820-090000-assignment",
             daemon=read_dreamcatcher_daemon_status(state=state),
             clock=lambda: LOOKED_AT,
         )
@@ -958,11 +968,11 @@ def test_reading_an_unknown_assignment_finds_nothing(state):
 
 
 def test_reading_an_incomplete_assignment_finds_nothing(state):
-    identifier = "GH99-20260820-090000"
-    (state.assignment_worktrees / identifier).mkdir()
+    identifier = "GH99-20260820-090000-assignment"
+    (state.worktrees / identifier).mkdir()
 
     assert (
-        read_assignment_status(
+        read_work_status(
             state=state,
             identifier=identifier,
             daemon=read_dreamcatcher_daemon_status(state=state),
@@ -973,24 +983,24 @@ def test_reading_an_incomplete_assignment_finds_nothing(state):
 
 
 def test_reading_one_assignment_does_not_read_an_unrelated_assignment(state):
-    corrupt_identifier = "GH99-20260820-090000"
+    corrupt_identifier = "GH99-20260820-090000-assignment"
     write_assignment(
         state=state,
         identifier=corrupt_identifier,
         issue=99,
     )
-    record = state.assignments / corrupt_identifier / "assignment.json"
+    record = state.work / corrupt_identifier / "work.json"
     record.write_bytes(b"{")
 
-    status = read_assignment_status(
+    status = read_work_status(
         state=state,
         identifier=ASSIGNMENT_ID,
         daemon=read_dreamcatcher_daemon_status(state=state),
         clock=lambda: LOOKED_AT,
     )
-    unknown = read_assignment_status(
+    unknown = read_work_status(
         state=state,
-        identifier="GH100-20260820-090000",
+        identifier="GH100-20260820-090000-assignment",
         daemon=read_dreamcatcher_daemon_status(state=state),
         clock=lambda: LOOKED_AT,
     )
@@ -1066,7 +1076,7 @@ def test_a_report_orders_active_assignments_by_attention_and_ended_ones_newest_f
 
 
 def test_an_assignment_keeps_its_section_after_its_routes_are_removed(state):
-    write_text(text="", path=state.root / DREAMCATCHER_CONFIG_NAME)
+    write_daemon_run(state=state, pid=os.getpid(), routes=[])
 
     found = report(state=state)
 
@@ -1100,6 +1110,7 @@ def test_an_assignment_keeps_its_section_after_its_routes_are_removed(state):
                 version="5.3.0",
                 max_agents=3,
                 interval_seconds=DEFAULT_INTERVAL_SECONDS,
+                routes=[],
             ),
             DaemonStatusFact(
                 label="daemon",

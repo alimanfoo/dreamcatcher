@@ -17,13 +17,11 @@
           </div>
         </div>
         {% include "partials/agent-work-detail.html" %}
-        {% if view.facts %}
-          <dl class="assignment-facts">
-            {% for fact in view.facts %}
-              <div><dt>{{ fact.label }}</dt><dd>{{ fact.value }}</dd></div>
-            {% endfor %}
-          </dl>
-        {% endif %}
+        <dl class="assignment-facts">
+          {% for fact in view.facts %}
+            <div><dt>{{ fact.label }}</dt><dd>{{ fact.value }}</dd></div>
+          {% endfor %}
+        </dl>
       </section>
       <div class="assignment-workspace">
         <div class="assignment-sidebar">
@@ -33,7 +31,7 @@
           <h1 id="feed-heading">Feed</h1>
           <button class="feed-tail" type="button" aria-controls="records">TAIL ↓</button>
           <input type="hidden" id="cursor" name="cursor" value="{{ view.feed_cursor }}">
-          <div id="records" class="feed-records" hx-get="{{ url_for('show_conversation_tail', issue=view.issue) }}" hx-trigger="every 2s" hx-include="#cursor" hx-select=".feed-line" hx-swap="beforeend">
+          <div id="records" class="feed-records" hx-get="{{ url_for('show_work_tail', identifier=view.identifier) }}" hx-trigger="every 2s" hx-include="#cursor" hx-select=".feed-line" hx-swap="beforeend">
             {% for feed_round in view.feed_rounds %}
               {% for line in feed_round.lines %}{% include "partials/feed-line.html" %}{% endfor %}
             {% else %}

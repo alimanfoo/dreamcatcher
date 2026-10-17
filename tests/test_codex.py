@@ -20,7 +20,7 @@ ROUND_LAUNCH_REQUEST = AgentRoundLaunchRequest(
     prompt="$dream:smith GH9",
 )
 CONVERSATION_LAUNCH_REQUEST = AgentRoundLaunchRequest(
-    agent_work_identifier="conversation-GH9",
+    agent_work_identifier="GH9-20260819-184158-conversation",
     model="gpt-5.6-sol",
     effort="xhigh",
     prompt="Answer GH9.",

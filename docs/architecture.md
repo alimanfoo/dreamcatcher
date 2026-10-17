@@ -30,8 +30,8 @@ domain phrase into a class. In particular, it should:
 `daemon.py` owns the lifetime of the daemon that runs a _dreamcatcher_ instance:
 
 - acquire and release the checkout's daemon lock;
-- record the daemon process identifier in the daemon run record as soon as it
-  holds the lock;
+- record the daemon process identifier and the dispatch routes it loaded in the
+  daemon run record as soon as it holds the lock;
 - keep the web server inside the established daemon lifetime when `run` enables
   it;
 - reconcile round records that an earlier daemon left without an ending by
@@ -103,9 +103,9 @@ assignment and starting an agent round. When it selects an available issue, it
 performs both operations in one scheduling action, starting the first round as
 soon as assignment setup succeeds. Keeping the operations separate preserves
 clear ownership. If the combined action is interrupted between the operations,
-the assignment record shows that its first round is missing, and the scheduler
-ranks finishing the action ahead of every other assignment candidate. This does
-not create a separate class of normally scheduled work.
+the assignment's work record shows that its first round is missing, and the
+scheduler ranks finishing the action ahead of every other assignment candidate.
+This does not create a separate class of normally scheduled work.
 
 For every new round, the scheduler derives purpose and recovery independently. A
 terminal pull request requires wrap up; otherwise a draft pull request calls for
@@ -125,11 +125,10 @@ queue.
 
 ### Issue conversations
 
-`issue_conversations.py` owns conversation records and their durable operations.
-An initial conversation freezes its issue title, body, trusted comment batch and
-fetched main revision, then runs in a detached worktree. Conversation worktrees
-live outside assignment discovery and never acquire implementation branches or
-pull requests.
+`issue_conversations.py` owns the durable operations of issue conversations. An
+initial conversation freezes its issue title, body, trusted comment batch and
+fetched main revision, then runs in a detached worktree. A conversation's
+worktree never acquires an implementation branch or a pull request.
 
 The signed-in GitHub account identifies trusted issue comments. Marked
 _dreamcatcher_ comments, comments by other accounts and blank comments are
@@ -190,46 +189,50 @@ of an agent assignment. It should provide cohesive operations to:
 
 - create an assignment while enforcing that its issue has no open local
   assignment;
-- read existing assignments;
 - find the open assignment for an issue;
-- allocate the next round number within an assignment;
+- name the assignment's branch from its identifier;
+- read and record its pull request observation;
 - read the user-post delivery position from recorded round inputs;
-- recognize completion after a successful wrap-up round; and
-- record a cancel.
+- complete an assignment as its wrap-up round finishes; and
+- cancel an assignment.
 
-`agent_work.py` records the facts that both kinds of agent work share: the
-harness session identifier, and when the user requests another recovery attempt
-after resolving a fault.
+`agent_work.py` owns what both kinds of agent work share: the work record, the
+agent work identifier, and the one reader through which the scheduler, status,
+the commands and the views list agent work of either kind. It also records the
+facts that change later for both kinds: the harness session identifier, when the
+user requests another recovery attempt after resolving a fault, and when and why
+the work ended.
 
 Assignment setup coordinates lower-level Git, GitHub, configuration, and
 document operations. As one recoverable workflow it:
 
 1. fetches the current main branch;
-2. allocates the agent assignment identifier;
+2. allocates the agent work identifier;
 3. creates the assignment branch and worktree;
 4. makes an empty commit and pushes the branch;
 5. opens a linked draft pull request;
-6. writes the first pull request observation, then the assignment record, whose
+6. writes the first pull request observation, then the work record, whose
    presence marks the setup complete;
 7. returns the newly created assignment to the scheduler so it can start the
    first round immediately.
 
 An interruption can leave an incomplete assignment setup: a worktree and branch
-without an assignment record. On a later tick, the assignment module checks
-whether it can safely resume the assignment setup. If it cannot, it returns the
-reason. The scheduler records that reason as evidence that claimed elsewhere is
-unknown, unless an open linked pull request already proves the claim true. The
-assignment identifier determines the branch and worktree identities, and the
-pull request identifies that branch as its head. Recovery can therefore
-recognize artifacts belonging to the same assignment. Repeating or recovering
-the assignment setup must reuse or remove those artifacts as appropriate and
-must not create a second branch or pull request. If the assignment record
-already exists, the scheduler continues to the first round instead of recreating
-the assignment.
+without a work record. On a later tick, the assignment module checks whether it
+can safely resume the assignment setup. If it cannot, it returns the reason. The
+scheduler records that reason as evidence that claimed elsewhere is unknown,
+unless an open linked pull request already proves the claim true. The assignment
+identifier determines the branch and worktree identities, and the pull request
+identifies that branch as its head. Recovery can therefore recognize artifacts
+belonging to the same assignment. Repeating or recovering the assignment setup
+must reuse or remove those artifacts as appropriate and must not create a second
+branch or pull request. If the work record already exists, the scheduler
+continues to the first round instead of recreating the assignment.
 
-The assignment remains open until the module recognizes a successful wrap-up
-round or the user cancels it. A merged or closed pull request calls for wrap up
-but does not by itself complete the assignment.
+The assignment remains open until its ending is recorded. A wrap-up round, one
+whose input carries a merged or closed pull request, records the ending with the
+reason "completed" in its finishing step, after its harness exits successfully.
+A cancel records it with the reason "cancelled". A merged or closed pull request
+calls for wrap up but does not by itself complete the assignment.
 
 The assignment module coordinates the workflow but does not implement Git
 commands, parse GitHub responses, launch harnesses, or choose when work should
@@ -357,9 +360,10 @@ process. In the code, those functions and records are the scheduler's `models`
 and `faults` modules, and status imports no other scheduler module. Status
 values are always derived; they are not written back as domain state.
 
-Status reads the current route configuration and describes whether each kind of
-agent work has a section to show, the section's heading, and any guidance for an
-empty section. The presentations make none of those choices themselves.
+Status reads the dispatch labels from the daemon run record, never from
+`dreamcatcher.toml`, and describes whether each kind of agent work has a section
+to show, the section's heading, and any guidance for an empty section. The
+presentations make none of those choices themselves.
 
 An `IssueObservation` represents claimed here, claimed elsewhere, blocked, and
 routing conflict as independent facts which may each be true, false, or unknown;
@@ -377,7 +381,8 @@ single row also includes any recorded routing-conflict or blocker evidence.
 
 An `AgentWorkObservation` records the tick's interpretation of one open work
 item. It carries the agent work identifier, issue and one `ObservedFact` saying
-whether it requires a round and why. Status reads this observation because view
+whether it requires a round and why. A conversation the tick observes before it
+is saved has no identifier yet. Status reads this observation because view
 commands cannot reach GitHub. It is the last tick's interpretation kept as
 operational evidence, not authoritative state.
 
@@ -388,9 +393,9 @@ configured conversation label. Each observation additionally records:
 - the issue and its title;
 - an `ObservedFact` that says whether more than one conversation route matches.
 
-The tick observes a matching issue even when it has no conversation record yet.
-So status lists a conversation from the first tick that sees its issue, and
-reports a routing conflict before any round starts.
+The tick observes a matching issue even when no conversation's work record
+exists for it yet. So status lists a conversation from the first tick that sees
+its issue, and reports a routing conflict before any round starts.
 
 An issue with no observation is not eligible. Status stops listing its
 conversation once no round runs for it.
@@ -426,17 +431,21 @@ markup and styles.
 after the daemon's startup checks pass and stops when the daemon ends.
 `dreamcatcher web` serves the same interface by itself for manual control.
 
+Every piece of agent work, of either kind, has its page at `/work/<identifier>`,
+and its feed tail and controls below that address. A conversation the tick has
+found but not yet saved has no page.
+
 The web interface can ask a running round to stop. It writes a same-origin stop
 request through the agent-round boundary, into that round's own directory. The
 daemon still owns the live process and lifecycle transition: the round watches
 the request, kills its harness process tree, and records its stopped ending.
 
 The web interface and the `cancel` command can cancel an assignment. A cancel
-goes through the agent-assignment boundary, which records the time of the cancel
-in a file of its own and then writes a stop request for any round that has no
-ending. The scheduler starts no further rounds for the assignment. A round that
-it starts as the cancel lands is stopped too, because the scheduler reads the
-cancel again once that round's record exists.
+goes through the agent-assignment boundary, which records the assignment's
+ending, with the reason "cancelled", and then writes a stop request for any
+round that has no ending. The scheduler starts no further rounds for the
+assignment. A round that it starts as the cancel lands is stopped too, because
+the scheduler reads the ending again once that round's record exists.
 
 The web interface can also request a retry for agent work that status derives as
 in fault. It writes the retry request time into the directory of the assignment
@@ -478,33 +487,31 @@ One route of each kind may match at the same time.
 ### State and documents
 
 `state.py` owns the top-level paths within `.dreamcatcher/` and the mechanics
-required to bootstrap that directory. The modules that own assignments,
-conversations and rounds name the files within their own directories. A
-state-format constant selects the versioned root, currently `.dreamcatcher/v5/`,
-so one format never reads another format's files. The shared
-`.dreamcatcher/daemon.lock` stays outside that root, so daemons using different
-formats from v5 on use the same lock. The daemon acquires an operating-system
-lock on that empty file before it starts work. After every wait, the daemon
-verifies that the path still names the file that it acquired and stops before
-another tick when it does not. A reader asks whether the lock is held. The
-kernel releases the lock when the daemon's process ends, so neither a reused PID
-nor a clock change can make a dead daemon look live. A v4 daemon takes no such
-lock. It writes its PID to `.dreamcatcher/daemon.pid` and treats that file as a
-mutex, so it does not see this lock. The module should remain deliberately
-small. It must not contain collections of issues or assignments selected for
-work, scheduling decisions, or status projections.
+required to bootstrap that directory. The modules that own agent work and rounds
+name the files within their own directories. A state-format constant selects the
+versioned root, currently `.dreamcatcher/v6/`, so one format never reads another
+format's files. The shared `.dreamcatcher/daemon.lock` stays outside that root,
+so daemons using different formats from v5 on use the same lock. The daemon
+acquires an operating-system lock on that empty file before it starts work.
+After every wait, the daemon verifies that the path still names the file that it
+acquired and stops before another tick when it does not. A reader asks whether
+the lock is held. The kernel releases the lock when the daemon's process ends,
+so neither a reused PID nor a clock change can make a dead daemon look live. A
+v4 daemon takes no such lock. It writes its PID to `.dreamcatcher/daemon.pid`
+and treats that file as a mutex, so it does not see this lock. The module should
+remain deliberately small. It must not contain collections of issues or
+assignments selected for work, scheduling decisions, or status projections.
 
 The on-disk layout follows ownership:
 
 - instance-wide operational records live at the versioned root;
-- each assignment owns its durable record, a file for each fact that changes
-  after its creation, and numbered round records;
-- each conversation owns its durable record, a file for each fact that changes
-  after its creation, and numbered round records;
+- each piece of agent work, of either kind, owns a directory under `work/` named
+  by its identifier, holding its durable record, a file for each fact that
+  changes after its creation, and numbered round records;
 - each round owns its prompt, raw output, rendered feed, final output when the
   harness reports one, and any delivered input; and
-- assignment and conversation worktrees live in separate collections under the
-  versioned root.
+- each piece of agent work's worktree lives under `worktrees/`, named by the
+  same identifier.
 
 `documents.py` remains the only way _dreamcatcher_ reads and writes documents it
 owns. Every structured document has a strict model and every replacement write
@@ -538,26 +545,28 @@ TUI boundary.
 The architecture persists facts needed to recover identity, ownership, and
 acknowledged work.
 
-Assignment setup writes the assignment record once, and nothing writes it again.
-The record persists:
+Creation writes the work record, `work.json`, once, and nothing writes it again.
+The same record serves both kinds of agent work. It persists:
 
-- the issue identifier, while the assignment identifier names the directory that
-  holds the record;
-- the issue title captured during assignment setup;
-- the dispatch label and selected harness, model, effort, harness config and
-  prompt;
-- branch and worktree identity;
-- pull-request identity.
+- the issue identifier, while the agent work identifier names the directory that
+  holds the record and the worktree;
+- the issue title captured at creation;
+- the dispatch label and the kind of agent work;
+- the selected harness, model, effort, harness config and prompt.
+
+An assignment's branch is named from its identifier, and its pull request number
+is in its pull request observation.
 
 Every fact that changes later has a file of its own beside the record. Each
 write replaces that file whole and merges nothing into it, so the daemon, the
 web interface and a command can each record a fact at the same moment without
 erasing another's. These files persist:
 
-- the latest observed pull-request state, draft flag, and observation time;
+- for an assignment, its pull request's number and latest observed state, draft
+  flag, and observation time;
 - the harness session identifier, once known;
 - the time of the user's latest retry request, when one has been made;
-- the time of the cancel, when the user has cancelled the assignment.
+- the time and the reason the work ended, once it has ended.
 
 A round record persists:
 
@@ -573,32 +582,31 @@ An assignment round input that carries user posts establishes the delivery
 position at its newest post. The assignment reads that position by scanning its
 recorded round inputs from newest to oldest.
 
-A conversation record persists its issue and title, chosen dispatch label and
-harness settings, and nothing writes it again after its creation. Its harness
-session identifier and latest user retry request each have a file of their own
-beside the record, as an assignment's do. The route and recipe remain frozen
-when a different configured conversation label later makes the issue eligible.
-The issue derives the managed worktree path. Each round input persists its
-investigated revision and the trusted comments accepted for delivery; the first
-also persists the issue title and body.
+A conversation's harness session identifier and latest user retry request each
+have a file of their own beside its record, as an assignment's do. The route and
+recipe remain frozen when a different configured conversation label later makes
+the issue eligible. Each round input persists its investigated revision and the
+trusted comments accepted for delivery; the first also persists the issue title
+and body.
 
 Instance records persist the repository identity and the most recent daemon
-run's harness, _dreamcatcher_ version, and capacity. An instance-wide scheduler
-record persists the last tick's result, including its failures, issue,
-assignment and conversation observations, active global cooldown, and the time
-at which the most recent cooldown ended. Its per-work observations preserve
-operational evidence of the tick's interpretation rather than authoritative
-state. Assignments and conversations persist the time of their latest user retry
-request. These boundaries allow fault to remain a derived status: ending a
-cooldown or requesting a retry changes which round errors count towards fault
-rather than writing a lifecycle status.
+run's harness, _dreamcatcher_ version, capacity, interval, and the dispatch
+routes it loaded, each as a dispatch label and its kind of agent work. An
+instance-wide scheduler record persists the last tick's result, including its
+failures, issue, assignment and conversation observations, active global
+cooldown, and the time at which the most recent cooldown ended. Its per-work
+observations preserve operational evidence of the tick's interpretation rather
+than authoritative state. Assignments and conversations persist the time of
+their latest user retry request. These boundaries allow fault to remain a
+derived status: ending a cooldown or requesting a retry changes which round
+errors count towards fault rather than writing a lifecycle status.
 
 The following are derived rather than persisted as authoritative state:
 
 - whether an issue is claimed here or elsewhere;
 - whether an issue is blocked, has an assignment or conversation routing
   conflict, or is available for an agent assignment;
-- whether an assignment is complete or either kind of agent work is in fault;
+- whether either kind of agent work is in fault;
 - whether an assignment requires an agent round or needs user feedback;
 - what round purpose and recovery flag are required next; and
 - every issue conversation and agent assignment status shown in a status report.

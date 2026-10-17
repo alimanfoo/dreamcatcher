@@ -14,18 +14,22 @@ from conftest import (
     pull_request,
     pull_requests,
 )
-from records import write_assignment, write_round
+from records import (
+    read_assignments,
+    write_assignment,
+    write_round,
+)
 
 from dreamcatcher.agent_assignments import (
     AssignmentCreator,
-    AssignmentRecord,
     AssignmentRoundInput,
     PullRequestObservation,
     cancel_assignment,
-    find_open_assignments_by_issue,
+    complete_assignment,
+    compose_assignment_branch,
     inspect_incomplete_assignment_setups,
-    read_assignments,
-    read_assignments_for_issue,
+    read_pull_request_observation,
+    read_user_post_delivery_position,
     record_pull_request_observation,
 )
 from dreamcatcher.agent_rounds import (
@@ -36,6 +40,11 @@ from dreamcatcher.agent_rounds import (
     _compose_agent_round_ending,
 )
 from dreamcatcher.agent_work import (
+    AgentWorkEnding,
+    AgentWorkEndReason,
+    AgentWorkRecord,
+    find_open_agent_work_by_issue,
+    read_agent_work_at_issue,
     record_harness_session_identifier,
     request_agent_work_retry,
 )
@@ -49,9 +58,10 @@ from dreamcatcher.documents import write_json
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.git import add_worktree, fetch_main, make_empty_commit, push_branch
 from dreamcatcher.github import ConversationComment, PullRequest, PullRequestState
+from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.state import StateDirectory
 
-ASSIGNMENT_ID = "GH12-20260819-184158"
+ASSIGNMENT_ID = "GH12-20260819-184158-assignment"
 
 BRANCH = f"dreamcatcher-{ASSIGNMENT_ID}"
 
@@ -102,8 +112,8 @@ def route(checkout):
 
 def written(*, state):
     """Return the record that the assignment wrote about itself."""
-    record = state.assignments / ASSIGNMENT_ID / "assignment.json"
-    return AssignmentRecord.model_validate_json(record.read_text(encoding="utf-8"))
+    record = state.work / ASSIGNMENT_ID / "work.json"
+    return AgentWorkRecord.model_validate_json(record.read_text(encoding="utf-8"))
 
 
 def test_an_assignment_cuts_a_worktree_of_its_own_under_the_state_directory(
@@ -118,8 +128,8 @@ def test_an_assignment_cuts_a_worktree_of_its_own_under_the_state_directory(
     )
 
     assert assignment.identifier == ASSIGNMENT_ID
-    assert assignment.record.worktree == state.assignment_worktrees / ASSIGNMENT_ID
-    assert (assignment.record.worktree / "README.md").exists()
+    assert assignment.worktree == state.worktrees / ASSIGNMENT_ID
+    assert (assignment.worktree / "README.md").exists()
 
 
 def test_an_assignment_cuts_a_branch_of_its_own_from_origins_main_as_it_is_now(
@@ -141,9 +151,9 @@ def test_an_assignment_cuts_a_branch_of_its_own_from_origins_main_as_it_is_now(
         at=PINNED,
     )
 
-    assert assignment.record.branch == BRANCH
+    assert compose_assignment_branch(identifier=assignment.identifier) == BRANCH
     assert BRANCH in git(arguments=["branch", "--list", BRANCH], cwd=state.root)
-    assert (assignment.record.worktree / "later.txt").exists()
+    assert (assignment.worktree / "later.txt").exists()
 
 
 def test_a_codex_assignment_records_its_recipes_config(state, route):
@@ -180,8 +190,10 @@ def test_an_assignment_records_its_settled_dispatch_recipe(state, route):
     assert assignment.record.issue == 12
     assert assignment.record.title == "The issue title"
     assert assignment.record.dispatch_label == "dream:smith"
-    assert assignment.record.pull_request == PULL_REQUEST
-    assert assignment.pull_request_observation == PullRequestObservation(
+    assert read_pull_request_observation(
+        assignment=assignment
+    ) == PullRequestObservation(
+        number=PULL_REQUEST,
         state=PullRequestState.OPEN,
         is_draft=True,
         observed_at=PINNED,
@@ -191,7 +203,7 @@ def test_an_assignment_records_its_settled_dispatch_recipe(state, route):
     assert assignment.record.effort == "xhigh"
     assert assignment.record.harness_config == {}
     assert assignment.record.prompt.startswith("/dream:smith GH12\n")
-    record = state.assignments / ASSIGNMENT_ID / "assignment.json"
+    record = state.work / ASSIGNMENT_ID / "work.json"
     assert '"dispatch_label": "dream:smith"' in record.read_text(encoding="utf-8")
 
 
@@ -201,11 +213,11 @@ def test_setup_writes_the_pull_request_observation_before_the_record(
     # The record marks the setup complete, so a setup that stops at the record
     # is incomplete and has its observation already.
     def stop_at_the_record(*, document, path):
-        if path.name == "assignment.json":
+        if path.name == "work.json":
             raise ReportableError("the disk is full")
         write_json(document=document, path=path)
 
-    monkeypatch.setattr("dreamcatcher.agent_assignments.write_json", stop_at_the_record)
+    monkeypatch.setattr("dreamcatcher.agent_work.write_json", stop_at_the_record)
 
     with pytest.raises(ReportableError, match="the disk is full"):
         create_assignment(
@@ -217,7 +229,7 @@ def test_setup_writes_the_pull_request_observation_before_the_record(
         )
 
     assert read_assignments(state=state) == []
-    directory = state.assignments / ASSIGNMENT_ID
+    directory = state.work / ASSIGNMENT_ID
     assert (directory / "pull-request-observation.json").is_file()
 
 
@@ -261,8 +273,8 @@ def test_a_new_assignment_has_run_no_rounds_and_its_next_is_its_first(state, rou
 
     assert assignment.rounds == []
     assert assignment.compose_round_paths(number=1) == AgentRoundPaths(
-        worktree=assignment.record.worktree,
-        rounds_directory=state.assignments / ASSIGNMENT_ID / "rounds",
+        worktree=assignment.worktree,
+        rounds_directory=state.work / ASSIGNMENT_ID / "rounds",
         number=1,
     )
 
@@ -276,22 +288,32 @@ def standing(*, state, rounds: Sequence[AgentRoundRecord]):
 
 
 def test_assignments_at_one_issue_are_read_behind_the_assignment_boundary(fabricated):
-    write_assignment(state=fabricated, identifier="GH12-20260818-090000", issue=12)
-    write_assignment(state=fabricated, identifier="GH13-20260819-090000", issue=13)
-    write_assignment(state=fabricated, identifier="GH12-20260820-090000", issue=12)
+    write_assignment(
+        state=fabricated, identifier="GH12-20260818-090000-assignment", issue=12
+    )
+    write_assignment(
+        state=fabricated, identifier="GH13-20260819-090000-assignment", issue=13
+    )
+    write_assignment(
+        state=fabricated, identifier="GH12-20260820-090000-assignment", issue=12
+    )
 
-    assignments = read_assignments_for_issue(state=fabricated, issue=12)
+    assignments = read_agent_work_at_issue(
+        state=fabricated, issue=12, kind=AgentWorkKind.ASSIGNMENT
+    )
 
     assert [assignment.identifier for assignment in assignments] == [
-        "GH12-20260818-090000",
-        "GH12-20260820-090000",
+        "GH12-20260818-090000-assignment",
+        "GH12-20260820-090000-assignment",
     ]
 
 
 def test_open_assignments_are_found_by_issue_across_assignment_histories(fabricated):
     for issue in (13, 14):
         complete = write_assignment(
-            state=fabricated, identifier=f"GH{issue}-20260818-090000", issue=issue
+            state=fabricated,
+            identifier=f"GH{issue}-20260818-090000-assignment",
+            issue=issue,
         )
         write_round(
             directory=complete,
@@ -304,14 +326,16 @@ def test_open_assignments_are_found_by_issue_across_assignment_histories(fabrica
                 ending=_compose_agent_round_ending(at=PINNED, status=0),
             ),
         )
-    write_assignment(state=fabricated, identifier="GH14-20260819-090000", issue=14)
+    write_assignment(
+        state=fabricated, identifier="GH14-20260819-090000-assignment", issue=14
+    )
     assignments = read_assignments(state=fabricated)
 
-    open_assignments = find_open_assignments_by_issue(assignments=assignments)
+    open_assignments = find_open_agent_work_by_issue(work=assignments)
 
     assert 12 not in open_assignments
     assert 13 not in open_assignments
-    assert open_assignments[14].identifier == "GH14-20260819-090000"
+    assert open_assignments[14].identifier == "GH14-20260819-090000-assignment"
 
 
 def ended(*, status, minute=0, number: int = 1):
@@ -343,55 +367,28 @@ def test_a_round_an_assignment_has_run_is_found_by_the_number_it_ran_as(fabricat
     )
 
     assert assignment.compose_round_paths(number=2) == AgentRoundPaths(
-        worktree=assignment.record.worktree,
-        rounds_directory=fabricated.assignments / ASSIGNMENT_ID / "rounds",
+        worktree=assignment.worktree,
+        rounds_directory=fabricated.work / ASSIGNMENT_ID / "rounds",
         number=2,
     )
 
 
-def test_an_assignment_that_has_run_no_round_is_not_complete(fabricated):
-    assignment = standing(state=fabricated, rounds=[])
+def test_an_assignment_is_open_until_its_ending_is_recorded(fabricated):
+    assignment = standing(state=fabricated, rounds=[ended(status=0)])
 
-    assert not assignment.is_complete
+    assert assignment.is_open
 
 
-def test_a_successful_wrap_up_completes_an_assignment(fabricated):
-    assignment = standing(
-        state=fabricated,
-        rounds=[
-            ended(status=0),
-            AgentRoundRecord(
-                number=2,
-                started=PINNED + timedelta(minutes=1),
-                pid=1,
-                purpose=AssignmentRoundPurpose.WRAP_UP,
-                is_recovery=True,
-                ending=_compose_agent_round_ending(
-                    at=PINNED + timedelta(minutes=1), status=0
-                ),
-            ),
-        ],
+def test_completing_an_assignment_records_its_ending(fabricated):
+    assignment = standing(state=fabricated, rounds=[ended(status=0)])
+
+    complete_assignment(assignment=assignment, clock=lambda: PINNED, final_output=None)
+
+    completed = read_assignments(state=fabricated)[0]
+    assert completed.ending == AgentWorkEnding(
+        at=PINNED, reason=AgentWorkEndReason.COMPLETED
     )
-
-    assert assignment.is_complete
-
-
-def test_only_the_final_round_can_complete_an_assignment(fabricated):
-    assignment = standing(
-        state=fabricated,
-        rounds=[
-            AgentRoundRecord(
-                number=1,
-                started=PINNED,
-                pid=1,
-                purpose=AssignmentRoundPurpose.WRAP_UP,
-                ending=_compose_agent_round_ending(at=PINNED, status=0),
-            ),
-            ended(status=0, minute=1, number=2),
-        ],
-    )
-
-    assert not assignment.is_complete
+    assert not completed.is_open
 
 
 def test_a_cancelled_assignment_records_when_and_is_no_longer_open(fabricated):
@@ -400,9 +397,11 @@ def test_a_cancelled_assignment_records_when_and_is_no_longer_open(fabricated):
     cancel_assignment(assignment=assignment, at=PINNED + timedelta(hours=1))
 
     cancelled = read_assignments(state=fabricated)[0]
-    assert cancelled.cancelled_at == PINNED + timedelta(hours=1)
+    assert cancelled.ending == AgentWorkEnding(
+        at=PINNED + timedelta(hours=1), reason=AgentWorkEndReason.CANCELLED
+    )
     assert not cancelled.is_open
-    assert find_open_assignments_by_issue(assignments=[cancelled]) == {}
+    assert find_open_agent_work_by_issue(work=[cancelled]) == {}
 
 
 def test_recording_later_facts_leaves_the_assignment_record_as_it_was(fabricated):
@@ -414,7 +413,7 @@ def test_recording_later_facts_leaves_the_assignment_record_as_it_was(fabricated
         harness_session_identifier=None,
     )
     assignment = read_assignments(state=fabricated)[0]
-    record = assignment.directory / "assignment.json"
+    record = assignment.directory / "work.json"
     created = record.read_bytes()
 
     record_pull_request_observation(
@@ -430,9 +429,14 @@ def test_recording_later_facts_leaves_the_assignment_record_as_it_was(fabricated
 
     assert record.read_bytes() == created
     recorded = read_assignments(state=fabricated)[0]
-    assert recorded.pull_request_observation.state is PullRequestState.MERGED
+    assert (
+        read_pull_request_observation(assignment=recorded).state
+        is PullRequestState.MERGED
+    )
     assert recorded.retry_requested_at == PINNED
-    assert recorded.cancelled_at == PINNED
+    assert recorded.ending == AgentWorkEnding(
+        at=PINNED, reason=AgentWorkEndReason.CANCELLED
+    )
     assert recorded.harness_session_identifier == "abc-123"
 
 
@@ -475,41 +479,9 @@ def test_an_assignment_that_has_ended_cannot_be_cancelled(fabricated):
             at=PINNED + timedelta(hours=1),
         )
 
-    assert read_assignments(state=fabricated)[0].cancelled_at == PINNED
-
-
-@pytest.mark.parametrize(
-    "record",
-    [
-        AgentRoundRecord(
-            number=1,
-            started=PINNED,
-            pid=1,
-            purpose=AssignmentRoundPurpose.IMPLEMENT,
-            ending=_compose_agent_round_ending(at=PINNED, status=0),
-        ),
-        AgentRoundRecord(
-            number=1,
-            started=PINNED,
-            pid=1,
-            purpose=AssignmentRoundPurpose.WRAP_UP,
-            ending=_compose_agent_round_ending(at=PINNED, status=1),
-        ),
-        AgentRoundRecord(
-            number=1,
-            started=PINNED,
-            pid=1,
-            purpose=AssignmentRoundPurpose.WRAP_UP,
-            ending=InterruptedAgentRoundEnding(),
-        ),
-    ],
-)
-def test_anything_other_than_a_successful_wrap_up_leaves_an_assignment_open(
-    fabricated, record
-):
-    assignment = standing(state=fabricated, rounds=[record])
-
-    assert not assignment.is_complete
+    assert read_assignments(state=fabricated)[0].ending == AgentWorkEnding(
+        at=PINNED, reason=AgentWorkEndReason.CANCELLED
+    )
 
 
 def endings(*, state):
@@ -572,7 +544,7 @@ def test_an_assignment_git_cannot_cut_leaves_no_branch_behind(state, route):
     # git makes the branch, then finds something already in the worktree's
     # place and stops. The worktree it never made cannot be removed, so the
     # back-out takes what git did leave.
-    occupied = state.assignment_worktrees / ASSIGNMENT_ID
+    occupied = state.worktrees / ASSIGNMENT_ID
     occupied.mkdir(parents=True)
     (occupied / "in the way.txt").write_text("not ours\n", encoding="utf-8")
 
@@ -589,8 +561,8 @@ def test_an_assignment_git_cannot_cut_leaves_no_branch_behind(state, route):
 
 
 def test_an_assignment_that_cannot_record_reuses_its_complete_setup(state, route, gh):
-    state.assignments.mkdir(parents=True)
-    (state.assignments / ASSIGNMENT_ID).write_text(
+    state.work.mkdir(parents=True)
+    (state.work / ASSIGNMENT_ID).write_text(
         "something else is here\n", encoding="utf-8"
     )
 
@@ -603,10 +575,10 @@ def test_an_assignment_that_cannot_record_reuses_its_complete_setup(state, route
             at=PINNED,
         )
 
-    assert (state.assignment_worktrees / ASSIGNMENT_ID).exists()
+    assert (state.worktrees / ASSIGNMENT_ID).exists()
     assert BRANCH in git(arguments=["branch", "--list", BRANCH], cwd=state.root)
 
-    (state.assignments / ASSIGNMENT_ID).unlink()
+    (state.work / ASSIGNMENT_ID).unlink()
     gh.replies(stdout=pull_requests(listed=[(PULL_REQUEST, "OPEN")]), to="pr list")
     gh.replies(stdout=linked_pull_requests(numbers=[PULL_REQUEST]), to="issue view")
     gh.replies(stdout=pull_request(state="OPEN", is_draft=True), to="pr view")
@@ -621,7 +593,7 @@ def test_an_assignment_that_cannot_record_reuses_its_complete_setup(state, route
     assert recovered.identifier == ASSIGNMENT_ID
     commits = git(
         arguments=["rev-list", "--count", "origin/main..HEAD"],
-        cwd=recovered.record.worktree,
+        cwd=recovered.worktree,
     )
     assert commits.strip() == "1"
     created = [call for call in gh.calls if call.arguments[:2] == ["pr", "create"]]
@@ -633,7 +605,7 @@ def test_an_interrupted_creation_continues_from_its_existing_artifacts(
     state, route, gh, checkpoint
 ):
     fetch_main(root=state.root)
-    worktree = state.assignment_worktrees / ASSIGNMENT_ID
+    worktree = state.worktrees / ASSIGNMENT_ID
     add_worktree(root=state.root, path=worktree, branch=BRANCH)
     if checkpoint != "worktree":
         make_empty_commit(worktree=worktree, message="GH12")
@@ -652,7 +624,7 @@ def test_an_interrupted_creation_continues_from_its_existing_artifacts(
     )
 
     assert recovered.identifier == ASSIGNMENT_ID
-    assert recovered.record.pull_request == PULL_REQUEST
+    assert read_pull_request_observation(assignment=recovered).number == PULL_REQUEST
     commits = git(arguments=["rev-list", "--count", "origin/main..HEAD"], cwd=worktree)
     assert commits.strip() == "1"
     remote = git(arguments=["ls-remote", "--heads", "origin", BRANCH], cwd=state.root)
@@ -679,7 +651,7 @@ def test_an_issue_with_an_open_assignment_cannot_receive_another(state, route, g
             at=PINNED + timedelta(hours=1),
         )
 
-    assert len(list(state.assignment_worktrees.iterdir())) == 1
+    assert len(list(state.worktrees.iterdir())) == 1
     branches = git(
         arguments=["branch", "--list", "dreamcatcher-GH12-*"], cwd=state.root
     )
@@ -721,7 +693,7 @@ def test_an_issue_whose_assignment_finished_can_receive_another(state, route):
         at=PINNED + timedelta(hours=1),
     )
 
-    assert second.identifier == "GH12-20260819-194158"
+    assert second.identifier == "GH12-20260819-194158-assignment"
 
 
 @pytest.mark.parametrize(
@@ -766,10 +738,10 @@ def test_an_issue_whose_final_work_is_unfinished_cannot_receive_another(
 
 def test_several_incomplete_setups_for_one_issue_are_reported(state, route):
     fetch_main(root=state.root)
-    for identifier in (ASSIGNMENT_ID, "GH12-20260819-194158"):
+    for identifier in (ASSIGNMENT_ID, "GH12-20260819-194158-assignment"):
         add_worktree(
             root=state.root,
-            path=state.assignment_worktrees / identifier,
+            path=state.worktrees / identifier,
             branch=f"dreamcatcher-{identifier}",
         )
 
@@ -793,7 +765,7 @@ def test_an_incomplete_setup_without_a_pull_request_is_recoverable(state, gh):
     fetch_main(root=state.root)
     add_worktree(
         root=state.root,
-        path=state.assignment_worktrees / ASSIGNMENT_ID,
+        path=state.worktrees / ASSIGNMENT_ID,
         branch=BRANCH,
     )
 
@@ -806,7 +778,7 @@ def test_an_incomplete_setup_with_its_linked_draft_is_recoverable(state, gh):
     fetch_main(root=state.root)
     add_worktree(
         root=state.root,
-        path=state.assignment_worktrees / ASSIGNMENT_ID,
+        path=state.worktrees / ASSIGNMENT_ID,
         branch=BRANCH,
     )
     gh.replies(stdout=pull_requests(listed=[(PULL_REQUEST, "OPEN")]), to="pr list")
@@ -821,7 +793,7 @@ def test_an_incomplete_worktree_on_another_branch_is_reported(state, route):
     fetch_main(root=state.root)
     add_worktree(
         root=state.root,
-        path=state.assignment_worktrees / ASSIGNMENT_ID,
+        path=state.worktrees / ASSIGNMENT_ID,
         branch="some-other-branch",
     )
 
@@ -845,7 +817,7 @@ def test_a_finished_pull_request_on_the_incomplete_branch_is_not_adopted(
     state, route, gh, state_name
 ):
     fetch_main(root=state.root)
-    worktree = state.assignment_worktrees / ASSIGNMENT_ID
+    worktree = state.worktrees / ASSIGNMENT_ID
     add_worktree(root=state.root, path=worktree, branch=BRANCH)
     make_empty_commit(worktree=worktree, message="GH12")
     push_branch(root=state.root, branch=BRANCH)
@@ -860,14 +832,14 @@ def test_a_finished_pull_request_on_the_incomplete_branch_is_not_adopted(
             at=PINNED,
         )
 
-    assert not (state.assignments / ASSIGNMENT_ID / "assignment.json").exists()
+    assert not (state.work / ASSIGNMENT_ID / "work.json").exists()
 
 
 def test_an_unlinked_pull_request_on_the_incomplete_branch_is_not_adopted(
     state, route, gh
 ):
     fetch_main(root=state.root)
-    worktree = state.assignment_worktrees / ASSIGNMENT_ID
+    worktree = state.worktrees / ASSIGNMENT_ID
     add_worktree(root=state.root, path=worktree, branch=BRANCH)
     make_empty_commit(worktree=worktree, message="GH12")
     push_branch(root=state.root, branch=BRANCH)
@@ -882,12 +854,12 @@ def test_an_unlinked_pull_request_on_the_incomplete_branch_is_not_adopted(
             at=PINNED,
         )
 
-    assert not (state.assignments / ASSIGNMENT_ID / "assignment.json").exists()
+    assert not (state.work / ASSIGNMENT_ID / "work.json").exists()
 
 
 def test_a_ready_pull_request_on_the_incomplete_branch_is_not_adopted(state, route, gh):
     fetch_main(root=state.root)
-    worktree = state.assignment_worktrees / ASSIGNMENT_ID
+    worktree = state.worktrees / ASSIGNMENT_ID
     add_worktree(root=state.root, path=worktree, branch=BRANCH)
     make_empty_commit(worktree=worktree, message="GH12")
     push_branch(root=state.root, branch=BRANCH)
@@ -921,7 +893,7 @@ def test_a_pull_request_listing_failure_keeps_the_setup_for_a_retry(state, route
             at=PINNED,
         )
 
-    assert (state.assignment_worktrees / ASSIGNMENT_ID).exists()
+    assert (state.worktrees / ASSIGNMENT_ID).exists()
 
 
 def test_a_linked_pull_request_read_failure_keeps_the_setup_for_a_retry(
@@ -940,7 +912,7 @@ def test_a_linked_pull_request_read_failure_keeps_the_setup_for_a_retry(
             at=PINNED,
         )
 
-    assert (state.assignment_worktrees / ASSIGNMENT_ID).exists()
+    assert (state.worktrees / ASSIGNMENT_ID).exists()
 
 
 def test_an_unrelated_linked_pull_request_prevents_another_one(state, route, gh):
@@ -1099,7 +1071,8 @@ def test_an_assignment_records_a_changed_pull_request_observation(fabricated):
     )
 
     recorded = read_assignments(state=fabricated)[0]
-    assert recorded.pull_request_observation == PullRequestObservation(
+    assert read_pull_request_observation(assignment=recorded) == PullRequestObservation(
+        number=PULL_REQUEST,
         state=PullRequestState.OPEN,
         is_draft=False,
         observed_at=PINNED + timedelta(minutes=1),
@@ -1146,7 +1119,10 @@ def test_an_assignment_with_no_delivered_user_post_has_an_empty_delivery_positio
         at=PINNED,
     )
 
-    assert read_assignments(state=state)[0].user_post_delivery_position == ""
+    assert (
+        read_user_post_delivery_position(assignment=read_assignments(state=state)[0])
+        == ""
+    )
 
 
 def test_an_assignment_reads_back_its_user_post_delivery_position(state, route):
@@ -1181,7 +1157,7 @@ def test_an_assignment_reads_back_its_user_post_delivery_position(state, route):
     )
 
     assert (
-        read_assignments(state=state)[0].user_post_delivery_position
+        read_user_post_delivery_position(assignment=read_assignments(state=state)[0])
         == "2026-09-03T22:31:51Z"
     )
 
@@ -1228,7 +1204,7 @@ def test_the_user_post_delivery_position_scans_past_an_input_that_delivered_no_p
         )
 
     assert (
-        read_assignments(state=state)[0].user_post_delivery_position
+        read_user_post_delivery_position(assignment=read_assignments(state=state)[0])
         == "2026-09-03T22:31:51Z"
     )
 
@@ -1242,7 +1218,7 @@ def test_an_assignments_rounds_read_back_in_number_order(state, route):
         at=PINNED,
     )
     later = PINNED.replace(minute=50)
-    directory = state.assignments / ASSIGNMENT_ID
+    directory = state.work / ASSIGNMENT_ID
     write_round(
         directory=directory,
         number=3,
@@ -1272,7 +1248,7 @@ def test_an_assignments_rounds_read_back_in_number_order(state, route):
     assert read.next_round_number == 4
     assert (
         read.compose_round_paths(number=read.next_round_number).directory
-        == state.assignments / ASSIGNMENT_ID / "rounds" / "4"
+        == state.work / ASSIGNMENT_ID / "rounds" / "4"
     )
 
 
@@ -1285,7 +1261,7 @@ def test_a_round_record_must_carry_the_number_of_its_directory(state, route):
         at=PINNED,
     )
     write_round(
-        directory=state.assignments / ASSIGNMENT_ID,
+        directory=state.work / ASSIGNMENT_ID,
         number=2,
         record=AgentRoundRecord(
             number=3,
@@ -1316,8 +1292,8 @@ def test_every_assignment_of_the_repo_reads_back_by_identifier(state, route):
     )
 
     assert [assignment.identifier for assignment in read_assignments(state=state)] == [
-        "GH12-20260819-184158",
-        "GH3-20260819-184158",
+        "GH12-20260819-184158-assignment",
+        "GH3-20260819-184158-assignment",
     ]
 
 
@@ -1329,9 +1305,7 @@ def test_a_file_left_among_the_worktrees_is_not_an_assignment(state, route):
         issue=12,
         at=PINNED,
     )
-    (state.assignment_worktrees / ".DS_Store").write_text(
-        "a file browser\n", encoding="utf-8"
-    )
+    (state.worktrees / ".DS_Store").write_text("a file browser\n", encoding="utf-8")
 
     assert read_assignments(state=state) == [created]
 
@@ -1344,7 +1318,7 @@ def test_a_worktree_with_no_record_beside_it_is_not_an_assignment(state, route):
         issue=12,
         at=PINNED,
     )
-    (state.assignment_worktrees / "GH3-20260819-184158").mkdir()
+    (state.worktrees / "GH3-20260819-184158-assignment").mkdir()
 
     assert read_assignments(state=state) == [created]
 
@@ -1357,9 +1331,7 @@ def test_an_assignment_record_that_will_not_read_names_the_file(state, route):
         issue=12,
         at=PINNED,
     )
-    (state.assignments / ASSIGNMENT_ID / "assignment.json").write_text(
-        "{}", encoding="utf-8"
-    )
+    (state.work / ASSIGNMENT_ID / "work.json").write_text("{}", encoding="utf-8")
 
-    with pytest.raises(ReportableError, match=r"assignment\.json is not valid"):
+    with pytest.raises(ReportableError, match=r"work\.json is not valid"):
         read_assignments(state=state)

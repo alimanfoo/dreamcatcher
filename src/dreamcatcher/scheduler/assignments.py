@@ -6,14 +6,13 @@ from functools import partial
 from typing import cast
 
 from dreamcatcher.agent_assignments import (
-    Assignment,
     AssignmentCreator,
     AssignmentRoundInput,
-    find_open_assignments_by_issue,
+    complete_assignment,
     inspect_incomplete_assignment_setups,
-    read_assignments,
+    read_pull_request_observation,
+    read_user_post_delivery_position,
     record_pull_request_observation,
-    stop_round_if_cancelled,
 )
 from dreamcatcher.agent_rounds import (
     AgentRound,
@@ -23,7 +22,13 @@ from dreamcatcher.agent_rounds import (
     AssignmentRoundPurpose,
     start_agent_round,
 )
-from dreamcatcher.agent_work import record_harness_session_identifier
+from dreamcatcher.agent_work import (
+    AgentWork,
+    find_open_agent_work_by_issue,
+    read_agent_work_of_kind,
+    record_harness_session_identifier,
+    request_round_stop_if_ended,
+)
 from dreamcatcher.config import AssignmentRoute
 from dreamcatcher.github import (
     PullRequest,
@@ -32,7 +37,7 @@ from dreamcatcher.github import (
     UserPost,
     read_pull_request,
 )
-from dreamcatcher.harness_adapters import AgentRoundLaunchRequest
+from dreamcatcher.harness_adapters import AgentRoundLaunchRequest, AgentWorkKind
 from dreamcatcher.prompts import (
     ASSIGNMENT_RECOVERY_PROMPT,
     compose_assignment_input_prompt,
@@ -68,14 +73,14 @@ class NewAssignmentCandidate:
 class FirstAssignmentRoundCandidate:
     """Describe an assignment that has not started its first round."""
 
-    assignment: Assignment
+    assignment: AgentWork
 
 
 @dataclass(frozen=True, kw_only=True)
 class AssignmentRoundCandidate:
     """Describe an existing assignment ready for another round."""
 
-    assignment: Assignment
+    assignment: AgentWork
     pull_request: PullRequest
     undelivered_posts: list[UserPost]
     is_recovery: bool
@@ -115,7 +120,9 @@ class AssignmentScheduler(
         self, *, previous_record: SchedulerRecord | None, at: datetime
     ) -> AssignmentInspection:
         """Inspect all assignment work and return one ranked bundle."""
-        assignments = read_assignments(state=self.state)
+        assignments = read_agent_work_of_kind(
+            state=self.state, kind=AgentWorkKind.ASSIGNMENT
+        )
         issue_result = observe_issues(
             scheduler=self,
             assignments=assignments,
@@ -218,14 +225,12 @@ class AssignmentScheduler(
     def _inspect_assignments(
         self,
         *,
-        assignments: list[Assignment],
+        assignments: list[AgentWork],
         most_recent_cooldown_ended: datetime | None,
         observed_at: datetime,
     ) -> list[_AssignmentItemInspection]:
         inspected: list[_AssignmentItemInspection] = []
-        for assignment in find_open_assignments_by_issue(
-            assignments=assignments
-        ).values():
+        for assignment in find_open_agent_work_by_issue(work=assignments).values():
             if assignment.rounds and assignment.rounds[-1].ending is None:
                 continue
             inspected.append(
@@ -240,7 +245,7 @@ class AssignmentScheduler(
     def _inspect_assignment(
         self,
         *,
-        assignment: Assignment,
+        assignment: AgentWork,
         most_recent_cooldown_ended: datetime | None,
         observed_at: datetime,
     ) -> _AssignmentItemInspection:
@@ -272,12 +277,12 @@ class AssignmentScheduler(
         )
 
     def _inspect_pull_request(
-        self, *, assignment: Assignment, observed_at: datetime
+        self, *, assignment: AgentWork, observed_at: datetime
     ) -> _AssignmentItemInspection:
         """Inspect an assignment's pull request and pending user posts."""
         pull_request = read_pull_request(
             repository=self.repository,
-            pull_request=assignment.record.pull_request,
+            pull_request=read_pull_request_observation(assignment=assignment).number,
         )
         if isinstance(pull_request, UnknownGitHubResponse):
             return _AssignmentItemInspection(
@@ -321,7 +326,7 @@ class AssignmentScheduler(
         )
 
     def _inspect_pending_round(
-        self, *, assignment: Assignment, pull_request: PullRequest
+        self, *, assignment: AgentWork, pull_request: PullRequest
     ) -> AssignmentRoundCandidate | AgentWorkObservation | None:
         is_recovery = is_awaiting_recovery(
             rounds=assignment.rounds, is_daemon_running=True
@@ -337,7 +342,7 @@ class AssignmentScheduler(
             repository=self.repository,
             pull_request=pull_request.number,
             account=self.account,
-            delivery_position=assignment.user_post_delivery_position,
+            delivery_position=read_user_post_delivery_position(assignment=assignment),
         )
         if isinstance(undelivered_posts, UnknownGitHubResponse):
             return _compose_assignment_observation(
@@ -376,7 +381,7 @@ class AssignmentScheduler(
     def _start_round(
         self,
         *,
-        assignment: Assignment,
+        assignment: AgentWork,
         plan: AgentRoundPlan[AssignmentRoundInput],
         next_round_prompt: str,
     ) -> AgentRound:
@@ -411,13 +416,20 @@ class AssignmentScheduler(
                     record_harness_session_identifier,
                     work=assignment,
                 ),
-                finish_round=None,
+                finish_round=(
+                    None
+                    if plan.input is None
+                    or plan.input.pull_request_state is PullRequestState.OPEN
+                    else partial(
+                        complete_assignment, assignment=assignment, clock=self.clock
+                    )
+                ),
                 paths=paths,
                 plan=plan,
             ),
             clock=self.clock,
         )
-        stop_round_if_cancelled(assignment=assignment, paths=paths)
+        request_round_stop_if_ended(work=assignment, paths=paths)
         return started_round
 
 
@@ -435,7 +447,7 @@ def _describe_assignment_candidate(*, candidate: AssignmentRoundCandidate) -> st
 
 def _compose_assignment_observation(
     *,
-    assignment: Assignment,
+    assignment: AgentWork,
     evidence: str,
     value: Truth = Truth.TRUE,
 ) -> AgentWorkObservation:

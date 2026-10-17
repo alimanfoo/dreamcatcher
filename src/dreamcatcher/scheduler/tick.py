@@ -227,7 +227,7 @@ class Scheduler:
                     issue=issue,
                     round_number=round_number,
                 )
-                if observation.identifier == identifier
+                if observation.issue == issue
                 else observation
                 for observation in record.conversation_observations
             ]

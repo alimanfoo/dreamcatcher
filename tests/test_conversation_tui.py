@@ -5,11 +5,12 @@ from io import StringIO
 
 import pytest
 from clocks import PINNED
-from conftest import configure
 from observations import observed_conversation
 from records import (
+    find_conversation_directory,
     hold_daemon_lock_for_test,
     write_conversation,
+    write_ending,
     write_feed,
     write_final_output,
     write_round,
@@ -23,6 +24,7 @@ from dreamcatcher.agent_rounds import (
     ConversationRoundPurpose,
     _compose_agent_round_ending,
 )
+from dreamcatcher.agent_work import AgentWorkEndReason
 from dreamcatcher.documents import write_json, write_text
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import FeedLine
@@ -48,7 +50,6 @@ def conversation_state(
     harness_session_identifier: str | None = "conversation-session",
 ) -> StateDirectory:
     """Return state containing one finished conversation."""
-    configure(root=root)
     state = StateDirectory(root=root)
     directory = write_conversation(
         state=state,
@@ -128,7 +129,7 @@ def test_status_lists_the_conversation(tmp_path):
 
 def test_conversation_detail_shows_settings_revision_session_and_round(tmp_path):
     state = conversation_state(root=tmp_path, harness_session_identifier=None)
-    directory = state.conversations / "GH8"
+    directory = find_conversation_directory(state=state, issue=8)
     write_text(
         text=(
             '{"type":"system","subtype":"init","model":"claude-opus-5",'
@@ -186,7 +187,7 @@ def test_conversation_detail_shows_settings_revision_session_and_round(tmp_path)
     assert "discuss" in shown
     assert "successful" in shown
     assert "resume by hand" in shown
-    assert "cd .dreamcatcher/v5/conversation-worktrees/GH8" in shown
+    assert "cd .dreamcatcher/v6/worktrees/GH8-20260819-184158-conversation" in shown
     assert "claude --resume recovered-session" in shown
 
 
@@ -206,7 +207,7 @@ def test_conversation_detail_shows_a_failed_round(tmp_path):
 
 def test_conversation_detail_shows_two_errors_as_a_fault(tmp_path):
     state = conversation_state(root=tmp_path, status=2, is_eligible=True)
-    directory = state.conversations / "GH8"
+    directory = find_conversation_directory(state=state, issue=8)
     write_round(
         directory=directory,
         number=2,
@@ -281,7 +282,7 @@ def test_conversation_feed_follows_a_later_round_without_repeating_the_first(
 
     def wait(seconds, /):
         assert seconds > 0
-        directory = state.conversations / "GH8"
+        directory = find_conversation_directory(state=state, issue=8)
         write_round(
             directory=directory,
             number=2,
@@ -385,7 +386,6 @@ def test_a_missing_conversation_round_says_how_many_exist(tmp_path):
 
 def unsaved_conversation_state(*, root) -> StateDirectory:
     """Return state whose latest tick observed GH9 with a comment to answer."""
-    configure(root=root)
     state = StateDirectory(root=root)
     write_tick(
         state=state,
@@ -534,7 +534,7 @@ def test_a_conversation_view_of_an_idle_conversation_keeps_watching(tmp_path):
 def test_a_conversation_view_in_fault_keeps_watching(tmp_path):
     state = conversation_state(root=tmp_path, status=2, is_eligible=True)
     write_round(
-        directory=state.conversations / "GH8",
+        directory=find_conversation_directory(state=state, issue=8),
         number=2,
         record=AgentRoundRecord(
             number=2,
@@ -592,3 +592,40 @@ def assert_conversation_views_keep_watching(*, state: StateDirectory) -> None:
     )
 
     assert len(waits) == 2
+
+
+def end_conversation(*, state: StateDirectory) -> None:
+    """Record that the conversation at issue 8 ended."""
+    write_ending(
+        directory=find_conversation_directory(state=state, issue=8),
+        reason=AgentWorkEndReason.COMPLETED,
+        at=PINNED + timedelta(minutes=10),
+    )
+
+
+def test_status_counts_an_ended_conversation(tmp_path):
+    state = conversation_state(root=tmp_path, is_eligible=True)
+    end_conversation(state=state)
+    console, written = rendered_console()
+
+    show_status_view(state=state, console=console, clock=lambda: PINNED)
+
+    shown = written.getvalue()
+    assert "1 ended conversation" in shown
+    assert "answered" not in shown
+
+
+def test_a_view_of_an_ended_conversation_never_waits(tmp_path):
+    state = conversation_state(root=tmp_path)
+    end_conversation(state=state)
+    console, written = watched_console()
+
+    show_conversation_view(
+        state=state,
+        issue=8,
+        console=console,
+        clock=lambda: PINNED,
+        wait=refusing,
+    )
+
+    assert "ended  completed" in written.getvalue()

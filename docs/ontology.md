@@ -34,7 +34,10 @@ each run their own _dreamcatcher_ instance for the same repository.
 
 A **daemon** is the process that runs a _dreamcatcher_ instance. At most one
 daemon runs an instance at a time. A **daemon run** is one daemon process from
-start to stop.
+start to stop. Each daemon run writes a **daemon run record** when it starts,
+holding its process, preferred harness, version, capacity, interval and the
+dispatch routes it loaded, each as a dispatch label and its kind of agent work.
+Status reports take the labels they name from that record.
 
 ### Issue and issue identifier
 
@@ -48,10 +51,10 @@ as `#123`, as GitHub does.
 An **agent assignment** is _dreamcatcher_'s durable commission to an agent to
 implement one issue.
 
-An **agent assignment identifier** identifies one agent assignment. It combines
-the issue identifier with a timestamp, as in `GH123-20260912-192458`, and is
-distinct from the issue identifier because an issue can receive more than one
-assignment over its lifetime.
+An **agent assignment identifier** is the agent work identifier of one agent
+assignment, as in `GH123-20260912-192458-assignment`. It is distinct from the
+issue identifier because an issue can receive more than one assignment over its
+lifetime.
 
 ### Pull request
 
@@ -66,9 +69,16 @@ answer the user on an issue without implementing a change.
 ### Agent work and agent work identifier
 
 **Agent work** is either an agent assignment or an issue conversation. Its
-**agent work identifier** is the agent assignment identifier for an assignment,
-or the issue identifier prefixed with `conversation-`, as in
-`conversation-GH123`, for an issue conversation.
+**agent work identifier** combines the issue identifier, the time the work was
+created and its kind, as in `GH123-20260912-192458-assignment` or
+`GH123-20260912-193000-conversation`. The kind is in the name for a person
+reading a directory listing, a daemon line or a web address; the work's record
+says it too.
+
+Each piece of agent work has one **work record**, written once when the work is
+created. It holds the issue, the dispatch label, the kind of agent work, the
+issue title and the harness settings the dispatch recipe gave, so later
+configuration edits do not change work in progress.
 
 ### Agent harness and harness session
 
@@ -182,14 +192,14 @@ An **issue observation** records the independent facts that one scheduler tick
 found for an issue. Its availability is derived from those facts.
 
 An **agent assignment status** is an assignment's single summary status in a
-status report. It summarizes the assignment record, recorded rounds, live
+status report. It summarizes the assignment's work record, recorded rounds, live
 process state, and the latest scheduler evidence about whether another round was
 required or launched.
 
 An **issue conversation status** is a conversation's single summary status in a
-status report. It is derived from the conversation record, its latest round, the
-daemon process, and the latest scheduler evidence about whether its issue is
-eligible and whether comments wait to be answered.
+status report. It is derived from the conversation's work record, its latest
+round, the daemon process, and the latest scheduler evidence about whether its
+issue is eligible and whether comments wait to be answered.
 
 ### Global cooldown
 
@@ -260,7 +270,9 @@ will run.
 ### Completing an assignment
 
 An assignment becomes **complete** only when a wrap-up round exits successfully.
-A successful implementation or feedback round does not complete the assignment.
+That round records the assignment's ending, with the reason "completed", as it
+finishes. A successful implementation or feedback round does not complete the
+assignment.
 
 If the pull request was merged, GitHub closes the issue and there can be no
 later assignment for it. If the pull request was closed without being merged,
@@ -273,9 +285,11 @@ The user can **cancel** an open assignment to finish its pull request by hand. A
 cancelled assignment is no longer open, so _dreamcatcher_ runs no further rounds
 for it and relays no further user posts from its pull request. A round that is
 running when the user cancels is asked to stop, and the assignment is working
-until that round ends. A cancel cannot be undone.
+until that round ends. A cancel records the assignment's ending, with the reason
+"cancelled", and cannot be undone.
 
-An assignment that is complete or cancelled has **ended**.
+Agent work is open until its ending is recorded, with the time and the reason,
+and then it has **ended**. An assignment ends when it is complete or cancelled.
 
 _dreamcatcher_ leaves the pull request as it is, and while it is open it claims
 the issue elsewhere. If the user merges it, GitHub closes the issue. If the user
@@ -384,20 +398,28 @@ assignment status meaning:
   fault.
 - **Unknown**: _dreamcatcher_ cannot tell whether the issue is eligible or
   whether comments wait. Its counterpart is unknown.
+- **Ended**: the conversation's ending is recorded, and its reason is the
+  detail. Working outranks it while a round still runs. Its counterparts are
+  complete and cancelled.
 
 Idle differs from needs user feedback on purpose. An assignment at rest has a
 pull request waiting for review, so it asks something of the user. A
 conversation at rest asks nothing. A conversation has no complete status.
 
+An ended conversation is counted apart from active work, as an ended assignment
+is: in a collapsed list of ended conversations on the web home page, and in a
+count of ended conversations in the terminal.
+
 Every open, assigned issue carrying at least one configured conversation label
 has a conversation status from the first scheduler tick that observes it,
-whether or not a conversation record exists yet. Exactly one label makes it
-eligible, while more than one gives it routing conflict status. Once the issue
-carries none of those labels, closes, or becomes unassigned, the status report
-lists its conversation only while a round runs. The conversation's own view
-still shows it, as idle with the reason unless it is in fault. Conversations are
-listed as routing conflict, fault, working, waiting, unknown and then idle,
-since routing conflict requires the user to act and idle does not.
+whether or not a work record for the conversation exists yet. Exactly one label
+makes it eligible, while more than one gives it routing conflict status. Once
+the issue carries none of those labels, closes, or becomes unassigned, the
+status report lists its conversation only while a round runs. The conversation's
+own view still shows it, as idle with the reason unless it is in fault.
+Conversations are listed as routing conflict, fault, working, waiting, unknown
+and then idle, since routing conflict requires the user to act and idle does
+not.
 
 A running round remains working when its issue gains a second conversation
 label, because eligibility does not cancel work already in progress. Its routing

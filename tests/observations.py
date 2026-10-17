@@ -4,8 +4,8 @@ from collections.abc import Mapping, Sequence
 from datetime import UTC, datetime
 
 from conftest import ASSIGNMENT_LABEL
+from records import compose_conversation_identifier
 
-from dreamcatcher.issue_conversations import compose_conversation_identifier
 from dreamcatcher.scheduler.models import (
     ConversationObservation,
     IssueObservation,
@@ -98,13 +98,15 @@ def observed_conversation(
     evidence: str | None = None,
     routing_conflict: Truth = Truth.FALSE,
     routing_conflict_evidence: str | None = None,
+    is_saved: bool = True,
 ) -> ConversationObservation:
     """Return what a tick found at a matching conversation issue.
 
-    The title matches the one `records.write_conversation` saves.
+    The title and identifier match the ones `records.write_conversation` saves.
+    A conversation the tick found before its first round has no identifier.
     """
     return ConversationObservation(
-        identifier=compose_conversation_identifier(issue=issue),
+        identifier=compose_conversation_identifier(issue=issue) if is_saved else None,
         issue=issue,
         title=f"Issue {issue}",
         requires_round=_observed_issue_fact(

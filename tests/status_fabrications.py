@@ -4,7 +4,7 @@ from collections.abc import Sequence
 from datetime import timedelta
 
 from clocks import PINNED
-from conftest import ASSIGNMENT_LABEL, DAEMON_PID, REPOSITORY, configure
+from conftest import ASSIGNMENT_LABEL, DAEMON_PID, REPOSITORY
 from observations import observed_conversation, observed_issue
 from records import (
     hold_daemon_lock_for_test,
@@ -21,7 +21,6 @@ from records import (
 from dreamcatcher.agent_assignments import (
     PullRequestObservation,
     cancel_assignment,
-    read_assignments_for_issue,
 )
 from dreamcatcher.agent_rounds import (
     AgentRoundRecord,
@@ -29,10 +28,11 @@ from dreamcatcher.agent_rounds import (
     ConversationRoundPurpose,
     _compose_agent_round_ending,
 )
+from dreamcatcher.agent_work import read_agent_work_at_issue
 from dreamcatcher.documents import write_json, write_text
 from dreamcatcher.feed import FeedLine
 from dreamcatcher.github import PullRequestState
-from dreamcatcher.harness_adapters import HarnessSessionIdentifier
+from dreamcatcher.harness_adapters import AgentWorkKind, HarnessSessionIdentifier
 from dreamcatcher.issue_conversations import (
     ConversationRoundInput,
     InitialConversationIssue,
@@ -161,7 +161,7 @@ def written(*, state, issue: int, records: Sequence[AgentRoundRecord]):
     """Write an assignment for the issue, with these rounds behind it."""
     directory = write_assignment(
         state=state,
-        identifier=f"GH{issue}-{ASSIGNMENT_TIMESTAMP}",
+        identifier=f"GH{issue}-{ASSIGNMENT_TIMESTAMP}-assignment",
         issue=issue,
         harness_session_identifier=(HARNESS_SESSION_IDENTIFIER if records else None),
     )
@@ -208,8 +208,7 @@ def running(
 
 
 def holding(*, state):
-    """Configure the instance and hold the lock as its running daemon."""
-    configure(root=state.root)
+    """Record the instance and hold the lock as its running daemon."""
     write_text(text=f"{REPOSITORY}\n", path=state.repository)
     write_daemon_run(state=state, pid=DAEMON_PID)
     hold_daemon_lock_for_test(path=state.lock)
@@ -217,7 +216,6 @@ def holding(*, state):
 
 def fabricate_nothing(*, state):
     """Write a state directory that a daemon has only bootstrapped."""
-    configure(root=state.root)
     state.bootstrap()
     write_daemon_run(state=state, pid=DAEMON_PID)
 
@@ -282,14 +280,16 @@ def fabricate_everything(
     written(state=state, issue=44, records=[])
     written(state=state, issue=70, records=[ended(minute=1)])
     cancel_assignment(
-        assignment=read_assignments_for_issue(state=state, issue=70)[0],
+        assignment=read_agent_work_at_issue(
+            state=state, issue=70, kind=AgentWorkKind.ASSIGNMENT
+        )[0],
         at=PINNED + timedelta(minutes=10),
     )
     write_tick(
         state=state,
         tick=SchedulerRecord(
             at=PINNED + timedelta(hours=1, minutes=58),
-            launched_agent_work_identifiers=[f"GH13-{ASSIGNMENT_TIMESTAMP}"],
+            launched_agent_work_identifiers=[f"GH13-{ASSIGNMENT_TIMESTAMP}-assignment"],
             issue_observations=[
                 observed_issue(issue=50),
                 observed_issue(issue=51),
@@ -319,29 +319,29 @@ def fabricate_everything(
             ],
             assignment_observations=[
                 _observed_assignment(
-                    identifier=f"GH31-{ASSIGNMENT_TIMESTAMP}",
+                    identifier=f"GH31-{ASSIGNMENT_TIMESTAMP}-assignment",
                     issue=31,
                     evidence="1 new post to answer",
                 ),
                 _observed_assignment(
-                    identifier=f"GH20-{ASSIGNMENT_TIMESTAMP}",
+                    identifier=f"GH20-{ASSIGNMENT_TIMESTAMP}-assignment",
                     issue=20,
                     evidence="no round required",
                     value=Truth.FALSE,
                 ),
                 _observed_assignment(
-                    identifier=f"GH35-{ASSIGNMENT_TIMESTAMP}",
+                    identifier=f"GH35-{ASSIGNMENT_TIMESTAMP}-assignment",
                     issue=35,
                     evidence="round 1 errored, to recover",
                 ),
                 _observed_assignment(
-                    identifier=f"GH9-{ASSIGNMENT_TIMESTAMP}",
+                    identifier=f"GH9-{ASSIGNMENT_TIMESTAMP}-assignment",
                     issue=9,
                     evidence="in fault",
                     value=Truth.FALSE,
                 ),
                 _observed_assignment(
-                    identifier=f"GH44-{ASSIGNMENT_TIMESTAMP}",
+                    identifier=f"GH44-{ASSIGNMENT_TIMESTAMP}-assignment",
                     issue=44,
                     evidence=NO_ROUND_HAS_RUN,
                 ),
@@ -355,7 +355,7 @@ def fabricate_status_everything(*, state):
     """Write the combined report, including output wider than its console."""
     fabricate_everything(state=state)
     write_feed(
-        directory=state.assignments / f"GH13-{ASSIGNMENT_TIMESTAMP}",
+        directory=state.work / f"GH13-{ASSIGNMENT_TIMESTAMP}-assignment",
         number=2,
         lines=[
             FeedLine(
@@ -418,7 +418,7 @@ def fabricate_the_cap(*, state):
             failures=["could not list issues for dream:less: could not connect"],
             assignment_observations=[
                 _observed_assignment(
-                    identifier=f"GH20-{ASSIGNMENT_TIMESTAMP}",
+                    identifier=f"GH20-{ASSIGNMENT_TIMESTAMP}-assignment",
                     issue=20,
                     evidence="1 new post to answer",
                 )
@@ -429,7 +429,6 @@ def fabricate_the_cap(*, state):
 
 def fabricate_repeat_assignments(*, state):
     """Write three assignments at one issue to show repeat assignment dispatches."""
-    configure(root=state.root)
     write_text(text=f"{REPOSITORY}\n", path=state.repository)
     write_daemon_run(state=state, pid=DAEMON_PID)
     for stamp, rounds in (
@@ -449,7 +448,9 @@ def fabricate_repeat_assignments(*, state):
         ),
         ("20260819-184158", (ended(minute=1),)),
     ):
-        directory = write_assignment(state=state, identifier=f"GH13-{stamp}", issue=13)
+        directory = write_assignment(
+            state=state, identifier=f"GH13-{stamp}-assignment", issue=13
+        )
         for number, record in enumerate(rounds, start=1):
             write_round(directory=directory, number=number, record=record)
         write_feed(
@@ -468,7 +469,7 @@ def fabricate_repeat_assignments(*, state):
             at=PINNED + timedelta(hours=1, minutes=58),
             assignment_observations=[
                 _observed_assignment(
-                    identifier=f"GH13-{ASSIGNMENT_TIMESTAMP}",
+                    identifier=f"GH13-{ASSIGNMENT_TIMESTAMP}-assignment",
                     issue=13,
                     evidence="no round required",
                     value=Truth.FALSE,
@@ -502,7 +503,7 @@ def fabricate_a_silent_round(*, state):
         state=state,
         tick=SchedulerRecord(
             at=PINNED + timedelta(hours=1, minutes=58),
-            launched_agent_work_identifiers=[f"GH13-{ASSIGNMENT_TIMESTAMP}"],
+            launched_agent_work_identifiers=[f"GH13-{ASSIGNMENT_TIMESTAMP}-assignment"],
         ),
     )
 
@@ -519,10 +520,11 @@ def fabricate_titles_and_pull_request_states(*, state):
     ):
         write_assignment(
             state=state,
-            identifier=f"GH{issue}-{ASSIGNMENT_TIMESTAMP}",
+            identifier=f"GH{issue}-{ASSIGNMENT_TIMESTAMP}-assignment",
             issue=issue,
             title=title,
             pull_request_observation=PullRequestObservation(
+                number=52,
                 state=pull_request_state,
                 is_draft=is_draft,
                 observed_at=PINNED,
@@ -531,20 +533,20 @@ def fabricate_titles_and_pull_request_states(*, state):
         )
         assignment_observations.append(
             _observed_assignment(
-                identifier=f"GH{issue}-{ASSIGNMENT_TIMESTAMP}",
+                identifier=f"GH{issue}-{ASSIGNMENT_TIMESTAMP}-assignment",
                 issue=issue,
                 evidence=NO_ROUND_HAS_RUN,
             )
         )
     write_assignment(
         state=state,
-        identifier=f"GH14-{ASSIGNMENT_TIMESTAMP}",
+        identifier=f"GH14-{ASSIGNMENT_TIMESTAMP}-assignment",
         issue=14,
         harness_session_identifier=None,
     )
     assignment_observations.append(
         _observed_assignment(
-            identifier=f"GH14-{ASSIGNMENT_TIMESTAMP}",
+            identifier=f"GH14-{ASSIGNMENT_TIMESTAMP}-assignment",
             issue=14,
             evidence=NO_ROUND_HAS_RUN,
         )

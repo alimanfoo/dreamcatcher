@@ -20,10 +20,11 @@ from dreamcatcher import (
 )
 from dreamcatcher.config import AgentHarness
 from dreamcatcher.daemon import DEFAULT_INTERVAL_SECONDS
-from dreamcatcher.daemon_runs import DaemonRunRecord
+from dreamcatcher.daemon_runs import DaemonRunRecord, RecordedRoute
 from dreamcatcher.documents import write_json, write_text
 from dreamcatcher.feed import FeedLine
 from dreamcatcher.github import PullRequestState
+from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.lock import hold_daemon_lock
 from dreamcatcher.scheduler.models import SchedulerRecord
 from dreamcatcher.state import StateDirectory
@@ -31,9 +32,16 @@ from dreamcatcher.state import StateDirectory
 # The daemon locks that the running test holds, by path.
 _HELD_DAEMON_LOCKS: dict[Path, ExitStack] = {}
 
+# The routes a fabricated daemon run loaded, unless a test says: those of the
+# configuration that conftest writes.
+SMITH_ROUTES = (RecordedRoute(label="dream:smith", kind=AgentWorkKind.ASSIGNMENT),)
+
+# The routes of a daemon run that loaded one conversation label and nothing else.
+SCOUT_ROUTES = (RecordedRoute(label="dream:scout", kind=AgentWorkKind.CONVERSATION),)
+
 # What a fabricated assignment saw of its pull request, unless a test says.
 _OPEN_DRAFT = agent_assignments.PullRequestObservation(
-    state=PullRequestState.OPEN, is_draft=True, observed_at=PINNED
+    number=52, state=PullRequestState.OPEN, is_draft=True, observed_at=PINNED
 )
 
 
@@ -44,6 +52,7 @@ def write_daemon_run(
     harness: AgentHarness = AgentHarness.CLAUDE,
     version: str = "3.0.0.beta1",
     max_agents: int = 1,
+    routes: Sequence[RecordedRoute] = SMITH_ROUTES,
 ) -> None:
     """Write the facts fixed for one daemon run."""
     write_json(
@@ -53,6 +62,7 @@ def write_daemon_run(
             version=version,
             max_agents=max_agents,
             interval_seconds=DEFAULT_INTERVAL_SECONDS,
+            routes=list(routes),
         ),
         path=state.daemon_run_record,
     )
@@ -90,29 +100,40 @@ def write_assignment(
 
     The title is `Issue <n>` unless the test gives one.
     """
-    (state.assignment_worktrees / identifier).mkdir(parents=True)
-    directory = state.assignments / identifier
+    (state.worktrees / identifier).mkdir(parents=True)
+    directory = state.work / identifier
     write_json(
-        document=agent_assignments.AssignmentRecord(
+        document=pull_request_observation,
+        path=directory / agent_assignments._PULL_REQUEST_OBSERVATION_RECORD_NAME,
+    )
+    agent_work.record_agent_work(
+        state=state,
+        identifier=identifier,
+        record=agent_work.AgentWorkRecord(
             issue=issue,
             title=f"Issue {issue}" if title is None else title,
             dispatch_label="dream:smith",
-            branch=f"{agent_assignments._ASSIGNMENT_BRANCH_PREFIX}{identifier}",
-            worktree=state.assignment_worktrees / identifier,
-            pull_request=52,
+            kind=AgentWorkKind.ASSIGNMENT,
             harness=AgentHarness.CLAUDE,
             model="opus[1m]",
             effort="xhigh",
             prompt=f"/dream:smith GH{issue}",
         ),
-        path=directory / agent_assignments._ASSIGNMENT_RECORD_NAME,
-    )
-    write_json(
-        document=pull_request_observation,
-        path=directory / agent_assignments._PULL_REQUEST_OBSERVATION_RECORD_NAME,
     )
     _write_harness_session(directory=directory, identifier=harness_session_identifier)
     return directory
+
+
+def compose_conversation_identifier(*, issue: int) -> str:
+    """Return the identifier of the conversation that the tests write at an issue."""
+    return agent_work.compose_agent_work_identifier(
+        issue=issue, kind=AgentWorkKind.CONVERSATION, at=PINNED
+    )
+
+
+def find_conversation_directory(*, state: StateDirectory, issue: int) -> Path:
+    """Return the directory of the conversation that the tests write at an issue."""
+    return state.work / compose_conversation_identifier(issue=issue)
 
 
 def write_conversation(
@@ -123,23 +144,26 @@ def write_conversation(
     harness_session_identifier: str | None = "conversation-session",
 ) -> Path:
     """Write a conversation worktree and record, and return its directory."""
-    worktree = state.conversation_worktrees / f"GH{issue}"
-    worktree.mkdir(parents=True)
-    directory = state.conversations / f"GH{issue}"
-    write_json(
-        document=issue_conversations.ConversationRecord(
+    identifier = compose_conversation_identifier(issue=issue)
+    (state.worktrees / identifier).mkdir(parents=True)
+    work = agent_work.record_agent_work(
+        state=state,
+        identifier=identifier,
+        record=agent_work.AgentWorkRecord(
             issue=issue,
             title=f"Issue {issue}",
             dispatch_label="dream:conversation",
+            kind=AgentWorkKind.CONVERSATION,
             harness=harness,
             model="opus[1m]",
             effort="xhigh",
             prompt=f"/dream:conversation GH{issue}",
         ),
-        path=directory / issue_conversations._CONVERSATION_RECORD_NAME,
     )
-    _write_harness_session(directory=directory, identifier=harness_session_identifier)
-    return directory
+    _write_harness_session(
+        directory=work.directory, identifier=harness_session_identifier
+    )
+    return work.directory
 
 
 def _write_harness_session(*, directory: Path, identifier: str | None) -> None:
@@ -154,11 +178,33 @@ def _write_harness_session(*, directory: Path, identifier: str | None) -> None:
 def write_round(
     *, directory: Path, number: int, record: agent_rounds.AgentRoundRecord
 ) -> agent_rounds.AgentRoundRecord:
-    """Write the record of one round of the assignment at this directory."""
+    """Write the record of one round of the assignment at this directory.
+
+    A successful wrap-up round also completes its assignment, as the round's
+    finisher records before its ending.
+    """
+    if record.purpose is agent_rounds.AssignmentRoundPurpose.WRAP_UP and isinstance(
+        record.ending, agent_rounds.SuccessfulAgentRoundEnding
+    ):
+        write_ending(
+            directory=directory,
+            reason=agent_work.AgentWorkEndReason.COMPLETED,
+            at=record.ending.at,
+        )
     write_json(
         document=record, path=_round_paths(directory=directory, number=number).record
     )
     return record
+
+
+def write_ending(
+    *, directory: Path, reason: agent_work.AgentWorkEndReason, at: datetime
+) -> None:
+    """Record that the work at this directory ended, and why."""
+    write_json(
+        document=agent_work.AgentWorkEnding(at=at, reason=reason),
+        path=directory / agent_work._ENDING_RECORD_NAME,
+    )
 
 
 def write_feed(*, directory: Path, number: int, lines: Sequence[FeedLine]) -> None:
@@ -178,7 +224,7 @@ def _round_paths(*, directory: Path, number: int) -> agent_rounds.AgentRoundPath
     """Where the numbered round of the assignment at this directory wrote."""
     return agent_rounds.AgentRoundPaths(
         worktree=directory,
-        rounds_directory=directory / agent_assignments._AGENT_ROUNDS_DIRECTORY_NAME,
+        rounds_directory=directory / agent_work._AGENT_ROUNDS_DIRECTORY_NAME,
         number=number,
     )
 
@@ -226,4 +272,20 @@ def write_final_output(*, directory: Path, number: int, text: str) -> None:
     """Write the final output that one round of the work at this directory reported."""
     write_text(
         text=text, path=_round_paths(directory=directory, number=number).final_output
+    )
+
+
+def read_assignments(*, state: StateDirectory) -> list[agent_work.AgentWork]:
+    """Return every assignment in the state directory, by identifier."""
+    return agent_work.read_agent_work_of_kind(
+        state=state, kind=AgentWorkKind.ASSIGNMENT
+    )
+
+
+def read_conversation(
+    *, state: StateDirectory, issue: int
+) -> agent_work.AgentWork | None:
+    """Return the newest conversation at the issue, if there is one."""
+    return agent_work.find_newest_agent_work(
+        state=state, issue=issue, kind=AgentWorkKind.CONVERSATION
     )

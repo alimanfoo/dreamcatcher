@@ -26,8 +26,9 @@ two paths over it.
   `work/` and `worktrees/`.
 - Every piece of agent work has the identifier `GH<n>-<timestamp>-<kind>` and a
   `work.json` recording its issue, dispatch label, kind, title, harness settings
-  and initial prompt, with the branch for an assignment. The pull request number
-  stays in the pull request observation.
+  and initial prompt. An assignment's branch is named from its identifier, so
+  the record does not repeat it. The pull request number moves into the pull
+  request observation.
 - `ended.json`, holding the time and a reason, replaces `cancel.json` and the
   completion derived from rounds. The round that wraps up an assignment writes
   it with "completed" in its finishing step, `cancel` writes it with
@@ -39,21 +40,25 @@ two paths over it.
   scheduler, status, the commands and the views read one record shape through
   it.
 - The web page for any agent work is `/work/<identifier>`, and the
-  `/conversations/<issue>` addresses go.
+  `/assignments/<identifier>` and `/conversations/<issue>` addresses go. A
+  conversation the tick has found but not yet saved has no page.
 - The collapsed list of ended work on the home page shows both kinds; until
   stage 4 only assignments can end.
 - The ontology and architecture docs describe the layout, the identifier and the
   daemon run record.
 
 Done when the suite passes; a daemon carries an assignment and a conversation
-end to end under the new layout; nothing a user sees has changed except the
-conversation page's address; and the status report renders with
-`dreamcatcher.toml` missing. Closes #483 and the naming half of #393.
+end to end under the new layout; nothing a user sees has changed except the work
+identifiers, which now end in their kind, and the addresses of the work pages;
+and the status report renders with `dreamcatcher.toml` missing. Closes #483 and
+the naming half of #393.
 
 Leaves for later every change to rounds, the tick, the scheduler record and the
-signals. The pull request observation keeps its state, draft flag and time until
-stage 4, once the row from stage 3 carries them. The two inspect paths and the
-two status chains stay.
+signals, except that a conversation observation has no identifier until its
+conversation exists, because the identifier carries the creation time. The pull
+request observation keeps its state, draft flag and time until stage 4, once the
+row from stage 3 carries them. The two inspect paths and the two status chains
+stay.
 
 ## Stage 2: everything is a round
 

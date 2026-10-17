@@ -3,7 +3,7 @@
     <div>{{ issue_reference(assignment.issue) }} <span class="title">{{ assignment.title }}</span></div>
     <span class="card-heading-actions">
       <span class="chip {{ status_class(assignment.status) }}">{{ assignment.status }}</span>
-      <a class="assignment-open" href="{{ url_for('show_assignment', identifier=assignment.identifier) }}" target="_blank" rel="noopener noreferrer" aria-label="Open assignment {{ assignment.identifier }} (opens in new tab)">&gt;</a>
+      <a class="assignment-open" href="{{ url_for('show_work', identifier=assignment.identifier) }}" target="_blank" rel="noopener noreferrer" aria-label="Open assignment {{ assignment.identifier }} (opens in new tab)">&gt;</a>
     </span>
   </div>
   <p class="assignment-detail">{{ assignment.detail }}</p>

@@ -3,9 +3,9 @@
 from dataclasses import dataclass
 
 from dreamcatcher.agent_assignments import (
-    Assignment,
-    find_open_assignments_by_issue,
+    read_pull_request_observation,
 )
+from dreamcatcher.agent_work import AgentWork, find_open_agent_work_by_issue
 from dreamcatcher.github import (
     Issue,
     IssueState,
@@ -43,12 +43,12 @@ class IssueObservationResult:
 def observe_issues(
     *,
     scheduler: AgentWorkScheduler,
-    assignments: list[Assignment],
+    assignments: list[AgentWork],
     incomplete_setups: dict[int, str | None],
 ) -> IssueObservationResult:
     """Observe every issue considered for assignment or claimed by this instance."""
     listing = scheduler.list_route_issues(routes=scheduler.config.assignment)
-    open_assignments = find_open_assignments_by_issue(assignments=assignments)
+    open_assignments = find_open_agent_work_by_issue(work=assignments)
     issue_responses_by_number: dict[int, Issue | UnknownGitHubResponse] = {
         issue.number: issue for issue in listing.issues
     }
@@ -83,7 +83,7 @@ def observe_issues(
 def _observe_issue(
     *,
     scheduler: AgentWorkScheduler,
-    assignments: dict[int, Assignment],
+    assignments: dict[int, AgentWork],
     incomplete_setups: dict[int, str | None],
     issue: int,
     issue_response: Issue | UnknownGitHubResponse,
@@ -170,7 +170,7 @@ def _observe_assignment_routing_conflict(*, labels: list[str]) -> ObservedFact:
 def _observe_external_claim(
     *,
     scheduler: AgentWorkScheduler,
-    assignments: dict[int, Assignment],
+    assignments: dict[int, AgentWork],
     incomplete_setups: dict[int, str | None],
     issue: int,
 ) -> ObservedFact:
@@ -190,7 +190,11 @@ def _observe_external_claim(
             response=pull_request_context,
         )
     assignment = assignments.get(issue)
-    owned = None if assignment is None else assignment.record.pull_request
+    owned = (
+        None
+        if assignment is None
+        else read_pull_request_observation(assignment=assignment).number
+    )
     external = [
         pull_request
         for pull_request in pull_request_context.pull_requests

@@ -3,10 +3,17 @@ from datetime import UTC, datetime
 
 import pytest
 from clocks import PINNED
+from records import read_conversation
 
 from dreamcatcher.agent_rounds import (
     AgentRoundRecord,
     ConversationRoundPurpose,
+)
+from dreamcatcher.agent_work import (
+    AgentWork,
+    AgentWorkRecord,
+    read_agent_work,
+    record_agent_work,
 )
 from dreamcatcher.config import (
     AgentHarness,
@@ -16,7 +23,6 @@ from dreamcatcher.config import (
 )
 from dreamcatcher.documents import write_json, write_text
 from dreamcatcher.errors import ReportableError
-from dreamcatcher.git import is_linked_worktree
 from dreamcatcher.github import (
     ConversationComment,
     GitHubLabel,
@@ -24,10 +30,8 @@ from dreamcatcher.github import (
     Issue,
     IssueState,
 )
+from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.issue_conversations import (
-    _CONVERSATION_RECORD_NAME,
-    Conversation,
-    ConversationRecord,
     ConversationRoundInput,
     InitialConversationIssue,
     IssueCommentDeliveryPosition,
@@ -35,9 +39,7 @@ from dreamcatcher.issue_conversations import (
     list_undelivered_issue_comments,
     post_conversation_answer,
     prepare_conversation_input,
-    read_conversation,
     read_conversation_input,
-    read_conversations,
     read_issue_comment_delivery_position,
 )
 from dreamcatcher.prompts import AGENT_POST_MARKER
@@ -70,21 +72,21 @@ def issue(*, number: int = 8) -> Issue:
     )
 
 
-def write_conversation(*, state: StateDirectory, number: int = 8) -> Conversation:
-    directory = state.conversations / f"GH{number}"
-    record = ConversationRecord(
-        issue=number,
-        title="Why does this happen?",
-        dispatch_label="dream:conversation",
-        harness=AgentHarness.CLAUDE,
-        model="opus[1m]",
-        effort="xhigh",
-        prompt=f"/dream:conversation GH{number}",
+def write_conversation(*, state: StateDirectory, number: int = 8) -> AgentWork:
+    return record_agent_work(
+        state=state,
+        identifier=f"GH{number}-20260923-010000-conversation",
+        record=AgentWorkRecord(
+            issue=number,
+            title="Why does this happen?",
+            dispatch_label="dream:conversation",
+            kind=AgentWorkKind.CONVERSATION,
+            harness=AgentHarness.CLAUDE,
+            model="opus[1m]",
+            effort="xhigh",
+            prompt=f"/dream:conversation GH{number}",
+        ),
     )
-    write_json(document=record, path=directory / _CONVERSATION_RECORD_NAME)
-    conversation = read_conversation(state=state, issue=number)
-    assert conversation is not None
-    return conversation
 
 
 def comment(
@@ -102,13 +104,6 @@ def comment(
     )
 
 
-def test_a_missing_conversation_reads_as_nothing(tmp_path):
-    state = StateDirectory(root=tmp_path)
-
-    assert read_conversations(state=state) == []
-    assert read_conversation(state=state, issue=8) is None
-
-
 def test_a_conversation_gets_a_detached_worktree_at_fetched_main(cloned):
     state = StateDirectory(root=cloned)
 
@@ -117,32 +112,39 @@ def test_a_conversation_gets_a_detached_worktree_at_fetched_main(cloned):
         route=conversation_route(),
         preferred_harness=AgentHarness.CLAUDE,
         issue=issue(),
+        at=PINNED,
     )
 
-    assert created.identifier == "conversation-GH8"
-    assert created.worktree == state.conversation_worktrees / "GH8"
+    assert created.identifier == "GH8-20260819-184158-conversation"
+    assert created.worktree == state.worktrees / created.identifier
     assert created.worktree.joinpath(".git").is_file()
+    assert created.record.kind is AgentWorkKind.CONVERSATION
     assert created.record.title == "Why does this happen?"
     assert created.record.harness == AgentHarness.CLAUDE
-    assert not state.assignment_worktrees.exists()
-    assert read_conversations(state=state) == [created]
-    assert (
+    assert created.record.dispatch_label == "dream:conversation"
+    assert read_agent_work(state=state) == [created]
+
+
+def test_a_conversation_whose_record_cannot_be_written_leaves_no_worktree(
+    cloned, monkeypatch
+):
+    state = StateDirectory(root=cloned)
+
+    def fail_record_write(*, document, path):
+        raise ReportableError(f"cannot write the record at {path}")
+
+    monkeypatch.setattr("dreamcatcher.agent_work.write_json", fail_record_write)
+
+    with pytest.raises(ReportableError, match="cannot write the record"):
         create_conversation(
             state=state,
-            route=ConversationRoute(
-                label="dream:scout",
-                codex=CodexRecipe(
-                    prompt="$dream:conversation GH{issue}",
-                    model="gpt-5.6-sol",
-                    effort="high",
-                ),
-            ),
-            preferred_harness=AgentHarness.CODEX,
+            route=conversation_route(),
+            preferred_harness=AgentHarness.CLAUDE,
             issue=issue(),
+            at=PINNED,
         )
-        == created
-    )
-    assert created.record.dispatch_label == "dream:conversation"
+
+    assert not (state.worktrees / "GH8-20260819-184158-conversation").exists()
 
 
 def test_a_new_conversation_records_the_preferred_harness_recipe(cloned):
@@ -162,69 +164,13 @@ def test_a_new_conversation_records_the_preferred_harness_recipe(cloned):
         route=route,
         preferred_harness=AgentHarness.CODEX,
         issue=issue(),
+        at=PINNED,
     )
 
     assert created.record.harness == AgentHarness.CODEX
     assert created.record.prompt == "$dream:conversation GH8"
     assert created.record.model == "gpt-5.6-sol"
     assert created.record.effort == "high"
-
-
-def test_a_conversation_retry_reuses_its_leftover_worktree(cloned, monkeypatch):
-    state = StateDirectory(root=cloned)
-
-    def fail_record_write(*, document, path):
-        raise ReportableError(f"cannot write the record at {path}")
-
-    with monkeypatch.context() as patched:
-        patched.setattr(
-            "dreamcatcher.issue_conversations.write_json",
-            fail_record_write,
-        )
-        with pytest.raises(ReportableError, match="cannot write the record"):
-            create_conversation(
-                state=state,
-                route=conversation_route(),
-                preferred_harness=AgentHarness.CLAUDE,
-                issue=issue(),
-            )
-
-    assert is_linked_worktree(path=state.conversation_worktrees / "GH8")
-    leftover = state.conversation_worktrees / "GH8" / "leftover.txt"
-    leftover.write_bytes(b"left by the failed attempt\n")
-    created = create_conversation(
-        state=state,
-        route=conversation_route(),
-        preferred_harness=AgentHarness.CLAUDE,
-        issue=issue(),
-    )
-    assert read_conversations(state=state) == [created]
-    assert leftover.is_file()
-
-
-def test_a_conversation_record_must_name_its_directory(tmp_path):
-    state = StateDirectory(root=tmp_path)
-    conversation = write_conversation(state=state)
-    wrong_directory = state.conversations / "GH9"
-    write_json(
-        document=conversation.record,
-        path=wrong_directory / _CONVERSATION_RECORD_NAME,
-    )
-
-    with pytest.raises(ReportableError) as error:
-        read_conversations(state=state)
-
-    assert "records GH8, but its directory is GH9" in str(error.value)
-
-
-def test_a_non_object_conversation_record_is_reportable(tmp_path):
-    state = StateDirectory(root=tmp_path)
-    record = state.conversations / "GH8" / _CONVERSATION_RECORD_NAME
-    record.parent.mkdir(parents=True)
-    record.write_bytes(b"null")
-
-    with pytest.raises(ReportableError):
-        read_conversation(state=state, issue=8)
 
 
 def test_only_new_unmarked_comments_from_the_account_are_delivered():
@@ -260,6 +206,7 @@ def test_round_input_freezes_the_issue_comments_and_revision(cloned):
         route=conversation_route(),
         preferred_harness=AgentHarness.CLAUDE,
         issue=issue(),
+        at=PINNED,
     )
 
     frozen = prepare_conversation_input(

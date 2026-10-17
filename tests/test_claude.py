@@ -72,7 +72,7 @@ def test_a_resume_continues_the_harness_session_and_replays_no_settings():
 
 def test_a_conversation_round_allows_issue_tools_and_denies_implementation_tools():
     request = AgentRoundLaunchRequest(
-        agent_work_identifier="conversation-GH9",
+        agent_work_identifier="GH9-20260819-184158-conversation",
         model="opus[1m]",
         effort="xhigh",
         prompt="answer the question",

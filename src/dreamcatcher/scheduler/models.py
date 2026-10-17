@@ -78,9 +78,13 @@ class IssueObservation(DreamcatcherDocument):
 
 
 class AgentWorkObservation(DreamcatcherDocument):
-    """Model whether one agent work item requires a round and why."""
+    """Model whether one agent work item requires a round and why.
 
-    identifier: str
+    A conversation that the tick observed before it was saved has no identifier
+    yet.
+    """
+
+    identifier: str | None
     issue: int
     requires_round: ObservedFact
 
@@ -136,7 +140,9 @@ def mark_round_started(
             issue=issue,
             requires_round=requires_round,
         )
-    return observation.model_copy(update={"requires_round": requires_round})
+    return observation.model_copy(
+        update={"identifier": identifier, "requires_round": requires_round}
+    )
 
 
 class GlobalCooldown(DreamcatcherDocument):

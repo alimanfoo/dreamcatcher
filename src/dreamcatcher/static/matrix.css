@@ -324,6 +324,7 @@ body::after {
 .status-unknown,
 .status-complete,
 .status-cancelled,
+.status-ended,
 .status-idle,
 .issue-blocked {
   color: var(--dim);
@@ -414,12 +415,12 @@ body::after {
   font-weight: 700;
 }
 
-.ended-assignments summary,
+.ended-work summary,
 .empty {
   color: var(--dim);
 }
 
-.ended-assignments summary {
+.ended-work summary {
   padding: var(--space-4) 0;
   cursor: pointer;
 }

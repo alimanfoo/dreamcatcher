@@ -5,7 +5,7 @@ from datetime import tzinfo
 from pathlib import Path
 from typing import cast
 
-from dreamcatcher.issue_conversations import Conversation
+from dreamcatcher.agent_work import AgentWork
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.status import (
     AgentRoundStatus,
@@ -69,9 +69,13 @@ def compose_home_view(*, report: DreamcatcherStatusReport) -> WebHomeView:
         instance_facts=report.instance_facts,
         assignment_section=report.assignment_section,
         conversation_section=report.conversation_section,
-        conversations=tuple(
+        active_conversations=tuple(
             _compose_conversation_card(status=status)
-            for status in report.conversation_statuses
+            for status in report.active_conversation_statuses
+        ),
+        ended_conversations=tuple(
+            _compose_conversation_card(status=status)
+            for status in report.ended_conversation_statuses
         ),
         active_assignments=tuple(
             _compose_assignment_card(status=status)
@@ -103,7 +107,7 @@ def _compose_assignment_card(*, status: AssignmentStatus) -> WebAssignmentCard:
         harness=str(assignment.record.harness),
         model=assignment.record.model,
         effort=assignment.record.effort,
-        pull_request=assignment.record.pull_request,
+        pull_request=status.pull_request_observation.number,
         pull_request_state=status.pull_request_state,
         latest_output=status.latest_output,
     )
@@ -116,6 +120,7 @@ def _compose_conversation_card(*, status: ConversationStatus) -> WebConversation
     """
     conversation = status.conversation
     return WebConversationCard(
+        identifier=None if conversation is None else conversation.identifier,
         issue=status.issue,
         title=status.title,
         status=status.value,
@@ -177,7 +182,7 @@ def compose_assignment_view(
         identifier=assignment.identifier,
         issue=record.issue,
         title=record.title,
-        pull_request=record.pull_request,
+        pull_request=status.pull_request_observation.number,
         pull_request_state=status.pull_request_state,
         dispatch_label=record.dispatch_label,
         harness=str(record.harness),
@@ -192,35 +197,30 @@ def compose_assignment_view(
 def compose_conversation_view(
     *,
     state: StateDirectory,
+    conversation: AgentWork,
     status: ConversationStatus,
     daemon: DreamcatcherDaemonStatus,
     live: WebAgentLiveState,
     zone: tzinfo | None,
 ) -> WebConversationView:
     """Return the values shown on one issue-conversation page."""
-    conversation = status.conversation
     repository = read_repository(state=state)
     feed = read_agent_feed(owner=conversation, zone=zone, rounds=live.rounds)
     return WebConversationView(
         repository=repository or "repository unknown",
         github_repository_url=_compose_github_repository_url(repository=repository),
         daemon=daemon,
+        identifier=conversation.identifier,
         issue=status.issue,
         title=status.title,
-        facts=(
-            ()
-            if conversation is None
-            else _compose_conversation_facts(conversation=conversation)
-        ),
+        facts=_compose_conversation_facts(conversation=conversation),
         live=live,
         feed_rounds=feed.rounds,
         feed_cursor=feed.cursor,
     )
 
 
-def _compose_conversation_facts(
-    *, conversation: Conversation
-) -> tuple[StatusFact, ...]:
+def _compose_conversation_facts(*, conversation: AgentWork) -> tuple[StatusFact, ...]:
     """Return the settings that a conversation settled at its first round."""
     record = conversation.record
     return (

@@ -6,9 +6,11 @@ from functools import cached_property
 from typing import cast
 
 from dreamcatcher.agent_assignments import (
-    Assignment,
+    PullRequestObservation,
+    read_pull_request_observation,
 )
 from dreamcatcher.agent_rounds import AgentRoundPaths
+from dreamcatcher.agent_work import AgentWork, AgentWorkEndReason
 from dreamcatcher.feed import read_last_feed_line
 from dreamcatcher.harness_adapters import HarnessSessionIdentifier
 from dreamcatcher.scheduler.faults import is_awaiting_recovery
@@ -45,6 +47,12 @@ class AssignmentStatusValue(StrEnum):
     UNKNOWN = "unknown"
 
 
+# The status of an assignment that has ended, by why it ended.
+_ENDED_STATUS_VALUES = {
+    AgentWorkEndReason.COMPLETED: AssignmentStatusValue.COMPLETE,
+    AgentWorkEndReason.CANCELLED: AssignmentStatusValue.CANCELLED,
+}
+
 ASSIGNMENT_STATUS_VALUES_IN_ATTENTION_ORDER = (
     AssignmentStatusValue.NEEDS_USER_FEEDBACK,
     AssignmentStatusValue.FAULT,
@@ -60,7 +68,7 @@ ASSIGNMENT_STATUS_VALUES_IN_ATTENTION_ORDER = (
 class AssignmentStatus:
     """Describe an agent assignment's derived summary status."""
 
-    assignment: Assignment
+    assignment: AgentWork
     value: AssignmentStatusValue
     detail: str
     latest_output: str | None
@@ -68,10 +76,17 @@ class AssignmentStatus:
     @property
     def has_ended(self) -> bool:
         """Whether the assignment has ended and no round of it is still running."""
-        return self.value in {
-            AssignmentStatusValue.COMPLETE,
-            AssignmentStatusValue.CANCELLED,
-        }
+        return self.value in _ENDED_STATUS_VALUES.values()
+
+    @property
+    def is_active(self) -> bool:
+        """Whether the status report lists the assignment as active work."""
+        return not self.has_ended
+
+    @cached_property
+    def pull_request_observation(self) -> PullRequestObservation:
+        """The assignment's pull request as last observed."""
+        return read_pull_request_observation(assignment=self.assignment)
 
     @property
     def pull_request_state(self) -> str | None:
@@ -80,10 +95,10 @@ class AssignmentStatus:
         A cancelled assignment has none, because nothing observes its pull
         request once the user has taken it over.
         """
-        assignment = self.assignment
-        if assignment.cancelled_at is not None:
+        ending = self.assignment.ending
+        if ending is not None and ending.reason is AgentWorkEndReason.CANCELLED:
             return None
-        observation = assignment.pull_request_observation
+        observation = self.pull_request_observation
         if observation.is_open:
             return "draft" if observation.is_draft else "ready"
         return observation.state.value.lower()
@@ -151,10 +166,10 @@ class AssignmentStatus:
 class AssignmentStatusReader(AgentWorkStatusReader[AssignmentStatus]):
     """Derive assignment statuses from local state and the latest tick."""
 
-    assignments: list[Assignment]
+    assignments: list[AgentWork]
 
     @cached_property
-    def observations(self) -> dict[str, AgentWorkObservation]:
+    def observations(self) -> dict[str | None, AgentWorkObservation]:
         """The latest assignment observations, keyed by assignment identifier."""
         scheduler_record = cast("SchedulerRecord", self.scheduler_record)
         return {
@@ -175,7 +190,7 @@ class AssignmentStatusReader(AgentWorkStatusReader[AssignmentStatus]):
         )
         return [self.derive(assignment=assignment) for assignment in ordered]
 
-    def derive(self, *, assignment: Assignment) -> AssignmentStatus:
+    def derive(self, *, assignment: AgentWork) -> AssignmentStatus:
         """Derive one assignment's status from its records and latest tick."""
         status = self._derive_working(assignment=assignment)
         if status is not None:
@@ -194,7 +209,7 @@ class AssignmentStatusReader(AgentWorkStatusReader[AssignmentStatus]):
             return status
         return self._derive_observation(assignment=assignment)
 
-    def _derive_working(self, *, assignment: Assignment) -> AssignmentStatus | None:
+    def _derive_working(self, *, assignment: AgentWork) -> AssignmentStatus | None:
         if assignment.rounds:
             latest = assignment.rounds[-1]
             if self.is_round_working(record=latest):
@@ -211,20 +226,17 @@ class AssignmentStatusReader(AgentWorkStatusReader[AssignmentStatus]):
                 )
         return None
 
-    def _derive_ended(self, *, assignment: Assignment) -> AssignmentStatus | None:
-        if assignment.is_open:
+    def _derive_ended(self, *, assignment: AgentWork) -> AssignmentStatus | None:
+        ending = assignment.ending
+        if ending is None:
             return None
         return self._compose(
             assignment=assignment,
-            value=(
-                AssignmentStatusValue.COMPLETE
-                if assignment.cancelled_at is None
-                else AssignmentStatusValue.CANCELLED
-            ),
+            value=_ENDED_STATUS_VALUES[ending.reason],
             detail=describe_count(number=len(assignment.rounds), noun="round"),
         )
 
-    def _derive_fault(self, *, assignment: Assignment) -> AssignmentStatus | None:
+    def _derive_fault(self, *, assignment: AgentWork) -> AssignmentStatus | None:
         if self.has_fault(
             records=assignment.rounds,
             retry_requested_at=assignment.retry_requested_at,
@@ -243,7 +255,7 @@ class AssignmentStatusReader(AgentWorkStatusReader[AssignmentStatus]):
         return None
 
     def _derive_awaiting_recovery(
-        self, *, assignment: Assignment
+        self, *, assignment: AgentWork
     ) -> AssignmentStatus | None:
         if is_awaiting_recovery(
             rounds=assignment.rounds, is_daemon_running=self.is_daemon_running
@@ -260,7 +272,7 @@ class AssignmentStatusReader(AgentWorkStatusReader[AssignmentStatus]):
             )
         return None
 
-    def _derive_unobserved(self, *, assignment: Assignment) -> AssignmentStatus | None:
+    def _derive_unobserved(self, *, assignment: AgentWork) -> AssignmentStatus | None:
         """Derive the status of an assignment that no tick could have observed."""
         if not assignment.rounds:
             return self._compose(
@@ -276,7 +288,7 @@ class AssignmentStatusReader(AgentWorkStatusReader[AssignmentStatus]):
             )
         return None
 
-    def _derive_observation(self, *, assignment: Assignment) -> AssignmentStatus:
+    def _derive_observation(self, *, assignment: AgentWork) -> AssignmentStatus:
         observation = self.observations.get(assignment.identifier)
         latest = assignment.rounds[-1]
         if self.did_round_end_after_latest_tick(
@@ -303,7 +315,7 @@ class AssignmentStatusReader(AgentWorkStatusReader[AssignmentStatus]):
             )
         if observation.requires_round.value is Truth.TRUE:
             purpose = derive_round_purpose(
-                pull_request=assignment.pull_request_observation
+                pull_request=read_pull_request_observation(assignment=assignment)
             )
             return self._compose(
                 assignment=assignment,
@@ -319,7 +331,7 @@ class AssignmentStatusReader(AgentWorkStatusReader[AssignmentStatus]):
     def _compose(
         self,
         *,
-        assignment: Assignment,
+        assignment: AgentWork,
         value: AssignmentStatusValue,
         detail: str,
         latest_output: str | None = None,
@@ -331,7 +343,7 @@ class AssignmentStatusReader(AgentWorkStatusReader[AssignmentStatus]):
             latest_output=latest_output,
         )
 
-    def _describe_last_output(self, *, assignment: Assignment) -> str:
+    def _describe_last_output(self, *, assignment: AgentWork) -> str:
         line = read_last_feed_line(
             path=assignment.compose_round_paths(
                 number=assignment.rounds[-1].number

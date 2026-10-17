@@ -44,7 +44,7 @@ def test_a_round_link_brings_its_round_into_view_from_the_tail(
     page: Page,
     live_web: str,
 ) -> None:
-    page.goto(f"{live_web}/assignments/{BROWSER_ASSIGNMENT_IDENTIFIER}")
+    page.goto(f"{live_web}/work/{BROWSER_ASSIGNMENT_IDENTIFIER}")
     expect(page.locator("#agent-work-status")).to_have_text("working")
     expect(page.get_by_text("daemon not running", exact=True)).to_have_count(0)
     expect(page.get_by_text("resume by hand", exact=True)).to_have_count(0)
@@ -74,7 +74,7 @@ def test_a_round_link_brings_its_round_into_view_from_the_tail(
 
 def test_a_refresh_leaves_an_opened_section_open(page: Page, live_web: str) -> None:
     page.goto(live_web)
-    ended = page.locator("details.ended-assignments")
+    ended = page.locator("details.ended-work")
     ended.locator("summary").click()
     expect(ended).to_have_attribute("open", "")
 
@@ -116,7 +116,7 @@ def test_a_failed_home_refresh_keeps_the_dashboard_and_reports_why(
 def test_a_tail_refresh_leaves_an_opened_hand_resume_open(
     page: Page, live_web: str
 ) -> None:
-    page.goto(f"{live_web}/conversations/8")
+    page.goto(f"{live_web}/work/GH8-20260819-184158-conversation")
     hand_resume = page.locator("#agent-work-foot details")
     hand_resume.locator("summary").click()
     expect(hand_resume).to_have_attribute("open", "")
@@ -127,7 +127,7 @@ def test_a_tail_refresh_leaves_an_opened_hand_resume_open(
 
 
 def test_stopping_a_round_asks_first(page: Page, live_web: str) -> None:
-    page.goto(f"{live_web}/assignments/{BROWSER_ASSIGNMENT_IDENTIFIER}")
+    page.goto(f"{live_web}/work/{BROWSER_ASSIGNMENT_IDENTIFIER}")
     stop = page.get_by_role("button", name="stop round")
 
     page.once("dialog", lambda dialog: dialog.dismiss())
@@ -140,7 +140,7 @@ def test_stopping_a_round_asks_first(page: Page, live_web: str) -> None:
 
 
 def test_cancelling_an_assignment_asks_first(page: Page, live_web: str) -> None:
-    page.goto(f"{live_web}/assignments/GH44-20260819-184158")
+    page.goto(f"{live_web}/work/GH44-20260819-184158-assignment")
     cancel = page.get_by_role("button", name="cancel assignment")
 
     page.once("dialog", lambda dialog: dialog.dismiss())
@@ -204,7 +204,7 @@ def test_dark_nature_uses_the_dusk_palette_and_follows_the_night(
                 abs=0.0001,
             )
 
-    page.goto(f"{live_web}/assignments/{BROWSER_ASSIGNMENT_IDENTIFIER}")
+    page.goto(f"{live_web}/work/{BROWSER_ASSIGNMENT_IDENTIFIER}")
     expect(page.locator(".feed-line time").first).to_have_css(
         "color",
         "rgba(236, 230, 220, 0.56)",

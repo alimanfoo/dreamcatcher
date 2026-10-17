@@ -12,7 +12,12 @@ from dreamcatcher.agent_rounds import (
     ConversationRoundPurpose,
     start_agent_round,
 )
-from dreamcatcher.agent_work import record_harness_session_identifier
+from dreamcatcher.agent_work import (
+    AgentWork,
+    find_open_agent_work_by_issue,
+    read_agent_work_of_kind,
+    record_harness_session_identifier,
+)
 from dreamcatcher.config import ConversationRoute
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.github import (
@@ -23,16 +28,13 @@ from dreamcatcher.github import (
 )
 from dreamcatcher.harness_adapters import AgentRoundLaunchRequest, AgentWorkKind
 from dreamcatcher.issue_conversations import (
-    Conversation,
     ConversationRoundInput,
-    compose_conversation_identifier,
     create_conversation,
     is_conversation_ready_for_input,
     list_undelivered_issue_comments,
     post_conversation_answer,
     prepare_conversation_input,
     read_conversation_input,
-    read_conversations,
     read_issue_comment_delivery_position,
 )
 from dreamcatcher.prompts import (
@@ -61,7 +63,7 @@ class ConversationBatchCandidate:
 
     issue: Issue
     comments: list[ConversationComment]
-    conversation: Conversation | None
+    conversation: AgentWork | None
     route: ConversationRoute
 
 
@@ -69,7 +71,7 @@ class ConversationBatchCandidate:
 class ConversationRecoveryCandidate:
     """Describe an eligible conversation with unfinished work to recover."""
 
-    conversation: Conversation
+    conversation: AgentWork
 
 
 type ConversationCandidate = ConversationBatchCandidate | ConversationRecoveryCandidate
@@ -96,10 +98,11 @@ class ConversationScheduler(
     ) -> AgentWorkInspection[ConversationCandidate, ConversationObservation]:
         """Observe matching issues and return conversation work ready to run."""
         listing = self.list_route_issues(routes=self.config.conversation)
-        conversations = read_conversations(state=self.state)
-        conversations_by_issue = {
-            conversation.record.issue: conversation for conversation in conversations
-        }
+        conversations_by_issue = find_open_agent_work_by_issue(
+            work=read_agent_work_of_kind(
+                state=self.state, kind=AgentWorkKind.CONVERSATION
+            )
+        )
         most_recent_cooldown_ended = (
             None
             if previous_record is None
@@ -143,11 +146,11 @@ class ConversationScheduler(
 
     def launch(self, *, candidate: ConversationCandidate, at: datetime) -> AgentRound:
         """Prepare a conversation's required work and start its next round."""
-        request = self._prepare_round_start_request(candidate=candidate)
+        request = self._prepare_round_start_request(candidate=candidate, at=at)
         return start_agent_round(request=request, clock=self.clock)
 
     def _prepare_round_start_request(
-        self, *, candidate: ConversationCandidate
+        self, *, candidate: ConversationCandidate, at: datetime
     ) -> AgentRoundStartRequest:
         if isinstance(candidate, ConversationRecoveryCandidate):
             return self._prepare_recovery_round(conversation=candidate.conversation)
@@ -156,6 +159,7 @@ class ConversationScheduler(
             route=candidate.route,
             preferred_harness=self.preferred_harness,
             issue=candidate.issue,
+            at=at,
         )
         round_input = prepare_conversation_input(
             state=self.state,
@@ -182,7 +186,7 @@ class ConversationScheduler(
         )
 
     def _prepare_recovery_round(
-        self, *, conversation: Conversation
+        self, *, conversation: AgentWork
     ) -> AgentRoundStartRequest:
         latest_round = conversation.rounds[-1]
         return self._compose_round_start_request(
@@ -201,7 +205,7 @@ class ConversationScheduler(
     def _compose_round_start_request(
         self,
         *,
-        conversation: Conversation,
+        conversation: AgentWork,
         next_round_prompt: str,
         plan: AgentRoundPlan[ConversationRoundInput],
     ) -> AgentRoundStartRequest:
@@ -251,7 +255,7 @@ class ConversationScheduler(
         self,
         *,
         listing: RouteIssueListing,
-        conversations_by_issue: dict[int, Conversation],
+        conversations_by_issue: dict[int, AgentWork],
         most_recent_cooldown_ended: datetime | None,
     ) -> tuple[
         list[ConversationCandidate],
@@ -287,7 +291,7 @@ class ConversationScheduler(
         self,
         *,
         issue: Issue,
-        conversation: Conversation | None,
+        conversation: AgentWork | None,
         most_recent_cooldown_ended: datetime | None,
     ) -> _ConversationInspection | None:
         """Inspect one currently matching listed issue."""
@@ -306,7 +310,7 @@ class ConversationScheduler(
         labels = ", ".join(sorted((route.label for route in routes), key=str.casefold))
         return _ConversationInspection(
             observation=ConversationObservation(
-                identifier=compose_conversation_identifier(issue=issue.number),
+                identifier=None if conversation is None else conversation.identifier,
                 issue=issue.number,
                 title=issue.title,
                 requires_round=ObservedFact(
@@ -326,7 +330,7 @@ class ConversationScheduler(
         *,
         route: ConversationRoute,
         issue: Issue,
-        conversation: Conversation | None,
+        conversation: AgentWork | None,
         most_recent_cooldown_ended: datetime | None,
     ) -> _ConversationInspection:
         """Observe one eligible issue and return a candidate when ready."""
@@ -342,7 +346,7 @@ class ConversationScheduler(
             conversation=conversation,
         )
         observation = ConversationObservation(
-            identifier=compose_conversation_identifier(issue=issue.number),
+            identifier=None if conversation is None else conversation.identifier,
             issue=issue.number,
             title=issue.title,
             requires_round=requires_round,
@@ -361,7 +365,7 @@ class ConversationScheduler(
         self,
         *,
         issue: int,
-        conversation: Conversation | None,
+        conversation: AgentWork | None,
     ) -> tuple[list[ConversationComment], ObservedFact]:
         try:
             comments = _list_comments_to_answer(
@@ -392,7 +396,7 @@ def _list_comments_to_answer(
     repository: str,
     account: str,
     issue: int,
-    conversation: Conversation | None,
+    conversation: AgentWork | None,
 ) -> list[ConversationComment]:
     """Return the trusted comments that no round has been given yet.
 
@@ -444,7 +448,7 @@ def _carry_forward_unlisted_observations(
 def _inspect_conversation_recovery(
     *,
     issue: Issue,
-    conversation: Conversation | None,
+    conversation: AgentWork | None,
     most_recent_cooldown_ended: datetime | None,
 ) -> _ConversationInspection | None:
     if conversation is not None and derive_agent_work_fault(
@@ -491,7 +495,7 @@ def _inspect_conversation_recovery(
 def _count_carried_conversation_faults(
     *,
     observations: list[ConversationObservation],
-    conversations_by_issue: dict[int, Conversation],
+    conversations_by_issue: dict[int, AgentWork],
     most_recent_cooldown_ended: datetime | None,
 ) -> int:
     """Count faults among conversations carried across a failed listing."""

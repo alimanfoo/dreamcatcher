@@ -13,11 +13,14 @@ from unittest.mock import MagicMock
 
 import pytest
 from clocks import DISPLAY_TIME_ZONE, PINNED
-from conftest import FIXTURES, REPOSITORY, assert_matches_view_golden, configure
+from conftest import DAEMON_PID, FIXTURES, REPOSITORY, assert_matches_view_golden
 from observations import observed_conversation, observed_issue
 from records import (
+    SCOUT_ROUTES,
+    SMITH_ROUTES,
     release_daemon_lock,
     write_assignment,
+    write_daemon_run,
     write_feed,
     write_round,
     write_tick,
@@ -42,18 +45,23 @@ import dreamcatcher.web.app as web_app_module
 import dreamcatcher.web.server as web_server_module
 from dreamcatcher.agent_assignments import (
     cancel_assignment,
-    read_assignment,
-    read_assignments_for_issue,
 )
 from dreamcatcher.agent_rounds import (
     AgentRoundRecord,
     AssignmentRoundPurpose,
     StoppedAgentRoundEnding,
 )
-from dreamcatcher.config import DREAMCATCHER_CONFIG_NAME
+from dreamcatcher.agent_work import (
+    AgentWorkEnding,
+    AgentWorkEndReason,
+    find_agent_work,
+    read_agent_work_at_issue,
+)
+from dreamcatcher.daemon_runs import RecordedRoute
 from dreamcatcher.documents import append_text, write_text
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import FeedLine
+from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.scheduler.models import (
     GlobalCooldown,
     SchedulerRecord,
@@ -75,33 +83,13 @@ WEB_STATUS_REPORTS = {
     "titles-and-pull-requests": fabricate_titles_and_pull_request_states,
 }
 WEB_ASSIGNMENT_PAGES = {
-    "cancelled": (fabricate_everything, "GH70-20260819-184158"),
-    "complete": (fabricate_everything, "GH12-20260819-184158"),
-    "fault": (fabricate_everything, "GH9-20260819-184158"),
-    "silent-round": (fabricate_a_silent_round, "GH13-20260819-184158"),
-    "waiting-to-start": (fabricate_everything, "GH44-20260819-184158"),
-    "working": (fabricate_everything, "GH13-20260819-184158"),
+    "cancelled": (fabricate_everything, "GH70-20260819-184158-assignment"),
+    "complete": (fabricate_everything, "GH12-20260819-184158-assignment"),
+    "fault": (fabricate_everything, "GH9-20260819-184158-assignment"),
+    "silent-round": (fabricate_a_silent_round, "GH13-20260819-184158-assignment"),
+    "waiting-to-start": (fabricate_everything, "GH44-20260819-184158-assignment"),
+    "working": (fabricate_everything, "GH13-20260819-184158-assignment"),
 }
-
-CONVERSATION_ONLY_CONFIG = """[[conversation]]
-label = "dream:scout"
-[conversation.claude]
-prompt = "/dream:scout GH{issue}"
-model = "opus"
-effort = "xhigh"
-"""
-
-ADDITIONAL_AGENT_WORK_CONFIG = (
-    CONVERSATION_ONLY_CONFIG
-    + """
-[[assignment]]
-label = "dream:zebra"
-[assignment.claude]
-prompt = "/dream:zebra GH{issue}"
-model = "opus"
-effort = "xhigh"
-"""
-)
 
 
 def render_home(*, state: StateDirectory) -> str:
@@ -119,7 +107,7 @@ def render_assignment(*, state: StateDirectory, identifier: str) -> str:
     application = _create_app(
         state=state, clock=lambda: LOOKED_AT, zone=DISPLAY_TIME_ZONE
     )
-    response = application.test_client().get(f"/assignments/{identifier}")
+    response = application.test_client().get(f"/work/{identifier}")
     assert response.status_code == 200
     return response.get_data(as_text=True)
 
@@ -129,7 +117,9 @@ def render_conversation(*, state: StateDirectory, issue: int) -> str:
     application = _create_app(
         state=state, clock=lambda: LOOKED_AT, zone=DISPLAY_TIME_ZONE
     )
-    response = application.test_client().get(f"/conversations/{issue}")
+    response = application.test_client().get(
+        f"/work/GH{issue}-20260819-184158-conversation"
+    )
     assert response.status_code == 200
     return response.get_data(as_text=True)
 
@@ -139,13 +129,13 @@ def _read_tail(*, state: StateDirectory, identifier: str, cursor: str) -> TestRe
         state=state, clock=lambda: LOOKED_AT, zone=DISPLAY_TIME_ZONE
     )
     return application.test_client().get(
-        f"/assignments/{identifier}/tail",
+        f"/work/{identifier}/tail",
         query_string={"cursor": cursor},
     )
 
 
 def _feed_path(*, state: StateDirectory, identifier: str, number: int):
-    assignment = read_assignment(state=state, identifier=identifier)
+    assignment = find_agent_work(state=state, identifier=identifier)
     assert assignment is not None
     return assignment.compose_round_paths(number=number).feed
 
@@ -170,10 +160,18 @@ def test_a_state_directory_renders_as_its_golden_home(name, tmp_path, pytestconf
     )
 
 
-def test_an_empty_home_names_every_configured_agent_work_label(tmp_path):
+def test_an_empty_home_names_every_routed_label(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_nothing(state=state)
-    configure(root=state.root, head=ADDITIONAL_AGENT_WORK_CONFIG)
+    write_daemon_run(
+        state=state,
+        pid=DAEMON_PID,
+        routes=[
+            *SMITH_ROUTES,
+            *SCOUT_ROUTES,
+            RecordedRoute(label="dream:zebra", kind=AgentWorkKind.ASSIGNMENT),
+        ],
+    )
 
     page = render_home(state=state)
 
@@ -187,13 +185,10 @@ def test_an_empty_home_names_every_configured_agent_work_label(tmp_path):
     )
 
 
-def test_an_empty_home_hides_an_unconfigured_assignment_section(tmp_path):
+def test_an_empty_home_hides_an_unrouted_assignment_section(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_nothing(state=state)
-    write_text(
-        text=CONVERSATION_ONLY_CONFIG,
-        path=state.root / DREAMCATCHER_CONFIG_NAME,
-    )
+    write_daemon_run(state=state, pid=DAEMON_PID, routes=SCOUT_ROUTES)
 
     page = render_home(state=state)
 
@@ -224,7 +219,7 @@ def test_assignment_page_shows_the_common_agent_work_facts(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
 
-    page = render_assignment(state=state, identifier="GH13-20260819-184158")
+    page = render_assignment(state=state, identifier="GH13-20260819-184158-assignment")
 
     assert page.count("<dt>") == 3
     assert "<dt>label</dt><dd>dream:smith</dd>" in page
@@ -240,7 +235,7 @@ def test_assignment_page_asks_once_whether_the_daemon_runs(tmp_path, monkeypatch
     probe = MagicMock(wraps=report_module.is_daemon_lock_held)
     monkeypatch.setattr(report_module, "is_daemon_lock_held", probe)
 
-    render_assignment(state=state, identifier="GH13-20260819-184158")
+    render_assignment(state=state, identifier="GH13-20260819-184158-assignment")
 
     probe.assert_called_once_with(path=state.lock)
 
@@ -248,47 +243,47 @@ def test_assignment_page_asks_once_whether_the_daemon_runs(tmp_path, monkeypatch
 def test_assignment_page_requests_a_stop_for_its_running_round(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
-    identifier = "GH13-20260819-184158"
+    identifier = "GH13-20260819-184158-assignment"
     application = _create_app(
         state=state, clock=lambda: LOOKED_AT, zone=DISPLAY_TIME_ZONE
     )
     client = application.test_client()
 
-    page = client.get(f"/assignments/{identifier}")
+    page = client.get(f"/work/{identifier}")
 
     assert page.status_code == 200
-    assert f'action="/assignments/{identifier}/stop/2"' in page.text
+    assert f'action="/work/{identifier}/stop/2"' in page.text
 
     response = client.post(
-        f"/assignments/{identifier}/stop/2",
+        f"/work/{identifier}/stop/2",
         headers={"Origin": "http://localhost"},
     )
 
     assert response.status_code == 303
-    assert response.location == f"/assignments/{identifier}"
-    assignment = read_assignment(state=state, identifier=identifier)
+    assert response.location == f"/work/{identifier}"
+    assignment = find_agent_work(state=state, identifier=identifier)
     assert assignment is not None
     paths = assignment.compose_round_paths(number=2)
     assert paths.stop_request.read_text(encoding="utf-8") == ""
     assert (
-        f'action="/assignments/{identifier}/stop/2"'
-        not in client.get(f"/assignments/{identifier}").text
+        f'action="/work/{identifier}/stop/2"'
+        not in client.get(f"/work/{identifier}").text
     )
 
 
 def test_an_old_assignment_stop_submission_cannot_stop_the_next_round(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
-    identifier = "GH13-20260819-184158"
+    identifier = "GH13-20260819-184158-assignment"
     client = _create_app(state=state, clock=lambda: LOOKED_AT).test_client()
 
     response = client.post(
-        f"/assignments/{identifier}/stop/1",
+        f"/work/{identifier}/stop/1",
         headers={"Origin": "http://localhost"},
     )
 
     assert response.status_code == 303
-    assignment = read_assignment(state=state, identifier=identifier)
+    assignment = find_agent_work(state=state, identifier=identifier)
     assert assignment is not None
     assert not assignment.compose_round_paths(number=2).stop_request.exists()
 
@@ -297,14 +292,14 @@ def test_an_old_assignment_stop_submission_cannot_stop_the_next_round(tmp_path):
 def test_assignment_stop_requests_must_come_from_the_page(tmp_path, origin):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
-    identifier = "GH13-20260819-184158"
+    identifier = "GH13-20260819-184158-assignment"
     client = _create_app(state=state, clock=lambda: LOOKED_AT).test_client()
     headers = {} if origin is None else {"Origin": origin}
 
-    response = client.post(f"/assignments/{identifier}/stop/2", headers=headers)
+    response = client.post(f"/work/{identifier}/stop/2", headers=headers)
 
     assert response.status_code == 403
-    assignment = read_assignment(state=state, identifier=identifier)
+    assignment = find_agent_work(state=state, identifier=identifier)
     assert assignment is not None
     assert not assignment.compose_round_paths(number=2).stop_request.exists()
 
@@ -312,7 +307,7 @@ def test_assignment_stop_requests_must_come_from_the_page(tmp_path, origin):
 def test_assignment_stop_control_needs_a_daemon_and_harness_session(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
-    identifier = "GH60-20260819-184158"
+    identifier = "GH60-20260819-184158-assignment"
     directory = write_assignment(
         state=state,
         identifier=identifier,
@@ -323,23 +318,25 @@ def test_assignment_stop_control_needs_a_daemon_and_harness_session(tmp_path):
 
     without_session = render_assignment(state=state, identifier=identifier)
 
-    assert f'action="/assignments/{identifier}/stop/1"' not in without_session
+    assert f'action="/work/{identifier}/stop/1"' not in without_session
 
     release_daemon_lock(path=state.lock)
-    without_daemon = render_assignment(state=state, identifier="GH13-20260819-184158")
+    without_daemon = render_assignment(
+        state=state, identifier="GH13-20260819-184158-assignment"
+    )
 
-    assert 'action="/assignments/GH13-20260819-184158/stop/2"' not in without_daemon
+    assert 'action="/work/GH13-20260819-184158-assignment/stop/2"' not in without_daemon
 
 
 def test_assignment_tail_updates_the_stop_and_cancel_controls(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
-    identifier = "GH13-20260819-184158"
+    identifier = "GH13-20260819-184158-assignment"
     client = _create_app(state=state, clock=lambda: LOOKED_AT).test_client()
-    page = client.get(f"/assignments/{identifier}")
+    page = client.get(f"/work/{identifier}")
 
     response = client.get(
-        f"/assignments/{identifier}/tail",
+        f"/work/{identifier}/tail",
         query_string={"cursor": _read_cursor(response=page)},
     )
 
@@ -348,21 +345,21 @@ def test_assignment_tail_updates_the_stop_and_cancel_controls(tmp_path):
         '<div id="agent-work-foot" class="agent-work-foot" '
         'hx-swap-oob="morph">' in response.text
     )
-    assert f'action="/assignments/{identifier}/stop/2"' in response.text
-    assert f'action="/assignments/{identifier}/cancel"' in response.text
+    assert f'action="/work/{identifier}/stop/2"' in response.text
+    assert f'action="/work/{identifier}/cancel"' in response.text
 
 
 def test_assignment_tail_offers_a_hand_resume_only_while_no_round_runs(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
-    identifier = "GH13-20260819-184158"
+    identifier = "GH13-20260819-184158-assignment"
     client = _create_app(state=state, clock=lambda: LOOKED_AT).test_client()
-    page = client.get(f"/assignments/{identifier}")
+    page = client.get(f"/work/{identifier}")
     query = {"cursor": _read_cursor(response=page)}
 
-    working = client.get(f"/assignments/{identifier}/tail", query_string=query)
+    working = client.get(f"/work/{identifier}/tail", query_string=query)
     release_daemon_lock(path=state.lock)
-    without_daemon = client.get(f"/assignments/{identifier}/tail", query_string=query)
+    without_daemon = client.get(f"/work/{identifier}/tail", query_string=query)
 
     assert "<summary>resume by hand</summary>" not in working.text
     assert "<summary>resume by hand</summary>" in without_daemon.text
@@ -372,16 +369,16 @@ def test_assignment_tail_offers_a_hand_resume_only_while_no_round_runs(tmp_path)
 def test_a_stale_assignment_stop_request_is_already_done(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
-    identifier = "GH12-20260819-184158"
+    identifier = "GH12-20260819-184158-assignment"
     client = _create_app(state=state, clock=lambda: LOOKED_AT).test_client()
 
     response = client.post(
-        f"/assignments/{identifier}/stop/2",
+        f"/work/{identifier}/stop/2",
         headers={"Origin": "http://localhost"},
     )
 
     assert response.status_code == 303
-    assignment = read_assignment(state=state, identifier=identifier)
+    assignment = find_agent_work(state=state, identifier=identifier)
     assert assignment is not None
     assert not assignment.compose_round_paths(number=2).stop_request.exists()
 
@@ -391,7 +388,7 @@ def test_an_unknown_assignment_cannot_receive_a_stop_request(tmp_path):
     client = _create_app(state=state, clock=lambda: LOOKED_AT).test_client()
 
     response = client.post(
-        "/assignments/unknown/stop/1",
+        "/work/unknown/stop/1",
         headers={"Origin": "http://localhost"},
     )
 
@@ -401,27 +398,31 @@ def test_an_unknown_assignment_cannot_receive_a_stop_request(tmp_path):
 def test_assignment_page_cancels_its_assignment(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
-    identifier = "GH13-20260819-184158"
+    identifier = "GH13-20260819-184158-assignment"
     client = _create_app(state=state, clock=lambda: LOOKED_AT).test_client()
 
-    page = client.get(f"/assignments/{identifier}")
+    page = client.get(f"/work/{identifier}")
 
-    assert f'action="/assignments/{identifier}/cancel"' in page.text
+    assert f'action="/work/{identifier}/cancel"' in page.text
 
     response = client.post(
-        f"/assignments/{identifier}/cancel",
+        f"/work/{identifier}/cancel",
         headers={"Origin": "http://localhost"},
     )
 
     assert response.status_code == 303
-    assert response.location == f"/assignments/{identifier}"
-    assignment = read_assignment(state=state, identifier=identifier)
+    assert response.location == f"/work/{identifier}"
+    assignment = find_agent_work(state=state, identifier=identifier)
     assert assignment is not None
-    assert assignment.cancelled_at == LOOKED_AT
+    assert assignment.ending == AgentWorkEnding(
+        at=LOOKED_AT, reason=AgentWorkEndReason.CANCELLED
+    )
     assert assignment.compose_round_paths(number=2).stop_request.is_file()
 
 
-@pytest.mark.parametrize("identifier", ["GH12-20260819-184158", "GH70-20260819-184158"])
+@pytest.mark.parametrize(
+    "identifier", ["GH12-20260819-184158-assignment", "GH70-20260819-184158-assignment"]
+)
 def test_an_ended_assignment_offers_no_cancel_control(tmp_path, identifier):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
@@ -434,8 +435,8 @@ def test_an_ended_assignment_offers_no_cancel_control(tmp_path, identifier):
 def test_a_cancelled_assignment_still_working_offers_no_cancel_control(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
-    identifier = "GH13-20260819-184158"
-    assignment = read_assignment(state=state, identifier=identifier)
+    identifier = "GH13-20260819-184158-assignment"
+    assignment = find_agent_work(state=state, identifier=identifier)
     assert assignment is not None
     cancel_assignment(assignment=assignment, at=LOOKED_AT)
 
@@ -449,14 +450,14 @@ def test_a_cancelled_assignment_still_working_offers_no_cancel_control(tmp_path)
 def test_assignment_cancels_must_come_from_the_page(tmp_path, origin):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
-    identifier = "GH13-20260819-184158"
+    identifier = "GH13-20260819-184158-assignment"
     client = _create_app(state=state, clock=lambda: LOOKED_AT).test_client()
     headers = {} if origin is None else {"Origin": origin}
 
-    response = client.post(f"/assignments/{identifier}/cancel", headers=headers)
+    response = client.post(f"/work/{identifier}/cancel", headers=headers)
 
     assert response.status_code == 403
-    assignment = read_assignment(state=state, identifier=identifier)
+    assignment = find_agent_work(state=state, identifier=identifier)
     assert assignment is not None
     assert assignment.is_open
 
@@ -464,18 +465,20 @@ def test_assignment_cancels_must_come_from_the_page(tmp_path, origin):
 def test_a_stale_assignment_cancel_changes_nothing(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
-    identifier = "GH70-20260819-184158"
+    identifier = "GH70-20260819-184158-assignment"
     client = _create_app(state=state, clock=lambda: LOOKED_AT).test_client()
 
     response = client.post(
-        f"/assignments/{identifier}/cancel",
+        f"/work/{identifier}/cancel",
         headers={"Origin": "http://localhost"},
     )
 
     assert response.status_code == 303
-    assignment = read_assignment(state=state, identifier=identifier)
+    assignment = find_agent_work(state=state, identifier=identifier)
     assert assignment is not None
-    assert assignment.cancelled_at == PINNED + timedelta(minutes=10)
+    assert assignment.ending == AgentWorkEnding(
+        at=PINNED + timedelta(minutes=10), reason=AgentWorkEndReason.CANCELLED
+    )
 
 
 def test_an_unknown_assignment_cannot_be_cancelled(tmp_path):
@@ -483,7 +486,7 @@ def test_an_unknown_assignment_cannot_be_cancelled(tmp_path):
     client = _create_app(state=state, clock=lambda: LOOKED_AT).test_client()
 
     response = client.post(
-        "/assignments/unknown/cancel",
+        "/work/unknown/cancel",
         headers={"Origin": "http://localhost"},
     )
 
@@ -493,43 +496,43 @@ def test_an_unknown_assignment_cannot_be_cancelled(tmp_path):
 def test_assignment_page_requests_a_retry_for_its_fault(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
-    identifier = "GH9-20260819-184158"
+    identifier = "GH9-20260819-184158-assignment"
     client = _create_app(state=state, clock=lambda: LOOKED_AT).test_client()
 
-    page = client.get(f"/assignments/{identifier}")
+    page = client.get(f"/work/{identifier}")
 
-    assert f'action="/assignments/{identifier}/retry/2"' in page.text
+    assert f'action="/work/{identifier}/retry/2"' in page.text
 
     response = client.post(
-        f"/assignments/{identifier}/retry/2",
+        f"/work/{identifier}/retry/2",
         headers={"Origin": "http://localhost"},
     )
 
     assert response.status_code == 303
-    assert response.location == f"/assignments/{identifier}"
-    assignment = read_assignment(state=state, identifier=identifier)
+    assert response.location == f"/work/{identifier}"
+    assignment = find_agent_work(state=state, identifier=identifier)
     assert assignment is not None
     assert assignment.retry_requested_at == LOOKED_AT
     assert (
-        f'action="/assignments/{identifier}/retry/2"'
-        not in client.get(f"/assignments/{identifier}").text
+        f'action="/work/{identifier}/retry/2"'
+        not in client.get(f"/work/{identifier}").text
     )
 
 
 def test_assignment_tail_offers_the_retry_control(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
-    identifier = "GH9-20260819-184158"
+    identifier = "GH9-20260819-184158-assignment"
 
     response = _read_tail(state=state, identifier=identifier, cursor="1:0")
 
     assert '<div id="agent-work-retry" hx-swap-oob="morph">' in response.text
-    assert f'action="/assignments/{identifier}/retry/2"' in response.text
+    assert f'action="/work/{identifier}/retry/2"' in response.text
 
 
 @pytest.mark.parametrize(
     ("identifier", "number"),
-    [("GH9-20260819-184158", 1), ("GH12-20260819-184158", 2)],
+    [("GH9-20260819-184158-assignment", 1), ("GH12-20260819-184158-assignment", 2)],
 )
 def test_an_assignment_retry_needs_its_fault_at_the_submitted_round(
     tmp_path, identifier, number
@@ -539,12 +542,12 @@ def test_an_assignment_retry_needs_its_fault_at_the_submitted_round(
     client = _create_app(state=state, clock=lambda: LOOKED_AT).test_client()
 
     response = client.post(
-        f"/assignments/{identifier}/retry/{number}",
+        f"/work/{identifier}/retry/{number}",
         headers={"Origin": "http://localhost"},
     )
 
     assert response.status_code == 303
-    assignment = read_assignment(state=state, identifier=identifier)
+    assignment = find_agent_work(state=state, identifier=identifier)
     assert assignment is not None
     assert assignment.retry_requested_at is None
 
@@ -553,14 +556,14 @@ def test_an_assignment_retry_needs_its_fault_at_the_submitted_round(
 def test_assignment_retry_requests_must_come_from_the_page(tmp_path, origin):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
-    identifier = "GH9-20260819-184158"
+    identifier = "GH9-20260819-184158-assignment"
     client = _create_app(state=state, clock=lambda: LOOKED_AT).test_client()
     headers = {} if origin is None else {"Origin": origin}
 
-    response = client.post(f"/assignments/{identifier}/retry/2", headers=headers)
+    response = client.post(f"/work/{identifier}/retry/2", headers=headers)
 
     assert response.status_code == 403
-    assignment = read_assignment(state=state, identifier=identifier)
+    assignment = find_agent_work(state=state, identifier=identifier)
     assert assignment is not None
     assert assignment.retry_requested_at is None
 
@@ -570,7 +573,7 @@ def test_an_unknown_assignment_cannot_receive_a_retry_request(tmp_path):
     client = _create_app(state=state, clock=lambda: LOOKED_AT).test_client()
 
     response = client.post(
-        "/assignments/unknown/retry/2",
+        "/work/unknown/retry/2",
         headers={"Origin": "http://localhost"},
     )
 
@@ -594,7 +597,7 @@ def test_a_stopped_round_is_shown_as_stopped(tmp_path):
         ],
     )
 
-    page = render_assignment(state=state, identifier="GH61-20260819-184158")
+    page = render_assignment(state=state, identifier="GH61-20260819-184158-assignment")
 
     assert 'class="round-outcome outcome-stopped">stopped</span>' in page
 
@@ -606,13 +609,14 @@ def test_a_home_card_links_to_its_exact_assignment(tmp_path):
     page = render_home(state=state)
 
     assignment_link = (
-        'class="assignment-open" href="/assignments/GH13-20260819-184158" '
+        'class="assignment-open" href="/work/GH13-20260819-184158-assignment" '
         'target="_blank" rel="noopener noreferrer" '
-        'aria-label="Open assignment GH13-20260819-184158 (opens in new tab)"'
+        'aria-label="Open assignment GH13-20260819-184158-assignment '
+        '(opens in new tab)"'
     )
     assert assignment_link in page
-    assert page.count('href="/assignments/GH13-20260819-184158"') == 1
-    card_start = page.index('<article id="assignment-GH13-20260819-184158"')
+    assert page.count('href="/work/GH13-20260819-184158-assignment"') == 1
+    card_start = page.index('<article id="assignment-GH13-20260819-184158-assignment"')
     card = page[card_start : page.index("</article>", card_start)]
     assert card.index(assignment_link) < card.index('class="assignment-detail"')
     assert card.index('class="pr-chip"') > card.index('class="assignment-detail"')
@@ -629,7 +633,7 @@ def test_feedback_card_keeps_its_compact_actions_inside_the_heading(tmp_path):
     stylesheet = (
         application.test_client().get("/static/matrix.css").get_data(as_text=True)
     )
-    card_start = page.index('<article id="assignment-GH20-20260819-184158"')
+    card_start = page.index('<article id="assignment-GH20-20260819-184158-assignment"')
     card = page[card_start : page.index("</article>", card_start)]
 
     assert (
@@ -674,9 +678,9 @@ def test_status_classes_do_not_depend_on_status_wording(tmp_path, monkeypatch):
         view = compose_home_view(**kwargs)
         return replace(
             view,
-            conversations=tuple(
+            active_conversations=tuple(
                 replace(card, status=reworded[card.status.name])
-                for card in view.conversations
+                for card in view.active_conversations
             ),
             active_assignments=tuple(
                 replace(card, status=reworded[card.status.name])
@@ -694,11 +698,15 @@ def test_status_classes_do_not_depend_on_status_wording(tmp_path, monkeypatch):
     )
 
     home = render_home(state=state)
-    assignment_page = render_assignment(state=state, identifier="GH20-20260819-184158")
+    assignment_page = render_assignment(
+        state=state, identifier="GH20-20260819-184158-assignment"
+    )
     conversation_page = render_conversation(state=state, issue=8)
-    card_start = home.index('<article id="assignment-GH20-20260819-184158"')
+    card_start = home.index('<article id="assignment-GH20-20260819-184158-assignment"')
     card = home[card_start : home.index("</article>", card_start)]
-    conversation_start = home.index('<article id="conversation-GH8"')
+    conversation_start = home.index(
+        '<article id="conversation-GH8-20260819-184158-conversation"'
+    )
     conversation_card = home[
         conversation_start : home.index("</article>", conversation_start)
     ]
@@ -723,7 +731,7 @@ def test_assignment_feedback_status_uses_the_status_wording(tmp_path):
 
     page = render_assignment(
         state=state,
-        identifier="GH20-20260819-184158",
+        identifier="GH20-20260819-184158-assignment",
     )
 
     assert (
@@ -736,7 +744,7 @@ def test_assignment_feedback_status_uses_the_status_wording(tmp_path):
 def test_assignment_page_polls_its_tail_from_the_last_complete_line(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
-    identifier = "GH13-20260819-184158"
+    identifier = "GH13-20260819-184158-assignment"
     feed_path = _feed_path(state=state, identifier=identifier, number=2)
 
     page = render_assignment(state=state, identifier=identifier)
@@ -744,7 +752,7 @@ def test_assignment_page_polls_its_tail_from_the_last_complete_line(tmp_path):
     assert f'id="cursor" name="cursor" value="2:{feed_path.stat().st_size}"' in page
     assert (
         f'id="records" class="feed-records" '
-        f'hx-get="/assignments/{identifier}/tail" hx-trigger="every 2s" '
+        f'hx-get="/work/{identifier}/tail" hx-trigger="every 2s" '
         'hx-include="#cursor" hx-select=".feed-line" hx-swap="beforeend"' in page
     )
 
@@ -755,7 +763,7 @@ def test_assignment_page_before_its_first_round_starts_at_the_first_cursor(tmp_p
 
     page = render_assignment(
         state=state,
-        identifier="GH44-20260819-184158",
+        identifier="GH44-20260819-184158-assignment",
     )
 
     assert 'id="cursor" name="cursor" value="0:0"' in page
@@ -768,7 +776,7 @@ def test_assignment_page_ids_are_unique(tmp_path):
 
     page = render_assignment(
         state=state,
-        identifier="GH13-20260819-184158",
+        identifier="GH13-20260819-184158-assignment",
     )
     identifiers = re.findall(r'\bid="([^"]+)"', page)
 
@@ -813,7 +821,7 @@ def test_ended_assignment_cards_are_separated_by_rules(tmp_path):
         application.test_client().get("/static/matrix.css").get_data(as_text=True)
     )
 
-    ended = page[page.index('<details class="ended-assignments">') :]
+    ended = page[page.index('<details class="ended-work">') :]
     assert '<article id="assignment-' in ended
     assert re.search(
         r"\.assignment-card,[^{]*\{[^}]*border-bottom: var\(--line\) solid",
@@ -825,7 +833,7 @@ def test_ended_assignment_cards_are_separated_by_rules(tmp_path):
 def test_ended_assignments_are_ordered_by_when_they_ended(tmp_path):
     state = StateDirectory(root=tmp_path)
     state.bootstrap()
-    configure(root=state.root)
+    write_daemon_run(state=state, pid=DAEMON_PID)
     written(
         state=state,
         issue=10,
@@ -844,7 +852,9 @@ def test_ended_assignments_are_ordered_by_when_they_ended(tmp_path):
     )
     written(state=state, issue=30, records=[ended(minute=1)])
     cancel_assignment(
-        assignment=read_assignments_for_issue(state=state, issue=30)[0],
+        assignment=read_agent_work_at_issue(
+            state=state, issue=30, kind=AgentWorkKind.ASSIGNMENT
+        )[0],
         at=PINNED + timedelta(minutes=10),
     )
 
@@ -865,7 +875,6 @@ def test_ended_assignments_are_ordered_by_when_they_ended(tmp_path):
 def test_home_page_types_replaced_assignment_output(tmp_path):
     state = StateDirectory(root=tmp_path)
     state.bootstrap()
-    configure(root=state.root)
     application = _create_app(
         state=state, clock=lambda: LOOKED_AT, zone=DISPLAY_TIME_ZONE
     )
@@ -898,7 +907,7 @@ def test_assignment_page_shares_the_home_page_top_bar(tmp_path):
     home = render_home(state=state)
     assignment = render_assignment(
         state=state,
-        identifier="GH13-20260819-184158",
+        identifier="GH13-20260819-184158-assignment",
     )
     header_pattern = r'<header class="site-header">.*?</header>'
     home_headers = re.findall(header_pattern, home, re.DOTALL)
@@ -938,8 +947,8 @@ def test_every_complete_page_uses_the_dreamcatcher_mark_as_its_favicon(tmp_path)
 
     pages = (
         render_home(state=state),
-        render_assignment(state=state, identifier="GH13-20260819-184158"),
-        app.test_client().get("/assignments/unknown").text,
+        render_assignment(state=state, identifier="GH13-20260819-184158-assignment"),
+        app.test_client().get("/work/unknown").text,
     )
 
     favicon = (
@@ -988,7 +997,7 @@ def test_github_links_open_in_a_new_tab(tmp_path):
     fabricate_everything(state=state)
 
     pages = render_home(state=state) + render_assignment(
-        state=state, identifier="GH13-20260819-184158"
+        state=state, identifier="GH13-20260819-184158-assignment"
     )
     links = re.findall(r'<a [^>]*href="https://github\.com/[^>]+>', pages)
 
@@ -1024,11 +1033,11 @@ def test_an_unknown_assignment_renders_a_404_page(tmp_path):
         state=state, clock=lambda: LOOKED_AT, zone=DISPLAY_TIME_ZONE
     )
 
-    response = application.test_client().get("/assignments/GH99-20260819-184158")
+    response = application.test_client().get("/work/GH99-20260819-184158-assignment")
 
     assert response.status_code == 404
     assert (
-        "No agent assignment here has identifier GH99-20260819-184158."
+        "No agent work here has identifier GH99-20260819-184158-assignment."
         in response.get_data(as_text=True)
     )
 
@@ -1039,13 +1048,14 @@ def test_an_unknown_assignment_tail_renders_a_404_page(tmp_path):
 
     response = _read_tail(
         state=state,
-        identifier="GH99-20260819-184158",
+        identifier="GH99-20260819-184158-assignment",
         cursor="0:0",
     )
 
     assert response.status_code == 404
     assert (
-        "No agent assignment here has identifier GH99-20260819-184158." in response.text
+        "No agent work here has identifier GH99-20260819-184158-assignment."
+        in response.text
     )
 
 
@@ -1068,7 +1078,7 @@ def test_an_invalid_tail_cursor_renders_a_400_page(tmp_path, cursor):
 
     response = _read_tail(
         state=state,
-        identifier="GH60-20260819-184158",
+        identifier="GH60-20260819-184158-assignment",
         cursor=cursor,
     )
 
@@ -1089,7 +1099,7 @@ def test_a_tail_cursor_must_follow_a_complete_line(tmp_path, position):
 
     response = _read_tail(
         state=state,
-        identifier="GH60-20260819-184158",
+        identifier="GH60-20260819-184158-assignment",
         cursor=f"1:{position}",
     )
 
@@ -1101,7 +1111,7 @@ def test_a_tail_before_any_round_opens_the_first_round_when_it_arrives(tmp_path)
     state = StateDirectory(root=tmp_path)
     state.bootstrap()
     directory = written(state=state, issue=60, records=[])
-    identifier = "GH60-20260819-184158"
+    identifier = "GH60-20260819-184158-assignment"
 
     waiting = _read_tail(state=state, identifier=identifier, cursor="0:0")
 
@@ -1128,7 +1138,7 @@ def test_a_tail_returns_only_complete_lines_after_its_cursor(tmp_path):
     state = StateDirectory(root=tmp_path)
     state.bootstrap()
     directory = written(state=state, issue=60, records=[running(minute=1)])
-    identifier = "GH60-20260819-184158"
+    identifier = "GH60-20260819-184158-assignment"
     first = FeedLine(at=LOOKED_AT, text="the first line")
     second = FeedLine(at=LOOKED_AT, text="the second line")
     write_feed(directory=directory, number=1, lines=[first])
@@ -1169,7 +1179,7 @@ def test_an_ended_round_moves_to_the_next_round_after_an_empty_read(tmp_path):
         issue=60,
         records=[ended(minute=1), running(minute=10, number=2)],
     )
-    identifier = "GH60-20260819-184158"
+    identifier = "GH60-20260819-184158-assignment"
     write_feed(
         directory=directory,
         number=1,
@@ -1198,7 +1208,7 @@ def test_an_ended_round_moves_to_the_next_round_after_an_empty_read(tmp_path):
 def test_a_terminal_tail_returns_late_output_before_it_stops(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
-    identifier = "GH12-20260819-184158"
+    identifier = "GH12-20260819-184158-assignment"
     feed_path = _feed_path(state=state, identifier=identifier, number=2)
     append_text(
         text=FeedLine(at=LOOKED_AT, text="late output").render(),
@@ -1220,11 +1230,13 @@ def test_a_terminal_tail_returns_late_output_before_it_stops(tmp_path):
 def test_a_faulted_tail_keeps_polling_when_it_reads_nothing_new(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
-    feed = _feed_path(state=state, identifier="GH9-20260819-184158", number=2)
+    feed = _feed_path(
+        state=state, identifier="GH9-20260819-184158-assignment", number=2
+    )
 
     response = _read_tail(
         state=state,
-        identifier="GH9-20260819-184158",
+        identifier="GH9-20260819-184158-assignment",
         cursor=f"2:{feed.stat().st_size}",
     )
 
@@ -1234,7 +1246,7 @@ def test_a_faulted_tail_keeps_polling_when_it_reads_nothing_new(tmp_path):
 def test_a_tail_fragment_matches_its_golden(tmp_path, pytestconfig):
     state = StateDirectory(root=tmp_path)
     fabricate_a_silent_round(state=state)
-    identifier = "GH13-20260819-184158"
+    identifier = "GH13-20260819-184158-assignment"
     first_feed = _feed_path(state=state, identifier=identifier, number=1)
     response = _read_tail(
         state=state,
@@ -1258,7 +1270,7 @@ def test_a_quiet_tail_has_no_appendable_text_nodes(tmp_path):
 
     response = _read_tail(
         state=state,
-        identifier="GH60-20260819-184158",
+        identifier="GH60-20260819-184158-assignment",
         cursor="1:0",
     )
 
@@ -1277,7 +1289,7 @@ def test_an_assignment_page_links_its_title_and_pull_request(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_titles_and_pull_request_states(state=state)
 
-    page = render_assignment(state=state, identifier="GH10-20260819-184158")
+    page = render_assignment(state=state, identifier="GH10-20260819-184158-assignment")
 
     assert (
         f'href="https://github.com/{REPOSITORY}/issues/10" target="_blank" '
@@ -1321,7 +1333,7 @@ def test_assignment_rounds_link_to_the_feed_in_ascending_order(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
 
-    page = render_assignment(state=state, identifier="GH13-20260819-184158")
+    page = render_assignment(state=state, identifier="GH13-20260819-184158-assignment")
     round_links = re.findall(
         r'class="round-link" href="#feed-round-(\d+)"[^>]*>\s*'
         r'<span class="round-number">(\d+)</span>',
@@ -1338,7 +1350,7 @@ def test_an_errored_rounds_style_uses_its_outcome_alone(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
 
-    page = render_assignment(state=state, identifier="GH35-20260819-184158")
+    page = render_assignment(state=state, identifier="GH35-20260819-184158-assignment")
 
     assert 'class="round-outcome outcome-errored">errored (exit 2)</span>' in page
 
@@ -1347,7 +1359,7 @@ def test_hand_resume_command_is_collapsed(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
 
-    page = render_assignment(state=state, identifier="GH9-20260819-184158")
+    page = render_assignment(state=state, identifier="GH9-20260819-184158-assignment")
     application = _create_app(
         state=state, clock=lambda: LOOKED_AT, zone=DISPLAY_TIME_ZONE
     )
@@ -1366,7 +1378,7 @@ def test_assignment_page_offers_a_control_that_jumps_to_the_feed_tail(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
 
-    page = render_assignment(state=state, identifier="GH13-20260819-184158")
+    page = render_assignment(state=state, identifier="GH13-20260819-184158-assignment")
     application = _create_app(
         state=state, clock=lambda: LOOKED_AT, zone=DISPLAY_TIME_ZONE
     )
@@ -1430,7 +1442,7 @@ def test_assignment_reporting_remains_without_a_repository_record(tmp_path):
     fabricate_titles_and_pull_request_states(state=state)
     state.repository.unlink()
 
-    page = render_assignment(state=state, identifier="GH10-20260819-184158")
+    page = render_assignment(state=state, identifier="GH10-20260819-184158-assignment")
 
     assert '<strong class="assignment-issue">#10' in page
     assert '<span class="pr-chip">PR #52 draft</span>' in page
@@ -1445,7 +1457,7 @@ def test_an_assignment_page_reports_a_repository_record_that_will_not_read(tmp_p
         state=state, clock=lambda: LOOKED_AT, zone=DISPLAY_TIME_ZONE
     )
 
-    response = application.test_client().get("/assignments/GH13-20260819-184158")
+    response = application.test_client().get("/work/GH13-20260819-184158-assignment")
 
     assert response.status_code == 500
     assert "cannot read" in response.get_data(as_text=True)
@@ -1454,10 +1466,10 @@ def test_an_assignment_page_reports_a_repository_record_that_will_not_read(tmp_p
 def test_the_assignment_page_preserves_and_escapes_an_unparseable_feed_line(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
-    feed = state.assignments / "GH13-20260819-184158" / "rounds" / "2" / "feed.txt"
+    feed = state.work / "GH13-20260819-184158-assignment" / "rounds" / "2" / "feed.txt"
     append_text(text="<script>alert('no')</script>\n", path=feed)
 
-    page = render_assignment(state=state, identifier="GH13-20260819-184158")
+    page = render_assignment(state=state, identifier="GH13-20260819-184158-assignment")
 
     assert "&lt;script&gt;alert(&#39;no&#39;)&lt;/script&gt;" in page
     assert "<script>alert('no')</script>" not in page
@@ -1486,7 +1498,7 @@ def test_every_home_page_id_is_unique(tmp_path):
 def test_the_home_page_autoescapes_feed_output(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
-    feed = state.assignments / "GH13-20260819-184158" / "rounds" / "2" / "feed.txt"
+    feed = state.work / "GH13-20260819-184158-assignment" / "rounds" / "2" / "feed.txt"
     line = FeedLine(at=LOOKED_AT, text="<script>alert('no')</script>")
     append_text(text=line.render(), path=feed)
 
@@ -1621,7 +1633,7 @@ def test_pull_request_state_remains_without_a_repository_record(tmp_path):
 def test_a_record_that_will_not_read_renders_an_error_page(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
-    record = state.assignments / "GH13-20260819-184158" / "assignment.json"
+    record = state.work / "GH13-20260819-184158-assignment" / "work.json"
     write_text(text="not json\n", path=record)
     application = _create_app(
         state=state, clock=lambda: LOOKED_AT, zone=DISPLAY_TIME_ZONE

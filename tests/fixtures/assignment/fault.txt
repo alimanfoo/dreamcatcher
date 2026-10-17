@@ -1,23 +1,23 @@
-newest agent assignment GH9-20260819-184158
+newest agent assignment GH9-20260819-184158-assignment
 fault  round 2 errored (exit 2)
   [failed] You hit your spend cap.
 
 assignment
-  issue identifier             GH9                                           
-  agent assignment identifier  GH9-20260819-184158                           
-  pull request                 #52                                           
-  label                        dream:smith                                   
-  branch                       dreamcatcher-GH9-20260819-184158              
-  worktree                     .dreamcatcher/v5/worktrees/GH9-20260819-184158
-  harness                      claude                                        
-  harness session identifier   abc-123                                       
-  model                        opus[1m]                                      
-  effort                       xhigh                                         
+  issue identifier             GH9                                                      
+  agent assignment identifier  GH9-20260819-184158-assignment                           
+  pull request                 #52                                                      
+  label                        dream:smith                                              
+  branch                       dreamcatcher-GH9-20260819-184158-assignment              
+  worktree                     .dreamcatcher/v6/worktrees/GH9-20260819-184158-assignment
+  harness                      claude                                                   
+  harness session identifier   abc-123                                                  
+  model                        opus[1m]                                                 
+  effort                       xhigh                                                    
 
 rounds
   2  implement  2026-08-20 02:43:58  ran 4m  errored (exit 2)
   1  implement  2026-08-20 02:42:58  ran 4m  errored (exit 1)
 
 resume by hand
-  cd .dreamcatcher/v5/worktrees/GH9-20260819-184158
-  claude --resume abc-123                          
+  cd .dreamcatcher/v6/worktrees/GH9-20260819-184158-assignment
+  claude --resume abc-123                                     
