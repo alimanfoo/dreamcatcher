@@ -31,8 +31,8 @@ from dreamcatcher.github import ConversationComment, PullRequest, PullRequestSta
 from dreamcatcher.scheduler.assignments import (
     AssignmentRoundCandidate,
     AssignmentScheduler,
-    FirstAssignmentRoundCandidate,
     NewAssignmentCandidate,
+    PullRequestOpeningCandidate,
 )
 from dreamcatcher.scheduler.models import (
     AgentWorkObservation,
@@ -106,10 +106,7 @@ def ran(
 def found(
     *, state
 ) -> (
-    FirstAssignmentRoundCandidate
-    | AssignmentRoundCandidate
-    | AgentWorkObservation
-    | None
+    PullRequestOpeningCandidate | AssignmentRoundCandidate | AgentWorkObservation | None
 ):
     """What the one assignment in that state directory needs next."""
     assignment = read_assignments(state=state)[0]
@@ -137,7 +134,7 @@ def test_an_assignment_with_no_pull_request_yet_needs_its_first_round(tmp_path):
 
     first = found(state=state)
 
-    assert isinstance(first, FirstAssignmentRoundCandidate)
+    assert isinstance(first, PullRequestOpeningCandidate)
     assert first.assignment.record.issue == 13
 
 
@@ -164,7 +161,7 @@ def test_a_first_round_that_failed_before_its_pull_request_is_tried_again(
         assignment=assignment, most_recent_cooldown_ended=None, observed_at=PINNED
     )
 
-    assert isinstance(inspected.candidate, FirstAssignmentRoundCandidate)
+    assert isinstance(inspected.candidate, PullRequestOpeningCandidate)
     assert inspected.observation.requires_round == ObservedFact(
         value=Truth.TRUE, evidence="round 1 errored, to try again"
     )
@@ -387,8 +384,12 @@ def test_a_cancelled_assignment_is_not_inspected_for_rounds(state, gh):
 def test_a_round_started_for_an_assignment_cancelled_after_inspection_stops(
     state, harnesses
 ):
-    candidate = FirstAssignmentRoundCandidate(
-        assignment=read_assignments(state=state)[0]
+    candidate = AssignmentRoundCandidate(
+        assignment=read_assignments(state=state)[0],
+        pull_request=PullRequest(
+            number=PULL_REQUEST, state=PullRequestState.OPEN, is_draft=True
+        ),
+        undelivered_posts=[],
     )
     cancel_assignment(assignment=candidate.assignment, at=PINNED)
 
@@ -566,7 +567,7 @@ def test_existing_work_comes_before_new_work(state):
         ),
         undelivered_posts=[],
     )
-    first = FirstAssignmentRoundCandidate(assignment=first_assignment)
+    first = PullRequestOpeningCandidate(assignment=first_assignment)
 
     ordered = sorted(
         [new, continued, first], key=create_assignment_scheduler(state=state).rank

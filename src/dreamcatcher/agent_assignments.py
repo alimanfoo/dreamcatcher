@@ -181,30 +181,7 @@ def create_assignment(
     )
 
 
-def prepare_assignment_round(
-    *,
-    state: StateDirectory,
-    repository: str,
-    assignment: AgentWork,
-    round_input: AssignmentRoundInput | None,
-    clock: Callable[[], datetime],
-) -> AssignmentRoundInput | None:
-    """Open the assignment's pull request if it has none, and return the input.
-
-    Opening it fetches main, adds the worktree on the assignment's branch,
-    makes an empty commit, pushes, finds or creates the draft pull request,
-    and records the pull request's number. Each step does nothing when its
-    result already exists, so a round after one that failed part way finds
-    most of it done.
-    """
-    if read_pull_request_observation(assignment=assignment) is None:
-        _open_pull_request(
-            state=state, repository=repository, assignment=assignment, clock=clock
-        )
-    return round_input
-
-
-def _open_pull_request(
+def open_assignment_pull_request(
     *,
     state: StateDirectory,
     repository: str,
@@ -213,8 +190,13 @@ def _open_pull_request(
 ) -> None:
     """Publish the assignment's branch and record its draft pull request.
 
-    A worktree that cannot be added is removed with its branch, so the next
-    attempt adds both afresh.
+    This is the preparation of a round whose assignment has no pull request
+    yet. It fetches main, adds the worktree on the assignment's branch, makes
+    an empty commit, pushes, adopts the pull request already on the branch or
+    opens a draft, and records the pull request. A round after one that failed
+    part way finds the worktree, the commit and the pull request that the
+    earlier attempt made, and makes none of them again. A worktree that cannot
+    be added is removed with its branch, so the next attempt adds both afresh.
     """
     issue = assignment.record.issue
     branch = compose_assignment_branch(identifier=assignment.identifier)
@@ -257,16 +239,9 @@ def is_final_turn_taken(*, assignment: AgentWork) -> bool:
 
 
 def _read_relayed_inputs(*, assignment: AgentWork) -> Iterator[AssignmentRoundInput]:
-    """Yield the inputs already relayed, newest first.
-
-    A first round is given no input, so it yields nothing.
-    """
-    for round_record in reversed(assignment.relayed_rounds):
-        round_input_path = assignment.compose_round_paths(
-            number=round_record.number
-        ).round_input
-        if round_input_path.exists():
-            yield read_json(model=AssignmentRoundInput, path=round_input_path)
+    """Yield the inputs already relayed, newest first."""
+    for paths in assignment.list_relayed_inputs():
+        yield read_json(model=AssignmentRoundInput, path=paths.round_input)
 
 
 def record_pull_request_observation(

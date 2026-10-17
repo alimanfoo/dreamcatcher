@@ -3,7 +3,6 @@
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.github import (
     PullRequest,
-    PullRequestState,
     UnknownGitHubResponse,
     create_pull_request,
     list_pull_requests,
@@ -29,11 +28,6 @@ def find_or_create_assignment_pull_request(
     )
     if isinstance(pull_request, UnknownGitHubResponse):
         raise ReportableError(pull_request.reason)
-    if pull_request.state is not PullRequestState.OPEN or not pull_request.is_draft:
-        raise ReportableError(
-            f"pull request #{pull_request.number} for {branch} was not created as "
-            "an open draft."
-        )
     return pull_request
 
 

@@ -531,7 +531,7 @@ def test_a_tick_with_nothing_eligible_starts_no_assignment(ready_repo, offered):
     assert not scheduler.assignments.state.worktrees.exists()
 
 
-def test_one_errored_round_receives_an_ordinary_recovery(ready_repo):
+def test_one_errored_round_is_given_its_input_again(ready_repo):
     write_assignment(
         state=StateDirectory(root=ready_repo),
         identifier=ASSIGNMENT_ID,
@@ -576,7 +576,7 @@ def test_one_faulted_assignment_does_not_block_unrelated_work(ready_repo):
     ]
 
 
-def test_a_user_retry_clears_one_fault_and_starts_recovery(ready_repo):
+def test_a_user_retry_clears_one_fault_and_starts_a_round(ready_repo):
     write_faulted_assignment(root=ready_repo, identifier=ASSIGNMENT_ID, issue=13)
     state = StateDirectory(root=ready_repo)
     assignment = read_assignments(state=state)[0]
@@ -1210,7 +1210,7 @@ def test_open_work_is_carried_on_before_a_new_issue_is_assigned(resuming, gh, of
     assert observed.issue_observations[1].claimed_here.value is Truth.TRUE
 
 
-def test_a_failed_issue_listing_prevents_new_assignments_but_not_recovery(
+def test_a_failed_issue_listing_prevents_new_assignments_but_not_existing_rounds(
     ready_repo, offered
 ):
     configure(root=ready_repo, head=SMITH_CLAUDE.replace("dream:smith", "dream:less"))
@@ -1285,7 +1285,7 @@ def test_a_cooldown_reports_an_issue_listing_failure(ready_repo, offered):
     assert "could not connect" in failure
 
 
-def test_the_cooldown_boundary_clears_faults_and_permits_recovery(ready_repo):
+def test_the_cooldown_boundary_clears_faults_and_permits_rounds(ready_repo):
     write_faulted_assignment(root=ready_repo, identifier=ASSIGNMENT_ID, issue=13)
     write_faulted_assignment(root=ready_repo, identifier=SECOND_ASSIGNMENT_ID, issue=14)
     state = StateDirectory(root=ready_repo)
@@ -1374,7 +1374,7 @@ def test_a_cooldown_refuses_invalid_datetimes(started, ends, message):
         pytest.param(StoppedAgentRoundEnding(at=PINNED), True, False, id="stopped"),
     ],
 )
-def test_only_an_interrupted_or_errored_last_round_awaits_recovery(
+def test_only_an_interrupted_or_errored_last_round_is_unfinished(
     ending, is_daemon_running, is_awaited
 ):
     record = AgentRoundRecord(
@@ -1390,5 +1390,5 @@ def test_only_an_interrupted_or_errored_last_round_awaits_recovery(
     )
 
 
-def test_agent_work_that_has_run_no_round_awaits_no_recovery():
+def test_agent_work_that_has_run_no_round_has_no_unfinished_round():
     assert not is_last_round_unfinished(rounds=[], is_daemon_running=False)

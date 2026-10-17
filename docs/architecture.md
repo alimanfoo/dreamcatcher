@@ -188,8 +188,8 @@ last-message output file on first and resumed invocations.
 of an agent assignment. It should provide cohesive operations to:
 
 - create an assignment by writing its work record;
-- prepare an assignment round, opening the pull request when the assignment has
-  none;
+- open the assignment's pull request, as the preparation of a round whose
+  assignment has none;
 - name the assignment's branch from its identifier;
 - read and record its pull request observation;
 - read the user-post delivery position, and whether the final turn has been

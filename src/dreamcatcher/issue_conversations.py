@@ -183,20 +183,15 @@ def read_issue_comment_delivery_position(
 ) -> IssueCommentDeliveryPosition | None:
     """Return the newest comment already relayed.
 
-    A round stopped before its preparation wrote an input relayed nothing, so
-    the position comes from the latest relayed round that has one.
+    A round stopped before its preparation wrote an input relayed nothing.
     """
-    for round_record in reversed(conversation.relayed_rounds):
-        if conversation.compose_round_paths(
-            number=round_record.number
-        ).round_input.exists():
-            newest = read_conversation_input(
-                conversation=conversation, number=round_record.number
-            ).comments[-1]
-            return IssueCommentDeliveryPosition(
-                written_at=newest.written_at, id=newest.id
-            )
-    return None
+    relayed = conversation.list_relayed_inputs()
+    if not relayed:
+        return None
+    newest = read_conversation_input(
+        conversation=conversation, number=relayed[0].number
+    ).comments[-1]
+    return IssueCommentDeliveryPosition(written_at=newest.written_at, id=newest.id)
 
 
 def is_no_reply(*, final_output: str) -> bool:

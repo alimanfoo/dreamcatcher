@@ -391,7 +391,9 @@ def test_a_live_conversation_that_has_said_nothing_reports_that(
     assert found.latest_output is None
 
 
-def test_an_unended_round_with_no_daemon_waits_to_be_recovered(conversation_state):
+def test_an_unended_round_with_no_daemon_waits_to_be_given_its_input_again(
+    conversation_state,
+):
     conversation_round(state=conversation_state, status=None)
 
     found = status(state=conversation_state)
@@ -401,7 +403,7 @@ def test_an_unended_round_with_no_daemon_waits_to_be_recovered(conversation_stat
     assert found.round_statuses[0].outcome_description == "interrupted"
 
 
-def test_an_errored_round_waits_to_be_recovered(conversation_state):
+def test_an_errored_round_waits_to_be_given_its_input_again(conversation_state):
     conversation_round(state=conversation_state, status=2)
 
     found = status(state=conversation_state)
@@ -523,7 +525,7 @@ def test_a_round_that_could_not_be_finished_says_why(conversation_state, failure
     assert found.round_statuses[0].outcome_description == "errored"
 
 
-def test_a_round_to_recover_comes_before_comments_to_answer(conversation_state):
+def test_an_unfinished_round_comes_before_comments_to_answer(conversation_state):
     conversation_round(state=conversation_state, status=2)
     observe(
         state=conversation_state,

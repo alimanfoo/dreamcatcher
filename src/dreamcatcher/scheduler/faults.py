@@ -30,7 +30,7 @@ def is_last_round_unfinished(
     outcome = rounds[-1].outcome
     if outcome is AgentRoundOutcome.RUNNING:
         return not is_daemon_running
-    return outcome in {AgentRoundOutcome.ERRORED, AgentRoundOutcome.INTERRUPTED}
+    return rounds[-1].is_unfinished
 
 
 def derive_agent_work_fault(

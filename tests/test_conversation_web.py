@@ -361,7 +361,7 @@ def test_conversation_page_with_an_unreadable_input_still_renders(tmp_path):
     assert "I found the answer." in response.text
 
 
-def test_conversation_page_shows_a_failed_round_waiting_to_be_recovered(tmp_path):
+def test_conversation_page_shows_a_failed_round_waiting_to_run_again(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_conversation(state=state, status=2, is_eligible=True)
 

@@ -11,7 +11,7 @@ from dreamcatcher.agent_assignments import (
     complete_assignment,
     create_assignment,
     is_final_turn_taken,
-    prepare_assignment_round,
+    open_assignment_pull_request,
     read_pull_request_observation,
     read_user_post_delivery_position,
     record_pull_request_observation,
@@ -62,11 +62,11 @@ class NewAssignmentCandidate:
 
 
 @dataclass(frozen=True, kw_only=True)
-class FirstAssignmentRoundCandidate:
-    """Describe an assignment whose first round has not opened its pull request.
+class PullRequestOpeningCandidate:
+    """Describe an assignment whose next round opens its pull request.
 
-    A first round that failed part way leaves the assignment here, and the next
-    round runs the same preparation again.
+    A round that failed part way through opening it leaves the assignment here,
+    and the next round runs the same preparation again.
     """
 
     assignment: AgentWork
@@ -82,7 +82,7 @@ class AssignmentRoundCandidate:
 
 
 type AssignmentCandidate = (
-    NewAssignmentCandidate | FirstAssignmentRoundCandidate | AssignmentRoundCandidate
+    NewAssignmentCandidate | PullRequestOpeningCandidate | AssignmentRoundCandidate
 )
 
 
@@ -160,23 +160,42 @@ class AssignmentScheduler(
                 title=candidate.title,
                 at=at,
             )
-            candidate = FirstAssignmentRoundCandidate(assignment=assignment)
-        if isinstance(candidate, FirstAssignmentRoundCandidate):
-            return self._start_round(
-                assignment=candidate.assignment, round_input=None, input_prompt=None
-            )
+            candidate = PullRequestOpeningCandidate(assignment=assignment)
         assignment = candidate.assignment
-        return self._start_round(
-            assignment=assignment,
-            round_input=AssignmentRoundInput(
-                pull_request_state=candidate.pull_request.state,
-                user_posts=candidate.undelivered_posts,
-            ),
+        if isinstance(candidate, PullRequestOpeningCandidate):
+            return self.start_round(
+                work=assignment,
+                harness_session_identifier=assignment.find_harness_session_identifier(),
+                prepare_round=partial(
+                    open_assignment_pull_request,
+                    state=self.state,
+                    repository=self.repository,
+                    assignment=assignment,
+                    clock=self.clock,
+                ),
+                input_prompt=None,
+                finish_round=None,
+            )
+        round_input = AssignmentRoundInput(
+            pull_request_state=candidate.pull_request.state,
+            user_posts=candidate.undelivered_posts,
+        )
+        return self.start_round(
+            work=assignment,
+            harness_session_identifier=assignment.find_harness_session_identifier(),
+            prepare_round=lambda: round_input,
             input_prompt=compose_assignment_input_prompt(
                 pull_request=candidate.pull_request.number,
                 round_input=assignment.compose_round_paths(
                     number=assignment.next_round_number
                 ).round_input,
+            ),
+            finish_round=(
+                None
+                if round_input.pull_request_state is PullRequestState.OPEN
+                else partial(
+                    complete_assignment, assignment=assignment, clock=self.clock
+                )
             ),
         )
 
@@ -224,7 +243,7 @@ class AssignmentScheduler(
         observation = read_pull_request_observation(assignment=assignment)
         if observation is None:
             return _AssignmentItemInspection(
-                candidate=FirstAssignmentRoundCandidate(assignment=assignment),
+                candidate=PullRequestOpeningCandidate(assignment=assignment),
                 observation=_compose_assignment_observation(
                     assignment=assignment,
                     evidence=(
@@ -348,35 +367,6 @@ class AssignmentScheduler(
             for observation in observations
             if observation.availability.value is Truth.TRUE
         ]
-
-    def _start_round(
-        self,
-        *,
-        assignment: AgentWork,
-        round_input: AssignmentRoundInput | None,
-        input_prompt: str | None,
-    ) -> AgentRound:
-        return self.start_round(
-            work=assignment,
-            harness_session_identifier=assignment.find_harness_session_identifier(),
-            prepare_round=partial(
-                prepare_assignment_round,
-                state=self.state,
-                repository=self.repository,
-                assignment=assignment,
-                round_input=round_input,
-                clock=self.clock,
-            ),
-            input_prompt=input_prompt,
-            finish_round=(
-                None
-                if round_input is None
-                or round_input.pull_request_state is PullRequestState.OPEN
-                else partial(
-                    complete_assignment, assignment=assignment, clock=self.clock
-                )
-            ),
-        )
 
 
 def _describe_assignment_candidate(*, candidate: AssignmentRoundCandidate) -> str:

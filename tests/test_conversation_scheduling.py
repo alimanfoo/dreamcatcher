@@ -1403,7 +1403,7 @@ def test_no_reply_completes_without_posting_a_comment(
     assert not any(call.arguments[:4] == POST_PATH.split() for call in gh.calls)
 
 
-def test_two_errored_rounds_stop_automatic_conversation_recovery(
+def test_two_errored_rounds_put_a_conversation_in_fault(
     conversation_scheduler, harnesses
 ):
     scheduler, clock, gh = conversation_scheduler
@@ -1525,7 +1525,7 @@ def test_recovery_finds_a_session_identifier_left_in_raw_output(
     assert "Issue-conversation input for GH8:" in resumed.prompt
 
 
-def test_a_first_round_without_a_session_recovers_as_a_new_first_round(
+def test_a_first_round_without_a_session_is_given_again_in_a_new_session(
     conversation_scheduler, harnesses
 ):
     scheduler, clock, gh = conversation_scheduler
@@ -1722,7 +1722,7 @@ def test_an_ineligible_saved_conversation_is_not_polled(conversation_scheduler):
     assert count_comment_reads(gh=gh) == 0
 
 
-def test_an_ineligible_conversation_does_not_recover_its_errored_round(
+def test_an_ineligible_conversation_does_not_retry_its_errored_round(
     conversation_scheduler, harnesses
 ):
     scheduler, clock, gh = conversation_scheduler
@@ -2150,7 +2150,7 @@ def test_the_oldest_waiting_comment_selects_the_conversation(
     ]
 
 
-def test_a_recovery_precedes_a_fresh_batch_at_another_conversation(
+def test_an_older_unfinished_batch_precedes_a_fresh_batch_at_another_conversation(
     conversation_scheduler, harnesses
 ):
     scheduler, clock, gh = conversation_scheduler
@@ -2193,7 +2193,7 @@ def test_a_recovery_precedes_a_fresh_batch_at_another_conversation(
     assert observed.conversation_observations[0].requires_round.value is (Truth.FALSE)
 
 
-def test_an_unrelated_comment_failure_does_not_block_recovery(
+def test_an_unrelated_comment_failure_does_not_block_an_unfinished_round(
     conversation_scheduler, harnesses
 ):
     scheduler, clock, gh = conversation_scheduler

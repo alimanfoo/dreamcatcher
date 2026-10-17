@@ -240,6 +240,14 @@ class AgentRoundRecord(DreamcatcherDocument):
             return AgentRoundOutcome.RUNNING
         return self.ending.outcome
 
+    @property
+    def is_unfinished(self) -> bool:
+        """Whether the round errored or was interrupted before taking its turn."""
+        return self.outcome in {
+            AgentRoundOutcome.ERRORED,
+            AgentRoundOutcome.INTERRUPTED,
+        }
+
 
 def record_agent_round_interruption(
     *, record: AgentRoundRecord, path: Path

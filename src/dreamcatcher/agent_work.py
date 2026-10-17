@@ -17,7 +17,6 @@ from pathlib import Path
 from pydantic import AwareDatetime, Field
 
 from dreamcatcher.agent_rounds import (
-    AgentRoundOutcome,
     AgentRoundPaths,
     AgentRoundRecord,
     read_agent_round_records,
@@ -119,20 +118,19 @@ class AgentWork:
         """Whether the work has not ended."""
         return self.ending is None
 
-    @property
-    def relayed_rounds(self) -> list[AgentRoundRecord]:
-        """The rounds whose input is behind the cursor, oldest first.
+    def list_relayed_inputs(self) -> list[AgentRoundPaths]:
+        """Return the paths of the rounds whose input is relayed, newest first.
 
-        A round that errored or was interrupted did not finish its turn, so what
-        it was given is given again. Every other round has been relayed what it
-        was given, a running round included.
+        The inputs of these rounds are behind the cursor. A round that did not
+        finish its turn is left out, so what it was given is given again. Every
+        other round given an input has relayed it, a running round included.
         """
-        return [
-            record
-            for record in self.rounds
-            if record.outcome
-            not in {AgentRoundOutcome.ERRORED, AgentRoundOutcome.INTERRUPTED}
-        ]
+        paths = (
+            self.compose_round_paths(number=record.number)
+            for record in reversed(self.rounds)
+            if not record.is_unfinished
+        )
+        return [path for path in paths if path.round_input.exists()]
 
     @property
     def rounds_directory(self) -> Path:

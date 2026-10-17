@@ -11,7 +11,6 @@ from conftest import (
     comment,
     commit,
     git,
-    pull_request,
     pull_requests,
 )
 from records import (
@@ -28,7 +27,7 @@ from dreamcatcher.agent_assignments import (
     complete_assignment,
     compose_assignment_branch,
     create_assignment,
-    prepare_assignment_round,
+    open_assignment_pull_request,
     read_pull_request_observation,
     read_user_post_delivery_position,
     record_pull_request_observation,
@@ -79,12 +78,8 @@ def record_assignment(*, state, route, preferred_harness=AgentHarness.CLAUDE):
 
 def open_pull_request(*, state, assignment):
     """Open the assignment's pull request, as its first round does."""
-    prepare_assignment_round(
-        state=state,
-        repository=REPOSITORY,
-        assignment=assignment,
-        round_input=None,
-        clock=lambda: PINNED,
+    open_assignment_pull_request(
+        state=state, repository=REPOSITORY, assignment=assignment, clock=lambda: PINNED
     )
 
 
@@ -98,12 +93,8 @@ def open_assignment(*, state, route, preferred_harness, issue, at):
         title="The issue title",
         at=at,
     )
-    prepare_assignment_round(
-        state=state,
-        repository=REPOSITORY,
-        assignment=assignment,
-        round_input=None,
-        clock=lambda: at,
+    open_assignment_pull_request(
+        state=state, repository=REPOSITORY, assignment=assignment, clock=lambda: at
     )
     return assignment
 
@@ -592,57 +583,6 @@ def test_a_first_round_continues_from_what_an_earlier_attempt_left(
     assert len(created) == (0 if checkpoint == "pull request" else 1)
 
 
-def test_a_round_whose_assignment_has_a_pull_request_touches_nothing(fabricated, fake):
-    gh = fake(program="gh")
-    directory = write_assignment(state=fabricated, identifier=ASSIGNMENT_ID, issue=12)
-    [assignment] = read_assignments(state=fabricated)
-    round_input = AssignmentRoundInput(
-        pull_request_state=PullRequestState.OPEN, user_posts=[]
-    )
-
-    prepared = prepare_assignment_round(
-        state=fabricated,
-        repository=REPOSITORY,
-        assignment=assignment,
-        round_input=round_input,
-        clock=lambda: PINNED,
-    )
-
-    assert prepared == round_input
-    assert gh.calls == []
-    assert not (fabricated.worktrees / ASSIGNMENT_ID / ".git").exists()
-    assert directory.is_dir()
-
-
-@pytest.mark.parametrize(
-    ("state_name", "is_draft"),
-    [("CLOSED", False), ("MERGED", False), ("OPEN", False), ("OPEN", True)],
-)
-def test_the_pull_request_on_the_assignments_branch_is_adopted_whatever_its_state(
-    state, route, gh, state_name, is_draft
-):
-    gh.replies(
-        stdout=json.dumps(
-            [{"number": PULL_REQUEST, "state": state_name, "isDraft": is_draft}]
-        ),
-        to="pr list",
-    )
-    assignment = record_assignment(state=state, route=route)
-
-    open_pull_request(state=state, assignment=assignment)
-
-    assert read_pull_request_observation(
-        assignment=assignment
-    ) == PullRequestObservation(
-        number=PULL_REQUEST,
-        state=PullRequestState(state_name),
-        is_draft=is_draft,
-        observed_at=PINNED,
-    )
-    assert not any(call.arguments[:2] == ["pr", "create"] for call in gh.calls)
-    assert not any(call.arguments[:2] == ["issue", "view"] for call in gh.calls)
-
-
 def test_a_pull_request_listing_failure_leaves_the_round_to_try_again(state, route, gh):
     gh.fails(stderr="gh: could not connect to github.com", to="pr list")
     assignment = record_assignment(state=state, route=route)
@@ -684,19 +624,6 @@ def test_a_created_pull_request_that_cannot_be_read_is_adopted_next_time(
     assert observation.number == PULL_REQUEST
     created = [call for call in gh.calls if call.arguments[:2] == ["pr", "create"]]
     assert len(created) == 1
-
-
-def test_a_created_pull_request_that_is_not_a_draft_is_reported(state, route, gh):
-    gh.replies(stdout=pull_request(state="OPEN", is_draft=False), to="pr view")
-
-    with pytest.raises(ReportableError, match="was not created as an open draft"):
-        open_assignment(
-            state=state,
-            route=route,
-            preferred_harness=AgentHarness.CLAUDE,
-            issue=12,
-            at=PINNED,
-        )
 
 
 def test_a_state_directory_with_no_worktrees_holds_no_assignments(state):
