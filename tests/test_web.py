@@ -631,7 +631,7 @@ def test_a_home_card_links_to_its_exact_assignment(tmp_path):
     )
     assert assignment_link in page
     assert page.count('href="/work/GH13-20260819-184158-assignment"') == 1
-    card_start = page.index('<article id="assignment-GH13-20260819-184158-assignment"')
+    card_start = page.index('<article id="GH13-20260819-184158-assignment"')
     card = page[card_start : page.index("</article>", card_start)]
     assert card.index(assignment_link) < card.index('class="agent-work-detail"')
     assert card.index('class="pr-chip"') > card.index('class="agent-work-detail"')
@@ -648,7 +648,7 @@ def test_a_card_keeps_its_compact_actions_inside_the_heading(tmp_path):
     stylesheet = (
         application.test_client().get("/static/matrix.css").get_data(as_text=True)
     )
-    card_start = page.index('<article id="assignment-GH20-20260819-184158-assignment"')
+    card_start = page.index('<article id="GH20-20260819-184158-assignment"')
     card = page[card_start : page.index("</article>", card_start)]
 
     assert '<span class="chip status-idle">idle</span>' in card
@@ -716,11 +716,9 @@ def test_status_classes_do_not_depend_on_status_wording(tmp_path, monkeypatch):
         state=state, identifier="GH20-20260819-184158-assignment"
     )
     conversation_page = render_conversation(state=state, issue=8)
-    card_start = home.index('<article id="assignment-GH20-20260819-184158-assignment"')
+    card_start = home.index('<article id="GH20-20260819-184158-assignment"')
     card = home[card_start : home.index("</article>", card_start)]
-    conversation_start = home.index(
-        '<article id="conversation-GH8-20260819-184158-conversation"'
-    )
+    conversation_start = home.index('<article id="GH8-20260819-184158-conversation"')
     conversation_card = home[
         conversation_start : home.index("</article>", conversation_start)
     ]
@@ -829,7 +827,7 @@ def test_ended_assignment_cards_are_separated_by_rules(tmp_path):
     )
 
     ended = page[page.index('<details class="ended-work">') :]
-    assert '<article id="assignment-' in ended
+    assert 'class="agent-work-card"' in ended
     assert re.search(
         r"\.agent-work-card,[^{]*\{[^}]*border-bottom: var\(--line\) solid",
         stylesheet,
@@ -868,11 +866,7 @@ def test_ended_assignments_are_ordered_by_when_they_ended(tmp_path):
         "dream:smith to create an assignment." in page
     )
     assert "+ 3 ended</summary>" in page
-    assert (
-        page.index("assignment-GH20-")
-        < page.index("assignment-GH30-")
-        < page.index("assignment-GH10-")
-    )
+    assert page.index('id="GH20-') < page.index('id="GH30-') < page.index('id="GH10-')
 
 
 def test_home_page_types_replaced_assignment_output(tmp_path):

@@ -1,4 +1,4 @@
-{% from "partials/status-class.html" import status_class %}{% from "partials/references.html" import github_reference with context %}<article id="{{ card.kind }}-{{ card.identifier }}" class="agent-work-card" aria-label="{{ card.kind|capitalize }} #{{ card.issue }} {{ card.identifier }}">
+{% from "partials/status-class.html" import status_class %}{% from "partials/references.html" import github_reference with context %}<article id="{{ card.identifier }}" class="agent-work-card" aria-label="{{ card.kind|capitalize }} #{{ card.issue }} {{ card.identifier }}">
   <div class="card-heading">
     <div>{{ github_reference(card.issue, "issues") }} <span class="title">{{ card.title }}</span></div>
     <span class="card-heading-actions">
