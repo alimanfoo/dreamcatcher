@@ -171,7 +171,7 @@ def test_dark_nature_uses_the_dusk_palette_and_follows_the_night(
         "color",
         "rgb(22, 21, 42)",
     )
-    expect(page.locator(".assignment-card").first).to_have_css(
+    expect(page.locator(".agent-work-card").first).to_have_css(
         "border-bottom-color",
         "rgba(236, 230, 220, 0.1)",
     )

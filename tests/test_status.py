@@ -41,7 +41,7 @@ from dreamcatcher.scheduler.models import (
     ConflictingLabelsFinding,
     GlobalCooldown,
     PullRequestFinding,
-    ReadFailure,
+    ReadFailureFinding,
     RequestRow,
     SchedulerRecord,
     StartedRound,
@@ -153,6 +153,7 @@ def pull_request_row(
     new_posts: int = 0,
     state: PullRequestState = PullRequestState.OPEN,
     is_draft: bool = False,
+    is_final_turn_due: bool = False,
     started_round: StartedRound | None = None,
 ) -> RequestRow:
     """Return the row of the fixture's assignment with what its pull request held."""
@@ -164,6 +165,7 @@ def pull_request_row(
             state=state,
             is_draft=is_draft,
             new_posts=new_posts,
+            is_final_turn_due=is_final_turn_due,
         ),
         started_round=started_round,
     )
@@ -533,7 +535,11 @@ def test_a_finished_pull_request_waits_for_the_final_turn(state, pull_request_st
     ran(state=state, number=1)
     tick_with(
         state=state,
-        rows=[pull_request_row(state=PullRequestState(pull_request_state))],
+        rows=[
+            pull_request_row(
+                state=PullRequestState(pull_request_state), is_final_turn_due=True
+            )
+        ],
     )
 
     status = only_assignment(state=state)
@@ -550,7 +556,7 @@ def test_a_failed_read_makes_the_assignment_unknown_with_the_reason(state):
             request_row(
                 issue=13,
                 agent_work=ASSIGNMENT_ID,
-                finding=ReadFailure(reason="unavailable"),
+                finding=ReadFailureFinding(reason="unavailable"),
             )
         ],
     )
@@ -750,28 +756,22 @@ def test_a_stopped_daemon_has_no_current_scheduler_failures(state):
 
 
 def test_a_blocked_request_names_its_claims_and_blockers_as_numbers(state):
+    blocked = request_row(
+        issue=20,
+        finding=StartTimeFinding(linked_pull_requests=[28], blocking_issues=[10, 11]),
+    )
     write_tick(
         state=state,
         tick=SchedulerRecord(
             at=PINNED,
-            rows=[
-                request_row(
-                    issue=20,
-                    finding=StartTimeFinding(
-                        linked_pull_requests=[28], blocking_issues=[10, 11]
-                    ),
-                )
-            ],
+            rows=[blocked],
         ),
     )
 
     [request] = report(state=state).request_statuses
 
     assert request == RequestStatus(
-        issue=20,
-        title="Issue 20",
-        dispatch_label=ASSIGNMENT_LABEL,
-        kind=AgentWorkKind.ASSIGNMENT,
+        row=blocked,
         value=RequestStatusValue.BLOCKED,
         reasons=(
             RequestReason(words="claimed by", pull_requests=(28,)),
@@ -830,7 +830,7 @@ def test_a_request_nothing_claims_or_blocks_is_available(state):
     [request] = report(state=state).request_statuses
 
     assert request.value is RequestStatusValue.AVAILABLE
-    assert request.reasons == ()
+    assert request.reasons == (RequestReason(words="available"),)
 
 
 def test_two_labels_of_one_kind_are_a_routing_conflict_named_in_each_row(state):
@@ -848,7 +848,7 @@ def test_two_labels_of_one_kind_are_a_routing_conflict_named_in_each_row(state):
 
     requests = report(state=state).request_statuses
 
-    assert [(request.dispatch_label, request.value) for request in requests] == [
+    assert [(request.row.dispatch_label, request.value) for request in requests] == [
         ("dream:less", RequestStatusValue.ROUTING_CONFLICT),
         (ASSIGNMENT_LABEL, RequestStatusValue.ROUTING_CONFLICT),
     ]
@@ -862,7 +862,9 @@ def test_a_request_whose_read_failed_is_unknown_with_the_reason(state):
         state=state,
         tick=SchedulerRecord(
             at=PINNED,
-            rows=[request_row(issue=20, finding=ReadFailure(reason="gh: offline"))],
+            rows=[
+                request_row(issue=20, finding=ReadFailureFinding(reason="gh: offline"))
+            ],
         ),
     )
 
@@ -898,7 +900,7 @@ def test_requests_keep_the_order_the_tick_saw_them_in(state):
 
     requests = report(state=state).request_statuses
 
-    assert [request.issue for request in requests] == [21, 20]
+    assert [request.row.issue for request in requests] == [21, 20]
 
 
 def test_assignments_are_ordered_by_issue_with_the_newest_at_an_issue_first(state):

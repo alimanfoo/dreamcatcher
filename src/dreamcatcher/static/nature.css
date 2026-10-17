@@ -272,8 +272,8 @@ body::after {
   letter-spacing: 0.14em;
 }
 
-.assignment-card,
-.issue-row {
+.agent-work-card,
+.request-row {
   padding: 16px 0;
 }
 

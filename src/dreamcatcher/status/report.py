@@ -222,7 +222,7 @@ class DreamcatcherStatusReport:
 
     def list_request_statuses(self, *, kind: AgentWorkKind) -> list[RequestStatus]:
         """Return the requests of one kind with no open work, in the tick's order."""
-        return [status for status in self.request_statuses if status.kind is kind]
+        return [status for status in self.request_statuses if status.row.kind is kind]
 
     def list_active_work_statuses(
         self, *, kind: AgentWorkKind

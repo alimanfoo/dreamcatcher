@@ -40,7 +40,7 @@ from dreamcatcher.issue_conversations import (
 from dreamcatcher.scheduler.models import (
     ConflictingLabelsFinding,
     IssueCommentsFinding,
-    ReadFailure,
+    ReadFailureFinding,
     SchedulerRecord,
     UnlistedIssueFinding,
 )
@@ -69,7 +69,7 @@ def test_home_lists_a_conversation_and_links_to_its_page(tmp_path):
     assert page.index('id="assignments-heading"') < page.index(
         'id="conversations-heading"'
     )
-    assert 'class="assignment-card' in page
+    assert 'class="agent-work-card' in page
     assert '<h1 id="conversations-heading">Conversations</h1>' in page
     assert 'id="conversation-GH8-20260819-184158-conversation"' in page
     conversation_link = (
@@ -733,7 +733,7 @@ def test_home_lists_conversations_in_attention_order_before_requests(tmp_path):
                 request_row(
                     issue=12,
                     kind=AgentWorkKind.CONVERSATION,
-                    finding=ReadFailure(reason="gh: offline"),
+                    finding=ReadFailureFinding(reason="gh: offline"),
                 ),
             ],
         ),

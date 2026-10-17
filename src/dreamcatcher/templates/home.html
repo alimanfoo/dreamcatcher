@@ -6,44 +6,26 @@
       <p id="home-refresh-error" class="refresh-error" role="alert" hidden></p>
       {% include "partials/instance.html" %}
       <div class="dashboard">
-        {% if view.assignment_section %}<section class="panel" aria-labelledby="assignments-heading">
-          <h1 id="assignments-heading">{{ view.assignment_section.heading|capitalize }}</h1>
-          {% for card in view.active_assignments %}
-            {% include "partials/agent-work-card.html" %}
-          {% endfor %}
-          {% for request in view.assignment_requests %}
-            {% include "partials/request-row.html" %}
-          {% endfor %}
-          {% if view.assignment_section.empty_message %}<p class="empty">{{ view.assignment_section.empty_message }}</p>{% endif %}
-          {% if view.ended_assignments %}
-            <details class="ended-work">
-              <summary>+ {{ view.ended_assignments|length }} ended</summary>
-              {%- for card in view.ended_assignments %}
-                {% include "partials/agent-work-card.html" %}
-              {%- endfor %}
-            </details>
-          {% endif %}
-        </section>{% endif %}
-        {% if view.conversation_section %}
-          <section class="panel" aria-labelledby="conversations-heading">
-            <h1 id="conversations-heading">{{ view.conversation_section.heading|capitalize }}</h1>
-            {% for card in view.active_conversations %}
+        {% for section in view.sections %}
+          <section class="panel" aria-labelledby="{{ section.heading }}-heading">
+            <h1 id="{{ section.heading }}-heading">{{ section.heading|capitalize }}</h1>
+            {% for card in section.active %}
               {% include "partials/agent-work-card.html" %}
             {% endfor %}
-            {% for request in view.conversation_requests %}
+            {% for request in section.requests %}
               {% include "partials/request-row.html" %}
             {% endfor %}
-            {% if view.conversation_section.empty_message %}<p class="empty">{{ view.conversation_section.empty_message }}</p>{% endif %}
-            {% if view.ended_conversations %}
+            {% if section.empty_message %}<p class="empty">{{ section.empty_message }}</p>{% endif %}
+            {% if section.ended %}
               <details class="ended-work">
-                <summary>+ {{ view.ended_conversations|length }} ended</summary>
-                {%- for card in view.ended_conversations %}
+                <summary>+ {{ section.ended|length }} ended</summary>
+                {%- for card in section.ended %}
                   {% include "partials/agent-work-card.html" %}
                 {%- endfor %}
               </details>
             {% endif %}
           </section>
-        {% endif %}
+        {% endfor %}
       </div>
     </div>
   </main>

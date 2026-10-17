@@ -279,14 +279,12 @@ def _describe_tick_outcome(
         *record.failures,
         *(
             describe_round_preparation_failure(
-                agent_work_identifier=row.agent_work,
-                round_number=row.started_round.number,
-                reason=row.started_round.preparation_failure,
+                agent_work_identifier=identifier,
+                round_number=started_round.number,
+                reason=started_round.preparation_failure,
             )
-            for row in record.rows
-            if row.agent_work is not None
-            and row.started_round is not None
-            and row.started_round.preparation_failure is not None
+            for identifier, started_round in record.started_rounds.items()
+            if started_round.preparation_failure is not None
         ),
     ]
     facts.extend(" ".join(failure.split()) for failure in failures)

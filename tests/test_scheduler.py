@@ -77,7 +77,11 @@ HARNESS_SESSION_IDENTIFIER = "abc-123"
 
 # What the tick finds for an assignment whose draft pull request has nothing new.
 NOTHING_NEW = PullRequestFinding(
-    number=PULL_REQUEST, state=PullRequestState.OPEN, is_draft=True, new_posts=0
+    number=PULL_REQUEST,
+    state=PullRequestState.OPEN,
+    is_draft=True,
+    new_posts=0,
+    is_final_turn_due=False,
 )
 
 
@@ -688,6 +692,7 @@ def test_an_assignment_with_an_open_pull_request_and_nothing_new_is_not_waiting(
                 state=PullRequestState.OPEN,
                 is_draft=False,
                 new_posts=0,
+                is_final_turn_due=False,
             ),
         )
     ]
@@ -1041,6 +1046,7 @@ def test_an_assignment_the_user_has_posted_on_is_told_what_they_said(resuming, g
                 state=PullRequestState.OPEN,
                 is_draft=False,
                 new_posts=1,
+                is_final_turn_due=False,
             ),
             started_round=StartedRound(number=2),
         )

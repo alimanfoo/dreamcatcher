@@ -7,7 +7,6 @@ from dreamcatcher.agent_rounds import AgentRoundPaths, AgentRoundRecord
 from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.status import (
     AgentRoundRevision,
-    AgentWorkStatusSection,
     AgentWorkStatusValue,
     DreamcatcherDaemonStatus,
     RequestStatus,
@@ -161,6 +160,21 @@ class WebConversationView:
 
 
 @dataclass(frozen=True, kw_only=True)
+class WebAgentWorkSection:
+    """Represent one kind of agent work as a section of the home page.
+
+    The section lists the active work, then the requests with no open work,
+    then the guidance, then the ended work.
+    """
+
+    heading: str
+    empty_message: str | None
+    active: tuple[WebAgentWorkCard, ...]
+    requests: tuple[RequestStatus, ...]
+    ended: tuple[WebAgentWorkCard, ...]
+
+
+@dataclass(frozen=True, kw_only=True)
 class WebHomeView:
     """Represent every value that the home template lays out."""
 
@@ -168,14 +182,7 @@ class WebHomeView:
     github_repository_url: str | None
     daemon: DreamcatcherDaemonStatus
     instance_facts: tuple[StatusFact, ...]
-    assignment_section: AgentWorkStatusSection | None
-    conversation_section: AgentWorkStatusSection | None
-    active_conversations: tuple[WebAgentWorkCard, ...]
-    ended_conversations: tuple[WebAgentWorkCard, ...]
-    active_assignments: tuple[WebAgentWorkCard, ...]
-    ended_assignments: tuple[WebAgentWorkCard, ...]
-    assignment_requests: tuple[RequestStatus, ...]
-    conversation_requests: tuple[RequestStatus, ...]
+    sections: tuple[WebAgentWorkSection, ...]
 
 
 class WebFeedOwner(Protocol):

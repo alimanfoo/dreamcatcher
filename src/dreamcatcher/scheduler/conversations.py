@@ -41,7 +41,7 @@ from dreamcatcher.scheduler.models import (
     AgentWorkInspection,
     ConflictingLabelsFinding,
     IssueCommentsFinding,
-    ReadFailure,
+    ReadFailureFinding,
     RequestFinding,
     RequestRow,
     SchedulerRecord,
@@ -243,7 +243,7 @@ class ConversationScheduler(
         )
         finding = (
             comments
-            if isinstance(comments, ReadFailure)
+            if isinstance(comments, ReadFailureFinding)
             else IssueCommentsFinding(new_comments=len(comments))
         )
         row = (
@@ -254,7 +254,7 @@ class ConversationScheduler(
             else compose_agent_work_row(work=conversation, finding=finding)
         )
         is_ready = is_conversation_ready_for_input(conversation=conversation)
-        if isinstance(comments, ReadFailure):
+        if isinstance(comments, ReadFailureFinding):
             return _ConversationInspection(
                 rows=[row], is_blocking_fresh_batches=is_ready
             )
@@ -277,14 +277,14 @@ def _list_comments_to_answer(
     account: str,
     issue: int,
     conversation: AgentWork | None,
-) -> list[ConversationComment] | ReadFailure:
+) -> list[ConversationComment] | ReadFailureFinding:
     """Return the trusted comments that no round has been given yet.
 
     A read that fails answers why, naming the issue.
     """
     comment_response = list_issue_comments(repository=repository, issue=issue)
     if isinstance(comment_response, UnknownGitHubResponse):
-        return ReadFailure(
+        return ReadFailureFinding(
             reason=f"could not read comments for GH{issue}: {comment_response.reason}"
         )
     try:
@@ -294,7 +294,7 @@ def _list_comments_to_answer(
             else read_issue_comment_delivery_position(conversation=conversation)
         )
     except ReportableError as failure:
-        return ReadFailure(
+        return ReadFailureFinding(
             reason=f"could not read delivered comments for GH{issue}: {failure}"
         )
     return list_undelivered_issue_comments(
@@ -330,7 +330,7 @@ def _inspect_unlisted_conversations(
     """
     listed_issues = {issue.number for issue in listing.issues}
     finding = (
-        ReadFailure(reason="; ".join(listing.failures))
+        ReadFailureFinding(reason="; ".join(listing.failures))
         if listing.failures
         else UnlistedIssueFinding()
     )

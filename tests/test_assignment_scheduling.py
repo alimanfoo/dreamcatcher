@@ -34,7 +34,7 @@ from dreamcatcher.scheduler.assignments import (
     NewAssignmentCandidate,
     PullRequestOpeningCandidate,
 )
-from dreamcatcher.scheduler.models import ReadFailure
+from dreamcatcher.scheduler.models import ReadFailureFinding
 from dreamcatcher.state import StateDirectory
 
 ASSIGNMENT_ID = "GH13-20260819-184158-assignment"
@@ -101,7 +101,7 @@ def ran(
 
 def found(
     *, state
-) -> PullRequestOpeningCandidate | AssignmentRoundCandidate | ReadFailure | None:
+) -> PullRequestOpeningCandidate | AssignmentRoundCandidate | ReadFailureFinding | None:
     """What the one assignment in that state directory needs next."""
     assignment = read_assignments(state=state)[0]
     if not assignment.is_open:
@@ -114,7 +114,7 @@ def found(
     if inspected.candidate is not None:
         assert not isinstance(inspected.candidate, NewAssignmentCandidate)
         return inspected.candidate
-    if isinstance(inspected.row.finding, ReadFailure):
+    if isinstance(inspected.row.finding, ReadFailureFinding):
         return inspected.row.finding
     return None
 
@@ -522,7 +522,7 @@ def test_a_failed_pull_request_read_leaves_the_assignment_unknown(state, gh):
 
     waiting = found(state=state)
 
-    assert isinstance(waiting, ReadFailure)
+    assert isinstance(waiting, ReadFailureFinding)
     assert "could not connect" in waiting.reason
 
 
@@ -535,7 +535,7 @@ def test_a_failed_user_post_read_leaves_the_assignment_unknown(state, gh):
 
     waiting = found(state=state)
 
-    assert isinstance(waiting, ReadFailure)
+    assert isinstance(waiting, ReadFailureFinding)
     assert "could not connect" in waiting.reason
 
 

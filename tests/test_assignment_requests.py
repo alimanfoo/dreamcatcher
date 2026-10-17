@@ -29,7 +29,7 @@ from dreamcatcher.scheduler.issues import (
 )
 from dreamcatcher.scheduler.models import (
     ConflictingLabelsFinding,
-    ReadFailure,
+    ReadFailureFinding,
     StartTimeFinding,
 )
 from dreamcatcher.state import StateDirectory
@@ -95,7 +95,6 @@ def test_an_issue_nothing_claims_or_blocks_is_a_clear_request(gh):
     rows = rows_for(config=config_with_routes(labels=[ASSIGNMENT_LABEL]))
 
     assert rows == [request_row(issue=8, finding=UNCLAIMED)]
-    assert UNCLAIMED.is_clear
 
 
 def test_requests_are_ordered_oldest_issue_first(gh):
@@ -228,7 +227,7 @@ def test_a_failed_start_time_read_leaves_the_request_unknown(gh, read):
 
     [row] = rows_for(config=config_with_routes(labels=[ASSIGNMENT_LABEL]))
 
-    assert isinstance(row.finding, ReadFailure)
+    assert isinstance(row.finding, ReadFailureFinding)
     assert "could not connect" in row.finding.reason
 
 

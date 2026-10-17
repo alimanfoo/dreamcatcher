@@ -75,7 +75,11 @@ def _assignment_row(
 def _draft_pull_request(*, new_posts: int = 0) -> PullRequestFinding:
     """Return what the tick reads of the draft that the fabrications open."""
     return PullRequestFinding(
-        number=52, state=PullRequestState.OPEN, is_draft=True, new_posts=new_posts
+        number=52,
+        state=PullRequestState.OPEN,
+        is_draft=True,
+        new_posts=new_posts,
+        is_final_turn_due=False,
     )
 
 

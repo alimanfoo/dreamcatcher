@@ -20,6 +20,7 @@ from dreamcatcher.web.models import (
     WebAgentRound,
     WebAgentWorkCard,
     WebAgentWorkControl,
+    WebAgentWorkSection,
     WebAssignmentView,
     WebConversationView,
     WebHandResume,
@@ -59,35 +60,32 @@ def compose_home_view(*, report: DreamcatcherStatusReport) -> WebHomeView:
         ),
         daemon=daemon,
         instance_facts=report.instance_facts,
-        assignment_section=report.describe_section(kind=AgentWorkKind.ASSIGNMENT),
-        conversation_section=report.describe_section(kind=AgentWorkKind.CONVERSATION),
-        active_conversations=tuple(
+        sections=tuple(
+            section
+            for kind in AgentWorkKind
+            if (section := _compose_section(report=report, kind=kind)) is not None
+        ),
+    )
+
+
+def _compose_section(
+    *, report: DreamcatcherStatusReport, kind: AgentWorkKind
+) -> WebAgentWorkSection | None:
+    """Return the home page's section for one kind, when the report shows one."""
+    section = report.describe_section(kind=kind)
+    if section is None:
+        return None
+    return WebAgentWorkSection(
+        heading=section.heading,
+        empty_message=section.empty_message,
+        active=tuple(
             _compose_work_card(status=status)
-            for status in report.list_active_work_statuses(
-                kind=AgentWorkKind.CONVERSATION
-            )
+            for status in report.list_active_work_statuses(kind=kind)
         ),
-        ended_conversations=tuple(
+        requests=tuple(report.list_request_statuses(kind=kind)),
+        ended=tuple(
             _compose_work_card(status=status)
-            for status in report.list_ended_work_statuses(
-                kind=AgentWorkKind.CONVERSATION
-            )
-        ),
-        active_assignments=tuple(
-            _compose_work_card(status=status)
-            for status in report.list_active_work_statuses(
-                kind=AgentWorkKind.ASSIGNMENT
-            )
-        ),
-        ended_assignments=tuple(
-            _compose_work_card(status=status)
-            for status in report.list_ended_work_statuses(kind=AgentWorkKind.ASSIGNMENT)
-        ),
-        assignment_requests=tuple(
-            report.list_request_statuses(kind=AgentWorkKind.ASSIGNMENT)
-        ),
-        conversation_requests=tuple(
-            report.list_request_statuses(kind=AgentWorkKind.CONVERSATION)
+            for status in report.list_ended_work_statuses(kind=kind)
         ),
     )
 

@@ -14,7 +14,7 @@ from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.scheduler.agent_work import AgentWorkScheduler
 from dreamcatcher.scheduler.models import (
     ConflictingLabelsFinding,
-    ReadFailure,
+    ReadFailureFinding,
     RequestRow,
     StartTimeFinding,
 )
@@ -62,7 +62,7 @@ def _compose_request_rows(
             labels=[label.name for label in issue.labels]
         )
     ]
-    finding = _find_what_decides_the_start(
+    finding = _ask_start_time_questions(
         scheduler=scheduler, issue=issue.number, labels=labels
     )
     return [
@@ -77,9 +77,9 @@ def _compose_request_rows(
     ]
 
 
-def _find_what_decides_the_start(
+def _ask_start_time_questions(
     *, scheduler: AgentWorkScheduler, issue: int, labels: list[str]
-) -> ConflictingLabelsFinding | ReadFailure | StartTimeFinding:
+) -> ConflictingLabelsFinding | ReadFailureFinding | StartTimeFinding:
     """Return what decides whether an assignment may start for these labels.
 
     Two assignment labels start nothing, so the start-time questions are asked
@@ -91,10 +91,10 @@ def _find_what_decides_the_start(
         repository=scheduler.repository, issue=issue
     )
     if isinstance(pull_request_context, UnknownGitHubResponse):
-        return ReadFailure(reason=pull_request_context.reason)
+        return ReadFailureFinding(reason=pull_request_context.reason)
     blocking = list_blocking_issues(repository=scheduler.repository, issue=issue)
     if isinstance(blocking, UnknownGitHubResponse):
-        return ReadFailure(reason=blocking.reason)
+        return ReadFailureFinding(reason=blocking.reason)
     return StartTimeFinding(
         linked_pull_requests=[
             pull_request.number for pull_request in pull_request_context.pull_requests

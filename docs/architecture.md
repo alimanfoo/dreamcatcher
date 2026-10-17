@@ -387,10 +387,10 @@ the open agent work, if any. It holds what the tick found as a typed finding:
 A row has no finding when the tick read nothing for it, as for work whose round
 is running, work in fault, or an assignment whose first round has not opened its
 pull request. A row also names the round the tick started for it and, when that
-round errored before its harness ran, the reason. No row holds a sentence meant
-for a person. Status composes the words from these values once, and keeps the
-issue and pull request numbers as numbers, so both presentations link them and
-neither parses text.
+round errored before its harness ran, the reason. Apart from those reasons for a
+failure, no row holds a sentence meant for a person. Status composes the words
+from these values once, and keeps the issue and pull request numbers as numbers,
+so both presentations link them and neither parses text.
 
 `AgentWorkStatus` is one summary status from the ontology, derived in one chain
 for both kinds of agent work. `RequestStatus` gives a request with no open work

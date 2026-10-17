@@ -4,11 +4,10 @@ from dataclasses import dataclass
 from enum import StrEnum
 from typing import cast
 
-from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.scheduler.models import (
     ConflictingLabelsFinding,
     IssueCommentsFinding,
-    ReadFailure,
+    ReadFailureFinding,
     RequestRow,
     StartTimeFinding,
 )
@@ -21,7 +20,10 @@ from dreamcatcher.status.findings import (
 # What the tick finds for a request with no open work: what decides whether work
 # may start, or why that read failed.
 type _StartFinding = (
-    StartTimeFinding | IssueCommentsFinding | ConflictingLabelsFinding | ReadFailure
+    StartTimeFinding
+    | IssueCommentsFinding
+    | ConflictingLabelsFinding
+    | ReadFailureFinding
 )
 
 
@@ -52,12 +54,13 @@ class RequestReason:
 
 @dataclass(frozen=True, kw_only=True)
 class RequestStatus:
-    """Describe a request that has no open agent work, from the tick's row."""
+    """Describe a request that has no open agent work, from the tick's row.
 
-    issue: int
-    title: str
-    dispatch_label: str
-    kind: AgentWorkKind
+    Every request status has at least one reason, which a view shows as its
+    words.
+    """
+
+    row: RequestRow
     value: RequestStatusValue
     reasons: tuple[RequestReason, ...]
 
@@ -65,14 +68,7 @@ class RequestStatus:
 def describe_request(*, row: RequestRow) -> RequestStatus:
     """Return the status of a request that the tick found no open work for."""
     value, reasons = _describe_finding(finding=cast("_StartFinding", row.finding))
-    return RequestStatus(
-        issue=row.issue,
-        title=row.title,
-        dispatch_label=row.dispatch_label,
-        kind=row.kind,
-        value=value,
-        reasons=reasons,
-    )
+    return RequestStatus(row=row, value=value, reasons=reasons)
 
 
 def _describe_finding(
@@ -103,7 +99,9 @@ def _describe_start_time_answers(
 ) -> tuple[RequestStatusValue, tuple[RequestReason, ...]]:
     """Return what claims or blocks an issue, or that nothing does."""
     if finding.is_clear:
-        return RequestStatusValue.AVAILABLE, ()
+        return RequestStatusValue.AVAILABLE, (
+            RequestReason(words=str(RequestStatusValue.AVAILABLE)),
+        )
     reasons = []
     if finding.linked_pull_requests:
         reasons.append(

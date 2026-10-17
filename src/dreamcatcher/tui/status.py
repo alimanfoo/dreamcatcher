@@ -108,13 +108,12 @@ def _render_request_rows(*, requests: Sequence[RequestStatus]) -> list[Renderabl
     table = create_table(columns=3)
     for request in requests:
         table.add_row(
-            Text(f"GH{request.issue}"),
-            Text(request.dispatch_label),
+            Text(f"GH{request.row.issue}"),
+            Text(request.row.dispatch_label),
             Text(
                 "; ".join(
                     _render_request_reason(reason=reason) for reason in request.reasons
                 )
-                or str(request.value)
             ),
         )
     return [table]

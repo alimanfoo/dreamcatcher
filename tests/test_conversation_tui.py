@@ -36,7 +36,7 @@ from dreamcatcher.issue_conversations import (
 from dreamcatcher.scheduler.models import (
     ConflictingLabelsFinding,
     IssueCommentsFinding,
-    ReadFailure,
+    ReadFailureFinding,
     SchedulerRecord,
     UnlistedIssueFinding,
 )
@@ -484,7 +484,7 @@ def test_conversations_are_listed_in_attention_order_before_requests(tmp_path):
                 request_row(
                     issue=12,
                     kind=AgentWorkKind.CONVERSATION,
-                    finding=ReadFailure(reason="gh: offline"),
+                    finding=ReadFailureFinding(reason="gh: offline"),
                 ),
             ],
         ),

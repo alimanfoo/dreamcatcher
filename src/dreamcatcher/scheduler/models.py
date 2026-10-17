@@ -37,6 +37,7 @@ class PullRequestFinding(DreamcatcherDocument):
     state: PullRequestState
     is_draft: bool
     new_posts: NonNegativeInt
+    is_final_turn_due: bool
 
 
 class IssueCommentsFinding(DreamcatcherDocument):
@@ -72,7 +73,7 @@ class UnlistedIssueFinding(DreamcatcherDocument):
     found: Literal["issue not listed"] = "issue not listed"
 
 
-class ReadFailure(DreamcatcherDocument):
+class ReadFailureFinding(DreamcatcherDocument):
     """Hold why a read failed, in place of what it would have found."""
 
     found: Literal["read failed"] = "read failed"
@@ -85,7 +86,7 @@ type RequestFinding = Annotated[
     | StartTimeFinding
     | ConflictingLabelsFinding
     | UnlistedIssueFinding
-    | ReadFailure,
+    | ReadFailureFinding,
     Field(discriminator="found"),
 ]
 
@@ -152,12 +153,19 @@ class SchedulerRecord(DreamcatcherDocument):
     most_recent_cooldown_ended: _UtcDateTime | None = None
 
     @property
+    def started_rounds(self) -> dict[str, StartedRound]:
+        """The round the tick started for each piece of work, by work identifier."""
+        return {
+            row.agent_work: row.started_round
+            for row in self.rows
+            if row.agent_work is not None and row.started_round is not None
+        }
+
+    @property
     def launched_agent_work_identifiers(self) -> list[str]:
         """The work whose round the tick started and that got as far as its harness."""
         return [
-            row.agent_work
-            for row in self.rows
-            if row.agent_work is not None
-            and row.started_round is not None
-            and row.started_round.preparation_failure is None
+            identifier
+            for identifier, started_round in self.started_rounds.items()
+            if started_round.preparation_failure is None
         ]

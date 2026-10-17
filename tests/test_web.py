@@ -692,13 +692,15 @@ def test_status_classes_do_not_depend_on_status_wording(tmp_path, monkeypatch):
         view = compose_home_view(**kwargs)
         return replace(
             view,
-            active_conversations=tuple(
-                replace(card, status=reworded[card.status.name])
-                for card in view.active_conversations
-            ),
-            active_assignments=tuple(
-                replace(card, status=reworded[card.status.name])
-                for card in view.active_assignments
+            sections=tuple(
+                replace(
+                    section,
+                    active=tuple(
+                        replace(card, status=reworded[card.status.name])
+                        for card in section.active
+                    ),
+                )
+                for section in view.sections
             ),
         )
 
@@ -831,7 +833,7 @@ def test_ended_assignment_cards_are_separated_by_rules(tmp_path):
     ended = page[page.index('<details class="ended-work">') :]
     assert '<article id="assignment-' in ended
     assert re.search(
-        r"\.assignment-card,[^{]*\{[^}]*border-bottom: var\(--line\) solid",
+        r"\.agent-work-card,[^{]*\{[^}]*border-bottom: var\(--line\) solid",
         stylesheet,
         re.DOTALL,
     )

@@ -234,8 +234,8 @@ body::after {
   text-transform: uppercase;
 }
 
-.assignment-card,
-.issue-row {
+.agent-work-card,
+.request-row {
   min-width: 0;
   padding: var(--space-6) 0;
   border-bottom: var(--line) solid var(--rule-inner);

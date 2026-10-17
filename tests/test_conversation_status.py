@@ -38,7 +38,7 @@ from dreamcatcher.issue_conversations import (
 from dreamcatcher.scheduler.models import (
     ConflictingLabelsFinding,
     IssueCommentsFinding,
-    ReadFailure,
+    ReadFailureFinding,
     RequestFinding,
     RequestRow,
     SchedulerRecord,
@@ -244,7 +244,7 @@ def test_a_conversation_whose_comments_cannot_be_read_is_unknown(
 ):
     observe(
         state=conversation_state,
-        finding=ReadFailure(
+        finding=ReadFailureFinding(
             reason="could not read comments for GH8: network unavailable"
         ),
     )
@@ -310,7 +310,7 @@ def test_an_unrecorded_round_input_shows_what_the_scheduler_reported(
         "Conversation GH8-20260819-184158-conversation has input for round 1 "
         "without a round record."
     )
-    observe(state=conversation_state, finding=ReadFailure(reason=failure))
+    observe(state=conversation_state, finding=ReadFailureFinding(reason=failure))
 
     found = status(state=conversation_state)
 
@@ -412,7 +412,9 @@ def test_two_current_errors_put_a_conversation_in_fault(conversation_state):
     [
         ConflictingLabelsFinding(labels=["discuss", "scout"]),
         UnlistedIssueFinding(),
-        ReadFailure(reason="could not read comments for GH8: network unavailable"),
+        ReadFailureFinding(
+            reason="could not read comments for GH8: network unavailable"
+        ),
     ],
     ids=["conflicting labels", "not listed", "unknown"],
 )
@@ -720,7 +722,7 @@ def test_the_report_lists_ended_conversations_apart_newest_first(tmp_path):
 
     assert report.list_active_work_statuses(kind=AgentWorkKind.CONVERSATION) == []
     assert [
-        request.issue
+        request.row.issue
         for request in report.list_request_statuses(kind=AgentWorkKind.CONVERSATION)
     ] == [10]
     assert [

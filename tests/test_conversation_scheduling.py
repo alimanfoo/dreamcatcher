@@ -65,7 +65,7 @@ from dreamcatcher.scheduler.models import (
     ConflictingLabelsFinding,
     GlobalCooldown,
     IssueCommentsFinding,
-    ReadFailure,
+    ReadFailureFinding,
     RequestFinding,
     RequestRow,
     SchedulerRecord,
@@ -1660,7 +1660,7 @@ def test_a_failed_conversation_listing_prevents_launches(conversation_scheduler)
             issue=5,
             title="Issue 5",
             agent_work=compose_conversation_identifier(issue=5),
-            finding=ReadFailure(reason=failure),
+            finding=ReadFailureFinding(reason=failure),
         )
     ]
 
@@ -1733,7 +1733,7 @@ def test_failed_listing_keeps_visible_conversation_faults_in_the_cooldown(
             issue=issue,
             title=f"Issue {issue}",
             agent_work=compose_conversation_identifier(issue=issue),
-            finding=ReadFailure(reason=failure),
+            finding=ReadFailureFinding(reason=failure),
         )
         for issue in (8, 9)
     ]
@@ -1837,7 +1837,7 @@ def test_a_relayed_round_whose_input_cannot_be_read_launches_nothing(
 
     assert observed.failures == []
     [row] = observed.rows
-    assert isinstance(row.finding, ReadFailure)
+    assert isinstance(row.finding, ReadFailureFinding)
     assert row.finding.reason.startswith(
         f"could not read delivered comments for GH8: {round_input}"
     )
@@ -1966,7 +1966,7 @@ def test_a_failed_comment_listing_prevents_launches(conversation_scheduler):
     assert observed.failures == []
     assert observed.launched_agent_work_identifiers == []
     [row] = observed.rows
-    assert isinstance(row.finding, ReadFailure)
+    assert isinstance(row.finding, ReadFailureFinding)
     assert row.finding.reason.startswith("could not read comments for GH8")
     assert row == conversation_row(finding=row.finding)
 
@@ -1986,7 +1986,7 @@ def test_a_failed_delivery_position_read_is_recorded_in_its_row(
 
     assert observed.failures == []
     [row] = observed.rows
-    assert isinstance(row.finding, ReadFailure)
+    assert isinstance(row.finding, ReadFailureFinding)
     assert row.finding.reason.startswith("could not read delivered comments for GH8")
     assert row == conversation_row(
         title="Issue 8",
@@ -2083,7 +2083,7 @@ def test_a_partial_comment_scan_does_not_launch_or_starve_later_reads(
     assert observed.failures == []
     assert [row.issue for row in observed.rows] == [8, 9, 10]
     failed_read = observed.rows[1].finding
-    assert isinstance(failed_read, ReadFailure)
+    assert isinstance(failed_read, ReadFailureFinding)
     assert failed_read.reason.startswith("could not read comments for GH9")
     assert any("issues/10/comments" in " ".join(call.arguments) for call in gh.calls)
     assert observed.launched_agent_work_identifiers == []
@@ -2318,7 +2318,7 @@ def test_an_unrelated_comment_failure_does_not_block_an_unfinished_round(
     ]
     assert observed.failures == []
     failed_read = observed.rows[1].finding
-    assert isinstance(failed_read, ReadFailure)
+    assert isinstance(failed_read, ReadFailureFinding)
     assert failed_read.reason.startswith("could not read comments for GH9:")
     assert "network unavailable" in failed_read.reason
 

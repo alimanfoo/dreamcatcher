@@ -9,7 +9,6 @@ from typing import cast
 
 from dreamcatcher.agent_assignments import (
     PullRequestObservation,
-    is_final_turn_taken,
     read_pull_request_observation,
 )
 from dreamcatcher.agent_rounds import (
@@ -33,7 +32,8 @@ from dreamcatcher.scheduler.models import (
     ConflictingLabelsFinding,
     IssueCommentsFinding,
     PullRequestFinding,
-    ReadFailure,
+    ReadFailureFinding,
+    RequestFinding,
     RequestRow,
     SchedulerRecord,
     UnlistedIssueFinding,
@@ -199,7 +199,7 @@ class AgentWorkStatusReader:
     scheduler_record: SchedulerRecord | None
 
     @cached_property
-    def rows(self) -> dict[str, RequestRow]:
+    def rows_by_work(self) -> dict[str, RequestRow]:
         """The latest tick's rows of requests with open work, by work identifier."""
         if self.scheduler_record is None:
             return {}
@@ -281,8 +281,8 @@ class AgentWorkStatusReader:
         )
 
     def _derive_unknown(self, work: AgentWork, /) -> AgentWorkStatus | None:
-        row = self.rows.get(work.identifier)
-        if row is None or not isinstance(row.finding, ReadFailure):
+        row = self.rows_by_work.get(work.identifier)
+        if row is None or not isinstance(row.finding, ReadFailureFinding):
             return None
         return _compose_unknown(
             work=work, detail=describe_read_failure(reason=row.finding.reason)
@@ -296,7 +296,7 @@ class AgentWorkStatusReader:
         The tick starts no round for a conversation whose issue the listing did
         not return or carries a second conversation label, so neither waits.
         """
-        row = self.rows.get(work.identifier)
+        row = self.rows_by_work.get(work.identifier)
         finding = None if row is None else row.finding
         if isinstance(finding, ConflictingLabelsFinding):
             detail = describe_conflicting_labels(labels=finding.labels)
@@ -336,18 +336,18 @@ class AgentWorkStatusReader:
         ):
             return _compose_waiting(work=work, detail="no pull request yet")
         latest = work.rounds[-1]
-        row = self.rows.get(work.identifier)
+        row = self.rows_by_work.get(work.identifier)
         if self._did_round_end_after_latest_tick(record=latest, row=row):
             return _compose_waiting(
                 work=work, detail=f"round {latest.number} ended, awaiting next update"
             )
-        signal = None if row is None else _describe_signal(work=work, row=row)
+        signal = None if row is None else _describe_signal(finding=row.finding)
         if signal is None:
             return None
         return _compose_waiting(work=work, detail=signal)
 
     def _derive_idle(self, work: AgentWork, /) -> AgentWorkStatus:
-        row = self.rows.get(work.identifier)
+        row = self.rows_by_work.get(work.identifier)
         finding = None if row is None else row.finding
         if isinstance(finding, PullRequestFinding):
             detail = (
@@ -418,16 +418,13 @@ def _compose_waiting(*, work: AgentWork, detail: str) -> AgentWorkStatus:
     )
 
 
-def _describe_signal(*, work: AgentWork, row: RequestRow) -> str | None:
+def _describe_signal(*, finding: RequestFinding | None) -> str | None:
     """Describe what the latest tick found new in the work's channel, if anything."""
-    finding = row.finding
     if isinstance(finding, IssueCommentsFinding) and finding.new_comments:
         return describe_comments_to_answer(count=finding.new_comments)
     if not isinstance(finding, PullRequestFinding):
         return None
-    if finding.state is not PullRequestState.OPEN and not is_final_turn_taken(
-        assignment=work
-    ):
+    if finding.is_final_turn_due:
         return f"the pull request is {finding.state.value.lower()}"
     if finding.new_posts:
         posts = describe_count(number=finding.new_posts, noun="new post")
