@@ -510,7 +510,7 @@ scheduler.json       one row per request, the cooldown, listing failures,
                      launched identifiers
 work/<identifier>/
     work.json        issue, label, kind, title, harness, model, effort,
-                     harness config, prompt; branch for an assignment
+                     harness config, prompt
     pull-request-observation.json
                      assignment only, written once by round one: the pull
                      request's number
@@ -527,7 +527,7 @@ in `GH20-20261017-091500-assignment` or `GH15-20261017-093000-conversation`. The
 kind is in the name for the person reading a directory listing, a daemon line or
 a web address, and the record says it too, as the issue number is in both today;
 nothing cross-checks them. The assignment's branch carries the same name after
-its prefix.
+its prefix, and is named from the identifier rather than recorded.
 
 A round record holds its number, start time, process id once spawned, and
 outcome. It holds nothing that can be worked out from its input or from its
@@ -595,11 +595,12 @@ with X" guidance and never opens `dreamcatcher.toml`. A broken or missing file
 fails the daemon at its next start and leaves the views showing what the last
 daemon recorded.
 
-The web page for any piece of agent work is `/work/<identifier>`; today a
-conversation's page is `/conversations/<issue>`, and that address goes. The home
-page is one row per request plus the collapsed list of ended work. The commands
-take `GH<n>` as today, meaning the newest work at that issue, and `stop` and
-`feed` keep their `--assignment` and `--conversation` flags to say which kind.
+The web page for any piece of agent work is `/work/<identifier>`; the
+`/assignments/<identifier>` and `/conversations/<issue>` addresses go, and a
+conversation the tick has found but not yet saved has no page. The home page is
+one row per request plus the collapsed list of ended work. The commands take
+`GH<n>` as today, meaning the newest work at that issue, and `stop` and `feed`
+keep their `--assignment` and `--conversation` flags to say which kind.
 
 ## The agent's side
 
