@@ -52,19 +52,20 @@ update a pull request. To request implementation, prepare an assignment instead.
 ## Pause, resume or end a conversation
 
 Each conversation belongs to the label that started it. _dreamcatcher_ checks
-its issue at every update while no round of it is running. Removing that label,
-adding a second configured conversation label, or removing the authenticated
-account as assignee pauses the conversation: no new round starts, including one
-that would retry an errored round. A round already running may finish and
-publish its answer.
+its issue at every update, including while a round is running. Removing that
+label, adding a second configured conversation label, or removing the
+authenticated account as assignee pauses the conversation: no new round starts,
+including one that would retry an errored round. A round already running may
+finish and publish its answer.
 
 Undo the change to resume the conversation. It continues in the same harness
 session, and comments posted while it was paused are given to it. It keeps its
 original recipe even if its route is removed from `dreamcatcher.toml`.
 
-Closing the issue ends the conversation, and the web home page lists it with
-your other ended work. If the issue is reopened with its label, a new
-conversation starts and is given every comment you have posted on the issue.
+Closing the issue ends the conversation after any running round finishes, and
+the web home page lists it with your other ended work. If the issue is reopened
+with its label, a new conversation starts and is given every comment you have
+posted on the issue.
 
 Taking one conversation label off and putting another on pauses the first
 conversation and starts a new one under the new label, with a session of its

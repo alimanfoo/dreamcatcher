@@ -32,6 +32,12 @@ each entry links the pull request or commit that made the change.
   and skips CI. Checks begin with the agent's first real commit instead.
   ([#582](https://github.com/alimanfoo/dreamcatcher/pull/582))
 
+### Fixed
+
+- An assignment's pull request chip keeps showing whether the pull request is
+  draft or ready, its merge state and its check result while a round runs.
+  ([#586](https://github.com/alimanfoo/dreamcatcher/pull/586))
+
 ## [v6.0.0](https://github.com/alimanfoo/dreamcatcher/releases/tag/v6.0.0) — 2026-10-17
 
 ### Breaking

@@ -276,6 +276,13 @@ def test_a_live_round_reports_work_and_its_latest_output(running):
     assert status.hand_resume_command is None
 
 
+def test_a_live_round_keeps_the_pull_request_summary_the_tick_read(running):
+    ran(state=running, number=1, status=None)
+    tick_with(state=running, rows=[pull_request_row()])
+
+    assert only_assignment(state=running).pull_request_summary == "ready"
+
+
 @pytest.mark.parametrize(
     ("ending", "outcome_description", "duration"),
     [

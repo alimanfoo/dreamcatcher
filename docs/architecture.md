@@ -162,9 +162,11 @@ freezes the eligible comments past the cursor and that revision. A
 conversation's worktree never acquires an implementation branch or a pull
 request.
 
-Each tick reads an open conversation's issue before its comments, unless its
-round is running, so open conversations do not depend on the listing. A closed
-issue ends the conversation with the reason "issue closed". A conversation whose
+Each tick reads an open conversation's issue before its comments, so open
+conversations do not depend on the listing. The tick keeps reading the issue
+while a round runs, and also reads its comments while the issue remains open and
+the conversation is not paused. A closed issue ends the conversation with the
+reason "issue closed" once its running round finishes. A conversation whose
 label is off its issue, whose issue is not assigned to the signed-in account, or
 whose issue carries another configured conversation label is paused: the tick
 reads no comments for it and starts no round. A conversation belongs to the
@@ -427,14 +429,16 @@ the open agent work, if any. It holds what the tick found as a typed finding:
 - for a conversation paused for any other reason, the cause;
 - for a read that failed, the reason, in place of what it would have found.
 
-A row has no finding when the tick found nothing to record for it, as for work
-whose round is running, work in fault, a conversation whose issue it found
-closed, or an assignment whose pull request no round has opened yet. A row also
-names the round the tick started for it and, when that round errored before its
-harness ran, the reason. Apart from those reasons for a failure, no row holds a
-sentence meant for a person. Status composes the words from these values once,
-and keeps the issue and pull request numbers as numbers, so both presentations
-link them and neither parses text.
+A row has no finding when the tick found nothing to record for it, as for an
+assignment in fault, an unpaused conversation in fault, a conversation whose
+issue it found closed, or an assignment whose pull request no round has opened
+yet. A running round does not prevent the tick from recording a finding, but it
+prevents the finding from making the work a candidate for another round. A row
+also names the round the tick started for it and, when that round errored before
+its harness ran, the reason. Apart from those reasons for a failure, no row
+holds a sentence meant for a person. Status composes the words from these values
+once, and keeps the issue and pull request numbers as numbers, so both
+presentations link them and neither parses text.
 
 `AgentWorkStatus` is one summary status from the ontology, derived in one chain
 for both kinds of agent work. `RequestStatus` gives a request with no open work

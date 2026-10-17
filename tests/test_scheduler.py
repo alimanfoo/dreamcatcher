@@ -440,7 +440,11 @@ def test_a_tick_at_the_cap_holds_an_assignment_that_needs_a_round(
     # so the assignment already on disk is the one the cap holds.
     assert observed.rows == [
         request_row(issue=13, agent_work_identifier=ASSIGNMENT_ID, finding=NOTHING_NEW),
-        request_row(issue=8, agent_work_identifier=CREATED_ASSIGNMENT_ID),
+        request_row(
+            issue=8,
+            agent_work_identifier=CREATED_ASSIGNMENT_ID,
+            finding=NOTHING_NEW,
+        ),
     ]
 
 
@@ -462,7 +466,11 @@ def test_a_tick_at_the_cap_leaves_a_wound_up_assignment_waiting_on_nothing(
     observed = scheduler.tick(at=clock())
 
     assert observed.rows == [
-        request_row(issue=8, agent_work_identifier=CREATED_ASSIGNMENT_ID)
+        request_row(
+            issue=8,
+            agent_work_identifier=CREATED_ASSIGNMENT_ID,
+            finding=NOTHING_NEW,
+        )
     ]
 
 
@@ -478,7 +486,11 @@ def test_a_tick_at_the_cap_refreshes_the_candidates(ready_repo, offered, harness
 
     assert scheduler.is_at_capacity
     assert observed.rows == [
-        request_row(issue=8, agent_work_identifier=CREATED_ASSIGNMENT_ID),
+        request_row(
+            issue=8,
+            agent_work_identifier=CREATED_ASSIGNMENT_ID,
+            finding=NOTHING_NEW,
+        ),
         request_row(issue=9, finding=UNCLAIMED),
     ]
 
@@ -509,7 +521,11 @@ def test_a_tick_at_the_cap_records_a_candidate_listing_failure(
     assert "could not connect" in failure
     assert observed.rows == [
         request_row(issue=13, agent_work_identifier=ASSIGNMENT_ID, finding=NOTHING_NEW),
-        request_row(issue=8, agent_work_identifier=CREATED_ASSIGNMENT_ID),
+        request_row(
+            issue=8,
+            agent_work_identifier=CREATED_ASSIGNMENT_ID,
+            finding=NOTHING_NEW,
+        ),
     ]
 
 
@@ -609,19 +625,21 @@ def test_a_successful_round_breaks_the_error_sequence(ready_repo):
     assert observed.launched_agent_work_identifiers == [ASSIGNMENT_ID]
 
 
-def test_an_assignment_the_scheduler_is_running_a_round_for_is_not_waiting(
-    ready_repo, harnesses
+def test_a_running_assignment_is_observed_without_starting_another_round(
+    ready_repo, gh, harnesses
 ):
     harnesses["claude"].streams(
         lines=[Line(text="still working\n")], delay=STILL_RUNNING
     )
     scheduler, clock = create_scheduler(root=ready_repo, max_agents=2)
 
-    observed = scheduler.tick(at=clock())
+    scheduler.tick(at=clock())
+    gh.replies(
+        stdout=pages(items=[comment()]),
+        to=f"api {POST_LIST_PATHS['conversation']}",
+    )
     observed = scheduler.tick(at=clock())
 
-    # The round the scheduler held recorded no ending, so the assignment would have
-    # read as interrupted had the scheduler not been running it.
     written = (
         scheduler.context.state.work
         / CREATED_ASSIGNMENT_ID
@@ -634,8 +652,14 @@ def test_an_assignment_the_scheduler_is_running_a_round_for_is_not_waiting(
         is None
     )
     assert observed.rows == [
-        request_row(issue=8, agent_work_identifier=CREATED_ASSIGNMENT_ID)
+        request_row(
+            issue=8,
+            agent_work_identifier=CREATED_ASSIGNMENT_ID,
+            finding=NOTHING_NEW.model_copy(update={"new_posts": 1}),
+        )
     ]
+    assert list(scheduler.rounds) == [CREATED_ASSIGNMENT_ID]
+    assert not (written.parent.parent / "2" / "round.json").exists()
 
 
 def test_an_ended_round_is_inspected_while_its_runner_finishes(resuming):
@@ -811,7 +835,13 @@ def test_an_assignment_with_a_round_that_has_no_ending_starts_nothing(resuming):
     observed = scheduler.tick(at=clock())
 
     assert observed.launched_agent_work_identifiers == []
-    assert observed.rows == [request_row(issue=13, agent_work_identifier=ASSIGNMENT_ID)]
+    assert observed.rows == [
+        request_row(
+            issue=13,
+            agent_work_identifier=ASSIGNMENT_ID,
+            finding=NOTHING_NEW,
+        )
+    ]
     assert not (
         scheduler.context.state.work
         / ASSIGNMENT_ID

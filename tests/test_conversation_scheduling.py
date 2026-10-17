@@ -1110,23 +1110,47 @@ def test_a_follow_up_refreshes_again_after_a_launch_failure(
     assert [item.body for item in resumed.comments] == ["Does this still hold?"]
 
 
-def test_nothing_is_read_for_a_conversation_whose_round_is_running(
-    conversation_scheduler, harnesses, monkeypatch
+def test_a_running_conversation_is_observed_without_starting_another_round(
+    conversation_scheduler, harnesses
+):
+    scheduler, clock, gh = conversation_scheduler
+    scheduler.max_agents = 2
+    offer_conversation(gh=gh, comments=[ask()])
+    answer(harnesses=harnesses, delay=10)
+    scheduler.tick(at=clock())
+    offer_conversation(gh=gh, comments=[ask(), ask(identifier=2)])
+
+    observed = scheduler.tick(at=clock())
+
+    assert observed.rows == [
+        conversation_row(
+            agent_work_identifier=compose_conversation_identifier(issue=8),
+            finding=IssueCommentsFinding(new_comments=1),
+        )
+    ]
+    conversation = read_conversation(state=scheduler.context.state, issue=8)
+    assert conversation is not None
+    assert not conversation.compose_round_paths(number=2).record.exists()
+    assert count_comment_reads(gh=gh) == 2
+
+
+def test_a_running_conversation_finishes_before_a_closed_issue_ends_it(
+    conversation_scheduler, harnesses
 ):
     scheduler, clock, gh = conversation_scheduler
     offer_conversation(gh=gh, comments=[ask()])
     answer(harnesses=harnesses, delay=10)
     scheduler.tick(at=clock())
-    offer_conversation(gh=gh, comments=[ask(), ask(identifier=2)])
-    refresh = Mock()
-    monkeypatch.setattr(
-        "dreamcatcher.issue_conversations.refresh_detached_worktree",
-        refresh,
+    show_conversation_issue(
+        gh=gh,
+        issue=conversation_issue(labels=("dream:conversation",), state="CLOSED"),
     )
 
     observed = scheduler.tick(at=clock())
 
-    assert scheduler.is_at_capacity
+    conversation = read_conversation(state=scheduler.context.state, issue=8)
+    assert conversation is not None
+    assert conversation.ending is None
     assert observed.rows == [
         conversation_row(
             agent_work_identifier=compose_conversation_identifier(issue=8),
@@ -1134,7 +1158,6 @@ def test_nothing_is_read_for_a_conversation_whose_round_is_running(
         )
     ]
     assert count_comment_reads(gh=gh) == 1
-    refresh.assert_not_called()
 
 
 def test_ready_assignment_rounds_and_conversations_alternate(
