@@ -215,7 +215,7 @@ Each agent assignment has exactly one:
 - Git worktree;
 - agent harness.
 
-It has one pull request once its first round has opened it. The assignment
+It has one pull request once the round that opens it has done so. The assignment
 exists from the moment its work record is written, before any Git or GitHub
 step.
 
@@ -439,13 +439,14 @@ The scheduler writes the assignment's work record the moment it picks an
 available issue, and starts the first round in the same tick. The record comes
 before any Git or GitHub step, so the assignment exists whatever happens next.
 
-The first round's preparation fetches main, adds the worktree on the
-assignment's branch, makes and pushes an empty commit, and opens a linked draft
-pull request, before it asks the agent to do any work. These steps are part of
-the round, not responsibilities delegated to the agent or to the assignment
-skill. A pull request already on the assignment's branch is adopted whatever its
-state. Each step does nothing when its result already exists, so a round after
-one that failed part way finds most of the steps done and runs the rest.
+The preparation of the round that opens the pull request fetches main, adds the
+worktree on the assignment's branch, makes and pushes an empty commit, and opens
+a linked draft pull request, before it asks the agent to do any work. These
+steps are part of the round, not responsibilities delegated to the agent or to
+the assignment skill. A pull request already on the assignment's branch is
+adopted whatever its state. Each step does nothing when its result already
+exists, so a round after one that failed part way finds most of the steps done
+and runs the rest.
 
 ### Starting an issue conversation
 
@@ -494,7 +495,8 @@ round can start.
 
 An assignment normally progresses as follows:
 
-1. The first round opens its pull request as a draft before the agent starts.
+1. The round that opens its pull request does so as a draft before the agent
+   starts.
 2. The agent works on the implementation and may ask the user questions while it
    remains a draft.
 3. The agent marks it ready when the work is ready for the user to review.

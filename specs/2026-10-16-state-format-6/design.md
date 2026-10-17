@@ -326,12 +326,10 @@ tick found. Its steps, in order:
    read the input file; and prefix lines, one per circumstance. With no harness
    session to resume, the prompt begins with the initial prompt, because a new
    session has not seen it, and a conversation's input then also includes the
-   issue's title and body. With a session, the prompt is the input prompt alone,
-   unless there is no input, as for a round that opens the pull request, when it
-   is the initial prompt. Prefix lines go before the input prompt, so a round
-   with no input has none. The prefix lines are: the previous round was stopped
-   by you; the previous round did not finish; the pull request is out of date;
-   the checks failed.
+   issue's title and body. With a session, the prompt is the input prompt alone.
+   Prefix lines go before the input prompt, so a round with no input has none.
+   The prefix lines are: the previous round was stopped by you; the previous
+   round did not finish; the pull request is out of date; the checks failed.
 4. Spawn the harness, resuming the recorded harness session when there is one
    and starting a new one otherwise, and write the process id into the round
    record. From here the round runs on its own threads exactly as today.

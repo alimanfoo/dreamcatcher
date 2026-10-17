@@ -35,11 +35,11 @@ number 123.
 
 ### Branch adoption
 
-Before _dreamcatcher_ runs the agent in an assignment's first round, it fetches
-origin's main, cuts a branch from it, adds a worktree on that branch, makes and
-pushes an empty commit, and opens a linked draft pull request. The agent runs in
-that worktree, so the published branch is checked out and the working tree is
-clean.
+Before _dreamcatcher_ runs the agent in the round that opens an assignment's
+pull request, it fetches origin's main, cuts a branch from it, adds a worktree
+on that branch, makes and pushes an empty commit, and opens a linked draft pull
+request. The agent runs in that worktree, so the published branch is checked out
+and the working tree is clean.
 
 An assignment skill must instruct the agent to adopt the current branch and
 worktree. It must also adopt the draft pull request that _dreamcatcher_ has

@@ -555,8 +555,9 @@ write replaces that file whole and merges nothing into it, so the daemon, the
 web interface and a command can each record a fact at the same moment without
 erasing another's. These files persist:
 
-- for an assignment, once its first round has opened its pull request, that pull
-  request's number and latest observed state, draft flag, and observation time;
+- for an assignment, once the round that opens its pull request has done so,
+  that pull request's number and latest observed state, draft flag, and
+  observation time;
 - the harness session identifier, once known;
 - the time of the user's latest retry request, when one has been made;
 - the time and the reason the work ended, once it has ended.

@@ -46,7 +46,7 @@ _WORK_RECORD_NAME = "work.json"
 # continue.
 _HARNESS_SESSION_RECORD_NAME = "harness-session.json"
 
-# The file in a work directory saying when the user last asked it to recover.
+# The file in a work directory saying when the user last asked it to run again.
 _RETRY_REQUEST_RECORD_NAME = "retry-request.json"
 
 # The file in a work directory saying when and why the work ended.
@@ -360,12 +360,12 @@ def _record_user_request(*, path: Path, at: datetime) -> None:
 
 
 def _read_retry_requested_at(*, directory: Path) -> datetime | None:
-    """Return when the user last asked the agent work here to recover."""
+    """Return when the user last asked the agent work here to run again."""
     return _read_user_request_time(path=directory / _RETRY_REQUEST_RECORD_NAME)
 
 
 def request_agent_work_retry(*, work: AgentWork, at: datetime) -> None:
-    """Record when the user asked faulted agent work to recover again."""
+    """Record when the user asked faulted agent work to run again."""
     _record_user_request(path=work.directory / _RETRY_REQUEST_RECORD_NAME, at=at)
 
 

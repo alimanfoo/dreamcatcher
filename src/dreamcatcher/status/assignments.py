@@ -122,7 +122,7 @@ class AssignmentStatus:
         return [
             AgentRoundStatus(
                 record=record,
-                trigger_description=describe_assignment_round_trigger(
+                trigger_description=_describe_round_trigger(
                     assignment=assignment, number=record.number
                 ),
                 duration_description=compose_round_duration_description(record=record),
@@ -230,7 +230,7 @@ class AssignmentStatusReader(AgentWorkStatusReader[AssignmentStatus]):
             if self.is_round_working(record=latest):
                 detail, latest_output = describe_running_round(
                     record=latest,
-                    trigger_description=describe_assignment_round_trigger(
+                    trigger_description=_describe_round_trigger(
                         assignment=assignment, number=latest.number
                     ),
                     paths=assignment.compose_round_paths(number=latest.number),
@@ -367,7 +367,7 @@ class AssignmentStatusReader(AgentWorkStatusReader[AssignmentStatus]):
         return f"last output {describe_span(span=self.at - line.at)} ago"
 
 
-def describe_assignment_round_trigger(*, assignment: AgentWork, number: int) -> str:
+def _describe_round_trigger(*, assignment: AgentWork, number: int) -> str:
     """Describe what woke one round of the assignment, from the input it was given.
 
     A round given no input started the assignment.

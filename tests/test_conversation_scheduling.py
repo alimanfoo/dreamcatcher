@@ -1498,7 +1498,7 @@ def test_a_daemon_orphan_is_given_its_comments_again_in_its_saved_session(
     assert "Issue-conversation input for GH8:" in resumed.prompt
 
 
-def test_recovery_finds_a_session_identifier_left_in_raw_output(
+def test_a_session_identifier_left_in_raw_output_is_found(
     conversation_scheduler, harnesses
 ):
     scheduler, clock, gh = conversation_scheduler
