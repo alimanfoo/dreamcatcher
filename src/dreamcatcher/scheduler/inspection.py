@@ -51,11 +51,9 @@ class Candidate:
     """Open work the tick may start a round for, or a request it may start work for.
 
     The work is the open work, or the route of the work that a request would
-    create. The row is the request's row, which the tick marks with the round
-    it starts.
+    create.
     """
 
-    row: RequestRow
     work: AgentWork | DispatchRoute
     compose_round: RoundComposer
 

@@ -545,7 +545,7 @@ def test_a_saved_conversation_whose_issue_gains_a_second_label_starts_nothing(
         conversation_row(
             title="Issue 8",
             agent_work_identifier=compose_conversation_identifier(issue=8),
-            finding=PausedFinding(cause=PauseCause.CONFLICTING_LABELS),
+            finding=ConflictingLabelsFinding(labels=list(labels)),
         ),
         conversation_row(
             label="dream:scout",
@@ -1231,10 +1231,10 @@ def test_a_failed_assignment_candidate_does_not_block_a_ready_conversation(
     answer(harnesses=harnesses)
     launch = Scheduler._launch
 
-    def fail_assignments(self, *, candidate, at):
-        if candidate.row.kind is AgentWorkKind.ASSIGNMENT:
+    def fail_assignments(self, *, row, candidate, at):
+        if row.kind is AgentWorkKind.ASSIGNMENT:
             raise ReportableError("could not start assignment")
-        return launch(self, candidate=candidate, at=at)
+        return launch(self, row=row, candidate=candidate, at=at)
 
     monkeypatch.setattr(Scheduler, "_launch", fail_assignments)
 

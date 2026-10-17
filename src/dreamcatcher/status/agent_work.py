@@ -28,6 +28,7 @@ from dreamcatcher.scheduler.faults import (
     is_last_round_unfinished,
 )
 from dreamcatcher.scheduler.models import (
+    ConflictingLabelsFinding,
     IssueCommentsFinding,
     PausedFinding,
     PullRequestFinding,
@@ -39,6 +40,7 @@ from dreamcatcher.scheduler.models import (
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.status.findings import (
     describe_comments_to_answer,
+    describe_conflicting_labels,
     describe_pause,
     describe_read_failure,
 )
@@ -305,15 +307,25 @@ class AgentWorkStatusReader:
     def _derive_paused(
         self, *, work: AgentWork, row: RequestRow | None
     ) -> AgentWorkStatus | None:
-        """Derive the idle status of a paused conversation, which waits for nothing."""
+        """Derive the idle status of a paused conversation, which waits for nothing.
+
+        A second conversation label on its issue pauses it as a routing
+        conflict.
+        """
         finding = None if row is None else row.finding
-        if not isinstance(finding, PausedFinding):
+        if isinstance(finding, PausedFinding):
+            cause = str(finding.cause)
+        elif isinstance(finding, ConflictingLabelsFinding):
+            cause = describe_conflicting_labels(
+                kind=work.record.kind, labels=finding.labels
+            )
+        else:
             return None
         return AgentWorkStatus(
             work=work,
             row=row,
             value=AgentWorkStatusValue.IDLE,
-            detail=describe_pause(cause=finding.cause),
+            detail=describe_pause(cause=cause),
             latest_output=None,
         )
 

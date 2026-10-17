@@ -28,6 +28,7 @@ from dreamcatcher.scheduler.inspection import (
     compose_agent_work_row,
 )
 from dreamcatcher.scheduler.models import (
+    ConflictingLabelsFinding,
     IssueCommentsFinding,
     PauseCause,
     PausedFinding,
@@ -61,13 +62,9 @@ def inspect_open_conversation(
             at=context.clock(),
         )
         return Inspection(row=unread)
-    cause = _find_pause_cause(context=context, conversation=conversation, issue=issue)
-    if cause is not None:
-        return Inspection(
-            row=compose_agent_work_row(
-                work=conversation, finding=PausedFinding(cause=cause)
-            )
-        )
+    pause = _find_pause(context=context, conversation=conversation, issue=issue)
+    if pause is not None:
+        return Inspection(row=compose_agent_work_row(work=conversation, finding=pause))
     if is_fault:
         return Inspection(row=unread, is_fault=True)
     return _inspect_comments(
@@ -75,20 +72,24 @@ def inspect_open_conversation(
     )
 
 
-def _find_pause_cause(
+def _find_pause(
     *, context: SchedulingContext, conversation: AgentWork, issue: Issue
-) -> PauseCause | None:
-    """Return why the open conversation at this open issue rests, if it does."""
+) -> PausedFinding | ConflictingLabelsFinding | None:
+    """Return why the open conversation at this open issue rests, if it does.
+
+    A second conversation label on the issue is a routing conflict, held as the
+    labels.
+    """
     labels = [label.name for label in issue.labels]
     label = conversation.record.dispatch_label.casefold()
     if label not in {name.casefold() for name in labels}:
-        return PauseCause.LABEL_REMOVED
+        return PausedFinding(cause=PauseCause.LABEL_REMOVED)
     account = context.account.casefold()
     if account not in {assignee.login.casefold() for assignee in issue.assignees}:
-        return PauseCause.ISSUE_UNASSIGNED
+        return PausedFinding(cause=PauseCause.ISSUE_UNASSIGNED)
     routes = context.config.identify_conversation_routes(labels=labels)
-    if any(route.label.casefold() != label for route in routes):
-        return PauseCause.CONFLICTING_LABELS
+    if len(routes) > 1:
+        return ConflictingLabelsFinding(labels=[route.label for route in routes])
     return None
 
 
@@ -133,7 +134,6 @@ def _inspect_comments(
     return Inspection(
         row=row,
         candidate=Candidate(
-            row=row,
             work=work,
             compose_round=partial(
                 _compose_comment_round, context=context, issue=issue, comments=comments

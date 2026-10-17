@@ -382,11 +382,13 @@ def test_a_round_started_for_an_assignment_cancelled_after_inspection_stops(
     state, gh, harnesses
 ):
     ran(state=state, number=1, status=2)
-    candidate = inspect(state=state).candidate
-    assert candidate is not None
+    inspected = inspect(state=state)
+    assert inspected.candidate is not None
     cancel_assignment(assignment=read_assignments(state=state)[0], at=PINNED)
 
-    started = create_scheduler(state=state)._launch(candidate=candidate, at=PINNED)
+    started = create_scheduler(state=state)._launch(
+        row=inspected.row, candidate=inspected.candidate, at=PINNED
+    )
     started.wait()
 
     assert started.paths.stop_request.is_file()

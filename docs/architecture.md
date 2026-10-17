@@ -403,8 +403,9 @@ the open agent work, if any. It holds what the tick found as a typed finding:
   the cursor;
 - for an assignment request with no open work, the open linked pull requests and
   the open blocking issues, as numbers;
-- for a request whose issue carries two labels of its kind, those labels;
-- for a paused conversation, the cause;
+- for a request or an open conversation whose issue carries two labels of its
+  kind, those labels;
+- for a conversation paused for any other reason, the cause;
 - for a read that failed, the reason, in place of what it would have found.
 
 A row has no finding when the tick read nothing for it, as for work whose round

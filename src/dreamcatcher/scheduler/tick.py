@@ -128,14 +128,7 @@ class Scheduler:
         )
         if cooldown is not None:
             return record
-        return self._launch_candidates(
-            record=record,
-            candidates=[
-                inspection.candidate
-                for inspection in inspections
-                if inspection.candidate is not None
-            ],
-        )
+        return self._launch_candidates(record=record, inspections=inspections)
 
     def _forget_ended_rounds(self) -> None:
         ended_identifiers = [
@@ -262,21 +255,30 @@ class Scheduler:
                 )
 
     def _launch_candidates(
-        self, *, record: SchedulerRecord, candidates: list[Candidate]
+        self, *, record: SchedulerRecord, inspections: list[Inspection]
     ) -> SchedulerRecord:
         """Fill free capacity in candidate order, alternating between work kinds.
 
-        A launch that fails takes no slot, and the next candidate is tried. The
+        The record's rows are the inspections' rows, in the same order. A
+        launch that fails takes no slot, and the next candidate is tried. The
         row of each request names the round started for it, and why that round
         errored if it did so before its harness ran. A launch that fails before
         any round exists is a scheduler failure.
         """
-        while candidates and not self.is_at_capacity:
-            candidate = self._choose_next_candidate(candidates=candidates)
-            candidates.remove(candidate)
-            self._last_selected_work_kind = candidate.row.kind
+        rows = list(record.rows)
+        failures = list(record.failures)
+        ready = [
+            (position, candidate)
+            for position, inspection in enumerate(inspections)
+            if (candidate := inspection.candidate) is not None
+        ]
+        while ready and not self.is_at_capacity:
+            position, candidate = self._choose_next_candidate(ready=ready, rows=rows)
+            ready.remove((position, candidate))
+            row = rows[position]
+            self._last_selected_work_kind = row.kind
             try:
-                launched = self._launch(candidate=candidate, at=record.at)
+                launched = self._launch(row=row, candidate=candidate, at=record.at)
             except AgentRoundPreparationError as failure:
                 identifier = failure.agent_work_identifier
                 started_round = StartedRound(
@@ -284,31 +286,28 @@ class Scheduler:
                     preparation_failure=failure.reason,
                 )
             except ReportableError as failure:
-                record = record.model_copy(
-                    update={"failures": [*record.failures, str(failure)]}
-                )
+                failures.append(str(failure))
                 continue
             else:
                 identifier = launched.agent_work_identifier
                 self.rounds[identifier] = launched
                 started_round = StartedRound(number=launched.record.number)
-            record = record.model_copy(
+            rows[position] = row.model_copy(
                 update={
-                    "rows": _mark_row_started(
-                        rows=record.rows,
-                        started=candidate.row,
-                        agent_work_identifier=identifier,
-                        started_round=started_round,
-                    )
+                    "agent_work_identifier": identifier,
+                    "started_round": started_round,
                 }
             )
-        return record
+        return record.model_copy(update={"rows": rows, "failures": failures})
 
-    def _choose_next_candidate(self, *, candidates: list[Candidate]) -> Candidate:
-        """Return the first candidate of the kind whose turn it is.
+    def _choose_next_candidate(
+        self, *, ready: list[tuple[int, Candidate]], rows: list[RequestRow]
+    ) -> tuple[int, Candidate]:
+        """Return the first ready candidate of the kind whose turn it is.
 
-        The kinds take turns while both have candidates, and either kind goes
-        on alone once the other has none.
+        Each candidate comes with the position of its request's row. The kinds
+        take turns while both have candidates, and either kind goes on alone
+        once the other has none.
         """
         turn = (
             AgentWorkKind.CONVERSATION
@@ -316,11 +315,17 @@ class Scheduler:
             else AgentWorkKind.ASSIGNMENT
         )
         return next(
-            (candidate for candidate in candidates if candidate.row.kind is turn),
-            candidates[0],
+            (
+                (position, candidate)
+                for position, candidate in ready
+                if rows[position].kind is turn
+            ),
+            ready[0],
         )
 
-    def _launch(self, *, candidate: Candidate, at: datetime) -> AgentRound:
+    def _launch(
+        self, *, row: RequestRow, candidate: Candidate, at: datetime
+    ) -> AgentRound:
         """Create the candidate's work if it is a request, then start its next round.
 
         The round resumes the work's harness session when there is one. A
@@ -333,8 +338,8 @@ class Scheduler:
                 state=self.context.state,
                 route=candidate.work,
                 preferred_harness=self.preferred_harness,
-                issue=candidate.row.issue,
-                title=candidate.row.title,
+                issue=row.issue,
+                title=row.title,
                 at=at,
             )
         )
@@ -375,24 +380,3 @@ class Scheduler:
         )
         request_round_stop_if_ended(work=work, paths=paths)
         return started_round
-
-
-def _mark_row_started(
-    *,
-    rows: list[RequestRow],
-    started: RequestRow,
-    agent_work_identifier: str,
-    started_round: StartedRound,
-) -> list[RequestRow]:
-    """Return the rows with the started request's row naming its work and round."""
-    return [
-        row.model_copy(
-            update={
-                "agent_work_identifier": agent_work_identifier,
-                "started_round": started_round,
-            }
-        )
-        if row.issue == started.issue and row.dispatch_label == started.dispatch_label
-        else row
-        for row in rows
-    ]

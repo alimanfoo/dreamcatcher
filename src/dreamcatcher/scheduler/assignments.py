@@ -57,7 +57,6 @@ def inspect_open_assignment(
         return Inspection(
             row=unread,
             candidate=Candidate(
-                row=unread,
                 work=assignment,
                 compose_round=partial(_compose_opening_round, context=context),
             ),
@@ -78,7 +77,11 @@ def _inspect_pull_request(
     """
     read = read_pull_request(repository=context.repository, pull_request=pull_request)
     if isinstance(read, UnknownGitHubResponse):
-        return _compose_read_failure(assignment=assignment, reason=read.reason)
+        return Inspection(
+            row=compose_agent_work_row(
+                work=assignment, finding=ReadFailureFinding(reason=read.reason)
+            )
+        )
     posts = list_undelivered_user_posts(
         repository=context.repository,
         pull_request=read.number,
@@ -86,7 +89,11 @@ def _inspect_pull_request(
         delivery_position=read_user_post_delivery_position(assignment=assignment),
     )
     if isinstance(posts, UnknownGitHubResponse):
-        return _compose_read_failure(assignment=assignment, reason=posts.reason)
+        return Inspection(
+            row=compose_agent_work_row(
+                work=assignment, finding=ReadFailureFinding(reason=posts.reason)
+            )
+        )
     finding = PullRequestFinding(
         number=read.number,
         state=read.state,
@@ -107,7 +114,6 @@ def _inspect_pull_request(
     return Inspection(
         row=row,
         candidate=Candidate(
-            row=row,
             work=assignment,
             compose_round=partial(
                 _compose_relay_round,
@@ -116,14 +122,6 @@ def _inspect_pull_request(
                 posts=posts,
             ),
         ),
-    )
-
-
-def _compose_read_failure(*, assignment: AgentWork, reason: str) -> Inspection:
-    return Inspection(
-        row=compose_agent_work_row(
-            work=assignment, finding=ReadFailureFinding(reason=reason)
-        )
     )
 
 
@@ -145,7 +143,6 @@ def inspect_assignment_request(
     return Inspection(
         row=row,
         candidate=Candidate(
-            row=row,
             work=route,
             compose_round=partial(_compose_opening_round, context=context),
         ),

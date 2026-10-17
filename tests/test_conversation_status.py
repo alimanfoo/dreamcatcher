@@ -36,6 +36,7 @@ from dreamcatcher.issue_conversations import (
     InitialConversationIssue,
 )
 from dreamcatcher.scheduler.models import (
+    ConflictingLabelsFinding,
     IssueCommentsFinding,
     PauseCause,
     PausedFinding,
@@ -414,7 +415,7 @@ def test_two_current_errors_put_a_conversation_in_fault(conversation_state):
 @pytest.mark.parametrize(
     "finding",
     [
-        PausedFinding(cause=PauseCause.CONFLICTING_LABELS),
+        ConflictingLabelsFinding(labels=["discuss", "scout"]),
         ReadFailureFinding(
             reason="could not read comments for GH8: network unavailable"
         ),
@@ -501,6 +502,21 @@ def test_a_round_ending_after_the_latest_tick_waits_for_the_next_update(
 
     assert found.value is AgentWorkStatusValue.WAITING
     assert found.detail == "round 1 ended, awaiting next update"
+
+
+def test_a_conversation_with_two_conversation_labels_is_paused_saying_so(
+    conversation_state,
+):
+    conversation_round(state=conversation_state)
+    observe(
+        state=conversation_state,
+        finding=ConflictingLabelsFinding(labels=["discuss", "scout"]),
+    )
+
+    found = status(state=conversation_state)
+
+    assert found.value is AgentWorkStatusValue.IDLE
+    assert found.detail == "paused: multiple conversation labels: discuss, scout"
 
 
 def test_an_errored_round_of_a_paused_conversation_does_not_wait(

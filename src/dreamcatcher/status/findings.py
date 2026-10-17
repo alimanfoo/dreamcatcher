@@ -1,7 +1,6 @@
 """Word what a scheduler tick found, once for every status that shows it."""
 
 from dreamcatcher.harness_adapters import AgentWorkKind
-from dreamcatcher.scheduler.models import PauseCause
 from dreamcatcher.words import describe_count
 
 
@@ -15,7 +14,7 @@ def describe_conflicting_labels(*, kind: AgentWorkKind, labels: list[str]) -> st
     return f"multiple {kind} labels: " + ", ".join(labels)
 
 
-def describe_pause(*, cause: PauseCause) -> str:
+def describe_pause(*, cause: str) -> str:
     """Say why a conversation rests until the cause is removed."""
     return f"paused: {cause}"
 

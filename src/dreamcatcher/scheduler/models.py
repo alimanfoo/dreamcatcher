@@ -68,11 +68,13 @@ class ConflictingLabelsFinding(DreamcatcherDocument):
 
 
 class PauseCause(StrEnum):
-    """The reasons an open conversation pauses, in the order the tick checks them."""
+    """The reasons an open conversation pauses, other than a routing conflict.
+
+    The tick checks them in this order, and a routing conflict after them.
+    """
 
     LABEL_REMOVED = "label removed"
     ISSUE_UNASSIGNED = "issue unassigned"
-    CONFLICTING_LABELS = "conflicting labels"
 
 
 class PausedFinding(DreamcatcherDocument):
