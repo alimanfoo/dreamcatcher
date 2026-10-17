@@ -176,7 +176,7 @@ def test_the_daemon_reports_when_it_has_started_before_its_first_tick(
         )
         raise KeyboardInterrupt
 
-    monkeypatch.setattr(daemon, "run_scheduler_cycle", verify_report)
+    monkeypatch.setattr(daemon, "run_scheduler_tick", verify_report)
     daemon.run()
 
 
@@ -257,7 +257,7 @@ def test_a_successful_scheduler_tick_is_recorded_and_reported(
 
     monkeypatch.setattr(scheduler, "tick", launch)
 
-    daemon.run_scheduler_cycle(scheduler=scheduler, at=PINNED)
+    daemon.run_scheduler_tick(scheduler=scheduler, at=PINNED)
 
     assert recorded(daemon=daemon) == scheduler_record
     written_record = daemon.state.scheduler_record.read_text(encoding="utf-8")
@@ -292,7 +292,7 @@ def test_multiple_launches_are_recorded_and_reported(watched, capsys, monkeypatc
     )
     monkeypatch.setattr(scheduler, "tick", lambda *, at: scheduler_record)
 
-    daemon.run_scheduler_cycle(scheduler=scheduler, at=PINNED)
+    daemon.run_scheduler_tick(scheduler=scheduler, at=PINNED)
 
     assert recorded(daemon=daemon) == scheduler_record
     assert capsys.readouterr().out == (
@@ -320,7 +320,7 @@ def test_a_round_that_errored_before_its_harness_ran_is_reported_from_its_row(
     )
     monkeypatch.setattr(scheduler, "tick", lambda *, at: scheduler_record)
 
-    daemon.run_scheduler_cycle(scheduler=scheduler, at=PINNED)
+    daemon.run_scheduler_tick(scheduler=scheduler, at=PINNED)
 
     assert scheduler_record.failures == []
     assert capsys.readouterr().out == (
@@ -339,7 +339,7 @@ def test_a_cooldown_report_names_its_local_end(watched, capsys, monkeypatch):
 
     monkeypatch.setattr(scheduler, "tick", lambda *, at: scheduler_record)
 
-    daemon.run_scheduler_cycle(scheduler=scheduler, at=PINNED)
+    daemon.run_scheduler_tick(scheduler=scheduler, at=PINNED)
 
     assert capsys.readouterr().out == (
         "2026-08-20 02:41:58  nothing launched; global cooldown ends "
@@ -358,7 +358,7 @@ def test_a_tick_at_capacity_reports_capacity_before_its_failures(
     )
     monkeypatch.setattr(scheduler, "tick", lambda *, at: scheduler_record)
 
-    daemon.run_scheduler_cycle(scheduler=scheduler, at=PINNED)
+    daemon.run_scheduler_tick(scheduler=scheduler, at=PINNED)
 
     assert capsys.readouterr().out == (
         "2026-08-20 02:41:58  nothing launched; agent capacity full; "
@@ -689,8 +689,8 @@ def test_a_daemon_that_loses_its_lock_runs_no_other_tick_and_stops_rounds(
     daemon, _, _ = idling(root=ready_repo)
     interval = Mock()
     daemon.wait = interval.wait
-    run_scheduler_cycle = Mock(wraps=daemon.run_scheduler_cycle)
-    daemon.run_scheduler_cycle = run_scheduler_cycle
+    run_scheduler_tick = Mock(wraps=daemon.run_scheduler_tick)
+    daemon.run_scheduler_tick = run_scheduler_tick
 
     interval.ensure_held.side_effect = ReportableError("the daemon lock was lost")
     monkeypatch.setattr(
@@ -702,7 +702,7 @@ def test_a_daemon_that_loses_its_lock_runs_no_other_tick_and_stops_rounds(
     with pytest.raises(ReportableError, match="daemon lock was lost"):
         daemon.run()
 
-    assert run_scheduler_cycle.call_count == 1
+    assert run_scheduler_tick.call_count == 1
     assert interval.mock_calls == [call.wait(300), call.ensure_held()]
     agent_round = daemon.rounds[CREATED_ASSIGNMENT_ID]
     assert not agent_round.is_alive
@@ -731,7 +731,7 @@ def test_a_failed_tick_preserves_the_last_scheduler_record(ready_repo, capsys):
     (directory / "work.json").write_text("{}", encoding="utf-8")
 
     scheduler = create_scheduler(daemon=daemon)
-    daemon.run_scheduler_cycle(scheduler=scheduler, at=daemon.clock())
+    daemon.run_scheduler_tick(scheduler=scheduler, at=daemon.clock())
 
     assert recorded(daemon=daemon) == previous
     output = capsys.readouterr().out

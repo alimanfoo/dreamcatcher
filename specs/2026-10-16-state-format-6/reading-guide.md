@@ -19,7 +19,7 @@ expect, which is why any change to a persisted record needs a new state format.
 The daemon in `daemon.py` runs one scheduler tick per interval, and the tick in
 `scheduler/tick.py` is the only place where the two worlds meet. It reads both,
 starts rounds, and returns what it saw as a `SchedulerRecord`, which the
-daemon's `run_scheduler_cycle` writes to `scheduler.json`. Everything a person
+daemon's `run_scheduler_tick` writes to `scheduler.json`. Everything a person
 looks at, the terminal views under `tui/`, the web pages under `web/` and the
 status report under `status/`, reads local state alone and never touches GitHub.
 The one exception is the status report's read of `dreamcatcher.toml`, which is

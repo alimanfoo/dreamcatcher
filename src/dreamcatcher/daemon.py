@@ -86,13 +86,13 @@ class DreamcatcherDaemon:
         self.state = StateDirectory(root=root)
         self.clock: Callable[[], datetime] = read_current_time
         self.wait: WaitForSeconds = sleep
-        # The rounds this daemon is running, by their assignment or conversation
-        # identifier. They are what the cap counts, and what the daemon ends as it
-        # goes down.
+        # The rounds this daemon is running, by their agent work identifier.
+        # They are what the cap counts, and what the daemon ends as it goes
+        # down.
         self.rounds: dict[str, AgentRound] = {}
 
     def run(self, *, companion: AbstractContextManager[None] = _NO_COMPANION) -> None:
-        """Hold the daemon lock and run scheduler cycles until interrupted.
+        """Hold the daemon lock and run scheduler ticks until interrupted.
 
         Everything a daemon run cannot do without is settled before the loop: the
         harness CLIs, the state directory, the repository's name, the account
@@ -157,7 +157,7 @@ class DreamcatcherDaemon:
                         )
                     )
                     while True:
-                        self.run_scheduler_cycle(scheduler=scheduler, at=at)
+                        self.run_scheduler_tick(scheduler=scheduler, at=at)
                         self.wait(self.interval)
                         daemon_lock.ensure_held()
                         at = self.clock()
@@ -169,11 +169,11 @@ class DreamcatcherDaemon:
                 for agent_round in self.rounds.values():
                     agent_round.end_for_daemon_shutdown()
 
-    def run_scheduler_cycle(self, *, scheduler: Scheduler, at: datetime) -> None:
+    def run_scheduler_tick(self, *, scheduler: Scheduler, at: datetime) -> None:
         """Run one scheduler tick, then persist and report its result.
 
         A failed tick reports the error and leaves the last complete scheduler
-        record in place so that the next cycle can try again.
+        record in place so that the next tick can try again.
 
         Writing that evidence down is the exception. A daemon that cannot write
         `scheduler.json` has no way left to say anything at all, so that
@@ -205,7 +205,7 @@ class DreamcatcherDaemon:
 
         A terminal record is left unchanged. A record with a pending stop
         request is marked stopped; every other record without an ending is
-        marked interrupted so that a later scheduler cycle gives its input
+        marked interrupted so that a later scheduler tick gives its input
         again. A record with no process id ended before its harness was
         spawned, so there is nothing to terminate.
 
