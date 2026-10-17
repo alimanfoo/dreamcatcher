@@ -24,6 +24,7 @@ from dreamcatcher.agent_assignments import (
 )
 from dreamcatcher.agent_rounds import (
     AgentRoundRecord,
+    ErroredAgentRoundEnding,
     InterruptedAgentRoundEnding,
     StoppedAgentRoundEnding,
     _compose_agent_round_ending,
@@ -385,6 +386,26 @@ def test_a_live_round_that_has_said_nothing_reports_that(running):
     assert status.latest_output is None
 
 
+def test_a_round_that_errored_before_its_harness_ran_says_why_without_a_status(
+    state,
+):
+    write_round(
+        directory=state.work / ASSIGNMENT_ID,
+        number=1,
+        record=AgentRoundRecord(
+            number=1,
+            started=PINNED,
+            ending=ErroredAgentRoundEnding(at=PINNED, reason="git push failed"),
+        ),
+    )
+
+    status = only_assignment(state=state)
+
+    assert status.value is AssignmentStatusValue.WAITING
+    assert status.detail == "round 1 errored: git push failed"
+    assert status.round_statuses[0].outcome_description == "errored"
+
+
 @pytest.mark.parametrize(
     ("round_status", "detail"),
     [
@@ -392,7 +413,9 @@ def test_a_live_round_that_has_said_nothing_reports_that(running):
         (2, "round 1 errored (exit 2)"),
     ],
 )
-def test_an_unfinished_round_waits_for_recovery(state, round_status, detail):
+def test_an_unfinished_round_waits_to_be_given_its_input_again(
+    state, round_status, detail
+):
     ran(state=state, number=1, status=round_status)
 
     status = only_assignment(state=state)

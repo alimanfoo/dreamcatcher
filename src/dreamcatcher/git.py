@@ -78,16 +78,14 @@ def add_detached_worktree(*, root: Path, path: Path) -> None:
 
 
 def refresh_detached_worktree(*, root: Path, worktree: Path) -> str:
-    """Move a detached worktree to fetched main and return its revision.
+    """Put a detached worktree at fetched main and return its revision.
 
-    Discard every local change and commit before moving it.
+    A missing worktree is added. An existing one has every local change and
+    commit discarded before it moves.
     """
-    if not is_linked_worktree(path=worktree):
-        raise ReportableError(
-            f"Could not refresh detached worktree at {worktree}: "
-            "it is not a linked worktree."
-        )
     fetch_main(root=root)
+    if not is_linked_worktree(path=worktree):
+        add_detached_worktree(root=root, path=worktree)
     run_command(program="git", arguments=["clean", "-ffdx"], cwd=worktree)
     run_command(
         program="git",

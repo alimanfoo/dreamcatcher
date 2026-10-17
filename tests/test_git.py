@@ -5,7 +5,6 @@ import pytest
 from conftest import commit, git
 
 from dreamcatcher.commands import CommandError
-from dreamcatcher.errors import ReportableError
 from dreamcatcher.git import (
     _read_worktree_revision,
     add_detached_worktree,
@@ -122,14 +121,18 @@ def test_a_refresh_discards_a_conflicting_local_change(cloned):
     assert readme.read_text(encoding="utf-8") == "what main holds now\n"
 
 
-def test_a_missing_linked_worktree_is_not_refreshed(cloned):
+def test_a_missing_worktree_is_added_at_fetched_main(cloned):
     path = cloned / ".dreamcatcher" / "detached-worktree"
-    path.mkdir(parents=True)
+    (cloned / "README.md").write_bytes(b"what changed\n")
+    commit(path=cloned, message="change main")
+    git(arguments=["push", "origin", "main"], cwd=cloned)
 
-    with pytest.raises(ReportableError, match="it is not a linked worktree"):
-        refresh_detached_worktree(root=cloned, worktree=path)
+    revision = refresh_detached_worktree(root=cloned, worktree=path)
 
-    assert read_worktree_branch(worktree=cloned) == "main"
+    assert path in worktrees(root=cloned)
+    assert read_worktree_branch(worktree=path) == ""
+    assert revision == git(arguments=["rev-parse", "origin/main"], cwd=cloned).strip()
+    assert (path / "README.md").read_text(encoding="utf-8") == "what changed\n"
 
 
 def test_a_refresh_discards_an_unexpected_detached_commit(cloned):

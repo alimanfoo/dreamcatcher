@@ -41,7 +41,7 @@ from dreamcatcher.issue_conversations import (
     create_conversation,
     list_undelivered_issue_comments,
     post_conversation_answer,
-    prepare_conversation_input,
+    prepare_conversation_round,
     read_conversation_input,
     read_issue_comment_delivery_position,
 )
@@ -107,8 +107,8 @@ def comment(
     )
 
 
-def test_a_conversation_gets_a_detached_worktree_at_fetched_main(cloned):
-    state = StateDirectory(root=cloned)
+def test_a_conversation_is_recorded_without_a_worktree(tmp_path):
+    state = StateDirectory(root=tmp_path)
 
     created = create_conversation(
         state=state,
@@ -120,34 +120,12 @@ def test_a_conversation_gets_a_detached_worktree_at_fetched_main(cloned):
 
     assert created.identifier == "GH8-20260819-184158-conversation"
     assert created.worktree == state.worktrees / created.identifier
-    assert created.worktree.joinpath(".git").is_file()
+    assert not created.worktree.exists()
     assert created.record.kind is AgentWorkKind.CONVERSATION
     assert created.record.title == "Why does this happen?"
     assert created.record.harness == AgentHarness.CLAUDE
     assert created.record.dispatch_label == "dream:conversation"
     assert read_agent_work(state=state) == [created]
-
-
-def test_a_conversation_whose_record_cannot_be_written_leaves_no_worktree(
-    cloned, monkeypatch
-):
-    state = StateDirectory(root=cloned)
-
-    def fail_record_write(*, document, path):
-        raise ReportableError(f"cannot write the record at {path}")
-
-    monkeypatch.setattr("dreamcatcher.agent_work.write_json", fail_record_write)
-
-    with pytest.raises(ReportableError, match="cannot write the record"):
-        create_conversation(
-            state=state,
-            route=conversation_route(),
-            preferred_harness=AgentHarness.CLAUDE,
-            issue=issue(),
-            at=PINNED,
-        )
-
-    assert not (state.worktrees / "GH8-20260819-184158-conversation").exists()
 
 
 def test_a_new_conversation_records_the_preferred_harness_recipe(cloned):
@@ -226,7 +204,7 @@ def test_round_input_freezes_the_issue_comments_and_revision(
         at=PINNED,
     )
 
-    frozen = prepare_conversation_input(
+    frozen = prepare_conversation_round(
         state=state,
         conversation=conversation,
         issue=issue(),
@@ -238,6 +216,7 @@ def test_round_input_freezes_the_issue_comments_and_revision(
     assert frozen.initial_issue == initial_issue
     assert frozen.comments[0].body == "Please explain."
     assert frozen.revision
+    assert conversation.worktree.joinpath(".git").is_file()
 
 
 def test_a_follow_up_can_omit_the_issue_text(tmp_path):

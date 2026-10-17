@@ -331,7 +331,7 @@ def test_a_tick_fills_free_capacity_with_available_issues(ready_repo, offered):
     ).exists()
 
 
-def test_a_later_failed_launch_keeps_the_rounds_already_started(
+def test_a_failed_launch_goes_on_to_the_next_candidate(
     ready_repo, offered, monkeypatch
 ):
     offered.replies(
@@ -356,11 +356,11 @@ def test_a_later_failed_launch_keeps_the_rounds_already_started(
 
     observed = scheduler.tick(at=clock())
 
-    assert observed.launched_agent_work_identifiers == [CREATED_ASSIGNMENT_ID]
+    assert observed.launched_agent_work_identifiers == [
+        CREATED_ASSIGNMENT_ID,
+        "GH10-20260819-184158-assignment",
+    ]
     assert observed.failures == ["could not create an assignment for GH9"]
-    assert not (
-        scheduler.assignments.state.worktrees / "GH10-20260819-184158-assignment"
-    ).exists()
 
 
 def test_a_second_tick_judges_an_assigned_issue_handled(ready_repo):

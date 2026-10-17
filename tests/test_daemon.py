@@ -484,6 +484,29 @@ def test_a_round_the_daemon_before_this_one_left_running_is_ended(
     assert record.outcome is AgentRoundOutcome.INTERRUPTED
 
 
+def test_a_round_left_preparing_is_interrupted_with_nothing_to_end(
+    watched, monkeypatch
+):
+    directory = write_assignment(
+        state=StateDirectory(root=watched), identifier=ASSIGNMENT_ID, issue=13
+    )
+    write_round(
+        directory=directory,
+        number=1,
+        record=AgentRoundRecord(number=1, started=PINNED),
+    )
+    ended = Mock()
+    monkeypatch.setattr("dreamcatcher.daemon.teardown.end_process_tree", ended)
+
+    DreamcatcherDaemon(root=watched, harness=AgentHarness.CLAUDE)._sweep_orphans()
+
+    ended.assert_not_called()
+    record = AgentRoundRecord.model_validate_json(
+        (directory / "rounds" / "1" / "round.json").read_text(encoding="utf-8")
+    )
+    assert record.outcome is AgentRoundOutcome.INTERRUPTED
+
+
 def test_a_pending_stop_survives_daemon_restart(watched, harnesses, gh, left_running):
     state = StateDirectory(root=watched)
     directory = write_assignment(state=state, identifier=ASSIGNMENT_ID, issue=13)

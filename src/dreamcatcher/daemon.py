@@ -227,7 +227,9 @@ class DreamcatcherDaemon:
 
         A terminal record is left unchanged. A record with a pending stop
         request is marked stopped; every other record without an ending is
-        marked interrupted so that a later scheduler cycle can recover it.
+        marked interrupted so that a later scheduler cycle gives its input
+        again. A record with no process id ended before its harness was
+        spawned, so there is nothing to terminate.
 
         The pid is the one the record kept, and the operating system was free
         to give it to somebody else once the daemon that recorded it died.
@@ -243,7 +245,8 @@ class DreamcatcherDaemon:
         for work in read_agent_work(state=self.state):
             for record in work.rounds:
                 if record.ending is None:
-                    teardown.end_process_tree(pid=record.pid)
+                    if record.pid is not None:
+                        teardown.end_process_tree(pid=record.pid)
                     paths = work.compose_round_paths(number=record.number)
                     if paths.stop_request.is_file():
                         record_agent_round_stop(

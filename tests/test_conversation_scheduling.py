@@ -32,6 +32,7 @@ from records import (
 )
 
 import dreamcatcher.scheduler.assignments as assignments_module
+from dreamcatcher import agent_rounds
 from dreamcatcher.agent_rounds import (
     AgentRoundOutcome,
     AgentRoundRecord,
@@ -848,7 +849,7 @@ def test_a_follow_up_refreshes_to_changed_main(conversation_scheduler, harnesses
     assert follow_up.revision == _read_worktree_revision(worktree=conversation.worktree)
 
 
-def test_a_failed_conversation_refresh_leaves_the_batch_waiting(
+def test_a_failed_conversation_refresh_is_an_errored_round(
     conversation_scheduler, harnesses, monkeypatch
 ):
     scheduler, clock, gh = conversation_scheduler
@@ -869,15 +870,23 @@ def test_a_failed_conversation_refresh_leaves_the_batch_waiting(
 
     observed = scheduler.tick(at=clock())
 
-    assert observed.failures == ["could not fetch main"]
+    assert observed.failures == [
+        "GH8-20260819-184158-conversation round 2 errored: could not fetch main"
+    ]
+    assert observed.launched_agent_work_identifiers == []
     conversation = read_conversation(state=scheduler.assignments.state, issue=8)
     assert conversation is not None
-    assert len(conversation.rounds) == 1
+    assert len(conversation.rounds) == 2
+    ending = conversation.rounds[1].ending
+    assert isinstance(ending, ErroredAgentRoundEnding)
+    assert ending.status is None
+    assert ending.reason == "could not fetch main"
+    assert conversation.rounds[1].pid is None
     assert not conversation.compose_round_paths(number=2).round_input.exists()
     assert len(harnesses["claude"].calls) == 1
 
 
-def test_a_follow_up_survives_an_input_write_failure_after_refresh(
+def test_a_round_whose_input_cannot_be_saved_errors_and_the_next_refreshes(
     conversation_scheduler, harnesses, monkeypatch
 ):
     scheduler, clock, gh = conversation_scheduler
@@ -894,34 +903,44 @@ def test_a_follow_up_survives_an_input_write_failure_after_refresh(
     git(arguments=["push", "origin", "main"], cwd=scheduler.assignments.state.root)
     comments = [ask(), ask(identifier=2, body="Does this still hold?")]
     offer_conversation(gh=gh, comments=comments)
+    write_json = agent_rounds.write_json
+
+    def refuse_conversation_input(*, document, path):
+        if isinstance(document, ConversationRoundInput):
+            raise ReportableError("could not save conversation input")
+        write_json(document=document, path=path)
+
     with monkeypatch.context() as input_failure:
         input_failure.setattr(
-            "dreamcatcher.agent_rounds.write_json",
-            Mock(side_effect=ReportableError("could not save conversation input")),
+            "dreamcatcher.agent_rounds.write_json", refuse_conversation_input
         )
 
         failed = scheduler.tick(at=clock())
 
-    pending_path = conversation.compose_round_paths(number=2).round_input
     refreshed_revision = _read_worktree_revision(worktree=conversation.worktree)
-    assert failed.failures == ["could not save conversation input"]
-    assert len(conversation.rounds) == 1
-    assert not pending_path.exists()
+    assert failed.failures == [
+        "GH8-20260819-184158-conversation round 2 errored: "
+        "could not save conversation input"
+    ]
+    assert not conversation.compose_round_paths(number=2).round_input.exists()
     offer_conversation(gh=gh, comments=comments)
     answer(harnesses=harnesses, body="The changed answer.")
     gh.replies(stdout=json.dumps({"id": 100}), to=POST_PATH)
 
-    recovered = scheduler.tick(at=clock())
+    given_again = scheduler.tick(at=clock())
     finish(scheduler=scheduler)
 
-    assert recovered.failures == []
-    assert recovered.launched_agent_work_identifiers == [
+    assert given_again.failures == []
+    assert given_again.launched_agent_work_identifiers == [
         "GH8-20260819-184158-conversation"
     ]
     conversation = read_conversation(state=scheduler.assignments.state, issue=8)
     assert conversation is not None
-    assert len(conversation.rounds) == 2
-    resumed = read_json(model=ConversationRoundInput, path=pending_path)
+    assert len(conversation.rounds) == 3
+    resumed = read_json(
+        model=ConversationRoundInput,
+        path=conversation.compose_round_paths(number=3).round_input,
+    )
     assert resumed.revision == refreshed_revision
     assert [item.body for item in resumed.comments] == ["Does this still hold?"]
 
@@ -951,10 +970,14 @@ def test_a_follow_up_refreshes_again_after_a_launch_failure(
 
         failed = scheduler.tick(at=clock())
 
-    pending_path = conversation.compose_round_paths(number=2).round_input
-    pending = read_json(model=ConversationRoundInput, path=pending_path)
-    assert failed.failures == ["could not launch conversation"]
-    assert len(conversation.rounds) == 1
+    failed_input = read_json(
+        model=ConversationRoundInput,
+        path=conversation.compose_round_paths(number=2).round_input,
+    )
+    assert failed.failures == [
+        "GH8-20260819-184158-conversation round 2 errored: "
+        "could not launch conversation"
+    ]
     (scheduler.assignments.state.root / "README.md").write_bytes(b"second move\n")
     commit(path=scheduler.assignments.state.root, message="move main twice")
     git(arguments=["push", "origin", "main"], cwd=scheduler.assignments.state.root)
@@ -962,12 +985,15 @@ def test_a_follow_up_refreshes_again_after_a_launch_failure(
     answer(harnesses=harnesses, body="The changed answer.")
     gh.replies(stdout=json.dumps({"id": 100}), to=POST_PATH)
 
-    recovered = scheduler.tick(at=clock())
+    given_again = scheduler.tick(at=clock())
     finish(scheduler=scheduler)
 
-    assert recovered.failures == []
-    resumed = read_json(model=ConversationRoundInput, path=pending_path)
-    assert resumed.revision != pending.revision
+    assert given_again.failures == []
+    resumed = read_json(
+        model=ConversationRoundInput,
+        path=conversation.compose_round_paths(number=3).round_input,
+    )
+    assert resumed.revision != failed_input.revision
     assert resumed.revision == _read_worktree_revision(worktree=conversation.worktree)
     assert [item.body for item in resumed.comments] == ["Does this still hold?"]
 
@@ -2024,17 +2050,25 @@ def test_an_existing_empty_conversation_can_start(conversation_scheduler, harnes
     )
 
 
-def test_a_missing_empty_conversation_worktree_fails_without_detaching_main(
-    conversation_scheduler,
+def test_a_missing_conversation_worktree_is_added_without_detaching_main(
+    conversation_scheduler, harnesses
 ):
     scheduler, clock, gh = conversation_scheduler
     write_conversation(state=scheduler.assignments.state, issue=8)
     offer_conversation(gh=gh, comments=[ask()])
+    answer(harnesses=harnesses)
+    gh.replies(stdout=json.dumps({"id": 99}), to=POST_PATH)
 
     observed = scheduler.tick(at=clock())
+    finish(scheduler=scheduler)
 
-    [failure] = observed.failures
-    assert "it is not a linked worktree" in failure
+    assert observed.failures == []
+    assert observed.launched_agent_work_identifiers == [
+        "GH8-20260819-184158-conversation"
+    ]
+    conversation = read_conversation(state=scheduler.assignments.state, issue=8)
+    assert conversation is not None
+    assert conversation.worktree.joinpath(".git").is_file()
     assert (
         git(
             arguments=["branch", "--show-current"], cwd=scheduler.assignments.state.root

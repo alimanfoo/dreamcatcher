@@ -58,7 +58,9 @@ def describe_round_ending(
     """Describe a round that is no longer running and return its latest output."""
     ending = record.ending
     if isinstance(ending, ErroredAgentRoundEnding):
-        detail = f"round {record.number} errored (exit {ending.status})"
+        detail = f"round {record.number} errored"
+        if ending.status is not None:
+            detail = f"{detail} (exit {ending.status})"
         if ending.reason is not None:
             detail = f"{detail}: {ending.reason}"
     else:
@@ -98,9 +100,9 @@ def describe_round_outcome(*, record: AgentRoundRecord, is_working: bool) -> str
 
     A round that recorded no ending never finished. It is running when a daemon
     is still there to run it, and interrupted once that daemon has gone, since
-    a round cannot outlive its daemon. A round that errored for a reason, after
-    its harness exited cleanly, reads as errored alone, since its exit status
-    says nothing and its reason is too long for a list of rounds.
+    a round cannot outlive its daemon. A round that errored for a reason reads as
+    errored alone, since its exit status, if it has one, says nothing and its
+    reason is too long for a list of rounds.
     """
     if isinstance(record.ending, ErroredAgentRoundEnding):
         if record.ending.reason is not None:

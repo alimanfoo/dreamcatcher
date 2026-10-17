@@ -67,13 +67,14 @@ class AgentWorkScheduler[CandidateT, ObservationT, RankT](ABC):
         *,
         work: AgentWork,
         harness_session_identifier: HarnessSessionIdentifier | None,
-        round_input: DreamcatcherDocument | None,
+        prepare_round: Callable[[], DreamcatcherDocument | None],
         input_prompt: str | None,
         finish_round: AgentRoundFinisher | None,
     ) -> AgentRound:
         """Start the work's next round, resuming the harness session when given one.
 
-        A round whose work has ended by the time it starts is asked to stop.
+        The round runs the preparation step before its harness. A round whose
+        work has ended by the time it starts is asked to stop.
         """
         if harness_session_identifier is not None:
             record_harness_session_identifier(
@@ -104,7 +105,7 @@ class AgentWorkScheduler[CandidateT, ObservationT, RankT](ABC):
                 ),
                 finish_round=finish_round,
                 paths=paths,
-                round_input=round_input,
+                prepare_round=prepare_round,
             ),
             clock=self.clock,
         )

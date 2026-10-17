@@ -24,7 +24,7 @@ from dreamcatcher.issue_conversations import (
     is_conversation_ready_for_input,
     list_undelivered_issue_comments,
     post_conversation_answer,
-    prepare_conversation_input,
+    prepare_conversation_round,
     read_issue_comment_delivery_position,
 )
 from dreamcatcher.prompts import compose_conversation_input_prompt
@@ -133,17 +133,17 @@ class ConversationScheduler(
             at=at,
         )
         harness_session_identifier = conversation.find_harness_session_identifier()
-        round_input = prepare_conversation_input(
-            state=self.state,
-            conversation=conversation,
-            issue=candidate.issue,
-            comments=candidate.comments,
-            is_resuming=harness_session_identifier is not None,
-        )
         return self.start_round(
             work=conversation,
             harness_session_identifier=harness_session_identifier,
-            round_input=round_input,
+            prepare_round=partial(
+                prepare_conversation_round,
+                state=self.state,
+                conversation=conversation,
+                issue=candidate.issue,
+                comments=candidate.comments,
+                is_resuming=harness_session_identifier is not None,
+            ),
             input_prompt=compose_conversation_input_prompt(
                 issue=conversation.record.issue,
                 round_input=conversation.compose_round_paths(

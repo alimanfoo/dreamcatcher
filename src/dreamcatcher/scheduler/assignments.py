@@ -353,7 +353,7 @@ class AssignmentScheduler(
         return self.start_round(
             work=assignment,
             harness_session_identifier=assignment.find_harness_session_identifier(),
-            round_input=round_input,
+            prepare_round=lambda: round_input,
             input_prompt=input_prompt,
             finish_round=(
                 None

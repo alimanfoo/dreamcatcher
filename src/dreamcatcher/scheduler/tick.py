@@ -149,7 +149,10 @@ class Scheduler:
         record: SchedulerRecord,
         candidates: _ReadyAgentWork,
     ) -> SchedulerRecord:
-        """Fill free capacity while alternating between ready work kinds."""
+        """Fill free capacity while alternating between ready work kinds.
+
+        A launch that fails takes no slot, and the next candidate is tried.
+        """
         launched_identifiers: list[str] = []
         while not self.is_at_capacity:
             work_kind = _choose_next_work_kind(
@@ -173,7 +176,6 @@ class Scheduler:
                 record = record.model_copy(
                     update={"failures": [*record.failures, str(failure)]}
                 )
-                self._clear_candidates(work_kind=work_kind, candidates=candidates)
                 continue
             identifier = launched_round.agent_work_identifier
             self.rounds[identifier] = launched_round
@@ -249,11 +251,3 @@ class Scheduler:
         if observation is None:
             observations.append(started)
         return record.model_copy(update={"assignment_observations": observations})
-
-    def _clear_candidates(
-        self, *, work_kind: AgentWorkKind, candidates: _ReadyAgentWork
-    ) -> None:
-        if work_kind is AgentWorkKind.ASSIGNMENT:
-            candidates.assignments.clear()
-        else:
-            candidates.conversations.clear()

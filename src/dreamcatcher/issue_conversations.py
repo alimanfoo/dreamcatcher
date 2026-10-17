@@ -1,6 +1,5 @@
 """Persist issue conversations and prepare their trusted input."""
 
-from contextlib import suppress
 from datetime import datetime
 
 from pydantic import Field
@@ -12,15 +11,11 @@ from dreamcatcher.agent_work import (
     compose_agent_work_identifier,
     record_agent_work,
 )
-from dreamcatcher.commands import CommandError
 from dreamcatcher.config import AgentHarness, ConversationRoute
 from dreamcatcher.documents import DreamcatcherDocument, read_json
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.git import (
-    add_detached_worktree,
-    fetch_main,
     refresh_detached_worktree,
-    remove_worktree,
 )
 from dreamcatcher.github import (
     ConversationComment,
@@ -75,11 +70,10 @@ def create_conversation(
     issue: Issue,
     at: datetime,
 ) -> AgentWork:
-    """Create one conversation at the issue with no rounds run yet.
+    """Record one conversation at the issue with no rounds run yet.
 
-    The worktree starts at fetched main, and preparing the first round's input
-    resets it to fetched main again. A record that cannot be written takes the
-    worktree with it, since a later attempt has an identifier of its own.
+    Every round's preparation makes the worktree, so creation writes the record
+    alone.
     """
     selected_harness = route.choose_harness(preferred_harness=preferred_harness)
     recipe = route.recipes[selected_harness]
@@ -94,18 +88,13 @@ def create_conversation(
         harness_config=recipe.config,
         prompt=compose_issue_instructions(template=recipe.prompt, issue=issue.number),
     )
-    identifier = compose_agent_work_identifier(
-        issue=issue.number, kind=AgentWorkKind.CONVERSATION, at=at
+    return record_agent_work(
+        state=state,
+        identifier=compose_agent_work_identifier(
+            issue=issue.number, kind=AgentWorkKind.CONVERSATION, at=at
+        ),
+        record=record,
     )
-    fetch_main(root=state.root)
-    worktree = state.worktrees / identifier
-    add_detached_worktree(root=state.root, path=worktree)
-    try:
-        return record_agent_work(state=state, identifier=identifier, record=record)
-    except ReportableError:
-        with suppress(CommandError):
-            remove_worktree(root=state.root, path=worktree)
-        raise
 
 
 def list_undelivered_issue_comments(
@@ -133,7 +122,7 @@ def list_undelivered_issue_comments(
     )
 
 
-def prepare_conversation_input(
+def prepare_conversation_round(
     *,
     state: StateDirectory,
     conversation: AgentWork,
@@ -141,7 +130,7 @@ def prepare_conversation_input(
     comments: list[ConversationComment],
     is_resuming: bool,
 ) -> ConversationRoundInput:
-    """Refresh the worktree and freeze one issue's trusted round input.
+    """Reset the worktree to fetched main and freeze the round's trusted input.
 
     A round that starts a new harness session is given the issue's title and
     body too, because the session has not seen them.
