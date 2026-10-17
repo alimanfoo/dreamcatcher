@@ -624,7 +624,7 @@ def test_a_home_card_links_to_its_exact_assignment(tmp_path):
     page = render_home(state=state)
 
     assignment_link = (
-        'class="assignment-open" href="/work/GH13-20260819-184158-assignment" '
+        'class="agent-work-open" href="/work/GH13-20260819-184158-assignment" '
         'target="_blank" rel="noopener noreferrer" '
         'aria-label="Open assignment GH13-20260819-184158-assignment '
         '(opens in new tab)"'
@@ -633,8 +633,8 @@ def test_a_home_card_links_to_its_exact_assignment(tmp_path):
     assert page.count('href="/work/GH13-20260819-184158-assignment"') == 1
     card_start = page.index('<article id="assignment-GH13-20260819-184158-assignment"')
     card = page[card_start : page.index("</article>", card_start)]
-    assert card.index(assignment_link) < card.index('class="assignment-detail"')
-    assert card.index('class="pr-chip"') > card.index('class="assignment-detail"')
+    assert card.index(assignment_link) < card.index('class="agent-work-detail"')
+    assert card.index('class="pr-chip"') > card.index('class="agent-work-detail"')
 
 
 def test_a_card_keeps_its_compact_actions_inside_the_heading(tmp_path):
@@ -797,7 +797,7 @@ def test_assignment_script_follows_only_when_the_feed_was_at_its_end(tmp_path):
         state=state, clock=lambda: LOOKED_AT, zone=DISPLAY_TIME_ZONE
     )
 
-    response = application.test_client().get("/static/assignment.js")
+    response = application.test_client().get("/static/agent-work.js")
     script = response.get_data(as_text=True)
 
     assert response.status_code == 200
@@ -1316,17 +1316,17 @@ def test_assignment_heading_keeps_its_chips_in_the_top_right(tmp_path):
     )
 
     assert re.search(
-        r"\.assignment-heading \{[^}]*display: grid;"
+        r"\.agent-work-heading \{[^}]*display: grid;"
         r"[^}]*grid-template-columns: minmax\(0, 1fr\) max-content;"
         r"[^}]*align-items: start;",
         stylesheet,
         re.DOTALL,
     )
     assert re.search(
-        r"\.assignment-heading h1 \{[^}]*min-width: 0;", stylesheet, re.DOTALL
+        r"\.agent-work-heading h1 \{[^}]*min-width: 0;", stylesheet, re.DOTALL
     )
     assert re.search(
-        r"\.assignment-heading-actions \{[^}]*flex-wrap: nowrap;",
+        r"\.agent-work-heading-actions \{[^}]*flex-wrap: nowrap;",
         stylesheet,
         re.DOTALL,
     )
@@ -1344,9 +1344,9 @@ def test_assignment_rounds_link_to_the_feed_in_ascending_order(tmp_path):
     )
 
     assert round_links == [("1", "01"), ("2", "02")]
-    assert 'class="assignment-workspace"' in page
+    assert 'class="agent-work-workspace"' in page
     assert 'class="feed-records"' in page
-    assert 'src="/static/assignment.js"' in page
+    assert 'src="/static/agent-work.js"' in page
 
 
 def test_an_errored_rounds_style_uses_its_outcome_alone(tmp_path):
@@ -1370,7 +1370,7 @@ def test_hand_resume_command_is_collapsed(tmp_path):
         application.test_client().get("/static/matrix.css").get_data(as_text=True)
     )
 
-    assert '<details class="manual-recovery">' in page
+    assert '<details class="hand-resume">' in page
     assert "<summary>resume by hand</summary>" in page
     assert "escape hatch" not in page
     assert 'class="panel resume-command"' not in page
@@ -1385,7 +1385,7 @@ def test_assignment_page_offers_a_control_that_jumps_to_the_feed_tail(tmp_path):
     application = _create_app(
         state=state, clock=lambda: LOOKED_AT, zone=DISPLAY_TIME_ZONE
     )
-    response = application.test_client().get("/static/assignment.js")
+    response = application.test_client().get("/static/agent-work.js")
     script = response.get_data(as_text=True)
 
     assert (
@@ -1447,7 +1447,7 @@ def test_assignment_reporting_remains_without_a_repository_record(tmp_path):
 
     page = render_assignment(state=state, identifier="GH10-20260819-184158-assignment")
 
-    assert '<strong class="assignment-issue">#10' in page
+    assert '<strong class="agent-work-issue">#10' in page
     assert '<span class="pr-chip">PR #52 draft</span>' in page
 
 

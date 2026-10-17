@@ -74,7 +74,7 @@ def test_home_lists_a_conversation_and_links_to_its_page(tmp_path):
     assert '<h1 id="conversations-heading">Conversations</h1>' in page
     assert 'id="conversation-GH8-20260819-184158-conversation"' in page
     conversation_link = (
-        'class="assignment-open" href="/work/GH8-20260819-184158-conversation" '
+        'class="agent-work-open" href="/work/GH8-20260819-184158-conversation" '
         'target="_blank" '
         'rel="noopener noreferrer" '
         'aria-label="Open conversation GH8-20260819-184158-conversation '

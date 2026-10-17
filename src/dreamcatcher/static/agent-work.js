@@ -2,7 +2,7 @@
 
 const feed = document.querySelector(".feed-records");
 const feedTail = document.querySelector(".feed-tail");
-const assignmentSidebar = document.querySelector(".assignment-sidebar");
+const assignmentSidebar = document.querySelector(".agent-work-sidebar");
 const outputTypingDuration = Number.parseFloat(
   getComputedStyle(document.documentElement).getPropertyValue(
     "--output-typing-duration",
