@@ -273,8 +273,7 @@ body::after {
 }
 
 .assignment-card,
-.issue-row,
-.failed-setup-row {
+.issue-row {
   padding: 16px 0;
 }
 
@@ -454,10 +453,6 @@ body::after {
 .empty,
 .assignment-navigation {
   color: var(--dim);
-}
-
-.failed-setup-row {
-  color: var(--danger);
 }
 
 .assignment-content {

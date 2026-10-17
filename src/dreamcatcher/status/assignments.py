@@ -87,21 +87,30 @@ class AssignmentStatus:
         return not self.has_ended
 
     @cached_property
-    def pull_request_observation(self) -> PullRequestObservation:
-        """The assignment's pull request as last observed."""
+    def pull_request_observation(self) -> PullRequestObservation | None:
+        """The assignment's pull request as last observed, once a round opened it."""
         return read_pull_request_observation(assignment=self.assignment)
+
+    @property
+    def pull_request(self) -> int | None:
+        """The number of the assignment's pull request, once a round opened it."""
+        observation = self.pull_request_observation
+        return None if observation is None else observation.number
 
     @property
     def pull_request_state(self) -> str | None:
         """The latest observed pull-request state in status-report words.
 
         A cancelled assignment has none, because nothing observes its pull
-        request once the user has taken it over.
+        request once the user has taken it over, and neither does one whose
+        pull request no round has opened yet.
         """
         ending = self.assignment.ending
         if ending is not None and ending.reason is AgentWorkEndReason.CANCELLED:
             return None
         observation = self.pull_request_observation
+        if observation is None:
+            return None
         if observation.is_open:
             return "draft" if observation.is_draft else "ready"
         return observation.state.value.lower()

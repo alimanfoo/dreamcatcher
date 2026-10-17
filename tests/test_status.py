@@ -1030,52 +1030,6 @@ def test_reading_one_assignment_does_not_read_an_unrelated_assignment(state):
     assert unknown is None
 
 
-def test_a_failed_setup_reports_independently_of_an_external_claim(state):
-    observation = observed_issue(
-        issue=20,
-        values={"claimed_elsewhere": Truth.TRUE},
-        evidence={"claimed_elsewhere": "a pull request is open on it: #52"},
-    ).model_copy(
-        update={"title": "Failed issue", "setup_failure": "assignment setup failed"}
-    )
-    write_tick(
-        state=state,
-        tick=SchedulerRecord(at=PINNED, issue_observations=[observation]),
-    )
-
-    status_report = report(state=state)
-
-    assert status_report.failed_assignment_setups == [
-        observation.model_copy(
-            update={
-                "observed_at": PINNED,
-                "claimed_here": ObservedFact(
-                    value=Truth.FALSE,
-                    evidence="this checkout has no open assignment for it",
-                ),
-            }
-        )
-    ]
-    assert status_report.issue_observations == []
-
-
-def test_a_failed_setup_with_a_routing_conflict_is_reported_once(state):
-    observation = observed_issue(
-        issue=20,
-        values={"routing_conflict": Truth.TRUE},
-        evidence={"routing_conflict": "multiple assignment labels"},
-    ).model_copy(update={"setup_failure": "assignment setup failed"})
-    write_tick(
-        state=state,
-        tick=SchedulerRecord(at=PINNED, issue_observations=[observation]),
-    )
-
-    status_report = report(state=state)
-
-    assert [issue.issue for issue in status_report.failed_assignment_setups] == [20]
-    assert status_report.issue_observations == []
-
-
 def test_a_report_orders_active_assignments_by_attention_and_ended_ones_newest_first(
     tmp_path,
 ):

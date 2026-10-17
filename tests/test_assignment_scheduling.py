@@ -20,6 +20,7 @@ from dreamcatcher.agent_assignments import (
 )
 from dreamcatcher.agent_rounds import (
     AgentRoundRecord,
+    ErroredAgentRoundEnding,
     InterruptedAgentRoundEnding,
     StoppedAgentRoundEnding,
     _compose_agent_round_ending,
@@ -35,6 +36,7 @@ from dreamcatcher.scheduler.assignments import (
 )
 from dreamcatcher.scheduler.models import (
     AgentWorkObservation,
+    ObservedFact,
     Truth,
 )
 from dreamcatcher.state import StateDirectory
@@ -126,11 +128,75 @@ def found(
     return None
 
 
-def test_an_assignment_that_has_run_no_round_at_all_needs_its_first(state):
+def test_an_assignment_with_no_pull_request_yet_needs_its_first_round(tmp_path):
+    configure(root=tmp_path)
+    state = StateDirectory(root=tmp_path)
+    write_assignment(
+        state=state, identifier=ASSIGNMENT_ID, issue=13, pull_request_observation=None
+    )
+
     first = found(state=state)
 
     assert isinstance(first, FirstAssignmentRoundCandidate)
     assert first.assignment.record.issue == 13
+
+
+def test_a_first_round_that_failed_before_its_pull_request_is_tried_again(
+    tmp_path,
+):
+    configure(root=tmp_path)
+    state = StateDirectory(root=tmp_path)
+    write_assignment(
+        state=state, identifier=ASSIGNMENT_ID, issue=13, pull_request_observation=None
+    )
+    write_round(
+        directory=state.work / ASSIGNMENT_ID,
+        number=1,
+        record=AgentRoundRecord(
+            number=1,
+            started=PINNED,
+            ending=ErroredAgentRoundEnding(at=PINNED, reason="git push failed"),
+        ),
+    )
+    assignment = read_assignments(state=state)[0]
+
+    inspected = create_assignment_scheduler(state=state)._inspect_assignment(
+        assignment=assignment, most_recent_cooldown_ended=None, observed_at=PINNED
+    )
+
+    assert isinstance(inspected.candidate, FirstAssignmentRoundCandidate)
+    assert inspected.observation.requires_round == ObservedFact(
+        value=Truth.TRUE, evidence="round 1 errored, to try again"
+    )
+
+
+def test_an_assignment_whose_first_round_failed_twice_is_in_fault(tmp_path):
+    configure(root=tmp_path)
+    state = StateDirectory(root=tmp_path)
+    write_assignment(
+        state=state, identifier=ASSIGNMENT_ID, issue=13, pull_request_observation=None
+    )
+    for number in (1, 2):
+        write_round(
+            directory=state.work / ASSIGNMENT_ID,
+            number=number,
+            record=AgentRoundRecord(
+                number=number,
+                started=PINNED + timedelta(minutes=number),
+                ending=ErroredAgentRoundEnding(
+                    at=PINNED + timedelta(minutes=number), reason="git push failed"
+                ),
+            ),
+        )
+
+    inspected = create_assignment_scheduler(state=state)._inspect_assignment(
+        assignment=read_assignments(state=state)[0],
+        most_recent_cooldown_ended=None,
+        observed_at=PINNED,
+    )
+
+    assert inspected.candidate is None
+    assert inspected.is_fault
 
 
 def test_an_assignment_whose_last_round_was_interrupted_is_given_its_input_again(

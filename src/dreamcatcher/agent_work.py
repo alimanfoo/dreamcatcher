@@ -234,7 +234,7 @@ def find_agent_work(*, state: StateDirectory, identifier: str) -> AgentWork | No
     Only that work's own files are read, so another piece of work that cannot be
     read does not hide this one.
     """
-    if not is_agent_work_recorded(state=state, identifier=identifier):
+    if not _is_agent_work_recorded(state=state, identifier=identifier):
         return None
     directory = state.work / identifier
     return _read_agent_work(
@@ -244,7 +244,7 @@ def find_agent_work(*, state: StateDirectory, identifier: str) -> AgentWork | No
     )
 
 
-def is_agent_work_recorded(*, state: StateDirectory, identifier: str) -> bool:
+def _is_agent_work_recorded(*, state: StateDirectory, identifier: str) -> bool:
     """Return whether agent work with this exact identifier has its record.
 
     The identifier names a directory directly under `work/`, so one that would

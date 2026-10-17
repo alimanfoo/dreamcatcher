@@ -377,34 +377,6 @@ def fabricate_status_everything(*, state):
     )
 
 
-def fabricate_a_failed_setup(*, state):
-    """Write an assignment, a failed setup, and available work."""
-    holding(state=state)
-    written(state=state, issue=13, records=[])
-    failure = "assignment setup failed"
-    write_tick(
-        state=state,
-        tick=SchedulerRecord(
-            at=PINNED + timedelta(hours=1, minutes=58),
-            issue_observations=[
-                observed_issue(
-                    issue=20,
-                    assignment_labels=(ASSIGNMENT_LABEL, "dream:less"),
-                    values={
-                        "claimed_elsewhere": Truth.UNKNOWN,
-                        "routing_conflict": Truth.TRUE,
-                    },
-                    evidence={
-                        "claimed_elsewhere": failure,
-                        "routing_conflict": DOUBLE_LABELLED,
-                    },
-                ).model_copy(update={"setup_failure": failure}),
-                observed_issue(issue=21),
-            ],
-        ),
-    )
-
-
 def fabricate_a_dead_daemon(*, state):
     """Write the same assignments with their former daemon gone."""
     fabricate_everything(state=state)
@@ -570,18 +542,6 @@ def fabricate_titles_and_pull_request_states(*, state):
                     values={"blocked": Truth.TRUE},
                     evidence={"blocked": "blocked by GH20"},
                 ),
-                observed_issue(
-                    issue=22,
-                    title="Failed setup issue",
-                    created_at=PINNED,
-                    assignment_labels=[ASSIGNMENT_LABEL],
-                    values={"claimed_elsewhere": Truth.UNKNOWN},
-                    evidence={"claimed_elsewhere": "assignment setup failed"},
-                ).model_copy(
-                    update={
-                        "setup_failure": "assignment setup failed",
-                    }
-                ),
             ],
             assignment_observations=assignment_observations,
         ),
@@ -591,7 +551,6 @@ def fabricate_titles_and_pull_request_states(*, state):
 STATUS_REPORTS = {
     "nothing": fabricate_nothing,
     "everything": fabricate_status_everything,
-    "failed-setup": fabricate_a_failed_setup,
     "dead-daemon": fabricate_a_dead_daemon,
     "at-cap": fabricate_the_cap,
     "silent-round": fabricate_a_silent_round,

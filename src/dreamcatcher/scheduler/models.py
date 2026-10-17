@@ -66,7 +66,6 @@ class IssueObservation(DreamcatcherDocument):
     is_assigned_to_user: ObservedFact
     claimed_here: ObservedFact
     claimed_elsewhere: ObservedFact
-    setup_failure: str | None = None
     blocked: ObservedFact
     routing_conflict: ObservedFact
 

@@ -6,11 +6,12 @@ from functools import partial
 from typing import cast
 
 from dreamcatcher.agent_assignments import (
-    AssignmentCreator,
     AssignmentRoundInput,
+    PullRequestObservation,
     complete_assignment,
-    inspect_incomplete_assignment_setups,
+    create_assignment,
     is_final_turn_taken,
+    prepare_assignment_round,
     read_pull_request_observation,
     read_user_post_delivery_position,
     record_pull_request_observation,
@@ -62,7 +63,11 @@ class NewAssignmentCandidate:
 
 @dataclass(frozen=True, kw_only=True)
 class FirstAssignmentRoundCandidate:
-    """Describe an assignment that has not started its first round."""
+    """Describe an assignment whose first round has not opened its pull request.
+
+    A first round that failed part way leaves the assignment here, and the next
+    round runs the same preparation again.
+    """
 
     assignment: AgentWork
 
@@ -113,14 +118,7 @@ class AssignmentScheduler(
         assignments = read_agent_work_of_kind(
             state=self.state, kind=AgentWorkKind.ASSIGNMENT
         )
-        issue_result = observe_issues(
-            scheduler=self,
-            assignments=assignments,
-            incomplete_setups=inspect_incomplete_assignment_setups(
-                state=self.state,
-                repository=self.repository,
-            ),
-        )
+        issue_result = observe_issues(scheduler=self, assignments=assignments)
         issue_observations = [
             observation.model_copy(update={"observed_at": at})
             for observation in issue_result.observations
@@ -149,18 +147,17 @@ class AssignmentScheduler(
 
     def rank(self, candidate: AssignmentCandidate, /) -> int:
         """Rank an assignment candidate when `sorted` passes it by position."""
-        if isinstance(candidate, FirstAssignmentRoundCandidate):
-            return 0
         return 1 if isinstance(candidate, NewAssignmentCandidate) else 0
 
     def launch(self, *, candidate: AssignmentCandidate, at: datetime) -> AgentRound:
         """Create any new assignment, then start its required round."""
         if isinstance(candidate, NewAssignmentCandidate):
-            creator = AssignmentCreator(state=self.state, repository=self.repository)
-            assignment = creator.create(
+            assignment = create_assignment(
+                state=self.state,
                 route=candidate.route,
                 preferred_harness=self.preferred_harness,
                 issue=candidate.issue,
+                title=candidate.title,
                 at=at,
             )
             candidate = FirstAssignmentRoundCandidate(assignment=assignment)
@@ -210,14 +207,6 @@ class AssignmentScheduler(
         most_recent_cooldown_ended: datetime | None,
         observed_at: datetime,
     ) -> _AssignmentItemInspection:
-        if not assignment.rounds:
-            candidate = FirstAssignmentRoundCandidate(assignment=assignment)
-            return _AssignmentItemInspection(
-                candidate=candidate,
-                observation=_compose_assignment_observation(
-                    assignment=assignment, evidence=NO_ROUND_HAS_RUN
-                ),
-            )
         if derive_agent_work_fault(
             rounds=assignment.rounds,
             retry_requested_at=assignment.retry_requested_at,
@@ -232,18 +221,35 @@ class AssignmentScheduler(
                 ),
                 is_fault=True,
             )
+        observation = read_pull_request_observation(assignment=assignment)
+        if observation is None:
+            return _AssignmentItemInspection(
+                candidate=FirstAssignmentRoundCandidate(assignment=assignment),
+                observation=_compose_assignment_observation(
+                    assignment=assignment,
+                    evidence=(
+                        _describe_unfinished_round(assignment=assignment)
+                        if assignment.rounds
+                        else NO_ROUND_HAS_RUN
+                    ),
+                ),
+            )
         return self._inspect_pull_request(
             assignment=assignment,
+            observation=observation,
             observed_at=observed_at,
         )
 
     def _inspect_pull_request(
-        self, *, assignment: AgentWork, observed_at: datetime
+        self,
+        *,
+        assignment: AgentWork,
+        observation: PullRequestObservation,
+        observed_at: datetime,
     ) -> _AssignmentItemInspection:
         """Inspect an assignment's pull request and pending user posts."""
         pull_request = read_pull_request(
-            repository=self.repository,
-            pull_request=read_pull_request_observation(assignment=assignment).number,
+            repository=self.repository, pull_request=observation.number
         )
         if isinstance(pull_request, UnknownGitHubResponse):
             return _AssignmentItemInspection(
@@ -353,7 +359,14 @@ class AssignmentScheduler(
         return self.start_round(
             work=assignment,
             harness_session_identifier=assignment.find_harness_session_identifier(),
-            prepare_round=lambda: round_input,
+            prepare_round=partial(
+                prepare_assignment_round,
+                state=self.state,
+                repository=self.repository,
+                assignment=assignment,
+                round_input=round_input,
+                clock=self.clock,
+            ),
             input_prompt=input_prompt,
             finish_round=(
                 None
@@ -372,7 +385,11 @@ def _describe_assignment_candidate(*, candidate: AssignmentRoundCandidate) -> st
     if candidate.undelivered_posts:
         posts = describe_count(number=len(candidate.undelivered_posts), noun="new post")
         return f"{posts} to answer"
-    latest_round = candidate.assignment.rounds[-1]
+    return _describe_unfinished_round(assignment=candidate.assignment)
+
+
+def _describe_unfinished_round(*, assignment: AgentWork) -> str:
+    latest_round = assignment.rounds[-1]
     return f"round {latest_round.number} {latest_round.outcome}, to try again"
 
 

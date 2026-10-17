@@ -68,7 +68,7 @@ def add_worktree(*, root: Path, path: Path, branch: str) -> None:
     )
 
 
-def add_detached_worktree(*, root: Path, path: Path) -> None:
+def _add_detached_worktree(*, root: Path, path: Path) -> None:
     """Create a detached worktree at origin/main."""
     run_command(
         program="git",
@@ -85,7 +85,7 @@ def refresh_detached_worktree(*, root: Path, worktree: Path) -> str:
     """
     fetch_main(root=root)
     if not is_linked_worktree(path=worktree):
-        add_detached_worktree(root=root, path=worktree)
+        _add_detached_worktree(root=root, path=worktree)
     run_command(program="git", arguments=["clean", "-ffdx"], cwd=worktree)
     run_command(
         program="git",
@@ -137,13 +137,6 @@ def _read_worktree_revision(*, worktree: Path) -> str:
     """Return the exact commit checked out in a worktree."""
     return run_command(
         program="git", arguments=["rev-parse", "HEAD"], cwd=worktree
-    ).strip()
-
-
-def read_worktree_branch(*, worktree: Path) -> str:
-    """Return the branch checked out in an assignment worktree."""
-    return run_command(
-        program="git", arguments=["branch", "--show-current"], cwd=worktree
     ).strip()
 
 

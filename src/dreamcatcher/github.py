@@ -178,7 +178,7 @@ class LinkedPullRequest(GitHubResponseProjection):
 
 
 class IssuePullRequestContext(GitHubResponseProjection):
-    """Model the issue facts needed to reconcile or create a pull request.
+    """Model the pull requests linked to an issue.
 
     GitHub lists pull requests in every state here, and counts both the ones that
     said they close the issue and the ones somebody linked by hand. The public
@@ -187,7 +187,6 @@ class IssuePullRequestContext(GitHubResponseProjection):
     """
 
     issue: int = Field(alias="number")
-    title: str
     pull_requests: list[LinkedPullRequest] = Field(
         alias="closedByPullRequestsReferences"
     )
@@ -497,9 +496,9 @@ def list_pull_requests(
 
 
 def create_pull_request(
-    *, repository: str, branch: str, context: IssuePullRequestContext
+    *, repository: str, branch: str, issue: int, title: str
 ) -> PullRequest | UnknownGitHubResponse:
-    """Open the branch's linked draft pull request and return its identity.
+    """Open the branch's draft pull request, linked to the issue, and return it.
 
     An unknown response means that creation succeeded but the pull request's
     identity could not be read.
@@ -517,9 +516,9 @@ def create_pull_request(
             branch,
             "--draft",
             "--title",
-            context.title,
+            title,
             "--body",
-            f"Closes #{context.issue}",
+            f"Closes #{issue}",
         ],
     ).strip()
     pull_request = _read_pull_request(repository=repository, reference=reference)
@@ -559,7 +558,7 @@ def _read_pull_request(
 def read_issue_pull_request_context(
     *, repository: str, issue: int
 ) -> IssuePullRequestContext | UnknownGitHubResponse:
-    """Return the issue title and its open linked pull requests.
+    """Return the issue's open linked pull requests.
 
     This is how the tool knows an issue is claimed when no worktree here says
     so, which is the state a second checkout of the same repository is always
@@ -574,7 +573,7 @@ def read_issue_pull_request_context(
             "--repo",
             repository,
             "--json",
-            "number,title,closedByPullRequestsReferences",
+            "number,closedByPullRequestsReferences",
         ],
     )
     if isinstance(linked_response, UnknownGitHubResponse):

@@ -229,6 +229,25 @@ def test_assignment_page_shows_the_common_agent_work_facts(tmp_path):
     assert "<dt>session</dt>" not in page
 
 
+def test_an_assignment_with_no_pull_request_yet_says_so_on_its_card_and_page(
+    tmp_path,
+):
+    state = StateDirectory(root=tmp_path)
+    state.bootstrap()
+    write_daemon_run(state=state, pid=DAEMON_PID)
+    identifier = "GH13-20260819-184158-assignment"
+    write_assignment(
+        state=state, identifier=identifier, issue=13, pull_request_observation=None
+    )
+
+    home = render_home(state=state)
+    page = render_assignment(state=state, identifier=identifier)
+
+    assert '<span class="pr-chip">no pull request yet</span>' in home
+    assert '<span class="pr-chip">no pull request yet</span>' in page
+    assert "/pull/" not in page
+
+
 def test_assignment_page_asks_once_whether_the_daemon_runs(tmp_path, monkeypatch):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)

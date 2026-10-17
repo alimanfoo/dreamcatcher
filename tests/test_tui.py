@@ -17,6 +17,7 @@ from conftest import DAEMON_PID, FIXTURES, assert_matches_view_golden
 from records import (
     MERGED_INPUT,
     SCOUT_ROUTES,
+    write_assignment,
     write_daemon_run,
     write_feed,
     write_round,
@@ -371,6 +372,18 @@ def viewed(*, state, issue: int, width: int = WIDTH) -> str:
         zone=DISPLAY_TIME_ZONE,
     )
     return written_to.getvalue()
+
+
+def test_an_assignment_with_no_pull_request_yet_says_so(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    write_assignment(
+        state=state,
+        identifier=f"GH13-{ASSIGNMENT_TIMESTAMP}-assignment",
+        issue=13,
+        pull_request_observation=None,
+    )
+
+    assert "pull request                 none yet" in viewed(state=state, issue=13)
 
 
 def test_assignment_latest_output_is_indented_on_one_line(tmp_path):

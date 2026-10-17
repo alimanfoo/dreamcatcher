@@ -144,7 +144,6 @@ class DreamcatcherStatusReport:
     scheduler_failure_summary: str | None
     running_agents: int
     active_global_cooldown: GlobalCooldown | None
-    failed_assignment_setups: list[IssueObservation]
     issue_observations: list[IssueObservation]
     assignment_statuses: list[AssignmentStatus]
     conversation_statuses: list[ConversationStatus]
@@ -290,7 +289,6 @@ def read_status_report(
         scheduler_record=scheduler_record,
         assignments=assignments,
     )
-    failed_assignment_setups = _select_failed_setups(observations=issue_observations)
     reported_issue_observations = _select_issue_observations(
         observations=issue_observations
     )
@@ -298,7 +296,6 @@ def read_status_report(
     conversation_labels = daemon.list_labels(kind=AgentWorkKind.CONVERSATION)
     has_active_assignment_work = bool(
         any(status.is_active for status in assignment_statuses)
-        or failed_assignment_setups
         or reported_issue_observations
     )
     has_conversation_work = bool(conversation_statuses)
@@ -338,18 +335,13 @@ def read_status_report(
         active_global_cooldown=(
             None if scheduler_record is None else scheduler_record.cooldown
         ),
-        failed_assignment_setups=failed_assignment_setups,
         issue_observations=reported_issue_observations,
         assignment_statuses=assignment_statuses,
         conversation_statuses=conversation_statuses,
         assignment_section=_describe_agent_work_section(
             heading="assignments",
             labels=assignment_labels,
-            has_any_work=bool(
-                assignment_statuses
-                or failed_assignment_setups
-                or reported_issue_observations
-            ),
+            has_any_work=bool(assignment_statuses or reported_issue_observations),
             has_active_work=has_active_assignment_work,
             empty_message=assignment_empty_message,
         ),
@@ -429,30 +421,17 @@ def _count_running_agents(
     ) + sum(status.value is ConversationStatusValue.WORKING for status in conversations)
 
 
-def _select_failed_setups(
-    *, observations: list[IssueObservation]
-) -> list[IssueObservation]:
-    return [
-        observation
-        for observation in observations
-        if observation.setup_failure is not None
-    ]
-
-
 def _select_issue_observations(
     *, observations: list[IssueObservation]
 ) -> list[IssueObservation]:
     return [
         observation
         for observation in observations
-        if (
-            observation.setup_failure is None
-            and Truth.TRUE
-            in (
-                observation.routing_conflict.value,
-                observation.availability.value,
-                observation.blocked.value,
-            )
+        if Truth.TRUE
+        in (
+            observation.routing_conflict.value,
+            observation.availability.value,
+            observation.blocked.value,
         )
     ]
 

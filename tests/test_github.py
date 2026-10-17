@@ -315,10 +315,9 @@ def test_a_linked_draft_pull_request_is_opened_for_the_assignment_branch(fake):
         to="pr view",
     )
 
-    context = IssuePullRequestContext(
-        issue=8, title="Use the issue title", pull_requests=[]
+    created = create_pull_request(
+        repository=REPOSITORY, branch=BRANCH, issue=8, title="Use the issue title"
     )
-    created = create_pull_request(repository=REPOSITORY, branch=BRANCH, context=context)
 
     assert created == PullRequest(number=28, state=PullRequestState.OPEN, isDraft=True)
     assert gh.calls[0].arguments == [
@@ -365,7 +364,7 @@ def test_a_pull_request_is_read_by_its_persisted_identity(fake):
     ]
 
 
-def test_the_issue_title_and_its_linked_pull_requests_come_back_together(fake):
+def test_an_issue_answers_with_its_open_linked_pull_requests(fake):
     gh = fake(program="gh")
     gh.replies(
         stdout=json.dumps(
@@ -386,7 +385,6 @@ def test_the_issue_title_and_its_linked_pull_requests_come_back_together(fake):
         repository=REPOSITORY, issue=8
     ) == IssuePullRequestContext(
         issue=8,
-        title="The issue title",
         pull_requests=[LinkedPullRequest(number=28)],
     )
     assert gh.calls[0].arguments == [
@@ -396,7 +394,7 @@ def test_the_issue_title_and_its_linked_pull_requests_come_back_together(fake):
         "--repo",
         REPOSITORY,
         "--json",
-        "number,title,closedByPullRequestsReferences",
+        "number,closedByPullRequestsReferences",
     ]
     assert gh.calls[1].arguments == [
         "pr",
@@ -428,7 +426,7 @@ def test_a_finished_linked_pull_request_does_not_claim_the_issue(fake):
 
     assert read_issue_pull_request_context(
         repository=REPOSITORY, issue=8
-    ) == IssuePullRequestContext(issue=8, title="The issue title", pull_requests=[])
+    ) == IssuePullRequestContext(issue=8, pull_requests=[])
 
 
 def test_a_linked_pull_request_whose_state_cannot_be_read_is_unknown(fake):
@@ -465,7 +463,7 @@ def test_an_issue_nobody_has_claimed_has_no_linked_pull_request(fake):
 
     assert read_issue_pull_request_context(
         repository=REPOSITORY, issue=8
-    ) == IssuePullRequestContext(issue=8, title="The issue title", pull_requests=[])
+    ) == IssuePullRequestContext(issue=8, pull_requests=[])
 
 
 def test_the_blockers_of_an_issue_come_back_with_their_states(fake):

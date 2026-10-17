@@ -3,7 +3,6 @@
 from collections.abc import Callable, Sequence
 from datetime import datetime, tzinfo
 from time import sleep
-from typing import cast
 
 from rich.console import Console, Group, RenderableType
 from rich.text import Text
@@ -87,13 +86,12 @@ def _render_assignments(
 ) -> RenderableType | None:
     """Render assignment work as one section, mirroring the web home view.
 
-    Orders active assignments, failed assignment setups, issue observations,
-    and the ended-assignment count in that sequence.
+    Orders active assignments, issue observations, and the ended-assignment
+    count in that sequence.
     """
     if section is None:
         return None
     rows = _render_assignment_rows(assignments=report.active_assignment_statuses)
-    rows += _render_failed_setups(failed_setups=report.failed_assignment_setups)
     rows += _render_issue_observations(issues=report.issue_observations)
     if section.empty_message is not None:
         rows.append(Text(section.empty_message))
@@ -101,22 +99,6 @@ def _render_assignments(
     if ended:
         rows.append(Text(describe_count(number=len(ended), noun="ended assignment")))
     return render_section(heading=section.heading, body=Group(*rows))
-
-
-def _render_failed_setups(
-    *, failed_setups: Sequence[IssueObservation]
-) -> list[RenderableType]:
-    """Render incomplete assignment setups with recorded failures."""
-    if not failed_setups:
-        return []
-    table = create_table(columns=2)
-    for setup in failed_setups:
-        evidence = [
-            cast("str", setup.setup_failure),
-            *_describe_issue_evidence(observation=setup),
-        ]
-        table.add_row(Text(f"GH{setup.issue}"), Text("; ".join(evidence)))
-    return [table]
 
 
 def _render_issue_observations(

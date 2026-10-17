@@ -99,18 +99,21 @@ def write_assignment(
     issue: int,
     harness_session_identifier: str | None = "abc-123",
     title: str | None = None,
-    pull_request_observation: agent_assignments.PullRequestObservation = _OPEN_DRAFT,
+    pull_request_observation: agent_assignments.PullRequestObservation
+    | None = _OPEN_DRAFT,
 ) -> Path:
     """Write an assignment's worktree and its records, and return its own directory.
 
-    The title is `Issue <n>` unless the test gives one.
+    The title is `Issue <n>` unless the test gives one. An assignment given no
+    pull request observation is one whose first round has not opened it.
     """
     (state.worktrees / identifier).mkdir(parents=True)
     directory = state.work / identifier
-    write_json(
-        document=pull_request_observation,
-        path=directory / agent_assignments._PULL_REQUEST_OBSERVATION_RECORD_NAME,
-    )
+    if pull_request_observation is not None:
+        write_json(
+            document=pull_request_observation,
+            path=directory / agent_assignments._PULL_REQUEST_OBSERVATION_RECORD_NAME,
+        )
     agent_work.record_agent_work(
         state=state,
         identifier=identifier,

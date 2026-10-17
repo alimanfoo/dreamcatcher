@@ -723,10 +723,9 @@ def test_an_assignment_with_an_open_pull_request_and_nothing_new_is_not_waiting(
 
 
 def test_an_assignment_that_has_run_no_round_at_all_gets_its_first(ready_repo):
+    state = StateDirectory(root=ready_repo)
     write_assignment(
-        state=StateDirectory(root=ready_repo),
-        identifier=ASSIGNMENT_ID,
-        issue=13,
+        state=state, identifier=ASSIGNMENT_ID, issue=13, pull_request_observation=None
     )
     scheduler, clock = create_scheduler(root=ready_repo)
 
@@ -739,9 +738,13 @@ def test_an_assignment_that_has_run_no_round_at_all_gets_its_first(ready_repo):
     assert written_round(scheduler=scheduler, number=1, name="prompt.txt").startswith(
         "/dream:smith GH13\n\nEnd every post you make on GitHub"
     )
+    [assignment] = read_assignments(state=state)
+    observation = read_pull_request_observation(assignment=assignment)
+    assert observation is not None
+    assert observation.number == PULL_REQUEST
 
 
-def test_a_dispatch_whose_round_will_not_start_retries_the_prepared_assignment(
+def test_a_dispatch_whose_round_will_not_start_keeps_the_assignment_for_next_time(
     ready_repo, offered
 ):
     # A file where the assignment's rounds go, so no round can record its start.
@@ -753,63 +756,54 @@ def test_a_dispatch_whose_round_will_not_start_retries_the_prepared_assignment(
     observed = scheduler.tick(at=clock())
 
     assert "cannot write" in sole_failure(observed=observed)
-    assert observed_issues(tick=observed) == [8]
-    assert availability_values(tick=observed) == [Truth.TRUE]
-    assert (scheduler.assignments.state.worktrees / CREATED_ASSIGNMENT_ID).exists()
-    branch = f"dreamcatcher-{CREATED_ASSIGNMENT_ID}"
-    assert branch in git(arguments=["branch", "--list", branch], cwd=ready_repo)
+    [assignment] = read_assignments(state=scheduler.assignments.state)
+    assert assignment.identifier == CREATED_ASSIGNMENT_ID
+    assert assignment.rounds == []
+    assert not assignment.worktree.exists()
 
     occupied.unlink()
-    offered.replies(
-        stdout=json.dumps(
-            {
-                "number": 8,
-                "title": "The issue title",
-                "closedByPullRequestsReferences": [{"number": PULL_REQUEST}],
-            }
-        ),
-        to="issue view",
-    )
-    offered.replies(stdout=pull_requests(listed=[(PULL_REQUEST, "OPEN")]), to="pr list")
     observed = scheduler.tick(at=clock())
     finish_rounds(scheduler=scheduler)
 
     assert observed.launched_agent_work_identifiers == [CREATED_ASSIGNMENT_ID]
     record = scheduler.assignments.state.work / CREATED_ASSIGNMENT_ID / "rounds" / "1"
-    assert (
-        AgentRoundRecord.model_validate_json(
-            (record / "round.json").read_text(encoding="utf-8")
-        ).number
-        == 1
-    )
+    assert (record / "round.json").is_file()
     created = [call for call in offered.calls if call.arguments[:2] == ["pr", "create"]]
     assert len(created) == 1
 
 
 @pytest.mark.parametrize("checkpoint", ["worktree", "commit", "push", "pull request"])
-def test_the_next_tick_recovers_each_incomplete_creation_checkpoint(
+def test_a_round_after_one_that_failed_part_way_finishes_its_preparation(
     ready_repo, offered, checkpoint
 ):
     state = StateDirectory(root=ready_repo)
-    branch = f"dreamcatcher-{CREATED_ASSIGNMENT_ID}"
-    worktree = state.worktrees / CREATED_ASSIGNMENT_ID
+    directory = write_assignment(
+        state=state,
+        identifier=ASSIGNMENT_ID,
+        issue=13,
+        harness_session_identifier=None,
+        pull_request_observation=None,
+    )
+    started = PINNED.replace(hour=17)
+    write_round(
+        directory=directory,
+        number=1,
+        record=AgentRoundRecord(
+            number=1,
+            started=started,
+            ending=ErroredAgentRoundEnding(at=started, reason="git push failed"),
+        ),
+    )
+    branch = f"dreamcatcher-{ASSIGNMENT_ID}"
+    worktree = state.worktrees / ASSIGNMENT_ID
+    worktree.rmdir()
     fetch_main(root=ready_repo)
     add_worktree(root=ready_repo, path=worktree, branch=branch)
     if checkpoint != "worktree":
-        make_empty_commit(worktree=worktree, message="GH8")
+        make_empty_commit(worktree=worktree, message="GH13")
     if checkpoint in {"push", "pull request"}:
         push_branch(root=ready_repo, branch=branch)
     if checkpoint == "pull request":
-        offered.replies(
-            stdout=json.dumps(
-                {
-                    "number": 8,
-                    "title": "The issue title",
-                    "closedByPullRequestsReferences": [{"number": PULL_REQUEST}],
-                }
-            ),
-            to="issue view",
-        )
         offered.replies(
             stdout=pull_requests(listed=[(PULL_REQUEST, "OPEN")]), to="pr list"
         )
@@ -818,39 +812,18 @@ def test_the_next_tick_recovers_each_incomplete_creation_checkpoint(
     observed = scheduler.tick(at=clock())
     finish_rounds(scheduler=scheduler)
 
-    assert observed.launched_agent_work_identifiers == [CREATED_ASSIGNMENT_ID]
-    round_record = state.work / CREATED_ASSIGNMENT_ID / "rounds" / "1"
-    assert (
-        AgentRoundRecord.model_validate_json(
-            (round_record / "round.json").read_text(encoding="utf-8")
-        ).number
-        == 1
-    )
-    assert len(list(state.work.iterdir())) == 1
+    assert observed.launched_agent_work_identifiers == [ASSIGNMENT_ID]
+    assert record_of(scheduler=scheduler, number=2).number == 2
     commits = git(arguments=["rev-list", "--count", "origin/main..HEAD"], cwd=worktree)
     assert commits.strip() == "1"
     remote = git(arguments=["ls-remote", "--heads", "origin", branch], cwd=ready_repo)
     assert f"refs/heads/{branch}" in remote
     created = [call for call in offered.calls if call.arguments[:2] == ["pr", "create"]]
     assert len(created) == (0 if checkpoint == "pull request" else 1)
-
-
-def test_a_tick_records_an_incomplete_setup_failure(ready_repo):
-    state = StateDirectory(root=ready_repo)
-    fetch_main(root=ready_repo)
-    add_worktree(
-        root=ready_repo,
-        path=state.worktrees / CREATED_ASSIGNMENT_ID,
-        branch="some-other-branch",
-    )
-    scheduler, clock = create_scheduler(root=ready_repo)
-
-    observed = scheduler.tick(at=clock())
-    setup_failure = observed.issue_observations[0].setup_failure
-
-    assert observed.launched_agent_work_identifiers == []
-    assert setup_failure is not None
-    assert "some-other-branch, not dreamcatcher" in setup_failure
+    [assignment] = read_assignments(state=state)
+    observation = read_pull_request_observation(assignment=assignment)
+    assert observation is not None
+    assert observation.number == PULL_REQUEST
 
 
 def test_an_assignment_with_a_round_that_has_no_ending_starts_nothing(resuming):
@@ -916,9 +889,12 @@ def test_a_resume_recovers_the_harness_session_from_the_first_rounds_raw_stream(
 
 
 def test_a_codex_assignment_round_passes_its_recorded_harness_config(
-    resuming, harnesses
+    ready_repo, harnesses
 ):
-    state = StateDirectory(root=resuming)
+    state = StateDirectory(root=ready_repo)
+    write_assignment(
+        state=state, identifier=ASSIGNMENT_ID, issue=13, pull_request_observation=None
+    )
     record = read_assignments(state=state)[0].record
     write_json(
         document=record.model_copy(
@@ -930,7 +906,7 @@ def test_a_codex_assignment_round_passes_its_recorded_harness_config(
         path=state.work / ASSIGNMENT_ID / "work.json",
     )
     harnesses["codex"].streams(lines=[])
-    scheduler, clock = create_scheduler(root=resuming)
+    scheduler, clock = create_scheduler(root=ready_repo)
 
     observed = scheduler.tick(at=clock())
     finish_rounds(scheduler=scheduler)

@@ -49,7 +49,7 @@ from dreamcatcher.config import AgentHarness, read_dreamcatcher_config
 from dreamcatcher.daemon import DreamcatcherDaemon
 from dreamcatcher.documents import read_json, write_json
 from dreamcatcher.errors import ReportableError
-from dreamcatcher.git import _read_worktree_revision, add_detached_worktree
+from dreamcatcher.git import _add_detached_worktree, _read_worktree_revision
 from dreamcatcher.issue_conversations import (
     NO_REPLY,
     ConversationRoundInput,
@@ -300,7 +300,7 @@ def write_faulted_conversation(
     conversation = read_conversation(state=state, issue=issue)
     assert conversation is not None
     conversation.worktree.rmdir()
-    add_detached_worktree(root=state.root, path=conversation.worktree)
+    _add_detached_worktree(root=state.root, path=conversation.worktree)
     revision = _read_worktree_revision(worktree=conversation.worktree)
     for number in (1, 2):
         write_round(
@@ -1049,6 +1049,7 @@ def test_ready_assignment_rounds_and_conversations_alternate(
             state=scheduler.assignments.state,
             identifier=f"GH{issue}-20260923-010000-assignment",
             issue=issue,
+            pull_request_observation=None,
         )
     offer_conversation(gh=gh, comments=[ask()])
     harnesses["claude"].replies(stdout="")
@@ -1078,6 +1079,7 @@ def test_one_tick_alternates_work_kinds_until_capacity_is_full(
             state=scheduler.assignments.state,
             identifier=f"GH{issue}-20260923-010000-assignment",
             issue=issue,
+            pull_request_observation=None,
         )
     offer_conversation(gh=gh, comments=[ask()])
     answer(harnesses=harnesses)
@@ -1119,6 +1121,7 @@ def test_a_failed_assignment_candidate_does_not_block_a_ready_conversation(
         state=scheduler.assignments.state,
         identifier="GH13-20260923-010000-assignment",
         issue=13,
+        pull_request_observation=None,
     )
     offer_conversation(gh=gh, comments=[ask()])
     answer(harnesses=harnesses)
@@ -1439,7 +1442,7 @@ def test_a_daemon_orphan_is_given_its_comments_again_in_its_saved_session(
     conversation = read_conversation(state=scheduler.assignments.state, issue=8)
     assert conversation is not None
     conversation.worktree.rmdir()
-    add_detached_worktree(
+    _add_detached_worktree(
         root=scheduler.assignments.state.root, path=conversation.worktree
     )
     first_input = ConversationRoundInput(
@@ -1870,7 +1873,10 @@ def test_a_conversation_failure_remains_visible_when_an_assignment_launches(
     scheduler, clock, gh = conversation_scheduler
     assignment_identifier = "GH13-20260923-010000-assignment"
     write_assignment(
-        state=scheduler.assignments.state, identifier=assignment_identifier, issue=13
+        state=scheduler.assignments.state,
+        identifier=assignment_identifier,
+        issue=13,
+        pull_request_observation=None,
     )
     gh.fails(
         stderr="network unavailable",
@@ -1929,7 +1935,7 @@ def test_an_unrecorded_round_input_is_replaced_by_the_next_batch(
     conversation = read_conversation(state=scheduler.assignments.state, issue=8)
     assert conversation is not None
     conversation.worktree.rmdir()
-    add_detached_worktree(
+    _add_detached_worktree(
         root=scheduler.assignments.state.root,
         path=conversation.worktree,
     )
@@ -2018,7 +2024,7 @@ def test_an_existing_empty_conversation_can_start(conversation_scheduler, harnes
         issue=8
     )
     worktree.rmdir()
-    add_detached_worktree(root=scheduler.assignments.state.root, path=worktree)
+    _add_detached_worktree(root=scheduler.assignments.state.root, path=worktree)
     (scheduler.assignments.state.root / "README.md").write_bytes(
         b"new main before retry\n"
     )
@@ -2077,7 +2083,9 @@ def test_a_missing_conversation_worktree_is_added_without_detaching_main(
     )
 
 
-def test_a_conversation_setup_failure_is_a_scheduler_failure(conversation_scheduler):
+def test_a_conversation_worktree_that_cannot_be_added_errors_its_round(
+    conversation_scheduler,
+):
     scheduler, clock, gh = conversation_scheduler
     offer_conversation(gh=gh, comments=[ask()])
     worktree = scheduler.assignments.state.worktrees / compose_conversation_identifier(
@@ -2089,6 +2097,7 @@ def test_a_conversation_setup_failure_is_a_scheduler_failure(conversation_schedu
     observed = scheduler.tick(at=clock())
 
     [failure] = observed.failures
+    assert failure.startswith("GH8-20260819-184158-conversation round 1 errored: ")
     assert "git worktree add --detach" in failure
 
 

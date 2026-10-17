@@ -249,7 +249,10 @@ def _render_assignment_summary(
     for name, value in (
         ("issue identifier", f"GH{record.issue}"),
         ("agent assignment identifier", assignment.identifier),
-        ("pull request", f"#{status.pull_request_observation.number}"),
+        (
+            "pull request",
+            "none yet" if status.pull_request is None else f"#{status.pull_request}",
+        ),
         ("label", record.dispatch_label),
         ("branch", compose_assignment_branch(identifier=assignment.identifier)),
         ("worktree", state.describe_path(path=assignment.worktree)),

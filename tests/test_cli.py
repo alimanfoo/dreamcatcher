@@ -404,6 +404,24 @@ def test_cancel_ends_the_newest_assignment_and_stops_its_running_round(
     )
 
 
+def test_cancel_of_an_assignment_with_no_pull_request_says_so(
+    monkeypatch, tmp_path, capsys
+):
+    configure(root=tmp_path)
+    state = StateDirectory(root=tmp_path)
+    state.bootstrap()
+    write_assignment(
+        state=state, identifier=ASSIGNMENT_ID, issue=13, pull_request_observation=None
+    )
+    monkeypatch.chdir(tmp_path)
+
+    assert main(argv=["cancel", "GH13"]) == 0
+
+    assert capsys.readouterr().out == (
+        f"{ASSIGNMENT_ID} is cancelled before it opened a pull request.\n"
+    )
+
+
 def test_cancel_leaves_older_assignments_at_the_issue_alone(monkeypatch, watching):
     write_assignment(
         state=watching, identifier="GH13-20260818-090000-assignment", issue=13
