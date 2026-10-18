@@ -5,7 +5,9 @@ see, while [the ontology](ontology.md) says what the words mean and
 [the architecture](architecture.md) says where each thing lives in the code. It
 is an enduring part of the project. Each story is told from the user's seat, in
 the order things happen, using the ontology's words without defining them and
-citing no rule and no mechanism.
+citing no rule and no mechanism. The user works through GitHub. The home page
+and the terminal show what the daemon is doing, and carry the few controls that
+GitHub has no place for: stop, cancel and retry.
 
 Agents should read the stories before judging a finding in the code. A story
 that does not hold is a bug. A user error is something the user did that the
@@ -16,25 +18,27 @@ ask which of the three it is.
 
 ## Happy paths
 
-### The user asks for an issue to be implemented
+### Assignments
 
-The user has an issue that says what to build. They assign it to themselves,
-because _dreamcatcher_ acts only on the user's issues, and they put an
-assignment label on it, because the label says what kind of help they want and
-which recipe runs it. At the daemon's next update an assignment appears on the
-home page, and a draft pull request opens on a branch of its own with an empty
-first commit. The agent starts work in that branch. While the pull request is
-still a draft, the agent may end its turn to ask the user a question; the user
-answers on the pull request, and at the next update the agent carries on.
+#### The user asks for an issue to be implemented
 
-The agent works until it has nothing left to do, then marks the pull request
-ready for review and ends its turn. The assignment shows as idle, ready for
-review, because the next move is the user's. The user reviews the pull request
-on GitHub as they would anyone's: comments, inline comments, a request for
-changes. At the next update the agent is given everything the user posted since
-its last turn, addresses it, pushes, and ends its turn. Anything the user posts
-while the agent is working waits for the turn after. That exchange repeats as
-often as the user likes.
+The user has an issue that says what to build. They assign it to themselves to
+indicate they have taken responsibility for working on it, and they put an
+assignment label on it to indicate they want an agent to implement it and select
+what type of agent. As soon as _dreamcatcher_ has available agent capacity, it
+sets up a working environment for the agent, including a worktree and a draft
+pull request on a branch of its own. _dreamcatcher_ then starts a new harness
+session, and the agent starts work in that branch.
+
+The agent has enough information from the issue description to do a complete
+implementation, and it works through this, committing and pushing to its branch
+as it works. The agent works until it has nothing left to do, then marks the
+pull request ready for review and ends its turn. The user reviews the pull
+request on GitHub as they would anyone's: comments, inline comments, a request
+for changes. At the next update, _dreamcatcher_ gives the agent everything the
+user posted since its last turn. The agent addresses it, pushes, and ends its
+turn. Anything the user posts while the agent is working waits for the turn
+after. That exchange repeats as often as the user likes.
 
 While the pull request waits, main may move under it. If the repository asks for
 branches to be up to date, or the branch now conflicts, the agent is woken once
@@ -44,11 +48,73 @@ if the next push fails too; after that it waits for the user, because two
 attempts without progress means it needs something it does not have.
 
 The user merges when satisfied. GitHub closes the issue, and at the next update
-the agent takes one last turn to wrap up. The assignment then shows as ended,
-under the collapsed list on the home page, and its branch and worktree stay in
-place.
+the agent takes one last turn to wrap up, which allows it to raise any issues
+for outstanding work not addressed in the pull request.
 
-### The user asks for an issue to be investigated
+The value to the user is that they need only label an issue, wait for the pull
+request to be ready, then review it and iterate until happy with the work, then
+merge, just as they would if delegating a self-contained piece of work to a
+junior colleague. Everything else is automated by _dreamcatcher_.
+
+#### The user asks for several issues to be implemented at once
+
+The user has several issues ready, each self-contained, and wants them all
+worked on. They assign and label each one. Work begins on them in the order the
+issues were raised, as many at once as the daemon's capacity allows, and the
+rest wait for a free slot. Each assignment has its own branch, its own draft
+pull request and its own agent, so no two interfere, and each pull request
+becomes ready for review in its own time. Whenever an agent ends its turn, its
+slot goes to the next issue waiting. The user reviews each pull request as it
+arrives, in whatever order they like, and the exchanges on different pull
+requests overlap freely.
+
+With several assignments in flight, GitHub shows each pull request but not the
+whole. The home page does: every labelled issue is a row, saying whether its
+work is still to start, working, idle with a pull request ready for review, or
+ended, and an assignment's page shows what its agent is doing as it works. The
+user can see at a glance which assignments need them, and read along when they
+want to check that an agent is on the right track.
+
+The value to the user is that they can delegate as much as they have ready, and
+keep an eye on all of it from one page.
+
+#### The user answers a question from the agent
+
+The agent is partway through an implementation and meets something the issue
+does not settle: a requirement that reads two ways, a choice the user would want
+to make, or a test that fails for a reason outside the change. Rather than
+guess, it posts the question as a comment on the pull request, leaves the pull
+request a draft, and ends its turn.
+
+The user sees the question posted on the pull request and answers it, as they
+would answer a colleague, and may settle several questions at once or ask one
+back. At the next update _dreamcatcher_ gives the agent everything the user
+posted, and the agent carries on in the same session with what it has learned.
+This may repeat until the agent has what it needs, and the story then continues
+as [the implementation story](#the-user-asks-for-an-issue-to-be-implemented)
+does, from the point where the agent marks the pull request ready for review.
+
+#### The user stops a round and redirects the agent
+
+The agent is partway through an assignment and heading the wrong way. The user
+stops its round, from the assignment's page or with `dreamcatcher stop`, and it
+stops within a few seconds. Nothing the stopped round was given is given again.
+The next round starts when something new reaches the pull request: a post from
+the user, main moving under it, a failing check, or a merge. That round is told
+the previous one was stopped. The user posts what they want changed, and work
+resumes in the same session.
+
+#### The user cancels an assignment to finish its pull request by hand
+
+An assignment has got as far as the agent can take it, and the user wants to
+finish the pull request themselves. They cancel it, from its page or with
+`dreamcatcher cancel`. Any running round stops, no further round runs, and the
+pull request, branch and worktree are the user's. The assignment shows as ended,
+cancelled.
+
+### Conversations
+
+#### The user asks for an issue to be investigated
 
 The user has an issue they want investigated rather than built: a question about
 the code, a suspected bug, a design doubt. They assign it to themselves, put a
@@ -65,58 +131,45 @@ conversation shows as idle between the user's comments, because it asks nothing
 of them. When the user has what they need, they close the issue, and the
 conversation ends.
 
-### The user stops a round and redirects the agent
+The value to the user is that they need only label an issue and ask their
+question as a comment, then read the answer and reply, as they would with a
+colleague on GitHub. They check out no code, run nothing, and have nothing to
+clean up afterwards.
 
-The agent is partway through an assignment and heading the wrong way. The user
-stops its round, from the assignment's page or with `dreamcatcher stop`, and it
-stops within a few seconds. A round can be stopped once its harness has reported
-its session, which is within its first moments. Nothing the stopped round was
-given is given again. The next round starts when something new reaches the pull
-request: a post from the user, main moving under it, a failing check, or a
-merge. That round is told the previous one was stopped. The user posts what they
-want changed, and work resumes in the same session.
+#### The user stops a round and asks again
 
-The user stops a conversation's round the same way, from the conversation's page
-or with `dreamcatcher stop`. The stopped round posts no answer, and the
-conversation waits for the user's next comment. The round that comment starts is
-told the previous one was stopped.
+The agent is partway through an answer and heading the wrong way. The user stops
+its round, from the conversation's page or with `dreamcatcher stop`. The stopped
+round posts no answer, and the conversation waits for the user's next comment.
+The round that comment starts is told the previous one was stopped.
 
-### The user cancels an assignment to finish its pull request by hand
-
-An assignment has got as far as the agent can take it, and the user wants to
-finish the pull request themselves. They cancel it, from its page or with
-`dreamcatcher cancel`. Any running round stops, no further round runs, and the
-pull request, branch and worktree are the user's. The assignment shows as ended,
-cancelled.
-
-### The user pauses a conversation by removing its label
+#### The user pauses a conversation by removing its label
 
 A conversation has answered what the user asked for now. They take its label off
-the issue, and the conversation pauses: each update reads the issue, to see
-whether the label is back or the issue closed, and reads no comments and starts
-no round. When the user wants it back, they put the label on again, and it
-carries on in the same session with everything it said before.
+the issue, and the conversation pauses: it shows as idle, paused, and a comment
+posted meanwhile gets no answer. When the user wants it back, they put the label
+on again, and it carries on in the same session with everything it said before,
+answering whatever was posted while it was paused.
 
-### The user reads the status report
+### The daemon
+
+#### The user reads the status report
 
 The user opens the home page, or runs `dreamcatcher status`, to see what the
 daemon is doing without reading GitHub. Every request the user has made is a
 row: an issue with a label and no work yet says why nothing has started, and one
 with work shows the work's status and its detail. The home page also shows an
 assignment's pull request with its state and checks, and ended work under a
-collapsed list; the terminal shows the count of ended work. Both read only what
-the daemon has written down, so they never disagree with the daemon, and they
-keep showing the last update when the daemon is stopped.
+collapsed list; the terminal shows the count of ended work. Both show the last
+update, and keep showing it when the daemon is stopped.
 
-### The user stops and starts the daemon
+#### The user stops and starts the daemon
 
 The user stops the daemon to upgrade, to change its configuration, or for the
-night. The stopping daemon ends every running round and records each as
-interrupted, or as stopped if the user had asked it to stop. When the daemon
-starts again, its updates give each interrupted round's work its input again, in
-the same session, as capacity allows, with a line saying the previous round did
-not finish; the round that opens a pull request is simply run again. Nothing the
-user posted in between is lost.
+night. Stopping it ends every running round, which then shows as interrupted.
+When the daemon starts again, each interrupted round's work carries on in the
+same session, told that the previous round did not finish. Nothing the user
+posted in between is lost.
 
 ## User errors
 
@@ -175,10 +228,8 @@ recorded.
 ### Deleting an assignment's worktree
 
 The user deletes the folder under `.dreamcatcher/` that an assignment works in.
-The assignment's next round cannot start, and today that ends the daemon run
-with a traceback rather than erroring the round, which is a bug (#566). What the
-stories expect is that the round errors with the reason, a second failure puts
-the assignment in fault, and the user cancels it.
+The assignment's next round errors with the reason, a second failure puts the
+assignment in fault, and the user cancels the assignment.
 
 ## Expected faults
 
@@ -225,8 +276,8 @@ The machine sleeps, the process is killed, or the daemon hits an error it cannot
 carry on from. When the daemon can still act, it ends its rounds as the
 stop-and-start story says. When it cannot, as when it is killed, a running
 harness outlives it, keeps working, and may push or post before the next daemon
-start ends it; whatever it did stands. The next start marks the round
-interrupted and resumes the work in its session.
+start ends it; whatever it did stands. The round then shows as interrupted, and
+the work carries on in its session.
 
 ### The agent does not end its turn
 
@@ -244,9 +295,8 @@ it the same comments again.
 ### A local write fails
 
 The disk is full or a folder is unwritable. A write that fails while a round is
-being prepared errors the round with the reason, and the work is tried again at
-the next update. A write that fails before the round is recorded, or while the
-round streams its output, is reported and the work is tried again, without
-counting towards a fault. No more than that is handled, and that is accepted,
-because a disk that will not write is the user's to fix, and nothing
-_dreamcatcher_ holds is the only copy of anything.
+being prepared errors the round with the reason. One that fails before a round
+has started shows among the scheduler failures instead, without counting towards
+a fault. Either way the work is tried again at the next update. No more than
+that is handled, and that is accepted, because a disk that will not write is the
+user's to fix, and nothing _dreamcatcher_ holds is the only copy of anything.

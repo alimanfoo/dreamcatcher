@@ -1,10 +1,10 @@
 # Engineering standard
 
-This document says what _dreamcatcher_ holds itself to. It is the third enduring
-document, beside [the ontology](ontology.md), which fixes the words, and
-[the architecture](architecture.md), which fixes the boundaries. The ontology
-says what things are called. The architecture says where each decision lives.
-This document says how good the result has to be, and how we tell.
+This document says what _dreamcatcher_ holds itself to. It is the fourth
+enduring document, beside [the ontology](ontology.md), which fixes the words,
+[the architecture](architecture.md), which fixes the boundaries, and
+[the user stories](stories.md), which fix what the user does and sees. This
+document says how good the result has to be, and how we tell.
 
 Every pull request is reviewed against it. Every release remeasures against it.
 Where the code falls short, the shortfall is an issue with a number, not a
