@@ -470,9 +470,10 @@ pushes a commit of their own to the agent's branch while the assignment is still
 open. _dreamcatcher_ does nothing about it. The agent finds the branch has moved
 when it next pushes, and agents usually work out what happened and build on the
 user's commit, but nothing told it. If the checks go red on the user's commit,
-the agent is woken to fix that as if it were its own. The user needs to say what
-they changed in a post on the pull request, so that the next round starts
-knowing, rather than leaving the agent to discover it.
+the agent is woken to fix that as if it were its own. Otherwise the push wakes
+nobody, so if the user wants the agent to carry on from their commit, they need
+to say so in a post on the pull request. If they wanted only their fix in, they
+need do nothing.
 
 ### Talking to the agent in the wrong place
 
