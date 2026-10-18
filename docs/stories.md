@@ -136,15 +136,25 @@ needs no reply, the agent posts nothing.
 The user replies, and the agent answers again in the same session, so it
 remembers what it said. A comment the user posts while the agent is still
 answering waits for its next answer. Each answer is based on main as it stands
-then, and nothing the agent changed while answering earlier carries over. The
-conversation shows as idle between the user's comments, because it asks nothing
-of them. When the user has what they need, they close the issue, and the
-conversation ends.
+then, and nothing the agent changed while answering earlier carries over.
+
+What the user does next will depend on what they learned from the conversation.
+For example, if the conversation verified a bug, then the user might start an
+assignment for the issue, which leads to a pull request, and ultimately closes
+the issue as resolved. Or, if the conversation showed a bug report invalid, the
+user may close the issue as unplanned. Once the issue is closed, the
+conversation is ended.
+
+If the user wants the agent to stop answering on the issue while it is still
+open, they take the conversation label off, and the conversation pauses. If they
+later want to ask the agent another question, they put the label back, and the
+same conversation resumes with everything it said before, answering whatever was
+posted while it was paused.
 
 The value to the user is that they need only label an issue and ask their
 question as a comment, then read the answer and reply, as they would with a
-colleague on GitHub. They check out no code, run nothing, and have nothing to
-clean up afterwards.
+colleague on GitHub who knows the codebase and can investigate. They check out
+no code, run nothing, and have nothing to clean up afterwards.
 
 #### The user stops a round and asks again
 
@@ -152,14 +162,6 @@ The agent is partway through an answer and heading the wrong way. The user stops
 its round, from the conversation's page or with `dreamcatcher stop`. The stopped
 round posts no answer, and the conversation waits for the user's next comment.
 The round that comment starts is told the previous one was stopped.
-
-#### The user pauses a conversation by removing its label
-
-A conversation has answered what the user asked for now. They take its label off
-the issue, and the conversation pauses: it shows as idle, paused, and a comment
-posted meanwhile gets no answer. When the user wants it back, they put the label
-on again, and it carries on in the same session with everything it said before,
-answering whatever was posted while it was paused.
 
 ### The daemon
 
