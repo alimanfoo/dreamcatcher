@@ -2,7 +2,8 @@
 
 This document names the things _dreamcatcher_ deals with and says what the words
 mean, while [the architecture](architecture.md) says where each thing lives in
-the code and [the user stories](stories.md) say what the user does and sees.
+the code, [the user stories](stories.md) say what the user does and sees, and
+[the standard](standard.md) says how good the work has to be.
 
 The ontology is an enduring part of the project: changes to the code, user
 interface, specifications, and agent contract should preserve these meanings or
@@ -164,9 +165,11 @@ missing or cannot be posted is errored.
 
 ### User post and feedback
 
-A **user post** is a user-authored contribution to an assignment's pull request.
-It normalizes the different places in which GitHub lets the user write: comments
-on the pull request, review bodies, review verdicts, and inline review comments.
+A **user post** is a contribution to an assignment's pull request by the
+signed-in account that does not carry the marker _dreamcatcher_ asks every agent
+post to end with, since the agent posts under that same account. It normalizes
+the different places in which GitHub lets the user write: comments on the pull
+request, review bodies, review verdicts, and inline review comments.
 
 Collectively, user posts are **feedback**. _dreamcatcher_ **relays** new user
 posts into a later agent round. Relay is an action, not a separate durable
@@ -257,6 +260,9 @@ Agent work is open until its ending is recorded, with the time and the reason,
 and then it has **ended**. An assignment ends when it is complete or cancelled.
 A conversation ends when its issue closes.
 
+Agent work keeps the harness, route and recipe settings that its work record
+holds, even after its route is removed from the configuration.
+
 The rounds normally share one harness session. A round with no recorded harness
 session to resume starts a new one, and its prompt begins with the work's
 instructions, because the new session has not seen them.
@@ -332,6 +338,13 @@ later assignment for it. If the pull request was closed without being merged,
 the issue remains open and may receive another assignment after the previous
 assignment has completed.
 
+### Stopping a round
+
+The user can **stop** a running round, from the work's page or the command line,
+once the round's harness session is known. The round ends stopped and has taken
+its turn, so what it was given is not given again, and the next round's prompt
+says that the previous one was stopped.
+
 ### Cancelling an assignment
 
 The user can **cancel** an open assignment to finish its pull request by hand. A
@@ -353,9 +366,6 @@ other configured conversation label and has at least one eligible comment. The
 issue's title and body alone start nothing. An open assignment at the issue, a
 linked pull request, a dependency and an assignment routing conflict have no
 bearing on conversations.
-
-A conversation keeps the route and recipe settings that its work record holds,
-even after its route is removed from the configuration.
 
 ### Pausing and ending a conversation
 

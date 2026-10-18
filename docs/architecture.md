@@ -1,8 +1,9 @@
 # Architecture
 
 This document says where each thing lives in the code and how the parts pass
-things to each other, while [the ontology](ontology.md) says what the words mean
-and [the user stories](stories.md) say what the user does and sees.
+things to each other, while [the ontology](ontology.md) says what the words
+mean, [the user stories](stories.md) say what the user does and sees, and
+[the standard](standard.md) says how good the work has to be.
 
 It describes the enduring target architecture for _dreamcatcher_. It maps the
 ontology's concepts to code boundaries and states the responsibilities,
@@ -111,7 +112,9 @@ and begins afresh after a daemon restart.
 The daemon persists the returned `SchedulerRecord` and reports it in its output.
 A scheduler tick that fails before returning one is reported in daemon output
 and leaves the last complete scheduler record in place. An invalid scheduler
-record ends the daemon because retrying cannot repair the document.
+record ends the daemon because retrying cannot repair the document, and so does
+a scheduler record that cannot be written, because the daemon then has no way to
+report anything.
 
 If a read for a request fails, the tick holds the reason in that request's row
 and prevents only the launches that depend on what it would have read. A failed

@@ -1,9 +1,10 @@
 # User stories
 
 This document says what the user does with _dreamcatcher_, why, and what they
-see, while [the ontology](ontology.md) says what the words mean and
-[the architecture](architecture.md) says where each thing lives in the code. It
-is an enduring part of the project.
+see, while [the ontology](ontology.md) says what the words mean,
+[the architecture](architecture.md) says where each thing lives in the code and
+[the standard](standard.md) says how good the work has to be. It is an enduring
+part of the project.
 
 The theory of use is short. One developer runs _dreamcatcher_ on their own
 machine, under their own GitHub account, against a repository they work in. They
@@ -21,9 +22,8 @@ user's account.
 Each story is told from the user's seat, in the order things happen, using the
 ontology's words without defining them and citing no rule and no mechanism. The
 happy paths come first, grouped as assignments, conversations and running
-_dreamcatcher_, and each ends with what the user gained. Then come the user
-errors, each ending with what the user needs to do, and then the expected
-faults.
+_dreamcatcher_, and each says what the user gained. Then come the user errors,
+each saying what the user needs to do, and then the expected faults.
 
 Agents should read the stories before judging a finding in the code. A happy
 path that does not hold is a bug. A user error is something the user did that
@@ -145,10 +145,10 @@ red: a test it did not run locally, or a lint rule it missed. The user would
 rather not read the CI log themselves, and they do not have to. The agent is
 woken to read the failure, fix it and push again. If the checks go red again, it
 gets one more go. After two attempts without a green build it stops trying and
-waits, because two attempts without progress means it needs something it does
-not have. The row on the home page says the checks are still failing, and now
-the user reads the failure, and a post telling the agent what it is missing
-wakes it again.
+leaves the rest to the user, because two attempts without progress means it
+needs something it does not have. The row on the home page says the checks are
+still failing, and now the user reads the failure, and a post telling the agent
+what it is missing wakes it again.
 
 A draft's checks wake nobody, because the agent has not finished, so only a pull
 request that is ready for review gets this treatment.
@@ -274,9 +274,9 @@ answering a question they did not ask. Rather than wait for an answer they will
 not use, the user stops the round, from the page or with `dreamcatcher stop`,
 and the stopped round posts nothing.
 
-The user then posts a sharper question on the issue. At the next update the
-agent is given it, told that the previous round was stopped, and answers in the
-same session, so it keeps what it had already learned.
+The user then puts a sharper question in a comment on the issue. At the next
+update the agent is given it, told that the previous round was stopped, and
+answers in the same session, so it keeps what it had already learned.
 
 The value to the user is that a misread question costs minutes, not a whole
 answer.
@@ -292,8 +292,11 @@ the issue without the agent answering.
 
 Later, something comes up that they want the agent's view on again. They put the
 label back, and the same conversation picks up where it left off. It still
-remembers everything it said before, and it is given everything the user posted
+remembers everything it said before, and it is given every comment the user made
 while it was paused, so they can ask their new question without recapping.
+
+The value to the user is that the agent is on the issue only when wanted, and
+forgets nothing in between.
 
 ### Running dreamcatcher
 
@@ -328,12 +331,14 @@ repository, so the next person to use it needs only `init` and `run`.
 The user labelled a handful of issues in the morning and has been in meetings
 since. Now they want to know what needs them, without opening every pull request
 to find out. So they open the home page, or run `dreamcatcher status` if they
-are already in a terminal. Every request they have made is a row, and the rows
-come in the order that deserves attention: anything in fault first, then what is
-working, then what is waiting for its turn, then what is idle, and after all of
-those the issues where nothing has started yet. Each row says why it is where it
-is. This pull request is ready for review. That one is still a draft, so the
-agent is probably waiting on an answer. This issue has not started because
+are already in a terminal. Every issue they have labelled has a row, one for
+each kind of work asked of it. Assignments and conversations each have a
+section, and within each the rows come in the order that deserves attention:
+anything in fault first, then what is working, then what is waiting for its
+turn, then what is idle, then anything the last update could not read, and after
+all of those the issues where nothing has started yet. Each row says why it is
+where it is. This pull request is ready for review. That one is still a draft,
+so the agent has probably asked something. This issue has not started because
 another pull request already claims it. The pull requests the user needs to read
 are a click away, and ended work is folded under a collapsed list, so the page
 shows only what is live. The terminal gives the same rows, with a count of ended
@@ -428,10 +433,11 @@ daemon from the clone's main checkout.
 
 The user puts two assignment labels on an issue, or two conversation labels,
 perhaps to try both recipes. That is a routing conflict: the request rows say so
-and name the labels, and nothing of that kind starts, or carries on, while both
-are there. The user needs to take one of the two labels off the issue, and the
-one that stays decides the recipe. An assignment that already exists carries on
-regardless.
+and name the labels, and nothing of that kind starts while both are there. A
+conversation that is running finishes its round and then pauses. The user needs
+to take one of the two labels off the issue, and the one that stays decides the
+recipe. An assignment that already exists carries on regardless, and its row
+says nothing of the conflict.
 
 ### A label without an assignee
 
@@ -470,11 +476,11 @@ The user sees a small thing they can fix faster than they can describe, and
 pushes a commit of their own to the agent's branch while the assignment is still
 open. _dreamcatcher_ does nothing about it. The agent finds the branch has moved
 when it next pushes, and agents usually work out what happened and build on the
-user's commit, but nothing told it. If the checks go red on the user's commit,
-the agent is woken to fix that as if it were its own. Otherwise the push wakes
-nobody, so if the user wants the agent to carry on from their commit, they need
-to say so in a post on the pull request. If they wanted only their fix in, they
-need do nothing.
+user's commit, but nothing told it. If the pull request is ready for review and
+the checks go red on the user's commit, the agent is woken to fix that as if it
+were its own. Otherwise the push wakes nobody, so if the user wants the agent to
+carry on from their commit, they need to say so in a post on the pull request.
+If they wanted only their fix in, they need do nothing.
 
 ### Talking to the agent in the wrong place
 
@@ -516,12 +522,19 @@ the next update.
 
 ### Deleting the daemon lock while the daemon runs
 
-The user deletes `.dreamcatcher/daemon.lock`, or the whole `.dreamcatcher/`
-folder, while the daemon is running, perhaps to tidy up. The daemon notices at
-its next update that the lock it holds is gone, prints that it was lost, and
-stops, ending every running round as a stop of the daemon would, because another
-daemon could now start on the same checkout. The user needs to start the daemon
-again, and the interrupted work carries on in its session.
+The user deletes `.dreamcatcher/daemon.lock` while the daemon is running,
+perhaps to tidy up. The daemon notices at its next update that the lock it holds
+is gone, prints that it was lost, and stops, ending every running round as a
+stop of the daemon would, because another daemon could now start on the same
+checkout. The user needs to start the daemon again, and the interrupted work
+carries on in its session.
+
+Deleting the whole `.dreamcatcher/` folder stops the daemon the same way, but
+takes every assignment, conversation and worktree with it, so the daemon that
+starts next knows of no work. Each open pull request still claims its issue, so
+no second assignment starts for it. The user needs to finish those pull requests
+by hand, and to expect a conversation whose label is still on to start afresh
+and answer their earlier comments again.
 
 ### Editing the daemon's record of the last update
 
@@ -550,9 +563,10 @@ work its input again. If that round errors too, the work is in fault, so a
 problem that two attempts did not clear does not burn more attempts. Nothing
 runs for it, not even the last turn after a merge, until the user fixes the
 cause and retries, from the work's page or with `dreamcatcher retry`. If two
-pieces of work are in fault at once, the daemon pauses all starts for a while,
-because two faults suggest a shared cause such as an exhausted allowance. When
-the pause ends, the daemon tries that work again.
+pieces of work are in fault at once, a global cooldown begins and the daemon
+starts nothing for a while, because two faults suggest a shared cause such as an
+exhausted allowance. When the cooldown ends, the faults it saw are cleared and
+the daemon tries that work again.
 
 ### The daemon is killed
 
