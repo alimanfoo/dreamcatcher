@@ -411,6 +411,23 @@ the assignment in fault. The user needs to cancel the assignment and close its
 pull request. With the label still on the issue, a fresh assignment starts at
 the next update.
 
+### Deleting the daemon lock while the daemon runs
+
+The user deletes `.dreamcatcher/daemon.lock`, or the whole `.dreamcatcher/`
+folder, while the daemon is running, perhaps to tidy up. The daemon notices at
+its next update that the lock it holds is gone, prints that it was lost, and
+stops, ending every running round as a stop of the daemon would, because another
+daemon could now start on the same checkout. The user needs to start the daemon
+again, and the interrupted work carries on in its session.
+
+### Editing the daemon's record of the last update
+
+The user edits `scheduler.json` under `.dreamcatcher/`, and leaves it so that it
+no longer reads back. The daemon stops at its next update and prints what is
+wrong with the file, because an update cannot repair a record it cannot read.
+The user needs to delete the file and start the daemon again. The next update
+writes a fresh one, since the file holds only what the last update found.
+
 ## Expected faults
 
 ### GitHub cannot be reached
@@ -433,17 +450,6 @@ cause and retries, from the work's page or with `dreamcatcher retry`. If two
 pieces of work are in fault at once, the daemon pauses all starts for a while,
 because two faults suggest a shared cause such as an exhausted allowance. When
 the pause ends, the daemon tries that work again.
-
-### The daemon stops on an error it cannot carry on from
-
-The daemon meets something it cannot work past: its own record of the last
-update will not read back, it can no longer write that record, or another daemon
-has taken the checkout's lock. It prints why and stops, ending every running
-round as a stop of the daemon would, so each shows as interrupted. The user
-reads the message, puts the cause right, and starts the daemon again, and the
-interrupted work carries on in its session as the stop-and-start story says. An
-update that merely fails, because GitHub could not be read, does not end the
-daemon; the next update tries again.
 
 ### The daemon is killed
 
@@ -480,6 +486,9 @@ it the same comments again.
 The disk is full or a folder is unwritable. A write that fails while a round is
 being prepared errors the round with the reason. One that fails before a round
 has started shows among the scheduler failures instead, without counting towards
-a fault. Either way the work is tried again at the next update. No more than
-that is handled, and that is accepted, because a disk that will not write is the
-user's to fix, and nothing _dreamcatcher_ holds is the only copy of anything.
+a fault. Either way the work is tried again at the next update. If the daemon
+cannot write its own record of the update, it stops and says so, ending its
+rounds, because it has no way left to report anything; the user frees the disk
+and starts it again. No more than that is handled, and that is accepted, because
+a disk that will not write is the user's to fix, and nothing _dreamcatcher_
+holds is the only copy of anything.
