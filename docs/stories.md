@@ -24,13 +24,16 @@ ask which of the three it is.
 
 #### The user asks for an issue to be implemented
 
-The user has an issue that says what to build. They assign it to themselves to
-indicate they have taken responsibility for working on it, and they put an
-assignment label on it to indicate they want an agent to implement it and select
-what type of agent. As soon as _dreamcatcher_ has available agent capacity, it
-sets up a working environment for the agent, including a worktree and a draft
-pull request on a branch of its own. _dreamcatcher_ then starts a new harness
-session, and the agent starts work in that branch.
+The user has an issue that says what to build, and would rather an agent built
+it than spend their own afternoon on it. The change is clear enough to describe,
+and their time is better spent reviewing it than typing it. They assign the
+issue to themselves to indicate they have taken responsibility for working on
+it, and they put an assignment label on it to indicate they want an agent to
+implement it and select what type of agent. As soon as _dreamcatcher_ has
+available agent capacity, it sets up a working environment for the agent,
+including a worktree and a draft pull request on a branch of its own.
+_dreamcatcher_ then starts a new harness session, and the agent starts work in
+that branch.
 
 The agent has enough information from the issue description to do a complete
 implementation, and it works through this, committing and pushing to its branch
@@ -102,11 +105,13 @@ let the dependencies set the order that agents work on them.
 
 #### An agent needs user input to complete an assignment
 
-The agent is partway through an implementation and meets something the issue
-does not settle: a requirement that reads two ways, a choice the user would want
-to make, or a test that fails for a reason outside the change. Rather than
-guess, it posts the question as a comment on the pull request, leaves the pull
-request a draft, and ends its turn.
+The user wrote the issue as well as they could, but an implementation always
+turns up something the issue does not settle, and they would rather answer a
+question than have a guess built. So when the agent, partway through, meets a
+requirement that reads two ways, a choice the user would want to make, or a test
+that fails for a reason outside the change, it does not guess. It posts the
+question as a comment on the pull request, leaves the pull request a draft, and
+ends its turn.
 
 The user sees the question posted on the pull request and answers it, as they
 would answer a colleague, and may settle several questions at once or ask one
@@ -115,6 +120,9 @@ posted, and the agent carries on in the same session with what it has learned.
 This may repeat until the agent has what it needs, and the story then continues
 as [the implementation story](#the-user-asks-for-an-issue-to-be-implemented)
 does, from the point where the agent marks the pull request ready for review.
+
+The value to the user is that they settle a question in one comment at the
+moment it matters, instead of finding the wrong guess at review.
 
 #### The user stops a round and redirects the agent
 
@@ -174,10 +182,19 @@ no code, run nothing, and have nothing to clean up afterwards.
 
 #### The user stops a round and asks again
 
-The agent is partway through an answer and heading the wrong way. The user stops
-its round, from the conversation's page or with `dreamcatcher stop`. The stopped
-round posts no answer, and the conversation waits for the user's next comment.
-The round that comment starts is told the previous one was stopped.
+The user asked a question, and the answer is taking longer than they expected.
+They open the conversation's page, and the feed shows the agent has gone off
+down the wrong path: reading code that has nothing to do with the question, or
+answering a question they did not ask. Rather than wait for an answer they will
+not use, the user stops the round, from the page or with `dreamcatcher stop`,
+and the stopped round posts nothing.
+
+The user then posts a sharper question on the issue. At the next update the
+agent is given it, told that the previous round was stopped, and answers in the
+same session, so it keeps what it had already learned.
+
+The value to the user is that a misread question costs minutes, not a whole
+answer.
 
 #### The user pauses a conversation by removing its label
 
@@ -219,11 +236,16 @@ what is waiting on them.
 
 #### The user stops and starts the daemon
 
-The user stops the daemon to upgrade, to change its configuration, or for the
-night. Stopping it ends every running round, which then shows as interrupted.
+The user needs to stop the daemon: there is a new version to install, a setting
+to change, or they are closing the laptop for the night. They do not want to
+wait for every agent to finish first, and they do not want to lose anything
+either. So they stop it. Every running round ends, and shows as interrupted.
 When the daemon starts again, each interrupted round's work carries on in the
-same session, told that the previous round did not finish. Nothing the user
+same session, told that the previous round did not finish, and nothing the user
 posted in between is lost.
+
+The value to the user is that stopping the daemon is always safe, whatever the
+agents are in the middle of.
 
 ## User errors
 
