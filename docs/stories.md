@@ -282,6 +282,29 @@ posted in between is lost.
 The value to the user is that stopping the daemon is always safe, whatever the
 agents are in the middle of.
 
+#### The user adds a recipe with a different model
+
+The user has been running the default recipe for a few weeks, and it is not
+quite right. Perhaps the assignments are burning through their usage allowance
+on small issues, or perhaps the hard ones come back half done. Either way, they
+want to try a different model, or a different reasoning effort, without giving
+up the recipe they have. So they open `dreamcatcher.toml` and add a second
+assignment route beside the first: a new label, with a recipe that names the
+cheaper model and a lower effort, or the stronger model and a higher one. They
+commit and push the file, so everyone watching the repository gets the same
+routes, and run `dreamcatcher init` to create the new label on GitHub. Then they
+stop the daemon and start it again, which is all it takes for the change to take
+effect, and nothing in progress is lost.
+
+From then on the label they put on an issue chooses the recipe. Small issues get
+the light label, hard ones the heavy one, and assignments that were already
+running keep the recipe they started with. If the new recipe turns out better
+everywhere, the user edits the original to match, or removes its route, and
+existing work carries on regardless.
+
+The value to the user is that trying a different model is an edit and a restart,
+and the choice is made issue by issue with a label.
+
 ## User errors
 
 ### Two labels of one kind on one issue
