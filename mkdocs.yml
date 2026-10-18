@@ -86,6 +86,7 @@ nav:
   - Development:
       - ontology.md
       - architecture.md
+      - stories.md
       - testing.md
       - releasing.md
       - standard.md
