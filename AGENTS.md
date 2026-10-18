@@ -18,6 +18,27 @@ below read the index.
 _dreamcatcher_ dispatches autonomous agent conversations and coding assignments
 from labelled issues. It carries each assignment to a pull request for review.
 
+## The enduring documents
+
+Four documents carry the project's lasting understanding, and the code is held
+to them. Read all four before you work, and read the stories before judging any
+finding.
+
+- [docs/stories.md](docs/stories.md) says what the user does, why, and what they
+  see. A story that does not hold is a bug.
+- [docs/ontology.md](docs/ontology.md) says what the words mean. Use its words
+  and no others.
+- [docs/architecture.md](docs/architecture.md) says where each thing lives in
+  the code and how the parts pass things to each other.
+- [docs/standard.md](docs/standard.md) says how good the work has to be and how
+  we tell.
+
+A change that moves the code past one of them corrects that document in the same
+pull request, and says so. Give every pull request description a section headed
+"Definition of done" that answers each of the standard's questions by number.
+Where this guide's conventions and the standard's criteria cover the same
+ground, the standard sets the bar and the conventions say how to meet it.
+
 ## Specs
 
 Larger development efforts are organised as phases, with a dated specification
@@ -25,14 +46,6 @@ folder under `specs/`. Smaller tasks work directly from their issues. When an
 issue belongs to a phase, the issue description names the phase and references
 the relevant specification; follow the status and editing rules in
 `specs/AGENTS.md`.
-
-## The standard
-
-[docs/standard.md](docs/standard.md) says how good the work has to be and how we
-tell. Read it before you change code. Give every pull request description a
-section headed "Definition of done" that answers each of its questions by
-number. Where this guide's conventions and the standard's criteria cover the
-same ground, the standard sets the bar and the conventions say how to meet it.
 
 ## Dev setup
 
