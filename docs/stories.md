@@ -80,6 +80,23 @@ want to check that an agent is on the right track.
 The value to the user is that they can delegate as much as they have ready, and
 keep an eye on all of it from one page.
 
+#### The user labels issues that depend on each other
+
+The user has two issues where the second builds on the first, so work on it
+should not start until the first is done. They mark the second as blocked by the
+first on GitHub, as they would for any pair of issues, then assign and label
+both. Work starts on the first straight away. The second shows on the home page
+as blocked, naming the issue it waits for, and nothing starts for it however
+long the first takes.
+
+When the first pull request merges, GitHub closes its issue, and at the next
+update the second issue is no longer blocked. Work starts on it, on a branch
+from main that already carries the first change. The user did nothing between
+the two beyond reviewing and merging the first.
+
+The value to the user is that they can label a whole chain of issues at once and
+let the dependencies set the order.
+
 #### An agent needs user input to complete an assignment
 
 The agent is partway through an implementation and meets something the issue
@@ -214,12 +231,6 @@ The user labels an issue that already has an open pull request linked to it, one
 whose description says it closes the issue. The request row says the issue is
 claimed by that pull request, and nothing starts until it is closed or merged. A
 user who wants the agent to take over closes the other pull request first.
-
-### A label on a blocked issue
-
-The user labels an issue that GitHub says is blocked by another open issue. The
-row says blocked, names the blocker, and nothing starts until the blocker
-closes.
 
 ### Closing a pull request and leaving the label on
 
