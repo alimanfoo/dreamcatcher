@@ -45,11 +45,11 @@ user posted since its last turn. The agent addresses it, pushes, and ends its
 turn. Anything the user posts while the agent is working waits for the turn
 after. That exchange repeats as often as the user likes.
 
-While the pull request waits, main may move under it. If the repository asks for
-branches to be up to date, or the branch now conflicts, the agent is woken once
-to merge main in and push, without the user asking. If the checks fail on what
-the agent pushed, it fixes them itself, as
-[the failing build story](#the-user-leaves-a-failing-build-to-the-agent) tells.
+While the pull request waits, main may move under it and the checks may go red.
+The agent deals with both itself, as
+[the moving main story](#the-user-leaves-a-pull-request-that-main-has-moved-under-to-the-agent)
+and [the failing build story](#the-user-leaves-a-failing-build-to-the-agent)
+tell.
 
 The user merges when satisfied. GitHub closes the issue, and at the next update
 the agent takes one last turn to wrap up, which allows it to raise any issues
@@ -140,6 +140,24 @@ request that is ready for review gets this treatment.
 
 The value to the user is that a red build usually fixes itself before they have
 even seen it.
+
+#### The user leaves a pull request that main has moved under to the agent
+
+The agent's pull request is ready for review, and the user has not got to it
+yet. Meanwhile other work merges to main, and the branch falls behind it, or now
+conflicts with it. The user does not want to resolve someone else's merge
+conflict in the agent's branch, and they do not have to. The agent is woken to
+merge main in and push, without being asked, and the pull request is ready for
+review again on a current base. If main moves again, so does the agent, once for
+each move.
+
+One limit is worth knowing. GitHub only reports a branch as behind when the
+repository requires branches to be up to date before merging. Elsewhere a branch
+that merely falls behind, without conflicting, wakes nobody until it conflicts
+or the user posts. That is accepted, because such a branch still merges.
+
+The value to the user is that the pull request they come to review is one that
+merges cleanly, however long it waited.
 
 #### The user stops a round and redirects the agent
 
@@ -366,14 +384,6 @@ cause and retries, from the work's page or with `dreamcatcher retry`. If two
 pieces of work are in fault at once, the daemon pauses all starts for a while,
 because two faults suggest a shared cause such as an exhausted allowance. When
 the pause ends, the daemon tries that work again.
-
-### Main moves under a pull request
-
-Someone merges to main while the agent's pull request waits. If the branch is
-now behind in a repository that requires it to be up to date, or conflicts, the
-agent is woken to merge main in. In a repository without that requirement a
-branch that merely falls behind wakes nobody until it conflicts or the user
-posts; that is accepted.
 
 ### The daemon dies
 
