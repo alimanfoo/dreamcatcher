@@ -51,24 +51,32 @@ The user has an issue they want investigated rather than built: a question about
 the code, a suspected bug, a design doubt. They assign it to themselves, put a
 conversation label on it, and write the question as a comment, because the title
 and body alone ask nothing. At the next update the agent reads the code and
-answers as a comment on the issue, marked as the agent's own.
+answers as a comment on the issue, marked as the agent's own. When a comment
+needs no reply, the agent posts nothing.
 
 The user replies, and the agent answers again in the same session, so it
-remembers what it said. The conversation shows as idle between the user's
-comments, because it asks nothing of them. When the user has what they need,
-they close the issue, and the conversation ends.
+remembers what it said. A comment the user posts while the agent is still
+answering waits for its next answer. Each answer is based on main as it stands
+then, and nothing the agent changed while answering earlier carries over. The
+conversation shows as idle between the user's comments, because it asks nothing
+of them. When the user has what they need, they close the issue, and the
+conversation ends.
 
 ### The user stops a round and redirects the agent
 
 The agent is partway through an assignment and heading the wrong way. The user
 stops its round, from the assignment's page or with `dreamcatcher stop`, and it
 stops within a few seconds. A round can be stopped once its harness has reported
-its session, which is within its first moments. The stopped round counts as
-having taken its turn, so nothing it was given is given again. The next round
-starts when something new reaches the pull request: a post from the user, main
-moving under it, a failing check, or a merge. That round is told the previous
-one was stopped. The user posts what they want changed, and work resumes in the
-same session.
+its session, which is within its first moments. Nothing the stopped round was
+given is given again. The next round starts when something new reaches the pull
+request: a post from the user, main moving under it, a failing check, or a
+merge. That round is told the previous one was stopped. The user posts what they
+want changed, and work resumes in the same session.
+
+The user stops a conversation's round the same way, from the conversation's page
+or with `dreamcatcher stop`. The stopped round posts no answer, and the
+conversation waits for the user's next comment. The round that comment starts is
+told the previous one was stopped.
 
 ### The user cancels an assignment to finish its pull request by hand
 

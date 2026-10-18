@@ -158,6 +158,10 @@ A successful or stopped round has taken its turn. An errored or interrupted
 round has not, so the next round is given its input again, together with
 anything new.
 
+A conversation round is successful only once its answer is posted on the issue,
+or the agent has answered that no reply is needed. A round whose answer is
+missing or cannot be posted is errored.
+
 ### User post and feedback
 
 A **user post** is a user-authored contribution to an assignment's pull request.
@@ -190,20 +194,21 @@ calls for a round.
 ### Signal
 
 A **signal** is something new in a piece of agent work's channel that calls for
-a turn. A conversation has one kind, an issue comment by the user past the
-cursor. An assignment has four: a user post past the cursor; its pull request
-being merged or closed before its wrap-up round has taken its turn;
-**out-of-date**, a pull request that is ready for review and behind its base
-branch or in conflict with it; and **check-failure**, a pull request that is
-ready for review with a finished check that failed. The last two are the **pull
-request signals**, which _dreamcatcher_ raises from the pull request's merge
-state and checks rather than from anything the user did. A draft raises neither,
-because the agent has not finished. GitHub reports a branch as behind its base
-only when the repository requires branches to be up to date before merging, so
-elsewhere a pull request that falls behind without a conflict raises no
-out-of-date signal. A round that takes its turn relays each pull request signal
-at most once for each head commit of the pull request, so the signal is raised
-again only once the head moves.
+a turn. A conversation has one kind, an **eligible comment** past the cursor: a
+comment on the issue by the signed-in account that says something and does not
+carry the marker that _dreamcatcher_ asks every agent post to end with. An
+assignment has four: a user post past the cursor; its pull request being merged
+or closed before its wrap-up round has taken its turn; **out-of-date**, a pull
+request that is ready for review and behind its base branch or in conflict with
+it; and **check-failure**, a pull request that is ready for review with a
+finished check that failed. The last two are the **pull request signals**, which
+_dreamcatcher_ raises from the pull request's merge state and checks rather than
+from anything the user did. A draft raises neither, because the agent has not
+finished. GitHub reports a branch as behind its base only when the repository
+requires branches to be up to date before merging, so elsewhere a pull request
+that falls behind without a conflict raises no out-of-date signal. A round that
+takes its turn relays each pull request signal at most once for each head commit
+of the pull request, so the signal is raised again only once the head moves.
 
 The **relay rule** gives an agent two attempts at a red build on its own. A
 check-failure is withheld when the last two rounds whose input is behind the
@@ -338,6 +343,17 @@ the issue, so no new assignment starts for the issue. If the user merges it,
 GitHub closes the issue. If the user closes it without merging, the issue may
 receive another assignment.
 
+### Starting an issue conversation
+
+A conversation request starts a conversation only when its issue carries no
+other configured conversation label and has at least one eligible comment. The
+issue's title and body alone start nothing. An open assignment at the issue, a
+linked pull request, a dependency and an assignment routing conflict have no
+bearing on conversations.
+
+A conversation keeps the route and recipe settings that its work record holds,
+even after its route is removed from the configuration.
+
 ### Pausing and ending a conversation
 
 An open conversation is **paused** while its own dispatch label is off its
@@ -471,50 +487,6 @@ Scheduling and reporting must nevertheless interpret the same underlying facts
 consistently.
 
 ## Processes
-
-### Starting an issue conversation
-
-A conversation request with no open conversation under its label starts one when
-its issue carries no other configured conversation label and has at least one
-**eligible comment**: a comment by the signed-in account that says something and
-does not carry the marker that _dreamcatcher_ asks every agent post to end with.
-An issue with more than one configured conversation label has a routing conflict
-and starts nothing until one label remains. Issue title and body alone do not
-start a round. Assignment ownership, linked pull requests, dependencies and
-assignment-routing conflicts do not govern conversations.
-
-An open conversation that is not paused takes a round when it has at least one
-eligible comment past its cursor.
-
-_dreamcatcher_ records the chosen conversation route and settings, then starts
-the initial conversation round. Every conversation round's preparation fetches
-main and resets the detached worktree to it, adding the worktree when it is
-missing, and then freezes the round's input. The recorded route and settings
-stay frozen for the life of the conversation, even if its route is later removed
-from the configuration. The round shares the daemon's capacity and global
-cooldown with assignment rounds. Before a conversation round records a
-successful ending, _dreamcatcher_ requires its answer and posts it on the issue.
-An answer of `NO_REPLY` means no post is needed. A missing answer or failed post
-makes the round errored.
-
-After the round ends, another eligible comment batch resumes the same harness
-session in another conversation round. Resetting the worktree deletes every
-local commit and file left by the earlier investigation. Comments that arrive
-while a round runs stay beyond that round's input. If the round is interrupted
-or errors, the next round is given its comments again, together with any that
-arrived since, against freshly fetched main, and its prompt says that the
-previous round did not finish. A round with no recorded harness session to
-resume starts a new one with the configured prompt and the issue's title and
-body.
-
-A stopped conversation round posts no answer, and its comments are not given
-again. The conversation is idle until another eligible comment batch arrives.
-That batch starts a round in the same harness session, and its prompt says that
-the user stopped the previous round.
-
-Removing the conversation's label, unassigning the signed-in account, or adding
-a second configured conversation label pauses the conversation, and closing the
-issue ends it, as the rules for pausing and ending a conversation say.
 
 ### Working through an assignment
 
