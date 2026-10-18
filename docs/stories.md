@@ -125,8 +125,7 @@ user posted in between is lost.
 The user puts two assignment labels on an issue, or two conversation labels,
 perhaps to try both recipes. That is a routing conflict: the request rows say so
 and name the labels, and nothing of that kind starts, or carries on, until one
-label is removed. An assignment that already exists is unaffected, because once
-it exists its labels do not matter.
+label is removed. An assignment that already exists carries on regardless.
 
 ### A label without an assignee
 
@@ -139,8 +138,7 @@ looks at issues assigned to the user. Assigning it is the fix.
 The user labels an issue that already has an open pull request linked to it, one
 whose description says it closes the issue. The request row says the issue is
 claimed by that pull request, and nothing starts until it is closed or merged. A
-pull request that does not name the issue does not claim it. A user who wants
-the agent to take over closes the other pull request first.
+user who wants the agent to take over closes the other pull request first.
 
 ### A label on a blocked issue
 
@@ -158,9 +156,8 @@ request. A user who does not want the agent back takes the label off.
 ### Removing a label to stop an assignment
 
 The user takes the assignment label off an issue expecting the agent to stop. It
-does not: an assignment belongs to its pull request from the moment it is
-created, and labels no longer concern it. Cancelling the assignment is the way
-to stop it.
+does not; the assignment carries on with its pull request whatever happens to
+the label. Cancelling the assignment is the way to stop it.
 
 ### Talking to the agent in the wrong place
 
@@ -171,9 +168,9 @@ holds for a conversation, whose channel is the issue.
 ### Editing the configuration while the daemon runs
 
 The user changes `dreamcatcher.toml` and expects the change to take effect. It
-takes effect when the daemon next starts, because the daemon reads its
-configuration once. If the file is now invalid, the daemon refuses to start and
-says why; the home page keeps showing what the last daemon recorded.
+takes effect when the daemon next starts. If the file is now invalid, the daemon
+refuses to start and says why; the home page keeps showing what the last daemon
+recorded.
 
 ### Deleting an assignment's worktree
 

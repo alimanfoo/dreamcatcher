@@ -142,9 +142,6 @@ head at which each pull request signal was last relayed, whether the relay rule
 withholds a check-failure, and whether a wrap-up round has been given the
 finished pull request are read from the inputs of the rounds that took their
 turn or are running, so a round that did not finish has its input given again.
-Open work with something past its cursor is a candidate unless its last round is
-running or it is in fault, and so is an assignment whose last round errored or
-was interrupted, because it is given its pull request's state again.
 
 Scheduling should expose pure, read-only functions for interpretations that
 status reporting also needs, particularly whether agent work is in fault and
@@ -167,34 +164,15 @@ request.
 
 Each tick reads an open conversation's issue before its comments, so open
 conversations do not depend on the listing. The tick keeps reading the issue
-while a round runs, and also reads its comments while the issue remains open and
-the conversation is not paused. A closed issue ends the conversation with the
-reason "issue closed" once its running round finishes. A conversation whose
-label is off its issue, whose issue is not assigned to the signed-in account, or
-whose issue carries another configured conversation label is paused: the tick
-reads no comments for it and starts no round. A conversation belongs to the
-label that started it, so another label on the same issue is a request of its
-own.
+while a round runs, decides from it whether the conversation is paused or has
+ended, and reads its comments only while it is neither.
 
-The signed-in GitHub account identifies eligible issue comments. Marked
-_dreamcatcher_ comments, comments by other accounts and blank comments are
-excluded. Each durable round input records the comments it relays, so the newest
-comment in the latest input of a round that took its turn or is running is the
-cursor, and a comment behind it cannot be selected again.
-
-The first eligible comments start one session through the harness selected from
-the conversation's configured recipes, with the issue title and body. Each later
-round resumes that same harness session with only the comments past the cursor.
-Resetting the worktree deletes every local commit and file. Each round input
-records its investigated revision. Comments posted while a round runs remain
-beyond that round's input.
-
-A failed or interrupted conversation round does not move the cursor, so the next
-round is given its comments again, together with any that arrived since, against
-a freshly reset worktree, and its prompt says that the previous round did not
-finish. It resumes the recorded harness session, or starts a new session with
-the configured prompt and the issue's title and body when no session identifier
-was recorded.
+The relay selects the eligible comments past the cursor. Each durable round
+input records the comments it relays, so the newest comment in the latest input
+of a round that took its turn or is running is the cursor, and a comment behind
+it cannot be selected again. The preparation adds the issue's title and body to
+the input of a round that starts a new harness session, and resetting the
+worktree deletes every local commit and file that an earlier round left.
 
 Conversation harness permissions reinforce the no-implementation boundary while
 allowing issue actions that the user requests. Claude allows selected `gh issue`
@@ -213,9 +191,7 @@ and then the round records its ending. It therefore keeps its agent slot while
 it posts, and no new batch starts until the answer is out. `NO_REPLY` posts
 nothing. A missing final output or a failed post makes the round errored. The
 ending keeps the harness's clean exit status and gives the failure as its
-reason, and the feed notes it too. Failed and interrupted rounds remain visible
-while later rounds are given their input again, and two consecutive errored
-rounds place the conversation in fault.
+reason, and the feed notes it too.
 
 Harness adapters expose final output separately from their progress streams.
 Claude supplies the answer in its successful result event. For a Codex
@@ -263,11 +239,8 @@ cannot be added is removed with its branch. The assignment identifier names the
 branch and worktree, so a round that follows a failed one finds what the earlier
 attempt made and never makes a second branch or pull request.
 
-The assignment remains open until its ending is recorded. A wrap-up round, one
-whose input carries a merged or closed pull request, records the ending with the
-reason "completed" in its finishing step, after its harness exits successfully.
-A cancel records it with the reason "cancelled". A merged or closed pull request
-calls for wrap up but does not by itself complete the assignment.
+A wrap-up round records the assignment's ending with the reason "completed" in
+its finishing step, after its harness exits successfully.
 
 The assignment module coordinates the workflow but does not implement Git
 commands, parse GitHub responses, launch harnesses, or choose when work should
@@ -308,9 +281,6 @@ kind's own module owns what its steps write.
 The scheduler decides the input and the prompt a new round has. The round
 boundary executes and records that decision; it does not inspect the pull
 request or select later work.
-
-A round is running while it has no terminal outcome. Successful, errored,
-interrupted, and stopped are terminal outcomes.
 
 A round may have an internal collection of file paths, but its agent work
 remains the domain object shared across boundaries.
@@ -518,10 +488,8 @@ same file.
 The configuration module validates labels, routes, and recipes. Each dispatch
 label belongs to one route, so a label cannot configure both kinds of agent
 work. Given an issue's labels, the module identifies the matching routes. It
-does not silently resolve multiple labels by list order. The scheduler
-interprets exactly one route of either kind as routable, more than one of that
-kind as a routing conflict, and none as outside that kind of agent work. One
-route of each kind may match at the same time.
+does not silently resolve multiple labels by list order. The scheduler applies
+the routing rules to the routes it returns.
 
 ### State and documents
 
@@ -571,8 +539,10 @@ to run or spawn already-constructed commands; no other module imports the
 subprocess library.
 
 `prompts.py` owns the construction of the prompts passed to agent harnesses. It
-receives the information required to construct each prompt. It does not infer
-why an agent round is being run or make scheduling decisions.
+receives the information required to construct each prompt, including how the
+previous round ended, and opens the input of a round that follows a stopped,
+errored or interrupted one with a line saying so. It does not infer why an agent
+round is being run or make scheduling decisions.
 
 `feed.py` owns the harness-neutral activity representation and rendering of
 parsed harness events into plain-text records. Rich presentation remains in the
@@ -625,11 +595,9 @@ a round is read from its input rather than recorded.
 
 A conversation's harness session identifier and latest user retry request each
 have a file of their own beside its record, as an assignment's do. Its route and
-recipe stay frozen for its life; a different conversation label starts a
-conversation of its own once it is the issue's only conversation label. Each
-round input persists its investigated revision and the eligible comments it
-relays; the input of a round that starts a new harness session also persists the
-issue title and body.
+recipe stay frozen for its life. Each round input persists its investigated
+revision and the eligible comments it relays; the input of a round that starts a
+new harness session also persists the issue title and body.
 
 Instance records persist the repository identity and the most recent daemon
 run's preferred harness, _dreamcatcher_ version, capacity, interval, and the

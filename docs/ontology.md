@@ -253,6 +253,10 @@ exhausted usage allowance.
 
 Agent work has no agent rounds until work begins and one or more afterwards.
 
+Agent work is open until its ending is recorded, with the time and the reason,
+and then it has **ended**. An assignment ends when it is complete or cancelled.
+A conversation ends when its issue closes.
+
 The rounds normally share one harness session. A round with no recorded harness
 session to resume starts a new one, and its prompt begins with the work's
 instructions, because the new session has not seen them.
@@ -337,10 +341,6 @@ running when the user cancels is asked to stop, and the assignment is working
 until that round ends. A cancel records the assignment's ending, with the reason
 "cancelled", and cannot be undone.
 
-Agent work is open until its ending is recorded, with the time and the reason,
-and then it has **ended**. An assignment ends when it is complete or cancelled.
-A conversation ends when its issue closes.
-
 _dreamcatcher_ leaves the pull request as it is, and while it is open it claims
 the issue, so no new assignment starts for the issue. If the user merges it,
 GitHub closes the issue. If the user closes it without merging, the issue may
@@ -406,9 +406,11 @@ answer the request. An assignment request that carries the issue's only
 assignment label is asked the **start-time questions**: which open pull requests
 linked to the issue claim it, and which open issue dependencies block it. They
 are asked only while no open assignment exists, because they decide only whether
-one may start. A conversation request reads the issue's comments. A request
-whose issue carries more than one label of its kind has a routing conflict, and
-nothing of that kind starts while it lasts.
+one may start. An open pull request **claims** an issue when GitHub links it as
+one that will close the issue, as `Closes #123` in its description does. A
+conversation request reads the issue's comments. A request whose issue carries
+more than one label of its kind has a routing conflict, and nothing of that kind
+starts while it lasts.
 
 A request with no open work has one of these request statuses:
 
@@ -424,7 +426,7 @@ A request with no open work has one of these request statuses:
 
 There is no durable issue queue. Requests keep the order in which the scheduler
 listed their issues, oldest first, which is the order in which it starts new
-assignments.
+work.
 
 ### Scheduling work
 
