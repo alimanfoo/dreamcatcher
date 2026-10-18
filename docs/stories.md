@@ -48,9 +48,8 @@ after. That exchange repeats as often as the user likes.
 While the pull request waits, main may move under it. If the repository asks for
 branches to be up to date, or the branch now conflicts, the agent is woken once
 to merge main in and push, without the user asking. If the checks fail on what
-the agent pushed, it is woken once to read the failure and fix it, and once more
-if the next push fails too; after that it waits for the user, because two
-attempts without progress means it needs something it does not have.
+the agent pushed, it fixes them itself, as
+[the failing build story](#the-user-leaves-a-failing-build-to-the-agent) tells.
 
 The user merges when satisfied. GitHub closes the issue, and at the next update
 the agent takes one last turn to wrap up, which allows it to raise any issues
@@ -123,6 +122,24 @@ does, from the point where the agent marks the pull request ready for review.
 
 The value to the user is that they settle a question in one comment at the
 moment it matters, instead of finding the wrong guess at review.
+
+#### The user leaves a failing build to the agent
+
+The agent has marked its pull request ready for review, but the checks have gone
+red: a test it did not run locally, or a lint rule it missed. The user would
+rather not read the CI log themselves, and they do not have to. The agent is
+woken to read the failure, fix it and push again. If the checks go red again, it
+gets one more go. After two attempts without a green build it stops trying and
+waits, because two attempts without progress means it needs something it does
+not have. The row on the home page says the checks are still failing, and now
+the user reads the failure, and a post telling the agent what it is missing
+wakes it again.
+
+A draft's checks wake nobody, because the agent has not finished, so only a pull
+request that is ready for review gets this treatment.
+
+The value to the user is that a red build usually fixes itself before they have
+even seen it.
 
 #### The user stops a round and redirects the agent
 
@@ -349,14 +366,6 @@ cause and retries, from the work's page or with `dreamcatcher retry`. If two
 pieces of work are in fault at once, the daemon pauses all starts for a while,
 because two faults suggest a shared cause such as an exhausted allowance. When
 the pause ends, the daemon tries that work again.
-
-### The checks fail on the agent's push
-
-CI is red on what the agent pushed, and the pull request is ready for review; a
-draft's checks wake nobody, because the agent has not finished. The agent is
-woken once to fix it, and once more if its fix is red too. After that it waits
-for the user: the row says the checks are still failing, and a post from the
-user wakes it again.
 
 ### Main moves under a pull request
 
