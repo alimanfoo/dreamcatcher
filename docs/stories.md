@@ -159,12 +159,17 @@ The round that comment starts is told the previous one was stopped.
 
 #### The user pauses a conversation by removing its label
 
-A conversation has answered what the user asked for now, but the issue stays
-open, and the user wants the agent to stop answering on it for a while. They
-take the conversation label off, and the conversation pauses: a comment posted
-meanwhile gets no answer. When the user later wants to ask the agent another
-question, they put the label back, and the same conversation resumes with
-everything it said before, answering whatever was posted while it was paused.
+Say the user has had their question answered, but the issue is going to stay
+open for a while, perhaps because the fix is for another day. In the meantime
+they don't want the agent chiming in on every comment, because the discussion
+that follows is between people. So they take the conversation label off the
+issue, and that is all it takes. The conversation pauses, and anyone can comment
+on the issue without the agent answering.
+
+Later, something comes up that they want the agent's view on again. They put the
+label back, and the same conversation picks up where it left off. It still
+remembers everything it said before, and it is given everything the user posted
+while it was paused, so they can ask their new question without recapping.
 
 ### The daemon
 
