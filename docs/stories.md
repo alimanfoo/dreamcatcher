@@ -145,12 +145,6 @@ the issue as resolved. Or, if the conversation showed a bug report invalid, the
 user may close the issue as unplanned. Once the issue is closed, the
 conversation is ended.
 
-If the user wants the agent to stop answering on the issue while it is still
-open, they take the conversation label off, and the conversation pauses. If they
-later want to ask the agent another question, they put the label back, and the
-same conversation resumes with everything it said before, answering whatever was
-posted while it was paused.
-
 The value to the user is that they need only label an issue and ask their
 question as a comment, then read the answer and reply, as they would with a
 colleague on GitHub who knows the codebase and can investigate. They check out
@@ -162,6 +156,15 @@ The agent is partway through an answer and heading the wrong way. The user stops
 its round, from the conversation's page or with `dreamcatcher stop`. The stopped
 round posts no answer, and the conversation waits for the user's next comment.
 The round that comment starts is told the previous one was stopped.
+
+#### The user pauses a conversation by removing its label
+
+A conversation has answered what the user asked for now, but the issue stays
+open, and the user wants the agent to stop answering on it for a while. They
+take the conversation label off, and the conversation pauses: a comment posted
+meanwhile gets no answer. When the user later wants to ask the agent another
+question, they put the label back, and the same conversation resumes with
+everything it said before, answering whatever was posted while it was paused.
 
 ### The daemon
 
