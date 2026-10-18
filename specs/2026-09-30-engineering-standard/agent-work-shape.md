@@ -32,21 +32,21 @@ now has its citation.
 4. Both recover an errored or interrupted round automatically, and two
    consecutive errors put the work in fault.
    ([Recovery round](../../docs/ontology.md),
-   [Handling errors and global cooldown](https://github.com/alimanfoo/dreamcatcher/blob/1e99781b9840c912de48f2315cbd09464d73c58a/docs/ontology.md))
+   [Handling errors and global cooldown](../../docs/ontology.md))
 5. Both share the daemon's capacity and the global cooldown, and a user retry
    clears a fault the same way for each.
    ([Starting an issue conversation](../../docs/ontology.md#starting-an-issue-conversation),
-   [Handling errors and global cooldown](https://github.com/alimanfoo/dreamcatcher/blob/1e99781b9840c912de48f2315cbd09464d73c58a/docs/ontology.md))
+   [Handling errors and global cooldown](../../docs/ontology.md))
 6. Both have a summary status with shared meanings for working, waiting, fault
    and unknown, and each has a resting status that is the other's counterpart.
-   ([Agent assignment status](https://github.com/alimanfoo/dreamcatcher/blob/24030d89a5db85454aee47185f7c5c5f4aa38d95/docs/ontology.md?plain=1#L345),
-   [Issue conversation status](https://github.com/alimanfoo/dreamcatcher/blob/24030d89a5db85454aee47185f7c5c5f4aa38d95/docs/ontology.md?plain=1#L369))
+   ([Agent assignment status](../../docs/ontology.md),
+   [Issue conversation status](../../docs/ontology.md))
 7. Both are selected through one dispatch label, which belongs to one route,
    which supplies one recipe.
    ([Dispatch labels and routes](../../docs/ontology.md#dispatch-labels-and-routes))
 8. Both have a stop rule with the same shape: a stopped round is not recovered,
    and the next ordinary round's prompt says the user stopped the last one.
-   ([Scheduling rounds in response to events](https://github.com/alimanfoo/dreamcatcher/blob/1e99781b9840c912de48f2315cbd09464d73c58a/docs/ontology.md),
+   ([Scheduling rounds in response to events](../../docs/ontology.md),
    [Starting an issue conversation](../../docs/ontology.md#starting-an-issue-conversation))
 9. A round's input is a frozen batch of user input from the work's communication
    channel: posts on the pull request for an assignment, comments on the issue
@@ -64,8 +64,7 @@ now has its citation.
    [Issue conversation composition](../../docs/ontology.md#issue-conversation-composition))
 2. An assignment is created by a scheduling action from an available issue. A
    conversation starts from an eligible comment batch, and a bare labelled issue
-   starts nothing.
-   ([Creating an agent assignment](https://github.com/alimanfoo/dreamcatcher/blob/1e99781b9840c912de48f2315cbd09464d73c58a/docs/ontology.md),
+   starts nothing. ([Creating an agent assignment](../../docs/ontology.md),
    [Starting an issue conversation](../../docs/ontology.md#starting-an-issue-conversation))
 3. An assignment round's purpose comes from pull request state. A conversation
    round is always a discussion. ([Round purpose](../../docs/ontology.md))
@@ -82,29 +81,29 @@ now has its citation.
    issue stops being eligible.
    ([Completing an assignment](../../docs/ontology.md#completing-an-assignment),
    [Issue conversation composition](../../docs/ontology.md#issue-conversation-composition),
-   [Issue conversation status](https://github.com/alimanfoo/dreamcatcher/blob/24030d89a5db85454aee47185f7c5c5f4aa38d95/docs/ontology.md?plain=1#L369))
+   [Issue conversation status](../../docs/ontology.md))
 7. The tick observes every labelled issue of either kind before any work exists.
    For an assignment the observation says whether the issue is available, so it
    is a place in the queue. For a conversation it says whether comments wait, so
    it is a status, idle until the user comments.
-   ([Issue observations and availability](https://github.com/alimanfoo/dreamcatcher/blob/24030d89a5db85454aee47185f7c5c5f4aa38d95/docs/ontology.md?plain=1#L305),
-   [Issue conversation status](https://github.com/alimanfoo/dreamcatcher/blob/24030d89a5db85454aee47185f7c5c5f4aa38d95/docs/ontology.md?plain=1#L369))
+   ([Issue observations and availability](../../docs/ontology.md),
+   [Issue conversation status](../../docs/ontology.md))
 8. Availability for an assignment reads claimed here, claimed elsewhere, blocked
    and routing conflict. Conversation eligibility reads none of those, only its
    own routing conflict and whether comments wait.
-   ([Issue observations and availability](https://github.com/alimanfoo/dreamcatcher/blob/24030d89a5db85454aee47185f7c5c5f4aa38d95/docs/ontology.md?plain=1#L305),
+   ([Issue observations and availability](../../docs/ontology.md),
    [Starting an issue conversation](../../docs/ontology.md#starting-an-issue-conversation))
 9. Assignment ranking is recovery, wrap up, new posts, then oldest available
    issue. Conversation ranking is recovery, then oldest waiting comment.
    ([Scheduling work](../../docs/ontology.md#scheduling-work))
 10. A conversation in fault counts towards the cooldown only when its issue has
     no known routing conflict. An assignment in fault always counts.
-    ([Handling errors and global cooldown](https://github.com/alimanfoo/dreamcatcher/blob/1e99781b9840c912de48f2315cbd09464d73c58a/docs/ontology.md))
+    ([Handling errors and global cooldown](../../docs/ontology.md))
 11. Each kind lives by its channel. An assignment recovers and takes new work
     only while its pull request is open, and reads nothing else about its issue
     once created. A conversation does so only while its issue stays eligible:
     open, assigned, with exactly one conversation label.
-    ([Scheduling rounds in response to events](https://github.com/alimanfoo/dreamcatcher/blob/1e99781b9840c912de48f2315cbd09464d73c58a/docs/ontology.md),
+    ([Scheduling rounds in response to events](../../docs/ontology.md),
     [Starting an issue conversation](../../docs/ontology.md#starting-an-issue-conversation))
 
 Differences 8, 10 and 11 are one difference seen three times. A conversation's
