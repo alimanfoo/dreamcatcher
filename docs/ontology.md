@@ -263,7 +263,8 @@ Each agent assignment has exactly one:
 
 It has one pull request once the round that opens it has done so. The assignment
 exists from the moment its work record is written, before any Git or GitHub
-step.
+step. Making the worktree, the branch and the draft pull request is that round's
+preparation, never a task for the agent or the assignment skill.
 
 An issue can receive more than one assignment over its lifetime, but a
 _dreamcatcher_ instance can never have more than one open assignment for the
@@ -470,21 +471,6 @@ Scheduling and reporting must nevertheless interpret the same underlying facts
 consistently.
 
 ## Processes
-
-### Creating an agent assignment
-
-The scheduler writes the assignment's work record the moment it picks an
-available request, and starts the first round in the same tick. The record comes
-before any Git or GitHub step, so the assignment exists whatever happens next.
-
-The preparation of the round that opens the pull request fetches main, adds the
-worktree on the assignment's branch, makes and pushes an empty commit, and opens
-a linked draft pull request, before it asks the agent to do any work. These
-steps are part of the round, not responsibilities delegated to the agent or to
-the assignment skill. A pull request already on the assignment's branch is
-adopted whatever its state. Each step does nothing when its result already
-exists, so a round after one that failed part way finds most of the steps done
-and runs the rest.
 
 ### Starting an issue conversation
 
