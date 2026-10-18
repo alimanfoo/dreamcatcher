@@ -423,6 +423,25 @@ There is no durable issue queue. Requests keep the order in which the scheduler
 listed their issues, oldest first, which is the order in which it starts new
 assignments.
 
+### Scheduling work
+
+A **candidate** is open work with something new past its cursor, unless its last
+round is running or it is in fault, or a request whose work may start. The input
+of a round that errored or was interrupted is past the cursor, so it is new
+again. An assignment is also a candidate when no round has opened its pull
+request yet, or when its last round errored or was interrupted, because it is
+then given its pull request's state again even with nothing new.
+
+Rounds of both kinds share the daemon's capacity and the global cooldown. Open
+work takes precedence over new work. Open work starts in the order of its
+identifiers, and new work in the order of its requests. While both kinds have
+candidates, they take turns for each free agent slot; when only one kind has
+any, it goes on alone. A launch that fails takes no slot.
+
+A failed read prevents only the launches that depend on it. A failed listing for
+a dispatch label starts no work for the issues it would have listed, but open
+work reads its own channel, so the listing does not affect it.
+
 ### Agent work status
 
 Agent work of either kind has one of these summary statuses:
@@ -526,31 +545,6 @@ request starts a wrap-up round without waiting for a post. Either event gives
 the new round a prompt saying that the user stopped the previous round. Because
 the fault rule counts only two consecutive errored rounds, a stopped round ends
 a run of errors.
-
-### Scheduling work
-
-The scheduler creates agent work and starts agent rounds, the same way for both
-kinds. Each tick reads every piece of agent work from disk, lists the issues
-under each dispatch label, inspects the channel of each piece of open work, and
-decides for each request with no open work whether work may start. A
-**candidate** is open work with something new past its cursor, unless its last
-round is running or it is in fault; or a request whose work may start. The
-cursor leaves out the input of a round that errored or was interrupted, so that
-input is new again. An assignment is also a candidate when its pull request is
-not open yet, or when its last round errored or was interrupted, because it is
-then given its pull request's state again even with nothing new.
-
-A failed read prevents only the launches that depend on it. A failed listing for
-a dispatch label starts no work for the issues it would have listed, but open
-work reads its own channel, so the listing does not affect it.
-
-Existing work takes precedence over new work. Among existing work the order is
-the order of the identifiers, and new work starts in the order in which the
-scheduler listed its issues. When both an assignment candidate and a
-conversation candidate are ready, the scheduler alternates which kind receives
-each free slot until capacity is full or no candidate remains. When only one
-kind is ready, it proceeds without waiting for the other. A launch that fails
-takes no slot, and the scheduler goes on to the next candidate.
 
 ### Handling errors and global cooldown
 
