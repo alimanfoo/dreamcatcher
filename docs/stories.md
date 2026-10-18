@@ -463,6 +463,17 @@ does not; the assignment carries on with its pull request whatever happens to
 the label. To stop it, the user needs to cancel the assignment, from its page or
 with `dreamcatcher cancel`.
 
+### Committing to the agent's branch
+
+The user sees a small thing they can fix faster than they can describe, and
+pushes a commit of their own to the agent's branch while the assignment is still
+open. _dreamcatcher_ does nothing about it. The agent finds the branch has moved
+when it next pushes, and agents usually work out what happened and build on the
+user's commit, but nothing told it. If the checks go red on the user's commit,
+the agent is woken to fix that as if it were its own. The user needs to say what
+they changed in a post on the pull request, so that the next round starts
+knowing, rather than leaving the agent to discover it.
+
 ### Talking to the agent in the wrong place
 
 The user comments on the issue of an assignment, expecting the agent to see it.
