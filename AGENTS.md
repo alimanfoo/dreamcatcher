@@ -25,7 +25,9 @@ to them. Read all four before you work, and read the stories before judging any
 finding.
 
 - [docs/stories.md](docs/stories.md) says what the user does, why, and what they
-  see. A story that does not hold is a bug.
+  see, and sorts what goes wrong into user errors and expected faults. A happy
+  path that does not hold is a bug; behaviour that a user error or fault story
+  describes is not.
 - [docs/ontology.md](docs/ontology.md) says what the words mean. Use its words
   and no others.
 - [docs/architecture.md](docs/architecture.md) says where each thing lives in
@@ -285,9 +287,9 @@ $env:PYTHONWARNDEFAULTENCODING = "1"; uv run pytest --regenerate-view-goldens
 
 - Keep changes lean. Add nothing a requirement or the design doesn't call for;
   prefer deleting over adding. One way to do each thing, always.
-- A bug is a story in `docs/stories.md` that does not hold: wrong behaviour when
-  everything else has worked, and ordinary actions reproduce it. Before filing
-  one, ask whether the stories call it a user error or an expected fault
+- A bug is a happy path in `docs/stories.md` that does not hold: wrong behaviour
+  when everything else has worked, and ordinary actions reproduce it. Before
+  filing one, ask whether the stories call it a user error or an expected fault
   instead. Steps that need something to fail at the right moment, such as a
   write, describe a hypothesis, not a bug; file one of those only if state would
   be lost or corrupted.

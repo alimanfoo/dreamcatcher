@@ -25,12 +25,13 @@ _dreamcatcher_, and each ends with what the user gained. Then come the user
 errors, each ending with what the user needs to do, and then the expected
 faults.
 
-Agents should read the stories before judging a finding in the code. A story
-that does not hold is a bug. A user error is something the user did that the
-system handles, or accepts, and the story says how. An expected fault is
+Agents should read the stories before judging a finding in the code. A happy
+path that does not hold is a bug. A user error is something the user did that
+the system handles, or accepts, and the story says how. An expected fault is
 something outside _dreamcatcher_ going wrong, and the story says what the system
-does about it, or that it accepts the consequence. Of any finding, agents should
-ask which of the three it is.
+does about it, or that it accepts the consequence. Behaviour that a user error
+or fault story describes is not a bug, however it looks. Of any finding, agents
+should ask which of the three it is.
 
 ## Happy paths
 
