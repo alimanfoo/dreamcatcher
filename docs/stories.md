@@ -247,6 +247,32 @@ while it was paused, so they can ask their new question without recapping.
 
 ### The daemon
 
+#### The user sets up dreamcatcher on a new repository
+
+The user has a repository with a backlog of small, well-described issues, and
+more of them than they have evenings. They want an agent working through the
+backlog while they review. They install _dreamcatcher_ as a tool, and make sure
+the GitHub CLI is signed in as them and Claude Code runs, because _dreamcatcher_
+acts as whoever `gh` is signed in as and runs its agents through the harness.
+Then, in an ordinary clone of the repository on main, they run
+`dreamcatcher init`. It checks what it will need, that it can push, commit and
+fetch main, writes a default configuration with a route for each of the dream
+plugin's skills, installs the plugin, and creates the labels on GitHub, printing
+a line for each step. If a step fails, it says how to fix it, and the user fixes
+it and runs `init` again. It ends by telling them to commit and push the
+configuration, which they do, along with anything an agent will need to build
+and test the project, because an agent sees only what is on main.
+
+Then they start the daemon from the same checkout with `dreamcatcher run`, and
+the home page comes up with nothing on it yet. They assign an issue to
+themselves, put the `dream:smith` label on it, and from here
+[the implementation story](#the-user-asks-for-an-issue-to-be-implemented) takes
+over.
+
+The value to the user is that setup is one command that checks its own
+prerequisites and says what is missing, and the configuration lives in the
+repository, so the next person to use it needs only `init` and `run`.
+
 #### The user comes back to see what needs them
 
 The user labelled a handful of issues in the morning and has been in meetings
