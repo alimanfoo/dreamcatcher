@@ -3,13 +3,27 @@
 This document says what the user does with _dreamcatcher_, why, and what they
 see, while [the ontology](ontology.md) says what the words mean and
 [the architecture](architecture.md) says where each thing lives in the code. It
-is an enduring part of the project. Each story is told from the user's seat, in
-the order things happen, using the ontology's words without defining them and
-citing no rule and no mechanism. The user works through GitHub, and the agent
-hears only the user: a post or a comment from anyone else is never relayed, so
-nobody else can direct an agent that runs under the user's account. The home
-page and the terminal show what the daemon is doing, and carry the few controls
-that GitHub has no place for: stop, cancel and retry.
+is an enduring part of the project.
+
+The theory of use is short. One developer runs _dreamcatcher_ on their own
+machine, under their own GitHub account, against a repository they work in. They
+hand it work by labelling issues that are assigned to them, and the work is of
+two kinds: an assignment, where an agent implements the issue and brings it to a
+pull request, and a conversation, where an agent investigates and answers on the
+issue. From then on the developer works as they would with a colleague,
+reviewing the pull request or replying on the issue. GitHub is where the work
+happens and where the user acts. The home page and the terminal are a window on
+what the daemon is doing, with the few controls GitHub has no place for: stop,
+cancel and retry. The agent hears only the user: a post or a comment from anyone
+else is never relayed, so nobody else can direct an agent that runs under the
+user's account.
+
+Each story is told from the user's seat, in the order things happen, using the
+ontology's words without defining them and citing no rule and no mechanism. The
+happy paths come first, grouped as assignments, conversations and running
+_dreamcatcher_, and each ends with what the user gained. Then come the user
+errors, each ending with what the user needs to do, and then the expected
+faults.
 
 Agents should read the stories before judging a finding in the code. A story
 that does not hold is a bug. A user error is something the user did that the
@@ -68,7 +82,7 @@ issues were raised, as many at once as the daemon's capacity allows, and the
 rest wait for a free slot. Each assignment has its own branch, its own draft
 pull request and its own agent, so no two interfere, and each pull request
 becomes ready for review in its own time. Whenever an agent ends its turn, its
-slot goes to the next issue waiting. The user reviews each pull request as it
+slot goes to whatever is next in line. The user reviews each pull request as it
 arrives, in whatever order they like, and the exchanges on different pull
 requests overlap freely.
 
@@ -180,12 +194,33 @@ round, and the correction goes through the pull request like any other feedback.
 
 #### The user cancels an assignment to finish its pull request by hand
 
-An assignment has got as far as the agent can take it, and the user wants to
-finish the pull request themselves. They cancel it, from its page or with
-`dreamcatcher cancel`. Any running round stops, no further round runs, and the
-pull request, branch and worktree are the user's to work on outside of
-_dreamcatcher_. The assignment shows as ended, cancelled. While the pull request
-stays open, no new assignment starts for the issue.
+An assignment has got as far as the agent can take it, and the last stretch is
+quicker for the user to do by hand than to explain. They cancel it, from its
+page or with `dreamcatcher cancel`. Any running round stops, no further round
+runs, and the pull request, branch and worktree are the user's to work on
+outside of _dreamcatcher_. The assignment's page shows where the worktree is and
+the command that picks up the agent's session by hand, should they want to carry
+on the conversation themselves. The assignment shows as ended, cancelled, and
+while the pull request stays open no new assignment starts for the issue. The
+user finishes the branch and merges it, or closes it, as they would their own.
+
+The value to the user is that taking over is one click and nothing is lost: the
+agent's commits are theirs to build on.
+
+#### The user closes a pull request they do not want
+
+The agent's pull request is ready, and having read it the user does not want it:
+the approach is wrong, or the issue turned out to be a bad idea. Explaining what
+to change would take longer than starting over, or there is nothing to start
+over. If they do not want another attempt, they take the assignment label off
+the issue first. Then they close the pull request without merging. At the next
+update the agent takes its last turn to wrap up, and the assignment ends. The
+branch and worktree stay in place, and the issue stays open. If the user does
+want a fresh attempt, perhaps after rewriting the issue, they leave the label on
+or put it back, and a new assignment starts.
+
+The value to the user is that rejecting an agent's work is the same close button
+as rejecting anyone's.
 
 ### Conversations
 
@@ -214,6 +249,20 @@ The value to the user is that they need only label an issue and ask their
 question as a comment, then read the answer and reply, as they would with a
 colleague on GitHub who knows the codebase and can investigate. They check out
 no code, run nothing, and have nothing to clean up afterwards.
+
+#### The user asks the agent to act on the issue
+
+In the course of a conversation the agent has found that the issue is really
+three, or that a bug it confirmed deserves an issue of its own. The user would
+rather not write those up by hand. So they ask, in a comment, and the agent
+files the sub-issues, or links the related one, and reports what it did in its
+answer, with every post it makes marked as the agent's own. It will not close
+the issue or change its labels or assignee, because those would end or pause the
+conversation, and it will not touch code or branches. What it can do on GitHub
+is the issue-keeping the user asks for.
+
+The value to the user is that the agent's findings become tracked work in the
+same breath.
 
 #### The user stops a round and asks again
 
@@ -245,7 +294,7 @@ label back, and the same conversation picks up where it left off. It still
 remembers everything it said before, and it is given everything the user posted
 while it was paused, so they can ask their new question without recapping.
 
-### The daemon
+### Running dreamcatcher
 
 #### The user sets up dreamcatcher on a new repository
 
@@ -331,7 +380,48 @@ existing work carries on regardless.
 The value to the user is that trying a different model is an edit and a restart,
 and the choice is made issue by issue with a label.
 
+#### The user's teammate runs dreamcatcher on the same repository
+
+The user is not the only developer on the repository, and a teammate wants the
+same help. Nothing more needs setting up: the configuration and the labels are
+already in the repository, so the teammate clones it, runs `dreamcatcher init`
+and then `dreamcatcher run` on their own machine, and has an instance of their
+own. Each instance acts only on issues assigned to its own user, so the two
+never collide, and each user's agents run on their own machine, under their own
+account, on their own usage allowance. Handing an issue to a teammate's agent is
+the same as handing it to the teammate: assign it to them and label it, and
+their instance takes it at its next update. Each agent posts as the user it runs
+for and hears only that user, so a teammate's review of the user's pull request
+is read by the user, never by the agent.
+
+The value to the user is that a team shares one configuration and one set of
+labels, and nobody runs anything on anyone else's behalf.
+
+#### The user upgrades dreamcatcher
+
+A new release is out. For a minor or patch release the user stops the daemon,
+installs the new version, and starts it again, and interrupted rounds carry on
+as the stop-and-start story says. Before a major release they read the
+changelog, because a major release may change the state format, and saved work
+does not carry across formats. In that case the release notes say what to do
+first: let each assignment reach its wrap-up, or cancel it and finish its pull
+request by hand, and accept that conversations start afresh, which can mean an
+agent answering an old comment again if its label is still on. The old state
+stays on disk untouched, and everything on GitHub stays where it is.
+
+The value to the user is that a minor upgrade is a restart, and a major one
+tells them in advance what it will cost.
+
 ## User errors
+
+### Starting a second daemon on the same checkout
+
+The user starts `dreamcatcher run` in a second terminal, forgetting the first.
+The second refuses to start and says that another daemon holds the lock, so no
+two daemons ever work the same checkout. The user needs do nothing but close the
+second terminal. Running from a linked worktree instead of the main checkout is
+refused the same way, with a message saying so, and the user needs to run the
+daemon from the clone's main checkout.
 
 ### Two labels of one kind on one issue
 
