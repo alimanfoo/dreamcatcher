@@ -78,7 +78,7 @@ want to check that an agent is on the right track.
 The value to the user is that they can delegate as much as they have ready, and
 keep an eye on all of it from one page.
 
-#### The user answers a question from the agent
+#### An agent needs user input to complete an assignment
 
 The agent is partway through an implementation and meets something the issue
 does not settle: a requirement that reads two ways, a choice the user would want
@@ -97,19 +97,18 @@ does, from the point where the agent marks the pull request ready for review.
 #### The user stops a round and redirects the agent
 
 An assignment has been working for longer than the user expected. They open its
-page to see what the agent is doing, and the feed shows it heading the wrong
-way: rewriting something the issue never asked for, or chasing a problem that is
-not the one. Rather than let it finish and review the result, the user stops the
-round from the page, or with `dreamcatcher stop`, and it stops within a few
-seconds. Whatever the agent has pushed so far stays on the branch.
+page on the _dreamcatcher_ web UI to see what the agent is doing, and the feed
+shows it heading the wrong way: rewriting something the issue never asked for,
+or chasing a problem that is not the one. Rather than let it finish and review
+the result, the user stops the round from the page, or with `dreamcatcher stop`,
+and it stops within a few seconds. Whatever the agent has pushed so far stays on
+the branch.
 
-Nothing the stopped round was given is given again. The next round starts when
-something new reaches the pull request: a post from the user, main moving under
-it, a failing check, or a merge. So the user goes to the pull request and posts
-what they want changed, as they would for a colleague. At the next update the
-agent is given that post, told that the previous round was stopped, and carries
-on in the same session, so it remembers what it had done. The agent takes the
-new direction, pushes, and ends its turn as usual.
+The user goes to the pull request and posts what they want changed, as they
+would for a colleague. At the next update the agent is given that post, told
+that the previous round was stopped, and it carries on in the same session, so
+it remembers what it had done. The agent takes the new direction, pushes, and
+ends its turn as usual.
 
 The value to the user is that a wrong turn costs minutes rather than a whole
 round, and the correction goes through the pull request like any other feedback.
@@ -119,8 +118,9 @@ round, and the correction goes through the pull request like any other feedback.
 An assignment has got as far as the agent can take it, and the user wants to
 finish the pull request themselves. They cancel it, from its page or with
 `dreamcatcher cancel`. Any running round stops, no further round runs, and the
-pull request, branch and worktree are the user's. The assignment shows as ended,
-cancelled.
+pull request, branch and worktree are the user's to work on outside of
+_dreamcatcher_. The assignment shows as ended, cancelled. While the pull request
+stays open, no new assignment starts for the issue.
 
 ### Conversations
 
