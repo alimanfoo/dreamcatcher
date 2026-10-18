@@ -1,10 +1,10 @@
 # Engineering standard
 
-This document says what _dreamcatcher_ holds itself to. It is the third enduring
-document, beside [the ontology](ontology.md), which fixes the words, and
-[the architecture](architecture.md), which fixes the boundaries. The ontology
-says what things are called. The architecture says where each decision lives.
-This document says how good the result has to be, and how we tell.
+This document says what _dreamcatcher_ holds itself to. It is the fourth
+enduring document, beside [the ontology](ontology.md), which fixes the words,
+[the architecture](architecture.md), which fixes the boundaries, and
+[the user stories](stories.md), which fix what the user does and sees. This
+document says how good the result has to be, and how we tell.
 
 Every pull request is reviewed against it. Every release remeasures against it.
 Where the code falls short, the shortfall is an issue with a number, not a
@@ -121,8 +121,8 @@ not progress towards the standard. Meeting the criteria is.
 
 **C2. The enduring documents are true.**
 
-- Measure: statements in the ontology, architecture and this document that the
-  code contradicts.
+- Measure: statements in the ontology, architecture, stories and this document
+  that the code contradicts.
 - Bar: zero. A pull request that moves the code past one of them corrects it in
   the same change and says so.
 - Check: review, plus the dependency test under K1 for the architecture's
@@ -258,6 +258,6 @@ reason a reader can find is a violation.
 
 Before each major or minor release, [the release checklist](releasing.md) runs
 the consistency review, triages the open issues and measures every criterion,
-reading the three enduring documents against the code.
+reading the four enduring documents against the code.
 [The measurement](measurement.md) holds the latest results, and a phase plans
 its work from them. Each shortfall is an issue, and none holds a release back.

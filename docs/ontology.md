@@ -1,7 +1,11 @@
 # Ontology
 
-This document establishes the language _dreamcatcher_ uses to describe its
-domain. It is an enduring part of the project: changes to the code, user
+This document names the things _dreamcatcher_ deals with and says what the words
+mean, while [the architecture](architecture.md) says where each thing lives in
+the code, [the user stories](stories.md) say what the user does and sees, and
+[the standard](standard.md) says how good the work has to be.
+
+The ontology is an enduring part of the project: changes to the code, user
 interface, specifications, and agent contract should preserve these meanings or
 update this document deliberately.
 
@@ -155,11 +159,17 @@ A successful or stopped round has taken its turn. An errored or interrupted
 round has not, so the next round is given its input again, together with
 anything new.
 
+A conversation round is successful only once its answer is posted on the issue,
+or the agent has answered that no reply is needed. A round whose answer is
+missing or cannot be posted is errored.
+
 ### User post and feedback
 
-A **user post** is a user-authored contribution to an assignment's pull request.
-It normalizes the different places in which GitHub lets the user write: comments
-on the pull request, review bodies, review verdicts, and inline review comments.
+A **user post** is a contribution to an assignment's pull request by the
+signed-in account that does not carry the marker _dreamcatcher_ asks every agent
+post to end with, since the agent posts under that same account. It normalizes
+the different places in which GitHub lets the user write: comments on the pull
+request, review bodies, review verdicts, and inline review comments.
 
 Collectively, user posts are **feedback**. _dreamcatcher_ **relays** new user
 posts into a later agent round. Relay is an action, not a separate durable
@@ -187,20 +197,21 @@ calls for a round.
 ### Signal
 
 A **signal** is something new in a piece of agent work's channel that calls for
-a turn. A conversation has one kind, an issue comment by the user past the
-cursor. An assignment has four: a user post past the cursor; its pull request
-being merged or closed before its wrap-up round has taken its turn;
-**out-of-date**, a pull request that is ready for review and behind its base
-branch or in conflict with it; and **check-failure**, a pull request that is
-ready for review with a finished check that failed. The last two are the **pull
-request signals**, which _dreamcatcher_ raises from the pull request's merge
-state and checks rather than from anything the user did. A draft raises neither,
-because the agent has not finished. GitHub reports a branch as behind its base
-only when the repository requires branches to be up to date before merging, so
-elsewhere a pull request that falls behind without a conflict raises no
-out-of-date signal. A round that takes its turn relays each pull request signal
-at most once for each head commit of the pull request, so the signal is raised
-again only once the head moves.
+a turn. A conversation has one kind, an **eligible comment** past the cursor: a
+comment on the issue by the signed-in account that says something and does not
+carry the marker that _dreamcatcher_ asks every agent post to end with. An
+assignment has four: a user post past the cursor; its pull request being merged
+or closed before its wrap-up round has taken its turn; **out-of-date**, a pull
+request that is ready for review and behind its base branch or in conflict with
+it; and **check-failure**, a pull request that is ready for review with a
+finished check that failed. The last two are the **pull request signals**, which
+_dreamcatcher_ raises from the pull request's merge state and checks rather than
+from anything the user did. A draft raises neither, because the agent has not
+finished. GitHub reports a branch as behind its base only when the repository
+requires branches to be up to date before merging, so elsewhere a pull request
+that falls behind without a conflict raises no out-of-date signal. A round that
+takes its turn relays each pull request signal at most once for each head commit
+of the pull request, so the signal is raised again only once the head moves.
 
 The **relay rule** gives an agent two attempts at a red build on its own. A
 check-failure is withheld when the last two rounds whose input is behind the
@@ -245,6 +256,13 @@ exhausted usage allowance.
 
 Agent work has no agent rounds until work begins and one or more afterwards.
 
+Agent work is open until its ending is recorded, with the time and the reason,
+and then it has **ended**. An assignment ends when it is complete or cancelled.
+A conversation ends when its issue closes.
+
+Agent work keeps the harness, route and recipe settings that its work record
+holds, even after its route is removed from the configuration.
+
 The rounds normally share one harness session. A round with no recorded harness
 session to resume starts a new one, and its prompt begins with the work's
 instructions, because the new session has not seen them.
@@ -260,7 +278,11 @@ Each agent assignment has exactly one:
 
 It has one pull request once the round that opens it has done so. The assignment
 exists from the moment its work record is written, before any Git or GitHub
-step.
+step. Making the worktree, the branch and the draft pull request is the opening
+round's preparation, never a task for the agent or the assignment skill.
+
+Once an assignment exists, the issue's labels, assignee and dependencies no
+longer decide its rounds; its pull request does, until the assignment ends.
 
 An issue can receive more than one assignment over its lifetime, but a
 _dreamcatcher_ instance can never have more than one open assignment for the
@@ -316,6 +338,13 @@ later assignment for it. If the pull request was closed without being merged,
 the issue remains open and may receive another assignment after the previous
 assignment has completed.
 
+### Stopping a round
+
+The user can **stop** a running round, from the work's page or the command line,
+once the round's harness session is known. The round ends stopped and has taken
+its turn, so what it was given is not given again, and the next round's prompt
+says that the previous one was stopped.
+
 ### Cancelling an assignment
 
 The user can **cancel** an open assignment to finish its pull request by hand. A
@@ -325,14 +354,18 @@ running when the user cancels is asked to stop, and the assignment is working
 until that round ends. A cancel records the assignment's ending, with the reason
 "cancelled", and cannot be undone.
 
-Agent work is open until its ending is recorded, with the time and the reason,
-and then it has **ended**. An assignment ends when it is complete or cancelled.
-A conversation ends when its issue closes.
-
 _dreamcatcher_ leaves the pull request as it is, and while it is open it claims
 the issue, so no new assignment starts for the issue. If the user merges it,
 GitHub closes the issue. If the user closes it without merging, the issue may
 receive another assignment.
+
+### Starting an issue conversation
+
+A conversation request starts a conversation only when its issue carries no
+other configured conversation label and has at least one eligible comment. The
+issue's title and body alone start nothing. An open assignment at the issue, a
+linked pull request, a dependency and an assignment routing conflict have no
+bearing on conversations.
 
 ### Pausing and ending a conversation
 
@@ -383,9 +416,11 @@ answer the request. An assignment request that carries the issue's only
 assignment label is asked the **start-time questions**: which open pull requests
 linked to the issue claim it, and which open issue dependencies block it. They
 are asked only while no open assignment exists, because they decide only whether
-one may start. A conversation request reads the issue's comments. A request
-whose issue carries more than one label of its kind has a routing conflict, and
-nothing of that kind starts while it lasts.
+one may start. An open pull request **claims** an issue when GitHub links it as
+one that will close the issue, as `Closes #123` in its description does. A
+conversation request reads the issue's comments. A request whose issue carries
+more than one label of its kind has a routing conflict, and nothing of that kind
+starts while it lasts.
 
 A request with no open work has one of these request statuses:
 
@@ -401,7 +436,49 @@ A request with no open work has one of these request statuses:
 
 There is no durable issue queue. Requests keep the order in which the scheduler
 listed their issues, oldest first, which is the order in which it starts new
-assignments.
+work.
+
+### Scheduling work
+
+A **candidate** is open work with something new past its cursor, unless its last
+round is running or it is in fault, or a request whose work may start. The input
+of a round that errored or was interrupted is past the cursor, so it is new
+again. An assignment is also a candidate when no round has opened its pull
+request yet, or when its last round errored or was interrupted, because it is
+then given its pull request's state again even with nothing new.
+
+Rounds of both kinds share the daemon's capacity and the global cooldown. Open
+work takes precedence over new work. Open work starts in the order of its
+identifiers, and new work in the order of its requests. While both kinds have
+candidates, they take turns for each free agent slot; when only one kind has
+any, it goes on alone. A launch that fails takes no slot.
+
+A failed read prevents only the launches that depend on it. A failed listing for
+a dispatch label starts no work for the issues it would have listed, but open
+work reads its own channel, so the listing does not affect it.
+
+### Fault and global cooldown
+
+Agent work is in **fault** when its last two rounds both errored. A round that
+errored in its preparation counts like any other, and a round that ended any
+other way, a stopped round included, ends a run of errors. Work in fault starts
+no round, not even an assignment's wrap-up round, until a retry or the end of a
+global cooldown clears the fault.
+
+No single error is taken as a sign of a global problem. Each tick counts every
+assignment in fault, and every conversation in fault unless it is paused. A
+conversation whose issue could not be read counts, because whether it is paused
+is unknown. Two counted faults, of either kind, are evidence of a shared problem
+and start a global cooldown. When the cooldown ends, the errors before it no
+longer count, so the faults it saw are cleared. This simple policy keeps one
+piece of work's failure from blocking all other work.
+
+A **retry** clears the current fault of the work it names, and erases none of
+its errored rounds. A retry from the command line names an issue and clears the
+fault of the newest assignment and the newest conversation at that issue; one
+from the web page clears the fault of the work the page shows. Only errors at or
+after the later of the work's latest retry and the end of the latest global
+cooldown count towards a new fault.
 
 ### Agent work status
 
@@ -465,165 +542,3 @@ projections derived for a person to read.
 The status report never schedules work and is never an input to scheduling.
 Scheduling and reporting must nevertheless interpret the same underlying facts
 consistently.
-
-## Processes
-
-### Creating an agent assignment
-
-The scheduler writes the assignment's work record the moment it picks an
-available request, and starts the first round in the same tick. The record comes
-before any Git or GitHub step, so the assignment exists whatever happens next.
-
-The preparation of the round that opens the pull request fetches main, adds the
-worktree on the assignment's branch, makes and pushes an empty commit, and opens
-a linked draft pull request, before it asks the agent to do any work. These
-steps are part of the round, not responsibilities delegated to the agent or to
-the assignment skill. A pull request already on the assignment's branch is
-adopted whatever its state. Each step does nothing when its result already
-exists, so a round after one that failed part way finds most of the steps done
-and runs the rest.
-
-### Starting an issue conversation
-
-A conversation request with no open conversation under its label starts one when
-its issue carries no other configured conversation label and has at least one
-**eligible comment**: a comment by the signed-in account that says something and
-does not carry the marker that _dreamcatcher_ asks every agent post to end with.
-An issue with more than one configured conversation label has a routing conflict
-and starts nothing until one label remains. Issue title and body alone do not
-start a round. Assignment ownership, linked pull requests, dependencies and
-assignment-routing conflicts do not govern conversations.
-
-An open conversation that is not paused takes a round when it has at least one
-eligible comment past its cursor.
-
-_dreamcatcher_ records the chosen conversation route and settings, then starts
-the initial conversation round. Every conversation round's preparation fetches
-main and resets the detached worktree to it, adding the worktree when it is
-missing, and then freezes the round's input. The recorded route and settings
-stay frozen for the life of the conversation, even if its route is later removed
-from the configuration. The round shares the daemon's capacity and global
-cooldown with assignment rounds. Before a conversation round records a
-successful ending, _dreamcatcher_ requires its answer and posts it on the issue.
-An answer of `NO_REPLY` means no post is needed. A missing answer or failed post
-makes the round errored.
-
-After the round ends, another eligible comment batch resumes the same harness
-session in another conversation round. Resetting the worktree deletes every
-local commit and file left by the earlier investigation. Comments that arrive
-while a round runs stay beyond that round's input. If the round is interrupted
-or errors, the next round is given its comments again, together with any that
-arrived since, against freshly fetched main, and its prompt says that the
-previous round did not finish. A round with no recorded harness session to
-resume starts a new one with the configured prompt and the issue's title and
-body.
-
-A stopped conversation round posts no answer, and its comments are not given
-again. The conversation is idle until another eligible comment batch arrives.
-That batch starts a round in the same harness session, and its prompt says that
-the user stopped the previous round.
-
-Removing the conversation's label, unassigning the signed-in account, or adding
-a second configured conversation label pauses the conversation, and closing the
-issue ends it, as the rules for pausing and ending a conversation say.
-
-### Working through an assignment
-
-An assignment normally progresses as follows:
-
-1. The round that opens its pull request does so as a draft before the agent
-   starts.
-2. The agent works on the implementation and may ask the user questions while it
-   remains a draft.
-3. The agent marks it ready when the work is ready for the user to review.
-4. The user may review it and leave feedback over any number of exchanges.
-5. The agent addresses the feedback and leaves the pull request ready for the
-   user to review again. Steps 4 and 5 may repeat.
-6. The user merges it or closes it without merging.
-7. The agent wraps the assignment up.
-8. A successful wrap-up round completes the assignment.
-
-### Scheduling rounds in response to events
-
-Once an assignment exists, its pull request alone governs its rounds until the
-assignment ends. Later ticks do not ask the start-time questions for its issue,
-and the issue's labels, assignee and dependencies do not decide that
-assignment's rounds.
-
-One or more new user posts cause an agent round to be scheduled. If a user posts
-again while that round is running, the later posts remain unrelayed and cause a
-further round to be scheduled at the next available opportunity. User posts and
-agent rounds do not therefore alternate in strict turns.
-
-The round is launched in the same way whether the pull request is a draft or
-ready for review. For example, if the first round ends by asking the user a
-question, the user's answer causes another round to be scheduled.
-
-A pull request that is ready for review also wakes its assignment without the
-user. When the base branch moves under it and leaves it behind or in conflict,
-an out-of-date signal schedules a round to bring it up to date. When a check
-fails, a check-failure signal schedules a round to fix it, within the relay
-rule. Running checks schedule nothing.
-
-Merging or closing the pull request causes a wrap-up round to be scheduled,
-unless a round has already been given the finished pull request and took its
-turn. An errored or interrupted round does not require user input.
-_dreamcatcher_ starts the next round automatically, given the same input again
-with anything new, unless the assignment has entered a fault. If the failed
-round was the one opening the pull request, the next round runs the same
-preparation again. An assignment in fault starts no round, including a wrap-up
-round, until a retry request or the end of a global cooldown clears the fault.
-
-A stopped assignment round took its turn, so what it was given is not given
-again. While its pull request remains open, it waits for a new user post or a
-pull request signal at a head not yet relayed. Merging or closing the pull
-request starts a wrap-up round without waiting for a post. Either event gives
-the new round a prompt saying that the user stopped the previous round. Because
-the fault rule counts only two consecutive errored rounds, a stopped round ends
-a run of errors.
-
-### Scheduling work
-
-The scheduler creates agent work and starts agent rounds, the same way for both
-kinds. Each tick reads every piece of agent work from disk, lists the issues
-under each dispatch label, inspects the channel of each piece of open work, and
-decides for each request with no open work whether work may start. A
-**candidate** is open work with something new past its cursor, unless its last
-round is running or it is in fault; or a request whose work may start. The
-cursor leaves out the input of a round that errored or was interrupted, so that
-input is new again. An assignment is also a candidate when its pull request is
-not open yet, or when its last round errored or was interrupted, because it is
-then given its pull request's state again even with nothing new.
-
-A failed read prevents only the launches that depend on it. A failed listing for
-a dispatch label starts no work for the issues it would have listed, but open
-work reads its own channel, so the listing does not affect it.
-
-Existing work takes precedence over new work. Among existing work the order is
-the order of the identifiers, and new work starts in the order in which the
-scheduler listed its issues. When both an assignment candidate and a
-conversation candidate are ready, the scheduler alternates which kind receives
-each free slot until capacity is full or no candidate remains. When only one
-kind is ready, it proceeds without waiting for the other. A launch that fails
-takes no slot, and the scheduler goes on to the next candidate.
-
-### Handling errors and global cooldown
-
-_dreamcatcher_ does not diagnose any error as global when it happens. One piece
-of agent work's first consecutive error calls for another round, given the same
-input, and its second makes that work in fault. A round that errored in its
-preparation counts like any other. The scheduler counts every assignment in
-fault. It counts a conversation in fault unless the conversation is paused,
-including when a failed read of its issue leaves that unknown. Two counted
-faults, in any combination, are evidence of a shared problem and start a global
-cooldown. When the cooldown ends, _dreamcatcher_ clears those faults and rounds
-may start again. This deliberately simple policy prevents one work-specific
-failure from blocking all other work.
-
-After resolving an issue-specific problem, the user may request a retry. A
-request from the command line clears any current fault on the newest assignment
-and issue conversation at the issue, and a request from the web page clears the
-fault of the one assignment or conversation that the page shows. Neither erases
-the errored rounds, and the scheduler may start rounds for that work on later
-ticks. Only errors at or after the later of each work item's latest retry
-request and the latest completed global cooldown count towards a new fault.

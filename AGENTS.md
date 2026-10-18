@@ -18,6 +18,29 @@ below read the index.
 _dreamcatcher_ dispatches autonomous agent conversations and coding assignments
 from labelled issues. It carries each assignment to a pull request for review.
 
+## The enduring documents
+
+Four documents carry the project's lasting understanding, and the code is held
+to them. Read all four before you work, and read the stories before judging any
+finding.
+
+- [docs/stories.md](docs/stories.md) says what the user does, why, and what they
+  see, and sorts what goes wrong into user errors and expected faults. A happy
+  path that does not hold is a bug; behaviour that a user error or fault story
+  describes is not.
+- [docs/ontology.md](docs/ontology.md) says what the words mean. Use its words
+  and no others.
+- [docs/architecture.md](docs/architecture.md) says where each thing lives in
+  the code and how the parts pass things to each other.
+- [docs/standard.md](docs/standard.md) says how good the work has to be and how
+  we tell.
+
+A change that moves the code past one of them corrects that document in the same
+pull request, and says so. Give every pull request description a section headed
+"Definition of done" that answers each of the standard's questions by number.
+Where this guide's conventions and the standard's criteria cover the same
+ground, the standard sets the bar and the conventions say how to meet it.
+
 ## Specs
 
 Larger development efforts are organised as phases, with a dated specification
@@ -25,14 +48,6 @@ folder under `specs/`. Smaller tasks work directly from their issues. When an
 issue belongs to a phase, the issue description names the phase and references
 the relevant specification; follow the status and editing rules in
 `specs/AGENTS.md`.
-
-## The standard
-
-[docs/standard.md](docs/standard.md) says how good the work has to be and how we
-tell. Read it before you change code. Give every pull request description a
-section headed "Definition of done" that answers each of its questions by
-number. Where this guide's conventions and the standard's criteria cover the
-same ground, the standard sets the bar and the conventions say how to meet it.
 
 ## Dev setup
 
@@ -272,10 +287,11 @@ $env:PYTHONWARNDEFAULTENCODING = "1"; uv run pytest --regenerate-view-goldens
 
 - Keep changes lean. Add nothing a requirement or the design doesn't call for;
   prefer deleting over adding. One way to do each thing, always.
-- A bug is wrong behaviour when everything else has worked, and ordinary actions
-  reproduce it: labelling, commenting, cancelling, editing a file, stopping the
-  daemon. Steps that need something to fail at the right moment, such as a
-  write, describe a hypothesis, not a bug. File one of those only if state would
+- A bug is a happy path in `docs/stories.md` that does not hold: wrong behaviour
+  when everything else has worked, and ordinary actions reproduce it. Before
+  filing one, ask whether the stories call it a user error or an expected fault
+  instead. Steps that need something to fail at the right moment, such as a
+  write, describe a hypothesis, not a bug; file one of those only if state would
   be lost or corrupted.
 - Give every issue you file its type label, `bug`, `enhancement` or
   `maintenance`, and no other label. Leave it unassigned. Which skill picks an

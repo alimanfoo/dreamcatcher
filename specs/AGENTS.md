@@ -3,7 +3,9 @@
 The following dated folders contain completed phase specifications. A folder
 added to this list by the current pull request remains active until that pull
 request merges. Every document in a completed phase is retained only as a
-historical record. Do not update these documents to match the current code.
+historical record. Do not update these documents to match the current code. When
+a heading that one of them links to goes, link to the page instead; never link
+to a commit, because the documentation stays coherent as one whole.
 
 - `2026-08-17-skeleton`
 - `2026-09-08-watchtower`

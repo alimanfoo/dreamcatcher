@@ -84,6 +84,7 @@ nav:
       - compatibility.md
       - changelog.md
   - Development:
+      - stories.md
       - ontology.md
       - architecture.md
       - testing.md
