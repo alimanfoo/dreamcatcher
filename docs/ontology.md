@@ -1,7 +1,10 @@
 # Ontology
 
-This document establishes the language _dreamcatcher_ uses to describe its
-domain. It is an enduring part of the project: changes to the code, user
+This document names the things _dreamcatcher_ deals with and says what the words
+mean, while [the architecture](architecture.md) says where each thing lives in
+the code and [the user stories](stories.md) say what the user does and sees.
+
+The ontology is an enduring part of the project: changes to the code, user
 interface, specifications, and agent contract should preserve these meanings or
 update this document deliberately.
 

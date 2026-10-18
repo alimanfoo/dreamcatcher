@@ -1,9 +1,12 @@
 # Architecture
 
-This document describes the enduring target architecture for _dreamcatcher_. It
-maps the concepts in [the ontology](ontology.md) to code boundaries and states
-the responsibilities, interfaces, and encapsulation those boundaries should
-provide.
+This document says where each thing lives in the code and how the parts pass
+things to each other, while [the ontology](ontology.md) says what the words mean
+and [the user stories](stories.md) say what the user does and sees.
+
+It describes the enduring target architecture for _dreamcatcher_. It maps the
+ontology's concepts to code boundaries and states the responsibilities,
+interfaces, and encapsulation those boundaries should provide.
 
 The dated specifications record the design of particular phases. Where an older
 design conflicts with this target, this document is authoritative.

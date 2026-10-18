@@ -1,11 +1,11 @@
 # User stories
 
-This document says what the user does with _dreamcatcher_ and why. It is an
-enduring part of the project beside [the ontology](ontology.md), which defines
-the words, and [the architecture](architecture.md), which says where things
-live. Each story is told from the user's seat, in the order things happen, with
-the reason for each step and what the user sees after it. It holds no mechanism;
-the architecture does.
+This document says what the user does with _dreamcatcher_, why, and what they
+see, while [the ontology](ontology.md) says what the words mean and
+[the architecture](architecture.md) says where each thing lives in the code. It
+is an enduring part of the project. Each story is told from the user's seat, in
+the order things happen, using the ontology's words without defining them and
+citing no rule and no mechanism.
 
 Agents should read the stories before judging a finding in the code. A story
 that does not hold is a bug. A user error is something the user did that the
