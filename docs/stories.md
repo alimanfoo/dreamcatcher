@@ -434,14 +434,33 @@ pieces of work are in fault at once, the daemon pauses all starts for a while,
 because two faults suggest a shared cause such as an exhausted allowance. When
 the pause ends, the daemon tries that work again.
 
-### The daemon dies
+### The daemon stops on an error it cannot carry on from
 
-The machine sleeps, the process is killed, or the daemon hits an error it cannot
-carry on from. When the daemon can still act, it ends its rounds as the
-stop-and-start story says. When it cannot, as when it is killed, a running
-harness outlives it, keeps working, and may push or post before the next daemon
-start ends it; whatever it did stands. The round then shows as interrupted, and
-the work carries on in its session.
+The daemon meets something it cannot work past: its own record of the last
+update will not read back, it can no longer write that record, or another daemon
+has taken the checkout's lock. It prints why and stops, ending every running
+round as a stop of the daemon would, so each shows as interrupted. The user
+reads the message, puts the cause right, and starts the daemon again, and the
+interrupted work carries on in its session as the stop-and-start story says. An
+update that merely fails, because GitHub could not be read, does not end the
+daemon; the next update tries again.
+
+### The daemon is killed
+
+The daemon's process is killed outright, so it gets no chance to end its rounds.
+On macOS and Linux a harness that was running outlives it, keeps working, and
+may push or post before anyone notices; whatever it did stands. On Windows the
+harness dies with the daemon. Either way the round has no ending, so the home
+page shows its work as waiting. When the daemon next starts, it ends any harness
+still running, records the round as interrupted, and the work carries on in its
+session, given its input again.
+
+### The machine sleeps
+
+The laptop lid closes with the daemon running. Nothing dies. When the machine
+wakes, the daemon and its rounds carry on from where they were. If a harness
+lost its connection while the machine slept, its round errors like any other,
+and the harness story says what happens next.
 
 ### The agent does not end its turn
 
