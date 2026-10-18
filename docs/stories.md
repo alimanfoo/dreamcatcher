@@ -197,11 +197,13 @@ succeed as GitHub allows.
 
 The agent's harness hits a usage limit, is overloaded, or crashes mid-round. The
 round errors, with the harness's words in the feed. The next update gives the
-work its input again. If that round errors too, the work is in fault and waits
-for the user to retry, so a problem that two attempts did not clear does not
-burn more attempts. If two pieces of work are in fault at once, the daemon
-pauses all starts for a while, because two faults suggest a shared cause such as
-an exhausted allowance.
+work its input again. If that round errors too, the work is in fault, so a
+problem that two attempts did not clear does not burn more attempts. Nothing
+runs for it, not even the last turn after a merge, until the user fixes the
+cause and retries, from the work's page or with `dreamcatcher retry`. If two
+pieces of work are in fault at once, the daemon pauses all starts for a while,
+because two faults suggest a shared cause such as an exhausted allowance. When
+the pause ends, the daemon tries that work again.
 
 ### The checks fail on the agent's push
 

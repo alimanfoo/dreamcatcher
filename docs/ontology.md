@@ -442,6 +442,29 @@ A failed read prevents only the launches that depend on it. A failed listing for
 a dispatch label starts no work for the issues it would have listed, but open
 work reads its own channel, so the listing does not affect it.
 
+### Fault and global cooldown
+
+Agent work is in **fault** when its last two rounds both errored. A round that
+errored in its preparation counts like any other, and a round that ended any
+other way, a stopped round included, ends a run of errors. Work in fault starts
+no round, not even an assignment's wrap-up round, until a retry or the end of a
+global cooldown clears the fault.
+
+No single error is taken as a sign of a global problem. Each tick counts every
+assignment in fault, and every conversation in fault unless it is paused. A
+conversation whose issue could not be read counts, because whether it is paused
+is unknown. Two counted faults, of either kind, are evidence of a shared problem
+and start a global cooldown. When the cooldown ends, the errors before it no
+longer count, so the faults it saw are cleared. This simple policy keeps one
+piece of work's failure from blocking all other work.
+
+A **retry** clears the current fault of the work it names, and erases none of
+its errored rounds. A retry from the command line names an issue and clears the
+fault of the newest assignment and the newest conversation at that issue; one
+from the web page clears the fault of the work the page shows. Only errors at or
+after the later of the work's latest retry and the end of the latest global
+cooldown count towards a new fault.
+
 ### Agent work status
 
 Agent work of either kind has one of these summary statuses:
@@ -545,24 +568,3 @@ request starts a wrap-up round without waiting for a post. Either event gives
 the new round a prompt saying that the user stopped the previous round. Because
 the fault rule counts only two consecutive errored rounds, a stopped round ends
 a run of errors.
-
-### Handling errors and global cooldown
-
-_dreamcatcher_ does not diagnose any error as global when it happens. One piece
-of agent work's first consecutive error calls for another round, given the same
-input, and its second makes that work in fault. A round that errored in its
-preparation counts like any other. The scheduler counts every assignment in
-fault. It counts a conversation in fault unless the conversation is paused,
-including when a failed read of its issue leaves that unknown. Two counted
-faults, in any combination, are evidence of a shared problem and start a global
-cooldown. When the cooldown ends, _dreamcatcher_ clears those faults and rounds
-may start again. This deliberately simple policy prevents one work-specific
-failure from blocking all other work.
-
-After resolving an issue-specific problem, the user may request a retry. A
-request from the command line clears any current fault on the newest assignment
-and issue conversation at the issue, and a request from the web page clears the
-fault of the one assignment or conversation that the page shows. Neither erases
-the errored rounds, and the scheduler may start rounds for that work on later
-ticks. Only errors at or after the later of each work item's latest retry
-request and the latest completed global cooldown count towards a new fault.
