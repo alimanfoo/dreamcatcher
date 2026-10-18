@@ -195,15 +195,27 @@ while it was paused, so they can ask their new question without recapping.
 
 ### The daemon
 
-#### The user reads the status report
+#### The user comes back to see what needs them
 
-The user opens the home page, or runs `dreamcatcher status`, to see what the
-daemon is doing without reading GitHub. Every request the user has made is a
-row: an issue with a label and no work yet says why nothing has started, and one
-with work shows the work's status and its detail. The home page also shows an
-assignment's pull request with its state and checks, and ended work under a
-collapsed list; the terminal shows the count of ended work. Both show the last
-update, and keep showing it when the daemon is stopped.
+The user labelled a handful of issues in the morning and has been in meetings
+since. Now they want to know what needs them, without opening every pull request
+to find out. So they open the home page, or run `dreamcatcher status` if they
+are already in a terminal. Every request they have made is a row, and the rows
+come in the order that deserves attention: anything in fault first, then what is
+working, then what is waiting for its turn, then what is idle, and after all of
+those the issues where nothing has started yet. Each row says why it is where it
+is. This pull request is ready for review. That one is still a draft, so the
+agent is probably waiting on an answer. This issue has not started because
+another pull request already claims it. The pull requests the user needs to read
+are a click away, and ended work is folded under a collapsed list, so the page
+shows only what is live. The terminal gives the same rows, with a count of ended
+work in place of the list.
+
+Both show the daemon's last update, and keep showing it after the daemon stops,
+so the user can still see where things stood.
+
+The value to the user is that they never have to hunt through GitHub to find out
+what is waiting on them.
 
 #### The user stops and starts the daemon
 
