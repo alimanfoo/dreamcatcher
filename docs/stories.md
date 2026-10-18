@@ -253,40 +253,49 @@ agents are in the middle of.
 
 The user puts two assignment labels on an issue, or two conversation labels,
 perhaps to try both recipes. That is a routing conflict: the request rows say so
-and name the labels, and nothing of that kind starts, or carries on, until one
-label is removed. An assignment that already exists carries on regardless.
+and name the labels, and nothing of that kind starts, or carries on, while both
+are there. The user needs to take one of the two labels off the issue, and the
+one that stays decides the recipe. An assignment that already exists carries on
+regardless.
 
 ### A label without an assignee
 
 The user labels an issue but does not assign it to themselves. Nothing happens,
 and the issue does not appear on the home page, because _dreamcatcher_ only
-looks at issues assigned to the user. Assigning it is the fix.
+looks at issues assigned to the user. The user needs to assign the issue to
+themselves on GitHub, and at the next update it appears and work starts.
 
 ### A label on an issue someone else is already working on
 
 The user labels an issue that already has an open pull request linked to it, one
 whose description says it closes the issue. The request row says the issue is
-claimed by that pull request, and nothing starts until it is closed or merged. A
-user who wants the agent to take over closes the other pull request first.
+claimed by that pull request, and nothing starts while it is open. If the user
+wants the agent to take over, they need to close the other pull request, and
+work starts at the next update. If they would rather let it finish, they need do
+nothing: once it merges, GitHub closes the issue, and the label is moot.
 
-### Closing a pull request and leaving the label on
+### Closing a pull request and leaving the assignment label on the issue
 
 The user closes the agent's pull request without merging, and leaves the
 assignment label on the issue. The agent wraps up, the assignment ends, and at
 the next update a new assignment starts, because the label is a standing
-request. A user who does not want the agent back takes the label off.
+request. A user who does not want the agent back needs to take the label off
+before the next update, or cancel the new assignment once it has started.
 
 ### Removing a label to stop an assignment
 
 The user takes the assignment label off an issue expecting the agent to stop. It
 does not; the assignment carries on with its pull request whatever happens to
-the label. Cancelling the assignment is the way to stop it.
+the label. To stop it, the user needs to cancel the assignment, from its page or
+with `dreamcatcher cancel`.
 
 ### Talking to the agent in the wrong place
 
 The user comments on the issue of an assignment, expecting the agent to see it.
-It does not, because an assignment's channel is its pull request. The reverse
-holds for a conversation, whose channel is the issue.
+It does not, because an assignment's channel is its pull request. The user needs
+to post on the pull request instead. The reverse holds for a conversation, whose
+channel is the issue, so a comment meant for it on the pull request needs to go
+on the issue.
 
 ### Asking a colleague to give the agent feedback
 
@@ -294,23 +303,29 @@ The user asks a colleague to review the agent's pull request, and the colleague
 leaves comments on it expecting the agent to address them. Nothing happens. The
 agent only ever hears the user, because _dreamcatcher_ runs under the user's
 account and relays nobody else's posts, so the colleague's review is for the
-user to read. If the user wants the agent to act on it, they say so in a post of
-their own, in as many or as few words as they like. The same goes for a
-conversation: another person's comment on the issue gets no answer from the
-agent.
+user to read. If the user wants the agent to act on it, they need to put the
+colleague's points in a post of their own, quoting as much or as little as they
+like. The same goes for a conversation: another person's comment on the issue
+gets no answer from the agent.
+
+This is deliberate. It stops anyone else from directing, or abusing, the agents
+that run on the user's machine under the user's account.
 
 ### Editing the configuration while the daemon runs
 
 The user changes `dreamcatcher.toml` and expects the change to take effect. It
-takes effect when the daemon next starts. If the file is now invalid, the daemon
-refuses to start and says why; the home page keeps showing what the last daemon
-recorded.
+does not until the daemon next starts, so the user needs to stop the daemon and
+start it again. If the file is now invalid, the daemon refuses to start and says
+why, and the user needs to fix the file and start it once more. Meanwhile the
+home page keeps showing what the last daemon recorded.
 
 ### Deleting an assignment's worktree
 
 The user deletes the folder under `.dreamcatcher/` that an assignment works in.
-The assignment's next round errors with the reason, a second failure puts the
-assignment in fault, and the user cancels the assignment.
+The assignment's next round errors with the reason, and a second failure puts
+the assignment in fault. The user needs to cancel the assignment and close its
+pull request. With the label still on the issue, a fresh assignment starts at
+the next update.
 
 ## Expected faults
 
