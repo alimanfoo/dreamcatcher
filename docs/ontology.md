@@ -488,22 +488,6 @@ consistently.
 
 ## Processes
 
-### Working through an assignment
-
-An assignment normally progresses as follows:
-
-1. The round that opens its pull request does so as a draft before the agent
-   starts.
-2. The agent works on the implementation and may ask the user questions while it
-   remains a draft.
-3. The agent marks it ready when the work is ready for the user to review.
-4. The user may review it and leave feedback over any number of exchanges.
-5. The agent addresses the feedback and leaves the pull request ready for the
-   user to review again. Steps 4 and 5 may repeat.
-6. The user merges it or closes it without merging.
-7. The agent wraps the assignment up.
-8. A successful wrap-up round completes the assignment.
-
 ### Scheduling rounds in response to events
 
 Once an assignment exists, its pull request alone governs its rounds until the

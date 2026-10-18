@@ -23,7 +23,9 @@ because _dreamcatcher_ acts only on the user's issues, and they put an
 assignment label on it, because the label says what kind of help they want and
 which recipe runs it. At the daemon's next update an assignment appears on the
 home page, and a draft pull request opens on a branch of its own with an empty
-first commit. The agent starts work in that branch.
+first commit. The agent starts work in that branch. While the pull request is
+still a draft, the agent may end its turn to ask the user a question; the user
+answers on the pull request, and at the next update the agent carries on.
 
 The agent works until it has nothing left to do, then marks the pull request
 ready for review and ends its turn. The assignment shows as idle, ready for
