@@ -32,7 +32,8 @@ ready for review and ends its turn. The assignment shows as idle, ready for
 review, because the next move is the user's. The user reviews the pull request
 on GitHub as they would anyone's: comments, inline comments, a request for
 changes. At the next update the agent is given everything the user posted since
-its last turn, addresses it, pushes, and ends its turn. That exchange repeats as
+its last turn, addresses it, pushes, and ends its turn. Anything the user posts
+while the agent is working waits for the turn after. That exchange repeats as
 often as the user likes.
 
 While the pull request waits, main may move under it. If the repository asks for

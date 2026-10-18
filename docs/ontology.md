@@ -268,8 +268,11 @@ Each agent assignment has exactly one:
 
 It has one pull request once the round that opens it has done so. The assignment
 exists from the moment its work record is written, before any Git or GitHub
-step. Making the worktree, the branch and the draft pull request is that round's
-preparation, never a task for the agent or the assignment skill.
+step. Making the worktree, the branch and the draft pull request is the opening
+round's preparation, never a task for the agent or the assignment skill.
+
+Once an assignment exists, the issue's labels, assignee and dependencies no
+longer decide its rounds; its pull request does, until the assignment ends.
 
 An issue can receive more than one assignment over its lifetime, but a
 _dreamcatcher_ instance can never have more than one open assignment for the
@@ -527,44 +530,3 @@ projections derived for a person to read.
 The status report never schedules work and is never an input to scheduling.
 Scheduling and reporting must nevertheless interpret the same underlying facts
 consistently.
-
-## Processes
-
-### Scheduling rounds in response to events
-
-Once an assignment exists, its pull request alone governs its rounds until the
-assignment ends. Later ticks do not ask the start-time questions for its issue,
-and the issue's labels, assignee and dependencies do not decide that
-assignment's rounds.
-
-One or more new user posts cause an agent round to be scheduled. If a user posts
-again while that round is running, the later posts remain unrelayed and cause a
-further round to be scheduled at the next available opportunity. User posts and
-agent rounds do not therefore alternate in strict turns.
-
-The round is launched in the same way whether the pull request is a draft or
-ready for review. For example, if the first round ends by asking the user a
-question, the user's answer causes another round to be scheduled.
-
-A pull request that is ready for review also wakes its assignment without the
-user. When the base branch moves under it and leaves it behind or in conflict,
-an out-of-date signal schedules a round to bring it up to date. When a check
-fails, a check-failure signal schedules a round to fix it, within the relay
-rule. Running checks schedule nothing.
-
-Merging or closing the pull request causes a wrap-up round to be scheduled,
-unless a round has already been given the finished pull request and took its
-turn. An errored or interrupted round does not require user input.
-_dreamcatcher_ starts the next round automatically, given the same input again
-with anything new, unless the assignment has entered a fault. If the failed
-round was the one opening the pull request, the next round runs the same
-preparation again. An assignment in fault starts no round, including a wrap-up
-round, until a retry request or the end of a global cooldown clears the fault.
-
-A stopped assignment round took its turn, so what it was given is not given
-again. While its pull request remains open, it waits for a new user post or a
-pull request signal at a head not yet relayed. Merging or closing the pull
-request starts a wrap-up round without waiting for a post. Either event gives
-the new round a prompt saying that the user stopped the previous round. Because
-the fault rule counts only two consecutive errored rounds, a stopped round ends
-a run of errors.
