@@ -96,13 +96,23 @@ does, from the point where the agent marks the pull request ready for review.
 
 #### The user stops a round and redirects the agent
 
-The agent is partway through an assignment and heading the wrong way. The user
-stops its round, from the assignment's page or with `dreamcatcher stop`, and it
-stops within a few seconds. Nothing the stopped round was given is given again.
-The next round starts when something new reaches the pull request: a post from
-the user, main moving under it, a failing check, or a merge. That round is told
-the previous one was stopped. The user posts what they want changed, and work
-resumes in the same session.
+An assignment has been working for longer than the user expected. They open its
+page to see what the agent is doing, and the feed shows it heading the wrong
+way: rewriting something the issue never asked for, or chasing a problem that is
+not the one. Rather than let it finish and review the result, the user stops the
+round from the page, or with `dreamcatcher stop`, and it stops within a few
+seconds. Whatever the agent has pushed so far stays on the branch.
+
+Nothing the stopped round was given is given again. The next round starts when
+something new reaches the pull request: a post from the user, main moving under
+it, a failing check, or a merge. So the user goes to the pull request and posts
+what they want changed, as they would for a colleague. At the next update the
+agent is given that post, told that the previous round was stopped, and carries
+on in the same session, so it remembers what it had done. The agent takes the
+new direction, pushes, and ends its turn as usual.
+
+The value to the user is that a wrong turn costs minutes rather than a whole
+round, and the correction goes through the pull request like any other feedback.
 
 #### The user cancels an assignment to finish its pull request by hand
 
