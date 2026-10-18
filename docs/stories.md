@@ -5,9 +5,11 @@ see, while [the ontology](ontology.md) says what the words mean and
 [the architecture](architecture.md) says where each thing lives in the code. It
 is an enduring part of the project. Each story is told from the user's seat, in
 the order things happen, using the ontology's words without defining them and
-citing no rule and no mechanism. The user works through GitHub. The home page
-and the terminal show what the daemon is doing, and carry the few controls that
-GitHub has no place for: stop, cancel and retry.
+citing no rule and no mechanism. The user works through GitHub, and the agent
+hears only the user: a post or a comment from anyone else is never relayed, so
+nobody else can direct an agent that runs under the user's account. The home
+page and the terminal show what the daemon is doing, and carry the few controls
+that GitHub has no place for: stop, cancel and retry.
 
 Agents should read the stories before judging a finding in the code. A story
 that does not hold is a bug. A user error is something the user did that the
@@ -159,12 +161,12 @@ The round that comment starts is told the previous one was stopped.
 
 #### The user pauses a conversation by removing its label
 
-Say the user has had their question answered, but the issue is going to stay
-open for a while, perhaps because the fix is for another day. In the meantime
-they don't want the agent chiming in on every comment, because the discussion
-that follows is between people. So they take the conversation label off the
-issue, and that is all it takes. The conversation pauses, and anyone can comment
-on the issue without the agent answering.
+The user has had their question answered, but the issue is going to stay open
+for a while, perhaps because the fix is for another day. In the meantime they
+don't want the agent chiming in on every comment, because the discussion that
+follows is between people. So they take the conversation label off the issue,
+and that is all it takes. The conversation pauses, and the user can comment on
+the issue without the agent answering.
 
 Later, something comes up that they want the agent's view on again. They put the
 label back, and the same conversation picks up where it left off. It still
@@ -237,6 +239,17 @@ the label. Cancelling the assignment is the way to stop it.
 The user comments on the issue of an assignment, expecting the agent to see it.
 It does not, because an assignment's channel is its pull request. The reverse
 holds for a conversation, whose channel is the issue.
+
+### Asking a colleague to give the agent feedback
+
+The user asks a colleague to review the agent's pull request, and the colleague
+leaves comments on it expecting the agent to address them. Nothing happens. The
+agent only ever hears the user, because _dreamcatcher_ runs under the user's
+account and relays nobody else's posts, so the colleague's review is for the
+user to read. If the user wants the agent to act on it, they say so in a post of
+their own, in as many or as few words as they like. The same goes for a
+conversation: another person's comment on the issue gets no answer from the
+agent.
 
 ### Editing the configuration while the daemon runs
 
