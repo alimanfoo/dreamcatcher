@@ -308,6 +308,7 @@ def _hold_document_lock(*, path: Path) -> Generator[None, None, None]:
         lock_path,
         timeout=_DOCUMENT_LOCK_TIMEOUT_SECONDS,
         fallback_to_soft=False,
+        preserve_lock_file=True,
     ):
         yield
 

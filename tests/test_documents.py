@@ -484,7 +484,8 @@ def test_a_document_read_that_cannot_take_its_lock_is_reportable(tmp_path, monke
 def test_a_document_write_that_cannot_take_its_lock_preserves_the_document(
     tmp_path, monkeypatch
 ):
-    document = write(path=tmp_path, text="old contents\n")
+    document = tmp_path / "sample.toml"
+    document.write_bytes(b"old contents\n")
 
     def refuse_lock(self, /):
         raise Timeout(self.lock_file)
