@@ -956,6 +956,7 @@ def test_a_follow_up_without_a_harness_session_starts_a_new_one_with_its_input(
     assert observed.launched_agent_work_identifiers == [ASSIGNMENT_ID]
     prompt = written_round(scheduler=scheduler, number=2, name="prompt.txt")
     assert prompt.startswith("/dream:smith GH13\n\nAssignment input")
+    assert "unfinished assignment" not in prompt
     assert "--resume" not in harnesses["claude"].calls[-1].arguments
 
 
@@ -1030,9 +1031,9 @@ def test_a_round_after_an_interrupted_one_is_given_the_input_again(resuming):
     scheduler.tick(at=clock())
     finish_rounds(scheduler=scheduler)
 
-    assert written_round(scheduler=scheduler, number=2, name="prompt.txt").startswith(
-        "Your previous round did not finish."
-    )
+    prompt = written_round(scheduler=scheduler, number=2, name="prompt.txt")
+    assert prompt.startswith("Your previous round did not finish.")
+    assert "continue the unfinished assignment" in prompt
     assert json.loads(
         written_round(scheduler=scheduler, number=2, name="round-input.json")
     ) == {
