@@ -1,6 +1,6 @@
 import os
 from collections.abc import Sequence
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 import pytest
 from clocks import PINNED
@@ -109,15 +109,20 @@ def ran(
     state: StateDirectory,
     number: int,
     status: int | None = 0,
-    ended_at=PINNED,
+    ended_at: datetime | None = None,
     round_input: AssignmentRoundInput | None = None,
 ) -> AgentRoundRecord:
-    """Write one round for the fixture's assignment and return its record."""
+    """Write one round for the fixture's assignment and return its record.
+
+    A round that ends without a given time ends four minutes after it started.
+    """
     started = PINNED + timedelta(minutes=number)
     ending = (
         None
         if status is None
-        else _compose_agent_round_ending(at=ended_at, status=status)
+        else _compose_agent_round_ending(
+            at=ended_at or started + timedelta(minutes=4), status=status
+        )
     )
     record = AgentRoundRecord(
         number=number,
