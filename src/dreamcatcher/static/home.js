@@ -6,9 +6,6 @@ let shouldRestoreTabFocus = false;
 
 function activateWorkTab(tab, shouldFocus = false) {
   const tablist = tab.closest('[role="tablist"]');
-  if (tablist === null) {
-    return;
-  }
   for (const candidate of tablist.querySelectorAll('[role="tab"]')) {
     const isSelected = candidate === tab;
     candidate.setAttribute("aria-selected", String(isSelected));
@@ -16,7 +13,7 @@ function activateWorkTab(tab, shouldFocus = false) {
     const panel = candidate.ownerDocument.getElementById(
       candidate.getAttribute("aria-controls"),
     );
-    panel?.toggleAttribute("hidden", !isSelected);
+    panel.toggleAttribute("hidden", !isSelected);
   }
   if (shouldFocus) {
     tab.focus();
@@ -49,9 +46,6 @@ document.body.addEventListener("keydown", (event) => {
     return;
   }
   const tablist = tab.closest('[role="tablist"]');
-  if (tablist === null) {
-    return;
-  }
   const tabs = [...tablist.querySelectorAll('[role="tab"]')];
   const currentIndex = tabs.indexOf(tab);
   let nextIndex;

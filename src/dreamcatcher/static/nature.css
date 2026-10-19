@@ -249,10 +249,6 @@ body::after {
   color: var(--danger);
 }
 
-.dashboard {
-  gap: 0;
-}
-
 .panel > h1 {
   display: flex;
   align-items: baseline;
