@@ -26,6 +26,12 @@ each entry links the pull request or commit that made the change.
 
 ## Unreleased
 
+### Fixed
+
+- Deleting an open assignment's worktree now errors its next round and lets the
+  daemon continue. A second failure puts the assignment in fault, as the user
+  story promises. ([#599](https://github.com/alimanfoo/dreamcatcher/pull/599))
+
 ## [v6.1.0](https://github.com/alimanfoo/dreamcatcher/releases/tag/v6.1.0) — 2026-10-18
 
 ### Changed
