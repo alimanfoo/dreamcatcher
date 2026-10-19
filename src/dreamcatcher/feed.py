@@ -170,10 +170,15 @@ class FeedRenderer:
         directory whose name starts the same way both stay whole.
         """
         worktree = re.escape(str(self.worktree))
+        flags = 0
+        if self.worktree.drive:
+            worktree = worktree.replace(re.escape("\\"), r"[/\\]")
+            flags = re.IGNORECASE
         return re.sub(
-            rf"(?<![\w./\\-]){worktree}(?=$|[/\\\s'\"),;:&|])",
+            rf"(?<![\w./\\-]){worktree}(?![\w.-])",
             "<worktree>",
             detail,
+            flags=flags,
         )
 
     def _render_timestamped_lines(

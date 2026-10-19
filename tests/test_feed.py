@@ -100,10 +100,27 @@ def test_a_detail_written_the_windows_way_marks_the_worktree_too():
     ) == ("2026-08-19T18:41:58Z  [Edit] <worktree>\\src\\theme.css\n")
 
 
+def test_a_windows_worktree_matches_either_separator_and_case():
+    windows = FeedRenderer(
+        worktree=PureWindowsPath("C:/checkout/worktree"), clock=Ticking()
+    )
+
+    assert windows.render(
+        event=FeedNote(label="Edit", detail="c:/CHECKOUT/worktree/src/theme.css")
+    ) == ("2026-08-19T18:41:58Z  [Edit] <worktree>/src/theme.css\n")
+
+
 def test_either_separator_can_mark_the_worktrees_descendant_boundary():
     assert create_feed_renderer().render(
         event=FeedNote(label="Edit", detail="/checkout/worktree\\src\\theme.css")
     ) == ("2026-08-19T18:41:58Z  [Edit] <worktree>\\src\\theme.css\n")
+
+
+@pytest.mark.parametrize("closing_delimiter", ["]", "}", ">"])
+def test_a_closing_delimiter_marks_the_worktree_boundary(closing_delimiter):
+    assert create_feed_renderer().render(
+        event=FeedNote(label="Read", detail=f"[/checkout/worktree{closing_delimiter}")
+    ) == (f"2026-08-19T18:41:58Z  [Read] [<worktree>{closing_delimiter}\n")
 
 
 def test_a_detail_spread_over_lines_becomes_one():
