@@ -3,9 +3,9 @@
 from datetime import datetime
 
 from dreamcatcher.agent_rounds import (
-    AgentRoundOutcome,
     AgentRoundRecord,
     ErroredAgentRoundEnding,
+    interpret_agent_round_outcome,
 )
 from dreamcatcher.documents import read_json
 from dreamcatcher.errors import ReportableError
@@ -20,17 +20,12 @@ from dreamcatcher.state import StateDirectory
 def is_last_round_unfinished(
     *, rounds: list[AgentRoundRecord], is_daemon_running: bool
 ) -> bool:
-    """Return whether the latest round errored or was interrupted.
-
-    A round with no ending is running while a daemon runs it, and interrupted
-    once that daemon has gone, since a round cannot outlive its daemon.
-    """
+    """Return whether the latest round errored or was interrupted."""
     if not rounds:
         return False
-    outcome = rounds[-1].outcome
-    if outcome is AgentRoundOutcome.RUNNING:
-        return not is_daemon_running
-    return rounds[-1].is_unfinished
+    return interpret_agent_round_outcome(
+        record=rounds[-1], is_daemon_running=is_daemon_running
+    ).is_unfinished
 
 
 def derive_agent_work_fault(

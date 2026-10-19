@@ -16,6 +16,7 @@ from dreamcatcher.agent_rounds import (
     AgentRoundRecord,
     StoppedAgentRoundEnding,
     SuccessfulAgentRoundEnding,
+    interpret_agent_round_outcome,
 )
 from dreamcatcher.agent_work import AgentWork
 from dreamcatcher.documents import read_text
@@ -387,7 +388,12 @@ class AgentWorkStatusReader:
 
     def _is_round_working(self, *, record: AgentRoundRecord) -> bool:
         """Return whether the round is still running under a daemon."""
-        return record.ending is None and self.is_daemon_running
+        return (
+            interpret_agent_round_outcome(
+                record=record, is_daemon_running=self.is_daemon_running
+            )
+            is AgentRoundOutcome.RUNNING
+        )
 
     def _did_round_end_after_latest_tick(
         self, *, record: AgentRoundRecord, row: RequestRow | None
