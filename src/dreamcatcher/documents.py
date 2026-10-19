@@ -80,7 +80,7 @@ def read_json_if_exists[DocumentT: DreamcatcherDocument](
         text = _read_text(path=path)
     except (FileNotFoundError, NotADirectoryError):
         return None
-    except (OSError, Timeout, ExceptionGroup) as error:
+    except (OSError, Timeout) as error:
         raise ReportableError(f"cannot read {path}: {error}.") from error
     return _parse_json_document(model=model, path=path, text=text)
 
@@ -133,7 +133,7 @@ def read_text(*, path: Path, is_replaceable: bool = True) -> str:
         return _read_text(path=path, is_replaceable=is_replaceable)
     except FileNotFoundError as error:
         raise ReportableError(f"{path} does not exist.") from error
-    except (OSError, Timeout, ExceptionGroup) as error:
+    except (OSError, Timeout) as error:
         raise ReportableError(f"cannot read {path}: {error}.") from error
 
 
@@ -253,7 +253,7 @@ def write_text(*, text: str, path: Path, is_replaceable: bool = True) -> None:
         lock = _hold_document_lock(path=path) if is_replaceable else nullcontext()
         with lock:
             staged.replace(path)
-    except (OSError, Timeout, ExceptionGroup) as error:
+    except (OSError, Timeout) as error:
         with suppress(OSError):
             staged.unlink(missing_ok=True)
         raise ReportableError(f"cannot write {path}: {error}.") from error
