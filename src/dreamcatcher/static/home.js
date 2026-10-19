@@ -1,8 +1,8 @@
 "use strict";
 
 const outputAnimations = new Set();
-let selectedTabId =
-  document.querySelector('#home [role="tab"][aria-selected="true"]')?.id ?? null;
+let selectedTabId = null;
+let shouldRestoreTabFocus = false;
 
 function activateWorkTab(tab, shouldFocus = false) {
   const tablist = tab.closest('[role="tablist"]');
@@ -18,10 +18,16 @@ function activateWorkTab(tab, shouldFocus = false) {
     );
     panel?.toggleAttribute("hidden", !isSelected);
   }
-  selectedTabId = tab.id;
   if (shouldFocus) {
     tab.focus();
   }
+}
+
+const initialTab = document.querySelector(
+  '#home [role="tab"][aria-selected="true"]',
+);
+if (initialTab !== null) {
+  activateWorkTab(initialTab);
 }
 
 document.body.addEventListener("click", (event) => {
@@ -85,6 +91,8 @@ document.body.addEventListener("htmx:beforeSwap", (event) => {
   }
   selectedTabId =
     currentHome.querySelector('[role="tab"][aria-selected="true"]')?.id ?? null;
+  shouldRestoreTabFocus =
+    currentHome.querySelector('[role="tab"]:focus') !== null;
   const currentOutputs = latestOutputsByWork(currentHome);
   const updatedOutputs = latestOutputsByWork(updatedHome);
   const workIdentifiers = new Set([
@@ -109,8 +117,11 @@ document.body.addEventListener("htmx:afterSwap", (event) => {
   const home = event.detail.target;
   const tabs = [...home.querySelectorAll('[role="tab"]')];
   const selectedTab = tabs.find((tab) => tab.id === selectedTabId) ?? tabs[0];
+  const shouldFocus = shouldRestoreTabFocus;
+  selectedTabId = null;
+  shouldRestoreTabFocus = false;
   if (selectedTab !== undefined) {
-    activateWorkTab(selectedTab);
+    activateWorkTab(selectedTab, shouldFocus);
   }
   const prefersReducedMotion = window.matchMedia(
     "(prefers-reduced-motion: reduce)",

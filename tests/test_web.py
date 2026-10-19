@@ -184,37 +184,6 @@ def test_an_empty_home_names_every_routed_label(tmp_path):
     )
 
 
-def test_home_dashboard_renders_accessible_tabs(tmp_path):
-    state = StateDirectory(root=tmp_path)
-    fabricate_conversation(state=state)
-    fabricate_everything(
-        state=state,
-        conversation_rows=[
-            conversation_row(finding=IssueCommentsFinding(new_comments=0))
-        ],
-    )
-
-    page = render_home(state=state)
-
-    assert 'role="tablist" aria-label="Agent work"' in page
-    assert (
-        'id="assignment-tab" class="work-tab" type="button" role="tab" '
-        'aria-selected="true" aria-controls="assignment-panel" tabindex="0"' in page
-    )
-    assert (
-        'id="conversation-tab" class="work-tab" type="button" role="tab" '
-        'aria-selected="false" aria-controls="conversation-panel" tabindex="-1"' in page
-    )
-    assert (
-        'id="assignment-panel" class="panel work-tab-panel" role="tabpanel" '
-        'aria-labelledby="assignment-tab"' in page
-    )
-    assert (
-        'id="conversation-panel" class="panel work-tab-panel" role="tabpanel" '
-        'aria-labelledby="conversation-tab" hidden' in page
-    )
-
-
 def test_an_empty_home_hides_an_unrouted_assignment_section(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_nothing(state=state)

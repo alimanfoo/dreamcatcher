@@ -213,6 +213,18 @@ body::after {
   min-width: 0;
 }
 
+.panel > h1 {
+  padding: 0 0 var(--space-4);
+  margin: 0;
+  color: var(--phosphor);
+  border-bottom: var(--line) solid var(--rule);
+  font-size: var(--font-size);
+  font-weight: 700;
+  letter-spacing: var(--letter-label);
+  text-shadow: var(--shadow);
+  text-transform: uppercase;
+}
+
 .work-tabs {
   display: flex;
   gap: var(--space-9);
