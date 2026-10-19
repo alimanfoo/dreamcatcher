@@ -35,10 +35,39 @@ def test_a_note_with_nothing_to_add_is_its_label_alone():
     )
 
 
-def test_a_detail_loses_the_worktrees_own_path():
+def test_a_file_operation_marks_the_worktrees_own_path():
     assert create_feed_renderer().render(
         event=FeedNote(label="Edit", detail="/checkout/worktree/src/theme.css")
-    ) == ("2026-08-19T18:41:58Z  [Edit] src/theme.css\n")
+    ) == ("2026-08-19T18:41:58Z  [Edit] <worktree>/src/theme.css\n")
+
+
+def test_a_command_marks_a_worktree_path_after_cd():
+    assert create_feed_renderer().render(
+        event=FeedNote(
+            label="Bash", detail="cd /checkout/worktree/src && pytest test_theme.py"
+        )
+    ) == ("2026-08-19T18:41:58Z  [Bash] cd <worktree>/src && pytest test_theme.py\n")
+
+
+def test_a_command_marks_a_quoted_worktree_path():
+    assert create_feed_renderer().render(
+        event=FeedNote(label="Bash", detail="cat '/checkout/worktree/a file.txt'")
+    ) == ("2026-08-19T18:41:58Z  [Bash] cat '<worktree>/a file.txt'\n")
+
+
+def test_every_worktree_path_in_a_detail_is_marked():
+    assert create_feed_renderer().render(
+        event=FeedNote(
+            label="Bash",
+            detail="cp /checkout/worktree/source /checkout/worktree/target",
+        )
+    ) == ("2026-08-19T18:41:58Z  [Bash] cp <worktree>/source <worktree>/target\n")
+
+
+def test_the_worktree_directory_itself_is_marked():
+    assert create_feed_renderer().render(
+        event=FeedNote(label="Read", detail="/checkout/worktree")
+    ) == ("2026-08-19T18:41:58Z  [Read] <worktree>\n")
 
 
 def test_a_path_outside_the_worktree_keeps_its_own_root():
@@ -53,14 +82,28 @@ def test_a_sibling_of_the_worktree_that_starts_the_same_way_keeps_its_path():
     ) == ("2026-08-19T18:41:58Z  [Read] /checkout/worktree-old/src/theme.css\n")
 
 
-def test_a_detail_written_the_windows_way_loses_the_worktree_too():
+def test_an_unrelated_path_containing_the_worktree_suffix_stays_whole():
+    assert create_feed_renderer().render(
+        event=FeedNote(
+            label="Read", detail="/elsewhere/checkout/worktree/src/theme.css"
+        )
+    ) == ("2026-08-19T18:41:58Z  [Read] /elsewhere/checkout/worktree/src/theme.css\n")
+
+
+def test_a_detail_written_the_windows_way_marks_the_worktree_too():
     windows = FeedRenderer(
         worktree=PureWindowsPath("C:/checkout/worktree"), clock=Ticking()
     )
 
     assert windows.render(
         event=FeedNote(label="Edit", detail="C:\\checkout\\worktree\\src\\theme.css")
-    ) == ("2026-08-19T18:41:58Z  [Edit] src\\theme.css\n")
+    ) == ("2026-08-19T18:41:58Z  [Edit] <worktree>\\src\\theme.css\n")
+
+
+def test_either_separator_can_mark_the_worktrees_descendant_boundary():
+    assert create_feed_renderer().render(
+        event=FeedNote(label="Edit", detail="/checkout/worktree\\src\\theme.css")
+    ) == ("2026-08-19T18:41:58Z  [Edit] <worktree>\\src\\theme.css\n")
 
 
 def test_a_detail_spread_over_lines_becomes_one():
@@ -75,12 +118,26 @@ def test_a_detail_longer_than_the_feed_is_clipped():
     ) == (f"2026-08-19T18:41:58Z  [Write] {'x' * _FEED_LINE_WIDTH} ...\n")
 
 
+def test_a_worktree_path_is_marked_before_the_detail_is_clipped():
+    useful_detail = f"{'x' * 176} useful"
+
+    assert create_feed_renderer().render(
+        event=FeedNote(label="Bash", detail=f"cd {WORKTREE}/{useful_detail}")
+    ) == (f"2026-08-19T18:41:58Z  [Bash] cd <worktree>/{useful_detail}\n")
+
+
 def test_prose_becomes_a_line_for_each_line_it_holds():
     assert create_feed_renderer().render(
         event=FeedProse(text="I read the file.\n\nIt was empty.")
     ) == (
         "2026-08-19T18:41:58Z  I read the file.\n2026-08-19T18:41:58Z  It was empty.\n"
     )
+
+
+def test_a_worktree_path_in_prose_stays_whole():
+    assert create_feed_renderer().render(
+        event=FeedProse(text="I read /checkout/worktree/src/theme.css.")
+    ) == ("2026-08-19T18:41:58Z  I read /checkout/worktree/src/theme.css.\n")
 
 
 def test_prose_with_nothing_in_it_writes_nothing():

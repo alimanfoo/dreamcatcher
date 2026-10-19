@@ -26,6 +26,12 @@ each entry links the pull request or commit that made the change.
 
 ## Unreleased
 
+### Changed
+
+- Activity notes now show the current round's worktree as `<worktree>` wherever
+  its absolute path appears, so more of a command remains visible.
+  ([#602](https://github.com/alimanfoo/dreamcatcher/pull/602))
+
 ## [v6.1.0](https://github.com/alimanfoo/dreamcatcher/releases/tag/v6.1.0) — 2026-10-18
 
 ### Changed

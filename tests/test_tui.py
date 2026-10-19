@@ -628,6 +628,16 @@ def test_only_a_feed_lines_stamp_is_dim():
     assert not boundary.get_style_at_offset(console, boundary_text).dim
 
 
+def test_a_worktree_marker_reads_literally_in_the_terminal():
+    line = FeedLine(at=LOOKED_AT, text="[Bash] cd <worktree>/src")
+
+    rendered = _render_written_feed_line(
+        written_line=line.render(), zone=DISPLAY_TIME_ZONE
+    )
+
+    assert "[Bash] cd <worktree>/src" in rendered.plain
+
+
 def test_a_following_view_waits_for_the_round_an_assignment_has_yet_to_run(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)

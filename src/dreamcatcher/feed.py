@@ -156,24 +156,25 @@ class FeedRenderer:
         return f"[{note.label}] {detail}" if detail else f"[{note.label}]"
 
     def _shorten_note_detail(self, *, detail: str) -> str:
-        """Return the detail as one clipped line, without the worktree's path."""
-        one_line = " ".join(self._strip_worktree_path(detail=detail).split())
+        """Return the detail as one clipped line with worktree paths abbreviated."""
+        one_line = " ".join(self._abbreviate_worktree_paths(detail=detail).split())
         if len(one_line) > _FEED_LINE_WIDTH:
             return f"{one_line[:_FEED_LINE_WIDTH]} ..."
         return one_line
 
-    def _strip_worktree_path(self, *, detail: str) -> str:
-        """Return the detail with the path of the round's worktree off its front.
+    def _abbreviate_worktree_paths(self, *, detail: str) -> str:
+        """Return the detail with each worktree path marked as ``<worktree>``.
 
-        The separator has to be there, so a sibling directory whose name starts
-        the same way keeps its whole path. Either separator counts: a path
-        arrives written the way the harness that reported it writes them.
+        Matches begin at a text boundary and end at a text or directory
+        boundary, so a different path containing the same suffix and a sibling
+        directory whose name starts the same way both stay whole.
         """
-        for separator in ("/", "\\"):
-            start = f"{self.worktree}{separator}"
-            if detail.startswith(start):
-                return detail[len(start) :]
-        return detail
+        worktree = re.escape(str(self.worktree))
+        return re.sub(
+            rf"(?<![\w./\\-]){worktree}(?=$|[/\\\s'\"),;:&|])",
+            "<worktree>",
+            detail,
+        )
 
     def _render_timestamped_lines(
         self, *, contents: list[str], is_subagent: bool
