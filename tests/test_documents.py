@@ -115,7 +115,10 @@ def test_an_optional_json_document_reads_back(tmp_path):
 
 
 def test_a_missing_optional_json_document_is_none(tmp_path):
-    assert read_json_if_exists(model=Sample, path=tmp_path / "sample.json") is None
+    document = tmp_path / "sample.json"
+
+    assert read_json_if_exists(model=Sample, path=document) is None
+    assert document.with_name("sample.json.lock").is_file()
 
 
 def test_an_unreadable_optional_json_document_says_so(tmp_path):

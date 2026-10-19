@@ -214,5 +214,5 @@ def write_default_dreamcatcher_config_if_absent(
             table_name = line.strip().strip("[]").rpartition(".")[2]
             is_left_out = table_name in set(AgentHarness) - harnesses
         lines.append(f"#{line}" if is_left_out and line.strip() else line)
-    write_text(text="".join(lines), path=path)
+    write_text(text="".join(lines), path=path, is_replaceable=False)
     return True

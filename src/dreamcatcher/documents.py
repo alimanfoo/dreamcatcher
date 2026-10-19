@@ -2,7 +2,7 @@
 
 import tomllib
 from collections.abc import Callable, Generator
-from contextlib import contextmanager, suppress
+from contextlib import contextmanager, nullcontext, suppress
 from io import SEEK_END, BytesIO
 from pathlib import Path
 from typing import IO
@@ -124,10 +124,10 @@ def read_text(*, path: Path, is_replaceable: bool = True) -> str:
     them. Left to itself Python turns each of them into a newline, and then a
     read and a write of one file would not agree on what is in it.
 
-    Lock a replaceable document while it is open. Raise ReportableError when the
-    read fails. A document that is not there, or that nothing can read, is
-    something the user can act on, so it reads as a message rather than a
-    traceback.
+    Lock a replaceable document while it is open. A static input can skip the
+    lock. Raise ReportableError when the read fails. A document that is not
+    there, or that nothing can read, is something the user can act on, so it
+    reads as a message rather than a traceback.
     """
     try:
         return _read_text(path=path, is_replaceable=is_replaceable)
@@ -138,7 +138,7 @@ def read_text(*, path: Path, is_replaceable: bool = True) -> str:
 
 
 def _read_text(*, path: Path, is_replaceable: bool = True) -> str:
-    if not is_replaceable or not path.is_file():
+    if not is_replaceable:
         return _decode(contents=path.read_bytes(), path=path)
     with _hold_document_lock(path=path):
         return _decode(contents=path.read_bytes(), path=path)
@@ -228,7 +228,7 @@ def read_last_line(*, path: Path) -> str | None:
         return _decode(contents=opened.read(end_of_line - start_of_line), path=path)
 
 
-def write_text(*, text: str, path: Path) -> None:
+def write_text(*, text: str, path: Path, is_replaceable: bool = True) -> None:
     """Write text to path as UTF-8, over whatever was there before.
 
     The write lands whole. The text goes to a file of its own beside the target
@@ -236,6 +236,8 @@ def write_text(*, text: str, path: Path) -> None:
     reads the document that was there or the one that replaced it, and never a
     partial document. No two writes share that file, so writes that race each
     other each land whole, and the target holds whichever landed last.
+
+    Lock the replacement unless the document is static after this write.
 
     The line endings are the caller's, for the reason append_text keeps them.
 
@@ -248,7 +250,8 @@ def write_text(*, text: str, path: Path) -> None:
         path.parent.mkdir(parents=True, exist_ok=True)
         with staged.open("x", encoding="utf-8", newline="") as opened:
             opened.write(text)
-        with _hold_document_lock(path=path):
+        lock = _hold_document_lock(path=path) if is_replaceable else nullcontext()
+        with lock:
             staged.replace(path)
     except (OSError, Timeout, ExceptionGroup) as error:
         with suppress(OSError):
