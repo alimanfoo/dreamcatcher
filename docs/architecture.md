@@ -421,13 +421,11 @@ for both kinds of agent work. `RequestStatus` gives a request with no open work
 its request status and its reasons, each as words with the issues or pull
 requests it names.
 
-A successful or stopped round that ended after the scheduler record has taken
-its turn, but no tick has yet determined whether another round is due. Status
-therefore reports that the work is idle and awaiting the next update, before it
-uses the earlier finding to derive waiting or ordinary idle detail. The finding
-still supplies the assignment's last observed pull request summary. An ending
-that predates the record should already have been read, so a missing row remains
-unknown.
+A round that took its turn after the scheduler record leaves the work idle and
+awaiting the next update, unless the record found input that the round did not
+consume. The earlier finding still supplies the assignment's last observed pull
+request summary. An ending that predates the record should already have been
+read, so a missing row remains unknown.
 
 ### TUI
 

@@ -498,23 +498,23 @@ Agent work of either kind has one of these summary statuses:
   gone; no round has run yet; an assignment's pull request is not yet open; or
   the latest tick found a signal. A free agent slot, or the end of a cooldown,
   starts it.
-- **Idle**: no round is known to be due. A successful or stopped round that
-  ended after the latest tick is idle until the next tick determines whether
-  another round is due, and its detail says that it is awaiting the next update.
-  Otherwise the detail says why: an assignment's pull request is ready for
-  review, still a draft, merged or closed after its wrap-up round, or failing
-  its checks after two attempts under the relay rule; a conversation's latest
-  round answered, needed no reply, or was stopped; or a conversation is paused,
-  and the detail is the cause.
+- **Idle**: no round is known to be due. A round that took its turn after the
+  latest tick is idle until the next tick, unless the earlier tick found input
+  that the round did not consume. Its detail says that it is awaiting the next
+  update. Otherwise the detail says why: an assignment's pull request is ready
+  for review, still a draft, merged or closed after its wrap-up round, or
+  failing its checks after two attempts under the relay rule; a conversation's
+  latest round answered, needed no reply, or was stopped; or a conversation is
+  paused, and the detail is the cause.
 
 The statuses are decided in an order. Working comes first, then ended, then
 fault, so the user can see a fault and retry whatever else is true. A failed
 read comes next, as unknown. A paused conversation is idle before it can be
-waiting, because no round will start however its last round ended. A successful
-or stopped round that ended after the latest tick is idle before an earlier
-finding can make it waiting. Then come waiting and idle, and work that the
-latest tick has no row for, or read nothing for, is unknown when nothing else
-applies.
+waiting, because no round will start however its last round ended. The
+awaiting-update idle case comes before waiting when the latest tick found no new
+input, or started the round that then took its turn. Then come waiting and idle,
+and work that the latest tick has no row for, or read nothing for, is unknown
+when nothing else applies.
 
 These statuses summarize what matters now; they are not a persisted lifecycle or
 a substitute for the underlying facts. In particular, pull-request state, what

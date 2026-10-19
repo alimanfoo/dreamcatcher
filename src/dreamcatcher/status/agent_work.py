@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
 from functools import cached_property
-from typing import Protocol
+from typing import Protocol, cast
 
 from dreamcatcher.agent_assignments import (
     read_assignment_pull_request_number,
@@ -340,10 +340,10 @@ class AgentWorkStatusReader:
             return None
         latest = work.rounds[-1]
         ending = latest.ending
-        if (
-            not isinstance(ending, SuccessfulAgentRoundEnding | StoppedAgentRoundEnding)
-            or ending.at <= self.scheduler_record.at
-        ):
+        if ending is None or latest.is_unfinished:
+            return None
+        took_turn = cast("SuccessfulAgentRoundEnding | StoppedAgentRoundEnding", ending)
+        if took_turn.at <= self.scheduler_record.at:
             return None
         news = None if row is None else _describe_what_is_new(finding=row.finding)
         did_tick_start_round = (
