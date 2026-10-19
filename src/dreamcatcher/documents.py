@@ -5,7 +5,7 @@ from collections.abc import Callable, Generator
 from contextlib import contextmanager, nullcontext, suppress
 from io import SEEK_END, BytesIO
 from pathlib import Path
-from typing import IO
+from typing import IO, ClassVar
 from uuid import uuid4
 
 from filelock import FileLock, Timeout
@@ -33,6 +33,13 @@ class DreamcatcherDocument(BaseModel):
     """
 
     model_config = ConfigDict(extra="forbid", frozen=True)
+    is_replaceable: ClassVar[bool] = True
+
+
+class WriteOnceDreamcatcherDocument(DreamcatcherDocument):
+    """Model a document that dreamcatcher writes at most once."""
+
+    is_replaceable = False
 
 
 def read_toml[DocumentT: DreamcatcherDocument](
@@ -64,7 +71,7 @@ def read_json[DocumentT: DreamcatcherDocument](
     return _parse_json_document(
         model=model,
         path=path,
-        text=read_text(path=path),
+        text=read_text(path=path, is_replaceable=model.is_replaceable),
     )
 
 
@@ -77,7 +84,7 @@ def read_json_if_exists[DocumentT: DreamcatcherDocument](
     fit its model.
     """
     try:
-        text = _read_text(path=path)
+        text = _read_text(path=path, is_replaceable=model.is_replaceable)
     except (FileNotFoundError, NotADirectoryError):
         return None
     except (OSError, Timeout) as error:
@@ -278,7 +285,11 @@ def append_text(*, text: str, path: Path) -> None:
 
 def write_json(*, document: DreamcatcherDocument, path: Path) -> None:
     """Write the document to path as JSON."""
-    write_text(text=document.model_dump_json(indent=2) + "\n", path=path)
+    write_text(
+        text=document.model_dump_json(indent=2) + "\n",
+        path=path,
+        is_replaceable=document.is_replaceable,
+    )
 
 
 def remove_file(*, path: Path) -> None:

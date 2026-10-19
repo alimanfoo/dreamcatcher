@@ -11,6 +11,7 @@ from dreamcatcher.documents import (
     _BACKWARD_READ_SIZE,
     _STAGED_WRITE_SUFFIX,
     DreamcatcherDocument,
+    WriteOnceDreamcatcherDocument,
     append_text,
     is_complete_line_position,
     read_json,
@@ -19,6 +20,7 @@ from dreamcatcher.documents import (
     read_lines_from,
     read_toml,
     remove_file,
+    write_json,
     write_text,
 )
 from dreamcatcher.errors import ReportableError
@@ -70,6 +72,10 @@ class Sample(DreamcatcherDocument):
     count: int = 1
 
 
+class WriteOnceSample(WriteOnceDreamcatcherDocument):
+    name: str
+
+
 def write(*, path: Path, text: str) -> Path:
     document = path / "sample.toml"
     document.write_text(text, encoding="utf-8")
@@ -104,6 +110,15 @@ def test_a_valid_json_document_reads_back(tmp_path):
     document = write(path=tmp_path, text='{"name": "probe", "count": 3}')
 
     assert read_json(model=Sample, path=document) == Sample(name="probe", count=3)
+
+
+def test_a_write_once_json_document_needs_no_lock(tmp_path):
+    document = tmp_path / "work.json"
+
+    write_json(document=WriteOnceSample(name="probe"), path=document)
+
+    assert read_json(model=WriteOnceSample, path=document).name == "probe"
+    assert not document.with_name("work.json.lock").exists()
 
 
 def test_an_optional_json_document_reads_back(tmp_path):
@@ -444,7 +459,7 @@ def test_a_write_gives_its_file_the_mode_any_new_file_gets(tmp_path):
     assert written.stat().st_mode == plain.stat().st_mode
 
 
-def test_a_write_that_fails_says_so_and_leaves_nothing_of_itself(tmp_path):
+def test_a_failed_write_cleans_its_staged_file_and_keeps_its_lock(tmp_path):
     taken = tmp_path / "taken"
     taken.mkdir()
 
