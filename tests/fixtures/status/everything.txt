@@ -4,7 +4,7 @@ instance
   daemon             running · dreamcatcher v3.0.0.beta1 · pid 4242
   preferred harness  claude                                        
   next update in     0s                                            
-  agent capacity     1 of 1 working                                
+  agent capacity     1 of 2 working                                
 
 assignments
   GH9-20260819-184158-assignment   fault    round 2 errored (exit 2)                                

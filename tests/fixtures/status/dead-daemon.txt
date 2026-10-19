@@ -3,7 +3,7 @@ alimanfoo/dreamcatcher
 instance
   daemon             not running   
   preferred harness  claude        
-  agent capacity     0 of 1 working
+  agent capacity     0 of 2 working
 
 assignments
   GH9-20260819-184158-assignment   fault    round 2 errored (exit 2)           

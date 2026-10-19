@@ -274,10 +274,10 @@ def running(
     )
 
 
-def holding(*, state):
+def holding(*, state, max_agents: int = 1):
     """Record the instance and hold the lock as its running daemon."""
     write_text(text=f"{REPOSITORY}\n", path=state.repository)
-    write_daemon_run(state=state, pid=DAEMON_PID)
+    write_daemon_run(state=state, pid=DAEMON_PID, max_agents=max_agents)
     hold_daemon_lock_for_test(path=state.lock)
 
 
@@ -293,7 +293,7 @@ def fabricate_everything(
     conversation_rows: Sequence[RequestRow] = (),
 ):
     """Write a running daemon with varied issue and assignment statuses."""
-    holding(state=state)
+    holding(state=state, max_agents=2)
     directory = written(
         state=state,
         issue=13,
@@ -309,7 +309,7 @@ def fabricate_everything(
     write_feed(
         directory=written(state=state, issue=20, records=[ended(minute=115)]),
         number=1,
-        lines=[FeedLine(at=PINNED, text="[Bash] git push")],
+        lines=[FeedLine(at=PINNED + timedelta(minutes=116), text="[Bash] git push")],
     )
     written(state=state, issue=31, records=[ended(minute=1)])
     written(state=state, issue=35, records=[ended(minute=1, status=2)])

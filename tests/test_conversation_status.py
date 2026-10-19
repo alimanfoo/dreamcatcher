@@ -489,15 +489,15 @@ def test_an_unfinished_round_comes_before_comments_to_answer(conversation_state)
     assert found.detail == "round 1 errored (exit 2)"
 
 
-@pytest.mark.parametrize("started_round", [StartedRound(number=1), None])
+@pytest.mark.parametrize("did_tick_start_round", [False, True])
 def test_a_round_ending_after_the_latest_tick_is_idle_until_the_next_update(
-    conversation_state, started_round
+    conversation_state, did_tick_start_round
 ):
     conversation_round(state=conversation_state)
     observe(
         state=conversation_state,
-        finding=IssueCommentsFinding(new_comments=1),
-        started_round=started_round,
+        finding=IssueCommentsFinding(new_comments=int(did_tick_start_round)),
+        started_round=(StartedRound(number=1) if did_tick_start_round else None),
         at=PINNED,
     )
 
@@ -533,7 +533,7 @@ def test_a_stopped_round_ending_after_the_latest_tick_is_idle_until_the_next_upd
     )
     observe(
         state=conversation_state,
-        finding=IssueCommentsFinding(new_comments=1),
+        finding=IssueCommentsFinding(new_comments=0),
         at=PINNED,
     )
 
@@ -541,6 +541,22 @@ def test_a_stopped_round_ending_after_the_latest_tick_is_idle_until_the_next_upd
 
     assert found.value is AgentWorkStatusValue.IDLE
     assert found.detail == "round 1 ended, awaiting next update"
+
+
+def test_new_comments_found_while_a_round_ran_wait_after_it_ends(
+    conversation_state,
+):
+    conversation_round(state=conversation_state)
+    observe(
+        state=conversation_state,
+        finding=IssueCommentsFinding(new_comments=1),
+        at=PINNED,
+    )
+
+    found = status(state=conversation_state)
+
+    assert found.value is AgentWorkStatusValue.WAITING
+    assert found.detail == "1 comment to answer"
 
 
 def test_a_conversation_with_two_conversation_labels_is_paused_saying_so(

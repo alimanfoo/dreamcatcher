@@ -63,11 +63,9 @@ class AgentWorkStatusValue(StrEnum):
     """List the summary statuses of agent work of either kind.
 
     Working means that a round is running. Waiting means that a round is due
-    but has not started, or that a round has just ended and no tick has looked
-    since. Fault takes two consecutive errored rounds. Unknown means that the
-    latest tick could not tell. Idle means that nothing is due until something
-    new appears in the work's channel. Ended means that the work's ending is
-    recorded.
+    but has not started. Fault takes two consecutive errored rounds. Unknown
+    means that the latest tick could not tell. Idle means that no round is known
+    to be due. Ended means that the work's ending is recorded.
     """
 
     WORKING = "working"
@@ -333,7 +331,11 @@ class AgentWorkStatusReader:
     def _derive_awaiting_update(
         self, *, work: AgentWork, row: RequestRow | None
     ) -> AgentWorkStatus | None:
-        """Derive idle when the latest tick predates a round that took its turn."""
+        """Derive idle when the latest tick predates a round that took its turn.
+
+        A finding that started the round was relayed by that round. Other news
+        found while the round ran makes another round due instead.
+        """
         if not work.rounds or self.scheduler_record is None:
             return None
         latest = work.rounds[-1]
@@ -342,6 +344,14 @@ class AgentWorkStatusReader:
             not isinstance(ending, SuccessfulAgentRoundEnding | StoppedAgentRoundEnding)
             or ending.at <= self.scheduler_record.at
         ):
+            return None
+        news = None if row is None else _describe_what_is_new(finding=row.finding)
+        did_tick_start_round = (
+            row is not None
+            and row.started_round is not None
+            and row.started_round.number == latest.number
+        )
+        if news is not None and not did_tick_start_round:
             return None
         return AgentWorkStatus(
             work=work,

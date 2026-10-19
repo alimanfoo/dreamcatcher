@@ -800,12 +800,22 @@ def test_a_stopped_round_ending_after_the_latest_tick_is_idle_until_the_next_upd
             ending=StoppedAgentRoundEnding(at=LOOKED_AT + timedelta(minutes=1)),
         ),
     )
-    tick_with(state=state, rows=[pull_request_row(new_posts=1)])
+    tick_with(state=state, rows=[pull_request_row()])
 
     status = only_assignment(state=state)
 
     assert status.value is AgentWorkStatusValue.IDLE
     assert status.detail == "round 1 ended, awaiting next update"
+
+
+def test_new_posts_found_while_a_round_ran_wait_after_it_ends(state):
+    ran(state=state, number=1, ended_at=LOOKED_AT + timedelta(minutes=1))
+    tick_with(state=state, rows=[pull_request_row(new_posts=1)])
+
+    status = only_assignment(state=state)
+
+    assert status.value is AgentWorkStatusValue.WAITING
+    assert status.detail == "1 new post to answer"
 
 
 def test_a_ready_pull_request_with_nothing_new_is_idle_ready_for_review(state):
