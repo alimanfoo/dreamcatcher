@@ -257,9 +257,9 @@ def interpret_agent_round_outcome(
     """Return the round's outcome, inferring one when it recorded no ending.
 
     A round with no ending is running while a daemon runs it, and interrupted
-    once that daemon has gone. The inference reads the record alone: a harness
-    can outlive a daemon that was killed, so it does not say that the round's
-    process has ended.
+    once that daemon has gone. An inferred interruption does not say that the
+    round's harness has exited, since a harness can outlive a daemon that was
+    killed.
     """
     if record.ending is None and not is_daemon_running:
         return AgentRoundOutcome.INTERRUPTED
