@@ -17,7 +17,7 @@ from records import (
     write_tick,
 )
 from rows import UNCLAIMED, request_row
-from status_fabrications import fabricate_everything
+from status_fabrications import compose_feed_line, fabricate_everything
 
 from dreamcatcher.agent_assignments import (
     AssignmentRoundInput,
@@ -35,7 +35,6 @@ from dreamcatcher.config import AgentHarness
 from dreamcatcher.daemon import DEFAULT_INTERVAL_SECONDS
 from dreamcatcher.daemon_runs import DaemonRunRecord
 from dreamcatcher.documents import write_text
-from dreamcatcher.feed import FeedLine
 from dreamcatcher.github import (
     CheckResult,
     IssueComment,
@@ -112,34 +111,37 @@ def ran(
     status: int | None = 0,
     ended_at=PINNED,
     round_input: AssignmentRoundInput | None = None,
-) -> None:
-    """Write one round for the fixture's assignment."""
+) -> AgentRoundRecord:
+    """Write one round for the fixture's assignment and return its record."""
     started = PINNED + timedelta(minutes=number)
     ending = (
         None
         if status is None
         else _compose_agent_round_ending(at=ended_at, status=status)
     )
+    record = AgentRoundRecord(
+        number=number,
+        started=started,
+        pid=1,
+        ending=ending,
+    )
     write_round(
         directory=state.work / ASSIGNMENT_ID,
         number=number,
-        record=AgentRoundRecord(
-            number=number,
-            started=started,
-            pid=1,
-            ending=ending,
-        ),
+        record=record,
         round_input=round_input,
     )
+    return record
 
 
-def said(*, state: StateDirectory, number: int, texts: Sequence[str]) -> None:
-    """Write feed lines one minute after the numbered round began."""
-    at = PINNED + timedelta(minutes=number + 1)
+def said(
+    *, state: StateDirectory, record: AgentRoundRecord, texts: Sequence[str]
+) -> None:
+    """Write feed lines one minute after the round began."""
     write_feed(
         directory=state.work / ASSIGNMENT_ID,
-        number=number,
-        lines=[FeedLine(at=at, text=text) for text in texts],
+        number=record.number,
+        lines=[compose_feed_line(record=record, text=text) for text in texts],
     )
 
 
@@ -262,8 +264,11 @@ def test_a_live_daemon_that_has_not_named_its_run_has_no_pid(tmp_path):
 
 
 def test_a_live_round_reports_work_and_its_latest_output(running):
-    ran(state=running, number=1, status=None)
-    said(state=running, number=1, texts=["first", "[Bash] pytest"])
+    said(
+        state=running,
+        record=ran(state=running, number=1, status=None),
+        texts=["first", "[Bash] pytest"],
+    )
 
     found = report(state=running)
     status = found.work_statuses[0]
@@ -831,8 +836,11 @@ def test_a_stopped_assignment_is_idle(state):
 
 def test_two_current_errors_put_an_assignment_in_fault(state):
     ran(state=state, number=1, status=1)
-    ran(state=state, number=2, status=2)
-    said(state=state, number=2, texts=["[failed] You hit your spend cap."])
+    said(
+        state=state,
+        record=ran(state=state, number=2, status=2),
+        texts=["[failed] You hit your spend cap."],
+    )
 
     status = only_assignment(state=state)
 
