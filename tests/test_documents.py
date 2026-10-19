@@ -1,3 +1,4 @@
+import sys
 from pathlib import Path
 
 import pytest
@@ -281,6 +282,23 @@ def test_a_write_lands_where_it_is_asked_for(tmp_path):
     write_text(text="what it holds\n", path=written)
 
     assert written.read_text(encoding="utf-8") == "what it holds\n"
+
+
+def test_an_ordinary_reader_blocks_document_replacement_only_on_windows(tmp_path):
+    document = tmp_path / "scheduler.json"
+    document.write_text("old contents\n", encoding="utf-8")
+
+    with document.open(encoding="utf-8") as reader:
+        if sys.platform == "win32":
+            with pytest.raises(ReportableError, match="cannot write"):
+                write_text(text="new contents\n", path=document)
+        else:
+            write_text(text="new contents\n", path=document)
+        reader.seek(0)
+        assert reader.read() == "old contents\n"
+
+    expected = "old contents\n" if sys.platform == "win32" else "new contents\n"
+    assert document.read_text(encoding="utf-8") == expected
 
 
 def test_a_write_leaves_nothing_of_itself_beside_what_it_wrote(tmp_path):
