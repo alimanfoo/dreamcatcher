@@ -116,13 +116,6 @@ def test_either_separator_can_mark_the_worktrees_descendant_boundary():
     ) == ("2026-08-19T18:41:58Z  [Edit] <worktree>\\src\\theme.css\n")
 
 
-@pytest.mark.parametrize("closing_delimiter", ["]", "}", ">"])
-def test_a_closing_delimiter_marks_the_worktree_boundary(closing_delimiter):
-    assert create_feed_renderer().render(
-        event=FeedNote(label="Read", detail=f"[/checkout/worktree{closing_delimiter}")
-    ) == (f"2026-08-19T18:41:58Z  [Read] [<worktree>{closing_delimiter}\n")
-
-
 def test_a_detail_spread_over_lines_becomes_one():
     assert create_feed_renderer().render(
         event=FeedNote(label="Bash", detail="git commit \\\n  --amend")
