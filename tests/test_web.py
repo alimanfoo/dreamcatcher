@@ -184,6 +184,37 @@ def test_an_empty_home_names_every_routed_label(tmp_path):
     )
 
 
+def test_home_dashboard_renders_accessible_tabs(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    fabricate_conversation(state=state)
+    fabricate_everything(
+        state=state,
+        conversation_rows=[
+            conversation_row(finding=IssueCommentsFinding(new_comments=0))
+        ],
+    )
+
+    page = render_home(state=state)
+
+    assert 'role="tablist" aria-label="Agent work"' in page
+    assert (
+        'id="assignment-tab" class="work-tab" type="button" role="tab" '
+        'aria-selected="true" aria-controls="assignment-panel" tabindex="0"' in page
+    )
+    assert (
+        'id="conversation-tab" class="work-tab" type="button" role="tab" '
+        'aria-selected="false" aria-controls="conversation-panel" tabindex="-1"' in page
+    )
+    assert (
+        'id="assignment-panel" class="panel work-tab-panel" role="tabpanel" '
+        'aria-labelledby="assignment-tab"' in page
+    )
+    assert (
+        'id="conversation-panel" class="panel work-tab-panel" role="tabpanel" '
+        'aria-labelledby="conversation-tab" hidden' in page
+    )
+
+
 def test_an_empty_home_hides_an_unrouted_assignment_section(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_nothing(state=state)
@@ -191,8 +222,8 @@ def test_an_empty_home_hides_an_unrouted_assignment_section(tmp_path):
 
     page = render_home(state=state)
 
-    assert 'id="assignments-heading"' not in page
-    assert '<h1 id="conversations-heading">Conversations</h1>' in page
+    assert 'id="assignment-tab"' not in page
+    assert 'id="conversation-tab"' in page
     assert (
         "Assign an issue to yourself, label it with dream:scout and post a comment "
         "to start a conversation." in page
@@ -1564,11 +1595,11 @@ def test_dashboard_groups_assignment_requests_with_assignments(tmp_path):
 
     page = render_home(state=state)
 
-    assert page.index('id="assignments-heading"') < page.index(
+    assert page.index('id="assignment-panel"') < page.index(
         'id="request-50-dream:smith"'
     )
-    assert 'id="issues-heading"' not in page
-    assert 'id="conversations-heading"' not in page
+    assert 'id="issue-tab"' not in page
+    assert 'id="conversation-tab"' not in page
 
 
 def test_a_failure_at_capacity_shows_beside_the_capacity(tmp_path):

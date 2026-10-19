@@ -50,8 +50,14 @@
 </section>
       <div class="dashboard">
         
-          <section class="panel" aria-labelledby="assignments-heading">
-            <h1 id="assignments-heading">Assignments</h1>
+          <div class="work-tabs" role="tablist" aria-label="Agent work">
+            
+              <button id="assignment-tab" class="work-tab" type="button" role="tab" aria-selected="true" aria-controls="assignment-panel" tabindex="0">Assignments</button>
+            
+          </div>
+        
+        
+          <section id="assignment-panel" class="panel work-tab-panel" role="tabpanel" aria-labelledby="assignment-tab">
             
             
             <p class="empty">Assign an issue to yourself and label it with dream:smith to create an assignment.</p>

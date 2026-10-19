@@ -250,19 +250,24 @@ body::after {
 }
 
 .dashboard {
-  gap: 32px;
+  gap: 0;
 }
 
-.panel > h1 {
-  display: flex;
-  align-items: baseline;
-  gap: 12px;
-  padding: 0 0 10px;
+.work-tabs {
+  gap: 24px;
+}
+
+.work-tab {
+  padding-bottom: 10px;
   color: var(--dim);
-  border-bottom-color: var(--rule-inner);
   font-size: 12px;
   font-weight: 500;
-  letter-spacing: 0.14em;
+  text-shadow: none;
+}
+
+.work-tab:hover,
+.work-tab[aria-selected="true"] {
+  color: var(--bright);
   text-shadow: none;
 }
 

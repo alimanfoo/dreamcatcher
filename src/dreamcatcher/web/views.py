@@ -76,6 +76,7 @@ def _compose_section(
     if section is None:
         return None
     return WebAgentWorkSection(
+        kind=kind,
         heading=section.heading,
         empty_message=section.empty_message,
         active=tuple(
