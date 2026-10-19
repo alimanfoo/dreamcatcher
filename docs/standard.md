@@ -181,8 +181,8 @@ not progress towards the standard. Meeting the criteria is.
 **K4. Every change is reviewed against this standard.**
 
 - Measure: pull requests merged since the previous major or minor release that
-  name the spec that they serve or the issue that they close, and answer the
-  definition of done below.
+  explain what they change and why, link any relevant issue or spec, and answer
+  the definition of done below.
 - Bar: all of them, apart from the dependency updates that Dependabot raises.
 - Check: review, which reads the answers before the pull request merges.
 
@@ -235,7 +235,7 @@ for "I would have done it differently".
 
 A pull request is done when its author can say yes to each of these.
 
-1. It names the spec it serves, or the issue that it closes.
+1. It explains what it changes and why, and links any relevant issue or spec.
 2. The tests and every check pass, and no check was skipped or suppressed.
 3. Everything it adds meets S1 and S2, and nothing it exports is without a
    caller.
