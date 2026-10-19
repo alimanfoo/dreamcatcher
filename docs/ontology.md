@@ -501,10 +501,10 @@ Agent work of either kind has one of these summary statuses:
   signal. A free agent slot, or the end of a cooldown, starts it.
 - **Idle**: nothing is due until something new appears in the work's channel.
   The detail says why: an assignment's pull request is ready for review, still a
-  draft, merged or closed after its wrap-up round, or failing its checks after
-  two attempts under the relay rule; a conversation's latest round answered,
-  needed no reply, or was stopped; or a conversation is paused, and the detail
-  is the cause.
+  draft and so needing feedback, merged or closed after its wrap-up round, or
+  failing its checks after two attempts under the relay rule; a conversation's
+  latest round answered, needed no reply, or was stopped; or a conversation is
+  paused, and the detail is the cause.
 
 The statuses are decided in an order. Working comes first, then ended, then
 fault, so the user can see a fault and retry whatever else is true. A failed

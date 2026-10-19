@@ -63,13 +63,14 @@ def describe_pull_request(*, finding: PullRequestFinding) -> str:
 def describe_idle_pull_request(*, finding: PullRequestFinding) -> str:
     """Say where a pull request that raised nothing new has got to.
 
-    A ready pull request names a check failure that the relay rule withheld and
-    is ready for review otherwise.
+    A draft needs the user's feedback, because the agent ended its round without
+    marking it ready. A ready pull request names a check failure that the relay
+    rule withheld and is ready for review otherwise.
     """
     if finding.state is not PullRequestState.OPEN:
         return finding.state.lower()
     if finding.is_draft:
-        return "draft"
+        return "needs feedback"
     if finding.is_check_failure_withheld:
         return "checks failing after two attempts"
     return "ready for review"

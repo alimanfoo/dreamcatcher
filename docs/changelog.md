@@ -26,6 +26,12 @@ each entry links the pull request or commit that made the change.
 
 ## Unreleased
 
+### Changed
+
+- An idle assignment whose pull request is still a draft now reads "needs
+  feedback" rather than "draft", because the agent is waiting on you.
+  ([#612](https://github.com/alimanfoo/dreamcatcher/pull/612))
+
 ## [v6.1.0](https://github.com/alimanfoo/dreamcatcher/releases/tag/v6.1.0) — 2026-10-18
 
 ### Changed
