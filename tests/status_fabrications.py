@@ -148,7 +148,7 @@ def fabricate_conversation(
     write_tick(
         state=state,
         tick=SchedulerRecord(
-            at=PINNED,
+            at=PINNED + timedelta(minutes=5),
             rows=[
                 conversation_row(
                     finding=(
@@ -307,7 +307,7 @@ def fabricate_everything(
         lines=[FeedLine(at=PINNED + timedelta(minutes=31), text="[Bash] pytest")],
     )
     write_feed(
-        directory=written(state=state, issue=20, records=[ended(minute=1)]),
+        directory=written(state=state, issue=20, records=[ended(minute=115)]),
         number=1,
         lines=[FeedLine(at=PINNED, text="[Bash] git push")],
     )

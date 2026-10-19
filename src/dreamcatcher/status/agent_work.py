@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
 from functools import cached_property
-from typing import Protocol, cast
+from typing import Protocol
 
 from dreamcatcher.agent_assignments import (
     read_assignment_pull_request_number,
@@ -218,9 +218,9 @@ class AgentWorkStatusReader:
         """Derive one piece of work's status from its records and the latest tick.
 
         The first that applies of working, ended, fault, unknown, idle for a
-        paused conversation, and waiting is the status. Otherwise the work is
-        idle, or unknown when the latest tick has no row for it or read nothing
-        for it.
+        paused conversation, idle while awaiting an update, and waiting is the
+        status. Otherwise the work is idle, or unknown when the latest tick has
+        no row for it or read nothing for it.
         """
         steps: tuple[_StatusStep, ...] = (
             self._derive_working,
@@ -228,6 +228,7 @@ class AgentWorkStatusReader:
             self._derive_fault,
             self._derive_unknown,
             self._derive_paused,
+            self._derive_awaiting_update,
             self._derive_waiting,
         )
         row = self.rows_by_work.get(work.identifier)
@@ -329,6 +330,27 @@ class AgentWorkStatusReader:
             latest_output=None,
         )
 
+    def _derive_awaiting_update(
+        self, *, work: AgentWork, row: RequestRow | None
+    ) -> AgentWorkStatus | None:
+        """Derive idle when the latest tick predates a round that took its turn."""
+        if not work.rounds or self.scheduler_record is None:
+            return None
+        latest = work.rounds[-1]
+        ending = latest.ending
+        if (
+            not isinstance(ending, SuccessfulAgentRoundEnding | StoppedAgentRoundEnding)
+            or ending.at <= self.scheduler_record.at
+        ):
+            return None
+        return AgentWorkStatus(
+            work=work,
+            row=row,
+            value=AgentWorkStatusValue.IDLE,
+            detail=f"round {latest.number} ended, awaiting next update",
+            latest_output=None,
+        )
+
     def _derive_waiting(
         self, *, work: AgentWork, row: RequestRow | None
     ) -> AgentWorkStatus | None:
@@ -336,9 +358,7 @@ class AgentWorkStatusReader:
 
         A round is due once the last round did not finish, before the first
         round has run, while an assignment's pull request is not yet open, and
-        when the latest tick found something new. A round that ended after the
-        tick that started it, or after a tick that read nothing for the work, is
-        one that no tick has looked at yet.
+        when the latest tick found something new.
         """
         if is_last_round_unfinished(
             rounds=work.rounds, is_daemon_running=self.is_daemon_running
@@ -355,13 +375,6 @@ class AgentWorkStatusReader:
             and read_assignment_pull_request_number(assignment=work) is None
         ):
             return _compose_waiting(work=work, row=row, detail="no pull request yet")
-        latest = work.rounds[-1]
-        if self._did_round_end_after_latest_tick(record=latest, row=row):
-            return _compose_waiting(
-                work=work,
-                row=row,
-                detail=f"round {latest.number} ended, awaiting next update",
-            )
         news = None if row is None else _describe_what_is_new(finding=row.finding)
         if news is None:
             return None
@@ -388,31 +401,6 @@ class AgentWorkStatusReader:
     def _is_round_working(self, *, record: AgentRoundRecord) -> bool:
         """Return whether the round is still running under a daemon."""
         return record.ending is None and self.is_daemon_running
-
-    def _did_round_end_after_latest_tick(
-        self, *, record: AgentRoundRecord, row: RequestRow | None
-    ) -> bool:
-        """Return whether the latest tick cannot have seen the round's ending.
-
-        The round is one that took its turn, and a tick records its start time,
-        so a later ending is conclusive only when that tick started the round
-        or read nothing for the work. With no tick recorded there is nothing to
-        be later than.
-        """
-        scheduler_record = self.scheduler_record
-        if scheduler_record is None:
-            return False
-        ending = cast(
-            "SuccessfulAgentRoundEnding | StoppedAgentRoundEnding", record.ending
-        )
-        return ending.at > scheduler_record.at and (
-            row is None
-            or row.finding is None
-            or (
-                row.started_round is not None
-                and row.started_round.number == record.number
-            )
-        )
 
 
 def _compose_unknown(

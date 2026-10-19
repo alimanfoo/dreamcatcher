@@ -103,7 +103,7 @@ def conversation_state(
     write_tick(
         state=state,
         tick=SchedulerRecord(
-            at=PINNED,
+            at=PINNED + timedelta(minutes=5),
             rows=[
                 conversation_row(
                     finding=(

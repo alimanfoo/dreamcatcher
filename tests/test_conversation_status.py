@@ -157,12 +157,13 @@ def observe(
     state: StateDirectory,
     finding: RequestFinding,
     started_round: StartedRound | None = None,
+    at=LOOKED_AT,
 ) -> None:
     """Write a tick that found this for the fixture's conversation."""
     write_tick(
         state=state,
         tick=SchedulerRecord(
-            at=PINNED,
+            at=at,
             rows=[
                 request_row(
                     issue=8,
@@ -488,19 +489,57 @@ def test_an_unfinished_round_comes_before_comments_to_answer(conversation_state)
     assert found.detail == "round 1 errored (exit 2)"
 
 
-def test_a_round_ending_after_the_latest_tick_waits_for_the_next_update(
-    conversation_state,
+@pytest.mark.parametrize("started_round", [StartedRound(number=1), None])
+def test_a_round_ending_after_the_latest_tick_is_idle_until_the_next_update(
+    conversation_state, started_round
 ):
     conversation_round(state=conversation_state)
     observe(
         state=conversation_state,
         finding=IssueCommentsFinding(new_comments=1),
-        started_round=StartedRound(number=1),
+        started_round=started_round,
+        at=PINNED,
     )
 
     found = status(state=conversation_state)
 
-    assert found.value is AgentWorkStatusValue.WAITING
+    assert found.value is AgentWorkStatusValue.IDLE
+    assert found.detail == "round 1 ended, awaiting next update"
+
+    observe(
+        state=conversation_state,
+        finding=IssueCommentsFinding(new_comments=0),
+    )
+
+    refreshed = status(state=conversation_state)
+
+    assert refreshed.value is AgentWorkStatusValue.IDLE
+    assert refreshed.detail == "round 1, answered, ran 4m"
+
+
+def test_a_stopped_round_ending_after_the_latest_tick_is_idle_until_the_next_update(
+    conversation_state,
+):
+    directory = find_conversation_directory(state=conversation_state, issue=8)
+    write_round(
+        directory=directory,
+        number=1,
+        record=AgentRoundRecord(
+            number=1,
+            started=PINNED,
+            pid=1,
+            ending=StoppedAgentRoundEnding(at=PINNED + timedelta(minutes=4)),
+        ),
+    )
+    observe(
+        state=conversation_state,
+        finding=IssueCommentsFinding(new_comments=1),
+        at=PINNED,
+    )
+
+    found = status(state=conversation_state)
+
+    assert found.value is AgentWorkStatusValue.IDLE
     assert found.detail == "round 1 ended, awaiting next update"
 
 
