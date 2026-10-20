@@ -156,24 +156,37 @@ class FeedRenderer:
         return f"[{note.label}] {detail}" if detail else f"[{note.label}]"
 
     def _shorten_note_detail(self, *, detail: str) -> str:
-        """Return the detail as one clipped line, without the worktree's path."""
-        one_line = " ".join(self._strip_worktree_path(detail=detail).split())
+        """Return the detail as one clipped line with worktree paths abbreviated."""
+        one_line = " ".join(self._abbreviate_worktree_paths(detail=detail).split())
         if len(one_line) > _FEED_LINE_WIDTH:
             return f"{one_line[:_FEED_LINE_WIDTH]} ..."
         return one_line
 
-    def _strip_worktree_path(self, *, detail: str) -> str:
-        """Return the detail with the path of the round's worktree off its front.
+    def _abbreviate_worktree_paths(self, *, detail: str) -> str:
+        """Return the detail with each worktree path marked as ``<worktree>``.
 
-        The separator has to be there, so a sibling directory whose name starts
-        the same way keeps its whole path. Either separator counts: a path
-        arrives written the way the harness that reported it writes them.
+        A match is the whole detail, a descendant at a directory separator, or
+        a complete quoted or unquoted command argument. A different path that
+        contains the same suffix and a sibling whose name starts the same way
+        both stay whole.
         """
-        for separator in ("/", "\\"):
-            start = f"{self.worktree}{separator}"
-            if detail.startswith(start):
-                return detail[len(start) :]
-        return detail
+        worktree = re.escape(str(self.worktree))
+        flags = 0
+        if self.worktree.drive:
+            worktree = worktree.replace(re.escape("\\"), r"[/\\]")
+            flags = re.IGNORECASE
+        path_or_descendant = rf"(?<![\w./\\-]){worktree}(?=$|[/\\])"
+        command_argument = (
+            rf"(?<!\S){worktree}(?=\s)"
+            rf"|(?<='){worktree}(?=')"
+            rf'|(?<="){worktree}(?=")'
+        )
+        return re.sub(
+            rf"{path_or_descendant}|{command_argument}",
+            "<worktree>",
+            detail,
+            flags=flags,
+        )
 
     def _render_timestamped_lines(
         self, *, contents: list[str], is_subagent: bool
