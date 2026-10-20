@@ -621,13 +621,11 @@ and its pushes and posts fail or succeed as GitHub allows.
 The agent's harness hits a usage limit, is overloaded, or crashes
 mid-round. The round errors, with the harness's words in the feed. If
 the harness cannot be started at all, the round errors with the reason,
-and no harness is left running. On Windows that includes a harness that
-cannot be put in the Job Object that ends it with its round, and such a
-harness never runs. The next update gives the work its input again. If
-that round errors too, the work is in fault, so a problem that two
-attempts did not clear does not burn more attempts. Nothing runs for it,
-not even the last turn after a merge, until the user fixes the cause and
-retries, from the work's page or with `dreamcatcher retry`. If two
+and no harness is left running. The next update gives the work its input
+again. If that round errors too, the work is in fault, so a problem that
+two attempts did not clear does not burn more attempts. Nothing runs for
+it, not even the last turn after a merge, until the user fixes the cause
+and retries, from the work's page or with `dreamcatcher retry`. If two
 pieces of work are in fault at once, a global cooldown begins and the
 daemon starts nothing for a while, because two faults suggest a shared
 cause such as an exhausted allowance. When the cooldown ends, the faults
