@@ -509,7 +509,7 @@ def test_an_unfinished_round_comes_before_comments_to_answer(conversation_state)
     [
         (
             ERRORED,
-            "round 1, errored, ran 4m",
+            "round 1, errored (exit 2), ran 4m",
         ),
         (
             ErroredAgentRoundEnding(

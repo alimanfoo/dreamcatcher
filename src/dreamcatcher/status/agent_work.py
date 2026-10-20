@@ -50,6 +50,7 @@ from dreamcatcher.status.rounds import (
     AgentRoundStatus,
     compose_round_duration_description,
     describe_round_ending,
+    describe_round_outcome,
     describe_round_trigger,
     describe_running_round,
     find_stoppable_round_paths,
@@ -498,7 +499,7 @@ def _describe_idle_conversation_round(*, work: AgentWork) -> str:
     interrupted round has no duration.
     """
     latest = work.rounds[-1]
-    ending = str(latest.outcome)
+    ending = describe_round_outcome(record=latest, outcome=latest.outcome)
     if latest.outcome is AgentRoundOutcome.SUCCESSFUL:
         final_output = read_text(
             path=work.compose_round_paths(number=latest.number).final_output

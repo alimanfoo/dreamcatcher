@@ -107,14 +107,14 @@ def compose_round_duration_description(*, record: AgentRoundRecord) -> str:
     return f"ran {describe_span(span=ending.at - record.started)}"
 
 
-def _describe_round_outcome(
+def describe_round_outcome(
     *, record: AgentRoundRecord, outcome: AgentRoundOutcome
 ) -> str:
     """Return the words for the round's outcome.
 
     A round that errored for a reason reads as errored alone, since its exit
     status, if it has one, says nothing and its reason is too long for a list of
-    rounds.
+    rounds or a status detail.
     """
     if isinstance(record.ending, ErroredAgentRoundEnding):
         if record.ending.reason is not None:
@@ -152,7 +152,7 @@ def list_round_statuses(*, work: AgentWork, is_working: bool) -> list[AgentRound
                 ),
                 duration_description=compose_round_duration_description(record=record),
                 outcome=outcome,
-                outcome_description=_describe_round_outcome(
+                outcome_description=describe_round_outcome(
                     record=record, outcome=outcome
                 ),
                 revision=revision,
