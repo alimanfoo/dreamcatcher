@@ -26,6 +26,12 @@ each entry links the pull request or commit that made the change.
 
 ## Unreleased
 
+### Changed
+
+- The web home page shows assignments and conversations in tabs rather than side
+  by side, giving the selected kind of agent work the full dashboard width.
+  ([#596](https://github.com/alimanfoo/dreamcatcher/pull/596))
+
 ## [v6.1.0](https://github.com/alimanfoo/dreamcatcher/releases/tag/v6.1.0) — 2026-10-18
 
 ### Changed
