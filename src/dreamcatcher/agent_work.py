@@ -25,6 +25,7 @@ from dreamcatcher.agent_rounds import (
 from dreamcatcher.config import AgentHarness, DispatchRoute, QuotableText
 from dreamcatcher.documents import (
     DreamcatcherDocument,
+    WriteOnceDreamcatcherDocument,
     read_json,
     read_json_if_exists,
     write_json,
@@ -57,7 +58,7 @@ _ENDING_RECORD_NAME = "ended.json"
 _AGENT_ROUNDS_DIRECTORY_NAME = "rounds"
 
 
-class AgentWorkRecord(DreamcatcherDocument):
+class AgentWorkRecord(WriteOnceDreamcatcherDocument):
     """Model the request that created a piece of agent work, and its settings.
 
     Creation writes the record once, and nothing writes it again. Every round
@@ -83,7 +84,7 @@ class AgentWorkEndReason(StrEnum):
     ISSUE_CLOSED = "issue closed"
 
 
-class AgentWorkEnding(DreamcatcherDocument):
+class AgentWorkEnding(WriteOnceDreamcatcherDocument):
     """Model when and why a piece of agent work ended."""
 
     at: AwareDatetime
@@ -338,7 +339,7 @@ class _UserRequestRecord(DreamcatcherDocument):
     at: AwareDatetime
 
 
-class _HarnessSessionRecord(DreamcatcherDocument):
+class _HarnessSessionRecord(WriteOnceDreamcatcherDocument):
     """Model the harness session that every round of agent work continues."""
 
     identifier: HarnessSessionIdentifier
