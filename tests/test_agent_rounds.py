@@ -1087,6 +1087,48 @@ def test_a_round_whose_process_cannot_be_recorded_does_not_run_on(
     assert written(path=paths.record).pid is None
 
 
+def test_a_round_whose_process_cannot_be_recorded_ends_without_an_exit_status(
+    fake, worktree, directory, monkeypatch
+):
+    fake(program="harness").streams(lines=[Line(text="working\n")], delay=5)
+    paths = compose_round_paths(worktree=worktree, directory=directory)
+    refused = []
+    write_json = agent_rounds.write_json
+
+    def refuse_the_first_record_with_a_process(*, document, path):
+        if (
+            isinstance(document, AgentRoundRecord)
+            and document.pid is not None
+            and not refused
+        ):
+            refused.append(document.pid)
+            raise ReportableError(f"cannot write {path}")
+        write_json(document=document, path=path)
+
+    monkeypatch.setattr(
+        "dreamcatcher.agent_rounds.write_json", refuse_the_first_record_with_a_process
+    )
+
+    with pytest.raises(AgentRoundLaunchError, match=r"cannot write .*round\.json"):
+        AgentRound(
+            agent_work_identifier="GH9-20260819-184158",
+            harness=round_harness(
+                invocation=HarnessInvocation(
+                    program="harness", arguments=[], prompt=PROMPT
+                )
+            ),
+            paths=paths,
+            prepare_round=relay_nothing,
+            clock=pinned,
+        )
+
+    ending = written(path=paths.record).ending
+    assert refused
+    assert isinstance(ending, LaunchErroredAgentRoundEnding)
+    assert ending.reason.startswith("cannot write ")
+    assert ending.status is None
+
+
 def test_a_round_that_cannot_record_its_start_prepares_and_spawns_nothing(
     fake, worktree, directory
 ):
