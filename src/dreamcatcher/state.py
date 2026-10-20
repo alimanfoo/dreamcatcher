@@ -77,4 +77,8 @@ class StateDirectory:
         Bootstrap writes the .gitignore on every daemon run, so one that was deleted
         comes back.
         """
-        write_text(text="*\n", path=self.path.parent / ".gitignore")
+        write_text(
+            text="*\n",
+            path=self.path.parent / ".gitignore",
+            is_replaceable=False,
+        )
