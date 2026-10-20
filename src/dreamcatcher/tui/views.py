@@ -11,7 +11,7 @@ from rich.padding import Padding
 from rich.text import Text
 
 from dreamcatcher.agent_assignments import compose_assignment_branch
-from dreamcatcher.agent_work import AgentWork
+from dreamcatcher.agent_work import AgentWork, AgentWorkReference, select_agent_work
 from dreamcatcher.clock import WaitForSeconds, read_current_time
 from dreamcatcher.documents import read_lines_from
 from dreamcatcher.errors import ReportableError
@@ -27,8 +27,8 @@ from dreamcatcher.state import StateDirectory
 from dreamcatcher.status import (
     AgentRoundStatus,
     AgentWorkStatus,
-    read_assignment_statuses_for_issue,
-    read_conversation_status,
+    read_agent_work_status,
+    read_agent_work_statuses_at_issue,
     read_dreamcatcher_daemon_status,
 )
 from dreamcatcher.tui.shared import (
@@ -45,91 +45,99 @@ from dreamcatcher.tui.shared import (
 from dreamcatcher.words import describe_count, describe_time
 
 
-def show_assignment_view(
+def show_agent_work_view(
     *,
     state: StateDirectory,
-    issue: int,
+    reference: AgentWorkReference,
+    kind: AgentWorkKind,
     console: Console,
     clock: Callable[[], datetime] = read_current_time,
     wait: WaitForSeconds = sleep,
     zone: tzinfo | None = None,
 ) -> None:
-    """Show the issue's newest assignment until it ends.
+    """Show the agent work of this kind that the reference names, until it ends.
 
-    The view remains open between rounds. A non-terminal or dumb terminal
-    renders one snapshot and returns.
-    Times use the given zone, or the machine's local zone when it is None.
+    The view selects its work once and stays on it, even when newer work of the
+    kind arrives at the issue. It remains open between rounds. A non-terminal or
+    dumb terminal renders one snapshot and returns. Times use the given zone, or
+    the machine's local zone when it is None.
     """
+    identifier = select_agent_work(
+        state=state, reference=reference, kind=kind
+    ).identifier
     refresh_live_view(
         console=console,
-        read_snapshot=lambda: _read_assignment_snapshot(
-            state=state, issue=issue, clock=clock, zone=zone
+        read_snapshot=lambda: _read_agent_work_snapshot(
+            state=state, identifier=identifier, kind=kind, clock=clock, zone=zone
         ),
         wait=wait,
     )
 
 
-def show_conversation_view(
+def _read_agent_work_snapshot(
     *,
     state: StateDirectory,
-    issue: int,
-    console: Console,
-    clock: Callable[[], datetime] = read_current_time,
-    wait: WaitForSeconds = sleep,
-    zone: tzinfo | None = None,
-) -> None:
-    """Show one issue conversation until it ends.
-
-    A non-terminal or dumb terminal renders one snapshot and returns.
-    """
-    refresh_live_view(
-        console=console,
-        read_snapshot=lambda: _read_conversation_snapshot(
-            state=state, issue=issue, clock=clock, zone=zone
-        ),
-        wait=wait,
-    )
-
-
-def _read_conversation_snapshot(
-    *,
-    state: StateDirectory,
-    issue: int,
+    identifier: str,
+    kind: AgentWorkKind,
     clock: Callable[[], datetime],
     zone: tzinfo | None,
 ) -> ViewSnapshot:
-    """Return one conversation snapshot and whether to stop refreshing it."""
-    status = _find_conversation_status_for_issue(state=state, issue=issue, clock=clock)
+    """Return the work's view and whether to stop refreshing it.
+
+    Each refresh reads the statuses at the issue once and derives both the
+    rendered view and whether the work has ended from that read.
+    """
+    statuses = read_agent_work_statuses_at_issue(
+        state=state,
+        work=select_agent_work(state=state, reference=identifier, kind=kind),
+        daemon=read_dreamcatcher_daemon_status(state=state),
+        clock=clock,
+    )
     return ViewSnapshot(
-        renderable=_render_conversation(state=state, status=status, zone=zone),
-        should_stop_refreshing=not status.is_active,
+        renderable=_render_agent_work(state=state, statuses=statuses, zone=zone),
+        should_stop_refreshing=statuses[0].has_ended,
     )
 
 
-def _render_conversation(
+def _render_agent_work(
     *,
     state: StateDirectory,
-    status: AgentWorkStatus,
+    statuses: list[AgentWorkStatus],
     zone: tzinfo | None,
 ) -> RenderableType:
-    """Render one issue conversation and its saved rounds."""
+    """Render the work, with the other work of its kind at its issue beneath it."""
+    status = statuses[0]
+    work = status.work
     status_value = str(status.value)
     rendered_status = Text(f"{status_value}  {status.detail}")
     rendered_status.stylize(
         AGENT_WORK_STATUS_STYLES[status.value], 0, len(status_value)
     )
+    latest_output = render_latest_output(latest_output=status.latest_output)
+    if latest_output is not None:
+        latest_output = Padding(
+            latest_output,
+            (0, 0, 0, SECTION_PADDING[3]),
+            expand=False,
+        )
+    kind = work.record.kind
     return combine_renderable_parts(
         parts=[
-            Text(f"newest issue conversation {status.work.identifier}"),
+            Text(f"{kind} {work.identifier}"),
             rendered_status,
-            render_latest_output(latest_output=status.latest_output),
-            _render_conversation_summary(state=state, status=status),
+            latest_output,
+            (
+                _render_assignment_summary(state=state, status=status)
+                if kind is AgentWorkKind.ASSIGNMENT
+                else _render_conversation_summary(state=state, status=status)
+            ),
             _render_round_statuses(round_statuses=status.round_statuses, zone=zone),
             _render_harness_resume(
                 state=state,
-                worktree=status.work.worktree,
+                worktree=work.worktree,
                 hand_resume_command=status.hand_resume_command,
             ),
+            _render_other_work(kind=kind, other_statuses=statuses[1:]),
         ]
     )
 
@@ -157,70 +165,6 @@ def _render_conversation_summary(
     ):
         table.add_row(Text(name), Text(str(value)))
     return render_section(heading="conversation", body=table)
-
-
-def _read_assignment_snapshot(
-    *,
-    state: StateDirectory,
-    issue: int,
-    clock: Callable[[], datetime],
-    zone: tzinfo | None,
-) -> ViewSnapshot:
-    """Return the newest assignment and whether to stop refreshing its view.
-
-    Each refresh reads the issue's statuses once and derives both the rendered
-    view and whether the assignment is terminal from that snapshot.
-    """
-    assignment_statuses = _find_assignment_statuses_for_issue(
-        state=state,
-        issue=issue,
-        clock=clock,
-    )
-    return ViewSnapshot(
-        renderable=_render_assignment(
-            state=state, assignment_statuses=assignment_statuses, zone=zone
-        ),
-        should_stop_refreshing=assignment_statuses[0].has_ended,
-    )
-
-
-def _render_assignment(
-    *,
-    state: StateDirectory,
-    assignment_statuses: list[AgentWorkStatus],
-    zone: tzinfo | None,
-) -> RenderableType:
-    """Render the newest assignment with older assignments beneath it."""
-    current_status = assignment_statuses[0]
-    status_value = str(current_status.value)
-    rendered_status = Text(f"{status_value}  {current_status.detail}")
-    rendered_status.stylize(
-        AGENT_WORK_STATUS_STYLES[current_status.value], 0, len(status_value)
-    )
-    latest_output = render_latest_output(latest_output=current_status.latest_output)
-    if latest_output is not None:
-        latest_output = Padding(
-            latest_output,
-            (0, 0, 0, SECTION_PADDING[3]),
-            expand=False,
-        )
-    return combine_renderable_parts(
-        parts=[
-            Text(f"newest agent assignment {current_status.work.identifier}"),
-            rendered_status,
-            latest_output,
-            _render_assignment_summary(state=state, status=current_status),
-            _render_round_statuses(
-                round_statuses=current_status.round_statuses, zone=zone
-            ),
-            _render_harness_resume(
-                state=state,
-                worktree=current_status.work.worktree,
-                hand_resume_command=current_status.hand_resume_command,
-            ),
-            _render_older_assignments(older_statuses=assignment_statuses[1:]),
-        ]
-    )
 
 
 def _render_assignment_summary(
@@ -306,38 +250,46 @@ def _render_harness_resume(
     )
 
 
-def _render_older_assignments(
-    *, older_statuses: list[AgentWorkStatus]
+def _render_other_work(
+    *, kind: AgentWorkKind, other_statuses: list[AgentWorkStatus]
 ) -> RenderableType | None:
-    """Return the assignments at this issue that came before, newest first."""
-    if not older_statuses:
+    """Return the other work of the kind at the issue, by the names that select it."""
+    if not other_statuses:
         return None
-    table = create_table(columns=3)
-    for status in older_statuses:
+    table = create_table(columns=4)
+    for status in other_statuses:
         table.add_row(
-            Text(f"agent assignment {status.work.identifier}"),
+            Text(status.work.identifier),
+            Text(status.work.record.dispatch_label),
             Text(str(status.value), style=AGENT_WORK_STATUS_STYLES[status.value]),
             Text(status.detail),
         )
-    return render_section(heading="older assignments", body=table)
+    return render_section(heading=f"other {kind}s", body=table)
 
 
 def show_feed_view(
     *,
     state: StateDirectory,
-    issue: int,
-    work_kind: AgentWorkKind,
+    reference: AgentWorkReference,
+    kind: AgentWorkKind,
     console: Console,
     round_number: int | None = None,
     wait: WaitForSeconds = sleep,
     zone: tzinfo | None = None,
 ) -> None:
-    """Show and follow the explicitly selected agent work's feed."""
+    """Show and follow the feed of the agent work of this kind that the reference names.
+
+    The view selects its work once and stays on it, even when newer work of the
+    kind arrives at the issue.
+    """
+    identifier = select_agent_work(
+        state=state, reference=reference, kind=kind
+    ).identifier
     if round_number is not None:
         _show_one_round(
             state=state,
-            issue=issue,
-            work_kind=work_kind,
+            identifier=identifier,
+            kind=kind,
             number=round_number,
             console=console,
             wait=wait,
@@ -348,9 +300,9 @@ def show_feed_view(
 
     def refresh_feed() -> bool:
         """Show new output and return whether refreshing should stop."""
-        snapshot = _find_feed_work(state=state, issue=issue, work_kind=work_kind)
-        view.show_new_output(work=snapshot.work, round_statuses=snapshot.round_statuses)
-        return snapshot.should_stop_refreshing
+        status = _read_feed_status(state=state, identifier=identifier, kind=kind)
+        view.show_new_output(work=status.work, round_statuses=status.round_statuses)
+        return status.has_ended
 
     refresh_until_view_ends(console=console, refresh_view=refresh_feed, wait=wait)
 
@@ -358,24 +310,24 @@ def show_feed_view(
 def _show_one_round(
     *,
     state: StateDirectory,
-    issue: int,
-    work_kind: AgentWorkKind,
+    identifier: str,
+    kind: AgentWorkKind,
     number: int,
     console: Console,
     wait: WaitForSeconds,
     zone: tzinfo | None,
 ) -> None:
-    """Show one round of the selected agent work until the round ends."""
+    """Show one round of the agent work until the round ends."""
     view = _FeedView(console=console, zone=zone)
 
     def refresh_round_feed() -> bool:
         """Show output since the previous refresh and return whether it has ended."""
-        snapshot = _find_feed_work(state=state, issue=issue, work_kind=work_kind)
-        work = snapshot.work
+        status = _read_feed_status(state=state, identifier=identifier, kind=kind)
+        work = status.work
         round_status = next(
             (
                 round_status
-                for round_status in snapshot.round_statuses
+                for round_status in status.round_statuses
                 if round_status.record.number == number
             ),
             None,
@@ -392,67 +344,14 @@ def _show_one_round(
     refresh_until_view_ends(console=console, refresh_view=refresh_round_feed, wait=wait)
 
 
-def _find_assignment_statuses_for_issue(
-    *,
-    state: StateDirectory,
-    issue: int,
-    clock: Callable[[], datetime] = read_current_time,
-) -> list[AgentWorkStatus]:
-    """Return the issue's agent-assignment statuses, or refuse if none."""
-    assignment_statuses = read_assignment_statuses_for_issue(
-        state=state,
-        issue=issue,
-        daemon=read_dreamcatcher_daemon_status(state=state),
-        clock=clock,
-    )
-    if not assignment_statuses:
-        raise ReportableError(f"No assignment here for GH{issue}.")
-    return assignment_statuses
-
-
-def _find_conversation_status_for_issue(
-    *,
-    state: StateDirectory,
-    issue: int,
-    clock: Callable[[], datetime] = read_current_time,
+def _read_feed_status(
+    *, state: StateDirectory, identifier: str, kind: AgentWorkKind
 ) -> AgentWorkStatus:
-    """Return the status of the newest conversation at the issue, or refuse if none."""
-    status = read_conversation_status(
+    """Return the status of the work that the identifier names, as it reads now."""
+    return read_agent_work_status(
         state=state,
-        issue=issue,
+        work=select_agent_work(state=state, reference=identifier, kind=kind),
         daemon=read_dreamcatcher_daemon_status(state=state),
-        clock=clock,
-    )
-    if status is None:
-        raise ReportableError(f"No conversation here for GH{issue}.")
-    return status
-
-
-@dataclass(frozen=True, kw_only=True)
-class _FeedWorkSnapshot:
-    """Hold one piece of agent work and what status says of its rounds."""
-
-    work: AgentWork
-    should_stop_refreshing: bool
-    round_statuses: list[AgentRoundStatus]
-
-
-def _find_feed_work(
-    *, state: StateDirectory, issue: int, work_kind: AgentWorkKind
-) -> _FeedWorkSnapshot:
-    """Return the selected feed work and whether to stop refreshing its feed."""
-    if work_kind is AgentWorkKind.CONVERSATION:
-        status = _find_conversation_status_for_issue(state=state, issue=issue)
-        return _FeedWorkSnapshot(
-            work=status.work,
-            should_stop_refreshing=not status.is_active,
-            round_statuses=status.round_statuses,
-        )
-    status = _find_assignment_statuses_for_issue(state=state, issue=issue)[0]
-    return _FeedWorkSnapshot(
-        work=status.work,
-        should_stop_refreshing=status.has_ended,
-        round_statuses=status.round_statuses,
     )
 
 

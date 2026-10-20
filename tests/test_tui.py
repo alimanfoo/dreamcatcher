@@ -52,7 +52,7 @@ from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import FeedLine
 from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.state import StateDirectory
-from dreamcatcher.tui import show_assignment_view, show_feed_view, show_status_view
+from dreamcatcher.tui import show_agent_work_view, show_feed_view, show_status_view
 from dreamcatcher.tui.shared import _VIEW_REFRESH_INTERVAL
 from dreamcatcher.tui.views import _render_feed_line, _render_written_feed_line
 
@@ -364,9 +364,10 @@ def test_status_on_a_dumb_terminal_is_drawn_once_and_returns(tmp_path):
 def viewed(*, state, issue: int, width: int = WIDTH) -> str:
     """Return the assignment view that issue renders as, on a pinned console."""
     written_to = StringIO()
-    show_assignment_view(
+    show_agent_work_view(
         state=state,
-        issue=issue,
+        reference=issue,
+        kind=AgentWorkKind.ASSIGNMENT,
         console=pinned(written_to=written_to, width=width),
         clock=lambda: LOOKED_AT,
         wait=refusing,
@@ -429,9 +430,10 @@ def test_assignment_status_alone_is_coloured_and_latest_output_is_dim(tmp_path):
         record=True,
     )
 
-    show_assignment_view(
+    show_agent_work_view(
         state=state,
-        issue=13,
+        reference=13,
+        kind=AgentWorkKind.ASSIGNMENT,
         console=console,
         clock=lambda: LOOKED_AT,
         wait=refusing,
@@ -475,9 +477,10 @@ def test_an_assignment_view_shows_the_round_that_starts_while_it_is_open(tmp_pat
             round_input=ONE_POST_INPUT,
         )
 
-    show_assignment_view(
+    show_agent_work_view(
         state=state,
-        issue=20,
+        reference=20,
+        kind=AgentWorkKind.ASSIGNMENT,
         console=pinned(written_to=written_to, is_terminal=True),
         clock=lambda: LOOKED_AT,
         wait=wait,
@@ -496,9 +499,10 @@ def test_an_assignment_view_of_an_ended_assignment_never_waits(tmp_path):
     fabricate_everything(state=state)
     written_to = StringIO()
 
-    show_assignment_view(
+    show_agent_work_view(
         state=state,
-        issue=12,
+        reference=12,
+        kind=AgentWorkKind.ASSIGNMENT,
         console=pinned(written_to=written_to, is_terminal=True),
         clock=lambda: LOOKED_AT,
         wait=refusing,
@@ -518,9 +522,10 @@ def test_an_assignment_view_in_fault_keeps_watching(tmp_path):
         waits.append(seconds)
         raise KeyboardInterrupt
 
-    show_assignment_view(
+    show_agent_work_view(
         state=state,
-        issue=9,
+        reference=9,
+        kind=AgentWorkKind.ASSIGNMENT,
         console=pinned(written_to=written_to, is_terminal=True),
         clock=lambda: LOOKED_AT,
         wait=interrupting,
@@ -538,9 +543,10 @@ def test_an_assignment_view_of_an_ended_assignment_keeps_its_last_picture(
     fabricate_everything(state=state)
     written_to = StringIO()
 
-    show_assignment_view(
+    show_agent_work_view(
         state=state,
-        issue=12,
+        reference=12,
+        kind=AgentWorkKind.ASSIGNMENT,
         console=pinned(written_to=written_to, is_terminal=True),
         clock=lambda: LOOKED_AT,
         wait=refusing,
@@ -559,8 +565,8 @@ def followed(*, state, issue: int, wait=refusing) -> str:
     written_to = StringIO()
     show_feed_view(
         state=state,
-        issue=issue,
-        work_kind=AgentWorkKind.ASSIGNMENT,
+        reference=issue,
+        kind=AgentWorkKind.ASSIGNMENT,
         console=pinned(written_to=written_to, is_terminal=True),
         wait=wait,
         zone=DISPLAY_TIME_ZONE,
@@ -577,8 +583,8 @@ def test_a_feed_nobody_is_watching_shows_what_is_there_and_returns(tmp_path):
     # that followed for as long as this assignment runs could be none of those.
     show_feed_view(
         state=state,
-        issue=13,
-        work_kind=AgentWorkKind.ASSIGNMENT,
+        reference=13,
+        kind=AgentWorkKind.ASSIGNMENT,
         console=pinned(written_to=written_to),
         wait=refusing,
         zone=DISPLAY_TIME_ZONE,
@@ -843,8 +849,8 @@ def viewed_round(
     written_to = StringIO()
     show_feed_view(
         state=state,
-        issue=issue,
-        work_kind=AgentWorkKind.ASSIGNMENT,
+        reference=issue,
+        kind=AgentWorkKind.ASSIGNMENT,
         console=pinned(written_to=written_to, is_terminal=is_terminal),
         round_number=number,
         wait=wait,

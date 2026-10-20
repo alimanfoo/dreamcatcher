@@ -74,7 +74,10 @@ given every comment you have posted on the issue.
 Taking one conversation label off and putting another on pauses the
 first conversation and starts a new one under the new label, with a
 session of its own. The new conversation is given every comment you have
-posted on the issue.
+posted on the issue. Each conversation keeps its own agent work
+identifier. `dreamcatcher conversation GH123` shows the newest one and
+lists the others, and giving another's identifier in place of `GH123`
+shows that one.
 
 To stop just the round that is running, follow
 [Stop and recover work](stop-and-recover.md).
