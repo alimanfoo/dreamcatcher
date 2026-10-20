@@ -525,9 +525,14 @@ The on-disk layout follows ownership:
 
 `documents.py` remains the only way _dreamcatcher_ reads and writes documents it
 owns. Every structured document has a strict model and every replacement write
-is atomic. Each write stages in a file that no other write shares, so writes
-that race each other each land whole. A one-value process file may remain simple
-text where a model would add no meaning.
+is atomic. A read of a replaceable document and the replacement step of its
+write hold a persistent `<document>.lock` sidecar, so readers close the document
+before a writer replaces it across threads and processes. A writer stages and
+closes a file that no other write shares before it takes the lock, so writes
+that race each other each land whole. Static TOML and append-only streams need
+no document lock. These short document locks are distinct from the daemon lock
+held for a daemon run. A one-value process file may remain simple text where a
+model would add no meaning.
 
 State-directory objects provide paths and document access. They do not answer
 domain questions such as whether an assignment has ended or a request may start.
