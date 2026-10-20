@@ -27,6 +27,13 @@ the change.
 
 ## Unreleased
 
+### Changed
+
+- A failed GitHub read now names its gh command without the options,
+  such as `gh issue list`, followed by what gh said, so a scheduler
+  failure or a request's reason no longer carries the whole command
+  line. ([#623](https://github.com/alimanfoo/dreamcatcher/pull/623))
+
 ## [v6.2.0](https://github.com/alimanfoo/dreamcatcher/releases/tag/v6.2.0) — 2026-10-20
 
 ### Added

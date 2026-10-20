@@ -5,7 +5,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
-from itertools import chain
+from itertools import chain, takewhile
 from pathlib import Path
 from typing import Annotated, Any, Literal
 
@@ -776,17 +776,21 @@ def _read_github_response[ReadT](
 
     A read fails in two ways: gh itself fails, or it answers something the
     response adapter cannot hold. Both answer UnknownGitHubResponse, so neither
-    reaches a caller as data.
+    reaches a caller as data. Its reason names the gh command by the words
+    before its first option, which say what it read, and leaves the options out.
     """
+    command = " ".join(
+        ["gh", *takewhile(lambda argument: not argument.startswith("-"), arguments)]
+    )
     try:
         raw_response = run_command(
             program="gh", arguments=arguments, cwd=cwd, stdin=stdin
         )
     except CommandError as error:
-        return UnknownGitHubResponse(reason=str(error))
+        return UnknownGitHubResponse(reason=f"{command} failed: {error.reason}")
     try:
         return response_adapter.validate_json(raw_response)
     except ValidationError as error:
         return UnknownGitHubResponse(
-            reason=f"gh answered what dreamcatcher cannot read: {error}"
+            reason=f"{command} answered what dreamcatcher cannot read: {error}"
         )

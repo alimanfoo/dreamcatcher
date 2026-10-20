@@ -55,7 +55,17 @@ _UNQUOTABLE_CHARACTERS = {
 
 
 class CommandError(ReportableError):
-    """Report a failure preparing or running an external command."""
+    """Report a failure preparing or running an external command.
+
+    The reason says what went wrong without the command line, for a caller that
+    names the command its own way: what a failed command wrote to stderr, or its
+    status when it wrote nothing. Any other failure's reason is its message.
+    """
+
+    def __init__(self, *, message: str, reason: str | None = None) -> None:
+        """Hold the message and the reason."""
+        super().__init__(message)
+        self.reason = message if reason is None else reason
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -131,7 +141,7 @@ def locate_program(*, program: str) -> str:
     # leaving the name to subprocess, is what lets a test stand in for it.
     executable = which(program)
     if executable is None:
-        raise CommandError(f"{program} is not on the PATH.")
+        raise CommandError(message=f"{program} is not on the PATH.")
     return executable
 
 
@@ -156,11 +166,12 @@ def run_command(
     )
     if completed_process.returncode != 0:
         command = " ".join([program, *arguments])
+        status = completed_process.returncode
         stderr = completed_process.stderr.strip()
         failure_suffix = f": {stderr}" if stderr else "."
         raise CommandError(
-            f"{command} failed with status {completed_process.returncode}"
-            f"{failure_suffix}"
+            message=f"{command} failed with status {status}{failure_suffix}",
+            reason=stderr or f"status {status}",
         )
     return completed_process.stdout
 
@@ -205,7 +216,9 @@ def spawn_command(
                 creationflags=CHILD_CREATION_FLAGS,
             )
         except OSError as error:
-            raise CommandError(f"cannot start {program} in {cwd}: {error}.") from error
+            raise CommandError(
+                message=f"cannot start {program} in {cwd}: {error}."
+            ) from error
     teardown.contain_process_tree(pid=process.pid)
     # This asked for both pipes above, so both are there. subprocess types them
     # for every caller, including the ones that asked for neither.
@@ -225,7 +238,7 @@ def _open_for_reading(*, path: Path) -> IO[bytes]:
     try:
         return path.open("rb")
     except OSError as error:
-        raise CommandError(f"cannot read {path}: {error}.") from error
+        raise CommandError(message=f"cannot read {path}: {error}.") from error
 
 
 def _build_subprocess_command(
