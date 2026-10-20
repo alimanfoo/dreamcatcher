@@ -8,6 +8,7 @@ and each write replaces that file whole without merging into what was there. So
 writers in different processes or threads never erase each other's facts.
 """
 
+import re
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -56,6 +57,20 @@ _ENDING_RECORD_NAME = "ended.json"
 
 # The directory in a work directory holding a directory per round.
 _AGENT_ROUNDS_DIRECTORY_NAME = "rounds"
+
+# The time in an agent work identifier, as its composer writes it.
+_AGENT_WORK_IDENTIFIER_TIME_FORMAT = "%Y%m%d-%H%M%S"
+
+# An agent work identifier as a person may type it: the issue, the time and the
+# kind, in any case.
+_AGENT_WORK_IDENTIFIER_PATTERN = re.compile(
+    rf"gh(\d+)-(\d{{8}}-\d{{6}})-({'|'.join(AgentWorkKind)})\Z", re.IGNORECASE
+)
+
+# How a command names the agent work it acts on. An issue number names the
+# newest work of the command's kind at that issue, and an agent work identifier
+# names that exact work.
+type AgentWorkReference = int | str
 
 
 class AgentWorkRecord(WriteOnceDreamcatcherDocument):
@@ -180,7 +195,26 @@ def _compose_agent_work_identifier(
     *, issue: int, kind: AgentWorkKind, at: datetime
 ) -> str:
     """Return the identifier of the work of this kind created at the issue at `at`."""
-    return f"GH{issue}-{at:%Y%m%d-%H%M%S}-{kind}"
+    return f"GH{issue}-{at:{_AGENT_WORK_IDENTIFIER_TIME_FORMAT}}-{kind}"
+
+
+def parse_agent_work_identifier(*, text: str) -> str | None:
+    """Return the agent work identifier that the text spells, as its work spells it.
+
+    Text in any case reads as the identifier that names the work's directory.
+    Text that no work could be named by, such as one with a month 13, is None.
+    """
+    identifier_match = _AGENT_WORK_IDENTIFIER_PATTERN.match(text)
+    if identifier_match is None:
+        return None
+    issue, time, kind = identifier_match.groups()
+    try:
+        at = datetime.strptime(time, _AGENT_WORK_IDENTIFIER_TIME_FORMAT)
+    except ValueError:
+        return None
+    return _compose_agent_work_identifier(
+        issue=int(issue), kind=AgentWorkKind(kind.lower()), at=at
+    )
 
 
 def create_agent_work(
@@ -276,6 +310,27 @@ def find_agent_work(*, state: StateDirectory, identifier: str) -> AgentWork | No
         directory=directory,
         record=read_json(model=AgentWorkRecord, path=directory / _WORK_RECORD_NAME),
     )
+
+
+def select_agent_work(
+    *, state: StateDirectory, reference: AgentWorkReference, kind: AgentWorkKind
+) -> AgentWork:
+    """Return the agent work of this kind that the reference names.
+
+    Work of another kind never matches, so an identifier names work of this kind
+    or none. A reference that names no work raises ReportableError.
+    """
+    if isinstance(reference, int):
+        work = find_newest_agent_work(state=state, issue=reference, kind=kind)
+        missing = f"No {kind} here for GH{reference}."
+    else:
+        work = find_agent_work(state=state, identifier=reference)
+        if work is not None and work.record.kind is not kind:
+            work = None
+        missing = f"No {kind} here is named {reference}."
+    if work is None:
+        raise ReportableError(missing)
+    return work
 
 
 def _is_agent_work_recorded(*, state: StateDirectory, identifier: str) -> bool:

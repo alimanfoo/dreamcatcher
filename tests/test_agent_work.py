@@ -14,10 +14,12 @@ from dreamcatcher.agent_work import (
     _compose_agent_work_identifier,
     find_agent_work,
     find_newest_agent_work,
+    parse_agent_work_identifier,
     read_agent_work,
     read_agent_work_at_issue,
     record_harness_session_identifier,
     request_agent_work_retry,
+    select_agent_work,
 )
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.harness_adapters import AgentWorkKind
@@ -197,3 +199,81 @@ def test_an_identifier_that_reaches_outside_the_work_directory_names_no_work(
     )
 
     assert find_agent_work(state=state, identifier="..") is None
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "GH12-20260819-184158-assignment",
+        "gh12-20260819-184158-ASSIGNMENT",
+        "GH012-20260819-184158-assignment",
+    ],
+)
+def test_an_identifier_reads_as_its_work_spells_it(text):
+    assert parse_agent_work_identifier(text=text) == IDENTIFIER
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "GH12",
+        "GH12-20260819-184158-review",
+        "GH12-20261319-184158-assignment",
+        "GH12-20260819-184158-assignment-extra",
+    ],
+)
+def test_text_that_could_name_no_work_is_no_identifier(text):
+    assert parse_agent_work_identifier(text=text) is None
+
+
+def test_an_issue_selects_its_newest_work_of_the_kind(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    write_assignment(
+        state=state, identifier="GH12-20260818-090000-assignment", issue=12
+    )
+    write_assignment(state=state, identifier=IDENTIFIER, issue=12)
+    write_conversation(state=state, issue=12)
+
+    selected = select_agent_work(
+        state=state, reference=12, kind=AgentWorkKind.ASSIGNMENT
+    )
+
+    assert selected.identifier == IDENTIFIER
+
+
+def test_an_identifier_selects_that_exact_work(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    older = "GH12-20260818-090000-assignment"
+    write_assignment(state=state, identifier=older, issue=12)
+    write_assignment(state=state, identifier=IDENTIFIER, issue=12)
+
+    selected = select_agent_work(
+        state=state, reference=older, kind=AgentWorkKind.ASSIGNMENT
+    )
+
+    assert selected.identifier == older
+
+
+def test_an_issue_without_work_of_the_kind_selects_none(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    write_assignment(state=state, identifier=IDENTIFIER, issue=12)
+
+    with pytest.raises(ReportableError, match=r"No conversation here for GH12\."):
+        select_agent_work(state=state, reference=12, kind=AgentWorkKind.CONVERSATION)
+
+
+@pytest.mark.parametrize(
+    "identifier", [IDENTIFIER, "GH12-20260801-090000-conversation"]
+)
+def test_an_identifier_names_no_work_of_another_kind_or_none_at_all(
+    identifier, tmp_path
+):
+    state = StateDirectory(root=tmp_path)
+    write_assignment(state=state, identifier=IDENTIFIER, issue=12)
+
+    with pytest.raises(
+        ReportableError, match=f"No conversation here is named {identifier}"
+    ):
+        select_agent_work(
+            state=state, reference=identifier, kind=AgentWorkKind.CONVERSATION
+        )
