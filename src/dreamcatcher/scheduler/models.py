@@ -117,7 +117,10 @@ type RequestFinding = Annotated[
 
 
 class StartedRound(DreamcatcherDocument):
-    """Name the round that a tick started, and why it errored before its harness ran."""
+    """Name the round that a tick started.
+
+    A launch failure says why the round errored during its preparation or startup.
+    """
 
     number: PositiveInt
     launch_failure: str | None = None

@@ -38,7 +38,10 @@ from dreamcatcher.agent_assignments import (
 from dreamcatcher.agent_rounds import (
     AgentRoundRecord,
     ErroredAgentRoundEnding,
+    FinishingErroredAgentRoundEnding,
+    HarnessErroredAgentRoundEnding,
     InterruptedAgentRoundEnding,
+    LaunchErroredAgentRoundEnding,
     StoppedAgentRoundEnding,
     SuccessfulAgentRoundEnding,
     _compose_agent_round_ending,
@@ -60,7 +63,10 @@ from dreamcatcher.git import (
 )
 from dreamcatcher.github import CheckResult, PullRequestMergeState, PullRequestState
 from dreamcatcher.scheduler import Scheduler, SchedulingContext
-from dreamcatcher.scheduler.faults import is_last_round_unfinished
+from dreamcatcher.scheduler.faults import (
+    derive_agent_work_fault,
+    is_last_round_unfinished,
+)
 from dreamcatcher.scheduler.models import (
     GlobalCooldown,
     PullRequestFinding,
@@ -849,7 +855,7 @@ def test_a_round_after_one_that_failed_part_way_finishes_its_preparation(
         record=AgentRoundRecord(
             number=1,
             started=started,
-            ending=ErroredAgentRoundEnding(at=started, reason="git push failed"),
+            ending=LaunchErroredAgentRoundEnding(at=started, reason="git push failed"),
         ),
     )
     branch = f"dreamcatcher-{ASSIGNMENT_ID}"
@@ -1464,7 +1470,10 @@ def test_a_cooldown_refuses_invalid_datetimes(started, ends, message):
         pytest.param(None, False, True, id="interrupted-by-daemon-shutdown"),
         pytest.param(InterruptedAgentRoundEnding(), True, True, id="interrupted"),
         pytest.param(
-            ErroredAgentRoundEnding(at=PINNED, status=2), True, True, id="errored"
+            HarnessErroredAgentRoundEnding(at=PINNED, status=2),
+            True,
+            True,
+            id="errored",
         ),
         pytest.param(
             SuccessfulAgentRoundEnding(at=PINNED), True, False, id="successful"
@@ -1490,3 +1499,30 @@ def test_only_an_interrupted_or_errored_last_round_is_unfinished(
 
 def test_agent_work_that_has_run_no_round_has_no_unfinished_round():
     assert not is_last_round_unfinished(rounds=[], is_daemon_running=False)
+
+
+@pytest.mark.parametrize(
+    "ending",
+    [
+        pytest.param(
+            LaunchErroredAgentRoundEnding(at=PINNED, reason="git push failed"),
+            id="launch",
+        ),
+        pytest.param(HarnessErroredAgentRoundEnding(at=PINNED, status=2), id="harness"),
+        pytest.param(
+            FinishingErroredAgentRoundEnding(
+                at=PINNED, reason="could not post the answer on GH8"
+            ),
+            id="finishing",
+        ),
+    ],
+)
+def test_every_kind_of_errored_round_counts_towards_a_fault(ending):
+    rounds = [
+        AgentRoundRecord(number=number, started=PINNED, ending=ending)
+        for number in (1, 2)
+    ]
+
+    assert derive_agent_work_fault(
+        rounds=rounds, retry_requested_at=None, most_recent_cooldown_ended=None
+    )
