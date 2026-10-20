@@ -58,9 +58,10 @@ if sys.platform == "win32":  # pragma: no cover
                 _resume_process(pid=pid)
                 attempt.pop_all()
         except pywintypes.error as error:
-            raise OSError(
-                None, f"{error.funcname}: {error.strerror}", None, error.winerror
-            ) from error
+            # Python's own Windows errors drop the full stop that Windows ends
+            # each message with, so this one reads the same way.
+            reason = f"{error.funcname}: {error.strerror.rstrip('.')}"
+            raise OSError(None, reason, None, error.winerror) from error
         except psutil.Error as error:
             raise OSError(str(error)) from error
         _jobs[pid] = job
@@ -101,8 +102,10 @@ if sys.platform == "win32":  # pragma: no cover
         """Terminate the child's Job Object and release its handle."""
         job = _jobs.pop(pid, None)
         if job is not None:
-            win32job.TerminateJobObject(job, WINDOWS_TERMINATED_PROCESS_STATUS)
-            win32api.CloseHandle(job)
+            try:
+                win32job.TerminateJobObject(job, WINDOWS_TERMINATED_PROCESS_STATUS)
+            finally:
+                win32api.CloseHandle(job)
 
 else:  # pragma: no cover
     import os

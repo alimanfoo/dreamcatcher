@@ -218,14 +218,14 @@ def spawn_command(
 
 
 def _contain_or_end(*, process: subprocess.Popen[str]) -> None:
-    """Contain the child's process tree, or end the child and raise OSError.
+    """Contain the child's process tree, or end the child and raise the failure.
 
-    A child that nothing contains must not run, so a failed containment kills
+    A child that nothing contains must not run, so any failed containment kills
     it, closes its pipes and waits for it before the failure goes on.
     """
     try:
         teardown.contain_process_tree(pid=process.pid)
-    except OSError:
+    except BaseException:
         with process:
             process.kill()
         raise

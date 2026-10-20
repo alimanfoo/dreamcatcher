@@ -1,12 +1,13 @@
+import subprocess
 import sys
 from pathlib import Path
 
 import pytest
-from conftest import gone
 from fakes import Line, Stream, install
 
 from dreamcatcher.commands import (
     CommandError,
+    _contain_or_end,
     _quote_windows_argument,
     locate_program,
     refuse_unquotable,
@@ -137,26 +138,42 @@ def test_a_child_with_no_working_directory_says_so(fake, tmp_path):
     assert str(raised.value).startswith(f"cannot start probe in {missing}: ")
 
 
-def test_a_child_that_cannot_be_contained_is_ended_and_says_so(tmp_path, monkeypatch):
-    contained = []
-
+def test_a_child_that_cannot_be_contained_says_so(tmp_path, monkeypatch):
     def refuse(*, pid: int) -> None:
-        contained.append(pid)
         raise OSError("Access is denied")
 
     monkeypatch.setattr("dreamcatcher.commands.teardown.contain_process_tree", refuse)
 
     with pytest.raises(CommandError) as raised:
-        spawn_command(
-            program=sys.executable,
-            arguments=["-c", "import time; time.sleep(60)"],
-            cwd=tmp_path,
-        )
+        spawn_command(program=sys.executable, arguments=["-c", "pass"], cwd=tmp_path)
 
     assert str(raised.value) == (
         f"cannot start {sys.executable} in {tmp_path}: Access is denied."
     )
-    assert gone(pid=contained[0])
+
+
+@pytest.mark.parametrize("failure", [OSError("Access is denied"), TypeError("a bug")])
+def test_a_child_that_cannot_be_contained_is_ended(monkeypatch, failure):
+    def refuse(*, pid: int) -> None:
+        raise failure
+
+    monkeypatch.setattr("dreamcatcher.commands.teardown.contain_process_tree", refuse)
+    process = subprocess.Popen(
+        [sys.executable, "-c", "import time; time.sleep(60)"],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        encoding="utf-8",
+    )
+
+    with pytest.raises(type(failure)):
+        _contain_or_end(process=process)
+
+    # A child left to sleep would end with status 0, and only after a minute.
+    assert process.returncode not in {None, 0}
+    assert process.stdout is not None
+    assert process.stdout.closed
+    assert process.stderr is not None
+    assert process.stderr.closed
 
 
 def test_a_spawned_command_reads_the_file_it_was_given_as_its_stdin(tmp_path):

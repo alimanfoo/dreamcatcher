@@ -83,7 +83,9 @@ def test_a_child_whose_containment_fails_never_runs(
     monkeypatch.setattr(teardown, "contain_process_tree", record_child)
     mark = tmp_path / "ran"
 
-    with pytest.raises(CommandError, match=f"{step}: Access is denied"):
+    with pytest.raises(
+        CommandError, match=rf"\[WinError 5\] {step}: Access is denied\.$"
+    ):
         spawn_command(
             program=sys.executable,
             arguments=["-c", f"open({str(mark)!r}, 'w').close()"],
