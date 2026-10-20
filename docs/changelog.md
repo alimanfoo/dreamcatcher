@@ -32,6 +32,12 @@ each entry links the pull request or commit that made the change.
   its absolute path appears, so more of a command remains visible.
   ([#602](https://github.com/alimanfoo/dreamcatcher/pull/602))
 
+### Fixed
+
+- Repeated state-document reads from the web and terminal views no longer
+  prevent the daemon from replacing those documents on Windows.
+  ([#601](https://github.com/alimanfoo/dreamcatcher/pull/601))
+
 ## [v6.1.0](https://github.com/alimanfoo/dreamcatcher/releases/tag/v6.1.0) — 2026-10-18
 
 ### Changed

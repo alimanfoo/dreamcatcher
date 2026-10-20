@@ -312,7 +312,7 @@ def record_agent_round_stop(
 
 def request_agent_round_stop(*, paths: "AgentRoundPaths") -> None:
     """Ask the live round at these paths to stop."""
-    write_text(text="", path=paths.stop_request)
+    write_text(text="", path=paths.stop_request, is_replaceable=False)
 
 
 def _record_agent_round_ending(
@@ -510,7 +510,11 @@ class AgentRound:
         round_input = prepare_round()
         if round_input is not None:
             write_json(document=round_input, path=self.paths.round_input)
-        write_text(text=self.harness.invocation.prompt, path=self.paths.prompt)
+        write_text(
+            text=self.harness.invocation.prompt,
+            path=self.paths.prompt,
+            is_replaceable=False,
+        )
         remove_file(path=self.paths.final_output)
         process = spawn_command(
             program=self.harness.invocation.program,
