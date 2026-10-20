@@ -195,12 +195,14 @@ def test_an_issue_reads_however_the_reader_wrote_it(monkeypatch, watching, capsy
     assert ASSIGNMENT_ID in capsys.readouterr().out
 
 
-def test_something_that_is_not_an_issue_reference_is_refused(capsys):
+@pytest.mark.parametrize("command", ["retry", "cancel"])
+@pytest.mark.parametrize("text", ["the one about the parser", ASSIGNMENT_ID])
+def test_a_command_that_takes_an_issue_refuses_anything_else(command, text, capsys):
     with pytest.raises(SystemExit) as exit_info:
-        main(argv=["assignment", "the one about the parser"])
+        main(argv=[command, text])
 
     assert exit_info.value.code == 2
-    assert "GH123" in capsys.readouterr().err
+    assert f"name an issue as GH123, not as {text}" in capsys.readouterr().err
 
 
 def test_retry_clears_the_newest_assignments_fault(monkeypatch, faulted, capsys):
@@ -813,3 +815,152 @@ def test_a_lock_the_daemon_cannot_take_is_a_message_not_a_traceback(
 
     assert main(argv=["run", "--harness", "claude"]) == 1
     assert "cannot lock" in capsys.readouterr().err
+
+
+OLDER_ASSIGNMENT_ID = "GH13-20260818-090000-assignment"
+
+
+def write_older_assignment(*, state: StateDirectory) -> None:
+    """Write an assignment at GH13 older than the one the checkout is watching."""
+    directory = write_assignment(state=state, identifier=OLDER_ASSIGNMENT_ID, issue=13)
+    started = PINNED - timedelta(days=1)
+    write_round(
+        directory=directory,
+        number=1,
+        record=AgentRoundRecord(
+            number=1,
+            started=started,
+            pid=1,
+            ending=_compose_agent_round_ending(at=started, status=0),
+        ),
+    )
+    write_feed(
+        directory=directory,
+        number=1,
+        lines=[FeedLine(at=started, text="[Bash] git log")],
+    )
+
+
+def test_an_identifier_shows_that_assignment_rather_than_the_newest(
+    monkeypatch, watching, capsys
+):
+    write_older_assignment(state=watching)
+    monkeypatch.chdir(watching.root)
+
+    assert main(argv=["assignment", OLDER_ASSIGNMENT_ID.lower()]) == 0
+    assert f"agent assignment {OLDER_ASSIGNMENT_ID}" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize("round_selection", [[], ["--round", "1"]])
+def test_an_identifier_shows_that_assignments_feed_alone(
+    monkeypatch, watching, capsys, round_selection
+):
+    write_older_assignment(state=watching)
+    monkeypatch.chdir(watching.root)
+
+    assert (
+        main(argv=["feed", OLDER_ASSIGNMENT_ID, "--assignment", *round_selection]) == 0
+    )
+    shown = capsys.readouterr().out
+    assert "[Bash] git log" in shown
+    assert "[Bash] pytest" not in shown
+
+
+def write_switched_conversations(*, state: StateDirectory) -> tuple[str, str]:
+    """Write two conversations at GH8, under the label the user left and the next.
+
+    Each has a running round with its own output. Return the older identifier,
+    then the newer.
+    """
+    identifiers = []
+    for hours, label, text in (
+        (0, "dream:conversation", "The first answer."),
+        (1, "dream:scout", "The second answer."),
+    ):
+        at = PINNED + timedelta(hours=hours)
+        directory = write_conversation(
+            state=state, issue=8, at=at, dispatch_label=label
+        )
+        write_round(
+            directory=directory,
+            number=1,
+            record=AgentRoundRecord(number=1, started=at, pid=1),
+        )
+        write_feed(directory=directory, number=1, lines=[FeedLine(at=at, text=text)])
+        identifiers.append(directory.name)
+    older, newer = identifiers
+    return older, newer
+
+
+def test_an_older_conversation_can_be_selected_after_a_label_switch(
+    monkeypatch, watching, capsys
+):
+    older, newer = write_switched_conversations(state=watching)
+    monkeypatch.chdir(watching.root)
+
+    assert main(argv=["conversation", "GH8"]) == 0
+    assert f"issue conversation {newer}" in capsys.readouterr().out
+    assert main(argv=["conversation", older]) == 0
+    assert f"issue conversation {older}" in capsys.readouterr().out
+    assert main(argv=["feed", older, "--conversation"]) == 0
+    shown = capsys.readouterr().out
+    assert "The first answer." in shown
+    assert "The second answer." not in shown
+
+
+def test_stop_names_an_older_conversation_and_stops_it_alone(
+    monkeypatch, watching, capsys
+):
+    older, newer = write_switched_conversations(state=watching)
+    monkeypatch.chdir(watching.root)
+
+    assert main(argv=["stop", older, "--conversation"]) == 0
+
+    assert f"Requested a stop for {older} round 1." in capsys.readouterr().out
+    assert (watching.work / older / "rounds" / "1" / "stop-request").is_file()
+    assert not (watching.work / newer / "rounds" / "1" / "stop-request").exists()
+
+
+def test_stop_refuses_an_older_assignment_with_no_running_round(
+    monkeypatch, watching, capsys
+):
+    write_older_assignment(state=watching)
+    monkeypatch.chdir(watching.root)
+
+    assert main(argv=["stop", OLDER_ASSIGNMENT_ID, "--assignment"]) == 1
+
+    assert (
+        f"{OLDER_ASSIGNMENT_ID} has no running round that can be stopped."
+        in capsys.readouterr().err
+    )
+    assert not list(watching.work.glob("*/rounds/*/stop-request"))
+
+
+@pytest.mark.parametrize(
+    "arguments",
+    [
+        ["assignment", "GH8-20260819-184158-conversation"],
+        ["conversation", ASSIGNMENT_ID],
+        ["feed", ASSIGNMENT_ID, "--conversation"],
+        ["stop", ASSIGNMENT_ID, "--conversation"],
+        ["stop", "GH13-20260101-090000-assignment", "--assignment"],
+    ],
+)
+def test_an_identifier_of_no_work_of_the_kind_is_refused(
+    monkeypatch, watching, capsys, arguments
+):
+    write_conversation(state=watching, issue=8)
+    monkeypatch.chdir(watching.root)
+
+    assert main(argv=arguments) == 1
+
+    assert f"here is named {arguments[1]}." in capsys.readouterr().err
+    assert not list(watching.work.glob("*/rounds/*/stop-request"))
+
+
+def test_text_that_names_neither_an_issue_nor_work_is_refused(capsys):
+    with pytest.raises(SystemExit) as exit_info:
+        main(argv=["assignment", "GH13-yesterday-assignment"])
+
+    assert exit_info.value.code == 2
+    assert "not as GH13-yesterday-assignment" in capsys.readouterr().err

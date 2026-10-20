@@ -1,5 +1,6 @@
 """Render issue conversations in terminal views."""
 
+import shutil
 from datetime import timedelta
 from io import StringIO
 
@@ -671,3 +672,66 @@ def test_a_view_of_an_ended_conversation_never_waits(tmp_path):
     )
 
     assert "ended  completed" in written.getvalue()
+
+
+def write_newer_conversation(*, state: StateDirectory) -> str:
+    """Write a conversation at issue 8 under another label, and return its name.
+
+    It is newer than the one that the conversation state holds, and its round
+    has said something that a view of the older one must never show.
+    """
+    at = PINNED + timedelta(hours=1)
+    directory = write_conversation(
+        state=state, issue=8, at=at, dispatch_label="dream:scout"
+    )
+    write_round(
+        directory=directory,
+        number=1,
+        record=AgentRoundRecord(number=1, started=at, pid=1),
+    )
+    write_feed(
+        directory=directory,
+        number=1,
+        lines=[FeedLine(at=at, text="The newer answer.")],
+    )
+    return directory.name
+
+
+def test_a_view_stays_on_its_conversation_when_a_newer_one_arrives(tmp_path):
+    state = conversation_state(root=tmp_path, is_paused=False)
+    identifier = find_conversation_directory(state=state, issue=8).name
+    newer = write_newer_conversation(state=state)
+    shutil.move(state.work / newer, tmp_path / newer)
+    waits = []
+
+    def arriving(seconds, /):
+        """Let the newer conversation arrive at the first wait, then interrupt."""
+        waits.append(seconds)
+        if len(waits) % 2 == 0:
+            raise KeyboardInterrupt
+        if not (state.work / newer).exists():
+            shutil.move(tmp_path / newer, state.work / newer)
+
+    detail_console, detail = watched_console()
+    show_agent_work_view(
+        state=state,
+        reference=identifier,
+        kind=AgentWorkKind.CONVERSATION,
+        console=detail_console,
+        clock=lambda: PINNED,
+        wait=arriving,
+    )
+    feed_console, feed = watched_console()
+    show_feed_view(
+        state=state,
+        reference=identifier,
+        kind=AgentWorkKind.CONVERSATION,
+        console=feed_console,
+        wait=arriving,
+    )
+
+    assert len(waits) == 4
+    assert f"issue conversation {identifier}" in detail.getvalue()
+    assert f"issue conversation {newer}" not in detail.getvalue()
+    assert "I found the answer." in feed.getvalue()
+    assert "The newer answer." not in feed.getvalue()
