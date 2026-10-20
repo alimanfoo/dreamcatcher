@@ -40,8 +40,10 @@ from dreamcatcher.agent_rounds import (
     AgentRoundPaths,
     AgentRoundRecord,
     AgentRoundStartRequest,
-    ErroredAgentRoundEnding,
+    FinishingErroredAgentRoundEnding,
+    HarnessErroredAgentRoundEnding,
     InterruptedAgentRoundEnding,
+    LaunchErroredAgentRoundEnding,
     StoppedAgentRoundEnding,
     SuccessfulAgentRoundEnding,
     _AgentRoundHarness,
@@ -646,8 +648,8 @@ def test_a_finisher_that_fails_fails_the_round_and_says_why(fake, worktree, dire
 
     start_conversation_round(paths=paths, finish_round=finish_round).wait()
 
-    assert written(path=paths.record).ending == ErroredAgentRoundEnding(
-        at=PINNED, status=0, reason="could not post the answer on GH9"
+    assert written(path=paths.record).ending == FinishingErroredAgentRoundEnding(
+        at=PINNED, reason="could not post the answer on GH9"
     )
     assert "[failed] could not post the answer on GH9" in paths.feed.read_text(
         encoding="utf-8"
@@ -698,10 +700,79 @@ def test_a_round_interrupted_as_its_harness_succeeds_is_not_finished(
     finish_round.assert_not_called()
 
 
+@pytest.mark.parametrize(
+    ("ending", "kind"),
+    [
+        pytest.param(
+            {"status": None, "reason": "could not fetch main"},
+            LaunchErroredAgentRoundEnding,
+            id="launch",
+        ),
+        pytest.param(
+            {"status": 2, "reason": None}, HarnessErroredAgentRoundEnding, id="harness"
+        ),
+        pytest.param(
+            {"status": -9, "reason": None},
+            HarnessErroredAgentRoundEnding,
+            id="harness-signalled",
+        ),
+        pytest.param(
+            {"status": 2, "reason": "git push failed"},
+            HarnessErroredAgentRoundEnding,
+            id="harness-with-reason",
+        ),
+        pytest.param(
+            {"status": 0, "reason": "could not post the answer on GH9"},
+            FinishingErroredAgentRoundEnding,
+            id="finishing",
+        ),
+    ],
+)
+def test_a_saved_errored_ending_reads_as_its_kind_and_writes_back_unchanged(
+    ending, kind
+):
+    saved = {
+        "number": 1,
+        "started": "2026-08-19T18:41:58Z",
+        "pid": None,
+        "ending": {"outcome": "errored", "at": "2026-08-19T18:42:58Z", **ending},
+    }
+
+    record = AgentRoundRecord.model_validate_json(json.dumps(saved))
+
+    assert type(record.ending) is kind
+    assert json.loads(record.model_dump_json()) == saved
+
+
 @pytest.mark.parametrize("status", [None, 0])
-def test_an_errored_ending_refuses_no_error_status_without_a_reason(status):
-    with pytest.raises(ValueError, match="needs a reason"):
-        ErroredAgentRoundEnding(at=PINNED, status=status)
+def test_a_saved_errored_ending_refuses_a_missing_reason_without_a_failed_exit(
+    status,
+):
+    saved = {
+        "number": 1,
+        "started": "2026-08-19T18:41:58Z",
+        "ending": {
+            "outcome": "errored",
+            "at": "2026-08-19T18:42:58Z",
+            "status": status,
+        },
+    }
+
+    with pytest.raises(ValueError, match="reason"):
+        AgentRoundRecord.model_validate_json(json.dumps(saved))
+
+
+@pytest.mark.parametrize(
+    "kind", [LaunchErroredAgentRoundEnding, FinishingErroredAgentRoundEnding]
+)
+def test_a_launch_or_finishing_failure_refuses_a_missing_reason(kind):
+    with pytest.raises(ValueError, match="reason"):
+        kind(at=PINNED)
+
+
+def test_a_harness_failure_refuses_a_clean_exit_status():
+    with pytest.raises(ValueError, match="nonzero exit status"):
+        HarnessErroredAgentRoundEnding(at=PINNED, status=0)
 
 
 def test_a_successful_ending_refuses_a_time_without_a_zone():
@@ -714,7 +785,7 @@ def test_a_successful_ending_refuses_a_time_without_a_zone():
     "ending",
     [
         SuccessfulAgentRoundEnding(at=PINNED),
-        ErroredAgentRoundEnding(at=PINNED, status=2),
+        HarnessErroredAgentRoundEnding(at=PINNED, status=2),
         InterruptedAgentRoundEnding(),
         StoppedAgentRoundEnding(at=PINNED),
     ],
@@ -938,9 +1009,7 @@ def test_a_round_that_cannot_write_its_prompt_errors_without_a_process(
 
     record = written(path=paths.record)
     assert record.pid is None
-    assert isinstance(record.ending, ErroredAgentRoundEnding)
-    assert record.ending.status is None
-    assert record.ending.reason is not None
+    assert isinstance(record.ending, LaunchErroredAgentRoundEnding)
     assert "prompt.txt" in record.ending.reason
     assert harness.calls == []
 
@@ -973,7 +1042,7 @@ def test_a_round_whose_preparation_fails_errors_with_its_reason(
     assert written(path=paths.record) == AgentRoundRecord(
         number=1,
         started=PINNED,
-        ending=ErroredAgentRoundEnding(
+        ending=LaunchErroredAgentRoundEnding(
             at=PINNED, reason="git push failed with status 1: hook refused"
         ),
     )
@@ -1004,9 +1073,7 @@ def test_a_round_whose_harness_cannot_be_contained_errors_without_a_process(
 
     record = written(path=paths.record)
     assert record.pid is None
-    assert isinstance(record.ending, ErroredAgentRoundEnding)
-    assert record.ending.status is None
-    assert record.ending.reason is not None
+    assert isinstance(record.ending, LaunchErroredAgentRoundEnding)
     assert record.ending.reason.endswith("Access is denied.")
 
 
@@ -1044,6 +1111,48 @@ def test_a_round_whose_process_cannot_be_recorded_does_not_run_on(
     assert spawned
     assert within(seconds=30, holds=lambda: gone(pid=spawned[0]))
     assert written(path=paths.record).pid is None
+
+
+def test_a_round_whose_process_cannot_be_recorded_ends_without_an_exit_status(
+    fake, worktree, directory, monkeypatch
+):
+    fake(program="harness").streams(lines=[Line(text="working\n")], delay=5)
+    paths = compose_round_paths(worktree=worktree, directory=directory)
+    refused = []
+    write_json = agent_rounds.write_json
+
+    def refuse_the_first_record_with_a_process(*, document, path):
+        if (
+            isinstance(document, AgentRoundRecord)
+            and document.pid is not None
+            and not refused
+        ):
+            refused.append(document.pid)
+            raise ReportableError(f"cannot write {path}")
+        write_json(document=document, path=path)
+
+    monkeypatch.setattr(
+        "dreamcatcher.agent_rounds.write_json", refuse_the_first_record_with_a_process
+    )
+
+    with pytest.raises(AgentRoundLaunchError, match=r"cannot write .*round\.json"):
+        AgentRound(
+            agent_work_identifier="GH9-20260819-184158",
+            harness=round_harness(
+                invocation=HarnessInvocation(
+                    program="harness", arguments=[], prompt=PROMPT
+                )
+            ),
+            paths=paths,
+            prepare_round=relay_nothing,
+            clock=pinned,
+        )
+
+    ending = written(path=paths.record).ending
+    assert refused
+    assert isinstance(ending, LaunchErroredAgentRoundEnding)
+    assert ending.reason.startswith("cannot write ")
+    assert ending.status is None
 
 
 def test_a_round_that_cannot_record_its_start_prepares_and_spawns_nothing(
