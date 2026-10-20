@@ -148,7 +148,7 @@ def fabricate_conversation(
     write_tick(
         state=state,
         tick=SchedulerRecord(
-            at=PINNED,
+            at=PINNED + timedelta(minutes=5),
             rows=[
                 conversation_row(
                     finding=(
@@ -281,10 +281,10 @@ def compose_feed_line(
     return FeedLine(at=record.started + timedelta(minutes=minutes), text=text)
 
 
-def holding(*, state):
+def holding(*, state, max_agents: int = 1):
     """Record the instance and hold the lock as its running daemon."""
     write_text(text=f"{REPOSITORY}\n", path=state.repository)
-    write_daemon_run(state=state, pid=DAEMON_PID)
+    write_daemon_run(state=state, pid=DAEMON_PID, max_agents=max_agents)
     hold_daemon_lock_for_test(path=state.lock)
 
 
@@ -301,7 +301,7 @@ def fabricate_everything(
     latest_output: str = "[Bash] pytest",
 ):
     """Write a running daemon with varied issue and assignment statuses."""
-    holding(state=state)
+    holding(state=state, max_agents=2)
     current = running(minute=30, number=2)
     directory = written(
         state=state,
@@ -315,7 +315,7 @@ def fabricate_everything(
         number=2,
         lines=[compose_feed_line(record=current, text=latest_output)],
     )
-    pushed = ended(minute=1)
+    pushed = ended(minute=115)
     write_feed(
         directory=written(state=state, issue=20, records=[pushed]),
         number=1,
