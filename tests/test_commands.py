@@ -2,6 +2,7 @@ import sys
 from pathlib import Path
 
 import pytest
+from conftest import gone
 from fakes import Line, Stream, install
 
 from dreamcatcher.commands import (
@@ -134,6 +135,28 @@ def test_a_child_with_no_working_directory_says_so(fake, tmp_path):
         spawn_command(program="probe", arguments=[], cwd=missing)
 
     assert str(raised.value).startswith(f"cannot start probe in {missing}: ")
+
+
+def test_a_child_that_cannot_be_contained_is_ended_and_says_so(tmp_path, monkeypatch):
+    contained = []
+
+    def refuse(*, pid: int) -> None:
+        contained.append(pid)
+        raise OSError("Access is denied")
+
+    monkeypatch.setattr("dreamcatcher.commands.teardown.contain_process_tree", refuse)
+
+    with pytest.raises(CommandError) as raised:
+        spawn_command(
+            program=sys.executable,
+            arguments=["-c", "import time; time.sleep(60)"],
+            cwd=tmp_path,
+        )
+
+    assert str(raised.value) == (
+        f"cannot start {sys.executable} in {tmp_path}: Access is denied."
+    )
+    assert gone(pid=contained[0])
 
 
 def test_a_spawned_command_reads_the_file_it_was_given_as_its_stdin(tmp_path):
