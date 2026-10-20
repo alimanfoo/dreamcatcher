@@ -1,11 +1,12 @@
 # Specification status
 
-The following dated folders contain completed phase specifications. A folder
-added to this list by the current pull request remains active until that pull
-request merges. Every document in a completed phase is retained only as a
-historical record. Do not update these documents to match the current code. When
-a heading that one of them links to goes, link to the page instead; never link
-to a commit, because the documentation stays coherent as one whole.
+The following dated folders contain completed phase specifications. A
+folder added to this list by the current pull request remains active
+until that pull request merges. Every document in a completed phase is
+retained only as a historical record. Do not update these documents to
+match the current code. When a heading that one of them links to goes,
+link to the page instead; never link to a commit, because the
+documentation stays coherent as one whole.
 
 - `2026-08-17-skeleton`
 - `2026-09-08-watchtower`
@@ -19,11 +20,11 @@ to a commit, because the documentation stays coherent as one whole.
 - `2026-10-06-init`
 - `2026-10-16-state-format-6`
 
-A dated folder that is absent from this list is an active phase. If you find
-that an unlisted phase has already ended, add it to this list before changing
-any of its specifications.
+A dated folder that is absent from this list is an active phase. If you
+find that an unlisted phase has already ended, add it to this list
+before changing any of its specifications.
 
-Keep an active phase's specifications aligned with implementation changes,
-including review changes on its final pull request, and say in the pull request
-what you changed and why. The final pull request of the phase adds the folder to
-this list before merge.
+Keep an active phase's specifications aligned with implementation
+changes, including review changes on its final pull request, and say in
+the pull request what you changed and why. The final pull request of the
+phase adds the folder to this list before merge.

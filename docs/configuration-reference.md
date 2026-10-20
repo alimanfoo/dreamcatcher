@@ -1,18 +1,20 @@
 # Configuration reference
 
-_dreamcatcher_ reads `dreamcatcher.toml` from the root of the main checkout
-where `dreamcatcher run` starts. The file defines which issue labels dispatch
-assignments or issue conversations, and the dispatch recipes available for each
-label. It does not configure daemon controls such as the interval or agent
-capacity; those are [`run` options](command-reference.md#run).
+_dreamcatcher_ reads `dreamcatcher.toml` from the root of the main
+checkout where `dreamcatcher run` starts. The file defines which issue
+labels dispatch assignments or issue conversations, and the dispatch
+recipes available for each label. It does not configure daemon controls
+such as the interval or agent capacity; those are
+[`run` options](command-reference.md#run).
 
-The file is required and must be UTF-8 TOML. `run` reports a missing, unreadable
-or invalid file rather than supplying a default configuration.
-[`init`](command-reference.md#init) writes the complete example below when the
-file is missing.
+The file is required and must be UTF-8 TOML. `run` reports a missing,
+unreadable or invalid file rather than supplying a default
+configuration. [`init`](command-reference.md#init) writes the complete
+example below when the file is missing.
 
-The daemon reads the file when it starts. Restart it to apply a change. Commit
-the file when everyone watching a repository should use the same routes.
+The daemon reads the file when it starts. Restart it to apply a change.
+Commit the file when everyone watching a repository should use the same
+routes.
 
 ## Complete example
 
@@ -20,9 +22,10 @@ the file when everyone watching a repository should use the same routes.
 --8<-- "default_config.toml"
 ```
 
-This file offers both supported harnesses for every route. A route may instead
-contain only its `claude` or only its `codex` block. When `init` writes the
-file, it comments out the blocks of a harness that is not installed.
+This file offers both supported harnesses for every route. A route may
+instead contain only its `claude` or only its `codex` block. When `init`
+writes the file, it comments out the blocks of a harness that is not
+installed.
 
 ## Top-level settings
 
@@ -31,14 +34,15 @@ file, it comments out the blocks of a harness that is not installed.
 | `assignment`   | Array of route tables, written as `[[assignment]]`   | No       | Empty array | Each entry defines a separate assignment route.   |
 | `conversation` | Array of route tables, written as `[[conversation]]` | No       | Empty array | Each entry defines a separate conversation route. |
 
-No other top-level settings are accepted. In particular, `assignee`, `interval`
-and `max_agents` are not configuration-file settings. _dreamcatcher_ obtains the
-account from authenticated `gh`; use `run --interval` and `run --max-agents` for
-the two daemon controls.
+No other top-level settings are accepted. In particular, `assignee`,
+`interval` and `max_agents` are not configuration-file settings.
+_dreamcatcher_ obtains the account from authenticated `gh`; use
+`run --interval` and `run --max-agents` for the two daemon controls.
 
 ## Assignment and conversation routes
 
-An `[[assignment]]` entry and a `[[conversation]]` entry have the same schema:
+An `[[assignment]]` entry and a `[[conversation]]` entry have the same
+schema:
 
 | Setting  | Value           | Required | Default | Constraint                                                                     |
 | -------- | --------------- | -------- | ------- | ------------------------------------------------------------------------------ |
@@ -46,29 +50,31 @@ An `[[assignment]]` entry and a `[[conversation]]` entry have the same schema:
 | `claude` | Dispatch recipe | No       | Absent  | Configures Claude for this route.                                              |
 | `codex`  | Dispatch recipe | No       | Absent  | Configures Codex for this route.                                               |
 
-Every route must contain at least one dispatch recipe. `claude` and `codex` are
-the only accepted harness-table names.
+Every route must contain at least one dispatch recipe. `claude` and
+`codex` are the only accepted harness-table names.
 
-A label is a case-insensitive identity. No two assignment routes may repeat a
-label, no two conversation routes may repeat one, and an assignment route and a
-conversation route may not share one. Route order gives no route precedence.
-Issue labels are also matched case-insensitively.
+A label is a case-insensitive identity. No two assignment routes may
+repeat a label, no two conversation routes may repeat one, and an
+assignment route and a conversation route may not share one. Route order
+gives no route precedence. Issue labels are also matched
+case-insensitively.
 
-If an issue matches more than one assignment route, that assignment work has a
-routing conflict. The same is independently true of conversation routes. One
-assignment label and one conversation label may coexist on an issue. An
-assignment conflict prevents a new assignment but does not stop an existing
-assignment's rounds. A conversation conflict prevents new conversation rounds,
-though a round already running may finish.
+If an issue matches more than one assignment route, that assignment work
+has a routing conflict. The same is independently true of conversation
+routes. One assignment label and one conversation label may coexist on
+an issue. An assignment conflict prevents a new assignment but does not
+stop an existing assignment's rounds. A conversation conflict prevents
+new conversation rounds, though a round already running may finish.
 
 ## Dispatch recipes
 
-Each `[assignment.claude]`, `[assignment.codex]`, `[conversation.claude]` or
-`[conversation.codex]` table requires three settings, which have no defaults.
-Each table also accepts a `config` table, the harness config, which holds
-settings for the harness beyond its model and effort. Codex takes the settings
-described in [Codex config](#codex-config). Claude takes none, so a Claude
-table's `config` must be empty.
+Each `[assignment.claude]`, `[assignment.codex]`,
+`[conversation.claude]` or `[conversation.codex]` table requires three
+settings, which have no defaults. Each table also accepts a `config`
+table, the harness config, which holds settings for the harness beyond
+its model and effort. Codex takes the settings described in
+[Codex config](#codex-config). Claude takes none, so a Claude table's
+`config` must be empty.
 
 | Setting  | Value  | Effect and constraint                                                                                                                                                                            |
 | -------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -76,24 +82,26 @@ table's `config` must be empty.
 | `model`  | String | Passed to the selected harness as its model. It may not contain `%`, a line feed or a carriage return.                                                                                           |
 | `effort` | String | Passed to the selected harness as its reasoning-effort value. It has the same character restrictions as `model`.                                                                                 |
 
-_dreamcatcher_ does not prescribe the harness-specific model and effort names;
-the selected harness must accept the configured strings. Unknown settings at any
-level are errors, so a misspelling is reported rather than ignored. The keys of
-a Codex `config` table are the exception, because they belong to Codex.
+_dreamcatcher_ does not prescribe the harness-specific model and effort
+names; the selected harness must accept the configured strings. Unknown
+settings at any level are errors, so a misspelling is reported rather
+than ignored. The keys of a Codex `config` table are the exception,
+because they belong to Codex.
 
 Assignment prompts normally invoke an assignment skill that follows the
-[assignment skill contract](contract.md#assignment-skill-contract). Conversation
-prompts may be plain instructions or invoke a conversation skill, but they must
-follow the
+[assignment skill contract](contract.md#assignment-skill-contract).
+Conversation prompts may be plain instructions or invoke a conversation
+skill, but they must follow the
 [conversation skill contract](contract.md#conversation-skill-contract).
 _dreamcatcher_ adds its operational instructions to either prompt.
 
 ## Codex config
 
-A Codex recipe's `config` table gives Codex settings of its own, such as a
-larger context window. _dreamcatcher_ passes each entry to every round of the
-work, first and resumed, as `-c key=value`, with the value written as TOML. The
-table is optional, and an absent table passes nothing.
+A Codex recipe's `config` table gives Codex settings of its own, such as
+a larger context window. _dreamcatcher_ passes each entry to every round
+of the work, first and resumed, as `-c key=value`, with the value
+written as TOML. The table is optional, and an absent table passes
+nothing.
 
 | Part  | Constraint                                                                                                                                    |
 | ----- | --------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -101,44 +109,48 @@ table is optional, and an absent table passes nothing.
 | Value | A boolean, an integer or a string. A string may not contain `%`. _dreamcatcher_ refuses a float, an array and a table.                        |
 
 Write a nested setting as one quoted key, such as
-`"features.web_search_request" = true`. A dotted key without quotes makes a
-table in TOML, and _dreamcatcher_ refuses a table as a value.
+`"features.web_search_request" = true`. A dotted key without quotes
+makes a table in TOML, and _dreamcatcher_ refuses a table as a value.
 
-_dreamcatcher_ keeps these settings for itself, so that every round runs with
-the recipe's model and effort and with the permissions that unattended work
-needs:
+_dreamcatcher_ keeps these settings for itself, so that every round runs
+with the recipe's model and effort and with the permissions that
+unattended work needs:
 
 - `model` and `model_reasoning_effort`;
 - `sandbox_mode`, `approval_policy`, `approvals_reviewer` and
   `sandbox_workspace_write.network_access`;
-- `default_permissions` and the `permissions` table, which would choose a
-  permissions profile in place of the sandbox settings.
+- `default_permissions` and the `permissions` table, which would choose
+  a permissions profile in place of the sandbox settings.
 
-A `config` table that sets one of these, or a key inside one, is an error.
-_dreamcatcher_ does not check that Codex knows a setting, so a misspelt key in a
-`config` table is not reported.
+A `config` table that sets one of these, or a key inside one, is an
+error. _dreamcatcher_ does not check that Codex knows a setting, so a
+misspelt key in a `config` table is not reported.
 
 ## Harness selection
 
-`dreamcatcher run --harness claude` or `--harness codex` supplies the preferred
-harness for newly created work:
+`dreamcatcher run --harness claude` or `--harness codex` supplies the
+preferred harness for newly created work:
 
-- When a route has a recipe for the preferred harness, _dreamcatcher_ uses it.
-- When a route has only the other harness's recipe, _dreamcatcher_ uses that
-  harness instead.
+- When a route has a recipe for the preferred harness, _dreamcatcher_
+  uses it.
+- When a route has only the other harness's recipe, _dreamcatcher_ uses
+  that harness instead.
 
-The option is therefore a preference, not a repository-wide pin. At startup,
-_dreamcatcher_ requires the named harness and every harness present in any route
-to be installed on `PATH`. An existing assignment or conversation keeps the
-label, harness, prompt, model, effort and harness config chosen when it was
-created; later configuration changes do not rewrite that record.
+The option is therefore a preference, not a repository-wide pin. At
+startup, _dreamcatcher_ requires the named harness and every harness
+present in any route to be installed on `PATH`. An existing assignment
+or conversation keeps the label, harness, prompt, model, effort and
+harness config chosen when it was created; later configuration changes
+do not rewrite that record.
 
-A conversation belongs to the conversation label that started it. Another
-conversation label starts a conversation of its own, with that label's route and
-recipe, once it is the only conversation label on the issue. While both are on
-the issue, the labels conflict and nothing starts.
+A conversation belongs to the conversation label that started it.
+Another conversation label starts a conversation of its own, with that
+label's route and recipe, once it is the only conversation label on the
+issue. While both are on the issue, the labels conflict and nothing
+starts.
 
-A matching label selects a route but does not by itself make an issue ready for
-dispatch. [From issue to pull request](tutorial.md) explains how to prepare an
-assignment issue; [Discuss an issue](discuss-an-issue.md) explains how to start
-and continue a conversation.
+A matching label selects a route but does not by itself make an issue
+ready for dispatch. [From issue to pull request](tutorial.md) explains
+how to prepare an assignment issue;
+[Discuss an issue](discuss-an-issue.md) explains how to start and
+continue a conversation.

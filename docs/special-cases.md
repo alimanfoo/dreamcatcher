@@ -1,12 +1,12 @@
 # Special cases
 
-This ledger records conditionals that exist because an external system presents
-one particular situation. A conditional that applies a _dreamcatcher_ rule is
-not a special case: lifecycle states, validation results and protocol event
-kinds belong to the rules that own them.
+This ledger records conditionals that exist because an external system
+presents one particular situation. A conditional that applies a
+_dreamcatcher_ rule is not a special case: lifecycle states, validation
+results and protocol event kinds belong to the rules that own them.
 
-Every entry names the external cause that prevents the case from dissolving into
-a more general _dreamcatcher_ rule.
+Every entry names the external cause that prevents the case from
+dissolving into a more general _dreamcatcher_ rule.
 
 | Where                                                                                                     | Particular situation                                                                                                        | External cause                                                                                                                                        |
 | --------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
