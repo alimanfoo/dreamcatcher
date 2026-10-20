@@ -75,14 +75,14 @@ def _render_status(*, report: DreamcatcherStatusReport) -> RenderableType:
 def _render_instance_status(*, report: DreamcatcherStatusReport) -> RenderableType:
     """Render the daemon, the instance facts and the scheduler failures.
 
-    Each scheduler failure has a row of its own, labelled only on the first.
+    Each scheduler failure starts a line of its own.
     """
     table = create_table(columns=2)
     for fact in (report.daemon.status_fact, *report.instance_facts):
         table.add_row(Text(fact.label), Text(fact.value))
-    for position, failure in enumerate(report.scheduler_failures):
+    if report.scheduler_failures:
         table.add_row(
-            Text("scheduler failures" if position == 0 else ""), Text(failure)
+            Text("scheduler failures"), Text("\n".join(report.scheduler_failures))
         )
     return render_section(heading="instance", body=table)
 
