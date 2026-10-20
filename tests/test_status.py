@@ -212,7 +212,7 @@ def test_an_empty_instance_reports_unknown_capacity_and_no_work(tmp_path):
     assert found.daemon.dreamcatcher_version is None
     assert found.latest_scheduler_tick is None
     assert found.daemon.interval_seconds is None
-    assert found.scheduler_failure_summary is None
+    assert found.scheduler_failures == ()
     assert found.daemon.max_agents is None
     assert found.running_agents == 0
     assert found.active_global_cooldown is None
@@ -928,7 +928,7 @@ def test_an_elapsed_cooldown_clears_the_fault_and_the_cooldown(state):
     assert found.active_global_cooldown is None
 
 
-def test_an_active_cooldown_and_scheduler_failures_are_instance_facts(running):
+def test_an_active_cooldown_is_an_instance_fact_and_failures_are_listed(running):
     cooldown = GlobalCooldown(started=PINNED, ends=LOOKED_AT + timedelta(minutes=1))
     write_tick(
         state=running,
@@ -943,8 +943,9 @@ def test_an_active_cooldown_and_scheduler_failures_are_instance_facts(running):
 
     assert found.latest_scheduler_tick == PINNED
     assert found.daemon.interval_seconds == DEFAULT_INTERVAL_SECONDS
-    assert found.scheduler_failure_summary == (
-        "could not start assignment; could not read comments for GH8"
+    assert found.scheduler_failures == (
+        "could not start assignment",
+        "could not read comments for GH8",
     )
     assert found.daemon.max_agents == 3
     assert found.active_global_cooldown == cooldown
@@ -953,11 +954,6 @@ def test_an_active_cooldown_and_scheduler_failures_are_instance_facts(running):
         StatusFact(label="next update in", value="0s"),
         StatusFact(label="agent capacity", value="0 of 3 working"),
         StatusFact(label="global cooldown", value="ends in 1m", is_warning=True),
-        StatusFact(
-            label="scheduler failures",
-            value="could not start assignment; could not read comments for GH8",
-            is_warning=True,
-        ),
     )
 
 
@@ -967,7 +963,7 @@ def test_a_stopped_daemon_has_no_current_scheduler_failures(state):
         tick=SchedulerRecord(at=PINNED, failures=["could not start assignment"]),
     )
 
-    assert report(state=state).scheduler_failure_summary is None
+    assert report(state=state).scheduler_failures == ()
 
 
 def test_a_blocked_request_names_its_claims_and_blockers_as_numbers(state):

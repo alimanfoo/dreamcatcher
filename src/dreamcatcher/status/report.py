@@ -140,7 +140,7 @@ class DreamcatcherStatusReport:
     repository: str | None
     daemon: DreamcatcherDaemonStatus
     latest_scheduler_tick: datetime | None
-    scheduler_failure_summary: str | None
+    scheduler_failures: tuple[str, ...]
     running_agents: int
     active_global_cooldown: GlobalCooldown | None
     request_statuses: list[RequestStatus]
@@ -150,7 +150,7 @@ class DreamcatcherStatusReport:
     def instance_facts(self) -> tuple[StatusFact, ...]:
         """The known instance facts, in the order that a view shows them.
 
-        A global cooldown and scheduler failures are warnings.
+        A global cooldown is a warning.
         """
         daemon = self.daemon
         cooldown = self.active_global_cooldown
@@ -187,7 +187,6 @@ class DreamcatcherStatusReport:
                 else f"ends in {describe_span(span=cooldown.ends - self.at)}",
                 True,
             ),
-            ("scheduler failures", self.scheduler_failure_summary, True),
         )
         return tuple(
             StatusFact(label=label, value=value, is_warning=is_warning)
@@ -290,10 +289,10 @@ def read_status_report(
         latest_scheduler_tick=(
             None if scheduler_record is None else scheduler_record.at
         ),
-        scheduler_failure_summary=(
-            None
+        scheduler_failures=(
+            ()
             if scheduler_record is None or not daemon.is_running
-            else "; ".join(scheduler_record.failures) or None
+            else tuple(scheduler_record.failures)
         ),
         running_agents=sum(status.is_working for status in work_statuses),
         active_global_cooldown=(

@@ -1583,15 +1583,19 @@ def test_dashboard_groups_assignment_requests_with_assignments(tmp_path):
     assert 'id="conversation-tab"' not in page
 
 
-def test_a_failure_at_capacity_shows_beside_the_capacity(tmp_path):
+def test_each_scheduler_failure_is_listed_apart_from_the_facts(tmp_path):
     state = StateDirectory(root=tmp_path)
     WEB_STATUS_REPORTS["at-cap"](state=state)
 
     page = render_home(state=state)
 
-    assert "<dt>agent capacity</dt>" in page
-    assert "<dt>scheduler failures</dt>" in page
-    assert "could not list issues for dream:less: could not connect" in page
+    facts = page[page.index('<dl class="facts">') : page.index("</dl>")]
+    failures = page[page.index('<section class="scheduler-failures"') :]
+    assert "<dt>agent capacity</dt>" in facts
+    assert "scheduler failures" not in facts
+    assert failures.count("<li>") == 2
+    assert "<li>could not list issues for dream:smith: " in failures
+    assert "<li>could not list issues for dream:less: " in failures
 
 
 def test_next_update_is_left_out_when_no_daemon_is_running(tmp_path):
@@ -1621,7 +1625,7 @@ def test_an_active_cooldown_is_a_warning_fact(tmp_path):
     assert page.count('<div class="fact warning">') == 1
     assert "<dt>global cooldown</dt>" in page
     assert "<dd>ends in 15m</dd>" in page
-    assert "<dt>scheduler failures</dt>" not in page
+    assert "scheduler-failures" not in page
 
 
 def test_an_inactive_cooldown_is_not_shown(tmp_path):

@@ -184,7 +184,8 @@ body::after {
   border-right: var(--line) solid var(--rule);
 }
 
-.fact dt {
+.fact dt,
+.scheduler-failures h1 {
   color: var(--dim);
 }
 
@@ -193,7 +194,8 @@ body::after {
   font-weight: 600;
 }
 
-.fact.warning dd {
+.fact.warning dd,
+.scheduler-failures ul {
   color: var(--amber);
 }
 
@@ -201,6 +203,30 @@ body::after {
   padding-right: 0;
   margin-right: 0;
   border-right: 0;
+}
+
+.scheduler-failures {
+  margin-top: var(--space-8);
+  padding-left: var(--space-6);
+  border-left: var(--line) solid var(--amber);
+}
+
+.scheduler-failures h1 {
+  margin: 0 0 var(--space-3);
+  font-size: inherit;
+  font-weight: inherit;
+}
+
+.scheduler-failures ul {
+  margin: 0;
+  padding: 0;
+  font-weight: 600;
+  list-style: none;
+  overflow-wrap: anywhere;
+}
+
+.scheduler-failures li + li {
+  margin-top: var(--space-2);
 }
 
 .dashboard {
