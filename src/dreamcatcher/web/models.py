@@ -166,6 +166,7 @@ class WebAgentWorkSection:
     then the guidance, then the ended work.
     """
 
+    kind: AgentWorkKind
     heading: str
     empty_message: str | None
     active: tuple[WebAgentWorkCard, ...]

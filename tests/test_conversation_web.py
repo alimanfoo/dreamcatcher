@@ -67,11 +67,9 @@ def test_home_lists_a_conversation_and_links_to_its_page(tmp_path):
 
     page = application(state=state).test_client().get("/").text
 
-    assert page.index('id="assignments-heading"') < page.index(
-        'id="conversations-heading"'
-    )
+    assert page.index('id="assignment-tab"') < page.index('id="conversation-tab"')
     assert 'class="agent-work-card' in page
-    assert '<h1 id="conversations-heading">Conversations</h1>' in page
+    assert 'aria-controls="conversation-panel">Conversations</button>' in page
     assert 'id="GH8-20260819-184158-conversation"' in page
     conversation_link = (
         'class="agent-work-open" href="/work/GH8-20260819-184158-conversation" '
@@ -768,7 +766,7 @@ def test_home_collapses_an_ended_conversation(tmp_path):
 
     page = application(state=state).test_client().get("/").text
 
-    conversations = page[page.index('id="conversations-heading"') :]
+    conversations = page[page.index('id="conversation-panel"') :]
     ended = conversations[conversations.index('<details class="ended-work">') :]
     assert "<summary>+ 1 ended</summary>" in ended
     assert 'id="GH8-20260819-184158-conversation"' in ended
