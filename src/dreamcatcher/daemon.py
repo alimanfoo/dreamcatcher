@@ -241,8 +241,8 @@ def _describe_tick_outcome(
 ) -> str:
     """Say what the tick launched, then the cooldown, capacity and failures.
 
-    A round that errored before its harness ran is named with its reason among
-    the failures.
+    A round that errored during its preparation or startup is named with its
+    reason among the failures.
     """
     facts = [_describe_launches(identifiers=record.launched_agent_work_identifiers)]
     if record.cooldown is not None:

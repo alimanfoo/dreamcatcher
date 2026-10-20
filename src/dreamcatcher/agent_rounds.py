@@ -13,9 +13,16 @@ from enum import StrEnum
 from pathlib import Path
 from threading import Event as Flag
 from threading import Lock, Thread
-from typing import Annotated, Literal, Protocol, Self
+from typing import Annotated, Literal, Protocol
 
-from pydantic import AwareDatetime, Field, PositiveInt, model_validator
+from pydantic import (
+    AfterValidator,
+    AwareDatetime,
+    Discriminator,
+    Field,
+    PositiveInt,
+    Tag,
+)
 
 from dreamcatcher.clock import read_current_time
 from dreamcatcher.commands import ChildProcess, spawn_command
@@ -165,27 +172,68 @@ class SuccessfulAgentRoundEnding(DreamcatcherDocument):
 
 
 class ErroredAgentRoundEnding(DreamcatcherDocument):
-    """An agent round ending with an error exit, or a failure around a clean one.
+    """The outcome and time that every errored agent round ending holds.
 
-    A round errors with a reason when it cannot prepare or spawn its harness,
-    which leaves no exit status, or when its finishing step fails after its
-    harness exited cleanly.
+    Each subclass says which step of the round failed and what that step left
+    known, and a saved ending always reads as one of them.
     """
 
     outcome: Literal[AgentRoundOutcome.ERRORED] = AgentRoundOutcome.ERRORED
     at: AwareDatetime
-    status: int | None = None
+
+
+class LaunchErroredAgentRoundEnding(ErroredAgentRoundEnding):
+    """An agent round ending in an error during its preparation or startup.
+
+    The round's preparation, the spawn of its harness, or the record of the
+    spawned process failed. A harness may briefly have run before that last
+    step failed, but no exit status was recorded.
+    """
+
+    status: None = None
+    reason: str
+
+
+def _refuse_clean_exit_status(status: int, /) -> int:
+    """Return a failed harness's exit status; pydantic calls this validator."""
+    if status == 0:
+        raise ValueError("a failed harness needs a nonzero exit status")
+    return status
+
+
+class HarnessErroredAgentRoundEnding(ErroredAgentRoundEnding):
+    """An agent round ending in an error because its harness exited unsuccessfully.
+
+    A saved record may hold a reason beside the exit status.
+    """
+
+    status: Annotated[int, AfterValidator(_refuse_clean_exit_status)]
     reason: str | None = None
 
-    @model_validator(mode="after")
-    def _refuse_unexplained_error(self) -> Self:
-        """Require a reason unless the harness exited with an error status."""
-        if self.status in {None, 0} and self.reason is None:
-            raise ValueError(
-                "an errored round needs a reason unless its harness exited "
-                "with an error status"
-            )
-        return self
+
+class FinishingErroredAgentRoundEnding(ErroredAgentRoundEnding):
+    """An agent round ending in an error because its finishing step failed.
+
+    The round's harness exited cleanly before the step failed.
+    """
+
+    status: Literal[0] = 0
+    reason: str
+
+
+def _select_errored_ending(ending: object, /) -> str:
+    """Return the tag of the errored ending that an ending's exit status selects.
+
+    Pydantic calls this with a saved ending's fields or with an ending already
+    built.
+    """
+    if isinstance(ending, dict):
+        status = ending.get("status")
+    else:
+        status = getattr(ending, "status", None)
+    if status is None:
+        return "launch"
+    return "finishing" if status == 0 else "harness"
 
 
 class InterruptedAgentRoundEnding(DreamcatcherDocument):
@@ -203,7 +251,12 @@ class StoppedAgentRoundEnding(DreamcatcherDocument):
 
 type _AgentRoundEnding = Annotated[
     SuccessfulAgentRoundEnding
-    | ErroredAgentRoundEnding
+    | Annotated[
+        Annotated[LaunchErroredAgentRoundEnding, Tag("launch")]
+        | Annotated[HarnessErroredAgentRoundEnding, Tag("harness")]
+        | Annotated[FinishingErroredAgentRoundEnding, Tag("finishing")],
+        Discriminator(_select_errored_ending),
+    ]
     | InterruptedAgentRoundEnding
     | StoppedAgentRoundEnding,
     Field(discriminator="outcome"),
@@ -211,18 +264,12 @@ type _AgentRoundEnding = Annotated[
 
 
 def _compose_agent_round_ending(
-    *, at: datetime, status: int, failure: str | None = None
-) -> SuccessfulAgentRoundEnding | ErroredAgentRoundEnding:
-    """Return the terminal outcome observed when a harness exited.
-
-    A failure is what stopped the finishing step of a round whose harness exited
-    cleanly, and it errors the round.
-    """
-    if failure is not None:
-        return ErroredAgentRoundEnding(at=at, status=status, reason=failure)
+    *, at: datetime, status: int
+) -> SuccessfulAgentRoundEnding | HarnessErroredAgentRoundEnding:
+    """Return the ending that a harness's exit status gives."""
     if status == 0:
         return SuccessfulAgentRoundEnding(at=at)
-    return ErroredAgentRoundEnding(at=at, status=status)
+    return HarnessErroredAgentRoundEnding(at=at, status=status)
 
 
 class AgentRoundRecord(DreamcatcherDocument):
@@ -269,12 +316,12 @@ def interpret_agent_round_outcome(
 def describe_round_launch_failure(
     *, agent_work_identifier: str, round_number: int, reason: str
 ) -> str:
-    """Say which round of which work errored before its harness ran, and why."""
+    """Say which round errored during its preparation or startup, and why."""
     return f"{agent_work_identifier} round {round_number} errored: {reason}"
 
 
 class AgentRoundLaunchError(ReportableError):
-    """Report a round that ended errored before its harness ran.
+    """Report a round that errored during its preparation or startup.
 
     The round's record already holds the errored ending. The error carries the
     work, the round and the reason, so a caller can record them without reading
@@ -454,8 +501,8 @@ class AgentRound:
         harness as it was written however long it is and whatever it holds, and
         a reader can see afterwards what the round received.
 
-        A failure before the harness is running ends the round errored, with the
-        failure as its reason and no exit status, and raises
+        A failure during preparation or startup ends the round errored, with the
+        failure as its reason and no recorded exit status, and raises
         AgentRoundLaunchError naming the work and the round.
 
         A round given a finishing step runs it before it records its ending.
@@ -485,7 +532,7 @@ class AgentRound:
         except ReportableError as failure:
             self.record = _record_agent_round_ending(
                 record=self.record,
-                ending=ErroredAgentRoundEnding(at=clock(), reason=str(failure)),
+                ending=LaunchErroredAgentRoundEnding(at=clock(), reason=str(failure)),
                 path=paths.record,
             )
             raise AgentRoundLaunchError(
@@ -658,21 +705,12 @@ class AgentRound:
         """
         try:
             status = self.harness_process.wait()
-            failure = self._finish_round(status=status)
-            if self.forced_ending is not None:
-                self.record = _record_agent_round_ending(
-                    record=self.record,
-                    ending=self.forced_ending,
-                    path=self.paths.record,
-                )
-            else:
-                self.record = _record_agent_round_ending(
-                    record=self.record,
-                    ending=_compose_agent_round_ending(
-                        at=self.clock(), status=status, failure=failure
-                    ),
-                    path=self.paths.record,
-                )
+            ending = self._compose_exit_ending(status=status)
+            self.record = _record_agent_round_ending(
+                record=self.record,
+                ending=ending if self.forced_ending is None else self.forced_ending,
+                path=self.paths.record,
+            )
         finally:
             # However the close went, the round has ended, so whoever is
             # waiting on it waits no longer, and whatever the pumps still have
@@ -682,22 +720,30 @@ class AgentRound:
             for stream_reader in self._stream_readers:
                 stream_reader.join()
 
-    def _finish_round(self, *, status: int) -> str | None:
-        """Run the finishing step of a successful round, and return why it failed.
+    def _compose_exit_ending(
+        self, *, status: int
+    ) -> (
+        SuccessfulAgentRoundEnding
+        | HarnessErroredAgentRoundEnding
+        | FinishingErroredAgentRoundEnding
+    ):
+        """Return the ending that the harness's exit gives the round.
 
-        A finishing step that raises fails the round, and the feed says why too.
-        An interrupted round is not finished.
+        A clean exit runs the finishing step first. A finishing step that raises
+        fails the round, and the feed says why too. A round with a forced ending
+        is not finished, and that ending replaces the one returned here.
         """
-        if self.finish_round is None or status != 0 or self.forced_ending is not None:
-            return None
-        try:
-            self.finish_round(final_output=self._read_final_output())
-        except ReportableError as failure:
-            self._append_feed_events(
-                line="", events=[FeedNote(label="failed", detail=str(failure))]
-            )
-            return str(failure)
-        return None
+        if status == 0 and self.finish_round is not None and self.forced_ending is None:
+            try:
+                self.finish_round(final_output=self._read_final_output())
+            except ReportableError as failure:
+                self._append_feed_events(
+                    line="", events=[FeedNote(label="failed", detail=str(failure))]
+                )
+                return FinishingErroredAgentRoundEnding(
+                    at=self.clock(), reason=str(failure)
+                )
+        return _compose_agent_round_ending(at=self.clock(), status=status)
 
     def _read_final_output(self) -> str | None:
         """Return the harness's final output, once it has had time to land."""
