@@ -418,6 +418,7 @@ def test_the_default_config_keeps_the_recipes_of_a_missing_harness_as_comments(
     written = (tmp_path / DREAMCATCHER_CONFIG_NAME).read_text(encoding="utf-8")
     assert "\n#[assignment.codex]\n#prompt = " in written
     assert "\n[assignment.claude]\nprompt = " in written
+    assert not (tmp_path / f"{DREAMCATCHER_CONFIG_NAME}.lock").exists()
 
 
 def test_the_default_config_leaves_an_existing_config_alone(tmp_path):
