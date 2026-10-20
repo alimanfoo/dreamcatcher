@@ -9,6 +9,7 @@ from clocks import PINNED
 from records import (
     find_conversation_directory,
     hold_daemon_lock_for_test,
+    write_conversation,
     write_ending,
     write_feed,
     write_round,
@@ -636,7 +637,8 @@ def write_newer_conversation(*, state: StateDirectory) -> str:
 
 
 def test_a_view_stays_on_its_conversation_when_a_newer_one_arrives(tmp_path):
-    state = conversation_state(root=tmp_path, is_paused=False)
+    state = StateDirectory(root=tmp_path)
+    fabricate_conversation(state=state, is_paused=False)
     identifier = find_conversation_directory(state=state, issue=8).name
     newer = write_newer_conversation(state=state)
     shutil.move(state.work / newer, tmp_path / newer)
@@ -676,7 +678,8 @@ def test_a_view_stays_on_its_conversation_when_a_newer_one_arrives(tmp_path):
 
 
 def test_a_conversation_view_lists_the_other_conversations_at_its_issue(tmp_path):
-    state = conversation_state(root=tmp_path)
+    state = StateDirectory(root=tmp_path)
+    fabricate_conversation(state=state)
     paused = find_conversation_directory(state=state, issue=8).name
     newer = write_newer_conversation(state=state)
     console, written = rendered_console()
