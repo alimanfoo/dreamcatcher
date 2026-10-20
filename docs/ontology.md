@@ -162,9 +162,14 @@ conversation.
 
 An agent round is **running** until it becomes **successful**,
 **errored**, **interrupted** by daemon shutdown or an internal failure,
-or **stopped** at the user's request. A round whose preparation fails,
-or whose harness cannot start, is errored with a reason and no exit
-status.
+or **stopped** at the user's request.
+
+An errored round records which step failed. A round that fails in its
+preparation, or while its harness invocation starts, is errored with a
+reason and no recorded exit status. A round whose harness exits
+unsuccessfully is errored with that exit status. A round whose finishing
+step fails after its harness exited successfully is errored with the
+reason, and keeps that successful exit status.
 
 A successful or stopped round has taken its turn. An errored or
 interrupted round has not, so the next round is given its input again,
@@ -496,10 +501,11 @@ affect it.
 ### Fault and global cooldown
 
 Agent work is in **fault** when its last two rounds both errored. A
-round that errored in its preparation counts like any other, and a round
-that ended any other way, a stopped round included, ends a run of
-errors. Work in fault starts no round, not even an assignment's wrap-up
-round, until a retry or the end of a global cooldown clears the fault.
+round that errored in its preparation or its finishing step counts like
+any other, and a round that ended any other way, a stopped round
+included, ends a run of errors. Work in fault starts no round, not even
+an assignment's wrap-up round, until a retry or the end of a global
+cooldown clears the fault.
 
 No single error is taken as a sign of a global problem. Each tick counts
 every assignment in fault, and every conversation in fault unless it is

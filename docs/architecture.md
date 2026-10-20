@@ -292,7 +292,9 @@ provide operations to:
   reports;
 - run the finishing step of a round whose harness succeeded, before the
   ending;
-- record a successful or errored ending;
+- record a successful ending, an errored ending with the exit status of
+  a harness that failed, or an errored ending with the reason its
+  finishing step failed;
 - interrupt the process tree safely;
 - record an interruption, or a stop when the user asked for one, when
   the daemon finds a round record that an earlier daemon left without an
@@ -654,6 +656,12 @@ A round record persists:
   status, and the reason it could not prepare, start or finish; and
 - the durable files containing its prompt, input, output, and any final
   output the harness reports.
+
+Each kind of errored ending has its own type in `agent_rounds.py`, and
+the exit status in a saved ending selects the type when the record is
+read. An absent status means the round failed before its harness was
+running, a nonzero status means its harness failed, and a zero status
+means its finishing step failed.
 
 An assignment round input that carries user posts puts the cursor at its
 newest post, and one that carries a pull request signal records the head
