@@ -267,9 +267,12 @@ failure there is a scheduler failure. It should then provide operations to:
 - stream and render its output, and keep the final output the harness reports;
 - run the finishing step of a round whose harness succeeded, before the ending;
 - record a successful or errored ending;
-- interrupt the process tree safely; and
+- interrupt the process tree safely;
 - record an interruption, or a stop when the user asked for one, when the daemon
-  finds a round record that an earlier daemon left without an ending.
+  finds a round record that an earlier daemon left without an ending; and
+- interpret a round with no ending as running while a daemon runs it and as
+  interrupted once that daemon has gone, for scheduling and status alike,
+  without claiming that its harness has exited.
 
 `agent_assignments.py` owns `AssignmentRoundInput`, the pull request state and
 head commit, the relayed pull request signals and the relayed user posts that an
