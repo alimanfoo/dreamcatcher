@@ -17,7 +17,10 @@ Before installing v6.0.0:
    does not carry on an assignment that v5 started, and while its pull
    request stays open and linked to the issue, it claims the issue, so
    no new assignment starts there.
-3. Stop the v5 _dreamcatcher_ daemon.
+3. Stop the v5 _dreamcatcher_ daemon and every view you started on its
+   own, as
+   [Restart views across state formats](#restart-views-across-state-formats)
+   describes.
 
 The new release starts with empty local state in `.dreamcatcher/v6/`. It
 leaves `.dreamcatcher/v5/` untouched but does not read it. Existing
@@ -90,6 +93,25 @@ before you start v5.0.0 or later.
 
 A different format starts with empty local state. No migration is
 promised.
+
+### Restart views across state formats
+
+A view reads only the records of its own state format. Running a view
+and a daemon that use different state formats is not supported, and the
+view may show stale status. _dreamcatcher_ does not promise to detect
+the mismatch.
+
+Before you install a release with a different state format:
+
+1. Stop the old daemon. This also stops the web page that
+   `dreamcatcher run` serves.
+2. Stop every view you started on its own: `dreamcatcher web`, and any
+   refreshing `status`, `assignment`, `conversation` or `feed` view.
+
+After you install it, start the daemon and any views you still want from
+the new installation. The restart depends on the state format, not the
+release version. Releases that share a state format read the same
+records.
 
 ## Agent contract
 
