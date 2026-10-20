@@ -235,14 +235,6 @@ def _select_errored_ending(ending: object, /) -> str:
     return "finishing" if status == 0 else "harness"
 
 
-type _ErroredAgentRoundEnding = Annotated[
-    Annotated[LaunchErroredAgentRoundEnding, Tag("launch")]
-    | Annotated[HarnessErroredAgentRoundEnding, Tag("harness")]
-    | Annotated[FinishingErroredAgentRoundEnding, Tag("finishing")],
-    Discriminator(_select_errored_ending),
-]
-
-
 class InterruptedAgentRoundEnding(DreamcatcherDocument):
     """An agent round ending without an observed exit."""
 
@@ -258,7 +250,12 @@ class StoppedAgentRoundEnding(DreamcatcherDocument):
 
 type _AgentRoundEnding = Annotated[
     SuccessfulAgentRoundEnding
-    | _ErroredAgentRoundEnding
+    | Annotated[
+        Annotated[LaunchErroredAgentRoundEnding, Tag("launch")]
+        | Annotated[HarnessErroredAgentRoundEnding, Tag("harness")]
+        | Annotated[FinishingErroredAgentRoundEnding, Tag("finishing")],
+        Discriminator(_select_errored_ending),
+    ]
     | InterruptedAgentRoundEnding
     | StoppedAgentRoundEnding,
     Field(discriminator="outcome"),

@@ -70,25 +70,23 @@ def describe_round_ending(
     *, record: AgentRoundRecord, paths: AgentRoundPaths
 ) -> tuple[str, str | None]:
     """Describe a round that is no longer running and return its latest output."""
-    match record.ending:
-        case LaunchErroredAgentRoundEnding(reason=reason):
-            outcome = f"errored: {reason}"
-        case HarnessErroredAgentRoundEnding(status=status, reason=str(reason)):
-            outcome = f"errored (exit {status}): {reason}"
-        case FinishingErroredAgentRoundEnding(reason=reason):
-            outcome = f"errored (exit 0): {reason}"
-        case _:
-            outcome = describe_round_outcome(
-                record=record,
-                outcome=interpret_agent_round_outcome(
-                    record=record, is_daemon_running=False
-                ),
-            )
+    ending = record.ending
+    if isinstance(
+        ending,
+        LaunchErroredAgentRoundEnding
+        | HarnessErroredAgentRoundEnding
+        | FinishingErroredAgentRoundEnding,
+    ):
+        detail = f"round {record.number} errored"
+        if ending.status is not None:
+            detail = f"{detail} (exit {ending.status})"
+        if ending.reason is not None:
+            detail = f"{detail}: {ending.reason}"
+    else:
+        outcome = interpret_agent_round_outcome(record=record, is_daemon_running=False)
+        detail = f"round {record.number} {outcome}"
     line = read_last_feed_line(path=paths.feed)
-    return (
-        f"round {record.number} {outcome}",
-        None if line is None else line.text.strip(),
-    )
+    return detail, None if line is None else line.text.strip()
 
 
 def find_stoppable_round_paths(
