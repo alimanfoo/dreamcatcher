@@ -83,11 +83,88 @@ def test_a_refresh_leaves_an_opened_section_open(page: Page, live_web: str) -> N
     expect(ended).to_have_attribute("open", "")
 
 
+def test_home_tabs_switch_by_pointer_and_keyboard_and_survive_refresh(
+    page: Page, live_web: str
+) -> None:
+    page.goto(live_web)
+    assignments = page.get_by_role("tab", name="Assignments")
+    conversations = page.get_by_role("tab", name="Conversations")
+    assignment_panel = page.get_by_role("tabpanel", name="Assignments")
+    conversation_panel = page.get_by_role("tabpanel", name="Conversations")
+
+    expect(assignments).to_have_attribute("aria-selected", "true")
+    expect(assignment_panel).to_be_visible()
+    expect(conversation_panel).to_be_hidden()
+
+    assignments.press("ArrowLeft")
+    expect(conversations).to_have_attribute("aria-selected", "true")
+    expect(assignment_panel).to_be_hidden()
+    expect(conversation_panel).to_be_visible()
+
+    conversations.press("ArrowRight")
+    expect(assignments).to_have_attribute("aria-selected", "true")
+
+    assignments.press("ArrowRight")
+    expect(conversations).to_have_attribute("aria-selected", "true")
+
+    conversations.press("Home")
+    expect(assignments).to_have_attribute("aria-selected", "true")
+
+    assignments.press("End")
+    expect(conversations).to_have_attribute("aria-selected", "true")
+
+    assignments.click()
+    expect(assignments).to_have_attribute("aria-selected", "true")
+    conversations.click()
+    wait_for_refresh(page=page)
+    expect(conversations).to_have_attribute("aria-selected", "true")
+    expect(assignments).to_have_attribute("aria-selected", "false")
+    expect(assignment_panel).to_be_hidden()
+    expect(conversation_panel).to_be_visible()
+
+    conversations.press("ArrowLeft")
+    expect(assignments).to_have_attribute("aria-selected", "true")
+    expect(conversations).to_have_attribute("aria-selected", "false")
+    expect(assignments).to_be_focused()
+    expect(assignment_panel).to_be_visible()
+    expect(conversation_panel).to_be_hidden()
+
+
+def test_refresh_focuses_the_first_tab_when_the_selected_section_disappears(
+    page: Page, live_web: str
+) -> None:
+    page.goto(live_web)
+    conversations = page.get_by_role("tab", name="Conversations")
+    conversations.click()
+    expect(conversations).to_be_focused()
+
+    page.evaluate(
+        """
+        () => {
+          const home = document.querySelector("#home");
+          document.body.dispatchEvent(new CustomEvent("htmx:beforeSwap", {
+            detail: {target: home, serverResponse: home.outerHTML},
+          }));
+          document.querySelector("#conversation-tab").remove();
+          document.querySelector("#conversation-panel").remove();
+          document.body.dispatchEvent(new CustomEvent("htmx:afterSwap", {
+            detail: {target: home},
+          }));
+        }
+        """
+    )
+
+    assignments = page.get_by_role("tab", name="Assignments")
+    expect(assignments).to_have_attribute("aria-selected", "true")
+    expect(assignments).to_be_focused()
+    expect(page.get_by_role("tabpanel", name="Assignments")).to_be_visible()
+
+
 def test_a_failed_home_refresh_keeps_the_dashboard_and_reports_why(
     page: Page, live_web: str
 ) -> None:
     page.goto(live_web)
-    assignments = page.get_by_role("heading", name="Assignments")
+    assignments = page.get_by_role("tab", name="Assignments")
     expect(assignments).to_be_visible()
     home_address = f"{live_web}/**"
     page.route(

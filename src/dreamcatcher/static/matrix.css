@@ -205,8 +205,7 @@ body::after {
 
 .dashboard {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(460px, 1fr));
-  gap: var(--space-12);
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .panel {
@@ -224,6 +223,41 @@ body::after {
   letter-spacing: var(--letter-label);
   text-shadow: var(--shadow);
   text-transform: uppercase;
+}
+
+.work-tabs {
+  display: flex;
+  gap: var(--space-9);
+  border-bottom: var(--line) solid var(--rule);
+}
+
+.work-tab {
+  padding: 0 0 var(--space-4);
+  margin: 0 0 calc(var(--line) * -1);
+  color: var(--dim);
+  background: transparent;
+  border: 0;
+  border-bottom: var(--line) solid transparent;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: var(--font-size);
+  font-weight: 700;
+  letter-spacing: var(--letter-label);
+  text-transform: uppercase;
+}
+
+.work-tab:hover,
+.work-tab[aria-selected="true"] {
+  color: var(--phosphor);
+  text-shadow: var(--shadow);
+}
+
+.work-tab[aria-selected="true"] {
+  border-bottom-color: var(--phosphor);
+}
+
+.work-tab-panel[hidden] {
+  display: none;
 }
 
 .agent-work-card,
@@ -734,10 +768,6 @@ body::after {
   .error-page {
     padding-right: var(--space-8);
     padding-left: var(--space-8);
-  }
-
-  .dashboard {
-    grid-template-columns: minmax(0, 1fr);
   }
 
   .agent-work-meta,

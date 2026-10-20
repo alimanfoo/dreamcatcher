@@ -31,6 +31,9 @@ each entry links the pull request or commit that made the change.
 - An idle assignment whose pull request is still a draft now reads "needs
   feedback" rather than "draft", because the agent is waiting on you.
   ([#612](https://github.com/alimanfoo/dreamcatcher/pull/612))
+- The web home page shows assignments and conversations in tabs rather than side
+  by side, giving the selected kind of agent work the full dashboard width.
+  ([#596](https://github.com/alimanfoo/dreamcatcher/pull/596))
 - A round that resumes an assignment after a round that did not finish, with
   nothing new to relay, now shows the trigger "recover" instead of "carry on".
   ([#609](https://github.com/alimanfoo/dreamcatcher/pull/609))
