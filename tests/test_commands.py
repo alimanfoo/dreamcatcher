@@ -126,6 +126,16 @@ def test_a_spawned_command_runs_where_it_is_told_and_streams_as_it_goes(fake, tm
     assert probe.calls[0].directory == tmp_path.resolve()
 
 
+def test_a_child_with_no_working_directory_says_so(fake, tmp_path):
+    fake(program="probe")
+    missing = tmp_path / "gone"
+
+    with pytest.raises(CommandError) as raised:
+        spawn_command(program="probe", arguments=[], cwd=missing)
+
+    assert str(raised.value).startswith(f"cannot start probe in {missing}: ")
+
+
 def test_a_spawned_command_reads_the_file_it_was_given_as_its_stdin(tmp_path):
     reading = "import sys; sys.stdout.write(f'read {sys.stdin.read()!r}')"
     holds = tmp_path / "prompt.txt"
