@@ -32,6 +32,12 @@ each entry links the pull request or commit that made the change.
   by side, giving the selected kind of agent work the full dashboard width.
   ([#596](https://github.com/alimanfoo/dreamcatcher/pull/596))
 
+### Fixed
+
+- Repeated state-document reads from the web and terminal views no longer
+  prevent the daemon from replacing those documents on Windows.
+  ([#601](https://github.com/alimanfoo/dreamcatcher/pull/601))
+
 ## [v6.1.0](https://github.com/alimanfoo/dreamcatcher/releases/tag/v6.1.0) — 2026-10-18
 
 ### Changed
