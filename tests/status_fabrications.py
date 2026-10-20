@@ -162,18 +162,15 @@ def fabricate_conversation(
     )
     if not has_round:
         return
-    write_round(
-        directory=directory,
+    record = AgentRoundRecord(
         number=1,
-        record=AgentRoundRecord(
-            number=1,
-            started=PINNED,
-            pid=1,
-            ending=_compose_agent_round_ending(
-                at=PINNED + timedelta(minutes=4), status=status
-            ),
+        started=PINNED,
+        pid=1,
+        ending=_compose_agent_round_ending(
+            at=PINNED + timedelta(minutes=4), status=status
         ),
     )
+    write_round(directory=directory, number=1, record=record)
     write_json(
         document=ConversationRoundInput(
             issue=8,
@@ -196,7 +193,7 @@ def fabricate_conversation(
     write_feed(
         directory=directory,
         number=1,
-        lines=[FeedLine(at=PINNED, text="I found the answer.")],
+        lines=[compose_feed_line(record=record, text="I found the answer.", minutes=0)],
     )
     write_final_output(directory=directory, number=1, text="The answer.")
 
@@ -274,6 +271,16 @@ def running(
     )
 
 
+def compose_feed_line(
+    *,
+    record: AgentRoundRecord,
+    text: str,
+    minutes: int = 1,
+) -> FeedLine:
+    """Return a line that the round wrote that many minutes after it started."""
+    return FeedLine(at=record.started + timedelta(minutes=minutes), text=text)
+
+
 def holding(*, state, max_agents: int = 1):
     """Record the instance and hold the lock as its running daemon."""
     write_text(text=f"{REPOSITORY}\n", path=state.repository)
@@ -291,43 +298,44 @@ def fabricate_everything(
     *,
     state,
     conversation_rows: Sequence[RequestRow] = (),
+    latest_output: str = "[Bash] pytest",
 ):
     """Write a running daemon with varied issue and assignment statuses."""
     holding(state=state, max_agents=2)
+    current = running(minute=30, number=2)
     directory = written(
         state=state,
         issue=13,
-        records=[ended(minute=1), running(minute=30, number=2)],
+        records=[ended(minute=1), current],
         round_inputs={2: ONE_POST_INPUT},
     )
     write_feed(directory=directory, number=1, lines=SAID)
     write_feed(
         directory=directory,
         number=2,
-        lines=[FeedLine(at=PINNED + timedelta(minutes=31), text="[Bash] pytest")],
+        lines=[compose_feed_line(record=current, text=latest_output)],
     )
+    pushed = ended(minute=115)
     write_feed(
-        directory=written(state=state, issue=20, records=[ended(minute=115)]),
+        directory=written(state=state, issue=20, records=[pushed]),
         number=1,
-        lines=[FeedLine(at=PINNED + timedelta(minutes=116), text="[Bash] git push")],
+        lines=[compose_feed_line(record=pushed, text="[Bash] git push")],
     )
     written(state=state, issue=31, records=[ended(minute=1)])
     written(state=state, issue=35, records=[ended(minute=1, status=2)])
     written(state=state, issue=40, records=[ended(minute=1)])
+    capped = ended(minute=2, number=2, status=2)
     faulted_directory = written(
         state=state,
         issue=9,
-        records=[ended(minute=1, status=1), ended(minute=2, number=2, status=2)],
+        records=[ended(minute=1, status=1), capped],
         round_inputs={2: CARRY_ON_INPUT},
     )
     write_feed(
         directory=faulted_directory,
         number=2,
         lines=[
-            FeedLine(
-                at=PINNED + timedelta(minutes=3),
-                text="[failed] You hit your spend cap.",
-            )
+            compose_feed_line(record=capped, text="[failed] You hit your spend cap.")
         ],
     )
     written(
@@ -379,17 +387,10 @@ def fabricate_everything(
 
 def fabricate_status_everything(*, state):
     """Write the combined report, including output wider than its console."""
-    fabricate_everything(state=state)
-    write_feed(
-        directory=state.work / f"GH13-{ASSIGNMENT_TIMESTAMP}-assignment",
-        number=2,
-        lines=[
-            FeedLine(
-                at=PINNED + timedelta(minutes=31),
-                text="The agent is explaining a long change that would otherwise "
-                "wrap onto another line and move every assignment below it.",
-            )
-        ],
+    fabricate_everything(
+        state=state,
+        latest_output="The agent is explaining a long change that would otherwise "
+        "wrap onto another line and move every assignment below it.",
     )
 
 
@@ -402,11 +403,12 @@ def fabricate_a_dead_daemon(*, state):
 def fabricate_the_cap(*, state):
     """Write a daemon at its cap whose latest tick also failed to list issues."""
     holding(state=state)
-    directory = written(state=state, issue=13, records=[running(minute=30)])
+    current = running(minute=30)
+    directory = written(state=state, issue=13, records=[current])
     write_feed(
         directory=directory,
         number=1,
-        lines=[FeedLine(at=PINNED + timedelta(minutes=31), text="[Bash] pytest")],
+        lines=[compose_feed_line(record=current, text="[Bash] pytest")],
     )
     written(state=state, issue=20, records=[ended(minute=1)])
     write_tick(
@@ -451,12 +453,7 @@ def fabricate_repeat_assignments(*, state):
         write_feed(
             directory=directory,
             number=len(rounds),
-            lines=[
-                FeedLine(
-                    at=PINNED + timedelta(minutes=len(rounds) + 1),
-                    text="[Bash] git push",
-                )
-            ],
+            lines=[compose_feed_line(record=rounds[-1], text="[Bash] git push")],
         )
     write_tick(
         state=state,
@@ -470,16 +467,17 @@ def fabricate_repeat_assignments(*, state):
 def fabricate_a_silent_round(*, state):
     """Write a daemon running a round that has yet to write its own line."""
     holding(state=state)
+    pushed = ended(minute=1)
     directory = written(
         state=state,
         issue=13,
-        records=[ended(minute=1), running(minute=30, number=2)],
+        records=[pushed, running(minute=30, number=2)],
         round_inputs={2: ONE_POST_INPUT},
     )
     write_feed(
         directory=directory,
         number=1,
-        lines=[FeedLine(at=PINNED, text="[Bash] git push")],
+        lines=[compose_feed_line(record=pushed, text="[Bash] git push")],
     )
     write_tick(
         state=state,
