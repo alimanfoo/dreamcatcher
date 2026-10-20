@@ -28,6 +28,7 @@ from records import (
     write_conversation,
     write_ending,
     write_round,
+    write_tick,
 )
 from rows import request_row
 
@@ -73,6 +74,12 @@ from dreamcatcher.scheduler.models import (
     StartedRound,
 )
 from dreamcatcher.state import StateDirectory
+from dreamcatcher.status import (
+    AgentWorkStatus,
+    AgentWorkStatusValue,
+    read_conversation_status,
+    read_dreamcatcher_daemon_status,
+)
 
 # What a round's prompt opens with when the round before it did not finish.
 UNFINISHED_ROUND_OPENING = "Your previous round did not finish."
@@ -325,6 +332,17 @@ def count_comment_reads(*, gh) -> int:
     """Return how often GitHub was asked for the conversation's comments."""
     expected = COMMENT_PATH.split()
     return sum(call.arguments[: len(expected)] == expected for call in gh.calls)
+
+
+def read_status(*, state: StateDirectory) -> AgentWorkStatus:
+    """Return the status of the conversation at the issue the tests offer."""
+    found = read_conversation_status(
+        state=state,
+        issue=8,
+        daemon=read_dreamcatcher_daemon_status(state=state),
+    )
+    assert found is not None
+    return found
 
 
 def finish(*, scheduler: Scheduler) -> None:
@@ -1510,6 +1528,47 @@ def test_a_failed_post_gives_its_comments_again_with_new_ones(
     assert resumed.arguments[-2:] == ["--resume", "conversation-session"]
     assert resumed.prompt.startswith(UNFINISHED_ROUND_OPENING)
     assert "Issue-conversation input for GH8:" in resumed.prompt
+
+
+def test_deleting_an_errored_rounds_comments_withdraws_them_until_a_new_one(
+    conversation_scheduler, harnesses
+):
+    scheduler, clock, gh = conversation_scheduler
+    state = scheduler.context.state
+    offer_conversation(gh=gh, comments=[ask()])
+    answer(harnesses=harnesses, status=2)
+    write_tick(state=state, tick=scheduler.tick(at=clock()))
+    finish(scheduler=scheduler)
+
+    assert read_status(state=state).value is AgentWorkStatusValue.WAITING
+
+    offer_conversation(gh=gh, comments=[])
+    withdrawn = scheduler.tick(at=clock())
+    write_tick(state=state, tick=withdrawn)
+
+    found = read_status(state=state)
+    assert withdrawn.launched_agent_work_identifiers == []
+    assert found.value is AgentWorkStatusValue.IDLE
+    assert found.detail.startswith("round 1, errored, ran ")
+
+    offer_conversation(gh=gh, comments=[ask(identifier=2, body="A new question.")])
+    answer(harnesses=harnesses)
+    gh.replies(stdout=json.dumps({"id": 99}), to=POST_PATH)
+
+    asked = scheduler.tick(at=clock())
+    finish(scheduler=scheduler)
+
+    conversation = read_conversation(state=state, issue=8)
+    assert conversation is not None
+    assert asked.launched_agent_work_identifiers == [conversation.identifier]
+    given = read_json(
+        model=ConversationRoundInput,
+        path=conversation.compose_round_paths(number=2).round_input,
+    )
+    assert [item.body for item in given.comments] == ["A new question."]
+    resumed = harnesses["claude"].calls[1]
+    assert resumed.arguments[-2:] == ["--resume", "conversation-session"]
+    assert resumed.prompt.startswith(UNFINISHED_ROUND_OPENING)
 
 
 def test_no_reply_completes_without_posting_a_comment(

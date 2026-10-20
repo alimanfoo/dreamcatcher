@@ -427,6 +427,13 @@ consume. The earlier finding still supplies the assignment's last observed pull
 request summary. An ending that predates the record should already have been
 read, so a missing row remains unknown.
 
+A round that did not finish leaves the work waiting until a scheduler record
+that began after the round ended has read its channel. For a conversation, that
+record's count of comments then decides, so a conversation whose comments the
+user deleted is idle. An assignment's unfinished round is always given again, so
+the assignment stays waiting. An interruption that an earlier release recorded
+has no time, so no record is known to follow it.
+
 ### TUI
 
 The TUI renders status reports and feeds with Rich. It owns presentation only.

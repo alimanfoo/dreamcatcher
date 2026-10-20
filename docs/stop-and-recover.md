@@ -95,6 +95,11 @@ example when it cannot push an assignment's branch, and that counts the same
 way. Two consecutive errored rounds put that assignment or conversation in
 **fault** so _dreamcatcher_ does not repeat the same failure forever.
 
+A conversation round that errored is given its comments again only while they
+are still on the issue. If you delete them before the next update, the
+conversation becomes idle once that update finds nothing to answer, and a new
+comment starts its next round.
+
 Read the detail and feed to find the cause:
 
 ```sh

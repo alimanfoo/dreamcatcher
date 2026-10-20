@@ -238,12 +238,13 @@ errored.
 
 Issue conversations run through Claude or Codex and keep the harness chosen at
 creation. While the conversation is not paused, the round after an interrupted
-or errored one is given that round's comments again, with any that arrived
-since, against a refreshed worktree. Its prompt opens by saying that the
-previous round did not finish. It resumes the recorded harness session, or
-starts a new session with the configured prompt and the issue's title and body
-when no session identifier was recorded. The configured conversation prompt
-needs no special instructions for this.
+or errored one is given that round's comments again, less any the user has
+deleted and with any that arrived since, against a refreshed worktree. When the
+user has deleted them all, no round starts until a new eligible comment arrives.
+Its prompt opens by saying that the previous round did not finish. It resumes
+the recorded harness session, or starts a new session with the configured prompt
+and the issue's title and body when no session identifier was recorded. The
+configured conversation prompt needs no special instructions for this.
 
 A conversation round that the user stopped waits for a new eligible comment. The
 next round begins by saying that the earlier round was stopped.

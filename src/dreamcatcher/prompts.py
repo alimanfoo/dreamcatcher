@@ -38,8 +38,9 @@ finished. The new input says what to do next.
 """
 
 # What opens the input of a round whose previous round errored or was
-# interrupted. The round is given the same input again, with anything that has
-# arrived since, and some of what the previous round did may already be done.
+# interrupted. The round is given the same input again, less anything the user
+# has deleted and with anything that has arrived since, and some of what the
+# previous round did may already be done.
 _UNFINISHED_ROUND_LINE = """Your previous round did not finish. Some of what it
 did may already be done, so check before you repeat an action. The new input
 says what to do next.

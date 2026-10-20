@@ -459,6 +459,7 @@ def test_an_unfinished_round_waits_to_be_given_its_input_again(
     state, round_status, detail
 ):
     ran(state=state, number=1, status=round_status)
+    tick_with(state=state, rows=[pull_request_row()])
 
     status = only_assignment(state=state)
 

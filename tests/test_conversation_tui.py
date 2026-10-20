@@ -56,7 +56,10 @@ def conversation_state(
     is_paused: bool = True,
     harness_session_identifier: str | None = "conversation-session",
 ) -> StateDirectory:
-    """Return state containing one finished conversation."""
+    """Return state containing one finished conversation.
+
+    The tick after a round that errored still finds its comment to answer.
+    """
     state = StateDirectory(root=root)
     directory = write_conversation(
         state=state,
@@ -109,7 +112,7 @@ def conversation_state(
                     finding=(
                         PausedFinding(cause=PauseCause.LABEL_REMOVED)
                         if is_paused
-                        else IssueCommentsFinding(new_comments=0)
+                        else IssueCommentsFinding(new_comments=int(status != 0))
                     )
                 )
             ],

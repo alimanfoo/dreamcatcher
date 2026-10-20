@@ -138,7 +138,10 @@ def fabricate_conversation(
     harness_session_identifier: HarnessSessionIdentifier
     | None = "conversation-session",
 ) -> None:
-    """Write one initial conversation exchange."""
+    """Write one initial conversation exchange.
+
+    The tick after a round that errored still finds its comment to answer.
+    """
     directory = write_conversation(
         state=state,
         issue=8,
@@ -154,7 +157,7 @@ def fabricate_conversation(
                     finding=(
                         PausedFinding(cause=PauseCause.LABEL_REMOVED)
                         if is_paused
-                        else IssueCommentsFinding(new_comments=0)
+                        else IssueCommentsFinding(new_comments=int(status != 0))
                     )
                 )
             ],
