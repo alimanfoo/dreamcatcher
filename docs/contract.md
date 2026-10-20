@@ -153,8 +153,10 @@ given and any that arrived since, `signals` holds the signals it was given that
 still hold, and `pull_request_state` says where the pull request has got to now.
 _dreamcatcher_'s prompt opens with a line saying that the previous round did not
 finish, and that some of what it did may already be done, before it names the
-input. `user_posts` may be empty, in which case the agent carries on with the
-work in hand.
+input. While the pull request is open, the prompt tells the agent to continue
+the unfinished assignment from where it stopped as well as act on any posts, and
+says that empty `user_posts` and `signals` do not mean the assignment is
+complete. A merged or closed pull request still gets its wrap-up.
 
 An assignment skill needs nothing of its own for this. The resumed agent
 normally still has its own transcript. A new session instead receives the

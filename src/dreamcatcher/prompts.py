@@ -73,8 +73,17 @@ _ASSIGNMENT_INPUT_PROMPT = """Assignment input for pull request #{pull_request}:
 
 Read that JSON file. Read pull_request_state before anything else. If
 pull_request_state is MERGED or CLOSED, finish per your assignment's rules.
-Otherwise act on every post in user_posts, if it holds any, per your
-assignment's rules. End your turn when done."""
+Otherwise {open_work} End your turn when done."""
+
+# What an open pull request's round does with its input.
+_RELAY_WORK = """act on every post in user_posts, if it holds any, per your
+assignment's rules."""
+
+# What an open pull request's round does after a round that did not finish. Its
+# input may hold nothing new, and the assignment is still not done.
+_CONTINUED_WORK = """continue the unfinished assignment from where you stopped,
+and act on every post in user_posts, if it holds any, per your assignment's
+rules. Empty user_posts and signals do not mean the assignment is complete."""
 
 _CONVERSATION_INPUT_PROMPT = """Issue-conversation input for GH{issue}:
 
@@ -109,15 +118,22 @@ def compose_assignment_input_prompt(
     pull_request: int,
     round_input: Path,
     pull_request_signals: list[PullRequestSignal],
+    is_previous_round_unfinished: bool,
 ) -> str:
     """Return the words that direct an assignment round to its input file.
 
     The input file holds the pull request state, the pull request signals and
-    the batch of user posts. One line for each signal opens the words.
+    the batch of user posts. One line for each signal opens the words. After a
+    round that errored or was interrupted, an open pull request's round is told
+    to continue the unfinished assignment as well as act on the posts.
     """
     return "".join(_SIGNAL_LINES[signal] for signal in pull_request_signals) + (
         _ASSIGNMENT_INPUT_PROMPT.format(
-            pull_request=pull_request, round_input=round_input
+            pull_request=pull_request,
+            round_input=round_input,
+            open_work=(
+                _CONTINUED_WORK if is_previous_round_unfinished else _RELAY_WORK
+            ),
         )
     )
 
