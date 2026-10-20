@@ -680,23 +680,28 @@ the only copy of anything.
 
 ### A local record cannot be read
 
-A work record, a round record or another file the daemon keeps for a
-piece of work under `.dreamcatcher/` is damaged, and no longer reads
-back. At its next update the daemon prints that the update failed, with
-the file and what is wrong with it. That update starts no rounds and
-leaves the record of the last complete update in place. Rounds already
-running carry on. The home page shows the same message while it needs
-the damaged file to draw the page. Each later update tries again and
-fails the same way until the user repairs the file or restores it. A
-damaged record found while the daemon starts stops it starting, with the
-same message, and the user repairs or restores the file before starting
-it again.
+A file under `.dreamcatcher/` that an update cannot do without, such as
+a work record or a round record, is damaged and no longer reads back. At
+its next update the daemon prints that the update failed, with the file
+and what is wrong with it. That update starts no rounds and leaves the
+record of the last complete update in place. Rounds already running
+carry on. Each later update tries again and fails the same way until the
+user repairs the file or restores it. A damaged record found while the
+daemon starts stops it starting, with the same message, and the user
+repairs or restores the file before starting it again.
+
+The status report can fail the same way. When a record or feed it needs
+will not read, `dreamcatcher status` and a freshly opened home page show
+only the file and what is wrong with it. A home page that is already
+open keeps the last status it showed, with a warning that the refresh
+failed and why.
 
 This is accepted. One damaged file holds up every piece of work, not
-just its own, and nothing sets it aside so that the rest can go on. Such
-damage should be rare, and a clear report the user acts on is simpler
-than machinery that schedules around it. Some failures still belong to
-one piece of work and show on its row, as when a read from GitHub fails.
-The daemon's own record of the last update fares worse. When it cannot
-be read or written, the daemon stops, because every update builds on
-that record.
+just its own, and nothing sets it aside so that the rest can go on or
+the rest of the status can show. Such damage should be rare, and a clear
+report the user acts on is simpler than machinery that works around it.
+Some failures still belong to one piece of work and show on its row, as
+when a read from GitHub fails, or when a conversation cannot read its
+cursor. The daemon's own record of the last update fares worse. When it
+cannot be read or written, the daemon stops, because every update builds
+on that record.
