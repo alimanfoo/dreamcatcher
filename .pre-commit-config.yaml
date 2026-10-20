@@ -88,7 +88,7 @@ repos:
         exclude: *verbatim-paths
       - id: remark-validate-links
         name: validate markdown links
-        entry: remark --frail --quiet --no-stdout --use validate-links
+        entry: remark --frail --quiet --no-stdout
         language: node
         additional_dependencies:
           - remark-cli@12.0.1
