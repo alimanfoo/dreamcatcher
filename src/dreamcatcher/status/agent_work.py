@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
 from functools import cached_property
-from typing import Protocol, cast
+from typing import Protocol
 
 from dreamcatcher.agent_assignments import (
     read_assignment_pull_request_number,
@@ -14,8 +14,6 @@ from dreamcatcher.agent_rounds import (
     AgentRoundOutcome,
     AgentRoundPaths,
     AgentRoundRecord,
-    StoppedAgentRoundEnding,
-    SuccessfulAgentRoundEnding,
 )
 from dreamcatcher.agent_work import AgentWork
 from dreamcatcher.documents import read_text
@@ -339,11 +337,11 @@ class AgentWorkStatusReader:
         if not work.rounds or self.scheduler_record is None:
             return None
         latest = work.rounds[-1]
-        ending = latest.ending
-        if ending is None or latest.is_unfinished:
-            return None
-        took_turn = cast("SuccessfulAgentRoundEnding | StoppedAgentRoundEnding", ending)
-        if took_turn.at <= self.scheduler_record.at:
+        if (
+            latest.ending is None
+            or latest.is_unfinished
+            or self._is_ending_assessed(record=latest)
+        ):
             return None
         news = None if row is None else _describe_what_is_new(finding=row.finding)
         did_tick_start_round = (
@@ -406,6 +404,18 @@ class AgentWorkStatusReader:
             value=AgentWorkStatusValue.IDLE,
             detail=detail,
             latest_output=None,
+        )
+
+    def _is_ending_assessed(self, *, record: AgentRoundRecord) -> bool:
+        """Return whether the latest tick began once the round had ended.
+
+        An interruption recorded without a time is never known to be assessed.
+        """
+        ended = None if record.ending is None else record.ending.at
+        return (
+            self.scheduler_record is not None
+            and ended is not None
+            and ended <= self.scheduler_record.at
         )
 
     def _is_round_working(self, *, record: AgentRoundRecord) -> bool:
