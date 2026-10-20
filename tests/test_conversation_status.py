@@ -23,8 +23,10 @@ from rows import request_row
 
 from dreamcatcher.agent_rounds import (
     AgentRoundRecord,
-    ErroredAgentRoundEnding,
+    FinishingErroredAgentRoundEnding,
+    HarnessErroredAgentRoundEnding,
     InterruptedAgentRoundEnding,
+    LaunchErroredAgentRoundEnding,
     StoppedAgentRoundEnding,
     SuccessfulAgentRoundEnding,
     _AgentRoundEnding,
@@ -145,9 +147,7 @@ def write_second_conversation_error(*, state: StateDirectory) -> None:
             started=PINNED + timedelta(minutes=5),
             pid=2,
             ending=_compose_agent_round_ending(
-                at=PINNED + timedelta(minutes=8),
-                status=2,
-                failure=None,
+                at=PINNED + timedelta(minutes=8), status=2
             ),
         ),
     )
@@ -473,24 +473,59 @@ def test_a_retry_clears_a_conversation_fault(conversation_state):
 
 
 @pytest.mark.parametrize(
-    "failure",
+    ("ending", "detail", "outcome_description"),
     [
-        "could not post the answer on GH8: network unavailable",
-        "the harness returned no final output",
+        pytest.param(
+            LaunchErroredAgentRoundEnding(at=ENDED, reason="could not fetch main"),
+            "round 1 errored: could not fetch main",
+            "errored",
+            id="launch",
+        ),
+        pytest.param(
+            HarnessErroredAgentRoundEnding(at=ENDED, status=-9),
+            "round 1 errored (exit -9)",
+            "errored (exit -9)",
+            id="harness",
+        ),
+        pytest.param(
+            HarnessErroredAgentRoundEnding(
+                at=ENDED, status=2, reason="the harness was killed"
+            ),
+            "round 1 errored (exit 2): the harness was killed",
+            "errored",
+            id="harness-with-reason",
+        ),
+        pytest.param(
+            FinishingErroredAgentRoundEnding(
+                at=ENDED,
+                reason="could not post the answer on GH8: network unavailable",
+            ),
+            "round 1 errored (exit 0): "
+            "could not post the answer on GH8: network unavailable",
+            "errored",
+            id="finishing",
+        ),
+        pytest.param(
+            FinishingErroredAgentRoundEnding(
+                at=ENDED, reason="the harness returned no final output"
+            ),
+            "round 1 errored (exit 0): the harness returned no final output",
+            "errored",
+            id="no-final-output",
+        ),
     ],
 )
-def test_a_round_that_could_not_be_finished_says_why(conversation_state, failure):
-    conversation_round(
-        state=conversation_state,
-        ending=_compose_agent_round_ending(at=ENDED, status=0, failure=failure),
-    )
+def test_an_errored_round_says_how_it_failed(
+    conversation_state, ending, detail, outcome_description
+):
+    conversation_round(state=conversation_state, ending=ending)
     observe(state=conversation_state, finding=IssueCommentsFinding(new_comments=1))
 
     found = status(state=conversation_state)
 
     assert found.value is AgentWorkStatusValue.WAITING
-    assert found.detail == f"round 1 errored (exit 0): {failure}"
-    assert found.round_statuses[0].outcome_description == "errored"
+    assert found.detail == detail
+    assert found.round_statuses[0].outcome_description == outcome_description
 
 
 def test_an_unfinished_round_comes_before_comments_to_answer(conversation_state):
@@ -511,8 +546,8 @@ def test_an_unfinished_round_comes_before_comments_to_answer(conversation_state)
             "round 1, errored (exit 2), ran 4m",
         ),
         (
-            ErroredAgentRoundEnding(
-                at=ENDED, status=0, reason="the harness returned no final output"
+            FinishingErroredAgentRoundEnding(
+                at=ENDED, reason="the harness returned no final output"
             ),
             "round 1, errored, ran 4m",
         ),

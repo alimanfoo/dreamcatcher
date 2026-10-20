@@ -36,7 +36,9 @@ from dreamcatcher import agent_rounds
 from dreamcatcher.agent_rounds import (
     AgentRoundOutcome,
     AgentRoundRecord,
-    ErroredAgentRoundEnding,
+    FinishingErroredAgentRoundEnding,
+    HarnessErroredAgentRoundEnding,
+    LaunchErroredAgentRoundEnding,
     SuccessfulAgentRoundEnding,
     request_agent_round_stop,
 )
@@ -369,7 +371,7 @@ def write_faulted_conversation(
                 number=number,
                 started=at + timedelta(minutes=number - 1),
                 pid=number,
-                ending=ErroredAgentRoundEnding(
+                ending=HarnessErroredAgentRoundEnding(
                     at=at + timedelta(minutes=number), status=2
                 ),
             ),
@@ -409,7 +411,7 @@ def write_faulted_assignment(
                 number=number,
                 started=at + timedelta(minutes=number - 1),
                 pid=number,
-                ending=ErroredAgentRoundEnding(
+                ending=HarnessErroredAgentRoundEnding(
                     at=at + timedelta(minutes=number), status=2
                 ),
             ),
@@ -1010,8 +1012,7 @@ def test_a_failed_conversation_refresh_is_an_errored_round(
     assert conversation is not None
     assert len(conversation.rounds) == 2
     ending = conversation.rounds[1].ending
-    assert isinstance(ending, ErroredAgentRoundEnding)
-    assert ending.status is None
+    assert isinstance(ending, LaunchErroredAgentRoundEnding)
     assert ending.reason == "could not fetch main"
     assert conversation.rounds[1].pid is None
     assert not conversation.compose_round_paths(number=2).round_input.exists()
@@ -1508,9 +1509,7 @@ def test_a_failed_post_gives_its_comments_again_with_new_ones(
     conversation = read_conversation(state=scheduler.context.state, issue=8)
     assert conversation is not None
     ending = conversation.rounds[0].ending
-    assert isinstance(ending, ErroredAgentRoundEnding)
-    assert ending.status == 0
-    assert ending.reason is not None
+    assert isinstance(ending, FinishingErroredAgentRoundEnding)
     assert ending.reason.startswith("could not post the answer on GH8: ")
     feed = conversation.compose_round_paths(number=1).feed.read_text(encoding="utf-8")
     assert "[failed] could not post the answer on GH8: " in feed
@@ -2036,7 +2035,7 @@ def test_a_paused_conversation_does_not_retry_its_errored_round(
             number=1,
             started=clock(),
             pid=1,
-            ending=ErroredAgentRoundEnding(at=clock(), status=2),
+            ending=HarnessErroredAgentRoundEnding(at=clock(), status=2),
         ),
     )
     show_conversation_issue(gh=gh, issue=conversation_issue(labels=()))
