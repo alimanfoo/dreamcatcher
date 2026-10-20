@@ -1,5 +1,6 @@
 """Render issue conversations in terminal views."""
 
+import shutil
 from datetime import timedelta
 from io import StringIO
 
@@ -8,6 +9,7 @@ from clocks import PINNED
 from records import (
     find_conversation_directory,
     hold_daemon_lock_for_test,
+    write_conversation,
     write_ending,
     write_feed,
     write_round,
@@ -39,7 +41,7 @@ from dreamcatcher.scheduler.models import (
 )
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.tui import (
-    show_conversation_view,
+    show_agent_work_view,
     show_feed_view,
     show_status_view,
 )
@@ -113,15 +115,16 @@ def test_conversation_detail_shows_settings_revision_session_and_round(tmp_path)
     )
     console, written = rendered_console()
 
-    show_conversation_view(
+    show_agent_work_view(
         state=state,
-        issue=8,
+        reference=8,
+        kind=AgentWorkKind.CONVERSATION,
         console=console,
         clock=lambda: PINNED,
     )
 
     shown = written.getvalue()
-    assert "newest issue conversation GH8-" in shown
+    assert "conversation GH8-" in shown
     assert "recovered-session" in shown
     assert "abc123" in shown
     assert "def456" in shown
@@ -138,9 +141,10 @@ def test_conversation_detail_shows_a_failed_round(tmp_path):
     fabricate_conversation(state=state, status=2, is_paused=False)
     console, written = rendered_console()
 
-    show_conversation_view(
+    show_agent_work_view(
         state=state,
-        issue=8,
+        reference=8,
+        kind=AgentWorkKind.CONVERSATION,
         console=console,
         clock=lambda: PINNED,
     )
@@ -182,9 +186,10 @@ def test_conversation_detail_shows_two_errors_as_a_fault(tmp_path):
     console, written = rendered_console()
     console.width = 140
 
-    show_conversation_view(
+    show_agent_work_view(
         state=state,
-        issue=8,
+        reference=8,
+        kind=AgentWorkKind.CONVERSATION,
         console=console,
         clock=lambda: PINNED,
     )
@@ -201,8 +206,8 @@ def test_conversation_feed_shows_its_saved_activity(tmp_path):
 
     show_feed_view(
         state=state,
-        issue=8,
-        work_kind=AgentWorkKind.CONVERSATION,
+        reference=8,
+        kind=AgentWorkKind.CONVERSATION,
         console=console,
     )
 
@@ -271,8 +276,8 @@ def test_conversation_feed_follows_a_later_round_without_repeating_the_first(
 
     show_feed_view(
         state=state,
-        issue=8,
-        work_kind=AgentWorkKind.CONVERSATION,
+        reference=8,
+        kind=AgentWorkKind.CONVERSATION,
         console=console,
         wait=wait,
     )
@@ -292,8 +297,8 @@ def test_conversation_feed_can_select_one_round(tmp_path):
 
     show_feed_view(
         state=state,
-        issue=8,
-        work_kind=AgentWorkKind.CONVERSATION,
+        reference=8,
+        kind=AgentWorkKind.CONVERSATION,
         console=console,
         round_number=1,
     )
@@ -305,9 +310,10 @@ def test_a_missing_conversation_detail_is_reportable(tmp_path):
     console, _ = rendered_console()
 
     with pytest.raises(ReportableError, match="No conversation here for GH8"):
-        show_conversation_view(
+        show_agent_work_view(
             state=StateDirectory(root=tmp_path),
-            issue=8,
+            reference=8,
+            kind=AgentWorkKind.CONVERSATION,
             console=console,
         )
 
@@ -320,8 +326,8 @@ def test_a_missing_conversation_round_says_how_many_exist(tmp_path):
     with pytest.raises(ReportableError, match="has run 1 round, so it has no round 2"):
         show_feed_view(
             state=state,
-            issue=8,
-            work_kind=AgentWorkKind.CONVERSATION,
+            reference=8,
+            kind=AgentWorkKind.CONVERSATION,
             console=console,
             round_number=2,
         )
@@ -371,9 +377,10 @@ def test_conversation_detail_before_the_conversation_starts_says_there_is_none(
     console, _ = rendered_console()
 
     with pytest.raises(ReportableError, match="No conversation here for GH9"):
-        show_conversation_view(
+        show_agent_work_view(
             state=state,
-            issue=9,
+            reference=9,
+            kind=AgentWorkKind.CONVERSATION,
             console=console,
             clock=lambda: PINNED,
         )
@@ -388,8 +395,8 @@ def test_a_conversation_feed_before_the_conversation_starts_says_there_is_none(
     with pytest.raises(ReportableError, match="No conversation here for GH9"):
         show_feed_view(
             state=state,
-            issue=9,
-            work_kind=AgentWorkKind.CONVERSATION,
+            reference=9,
+            kind=AgentWorkKind.CONVERSATION,
             console=console,
         )
 
@@ -482,15 +489,16 @@ def test_an_ended_conversation_view_never_waits(tmp_path, status):
     )
     console, written = watched_console()
 
-    show_conversation_view(
+    show_agent_work_view(
         state=state,
-        issue=8,
+        reference=8,
+        kind=AgentWorkKind.CONVERSATION,
         console=console,
         clock=lambda: PINNED,
         wait=refusing,
     )
 
-    assert "newest issue conversation GH8-" in written.getvalue()
+    assert "conversation GH8-" in written.getvalue()
 
 
 def test_a_conversation_view_of_an_idle_conversation_keeps_watching(tmp_path):
@@ -545,9 +553,10 @@ def assert_conversation_views_keep_watching(*, state: StateDirectory) -> None:
         raise KeyboardInterrupt
 
     console, _ = watched_console()
-    show_conversation_view(
+    show_agent_work_view(
         state=state,
-        issue=8,
+        reference=8,
+        kind=AgentWorkKind.CONVERSATION,
         console=console,
         clock=lambda: PINNED,
         wait=interrupting,
@@ -555,8 +564,8 @@ def assert_conversation_views_keep_watching(*, state: StateDirectory) -> None:
     console, _ = watched_console()
     show_feed_view(
         state=state,
-        issue=8,
-        work_kind=AgentWorkKind.CONVERSATION,
+        reference=8,
+        kind=AgentWorkKind.CONVERSATION,
         console=console,
         wait=interrupting,
     )
@@ -592,12 +601,100 @@ def test_a_view_of_an_ended_conversation_never_waits(tmp_path):
     end_conversation(state=state)
     console, written = watched_console()
 
-    show_conversation_view(
+    show_agent_work_view(
         state=state,
-        issue=8,
+        reference=8,
+        kind=AgentWorkKind.CONVERSATION,
         console=console,
         clock=lambda: PINNED,
         wait=refusing,
     )
 
     assert "ended  completed" in written.getvalue()
+
+
+def write_newer_conversation(*, state: StateDirectory) -> str:
+    """Write a conversation at issue 8 under another label, and return its name.
+
+    It is newer than the one that the conversation state holds, and its round
+    has said something that a view of the older one must never show.
+    """
+    at = PINNED + timedelta(hours=1)
+    directory = write_conversation(
+        state=state, issue=8, at=at, dispatch_label="dream:scout"
+    )
+    write_round(
+        directory=directory,
+        number=1,
+        record=AgentRoundRecord(number=1, started=at, pid=1),
+    )
+    write_feed(
+        directory=directory,
+        number=1,
+        lines=[FeedLine(at=at, text="The newer answer.")],
+    )
+    return directory.name
+
+
+def test_a_view_stays_on_its_conversation_when_a_newer_one_arrives(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    fabricate_conversation(state=state, is_paused=False)
+    identifier = find_conversation_directory(state=state, issue=8).name
+    newer = write_newer_conversation(state=state)
+    shutil.move(state.work / newer, tmp_path / newer)
+    waits = []
+
+    def arriving(seconds, /):
+        """Let the newer conversation arrive at the first wait, then interrupt."""
+        waits.append(seconds)
+        if len(waits) % 2 == 0:
+            raise KeyboardInterrupt
+        if not (state.work / newer).exists():
+            shutil.move(tmp_path / newer, state.work / newer)
+
+    detail_console, detail = watched_console()
+    show_agent_work_view(
+        state=state,
+        reference=identifier,
+        kind=AgentWorkKind.CONVERSATION,
+        console=detail_console,
+        clock=lambda: PINNED,
+        wait=arriving,
+    )
+    feed_console, feed = watched_console()
+    show_feed_view(
+        state=state,
+        reference=identifier,
+        kind=AgentWorkKind.CONVERSATION,
+        console=feed_console,
+        wait=arriving,
+    )
+
+    assert len(waits) == 4
+    assert f"conversation {identifier}" in detail.getvalue()
+    assert f"conversation {newer}" not in detail.getvalue()
+    assert "I found the answer." in feed.getvalue()
+    assert "The newer answer." not in feed.getvalue()
+
+
+def test_a_conversation_view_lists_the_other_conversations_at_its_issue(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    fabricate_conversation(state=state)
+    paused = find_conversation_directory(state=state, issue=8).name
+    newer = write_newer_conversation(state=state)
+    console, written = rendered_console()
+
+    show_agent_work_view(
+        state=state,
+        reference=8,
+        kind=AgentWorkKind.CONVERSATION,
+        console=console,
+        clock=lambda: PINNED,
+    )
+
+    shown = " ".join(written.getvalue().split())
+    assert f"conversation {newer}" in shown
+    assert (
+        f"other conversations {paused} dream:conversation idle paused, label removed"
+        in shown
+    )

@@ -136,10 +136,10 @@ def write_assignment(
     return directory
 
 
-def compose_conversation_identifier(*, issue: int) -> str:
+def compose_conversation_identifier(*, issue: int, at: datetime = PINNED) -> str:
     """Return the identifier of the conversation that the tests write at an issue."""
     return agent_work._compose_agent_work_identifier(
-        issue=issue, kind=AgentWorkKind.CONVERSATION, at=PINNED
+        issue=issue, kind=AgentWorkKind.CONVERSATION, at=at
     )
 
 
@@ -154,9 +154,15 @@ def write_conversation(
     issue: int,
     harness: AgentHarness = AgentHarness.CLAUDE,
     harness_session_identifier: str | None = "conversation-session",
+    at: datetime = PINNED,
+    dispatch_label: str = "dream:conversation",
 ) -> Path:
-    """Write a conversation worktree and record, and return its directory."""
-    identifier = compose_conversation_identifier(issue=issue)
+    """Write a conversation worktree and record, and return its directory.
+
+    The conversation is created at the pinned time unless the test gives
+    another, so a test that writes a second one at the issue gives a later time.
+    """
+    identifier = compose_conversation_identifier(issue=issue, at=at)
     (state.worktrees / identifier).mkdir(parents=True)
     work = agent_work._record_agent_work(
         state=state,
@@ -164,7 +170,7 @@ def write_conversation(
         record=agent_work.AgentWorkRecord(
             issue=issue,
             title=f"Issue {issue}",
-            dispatch_label="dream:conversation",
+            dispatch_label=dispatch_label,
             kind=AgentWorkKind.CONVERSATION,
             harness=harness,
             model="opus[1m]",
