@@ -5,9 +5,11 @@ description: Triage dreamcatcher's GitHub issues with the maintainer, using thei
 
 # Triage issues
 
-These are lessons from the maintainer's steering during issue triage.
+Please help me to triage issues.
 
 ## Questions for each issue
+
+Here are some questions we should ask of every issue:
 
 1. **What would the user actually do?** Identify a realistic situation, not
    merely an input a function could receive.
@@ -20,50 +22,55 @@ These are lessons from the maintainer's steering during issue triage.
 5. **What should the implementing agent be told?** Settle the intended
    behaviour, give practical engineering guidance, and specify meaningful tests.
 
+Don't invent or guess at anything. In God we trust, all others must bring data.
+
 ## Pace and responsibility
 
-- The maintainer wants tutoring through one issue and one decision at a time.
-  They cannot absorb much information at once. Keep explanations short and
+Please tutor me through one issue and one decision at a time. I am a merege human and cannot absorb much information at once. Keep explanations short and
   concrete, and develop them through the conversation.
-- Act as the experienced lead. Investigate and make a recommendation rather
-  than making the maintainer direct routine next steps. Their questions should
+
+Act as the experienced lead. Investigate and make a recommendation where you can, rather
+  than standing back and waiting for me to direct routine next steps. My questions should
   refine the decision rather than uncover missing groundwork.
-- After resolving an issue, move automatically to the next. Pause when asked.
-- Read current GitHub state when resuming. Do not maintain a session checkpoint.
 
-## Judgments the maintainer corrected
+After resolving an issue and accepting is as something to be worked on, assign it to me and add an assignment label for dispatch via dreamcatcher, ask me which. Then move automatically to the next issue.
 
-- Be skeptical of agent-raised issues. Do not invent a supported workflow to
+Read current GitHub state when resuming. Do not maintain a session checkpoint.
+
+## Judgments
+
+Be skeptical of agent-raised issues. Do not invent a supported workflow to
   justify one. For example, the maintainer rejected redirected `init` output as
   a requirement: setup is intended to be interactive.
-- A user error or external fault can expose a bug in the handling we promised.
-  Distinguish that from asking for stronger recovery than we promise.
-- Do not dismiss maintenance merely because nothing currently malfunctions.
+
+Be clear about what is a bug, where a documented user story does not work as promised, versus what is handling of a user error or external fault. When deciding issues which propose changes to how user errors or external faults should be handled, consider the promises in the user stories.
+
+Do not dismiss maintenance merely because nothing currently malfunctions.
   Better types can express intended semantics: read-only collection interfaces
   are useful without runtime freezing, and distinct failure types can reflect
   real preparation, harness and finishing stages.
-- Look at real output before deciding a formatting issue is either useful or
+
+Look at real output before deciding a formatting issue is either useful or
   hypothetical. The recorded fixtures were insufficient to assess worktree-path
   shortening; actual assignment output established the useful change.
-- Explain the exact UI text and what it claims. Making two cases consistently
-  say `waiting` is not enough if neither has a round known to be due. Do not
+
+Explain the exact UI text and what it claims. Do not
   confuse the agent's activity with the freshness of the GitHub information.
-- Check the meaning of a proposed simplification. Silently making an absolute
-  `cd` path relative changes the displayed command's meaning. An explicit
-  abbreviation can communicate what was omitted.
-- Do not stop at "unverified locally" when platform documentation establishes
-  the mechanism and existing CI can exercise it. The maintainer expects a
+
+Check the meaning of a proposed simplification. For example, silently making an absolute
+  `cd` path relative changes the displayed command's meaning.
+
+Do not stop at "unverified locally" when platform documentation establishes
+  the mechanism and existing CI can exercise it. Please read the docs and/or propose a
   focused test, not prolonged speculation about Windows behaviour.
-- Prefer the standard library or established third-party libraries. The
-  maintainer pushed back on custom Windows bindings and hand-written retry
+
+Prefer the standard library or established third-party libraries. E.g., no custom Windows bindings and hand-written retry
   machinery for ordinary file access. Give the implementing agent a practical
   direction rather than leaving a list of unresolved approaches.
-- Check earlier decisions before presenting an issue as unresolved. A change
-  that limits release measurements to recent PRs may already address the
-  maintainer's concern about historical shortcomings counting forever.
-- When triage settles product behaviour, require the decision in the user
+
+When triage settles product behaviour, require the decision in the user
   stories as part of implementation. An issue or code condition alone is not
   where the project's lasting account of that behaviour belongs.
 
-The examples record the reasoning the maintainer had to steer. Use GitHub and
+Use GitHub and
 the current project documents for the latest product decisions.
