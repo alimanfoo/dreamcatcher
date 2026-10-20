@@ -1,4 +1,4 @@
-agent assignment GH44-20260819-184158-assignment
+assignment GH44-20260819-184158-assignment
 waiting  no round has run yet
 
 assignment

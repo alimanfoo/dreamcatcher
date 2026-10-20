@@ -218,7 +218,6 @@ def test_an_identifier_reads_as_its_work_spells_it(text):
     [
         "GH12",
         "GH12-20260819-184158-review",
-        "GH12-20261319-184158-assignment",
         "GH12-20260819-184158-assignment-extra",
         "GH\u0661\u0662-20260819-184158-assignment",
     ],

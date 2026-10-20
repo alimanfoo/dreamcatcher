@@ -198,7 +198,7 @@ def test_conversation_detail_shows_settings_revision_session_and_round(tmp_path)
     )
 
     shown = written.getvalue()
-    assert "issue conversation GH8-" in shown
+    assert "conversation GH8-" in shown
     assert "recovered-session" in shown
     assert "abc123" in shown
     assert "def456" in shown
@@ -564,7 +564,7 @@ def test_an_ended_conversation_view_never_waits(tmp_path, status):
         wait=refusing,
     )
 
-    assert "issue conversation GH8-" in written.getvalue()
+    assert "conversation GH8-" in written.getvalue()
 
 
 def test_a_conversation_view_of_an_idle_conversation_keeps_watching(tmp_path):
@@ -731,8 +731,8 @@ def test_a_view_stays_on_its_conversation_when_a_newer_one_arrives(tmp_path):
     )
 
     assert len(waits) == 4
-    assert f"issue conversation {identifier}" in detail.getvalue()
-    assert f"issue conversation {newer}" not in detail.getvalue()
+    assert f"conversation {identifier}" in detail.getvalue()
+    assert f"conversation {newer}" not in detail.getvalue()
     assert "I found the answer." in feed.getvalue()
     assert "The newer answer." not in feed.getvalue()
 
@@ -752,7 +752,7 @@ def test_a_conversation_view_lists_the_other_conversations_at_its_issue(tmp_path
     )
 
     shown = " ".join(written.getvalue().split())
-    assert f"issue conversation {newer}" in shown
+    assert f"conversation {newer}" in shown
     assert (
         f"other conversations {paused} dream:conversation idle paused, label removed"
         in shown

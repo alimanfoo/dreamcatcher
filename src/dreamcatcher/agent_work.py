@@ -58,9 +58,6 @@ _ENDING_RECORD_NAME = "ended.json"
 # The directory in a work directory holding a directory per round.
 _AGENT_ROUNDS_DIRECTORY_NAME = "rounds"
 
-# The time in an agent work identifier, as its composer writes it.
-_AGENT_WORK_IDENTIFIER_TIME_FORMAT = "%Y%m%d-%H%M%S"
-
 # An agent work identifier as a person may type it: the issue, the time and the
 # kind, in any case, with ASCII digits alone.
 _AGENT_WORK_IDENTIFIER_PATTERN = re.compile(
@@ -196,26 +193,20 @@ def _compose_agent_work_identifier(
     *, issue: int, kind: AgentWorkKind, at: datetime
 ) -> str:
     """Return the identifier of the work of this kind created at the issue at `at`."""
-    return f"GH{issue}-{at:{_AGENT_WORK_IDENTIFIER_TIME_FORMAT}}-{kind}"
+    return f"GH{issue}-{at:%Y%m%d-%H%M%S}-{kind}"
 
 
 def parse_agent_work_identifier(*, text: str) -> str | None:
     """Return the agent work identifier that the text spells, as its work spells it.
 
-    Text in any case reads as the identifier that names the work's directory.
-    Text that no work could be named by, such as one with a month 13, is None.
+    Text in any case, or with zeros before the issue number, reads as the
+    identifier that names the work's directory.
     """
     identifier_match = _AGENT_WORK_IDENTIFIER_PATTERN.match(text)
     if identifier_match is None:
         return None
     issue, time, kind = identifier_match.groups()
-    try:
-        at = datetime.strptime(time, _AGENT_WORK_IDENTIFIER_TIME_FORMAT)
-    except ValueError:
-        return None
-    return _compose_agent_work_identifier(
-        issue=int(issue), kind=AgentWorkKind(kind.lower()), at=at
-    )
+    return f"GH{int(issue)}-{time}-{kind.lower()}"
 
 
 def create_agent_work(

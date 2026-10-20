@@ -573,7 +573,7 @@ def test_conversation_shows_its_local_detail(monkeypatch, watching, capsys):
     monkeypatch.chdir(watching.root)
 
     assert main(argv=["conversation", "GH8"]) == 0
-    assert "issue conversation GH8-" in capsys.readouterr().out
+    assert "conversation GH8-" in capsys.readouterr().out
 
 
 def test_feed_shows_what_the_conversation_said(monkeypatch, watching, capsys):
@@ -851,7 +851,7 @@ def test_an_identifier_shows_that_assignment_rather_than_the_newest(
 
     assert main(argv=["assignment", OLDER_ASSIGNMENT_ID.lower()]) == 0
     shown = " ".join(capsys.readouterr().out.split())
-    assert f"agent assignment {OLDER_ASSIGNMENT_ID}" in shown
+    assert f"assignment {OLDER_ASSIGNMENT_ID}" in shown
     assert "other assignments GH13-20260819-184158" in shown
     assert "dream:smith working" in shown
 
@@ -904,9 +904,9 @@ def test_an_older_conversation_can_be_selected_after_a_label_switch(
     monkeypatch.chdir(watching.root)
 
     assert main(argv=["conversation", "GH8"]) == 0
-    assert f"issue conversation {newer}" in capsys.readouterr().out
+    assert f"conversation {newer}" in capsys.readouterr().out
     assert main(argv=["conversation", older]) == 0
-    assert f"issue conversation {older}" in capsys.readouterr().out
+    assert f"conversation {older}" in capsys.readouterr().out
     assert main(argv=["feed", older, "--conversation"]) == 0
     shown = capsys.readouterr().out
     assert "The first answer." in shown

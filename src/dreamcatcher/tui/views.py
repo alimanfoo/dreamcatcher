@@ -44,12 +44,6 @@ from dreamcatcher.tui.shared import (
 )
 from dreamcatcher.words import describe_count, describe_time
 
-# What a detail view calls each kind of agent work in its heading.
-_AGENT_WORK_KIND_NAMES = {
-    AgentWorkKind.ASSIGNMENT: "agent assignment",
-    AgentWorkKind.CONVERSATION: "issue conversation",
-}
-
 
 def show_agent_work_view(
     *,
@@ -129,7 +123,7 @@ def _render_agent_work(
     kind = work.record.kind
     return combine_renderable_parts(
         parts=[
-            Text(f"{_AGENT_WORK_KIND_NAMES[kind]} {work.identifier}"),
+            Text(f"{kind} {work.identifier}"),
             rendered_status,
             latest_output,
             (
