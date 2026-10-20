@@ -37,19 +37,8 @@ the change.
 ### Changed
 
 - The `assignment` and `conversation` views list the other work of their
-  kind at the issue with its identifier, dispatch label and status. The
-  `conversation` view did not list other conversations before, and the
-  `assignment` view listed only older assignments, without their labels.
-  ([#628](https://github.com/alimanfoo/dreamcatcher/pull/628))
-- The `assignment`, `conversation` and `feed` views stay on the work
-  they selected when they started, even when newer work of the kind
-  arrives at the issue.
-  ([#628](https://github.com/alimanfoo/dreamcatcher/pull/628))
-- `stop` names the work by its identifier when it requests or refuses a
-  stop, and says that an issue has no work of the kind when it has none.
-  ([#628](https://github.com/alimanfoo/dreamcatcher/pull/628))
-- The `conversation` view indents the agent's latest output under its
-  status, as the `assignment` view does.
+  kind at the issue, with each one's identifier, dispatch label and
+  status, and stay on the work they opened on when newer work arrives.
   ([#628](https://github.com/alimanfoo/dreamcatcher/pull/628))
 
 ## [v6.2.0](https://github.com/alimanfoo/dreamcatcher/releases/tag/v6.2.0) — 2026-10-20
