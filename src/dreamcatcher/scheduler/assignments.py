@@ -223,6 +223,9 @@ def _compose_relay_round(
                 number=work.next_round_number
             ).round_input,
             pull_request_signals=pull_request_signals,
+            is_previous_round_unfinished=is_last_round_unfinished(
+                rounds=work.rounds, is_daemon_running=True
+            ),
         ),
         finish_round=(
             None
