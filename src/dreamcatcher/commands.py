@@ -181,6 +181,8 @@ def spawn_command(
 
     A child named no file finds its stdin already at an end, so a harness
     waiting for the rest of a prompt waits no longer than that.
+
+    Raise CommandError when the operating system cannot start the child.
     """
     with ExitStack() as opening:
         stdin_stream = (
@@ -188,19 +190,22 @@ def spawn_command(
             if stdin is not None
             else subprocess.DEVNULL
         )
-        process = subprocess.Popen(
-            _build_subprocess_command(program=program, arguments=arguments),
-            cwd=cwd,
-            stdin=stdin_stream,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            encoding="utf-8",
-            # A stray byte that is not UTF-8, in a path or a message, comes
-            # through as the replacement character rather than as a traceback.
-            errors="replace",
-            start_new_session=SHOULD_START_NEW_PROCESS_SESSION,
-            creationflags=CHILD_CREATION_FLAGS,
-        )
+        try:
+            process = subprocess.Popen(
+                _build_subprocess_command(program=program, arguments=arguments),
+                cwd=cwd,
+                stdin=stdin_stream,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                encoding="utf-8",
+                # Invalid UTF-8 bytes in a path or message become replacement
+                # characters rather than a traceback.
+                errors="replace",
+                start_new_session=SHOULD_START_NEW_PROCESS_SESSION,
+                creationflags=CHILD_CREATION_FLAGS,
+            )
+        except OSError as error:
+            raise CommandError(f"cannot start {program} in {cwd}: {error}.") from error
     teardown.contain_process_tree(pid=process.pid)
     # This asked for both pipes above, so both are there. subprocess types them
     # for every caller, including the ones that asked for neither.

@@ -588,6 +588,45 @@ def test_one_faulted_assignment_does_not_block_unrelated_work(ready_repo):
     ]
 
 
+def test_a_deleted_assignment_worktree_errors_twice_while_other_work_runs(
+    resuming, gh, offered
+):
+    ran(root=resuming, number=1)
+    missing_worktree = StateDirectory(root=resuming).worktrees / ASSIGNMENT_ID
+    missing_worktree.rmdir()
+    gh.replies(stdout=pull_request(state="OPEN"), to="pr view")
+    gh.replies(
+        stdout=pages(items=[comment()]), to=f"api {POST_LIST_PATHS['conversation']}"
+    )
+    scheduler, clock = create_scheduler(root=resuming)
+
+    first = scheduler.tick(at=clock())
+    finish_rounds(scheduler=scheduler)
+    second = scheduler.tick(at=clock())
+    finish_rounds(scheduler=scheduler)
+    third = scheduler.tick(at=clock())
+
+    first_failure = first.started_rounds[ASSIGNMENT_ID].launch_failure
+    second_failure = second.started_rounds[ASSIGNMENT_ID].launch_failure
+    assert first_failure is not None
+    assert second_failure is not None
+    assert str(missing_worktree) in first_failure
+    assert str(missing_worktree) in second_failure
+    assert first.launched_agent_work_identifiers == [CREATED_ASSIGNMENT_ID]
+    assert second.launched_agent_work_identifiers == [CREATED_ASSIGNMENT_ID]
+    assert third.started_rounds == {}
+    assignment = next(
+        assignment
+        for assignment in read_assignments(state=scheduler.context.state)
+        if assignment.identifier == ASSIGNMENT_ID
+    )
+    assert len(assignment.rounds) == 3
+    assert all(
+        isinstance(round_record.ending, ErroredAgentRoundEnding)
+        for round_record in assignment.rounds[-2:]
+    )
+
+
 def test_a_user_retry_clears_one_fault_and_starts_a_round(ready_repo):
     write_faulted_assignment(root=ready_repo, identifier=ASSIGNMENT_ID, issue=13)
     state = StateDirectory(root=ready_repo)
