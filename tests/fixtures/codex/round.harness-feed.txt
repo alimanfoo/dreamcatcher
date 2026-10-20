@@ -3,7 +3,7 @@
 2026-08-19T18:42:00Z  [command_execution] /bin/zsh -lc ls
 2026-08-19T18:42:01Z  [command_execution] /bin/zsh -lc 'cat nope.txt'
 2026-08-19T18:42:02Z  [failed] cat: nope.txt: No such file or directory
-2026-08-19T18:42:03Z  [add] gamma.txt
+2026-08-19T18:42:03Z  [add] <worktree>/gamma.txt
 2026-08-19T18:42:04Z  [web_search] ripgrep latest release GitHub BurntSushi ripgrep
 2026-08-19T18:42:05Z  I found that the latest ripgrep release is [version 15.2.0](https://github.com/BurntSushi/ripgrep/releases).
 2026-08-19T18:42:06Z  [usage] 271 output, 8 reasoning, 102942 input, 87808 cache read, 0 cache write
