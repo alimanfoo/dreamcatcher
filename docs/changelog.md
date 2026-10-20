@@ -31,6 +31,10 @@ each entry links the pull request or commit that made the change.
 - Repeated state-document reads from the web and terminal views no longer
   prevent the daemon from replacing those documents on Windows.
   ([#601](https://github.com/alimanfoo/dreamcatcher/pull/601))
+- Assignments and conversations now show as idle while a finished round awaits
+  the next update, instead of appearing to need another round because the last
+  update's channel reading is stale.
+  ([#600](https://github.com/alimanfoo/dreamcatcher/pull/600))
 
 ## [v6.1.0](https://github.com/alimanfoo/dreamcatcher/releases/tag/v6.1.0) — 2026-10-18
 
