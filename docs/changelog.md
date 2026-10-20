@@ -28,6 +28,9 @@ each entry links the pull request or commit that made the change.
 
 ### Changed
 
+- An idle assignment whose pull request is still a draft now reads "needs
+  feedback" rather than "draft", because the agent is waiting on you.
+  ([#612](https://github.com/alimanfoo/dreamcatcher/pull/612))
 - The web home page shows assignments and conversations in tabs rather than side
   by side, giving the selected kind of agent work the full dashboard width.
   ([#596](https://github.com/alimanfoo/dreamcatcher/pull/596))

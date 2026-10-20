@@ -791,7 +791,7 @@ def test_a_later_update_replaces_the_read_that_predated_a_rounds_ending(state):
     refreshed = only_assignment(state=state)
 
     assert refreshed.value is AgentWorkStatusValue.IDLE
-    assert refreshed.detail == "draft"
+    assert refreshed.detail == "needs feedback"
     assert refreshed.pull_request_summary == "draft"
 
 
@@ -836,11 +836,11 @@ def test_a_ready_pull_request_with_nothing_new_is_idle_ready_for_review(state):
     assert status.detail == "ready for review"
 
 
-def test_a_draft_pull_request_with_nothing_new_is_idle_as_a_draft(state):
+def test_a_draft_pull_request_with_nothing_new_is_idle_needing_feedback(state):
     ran(state=state, number=1)
     tick_with(state=state, rows=[pull_request_row(is_draft=True)])
 
-    assert only_assignment(state=state).detail == "draft"
+    assert only_assignment(state=state).detail == "needs feedback"
 
 
 def test_a_finished_pull_request_whose_wrap_up_round_took_its_turn_is_idle(state):
