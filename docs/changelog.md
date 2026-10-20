@@ -27,6 +27,13 @@ the change.
 
 ## Unreleased
 
+### Fixed
+
+- On Windows, a harness that cannot be put in the Job Object that holds
+  it now errors its round and never runs, instead of running
+  uncontained, staying suspended, or leaving the round without an
+  ending. ([#625](https://github.com/alimanfoo/dreamcatcher/pull/625))
+
 ## [v6.2.0](https://github.com/alimanfoo/dreamcatcher/releases/tag/v6.2.0) — 2026-10-20
 
 ### Added
