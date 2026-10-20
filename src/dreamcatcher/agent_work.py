@@ -8,7 +8,7 @@ and each write replaces that file whole without merging into what was there. So
 writers in different processes or threads never erase each other's facts.
 """
 
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import StrEnum
@@ -241,15 +241,24 @@ def read_agent_work(*, state: StateDirectory) -> list[AgentWork]:
     process that reads the same one again reads only the records that can have
     changed since.
     """
-    return _read_selected_agent_work(state=state, is_selected=lambda record: True)
+    return _read_selected_agent_work(
+        state=state,
+        directories=state.work.iterdir(),
+        is_selected=lambda record: True,
+    )
 
 
 def read_agent_work_at_issue(
     *, state: StateDirectory, issue: int, kind: AgentWorkKind
 ) -> list[AgentWork]:
-    """Return the agent work of one kind at the issue, oldest first."""
+    """Return the agent work of one kind at the issue, oldest first.
+
+    Only directories whose identifier names this issue and kind have their
+    records read, so other work that cannot be read does not hide this work.
+    """
     return _read_selected_agent_work(
         state=state,
+        directories=state.work.glob(f"GH{issue}-*-{kind}"),
         is_selected=lambda record: record.issue == issue and record.kind is kind,
     )
 
@@ -292,16 +301,20 @@ def _is_agent_work_recorded(*, state: StateDirectory, identifier: str) -> bool:
 
 
 def _read_selected_agent_work(
-    *, state: StateDirectory, is_selected: Callable[[AgentWorkRecord], bool]
+    *,
+    state: StateDirectory,
+    directories: Iterable[Path],
+    is_selected: Callable[[AgentWorkRecord], bool],
 ) -> list[AgentWork]:
-    """Return the agent work whose record is selected, ordered by identifier.
+    """Return the agent work among `directories` whose record is selected.
 
-    Each record is read first, so work that is not selected costs one read.
+    The work is ordered by identifier. Each record is read first, so work that
+    is not selected costs one read.
     """
     if not state.work.is_dir():
         return []
     selected = []
-    for directory in sorted(state.work.iterdir()):
+    for directory in sorted(directories):
         path = directory / _WORK_RECORD_NAME
         if not path.is_file():
             continue

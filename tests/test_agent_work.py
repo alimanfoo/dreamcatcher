@@ -176,6 +176,56 @@ def test_the_newest_work_at_an_issue_is_of_the_kind_asked_for(tmp_path):
     )
 
 
+def test_a_lookup_at_an_issue_reads_only_records_of_that_issue_and_kind(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    older = "GH12-20260818-090000-assignment"
+    write_assignment(state=state, identifier=older, issue=12)
+    write_assignment(state=state, identifier=IDENTIFIER, issue=12)
+    write_assignment(
+        state=state, identifier="GH123-20260819-184158-assignment", issue=123
+    )
+    write_conversation(state=state, issue=12)
+    write_conversation(state=state, issue=1)
+    for directory in (
+        state.work / "GH123-20260819-184158-assignment",
+        find_conversation_directory(state=state, issue=12),
+    ):
+        (directory / "work.json").write_bytes(b"null")
+
+    assignments = read_agent_work_at_issue(
+        state=state, issue=12, kind=AgentWorkKind.ASSIGNMENT
+    )
+    conversations = read_agent_work_at_issue(
+        state=state, issue=1, kind=AgentWorkKind.CONVERSATION
+    )
+
+    assert [work.identifier for work in assignments] == [older, IDENTIFIER]
+    assert [work.record.issue for work in conversations] == [1]
+    assert (
+        read_agent_work_at_issue(state=state, issue=2, kind=AgentWorkKind.CONVERSATION)
+        == []
+    )
+
+
+def test_a_lookup_at_an_issue_skips_a_record_its_directory_misnames(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    write_assignment(state=state, identifier=IDENTIFIER, issue=13)
+
+    assert (
+        read_agent_work_at_issue(state=state, issue=12, kind=AgentWorkKind.ASSIGNMENT)
+        == []
+    )
+
+
+def test_a_selected_record_that_will_not_read_is_reportable(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    write_assignment(state=state, identifier=IDENTIFIER, issue=12)
+    (state.work / IDENTIFIER / "work.json").write_bytes(b"null")
+
+    with pytest.raises(ReportableError, match=r"work\.json"):
+        find_newest_agent_work(state=state, issue=12, kind=AgentWorkKind.ASSIGNMENT)
+
+
 def test_a_work_record_that_is_not_an_object_is_reportable(tmp_path):
     state = StateDirectory(root=tmp_path)
     write_conversation(state=state, issue=8)
