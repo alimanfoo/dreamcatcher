@@ -17,8 +17,7 @@ Before installing v6.0.0:
    does not carry on an assignment that v5 started, and while its pull
    request stays open and linked to the issue, it claims the issue, so
    no new assignment starts there.
-3. Stop the v5 _dreamcatcher_ daemon and every view you started on its
-   own, as
+3. Stop the v5 _dreamcatcher_ daemon and every standalone view, as
    [Restart views across state formats](#restart-views-across-state-formats)
    describes.
 
@@ -105,8 +104,8 @@ Before you install a release with a different state format:
 
 1. Stop the old daemon. This also stops the web page that
    `dreamcatcher run` serves.
-2. Stop every view you started on its own: `dreamcatcher web`, and any
-   refreshing `status`, `assignment`, `conversation` or `feed` view.
+2. Stop every standalone view: `dreamcatcher web`, and any refreshing
+   `status`, `assignment`, `conversation` or `feed` view.
 
 After you install it, start the daemon and any views you still want from
 the new installation. The restart depends on the state format, not the
