@@ -34,6 +34,14 @@ the change.
   did. The warning clears once a refresh succeeds. The home page's
   warning now uses the same words.
   ([#637](https://github.com/alimanfoo/dreamcatcher/pull/637))
+- The upgrade instructions now say to stop every standalone view, such
+  as `dreamcatcher web` or a refreshing `status`, before you install a
+  release with a different state format, and to start the views again
+  from the new installation. A view left running from the old format may
+  show stale status. Upgrades that keep the state format need no such
+  step. See
+  [Restart views across state formats](compatibility.md#restart-views-across-state-formats).
+  ([#639](https://github.com/alimanfoo/dreamcatcher/pull/639))
 
 ## [v6.2.0](https://github.com/alimanfoo/dreamcatcher/releases/tag/v6.2.0) — 2026-10-20
 
