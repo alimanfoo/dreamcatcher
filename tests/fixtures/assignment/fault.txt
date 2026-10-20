@@ -1,4 +1,4 @@
-newest agent assignment GH9-20260819-184158-assignment
+assignment GH9-20260819-184158-assignment
 fault  round 2 errored (exit 2)
   [failed] You hit your spend cap.
 

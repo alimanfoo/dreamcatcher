@@ -8,7 +8,6 @@ from typing import cast
 from dreamcatcher.agent_work import (
     AgentWork,
     AgentWorkEnding,
-    find_newest_agent_work,
     read_agent_work,
     read_agent_work_at_issue,
 )
@@ -334,27 +333,29 @@ def read_dreamcatcher_daemon_status(
     )
 
 
-def read_assignment_statuses_for_issue(
+def read_agent_work_statuses_at_issue(
     *,
     state: StateDirectory,
-    issue: int,
+    work: AgentWork,
     daemon: DreamcatcherDaemonStatus,
     clock: Callable[[], datetime] = read_current_time,
 ) -> list[AgentWorkStatus]:
-    """Read the statuses at one issue, newest agent assignment first.
+    """Read the work's status, then the statuses of the other work like it.
 
-    The caller reads the daemon status, so a view that also shows it shows the
-    same answer that its round statuses came from.
+    The other work is every other piece of the work's kind at its issue, newest
+    first. The caller reads the daemon status, so a view that also shows it
+    shows the same answer that its round statuses came from.
     """
     reader = _create_status_reader(state=state, daemon=daemon, clock=clock)
-    return [
-        reader.derive(work=work)
-        for work in _sort_by_issue_newest_first(
-            work=read_agent_work_at_issue(
-                state=state, issue=issue, kind=AgentWorkKind.ASSIGNMENT
-            )
+    record = work.record
+    others = [
+        other
+        for other in reversed(
+            read_agent_work_at_issue(state=state, issue=record.issue, kind=record.kind)
         )
+        if other.identifier != work.identifier
     ]
+    return [reader.derive(work=item) for item in (work, *others)]
 
 
 def read_agent_work_status(
@@ -371,28 +372,6 @@ def read_agent_work_status(
     """
     reader = _create_status_reader(state=state, daemon=daemon, clock=clock)
     return reader.derive(work=work)
-
-
-def read_conversation_status(
-    *,
-    state: StateDirectory,
-    issue: int,
-    daemon: DreamcatcherDaemonStatus,
-    clock: Callable[[], datetime] = read_current_time,
-) -> AgentWorkStatus | None:
-    """Read the status of the newest issue conversation at an issue, if there is one.
-
-    The caller reads the daemon status, so a view that also shows it shows the
-    same answer that its round statuses came from.
-    """
-    conversation = find_newest_agent_work(
-        state=state, issue=issue, kind=AgentWorkKind.CONVERSATION
-    )
-    if conversation is None:
-        return None
-    return read_agent_work_status(
-        state=state, work=conversation, daemon=daemon, clock=clock
-    )
 
 
 def _create_status_reader(
