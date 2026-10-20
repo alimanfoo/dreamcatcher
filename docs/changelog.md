@@ -26,6 +26,16 @@ each entry links the pull request or commit that made the change.
 
 ## Unreleased
 
+## [v6.2.0](https://github.com/alimanfoo/dreamcatcher/releases/tag/v6.2.0) — 2026-10-20
+
+### Added
+
+- The [user stories](stories.md) describe expected behaviour for normal use,
+  user errors and external faults, including which limitations are accepted. A
+  bug includes a failure of the handling a story promises.
+  ([#592](https://github.com/alimanfoo/dreamcatcher/pull/592),
+  [#598](https://github.com/alimanfoo/dreamcatcher/pull/598))
+
 ### Changed
 
 - An idle assignment whose pull request is still a draft now reads "needs

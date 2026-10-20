@@ -25,9 +25,9 @@ to them. Read all four before you work, and read the stories before judging any
 finding.
 
 - [docs/stories.md](docs/stories.md) says what the user does, why, and what they
-  see, and sorts what goes wrong into user errors and expected faults. A happy
-  path that does not hold is a bug; behaviour that a user error or fault story
-  describes is not.
+  see, and sorts what goes wrong into user errors and expected faults. Behaviour
+  that contradicts any story is a bug, including the handling promised for a
+  user error or expected fault. Behaviour a story explicitly accepts is not.
 - [docs/ontology.md](docs/ontology.md) says what the words mean. Use its words
   and no others.
 - [docs/architecture.md](docs/architecture.md) says where each thing lives in
