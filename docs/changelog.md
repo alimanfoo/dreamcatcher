@@ -27,6 +27,13 @@ the change.
 
 ## Unreleased
 
+### Added
+
+- `assignment`, `conversation`, `feed` and `stop` accept an agent work
+  identifier, such as `GH123-20260912-192458-assignment`, to select that
+  exact assignment or conversation instead of the newest at the issue.
+  ([#628](https://github.com/alimanfoo/dreamcatcher/pull/628))
+
 ### Changed
 
 - When a refresh fails, an assignment or conversation page now keeps its
@@ -34,6 +41,10 @@ the change.
   did. The warning clears once a refresh succeeds. The home page's
   warning now uses the same words.
   ([#637](https://github.com/alimanfoo/dreamcatcher/pull/637))
+- The `assignment` and `conversation` views list the other work of their
+  kind at the issue, with each one's identifier, dispatch label and
+  status, and stay on the work they opened on when newer work arrives.
+  ([#628](https://github.com/alimanfoo/dreamcatcher/pull/628))
 
 ### Fixed
 

@@ -18,6 +18,19 @@ Issue arguments use `GH<n>`, where `<n>` is a string of decimal digits.
 The `GH` prefix is case-insensitive, so `GH123` and `gh123` both name
 issue 123.
 
+`stop`, `assignment`, `conversation` and `feed` act on one piece of
+agent work of one kind, and take either of two references to it:
+
+- an issue argument, such as `GH123`, selects the newest work of that
+  kind at the issue;
+- an agent work identifier, such as `GH123-20260912-192458-assignment`,
+  selects that exact work. It is case-insensitive like an issue
+  argument, and it must name work of the command's kind.
+
+A reference that names no work of the kind is an error, and the command
+acts on no other work. The `assignment` and `conversation` views list
+the identifiers of the other work of their kind at the issue.
+
 | Command        | Purpose                                              |
 | -------------- | ---------------------------------------------------- |
 | `init`         | Prepare this repository's main checkout.             |
@@ -27,8 +40,8 @@ issue 123.
 | `cancel`       | Cancel one issue's newest assignment.                |
 | `web`          | Serve the local status report in a browser.          |
 | `status`       | Show the whole local status report in the terminal.  |
-| `assignment`   | Show one issue's newest assignment.                  |
-| `conversation` | Show one issue's newest conversation.                |
+| `assignment`   | Show one assignment.                                 |
+| `conversation` | Show one issue conversation.                         |
 | `feed`         | Follow an assignment or conversation's agent output. |
 
 ## `init`
@@ -125,12 +138,12 @@ the one assignment or conversation it shows.
 ## `stop`
 
 ```text
-dreamcatcher stop GH<n> (--assignment | --conversation)
+dreamcatcher stop (GH<n> | IDENTIFIER) (--assignment | --conversation)
 ```
 
 Request a stop for the current round of the selected agent work. The
-`--assignment` option selects the newest assignment at the issue, and
-`--conversation` selects the newest issue conversation.
+`--assignment` option selects an assignment, and `--conversation` an
+issue conversation.
 
 The round must be running under the daemon, have a resumable harness
 session, and have no pending stop request. The command writes the same
@@ -199,49 +212,54 @@ prints one snapshot and returns.
 ## `assignment`
 
 ```text
-dreamcatcher assignment GH<n>
+dreamcatcher assignment (GH<n> | IDENTIFIER)
 ```
 
-Show the newest assignment at the issue. The view includes its settled
-route and harness settings, its rounds, a hand-resume command when one
-is available, and older assignments at the same issue.
+Show the selected assignment. The view includes its settled route and
+harness settings, its rounds, a hand-resume command when one is
+available, and the other assignments at the same issue, each with its
+identifier, dispatch label and status.
 
 In an interactive terminal it refreshes until the assignment ends, after
-a successful wrap-up or a cancel. An ended assignment remains on screen.
-When output is piped, redirected or captured, it prints one snapshot and
-returns.
+a successful wrap-up or a cancel. It stays on the assignment it selected
+when it started, even if a newer one arrives at the issue. An ended
+assignment remains on screen. When output is piped, redirected or
+captured, it prints one snapshot and returns.
 
 ## `conversation`
 
 ```text
-dreamcatcher conversation GH<n>
+dreamcatcher conversation (GH<n> | IDENTIFIER)
 ```
 
-Show the newest issue conversation's settings, harness session,
+Show the selected issue conversation's settings, harness session,
 worktree, code revision and rounds, with a hand-resume command when one
-is available.
+is available. The view also lists the other conversations at the same
+issue, each with its identifier, dispatch label and status; a paused
+conversation is idle, and its status detail says why.
 
-In an interactive terminal it refreshes until the conversation ends.
-When output is piped, redirected or captured, it prints one snapshot and
-returns.
+In an interactive terminal it refreshes until the conversation ends. It
+stays on the conversation it selected when it started, even if a newer
+one arrives at the issue. When output is piped, redirected or captured,
+it prints one snapshot and returns.
 
 ## `feed`
 
 ```text
-dreamcatcher feed GH<n> (--assignment | --conversation) [--round N]
+dreamcatcher feed (GH<n> | IDENTIFIER) (--assignment | --conversation) [--round N]
 ```
 
-Show the agent actions and output recorded for one kind of work at the
-issue. Exactly one selector of the kind of work is required:
-
-- `--assignment` selects the newest assignment at the issue.
-- `--conversation` selects the newest issue conversation at the issue.
+Show the agent actions and output recorded for the selected agent work.
+Exactly one selector of the kind of work is required: `--assignment`
+selects an assignment, and `--conversation` an issue conversation.
 
 Without `--round`, the command shows all of that work's rounds and
-follows later output until the work ends. `--round N` selects one exact
-integer round number and ends when that round ends. The corresponding
-`assignment` or `conversation` view lists the available round numbers;
-requesting a round that does not exist is an error.
+follows later output until the work ends. It stays on the work it
+selected when it started, even if newer work arrives at the issue.
+`--round N` selects one exact integer round number and ends when that
+round ends. The corresponding `assignment` or `conversation` view lists
+the available round numbers; requesting a round that does not exist is
+an error.
 
 A feed prints incrementally so terminal scrollback is preserved. When
 its output is piped, redirected or captured, it prints the currently

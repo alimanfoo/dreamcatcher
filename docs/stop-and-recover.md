@@ -21,12 +21,15 @@ dreamcatcher stop GH123 --conversation
 ```
 
 Use `--assignment` for the newest assignment at the issue, or
-`--conversation` for its newest issue conversation. You can instead open
-the assignment or conversation in the web page that `run` opened, select
-**stop round**, and confirm. If you ran the daemon with `--noweb`, start
-`dreamcatcher web` first. Both controls are available only while the
-round is running and _dreamcatcher_ has learned its harness session. The
-round normally stops within about a second.
+`--conversation` for its newest issue conversation. To stop a round of
+older work at the issue, such as a conversation under a label you
+switched away from, give its agent work identifier in place of the issue
+reference. You can instead open the assignment or conversation in the
+web page that `run` opened, select **stop round**, and confirm. If you
+ran the daemon with `--noweb`, start `dreamcatcher web` first. Both
+controls are available only while the round is running and
+_dreamcatcher_ has learned its harness session. The round normally stops
+within about a second.
 
 After an assignment round is stopped, an open pull request waits for a
 new comment or review from you. Once it is ready for review, it also
