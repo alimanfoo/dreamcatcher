@@ -288,7 +288,7 @@ body::after {
   overflow-wrap: anywhere;
 }
 
-.card-heading > :last-child {
+.card-heading > .chip {
   flex-shrink: 1;
 }
 
