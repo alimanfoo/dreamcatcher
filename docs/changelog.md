@@ -28,6 +28,9 @@ each entry links the pull request or commit that made the change.
 
 ### Changed
 
+- A round that resumes an assignment after a round that did not finish, with
+  nothing new to relay, now shows the trigger "recover" instead of "carry on".
+  ([#609](https://github.com/alimanfoo/dreamcatcher/pull/609))
 - Activity notes now show the current round's worktree as `<worktree>` wherever
   its absolute path appears, so more of a command remains visible.
   ([#602](https://github.com/alimanfoo/dreamcatcher/pull/602))

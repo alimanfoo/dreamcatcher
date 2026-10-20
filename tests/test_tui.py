@@ -741,7 +741,7 @@ def test_a_view_of_a_faulted_assignment_keeps_watching(tmp_path):
         waits.append(seconds)
         raise KeyboardInterrupt
 
-    assert "round 2: carry on" in followed(state=state, issue=9, wait=interrupting)
+    assert "round 2: recover" in followed(state=state, issue=9, wait=interrupting)
     assert waits
 
 
