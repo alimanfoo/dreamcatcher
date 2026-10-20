@@ -47,7 +47,6 @@ from dreamcatcher.agent_rounds import (
     _AgentRoundHarness,
     _compose_agent_round_ending,
     interpret_agent_round_outcome,
-    read_agent_round_records,
     record_agent_round_interruption,
     record_agent_round_stop,
     request_agent_round_stop,
@@ -55,7 +54,6 @@ from dreamcatcher.agent_rounds import (
 )
 from dreamcatcher.claude import CLAUDE_ADAPTER
 from dreamcatcher.config import AgentHarness
-from dreamcatcher.documents import DocumentCache
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import FeedNote, FeedRenderer
 from dreamcatcher.github import (
@@ -692,7 +690,7 @@ def test_a_round_interrupted_as_its_harness_succeeds_is_not_finished(
 
     # The race that `_end_process_tree` records: the harness exits cleanly just
     # as the daemon stops the round.
-    running.forced_ending_type = InterruptedAgentRoundEnding
+    running.forced_ending = InterruptedAgentRoundEnding()
     release.touch()
     running.wait()
 
@@ -717,7 +715,7 @@ def test_a_successful_ending_refuses_a_time_without_a_zone():
     [
         SuccessfulAgentRoundEnding(at=PINNED),
         ErroredAgentRoundEnding(at=PINNED, status=2),
-        InterruptedAgentRoundEnding(at=PINNED),
+        InterruptedAgentRoundEnding(),
         StoppedAgentRoundEnding(at=PINNED),
     ],
 )
@@ -768,9 +766,7 @@ def test_interrupting_a_round_records_interruption(fake, worktree, directory):
     running.interrupt()
 
     assert not running.is_alive
-    assert written(path=running.paths.record).ending == InterruptedAgentRoundEnding(
-        at=PINNED
-    )
+    assert written(path=running.paths.record).outcome is AgentRoundOutcome.INTERRUPTED
 
 
 def test_daemon_shutdown_honours_a_pending_stop_request(fake, worktree, directory):
@@ -809,7 +805,7 @@ def test_the_daemon_stopping_a_finished_round_keeps_its_ending(
     # can be a round that finished a moment before.
     running.end_for_daemon_shutdown()
 
-    assert running.forced_ending_type is None
+    assert running.forced_ending is None
     record = written(path=running.paths.record)
     assert record.ending == _compose_agent_round_ending(at=PINNED, status=0)
     assert record.outcome is AgentRoundOutcome.SUCCESSFUL
@@ -888,8 +884,8 @@ def test_the_first_reason_for_ending_a_round_wins(fake, worktree, directory):
         clock=pinned,
     )
 
-    running._end_process_tree(ending_type=StoppedAgentRoundEnding)
-    running._end_process_tree(ending_type=InterruptedAgentRoundEnding)
+    running._end_process_tree(ending=StoppedAgentRoundEnding(at=PINNED))
+    running._end_process_tree(ending=InterruptedAgentRoundEnding())
     running.wait()
 
     assert written(path=running.paths.record).outcome is AgentRoundOutcome.STOPPED
@@ -1134,27 +1130,14 @@ def test_recording_interruption_again_keeps_a_terminal_record(tmp_path):
         number=1,
         started=PINNED,
         pid=1,
-        ending=InterruptedAgentRoundEnding(at=PINNED),
+        ending=InterruptedAgentRoundEnding(),
     )
     path = tmp_path / "round.json"
 
-    reconciled = record_agent_round_interruption(record=record, path=path, at=PINNED)
+    reconciled = record_agent_round_interruption(record=record, path=path)
 
     assert reconciled is record
     assert not path.exists()
-
-
-def test_an_interruption_recorded_without_a_time_still_reads(tmp_path):
-    path = tmp_path / "1" / "round.json"
-    path.parent.mkdir()
-    path.write_bytes(
-        b'{"number": 1, "started": "2026-08-19T18:41:58Z", "pid": 1,'
-        b' "ending": {"outcome": "interrupted"}}'
-    )
-
-    [record] = read_agent_round_records(cache=DocumentCache(), directory=tmp_path)
-
-    assert record.ending == InterruptedAgentRoundEnding()
 
 
 def test_recording_a_stop_again_keeps_a_terminal_record(tmp_path):

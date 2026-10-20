@@ -231,7 +231,8 @@ class DreamcatcherDaemon:
                         )
                     else:
                         record_agent_round_interruption(
-                            record=record, path=paths.record, at=self.clock()
+                            record=record,
+                            path=paths.record,
                         )
 
 

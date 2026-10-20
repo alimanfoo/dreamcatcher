@@ -162,18 +162,23 @@ def observe(
     state: StateDirectory,
     finding: RequestFinding,
     started_round: StartedRound | None = None,
-    at=LOOKED_AT,
+    ended_round: int | None = 1,
 ) -> None:
-    """Write a tick that found this for the fixture's conversation."""
+    """Write a tick that found this for the fixture's conversation.
+
+    The tick read the conversation once its first round had ended, unless the
+    test says otherwise.
+    """
     write_tick(
         state=state,
         tick=SchedulerRecord(
-            at=at,
+            at=LOOKED_AT,
             rows=[
                 request_row(
                     issue=8,
                     kind=AgentWorkKind.CONVERSATION,
                     agent_work_identifier=compose_conversation_identifier(issue=8),
+                    ended_round=ended_round,
                     finding=finding,
                     started_round=started_round,
                 )
@@ -380,6 +385,11 @@ def test_an_unended_round_with_no_daemon_waits_to_be_given_its_input_again(
     conversation_state,
 ):
     conversation_round(state=conversation_state, ending=None)
+    observe(
+        state=conversation_state,
+        finding=IssueCommentsFinding(new_comments=0),
+        ended_round=None,
+    )
 
     found = status(state=conversation_state)
 
@@ -394,7 +404,7 @@ def test_an_errored_round_waits_to_be_given_its_input_again(conversation_state):
         state=conversation_state,
         finding=IssueCommentsFinding(new_comments=1),
         started_round=StartedRound(number=1),
-        at=PINNED,
+        ended_round=None,
     )
 
     found = status(state=conversation_state)
@@ -517,7 +527,7 @@ def test_an_unfinished_round_comes_before_comments_to_answer(conversation_state)
             ),
             "round 1, errored, ran 4m",
         ),
-        (InterruptedAgentRoundEnding(at=ENDED), "round 1, interrupted"),
+        (InterruptedAgentRoundEnding(), "round 1, interrupted"),
     ],
     ids=["errored", "no-final-output", "interrupted"],
 )
@@ -537,7 +547,7 @@ def test_an_unfinished_round_whose_comments_are_gone_is_idle(
     ("ending", "detail"),
     [
         (ERRORED, "round 1 errored (exit 2)"),
-        (InterruptedAgentRoundEnding(at=ENDED), "round 1 interrupted"),
+        (InterruptedAgentRoundEnding(), "round 1 interrupted"),
     ],
     ids=["errored", "interrupted"],
 )
@@ -548,24 +558,13 @@ def test_a_tick_while_the_round_ran_cannot_show_its_comments_gone(
     observe(
         state=conversation_state,
         finding=IssueCommentsFinding(new_comments=0),
-        at=PINNED + timedelta(minutes=2),
+        ended_round=None,
     )
 
     found = status(state=conversation_state)
 
     assert found.value is AgentWorkStatusValue.WAITING
     assert found.detail == detail
-
-
-def test_an_interruption_recorded_without_a_time_waits_whatever_a_tick_found(
-    conversation_state,
-):
-    conversation_round(state=conversation_state, ending=InterruptedAgentRoundEnding())
-
-    found = status(state=conversation_state)
-
-    assert found.value is AgentWorkStatusValue.WAITING
-    assert found.detail == "round 1 interrupted"
 
 
 def test_an_unfinished_round_whose_comments_cannot_be_read_is_unknown(
@@ -593,7 +592,7 @@ def test_a_round_ending_after_the_latest_tick_is_idle_until_the_next_update(
         state=conversation_state,
         finding=IssueCommentsFinding(new_comments=int(did_tick_start_round)),
         started_round=(StartedRound(number=1) if did_tick_start_round else None),
-        at=PINNED,
+        ended_round=None,
     )
 
     found = status(state=conversation_state)
@@ -623,7 +622,7 @@ def test_a_stopped_round_ending_after_the_latest_tick_is_idle_until_the_next_upd
     observe(
         state=conversation_state,
         finding=IssueCommentsFinding(new_comments=0),
-        at=PINNED,
+        ended_round=None,
     )
 
     found = status(state=conversation_state)
@@ -639,7 +638,7 @@ def test_new_comments_found_while_a_round_ran_wait_after_it_ends(
     observe(
         state=conversation_state,
         finding=IssueCommentsFinding(new_comments=1),
-        at=PINNED,
+        ended_round=None,
     )
 
     found = status(state=conversation_state)

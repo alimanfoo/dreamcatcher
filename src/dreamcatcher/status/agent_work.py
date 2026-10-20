@@ -331,25 +331,23 @@ class AgentWorkStatusReader:
     def _derive_awaiting_update(
         self, *, work: AgentWork, row: RequestRow | None
     ) -> AgentWorkStatus | None:
-        """Derive idle when the latest tick predates a round that took its turn.
+        """Derive idle when the latest tick read the work before its round ended.
 
         A finding that started the round was relayed by that round. Other news
         found while the round ran makes another round due instead.
         """
-        if not work.rounds or self.scheduler_record is None:
+        if not work.rounds or row is None:
             return None
         latest = work.rounds[-1]
         if (
             latest.ending is None
             or latest.is_unfinished
-            or self._is_ending_assessed(record=latest)
+            or _did_tick_read_ending(row=row, record=latest)
         ):
             return None
-        news = None if row is None else _describe_what_is_new(finding=row.finding)
+        news = _describe_what_is_new(finding=row.finding)
         did_tick_start_round = (
-            row is not None
-            and row.started_round is not None
-            and row.started_round.number == latest.number
+            row.started_round is not None and row.started_round.number == latest.number
         )
         if news is not None and not did_tick_start_round:
             return None
@@ -412,8 +410,9 @@ class AgentWorkStatusReader:
         """Return whether a round is due to give an unfinished round's input again.
 
         An unfinished conversation round's input is its comments past the
-        cursor, so nothing is due once a tick that began after it ended found
-        none of them left. An assignment's unfinished round is always due.
+        cursor, so nothing is due once a tick that read the work after the round
+        ended found none of them left. An assignment's unfinished round is
+        always due.
         """
         if not is_last_round_unfinished(
             rounds=work.rounds, is_daemon_running=self.is_daemon_running
@@ -423,19 +422,7 @@ class AgentWorkStatusReader:
         return not (
             isinstance(finding, IssueCommentsFinding)
             and not finding.new_comments
-            and self._is_ending_assessed(record=work.rounds[-1])
-        )
-
-    def _is_ending_assessed(self, *, record: AgentRoundRecord) -> bool:
-        """Return whether the latest tick began once the round had ended.
-
-        An interruption recorded without a time is never known to be assessed.
-        """
-        ended = None if record.ending is None else record.ending.at
-        return (
-            self.scheduler_record is not None
-            and ended is not None
-            and ended <= self.scheduler_record.at
+            and _did_tick_read_ending(row=row, record=work.rounds[-1])
         )
 
     def _is_round_working(self, *, record: AgentRoundRecord) -> bool:
@@ -446,6 +433,11 @@ class AgentWorkStatusReader:
             )
             is AgentRoundOutcome.RUNNING
         )
+
+
+def _did_tick_read_ending(*, row: RequestRow | None, record: AgentRoundRecord) -> bool:
+    """Return whether the latest tick read the work once the round had ended."""
+    return row is not None and row.ended_round == record.number
 
 
 def _compose_unknown(

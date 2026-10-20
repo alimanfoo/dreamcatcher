@@ -501,17 +501,17 @@ Agent work of either kind has one of these summary statuses:
   interrupted, including a round left without an ending by a daemon that has
   gone; no round has run yet; an assignment's pull request is not yet open; or
   the latest tick found a signal. A conversation whose last round errored or was
-  interrupted is not waiting once a tick that began after that round ended found
-  no eligible comment past the cursor. A free agent slot, or the end of a
+  interrupted is not waiting once a tick that read it after that round ended
+  found no eligible comment past the cursor. A free agent slot, or the end of a
   cooldown, starts it.
 - **Idle**: no round is known to be due. A round that took its turn after the
-  latest tick is idle until the next tick, unless the earlier tick found input
-  that the round did not consume. Its detail says that it is awaiting the next
-  update. Otherwise the detail says why: an assignment's pull request is ready
-  for review, still a draft, merged or closed after its wrap-up round, or
-  failing its checks after two attempts under the relay rule; a conversation's
-  latest round answered, needed no reply, was stopped, errored or was
-  interrupted; or a conversation is paused, and the detail is the cause.
+  latest tick read the work is idle until the next tick, unless the earlier tick
+  found input that the round did not consume. Its detail says that it is
+  awaiting the next update. Otherwise the detail says why: an assignment's pull
+  request is ready for review, still a draft, merged or closed after its wrap-up
+  round, or failing its checks after two attempts under the relay rule; a
+  conversation's latest round answered, needed no reply, was stopped, errored or
+  was interrupted; or a conversation is paused, and the detail is the cause.
 
 The statuses are decided in an order. Working comes first, then ended, then
 fault, so the user can see a fault and retry whatever else is true. A failed

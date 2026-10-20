@@ -109,11 +109,12 @@ def conversation_state(
             at=PINNED + timedelta(minutes=5),
             rows=[
                 conversation_row(
+                    ended_round=1,
                     finding=(
                         PausedFinding(cause=PauseCause.LABEL_REMOVED)
                         if is_paused
                         else IssueCommentsFinding(new_comments=int(status != 0))
-                    )
+                    ),
                 )
             ],
         ),
@@ -471,7 +472,9 @@ def test_conversations_are_listed_in_attention_order_before_requests(tmp_path):
         tick=SchedulerRecord(
             at=PINNED,
             rows=[
-                conversation_row(finding=IssueCommentsFinding(new_comments=0)),
+                conversation_row(
+                    ended_round=1, finding=IssueCommentsFinding(new_comments=0)
+                ),
                 conversation_row(
                     issue=11, finding=IssueCommentsFinding(new_comments=0)
                 ),

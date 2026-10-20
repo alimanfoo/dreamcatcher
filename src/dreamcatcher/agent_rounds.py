@@ -189,14 +189,9 @@ class ErroredAgentRoundEnding(DreamcatcherDocument):
 
 
 class InterruptedAgentRoundEnding(DreamcatcherDocument):
-    """An agent round ending without an observed exit.
-
-    The time is when the interruption was recorded. An interruption that
-    v6.1.0 or earlier recorded has none.
-    """
+    """An agent round ending without an observed exit."""
 
     outcome: Literal[AgentRoundOutcome.INTERRUPTED] = AgentRoundOutcome.INTERRUPTED
-    at: AwareDatetime | None = None
 
 
 class StoppedAgentRoundEnding(DreamcatcherDocument):
@@ -205,10 +200,6 @@ class StoppedAgentRoundEnding(DreamcatcherDocument):
     outcome: Literal[AgentRoundOutcome.STOPPED] = AgentRoundOutcome.STOPPED
     at: AwareDatetime
 
-
-type _ForcedAgentRoundEnding = (
-    type[StoppedAgentRoundEnding] | type[InterruptedAgentRoundEnding]
-)
 
 type _AgentRoundEnding = Annotated[
     SuccessfulAgentRoundEnding
@@ -307,7 +298,7 @@ class AgentRoundLaunchError(ReportableError):
 
 
 def record_agent_round_interruption(
-    *, record: AgentRoundRecord, path: Path, at: datetime
+    *, record: AgentRoundRecord, path: Path
 ) -> AgentRoundRecord:
     """Record an interruption when a formerly running round has ended.
 
@@ -317,7 +308,7 @@ def record_agent_round_interruption(
     if record.ending is not None:
         return record
     return _record_agent_round_ending(
-        record=record, ending=InterruptedAgentRoundEnding(at=at), path=path
+        record=record, ending=InterruptedAgentRoundEnding(), path=path
     )
 
 
@@ -481,7 +472,7 @@ class AgentRound:
         self.clock = clock
         self.feed_renderer = FeedRenderer(worktree=paths.worktree, clock=clock)
         self.started_at = clock()
-        self.forced_ending_type: _ForcedAgentRoundEnding | None = None
+        self.forced_ending: _AgentRoundEnding | None = None
         self._round_ended = Flag()
         self._wait_for_round_end = wait_for_round_end or self._round_ended.wait
         self._final_output_settled = Flag()
@@ -583,7 +574,7 @@ class AgentRound:
         the daemon. A round whose harness has already exited runs its finishing
         step first.
         """
-        self._end_process_tree(ending_type=InterruptedAgentRoundEnding)
+        self._end_process_tree(ending=InterruptedAgentRoundEnding())
         self._round_ended.wait()
 
     def end_for_daemon_shutdown(self) -> None:
@@ -593,23 +584,20 @@ class AgentRound:
         round ends, rather than an interruption whose input the next round is
         given again.
         """
-        self._end_process_tree(
-            ending_type=(
-                StoppedAgentRoundEnding
-                if self.paths.stop_request.is_file()
-                else InterruptedAgentRoundEnding
-            )
-        )
+        if self.paths.stop_request.is_file():
+            ending: _AgentRoundEnding = StoppedAgentRoundEnding(at=self.clock())
+        else:
+            ending = InterruptedAgentRoundEnding()
+        self._end_process_tree(ending=ending)
         self._round_ended.wait()
 
-    def _end_process_tree(self, *, ending_type: _ForcedAgentRoundEnding) -> None:
-        """Note the type of forced ending and kill the remaining process tree.
+    def _end_process_tree(self, *, ending: _AgentRoundEnding) -> None:
+        """Record the forced ending and kill the remaining process tree.
 
         This acts only while the child's exit status is uncollected. The
-        type is set before the kill releases the ending recorder from
-        `harness_process.wait()`, which records the ending at the time it
-        writes it. The first reason wins when shutdown and a user request
-        arrive together.
+        ending is set before the kill releases the ending recorder from
+        `harness_process.wait()`. The first reason wins when shutdown and a user
+        request arrive together.
 
         The child can exit between the exit-status check and the outcome update,
         which records that narrow race as the requested ending. Closing the
@@ -617,11 +605,11 @@ class AgentRound:
         prevent a prompt stop.
         """
         with self._termination_lock:
-            if self.forced_ending_type is not None:
+            if self.forced_ending is not None:
                 return
             if not self.harness_process.is_exit_status_uncollected:
                 return
-            self.forced_ending_type = ending_type
+            self.forced_ending = ending
             self.harness_process.kill()
 
     def _watch_for_stop_request(self) -> None:
@@ -633,7 +621,7 @@ class AgentRound:
         while not self.paths.stop_request.is_file():
             if self._wait_for_round_end(_STOP_REQUEST_POLL_INTERVAL_SECONDS):
                 return
-        self._end_process_tree(ending_type=StoppedAgentRoundEnding)
+        self._end_process_tree(ending=StoppedAgentRoundEnding(at=self.clock()))
 
     def _read_stream_until_finished(self, *, read_stream: Callable[[], None]) -> None:
         """Read one output stream and interrupt the round if persistence fails.
@@ -671,16 +659,20 @@ class AgentRound:
         try:
             status = self.harness_process.wait()
             failure = self._finish_round(status=status)
-            at = self.clock()
-            self.record = _record_agent_round_ending(
-                record=self.record,
-                ending=(
-                    _compose_agent_round_ending(at=at, status=status, failure=failure)
-                    if self.forced_ending_type is None
-                    else self.forced_ending_type(at=at)
-                ),
-                path=self.paths.record,
-            )
+            if self.forced_ending is not None:
+                self.record = _record_agent_round_ending(
+                    record=self.record,
+                    ending=self.forced_ending,
+                    path=self.paths.record,
+                )
+            else:
+                self.record = _record_agent_round_ending(
+                    record=self.record,
+                    ending=_compose_agent_round_ending(
+                        at=self.clock(), status=status, failure=failure
+                    ),
+                    path=self.paths.record,
+                )
         finally:
             # However the close went, the round has ended, so whoever is
             # waiting on it waits no longer, and whatever the pumps still have
@@ -696,11 +688,7 @@ class AgentRound:
         A finishing step that raises fails the round, and the feed says why too.
         An interrupted round is not finished.
         """
-        if (
-            self.finish_round is None
-            or status != 0
-            or self.forced_ending_type is not None
-        ):
+        if self.finish_round is None or status != 0 or self.forced_ending is not None:
             return None
         try:
             self.finish_round(final_output=self._read_final_output())

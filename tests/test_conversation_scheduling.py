@@ -241,18 +241,19 @@ def conversation_row(
     title: str = "Why does this happen?",
     label: str | None = None,
     agent_work_identifier: str | None = None,
+    ended_round: int | None = None,
     started_round: StartedRound | None = None,
 ) -> RequestRow:
     """Return the row of a conversation request at the issue the tests offer."""
     return request_row(
         issue=issue,
         kind=AgentWorkKind.CONVERSATION,
-        title=title,
         label=label,
         agent_work_identifier=agent_work_identifier,
+        ended_round=ended_round,
         finding=finding,
         started_round=started_round,
-    )
+    ).model_copy(update={"title": title})
 
 
 def answer(
@@ -999,6 +1000,7 @@ def test_a_failed_conversation_refresh_is_an_errored_round(
         conversation_row(
             title="Why does this happen?",
             agent_work_identifier="GH8-20260819-184158-conversation",
+            ended_round=1,
             finding=IssueCommentsFinding(new_comments=1),
             started_round=StartedRound(number=2, launch_failure="could not fetch main"),
         )
@@ -1684,6 +1686,75 @@ def test_a_daemon_orphan_is_given_its_comments_again_in_its_saved_session(
     assert "Issue-conversation input for GH8:" in resumed.prompt
 
 
+def test_an_interrupted_round_from_v6_1_is_withdrawn_once_an_update_finds_nothing(
+    conversation_scheduler, harnesses
+):
+    scheduler, clock, gh = conversation_scheduler
+    state = scheduler.context.state
+    directory = write_conversation(state=state, issue=8)
+    conversation = read_conversation(state=state, issue=8)
+    assert conversation is not None
+    conversation.worktree.rmdir()
+    _add_detached_worktree(root=state.root, path=conversation.worktree)
+    write_json(
+        document=ConversationRoundInput(
+            issue=8,
+            initial_issue=InitialConversationIssue(
+                title="Why does this happen?",
+                body="Explain the scheduler.",
+            ),
+            comments=[ask()],
+            revision=_read_worktree_revision(worktree=conversation.worktree),
+        ),
+        path=conversation.compose_round_paths(number=1).round_input,
+    )
+    # An update made while the round ran counted its comment as relayed.
+    write_tick(
+        state=state,
+        tick=SchedulerRecord(
+            at=clock(),
+            rows=[
+                conversation_row(
+                    agent_work_identifier=conversation.identifier,
+                    finding=IssueCommentsFinding(new_comments=0),
+                )
+            ],
+        ),
+    )
+    (directory / "rounds" / "1" / "round.json").write_bytes(
+        b'{"number": 1, "started": "2026-08-19T18:41:58Z", "pid": 1,'
+        b' "ending": {"outcome": "interrupted"}}'
+    )
+
+    assert read_status(state=state).value is AgentWorkStatusValue.WAITING
+
+    offer_conversation(gh=gh, comments=[])
+    withdrawn = scheduler.tick(at=clock())
+    write_tick(state=state, tick=withdrawn)
+
+    found = read_status(state=state)
+    assert withdrawn.launched_agent_work_identifiers == []
+    assert found.value is AgentWorkStatusValue.IDLE
+    assert found.detail == "round 1, interrupted"
+
+    offer_conversation(gh=gh, comments=[ask(identifier=2, body="A new question.")])
+    answer(harnesses=harnesses)
+    gh.replies(stdout=json.dumps({"id": 99}), to=POST_PATH)
+
+    asked = scheduler.tick(at=clock())
+    finish(scheduler=scheduler)
+
+    assert asked.launched_agent_work_identifiers == [conversation.identifier]
+    given = read_json(
+        model=ConversationRoundInput,
+        path=conversation.compose_round_paths(number=2).round_input,
+    )
+    assert [item.body for item in given.comments] == ["A new question."]
+    resumed = harnesses["claude"].calls[0]
+    assert resumed.arguments[-2:] == ["--resume", "conversation-session"]
+    assert resumed.prompt.startswith(UNFINISHED_ROUND_OPENING)
+
+
 def test_a_session_identifier_left_in_raw_output_is_found(
     conversation_scheduler, harnesses
 ):
@@ -1877,6 +1948,7 @@ def test_open_conversation_faults_start_the_cooldown_whatever_the_listing(
             issue=issue,
             title=f"Issue {issue}",
             agent_work_identifier=compose_conversation_identifier(issue=issue),
+            ended_round=2,
             finding=None,
         )
         for issue in (8, 9)
@@ -1975,6 +2047,7 @@ def test_a_paused_conversation_does_not_retry_its_errored_round(
         conversation_row(
             title="Issue 8",
             agent_work_identifier=compose_conversation_identifier(issue=8),
+            ended_round=1,
             finding=PAUSED,
         )
     ]
@@ -2008,6 +2081,7 @@ def test_paused_conversation_faults_do_not_start_the_global_cooldown(
             issue=issue,
             title=f"Issue {issue}",
             agent_work_identifier=compose_conversation_identifier(issue=issue),
+            ended_round=2,
             finding=PAUSED,
         )
         for issue in (8, 9)
@@ -2073,6 +2147,7 @@ def test_a_resumed_conversation_is_given_comments_posted_while_it_was_paused(
     assert paused.rows == [
         conversation_row(
             agent_work_identifier=compose_conversation_identifier(issue=8),
+            ended_round=1,
             finding=PausedFinding(cause=cause),
         )
     ]
@@ -2509,6 +2584,7 @@ def test_an_open_conversation_starts_before_a_new_one(
     assert observed.rows == [
         conversation_row(
             agent_work_identifier="GH8-20260819-184158-conversation",
+            ended_round=1,
             finding=IssueCommentsFinding(new_comments=1),
             started_round=StartedRound(number=2),
         ),

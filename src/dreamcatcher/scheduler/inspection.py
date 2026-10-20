@@ -96,5 +96,10 @@ def compose_open_work_row(
         dispatch_label=record.dispatch_label,
         kind=record.kind,
         agent_work_identifier=work.identifier,
+        ended_round=(
+            work.rounds[-1].number
+            if work.rounds and work.rounds[-1].ending is not None
+            else None
+        ),
         finding=finding,
     )

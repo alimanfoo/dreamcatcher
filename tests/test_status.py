@@ -1,6 +1,6 @@
 import os
 from collections.abc import Sequence
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 import pytest
 from clocks import PINNED
@@ -109,19 +109,18 @@ def ran(
     state: StateDirectory,
     number: int,
     status: int | None = 0,
-    ended_at: datetime | None = None,
     round_input: AssignmentRoundInput | None = None,
 ) -> AgentRoundRecord:
     """Write one round for the fixture's assignment and return its record.
 
-    A round that ends without a given time ends four minutes after it started.
+    A round that ends does so four minutes after it started.
     """
     started = PINNED + timedelta(minutes=number)
     ending = (
         None
         if status is None
         else _compose_agent_round_ending(
-            at=ended_at or started + timedelta(minutes=4), status=status
+            at=started + timedelta(minutes=4), status=status
         )
     )
     record = AgentRoundRecord(
@@ -169,11 +168,17 @@ def pull_request_row(
     is_draft: bool = False,
     is_wrap_up_due: bool = False,
     started_round: StartedRound | None = None,
+    ended_round: int | None = 1,
 ) -> RequestRow:
-    """Return the row of the fixture's assignment with what its pull request held."""
+    """Return the row of the fixture's assignment with what its pull request held.
+
+    The tick read the assignment once its first round had ended, unless the
+    test says otherwise.
+    """
     return request_row(
         issue=13,
         agent_work_identifier=ASSIGNMENT_ID,
+        ended_round=ended_round,
         finding=PullRequestFinding(
             number=PULL_REQUEST,
             state=state,
@@ -189,9 +194,9 @@ def pull_request_row(
     )
 
 
-def tick_with(*, state: StateDirectory, rows: list[RequestRow], at=LOOKED_AT) -> None:
-    """Write a tick at that time that wrote these rows."""
-    write_tick(state=state, tick=SchedulerRecord(at=at, rows=rows))
+def tick_with(*, state: StateDirectory, rows: list[RequestRow]) -> None:
+    """Write a tick that wrote these rows."""
+    write_tick(state=state, tick=SchedulerRecord(at=LOOKED_AT, rows=rows))
 
 
 def test_an_empty_instance_reports_unknown_capacity_and_no_work(tmp_path):
@@ -306,7 +311,7 @@ def test_a_live_round_keeps_the_pull_request_summary_the_tick_read(running):
             "errored (exit 2)",
             "ran 4m",
         ),
-        (InterruptedAgentRoundEnding(at=PINNED), "interrupted", ""),
+        (InterruptedAgentRoundEnding(), "interrupted", ""),
     ],
 )
 def test_a_terminal_round_status_describes_its_outcome_and_duration(
@@ -744,18 +749,15 @@ def test_an_assignment_before_any_update_is_unknown(state):
     assert status.detail == "not seen by the latest update"
 
 
-@pytest.mark.parametrize("is_launched_observed", [False, True])
-def test_a_round_ending_after_the_latest_tick_is_idle_until_the_next_update(
-    state, is_launched_observed
-):
-    ran(state=state, number=1, ended_at=LOOKED_AT + timedelta(minutes=1))
+def test_a_round_ending_after_the_latest_tick_is_idle_until_the_next_update(state):
+    ran(state=state, number=1)
     tick_with(
         state=state,
-        rows=(
-            [pull_request_row(new_posts=1, started_round=StartedRound(number=1))]
-            if is_launched_observed
-            else []
-        ),
+        rows=[
+            pull_request_row(
+                new_posts=1, started_round=StartedRound(number=1), ended_round=None
+            )
+        ],
     )
 
     status = only_assignment(state=state)
@@ -764,9 +766,8 @@ def test_a_round_ending_after_the_latest_tick_is_idle_until_the_next_update(
     assert status.detail == "round 1 ended, awaiting next update"
 
 
-@pytest.mark.parametrize("ended_at", [LOOKED_AT - timedelta(minutes=1), LOOKED_AT])
-def test_an_assignment_the_latest_update_did_not_see_is_unknown(state, ended_at):
-    ran(state=state, number=1, ended_at=ended_at)
+def test_an_assignment_the_latest_update_did_not_see_is_unknown(state):
+    ran(state=state, number=1)
     tick_with(state=state, rows=[])
 
     status = only_assignment(state=state)
@@ -776,8 +777,8 @@ def test_an_assignment_the_latest_update_did_not_see_is_unknown(state, ended_at)
 
 
 def test_a_later_update_replaces_the_read_that_predated_a_rounds_ending(state):
-    ran(state=state, number=1, ended_at=LOOKED_AT + timedelta(minutes=1))
-    tick_with(state=state, rows=[pull_request_row(is_draft=True)])
+    ran(state=state, number=1)
+    tick_with(state=state, rows=[pull_request_row(is_draft=True, ended_round=None)])
 
     awaiting_update = only_assignment(state=state)
 
@@ -785,11 +786,7 @@ def test_a_later_update_replaces_the_read_that_predated_a_rounds_ending(state):
     assert awaiting_update.detail == "round 1 ended, awaiting next update"
     assert awaiting_update.pull_request_summary == "draft"
 
-    tick_with(
-        state=state,
-        rows=[pull_request_row(is_draft=True)],
-        at=LOOKED_AT + timedelta(minutes=2),
-    )
+    tick_with(state=state, rows=[pull_request_row(is_draft=True)])
 
     refreshed = only_assignment(state=state)
 
@@ -811,7 +808,7 @@ def test_a_stopped_round_ending_after_the_latest_tick_is_idle_until_the_next_upd
             ending=StoppedAgentRoundEnding(at=LOOKED_AT + timedelta(minutes=1)),
         ),
     )
-    tick_with(state=state, rows=[pull_request_row()])
+    tick_with(state=state, rows=[pull_request_row(ended_round=None)])
 
     status = only_assignment(state=state)
 
@@ -820,8 +817,8 @@ def test_a_stopped_round_ending_after_the_latest_tick_is_idle_until_the_next_upd
 
 
 def test_new_posts_found_while_a_round_ran_wait_after_it_ends(state):
-    ran(state=state, number=1, ended_at=LOOKED_AT + timedelta(minutes=1))
-    tick_with(state=state, rows=[pull_request_row(new_posts=1)])
+    ran(state=state, number=1)
+    tick_with(state=state, rows=[pull_request_row(new_posts=1, ended_round=None)])
 
     status = only_assignment(state=state)
 
@@ -1026,7 +1023,9 @@ def test_an_assignment_whose_pull_request_is_not_yet_open_waits_for_it(tmp_path)
     ran(state=state, number=1)
     tick_with(
         state=state,
-        rows=[request_row(issue=13, agent_work_identifier=ASSIGNMENT_ID)],
+        rows=[
+            request_row(issue=13, agent_work_identifier=ASSIGNMENT_ID, ended_round=1)
+        ],
     )
 
     status = only_assignment(state=state)
