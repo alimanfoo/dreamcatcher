@@ -421,10 +421,11 @@ for both kinds of agent work. `RequestStatus` gives a request with no open work
 its request status and its reasons, each as words with the issues or pull
 requests it names.
 
-A round that ended after the scheduler record, when that tick started the round
-or read nothing for the work, is one that no tick has looked at since, so status
-reports that the work is waiting for the next update. An ending that predates
-the record should already have been read, so a missing row remains unknown.
+A round that took its turn after the scheduler record leaves the work idle and
+awaiting the next update, unless the record found input that the round did not
+consume. The earlier finding still supplies the assignment's last observed pull
+request summary. An ending that predates the record should already have been
+read, so a missing row remains unknown.
 
 ### TUI
 
@@ -525,9 +526,14 @@ The on-disk layout follows ownership:
 
 `documents.py` remains the only way _dreamcatcher_ reads and writes documents it
 owns. Every structured document has a strict model and every replacement write
-is atomic. Each write stages in a file that no other write shares, so writes
-that race each other each land whole. A one-value process file may remain simple
-text where a model would add no meaning.
+is atomic. A read of a replaceable document and the replacement step of its
+write hold a persistent `<document>.lock` sidecar, so readers close the document
+before a writer replaces it across threads and processes. A writer stages and
+closes a file that no other write shares before it takes the lock, so writes
+that race each other each land whole. Static TOML and append-only streams need
+no document lock. These short document locks are distinct from the daemon lock
+held for a daemon run. A one-value process file may remain simple text where a
+model would add no meaning.
 
 State-directory objects provide paths and document access. They do not answer
 domain questions such as whether an assignment has ended or a request may start.

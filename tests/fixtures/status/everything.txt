@@ -4,7 +4,7 @@ instance
   daemon             running · dreamcatcher v3.0.0.beta1 · pid 4242
   preferred harness  claude                                        
   next update in     0s                                            
-  agent capacity     1 of 1 working                                
+  agent capacity     1 of 2 working                                
 
 assignments
   GH9-20260819-184158-assignment   fault    round 2 errored (exit 2)                                
@@ -14,7 +14,7 @@ assignments
   GH31-20260819-184158-assignment  waiting  1 new post to answer                                    
   GH35-20260819-184158-assignment  waiting  round 1 errored (exit 2)                                
   GH44-20260819-184158-assignment  waiting  no round has run yet                                    
-  GH20-20260819-184158-assignment  idle     needs feedback                                          
+  GH20-20260819-184158-assignment  idle     round 1 ended, awaiting next update                     
   GH40-20260819-184158-assignment  unknown  not seen by the latest update                           
   GH50  dream:smith  available                                                                      
   GH51  dream:smith  available                                                                      
