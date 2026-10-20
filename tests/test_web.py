@@ -1519,6 +1519,18 @@ def test_the_home_page_autoescapes_feed_output(tmp_path):
     assert "<script>alert('no')</script>" not in page
 
 
+def test_the_home_page_displays_a_worktree_marker_literally(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    fabricate_everything(state=state)
+    feed = state.work / "GH13-20260819-184158-assignment" / "rounds" / "2" / "feed.txt"
+    line = FeedLine(at=LOOKED_AT, text="[Bash] cd <worktree>/src")
+    append_text(text=line.render(), path=feed)
+
+    page = render_home(state=state)
+
+    assert "cd &lt;worktree&gt;/src" in page
+
+
 def test_issue_and_pull_request_numbers_link_to_github_with_hash_notation(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
