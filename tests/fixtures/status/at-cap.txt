@@ -5,9 +5,9 @@ instance
   preferred harness   claude                                                                        
   next update in      0s                                                                            
   agent capacity      1 of 1 working                                                                
-  scheduler failures  could not list issues for dream:smith: gh issue list failed: Post             
+  scheduler failures  could not list issues for dream:smith: gh issue list: Post                    
                       "https://api.github.com/graphql": unexpected EOF                              
-                      could not list issues for dream:less: gh issue list failed: Post              
+                      could not list issues for dream:less: gh issue list: Post                     
                       "https://api.github.com/graphql": net/http: TLS handshake timeout             
 
 assignments

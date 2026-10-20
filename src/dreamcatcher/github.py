@@ -787,7 +787,7 @@ def _read_github_response[ReadT](
             program="gh", arguments=arguments, cwd=cwd, stdin=stdin
         )
     except CommandError as error:
-        return UnknownGitHubResponse(reason=f"{command} failed: {error.reason}")
+        return UnknownGitHubResponse(reason=f"{command}: {error.reason}")
     try:
         return response_adapter.validate_json(raw_response)
     except ValidationError as error:

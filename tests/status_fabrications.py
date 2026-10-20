@@ -429,9 +429,9 @@ def fabricate_the_cap(*, state):
         tick=SchedulerRecord(
             at=PINNED + timedelta(hours=1, minutes=58),
             failures=[
-                "could not list issues for dream:smith: gh issue list failed: "
+                "could not list issues for dream:smith: gh issue list: "
                 'Post "https://api.github.com/graphql": unexpected EOF',
-                "could not list issues for dream:less: gh issue list failed: "
+                "could not list issues for dream:less: gh issue list: "
                 'Post "https://api.github.com/graphql": net/http: TLS handshake '
                 "timeout",
             ],

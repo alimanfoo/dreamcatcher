@@ -171,7 +171,7 @@ def run_command(
         failure_suffix = f": {stderr}" if stderr else "."
         raise CommandError(
             message=f"{command} failed with status {status}{failure_suffix}",
-            reason=stderr or f"status {status}",
+            reason=stderr or f"failed with status {status}",
         )
     return completed_process.stdout
 

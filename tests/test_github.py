@@ -720,7 +720,7 @@ def test_a_read_that_fails_answers_unknown_with_what_gh_said(fake, ask):
     answered = ask()
 
     assert isinstance(answered, UnknownGitHubResponse)
-    assert answered.reason.endswith(" failed: gh: could not connect to github.com")
+    assert answered.reason.endswith(": gh: could not connect to github.com")
 
 
 def test_a_failed_read_names_its_command_without_the_options(fake):
@@ -730,7 +730,17 @@ def test_a_failed_read_names_its_command_without_the_options(fake):
     answered = list_issues(repository=REPOSITORY, label="dream:smith", assignee="@me")
 
     assert answered == UnknownGitHubResponse(
-        reason="gh issue list failed: gh: could not connect to github.com"
+        reason="gh issue list: gh: could not connect to github.com"
+    )
+
+
+def test_a_read_without_gh_says_gh_is_missing(tmp_path, monkeypatch):
+    monkeypatch.setenv("PATH", str(tmp_path))
+
+    answered = list_labels(repository=REPOSITORY)
+
+    assert answered == UnknownGitHubResponse(
+        reason=f"gh api repos/{REPOSITORY}/labels?per_page=100: gh is not on the PATH."
     )
 
 
@@ -741,7 +751,7 @@ def test_a_failed_read_that_said_nothing_gives_its_status(fake):
     answered = list_labels(repository=REPOSITORY)
 
     assert answered == UnknownGitHubResponse(
-        reason=f"gh api repos/{REPOSITORY}/labels?per_page=100 failed: status 1"
+        reason=f"gh api repos/{REPOSITORY}/labels?per_page=100: failed with status 1"
     )
 
 

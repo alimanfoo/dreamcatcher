@@ -85,7 +85,7 @@ def test_a_failure_that_said_nothing_still_names_the_command(fake):
         run_command(program="probe", arguments=[])
 
     assert str(error.value) == "probe failed with status 1."
-    assert error.value.reason == "status 1"
+    assert error.value.reason == "failed with status 1"
 
 
 def test_a_command_that_prints_bytes_that_are_not_utf_8_still_reads():
