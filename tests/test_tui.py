@@ -8,7 +8,6 @@ the daemon's pid are all pinned and every run and every platform renders the
 same text.
 """
 
-from datetime import timedelta
 from io import StringIO
 
 import pytest
@@ -31,6 +30,7 @@ from status_fabrications import (
     ONE_POST_INPUT,
     SAID,
     STATUS_REPORTS,
+    compose_feed_line,
     ended,
     fabricate_a_dead_daemon,
     fabricate_a_silent_round,
@@ -293,11 +293,12 @@ def test_status_a_reader_watches_keeps_up_with_what_the_daemon_writes(tmp_path):
         if len(looks) > 1:
             raise KeyboardInterrupt
         holding(state=state)
-        directory = written(state=state, issue=13, records=[running(minute=30)])
+        current = running(minute=30)
+        directory = written(state=state, issue=13, records=[current])
         write_feed(
             directory=directory,
             number=1,
-            lines=[FeedLine(at=PINNED + timedelta(minutes=31), text="[Bash] pytest")],
+            lines=[compose_feed_line(record=current, text="[Bash] pytest")],
         )
 
     show_status_view(
@@ -389,17 +390,14 @@ def test_an_assignment_with_no_pull_request_yet_says_so(tmp_path):
 def test_assignment_latest_output_is_indented_on_one_line(tmp_path):
     state = StateDirectory(root=tmp_path)
     holding(state=state)
-    directory = written(
-        state=state,
-        issue=13,
-        records=[running(minute=1)],
-    )
+    current = running(minute=1)
+    directory = written(state=state, issue=13, records=[current])
     write_feed(
         directory=directory,
         number=1,
         lines=[
-            FeedLine(
-                at=PINNED,
+            compose_feed_line(
+                record=current,
                 text="The agent is explaining a long change that needs to wrap onto "
                 "another line.",
             )
@@ -687,18 +685,17 @@ def test_a_round_that_starts_while_the_view_is_going_arrives_in_it(tmp_path):
         looks.append(seconds)
         if len(looks) > 1:
             raise KeyboardInterrupt
+        current = running(minute=60, number=2)
         write_round(
             directory=directory,
             number=2,
-            record=running(minute=60, number=2),
+            record=current,
             round_input=ONE_POST_INPUT,
         )
         write_feed(
             directory=directory,
             number=2,
-            lines=[
-                FeedLine(at=PINNED + timedelta(minutes=61), text="[Bash] git commit")
-            ],
+            lines=[compose_feed_line(record=current, text="[Bash] git commit")],
         )
 
     feed = followed(state=state, issue=20, wait=wait)
@@ -771,7 +768,7 @@ def test_a_following_view_reads_a_round_on_from_where_it_stopped(tmp_path):
                     text="[harness session] model opus[1m], id 000000",
                 ),
                 *SAID[1:],
-                FeedLine(at=PINNED + timedelta(minutes=7), text="[Bash] git push"),
+                FeedLine(at=SAID[-1].at, text="[Bash] git push"),
             ],
         )
 
@@ -860,11 +857,12 @@ def test_a_round_view_uses_the_number_persisted_by_the_round(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
     directory = state.work / f"GH12-{ASSIGNMENT_TIMESTAMP}-assignment"
-    write_round(directory=directory, number=4, record=ended(minute=40, number=4))
+    fourth = ended(minute=40, number=4)
+    write_round(directory=directory, number=4, record=fourth)
     write_feed(
         directory=directory,
         number=4,
-        lines=[FeedLine(at=PINNED + timedelta(minutes=41), text="[Bash] git status")],
+        lines=[compose_feed_line(record=fourth, text="[Bash] git status")],
     )
 
     shown = viewed_round(state=state, issue=12, number=4)
