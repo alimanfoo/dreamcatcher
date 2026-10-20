@@ -29,7 +29,7 @@ from dreamcatcher.agent_work import (
 from dreamcatcher.commands import CommandError
 from dreamcatcher.documents import (
     DocumentCache,
-    DreamcatcherDocument,
+    WriteOnceDreamcatcherDocument,
     read_json,
     read_json_if_exists,
     write_json,
@@ -57,7 +57,7 @@ _ASSIGNMENT_BRANCH_PREFIX = "dreamcatcher-"
 _PULL_REQUEST_RECORD_NAME = "pull-request.json"
 
 
-class AssignmentRoundInput(DreamcatcherDocument):
+class AssignmentRoundInput(WriteOnceDreamcatcherDocument):
     """Model where an assignment's pull request stood and what a round relayed.
 
     The head is the pull request's head commit when the round started, which is
@@ -70,7 +70,7 @@ class AssignmentRoundInput(DreamcatcherDocument):
     user_posts: list[UserPost]
 
 
-class _PullRequestRecord(DreamcatcherDocument):
+class _PullRequestRecord(WriteOnceDreamcatcherDocument):
     """Model the number of the assignment's pull request.
 
     The round that opens the pull request writes it once, and the scheduler
