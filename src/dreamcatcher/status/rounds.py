@@ -186,7 +186,7 @@ def describe_round_trigger(*, work: AgentWork, number: int) -> str:
         words.insert(
             0, describe_count(number=len(assignment_input.user_posts), noun="post")
         )
-    return ", ".join(words) or "carry on"
+    return ", ".join(words) or "recover"
 
 
 def _read_conversation_input(

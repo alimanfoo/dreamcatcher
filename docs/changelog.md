@@ -31,6 +31,9 @@ each entry links the pull request or commit that made the change.
 - An idle assignment whose pull request is still a draft now reads "needs
   feedback" rather than "draft", because the agent is waiting on you.
   ([#612](https://github.com/alimanfoo/dreamcatcher/pull/612))
+- A round that resumes an assignment after a round that did not finish, with
+  nothing new to relay, now shows the trigger "recover" instead of "carry on".
+  ([#609](https://github.com/alimanfoo/dreamcatcher/pull/609))
 
 ### Fixed
 
