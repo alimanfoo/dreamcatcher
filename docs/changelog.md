@@ -28,6 +28,9 @@ each entry links the pull request or commit that made the change.
 
 ### Fixed
 
+- Repeated state-document reads from the web and terminal views no longer
+  prevent the daemon from replacing those documents on Windows.
+  ([#601](https://github.com/alimanfoo/dreamcatcher/pull/601))
 - Deleting an open assignment's worktree now errors its next round and lets the
   daemon continue. A second failure puts the assignment in fault, as the user
   story promises. ([#599](https://github.com/alimanfoo/dreamcatcher/pull/599))
