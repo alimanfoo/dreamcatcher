@@ -124,7 +124,10 @@ def test_the_assignment_input_prompt_names_the_pull_request_and_the_file(
     round_input = tmp_path / "round-input.json"
 
     composed = compose_assignment_input_prompt(
-        pull_request=52, round_input=round_input, pull_request_signals=[]
+        pull_request=52,
+        round_input=round_input,
+        pull_request_signals=[],
+        is_previous_round_unfinished=False,
     )
 
     assert composed.startswith("Assignment input for pull request #52:")
@@ -139,6 +142,7 @@ def test_each_signal_opens_the_assignment_input_prompt_with_its_line(tmp_path):
             PullRequestSignal.OUT_OF_DATE,
             PullRequestSignal.CHECK_FAILURE,
         ],
+        is_previous_round_unfinished=False,
     )
 
     out_of_date, check_failure, input_prompt = composed.split("\n\n", 2)
@@ -155,6 +159,7 @@ def test_a_signal_line_follows_the_line_about_the_previous_round(tmp_path):
             pull_request=52,
             round_input=tmp_path / "round-input.json",
             pull_request_signals=[PullRequestSignal.CHECK_FAILURE],
+            is_previous_round_unfinished=True,
         ),
         previous_outcome=AgentRoundOutcome.ERRORED,
     )
@@ -162,6 +167,61 @@ def test_a_signal_line_follows_the_line_about_the_previous_round(tmp_path):
     assert prompt.startswith("Your previous round did not finish.")
     assert prompt.index("Your previous round") < prompt.index("Checks failed")
     assert prompt.index("Checks failed") < prompt.index("Assignment input")
+
+
+@pytest.mark.parametrize(
+    "previous_outcome", [AgentRoundOutcome.ERRORED, AgentRoundOutcome.INTERRUPTED]
+)
+@pytest.mark.parametrize("is_resuming", [False, True])
+def test_an_open_assignment_after_a_round_that_did_not_finish_is_told_to_continue(
+    tmp_path, previous_outcome, is_resuming
+):
+    prompt = compose_round_prompt(
+        instructions="/dream:smith GH12",
+        is_resuming=is_resuming,
+        input_prompt=compose_assignment_input_prompt(
+            pull_request=52,
+            round_input=tmp_path / "round-input.json",
+            pull_request_signals=[],
+            is_previous_round_unfinished=True,
+        ),
+        previous_outcome=previous_outcome,
+    )
+
+    words = " ".join(prompt.split())
+    assert "Some of what it did may already be done" in words
+    assert "If pull_request_state is MERGED or CLOSED, finish" in words
+    assert (
+        "Otherwise continue the unfinished assignment from where you stopped, and "
+        "act on every post in user_posts" in words
+    )
+    assert (
+        "Empty user_posts and signals do not mean the assignment is complete" in words
+    )
+
+
+@pytest.mark.parametrize(
+    "previous_outcome",
+    [None, AgentRoundOutcome.SUCCESSFUL, AgentRoundOutcome.STOPPED],
+)
+def test_an_assignment_after_a_round_that_took_its_turn_acts_on_its_posts(
+    tmp_path, previous_outcome
+):
+    prompt = compose_round_prompt(
+        instructions="/dream:smith GH12",
+        is_resuming=True,
+        input_prompt=compose_assignment_input_prompt(
+            pull_request=52,
+            round_input=tmp_path / "round-input.json",
+            pull_request_signals=[],
+            is_previous_round_unfinished=False,
+        ),
+        previous_outcome=previous_outcome,
+    )
+
+    words = " ".join(prompt.split())
+    assert "Otherwise act on every post in user_posts" in words
+    assert "unfinished assignment" not in words
 
 
 def test_the_conversation_input_prompt_names_its_input_and_host_boundary(tmp_path):
