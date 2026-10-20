@@ -21,8 +21,8 @@ from dreamcatcher.agent_assignments import (
 )
 from dreamcatcher.agent_rounds import (
     AgentRoundRecord,
-    ErroredAgentRoundEnding,
     InterruptedAgentRoundEnding,
+    LaunchErroredAgentRoundEnding,
     StoppedAgentRoundEnding,
     _compose_agent_round_ending,
 )
@@ -170,7 +170,7 @@ def test_a_first_round_that_failed_before_its_pull_request_is_tried_again(
         record=AgentRoundRecord(
             number=1,
             started=PINNED,
-            ending=ErroredAgentRoundEnding(at=PINNED, reason="git push failed"),
+            ending=LaunchErroredAgentRoundEnding(at=PINNED, reason="git push failed"),
         ),
     )
 
@@ -189,7 +189,7 @@ def test_an_assignment_in_fault_reads_nothing_and_counts_its_fault(tmp_path):
             record=AgentRoundRecord(
                 number=number,
                 started=PINNED + timedelta(minutes=number),
-                ending=ErroredAgentRoundEnding(
+                ending=LaunchErroredAgentRoundEnding(
                     at=PINNED + timedelta(minutes=number), reason="git push failed"
                 ),
             ),
