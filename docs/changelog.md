@@ -27,6 +27,14 @@ the change.
 
 ## Unreleased
 
+### Changed
+
+- When a refresh fails, an assignment or conversation page now keeps its
+  feed and shows a warning with the reason, as the home page already
+  did. The warning clears once a refresh succeeds. The home page's
+  warning now uses the same words.
+  ([#637](https://github.com/alimanfoo/dreamcatcher/pull/637))
+
 ## [v6.2.0](https://github.com/alimanfoo/dreamcatcher/releases/tag/v6.2.0) — 2026-10-20
 
 ### Added
