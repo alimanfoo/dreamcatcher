@@ -690,7 +690,7 @@ def test_a_round_interrupted_as_its_harness_succeeds_is_not_finished(
 
     # The race that `_end_process_tree` records: the harness exits cleanly just
     # as the daemon stops the round.
-    running.forced_outcome = AgentRoundOutcome.INTERRUPTED
+    running.forced_ending = InterruptedAgentRoundEnding
     release.touch()
     running.wait()
 
@@ -765,7 +765,7 @@ def test_the_daemon_stopping_a_finished_round_keeps_its_ending(
     # can be a round that finished a moment before.
     running.end_for_daemon_shutdown()
 
-    assert running.forced_outcome is None
+    assert running.forced_ending is None
     record = written(path=running.paths.record)
     assert record.ending == _compose_agent_round_ending(at=PINNED, status=0)
     assert record.outcome is AgentRoundOutcome.SUCCESSFUL
@@ -844,8 +844,8 @@ def test_the_first_reason_for_ending_a_round_wins(fake, worktree, directory):
         clock=pinned,
     )
 
-    running._end_process_tree(outcome=AgentRoundOutcome.STOPPED)
-    running._end_process_tree(outcome=AgentRoundOutcome.INTERRUPTED)
+    running._end_process_tree(ending=StoppedAgentRoundEnding)
+    running._end_process_tree(ending=InterruptedAgentRoundEnding)
     running.wait()
 
     assert written(path=running.paths.record).outcome is AgentRoundOutcome.STOPPED
