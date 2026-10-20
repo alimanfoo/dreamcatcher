@@ -265,8 +265,8 @@ class Scheduler:
         The record's rows are the inspections' rows, in the same order. A
         launch that fails takes no slot, and the next candidate is tried. The
         row of each request names the round started for it, and why that round
-        errored if it did so before its harness ran. A launch that fails before
-        any round exists is a scheduler failure.
+        errored if it did so during its preparation or startup. A launch that
+        fails before any round exists is a scheduler failure.
         """
         rows = list(record.rows)
         failures = list(record.failures)

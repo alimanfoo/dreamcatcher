@@ -183,10 +183,11 @@ class ErroredAgentRoundEnding(DreamcatcherDocument):
 
 
 class LaunchErroredAgentRoundEnding(ErroredAgentRoundEnding):
-    """An agent round ending in an error before its harness was running.
+    """An agent round ending in an error during its preparation or startup.
 
     The round's preparation, the spawn of its harness, or the record of the
-    spawned process failed, so no exit status was recorded.
+    spawned process failed. A harness may briefly have run before that last
+    step failed, but no exit status was recorded.
     """
 
     status: None = None
@@ -315,12 +316,12 @@ def interpret_agent_round_outcome(
 def describe_round_launch_failure(
     *, agent_work_identifier: str, round_number: int, reason: str
 ) -> str:
-    """Say which round of which work errored before its harness ran, and why."""
+    """Say which round errored during its preparation or startup, and why."""
     return f"{agent_work_identifier} round {round_number} errored: {reason}"
 
 
 class AgentRoundLaunchError(ReportableError):
-    """Report a round that ended errored before its harness ran.
+    """Report a round that errored during its preparation or startup.
 
     The round's record already holds the errored ending. The error carries the
     work, the round and the reason, so a caller can record them without reading
@@ -500,8 +501,8 @@ class AgentRound:
         harness as it was written however long it is and whatever it holds, and
         a reader can see afterwards what the round received.
 
-        A failure before the harness is running ends the round errored, with the
-        failure as its reason and no exit status, and raises
+        A failure during preparation or startup ends the round errored, with the
+        failure as its reason and no recorded exit status, and raises
         AgentRoundLaunchError naming the work and the round.
 
         A round given a finishing step runs it before it records its ending.

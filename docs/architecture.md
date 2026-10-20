@@ -137,11 +137,11 @@ read.
 
 A launch that fails takes no agent slot. The tick keeps every round that
 it already started and goes on to the next candidate. A round that
-errored before its harness ran is recorded on its agent work, and the
-request's row names the round and its reason, which the daemon's output
-line repeats. A launch that fails before its round is recorded, such as
-a work record that cannot be written or a harness invocation that cannot
-be built, is a scheduler failure.
+errored during its preparation or startup is recorded on its agent work,
+and the request's row names the round and its reason, which the daemon's
+output line repeats. A launch that fails before its round is recorded,
+such as a work record that cannot be written or a harness invocation
+that cannot be built, is a scheduler failure.
 
 When the tick selects a request, it writes the work record and starts
 the first round in the same scheduling action. The record comes first,
@@ -449,11 +449,11 @@ conversation whose issue it found closed, or an assignment whose pull
 request no round has opened yet. A running round does not prevent the
 tick from recording a finding, but it prevents the finding from making
 the work a candidate for another round. A row also names the round the
-tick started for it and, when that round errored before its harness ran,
-the reason. Apart from those reasons for a failure, no row holds a
-sentence meant for a person. Status composes the words from these values
-once, and keeps the issue and pull request numbers as numbers, so both
-presentations link them and neither parses text.
+tick started for it and, when that round errored during its preparation
+or startup, the reason. Apart from those reasons for a failure, no row
+holds a sentence meant for a person. Status composes the words from
+these values once, and keeps the issue and pull request numbers as
+numbers, so both presentations link them and neither parses text.
 
 `AgentWorkStatus` is one summary status from the ontology, derived in
 one chain for both kinds of agent work. `RequestStatus` gives a request
@@ -659,9 +659,9 @@ A round record persists:
 
 Each kind of errored ending has its own type in `agent_rounds.py`, and
 the exit status in a saved ending selects the type when the record is
-read. An absent status means the round failed before its harness was
-running, a nonzero status means its harness failed, and a zero status
-means its finishing step failed.
+read. An absent status means the round's preparation or startup failed
+and no exit status was recorded, a nonzero status means its harness
+failed, and a zero status means its finishing step failed.
 
 An assignment round input that carries user posts puts the cursor at its
 newest post, and one that carries a pull request signal records the head
