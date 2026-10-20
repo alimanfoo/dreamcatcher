@@ -82,8 +82,8 @@ Its **agent work identifier** combines the issue identifier, the time
 the work was created and its kind, as in
 `GH123-20260912-192458-assignment` or
 `GH123-20260912-193000-conversation`. The kind is in the name for a
-person reading a directory listing, a daemon line or a web address; the
-work's record says it too.
+person reading a directory listing, a daemon line or a web address, or
+naming the work to a terminal command; the work's record says it too.
 
 Each piece of agent work has one **work record**, written once when the
 work is created. It holds the issue, the dispatch label, the kind of

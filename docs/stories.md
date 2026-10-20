@@ -398,6 +398,31 @@ stops, so the user can still see where things stood.
 The value to the user is that they never have to hunt through GitHub to
 find out what is waiting on them.
 
+#### The user returns to earlier work at an issue
+
+The user asked about an issue under one conversation label, then
+switched to another label to try a different recipe, and a second
+conversation has answered since. Now they want the first discussion
+back, so they take the second label off and put the first one back. The
+first conversation picks up where it left off, and the second is paused.
+
+In the terminal, `dreamcatcher conversation GH123` shows the newest
+conversation, which is the paused second one. Beneath it the view lists
+the first conversation, with its identifier, its label and its status.
+The user runs the command again with that identifier, and the view shows
+the first conversation and stays on it. `dreamcatcher feed` with the
+same identifier shows what that conversation's agent has said, and
+nothing from the other one. When a round of it heads the wrong way,
+`dreamcatcher stop` with the identifier stops that round and leaves the
+other conversation alone.
+
+An issue that has had several assignments works the same way. The
+assignment view lists the other assignments at the issue, and each one's
+identifier selects its detail and its feed.
+
+The value to the user is that the terminal can show any work on an
+issue, not only the newest.
+
 #### The user stops and starts the daemon
 
 The user needs to stop the daemon: there is a new version to install, a
@@ -604,6 +629,15 @@ prints what is wrong with the file, because an update cannot repair a
 record it cannot read. The user needs to delete the file and start the
 daemon again. The next update writes a fresh one, since the file holds
 only what the last update found.
+
+### Naming work that is not there
+
+The user gives a terminal command an agent work identifier with a typo
+in it, or gives a conversation's identifier to a command about
+assignments. The command says that no work of its kind has that name,
+and acts on no work at all. It never falls back to the newest work at
+the issue. The user needs to copy the identifier from the list of other
+work in the detail view, and use a command of the same kind.
 
 ## Expected faults
 
