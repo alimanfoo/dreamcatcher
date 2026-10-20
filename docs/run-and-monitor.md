@@ -88,13 +88,12 @@ view is piped or redirected, it prints one snapshot and returns.
 Assignments and conversations share these statuses:
 
 - **working**: an agent round is running;
-- **waiting**: a round is ready to start, or _dreamcatcher_ is awaiting the next
-  update; the accompanying detail says which;
-- **idle**: no round is due until something new arrives; for an assignment the
-  detail says whether its pull request is ready for review, still a draft,
-  failing its checks after two attempts, or merged or closed after its wrap-up
-  round, and for a conversation how its latest round ended, or why the
-  conversation is paused;
+- **waiting**: a round is ready to start, and the detail says why;
+- **idle**: no round is known to be due; the detail says when the work awaits
+  the next update, for an assignment whether its pull request is ready for
+  review, still a draft, failing its checks after two attempts, or merged or
+  closed after its wrap-up round, and for a conversation how its latest round
+  ended, or why the conversation is paused;
 - **fault**: repeated errors need attention;
 - **unknown**: _dreamcatcher_ could not read what it needed, or the latest
   update has not seen the work; the accompanying detail says which; and

@@ -2,12 +2,13 @@
 
 import tomllib
 from collections.abc import Callable, Generator
-from contextlib import contextmanager, suppress
+from contextlib import contextmanager, nullcontext, suppress
 from io import SEEK_END, BytesIO
 from pathlib import Path
-from typing import IO
+from typing import IO, ClassVar
 from uuid import uuid4
 
+from filelock import FileLock, Timeout
 from pydantic import BaseModel, ConfigDict, ValidationError
 
 from dreamcatcher.errors import ReportableError
@@ -15,6 +16,8 @@ from dreamcatcher.errors import ReportableError
 # What ends the name of the file that a whole write stages in before it takes
 # its target's place.
 _STAGED_WRITE_SUFFIX = ".writing"
+_DOCUMENT_LOCK_SUFFIX = ".lock"
+_DOCUMENT_LOCK_TIMEOUT_SECONDS = 10.0
 
 # How much of the end of a file each read of a backward search takes. A last
 # line longer than this takes another read to find, and nothing else turns on
@@ -30,6 +33,13 @@ class DreamcatcherDocument(BaseModel):
     """
 
     model_config = ConfigDict(extra="forbid", frozen=True)
+    is_replaceable: ClassVar[bool] = True
+
+
+class WriteOnceDreamcatcherDocument(DreamcatcherDocument):
+    """Model a document that dreamcatcher writes at most once."""
+
+    is_replaceable = False
 
 
 def read_toml[DocumentT: DreamcatcherDocument](
@@ -37,7 +47,7 @@ def read_toml[DocumentT: DreamcatcherDocument](
 ) -> DocumentT:
     """Return the document the TOML file holds, or raise ReportableError."""
     try:
-        data = tomllib.loads(read_text(path=path))
+        data = tomllib.loads(read_text(path=path, is_replaceable=False))
     except tomllib.TOMLDecodeError as error:
         raise ReportableError(f"{path} is not valid TOML: {error}.") from error
     try:
@@ -61,7 +71,7 @@ def read_json[DocumentT: DreamcatcherDocument](
     return _parse_json_document(
         model=model,
         path=path,
-        text=read_text(path=path),
+        text=read_text(path=path, is_replaceable=model.is_replaceable),
     )
 
 
@@ -74,10 +84,10 @@ def read_json_if_exists[DocumentT: DreamcatcherDocument](
     fit its model.
     """
     try:
-        text = _read_text(path=path)
+        text = _read_text(path=path, is_replaceable=model.is_replaceable)
     except (FileNotFoundError, NotADirectoryError):
         return None
-    except OSError as error:
+    except (OSError, Timeout) as error:
         raise ReportableError(f"cannot read {path}: {error}.") from error
     return _parse_json_document(model=model, path=path, text=text)
 
@@ -114,27 +124,31 @@ class DocumentCache:
         return document
 
 
-def read_text(*, path: Path) -> str:
+def read_text(*, path: Path, is_replaceable: bool = True) -> str:
     """Return the text the file at path holds, read as UTF-8.
 
     The line endings come as the file holds them, which is how every write leaves
     them. Left to itself Python turns each of them into a newline, and then a
     read and a write of one file would not agree on what is in it.
 
-    Raise ReportableError when the read fails. A document that is not there, or
-    that nothing can read, is something the user can act on, so it reads as a
-    message rather than a traceback.
+    Lock a replaceable document while it is open. A static input can skip the
+    lock. Raise ReportableError when the read fails. A document that is not
+    there, or that nothing can read, is something the user can act on, so it
+    reads as a message rather than a traceback.
     """
     try:
-        return _read_text(path=path)
+        return _read_text(path=path, is_replaceable=is_replaceable)
     except FileNotFoundError as error:
         raise ReportableError(f"{path} does not exist.") from error
-    except OSError as error:
+    except (OSError, Timeout) as error:
         raise ReportableError(f"cannot read {path}: {error}.") from error
 
 
-def _read_text(*, path: Path) -> str:
-    return _decode(contents=path.read_bytes(), path=path)
+def _read_text(*, path: Path, is_replaceable: bool = True) -> str:
+    if not is_replaceable:
+        return _decode(contents=path.read_bytes(), path=path)
+    with _hold_document_lock(path=path):
+        return _decode(contents=path.read_bytes(), path=path)
 
 
 def _parse_json_document[DocumentT: DreamcatcherDocument](
@@ -221,7 +235,7 @@ def read_last_line(*, path: Path) -> str | None:
         return _decode(contents=opened.read(end_of_line - start_of_line), path=path)
 
 
-def write_text(*, text: str, path: Path) -> None:
+def write_text(*, text: str, path: Path, is_replaceable: bool = True) -> None:
     """Write text to path as UTF-8, over whatever was there before.
 
     The write lands whole. The text goes to a file of its own beside the target
@@ -229,6 +243,8 @@ def write_text(*, text: str, path: Path) -> None:
     reads the document that was there or the one that replaced it, and never a
     partial document. No two writes share that file, so writes that race each
     other each land whole, and the target holds whichever landed last.
+
+    Lock the replacement unless the document is static after this write.
 
     The line endings are the caller's, for the reason append_text keeps them.
 
@@ -241,8 +257,10 @@ def write_text(*, text: str, path: Path) -> None:
         path.parent.mkdir(parents=True, exist_ok=True)
         with staged.open("x", encoding="utf-8", newline="") as opened:
             opened.write(text)
-        staged.replace(path)
-    except OSError as error:
+        lock = _hold_document_lock(path=path) if is_replaceable else nullcontext()
+        with lock:
+            staged.replace(path)
+    except (OSError, Timeout) as error:
         with suppress(OSError):
             staged.unlink(missing_ok=True)
         raise ReportableError(f"cannot write {path}: {error}.") from error
@@ -267,7 +285,11 @@ def append_text(*, text: str, path: Path) -> None:
 
 def write_json(*, document: DreamcatcherDocument, path: Path) -> None:
     """Write the document to path as JSON."""
-    write_text(text=document.model_dump_json(indent=2) + "\n", path=path)
+    write_text(
+        text=document.model_dump_json(indent=2) + "\n",
+        path=path,
+        is_replaceable=document.is_replaceable,
+    )
 
 
 def remove_file(*, path: Path) -> None:
@@ -276,6 +298,19 @@ def remove_file(*, path: Path) -> None:
         path.unlink(missing_ok=True)
     except OSError as error:
         raise ReportableError(f"cannot remove {path}: {error}.") from error
+
+
+@contextmanager
+def _hold_document_lock(*, path: Path) -> Generator[None, None, None]:
+    """Hold the persistent sidecar lock for a document operation."""
+    lock_path = path.with_name(f"{path.name}{_DOCUMENT_LOCK_SUFFIX}")
+    with FileLock(
+        lock_path,
+        timeout=_DOCUMENT_LOCK_TIMEOUT_SECONDS,
+        fallback_to_soft=False,
+        preserve_lock_file=True,
+    ):
+        yield
 
 
 @contextmanager

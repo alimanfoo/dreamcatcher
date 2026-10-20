@@ -3,7 +3,11 @@
 from pydantic import Field
 
 from dreamcatcher.agent_work import AgentWork
-from dreamcatcher.documents import DreamcatcherDocument, read_json
+from dreamcatcher.documents import (
+    DreamcatcherDocument,
+    WriteOnceDreamcatcherDocument,
+    read_json,
+)
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.git import (
     refresh_detached_worktree,
@@ -27,7 +31,7 @@ class InitialConversationIssue(DreamcatcherDocument):
     body: str
 
 
-class ConversationRoundInput(DreamcatcherDocument):
+class ConversationRoundInput(WriteOnceDreamcatcherDocument):
     """Model the eligible issue input frozen for one conversation round."""
 
     issue: int

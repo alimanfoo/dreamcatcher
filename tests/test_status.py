@@ -734,7 +734,7 @@ def test_an_assignment_before_any_update_is_unknown(state):
 
 
 @pytest.mark.parametrize("is_launched_observed", [False, True])
-def test_a_round_ending_after_the_latest_tick_waits_for_the_next_update(
+def test_a_round_ending_after_the_latest_tick_is_idle_until_the_next_update(
     state, is_launched_observed
 ):
     ran(state=state, number=1, ended_at=LOOKED_AT + timedelta(minutes=1))
@@ -749,7 +749,7 @@ def test_a_round_ending_after_the_latest_tick_waits_for_the_next_update(
 
     status = only_assignment(state=state)
 
-    assert status.value is AgentWorkStatusValue.WAITING
+    assert status.value is AgentWorkStatusValue.IDLE
     assert status.detail == "round 1 ended, awaiting next update"
 
 
@@ -764,11 +764,58 @@ def test_an_assignment_the_latest_update_did_not_see_is_unknown(state, ended_at)
     assert status.detail == "not seen by the latest update"
 
 
-def test_what_the_latest_update_read_stays_current_when_a_round_ends_after_it(state):
+def test_a_later_update_replaces_the_read_that_predated_a_rounds_ending(state):
     ran(state=state, number=1, ended_at=LOOKED_AT + timedelta(minutes=1))
+    tick_with(state=state, rows=[pull_request_row(is_draft=True)])
+
+    awaiting_update = only_assignment(state=state)
+
+    assert awaiting_update.value is AgentWorkStatusValue.IDLE
+    assert awaiting_update.detail == "round 1 ended, awaiting next update"
+    assert awaiting_update.pull_request_summary == "draft"
+
+    tick_with(
+        state=state,
+        rows=[pull_request_row(is_draft=True)],
+        at=LOOKED_AT + timedelta(minutes=2),
+    )
+
+    refreshed = only_assignment(state=state)
+
+    assert refreshed.value is AgentWorkStatusValue.IDLE
+    assert refreshed.detail == "draft"
+    assert refreshed.pull_request_summary == "draft"
+
+
+def test_a_stopped_round_ending_after_the_latest_tick_is_idle_until_the_next_update(
+    state,
+):
+    write_round(
+        directory=state.work / ASSIGNMENT_ID,
+        number=1,
+        record=AgentRoundRecord(
+            number=1,
+            started=LOOKED_AT - timedelta(minutes=1),
+            pid=1,
+            ending=StoppedAgentRoundEnding(at=LOOKED_AT + timedelta(minutes=1)),
+        ),
+    )
     tick_with(state=state, rows=[pull_request_row()])
 
-    assert only_assignment(state=state).value is AgentWorkStatusValue.IDLE
+    status = only_assignment(state=state)
+
+    assert status.value is AgentWorkStatusValue.IDLE
+    assert status.detail == "round 1 ended, awaiting next update"
+
+
+def test_new_posts_found_while_a_round_ran_wait_after_it_ends(state):
+    ran(state=state, number=1, ended_at=LOOKED_AT + timedelta(minutes=1))
+    tick_with(state=state, rows=[pull_request_row(new_posts=1)])
+
+    status = only_assignment(state=state)
+
+    assert status.value is AgentWorkStatusValue.WAITING
+    assert status.detail == "1 new post to answer"
 
 
 def test_a_ready_pull_request_with_nothing_new_is_idle_ready_for_review(state):
