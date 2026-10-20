@@ -9,17 +9,15 @@ from clocks import PINNED
 from records import (
     find_conversation_directory,
     hold_daemon_lock_for_test,
-    write_conversation,
     write_ending,
     write_feed,
-    write_final_output,
     write_round,
     write_running_conversation,
     write_tick,
 )
 from rich.console import Console
 from rows import request_row
-from status_fabrications import conversation_row
+from status_fabrications import conversation_row, fabricate_conversation
 
 from dreamcatcher.agent_rounds import (
     AgentRoundRecord,
@@ -37,8 +35,6 @@ from dreamcatcher.issue_conversations import (
 from dreamcatcher.scheduler.models import (
     ConflictingLabelsFinding,
     IssueCommentsFinding,
-    PauseCause,
-    PausedFinding,
     ReadFailureFinding,
     SchedulerRecord,
 )
@@ -50,79 +46,6 @@ from dreamcatcher.tui import (
 )
 
 
-def conversation_state(
-    *,
-    root,
-    status: int = 0,
-    is_paused: bool = True,
-    harness_session_identifier: str | None = "conversation-session",
-) -> StateDirectory:
-    """Return state containing one finished conversation.
-
-    The tick after a round that errored still finds its comment to answer.
-    """
-    state = StateDirectory(root=root)
-    directory = write_conversation(
-        state=state,
-        issue=8,
-        harness_session_identifier=harness_session_identifier,
-    )
-    write_round(
-        directory=directory,
-        number=1,
-        record=AgentRoundRecord(
-            number=1,
-            started=PINNED,
-            pid=1,
-            ending=_compose_agent_round_ending(
-                at=PINNED + timedelta(minutes=4), status=status
-            ),
-        ),
-    )
-    write_json(
-        document=ConversationRoundInput(
-            issue=8,
-            initial_issue=InitialConversationIssue(
-                title="Issue 8",
-                body="Explain it.",
-            ),
-            comments=[
-                {
-                    "id": 1,
-                    "body": "Please explain.",
-                    "author": "alice",
-                    "written_at": "2026-09-23T01:00:00Z",
-                }
-            ],
-            revision="abc123",
-        ),
-        path=(directory / "rounds" / "1" / "round-input.json"),
-    )
-    write_feed(
-        directory=directory,
-        number=1,
-        lines=[FeedLine(at=PINNED, text="I found the answer.")],
-    )
-    write_final_output(directory=directory, number=1, text="The answer.")
-    write_tick(
-        state=state,
-        tick=SchedulerRecord(
-            at=PINNED + timedelta(minutes=5),
-            rows=[
-                conversation_row(
-                    ended_round=1,
-                    finding=(
-                        PausedFinding(cause=PauseCause.LABEL_REMOVED)
-                        if is_paused
-                        else IssueCommentsFinding(new_comments=int(status != 0))
-                    ),
-                )
-            ],
-        ),
-    )
-    return state
-
-
 def rendered_console() -> tuple[Console, StringIO]:
     """Return a plain fixed-width console and the text it writes."""
     written = StringIO()
@@ -130,7 +53,8 @@ def rendered_console() -> tuple[Console, StringIO]:
 
 
 def test_status_lists_the_conversation(tmp_path):
-    state = conversation_state(root=tmp_path, is_paused=False)
+    state = StateDirectory(root=tmp_path)
+    fabricate_conversation(state=state, is_paused=False)
     console, written = rendered_console()
 
     show_status_view(
@@ -147,7 +71,8 @@ def test_status_lists_the_conversation(tmp_path):
 
 
 def test_conversation_detail_shows_settings_revision_session_and_round(tmp_path):
-    state = conversation_state(root=tmp_path, harness_session_identifier=None)
+    state = StateDirectory(root=tmp_path)
+    fabricate_conversation(state=state, harness_session_identifier=None)
     directory = find_conversation_directory(state=state, issue=8)
     write_text(
         text=(
@@ -211,7 +136,8 @@ def test_conversation_detail_shows_settings_revision_session_and_round(tmp_path)
 
 
 def test_conversation_detail_shows_a_failed_round(tmp_path):
-    state = conversation_state(root=tmp_path, status=2, is_paused=False)
+    state = StateDirectory(root=tmp_path)
+    fabricate_conversation(state=state, status=2, is_paused=False)
     console, written = rendered_console()
 
     show_agent_work_view(
@@ -226,7 +152,8 @@ def test_conversation_detail_shows_a_failed_round(tmp_path):
 
 
 def test_conversation_detail_shows_two_errors_as_a_fault(tmp_path):
-    state = conversation_state(root=tmp_path, status=2, is_paused=False)
+    state = StateDirectory(root=tmp_path)
+    fabricate_conversation(state=state, status=2, is_paused=False)
     directory = find_conversation_directory(state=state, issue=8)
     write_round(
         directory=directory,
@@ -272,7 +199,8 @@ def test_conversation_detail_shows_two_errors_as_a_fault(tmp_path):
 
 
 def test_conversation_feed_shows_its_saved_activity(tmp_path):
-    state = conversation_state(root=tmp_path)
+    state = StateDirectory(root=tmp_path)
+    fabricate_conversation(state=state)
     console, written = rendered_console()
 
     show_feed_view(
@@ -290,7 +218,8 @@ def test_conversation_feed_shows_its_saved_activity(tmp_path):
 def test_conversation_feed_follows_a_later_round_without_repeating_the_first(
     tmp_path,
 ):
-    state = conversation_state(root=tmp_path, is_paused=False)
+    state = StateDirectory(root=tmp_path)
+    fabricate_conversation(state=state, is_paused=False)
     written = StringIO()
     console = Console(
         file=written,
@@ -361,7 +290,8 @@ def test_conversation_feed_follows_a_later_round_without_repeating_the_first(
 
 
 def test_conversation_feed_can_select_one_round(tmp_path):
-    state = conversation_state(root=tmp_path)
+    state = StateDirectory(root=tmp_path)
+    fabricate_conversation(state=state)
     console, written = rendered_console()
 
     show_feed_view(
@@ -388,7 +318,8 @@ def test_a_missing_conversation_detail_is_reportable(tmp_path):
 
 
 def test_a_missing_conversation_round_says_how_many_exist(tmp_path):
-    state = conversation_state(root=tmp_path)
+    state = StateDirectory(root=tmp_path)
+    fabricate_conversation(state=state)
     console, _ = rendered_console()
 
     with pytest.raises(ReportableError, match="has run 1 round, so it has no round 2"):
@@ -470,7 +401,8 @@ def test_a_conversation_feed_before_the_conversation_starts_says_there_is_none(
 
 
 def test_conversations_are_listed_in_attention_order_before_requests(tmp_path):
-    state = conversation_state(root=tmp_path)
+    state = StateDirectory(root=tmp_path)
+    fabricate_conversation(state=state)
     write_running_conversation(state=state, issue=11, started=PINNED)
     hold_daemon_lock_for_test(path=state.lock)
     write_tick(
@@ -547,7 +479,8 @@ def refusing(seconds, /):
 
 @pytest.mark.parametrize("status", [0, 2], ids=["answered", "errored"])
 def test_an_ended_conversation_view_never_waits(tmp_path, status):
-    state = conversation_state(root=tmp_path, status=status)
+    state = StateDirectory(root=tmp_path)
+    fabricate_conversation(state=state, status=status)
     write_ending(
         directory=find_conversation_directory(state=state, issue=8),
         reason=AgentWorkEndReason.COMPLETED,
@@ -568,12 +501,14 @@ def test_an_ended_conversation_view_never_waits(tmp_path, status):
 
 
 def test_a_conversation_view_of_an_idle_conversation_keeps_watching(tmp_path):
-    state = conversation_state(root=tmp_path, is_paused=False)
+    state = StateDirectory(root=tmp_path)
+    fabricate_conversation(state=state, is_paused=False)
     assert_conversation_views_keep_watching(state=state)
 
 
 def test_a_conversation_view_in_fault_keeps_watching(tmp_path):
-    state = conversation_state(root=tmp_path, status=2, is_paused=False)
+    state = StateDirectory(root=tmp_path)
+    fabricate_conversation(state=state, status=2, is_paused=False)
     write_round(
         directory=find_conversation_directory(state=state, issue=8),
         number=2,
@@ -591,7 +526,8 @@ def test_a_conversation_view_in_fault_keeps_watching(tmp_path):
 
 
 def test_a_conversation_view_with_a_routing_conflict_keeps_watching(tmp_path):
-    state = conversation_state(root=tmp_path, is_paused=False)
+    state = StateDirectory(root=tmp_path)
+    fabricate_conversation(state=state, is_paused=False)
     write_tick(
         state=state,
         tick=SchedulerRecord(
@@ -646,7 +582,8 @@ def end_conversation(*, state: StateDirectory) -> None:
 
 
 def test_status_counts_an_ended_conversation(tmp_path):
-    state = conversation_state(root=tmp_path, is_paused=False)
+    state = StateDirectory(root=tmp_path)
+    fabricate_conversation(state=state, is_paused=False)
     end_conversation(state=state)
     console, written = rendered_console()
 
@@ -658,7 +595,8 @@ def test_status_counts_an_ended_conversation(tmp_path):
 
 
 def test_a_view_of_an_ended_conversation_never_waits(tmp_path):
-    state = conversation_state(root=tmp_path)
+    state = StateDirectory(root=tmp_path)
+    fabricate_conversation(state=state)
     end_conversation(state=state)
     console, written = watched_console()
 
