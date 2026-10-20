@@ -8,7 +8,9 @@ from dreamcatcher.agent_rounds import (
     AgentRoundOutcome,
     AgentRoundPaths,
     AgentRoundRecord,
-    ErroredAgentRoundEnding,
+    FinishingErroredAgentRoundEnding,
+    HarnessErroredAgentRoundEnding,
+    LaunchErroredAgentRoundEnding,
     interpret_agent_round_outcome,
 )
 from dreamcatcher.agent_work import AgentWork
@@ -69,7 +71,12 @@ def describe_round_ending(
 ) -> tuple[str, str | None]:
     """Describe a round that is no longer running and return its latest output."""
     ending = record.ending
-    if isinstance(ending, ErroredAgentRoundEnding):
+    if isinstance(
+        ending,
+        LaunchErroredAgentRoundEnding
+        | HarnessErroredAgentRoundEnding
+        | FinishingErroredAgentRoundEnding,
+    ):
         detail = f"round {record.number} errored"
         if ending.status is not None:
             detail = f"{detail} (exit {ending.status})"
@@ -112,14 +119,13 @@ def describe_round_outcome(
 ) -> str:
     """Return the words for the round's outcome.
 
-    A round that errored for a reason reads as errored alone, since its exit
-    status, if it has one, says nothing and its reason is too long for a list of
-    rounds or a status detail.
+    A round whose harness failed for no further reason reads with its exit
+    status. A round that errored for a reason reads as errored alone, since its
+    reason is too long for a list of rounds or a status detail.
     """
-    if isinstance(record.ending, ErroredAgentRoundEnding):
-        if record.ending.reason is not None:
-            return str(AgentRoundOutcome.ERRORED)
-        return f"errored (exit {record.ending.status})"
+    ending = record.ending
+    if isinstance(ending, HarnessErroredAgentRoundEnding) and ending.reason is None:
+        return f"errored (exit {ending.status})"
     return str(outcome)
 
 

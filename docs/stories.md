@@ -673,19 +673,19 @@ update gives it the same comments again.
 
 ### A local write fails
 
-The disk is full or a folder is unwritable. A write that fails while a
-round is being prepared errors the round with the reason. One that fails
-as a round is started, before the round is recorded, shows among the
-scheduler failures instead, without counting towards a fault. A write
-that fails while the daemon looks over existing work, such as recording
-that a conversation has ended, fails the whole update, as a damaged
-record does in the next story. In each case the work is tried again at
-the next update. If the daemon cannot write its own record of the
-update, it stops and says so, ending its rounds, because it has no way
-left to report anything; the user frees the disk and starts it again. No
-more than that is handled, and that is accepted, because a disk that
-will not write is the user's to fix, and nothing _dreamcatcher_ holds is
-the only copy of anything.
+The disk is full or a folder is unwritable. A write that fails once a
+round is recorded, while it is prepared or its harness starts, errors
+the round with the reason. One that fails before the round is recorded
+shows among the scheduler failures instead, without counting towards a
+fault. A write that fails while the daemon looks over existing work,
+such as recording that a conversation has ended, fails the whole update,
+as a damaged record does in the next story. In each case the work is
+tried again at the next update. If the daemon cannot write its own
+record of the update, it stops and says so, ending its rounds, because
+it has no way left to report anything; the user frees the disk and
+starts it again. No more than that is handled, and that is accepted,
+because a disk that will not write is the user's to fix, and nothing
+_dreamcatcher_ holds is the only copy of anything.
 
 ### A local record cannot be read
 
