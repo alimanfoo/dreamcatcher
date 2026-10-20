@@ -95,7 +95,7 @@ freely.
 
 With several assignments in flight, GitHub shows each pull request but
 not the whole. The home page does. Every assignment is a row, and so is
-every labelled issue whose assignment has not started yet. Each row says
+every assignment label whose work has not started yet. Each row says
 whether its work is still to start, working, idle with a pull request
 ready for review, or ended, and an assignment's page shows what its
 agent is doing as it works. The user can see at a glance which
@@ -505,7 +505,7 @@ A conversation answers only its own label. With two conversation labels,
 the user may see two request rows, a conversation and a request row, or
 two conversations, depending on which labels already have one. The
 conflict stops new rounds. A conversation with a round running finishes
-that round, and then pauses until one of the labels comes off.
+that round, and then pauses until the other label comes off.
 
 One assignment label and one conversation label on the same issue are
 not a conflict, and each can start its own work.
