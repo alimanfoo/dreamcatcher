@@ -44,8 +44,8 @@ each entry links the pull request or commit that made the change.
 - An assignment round that follows an errored or interrupted one is now told to
   continue the unfinished assignment while its pull request is open, even when
   no new posts or signals have arrived. Before, an agent could read the empty
-  input as nothing to do and end its turn
-  ([#607](https://github.com/alimanfoo/dreamcatcher/pull/607)).
+  input as nothing to do and end its turn.
+  ([#607](https://github.com/alimanfoo/dreamcatcher/pull/607))
 
 ## [v6.1.0](https://github.com/alimanfoo/dreamcatcher/releases/tag/v6.1.0) — 2026-10-18
 
