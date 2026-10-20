@@ -86,9 +86,10 @@ repos:
         language: system
         pass_filenames: false
         exclude: *verbatim-paths
+      # .remarkrc.json loads the plugin and names the repository.
       - id: remark-validate-links
         name: validate markdown links
-        entry: remark --frail --quiet --no-stdout --use validate-links
+        entry: remark --frail --quiet --no-stdout
         language: node
         additional_dependencies:
           - remark-cli@12.0.1
