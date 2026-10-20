@@ -220,6 +220,7 @@ def test_an_identifier_reads_as_its_work_spells_it(text):
         "GH12-20260819-184158-review",
         "GH12-20261319-184158-assignment",
         "GH12-20260819-184158-assignment-extra",
+        "GH\u0661\u0662-20260819-184158-assignment",
     ],
 )
 def test_text_that_could_name_no_work_is_no_identifier(text):

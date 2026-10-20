@@ -196,7 +196,9 @@ def test_an_issue_reads_however_the_reader_wrote_it(monkeypatch, watching, capsy
 
 
 @pytest.mark.parametrize("command", ["retry", "cancel"])
-@pytest.mark.parametrize("text", ["the one about the parser", ASSIGNMENT_ID])
+@pytest.mark.parametrize(
+    "text", ["the one about the parser", "GH\u0661\u0662", ASSIGNMENT_ID]
+)
 def test_a_command_that_takes_an_issue_refuses_anything_else(command, text, capsys):
     with pytest.raises(SystemExit) as exit_info:
         main(argv=[command, text])

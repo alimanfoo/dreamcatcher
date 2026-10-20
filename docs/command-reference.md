@@ -40,8 +40,8 @@ the identifiers of the other work of their kind at the issue.
 | `cancel`       | Cancel one issue's newest assignment.                |
 | `web`          | Serve the local status report in a browser.          |
 | `status`       | Show the whole local status report in the terminal.  |
-| `assignment`   | Show one issue's newest assignment.                  |
-| `conversation` | Show one issue's newest conversation.                |
+| `assignment`   | Show one assignment.                                 |
+| `conversation` | Show one issue conversation.                         |
 | `feed`         | Follow an assignment or conversation's agent output. |
 
 ## `init`

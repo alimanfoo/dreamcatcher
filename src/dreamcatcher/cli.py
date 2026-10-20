@@ -33,7 +33,7 @@ from dreamcatcher.status import read_agent_work_status, read_dreamcatcher_daemon
 from dreamcatcher.version import DREAMCATCHER_VERSION
 
 # How a view names the issue it is about, as the issue itself is written.
-_ISSUE_REFERENCE_PATTERN = re.compile(r"gh(\d+)\Z", re.IGNORECASE)
+_ISSUE_REFERENCE_PATTERN = re.compile(r"gh(\d+)\Z", re.IGNORECASE | re.ASCII)
 _MAX_INTERVAL_SECONDS = int(TIMEOUT_MAX) - 1
 
 # The help that says what a view does to the terminal it runs in, which every

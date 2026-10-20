@@ -62,9 +62,10 @@ _AGENT_ROUNDS_DIRECTORY_NAME = "rounds"
 _AGENT_WORK_IDENTIFIER_TIME_FORMAT = "%Y%m%d-%H%M%S"
 
 # An agent work identifier as a person may type it: the issue, the time and the
-# kind, in any case.
+# kind, in any case, with ASCII digits alone.
 _AGENT_WORK_IDENTIFIER_PATTERN = re.compile(
-    rf"gh(\d+)-(\d{{8}}-\d{{6}})-({'|'.join(AgentWorkKind)})\Z", re.IGNORECASE
+    rf"gh(\d+)-(\d{{8}}-\d{{6}})-({'|'.join(AgentWorkKind)})\Z",
+    re.IGNORECASE | re.ASCII,
 )
 
 # How a command names the agent work it acts on. An issue number names the
