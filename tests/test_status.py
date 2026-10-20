@@ -25,8 +25,8 @@ from dreamcatcher.agent_assignments import (
 )
 from dreamcatcher.agent_rounds import (
     AgentRoundRecord,
-    ErroredAgentRoundEnding,
     InterruptedAgentRoundEnding,
+    LaunchErroredAgentRoundEnding,
     StoppedAgentRoundEnding,
     _compose_agent_round_ending,
 )
@@ -452,7 +452,7 @@ def test_a_round_that_errored_before_its_harness_ran_says_why_without_a_status(
         record=AgentRoundRecord(
             number=1,
             started=PINNED,
-            ending=ErroredAgentRoundEnding(at=PINNED, reason="git push failed"),
+            ending=LaunchErroredAgentRoundEnding(at=PINNED, reason="git push failed"),
         ),
     )
 
