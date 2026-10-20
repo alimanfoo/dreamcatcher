@@ -150,6 +150,11 @@ class AgentRoundOutcome(StrEnum):
     INTERRUPTED = "interrupted"
     STOPPED = "stopped"
 
+    @property
+    def is_unfinished(self) -> bool:
+        """Whether the round errored or was interrupted before taking its turn."""
+        return self in {AgentRoundOutcome.ERRORED, AgentRoundOutcome.INTERRUPTED}
+
 
 class SuccessfulAgentRoundEnding(DreamcatcherDocument):
     """A successful agent round ending."""
@@ -252,10 +257,22 @@ class AgentRoundRecord(DreamcatcherDocument):
     @property
     def is_unfinished(self) -> bool:
         """Whether the round errored or was interrupted before taking its turn."""
-        return self.outcome in {
-            AgentRoundOutcome.ERRORED,
-            AgentRoundOutcome.INTERRUPTED,
-        }
+        return self.outcome.is_unfinished
+
+
+def interpret_agent_round_outcome(
+    *, record: AgentRoundRecord, is_daemon_running: bool
+) -> AgentRoundOutcome:
+    """Return the round's outcome, inferring one when it recorded no ending.
+
+    A round with no ending is running while a daemon runs it, and interrupted
+    once that daemon has gone. An inferred interruption does not say that the
+    round's harness has exited, since a harness can outlive a daemon that was
+    killed.
+    """
+    if record.ending is None and not is_daemon_running:
+        return AgentRoundOutcome.INTERRUPTED
+    return record.outcome
 
 
 def describe_round_launch_failure(

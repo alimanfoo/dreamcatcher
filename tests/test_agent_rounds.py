@@ -43,8 +43,10 @@ from dreamcatcher.agent_rounds import (
     ErroredAgentRoundEnding,
     InterruptedAgentRoundEnding,
     StoppedAgentRoundEnding,
+    SuccessfulAgentRoundEnding,
     _AgentRoundHarness,
     _compose_agent_round_ending,
+    interpret_agent_round_outcome,
     read_agent_round_records,
     record_agent_round_interruption,
     record_agent_round_stop,
@@ -707,6 +709,48 @@ def test_an_errored_ending_refuses_no_error_status_without_a_reason(status):
 def test_a_successful_ending_refuses_a_time_without_a_zone():
     with pytest.raises(ValueError, match="timezone info"):
         _compose_agent_round_ending(at=datetime(2026, 8, 19, 18, 41, 58), status=0)
+
+
+@pytest.mark.parametrize("is_daemon_running", [True, False])
+@pytest.mark.parametrize(
+    "ending",
+    [
+        SuccessfulAgentRoundEnding(at=PINNED),
+        ErroredAgentRoundEnding(at=PINNED, status=2),
+        InterruptedAgentRoundEnding(at=PINNED),
+        StoppedAgentRoundEnding(at=PINNED),
+    ],
+)
+def test_a_recorded_ending_keeps_its_outcome(ending, is_daemon_running):
+    record = AgentRoundRecord(number=1, started=PINNED, ending=ending)
+
+    assert (
+        interpret_agent_round_outcome(
+            record=record, is_daemon_running=is_daemon_running
+        )
+        is ending.outcome
+    )
+
+
+@pytest.mark.parametrize(
+    ("is_daemon_running", "outcome"),
+    [
+        (True, AgentRoundOutcome.RUNNING),
+        (False, AgentRoundOutcome.INTERRUPTED),
+    ],
+)
+def test_a_round_with_no_ending_runs_only_while_a_daemon_runs_it(
+    is_daemon_running, outcome
+):
+    record = AgentRoundRecord(number=1, started=PINNED)
+
+    assert (
+        interpret_agent_round_outcome(
+            record=record, is_daemon_running=is_daemon_running
+        )
+        is outcome
+    )
+    assert record.outcome is AgentRoundOutcome.RUNNING
 
 
 def test_interrupting_a_round_records_interruption(fake, worktree, directory):

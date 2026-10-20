@@ -9,6 +9,7 @@ from dreamcatcher.agent_rounds import (
     AgentRoundPaths,
     AgentRoundRecord,
     ErroredAgentRoundEnding,
+    interpret_agent_round_outcome,
 )
 from dreamcatcher.agent_work import AgentWork
 from dreamcatcher.documents import read_json_if_exists
@@ -75,7 +76,7 @@ def describe_round_ending(
         if ending.reason is not None:
             detail = f"{detail}: {ending.reason}"
     else:
-        outcome = _derive_round_outcome(record=record, is_working=False)
+        outcome = interpret_agent_round_outcome(record=record, is_daemon_running=False)
         detail = f"round {record.number} {outcome}"
     line = read_last_feed_line(path=paths.feed)
     return detail, None if line is None else line.text.strip()
@@ -104,20 +105,6 @@ def compose_round_duration_description(*, record: AgentRoundRecord) -> str:
     if ending is None or ending.outcome is AgentRoundOutcome.INTERRUPTED:
         return ""
     return f"ran {describe_span(span=ending.at - record.started)}"
-
-
-def _derive_round_outcome(
-    *, record: AgentRoundRecord, is_working: bool
-) -> AgentRoundOutcome:
-    """Return the round's outcome as a status view shows it.
-
-    A round that recorded no ending never finished. It is running when a daemon
-    is still there to run it, and interrupted once that daemon has gone, since
-    a round cannot outlive its daemon.
-    """
-    if record.ending is None and not is_working:
-        return AgentRoundOutcome.INTERRUPTED
-    return record.outcome
 
 
 def _describe_round_outcome(
@@ -153,9 +140,9 @@ def list_round_statuses(*, work: AgentWork, is_working: bool) -> list[AgentRound
                     previous_revision=previous_revision, revision=round_input.revision
                 )
                 previous_revision = round_input.revision
-        outcome = _derive_round_outcome(
+        outcome = interpret_agent_round_outcome(
             record=record,
-            is_working=is_working and record.number == work.rounds[-1].number,
+            is_daemon_running=is_working and record.number == work.rounds[-1].number,
         )
         statuses.append(
             AgentRoundStatus(
@@ -199,7 +186,7 @@ def describe_round_trigger(*, work: AgentWork, number: int) -> str:
         words.insert(
             0, describe_count(number=len(assignment_input.user_posts), noun="post")
         )
-    return ", ".join(words) or "carry on"
+    return ", ".join(words) or "recover"
 
 
 def _read_conversation_input(
