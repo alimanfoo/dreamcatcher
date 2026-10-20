@@ -683,3 +683,17 @@ left to report anything; the user frees the disk and starts it again. No
 more than that is handled, and that is accepted, because a disk that
 will not write is the user's to fix, and nothing _dreamcatcher_ holds is
 the only copy of anything.
+
+### A page cannot read what it shows
+
+A record or feed under `.dreamcatcher/` will not read back, because
+something outside _dreamcatcher_ changed it. A home page, assignment
+page or conversation page that is already open keeps the content and
+status it last showed. A warning on it says that the refresh failed and
+why. The warning describes only the failed refresh. Until a refresh
+succeeds, the page cannot say what the work is doing now: the agent may
+have finished or stopped meanwhile, and the unreadable file may affect
+the daemon too. The page keeps trying, and once a refresh succeeds the
+warning goes and any new output shows once. Nothing repairs the record,
+and that is accepted, because the cause is outside _dreamcatcher_ and
+the terminal reports the same reason.
