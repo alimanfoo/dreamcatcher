@@ -145,9 +145,7 @@ def write_second_conversation_error(*, state: StateDirectory) -> None:
             started=PINNED + timedelta(minutes=5),
             pid=2,
             ending=_compose_agent_round_ending(
-                at=PINNED + timedelta(minutes=8),
-                status=2,
-                failure=None,
+                at=PINNED + timedelta(minutes=8), status=2
             ),
         ),
     )
@@ -493,7 +491,7 @@ def test_a_retry_clears_a_conversation_fault(conversation_state):
 def test_a_round_that_could_not_be_finished_says_why(conversation_state, failure):
     conversation_round(
         state=conversation_state,
-        ending=_compose_agent_round_ending(at=ENDED, status=0, failure=failure),
+        ending=ErroredAgentRoundEnding(at=ENDED, status=0, reason=failure),
     )
     observe(state=conversation_state, finding=IssueCommentsFinding(new_comments=1))
 

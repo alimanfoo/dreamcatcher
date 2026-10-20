@@ -211,15 +211,9 @@ type _AgentRoundEnding = Annotated[
 
 
 def _compose_agent_round_ending(
-    *, at: datetime, status: int, failure: str | None = None
+    *, at: datetime, status: int
 ) -> SuccessfulAgentRoundEnding | ErroredAgentRoundEnding:
-    """Return the terminal outcome observed when a harness exited.
-
-    A failure is what stopped the finishing step of a round whose harness exited
-    cleanly, and it errors the round.
-    """
-    if failure is not None:
-        return ErroredAgentRoundEnding(at=at, status=status, reason=failure)
+    """Return the ending that a harness's exit status gives."""
     if status == 0:
         return SuccessfulAgentRoundEnding(at=at)
     return ErroredAgentRoundEnding(at=at, status=status)
@@ -658,21 +652,12 @@ class AgentRound:
         """
         try:
             status = self.harness_process.wait()
-            failure = self._finish_round(status=status)
-            if self.forced_ending is not None:
-                self.record = _record_agent_round_ending(
-                    record=self.record,
-                    ending=self.forced_ending,
-                    path=self.paths.record,
-                )
-            else:
-                self.record = _record_agent_round_ending(
-                    record=self.record,
-                    ending=_compose_agent_round_ending(
-                        at=self.clock(), status=status, failure=failure
-                    ),
-                    path=self.paths.record,
-                )
+            ending = self._finish_after_exit(status=status)
+            self.record = _record_agent_round_ending(
+                record=self.record,
+                ending=ending if self.forced_ending is None else self.forced_ending,
+                path=self.paths.record,
+            )
         finally:
             # However the close went, the round has ended, so whoever is
             # waiting on it waits no longer, and whatever the pumps still have
@@ -682,22 +667,26 @@ class AgentRound:
             for stream_reader in self._stream_readers:
                 stream_reader.join()
 
-    def _finish_round(self, *, status: int) -> str | None:
-        """Run the finishing step of a successful round, and return why it failed.
+    def _finish_after_exit(
+        self, *, status: int
+    ) -> SuccessfulAgentRoundEnding | ErroredAgentRoundEnding:
+        """Run the finishing step after a clean exit, and return the round's ending.
 
         A finishing step that raises fails the round, and the feed says why too.
-        An interrupted round is not finished.
+        A round with a forced ending is not finished, and that ending replaces
+        the one returned here.
         """
-        if self.finish_round is None or status != 0 or self.forced_ending is not None:
-            return None
-        try:
-            self.finish_round(final_output=self._read_final_output())
-        except ReportableError as failure:
-            self._append_feed_events(
-                line="", events=[FeedNote(label="failed", detail=str(failure))]
-            )
-            return str(failure)
-        return None
+        if status == 0 and self.finish_round is not None and self.forced_ending is None:
+            try:
+                self.finish_round(final_output=self._read_final_output())
+            except ReportableError as failure:
+                self._append_feed_events(
+                    line="", events=[FeedNote(label="failed", detail=str(failure))]
+                )
+                return ErroredAgentRoundEnding(
+                    at=self.clock(), status=0, reason=str(failure)
+                )
+        return _compose_agent_round_ending(at=self.clock(), status=status)
 
     def _read_final_output(self) -> str | None:
         """Return the harness's final output, once it has had time to land."""
