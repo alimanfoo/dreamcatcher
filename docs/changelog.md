@@ -44,6 +44,9 @@ each entry links the pull request or commit that made the change.
   the next update, instead of appearing to need another round because the last
   update's channel reading is stale.
   ([#600](https://github.com/alimanfoo/dreamcatcher/pull/600))
+- Deleting an open assignment's worktree now errors its next round and lets the
+  daemon continue. A second failure puts the assignment in fault, as the user
+  story promises. ([#599](https://github.com/alimanfoo/dreamcatcher/pull/599))
 
 ## [v6.1.0](https://github.com/alimanfoo/dreamcatcher/releases/tag/v6.1.0) — 2026-10-18
 
