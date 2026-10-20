@@ -165,17 +165,24 @@ class FeedRenderer:
     def _abbreviate_worktree_paths(self, *, detail: str) -> str:
         """Return the detail with each worktree path marked as ``<worktree>``.
 
-        Matches begin at a text boundary and end with the detail or at a
-        directory separator, so a different path containing the same suffix
-        and a sibling directory whose name starts the same way both stay whole.
+        A match is the whole detail, a descendant at a directory separator, or
+        a complete quoted or unquoted command argument. A different path that
+        contains the same suffix and a sibling whose name starts the same way
+        both stay whole.
         """
         worktree = re.escape(str(self.worktree))
         flags = 0
         if self.worktree.drive:
             worktree = worktree.replace(re.escape("\\"), r"[/\\]")
             flags = re.IGNORECASE
+        path_or_descendant = rf"(?<![\w./\\-]){worktree}(?=$|[/\\])"
+        command_argument = (
+            rf"(?<!\S){worktree}(?=\s)"
+            rf"|(?<='){worktree}(?=')"
+            rf'|(?<="){worktree}(?=")'
+        )
         return re.sub(
-            rf"(?<![\w./\\-]){worktree}(?=$|[/\\])",
+            rf"{path_or_descendant}|{command_argument}",
             "<worktree>",
             detail,
             flags=flags,

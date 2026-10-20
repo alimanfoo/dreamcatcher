@@ -70,6 +70,21 @@ def test_the_worktree_directory_itself_is_marked():
     ) == ("2026-08-19T18:41:58Z  [Read] <worktree>\n")
 
 
+def test_a_command_marks_the_worktree_directory_argument():
+    assert create_feed_renderer().render(
+        event=FeedNote(label="Bash", detail="cd /checkout/worktree && pytest")
+    ) == ("2026-08-19T18:41:58Z  [Bash] cd <worktree> && pytest\n")
+
+
+@pytest.mark.parametrize("quote", ["'", '"'])
+def test_a_command_marks_a_quoted_worktree_directory_argument(quote):
+    assert create_feed_renderer().render(
+        event=FeedNote(
+            label="Bash", detail=f"cd {quote}/checkout/worktree{quote} && pytest"
+        )
+    ) == (f"2026-08-19T18:41:58Z  [Bash] cd {quote}<worktree>{quote} && pytest\n")
+
+
 def test_a_path_outside_the_worktree_keeps_its_own_root():
     assert create_feed_renderer().render(
         event=FeedNote(label="Read", detail="/etc/hosts")
