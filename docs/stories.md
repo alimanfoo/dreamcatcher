@@ -674,3 +674,15 @@ left to report anything; the user frees the disk and starts it again. No
 more than that is handled, and that is accepted, because a disk that
 will not write is the user's to fix, and nothing _dreamcatcher_ holds is
 the only copy of anything.
+
+### A page cannot read what it shows
+
+A record or feed under `.dreamcatcher/` will not read back, perhaps
+because a write was cut short or something else changed it. The home
+page, or the page of an assignment or a conversation, keeps showing what
+it last read, and a warning on it says that the refresh failed and why.
+The warning speaks only for the page: the work goes on as it was, and
+its status is whatever it was before. The page keeps trying, and once
+the record reads again the warning goes and any new output shows once.
+Nothing repairs the record, and that is accepted, because the cause is
+outside _dreamcatcher_ and the terminal reports the same reason.
