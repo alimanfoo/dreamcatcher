@@ -287,7 +287,7 @@ provide operations to:
 - start the invocation in the work's worktree, and record its process
   id;
 - record an errored ending with a reason and no exit status when
-  preparation or the spawn fails;
+  preparation, the spawn or the record of the spawned process fails;
 - stream and render its output, and keep the final output the harness
   reports;
 - run the finishing step of a round whose harness succeeded, before the

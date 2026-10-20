@@ -707,7 +707,7 @@ class AgentRound:
         """
         try:
             status = self.harness_process.wait()
-            ending = self._finish_after_exit(status=status)
+            ending = self._compose_exit_ending(status=status)
             self.record = _record_agent_round_ending(
                 record=self.record,
                 ending=ending if self.forced_ending is None else self.forced_ending,
@@ -722,18 +722,18 @@ class AgentRound:
             for stream_reader in self._stream_readers:
                 stream_reader.join()
 
-    def _finish_after_exit(
+    def _compose_exit_ending(
         self, *, status: int
     ) -> (
         SuccessfulAgentRoundEnding
         | HarnessErroredAgentRoundEnding
         | FinishingErroredAgentRoundEnding
     ):
-        """Run the finishing step after a clean exit, and return the round's ending.
+        """Return the ending that the harness's exit gives the round.
 
-        A finishing step that raises fails the round, and the feed says why too.
-        A round with a forced ending is not finished, and that ending replaces
-        the one returned here.
+        A clean exit runs the finishing step first. A finishing step that raises
+        fails the round, and the feed says why too. A round with a forced ending
+        is not finished, and that ending replaces the one returned here.
         """
         if status == 0 and self.finish_round is not None and self.forced_ending is None:
             try:
