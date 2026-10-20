@@ -46,6 +46,10 @@ each entry links the pull request or commit that made the change.
 - Repeated state-document reads from the web and terminal views no longer
   prevent the daemon from replacing those documents on Windows.
   ([#601](https://github.com/alimanfoo/dreamcatcher/pull/601))
+- A conversation whose errored or interrupted round's comments the user deleted
+  now shows as idle once the next update finds nothing to answer, instead of
+  waiting for a round that will not start.
+  ([#615](https://github.com/alimanfoo/dreamcatcher/pull/615))
 - Assignments and conversations now show as idle while a finished round awaits
   the next update, instead of appearing to need another round because the last
   update's channel reading is stale.

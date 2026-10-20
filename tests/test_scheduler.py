@@ -439,7 +439,12 @@ def test_a_tick_at_the_cap_holds_an_assignment_that_needs_a_round(
     # The first tick assigned issue 8, and its round is what fills the cap,
     # so the assignment already on disk is the one the cap holds.
     assert observed.rows == [
-        request_row(issue=13, agent_work_identifier=ASSIGNMENT_ID, finding=NOTHING_NEW),
+        request_row(
+            issue=13,
+            agent_work_identifier=ASSIGNMENT_ID,
+            ended_round=1,
+            finding=NOTHING_NEW,
+        ),
         request_row(
             issue=8,
             agent_work_identifier=CREATED_ASSIGNMENT_ID,
@@ -520,7 +525,12 @@ def test_a_tick_at_the_cap_records_a_candidate_listing_failure(
     assert failure.startswith("could not list issues for dream:smith: ")
     assert "could not connect" in failure
     assert observed.rows == [
-        request_row(issue=13, agent_work_identifier=ASSIGNMENT_ID, finding=NOTHING_NEW),
+        request_row(
+            issue=13,
+            agent_work_identifier=ASSIGNMENT_ID,
+            ended_round=1,
+            finding=NOTHING_NEW,
+        ),
         request_row(
             issue=8,
             agent_work_identifier=CREATED_ASSIGNMENT_ID,
@@ -578,7 +588,7 @@ def test_one_faulted_assignment_does_not_block_unrelated_work(ready_repo):
 
     assert observed.launched_agent_work_identifiers == [CREATED_ASSIGNMENT_ID]
     assert observed.rows == [
-        request_row(issue=13, agent_work_identifier=ASSIGNMENT_ID),
+        request_row(issue=13, agent_work_identifier=ASSIGNMENT_ID, ended_round=2),
         request_row(
             issue=8,
             agent_work_identifier=CREATED_ASSIGNMENT_ID,
@@ -641,6 +651,7 @@ def test_a_user_retry_clears_one_fault_and_starts_a_round(ready_repo):
         request_row(
             issue=13,
             agent_work_identifier=ASSIGNMENT_ID,
+            ended_round=2,
             finding=NOTHING_NEW,
             started_round=StartedRound(number=3),
         ),
@@ -709,7 +720,12 @@ def test_an_ended_round_is_inspected_while_its_runner_finishes(resuming):
     observed = scheduler.tick(at=clock())
 
     assert observed.rows == [
-        request_row(issue=13, agent_work_identifier=ASSIGNMENT_ID, finding=NOTHING_NEW)
+        request_row(
+            issue=13,
+            agent_work_identifier=ASSIGNMENT_ID,
+            ended_round=1,
+            finding=NOTHING_NEW,
+        )
     ]
 
 
@@ -745,6 +761,7 @@ def test_an_assignment_with_nothing_new_reads_only_its_pull_request_and_posts(
         request_row(
             issue=13,
             agent_work_identifier=ASSIGNMENT_ID,
+            ended_round=1,
             finding=PullRequestFinding(
                 number=PULL_REQUEST,
                 state=PullRequestState.OPEN,
@@ -975,7 +992,9 @@ def test_an_unfinished_round_without_a_harness_session_starts_a_new_session(
         "/dream:smith GH13\n\nYour previous round did not finish."
     )
     assert "--resume" not in harnesses["claude"].calls[-1].arguments
-    assert faulted.rows == [request_row(issue=13, agent_work_identifier=ASSIGNMENT_ID)]
+    assert faulted.rows == [
+        request_row(issue=13, agent_work_identifier=ASSIGNMENT_ID, ended_round=2)
+    ]
 
 
 def test_a_follow_up_without_a_harness_session_starts_a_new_one_with_its_input(
@@ -1104,6 +1123,7 @@ def test_an_assignment_the_user_has_posted_on_is_told_what_they_said(resuming, g
         request_row(
             issue=13,
             agent_work_identifier=ASSIGNMENT_ID,
+            ended_round=1,
             finding=PullRequestFinding(
                 number=PULL_REQUEST,
                 state=PullRequestState.OPEN,
@@ -1264,6 +1284,7 @@ def test_open_work_is_carried_on_before_a_new_issue_is_assigned(resuming, gh, of
         request_row(
             issue=13,
             agent_work_identifier=ASSIGNMENT_ID,
+            ended_round=1,
             finding=NOTHING_NEW,
             started_round=StartedRound(number=2),
         ),
@@ -1296,6 +1317,7 @@ def test_a_failed_issue_listing_starts_nothing_for_its_label_alone(ready_repo, o
         request_row(
             issue=13,
             agent_work_identifier=ASSIGNMENT_ID,
+            ended_round=1,
             finding=NOTHING_NEW,
             started_round=StartedRound(number=2),
         ),
@@ -1321,8 +1343,10 @@ def test_two_faulted_assignments_start_a_global_cooldown(ready_repo):
     )
     assert observed.failures == []
     assert observed.rows == [
-        request_row(issue=13, agent_work_identifier=ASSIGNMENT_ID),
-        request_row(issue=14, agent_work_identifier=SECOND_ASSIGNMENT_ID),
+        request_row(issue=13, agent_work_identifier=ASSIGNMENT_ID, ended_round=2),
+        request_row(
+            issue=14, agent_work_identifier=SECOND_ASSIGNMENT_ID, ended_round=2
+        ),
         request_row(issue=8, finding=UNCLAIMED),
     ]
 
@@ -1380,11 +1404,15 @@ def test_the_cooldown_boundary_clears_faults_and_permits_rounds(ready_repo):
         request_row(
             issue=13,
             agent_work_identifier=ASSIGNMENT_ID,
+            ended_round=2,
             finding=NOTHING_NEW,
             started_round=StartedRound(number=3),
         ),
         request_row(
-            issue=14, agent_work_identifier=SECOND_ASSIGNMENT_ID, finding=NOTHING_NEW
+            issue=14,
+            agent_work_identifier=SECOND_ASSIGNMENT_ID,
+            ended_round=2,
+            finding=NOTHING_NEW,
         ),
         request_row(issue=8, finding=UNCLAIMED),
     ]

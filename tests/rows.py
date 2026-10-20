@@ -20,20 +20,20 @@ def request_row(
     *,
     issue: int,
     kind: AgentWorkKind = AgentWorkKind.ASSIGNMENT,
-    title: str | None = None,
     label: str | None = None,
     agent_work_identifier: str | None = None,
+    ended_round: int | None = None,
     finding: RequestFinding | None = None,
     started_round: StartedRound | None = None,
 ) -> RequestRow:
     """Return the row of the request that a label of that kind makes on the issue.
 
-    The title is `Issue <n>` and the label is the kind's usual one unless the
-    test gives them.
+    The title is `Issue <n>`, and the label is the kind's usual one unless the
+    test gives it.
     """
     return RequestRow(
         issue=issue,
-        title=f"Issue {issue}" if title is None else title,
+        title=f"Issue {issue}",
         dispatch_label=(
             label
             if label is not None
@@ -43,6 +43,7 @@ def request_row(
         ),
         kind=kind,
         agent_work_identifier=agent_work_identifier,
+        ended_round=ended_round,
         finding=finding,
         started_round=started_round,
     )

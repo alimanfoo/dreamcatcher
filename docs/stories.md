@@ -280,6 +280,22 @@ answers in the same session, so it keeps what it had already learned.
 The value to the user is that a misread question costs minutes, not a whole
 answer.
 
+#### The user withdraws a question the agent could not answer
+
+The user asked a question, and the round answering it errored, or the daemon
+stopped before it finished. The conversation shows as waiting, because the next
+update will give the question again. Before it does, the user decides the
+question was the wrong one, or no longer matters, and deletes their comment. At
+the next update nothing is left to answer, so no round starts, and the
+conversation shows as idle, with its last round still shown as errored or
+interrupted.
+
+Later the user posts a new question. At the next update the agent answers it in
+the same session, told that its previous round did not finish.
+
+The value to the user is that deleting a question withdraws it, so the agent
+never answers it and the conversation does not look as if work is due.
+
 #### The user pauses a conversation by removing its label
 
 The user has had their question answered, but the issue is going to stay open

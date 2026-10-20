@@ -95,6 +95,11 @@ example when it cannot push an assignment's branch, and that counts the same
 way. Two consecutive errored rounds put that assignment or conversation in
 **fault** so _dreamcatcher_ does not repeat the same failure forever.
 
+A conversation round that errored is given its comments again only while they
+are still on the issue. If you delete them before the next update, the
+conversation becomes idle once that update finds nothing to answer, and a new
+comment starts its next round.
+
 Read the detail and feed to find the cause:
 
 ```sh
@@ -116,7 +121,8 @@ dreamcatcher retry GH123
 `retry` preserves the failed rounds for diagnosis and clears the fault of the
 newest faulted assignment and faulted conversation at that issue. It does not
 start an agent itself; on a later scheduler update the daemon may start the
-work's next round, given the failed round's input again.
+work's next round, given the failed round's input again, less any comments or
+posts you have deleted.
 
 You can instead open the faulted assignment or conversation in the web page that
 `run` opened, and select **Retry**. If the daemon is stopped or ran with

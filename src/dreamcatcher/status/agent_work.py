@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
 from functools import cached_property
-from typing import Protocol, cast
+from typing import Protocol
 
 from dreamcatcher.agent_assignments import (
     read_assignment_pull_request_number,
@@ -14,8 +14,6 @@ from dreamcatcher.agent_rounds import (
     AgentRoundOutcome,
     AgentRoundPaths,
     AgentRoundRecord,
-    StoppedAgentRoundEnding,
-    SuccessfulAgentRoundEnding,
     interpret_agent_round_outcome,
 )
 from dreamcatcher.agent_work import AgentWork
@@ -52,6 +50,7 @@ from dreamcatcher.status.rounds import (
     AgentRoundStatus,
     compose_round_duration_description,
     describe_round_ending,
+    describe_round_outcome,
     describe_round_trigger,
     describe_running_round,
     find_stoppable_round_paths,
@@ -332,25 +331,23 @@ class AgentWorkStatusReader:
     def _derive_awaiting_update(
         self, *, work: AgentWork, row: RequestRow | None
     ) -> AgentWorkStatus | None:
-        """Derive idle when the latest tick predates a round that took its turn.
+        """Derive idle when the latest tick read the work before its round ended.
 
         A finding that started the round was relayed by that round. Other news
         found while the round ran makes another round due instead.
         """
-        if not work.rounds or self.scheduler_record is None:
+        if not work.rounds or row is None:
             return None
         latest = work.rounds[-1]
-        ending = latest.ending
-        if ending is None or latest.is_unfinished:
+        if (
+            latest.ending is None
+            or latest.is_unfinished
+            or _did_tick_read_ending(row=row, record=latest)
+        ):
             return None
-        took_turn = cast("SuccessfulAgentRoundEnding | StoppedAgentRoundEnding", ending)
-        if took_turn.at <= self.scheduler_record.at:
-            return None
-        news = None if row is None else _describe_what_is_new(finding=row.finding)
+        news = _describe_what_is_new(finding=row.finding)
         did_tick_start_round = (
-            row is not None
-            and row.started_round is not None
-            and row.started_round.number == latest.number
+            row.started_round is not None and row.started_round.number == latest.number
         )
         if news is not None and not did_tick_start_round:
             return None
@@ -367,13 +364,11 @@ class AgentWorkStatusReader:
     ) -> AgentWorkStatus | None:
         """Derive the status of work that a round is due for, if it is due.
 
-        A round is due once the last round did not finish, before the first
-        round has run, while an assignment's pull request is not yet open, and
-        when the latest tick found something new.
+        A round is due to give again the input of a last round that did not
+        finish, before the first round has run, while an assignment's pull
+        request is not yet open, and when the latest tick found something new.
         """
-        if is_last_round_unfinished(
-            rounds=work.rounds, is_daemon_running=self.is_daemon_running
-        ):
+        if self._is_unfinished_round_due(work=work, row=row):
             latest = work.rounds[-1]
             detail, _ = describe_round_ending(
                 record=latest, paths=work.compose_round_paths(number=latest.number)
@@ -409,6 +404,27 @@ class AgentWorkStatusReader:
             latest_output=None,
         )
 
+    def _is_unfinished_round_due(
+        self, *, work: AgentWork, row: RequestRow | None
+    ) -> bool:
+        """Return whether a round is due to give an unfinished round's input again.
+
+        An unfinished conversation round's input is its comments past the
+        cursor, so nothing is due once a tick that read the work after the round
+        ended found none of them left. An assignment's unfinished round is
+        always due.
+        """
+        if not is_last_round_unfinished(
+            rounds=work.rounds, is_daemon_running=self.is_daemon_running
+        ):
+            return False
+        finding = None if row is None else row.finding
+        return not (
+            isinstance(finding, IssueCommentsFinding)
+            and not finding.new_comments
+            and _did_tick_read_ending(row=row, record=work.rounds[-1])
+        )
+
     def _is_round_working(self, *, record: AgentRoundRecord) -> bool:
         """Return whether the round is still running under a daemon."""
         return (
@@ -417,6 +433,11 @@ class AgentWorkStatusReader:
             )
             is AgentRoundOutcome.RUNNING
         )
+
+
+def _did_tick_read_ending(*, row: RequestRow | None, record: AgentRoundRecord) -> bool:
+    """Return whether the latest tick read the work once the round had ended."""
+    return row is not None and row.ended_round == record.number
 
 
 def _compose_unknown(
@@ -464,13 +485,23 @@ def _describe_what_is_new(*, finding: RequestFinding | None) -> str | None:
 
 
 def _describe_idle_conversation_round(*, work: AgentWork) -> str:
-    """Describe how the latest round of an idle conversation ended."""
+    """Describe how the latest round of an idle conversation ended.
+
+    Only a successful round posted an answer or found that none was needed. An
+    interrupted round has no duration.
+    """
     latest = work.rounds[-1]
-    duration = compose_round_duration_description(record=latest)
-    if latest.outcome is AgentRoundOutcome.STOPPED:
-        return f"round {latest.number}, stopped, {duration}"
-    final_output = read_text(
-        path=work.compose_round_paths(number=latest.number).final_output
-    )
-    answer = "no reply needed" if is_no_reply(final_output=final_output) else "answered"
-    return f"round {latest.number}, {answer}, {duration}"
+    ending = describe_round_outcome(record=latest, outcome=latest.outcome)
+    if latest.outcome is AgentRoundOutcome.SUCCESSFUL:
+        final_output = read_text(
+            path=work.compose_round_paths(number=latest.number).final_output
+        )
+        ending = (
+            "no reply needed" if is_no_reply(final_output=final_output) else "answered"
+        )
+    words = [
+        f"round {latest.number}",
+        ending,
+        compose_round_duration_description(record=latest),
+    ]
+    return ", ".join(word for word in words if word)

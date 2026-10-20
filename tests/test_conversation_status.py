@@ -23,7 +23,11 @@ from rows import request_row
 
 from dreamcatcher.agent_rounds import (
     AgentRoundRecord,
+    ErroredAgentRoundEnding,
+    InterruptedAgentRoundEnding,
     StoppedAgentRoundEnding,
+    SuccessfulAgentRoundEnding,
+    _AgentRoundEnding,
     _compose_agent_round_ending,
 )
 from dreamcatcher.agent_work import AgentWorkEndReason, request_agent_work_retry
@@ -60,6 +64,11 @@ from dreamcatcher.status.rounds import _compose_round_revision
 
 LOOKED_AT = PINNED + timedelta(hours=2)
 
+# When the fixture's first round ends, if it does, and two of its endings.
+ENDED = PINNED + timedelta(minutes=4)
+ANSWERED = SuccessfulAgentRoundEnding(at=ENDED)
+ERRORED = _compose_agent_round_ending(at=ENDED, status=2)
+
 # What the tick records for a conversation whose label came off its issue.
 PAUSED = PausedFinding(cause=PauseCause.LABEL_REMOVED)
 
@@ -77,18 +86,13 @@ def conversation_state(tmp_path):
 def conversation_round(
     *,
     state: StateDirectory,
-    status: int | None = 0,
-    failure: str | None = None,
-    final_output: str = "The answer.",
+    ending: _AgentRoundEnding | None = ANSWERED,
+    final_output: str | None = "The answer.",
 ) -> None:
-    """Write the conversation's initial round with the requested process status."""
-    ending = (
-        None
-        if status is None
-        else _compose_agent_round_ending(
-            at=PINNED + timedelta(minutes=4), status=status, failure=failure
-        )
-    )
+    """Write the conversation's initial round, running while it has no ending.
+
+    The round reported no final output when that is None.
+    """
     directory = find_conversation_directory(state=state, issue=8)
     write_round(
         directory=directory,
@@ -121,7 +125,8 @@ def conversation_round(
         ),
         path=conversation.compose_round_paths(number=1).round_input,
     )
-    write_final_output(directory=directory, number=1, text=final_output)
+    if final_output is not None:
+        write_final_output(directory=directory, number=1, text=final_output)
 
 
 def write_second_conversation_error(*, state: StateDirectory) -> None:
@@ -157,18 +162,23 @@ def observe(
     state: StateDirectory,
     finding: RequestFinding,
     started_round: StartedRound | None = None,
-    at=LOOKED_AT,
+    ended_round: int | None = 1,
 ) -> None:
-    """Write a tick that found this for the fixture's conversation."""
+    """Write a tick that found this for the fixture's conversation.
+
+    The tick read the conversation once its first round had ended, unless the
+    test says otherwise.
+    """
     write_tick(
         state=state,
         tick=SchedulerRecord(
-            at=at,
+            at=LOOKED_AT,
             rows=[
                 request_row(
                     issue=8,
                     kind=AgentWorkKind.CONVERSATION,
                     agent_work_identifier=compose_conversation_identifier(issue=8),
+                    ended_round=ended_round,
                     finding=finding,
                     started_round=started_round,
                 )
@@ -328,7 +338,7 @@ def test_a_live_round_shows_a_paused_conversation_as_working(
     conversation_state,
 ):
     hold_daemon_lock_for_test(path=conversation_state.lock)
-    conversation_round(state=conversation_state, status=None)
+    conversation_round(state=conversation_state, ending=None)
     write_feed(
         directory=find_conversation_directory(state=conversation_state, issue=8),
         number=1,
@@ -362,7 +372,7 @@ def test_a_live_conversation_that_has_said_nothing_reports_that(
     conversation_state,
 ):
     hold_daemon_lock_for_test(path=conversation_state.lock)
-    conversation_round(state=conversation_state, status=None)
+    conversation_round(state=conversation_state, ending=None)
 
     found = status(state=conversation_state)
 
@@ -374,7 +384,12 @@ def test_a_live_conversation_that_has_said_nothing_reports_that(
 def test_an_unended_round_with_no_daemon_waits_to_be_given_its_input_again(
     conversation_state,
 ):
-    conversation_round(state=conversation_state, status=None)
+    conversation_round(state=conversation_state, ending=None)
+    observe(
+        state=conversation_state,
+        finding=IssueCommentsFinding(new_comments=0),
+        ended_round=None,
+    )
 
     found = status(state=conversation_state)
 
@@ -384,7 +399,13 @@ def test_an_unended_round_with_no_daemon_waits_to_be_given_its_input_again(
 
 
 def test_an_errored_round_waits_to_be_given_its_input_again(conversation_state):
-    conversation_round(state=conversation_state, status=2)
+    conversation_round(state=conversation_state, ending=ERRORED)
+    observe(
+        state=conversation_state,
+        finding=IssueCommentsFinding(new_comments=1),
+        started_round=StartedRound(number=1),
+        ended_round=None,
+    )
 
     found = status(state=conversation_state)
 
@@ -393,7 +414,7 @@ def test_an_errored_round_waits_to_be_given_its_input_again(conversation_state):
 
 
 def test_two_current_errors_put_a_conversation_in_fault(conversation_state):
-    conversation_round(state=conversation_state, status=2)
+    conversation_round(state=conversation_state, ending=ERRORED)
     write_second_conversation_error(state=conversation_state)
     write_feed(
         directory=find_conversation_directory(state=conversation_state, issue=8),
@@ -426,7 +447,7 @@ def test_two_current_errors_put_a_conversation_in_fault(conversation_state):
 def test_a_conversation_fault_takes_precedence_over_what_the_tick_found(
     conversation_state, finding
 ):
-    conversation_round(state=conversation_state, status=2)
+    conversation_round(state=conversation_state, ending=ERRORED)
     write_second_conversation_error(state=conversation_state)
     observe(state=conversation_state, finding=finding)
 
@@ -438,7 +459,7 @@ def test_a_conversation_fault_takes_precedence_over_what_the_tick_found(
 
 
 def test_a_conversation_fault_shows_before_any_tick_observes_it(conversation_state):
-    conversation_round(state=conversation_state, status=2)
+    conversation_round(state=conversation_state, ending=ERRORED)
     write_second_conversation_error(state=conversation_state)
     conversation_state.scheduler_record.unlink()
 
@@ -449,7 +470,7 @@ def test_a_conversation_fault_shows_before_any_tick_observes_it(conversation_sta
 
 
 def test_a_retry_clears_a_conversation_fault(conversation_state):
-    conversation_round(state=conversation_state, status=2)
+    conversation_round(state=conversation_state, ending=ERRORED)
     write_second_conversation_error(state=conversation_state)
     observe(state=conversation_state, finding=PAUSED)
     conversation = read_conversation(state=conversation_state, issue=8)
@@ -470,7 +491,11 @@ def test_a_retry_clears_a_conversation_fault(conversation_state):
     ],
 )
 def test_a_round_that_could_not_be_finished_says_why(conversation_state, failure):
-    conversation_round(state=conversation_state, failure=failure)
+    conversation_round(
+        state=conversation_state,
+        ending=_compose_agent_round_ending(at=ENDED, status=0, failure=failure),
+    )
+    observe(state=conversation_state, finding=IssueCommentsFinding(new_comments=1))
 
     found = status(state=conversation_state)
 
@@ -480,13 +505,82 @@ def test_a_round_that_could_not_be_finished_says_why(conversation_state, failure
 
 
 def test_an_unfinished_round_comes_before_comments_to_answer(conversation_state):
-    conversation_round(state=conversation_state, status=2)
+    conversation_round(state=conversation_state, ending=ERRORED)
     observe(state=conversation_state, finding=IssueCommentsFinding(new_comments=1))
 
     found = status(state=conversation_state)
 
     assert found.value is AgentWorkStatusValue.WAITING
     assert found.detail == "round 1 errored (exit 2)"
+
+
+@pytest.mark.parametrize(
+    ("ending", "detail"),
+    [
+        (
+            ERRORED,
+            "round 1, errored (exit 2), ran 4m",
+        ),
+        (
+            ErroredAgentRoundEnding(
+                at=ENDED, status=0, reason="the harness returned no final output"
+            ),
+            "round 1, errored, ran 4m",
+        ),
+        (InterruptedAgentRoundEnding(), "round 1, interrupted"),
+    ],
+    ids=["errored", "no-final-output", "interrupted"],
+)
+def test_an_unfinished_round_whose_comments_are_gone_is_idle(
+    conversation_state, ending, detail
+):
+    conversation_round(state=conversation_state, ending=ending, final_output=None)
+
+    found = status(state=conversation_state)
+
+    assert found.value is AgentWorkStatusValue.IDLE
+    assert found.detail == detail
+    assert found.round_statuses[0].outcome is ending.outcome
+
+
+@pytest.mark.parametrize(
+    ("ending", "detail"),
+    [
+        (ERRORED, "round 1 errored (exit 2)"),
+        (InterruptedAgentRoundEnding(), "round 1 interrupted"),
+    ],
+    ids=["errored", "interrupted"],
+)
+def test_a_tick_while_the_round_ran_cannot_show_its_comments_gone(
+    conversation_state, ending, detail
+):
+    conversation_round(state=conversation_state, ending=ending)
+    observe(
+        state=conversation_state,
+        finding=IssueCommentsFinding(new_comments=0),
+        ended_round=None,
+    )
+
+    found = status(state=conversation_state)
+
+    assert found.value is AgentWorkStatusValue.WAITING
+    assert found.detail == detail
+
+
+def test_an_unfinished_round_whose_comments_cannot_be_read_is_unknown(
+    conversation_state,
+):
+    conversation_round(state=conversation_state, ending=ERRORED)
+    observe(
+        state=conversation_state,
+        finding=ReadFailureFinding(
+            reason="could not read comments for GH8: network unavailable"
+        ),
+    )
+
+    found = status(state=conversation_state)
+
+    assert found.value is AgentWorkStatusValue.UNKNOWN
 
 
 @pytest.mark.parametrize("did_tick_start_round", [False, True])
@@ -498,7 +592,7 @@ def test_a_round_ending_after_the_latest_tick_is_idle_until_the_next_update(
         state=conversation_state,
         finding=IssueCommentsFinding(new_comments=int(did_tick_start_round)),
         started_round=(StartedRound(number=1) if did_tick_start_round else None),
-        at=PINNED,
+        ended_round=None,
     )
 
     found = status(state=conversation_state)
@@ -520,21 +614,15 @@ def test_a_round_ending_after_the_latest_tick_is_idle_until_the_next_update(
 def test_a_stopped_round_ending_after_the_latest_tick_is_idle_until_the_next_update(
     conversation_state,
 ):
-    directory = find_conversation_directory(state=conversation_state, issue=8)
-    write_round(
-        directory=directory,
-        number=1,
-        record=AgentRoundRecord(
-            number=1,
-            started=PINNED,
-            pid=1,
-            ending=StoppedAgentRoundEnding(at=PINNED + timedelta(minutes=4)),
-        ),
+    conversation_round(
+        state=conversation_state,
+        ending=StoppedAgentRoundEnding(at=ENDED),
+        final_output=None,
     )
     observe(
         state=conversation_state,
         finding=IssueCommentsFinding(new_comments=0),
-        at=PINNED,
+        ended_round=None,
     )
 
     found = status(state=conversation_state)
@@ -550,7 +638,7 @@ def test_new_comments_found_while_a_round_ran_wait_after_it_ends(
     observe(
         state=conversation_state,
         finding=IssueCommentsFinding(new_comments=1),
-        at=PINNED,
+        ended_round=None,
     )
 
     found = status(state=conversation_state)
@@ -577,7 +665,7 @@ def test_a_conversation_with_two_conversation_labels_is_paused_saying_so(
 def test_an_errored_round_of_a_paused_conversation_does_not_wait(
     conversation_state,
 ):
-    conversation_round(state=conversation_state, status=2)
+    conversation_round(state=conversation_state, ending=ERRORED)
     observe(state=conversation_state, finding=PAUSED)
 
     found = status(state=conversation_state)
@@ -619,16 +707,10 @@ def test_a_posted_answer_leaves_the_conversation_idle(conversation_state):
 
 
 def test_a_stopped_conversation_waits_for_new_comments(conversation_state):
-    directory = find_conversation_directory(state=conversation_state, issue=8)
-    write_round(
-        directory=directory,
-        number=1,
-        record=AgentRoundRecord(
-            number=1,
-            started=PINNED,
-            pid=1,
-            ending=StoppedAgentRoundEnding(at=PINNED + timedelta(minutes=4)),
-        ),
+    conversation_round(
+        state=conversation_state,
+        ending=StoppedAgentRoundEnding(at=ENDED),
+        final_output=None,
     )
 
     found = status(state=conversation_state)
@@ -748,7 +830,7 @@ def test_an_ended_conversation_reads_as_ended_with_its_reason(conversation_state
 
 def test_a_running_round_keeps_an_ended_conversation_working(conversation_state):
     hold_daemon_lock_for_test(path=conversation_state.lock)
-    conversation_round(state=conversation_state, status=None)
+    conversation_round(state=conversation_state, ending=None)
     end_conversation(state=conversation_state)
 
     assert status(state=conversation_state).value is AgentWorkStatusValue.WORKING

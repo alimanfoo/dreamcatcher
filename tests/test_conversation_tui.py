@@ -56,7 +56,10 @@ def conversation_state(
     is_paused: bool = True,
     harness_session_identifier: str | None = "conversation-session",
 ) -> StateDirectory:
-    """Return state containing one finished conversation."""
+    """Return state containing one finished conversation.
+
+    The tick after a round that errored still finds its comment to answer.
+    """
     state = StateDirectory(root=root)
     directory = write_conversation(
         state=state,
@@ -106,11 +109,12 @@ def conversation_state(
             at=PINNED + timedelta(minutes=5),
             rows=[
                 conversation_row(
+                    ended_round=1,
                     finding=(
                         PausedFinding(cause=PauseCause.LABEL_REMOVED)
                         if is_paused
-                        else IssueCommentsFinding(new_comments=0)
-                    )
+                        else IssueCommentsFinding(new_comments=int(status != 0))
+                    ),
                 )
             ],
         ),
@@ -468,7 +472,9 @@ def test_conversations_are_listed_in_attention_order_before_requests(tmp_path):
         tick=SchedulerRecord(
             at=PINNED,
             rows=[
-                conversation_row(finding=IssueCommentsFinding(new_comments=0)),
+                conversation_row(
+                    ended_round=1, finding=IssueCommentsFinding(new_comments=0)
+                ),
                 conversation_row(
                     issue=11, finding=IssueCommentsFinding(new_comments=0)
                 ),

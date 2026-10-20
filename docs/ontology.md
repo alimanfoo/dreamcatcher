@@ -157,7 +157,8 @@ is errored with a reason and no exit status.
 
 A successful or stopped round has taken its turn. An errored or interrupted
 round has not, so the next round is given its input again, together with
-anything new.
+anything new. A post or comment that the user has deleted since is not given
+again.
 
 A conversation round is successful only once its answer is posted on the issue,
 or the agent has answered that no reply is needed. A round whose answer is
@@ -445,7 +446,10 @@ round is running or it is in fault, or a request whose work may start. The input
 of a round that errored or was interrupted is past the cursor, so it is new
 again. An assignment is also a candidate when no round has opened its pull
 request yet, or when its last round errored or was interrupted, because it is
-then given its pull request's state again even with nothing new.
+then given its pull request's state again even with nothing new. A conversation
+has nothing to give but comments, so once the user deletes every comment that
+its unfinished round was given, it is not a candidate until a new eligible
+comment arrives.
 
 Rounds of both kinds share the daemon's capacity and the global cooldown. Open
 work takes precedence over new work. Open work starts in the order of its
@@ -496,16 +500,19 @@ Agent work of either kind has one of these summary statuses:
 - **Waiting**: a round is due but has not started. Its last round errored or was
   interrupted, including a round left without an ending by a daemon that has
   gone; no round has run yet; an assignment's pull request is not yet open; or
-  the latest tick found a signal. A free agent slot, or the end of a cooldown,
-  starts it.
+  the latest tick found a signal. A conversation whose last round errored or was
+  interrupted is not waiting once a tick that read it after that round ended
+  found no eligible comment past the cursor. A free agent slot, or the end of a
+  cooldown, starts it.
 - **Idle**: no round is known to be due. A round that took its turn after the
-  latest tick is idle until the next tick, unless the earlier tick found input
-  that the round did not consume. Its detail says that it is awaiting the next
-  update. Otherwise the detail says why: an assignment's pull request is ready
-  for review, still a draft and so needing feedback, merged or closed after its
-  wrap-up round, or failing its checks after two attempts under the relay rule;
-  a conversation's latest round answered, needed no reply, or was stopped; or a
-  conversation is paused, and the detail is the cause.
+  latest tick read the work is idle until the next tick, unless the earlier tick
+  found input that the round did not consume. Its detail says that it is
+  awaiting the next update. Otherwise the detail says why: an assignment's pull
+  request is ready for review, still a draft and so needing feedback, merged or
+  closed after its wrap-up round, or failing its checks after two attempts under
+  the relay rule; a conversation's latest round answered, needed no reply, was
+  stopped, errored or was interrupted; or a conversation is paused, and the
+  detail is the cause.
 
 The statuses are decided in an order. Working comes first, then ended, then
 fault, so the user can see a fault and retry whatever else is true. A failed

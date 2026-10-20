@@ -393,7 +393,8 @@ presentations make none of those choices themselves.
 
 The scheduler record holds one `RequestRow` for each request the tick saw. A row
 names the issue, its title, the dispatch label, the kind, and the identifier of
-the open agent work, if any. It holds what the tick found as a typed finding:
+the open agent work, if any, with that work's latest round when it had ended as
+the tick read the work. It holds what the tick found as a typed finding:
 
 - for an assignment whose pull request the tick read, the pull request's number,
   state, draft flag, merge state and check result, the count of user posts and
@@ -424,11 +425,18 @@ for both kinds of agent work. `RequestStatus` gives a request with no open work
 its request status and its reasons, each as words with the issues or pull
 requests it names.
 
-A round that took its turn after the scheduler record leaves the work idle and
-awaiting the next update, unless the record found input that the round did not
-consume. The earlier finding still supplies the assignment's last observed pull
-request summary. An ending that predates the record should already have been
-read, so a missing row remains unknown.
+Status tells whether the scheduler record read the work after its latest round
+ended from the round that the work's row names as ended, not from the times of
+the record and the ending. A round that took its turn after the tick read the
+work leaves it idle and awaiting the next update, unless the record found input
+that the round did not consume. The earlier finding still supplies the
+assignment's last observed pull request summary. A missing row says nothing
+about what the tick read, so the work remains unknown.
+
+A round that did not finish leaves the work waiting until a row names it as
+ended. For a conversation, that row's count of comments then decides, so a
+conversation whose comments the user deleted is idle. An assignment's unfinished
+round is always given again, so the assignment stays waiting.
 
 ### TUI
 

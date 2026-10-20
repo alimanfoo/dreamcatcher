@@ -66,6 +66,7 @@ HARNESS_SESSION_IDENTIFIER = "abc-123"
 def _assignment_row(
     *,
     issue: int,
+    ended_round: int | None = None,
     finding: RequestFinding | None = None,
     started_round: StartedRound | None = None,
 ) -> RequestRow:
@@ -73,6 +74,7 @@ def _assignment_row(
     return request_row(
         issue=issue,
         agent_work_identifier=f"GH{issue}-{ASSIGNMENT_TIMESTAMP}-assignment",
+        ended_round=ended_round,
         finding=finding,
         started_round=started_round,
     )
@@ -93,12 +95,15 @@ def _draft_pull_request(*, new_posts: int = 0) -> PullRequestFinding:
     )
 
 
-def conversation_row(*, finding: RequestFinding, issue: int = 8) -> RequestRow:
+def conversation_row(
+    *, finding: RequestFinding, issue: int = 8, ended_round: int | None = None
+) -> RequestRow:
     """Return the row of the conversation that the tests write at the issue."""
     return request_row(
         issue=issue,
         kind=AgentWorkKind.CONVERSATION,
         agent_work_identifier=compose_conversation_identifier(issue=issue),
+        ended_round=ended_round,
         finding=finding,
     )
 
@@ -138,7 +143,10 @@ def fabricate_conversation(
     harness_session_identifier: HarnessSessionIdentifier
     | None = "conversation-session",
 ) -> None:
-    """Write one initial conversation exchange."""
+    """Write one initial conversation exchange.
+
+    The tick after a round that errored still finds its comment to answer.
+    """
     directory = write_conversation(
         state=state,
         issue=8,
@@ -151,11 +159,12 @@ def fabricate_conversation(
             at=PINNED + timedelta(minutes=5),
             rows=[
                 conversation_row(
+                    ended_round=1 if has_round else None,
                     finding=(
                         PausedFinding(cause=PauseCause.LABEL_REMOVED)
                         if is_paused
-                        else IssueCommentsFinding(new_comments=0)
-                    )
+                        else IssueCommentsFinding(new_comments=int(status != 0))
+                    ),
                 )
             ],
         ),
@@ -373,11 +382,15 @@ def fabricate_everything(
                         linked_pull_requests=[61], blocking_issues=[50, 51]
                     ),
                 ),
-                _assignment_row(issue=13, started_round=StartedRound(number=2)),
-                _assignment_row(issue=31, finding=_draft_pull_request(new_posts=1)),
+                _assignment_row(
+                    issue=13, ended_round=1, started_round=StartedRound(number=2)
+                ),
+                _assignment_row(
+                    issue=31, ended_round=1, finding=_draft_pull_request(new_posts=1)
+                ),
                 _assignment_row(issue=20, finding=_draft_pull_request()),
-                _assignment_row(issue=35, finding=_draft_pull_request()),
-                _assignment_row(issue=9),
+                _assignment_row(issue=35, ended_round=1, finding=_draft_pull_request()),
+                _assignment_row(issue=9, ended_round=2),
                 _assignment_row(issue=44),
                 *conversation_rows,
             ],
@@ -416,7 +429,11 @@ def fabricate_the_cap(*, state):
         tick=SchedulerRecord(
             at=PINNED + timedelta(hours=1, minutes=58),
             failures=["could not list issues for dream:less: could not connect"],
-            rows=[_assignment_row(issue=20, finding=_draft_pull_request(new_posts=1))],
+            rows=[
+                _assignment_row(
+                    issue=20, ended_round=1, finding=_draft_pull_request(new_posts=1)
+                )
+            ],
         ),
     )
 
@@ -459,7 +476,9 @@ def fabricate_repeat_assignments(*, state):
         state=state,
         tick=SchedulerRecord(
             at=PINNED + timedelta(hours=1, minutes=58),
-            rows=[_assignment_row(issue=13, finding=_draft_pull_request())],
+            rows=[
+                _assignment_row(issue=13, ended_round=1, finding=_draft_pull_request())
+            ],
         ),
     )
 
@@ -483,7 +502,11 @@ def fabricate_a_silent_round(*, state):
         state=state,
         tick=SchedulerRecord(
             at=PINNED + timedelta(hours=1, minutes=58),
-            rows=[_assignment_row(issue=13, started_round=StartedRound(number=2))],
+            rows=[
+                _assignment_row(
+                    issue=13, ended_round=1, started_round=StartedRound(number=2)
+                )
+            ],
         ),
     )
 
@@ -576,14 +599,15 @@ def fabricate_titles_and_pull_request_states(*, state):
         tick=SchedulerRecord(
             at=PINNED + timedelta(hours=1, minutes=58),
             rows=[
-                request_row(issue=20, title="Available issue", finding=UNCLAIMED),
+                request_row(issue=20, finding=UNCLAIMED).model_copy(
+                    update={"title": "Available issue"}
+                ),
                 request_row(
                     issue=21,
-                    title="Blocked issue",
                     finding=StartTimeFinding(
                         linked_pull_requests=[], blocking_issues=[20]
                     ),
-                ),
+                ).model_copy(update={"title": "Blocked issue"}),
                 *pull_request_rows,
                 _assignment_row(issue=14),
             ],
