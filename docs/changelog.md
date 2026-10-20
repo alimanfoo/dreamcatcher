@@ -27,6 +27,13 @@ the change.
 
 ## Unreleased
 
+### Fixed
+
+- On a narrow web home page, a long status now moves below the issue's
+  title and wraps within the row, instead of squeezing the title into a
+  column of single characters.
+  ([#624](https://github.com/alimanfoo/dreamcatcher/pull/624))
+
 ## [v6.2.0](https://github.com/alimanfoo/dreamcatcher/releases/tag/v6.2.0) — 2026-10-20
 
 ### Added
