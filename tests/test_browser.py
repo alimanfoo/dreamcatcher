@@ -3,6 +3,7 @@
 import re
 from collections.abc import Iterator
 from datetime import datetime
+from pathlib import Path
 
 import pytest
 from playwright.sync_api import Locator, Page, expect
@@ -10,6 +11,11 @@ from web_browser import (
     BROWSER_ASSIGNMENT_IDENTIFIER,
     serve_fabricated_web,
 )
+
+from dreamcatcher.agent_work import find_agent_work
+from dreamcatcher.documents import append_text
+from dreamcatcher.feed import FeedLine
+from dreamcatcher.state import StateDirectory
 
 pytestmark = pytest.mark.browser
 
@@ -178,7 +184,7 @@ def test_a_failed_home_refresh_keeps_the_dashboard_and_reports_why(
 
     alert = page.get_by_role("alert")
     expect(alert).to_contain_text(
-        "Refresh failed. Showing the last successful status. "
+        "Refresh failed. Showing what the page last read. "
         "The status record is invalid.",
         timeout=5_000,
     )
@@ -188,6 +194,44 @@ def test_a_failed_home_refresh_keeps_the_dashboard_and_reports_why(
     wait_for_refresh(page=page)
 
     expect(alert).to_be_hidden()
+
+
+@pytest.mark.parametrize("theme", ["matrix", "nature"])
+@pytest.mark.parametrize(
+    "identifier",
+    [BROWSER_ASSIGNMENT_IDENTIFIER, "GH8-20260819-184158-conversation"],
+)
+def test_a_failed_feed_refresh_keeps_the_feed_and_reports_why(
+    page: Page, live_web: str, tmp_path: Path, identifier: str, theme: str
+) -> None:
+    work = find_agent_work(state=StateDirectory(root=tmp_path), identifier=identifier)
+    assert work is not None
+    last_round = work.rounds[-1]
+    feed_path = work.compose_round_paths(number=last_round.number).feed
+    page.goto(f"{live_web}/work/{identifier}?theme={theme}")
+    lines = page.locator(".feed-line")
+    expect(lines.first).to_be_visible()
+    line_count = lines.count()
+    readable_feed = feed_path.read_bytes()
+
+    feed_path.write_bytes(readable_feed + b"\xff\n")
+
+    alert = page.get_by_role("alert")
+    expect(alert).to_be_visible(timeout=5_000)
+    expect(alert).to_contain_text("Refresh failed. Showing what the page last read.")
+    expect(alert).to_contain_text("is not UTF-8 text.")
+    expect(lines).to_have_count(line_count)
+
+    feed_path.write_bytes(readable_feed)
+    append_text(
+        text=FeedLine(at=last_round.started, text="[Agent] after repair").render(),
+        path=feed_path,
+    )
+
+    expect(alert).to_be_hidden(timeout=5_000)
+    expect(page.get_by_text("after repair")).to_have_count(1)
+    wait_for_refresh(page=page)
+    expect(lines).to_have_count(line_count + 1)
 
 
 def test_a_tail_refresh_leaves_an_opened_hand_resume_open(

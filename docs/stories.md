@@ -700,10 +700,9 @@ daemon starts stops it starting, with the same message, and the user
 repairs or restores the file before starting it again.
 
 The status report can fail the same way. When a record or feed it needs
-will not read, `dreamcatcher status` and a freshly opened home page show
-only the file and what is wrong with it. A home page that is already
-open keeps the last status it showed, with a warning that the refresh
-failed and why.
+will not read, `dreamcatcher status` and a freshly opened page that
+needs it show only the file and what is wrong with it. A page that is
+already open keeps what it last showed, as the next story tells.
 
 This is accepted. One damaged file holds up every piece of work, not
 just its own, and nothing sets it aside so that the rest can go on or
@@ -714,3 +713,17 @@ when a read from GitHub fails, or when a conversation cannot read its
 cursor. The daemon's own record of the last update fares worse. When it
 cannot be read or written, the daemon stops, because every update builds
 on that record.
+
+### A page cannot read what it shows
+
+A record or feed under `.dreamcatcher/` will not read back, because
+something outside _dreamcatcher_ changed it. A home page, assignment
+page or conversation page that is already open keeps the content and
+status it last showed. A warning on it says that the refresh failed and
+why. The warning describes only the failed refresh. Until a refresh
+succeeds, the page cannot say what the work is doing now: the agent may
+have finished or stopped meanwhile, and the unreadable file may affect
+the daemon too. The page keeps trying, and once a refresh succeeds the
+warning goes and any new output shows once. Nothing repairs the record,
+and that is accepted, because the cause is outside _dreamcatcher_ and
+the terminal reports the same reason.
