@@ -626,7 +626,7 @@ def test_signals_found_by_the_tick_make_the_assignment_wait(state):
     [
         ([PullRequestSignal.CHECK_FAILURE], 0, "checks failed"),
         ([PullRequestSignal.OUT_OF_DATE], 1, "1 post, main moved"),
-        ([], 0, "carry on"),
+        ([], 0, "recover"),
     ],
 )
 def test_a_round_says_which_signals_woke_it(state, signals, posts, trigger):
