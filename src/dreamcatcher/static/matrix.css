@@ -288,10 +288,6 @@ body::after {
   overflow-wrap: anywhere;
 }
 
-.card-heading > .chip {
-  flex-shrink: 1;
-}
-
 .issue-number {
   color: var(--phosphor);
   font-weight: 700;
@@ -316,7 +312,6 @@ body::after {
 }
 
 .chip {
-  flex: none;
   padding: 0 var(--space-3);
   color: var(--phosphor);
   font-weight: 700;
