@@ -13,9 +13,16 @@ from enum import StrEnum
 from pathlib import Path
 from threading import Event as Flag
 from threading import Lock, Thread
-from typing import Annotated, Literal, Protocol, Self
+from typing import Annotated, Literal, Protocol
 
-from pydantic import AwareDatetime, Field, PositiveInt, model_validator
+from pydantic import (
+    AfterValidator,
+    AwareDatetime,
+    Discriminator,
+    Field,
+    PositiveInt,
+    Tag,
+)
 
 from dreamcatcher.clock import read_current_time
 from dreamcatcher.commands import ChildProcess, spawn_command
@@ -165,27 +172,75 @@ class SuccessfulAgentRoundEnding(DreamcatcherDocument):
 
 
 class ErroredAgentRoundEnding(DreamcatcherDocument):
-    """An agent round ending with an error exit, or a failure around a clean one.
+    """The outcome and time that every errored agent round ending holds.
 
-    A round errors with a reason when it cannot prepare or spawn its harness,
-    which leaves no exit status, or when its finishing step fails after its
-    harness exited cleanly.
+    Each subclass says which step of the round failed and what that step left
+    known, and a saved ending always reads as one of them.
     """
 
     outcome: Literal[AgentRoundOutcome.ERRORED] = AgentRoundOutcome.ERRORED
     at: AwareDatetime
-    status: int | None = None
+
+
+class LaunchErroredAgentRoundEnding(ErroredAgentRoundEnding):
+    """An agent round ending in an error before its harness was running.
+
+    The round's preparation, the spawn of its harness, or the record of the
+    spawned process failed, so no exit status was recorded.
+    """
+
+    status: None = None
+    reason: str
+
+
+def _refuse_clean_exit_status(status: int, /) -> int:
+    """Return a failed harness's exit status; pydantic calls this validator."""
+    if status == 0:
+        raise ValueError("a failed harness needs a nonzero exit status")
+    return status
+
+
+class HarnessErroredAgentRoundEnding(ErroredAgentRoundEnding):
+    """An agent round ending in an error because its harness exited unsuccessfully.
+
+    A saved record may hold a reason beside the exit status.
+    """
+
+    status: Annotated[int, AfterValidator(_refuse_clean_exit_status)]
     reason: str | None = None
 
-    @model_validator(mode="after")
-    def _refuse_unexplained_error(self) -> Self:
-        """Require a reason unless the harness exited with an error status."""
-        if self.status in {None, 0} and self.reason is None:
-            raise ValueError(
-                "an errored round needs a reason unless its harness exited "
-                "with an error status"
-            )
-        return self
+
+class FinishingErroredAgentRoundEnding(ErroredAgentRoundEnding):
+    """An agent round ending in an error because its finishing step failed.
+
+    The round's harness exited cleanly before the step failed.
+    """
+
+    status: Literal[0] = 0
+    reason: str
+
+
+def _select_errored_ending(ending: object, /) -> str:
+    """Return the tag of the errored ending that an ending's exit status selects.
+
+    Pydantic calls this with a saved ending's fields or with an ending already
+    built.
+    """
+    if isinstance(ending, dict):
+        status = ending.get("status")
+    else:
+        status = getattr(ending, "status", None)
+    if status is None:
+        return "launch"
+    return "finishing" if status == 0 else "harness"
+
+
+type _ErroredAgentRoundEnding = Annotated[
+    Annotated[LaunchErroredAgentRoundEnding, Tag("launch")]
+    | Annotated[HarnessErroredAgentRoundEnding, Tag("harness")]
+    | Annotated[FinishingErroredAgentRoundEnding, Tag("finishing")],
+    Discriminator(_select_errored_ending),
+]
 
 
 class InterruptedAgentRoundEnding(DreamcatcherDocument):
@@ -203,7 +258,7 @@ class StoppedAgentRoundEnding(DreamcatcherDocument):
 
 type _AgentRoundEnding = Annotated[
     SuccessfulAgentRoundEnding
-    | ErroredAgentRoundEnding
+    | _ErroredAgentRoundEnding
     | InterruptedAgentRoundEnding
     | StoppedAgentRoundEnding,
     Field(discriminator="outcome"),
@@ -212,11 +267,11 @@ type _AgentRoundEnding = Annotated[
 
 def _compose_agent_round_ending(
     *, at: datetime, status: int
-) -> SuccessfulAgentRoundEnding | ErroredAgentRoundEnding:
+) -> SuccessfulAgentRoundEnding | HarnessErroredAgentRoundEnding:
     """Return the ending that a harness's exit status gives."""
     if status == 0:
         return SuccessfulAgentRoundEnding(at=at)
-    return ErroredAgentRoundEnding(at=at, status=status)
+    return HarnessErroredAgentRoundEnding(at=at, status=status)
 
 
 class AgentRoundRecord(DreamcatcherDocument):
@@ -479,7 +534,7 @@ class AgentRound:
         except ReportableError as failure:
             self.record = _record_agent_round_ending(
                 record=self.record,
-                ending=ErroredAgentRoundEnding(at=clock(), reason=str(failure)),
+                ending=LaunchErroredAgentRoundEnding(at=clock(), reason=str(failure)),
                 path=paths.record,
             )
             raise AgentRoundLaunchError(
@@ -669,7 +724,11 @@ class AgentRound:
 
     def _finish_after_exit(
         self, *, status: int
-    ) -> SuccessfulAgentRoundEnding | ErroredAgentRoundEnding:
+    ) -> (
+        SuccessfulAgentRoundEnding
+        | HarnessErroredAgentRoundEnding
+        | FinishingErroredAgentRoundEnding
+    ):
         """Run the finishing step after a clean exit, and return the round's ending.
 
         A finishing step that raises fails the round, and the feed says why too.
@@ -683,8 +742,8 @@ class AgentRound:
                 self._append_feed_events(
                     line="", events=[FeedNote(label="failed", detail=str(failure))]
                 )
-                return ErroredAgentRoundEnding(
-                    at=self.clock(), status=0, reason=str(failure)
+                return FinishingErroredAgentRoundEnding(
+                    at=self.clock(), reason=str(failure)
                 )
         return _compose_agent_round_ending(at=self.clock(), status=status)
 

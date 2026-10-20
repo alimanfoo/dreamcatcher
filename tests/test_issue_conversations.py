@@ -7,7 +7,7 @@ from records import read_conversation
 
 from dreamcatcher.agent_rounds import (
     AgentRoundRecord,
-    ErroredAgentRoundEnding,
+    HarnessErroredAgentRoundEnding,
     InterruptedAgentRoundEnding,
     StoppedAgentRoundEnding,
     SuccessfulAgentRoundEnding,
@@ -290,7 +290,7 @@ def test_a_conversation_finds_a_session_reported_by_a_later_round(tmp_path):
     [
         (SuccessfulAgentRoundEnding(at=PINNED), 5),
         (StoppedAgentRoundEnding(at=PINNED), 5),
-        (ErroredAgentRoundEnding(at=PINNED, status=1), 4),
+        (HarnessErroredAgentRoundEnding(at=PINNED, status=1), 4),
         (InterruptedAgentRoundEnding(), 4),
         (None, 5),
     ],
