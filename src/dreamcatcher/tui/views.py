@@ -111,7 +111,7 @@ def _render_agent_work(
     statuses: list[AgentWorkStatus],
     zone: tzinfo | None,
 ) -> RenderableType:
-    """Render the work, with the older assignments at its issue beneath it."""
+    """Render the work, with the other work of its kind at its issue beneath it."""
     status = statuses[0]
     work = status.work
     status_value = str(status.value)
@@ -126,15 +126,15 @@ def _render_agent_work(
             (0, 0, 0, SECTION_PADDING[3]),
             expand=False,
         )
-    is_assignment = work.record.kind is AgentWorkKind.ASSIGNMENT
+    kind = work.record.kind
     return combine_renderable_parts(
         parts=[
-            Text(f"{_AGENT_WORK_KIND_NAMES[work.record.kind]} {work.identifier}"),
+            Text(f"{_AGENT_WORK_KIND_NAMES[kind]} {work.identifier}"),
             rendered_status,
             latest_output,
             (
                 _render_assignment_summary(state=state, status=status)
-                if is_assignment
+                if kind is AgentWorkKind.ASSIGNMENT
                 else _render_conversation_summary(state=state, status=status)
             ),
             _render_round_statuses(round_statuses=status.round_statuses, zone=zone),
@@ -143,11 +143,7 @@ def _render_agent_work(
                 worktree=work.worktree,
                 hand_resume_command=status.hand_resume_command,
             ),
-            (
-                _render_older_assignments(older_statuses=statuses[1:])
-                if is_assignment
-                else None
-            ),
+            _render_other_work(kind=kind, other_statuses=statuses[1:]),
         ]
     )
 
@@ -260,20 +256,21 @@ def _render_harness_resume(
     )
 
 
-def _render_older_assignments(
-    *, older_statuses: list[AgentWorkStatus]
+def _render_other_work(
+    *, kind: AgentWorkKind, other_statuses: list[AgentWorkStatus]
 ) -> RenderableType | None:
-    """Return the assignments at this issue that came before, newest first."""
-    if not older_statuses:
+    """Return the other work of the kind at the issue, by the names that select it."""
+    if not other_statuses:
         return None
-    table = create_table(columns=3)
-    for status in older_statuses:
+    table = create_table(columns=4)
+    for status in other_statuses:
         table.add_row(
-            Text(f"agent assignment {status.work.identifier}"),
+            Text(status.work.identifier),
+            Text(status.work.record.dispatch_label),
             Text(str(status.value), style=AGENT_WORK_STATUS_STYLES[status.value]),
             Text(status.detail),
         )
-    return render_section(heading="older assignments", body=table)
+    return render_section(heading=f"other {kind}s", body=table)
 
 
 def show_feed_view(

@@ -203,10 +203,10 @@ def _build_cli_parser() -> argparse.ArgumentParser:
         description=(
             "Show an overview of the assignment that you name: what its work "
             "record holds, the rounds it has run, the command that resumes the "
-            "harness session by hand, and the older assignments at the same "
-            "issue. It stays on that assignment, and keeps up until the "
-            "assignment ends after a successful wrap-up or a cancel. Interrupt "
-            "it to end it sooner. "
+            "harness session by hand, and the other assignments at the same "
+            "issue with the identifiers that name them. It stays on that "
+            "assignment, and keeps up until the assignment ends after a "
+            "successful wrap-up or a cancel. Interrupt it to end it sooner. "
             + _HELP_WHEN_A_VIEW_TAKES_THE_SCREEN
             + " An ended assignment stays on the screen for you to read. "
             "Interrupt one that is still going and nothing is left behind. "
@@ -222,7 +222,9 @@ def _build_cli_parser() -> argparse.ArgumentParser:
         help="show one issue conversation in detail",
         description=(
             "Show the issue conversation that you name: what its work record "
-            "holds, its harness session, worktree, code revision, and rounds. "
+            "holds, its harness session, worktree, code revision, and rounds, "
+            "and the other conversations at the same issue with the "
+            "identifiers that name them. "
             "It stays on that conversation, and keeps up until the "
             "conversation ends. "
             + _HELP_WHEN_A_VIEW_TAKES_THE_SCREEN

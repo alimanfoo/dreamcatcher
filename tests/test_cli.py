@@ -848,7 +848,10 @@ def test_an_identifier_shows_that_assignment_rather_than_the_newest(
     monkeypatch.chdir(watching.root)
 
     assert main(argv=["assignment", OLDER_ASSIGNMENT_ID.lower()]) == 0
-    assert f"agent assignment {OLDER_ASSIGNMENT_ID}" in capsys.readouterr().out
+    shown = " ".join(capsys.readouterr().out.split())
+    assert f"agent assignment {OLDER_ASSIGNMENT_ID}" in shown
+    assert "other assignments GH13-20260819-184158" in shown
+    assert "dream:smith working" in shown
 
 
 @pytest.mark.parametrize("round_selection", [[], ["--round", "1"]])

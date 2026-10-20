@@ -735,3 +735,25 @@ def test_a_view_stays_on_its_conversation_when_a_newer_one_arrives(tmp_path):
     assert f"issue conversation {newer}" not in detail.getvalue()
     assert "I found the answer." in feed.getvalue()
     assert "The newer answer." not in feed.getvalue()
+
+
+def test_a_conversation_view_lists_the_other_conversations_at_its_issue(tmp_path):
+    state = conversation_state(root=tmp_path)
+    paused = find_conversation_directory(state=state, issue=8).name
+    newer = write_newer_conversation(state=state)
+    console, written = rendered_console()
+
+    show_agent_work_view(
+        state=state,
+        reference=8,
+        kind=AgentWorkKind.CONVERSATION,
+        console=console,
+        clock=lambda: PINNED,
+    )
+
+    shown = " ".join(written.getvalue().split())
+    assert f"issue conversation {newer}" in shown
+    assert (
+        f"other conversations {paused} dream:conversation idle paused, label removed"
+        in shown
+    )

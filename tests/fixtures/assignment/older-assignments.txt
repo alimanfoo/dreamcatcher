@@ -20,6 +20,6 @@ resume by hand
   cd .dreamcatcher/v6/worktrees/GH13-20260819-184158-assignment
   claude --resume abc-123                                      
 
-older assignments
-  agent assignment GH13-20260818-090000-assignment  ended  completed
-  agent assignment GH13-20260817-090000-assignment  ended  completed
+other assignments
+  GH13-20260818-090000-assignment  dream:smith  ended  completed
+  GH13-20260817-090000-assignment  dream:smith  ended  completed
