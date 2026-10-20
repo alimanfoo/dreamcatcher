@@ -315,3 +315,36 @@ def test_nature_shows_exactly_one_of_sun_and_moon_at_each_boundary(
             ]"""
         )
         assert opacities == [sun_opacity, moon_opacity]
+
+
+@pytest.mark.parametrize("theme", ["matrix", "nature"])
+@pytest.mark.parametrize("width", [390, 1280])
+def test_a_card_heading_keeps_its_title_and_status_within_the_row(
+    page: Page,
+    live_web: str,
+    theme: str,
+    width: int,
+) -> None:
+    page.set_viewport_size({"width": width, "height": 800})
+    page.goto(f"{live_web}/?theme={theme}")
+    expect(page.get_by_label("Issue #53 dream:less")).to_be_visible()
+
+    headings = page.locator(".card-heading").filter(visible=True)
+    for heading in headings.evaluate_all(
+        """headings => headings.map(heading => {
+          const row = heading.getBoundingClientRect();
+          const title = heading.firstElementChild.getBoundingClientRect();
+          const status = heading.lastElementChild.getBoundingClientRect();
+          return {
+            text: heading.textContent,
+            row: [row.left, row.right],
+            title_width: title.width,
+            status: [status.left, status.right],
+          };
+        })"""
+    ):
+        row_left, row_right = heading["row"]
+        status_left, status_right = heading["status"]
+        assert heading["title_width"] >= (row_right - row_left) / 2, heading["text"]
+        assert row_left <= status_left, heading["text"]
+        assert status_right <= row_right, heading["text"]

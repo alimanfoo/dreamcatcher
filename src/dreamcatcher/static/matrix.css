@@ -276,13 +276,20 @@ body::after {
 }
 
 .card-heading {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) max-content;
+  flex-wrap: wrap;
 }
 
+/* The title keeps at least half the row. A wider status wraps below it
+   and shrinks to the row, so its own text wraps. */
+
 .card-heading > :first-child {
+  flex: 1 1 50%;
   min-width: 0;
   overflow-wrap: anywhere;
+}
+
+.card-heading > :last-child {
+  flex-shrink: 1;
 }
 
 .issue-number {
