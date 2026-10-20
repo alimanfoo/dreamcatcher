@@ -73,15 +73,16 @@ def describe_round_ending(
     match record.ending:
         case LaunchErroredAgentRoundEnding(reason=reason):
             outcome = f"errored: {reason}"
-        case HarnessErroredAgentRoundEnding(status=status, reason=None):
-            outcome = f"errored (exit {status})"
-        case HarnessErroredAgentRoundEnding(status=status, reason=reason):
+        case HarnessErroredAgentRoundEnding(status=status, reason=str(reason)):
             outcome = f"errored (exit {status}): {reason}"
         case FinishingErroredAgentRoundEnding(reason=reason):
             outcome = f"errored (exit 0): {reason}"
         case _:
-            outcome = interpret_agent_round_outcome(
-                record=record, is_daemon_running=False
+            outcome = describe_round_outcome(
+                record=record,
+                outcome=interpret_agent_round_outcome(
+                    record=record, is_daemon_running=False
+                ),
             )
     line = read_last_feed_line(path=paths.feed)
     return (
