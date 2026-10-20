@@ -225,6 +225,11 @@ body::after {
   overflow-wrap: anywhere;
 }
 
+.scheduler-failures li {
+  padding-left: var(--space-8);
+  text-indent: calc(var(--space-8) * -1);
+}
+
 .scheduler-failures li + li {
   margin-top: var(--space-2);
 }
