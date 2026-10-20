@@ -1,6 +1,68 @@
 "use strict";
 
 const outputAnimations = new Set();
+let selectedTabId = null;
+let shouldRestoreTabFocus = false;
+
+function activateWorkTab(tab, shouldFocus = false) {
+  const tablist = tab.closest('[role="tablist"]');
+  for (const candidate of tablist.querySelectorAll('[role="tab"]')) {
+    const isSelected = candidate === tab;
+    candidate.setAttribute("aria-selected", String(isSelected));
+    candidate.tabIndex = isSelected ? 0 : -1;
+    const panel = candidate.ownerDocument.getElementById(
+      candidate.getAttribute("aria-controls"),
+    );
+    panel.toggleAttribute("hidden", !isSelected);
+  }
+  if (shouldFocus) {
+    tab.focus();
+  }
+}
+
+const initialTab = document.querySelector(
+  '#home [role="tab"][aria-selected="true"]',
+);
+if (initialTab !== null) {
+  activateWorkTab(initialTab);
+}
+
+document.body.addEventListener("click", (event) => {
+  if (!(event.target instanceof Element)) {
+    return;
+  }
+  const tab = event.target.closest('#home [role="tab"]');
+  if (tab !== null) {
+    activateWorkTab(tab);
+  }
+});
+
+document.body.addEventListener("keydown", (event) => {
+  if (!(event.target instanceof Element)) {
+    return;
+  }
+  const tab = event.target.closest('#home [role="tab"]');
+  if (tab === null) {
+    return;
+  }
+  const tablist = tab.closest('[role="tablist"]');
+  const tabs = [...tablist.querySelectorAll('[role="tab"]')];
+  const currentIndex = tabs.indexOf(tab);
+  let nextIndex;
+  if (event.key === "ArrowRight") {
+    nextIndex = (currentIndex + 1) % tabs.length;
+  } else if (event.key === "ArrowLeft") {
+    nextIndex = (currentIndex - 1 + tabs.length) % tabs.length;
+  } else if (event.key === "Home") {
+    nextIndex = 0;
+  } else if (event.key === "End") {
+    nextIndex = tabs.length - 1;
+  } else {
+    return;
+  }
+  event.preventDefault();
+  activateWorkTab(tabs[nextIndex], true);
+});
 
 function latestOutputsByWork(home) {
   const outputs = new Map();
@@ -21,6 +83,10 @@ document.body.addEventListener("htmx:beforeSwap", (event) => {
   if (currentHome === null || updatedHome === null) {
     return;
   }
+  selectedTabId =
+    currentHome.querySelector('[role="tab"][aria-selected="true"]')?.id ?? null;
+  shouldRestoreTabFocus =
+    currentHome.querySelector('[role="tab"]:focus') !== null;
   const currentOutputs = latestOutputsByWork(currentHome);
   const updatedOutputs = latestOutputsByWork(updatedHome);
   const workIdentifiers = new Set([
@@ -41,6 +107,15 @@ document.body.addEventListener("htmx:beforeSwap", (event) => {
 document.body.addEventListener("htmx:afterSwap", (event) => {
   if (event.detail.target.id !== "home") {
     return;
+  }
+  const home = event.detail.target;
+  const tabs = [...home.querySelectorAll('[role="tab"]')];
+  const selectedTab = tabs.find((tab) => tab.id === selectedTabId) ?? tabs[0];
+  const shouldFocus = shouldRestoreTabFocus;
+  selectedTabId = null;
+  shouldRestoreTabFocus = false;
+  if (selectedTab !== undefined) {
+    activateWorkTab(selectedTab, shouldFocus);
   }
   const prefersReducedMotion = window.matchMedia(
     "(prefers-reduced-motion: reduce)",
