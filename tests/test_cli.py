@@ -357,7 +357,10 @@ def test_stop_requests_the_newest_assignments_running_round(
     )[-1]
     paths = assignment.compose_round_paths(number=1)
     assert paths.stop_request.read_text(encoding="utf-8") == ""
-    assert "newest assignment round 1 at GH13" in capsys.readouterr().out
+    assert (
+        f"Requested a stop for {assignment.identifier} round 1."
+        in capsys.readouterr().out
+    )
 
 
 def test_stop_requests_an_issue_conversations_running_round(
@@ -384,7 +387,10 @@ def test_stop_requests_an_issue_conversations_running_round(
     assert conversation is not None
     paths = conversation.compose_round_paths(number=1)
     assert paths.stop_request.read_text(encoding="utf-8") == ""
-    assert "issue conversation round 1 at GH13" in capsys.readouterr().out
+    assert (
+        f"Requested a stop for {conversation.identifier} round 1."
+        in capsys.readouterr().out
+    )
 
 
 def test_cancel_ends_the_newest_assignment_and_stops_its_running_round(
@@ -461,7 +467,7 @@ def test_stop_refuses_an_issue_without_the_selected_agent_work(
     monkeypatch.chdir(tmp_path)
 
     assert main(argv=["stop", "GH13", selector]) == 1
-    assert "has no running round that can be stopped" in capsys.readouterr().err
+    assert "here for GH13." in capsys.readouterr().err
 
 
 def test_stop_refuses_a_round_without_a_resumable_session(
@@ -563,7 +569,7 @@ def test_conversation_shows_its_local_detail(monkeypatch, watching, capsys):
     monkeypatch.chdir(watching.root)
 
     assert main(argv=["conversation", "GH8"]) == 0
-    assert "newest issue conversation GH8-" in capsys.readouterr().out
+    assert "issue conversation GH8-" in capsys.readouterr().out
 
 
 def test_feed_shows_what_the_conversation_said(monkeypatch, watching, capsys):

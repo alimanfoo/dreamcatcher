@@ -43,7 +43,7 @@ from dreamcatcher.scheduler.models import (
 )
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.tui import (
-    show_conversation_view,
+    show_agent_work_view,
     show_feed_view,
     show_status_view,
 )
@@ -188,15 +188,16 @@ def test_conversation_detail_shows_settings_revision_session_and_round(tmp_path)
     )
     console, written = rendered_console()
 
-    show_conversation_view(
+    show_agent_work_view(
         state=state,
-        issue=8,
+        reference=8,
+        kind=AgentWorkKind.CONVERSATION,
         console=console,
         clock=lambda: PINNED,
     )
 
     shown = written.getvalue()
-    assert "newest issue conversation GH8-" in shown
+    assert "issue conversation GH8-" in shown
     assert "recovered-session" in shown
     assert "abc123" in shown
     assert "def456" in shown
@@ -212,9 +213,10 @@ def test_conversation_detail_shows_a_failed_round(tmp_path):
     state = conversation_state(root=tmp_path, status=2, is_paused=False)
     console, written = rendered_console()
 
-    show_conversation_view(
+    show_agent_work_view(
         state=state,
-        issue=8,
+        reference=8,
+        kind=AgentWorkKind.CONVERSATION,
         console=console,
         clock=lambda: PINNED,
     )
@@ -255,9 +257,10 @@ def test_conversation_detail_shows_two_errors_as_a_fault(tmp_path):
     console, written = rendered_console()
     console.width = 140
 
-    show_conversation_view(
+    show_agent_work_view(
         state=state,
-        issue=8,
+        reference=8,
+        kind=AgentWorkKind.CONVERSATION,
         console=console,
         clock=lambda: PINNED,
     )
@@ -273,8 +276,8 @@ def test_conversation_feed_shows_its_saved_activity(tmp_path):
 
     show_feed_view(
         state=state,
-        issue=8,
-        work_kind=AgentWorkKind.CONVERSATION,
+        reference=8,
+        kind=AgentWorkKind.CONVERSATION,
         console=console,
     )
 
@@ -342,8 +345,8 @@ def test_conversation_feed_follows_a_later_round_without_repeating_the_first(
 
     show_feed_view(
         state=state,
-        issue=8,
-        work_kind=AgentWorkKind.CONVERSATION,
+        reference=8,
+        kind=AgentWorkKind.CONVERSATION,
         console=console,
         wait=wait,
     )
@@ -362,8 +365,8 @@ def test_conversation_feed_can_select_one_round(tmp_path):
 
     show_feed_view(
         state=state,
-        issue=8,
-        work_kind=AgentWorkKind.CONVERSATION,
+        reference=8,
+        kind=AgentWorkKind.CONVERSATION,
         console=console,
         round_number=1,
     )
@@ -375,9 +378,10 @@ def test_a_missing_conversation_detail_is_reportable(tmp_path):
     console, _ = rendered_console()
 
     with pytest.raises(ReportableError, match="No conversation here for GH8"):
-        show_conversation_view(
+        show_agent_work_view(
             state=StateDirectory(root=tmp_path),
-            issue=8,
+            reference=8,
+            kind=AgentWorkKind.CONVERSATION,
             console=console,
         )
 
@@ -389,8 +393,8 @@ def test_a_missing_conversation_round_says_how_many_exist(tmp_path):
     with pytest.raises(ReportableError, match="has run 1 round, so it has no round 2"):
         show_feed_view(
             state=state,
-            issue=8,
-            work_kind=AgentWorkKind.CONVERSATION,
+            reference=8,
+            kind=AgentWorkKind.CONVERSATION,
             console=console,
             round_number=2,
         )
@@ -440,9 +444,10 @@ def test_conversation_detail_before_the_conversation_starts_says_there_is_none(
     console, _ = rendered_console()
 
     with pytest.raises(ReportableError, match="No conversation here for GH9"):
-        show_conversation_view(
+        show_agent_work_view(
             state=state,
-            issue=9,
+            reference=9,
+            kind=AgentWorkKind.CONVERSATION,
             console=console,
             clock=lambda: PINNED,
         )
@@ -457,8 +462,8 @@ def test_a_conversation_feed_before_the_conversation_starts_says_there_is_none(
     with pytest.raises(ReportableError, match="No conversation here for GH9"):
         show_feed_view(
             state=state,
-            issue=9,
-            work_kind=AgentWorkKind.CONVERSATION,
+            reference=9,
+            kind=AgentWorkKind.CONVERSATION,
             console=console,
         )
 
@@ -549,15 +554,16 @@ def test_an_ended_conversation_view_never_waits(tmp_path, status):
     )
     console, written = watched_console()
 
-    show_conversation_view(
+    show_agent_work_view(
         state=state,
-        issue=8,
+        reference=8,
+        kind=AgentWorkKind.CONVERSATION,
         console=console,
         clock=lambda: PINNED,
         wait=refusing,
     )
 
-    assert "newest issue conversation GH8-" in written.getvalue()
+    assert "issue conversation GH8-" in written.getvalue()
 
 
 def test_a_conversation_view_of_an_idle_conversation_keeps_watching(tmp_path):
@@ -609,9 +615,10 @@ def assert_conversation_views_keep_watching(*, state: StateDirectory) -> None:
         raise KeyboardInterrupt
 
     console, _ = watched_console()
-    show_conversation_view(
+    show_agent_work_view(
         state=state,
-        issue=8,
+        reference=8,
+        kind=AgentWorkKind.CONVERSATION,
         console=console,
         clock=lambda: PINNED,
         wait=interrupting,
@@ -619,8 +626,8 @@ def assert_conversation_views_keep_watching(*, state: StateDirectory) -> None:
     console, _ = watched_console()
     show_feed_view(
         state=state,
-        issue=8,
-        work_kind=AgentWorkKind.CONVERSATION,
+        reference=8,
+        kind=AgentWorkKind.CONVERSATION,
         console=console,
         wait=interrupting,
     )
@@ -654,9 +661,10 @@ def test_a_view_of_an_ended_conversation_never_waits(tmp_path):
     end_conversation(state=state)
     console, written = watched_console()
 
-    show_conversation_view(
+    show_agent_work_view(
         state=state,
-        issue=8,
+        reference=8,
+        kind=AgentWorkKind.CONVERSATION,
         console=console,
         clock=lambda: PINNED,
         wait=refusing,

@@ -55,7 +55,7 @@ from dreamcatcher.status import (
     AgentWorkStatusSection,
     AgentWorkStatusValue,
     RequestReason,
-    read_conversation_status,
+    read_agent_work_status,
     read_dreamcatcher_daemon_status,
     read_status_report,
 )
@@ -189,24 +189,13 @@ def observe(
 
 def status(*, state: StateDirectory):
     """Return the fixture conversation's status at the pinned time."""
-    found = read_conversation_status(
+    conversation = read_conversation(state=state, issue=8)
+    assert conversation is not None
+    return read_agent_work_status(
         state=state,
-        issue=8,
+        work=conversation,
         daemon=read_dreamcatcher_daemon_status(state=state),
         clock=lambda: LOOKED_AT,
-    )
-    assert found is not None
-    return found
-
-
-def test_a_missing_conversation_has_no_status(tmp_path):
-    state = StateDirectory(root=tmp_path)
-
-    assert (
-        read_conversation_status(
-            state=state, issue=8, daemon=read_dreamcatcher_daemon_status(state=state)
-        )
-        is None
     )
 
 
@@ -745,12 +734,7 @@ def test_an_issue_with_a_comment_waiting_is_a_request_until_its_conversation_sta
 
     assert request.value is RequestStatusValue.AVAILABLE
     assert request.reasons == (RequestReason(words="1 comment to answer"),)
-    assert (
-        read_conversation_status(
-            state=state, issue=9, daemon=read_dreamcatcher_daemon_status(state=state)
-        )
-        is None
-    )
+    assert read_conversation(state=state, issue=9) is None
 
 
 def test_an_issue_nobody_has_commented_on_waits_for_a_comment(tmp_path):
@@ -770,14 +754,7 @@ def test_an_issue_nobody_has_commented_on_waits_for_a_comment(tmp_path):
 
 
 def test_an_unobserved_issue_with_no_record_has_no_conversation(conversation_state):
-    assert (
-        read_conversation_status(
-            state=conversation_state,
-            issue=9,
-            daemon=read_dreamcatcher_daemon_status(state=conversation_state),
-        )
-        is None
-    )
+    assert read_conversation(state=conversation_state, issue=9) is None
 
 
 @pytest.mark.parametrize(

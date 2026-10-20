@@ -11,7 +11,11 @@ import dreamcatcher
 from dreamcatcher import repository_setup, tui, web
 from dreamcatcher.agent_assignments import cancel_assignment
 from dreamcatcher.agent_rounds import request_agent_round_stop
-from dreamcatcher.agent_work import find_newest_agent_work, request_agent_work_retry
+from dreamcatcher.agent_work import (
+    find_newest_agent_work,
+    request_agent_work_retry,
+    select_agent_work,
+)
 from dreamcatcher.clock import read_current_time
 from dreamcatcher.config import AgentHarness
 from dreamcatcher.daemon import DEFAULT_INTERVAL_SECONDS, DreamcatcherDaemon
@@ -23,11 +27,7 @@ from dreamcatcher.scheduler import (
     read_scheduler_record,
 )
 from dreamcatcher.state import StateDirectory
-from dreamcatcher.status import (
-    read_assignment_statuses_for_issue,
-    read_conversation_status,
-    read_dreamcatcher_daemon_status,
-)
+from dreamcatcher.status import read_agent_work_status, read_dreamcatcher_daemon_status
 from dreamcatcher.version import DREAMCATCHER_VERSION
 
 # How a view names the issue it is about, as the issue itself is written.
@@ -211,7 +211,9 @@ def _build_cli_parser() -> argparse.ArgumentParser:
         ),
     )
     _add_issue_argument(parser=assignment_parser)
-    assignment_parser.set_defaults(act=_show_assignment)
+    assignment_parser.set_defaults(
+        act=_show_agent_work, work_kind=AgentWorkKind.ASSIGNMENT
+    )
     conversation_parser = subcommands.add_parser(
         "conversation",
         help="show one issue's newest conversation, in detail",
@@ -226,7 +228,9 @@ def _build_cli_parser() -> argparse.ArgumentParser:
         ),
     )
     _add_issue_argument(parser=conversation_parser)
-    conversation_parser.set_defaults(act=_show_conversation)
+    conversation_parser.set_defaults(
+        act=_show_agent_work, work_kind=AgentWorkKind.CONVERSATION
+    )
     feed_parser = subcommands.add_parser(
         "feed",
         help="show what the agent said, as it says it",
@@ -386,29 +390,18 @@ def _retry_agent_work(*, arguments: argparse.Namespace) -> None:
 def _stop_agent_work(*, arguments: argparse.Namespace) -> None:
     """Request a stop for the selected agent work's live round."""
     state = _find_state_directory(root=Path.cwd())
-    daemon = read_dreamcatcher_daemon_status(state=state)
-    if arguments.work_kind is AgentWorkKind.ASSIGNMENT:
-        statuses = read_assignment_statuses_for_issue(
-            state=state, issue=arguments.issue, daemon=daemon
-        )
-        paths = None if not statuses else statuses[0].stoppable_round_paths
-        work_description = "newest assignment"
-    else:
-        status = read_conversation_status(
-            state=state, issue=arguments.issue, daemon=daemon
-        )
-        paths = None if status is None else status.stoppable_round_paths
-        work_description = "newest issue conversation"
+    work = select_agent_work(
+        state=state, reference=arguments.issue, kind=arguments.work_kind
+    )
+    paths = read_agent_work_status(
+        state=state, work=work, daemon=read_dreamcatcher_daemon_status(state=state)
+    ).stoppable_round_paths
     if paths is None:
         raise ReportableError(
-            f"The {work_description} at GH{arguments.issue} has no running round "
-            "that can be stopped."
+            f"{work.identifier} has no running round that can be stopped."
         )
     request_agent_round_stop(paths=paths)
-    print(
-        f"Requested a stop for {work_description} round {paths.number} "
-        f"at GH{arguments.issue}."
-    )
+    print(f"Requested a stop for {work.identifier} round {paths.number}.")
 
 
 def _cancel_assignment(*, arguments: argparse.Namespace) -> None:
@@ -436,18 +429,11 @@ def _show_web(*, arguments: argparse.Namespace) -> None:
     )
 
 
-def _show_assignment(*, arguments: argparse.Namespace) -> None:
-    tui.show_assignment_view(
+def _show_agent_work(*, arguments: argparse.Namespace) -> None:
+    tui.show_agent_work_view(
         state=_find_state_directory(root=Path.cwd()),
-        issue=arguments.issue,
-        console=tui.open_tui_console(),
-    )
-
-
-def _show_conversation(*, arguments: argparse.Namespace) -> None:
-    tui.show_conversation_view(
-        state=_find_state_directory(root=Path.cwd()),
-        issue=arguments.issue,
+        reference=arguments.issue,
+        kind=arguments.work_kind,
         console=tui.open_tui_console(),
     )
 
@@ -455,8 +441,8 @@ def _show_conversation(*, arguments: argparse.Namespace) -> None:
 def _show_feed(*, arguments: argparse.Namespace) -> None:
     tui.show_feed_view(
         state=_find_state_directory(root=Path.cwd()),
-        issue=arguments.issue,
-        work_kind=arguments.work_kind,
+        reference=arguments.issue,
+        kind=arguments.work_kind,
         console=tui.open_tui_console(),
         round_number=arguments.round,
     )
