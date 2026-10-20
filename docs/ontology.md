@@ -398,7 +398,7 @@ is read from the round's input, so nothing else records it:
   relayed, after any count of posts;
 - **merged** or **closed**: the state of a finished pull request, which calls
   for the assignment's final round, its **wrap-up round**;
-- **carry on**: an assignment round whose input relays nothing new, given again
+- **recover**: an assignment round whose input relays nothing new, given again
   after a round that did not finish.
 
 ### Requests

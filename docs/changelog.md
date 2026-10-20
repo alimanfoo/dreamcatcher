@@ -26,6 +26,12 @@ each entry links the pull request or commit that made the change.
 
 ## Unreleased
 
+### Changed
+
+- A round that resumes an assignment after a round that did not finish, with
+  nothing new to relay, now shows the trigger "recover" instead of "carry on".
+  ([#609](https://github.com/alimanfoo/dreamcatcher/pull/609))
+
 ### Fixed
 
 - Repeated state-document reads from the web and terminal views no longer
