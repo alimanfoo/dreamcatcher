@@ -17,8 +17,7 @@ the pull request or replying on the issue. GitHub is where the work
 happens and where the user acts. The home page and the terminal are a
 window on what the daemon is doing, with the few controls GitHub has no
 place for: stop, cancel and retry. The agent hears only the user: a post
-or a comment from anyone else is never relayed, so nobody else can
-direct an agent that runs under the user's account.
+or a comment from anyone else is never relayed to it as feedback.
 
 Each story is told from the user's seat, in the order things happen,
 using the ontology's words without defining them and citing no rule and
@@ -444,14 +443,21 @@ runs `dreamcatcher init` and then `dreamcatcher run` on their own
 machine, and has an instance of their own. Each instance acts only on
 issues assigned to its own user, so the two never collide, and each
 user's agents run on their own machine, under their own account, on
-their own usage allowance. Handing an issue to a teammate's agent is the
-same as handing it to the teammate: assign it to them and label it, and
-their instance takes it at its next update. Each agent posts as the user
-it runs for and hears only that user, so a teammate's review of the
-user's pull request is read by the user, never by the agent.
+their own usage allowance. Each agent posts as the user it runs for and
+hears only that user, so a teammate's review of the user's pull request
+is read by the user, never by the agent.
+
+An instance does not check who assigned or labelled an issue. Today,
+anyone who can assign and label issues in the repository can start work
+on a teammate's instance, under the teammate's account and on their
+usage allowance. That behaviour is under discussion, not an endorsed way
+to hand work to a teammate. How the user running the daemon authorizes
+the work it starts remains an open question, discussed in
+[#594](https://github.com/alimanfoo/dreamcatcher/issues/594).
 
 The value to the user is that a team shares one configuration and one
-set of labels, and nobody runs anything on anyone else's behalf.
+set of labels, and each user's agents run on their own machine and hear
+only that user.
 
 #### The user upgrades dreamcatcher
 
@@ -566,8 +572,11 @@ a post of their own, quoting as much or as little as they like. The same
 goes for a conversation: another person's comment on the issue gets no
 answer from the agent.
 
-This is deliberate. It stops anyone else from directing, or abusing, the
-agents that run on the user's machine under the user's account.
+This is deliberate. Only the user's own posts reach the agent as
+feedback, so a colleague's comment cannot steer work that runs under the
+user's account. It does not settle who else may start that work, which
+[the teammate story](#the-users-teammate-runs-dreamcatcher-on-the-same-repository)
+leaves open.
 
 ### Editing the configuration while the daemon runs
 
@@ -681,3 +690,17 @@ left to report anything; the user frees the disk and starts it again. No
 more than that is handled, and that is accepted, because a disk that
 will not write is the user's to fix, and nothing _dreamcatcher_ holds is
 the only copy of anything.
+
+### A page cannot read what it shows
+
+A record or feed under `.dreamcatcher/` will not read back, because
+something outside _dreamcatcher_ changed it. A home page, assignment
+page or conversation page that is already open keeps the content and
+status it last showed. A warning on it says that the refresh failed and
+why. The warning describes only the failed refresh. Until a refresh
+succeeds, the page cannot say what the work is doing now: the agent may
+have finished or stopped meanwhile, and the unreadable file may affect
+the daemon too. The page keeps trying, and once a refresh succeeds the
+warning goes and any new output shows once. Nothing repairs the record,
+and that is accepted, because the cause is outside _dreamcatcher_ and
+the terminal reports the same reason.
