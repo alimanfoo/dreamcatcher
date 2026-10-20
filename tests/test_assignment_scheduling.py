@@ -102,7 +102,7 @@ def ran(
     """
     started = PINNED + timedelta(minutes=number)
     ending = (
-        InterruptedAgentRoundEnding()
+        InterruptedAgentRoundEnding(at=started)
         if status is None
         else _compose_agent_round_ending(at=started, status=status)
     )

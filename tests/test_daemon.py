@@ -30,6 +30,7 @@ from rows import request_row
 from dreamcatcher.agent_rounds import (
     AgentRoundOutcome,
     AgentRoundRecord,
+    InterruptedAgentRoundEnding,
     _compose_agent_round_ending,
     request_agent_round_stop,
 )
@@ -500,16 +501,16 @@ def test_a_round_left_preparing_is_interrupted_with_nothing_to_end(
     )
     ended = Mock()
     monkeypatch.setattr("dreamcatcher.daemon.teardown.end_process_tree", ended)
+    daemon = DreamcatcherDaemon(root=watched, preferred_harness=AgentHarness.CLAUDE)
+    daemon.clock = lambda: PINNED + timedelta(hours=1)
 
-    DreamcatcherDaemon(
-        root=watched, preferred_harness=AgentHarness.CLAUDE
-    )._sweep_orphans()
+    daemon._sweep_orphans()
 
     ended.assert_not_called()
     record = AgentRoundRecord.model_validate_json(
         (directory / "rounds" / "1" / "round.json").read_text(encoding="utf-8")
     )
-    assert record.outcome is AgentRoundOutcome.INTERRUPTED
+    assert record.ending == InterruptedAgentRoundEnding(at=PINNED + timedelta(hours=1))
 
 
 def test_a_pending_stop_survives_daemon_restart(watched, harnesses, gh, left_running):

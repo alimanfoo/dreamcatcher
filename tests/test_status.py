@@ -296,7 +296,7 @@ def test_a_live_round_keeps_the_pull_request_summary_the_tick_read(running):
             "errored (exit 2)",
             "ran 4m",
         ),
-        (InterruptedAgentRoundEnding(), "interrupted", ""),
+        (InterruptedAgentRoundEnding(at=PINNED), "interrupted", ""),
     ],
 )
 def test_a_terminal_round_status_describes_its_outcome_and_duration(

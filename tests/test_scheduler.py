@@ -1022,7 +1022,7 @@ def test_a_round_after_an_interrupted_one_is_given_the_input_again(resuming):
             number=1,
             started=PINNED,
             pid=1,
-            ending=InterruptedAgentRoundEnding(),
+            ending=InterruptedAgentRoundEnding(at=PINNED),
         ),
     )
     scheduler, clock = create_scheduler(root=resuming)
@@ -1188,7 +1188,7 @@ def test_a_last_round_that_was_interrupted_is_carried_on_as_the_last_round(
             number=2,
             started=PINNED.replace(hour=17, minute=2),
             pid=1,
-            ending=InterruptedAgentRoundEnding(),
+            ending=InterruptedAgentRoundEnding(at=PINNED),
         ),
     )
     gh.replies(stdout=pull_request(state="MERGED"), to="pr view")
@@ -1211,7 +1211,7 @@ def test_open_work_is_carried_on_before_a_new_issue_is_assigned(resuming, gh, of
             number=1,
             started=PINNED,
             pid=1,
-            ending=InterruptedAgentRoundEnding(),
+            ending=InterruptedAgentRoundEnding(at=PINNED),
         ),
     )
     scheduler, clock = create_scheduler(root=resuming)
@@ -1394,7 +1394,9 @@ def test_a_cooldown_refuses_invalid_datetimes(started, ends, message):
     [
         pytest.param(None, True, False, id="running"),
         pytest.param(None, False, True, id="interrupted-by-daemon-shutdown"),
-        pytest.param(InterruptedAgentRoundEnding(), True, True, id="interrupted"),
+        pytest.param(
+            InterruptedAgentRoundEnding(at=PINNED), True, True, id="interrupted"
+        ),
         pytest.param(
             ErroredAgentRoundEnding(at=PINNED, status=2), True, True, id="errored"
         ),

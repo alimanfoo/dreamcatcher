@@ -184,9 +184,14 @@ class ErroredAgentRoundEnding(DreamcatcherDocument):
 
 
 class InterruptedAgentRoundEnding(DreamcatcherDocument):
-    """An agent round ending without an observed exit."""
+    """An agent round ending without an observed exit.
+
+    The time is when the interruption was recorded. An interruption that
+    v6.1.0 or earlier recorded has none.
+    """
 
     outcome: Literal[AgentRoundOutcome.INTERRUPTED] = AgentRoundOutcome.INTERRUPTED
+    at: AwareDatetime | None = None
 
 
 class StoppedAgentRoundEnding(DreamcatcherDocument):
@@ -281,7 +286,7 @@ class AgentRoundLaunchError(ReportableError):
 
 
 def record_agent_round_interruption(
-    *, record: AgentRoundRecord, path: Path
+    *, record: AgentRoundRecord, path: Path, at: datetime
 ) -> AgentRoundRecord:
     """Record an interruption when a formerly running round has ended.
 
@@ -291,7 +296,7 @@ def record_agent_round_interruption(
     if record.ending is not None:
         return record
     return _record_agent_round_ending(
-        record=record, ending=InterruptedAgentRoundEnding(), path=path
+        record=record, ending=InterruptedAgentRoundEnding(at=at), path=path
     )
 
 
@@ -557,7 +562,7 @@ class AgentRound:
         the daemon. A round whose harness has already exited runs its finishing
         step first.
         """
-        self._end_process_tree(ending=InterruptedAgentRoundEnding())
+        self._end_process_tree(ending=InterruptedAgentRoundEnding(at=self.clock()))
         self._round_ended.wait()
 
     def end_for_daemon_shutdown(self) -> None:
@@ -570,7 +575,7 @@ class AgentRound:
         if self.paths.stop_request.is_file():
             ending: _AgentRoundEnding = StoppedAgentRoundEnding(at=self.clock())
         else:
-            ending = InterruptedAgentRoundEnding()
+            ending = InterruptedAgentRoundEnding(at=self.clock())
         self._end_process_tree(ending=ending)
         self._round_ended.wait()
 
