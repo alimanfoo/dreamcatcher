@@ -121,7 +121,8 @@ dreamcatcher retry GH123
 `retry` preserves the failed rounds for diagnosis and clears the fault of the
 newest faulted assignment and faulted conversation at that issue. It does not
 start an agent itself; on a later scheduler update the daemon may start the
-work's next round, given the failed round's input again.
+work's next round, given the failed round's input again, less any comments or
+posts you have deleted.
 
 You can instead open the faulted assignment or conversation in the web page that
 `run` opened, and select **Retry**. If the daemon is stopped or ran with
