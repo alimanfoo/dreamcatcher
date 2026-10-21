@@ -720,7 +720,39 @@ def test_a_read_that_fails_answers_unknown_with_what_gh_said(fake, ask):
     answered = ask()
 
     assert isinstance(answered, UnknownGitHubResponse)
-    assert "could not connect" in answered.reason
+    assert answered.reason.endswith(": gh: could not connect to github.com")
+
+
+def test_a_failed_read_names_its_command_without_the_options(fake):
+    gh = fake(program="gh")
+    gh.fails(stderr="gh: could not connect to github.com")
+
+    answered = list_issues(repository=REPOSITORY, label="dream:smith", assignee="@me")
+
+    assert answered == UnknownGitHubResponse(
+        reason="gh issue list: gh: could not connect to github.com"
+    )
+
+
+def test_a_read_without_gh_says_gh_is_missing(tmp_path, monkeypatch):
+    monkeypatch.setenv("PATH", str(tmp_path))
+
+    answered = list_labels(repository=REPOSITORY)
+
+    assert answered == UnknownGitHubResponse(
+        reason=f"gh api repos/{REPOSITORY}/labels?per_page=100: gh is not on the PATH."
+    )
+
+
+def test_a_failed_read_that_said_nothing_gives_its_status(fake):
+    gh = fake(program="gh")
+    gh.fails(stderr="")
+
+    answered = list_labels(repository=REPOSITORY)
+
+    assert answered == UnknownGitHubResponse(
+        reason=f"gh api repos/{REPOSITORY}/labels?per_page=100: failed with status 1"
+    )
 
 
 def test_a_read_gh_answers_strangely_is_unknown_too(fake):
@@ -730,4 +762,6 @@ def test_a_read_gh_answers_strangely_is_unknown_too(fake):
     answered = list_issues(repository=REPOSITORY, label="dream:smith", assignee="@me")
 
     assert isinstance(answered, UnknownGitHubResponse)
-    assert "cannot read" in answered.reason
+    assert answered.reason.startswith(
+        "gh issue list answered what dreamcatcher cannot read: "
+    )

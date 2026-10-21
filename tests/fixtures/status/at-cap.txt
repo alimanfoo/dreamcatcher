@@ -1,11 +1,14 @@
 alimanfoo/dreamcatcher
 
 instance
-  daemon              running · dreamcatcher v3.0.0.beta1 · pid 4242         
-  preferred harness   claude                                                 
-  next update in      0s                                                     
-  agent capacity      1 of 1 working                                         
-  scheduler failures  could not list issues for dream:less: could not connect
+  daemon              running · dreamcatcher v3.0.0.beta1 · pid 4242                                
+  preferred harness   claude                                                                        
+  next update in      0s                                                                            
+  agent capacity      1 of 1 working                                                                
+  scheduler failures  -  could not list issues for dream:smith: gh issue list: Post                 
+                         "https://api.github.com/graphql": unexpected EOF                           
+                      -  could not list issues for dream:less: gh issue list: Post                  
+                         "https://api.github.com/graphql": net/http: TLS handshake timeout          
 
 assignments
   GH13-20260819-184158-assignment  working  round 1, start, running 1h 30m, last output 1h 29m ago
