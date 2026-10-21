@@ -51,6 +51,10 @@ the change.
 - On Windows, a harness that cannot be started safely now errors its
   round and never runs.
   ([#625](https://github.com/alimanfoo/dreamcatcher/pull/625))
+- On a narrow web home page, a long status now moves below the issue's
+  title and wraps within the row, instead of squeezing the title into a
+  column of single characters.
+  ([#624](https://github.com/alimanfoo/dreamcatcher/pull/624))
 
 ## [v6.2.0](https://github.com/alimanfoo/dreamcatcher/releases/tag/v6.2.0) — 2026-10-20
 
