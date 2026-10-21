@@ -50,6 +50,14 @@ the change.
   kind at the issue, with each one's identifier, dispatch label and
   status, and stay on the work they opened on when newer work arrives.
   ([#628](https://github.com/alimanfoo/dreamcatcher/pull/628))
+- The upgrade instructions now say to stop every standalone view, such
+  as `dreamcatcher web` or a refreshing `status`, before you install a
+  release with a different state format, and to start the views again
+  from the new installation. A view left running from the old format may
+  show stale status. Upgrades that keep the state format need no such
+  step. See
+  [Restart views across state formats](compatibility.md#restart-views-across-state-formats).
+  ([#639](https://github.com/alimanfoo/dreamcatcher/pull/639))
 
 ### Fixed
 
