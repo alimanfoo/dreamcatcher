@@ -90,15 +90,15 @@ The snapshot contains presentation context and the small set of facts
 used for notification. Comparison matches children by issue number, so
 incidental list order is not a change.
 
-| Fact                                                                                        | Purpose                                                                                                      |
-| ------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
-| The child issue's number, title and state identify it and describe its progress.            | Membership and issue-state changes can require coordination.                                                 |
-| The latest assignment identifier and pull-request reference locate its work.                | Replacement assignments remain distinguishable when round numbering restarts.                                |
-| The last round that took its turn identifies its latest handback.                           | Successful and stopped rounds count; errored and interrupted rounds do not.                                  |
-| Whether the child is settled records whether it has a round running or due.                 | A transition to settled remains visible even if the lead received an intervening snapshot while it was busy. |
-| The pull request's state, draft flag and observed head describe the reviewed work.          | Changes can require review or a different response to the stage.                                             |
-| The check result and whether any checks are still running describe the checks at that head. | A failing aggregate alone cannot show when the final check finishes.                                         |
-| The assignment's ending and fault describe termination or a need for intervention.          | These are local facts and remain available when no pull-request inspection runs.                             |
+| Fact                                                                                             | Purpose                                                                                                      |
+| ------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------ |
+| The child issue's number, title and state identify it and describe its progress.                 | Membership and issue-state changes can require coordination.                                                 |
+| The latest assignment identifier and pull-request reference locate its work.                     | Replacement assignments remain distinguishable when round numbering restarts.                                |
+| The last round that took its turn identifies its latest handback.                                | Successful and stopped rounds count; errored and interrupted rounds do not.                                  |
+| Whether the child is settled records whether it has a round running or due.                      | A transition to settled remains visible even if the lead received an intervening snapshot while it was busy. |
+| The pull request's state, draft flag, merge status and observed head describe the reviewed work. | Changes can require review or a different response to the stage.                                             |
+| The check result and whether any checks are still running describe the checks at that head.      | A failing aggregate alone cannot show when the final check finishes.                                         |
+| The assignment's ending and fault describe termination or a need for intervention.               | These are local facts and remain available when no pull-request inspection runs.                             |
 
 A startable assignment request counts as work due even before the work
 record exists. An ended assignment has no new round due, though a
@@ -109,10 +109,17 @@ wait for.
 Use the existing assignment inspection's observations. Extend its
 `PullRequestFinding` to retain the observed head and whether any checks
 are running, calculated from the individual checks already read. Do not
-query a pull request again just for campaign inspection. When fault or
-ending means no fresh inspection exists, retain the reference and
-available local facts without pretending to have current checks. The
-lead can read GitHub itself.
+query a pull request again just for campaign inspection. Reuse the merge
+status that the inspection already retains. When fault or ending means
+no fresh inspection exists, retain the reference and available local
+facts without pretending to have current checks. The lead can read
+GitHub itself.
+
+Cancellation notifies the lead once the child's running round has
+stopped. The lead can investigate and ask the user on the parent how to
+proceed. Do not continue monitoring the cancelled assignment's pull
+request; subsequent parent comments and child issue closure remain
+observable.
 
 ### Comparing snapshots and producing notifications
 
@@ -125,14 +132,40 @@ Each update compares that snapshot with the current observation and
 selects the notifiable differences. No notification object waits between
 updates. Only a round that actually starts records a new input.
 
-| Difference                                                  | When it is notifiable                                                                                                             |
-| ----------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| A child was added or removed.                               | Notify independently of whether other children are working.                                                                       |
-| A child issue was closed or reopened.                       | Notify when that child has no assignment round running or due.                                                                    |
-| An assignment has handed back.                              | Notify when the child is settled and its assignment, finished turn or settled state differs from the previous snapshot.           |
-| A pull request's readiness, head or terminal state changed. | Notify when the child is settled and the observation is known.                                                                    |
-| Checks finished, or a finished check result changed.        | Notify when the child is settled and its known checks have no run still pending. Compare the head, result and running-check flag. |
-| An assignment ended or entered fault.                       | Notify once it has no running round; ordinary inspection supplies no further round while it is ended or in fault.                 |
+#### Notification types
+
+A notification identifies a change that may require the lead to act.
+Child notifications come from the snapshot comparison; parent comments
+come from the existing comment relay. These names describe the reasons
+shown to the lead, without introducing another delivery mechanism.
+
+| Name                          | Change and notification rule                                                                                                                                                                                                                          |
+| ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Parent comment                | A new eligible comment arrives on the parent. Child activity does not defer it.                                                                                                                                                                       |
+| Child membership change       | A child was added or removed. Notify independently of whether other children are working.                                                                                                                                                             |
+| Child issue state change      | A child issue was closed or reopened. Notify when that child has no assignment round running or due.                                                                                                                                                  |
+| Assignment handback           | The child is settled and its assignment, finished turn or settled state differs from the previous snapshot.                                                                                                                                           |
+| Pull-request change           | The pull request's draft flag, head or open/closed/merged state changed. Notify when the child is settled and the observation is known.                                                                                                               |
+| Check completion              | Checks finished, or a finished result changed. Notify when the child is settled and its known checks have no run still pending. Compare the head, result and running-check flag.                                                                      |
+| Pull request became mergeable | The previous snapshot's merge status was outside `CLEAN`, `HAS_HOOKS` and `UNSTABLE`, and the current status is in that set. Notify when the child is settled, even if its head and checks have not changed. The lead still decides whether to merge. |
+| Assignment ending             | The assignment ended. Notify once it has no running round.                                                                                                                                                                                            |
+| Assignment fault              | The assignment entered fault. Notify once it has no running round.                                                                                                                                                                                    |
+
+The types can overlap. One observation can report a merged pull request,
+a closed child issue and an ended assignment. Those are different facts
+in one input, not a reason to launch three rounds. Each child
+notification identifies the affected child and the relevant changed
+facts. The whole current snapshot accompanies them.
+
+Moving between `CLEAN`, `HAS_HOOKS` and `UNSTABLE` does not itself
+notify again. Changed check results have their own notification. These
+states follow GitHub's meaning of mergeable; they do not replace the
+lead's review or the repository's merge restrictions.
+
+Starting a campaign and recovering an unfinished lead round are also
+reasons to run the lead, but neither requires a notification. All launch
+reasons remain subject to the campaign's eligibility, fault, read,
+capacity and cooldown rules.
 
 The assignment identifier appearing for the first time does not itself
 generate a notification while work is running or due. Feed output,
@@ -141,15 +174,173 @@ lead. A change back to the previously delivered facts needs no separate
 event history.
 
 For example, the lead can receive a snapshot while a child is still
-working on round 4. When it later settles, the settled flag changes and
-makes that handback visible, even though the round number was already
-observed. If round 3 finished but round 4 was immediately due, round 3
-needed no separate notification.
+working on round 4. When it later settles, the finished turn and settled
+flag make that handback visible. If round 3 finished but round 4 was
+immediately due, round 3 needed no separate notification.
 
 Several differences produce one batch. The lead sees current facts and
 their relevant differences, not a replay of every intermediate state.
 Changes after the launching update's observations remain available to
 later comparisons.
+
+#### Example from assignment work to merge
+
+Checks finishing and GitHub resolving mergeability can be observed in
+separate updates. This example chooses checks finishing first. It
+assumes the lead finishes each round before the next change is observed,
+and no pause, fault or capacity limit prevents launch.
+
+| Step | Observed change                                                                                                        | Lead notification and possible response                                                                                                                                   |
+| ---- | ---------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1    | The child agent is working on a draft pull request.                                                                    | There is no notification.                                                                                                                                                 |
+| 2    | The agent pushes changes and marks the pull request ready. Checks run while the agent continues working.               | There is no notification while the child is working.                                                                                                                      |
+| 3    | The child finishes its turn and has no further round due. Checks still run and merge status is `UNKNOWN`.              | Assignment handback wakes the lead. It can review the work, then end its turn while waiting. Other notifiable differences from the previous input accompany the handback. |
+| 4    | All checks finish and pass. Merge status remains `UNKNOWN`.                                                            | Check completion wakes the lead. It sees the successful result but may still need to wait before merging.                                                                 |
+| 5    | Merge status changes from `UNKNOWN` to `CLEAN`. The commit and check results are unchanged.                            | Pull request became mergeable wakes the lead. It can finish its assessment and merge.                                                                                     |
+| 6    | The lead merges the pull request. The child issue closes, and the child assignment has a wrap-up round running or due. | The affected child's notifications wait until it settles.                                                                                                                 |
+| 7    | The child finishes wrapping up and its assignment ends.                                                                | Assignment ending and child issue state change notify the lead. The input includes the current picture of the other children.                                             |
+
+If steps 4 and 5 are both observed before the next lead round starts,
+that input contains both reasons. They do not require separate rounds.
+If checks fail and ordinary assignment handling makes another child
+round due, the lead waits for the child to settle or enter fault.
+
+GitHub's
+[merge-status definitions](https://docs.github.com/en/enterprise-cloud%40latest/graphql/reference/pulls#mergestatestatus)
+distinguish mergeability from passing checks: `UNSTABLE` is mergeable
+with non-passing status, while `CLEAN` includes passing status. GitHub
+can also
+[calculate mergeability in the background](https://docs.github.com/en/rest/pulls/pulls#get-a-pull-request).
+The example illustrates separate observations, not a fixed GitHub
+lifecycle that every pull request must follow.
+
+#### Example with a CI repair round
+
+This example starts with an open, non-draft pull request. The first
+child turn has finished, checks are still running, and the lead has
+already received the handback. Ordinary assignment inspection runs
+before campaign inspection, so a due repair round makes the child
+unsettled even before that round can obtain capacity.
+
+| Step | Observed change                                                                                                   | Lead notification and possible response                                                                                                         |
+| ---- | ----------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1    | A check fails. Assignment inspection finds a new check-failure signal and makes a repair round due.               | The failure does not notify the lead because the child has work due. This also applies if other checks are still running.                       |
+| 2    | The child agent starts the repair round.                                                                          | Starting the round produces no notification.                                                                                                    |
+| 3    | The agent fixes the failure and pushes a new commit. Checks run on that commit while the agent continues working. | The changed head does not notify the lead while the child is working.                                                                           |
+| 4    | The repair turn finishes, and no further child round is due. Checks still run.                                    | Assignment handback and pull-request change notify the lead together. It can review the revised work and end its turn while waiting for checks. |
+| 5    | Checks finish and pass. Merge status remains `UNKNOWN`.                                                           | Check completion notifies the lead.                                                                                                             |
+| 6    | Merge status becomes `CLEAN` with no further commit or check change.                                              | Pull request became mergeable notifies the lead. It can finish its assessment and merge.                                                        |
+| 7    | The merged child's wrap-up finishes and its assignment ends.                                                      | Assignment ending and child issue state change notify the lead, as in the preceding example.                                                    |
+
+The intermediate failure is not queued for later delivery. At handback,
+the lead receives the current snapshot and its notifiable differences
+from the previous delivered input. If checks have already passed when
+the repair turn finishes, the handback, changed head and check
+completion can accompany the same lead round.
+
+If another repair round is immediately due, there is no intervening
+handback notification. Existing assignment rules limit automatic
+check-failure follow-ups to two consecutive attempts. If that limit
+withholds another failure signal, the child can settle with failing
+checks and notify the lead of its handback and current result. Failing
+CI alone does not put an assignment in fault; fault follows the existing
+rules for errored agent rounds.
+
+#### Example with lead-requested changes
+
+The lead is reviewing a settled child after receiving its handback.
+Feedback on the child's pull request uses the existing assignment relay.
+
+| Step | Observed change                                                                                                      | Lead notification and possible response                                                                                          |
+| ---- | -------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| 1    | The lead finds a missing proof or asks a question. It comments on the child's pull request without the agent marker. | Posting feedback creates no separate lead notification.                                                                          |
+| 2    | Ordinary assignment inspection reads the eligible comment and makes a child round due.                               | The child is no longer settled, so this does not notify the lead.                                                                |
+| 3    | The child starts its response round. The lead ends its own turn while waiting.                                       | Starting the child round produces no notification. The child can start before the lead's current round ends if capacity permits. |
+| 4    | The child makes corrections, pushes a commit and answers on the pull request.                                        | No child notification wakes the lead while that child round is running.                                                          |
+| 5    | The child finishes its response turn and no further round is due.                                                    | Assignment handback notifies the lead. A changed head and any other notifiable differences accompany it in the same input.       |
+| 6    | The lead reads the response and checks the proof against the current work.                                           | It can accept the correction, ask for another change or wait for checks and mergeability. Those follow the preceding examples.   |
+
+A response that explains the existing work without changing code still
+produces a handback: the finished turn differs from the previous lead
+input. If the child finishes while the lead's earlier round is still
+running, the shared runner prevents a second simultaneous lead round;
+the next comparison can still find that handback. No separate
+notification for the child's reply text is needed, because the lead can
+read the pull request when it receives the handback.
+
+#### Example with a parent comment during child work
+
+A parent comment can start a lead round while a child is working. That
+round receives the full current picture, including the child's unsettled
+state. The later handback must remain visible even when the
+parent-comment round has already shown the lead the child's latest
+commit.
+
+| Step | Observed change                                                                      | Lead notification and comparison                                                                                          |
+| ---- | ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------- |
+| 1    | The child is working on another round.                                               | Starting that round does not notify the lead.                                                                             |
+| 2    | The user posts an eligible parent comment.                                           | Parent comment wakes the lead. Its input records that the child is unsettled and identifies the last finished child turn. |
+| 3    | The lead answers the parent comment and finishes while the child keeps working.      | This delivered input becomes the comparison point. It records no handback for the running child turn.                     |
+| 4    | The child finishes its turn, with no further round due and no further commit change. | Assignment handback notifies the lead because the finished turn and settled state differ from the parent-comment input.   |
+| 5    | The lead receives that handback and the current snapshot.                            | Further unchanged observations produce no notification.                                                                   |
+
+If the child finishes while the parent-comment round is still running,
+the next lead round waits for that round to finish. Its comparison still
+uses the snapshot that was delivered, which recorded the child as
+unsettled. There is no queued handback to consume prematurely: the
+handback becomes notifiable when the child settles.
+
+#### Example with interruption after a merge
+
+The lead can complete a GitHub action before its round is interrupted.
+Recovery follows the existing session and delivery rules; replaying
+input does not mean repeating completed actions.
+
+| Step | Observed change                                                                                    | Lead scheduling and response                                                                                                                                                             |
+| ---- | -------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1    | A lead round reviews a settled child and successfully merges its pull request.                     | The merge is an action within that lead round.                                                                                                                                           |
+| 2    | The lead round is interrupted before it finishes.                                                  | Its input does not advance delivery. The successful merge remains in GitHub.                                                                                                             |
+| 3    | On recovery, ordinary inspection sees the merged child and may make its wrap-up round due.         | The unfinished lead round independently makes recovery due, even if the child is unsettled and produces no notification. Campaign eligibility, reads, capacity and cooldown still apply. |
+| 4    | The lead resumes its saved harness session with fresh observations and an unfinished-round prompt. | It retains the earlier session's actions. If the merge outcome is uncertain, it checks GitHub before acting. It continues from the current state rather than issuing the merge again.    |
+| 5    | The recovery round finishes.                                                                       | Its input becomes the comparison point for later child notifications and parent comments.                                                                                                |
+
+The recovery input compares current facts with the previous delivered
+input, excluding the interrupted attempt. Some highlighted differences
+may therefore concern work the resumed lead already handled. The lead's
+session and current GitHub state establish which actions remain. No new
+notification type or separate action journal is required.
+
+Changes that occur after the interrupted round starts and before
+recovery starts are included in that same comparison. For example, if
+another child hands back and a new child is added during that interval,
+the recovery input reports both changes. Every lead round receives the
+current snapshot and its notifiable differences from the previous
+delivered snapshot. Recovery additionally asks the lead to finish any
+unfinished work from the preceding attempt. The first round has no
+previous snapshot and receives the initial picture.
+
+#### Example with changes while the lead cannot start
+
+Pausing the lead and exhausting capacity both prevent a new input from
+being delivered. Each update still gathers the current campaign picture
+and compares it with the last delivered input. This example pauses an
+idle lead whose previous input showed child A working and child C open.
+
+| Step | Observed change                                                                   | Lead scheduling and notifications                                                                                                                                         |
+| ---- | --------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1    | The user removes the campaign label.                                              | No new lead round can start. The previous input remains the comparison point.                                                                                             |
+| 2    | Child A finishes its turn, then its checks pass and merge status becomes `CLEAN`. | Those facts are visible in current observations, but no lead input is delivered while paused. Child assignments continue under their ordinary rules.                      |
+| 3    | The user adds child B.                                                            | The current child list includes B. The comparison point still does not advance.                                                                                           |
+| 4    | Child C closes and then reopens before any lead round starts.                     | Its current state again agrees with the previous input, so that temporary change produces no issue-state notification.                                                    |
+| 5    | The user restores the campaign label and capacity is available.                   | One lead round receives the current snapshot, A's handback, check completion and mergeability changes, and B's addition. Any other notifiable differences accompany them. |
+
+Capacity delays work the same way. An observation that finds no free
+slot does not freeze a future input or advance delivery. The update that
+launches the round supplies the snapshot and notifications. No replay of
+temporary states is required. If the current facts have returned to the
+previous delivered picture and no other launch reason remains, no lead
+round is due merely because the label was restored or capacity became
+available.
 
 ### Parent comments and round input
 

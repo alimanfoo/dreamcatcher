@@ -63,12 +63,12 @@ can unblock the next stage while the lead remains paused.
 
 The lead hears about my parent comments, children being added or
 removed, stage agents handing back for review or questions, checks
-finishing after their turns, stages ending, and repeated round failures.
-My posts on a child's pull request reach it through the stage agent's
-response. A notification should mean there may be work or a decision for
-the lead. An assignment starting is information only and does not wake
-it. It need not wake while that agent is working or merely because main
-moved.
+finishing after their turns, pull requests becoming mergeable, stages
+ending, and repeated round failures. My posts on a child's pull request
+reach it through the stage agent's response. A notification should mean
+there may be work or a decision for the lead. An assignment starting is
+information only and does not wake it. It need not wake while that agent
+is working or merely because main moved.
 
 When a child assignment is in fault, the lead investigates. If it finds
 an obvious solution that the stage agent can carry out, it puts
