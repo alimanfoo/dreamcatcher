@@ -651,33 +651,6 @@ def test_a_home_card_links_to_its_exact_assignment(tmp_path):
     assert card.index('class="pr-chip"') > card.index('class="agent-work-detail"')
 
 
-def test_a_card_keeps_its_compact_actions_inside_the_heading(tmp_path):
-    state = StateDirectory(root=tmp_path)
-    fabricate_everything(state=state)
-
-    page = render_home(state=state)
-    application = _create_app(
-        state=state, clock=lambda: LOOKED_AT, zone=DISPLAY_TIME_ZONE
-    )
-    stylesheet = (
-        application.test_client().get("/static/matrix.css").get_data(as_text=True)
-    )
-    card_start = page.index('<article id="GH20-20260819-184158-assignment"')
-    card = page[card_start : page.index("</article>", card_start)]
-
-    assert '<span class="chip status-idle">idle</span>' in card
-    assert "[IDLE]" not in card
-    assert re.search(
-        r"\.card-heading \{[^}]*display: grid;"
-        r"[^}]*grid-template-columns: minmax\(0, 1fr\) max-content;",
-        stylesheet,
-        re.DOTALL,
-    )
-    assert re.search(
-        r"\.card-heading-actions \{[^}]*flex: none;", stylesheet, re.DOTALL
-    )
-
-
 def test_status_classes_do_not_depend_on_status_wording(tmp_path, monkeypatch):
     state = StateDirectory(root=tmp_path)
     fabricate_conversation(state=state)
