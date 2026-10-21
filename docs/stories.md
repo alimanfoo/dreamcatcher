@@ -708,16 +708,46 @@ update gives it the same comments again.
 
 ### A local write fails
 
-The disk is full or a folder is unwritable. A write that fails while a
-round is being prepared errors the round with the reason. One that fails
-before a round has started shows among the scheduler failures instead,
-without counting towards a fault. Either way the work is tried again at
-the next update. If the daemon cannot write its own record of the
-update, it stops and says so, ending its rounds, because it has no way
-left to report anything; the user frees the disk and starts it again. No
-more than that is handled, and that is accepted, because a disk that
-will not write is the user's to fix, and nothing _dreamcatcher_ holds is
-the only copy of anything.
+The disk is full or a folder is unwritable. A write that fails once a
+round is recorded, while it is prepared or its harness starts, errors
+the round with the reason. One that fails before the round is recorded
+shows among the scheduler failures instead, without counting towards a
+fault. A write that fails while the daemon looks over existing work,
+such as recording that a conversation has ended, fails the whole update,
+as a damaged record does in the next story. In each case the work is
+tried again at the next update. If the daemon cannot write its own
+record of the update, it stops and says so, ending its rounds, because
+it has no way left to report anything; the user frees the disk and
+starts it again. No more than that is handled, and that is accepted,
+because a disk that will not write is the user's to fix, and nothing
+_dreamcatcher_ holds is the only copy of anything.
+
+### A local record cannot be read
+
+A file under `.dreamcatcher/` that an update cannot do without, such as
+a work record or a round record, is damaged and no longer reads back. At
+its next update the daemon prints that the update failed, with the file
+and what is wrong with it. That update starts no rounds and leaves the
+record of the last complete update in place. Rounds already running
+carry on. Each later update tries again and fails the same way until the
+user repairs the file or restores it. A damaged record found while the
+daemon starts stops it starting, with the same message, and the user
+repairs or restores the file before starting it again.
+
+The status report can fail the same way. When a record or feed it needs
+will not read, `dreamcatcher status` and a freshly opened page that
+needs it show only the file and what is wrong with it. A page that is
+already open keeps what it last showed, as the next story tells.
+
+This is accepted. One damaged file holds up every piece of work, not
+just its own, and nothing sets it aside so that the rest can go on or
+the rest of the status can show. Such damage should be rare, and a clear
+report the user acts on is simpler than machinery that works around it.
+Some failures still belong to one piece of work and show on its row, as
+when a read from GitHub fails, or when a conversation cannot read its
+cursor. The daemon's own record of the last update fares worse. When it
+cannot be read or written, the daemon stops, because every update builds
+on that record.
 
 ### A page cannot read what it shows
 
