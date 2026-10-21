@@ -81,7 +81,6 @@
 
 .md-typeset .dch-ui {
   --dch-sky: var(--sky-background);
-  --dch-working: var(--working);
   --dch-daemon: var(--daemon-running);
 
   display: block;
@@ -277,14 +276,6 @@
   text-align: right;
   color: var(--dim);
   font-weight: 500;
-}
-
-.dch-working {
-  color: var(--dch-working);
-}
-
-.dch-quiet {
-  color: var(--dim);
 }
 
 /* A swap stacks every value a cell takes in one place, so the row never

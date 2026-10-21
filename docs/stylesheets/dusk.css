@@ -165,7 +165,7 @@ body[data-md-color-scheme="dusk"]::after {
       transparent 70%
     ),
     var(--dusk-sky);
-  --dch-working: #b3cba6;
+  --working: #b3cba6;
   --dch-daemon: #a9c7a3;
 
   box-shadow: 0 24px 60px -30px rgba(0, 0, 0, 0.7);
