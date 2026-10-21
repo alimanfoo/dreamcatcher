@@ -130,7 +130,7 @@ failure. An invalid scheduler record ends the daemon because retrying
 cannot repair the document, and so does a scheduler record that cannot
 be written, because the daemon then has no way to report anything.
 
-If a read for a request fails, the tick holds the reason in that
+If a GitHub read for a request fails, the tick holds the reason in that
 request's row and prevents only the launches that depend on what it
 would have read. A failed listing is a scheduler failure, because it
 belongs to no request, and it starts no work for the issues it would
