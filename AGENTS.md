@@ -157,8 +157,10 @@ uv run mkdocs serve
 
 ### Development workflow and fixtures
 
-- Run the tests and the checks before every commit. The commit hook runs
-  the checks, never the tests.
+- For documentation-only changes, run the relevant documentation checks
+  locally and leave the test suite to CI. For other changes, run the
+  tests and checks before every commit. The commit hook runs checks,
+  never tests.
 - Never commit with `--no-verify`. CI runs the same checks and fails the
   build.
 - Re-stage and commit again when a hook rewrites a file. The formatters
