@@ -413,15 +413,53 @@ existing-work-before-new-work ordering within each kind, and advance the
 cycle on a failed launch as today. Inspection order therefore does not
 give assignments strict launch priority over campaigns.
 
-Campaign round-input models, the previous-input reader, snapshot
-comparison and workspace preparation belong in a campaign module
-alongside `agent_assignments.py` and `issue_conversations.py`. Campaign
-eligibility and round composition belong in `scheduler/campaigns.py`.
+Campaign snapshot, notification and round-input models, the
+previous-input reader, snapshot comparison and workspace preparation
+belong in a campaign module alongside `agent_assignments.py` and
+`issue_conversations.py`. Campaign eligibility, snapshot assembly and
+round composition belong in `scheduler/campaigns.py`.
+
+The campaign inspector combines the parent's child list with the latest
+assignment records and ordinary inspection results. Ordinary assignment
+inspection remains the authority on whether another child round is due,
+before capacity is considered. Campaign inspection uses that result and
+whether a round is running to determine whether the child is settled; it
+does not repeat the assignment's scheduling rules. A failed read remains
+unknown and prevents an incomplete lead input, rather than counting as
+no work due.
+
+Snapshot comparison is a pure function of the current and previous
+delivered snapshots. It returns notifications without reading files,
+calling GitHub or launching work. The scheduler imports the campaign
+types; the campaign module does not import scheduler types or consume
+inspection candidates.
+
+The campaign inspector supplies an ordinary candidate when a round is
+due. Its composer produces the existing `RoundPlan`, including the
+preparation and input prompt. The shared scheduler applies capacity and
+scheduling order, then the existing runner prepares the workspace,
+records the input, starts or resumes the harness and records the
+outcome. The runner does not interpret child snapshots or notifications.
+Recovery uses the same handoff: campaign composition supplies fresh
+input, and shared prompt composition identifies the previous unfinished
+round.
+
 Keep GitHub reads in `github.py` and persisted scheduler observations in
 `scheduler/models.py`. Status consumes those observations through its
-existing read-only boundary. Generalise the existing issue pause checks
-for conversations and campaigns without adding a workflow framework or a
-new round runner.
+existing read-only boundary. The scheduler observation holds the latest
+campaign picture for the overview, including while the lead is paused.
+The round input holds the snapshot and notifications actually delivered
+to the lead and supplies the comparison point for later rounds. Both use
+the campaign module's snapshot type. Do not add a separate mutable
+last-snapshot file or notification queue.
+
+Keep separate conversation and campaign inspectors, sharing the small
+decision about whether the issue's labels and assignment permit new
+rounds. A paused conversation can stop reading further input; a paused
+campaign still needs current child membership for its overview. Both
+kinds reuse the detached-worktree refresh in `git.py`, while retaining
+their own input preparation and publication behaviour. No workflow
+framework or new round runner is required.
 
 Update the places that assume two kinds explicitly: configuration,
 setup, request inspection, scheduling alternation, prompt selection,
@@ -475,9 +513,13 @@ behaviours intact.
 
 Each open campaign's scheduler observation records its current child
 list, issue states and work references, alongside what explains its
-eligibility or pause. Continue gathering the overview while the lead is
-paused. The latest update, not the last lead input, feeds the live
-campaign display.
+eligibility or pause. While the lead is paused, continue reading the
+parent's child list and issue states to detect membership changes,
+include children without assignments and update the closed/total count.
+Reuse the ordinary assignment observations for child cards; do not read
+their pull requests again for this purpose. These reads keep the
+overview current, rather than preserving a notification history. The
+latest update, not the last lead input, feeds the live campaign display.
 
 Status derives the lead's ordinary work status and combines child
 membership with existing assignment and request statuses. Count closed
