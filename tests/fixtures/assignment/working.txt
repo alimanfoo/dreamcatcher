@@ -1,4 +1,4 @@
-newest agent assignment GH13-20260819-184158-assignment
+assignment GH13-20260819-184158-assignment
 working  round 2, 1 post, running 1h 30m, last output 1h 29m ago
   [Bash] pytest
 
