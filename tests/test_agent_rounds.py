@@ -1051,6 +1051,32 @@ def test_a_round_whose_preparation_fails_errors_with_its_reason(
     assert harness.calls == []
 
 
+def test_a_round_whose_harness_cannot_be_contained_errors_without_a_process(
+    fake, worktree, directory, monkeypatch
+):
+    fake(program="harness").streams(lines=[Line(text="working\n")], delay=5)
+    paths = compose_round_paths(worktree=worktree, directory=directory)
+
+    def refuse(*, pid: int) -> None:
+        raise OSError("Access is denied")
+
+    monkeypatch.setattr("dreamcatcher.commands.teardown.contain_process_tree", refuse)
+
+    with pytest.raises(AgentRoundLaunchError, match="Access is denied"):
+        AgentRound(
+            agent_work_identifier="GH9-20260819-184158",
+            harness=round_harness(),
+            paths=paths,
+            prepare_round=relay_nothing,
+            clock=pinned,
+        )
+
+    record = written(path=paths.record)
+    assert record.pid is None
+    assert isinstance(record.ending, LaunchErroredAgentRoundEnding)
+    assert record.ending.reason.endswith("Access is denied.")
+
+
 def test_a_round_whose_process_cannot_be_recorded_does_not_run_on(
     fake, worktree, directory, monkeypatch
 ):

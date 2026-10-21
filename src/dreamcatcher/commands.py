@@ -182,7 +182,8 @@ def spawn_command(
     A child named no file finds its stdin already at an end, so a harness
     waiting for the rest of a prompt waits no longer than that.
 
-    Raise CommandError when the operating system cannot start the child.
+    Raise CommandError when the operating system cannot start the child or
+    contain its process tree.
     """
     with ExitStack() as opening:
         stdin_stream = (
@@ -204,9 +205,9 @@ def spawn_command(
                 start_new_session=SHOULD_START_NEW_PROCESS_SESSION,
                 creationflags=CHILD_CREATION_FLAGS,
             )
+            _contain_or_end(process=process)
         except OSError as error:
             raise CommandError(f"cannot start {program} in {cwd}: {error}.") from error
-    teardown.contain_process_tree(pid=process.pid)
     # This asked for both pipes above, so both are there. subprocess types them
     # for every caller, including the ones that asked for neither.
     return ChildProcess(
@@ -214,6 +215,20 @@ def spawn_command(
         err=cast("IO[str]", process.stderr),
         process=process,
     )
+
+
+def _contain_or_end(*, process: subprocess.Popen[str]) -> None:
+    """Contain the child's process tree, or end the child and raise the failure.
+
+    A child that nothing contains must not run, so any failed containment kills
+    it, closes its pipes and waits for it before the failure goes on.
+    """
+    try:
+        teardown.contain_process_tree(pid=process.pid)
+    except BaseException:
+        with process:
+            process.kill()
+        raise
 
 
 def _open_for_reading(*, path: Path) -> IO[bytes]:
