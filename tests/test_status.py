@@ -11,6 +11,7 @@ from records import (
     hold_daemon_lock_for_test,
     read_assignments,
     write_assignment,
+    write_conversation,
     write_daemon_run,
     write_feed,
     write_round,
@@ -64,7 +65,7 @@ from dreamcatcher.status import (
     RequestStatus,
     StatusFact,
     read_agent_work_status,
-    read_assignment_statuses_for_issue,
+    read_agent_work_statuses_at_issue,
     read_dreamcatcher_daemon_status,
     read_status_report,
 )
@@ -1141,28 +1142,28 @@ def test_assignments_are_ordered_by_issue_with_the_newest_at_an_issue_first(stat
     ]
 
 
-def test_reading_one_issue_returns_only_its_assignments_newest_first(state):
-    write_assignment(
-        state=state,
-        identifier="GH13-20260820-090000-assignment",
-        issue=13,
-    )
-    write_assignment(
-        state=state,
-        identifier="GH9-20260819-184158-assignment",
-        issue=9,
-    )
+def test_reading_at_an_issue_puts_the_work_first_then_the_rest_of_its_kind(state):
+    for identifier, issue in (
+        ("GH13-20260818-090000-assignment", 13),
+        ("GH13-20260820-090000-assignment", 13),
+        ("GH9-20260819-184158-assignment", 9),
+    ):
+        write_assignment(state=state, identifier=identifier, issue=issue)
+    write_conversation(state=state, issue=13)
+    work = find_agent_work(state=state, identifier=ASSIGNMENT_ID)
+    assert work is not None
 
-    statuses = read_assignment_statuses_for_issue(
+    statuses = read_agent_work_statuses_at_issue(
         state=state,
-        issue=13,
+        work=work,
         daemon=read_dreamcatcher_daemon_status(state=state),
         clock=lambda: LOOKED_AT,
     )
 
     assert [status.work.identifier for status in statuses] == [
-        "GH13-20260820-090000-assignment",
         ASSIGNMENT_ID,
+        "GH13-20260820-090000-assignment",
+        "GH13-20260818-090000-assignment",
     ]
 
 

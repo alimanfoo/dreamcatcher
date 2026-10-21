@@ -79,7 +79,7 @@ from dreamcatcher.state import StateDirectory
 from dreamcatcher.status import (
     AgentWorkStatus,
     AgentWorkStatusValue,
-    read_conversation_status,
+    read_agent_work_status,
     read_dreamcatcher_daemon_status,
 )
 
@@ -339,13 +339,13 @@ def count_comment_reads(*, gh) -> int:
 
 def read_status(*, state: StateDirectory) -> AgentWorkStatus:
     """Return the status of the conversation at the issue the tests offer."""
-    found = read_conversation_status(
+    conversation = read_conversation(state=state, issue=8)
+    assert conversation is not None
+    return read_agent_work_status(
         state=state,
-        issue=8,
+        work=conversation,
         daemon=read_dreamcatcher_daemon_status(state=state),
     )
-    assert found is not None
-    return found
 
 
 def finish(*, scheduler: Scheduler) -> None:
