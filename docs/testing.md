@@ -50,7 +50,7 @@ Terminal and HTML views are compared as exact rendered text with files
 under `tests/fixtures/`. These goldens make intended presentation
 changes explicit and catch missing, reordered or unexpectedly escaped
 content. They do not by themselves prove browser layout or interaction.
-A separate browser test covers interaction in Chromium.
+Separate browser tests cover layout and interaction in Chromium.
 
 ## Separate test groups
 
