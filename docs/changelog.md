@@ -51,6 +51,12 @@ the change.
   status, and stay on the work they opened on when newer work arrives.
   ([#628](https://github.com/alimanfoo/dreamcatcher/pull/628))
 
+### Fixed
+
+- On Windows, a harness that cannot be started safely now errors its
+  round and never runs.
+  ([#625](https://github.com/alimanfoo/dreamcatcher/pull/625))
+
 ## [v6.2.0](https://github.com/alimanfoo/dreamcatcher/releases/tag/v6.2.0) — 2026-10-20
 
 ### Added
