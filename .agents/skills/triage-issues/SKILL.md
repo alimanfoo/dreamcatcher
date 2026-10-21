@@ -62,8 +62,7 @@ the agent guide. After triage, give an open issue one current outcome:
   before acceptance for implementation.
 - `ready-to-implement`: the maintainer has agreed to implementation, and
   the scope, expected behaviour and acceptance criteria are sufficiently
-  clear for an agent to proceed. This replaces the former `accepted`
-  label.
+  clear for an agent to proceed.
 
 Replace the previous outcome when the decision changes; do not leave
 conflicting outcomes on an issue. Apply an outcome only after triage.
@@ -78,14 +77,6 @@ the issue to the maintainer and apply the chosen `dream:*` label. Ask
 which skill only when it has not already been chosen; do not ask again
 for an action the maintainer has authorized. Preserve existing dispatch
 labels unless the maintainer requests a change.
-
-Use GitHub's native issue dependencies to record prerequisites, rather
-than maintaining a separate `blocked` label. An issue can have a clear
-implementation brief while a dependency still prevents it starting.
-Assignments and pull requests already show work in progress and review,
-so do not duplicate those states with labels. Add priority labels only
-when the maintainer will use them to choose work; do not introduce
-severity levels or a component taxonomy without a recurring need.
 
 ## Judgments
 
@@ -122,10 +113,9 @@ useful change.
 Explain the exact UI text and what it claims. Do not confuse the agent's
 activity with the freshness of the GitHub information.
 
-Establish what a row or card represents before changing its grouping or
-calling it a duplicate. Two dispatch labels can represent two requests;
-an existing assignment represents saved work and keeps its original
-label. Similar appearance alone does not establish duplication.
+Establish what each item represents before changing its grouping or
+treating it as a duplicate. Preserve distinctions that matter to the
+user; similar names or appearances do not establish duplication.
 
 UI information must earn its place. Available settings do not
 automatically belong on a screen. Preserve calm presentation, avoid
