@@ -255,8 +255,9 @@ A pull request is done when its author can say yes to each of these.
 
 1. It explains what it changes and why, and links any relevant issue or
    spec.
-2. The tests and every check pass, and no check was skipped or
-   suppressed.
+2. The tests and every required check pass, and none is suppressed or
+   bypassed. Documentation-only changes run the relevant documentation
+   checks locally and rely on CI for the test suite.
 3. Everything it adds meets S1 and S2, and nothing it exports is without
    a caller.
 4. Every word it introduces is in the ontology, or the ontology grew in

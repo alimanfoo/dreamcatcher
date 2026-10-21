@@ -63,7 +63,7 @@ source = "vcs"
 
 [tool.uncoded]
 source-roots = ["src", "tests", "tools"]
-doc-roots = ["README.md", "AGENTS.md", "docs", "specs"]
+doc-roots = ["README.md", "AGENTS.md", "docs"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
