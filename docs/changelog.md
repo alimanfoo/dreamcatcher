@@ -27,6 +27,14 @@ the change.
 
 ## Unreleased
 
+### Fixed
+
+- The animated status view on the documentation home page now shows the
+  statuses, round details and dispatch labels that the web home page
+  shows, rather than a "needs user feedback" status that the web page no
+  longer has.
+  ([#647](https://github.com/alimanfoo/dreamcatcher/pull/647))
+
 ## [v6.3.0](https://github.com/alimanfoo/dreamcatcher/releases/tag/v6.3.0) — 2026-10-21
 
 ### Added
@@ -83,11 +91,6 @@ the change.
   title and wraps within the row, instead of squeezing the title into a
   column of single characters.
   ([#624](https://github.com/alimanfoo/dreamcatcher/pull/624))
-- The animated status view on the documentation home page now shows the
-  statuses, round details and dispatch labels that the web home page
-  shows, rather than a "needs user feedback" status that the web page no
-  longer has.
-  ([#647](https://github.com/alimanfoo/dreamcatcher/pull/647))
 
 ## [v6.2.0](https://github.com/alimanfoo/dreamcatcher/releases/tag/v6.2.0) — 2026-10-20
 
