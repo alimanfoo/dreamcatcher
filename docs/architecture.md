@@ -122,10 +122,13 @@ fails, and begins afresh after a daemon restart.
 
 The daemon persists the returned `SchedulerRecord` and reports it in its
 output. A scheduler tick that fails before returning one is reported in
-daemon output and leaves the last complete scheduler record in place. An
-invalid scheduler record ends the daemon because retrying cannot repair
-the document, and so does a scheduler record that cannot be written,
-because the daemon then has no way to report anything.
+daemon output and leaves the last complete scheduler record in place. A
+local record that cannot be read, or a write that fails while open work
+is inspected, fails the tick this way whichever work it belongs to. A
+conversation's comment cursor is the exception, and its row holds the
+failure. An invalid scheduler record ends the daemon because retrying
+cannot repair the document, and so does a scheduler record that cannot
+be written, because the daemon then has no way to report anything.
 
 If a read for a request fails, the tick holds the reason in that
 request's row and prevents only the launches that depend on what it
