@@ -407,6 +407,31 @@ campaigns second, passing the ordinary observations and the latest
 assignments by issue. The campaign pass does not consume status reports
 or invoke the child agents.
 
+The diagram shows the child-observation path. Arrows represent data
+flow. Parent comments and recovery can also make a lead round due,
+through the same campaign inspector and shared scheduler.
+
+```mermaid
+flowchart TB
+    children["GitHub child list<br/>and issue states"] --> snapshot
+    assignments["Assignment records<br/>and inspection results"] --> snapshot
+    snapshot["Campaign inspector<br/>assembles current snapshot"] --> observed
+    observed[("Latest scheduler observation")] --> overview["Status and web overview"]
+
+    snapshot --> comparison["Campaign comparison<br/>pure function"]
+    inputs[("Recorded lead-round inputs")] -->|Previous delivered snapshot| comparison
+    comparison -->|Child notifications| candidate
+    snapshot -->|Current snapshot| candidate
+    candidate["Campaign inspector<br/>eligibility and round candidate"] --> scheduling
+    scheduling["Shared scheduler<br/>capacity and fair order"] --> runner["Shared round runner"]
+    runner -->|Saves snapshot and notifications| inputs
+```
+
+The overview reads the latest observation even while the lead is paused.
+Comparison reads the previous delivered round input, selected by the
+campaign's input reader. The two records use the same snapshot type but
+serve different purposes.
+
 Launch after inspection, using a cycle of assignment, conversation and
 campaign. Skip kinds with no candidate. Preserve
 existing-work-before-new-work ordering within each kind, and advance the
