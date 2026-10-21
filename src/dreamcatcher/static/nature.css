@@ -341,6 +341,7 @@ body::after {
 .latest-output > span::before,
 .round-outcome::before {
   display: inline-block;
+  flex: none;
   width: 7px;
   height: 7px;
   background: currentcolor;
