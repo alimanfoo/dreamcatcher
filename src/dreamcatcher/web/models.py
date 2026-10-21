@@ -182,4 +182,5 @@ class WebHomeView:
     github_repository_url: str | None
     daemon: DreamcatcherDaemonStatus
     instance_facts: tuple[StatusFact, ...]
+    scheduler_failures: tuple[str, ...]
     sections: tuple[WebAgentWorkSection, ...]
