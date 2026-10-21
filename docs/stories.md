@@ -93,7 +93,8 @@ order they like, and the exchanges on different pull requests overlap
 freely.
 
 With several assignments in flight, GitHub shows each pull request but
-not the whole. The home page does: every labelled issue is a row, saying
+not the whole. The home page does. Every assignment is a row, and so is
+every assignment label whose work has not started yet. Each row says
 whether its work is still to start, working, idle with a pull request
 ready for review, or ended, and an assignment's page shows what its
 agent is doing as it works. The user can see at a glance which
@@ -376,20 +377,21 @@ the repository, so the next person to use it needs only `init` and
 The user labelled a handful of issues in the morning and has been in
 meetings since. Now they want to know what needs them, without opening
 every pull request to find out. So they open the home page, or run
-`dreamcatcher status` if they are already in a terminal. Every issue
-they have labelled has a row, one for each kind of work asked of it.
-Assignments and conversations each have a section, and within each the
-rows come in the order that deserves attention: anything in fault first,
-then what is working, then what is waiting for its turn, then what is
-idle, then anything the last update could not read, and after all of
-those the issues where nothing has started yet. Each row says why it is
-where it is. This pull request is ready for review. That one is still a
-draft, so the agent has probably asked something. This issue has not
-started because another pull request already claims it. The pull
-requests the user needs to read are a click away, and ended work is
-folded under a collapsed list, so the page shows only what is live. The
-terminal gives the same rows, with a count of ended work in place of the
-list.
+`dreamcatcher status` if they are already in a terminal. Every
+assignment and every conversation has a row. So does every dispatch
+label that no work answers yet, and that row stands for the label until
+work starts for it. Assignments and conversations each have a section,
+and within each the rows come in the order that deserves attention:
+anything in fault first, then what is working, then what is waiting for
+its turn, then what is idle, then anything the last update could not
+read, and after all of those the labels where nothing has started yet.
+Each row says why it is where it is. This pull request is ready for
+review. That one is still a draft, so the agent has probably asked
+something. This issue has not started because another pull request
+already claims it. The pull requests the user needs to read are a click
+away, and ended work is folded under a collapsed list, so the page shows
+only what is live. The terminal gives the same rows, with a count of
+ended work in place of the list.
 
 Both show the daemon's last update, and keep showing it after the daemon
 stops, so the user can still see where things stood.
@@ -522,13 +524,29 @@ checkout.
 ### Two labels of one kind on one issue
 
 The user puts two assignment labels on an issue, or two conversation
-labels, perhaps to try both recipes. That is a routing conflict: the
-request rows say so and name the labels, and nothing of that kind starts
-while both are there. A conversation that is running finishes its round
-and then pauses. The user needs to take one of the two labels off the
-issue, and the one that stays decides the recipe. An assignment that
-already exists carries on regardless, and its row says nothing of the
-conflict.
+labels, perhaps to try both recipes. That is a routing conflict. Until
+work exists to answer a label, its row stands for that label, so the two
+labels show as two request rows. Each says there is a conflict and names
+both labels, and nothing of that kind starts while both are there. The
+user needs to take one of the two labels off the issue, and the one that
+stays decides the recipe.
+
+Once an assignment exists, its row stands for that assignment, which
+keeps the label it started with. While the assignment is open, adding or
+removing assignment labels on its issue changes nothing. Its label stays
+as it was, its row says nothing of the conflict, and no further
+assignment request row appears. If the assignment ends while the issue
+stays open, the next update reads the issue's labels afresh, and two
+assignment labels then show as a conflict as before.
+
+A conversation answers only its own label. With two conversation labels,
+the user may see two request rows, a conversation and a request row, or
+two conversations, depending on which labels already have one. The
+conflict stops new rounds. A conversation with a round running finishes
+that round, and then pauses until the other label comes off.
+
+One assignment label and one conversation label on the same issue are
+not a conflict, and each can start its own work.
 
 ### A label without an assignee
 
