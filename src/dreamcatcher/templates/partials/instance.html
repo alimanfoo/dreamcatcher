@@ -7,4 +7,14 @@
       </div>
     {% endfor %}
   </dl>
+  {% if view.scheduler_failures %}
+    <section class="scheduler-failures" aria-labelledby="scheduler-failures-heading">
+      <h1 id="scheduler-failures-heading">scheduler failures</h1>
+      <ul>
+        {% for failure in view.scheduler_failures %}
+          <li>{{ failure }}</li>
+        {% endfor %}
+      </ul>
+    </section>
+  {% endif %}
 </section>

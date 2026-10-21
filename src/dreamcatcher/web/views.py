@@ -60,6 +60,7 @@ def compose_home_view(*, report: DreamcatcherStatusReport) -> WebHomeView:
         ),
         daemon=daemon,
         instance_facts=report.instance_facts,
+        scheduler_failures=report.scheduler_failures,
         sections=tuple(
             section
             for kind in AgentWorkKind
