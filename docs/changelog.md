@@ -27,6 +27,8 @@ the change.
 
 ## Unreleased
 
+## [v6.3.0](https://github.com/alimanfoo/dreamcatcher/releases/tag/v6.3.0) — 2026-10-21
+
 ### Added
 
 - `assignment`, `conversation`, `feed` and `stop` accept an agent work
@@ -58,6 +60,19 @@ the change.
   step. See
   [Restart views across state formats](compatibility.md#restart-views-across-state-formats).
   ([#639](https://github.com/alimanfoo/dreamcatcher/pull/639))
+- Looking up the work at one issue now reads only matching work
+  directories, without opening unrelated records.
+  ([#640](https://github.com/alimanfoo/dreamcatcher/pull/640))
+- The user stories clarify how request cards relate to saved work and
+  which local-state failures need user repair. They also record that
+  authorization to start work on another user's instance remains an open
+  question, rather than an endorsed workflow.
+  ([#627](https://github.com/alimanfoo/dreamcatcher/pull/627),
+  [#632](https://github.com/alimanfoo/dreamcatcher/pull/632),
+  [#634](https://github.com/alimanfoo/dreamcatcher/pull/634))
+- The README now directs ideas, suggestions and questions to GitHub
+  Discussions, alongside the documentation link.
+  ([#642](https://github.com/alimanfoo/dreamcatcher/pull/642))
 
 ### Fixed
 

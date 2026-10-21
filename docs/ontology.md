@@ -493,10 +493,13 @@ While both kinds have candidates, they take turns for each free agent
 slot; when only one kind has any, it goes on alone. A launch that fails
 takes no slot.
 
-A failed read prevents only the launches that depend on it. A failed
-listing for a dispatch label starts no work for the issues it would have
-listed, but open work reads its own channel, so the listing does not
-affect it.
+A failed read from GitHub prevents only the launches that depend on it.
+A failed listing for a dispatch label starts no work for the issues it
+would have listed, but open work reads its own channel, so the listing
+does not affect it. A local record that cannot be read can instead fail
+the whole tick, as
+[the story about an unreadable local record](stories.md#a-local-record-cannot-be-read)
+describes.
 
 ### Fault and global cooldown
 
