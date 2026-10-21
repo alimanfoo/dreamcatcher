@@ -41,12 +41,42 @@ you can, rather than standing back and waiting for me to direct routine
 next steps. My questions should refine the decision rather than uncover
 missing groundwork.
 
-After resolving an issue and accepting is as something to be worked on,
-assign it to me and add an assignment label for dispatch via
-dreamcatcher, ask me which. Then move automatically to the next issue.
+After recording the outcome for an issue, move automatically to the next
+one unless the maintainer asks to pause or changes the task.
 
-Read current GitHub state when resuming. Do not maintain a session
-checkpoint.
+Read current GitHub state when resuming, including the comments and
+labels. Check whether the decision was already made and only dispatch
+remains; do not repeat triage just because an issue is still open. Do
+not maintain a session checkpoint.
+
+## Labels and dispatch
+
+Keep issue type, triage outcome and dispatch separate.
+
+Use one primary type: `bug`, `enhancement` or `maintenance`, following
+the agent guide. After triage, give an open issue one current outcome:
+
+- `needs-info`: facts such as reproduction steps, logs or a concrete
+  example are missing, so a decision cannot yet be made.
+- `needs-discussion`: the issue needs further discussion or design
+  before acceptance for implementation.
+- `ready-to-implement`: the maintainer has agreed to implementation, and
+  the scope, expected behaviour and acceptance criteria are sufficiently
+  clear for an agent to proceed.
+
+Replace the previous outcome when the decision changes; do not leave
+conflicting outcomes on an issue. Apply an outcome only after triage.
+For `needs-info` or `needs-discussion`, leave a short comment naming
+exactly what is missing or undecided, unless an existing comment already
+records it. An idea may remain open for discussion without being ready
+to implement. Close an issue when triage decides against the work, and
+record why; link the existing issue when it is a duplicate.
+
+Readiness does not dispatch work. When dispatch is authorized, assign
+the issue to the maintainer and apply the chosen `dream:*` label. Ask
+which skill only when it has not already been chosen; do not ask again
+for an action the maintainer has authorized. Preserve existing dispatch
+labels unless the maintainer requests a change.
 
 ## Judgments
 
@@ -54,11 +84,20 @@ Be skeptical of agent-raised issues. Do not invent a supported workflow
 to justify one. For example, the maintainer rejected redirected `init`
 output as a requirement: setup is intended to be interactive.
 
-Be clear about what is a bug, where a documented user story does not
-work as promised, versus what is handling of a user error or external
-fault. When deciding issues which propose changes to how user errors or
-external faults should be handled, consider the promises in the user
-stories.
+A bug contradicts a user story, including the handling it promises for a
+user error or external fault. Ask whether the current response breaks a
+promise or whether the proposal asks for a stronger promise. Behaviour a
+story explicitly accepts is not a bug.
+
+Any new concept, architectural mechanism or conditional branch warrants
+deeper inspection. Ask whether the user benefit justifies the added
+complexity and whether existing rules can do the job. Keep strong
+pressure against adding machinery.
+
+A clear failure can be sufficient. For rare damaged-state cases,
+reporting the problem and asking the user to repair it may be better
+than adding recovery, failure isolation or partial reports. Record an
+accepted limitation in the stories.
 
 Do not dismiss maintenance merely because nothing currently
 malfunctions. Better types can express intended semantics: read-only
@@ -73,6 +112,15 @@ useful change.
 
 Explain the exact UI text and what it claims. Do not confuse the agent's
 activity with the freshness of the GitHub information.
+
+Establish what each item represents before changing its grouping or
+treating it as a duplicate. Preserve distinctions that matter to the
+user; similar names or appearances do not establish duplication.
+
+UI information must earn its place. Available settings do not
+automatically belong on a screen. Preserve calm presentation, avoid
+repeating information within one view, and consider omission before
+adding another control or disclosure.
 
 Check the meaning of a proposed simplification. For example, silently
 making an absolute `cd` path relative changes the displayed command's
@@ -91,6 +139,10 @@ than leaving a list of unresolved approaches.
 When triage settles product behaviour, require the decision in the user
 stories as part of implementation. An issue or code condition alone is
 not where the project's lasting account of that behaviour belongs.
+Current behaviour is not automatically endorsed behaviour: distinguish
+what happens today, accepted limitations and unresolved questions. Keep
+an unresolved question explicit in the stories, with a pointer to its
+discussion issue, rather than describing it as intended functionality.
 
 Use GitHub and the current project documents for the latest product
 decisions.
