@@ -3,7 +3,8 @@
 On POSIX, each child leads a process group that termination signals as a unit.
 A descendant that starts another session can escape that group. On Windows,
 each child starts suspended and is placed in a Job Object before it runs, and
-the job terminates its members when the daemon closes the last job handle.
+the job terminates its members when the daemon closes the last job handle. A
+child that cannot be placed never runs.
 
 Cleanup ends the contained group or job after normal exit as well as forced
 termination.
@@ -17,9 +18,11 @@ import sys
 SHOULD_START_NEW_PROCESS_SESSION = sys.platform != "win32"
 
 if sys.platform == "win32":  # pragma: no cover
+    from contextlib import ExitStack
     from typing import cast
 
     import psutil
+    import pywintypes
     import win32api
     import win32con
     import win32job
@@ -43,10 +46,28 @@ if sys.platform == "win32":  # pragma: no cover
     def contain_process_tree(*, pid: int) -> None:
         """Place the suspended child in a dedicated Job Object, then let it run.
 
-        The child is resumed whether or not placing it succeeds, so a failure
-        leaves nothing suspended.
+        Raise OSError when Windows refuses any step. The child then stays
+        suspended, or dies with its job, and the attempt leaves no handle open.
         """
-        job = cast("int", win32job.CreateJobObject(None, ""))
+        try:
+            with ExitStack() as attempt:
+                job = cast("int", win32job.CreateJobObject(None, ""))
+                attempt.callback(win32api.CloseHandle, job)
+                _kill_on_job_close(job=job)
+                _assign_to_job(job=job, pid=pid)
+                _resume_process(pid=pid)
+                attempt.pop_all()
+        except pywintypes.error as error:
+            # Python's own Windows errors drop the full stop that Windows ends
+            # each message with, so this one reads the same way.
+            reason = f"{error.funcname}: {error.strerror.rstrip('.')}"
+            raise OSError(None, reason, None, error.winerror) from error
+        except psutil.Error as error:
+            raise OSError(str(error)) from error
+        _jobs[pid] = job
+
+    def _kill_on_job_close(*, job: int) -> None:
+        """Make closing the job's last handle terminate everything inside it."""
         limits = win32job.QueryInformationJobObject(
             job, win32job.JobObjectExtendedLimitInformation
         )
@@ -56,6 +77,8 @@ if sys.platform == "win32":  # pragma: no cover
         win32job.SetInformationJobObject(
             job, win32job.JobObjectExtendedLimitInformation, limits
         )
+
+    def _assign_to_job(*, job: int, pid: int) -> None:
         child = win32api.OpenProcess(
             win32con.PROCESS_SET_QUOTA | win32con.PROCESS_TERMINATE, False, pid
         )
@@ -63,8 +86,6 @@ if sys.platform == "win32":  # pragma: no cover
             win32job.AssignProcessToJobObject(job, child)
         finally:
             win32api.CloseHandle(child)
-            _resume_process(pid=pid)
-        _jobs[pid] = job
 
     def _resume_process(*, pid: int) -> None:
         """Resume the one thread a child that started suspended has."""
@@ -72,15 +93,19 @@ if sys.platform == "win32":  # pragma: no cover
             handle = win32api.OpenThread(
                 win32con.THREAD_SUSPEND_RESUME, False, thread.id
             )
-            win32process.ResumeThread(handle)
-            win32api.CloseHandle(handle)
+            try:
+                win32process.ResumeThread(handle)
+            finally:
+                win32api.CloseHandle(handle)
 
     def end_process_tree(*, pid: int) -> None:
         """Terminate the child's Job Object and release its handle."""
         job = _jobs.pop(pid, None)
         if job is not None:
-            win32job.TerminateJobObject(job, WINDOWS_TERMINATED_PROCESS_STATUS)
-            win32api.CloseHandle(job)
+            try:
+                win32job.TerminateJobObject(job, WINDOWS_TERMINATED_PROCESS_STATUS)
+            finally:
+                win32api.CloseHandle(job)
 
 else:  # pragma: no cover
     import os
