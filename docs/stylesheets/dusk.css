@@ -166,8 +166,6 @@ body[data-md-color-scheme="dusk"]::after {
     ),
     var(--dusk-sky);
   --dch-working: #b3cba6;
-  --dch-feedback: rgba(233, 192, 110, 0.92);
-  --dch-feedback-ink: #16152a;
   --dch-daemon: #a9c7a3;
 
   box-shadow: 0 24px 60px -30px rgba(0, 0, 0, 0.7);

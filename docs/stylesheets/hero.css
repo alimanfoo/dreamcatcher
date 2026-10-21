@@ -82,8 +82,6 @@
 .md-typeset .dch-ui {
   --dch-sky: var(--sky-background);
   --dch-working: var(--working);
-  --dch-feedback: var(--feedback-surface);
-  --dch-feedback-ink: var(--feedback-ink);
   --dch-daemon: var(--daemon-running);
 
   display: block;
@@ -240,7 +238,6 @@
   gap: 0.5em;
   justify-self: end;
   padding: 0.15em 0;
-  border-radius: 9999px;
 }
 
 .dch-state > ::before {
@@ -284,12 +281,6 @@
 
 .dch-working {
   color: var(--dch-working);
-}
-
-.md-typeset .dch-feedback {
-  padding-inline: 0.8em;
-  color: var(--dch-feedback-ink);
-  background: var(--dch-feedback);
 }
 
 .dch-quiet {
