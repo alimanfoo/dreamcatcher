@@ -40,11 +40,13 @@ me when the choice is unclear, including when I have customised the
 configuration.
 
 Before merging a stage, the lead checks its proof itself against the
-roadmap's “done when”. It reads what has landed on main, gets any
-specification corrections made on the stage's pull request, and updates
-downstream issues to reflect what has changed. It checks main again just
-before merging. Merging a stage closes its issue and lets the dependency
-chain advance.
+roadmap's “done when”. It takes account of relevant changes on main. It
+gets any specification corrections made on the stage's pull request and
+updates downstream issues to reflect what has changed. It respects the
+repository's merge rules. Merging a stage closes its issue and lets the
+dependency chain advance. When the lead needs to wait for child work or
+checks, it ends its turn. It should not keep polling main or repeat a
+whole review because an unrelated commit arrived.
 
 The lead asks me on the parent issue before changing requirements,
 settled design decisions, or the roadmap's stages, order or
@@ -60,11 +62,13 @@ resumes it. Child assignments keep their own rules, so a manual merge
 can unblock the next stage while the lead remains paused.
 
 The lead hears about my parent comments, children being added or
-starting work, stage agents handing back for review or questions, checks
+removed, stage agents handing back for review or questions, checks
 finishing after their turns, stages ending, and repeated round failures.
 My posts on a child's pull request reach it through the stage agent's
-response. It need not wake while that agent is working or merely because
-main moved.
+response. A notification should mean there may be work or a decision for
+the lead. An assignment starting is information only and does not wake
+it. It need not wake while that agent is working or merely because main
+moved.
 
 When a child assignment is in fault, the lead investigates. If it finds
 an obvious solution that the stage agent can carry out, it puts
@@ -72,10 +76,12 @@ directions on the child's pull request. It reports the problem and any
 proposed resolution on the parent issue, and asks me when the solution
 is unclear. Retrying the assignment is mine to do.
 
-I want a campaigns tab in the web UI. Each campaign card shows how many
-sub-issues are closed out of the total. I can expand it to see
+I want a campaigns tab in the web UI. Each active campaign card shows
+how many sub-issues are closed out of the total. I can expand it to see
 assignment cards for every sub-issue, including those whose assignments
-have not started.
+have not started. Ended campaigns appear in an expandable ended section,
+with their summary and parent-issue link. They do not need nested child
+cards; I can go to GitHub for the history.
 
 ## What limits this?
 
