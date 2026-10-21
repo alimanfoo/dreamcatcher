@@ -54,6 +54,12 @@ the change.
   [Restart views across state formats](compatibility.md#restart-views-across-state-formats).
   ([#639](https://github.com/alimanfoo/dreamcatcher/pull/639))
 
+### Fixed
+
+- On Windows, a harness that cannot be started safely now errors its
+  round and never runs.
+  ([#625](https://github.com/alimanfoo/dreamcatcher/pull/625))
+
 ## [v6.2.0](https://github.com/alimanfoo/dreamcatcher/releases/tag/v6.2.0) — 2026-10-20
 
 ### Added
