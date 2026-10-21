@@ -85,6 +85,16 @@ dreamcatcher feed GH123 --assignment
 dreamcatcher feed GH123 --conversation
 ```
 
+An issue reference selects the newest work of the kind at the issue. To
+select an older assignment or conversation, copy its identifier from the
+list of other work at the foot of the detail view, and use it in place
+of the issue reference:
+
+```sh
+dreamcatcher conversation GH123-20260912-193000-conversation
+dreamcatcher feed GH123-20260912-193000-conversation --conversation
+```
+
 These views refresh automatically in an interactive terminal.
 Interrupting a view closes only that view; it does not stop the daemon
 or the agent. When a view is piped or redirected, it prints one snapshot
