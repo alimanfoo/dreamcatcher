@@ -32,11 +32,14 @@ the change.
 - `dreamcatcher view` replaces `dreamcatcher assignment`,
   `dreamcatcher conversation` and `dreamcatcher campaign`, and `stop`
   and `feed` no longer take `--assignment`, `--conversation` or
-  `--campaign`. Each of these commands takes `GH<n>` for the one piece
-  of agent work at the issue, of any kind, or an agent work identifier
-  for that exact work. When the issue has more than one piece, the
-  command changes nothing and prints a command for each piece, with its
-  identifier, so the view no longer lists the other work at the issue.
+  `--campaign`. `retry`, `stop`, `cancel`, `view` and `feed` each take
+  `GH<n>` for the one piece of agent work at the issue, of any kind, or
+  an agent work identifier for that exact work. `retry` clears the fault
+  of that one piece, or reports that it is not in fault, so it now
+  reaches a conversation in fault that is not the newest at its issue.
+  When the issue has more than one piece, the command changes nothing
+  and prints a command for each piece, with its identifier, so the view
+  no longer lists the other work at the issue.
   ([#691](https://github.com/alimanfoo/dreamcatcher/pull/691))
 
 ## [v7.0.0](https://github.com/alimanfoo/dreamcatcher/releases/tag/v7.0.0) — 2026-10-22

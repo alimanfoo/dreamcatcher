@@ -282,18 +282,6 @@ def read_agent_work_at_issue(*, state: StateDirectory, issue: int) -> list[Agent
     )
 
 
-def find_newest_agent_work(
-    *, state: StateDirectory, issue: int, kind: AgentWorkKind
-) -> AgentWork | None:
-    """Return the newest agent work of one kind at the issue, if there is any."""
-    work = [
-        item
-        for item in read_agent_work_at_issue(state=state, issue=issue)
-        if item.record.kind is kind
-    ]
-    return work[-1] if work else None
-
-
 def find_agent_work(*, state: StateDirectory, identifier: str) -> AgentWork | None:
     """Return the agent work with this exact identifier, if it exists.
 

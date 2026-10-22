@@ -347,26 +347,34 @@ def read_assignments(*, state: StateDirectory) -> list[agent_work.AgentWork]:
     ]
 
 
+def _find_newest_work(
+    *, state: StateDirectory, issue: int, kind: AgentWorkKind
+) -> agent_work.AgentWork | None:
+    """Return the newest work of the kind at the issue, if there is any."""
+    work = [
+        item
+        for item in agent_work.read_agent_work_at_issue(state=state, issue=issue)
+        if item.record.kind is kind
+    ]
+    return work[-1] if work else None
+
+
 def read_newest_work(
     *, state: StateDirectory, issue: int, kind: AgentWorkKind
 ) -> agent_work.AgentWork:
     """Return the newest work of the kind at the issue, which the test has written."""
-    work = agent_work.find_newest_agent_work(state=state, issue=issue, kind=kind)
+    work = _find_newest_work(state=state, issue=issue, kind=kind)
     assert work is not None
     return work
 
 
 def read_campaign(*, state: StateDirectory, issue: int) -> agent_work.AgentWork | None:
     """Return the newest campaign at the parent issue, if there is one."""
-    return agent_work.find_newest_agent_work(
-        state=state, issue=issue, kind=AgentWorkKind.CAMPAIGN
-    )
+    return _find_newest_work(state=state, issue=issue, kind=AgentWorkKind.CAMPAIGN)
 
 
 def read_conversation(
     *, state: StateDirectory, issue: int
 ) -> agent_work.AgentWork | None:
     """Return the newest conversation at the issue, if there is one."""
-    return agent_work.find_newest_agent_work(
-        state=state, issue=issue, kind=AgentWorkKind.CONVERSATION
-    )
+    return _find_newest_work(state=state, issue=issue, kind=AgentWorkKind.CONVERSATION)

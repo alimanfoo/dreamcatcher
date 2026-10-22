@@ -555,7 +555,9 @@ command for the first conversation, and the view shows that conversation
 and stays on it. `dreamcatcher feed` with the same identifier shows what
 that conversation's agent has said, and nothing from the other one. When
 a round of it heads the wrong way, `dreamcatcher stop` with the
-identifier stops that round and leaves the other conversation alone.
+identifier stops that round and leaves the other conversation alone. If
+two of its rounds error, `dreamcatcher retry` with the identifier clears
+that conversation's fault and no other.
 
 An issue that has had several pieces of agent work, of any kinds, works
 the same way. Each command given the issue lists a command for each
@@ -826,7 +828,9 @@ The user gives a terminal command an agent work identifier with a typo
 in it. The command says that no work has that name, and acts on no work
 at all. It never falls back to other work at the issue. The user needs
 to give the command the issue instead, and copy the identifier from the
-commands that it lists.
+commands that it lists. Given a conversation or a campaign,
+`dreamcatcher cancel` says that the work is not an assignment, and
+cancels nothing.
 
 ## Expected faults
 

@@ -18,8 +18,8 @@ Issue arguments use `GH<n>`, where `<n>` is a string of decimal digits.
 The `GH` prefix is case-insensitive, so `GH123` and `gh123` both name
 issue 123.
 
-`stop`, `view` and `feed` act on one piece of agent work, of any kind,
-and take either of two references to it:
+`retry`, `stop`, `cancel`, `view` and `feed` act on one piece of agent
+work, and take either of two references to it:
 
 - an agent work identifier, such as `GH123-20260912-192458-assignment`,
   selects that exact work. It is case-insensitive like an issue
@@ -38,15 +38,17 @@ GH644 has more than one piece of agent work. Run one of these:
   dreamcatcher stop GH644-20261021-005621-assignment
 ```
 
-A reference that names no work is an error.
+A reference that names no work is an error. `cancel` acts on an
+assignment alone, so it reports that other selected work is not an
+assignment.
 
 | Command  | Purpose                                             |
 | -------- | --------------------------------------------------- |
 | `init`   | Prepare this repository's main checkout.            |
 | `run`    | Run the daemon for this repository.                 |
-| `retry`  | Allow faulted work at one issue to run again.       |
+| `retry`  | Allow one piece of faulted work to run again.       |
 | `stop`   | Stop one running round of agent work.               |
-| `cancel` | Cancel one issue's newest assignment.               |
+| `cancel` | Cancel one assignment.                              |
 | `web`    | Serve the local status report in a browser.         |
 | `status` | Show the whole local status report in the terminal. |
 | `view`   | Show one piece of agent work.                       |
@@ -128,20 +130,18 @@ you need an exact port or want the web interface to outlive the daemon.
 ## `retry`
 
 ```text
-dreamcatcher retry GH<n>
+dreamcatcher retry (GH<n> | IDENTIFIER)
 ```
 
-Record a retry request for any currently faulted work at the issue. The
-command checks the newest assignment, the newest issue conversation and
-the newest campaign independently, and clears the fault of each one that
-is in fault. It preserves the failed round records.
+Record a retry request for the selected agent work, which clears its
+fault. It preserves the failed round records.
 
-At least one of them must currently be in fault. Otherwise the command
-reports that the issue has no agent work in fault. A successful request
-lets the named work's next round start on a later scheduler update,
-outside any active global cooldown; it does not start a round itself.
-The web page's retry control writes the same request for the one piece
-of agent work it shows.
+The work must currently be in fault. Otherwise the command reports that
+it is not in fault; ended work is never in fault. A successful request
+lets the work's next round start on a later scheduler update, outside
+any active global cooldown; it does not start a round itself. The web
+page's retry control writes the same request for the one piece of agent
+work it shows.
 
 ## `stop`
 
@@ -158,14 +158,14 @@ local stop request as the web control and does not contact GitHub.
 ## `cancel`
 
 ```text
-dreamcatcher cancel GH<n>
+dreamcatcher cancel (GH<n> | IDENTIFIER)
 ```
 
-Cancel the newest assignment at the issue, so that you can finish its
-pull request by hand. _dreamcatcher_ runs no further rounds for the
-assignment and relays no further posts from its pull request. If a round
-is running, the command asks it to stop, without the conditions that
-`stop` requires.
+Cancel the selected assignment, so that you can finish its pull request
+by hand. _dreamcatcher_ runs no further rounds for the assignment and
+relays no further posts from its pull request. If a round is running,
+the command asks it to stop, without the conditions that `stop`
+requires.
 
 _dreamcatcher_ leaves the pull request as it is, and while it is open it
 claims the issue as work outside _dreamcatcher_. The worktree and branch
@@ -176,9 +176,9 @@ The cancelled assignment shows as **ended** with the detail cancelled on
 the web home page and in `dreamcatcher view`, and `dreamcatcher status`
 counts it among the ended assignments.
 
-The issue must have an assignment, and that assignment must not have
-ended. A cancel cannot be undone. The command writes only local state,
-does not contact GitHub, and works whether or not the daemon is running.
+The selected work must be an assignment that has not ended. A cancel
+cannot be undone. The command writes only local state, does not contact
+GitHub, and works whether or not the daemon is running.
 
 ## `web`
 

@@ -64,10 +64,12 @@ Run:
 dreamcatcher cancel GH123
 ```
 
-The command cancels the newest assignment at the issue. You can instead
-open the assignment in the web page that `run` opened, select **cancel
-assignment**, and confirm. If you ran the daemon with `--noweb`, start
-`dreamcatcher web` first. A cancel cannot be undone.
+When the issue has more than one piece of agent work, the command
+cancels nothing and prints a command for each piece, with the agent work
+identifier that selects it. Run the one for the assignment. You can
+instead open the assignment in the web page that `run` opened, select
+**cancel assignment**, and confirm. If you ran the daemon with
+`--noweb`, start `dreamcatcher web` first. A cancel cannot be undone.
 
 _dreamcatcher_ asks a running round to stop, runs no further rounds for
 the assignment, and stops relaying your comments and reviews on its pull
@@ -137,12 +139,11 @@ available. Then clear the fault so that the work can run again:
 dreamcatcher retry GH123
 ```
 
-`retry` preserves the failed rounds for diagnosis. It checks the newest
-assignment, the newest conversation and the newest campaign at that
-issue, clearing each one's fault if it has one. It does not start an
-agent itself; on a later scheduler update the daemon may start the
-work's next round, which carries on the work as after an interrupted
-round.
+`retry` preserves the failed rounds for diagnosis. It clears the fault
+of the one piece of agent work that it selects, as `stop` selects it,
+and reports work that is not in fault. It does not start an agent
+itself; on a later scheduler update the daemon may start the work's next
+round, which carries on the work as after an interrupted round.
 
 You can instead open the faulted work in the web page that `run` opened,
 and select **Retry**. If the daemon is stopped or ran with `--noweb`,

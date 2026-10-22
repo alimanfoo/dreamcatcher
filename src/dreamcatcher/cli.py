@@ -14,7 +14,6 @@ from dreamcatcher.agent_rounds import request_agent_round_stop
 from dreamcatcher.agent_work import (
     AgentWork,
     find_agent_work,
-    find_newest_agent_work,
     parse_agent_work_identifier,
     read_agent_work_at_issue,
     request_agent_work_retry,
@@ -24,16 +23,12 @@ from dreamcatcher.config import AgentHarness
 from dreamcatcher.daemon import DEFAULT_INTERVAL_SECONDS, DreamcatcherDaemon
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.harness_adapters import AgentWorkKind
-from dreamcatcher.scheduler import (
-    DEFAULT_MAX_AGENTS,
-    derive_agent_work_fault,
-    read_scheduler_record,
-)
+from dreamcatcher.scheduler import DEFAULT_MAX_AGENTS
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.status import read_agent_work_status, read_dreamcatcher_daemon_status
 from dreamcatcher.version import DREAMCATCHER_VERSION
 
-# How a view names the issue it is about, as the issue itself is written.
+# How a command names an issue, as the issue itself is written.
 _ISSUE_REFERENCE_PATTERN = re.compile(r"gh(\d+)\Z", re.IGNORECASE | re.ASCII)
 _MAX_INTERVAL_SECONDS = int(TIMEOUT_MAX) - 1
 
@@ -137,15 +132,14 @@ def _build_cli_parser() -> argparse.ArgumentParser:
     run_parser.set_defaults(act=_run_daemon)
     retry_parser = subcommands.add_parser(
         "retry",
-        help="retry faulted work at an issue after fixing its problem",
+        help="retry faulted agent work after fixing its problem",
         description=(
-            "Clear the current faults of the newest assignment, issue "
-            "conversation and campaign after you have fixed what caused their "
-            "rounds to fail. The daemon may run them again on the next "
-            "scheduler update outside a global cooldown."
+            "Clear the current fault of the selected agent work after you have "
+            "fixed what caused its rounds to fail. The daemon may run it again "
+            "on the next scheduler update outside a global cooldown."
         ),
     )
-    _add_issue_argument(parser=retry_parser)
+    _add_agent_work_argument(parser=retry_parser)
     retry_parser.set_defaults(act=_retry_agent_work)
     stop_parser = subcommands.add_parser(
         "stop",
@@ -160,17 +154,17 @@ def _build_cli_parser() -> argparse.ArgumentParser:
     stop_parser.set_defaults(act=_stop_agent_work)
     cancel_parser = subcommands.add_parser(
         "cancel",
-        help="cancel an issue's newest assignment to finish its pull request by hand",
+        help="cancel one assignment to finish its pull request by hand",
         description=(
-            "Cancel the newest assignment at the issue, so that you can finish "
-            "its pull request by hand. dreamcatcher asks a running round to "
+            "Cancel the selected assignment, so that you can finish its pull "
+            "request by hand. dreamcatcher asks a running round to "
             "stop, runs no further rounds for the assignment, and treats its "
             "open pull request as work outside dreamcatcher. The worktree and "
             "branch stay in place. A cancel cannot be undone, and it does not "
             "need the daemon to be running."
         ),
     )
-    _add_issue_argument(parser=cancel_parser)
+    _add_agent_work_argument(parser=cancel_parser)
     cancel_parser.set_defaults(act=_cancel_assignment)
     web_parser = subcommands.add_parser(
         "web",
@@ -258,15 +252,6 @@ def _add_agent_work_argument(*, parser: argparse.ArgumentParser) -> None:
     )
 
 
-def _add_issue_argument(*, parser: argparse.ArgumentParser) -> None:
-    parser.add_argument(
-        "issue",
-        type=_parse_issue_reference,
-        metavar="GH<n>",
-        help="the issue to use",
-    )
-
-
 def _parse_positive_integer(value: str, /) -> int:
     """Return a positive integer; argparse calls this converter positionally."""
     try:
@@ -327,46 +312,16 @@ def _run_daemon(*, arguments: argparse.Namespace) -> None:
 
 
 def _retry_agent_work(*, arguments: argparse.Namespace) -> None:
-    """Clear the faults of the newest work of every kind at an issue."""
+    """Clear the fault of the selected agent work."""
     state = _find_state_directory(root=Path.cwd())
-    current_time = read_current_time()
-    scheduler_record = read_scheduler_record(state=state, at=current_time)
-    most_recent_cooldown_ended = (
-        None
-        if scheduler_record is None
-        else scheduler_record.most_recent_cooldown_ended
+    work = _select_agent_work(state=state, arguments=arguments)
+    status = read_agent_work_status(
+        state=state, work=work, daemon=read_dreamcatcher_daemon_status(state=state)
     )
-    faulted = [
-        work
-        for kind in AgentWorkKind
-        if (
-            work := find_newest_agent_work(
-                state=state, issue=arguments.issue, kind=kind
-            )
-        )
-        is not None
-        and derive_agent_work_fault(
-            rounds=work.rounds,
-            retry_requested_at=work.retry_requested_at,
-            most_recent_cooldown_ended=most_recent_cooldown_ended,
-        )
-    ]
-    if not faulted:
-        raise ReportableError(f"GH{arguments.issue} has no agent work in fault.")
-    retried: list[str] = []
-    for work in faulted:
-        try:
-            request_agent_work_retry(work=work, at=current_time)
-        except ReportableError as failure:
-            if not retried:
-                raise
-            cleared = ", ".join(retried)
-            raise ReportableError(
-                f"{cleared} can run again on a later scheduler update, but "
-                f"{work.identifier} could not be retried: {failure}"
-            ) from failure
-        retried.append(work.identifier)
-    print(f"{', '.join(retried)} can run again on a later scheduler update.")
+    if not status.is_in_fault:
+        raise ReportableError(f"{work.identifier} is not in fault.")
+    request_agent_work_retry(work=work, at=read_current_time())
+    print(f"{work.identifier} can run again on a later scheduler update.")
 
 
 def _stop_agent_work(*, arguments: argparse.Namespace) -> None:
@@ -385,15 +340,13 @@ def _stop_agent_work(*, arguments: argparse.Namespace) -> None:
 
 
 def _cancel_assignment(*, arguments: argparse.Namespace) -> None:
-    """Cancel the newest assignment at an issue so the user can take it over."""
+    """Cancel the selected assignment so the user can take it over."""
     state = _find_state_directory(root=Path.cwd())
-    assignment = find_newest_agent_work(
-        state=state, issue=arguments.issue, kind=AgentWorkKind.ASSIGNMENT
-    )
-    if assignment is None:
-        raise ReportableError(f"GH{arguments.issue} has no assignment.")
-    cancel_assignment(assignment=assignment, at=read_current_time())
-    print(f"{assignment.identifier} is cancelled.")
+    work = _select_agent_work(state=state, arguments=arguments)
+    if work.record.kind is not AgentWorkKind.ASSIGNMENT:
+        raise ReportableError(f"{work.identifier} is not an assignment.")
+    cancel_assignment(assignment=work, at=read_current_time())
+    print(f"{work.identifier} is cancelled.")
 
 
 def _show_status(*, arguments: argparse.Namespace) -> None:
@@ -473,20 +426,6 @@ def _select_agent_work(
                 f"GH{reference} has more than one piece of agent work. "
                 f"Run one of these:{commands}"
             )
-
-
-def _parse_issue_reference(issue_reference: str, /) -> int:
-    """Return the issue number the argument names, as GH123 names issue 123.
-
-    argparse is what calls this, as the type behind the issue argument, and it
-    passes the text positionally, so the parameter is positional-only.
-    """
-    reference_match = _ISSUE_REFERENCE_PATTERN.match(issue_reference)
-    if reference_match is None:
-        raise argparse.ArgumentTypeError(
-            f"name an issue as GH123, not as {issue_reference}"
-        )
-    return int(reference_match.group(1))
 
 
 def _parse_agent_work_reference(text: str, /) -> _AgentWorkReference:

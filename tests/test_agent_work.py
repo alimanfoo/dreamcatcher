@@ -13,7 +13,6 @@ from dreamcatcher.agent_work import (
     AgentWork,
     _compose_agent_work_identifier,
     find_agent_work,
-    find_newest_agent_work,
     parse_agent_work_identifier,
     read_agent_work,
     read_agent_work_at_issue,
@@ -164,15 +163,9 @@ def test_the_work_at_an_issue_is_every_kind_in_identifier_order(tmp_path):
     conversation = write_conversation(state=state, issue=8).name
 
     work = read_agent_work_at_issue(state=state, issue=8)
-    newest = find_newest_agent_work(state=state, issue=8, kind=AgentWorkKind.ASSIGNMENT)
 
     assert [item.identifier for item in work] == [older, newer, conversation]
-    assert newest is not None
-    assert newest.identifier == newer
-    assert (
-        find_newest_agent_work(state=state, issue=9, kind=AgentWorkKind.ASSIGNMENT)
-        is None
-    )
+    assert read_agent_work_at_issue(state=state, issue=9) == []
 
 
 def test_a_lookup_at_an_issue_reads_only_records_of_that_issue(tmp_path):
@@ -207,7 +200,7 @@ def test_a_selected_record_that_will_not_read_is_reportable(tmp_path):
     (state.work / IDENTIFIER / "work.json").write_bytes(b"null")
 
     with pytest.raises(ReportableError, match=r"work\.json"):
-        find_newest_agent_work(state=state, issue=12, kind=AgentWorkKind.ASSIGNMENT)
+        read_agent_work_at_issue(state=state, issue=12)
 
 
 def test_a_work_record_that_is_not_an_object_is_reportable(tmp_path):
