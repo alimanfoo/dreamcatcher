@@ -95,7 +95,7 @@ the same setup.
   [command reference](command-reference.md).
 - Find every accepted setting in the
   [configuration reference](configuration-reference.md).
-- Write an assignment skill, a conversation prompt or a campaign skill
-  to the [agent-facing contract](contract.md).
+- Write an assignment skill, a conversation skill or a campaign skill to
+  the [agent-facing contract](contract.md).
 - Plan upgrades with [Compatibility and upgrades](compatibility.md), and
   see user-visible changes in the [changelog](changelog.md).

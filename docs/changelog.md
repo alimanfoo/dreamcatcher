@@ -75,19 +75,13 @@ the change.
 - A second tutorial,
   [From parent issue to merged stages](campaign-tutorial.md), takes a
   parent issue with two dependent sub-issues through `dream:lead` to
-  merge, and shows what you see and when the lead needs you.
-  [Stop and recover work](stop-and-recover.md) covers stopping a lead's
-  round, and [Customise skills](customise-skills.md) says how to write a
-  campaign skill.
-  ([#680](https://github.com/alimanfoo/dreamcatcher/pull/680))
+  merge. ([#680](https://github.com/alimanfoo/dreamcatcher/pull/680))
 
 ### Fixed
 
 - [Stop and recover work](stop-and-recover.md) now says that a round
   after an errored or interrupted one is also given what arrived
-  meanwhile, and that a lead's round also holds the current state of the
-  parent's sub-issues, rather than that the round is given the same
-  input again.
+  meanwhile.
   ([#680](https://github.com/alimanfoo/dreamcatcher/pull/680))
 - The animated status view on the documentation home page now shows the
   statuses, round details and dispatch labels that the web home page
