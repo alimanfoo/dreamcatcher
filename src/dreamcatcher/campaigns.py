@@ -29,8 +29,8 @@ from dreamcatcher.state import StateDirectory
 class CampaignChildPullRequest(DreamcatcherDocument):
     """Model what an update read of a child assignment's pull request.
 
-    The checks are those at the head. A failing check result can still have
-    checks running.
+    The head is the commit that the checks ran at. A failing check result can
+    still have checks running.
     """
 
     state: PullRequestState

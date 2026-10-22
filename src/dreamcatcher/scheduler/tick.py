@@ -75,13 +75,13 @@ _REQUEST_INSPECTORS: dict[AgentWorkKind, RequestInspector] = {
 class _IssueListing:
     """Collect the listed issues, oldest first, and the listings that failed.
 
-    The assignment failures are those of the failures that listed under an
+    The assignment failure is the first of the failures that listed under an
     assignment label.
     """
 
     issues: list[Issue]
     failures: list[str]
-    assignment_failures: list[str]
+    assignment_failure: str | None
 
 
 @dataclass(kw_only=True)
@@ -186,7 +186,7 @@ class Scheduler:
         """List the open issues assigned to the account under every dispatch label."""
         issues_by_number: dict[int, Issue] = {}
         failures: list[str] = []
-        assignment_failures: list[str] = []
+        assignment_failure = None
         for route in self.context.config.routes:
             listed = list_issues(
                 repository=self.context.repository,
@@ -197,7 +197,7 @@ class Scheduler:
                 failure = f"could not list issues for {route.label}: {listed.reason}"
                 failures.append(failure)
                 if route.kind is AgentWorkKind.ASSIGNMENT:
-                    assignment_failures.append(failure)
+                    assignment_failure = assignment_failure or failure
             else:
                 issues_by_number.update((issue.number, issue) for issue in listed)
         return _IssueListing(
@@ -206,7 +206,7 @@ class Scheduler:
                 key=lambda issue: (issue.created_at, issue.number),
             ),
             failures=failures,
-            assignment_failures=assignment_failures,
+            assignment_failure=assignment_failure,
         )
 
     def _inspect(
@@ -469,5 +469,5 @@ def _observe_assignments(
             for inspection in inspections
             if inspection.row.kind is AgentWorkKind.ASSIGNMENT
         },
-        listing_failure=next(iter(listing.assignment_failures), None),
+        listing_failure=listing.assignment_failure,
     )

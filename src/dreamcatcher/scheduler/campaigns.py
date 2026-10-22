@@ -183,13 +183,8 @@ def _observe_child_assignment(
         identifier=assignment.identifier,
         pull_request=read_assignment_pull_request_number(assignment=assignment),
         observed_pull_request=(
-            CampaignChildPullRequest(
-                state=finding.state,
-                is_draft=finding.is_draft,
-                merge_state=finding.merge_state,
-                head=finding.head,
-                check_result=finding.check_result,
-                has_running_checks=finding.has_running_checks,
+            CampaignChildPullRequest.model_validate(
+                finding.model_dump(include=set(CampaignChildPullRequest.model_fields))
             )
             if isinstance(finding, PullRequestFinding)
             else None

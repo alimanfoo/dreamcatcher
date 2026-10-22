@@ -13,13 +13,10 @@ from pydantic import (
     model_validator,
 )
 
-from dreamcatcher.campaigns import CampaignChild
+from dreamcatcher.campaigns import CampaignChild, CampaignChildPullRequest
 from dreamcatcher.documents import DreamcatcherDocument
 from dreamcatcher.github import (
-    CheckResult,
-    PullRequestMergeState,
     PullRequestSignal,
-    PullRequestState,
 )
 from dreamcatcher.harness_adapters import AgentWorkKind
 
@@ -35,22 +32,16 @@ def _normalize_utc(at: datetime, /) -> datetime:
 _UtcDateTime = Annotated[AwareDatetime, AfterValidator(_normalize_utc)]
 
 
-class PullRequestFinding(DreamcatcherDocument):
+class PullRequestFinding(CampaignChildPullRequest):
     """Hold what the tick read of an open assignment's pull request.
 
-    The head is the commit that the checks ran at. A failing check result can
-    still have checks running. A withheld check failure is one that the relay
-    rule kept from the agent.
+    A campaign observes its child's pull request through the facts that this
+    finding shares with it. A withheld check failure is one that the relay rule
+    kept from the agent.
     """
 
     found: Literal["pull request"] = "pull request"
     number: PositiveInt
-    state: PullRequestState
-    is_draft: bool
-    merge_state: PullRequestMergeState
-    head: str
-    check_result: CheckResult
-    has_running_checks: bool
     new_posts: NonNegativeInt
     new_pull_request_signals: list[PullRequestSignal]
     is_check_failure_withheld: bool
