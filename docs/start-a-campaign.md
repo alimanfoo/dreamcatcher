@@ -85,6 +85,20 @@ dreamcatcher campaign GH123
 dreamcatcher feed GH123 --campaign
 ```
 
+## Queue campaigns
+
+To run one campaign after another, mark the later parent as blocked by
+the earlier parent on GitHub, then assign and label both parents. The
+later campaign waits, and its request shows as blocked by the earlier
+parent. A parent with several blockers waits until all of them are
+closed.
+
+Close the earlier parent when you are satisfied with its campaign, and
+the later campaign starts at the next update with a free agent slot.
+Closing every sub-issue does not close the parent, and the lead never
+closes it, so the next campaign waits for you. A blocker added to a
+parent after its campaign has started does not pause that campaign.
+
 ## Talk to the lead
 
 Comment on the parent to talk to the lead. At the next update with a
