@@ -240,7 +240,7 @@ sub-issues. Creating and ending a campaign go through `agent_work.py`,
 and creating one writes its work record and nothing else. Each round's
 preparation resets the detached worktree to fetched main, adding it when
 it is missing, and freezes the parent issue, the sub-issues that the
-round's update observed, the notifications that the update selected, the
+round's tick observed, the notifications that the tick selected, the
 eligible comments past the cursor, the cursor that the input reaches,
 that revision and the running daemon's assignment routes with their
 recipes. A round given no new comment carries forward the cursor of the
@@ -356,7 +356,7 @@ branch or pull request.
 A wrap-up round records the assignment's ending with the reason
 "completed" in its finishing step, after its harness exits successfully.
 
-`agent_assignments.py` also models what an update observed of an
+`agent_assignments.py` also models what a tick observed of an
 assignment's pull request. The scheduler's pull request finding extends
 that model, and a campaign holds it for each sub-issue's assignment.
 

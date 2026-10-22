@@ -139,7 +139,7 @@ class _AgentRoundHarness:
     invocation: HarnessInvocation
     record_harness_session_identifier: HarnessSessionIdentifierRecorder
 
-    def read(self, *, line: str) -> HarnessOutput:
+    def read_output(self, *, line: str) -> HarnessOutput:
         """Return the output one line reports, recording any harness session in it."""
         output = self.adapter.read_output(line=line)
         identifier = output.harness_session_identifier
@@ -685,7 +685,7 @@ class AgentRound:
         try:
             for line in self.harness_process.out:
                 append_text(text=line, path=self.paths.raw_output)
-                output = self.harness.read(line=line)
+                output = self.harness.read_output(line=line)
                 if output.final_output is not None:
                     write_text(text=output.final_output, path=self.paths.final_output)
                     self._final_output_settled.set()

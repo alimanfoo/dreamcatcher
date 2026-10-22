@@ -80,7 +80,8 @@ agent to answer the user on an issue without implementing a change.
 A **campaign** is _dreamcatcher_'s durable commission to an agent, its
 **lead**, to carry a planned body of work through GitHub. The campaign's
 **parent issue** holds the goal, and the parent's direct sub-issues are
-the stages.
+the stages. The code, and the `children` field of a campaign round's
+input, call each sub-issue a **child** of the parent.
 
 ### Agent work and agent work identifier
 
@@ -427,9 +428,9 @@ sub-issues and where each one's newest assignment stands, the
 notifications, the eligible comments past the cursor, the cursor that
 the input reaches, the main revision and the running daemon's assignment
 routes. A round given no new comment carries the cursor forward. No
-round starts while an update cannot observe every sub-issue. The lead
-reads anything else it needs from GitHub, and posts its own messages
-there. Its final output stays in the feed.
+round starts while a tick cannot observe every sub-issue. The lead reads
+anything else it needs from GitHub, and posts its own messages there.
+Its final output stays in the feed.
 
 ### Starting an issue conversation
 
@@ -459,7 +460,7 @@ while the round runs. A round that errored or was interrupted delivered
 nothing, so the input before it stays the newest delivered. A
 **notification** names a sub-issue whose changes since the newest
 delivered input call for the lead, and lists those **changes**. Each
-update compares the sub-issues that it observes with those of the newest
+tick compares the sub-issues that it observes with those of the newest
 delivered input, matched by issue number. A sub-issue is **settled**
 when no round of its assignment is running and none is due, where an
 assignment request that may start counts as a round due. The comparison
@@ -583,7 +584,7 @@ was interrupted, because it is then given its pull request's state again
 even with nothing new. A conversation has nothing to give but comments,
 so once the user deletes every comment that its unfinished round was
 given, it is not a candidate until a new eligible comment arrives. A
-campaign is also a candidate when no round has run yet, when an update
+campaign is also a candidate when no round has run yet, when a tick
 finds a notification, and when its last round errored or was
 interrupted, because the lead is then given its input again even with
 nothing new.

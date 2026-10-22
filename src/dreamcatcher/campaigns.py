@@ -31,8 +31,8 @@ class CampaignChildAssignment(DreamcatcherDocument):
     """Model where a child's newest assignment stands.
 
     The pull request is the one that a round of the assignment opened, and the
-    observed pull request is what the update read of it. An assignment that has
-    ended or is in fault has its pull request read by no update. The finished
+    observed pull request is what the tick read of it. An assignment that has
+    ended or is in fault has its pull request read by no tick. The finished
     turn is the newest round that took its turn, as a successful or a stopped
     round does.
     """
@@ -46,7 +46,7 @@ class CampaignChildAssignment(DreamcatcherDocument):
 
 
 class CampaignChild(DreamcatcherDocument):
-    """Model one child of a campaign's parent issue, as an update observed it.
+    """Model one child of a campaign's parent issue, as a tick observed it.
 
     A settled child has no assignment round running or due, where a request
     that may start an assignment counts as a round due. A child with no
@@ -89,7 +89,7 @@ class CampaignChildNotification(DreamcatcherDocument):
 class CampaignRoundInput(WriteOnceDreamcatcherDocument):
     """Model the input frozen for one campaign round.
 
-    The children are the parent's children as the update that started the
+    The children are the parent's children as the tick that started the
     round observed them, and the notifications name those whose changes since
     the previous delivered input call for the lead. The comments are the user's
     eligible comments on the parent past the cursor, oldest first. The cursor

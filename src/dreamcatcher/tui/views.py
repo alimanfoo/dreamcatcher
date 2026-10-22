@@ -145,10 +145,7 @@ def _render_agent_work(
 def _render_issue_work_summary(
     *, state: StateDirectory, status: AgentWorkStatus
 ) -> RenderableType:
-    """Return the issue, and what the work record holds for every round.
-
-    It describes a conversation or a campaign, whose channel is its issue.
-    """
+    """Return the section that names a conversation or a campaign and its settings."""
     work = status.work
     record = work.record
     table = create_table(columns=2)
@@ -173,7 +170,7 @@ def _render_issue_work_summary(
 def _render_assignment_summary(
     *, state: StateDirectory, status: AgentWorkStatus
 ) -> RenderableType:
-    """Return what the work record holds for every round."""
+    """Return the section that names an assignment and its settings."""
     assignment = status.work
     record = assignment.record
     table = create_table(columns=2)
