@@ -164,9 +164,14 @@ sub-issue in `children`, then act on the changes together:
 
 ## Review a stage
 
-Review the stage's pull request at its current head. Read the pull
-request's description, its diff and every comment on it, including the
-user's. Read its checks with `gh pr checks <N>`.
+Review the stage's pull request at its current head. If you already
+reviewed that head in this session and its proof held, and no comment
+has arrived on the pull request since, don't review it again. Read its
+checks and its `merge_state`, and merge it if it is ready.
+
+Otherwise, read the pull request's description, its diff and every
+comment on it, including the user's. Read its checks with
+`gh pr checks <N>`.
 
 If the stage's agent asked a question, answer it on the pull request
 when the plan settles the answer. If the answer needs the user, ask on
