@@ -630,12 +630,11 @@ count, so the faults it saw are cleared. This simple policy keeps one
 piece of work's failure from blocking all other work.
 
 A **retry** clears the current fault of the work it names, and erases
-none of its errored rounds. A retry from the command line names an issue
-and clears the fault of the newest assignment, the newest conversation
-and the newest campaign at that issue; one from the web page clears the
-fault of the work the page shows. Only errors at or after the later of
-the work's latest retry and the end of the latest global cooldown count
-towards a new fault.
+none of its errored rounds. A retry from the command line clears the
+fault of the one piece of agent work that the command selects; one from
+the web page clears the fault of the work the page shows. Only errors at
+or after the later of the work's latest retry and the end of the latest
+global cooldown count towards a new fault.
 
 ### Agent work status
 

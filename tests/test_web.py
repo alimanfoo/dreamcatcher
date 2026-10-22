@@ -953,9 +953,7 @@ def test_ended_assignments_are_ordered_by_when_they_ended(tmp_path):
     )
     written(state=state, issue=30, records=[ended(minute=1)])
     cancel_assignment(
-        assignment=read_agent_work_at_issue(
-            state=state, issue=30, kind=AgentWorkKind.ASSIGNMENT
-        )[0],
+        assignment=read_agent_work_at_issue(state=state, issue=30)[0],
         at=PINNED + timedelta(minutes=10),
     )
 
