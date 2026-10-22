@@ -484,5 +484,5 @@ def test_an_answer_github_refuses_is_reportable(fake):
             repository="alimanfoo/dreamcatcher", issue=8, final_output="The answer."
         )
 
-    assert str(error.value).startswith("could not post the answer on GH8: ")
+    assert str(error.value).startswith("could not post the answer: ")
     assert "issue is locked" in str(error.value)

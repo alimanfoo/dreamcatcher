@@ -644,14 +644,14 @@ def test_a_round_discards_final_output_left_by_an_unrecorded_attempt(
 def test_a_finisher_that_fails_fails_the_round_and_says_why(fake, worktree, directory):
     fake(program="claude").replies(stdout=stream_final_result(result="The answer."))
     paths = compose_round_paths(worktree=worktree, directory=directory)
-    finish_round = Mock(side_effect=ReportableError("could not post the answer on GH9"))
+    finish_round = Mock(side_effect=ReportableError("could not post the answer"))
 
     start_conversation_round(paths=paths, finish_round=finish_round).wait()
 
     assert written(path=paths.record).ending == FinishingErroredAgentRoundEnding(
-        at=PINNED, reason="could not post the answer on GH9"
+        at=PINNED, reason="could not post the answer"
     )
-    assert "[failed] could not post the answer on GH9" in paths.feed.read_text(
+    assert "[failed] could not post the answer" in paths.feed.read_text(
         encoding="utf-8"
     )
 
@@ -722,7 +722,7 @@ def test_a_round_interrupted_as_its_harness_succeeds_is_not_finished(
             id="harness-with-reason",
         ),
         pytest.param(
-            {"status": 0, "reason": "could not post the answer on GH9"},
+            {"status": 0, "reason": "could not post the answer"},
             FinishingErroredAgentRoundEnding,
             id="finishing",
         ),
