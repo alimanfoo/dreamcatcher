@@ -162,6 +162,19 @@ class PullRequestMergeState(StrEnum):
         """Whether the branch is behind its base or conflicts with it."""
         return self in {PullRequestMergeState.BEHIND, PullRequestMergeState.DIRTY}
 
+    @property
+    def is_mergeable(self) -> bool:
+        """Whether GitHub would merge the pull request now.
+
+        An unstable pull request is mergeable with checks that are failing but
+        not required.
+        """
+        return self in {
+            PullRequestMergeState.CLEAN,
+            PullRequestMergeState.HAS_HOOKS,
+            PullRequestMergeState.UNSTABLE,
+        }
+
 
 class CheckResult(StrEnum):
     """List what one check, or every check at a pull request's head, adds up to."""

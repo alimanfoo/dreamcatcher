@@ -6,7 +6,6 @@ may take another round, and the user talks to their agent in the issue's
 comments.
 """
 
-from collections.abc import Callable
 from typing import Protocol
 
 from dreamcatcher.agent_work import AgentWork, AgentWorkEndReason, end_agent_work
@@ -52,7 +51,8 @@ def inspect_open_issue_work(
     A closed issue ends the work once its running round finishes. Paused work's
     fault does not count, since it starts no round however its rounds ended. An
     issue that cannot be read leaves whether the work is paused unknown, so its
-    fault counts.
+    fault counts. A round input that the further inspection cannot read is the
+    row's read failure.
     """
     unread = compose_open_work_row(work=work, finding=None)
     issue = read_issue(repository=context.repository, issue=work.record.issue)
@@ -74,7 +74,14 @@ def inspect_open_issue_work(
         return Inspection(row=compose_open_work_row(work=work, finding=pause))
     if is_fault:
         return Inspection(row=unread, is_counted_fault=True)
-    return inspect_eligible(issue=issue, row=unread)
+    try:
+        return inspect_eligible(issue=issue, row=unread)
+    except ReportableError as failure:
+        return Inspection(
+            row=compose_open_work_row(
+                work=work, finding=ReadFailureFinding(reason=str(failure))
+            )
+        )
 
 
 def find_pause(
@@ -108,20 +115,13 @@ def find_pause(
 
 
 def list_new_comments(
-    *,
-    context: SchedulingContext,
-    issue: int,
-    read_cursor: Callable[[], IssueCommentCursor | None] | None,
+    *, context: SchedulingContext, issue: int, cursor: IssueCommentCursor | None
 ) -> list[IssueComment] | ReadFailureFinding:
     """Return the eligible comments at the issue past the work's cursor.
 
-    Work not yet started has no cursor to read, so it is given every eligible
+    Work that has relayed nothing has no cursor, so it is given every eligible
     comment. A read that fails answers why.
     """
-    try:
-        cursor = None if read_cursor is None else read_cursor()
-    except ReportableError as failure:
-        return ReadFailureFinding(reason=str(failure))
     comments = list_issue_comments_past_cursor(
         repository=context.repository,
         issue=issue,

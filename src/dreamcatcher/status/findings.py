@@ -22,6 +22,11 @@ def describe_comments_to_answer(*, count: int) -> str:
     return f"{describe_count(number=count, noun='comment')} to answer"
 
 
+def describe_changed_children(*, count: int) -> str:
+    """Say how many of a campaign's children changed in ways the lead hears of."""
+    return f"{describe_count(number=count, noun='sub-issue')} changed"
+
+
 def describe_conflicting_labels(*, kind: AgentWorkKind, labels: list[str]) -> str:
     """Name the labels of one kind that an issue carries together."""
     return f"multiple {kind} labels: " + ", ".join(labels)

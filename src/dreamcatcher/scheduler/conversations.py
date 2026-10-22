@@ -68,8 +68,8 @@ def _inspect_comments(
     comments = list_new_comments(
         context=context,
         issue=issue.number,
-        read_cursor=(
-            partial(read_issue_comment_cursor, conversation=work_or_route)
+        cursor=(
+            read_issue_comment_cursor(conversation=work_or_route)
             if isinstance(work_or_route, AgentWork)
             else None
         ),

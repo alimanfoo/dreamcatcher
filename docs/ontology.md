@@ -420,13 +420,13 @@ each campaign label on an issue, and it keeps a paused campaign until
 the parent issue closes.
 
 Each campaign round input records the parent issue, the parent's
-sub-issues and where each one's newest assignment stands, the eligible
-comments past the cursor, the cursor that the input reaches, the main
-revision and the running daemon's assignment routes. A round given no
-new comment carries the cursor forward. No round starts while an update
-cannot observe every sub-issue. The lead reads anything else it needs
-from GitHub, and posts its own messages there. Its final output stays in
-the feed.
+sub-issues and where each one's newest assignment stands, the
+notifications, the eligible comments past the cursor, the cursor that
+the input reaches, the main revision and the running daemon's assignment
+routes. A round given no new comment carries the cursor forward. No
+round starts while an update cannot observe every sub-issue. The lead
+reads anything else it needs from GitHub, and posts its own messages
+there. Its final output stays in the feed.
 
 ### Starting an issue conversation
 
@@ -446,8 +446,42 @@ dependency have no bearing on campaigns.
 
 A campaign's first round is due as soon as the campaign starts, and its
 input holds every eligible comment already on the parent. After that,
-each eligible comment past the cursor makes a round due, which resumes
-the lead's harness session.
+each eligible comment past the cursor, and each notification, makes a
+round due, which resumes the lead's harness session.
+
+### Campaign notifications
+
+A campaign round input is **delivered** once its round took its turn or
+while the round runs. A round that errored or was interrupted delivered
+nothing, so the input before it stays the newest delivered. A
+**notification** names a sub-issue whose changes since the newest
+delivered input call for the lead, and lists those **changes**. Each
+update compares the sub-issues that it observes with those of the newest
+delivered input, matched by issue number. A sub-issue is **settled**
+when no round of its assignment is running and none is due, where an
+assignment request that may start counts as a round due. The comparison
+selects these changes:
+
+- **added** or **removed**: the sub-issue joined or left the parent;
+- **issue state**: the sub-issue was closed or reopened;
+- **handback**: the sub-issue's assignment, the newest round of it that
+  took its turn, or whether the sub-issue is settled differs;
+- **pull request**: the pull request's state, draft flag or head
+  differs;
+- **check completion**: some checks ran and none still runs, and the
+  head, the check result or whether any check runs differs;
+- **mergeable**: GitHub's merge status entered one of `CLEAN`,
+  `HAS_HOOKS` or `UNSTABLE` from a state outside that set. A move
+  between two of those states does not notify;
+- **ending** or **fault**: the assignment ended or entered fault.
+
+A sub-issue added or removed notifies at once. Every other change waits
+until the sub-issue is settled, so the lead hears of an assignment's
+work once it has stopped. A replacement assignment shares nothing with
+the one that it replaced, so every fact that it holds is a change. A
+change that reverts before the lead is given it is no change. Until an
+input has been delivered there is nothing to compare with, so a first
+round is given no notification.
 
 ### Pausing and ending a conversation or campaign
 
@@ -458,7 +492,8 @@ Paused is derived each tick from the issue, not recorded. Paused work
 starts no round, its issue's comments are not read, and the fault of
 paused work does not count towards a global cooldown. Removing the cause
 resumes the work in the same harness session, and the work is then given
-every comment posted since its last finished round.
+every comment posted since its last finished round. A lead is also given
+the notifications of the changes among the sub-issues since then.
 
 When a tick finds the issue of a conversation or campaign closed, it
 records the work's ending with the reason "issue closed" once no round
@@ -479,8 +514,12 @@ it:
 - **start**: an assignment round with no input, which opens the pull
   request, or a campaign's first round;
 - a count of posts or comments: the user posts or issue comments
-  relayed, or **comments** without a count for a conversation round, or
-  a campaign round woken by comments alone, that has no input yet;
+  relayed, or **comments** without a count for a conversation round that
+  has no input yet;
+- a count of sub-issues changed: the notifications that a campaign round
+  was given, after any count of comments, or **comments or changes**
+  without a count for a campaign round, other than a start or a recover,
+  that has no input yet;
 - **main moved** or **checks failed**: the other signals an assignment
   round relayed, after any count of posts;
 - **merged** or **closed**: the state of a finished pull request, which
@@ -488,7 +527,7 @@ it:
 - **recover**: an assignment round whose input relays nothing new, given
   again after a round that did not finish, or a campaign round that
   follows one that did not finish. A campaign's start or recover comes
-  before the count of comments it was given.
+  before the counts of comments and sub-issues it was given.
 
 ### Requests
 
@@ -541,9 +580,10 @@ was interrupted, because it is then given its pull request's state again
 even with nothing new. A conversation has nothing to give but comments,
 so once the user deletes every comment that its unfinished round was
 given, it is not a candidate until a new eligible comment arrives. A
-campaign is also a candidate when no round has run yet, and when its
-last round errored or was interrupted, because the lead is then given
-its input again even with nothing new.
+campaign is also a candidate when no round has run yet, when an update
+finds a notification, and when its last round errored or was
+interrupted, because the lead is then given its input again even with
+nothing new.
 
 Rounds of every kind share the daemon's capacity and the global
 cooldown. Within each kind, open work takes precedence over new work.

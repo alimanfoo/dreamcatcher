@@ -17,8 +17,10 @@ from dreamcatcher.agent_work import AgentWork
 from dreamcatcher.campaigns import (
     CampaignChild,
     CampaignChildAssignment,
+    CampaignChildNotification,
+    compare_campaign_children,
     prepare_campaign_round,
-    read_parent_comment_cursor,
+    read_delivered_campaign_input,
 )
 from dreamcatcher.config import DispatchRoute
 from dreamcatcher.github import (
@@ -29,6 +31,7 @@ from dreamcatcher.github import (
     list_sub_issues,
 )
 from dreamcatcher.prompts import compose_campaign_input_prompt
+from dreamcatcher.relay import IssueCommentCursor
 from dreamcatcher.scheduler.faults import is_last_round_unfinished
 from dreamcatcher.scheduler.inspection import (
     Candidate,
@@ -236,30 +239,39 @@ def _inspect_lead_input(
     start, and the row is the request's row before the read. Children that the
     update could not observe start no round and leave the comments unread, so
     the lead is never given an incomplete picture. A round is due to start the
-    campaign, for new comments, and to give the lead its input again after a
-    round that did not finish. A stopped round took its turn, so the lead waits
-    for a new comment after it. A change among the children alone makes no
-    round due.
+    campaign, for new comments, for changes among the children since the
+    newest input delivered to the lead, and to give the lead its input again
+    after a round that did not finish. Each update compares afresh, so changes
+    wait for capacity in the comparison itself. A stopped round took its turn,
+    so the lead waits for new input after it.
     """
     if isinstance(children, ReadFailureFinding):
         return Inspection(row=row.model_copy(update={"finding": children}))
     campaign = work_or_route if isinstance(work_or_route, AgentWork) else None
+    previous = (
+        None if campaign is None else read_delivered_campaign_input(campaign=campaign)
+    )
+    delivered_cursor = None if previous is None else previous.cursor
     comments = list_new_comments(
-        context=context,
-        issue=issue.number,
-        read_cursor=(
-            None
-            if campaign is None
-            else partial(read_parent_comment_cursor, campaign=campaign)
-        ),
+        context=context, issue=issue.number, cursor=delivered_cursor
     )
     if isinstance(comments, ReadFailureFinding):
         return Inspection(row=row.model_copy(update={"finding": comments}))
+    notifications = (
+        []
+        if previous is None
+        else compare_campaign_children(previous=previous.children, current=children)
+    )
     row = row.model_copy(
-        update={"finding": CampaignFinding(new_comments=len(comments))}
+        update={
+            "finding": CampaignFinding(
+                new_comments=len(comments), changed_children=len(notifications)
+            )
+        }
     )
     if not (
         comments
+        or notifications
         or campaign is None
         or not campaign.rounds
         or is_last_round_unfinished(rounds=campaign.rounds, is_daemon_running=True)
@@ -273,7 +285,9 @@ def _inspect_lead_input(
                 _compose_campaign_round,
                 context=context,
                 children=children,
+                notifications=notifications,
                 comments=comments,
+                delivered_cursor=delivered_cursor,
             ),
         ),
     )
@@ -283,7 +297,9 @@ def _compose_campaign_round(
     *,
     context: SchedulingContext,
     children: list[CampaignChild],
+    notifications: list[CampaignChildNotification],
     comments: list[IssueComment],
+    delivered_cursor: IssueCommentCursor | None,
     work: AgentWork,
 ) -> RoundPlan:
     """Return the plan of a round that gives the lead its input.
@@ -298,7 +314,9 @@ def _compose_campaign_round(
             state=context.state,
             campaign=work,
             children=children,
+            notifications=notifications,
             comments=comments,
+            delivered_cursor=delivered_cursor,
             assignment_routes=context.config.assignment,
         ),
         input_prompt=compose_campaign_input_prompt(

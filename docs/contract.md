@@ -288,6 +288,8 @@ Every input contains:
 - `issue`, identifying the parent issue;
 - `children`, the parent's direct sub-issues in GitHub's order, as the
   update that started the round observed them;
+- `notifications`, the sub-issues whose changes since the last input
+  delivered to the lead call for it, which may be empty;
 - `comments`, the user's eligible comments on the parent since the last
   input delivered to the lead, oldest first, which may be empty;
 - `cursor`, which _dreamcatcher_ uses to tell how far the lead has read
@@ -312,6 +314,29 @@ request's `state`, `is_draft`, `merge_state`, `head`, `check_result` and
 as for an assignment that has ended or is in fault. The daemon's routes
 can differ from the configuration on main, which only takes effect when
 the daemon restarts.
+
+Each notification names the sub-issue's `issue` and lists its `changes`,
+each of which is one of these:
+
+- `added` or `removed`: the sub-issue joined or left the parent;
+- `issue_state`: the sub-issue was closed or reopened;
+- `handback`: the sub-issue's assignment, its `finished_turn` or whether
+  it `is_settled` differs;
+- `pull_request`: the observed pull request's `state`, `is_draft` or
+  `head` differs;
+- `check_completion`: some checks ran and none still runs, and the
+  `head`, the `check_result` or `has_running_checks` differs;
+- `mergeable`: the `merge_state` entered one of `CLEAN`, `HAS_HOOKS` or
+  `UNSTABLE` from a state outside that set. A move between two of those
+  states does not notify;
+- `ending` or `fault`: the assignment ended or entered fault.
+
+A removed sub-issue is not among the `children`. Every change but
+`added` and `removed` is notified only once the sub-issue is settled. A
+replacement assignment is compared with nothing, so every fact that it
+holds is a change. Only the current facts are in the input, so the lead
+reads anything that it needs about what came before from GitHub or
+remembers it from its session. The first input holds no notification.
 
 The first input holds every eligible comment already on the parent. A
 comment is eligible when the signed-in user wrote it, it says something
@@ -353,17 +378,23 @@ waits for a person, because nothing answers it and the round stalls.
 
 The first round starts a new harness session with the configured prompt
 followed by the prompt that names the input. Each later eligible comment
-on the parent wakes the lead for another round, which resumes the
-recorded harness session with the prompt that names the new input. A
-campaign that is paused takes no round, and its first round after it
-resumes is given every comment posted while it was paused.
+on the parent, and each update that finds a notification, wakes the lead
+for another round, which resumes the recorded harness session with the
+prompt that names the new input. One round takes every comment and
+notification that waits. A campaign that is paused takes no round, and
+its first round after it resumes is given every comment posted while it
+was paused, and the notifications of what changed among the sub-issues
+since its last delivered input.
 
 A round that errored or was interrupted did not take its turn, so the
-next round is given the input again. It resumes the recorded harness
-session, or starts a new session with the configured prompt when none
-was recorded. Its prompt opens by saying that the previous round did not
-finish, and the lead must inspect GitHub before it repeats an action.
+next round is given the input again, composed afresh against the last
+input delivered before it, with anything that has arrived since. It
+resumes the recorded harness session, or starts a new session with the
+configured prompt when none was recorded. Its prompt opens by saying
+that the previous round did not finish, and the lead must inspect GitHub
+before it repeats an action.
 
 A round that the user stopped took its turn, and no round follows it on
-its own. The next comment on the parent wakes the lead, and that round's
-prompt opens by saying that the user stopped the previous round.
+its own. The next comment on the parent, or the next notification, wakes
+the lead, and that round's prompt opens by saying that the user stopped
+the previous round.
