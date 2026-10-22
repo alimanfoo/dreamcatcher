@@ -13,7 +13,8 @@ from pydantic import (
     model_validator,
 )
 
-from dreamcatcher.campaigns import CampaignChild, CampaignChildPullRequest
+from dreamcatcher.agent_assignments import ObservedPullRequest
+from dreamcatcher.campaigns import CampaignChild
 from dreamcatcher.documents import DreamcatcherDocument
 from dreamcatcher.github import (
     PullRequestSignal,
@@ -32,11 +33,10 @@ def _normalize_utc(at: datetime, /) -> datetime:
 _UtcDateTime = Annotated[AwareDatetime, AfterValidator(_normalize_utc)]
 
 
-class PullRequestFinding(CampaignChildPullRequest):
+class PullRequestFinding(ObservedPullRequest):
     """Hold what the tick read of an open assignment's pull request.
 
-    A campaign observes its child's pull request through the facts that this
-    finding shares with it. A withheld check failure is one that the relay rule
+    A withheld check failure is one that the relay rule
     kept from the agent.
     """
 

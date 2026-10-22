@@ -80,10 +80,7 @@ agent to answer the user on an issue without implementing a change.
 A **campaign** is _dreamcatcher_'s durable commission to an agent, its
 **lead**, to carry a planned body of work through GitHub. The campaign's
 **parent issue** holds the goal, and the parent's direct sub-issues are
-the stages, its **children**. Each update observes every child: its
-state, and whether it is **settled**, with no assignment round running
-or due, as its newest assignment and that update's assignment inspection
-say.
+the stages.
 
 ### Agent work and agent work identifier
 

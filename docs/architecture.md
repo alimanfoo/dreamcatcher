@@ -239,7 +239,7 @@ invocations.
 campaign go through `agent_work.py`, and creating one writes its work
 record and nothing else. Each round's preparation resets the detached
 worktree to fetched main, adding it when it is missing, and freezes the
-parent issue, the children that the round's update observed, the
+parent issue, the sub-issues that the round's update observed, the
 eligible comments past the cursor, the cursor that the input reaches,
 that revision and the running daemon's assignment routes with their
 recipes. A round given no new comment carries forward the cursor of the
@@ -247,34 +247,34 @@ newest input delivered to the lead, so that input alone always says how
 far the lead has read. A campaign's worktree never acquires a branch or
 a pull request.
 
-Each tick first observes a campaign's children, for an open campaign and
-for a campaign request alike. It lists the parent's direct sub-issues
-and matches each to the newest assignment at its issue, ended ones
-included, and to what the tick's first pass found of that assignment or
-of the assignment request at the issue. `campaigns.py` owns the snapshot
-that results, one `CampaignChild` per sub-issue in GitHub's order: the
-child's number, title and state, whether it is settled, and where its
-newest assignment stands. A child is settled when no assignment round of
-it is running and the first pass made none due, where a request that may
-start an assignment counts as a round due. Its assignment's entry names
-the assignment, its pull request, what the first pass read of that pull
-request, the newest round that took its turn, its ending and whether it
-is in fault. An assignment that has ended or is in fault keeps its pull
-request's number, but the first pass read nothing of it. No child's pull
-request is read a second time. The observation fails when the sub-issue
-read fails, when the first pass could not read a child's assignment or
-assignment request, or when a listing under an assignment label failed
-and a child has no open assignment. A failed observation holds no
-partial picture.
+Each tick first observes a campaign's sub-issues, for an open campaign
+and for a campaign request alike. It lists the parent's direct
+sub-issues and matches each to the newest assignment at its issue, ended
+ones included, and to what the tick's first pass found of that
+assignment or of the assignment request at the issue. `campaigns.py`
+owns the snapshot that results, one `CampaignChild` per sub-issue in
+GitHub's order: the sub-issue's number, title and state, whether it is
+settled, and where its newest assignment stands. A sub-issue is settled
+when no assignment round of it is running and the first pass made none
+due, where a request that may start an assignment counts as a round due.
+Its assignment's entry names the assignment, its pull request, what the
+first pass read of that pull request, the newest round that took its
+turn, its ending and whether it is in fault. An assignment that has
+ended or is in fault keeps its pull request's number, but the first pass
+read nothing of it. No sub-issue's pull request is read a second time.
+The observation fails when the sub-issue read fails, when the first pass
+could not read a sub-issue's assignment or assignment request, or when a
+listing under an assignment label failed and a sub-issue has no open
+assignment. A failed observation holds no partial picture.
 
 The tick then reads an open campaign's parent issue, as it reads a
 conversation's issue, and decides from it whether the campaign is paused
 or has ended. An unpaused campaign that is not in fault then reads the
-parent's eligible comments past its cursor, unless its children could
+parent's eligible comments past its cursor, unless its sub-issues could
 not be observed, which starts no round and records the failure. A round
 is due when one waits, when no round has run yet, or when the last round
 errored or was interrupted. A stopped round took its turn, so after one
-the lead waits for a new comment. A change among the children alone
+the lead waits for a new comment. A change among the sub-issues alone
 makes no round due. The lead's next round resumes its harness session.
 
 The lead publishes its own messages, so a campaign's round plan has no
@@ -335,6 +335,10 @@ branch or pull request.
 
 A wrap-up round records the assignment's ending with the reason
 "completed" in its finishing step, after its harness exits successfully.
+
+`agent_assignments.py` also models what an update observed of an
+assignment's pull request. The scheduler's pull request finding extends
+that model, and a campaign holds it for each sub-issue's assignment.
 
 The assignment module coordinates the workflow but does not implement
 Git commands, parse GitHub responses, launch harnesses, or choose when
@@ -400,7 +404,7 @@ constructs GitHub commands. It owns projections and operations for:
 - repository and account identity, and whether the account can push;
 - the repository's labels, and creating a label;
 - issue title, state, assignees, labels, and dependencies;
-- a parent issue's direct children, with their titles and states;
+- a parent issue's direct sub-issues, with their titles and states;
 - linked pull requests;
 - pull-request identity, draft state, readiness, terminal state, merge
   state, head commit, what its checks add up to, and whether any of them
@@ -535,13 +539,13 @@ composes the words from these values once, and keeps the issue and pull
 request numbers as numbers, so both presentations link them and neither
 parses text.
 
-A campaign's row also holds the parent's children as the tick observed
+A campaign's row also holds the parent's sub-issues as the tick observed
 them, beside its finding, so they stay current while the lead is paused
-or in fault. The row holds no children when the tick could not observe
+or in fault. The row holds no sub-issues when the tick could not observe
 them all, or read nothing for a campaign request with conflicting
-labels. Status gives an active campaign those children and the words
-that count its closed children out of the total, or says that its
-children are unknown, and the web card links each child by number.
+labels. Status gives an active campaign those sub-issues and the words
+that count its closed sub-issues out of the total, or says that its
+sub-issues are unknown, and the web card links each one by number.
 
 `AgentWorkStatus` is one summary status from the ontology, derived in
 one chain for every kind of agent work. `RequestStatus` gives a request

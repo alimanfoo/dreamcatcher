@@ -295,18 +295,18 @@ Every input contains:
 - `revision`, identifying the fetched main commit checked out in the
   detached worktree;
 - `assignment_routes`, the assignment routes of the running daemon, for
-  the lead to choose among when it gives a child an assignment label.
-  Each route names its `label`, and its `claude` and `codex` recipes,
-  either of which may be `null`.
+  the lead to choose among when it gives a sub-issue an assignment
+  label. Each route names its `label`, and its `claude` and `codex`
+  recipes, either of which may be `null`.
 
-Each child names its `issue`, `title` and `state`, whether it
+Each sub-issue names its `issue`, `title` and `state`, whether it
 `is_settled`, and its newest `assignment`, which is `null` when the
-child has never had one. A settled child has no assignment round running
-or due, where an assignment that may start for the child counts as a
-round due. An assignment names its `identifier`, its `pull_request`
-number, the `observed_pull_request` that the update read, the
-`finished_turn` of its newest round that took its turn, its `ending` and
-whether it `is_fault`. The observed pull request holds the pull
+sub-issue has never had one. A settled sub-issue has no assignment round
+running or due, where an assignment that may start for the sub-issue
+counts as a round due. An assignment names its `identifier`, its
+`pull_request` number, the `observed_pull_request` that the update read,
+the `finished_turn` of its newest round that took its turn, its `ending`
+and whether it `is_fault`. The observed pull request holds the pull
 request's `state`, `is_draft`, `merge_state`, `head`, `check_result` and
 `has_running_checks`, and is `null` when the update read nothing of it,
 as for an assignment that has ended or is in fault. The daemon's routes
@@ -318,8 +318,8 @@ comment is eligible when the signed-in user wrote it, it says something
 and it does not carry the agent marker, so the lead's own posts never
 reach it as comments. The lead reads the parent, its sub-issues and
 anything else it needs from GitHub itself. _dreamcatcher_ starts no
-round while it cannot observe every child, so no input holds a partial
-picture.
+round while it cannot observe every sub-issue, so no input holds a
+partial picture.
 
 ### Workspace
 

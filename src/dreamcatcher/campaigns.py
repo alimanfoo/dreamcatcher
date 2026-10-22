@@ -7,6 +7,7 @@ main, and the lead publishes its own messages, so a round has no finishing step.
 
 from pydantic import PositiveInt
 
+from dreamcatcher.agent_assignments import ObservedPullRequest
 from dreamcatcher.agent_work import AgentWork, AgentWorkEndReason
 from dreamcatcher.config import AssignmentRoute
 from dreamcatcher.documents import (
@@ -15,30 +16,9 @@ from dreamcatcher.documents import (
     read_json,
 )
 from dreamcatcher.git import refresh_detached_worktree
-from dreamcatcher.github import (
-    CheckResult,
-    IssueComment,
-    IssueState,
-    PullRequestMergeState,
-    PullRequestState,
-)
+from dreamcatcher.github import IssueComment, IssueState
 from dreamcatcher.relay import IssueCommentCursor
 from dreamcatcher.state import StateDirectory
-
-
-class CampaignChildPullRequest(DreamcatcherDocument):
-    """Model what an update read of a child assignment's pull request.
-
-    The head is the commit that the checks ran at. A failing check result can
-    still have checks running.
-    """
-
-    state: PullRequestState
-    is_draft: bool
-    merge_state: PullRequestMergeState
-    head: str
-    check_result: CheckResult
-    has_running_checks: bool
 
 
 class CampaignChildAssignment(DreamcatcherDocument):
@@ -53,7 +33,7 @@ class CampaignChildAssignment(DreamcatcherDocument):
 
     identifier: str
     pull_request: PositiveInt | None
-    observed_pull_request: CampaignChildPullRequest | None
+    observed_pull_request: ObservedPullRequest | None
     finished_turn: PositiveInt | None
     ending: AgentWorkEndReason | None
     is_fault: bool

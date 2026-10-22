@@ -9,12 +9,14 @@ from collections.abc import Mapping
 from dataclasses import dataclass, replace
 from functools import partial
 
-from dreamcatcher.agent_assignments import read_assignment_pull_request_number
+from dreamcatcher.agent_assignments import (
+    ObservedPullRequest,
+    read_assignment_pull_request_number,
+)
 from dreamcatcher.agent_work import AgentWork
 from dreamcatcher.campaigns import (
     CampaignChild,
     CampaignChildAssignment,
-    CampaignChildPullRequest,
     prepare_campaign_round,
     read_parent_comment_cursor,
 )
@@ -183,8 +185,8 @@ def _observe_child_assignment(
         identifier=assignment.identifier,
         pull_request=read_assignment_pull_request_number(assignment=assignment),
         observed_pull_request=(
-            CampaignChildPullRequest.model_validate(
-                finding.model_dump(include=set(CampaignChildPullRequest.model_fields))
+            ObservedPullRequest.model_validate(
+                finding.model_dump(include=set(ObservedPullRequest.model_fields))
             )
             if isinstance(finding, PullRequestFinding)
             else None

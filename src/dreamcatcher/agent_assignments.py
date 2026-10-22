@@ -29,6 +29,7 @@ from dreamcatcher.agent_work import (
 from dreamcatcher.commands import CommandError
 from dreamcatcher.documents import (
     DocumentCache,
+    DreamcatcherDocument,
     WriteOnceDreamcatcherDocument,
     read_json,
     read_json_if_exists,
@@ -45,7 +46,13 @@ from dreamcatcher.git import (
     push_branch,
     remove_worktree,
 )
-from dreamcatcher.github import PullRequestSignal, PullRequestState, UserPost
+from dreamcatcher.github import (
+    CheckResult,
+    PullRequestMergeState,
+    PullRequestSignal,
+    PullRequestState,
+    UserPost,
+)
 from dreamcatcher.state import StateDirectory
 
 # What an assignment's branch is called, before its identifier. The prefix keeps
@@ -55,6 +62,21 @@ _ASSIGNMENT_BRANCH_PREFIX = "dreamcatcher-"
 
 # The file in an assignment's directory holding its pull request's number.
 _PULL_REQUEST_RECORD_NAME = "pull-request.json"
+
+
+class ObservedPullRequest(DreamcatcherDocument):
+    """Model what an update read of an assignment's pull request.
+
+    The head is the commit that the checks ran at. A failing check result can
+    still have checks running.
+    """
+
+    state: PullRequestState
+    is_draft: bool
+    merge_state: PullRequestMergeState
+    head: str
+    check_result: CheckResult
+    has_running_checks: bool
 
 
 class AssignmentRoundInput(WriteOnceDreamcatcherDocument):

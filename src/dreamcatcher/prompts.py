@@ -115,8 +115,8 @@ _CAMPAIGN_INPUT_PROMPT = """Campaign input for parent issue GH{issue}:
 Read that JSON file. Act on every comment in `comments`, the user's new comments
 on the parent issue, if it holds any, per your campaign's rules. The `children`
 field is the current picture of the parent's sub-issues and their assignments,
-and `assignment_routes` holds the labels and recipes that this dreamcatcher can
-dispatch a child's assignment with. The `revision` field names the commit of
+and `assignment_routes` holds the labels and recipes that the running daemon
+can dispatch a sub-issue's assignment with. The `revision` field names the commit of
 main checked out in your worktree, which dreamcatcher refreshes to main before
 every round, discarding any local change. Do not commit, push or open a pull
 request from this worktree. Inspect GitHub before

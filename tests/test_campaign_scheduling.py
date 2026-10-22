@@ -32,6 +32,7 @@ from records import (
 )
 from rows import request_row
 
+from dreamcatcher.agent_assignments import ObservedPullRequest
 from dreamcatcher.agent_rounds import (
     AgentRoundOutcome,
     AgentRoundRecord,
@@ -44,7 +45,6 @@ from dreamcatcher.agent_work import AgentWorkEndReason, request_agent_work_retry
 from dreamcatcher.campaigns import (
     CampaignChild,
     CampaignChildAssignment,
-    CampaignChildPullRequest,
     CampaignRoundInput,
 )
 from dreamcatcher.config import AgentHarness, read_dreamcatcher_config
@@ -1176,7 +1176,7 @@ def child_assignment(**fields) -> CampaignChildAssignment:
     )
 
 
-DRAFT_PULL_REQUEST = CampaignChildPullRequest(
+DRAFT_PULL_REQUEST = ObservedPullRequest(
     state=PullRequestState.OPEN,
     is_draft=True,
     merge_state=PullRequestMergeState.CLEAN,
@@ -1282,7 +1282,7 @@ def test_a_settled_child_names_its_last_finished_turn_and_its_checks(
     assert observe_children(scheduler=scheduler) == [
         child(
             assignment=child_assignment(
-                observed_pull_request=CampaignChildPullRequest(
+                observed_pull_request=ObservedPullRequest(
                     state=PullRequestState.OPEN,
                     is_draft=False,
                     merge_state=PullRequestMergeState.UNKNOWN,
