@@ -1,4 +1,4 @@
-"""Render assignment, conversation, and feed views from local state."""
+"""Render the agent work and feed views from local state."""
 
 from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass, field
@@ -129,7 +129,7 @@ def _render_agent_work(
             (
                 _render_assignment_summary(state=state, status=status)
                 if kind is AgentWorkKind.ASSIGNMENT
-                else _render_conversation_summary(state=state, status=status)
+                else _render_issue_work_summary(state=state, status=status)
             ),
             _render_round_statuses(round_statuses=status.round_statuses, zone=zone),
             _render_harness_resume(
@@ -142,19 +142,22 @@ def _render_agent_work(
     )
 
 
-def _render_conversation_summary(
+def _render_issue_work_summary(
     *, state: StateDirectory, status: AgentWorkStatus
 ) -> RenderableType:
-    """Return the issue, and what the work record holds for every round."""
-    conversation = status.work
-    record = conversation.record
+    """Return the issue, and what the work record holds for every round.
+
+    It describes a conversation or a campaign, whose channel is its issue.
+    """
+    work = status.work
+    record = work.record
     table = create_table(columns=2)
     for name, value in (
         ("issue identifier", f"GH{record.issue}"),
-        ("agent work identifier", conversation.identifier),
+        ("agent work identifier", work.identifier),
         ("title", record.title),
         ("label", record.dispatch_label),
-        ("worktree", state.describe_path(path=conversation.worktree)),
+        ("worktree", state.describe_path(path=work.worktree)),
         ("harness", record.harness),
         (
             "harness session identifier",
@@ -164,7 +167,7 @@ def _render_conversation_summary(
         ("effort", record.effort),
     ):
         table.add_row(Text(name), Text(str(value)))
-    return render_section(heading="conversation", body=table)
+    return render_section(heading=str(record.kind), body=table)
 
 
 def _render_assignment_summary(

@@ -8,8 +8,10 @@ from conftest import configure
 from records import (
     MERGED_INPUT,
     hold_daemon_lock_for_test,
+    read_campaign,
     read_conversation,
     write_assignment,
+    write_campaign,
     write_conversation,
     write_feed,
     write_round,
@@ -37,7 +39,11 @@ ASSIGNMENT_ID = "GH13-20260819-184158-assignment"
 
 def write_faulted_conversation(*, state: StateDirectory, issue: int) -> None:
     """Write a conversation whose latest two rounds errored."""
-    directory = write_conversation(state=state, issue=issue)
+    write_faulted_rounds(directory=write_conversation(state=state, issue=issue))
+
+
+def write_faulted_rounds(*, directory) -> None:
+    """Write two errored rounds for the work at this directory."""
     for number in (1, 2):
         ended = PINNED + timedelta(minutes=number)
         write_round(
@@ -969,3 +975,68 @@ def test_text_that_names_neither_an_issue_nor_work_is_refused(capsys):
 
     assert exit_info.value.code == 2
     assert "not as GH13-yesterday-assignment" in capsys.readouterr().err
+
+
+def test_retry_clears_the_faults_of_every_kind_at_the_issue(
+    monkeypatch, faulted, capsys
+):
+    write_faulted_conversation(state=faulted, issue=13)
+    write_faulted_rounds(directory=write_campaign(state=faulted, issue=13))
+    requested = PINNED + timedelta(minutes=3)
+    monkeypatch.chdir(faulted.root)
+    monkeypatch.setattr("dreamcatcher.cli.read_current_time", lambda: requested)
+
+    assert main(argv=["retry", "GH13"]) == 0
+
+    campaign = read_campaign(state=faulted, issue=13)
+    assert campaign is not None
+    assert campaign.retry_requested_at == requested
+    output = capsys.readouterr().out
+    assert ASSIGNMENT_ID in output
+    assert "GH13-20260819-184158-conversation" in output
+    assert campaign.identifier in output
+
+
+def test_campaign_shows_its_local_detail_and_feed(monkeypatch, watching, capsys):
+    directory = write_campaign(state=watching, issue=20)
+    write_round(
+        directory=directory,
+        number=1,
+        record=AgentRoundRecord(
+            number=1,
+            started=PINNED,
+            pid=1,
+            ending=_compose_agent_round_ending(at=PINNED, status=0),
+        ),
+    )
+    write_feed(
+        directory=directory,
+        number=1,
+        lines=[FeedLine(at=PINNED, text="I acknowledged the plan.")],
+    )
+    monkeypatch.chdir(watching.root)
+
+    assert main(argv=["campaign", "GH20"]) == 0
+    assert "campaign GH20-" in capsys.readouterr().out
+    assert main(argv=["feed", "GH20", "--campaign"]) == 0
+    assert "I acknowledged the plan." in capsys.readouterr().out
+
+
+def test_stop_refuses_a_campaign_with_no_running_round(monkeypatch, watching, capsys):
+    write_campaign(state=watching, issue=20)
+    monkeypatch.chdir(watching.root)
+
+    assert main(argv=["stop", "GH20", "--campaign"]) == 1
+    assert "has no running round that can be stopped" in capsys.readouterr().err
+
+
+def test_retry_reports_a_retry_that_could_not_be_saved(monkeypatch, faulted, capsys):
+    monkeypatch.chdir(faulted.root)
+
+    def refuse_retry(*, work, at):
+        raise ReportableError("assignment record is read-only")
+
+    monkeypatch.setattr("dreamcatcher.cli.request_agent_work_retry", refuse_retry)
+
+    assert main(argv=["retry", "GH13"]) == 1
+    assert capsys.readouterr().err == "assignment record is read-only\n"
