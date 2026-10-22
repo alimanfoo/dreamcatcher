@@ -53,6 +53,9 @@ plain instructions, as above, because _dreamcatcher_ adds the input and
 publication instructions itself. Authors can find the conversation
 skill's requirements in the
 [conversation skill contract](contract.md#conversation-skill-contract).
+A campaign prompt normally invokes a campaign skill such as
+`dream:lead`, whose requirements are in the
+[campaign skill contract](contract.md#campaign-skill-contract).
 
 ## Decide which harness runs a route
 
@@ -123,8 +126,8 @@ different kinds of work.
 ## Apply and check the configuration
 
 Commit and push `dreamcatcher.toml` and any project instructions or
-setup files the agents need. Assignment worktrees start from fetched
-`origin/main`, so local uncommitted files are not available to them.
+setup files the agents need. Every agent's worktree starts from fetched
+`origin/main`, so local uncommitted files are not available to it.
 
 Then start or restart the daemon from the ordinary main checkout:
 

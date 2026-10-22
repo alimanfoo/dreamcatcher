@@ -39,6 +39,11 @@ dreamcatcher feed GH123 --assignment
 If another decision is needed after the agent responds, add a new
 pull-request comment or review for the next exchange.
 
+When the assignment is a stage of a campaign, the lead reviews the pull
+request and merges it once the stage is done. The lead's comments on the
+pull request reach the agent as yours do, so you can read the whole
+exchange and join it.
+
 ## Out-of-date branches and failing checks
 
 Once the pull request is ready for review, _dreamcatcher_ also wakes the
