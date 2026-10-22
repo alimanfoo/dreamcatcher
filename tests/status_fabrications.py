@@ -34,7 +34,11 @@ from dreamcatcher.agent_rounds import (
     _compose_agent_round_ending,
 )
 from dreamcatcher.agent_work import AgentWorkEndReason, read_agent_work_at_issue
-from dreamcatcher.campaigns import CampaignChild, CampaignRoundInput
+from dreamcatcher.campaigns import (
+    CampaignChild,
+    CampaignChildAssignment,
+    CampaignRoundInput,
+)
 from dreamcatcher.documents import write_json, write_text
 from dreamcatcher.feed import FeedLine
 from dreamcatcher.github import (
@@ -228,24 +232,84 @@ def campaign_row(
     )
 
 
-# The children of the idle campaign's parent, one of them closed.
-CAMPAIGN_CHILDREN = [
-    CampaignChild(
+def _campaign_child(
+    *,
+    issue: int,
+    state: IssueState,
+    is_settled: bool,
+    finished_turn: int | None = None,
+    ending: AgentWorkEndReason | None = None,
+) -> CampaignChild:
+    """Return one child of the idle campaign's parent, with the issue's assignment.
+
+    A child that took no turn and has no ending has no assignment.
+    """
+    return CampaignChild(
         issue=issue,
-        title=f"Stage {issue}",
+        title=f"Issue {issue}",
         state=state,
-        is_settled=True,
-        assignment=None,
+        is_settled=is_settled,
+        assignment=(
+            None
+            if finished_turn is None and ending is None
+            else CampaignChildAssignment(
+                identifier=f"GH{issue}-{ASSIGNMENT_TIMESTAMP}-assignment",
+                pull_request=52,
+                observed_pull_request=None,
+                finished_turn=finished_turn,
+                ending=ending,
+                is_fault=False,
+            )
+        ),
     )
-    for issue, state in ((63, IssueState.CLOSED), (64, IssueState.OPEN))
+
+
+# The children of the idle campaign's parent: one closed, whose assignment
+# completed, one whose assignment is working, one whose request waits for an
+# agent slot, and one that nothing has asked to be implemented.
+CAMPAIGN_CHILDREN = [
+    _campaign_child(
+        issue=63,
+        state=IssueState.CLOSED,
+        is_settled=True,
+        finished_turn=2,
+        ending=AgentWorkEndReason.COMPLETED,
+    ),
+    _campaign_child(issue=64, state=IssueState.OPEN, is_settled=False, finished_turn=1),
+    _campaign_child(issue=65, state=IssueState.OPEN, is_settled=False),
+    _campaign_child(issue=66, state=IssueState.OPEN, is_settled=True),
 ]
+
+
+def _fabricate_campaign_children(*, state: StateDirectory) -> list[RequestRow]:
+    """Write the assignments of the idle campaign's children, and return their rows.
+
+    The rows are those of the working assignment and of the waiting request.
+    """
+    written(
+        state=state,
+        issue=63,
+        records=[ended(minute=1), ended(minute=2, number=2)],
+        round_inputs={2: MERGED_INPUT},
+    )
+    current = running(minute=40, number=2)
+    write_feed(
+        directory=written(state=state, issue=64, records=[ended(minute=1), current]),
+        number=2,
+        lines=[compose_feed_line(record=current, text="[Bash] pytest -q")],
+    )
+    return [
+        _assignment_row(issue=64, ended_round=1, started_round=StartedRound(number=2)),
+        request_row(issue=65, finding=UNCLAIMED),
+    ]
 
 
 def fabricate_campaigns(*, state: StateDirectory) -> list[RequestRow]:
     """Write an idle campaign and an ended one, and return their requests' rows.
 
-    The idle campaign's row holds its children. The rows also hold a labelled
-    parent whose campaign has not started.
+    The idle campaign's row holds its children, whose assignments and request
+    the rows also hold. The rows also hold a labelled parent whose campaign has
+    not started.
     """
     for issue in (60, 61):
         directory = write_campaign(state=state, issue=issue)
@@ -287,6 +351,7 @@ def fabricate_campaigns(*, state: StateDirectory) -> list[RequestRow]:
             kind=AgentWorkKind.CAMPAIGN,
             finding=CampaignFinding(new_comments=0, changed_children=0),
         ),
+        *_fabricate_campaign_children(state=state),
     ]
 
 
