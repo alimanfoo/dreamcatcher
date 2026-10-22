@@ -26,7 +26,7 @@ from dreamcatcher.agent_rounds import (
     _compose_agent_round_ending,
 )
 from dreamcatcher.agent_work import AgentWorkEndReason
-from dreamcatcher.documents import write_json, write_text
+from dreamcatcher.documents import write_text
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import FeedLine
 from dreamcatcher.harness_adapters import AgentWorkKind
@@ -94,9 +94,7 @@ def test_conversation_detail_shows_settings_revision_session_and_round(tmp_path)
                 at=PINNED + timedelta(minutes=10), status=0
             ),
         ),
-    )
-    write_json(
-        document=ConversationRoundInput(
+        round_input=ConversationRoundInput(
             issue=8,
             initial_issue=InitialConversationIssue(
                 title="Issue 8",
@@ -112,7 +110,6 @@ def test_conversation_detail_shows_settings_revision_session_and_round(tmp_path)
             ],
             revision="def456",
         ),
-        path=(directory / "rounds" / "2" / "round-input.json"),
     )
     console, written = rendered_console()
 
@@ -166,9 +163,7 @@ def test_conversation_detail_shows_two_errors_as_a_fault(tmp_path):
                 at=PINNED + timedelta(minutes=8), status=2
             ),
         ),
-    )
-    write_json(
-        document=ConversationRoundInput(
+        round_input=ConversationRoundInput(
             issue=8,
             comments=[
                 {
@@ -180,7 +175,6 @@ def test_conversation_detail_shows_two_errors_as_a_fault(tmp_path):
             ],
             revision="abc123",
         ),
-        path=directory / "rounds" / "2" / "round-input.json",
     )
     console, written = rendered_console()
     console.width = 140
@@ -240,9 +234,7 @@ def test_conversation_feed_follows_a_later_round_without_repeating_the_first(
                     at=PINNED + timedelta(minutes=10), status=0
                 ),
             ),
-        )
-        write_json(
-            document=ConversationRoundInput(
+            round_input=ConversationRoundInput(
                 issue=8,
                 initial_issue=InitialConversationIssue(
                     title="Issue 8",
@@ -258,7 +250,6 @@ def test_conversation_feed_follows_a_later_round_without_repeating_the_first(
                 ],
                 revision="def456",
             ),
-            path=(directory / "rounds" / "2" / "round-input.json"),
         )
         write_feed(
             directory=directory,

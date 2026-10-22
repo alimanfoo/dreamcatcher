@@ -309,9 +309,7 @@ def write_running_conversation(
             started=started,
             pid=1,
         ),
-    )
-    write_json(
-        document=issue_conversations.ConversationRoundInput(
+        round_input=issue_conversations.ConversationRoundInput(
             issue=issue,
             initial_issue=issue_conversations.InitialConversationIssue(
                 title=f"Issue {issue}",
@@ -327,7 +325,6 @@ def write_running_conversation(
             ],
             revision="abc123",
         ),
-        path=_round_paths(directory=directory, number=1).round_input,
     )
 
 
