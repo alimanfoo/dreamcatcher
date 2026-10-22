@@ -258,13 +258,9 @@ class DreamcatcherDaemon:
         process id ended before its harness was spawned, and a round that
         started before the machine last booted ended with the machine.
 
-        The pid is the one the record kept, and the operating system was free
-        to give it to another process once the daemon that recorded it died.
-        On macOS most processes lead a group of their own, so a reused pid
-        usually names a group, and the sweep then ends a group that was never
-        a round. The stories accept this under "The daemon is killed", since
-        it needs the daemon killed outright and the pid reused before the next
-        daemon starts, with no reboot in between.
+        A pid that the system has since given to the leader of another group
+        gets that group ended, which the stories accept under "The daemon is
+        killed".
 
         Windows Job Objects empty when the earlier daemon closes its last
         handle, so termination there is already complete.
