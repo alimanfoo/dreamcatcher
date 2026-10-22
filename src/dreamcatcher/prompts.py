@@ -1,4 +1,4 @@
-"""Compose assignment and issue-conversation prompts for agent rounds."""
+"""Compose the prompts for the agent rounds of every kind of agent work."""
 
 from pathlib import Path
 
@@ -104,6 +104,24 @@ Return Markdown ready for dreamcatcher to post, or exactly NO_REPLY when no
 reply is needed."""
 
 
+# What a campaign round is given beside its instructions. The lead works through
+# GitHub and publishes its own messages, so the prompt names the input and the
+# limits that keep the campaign in the user's hands.
+_CAMPAIGN_INPUT_PROMPT = """Campaign input for parent issue GH{issue}:
+
+  {round_input}
+
+Read that JSON file. The `revision` field names the commit of main checked out
+in your worktree, which dreamcatcher refreshes to main before every round,
+discarding any local change. Do not commit, push or open a pull request from
+this worktree. Inspect GitHub before each change and do not repeat an action
+that an earlier attempt completed. Do not close the parent issue or change its
+assignees or labels, because the user closes it to end the campaign and removing
+its label or assignee pauses it. Post anything the user needs to read on GitHub
+yourself: dreamcatcher keeps your final output in the feed and posts none of it.
+End your turn when done."""
+
+
 def compose_issue_instructions(*, template: str, issue: int) -> str:
     """Fill the issue placeholder in a recipe's prompt instructions.
 
@@ -141,6 +159,11 @@ def compose_assignment_input_prompt(
 def compose_conversation_input_prompt(*, issue: int, round_input: Path) -> str:
     """Return the words that direct a conversation round to its input file."""
     return _CONVERSATION_INPUT_PROMPT.format(issue=issue, round_input=round_input)
+
+
+def compose_campaign_input_prompt(*, issue: int, round_input: Path) -> str:
+    """Return the words that direct a campaign round to its input file."""
+    return _CAMPAIGN_INPUT_PROMPT.format(issue=issue, round_input=round_input)
 
 
 def compose_round_prompt(
