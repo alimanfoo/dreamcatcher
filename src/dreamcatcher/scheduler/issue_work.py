@@ -69,7 +69,7 @@ def inspect_open_issue_work(
                 work=work, reason=AgentWorkEndReason.ISSUE_CLOSED, at=context.clock()
             )
         return Inspection(row=unread)
-    pause = find_pause(context=context, work=work, issue=issue)
+    pause = _find_pause(context=context, work=work, issue=issue)
     if pause is not None:
         return Inspection(row=compose_open_work_row(work=work, finding=pause))
     if is_fault:
@@ -84,7 +84,7 @@ def inspect_open_issue_work(
         )
 
 
-def find_pause(
+def _find_pause(
     *, context: SchedulingContext, work: AgentWork, issue: Issue
 ) -> PausedFinding | ConflictingLabelsFinding | None:
     """Return why the open work at this open issue is paused, if it is.
