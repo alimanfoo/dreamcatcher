@@ -84,9 +84,11 @@ dreamcatcher feed GH123
 ```
 
 An issue reference selects the one piece of agent work at the issue, of
-any kind. When the issue has more than one, the command prints a command
-for each piece, with the agent work identifier that selects it. Run the
-one you want:
+any kind, whether or not it has ended. When the issue has more than one,
+such as an ended assignment and a later conversation, the command prints
+a command for each piece, with the agent work identifier that selects
+it. Each identifier ends with the kind of its work. Run the one you
+want:
 
 ```sh
 dreamcatcher view GH123-20260912-193000-conversation

@@ -66,10 +66,11 @@ dreamcatcher cancel GH123
 
 When the issue has more than one piece of agent work, the command
 cancels nothing and prints a command for each piece, with the agent work
-identifier that selects it. Run the one for the assignment. You can
-instead open the assignment in the web page that `run` opened, select
-**cancel assignment**, and confirm. If you ran the daemon with
-`--noweb`, start `dreamcatcher web` first. A cancel cannot be undone.
+identifier that selects it. Run the one whose identifier ends with
+`assignment`. You can instead open the assignment in the web page that
+`run` opened, select **cancel assignment**, and confirm. If you ran the
+daemon with `--noweb`, start `dreamcatcher web` first. A cancel cannot
+be undone.
 
 _dreamcatcher_ asks a running round to stop, runs no further rounds for
 the assignment, and stops relaying your comments and reviews on its pull

@@ -231,25 +231,28 @@ def test_retry_clears_the_assignments_fault(monkeypatch, faulted, capsys):
     assert "later scheduler update" in capsys.readouterr().out
 
 
-def test_retry_clears_a_conversations_fault(monkeypatch, tmp_path, capsys):
+@pytest.mark.parametrize("write_work", [write_conversation, write_campaign])
+def test_retry_clears_the_fault_of_a_conversation_or_campaign(
+    monkeypatch, tmp_path, capsys, write_work
+):
     state = StateDirectory(root=tmp_path)
     state.bootstrap()
-    write_faulted_conversation(state=state, issue=13)
+    directory = write_work(state=state, issue=13)
+    write_faulted_rounds(directory=directory)
     requested = PINNED + timedelta(minutes=3)
     monkeypatch.chdir(tmp_path)
     monkeypatch.setattr("dreamcatcher.cli.read_current_time", lambda: requested)
 
     assert main(argv=["retry", "GH13"]) == 0
 
-    conversation = read_conversation(state=state, issue=13)
-    assert conversation is not None
-    assert conversation.retry_requested_at == requested
+    work = read_agent_work_at_issue(state=state, issue=13)[-1]
+    assert work.retry_requested_at == requested
     assert not derive_agent_work_fault(
-        rounds=conversation.rounds,
-        retry_requested_at=conversation.retry_requested_at,
+        rounds=work.rounds,
+        retry_requested_at=work.retry_requested_at,
         most_recent_cooldown_ended=None,
     )
-    assert "GH13-20260819-184158-conversation" in capsys.readouterr().out
+    assert directory.name in capsys.readouterr().out
 
 
 def test_retry_clears_the_fault_of_the_work_it_names_and_no_other(

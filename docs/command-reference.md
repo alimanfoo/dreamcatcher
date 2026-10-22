@@ -21,15 +21,17 @@ issue 123.
 `retry`, `stop`, `cancel`, `view` and `feed` act on one piece of agent
 work, and take either of two references to it:
 
+- an issue argument, such as `GH123`, selects the one piece of agent
+  work at the issue, of any kind, whether or not it has ended;
 - an agent work identifier, such as `GH123-20260912-192458-assignment`,
   selects that exact work. It is case-insensitive like an issue
-  argument.
-- an issue argument, such as `GH123`, selects the one piece of agent
-  work at the issue, of any kind, whether or not it has ended.
+  argument, and it ends with the kind of the work.
 
-When the issue has more than one piece of agent work, the command
-changes nothing and returns status 1. It prints the command again for
-each piece, with the identifier that selects it, in identifier order:
+Ended work counts, so an issue whose assignment has ended and that now
+has a conversation has more than one piece of agent work. When the issue
+has more than one piece of agent work, the command changes nothing and
+returns status 1. It prints the command again for each piece, with the
+identifier that selects it, in identifier order:
 
 ```text
 $ dreamcatcher stop GH644
