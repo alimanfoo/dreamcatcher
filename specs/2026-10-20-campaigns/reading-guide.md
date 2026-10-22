@@ -373,11 +373,11 @@ issue for collaboration rather than routine action logging.
   sub-issue read on the update that finds the parent closed or cannot
   read it. A campaign request with conflicting labels reads nothing, so
   its row holds no sub-issues.
-- `CampaignFinding.new_comments` and the campaign trigger in
-  `describe_round_trigger` in
-  [`status/rounds.py`](../../src/dreamcatcher/status/rounds.py) describe
-  parent comments, a start and a recovery. Child changes need their own
-  finding fields and trigger words.
+- `CampaignFinding` counts both the new parent comments and the changed
+  sub-issues, and the campaign trigger in `describe_round_trigger` in
+  [`status/rounds.py`](../../src/dreamcatcher/status/rounds.py) names a
+  start, a recovery and both counts. A round with no input yet says only
+  that comments or sub-issues woke it.
 - `_is_eligible` in [`relay.py`](../../src/dreamcatcher/relay.py)
   ignores marked agent posts, including a lead's marked review. The
   current prompts require that marker everywhere. Both sides matter when

@@ -278,14 +278,14 @@ starts no round and records the failure. `compare_campaign_children` in
 `campaigns.py` then compares the observed sub-issues with those of the
 newest delivered input, and returns a `CampaignChildNotification` for
 each sub-issue whose changes call for the lead. It is a pure function,
-which reads no file and calls nothing, so the scheduler decides what to
-launch and the comparison only says what changed. A round is due when a
-comment waits, when a notification does, when no round has run yet, or
-when the last round errored or was interrupted. A stopped round took its
-turn, so after one the lead waits for new input. Nothing keeps the
-notifications between ticks: each tick compares afresh, and only a round
-that starts records them, in its input. The lead's next round resumes
-its harness session.
+which reads no file and calls neither GitHub nor a harness, so the
+scheduler decides what to launch and the comparison only says what
+changed. A round is due when a comment waits, when a notification does,
+when no round has run yet, or when the last round errored or was
+interrupted. A stopped round took its turn, so after one the lead waits
+for new input. Nothing keeps the notifications between ticks: each tick
+compares afresh, and only a round that starts records them, in its
+input. The lead's next round resumes its harness session.
 
 The lead publishes its own messages, so a campaign's round plan has no
 finishing step, and its final output stays in the feed. Claude's

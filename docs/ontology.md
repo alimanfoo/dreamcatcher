@@ -451,13 +451,16 @@ round due, which resumes the lead's harness session.
 
 ### Campaign notifications
 
-A lead input is **delivered** once its round took its turn or while the
-round runs. A round that errored or was interrupted delivered nothing,
-so the input before it stays the newest delivered. A **notification**
-names a sub-issue whose changes since the newest delivered input call
-for the lead, and lists those **changes**. Each update compares the
-sub-issues that it observes with those of the newest delivered input,
-matched by issue number, and selects these changes:
+A campaign round input is **delivered** once its round took its turn or
+while the round runs. A round that errored or was interrupted delivered
+nothing, so the input before it stays the newest delivered. A
+**notification** names a sub-issue whose changes since the newest
+delivered input call for the lead, and lists those **changes**. Each
+update compares the sub-issues that it observes with those of the newest
+delivered input, matched by issue number. A sub-issue is **settled**
+when no round of its assignment is running and none is due, where an
+assignment request that may start counts as a round due. The comparison
+selects these changes:
 
 - **added** or **removed**: the sub-issue joined or left the parent;
 - **issue state**: the sub-issue was closed or reopened;
