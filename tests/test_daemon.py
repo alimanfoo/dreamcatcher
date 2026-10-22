@@ -6,6 +6,7 @@ from collections.abc import Sequence
 from contextlib import contextmanager
 from datetime import timedelta
 from io import BytesIO, TextIOWrapper
+from operator import attrgetter
 from unittest.mock import Mock, call
 
 import psutil
@@ -735,20 +736,14 @@ def test_the_daemon_ends_the_rounds_it_holds_as_it_goes_down(ready_repo, harness
     assert gone(pid=agent_round.harness_process.pid)
 
 
-# The signals that should end a daemon as Ctrl+C does. Windows has no hangup.
-TERMINATION_SIGNALS = [
-    pytest.param(signal.SIGTERM, id="SIGTERM"),
-    pytest.param(
-        getattr(signal, "SIGHUP", None),
-        id="SIGHUP",
-        marks=pytest.mark.skipif(
-            sys.platform == "win32", reason="Windows has no hangup signal"
-        ),
-    ),
-]
+# The signals that should end a daemon as Ctrl-C does. Windows has no hangup.
+if sys.platform == "win32":
+    TERMINATION_SIGNALS = [signal.SIGTERM]
+else:
+    TERMINATION_SIGNALS = [signal.SIGTERM, signal.SIGHUP]
 
 
-@pytest.mark.parametrize("number", TERMINATION_SIGNALS)
+@pytest.mark.parametrize("number", TERMINATION_SIGNALS, ids=attrgetter("name"))
 def test_a_termination_signal_ends_the_daemon_and_its_rounds_as_an_interrupt_does(
     ready_repo, harnesses, number
 ):
@@ -766,7 +761,7 @@ def test_a_termination_signal_ends_the_daemon_and_its_rounds_as_an_interrupt_doe
     assert gone(pid=agent_round.harness_process.pid)
 
 
-@pytest.mark.parametrize("number", TERMINATION_SIGNALS)
+@pytest.mark.parametrize("number", TERMINATION_SIGNALS, ids=attrgetter("name"))
 def test_a_second_termination_signal_leaves_the_rounds_to_end(
     ready_repo, harnesses, number, monkeypatch
 ):
@@ -791,7 +786,7 @@ def test_a_second_termination_signal_leaves_the_rounds_to_end(
     assert gone(pid=agent_round.harness_process.pid)
 
 
-@pytest.mark.parametrize("number", TERMINATION_SIGNALS)
+@pytest.mark.parametrize("number", TERMINATION_SIGNALS, ids=attrgetter("name"))
 def test_the_daemon_puts_back_the_signal_handler_it_found(
     watched, harnesses, gh, number
 ):
@@ -803,8 +798,9 @@ def test_the_daemon_puts_back_the_signal_handler_it_found(
     assert signal.getsignal(number) == found
 
 
-@pytest.mark.skipif(sys.platform == "win32", reason="Windows has no hangup signal")
 def test_a_daemon_started_to_ignore_hangups_outlives_one(watched, harnesses, gh):
+    if sys.platform == "win32":
+        pytest.skip("Windows has no hangup signal")
     daemon, waiting, _ = idling(root=watched)
     waiting.settle = lambda: signal.raise_signal(signal.SIGHUP)
     found = signal.signal(signal.SIGHUP, signal.SIG_IGN)
