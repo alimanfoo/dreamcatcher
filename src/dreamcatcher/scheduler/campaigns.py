@@ -130,7 +130,7 @@ def _observe_children(
     for sub_issue in sub_issues:
         if sub_issue.repository.casefold() != context.repository.casefold():
             return ReadFailureFinding(
-                reason=f"could not observe child {sub_issue.repository}"
+                reason=f"could not observe sub-issue {sub_issue.repository}"
                 f"#{sub_issue.number}: it is in another repository"
             )
         child = _observe_child(sub_issue=sub_issue, observations=observations)
@@ -155,13 +155,13 @@ def _observe_child(
     finding = None if inspection is None else inspection.row.finding
     if isinstance(finding, ReadFailureFinding):
         return ReadFailureFinding(
-            reason=f"could not observe child GH{sub_issue.number}: {finding.reason}"
+            reason=f"could not observe sub-issue GH{sub_issue.number}: {finding.reason}"
         )
     if observations.listing_failure is not None and not (
         assignment is not None and assignment.is_open
     ):
         return ReadFailureFinding(
-            reason=f"could not observe child GH{sub_issue.number}: "
+            reason=f"could not observe sub-issue GH{sub_issue.number}: "
             f"{observations.listing_failure}"
         )
     return CampaignChild(
