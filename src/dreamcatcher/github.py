@@ -246,8 +246,8 @@ class PullRequest(GitHubResponseProjection):
         return CheckResult.NONE
 
 
-class BlockingIssue(GitHubResponseProjection):
-    """Model an issue that blocks another issue."""
+class _RestIssueProjection(GitHubResponseProjection):
+    """Model an issue as a REST endpoint lists it, by its number and state."""
 
     number: int
     state: IssueState
@@ -257,6 +257,10 @@ class BlockingIssue(GitHubResponseProjection):
     def _normalize_rest_state(cls, value: object, /) -> str:
         """Normalize the REST API's lower-case spelling at its boundary."""
         return str(value).upper()
+
+
+class BlockingIssue(_RestIssueProjection):
+    """Model an issue that blocks another issue."""
 
 
 class PullRequestReference(GitHubResponseProjection):
