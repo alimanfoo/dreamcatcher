@@ -19,7 +19,10 @@ and
 [`dream:less`](https://github.com/alimanfoo/dream/blob/main/plugins/dream/skills/less/SKILL.md)
 assignment skills, and the
 [`dream:scout`](https://github.com/alimanfoo/dream/blob/main/plugins/dream/skills/scout/SKILL.md)
-conversation skill.
+conversation skill. Until dream publishes a campaign skill, read the
+prototype
+[`lead`](https://github.com/alimanfoo/dreamcatcher/blob/main/.agents/skills/lead/SKILL.md)
+campaign skill that this repository commits for its own campaigns.
 
 ## Assignment skill contract
 
