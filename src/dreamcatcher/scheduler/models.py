@@ -95,14 +95,18 @@ class PausedFinding(DreamcatcherDocument):
 
 
 class CampaignFinding(DreamcatcherDocument):
-    """Hold how many of the user's eligible parent comments are past the cursor.
+    """Hold what the tick found new for the lead.
 
     The tick found the parent open, assigned to the account and carrying the
-    campaign's label and no other of its kind.
+    campaign's label and no other of its kind. The new comments are the user's
+    eligible parent comments past the cursor, and the changed children are
+    those whose changes since the newest input delivered to the lead call for
+    it.
     """
 
     found: Literal["campaign"] = "campaign"
     new_comments: NonNegativeInt
+    changed_children: NonNegativeInt
 
 
 class ReadFailureFinding(DreamcatcherDocument):

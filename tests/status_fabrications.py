@@ -257,6 +257,7 @@ def fabricate_campaigns(*, state: StateDirectory) -> list[RequestRow]:
             round_input=CampaignRoundInput(
                 issue=issue,
                 children=[],
+                notifications=[],
                 comments=[],
                 cursor=None,
                 revision="abc123",
@@ -278,13 +279,13 @@ def fabricate_campaigns(*, state: StateDirectory) -> list[RequestRow]:
         at=PINNED + timedelta(minutes=30),
     )
     return [
-        campaign_row(finding=CampaignFinding(new_comments=0), ended_round=1).model_copy(
-            update={"children": CAMPAIGN_CHILDREN}
-        ),
+        campaign_row(
+            finding=CampaignFinding(new_comments=0, changed_children=0), ended_round=1
+        ).model_copy(update={"children": CAMPAIGN_CHILDREN}),
         request_row(
             issue=62,
             kind=AgentWorkKind.CAMPAIGN,
-            finding=CampaignFinding(new_comments=0),
+            finding=CampaignFinding(new_comments=0, changed_children=0),
         ),
     ]
 

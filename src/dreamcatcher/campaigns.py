@@ -86,16 +86,18 @@ class CampaignRoundInput(WriteOnceDreamcatcherDocument):
     """Model the input frozen for one campaign round.
 
     The children are the parent's children as the update that started the
-    round observed them. The comments are the user's eligible comments on the
-    parent past the cursor, oldest first. The cursor is how far this input
-    reaches in the parent's comments: the newest comment's position, or the
-    previous delivered input's cursor when the input holds no comment. The
-    assignment routes are those of the daemon that started the round, which
-    the lead chooses among for a child.
+    round observed them, and the notifications name those whose changes since
+    the previous delivered input call for the lead. The comments are the user's
+    eligible comments on the parent past the cursor, oldest first. The cursor
+    is how far this input reaches in the parent's comments: the newest
+    comment's position, or the previous delivered input's cursor when the input
+    holds no comment. The assignment routes are those of the daemon that
+    started the round, which the lead chooses among for a child.
     """
 
     issue: int
     children: list[CampaignChild]
+    notifications: list[CampaignChildNotification]
     comments: list[IssueComment]
     cursor: IssueCommentCursor | None
     revision: str
@@ -236,6 +238,7 @@ def prepare_campaign_round(
     state: StateDirectory,
     campaign: AgentWork,
     children: list[CampaignChild],
+    notifications: list[CampaignChildNotification],
     comments: list[IssueComment],
     previous: CampaignRoundInput | None,
     assignment_routes: list[AssignmentRoute],
@@ -249,6 +252,7 @@ def prepare_campaign_round(
     return CampaignRoundInput(
         issue=campaign.record.issue,
         children=children,
+        notifications=notifications,
         comments=comments,
         cursor=(
             IssueCommentCursor(written_at=comments[-1].written_at, id=comments[-1].id)

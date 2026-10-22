@@ -60,6 +60,7 @@ def lead_input(*, comments: list[IssueComment]) -> CampaignRoundInput:
     return CampaignRoundInput(
         issue=PARENT,
         children=[],
+        notifications=[],
         comments=comments,
         cursor=IssueCommentCursor(
             written_at=comments[-1].written_at, id=comments[-1].id
@@ -96,6 +97,7 @@ def test_a_campaign_round_starts_from_main_in_a_detached_worktree(cloned):
         state=state,
         campaign=campaign,
         children=[CHILD],
+        notifications=[],
         comments=[FIRST, SECOND],
         previous=None,
         assignment_routes=[SMITH],

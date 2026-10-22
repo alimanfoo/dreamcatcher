@@ -53,7 +53,7 @@ LOOKED_AT = PINNED + timedelta(hours=2)
 PARENT = 20
 ERRORED = _compose_agent_round_ending(at=PINNED + timedelta(minutes=4), status=2)
 SUCCESSFUL = SuccessfulAgentRoundEnding(at=PINNED + timedelta(minutes=3))
-NOTHING_NEW = CampaignFinding(new_comments=0)
+NOTHING_NEW = CampaignFinding(new_comments=0, changed_children=0)
 
 
 @pytest.fixture
@@ -96,6 +96,7 @@ def lead_round(
             else CampaignRoundInput(
                 issue=PARENT,
                 children=[],
+                notifications=[],
                 comments=given,
                 cursor=(
                     IssueCommentCursor(written_at=given[-1].written_at, id=given[-1].id)
@@ -228,7 +229,11 @@ def test_a_lead_with_new_parent_comments_is_waiting_to_answer_them(state):
         number=1,
         ending=StoppedAgentRoundEnding(at=PINNED + timedelta(minutes=2)),
     )
-    observe(state=state, finding=CampaignFinding(new_comments=2), ended_round=1)
+    observe(
+        state=state,
+        finding=CampaignFinding(new_comments=2, changed_children=0),
+        ended_round=1,
+    )
 
     status = campaign_status(state=state)
 
