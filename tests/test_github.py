@@ -632,6 +632,23 @@ def test_the_children_of_a_parent_come_back_in_order_across_pages(fake):
     ]
 
 
+@pytest.mark.parametrize(
+    ("repository", "expected"),
+    [
+        ("alimanfoo/dreamcatcher", True),
+        ("AliManfoo/DreamCatcher", True),
+        ("alimanfoo/other", False),
+        ("other/dreamcatcher", False),
+    ],
+)
+def test_an_issue_is_in_a_repository_named_in_any_case(repository, expected):
+    issue = BlockingIssue(
+        number=7, state=IssueState.OPEN, repository="alimanfoo/dreamcatcher"
+    )
+
+    assert issue.is_in_repository(repository=repository) is expected
+
+
 def posted() -> list[UserPost]:
     """The pull request's posts, given that gh answered every one of its lists."""
     found = list_user_posts(repository=REPOSITORY, pull_request=PULL_REQUEST)

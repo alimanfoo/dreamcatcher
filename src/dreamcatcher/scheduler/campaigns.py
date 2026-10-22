@@ -142,7 +142,7 @@ def _observe_children(
         return ReadFailureFinding(reason=sub_issues.reason)
     children: list[CampaignChild] = []
     for sub_issue in sub_issues:
-        if sub_issue.repository.casefold() != context.repository.casefold():
+        if not sub_issue.is_in_repository(repository=context.repository):
             return ReadFailureFinding(
                 reason=f"could not observe sub-issue {sub_issue.repository}"
                 f"#{sub_issue.number}: it is in another repository"
