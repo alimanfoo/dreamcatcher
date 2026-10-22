@@ -98,6 +98,16 @@ class PausedFinding(DreamcatcherDocument):
     cause: PauseCause
 
 
+class CampaignFinding(DreamcatcherDocument):
+    """Record that a campaign's parent issue lets the lead take a round.
+
+    The tick found the parent open, assigned to the account and carrying the
+    campaign's label and no other of its kind.
+    """
+
+    found: Literal["campaign"] = "campaign"
+
+
 class ReadFailureFinding(DreamcatcherDocument):
     """Hold why a read failed, in place of what it would have found."""
 
@@ -111,6 +121,7 @@ type RequestFinding = Annotated[
     | StartTimeFinding
     | ConflictingLabelsFinding
     | PausedFinding
+    | CampaignFinding
     | ReadFailureFinding,
     Field(discriminator="found"),
 ]

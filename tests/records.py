@@ -184,6 +184,45 @@ def write_conversation(
     return work.directory
 
 
+def compose_campaign_identifier(*, issue: int, at: datetime = PINNED) -> str:
+    """Return the identifier of the campaign that the tests write at a parent."""
+    return agent_work._compose_agent_work_identifier(
+        issue=issue, kind=AgentWorkKind.CAMPAIGN, at=at
+    )
+
+
+def write_campaign(
+    *,
+    state: StateDirectory,
+    issue: int,
+    harness: AgentHarness = AgentHarness.CLAUDE,
+    harness_session_identifier: str | None = "lead-session",
+    dispatch_label: str = "dream:lead",
+) -> Path:
+    """Write a campaign record at the parent issue, and return its directory.
+
+    Its worktree is left for its first round's preparation to add.
+    """
+    work = agent_work._record_agent_work(
+        state=state,
+        identifier=compose_campaign_identifier(issue=issue),
+        record=agent_work.AgentWorkRecord(
+            issue=issue,
+            title=f"Parent {issue}",
+            dispatch_label=dispatch_label,
+            kind=AgentWorkKind.CAMPAIGN,
+            harness=harness,
+            model="opus[1m]",
+            effort="xhigh",
+            instructions=f"Acknowledge GH{issue} with a comment on it.",
+        ),
+    )
+    _write_harness_session(
+        directory=work.directory, identifier=harness_session_identifier
+    )
+    return work.directory
+
+
 def _write_harness_session(*, directory: Path, identifier: str | None) -> None:
     """Write the harness session of the work at this directory, when it has one."""
     if identifier is not None:
@@ -306,6 +345,13 @@ def read_assignments(*, state: StateDirectory) -> list[agent_work.AgentWork]:
         for work in agent_work.read_agent_work(state=state)
         if work.record.kind is AgentWorkKind.ASSIGNMENT
     ]
+
+
+def read_campaign(*, state: StateDirectory, issue: int) -> agent_work.AgentWork | None:
+    """Return the newest campaign at the parent issue, if there is one."""
+    return agent_work.find_newest_agent_work(
+        state=state, issue=issue, kind=AgentWorkKind.CAMPAIGN
+    )
 
 
 def read_conversation(

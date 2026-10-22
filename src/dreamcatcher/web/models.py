@@ -15,7 +15,7 @@ from dreamcatcher.status import (
 
 @dataclass(frozen=True, kw_only=True)
 class WebAgentWorkCard:
-    """Represent the values rendered in one card for agent work of either kind.
+    """Represent the values rendered in one card for agent work of any kind.
 
     Only an assignment has a pull request.
     """

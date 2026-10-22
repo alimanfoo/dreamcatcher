@@ -1,4 +1,4 @@
-"""Run one scheduler tick over both kinds of agent work."""
+"""Run one scheduler tick over every kind of agent work."""
 
 from collections.abc import Iterator, Sequence
 from dataclasses import dataclass, field, replace
@@ -26,6 +26,10 @@ from dreamcatcher.prompts import compose_round_prompt
 from dreamcatcher.scheduler.assignments import (
     inspect_assignment_request,
     inspect_open_assignment,
+)
+from dreamcatcher.scheduler.campaigns import (
+    inspect_campaign_request,
+    inspect_open_campaign,
 )
 from dreamcatcher.scheduler.conversations import (
     inspect_conversation_request,
@@ -55,6 +59,14 @@ from dreamcatcher.scheduler.models import (
 _OPEN_WORK_INSPECTORS: dict[AgentWorkKind, OpenWorkInspector] = {
     AgentWorkKind.ASSIGNMENT: inspect_open_assignment,
     AgentWorkKind.CONVERSATION: inspect_open_conversation,
+    AgentWorkKind.CAMPAIGN: inspect_open_campaign,
+}
+
+# How the tick inspects a request that no open work answers, by its kind.
+_REQUEST_INSPECTORS: dict[AgentWorkKind, RequestInspector] = {
+    AgentWorkKind.ASSIGNMENT: inspect_assignment_request,
+    AgentWorkKind.CONVERSATION: inspect_conversation_request,
+    AgentWorkKind.CAMPAIGN: inspect_campaign_request,
 }
 
 
@@ -196,7 +208,7 @@ class Scheduler:
 
         Open work answers the request it came from. An open assignment also
         answers every assignment label on its issue, since an issue has at most
-        one, while a conversation answers only its own label.
+        one, while a conversation or a campaign answers only its own label.
         """
         answered = {
             (work.record.issue, work.record.dispatch_label.casefold())
@@ -207,26 +219,19 @@ class Scheduler:
             for work in open_work
             if work.record.kind is AgentWorkKind.ASSIGNMENT
         }
-        config = self.context.config
         for issue in issues:
             labels = [label.name for label in issue.labels]
-            if issue.number not in assigned_issues:
+            for kind, inspect_request in _REQUEST_INSPECTORS.items():
+                if kind is AgentWorkKind.ASSIGNMENT and issue.number in assigned_issues:
+                    continue
                 yield from self._inspect_requests_of_kind(
                     issue=issue,
-                    routes=config.identify_routes(
-                        kind=AgentWorkKind.ASSIGNMENT, labels=labels
+                    routes=self.context.config.identify_routes(
+                        kind=kind, labels=labels
                     ),
                     answered=answered,
-                    inspect_request=inspect_assignment_request,
+                    inspect_request=inspect_request,
                 )
-            yield from self._inspect_requests_of_kind(
-                issue=issue,
-                routes=config.identify_routes(
-                    kind=AgentWorkKind.CONVERSATION, labels=labels
-                ),
-                answered=answered,
-                inspect_request=inspect_conversation_request,
-            )
 
     def _inspect_requests_of_kind(
         self,

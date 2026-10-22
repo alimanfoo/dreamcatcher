@@ -6,6 +6,7 @@ from typing import cast
 
 from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.scheduler.models import (
+    CampaignFinding,
     ConflictingLabelsFinding,
     IssueCommentsFinding,
     ReadFailureFinding,
@@ -23,6 +24,7 @@ from dreamcatcher.status.findings import (
 type _StartFinding = (
     StartTimeFinding
     | IssueCommentsFinding
+    | CampaignFinding
     | ConflictingLabelsFinding
     | ReadFailureFinding
 )
@@ -83,6 +85,8 @@ def _describe_finding(
     """Return the status and reasons that what the tick found gives a request."""
     if isinstance(finding, StartTimeFinding):
         return _describe_start_time_answers(finding=finding)
+    if isinstance(finding, CampaignFinding):
+        return _describe_available()
     if isinstance(finding, IssueCommentsFinding):
         if finding.new_comments:
             return RequestStatusValue.AVAILABLE, (
@@ -107,9 +111,7 @@ def _describe_start_time_answers(
 ) -> tuple[RequestStatusValue, tuple[RequestReason, ...]]:
     """Return what claims or blocks an issue, or that nothing does."""
     if finding.is_clear:
-        return RequestStatusValue.AVAILABLE, (
-            RequestReason(words=str(RequestStatusValue.AVAILABLE)),
-        )
+        return _describe_available()
     reasons = []
     if finding.linked_pull_requests:
         reasons.append(
@@ -123,3 +125,10 @@ def _describe_start_time_answers(
             RequestReason(words="blocked by", issues=tuple(finding.blocking_issues))
         )
     return RequestStatusValue.BLOCKED, tuple(reasons)
+
+
+def _describe_available() -> tuple[RequestStatusValue, tuple[RequestReason, ...]]:
+    """Return the status of a request whose work starts once a slot is free."""
+    return RequestStatusValue.AVAILABLE, (
+        RequestReason(words=str(RequestStatusValue.AVAILABLE)),
+    )

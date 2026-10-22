@@ -1,4 +1,4 @@
-"""Describe the agent rounds of either kind of agent work."""
+"""Describe the agent rounds of any kind of agent work."""
 
 from dataclasses import dataclass
 from datetime import datetime

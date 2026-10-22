@@ -1,4 +1,4 @@
-"""Derive the status of agent work of either kind."""
+"""Derive the status of agent work of any kind."""
 
 from dataclasses import dataclass
 from datetime import datetime
@@ -60,7 +60,7 @@ from dreamcatcher.words import describe_count
 
 
 class AgentWorkStatusValue(StrEnum):
-    """List the summary statuses of agent work of either kind.
+    """List the summary statuses of agent work of any kind.
 
     Working means that a round is running. Waiting means that a round is due
     but has not started. Fault takes two consecutive errored rounds. Unknown

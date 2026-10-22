@@ -2,15 +2,13 @@
 
 from functools import partial
 
-from dreamcatcher.agent_work import AgentWork, AgentWorkEndReason, end_agent_work
+from dreamcatcher.agent_work import AgentWork
 from dreamcatcher.config import DispatchRoute
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.github import (
     Issue,
     IssueComment,
-    IssueState,
     UnknownGitHubResponse,
-    read_issue,
 )
 from dreamcatcher.issue_conversations import (
     post_conversation_answer,
@@ -24,52 +22,26 @@ from dreamcatcher.scheduler.inspection import (
     Inspection,
     RoundPlan,
     SchedulingContext,
-    compose_open_work_row,
 )
+from dreamcatcher.scheduler.issue_work import inspect_open_issue_work
 from dreamcatcher.scheduler.models import (
     IssueCommentsFinding,
     ReadFailureFinding,
     RequestRow,
 )
-from dreamcatcher.scheduler.pauses import find_pause
 
 
 def inspect_open_conversation(
-    *,
-    context: SchedulingContext,
-    work: AgentWork,
-    is_fault: bool,
+    *, context: SchedulingContext, work: AgentWork, is_fault: bool
 ) -> Inspection:
-    """Read an open conversation's issue, then its comments unless paused or in fault.
-
-    A closed issue ends the conversation once its running round finishes. A
-    paused conversation's fault does not count, since it starts no round
-    however its rounds ended.
-    """
-    unread = compose_open_work_row(work=work, finding=None)
-    issue = read_issue(repository=context.repository, issue=work.record.issue)
-    if isinstance(issue, UnknownGitHubResponse):
-        return Inspection(
-            row=compose_open_work_row(
-                work=work, finding=ReadFailureFinding(reason=issue.reason)
-            ),
-            is_counted_fault=is_fault,
-        )
-    if issue.state is IssueState.CLOSED:
-        if not work.is_round_running:
-            end_agent_work(
-                work=work,
-                reason=AgentWorkEndReason.ISSUE_CLOSED,
-                at=context.clock(),
-            )
-        return Inspection(row=unread)
-    pause = find_pause(context=context, work=work, issue=issue)
-    if pause is not None:
-        return Inspection(row=compose_open_work_row(work=work, finding=pause))
-    if is_fault:
-        return Inspection(row=unread, is_counted_fault=True)
-    return _inspect_comments(
-        context=context, issue=issue, work_or_route=work, row=unread
+    """Read an open conversation's issue, then its comments unless it may not run."""
+    return inspect_open_issue_work(
+        context=context,
+        work=work,
+        is_fault=is_fault,
+        inspect_eligible=partial(
+            _inspect_comments, context=context, work_or_route=work
+        ),
     )
 
 

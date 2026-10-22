@@ -368,7 +368,7 @@ def read_agent_work_status(
     daemon: DreamcatcherDaemonStatus,
     clock: Callable[[], datetime] = read_current_time,
 ) -> AgentWorkStatus:
-    """Read the status of one piece of agent work, of either kind.
+    """Read the status of one piece of agent work, of any kind.
 
     The caller reads the daemon status, so a view that also shows it shows the
     same answer that its round statuses came from.

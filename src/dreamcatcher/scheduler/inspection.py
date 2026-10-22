@@ -1,4 +1,4 @@
-"""Describe what inspecting one request gives the tick, for both kinds of work."""
+"""Describe what inspecting one request gives the tick, for every kind of work."""
 
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -16,7 +16,7 @@ from dreamcatcher.state import StateDirectory
 
 @dataclass(frozen=True, kw_only=True)
 class SchedulingContext:
-    """Hold what the tick reads GitHub and local state with, for both kinds."""
+    """Hold what the tick reads GitHub and local state with, for every kind."""
 
     repository: str
     account: str
