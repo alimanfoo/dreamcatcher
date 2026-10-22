@@ -4,7 +4,7 @@ from io import StringIO
 
 import pytest
 from clocks import PINNED
-from records import write_tick
+from records import read_newest_work, write_tick
 from rich.console import Console
 from status_fabrications import LOOKED_AT, fabricate_campaigns, holding
 
@@ -51,8 +51,7 @@ def test_campaign_detail_shows_its_parent_settings_and_rounds(state):
 
     show_agent_work_view(
         state=state,
-        reference=60,
-        kind=AgentWorkKind.CAMPAIGN,
+        work=read_newest_work(state=state, issue=60, kind=AgentWorkKind.CAMPAIGN),
         console=console,
         clock=lambda: LOOKED_AT,
     )
@@ -70,7 +69,9 @@ def test_campaign_feed_shows_what_the_lead_said(state):
     console, written = rendered_console()
 
     show_feed_view(
-        state=state, reference=60, kind=AgentWorkKind.CAMPAIGN, console=console
+        state=state,
+        work=read_newest_work(state=state, issue=60, kind=AgentWorkKind.CAMPAIGN),
+        console=console,
     )
 
     assert "I acknowledged the plan on the parent." in written.getvalue()

@@ -9,6 +9,7 @@ from clocks import PINNED
 from records import (
     find_conversation_directory,
     hold_daemon_lock_for_test,
+    read_newest_work,
     write_conversation,
     write_ending,
     write_feed,
@@ -117,8 +118,7 @@ def test_conversation_detail_shows_settings_revision_session_and_round(tmp_path)
 
     show_agent_work_view(
         state=state,
-        reference=8,
-        kind=AgentWorkKind.CONVERSATION,
+        work=read_newest_work(state=state, issue=8, kind=AgentWorkKind.CONVERSATION),
         console=console,
         clock=lambda: PINNED,
     )
@@ -143,8 +143,7 @@ def test_conversation_detail_shows_a_failed_round(tmp_path):
 
     show_agent_work_view(
         state=state,
-        reference=8,
-        kind=AgentWorkKind.CONVERSATION,
+        work=read_newest_work(state=state, issue=8, kind=AgentWorkKind.CONVERSATION),
         console=console,
         clock=lambda: PINNED,
     )
@@ -188,8 +187,7 @@ def test_conversation_detail_shows_two_errors_as_a_fault(tmp_path):
 
     show_agent_work_view(
         state=state,
-        reference=8,
-        kind=AgentWorkKind.CONVERSATION,
+        work=read_newest_work(state=state, issue=8, kind=AgentWorkKind.CONVERSATION),
         console=console,
         clock=lambda: PINNED,
     )
@@ -206,8 +204,7 @@ def test_conversation_feed_shows_its_saved_activity(tmp_path):
 
     show_feed_view(
         state=state,
-        reference=8,
-        kind=AgentWorkKind.CONVERSATION,
+        work=read_newest_work(state=state, issue=8, kind=AgentWorkKind.CONVERSATION),
         console=console,
     )
 
@@ -276,8 +273,7 @@ def test_conversation_feed_follows_a_later_round_without_repeating_the_first(
 
     show_feed_view(
         state=state,
-        reference=8,
-        kind=AgentWorkKind.CONVERSATION,
+        work=read_newest_work(state=state, issue=8, kind=AgentWorkKind.CONVERSATION),
         console=console,
         wait=wait,
     )
@@ -297,25 +293,12 @@ def test_conversation_feed_can_select_one_round(tmp_path):
 
     show_feed_view(
         state=state,
-        reference=8,
-        kind=AgentWorkKind.CONVERSATION,
+        work=read_newest_work(state=state, issue=8, kind=AgentWorkKind.CONVERSATION),
         console=console,
         round_number=1,
     )
 
     assert "I found the answer." in written.getvalue()
-
-
-def test_a_missing_conversation_detail_is_reportable(tmp_path):
-    console, _ = rendered_console()
-
-    with pytest.raises(ReportableError, match="No conversation here for GH8"):
-        show_agent_work_view(
-            state=StateDirectory(root=tmp_path),
-            reference=8,
-            kind=AgentWorkKind.CONVERSATION,
-            console=console,
-        )
 
 
 def test_a_missing_conversation_round_says_how_many_exist(tmp_path):
@@ -326,8 +309,9 @@ def test_a_missing_conversation_round_says_how_many_exist(tmp_path):
     with pytest.raises(ReportableError, match="has run 1 round, so it has no round 2"):
         show_feed_view(
             state=state,
-            reference=8,
-            kind=AgentWorkKind.CONVERSATION,
+            work=read_newest_work(
+                state=state, issue=8, kind=AgentWorkKind.CONVERSATION
+            ),
             console=console,
             round_number=2,
         )
@@ -368,37 +352,6 @@ def test_status_lists_a_conversation_request_before_its_conversation_is_saved(
     assert "GH9" in shown
     assert "dream:conversation" in shown
     assert "1 comment to answer" in shown
-
-
-def test_conversation_detail_before_the_conversation_starts_says_there_is_none(
-    tmp_path,
-):
-    state = unsaved_conversation_state(root=tmp_path)
-    console, _ = rendered_console()
-
-    with pytest.raises(ReportableError, match="No conversation here for GH9"):
-        show_agent_work_view(
-            state=state,
-            reference=9,
-            kind=AgentWorkKind.CONVERSATION,
-            console=console,
-            clock=lambda: PINNED,
-        )
-
-
-def test_a_conversation_feed_before_the_conversation_starts_says_there_is_none(
-    tmp_path,
-):
-    state = unsaved_conversation_state(root=tmp_path)
-    console, _ = rendered_console()
-
-    with pytest.raises(ReportableError, match="No conversation here for GH9"):
-        show_feed_view(
-            state=state,
-            reference=9,
-            kind=AgentWorkKind.CONVERSATION,
-            console=console,
-        )
 
 
 def test_conversations_are_listed_in_attention_order_before_requests(tmp_path):
@@ -491,8 +444,7 @@ def test_an_ended_conversation_view_never_waits(tmp_path, status):
 
     show_agent_work_view(
         state=state,
-        reference=8,
-        kind=AgentWorkKind.CONVERSATION,
+        work=read_newest_work(state=state, issue=8, kind=AgentWorkKind.CONVERSATION),
         console=console,
         clock=lambda: PINNED,
         wait=refusing,
@@ -555,8 +507,7 @@ def assert_conversation_views_keep_watching(*, state: StateDirectory) -> None:
     console, _ = watched_console()
     show_agent_work_view(
         state=state,
-        reference=8,
-        kind=AgentWorkKind.CONVERSATION,
+        work=read_newest_work(state=state, issue=8, kind=AgentWorkKind.CONVERSATION),
         console=console,
         clock=lambda: PINNED,
         wait=interrupting,
@@ -564,8 +515,7 @@ def assert_conversation_views_keep_watching(*, state: StateDirectory) -> None:
     console, _ = watched_console()
     show_feed_view(
         state=state,
-        reference=8,
-        kind=AgentWorkKind.CONVERSATION,
+        work=read_newest_work(state=state, issue=8, kind=AgentWorkKind.CONVERSATION),
         console=console,
         wait=interrupting,
     )
@@ -603,8 +553,7 @@ def test_a_view_of_an_ended_conversation_never_waits(tmp_path):
 
     show_agent_work_view(
         state=state,
-        reference=8,
-        kind=AgentWorkKind.CONVERSATION,
+        work=read_newest_work(state=state, issue=8, kind=AgentWorkKind.CONVERSATION),
         console=console,
         clock=lambda: PINNED,
         wait=refusing,
@@ -639,9 +588,9 @@ def write_newer_conversation(*, state: StateDirectory) -> str:
 def test_a_view_stays_on_its_conversation_when_a_newer_one_arrives(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_conversation(state=state, is_paused=False)
-    identifier = find_conversation_directory(state=state, issue=8).name
     newer = write_newer_conversation(state=state)
     shutil.move(state.work / newer, tmp_path / newer)
+    work = read_newest_work(state=state, issue=8, kind=AgentWorkKind.CONVERSATION)
     waits = []
 
     def arriving(seconds, /):
@@ -655,8 +604,7 @@ def test_a_view_stays_on_its_conversation_when_a_newer_one_arrives(tmp_path):
     detail_console, detail = watched_console()
     show_agent_work_view(
         state=state,
-        reference=identifier,
-        kind=AgentWorkKind.CONVERSATION,
+        work=work,
         console=detail_console,
         clock=lambda: PINNED,
         wait=arriving,
@@ -664,37 +612,13 @@ def test_a_view_stays_on_its_conversation_when_a_newer_one_arrives(tmp_path):
     feed_console, feed = watched_console()
     show_feed_view(
         state=state,
-        reference=identifier,
-        kind=AgentWorkKind.CONVERSATION,
+        work=work,
         console=feed_console,
         wait=arriving,
     )
 
     assert len(waits) == 4
-    assert f"conversation {identifier}" in detail.getvalue()
+    assert f"conversation {work.identifier}" in detail.getvalue()
     assert f"conversation {newer}" not in detail.getvalue()
     assert "I found the answer." in feed.getvalue()
     assert "The newer answer." not in feed.getvalue()
-
-
-def test_a_conversation_view_lists_the_other_conversations_at_its_issue(tmp_path):
-    state = StateDirectory(root=tmp_path)
-    fabricate_conversation(state=state)
-    paused = find_conversation_directory(state=state, issue=8).name
-    newer = write_newer_conversation(state=state)
-    console, written = rendered_console()
-
-    show_agent_work_view(
-        state=state,
-        reference=8,
-        kind=AgentWorkKind.CONVERSATION,
-        console=console,
-        clock=lambda: PINNED,
-    )
-
-    shown = " ".join(written.getvalue().split())
-    assert f"conversation {newer}" in shown
-    assert (
-        f"other conversations {paused} dream:conversation idle paused, label removed"
-        in shown
-    )
