@@ -27,7 +27,9 @@ from dreamcatcher.agent_rounds import (
 )
 from dreamcatcher.agent_work import AgentWorkEndReason
 from dreamcatcher.campaigns import CampaignRoundInput
+from dreamcatcher.github import IssueComment
 from dreamcatcher.harness_adapters import AgentWorkKind
+from dreamcatcher.relay import IssueCommentCursor
 from dreamcatcher.scheduler.models import (
     CampaignFinding,
     PauseCause,
@@ -70,8 +72,18 @@ def lead_round(
     number: int,
     ending: _AgentRoundEnding | None,
     revision: str | None = "abc123",
+    comments: int = 0,
 ) -> None:
-    """Write one round of the campaign, given the input at that revision."""
+    """Write one round of the campaign, given that many comments at the revision."""
+    given = [
+        IssueComment(
+            id=identifier,
+            author="alimanfoo",
+            written_at="2026-09-23T01:00:00Z",
+            body="Carry on.",
+        )
+        for identifier in range(1, comments + 1)
+    ]
     write_round(
         directory=state.work / compose_campaign_identifier(issue=PARENT),
         number=number,
@@ -82,7 +94,14 @@ def lead_round(
             None
             if revision is None
             else CampaignRoundInput(
-                issue=PARENT, comments=[], cursor=None, revision=revision
+                issue=PARENT,
+                comments=given,
+                cursor=(
+                    IssueCommentCursor(written_at=given[-1].written_at, id=given[-1].id)
+                    if given
+                    else None
+                ),
+                revision=revision,
             )
         ),
     )
@@ -266,16 +285,18 @@ def test_a_campaign_whose_parent_closed_has_ended(state):
 def test_lead_rounds_name_their_trigger_and_the_revision_of_main_they_were_given(
     state,
 ):
-    lead_round(state=state, number=1, ending=ERRORED, revision="abc123")
-    lead_round(state=state, number=2, ending=SUCCESSFUL, revision="def456")
-    lead_round(state=state, number=3, ending=SUCCESSFUL, revision=None)
+    lead_round(state=state, number=1, ending=ERRORED, revision="abc123", comments=1)
+    lead_round(state=state, number=2, ending=SUCCESSFUL, revision="def456", comments=1)
+    lead_round(state=state, number=3, ending=SUCCESSFUL, revision="def456", comments=2)
+    lead_round(state=state, number=4, ending=None, revision=None)
 
     rounds = campaign_status(state=state).round_statuses
 
     assert [round_status.trigger_description for round_status in rounds] == [
-        "start",
-        "recover",
-        "start",
+        "start, 1 comment",
+        "recover, 1 comment",
+        "2 comments",
+        "comments",
     ]
     assert [
         None if round_status.revision is None else round_status.revision.description
@@ -283,5 +304,6 @@ def test_lead_rounds_name_their_trigger_and_the_revision_of_main_they_were_given
     ] == [
         "code revision abc123",
         "code revision abc123 -> def456",
+        "code revision def456 (unchanged)",
         None,
     ]
