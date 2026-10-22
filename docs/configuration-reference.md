@@ -93,7 +93,7 @@ Assignment prompts normally invoke an assignment skill that follows the
 Conversation prompts may be plain instructions or invoke a conversation
 skill, but they must follow the
 [conversation skill contract](contract.md#conversation-skill-contract).
-Campaign prompts give the lead its instructions, and must follow the
+Campaign prompts normally invoke a campaign skill, and must follow the
 [campaign skill contract](contract.md#campaign-skill-contract).
 _dreamcatcher_ adds its operational instructions to every prompt.
 

@@ -21,14 +21,18 @@ assignment route, reviews the stage's pull request and checks its proof,
 gives the stage's agent feedback, and merges the pull request once the
 stage is done. It asks you on the parent before it changes the plan.
 
-The dream plugin has had `dream:lead` since version 43.3.0. If you
-installed the plugin before then, update it for each harness that runs
-the route.
+`init` never changes an existing `dreamcatcher.toml`, so a file written
+before the route existed has none. Copy the `[[campaign]]` route from
+the [default configuration](configuration-reference.md#complete-example)
+into it. The dream plugin has had `dream:lead` since version 43.3.0. If
+you installed the plugin before then, update it for each harness that
+runs the route.
 
-To give the lead other instructions, add a campaign route of your own.
-Its prompt tells the lead what to do with the parent and with your
-comments on it. For example, this prompt makes a lead that summarises
-the plan and then talks with you:
+To give the lead other instructions, add a campaign route of your own
+beside `dream:lead`, under a label of its own. Its prompt tells the lead
+what to do with the parent and with your comments on it. For example,
+this prompt makes a lead that summarises the plan and then talks with
+you:
 
 ```toml
 [[campaign]]
