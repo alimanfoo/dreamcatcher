@@ -235,17 +235,18 @@ invocations.
 
 ### Campaigns
 
-`campaigns.py` owns a campaign round's input. Creating and ending a
-campaign go through `agent_work.py`, and creating one writes its work
-record and nothing else. Each round's preparation resets the detached
-worktree to fetched main, adding it when it is missing, and freezes the
-parent issue, the sub-issues that the round's update observed, the
+`campaigns.py` owns a campaign round's input and the comparison of the
+sub-issues. Creating and ending a campaign go through `agent_work.py`,
+and creating one writes its work record and nothing else. Each round's
+preparation resets the detached worktree to fetched main, adding it when
+it is missing, and freezes the parent issue, the sub-issues that the
+round's update observed, the notifications that the update selected, the
 eligible comments past the cursor, the cursor that the input reaches,
 that revision and the running daemon's assignment routes with their
 recipes. A round given no new comment carries forward the cursor of the
 newest input delivered to the lead, so that input alone always says how
-far the lead has read. A campaign's worktree never acquires a branch or
-a pull request.
+far the lead has read and which sub-issues it was last given. A
+campaign's worktree never acquires a branch or a pull request.
 
 Each tick first observes a campaign's sub-issues, for an open campaign
 and for a campaign request alike. It lists the parent's direct
@@ -270,13 +271,21 @@ open assignment. A failed observation holds no partial picture.
 
 The tick then reads an open campaign's parent issue, as it reads a
 conversation's issue, and decides from it whether the campaign is paused
-or has ended. An unpaused campaign that is not in fault then reads the
-parent's eligible comments past its cursor, unless its sub-issues could
-not be observed, which starts no round and records the failure. A round
-is due when one waits, when no round has run yet, or when the last round
-errored or was interrupted. A stopped round took its turn, so after one
-the lead waits for a new comment. A change among the sub-issues alone
-makes no round due. The lead's next round resumes its harness session.
+or has ended. An unpaused campaign that is not in fault then reads its
+newest delivered input and the parent's eligible comments past that
+input's cursor, unless its sub-issues could not be observed, which
+starts no round and records the failure. `compare_campaign_children` in
+`campaigns.py` then compares the observed sub-issues with those of the
+newest delivered input, and returns a `CampaignChildNotification` for
+each sub-issue whose changes call for the lead. It is a pure function,
+which reads no file and calls nothing, so the scheduler decides what to
+launch and the comparison only says what changed. A round is due when a
+comment waits, when a notification does, when no round has run yet, or
+when the last round errored or was interrupted. A stopped round took its
+turn, so after one the lead waits for new input. Nothing keeps the
+notifications between ticks: each tick compares afresh, and only a round
+that starts records them, in its input. The lead's next round resumes
+its harness session.
 
 The lead publishes its own messages, so a campaign's round plan has no
 finishing step, and its final output stays in the feed. Claude's
@@ -383,12 +392,13 @@ user posts that an assignment round receives beside its prompt once its
 pull request exists. `issue_conversations.py` owns
 `ConversationRoundInput`, which freezes the issue, eligible comments and
 investigated revision for a conversation round, and `campaigns.py` owns
-`CampaignRoundInput`, which freezes the parent issue, eligible comments,
-cursor and revision for a campaign round. The round runner writes
-whichever input the preparation returns without reading it, and it hands
-the final output to the finishing step without knowing what that step
-does with it. The round module therefore stays clear of Git and GitHub,
-and each kind's own module owns what its steps write.
+`CampaignRoundInput`, which freezes the parent issue, sub-issues,
+notifications, eligible comments, cursor and revision for a campaign
+round. The round runner writes whichever input the preparation returns
+without reading it, and it hands the final output to the finishing step
+without knowing what that step does with it. The round module therefore
+stays clear of Git and GitHub, and each kind's own module owns what its
+steps write.
 
 The scheduler decides the input and the prompt a new round has. The
 round boundary executes and records that decision; it does not inspect
@@ -440,7 +450,8 @@ owns `IssueCommentCursor`, which marks a position in an issue's
 comments. One rule decides, for every channel, which posts are the
 user's to relay. Each kind's own module reads its cursor from the round
 inputs that it owns: a conversation's is its newest relayed comment, and
-a campaign's is the cursor that its newest delivered input records.
+a campaign's is the cursor that its newest delivered input records, read
+once with the sub-issues that the comparison needs.
 
 Relay does not define a separate inbox domain entity and does not decide
 when a round should run. The scheduler determines whether posts,
@@ -518,7 +529,8 @@ tick found as a typed finding:
 - for a conversation whose comments the tick read, the count of comments
   past the cursor;
 - for a campaign request, or an open campaign whose parent lets the lead
-  take a round, the count of the parent's comments past the cursor;
+  take a round, the count of the parent's comments past the cursor and
+  the count of sub-issues with a notification;
 - for an assignment request with no open work, the open linked pull
   requests and the open blocking issues, as numbers;
 - for a request or an open conversation or campaign whose issue carries

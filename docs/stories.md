@@ -363,8 +363,8 @@ and any comments the user had already left on the parent, and does what
 its prompt asks, posting on GitHub itself, with every post marked as the
 agent's own. Its final words stay in the feed, so the parent issue holds
 only what the lead chose to say there. At later updates the lead is left
-alone until the user comments on the parent, and a change among the
-sub-issues does not wake it. The home page has a Campaigns tab, where
+alone until the user comments on the parent or a sub-issue changes in a
+way that it needs to hear of. The home page has a Campaigns tab, where
 the campaign shows as idle with how its round ended and how many of the
 parent's sub-issues are closed out of the total, with a link to each,
 and its page shows the feed.
@@ -395,6 +395,31 @@ session, told that the user stopped its previous round.
 The value to the user is that they steer the lead in the same place they
 read its plan, and the lead never loses the thread.
 
+#### The lead hears when a sub-issue needs it
+
+A sub-issue's assignment works through its stage while the lead waits.
+When the assignment finishes its turn and no further round of it is due,
+the next update wakes the lead. So does a sub-issue added to or removed
+from the parent, closed or reopened, a pull request that changes its
+head, state or draft flag, checks that finish, a pull request that
+becomes mergeable, and an assignment that ends or falls into fault.
+Every change but a sub-issue added or removed waits until the
+sub-issue's assignment has no round running or due, so the lead is not
+woken while an assignment is still working, starting work wakes nothing,
+and neither do checks still running or changes on main. Several changes
+reach the lead together in one round, beside any comments that the user
+has posted, and its input names each sub-issue that changed and what
+changed, with the whole current picture. A change that the lead could
+not yet be given, because it was working, paused or waiting for an agent
+slot, reaches it in its next round, and a change that reverted meanwhile
+is not news. While a round is due for such changes, the campaign shows
+as waiting with how many sub-issues changed, and the round's trigger
+counts them.
+
+The value to the user is that the lead takes up each stage's result as
+soon as it is ready, and never spends a round on work that is still
+going on.
+
 #### The user pauses a campaign by removing its label
 
 The user wants the lead to leave the parent alone for a while. They take
@@ -404,7 +429,8 @@ other round starts, not even one to recover a round that did not finish.
 Comments the user posts on the parent meanwhile wake nothing, but the
 Campaigns tab keeps counting the closed sub-issues. When they put the
 label back, the same campaign carries on in its saved harness session,
-and the lead is given every comment posted while it was paused.
+and the lead is given every comment posted while it was paused, and what
+changed among the sub-issues meanwhile.
 
 The value to the user is that the lead is on the parent only when
 wanted.

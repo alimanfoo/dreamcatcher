@@ -46,13 +46,19 @@ the change.
   wakes the lead in the same harness session, on main refreshed, and
   comments posted while the campaign is paused reach it when it resumes.
   Closing the parent ends the campaign. The lead's input also holds the
-  parent's sub-issues and where each one's assignment stands.
+  parent's sub-issues and where each one's assignment stands. A
+  sub-issue added or removed, and, once its assignment has no round
+  running or due, a sub-issue whose assignment hands back, ends or falls
+  into fault, whose issue closes or reopens, or whose pull request
+  changes, finishes its checks or becomes mergeable, wakes the lead too,
+  and the input names what changed.
   [Start a campaign](start-a-campaign.md) explains how, and the
   [campaign skill contract](contract.md#campaign-skill-contract) says
   what the lead is given.
   ([#662](https://github.com/alimanfoo/dreamcatcher/pull/662),
   [#667](https://github.com/alimanfoo/dreamcatcher/pull/667),
-  [#671](https://github.com/alimanfoo/dreamcatcher/pull/671))
+  [#671](https://github.com/alimanfoo/dreamcatcher/pull/671),
+  [#672](https://github.com/alimanfoo/dreamcatcher/pull/672))
 - The web home page has a Campaigns tab, where each campaign counts its
   closed sub-issues, and the terminal has a `dreamcatcher campaign`
   view. `stop` and `feed` take `--campaign`, and `retry` also clears the

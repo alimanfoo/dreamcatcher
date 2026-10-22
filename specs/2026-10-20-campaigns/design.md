@@ -166,6 +166,16 @@ in one input, not a reason to launch three rounds. Each child
 notification identifies the affected child and the relevant changed
 facts. The whole current snapshot accompanies them.
 
+Assignment facts are compared only with the previous snapshot's
+assignment of the same identifier. A replacement assignment therefore
+shares nothing with the one it replaced, and every fact it holds is a
+change. A child with no assignment has nothing to hand back. A
+pull-request observation with no previous observation to compare, as
+after a fault, an ending or a replacement, counts each of its facts as
+changed. Check completion needs at least one check: a pull request whose
+rollup is empty, as it can be just after a push, has no checks to
+finish.
+
 Moving between `CLEAN`, `HAS_HOOKS` and `UNSTABLE` does not itself
 notify again. Changed check results have their own notification. These
 states follow GitHub's meaning of mergeable; they do not replace the
