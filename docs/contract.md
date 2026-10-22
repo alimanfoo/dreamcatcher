@@ -19,10 +19,7 @@ and
 [`dream:less`](https://github.com/alimanfoo/dream/blob/main/plugins/dream/skills/less/SKILL.md)
 assignment skills, and the
 [`dream:scout`](https://github.com/alimanfoo/dream/blob/main/plugins/dream/skills/scout/SKILL.md)
-conversation skill. Until dream publishes a campaign skill, read the
-prototype
-[`lead`](https://github.com/alimanfoo/dreamcatcher/blob/main/.agents/skills/lead/SKILL.md)
-campaign skill that this repository commits for its own campaigns.
+conversation skill.
 
 ## Assignment skill contract
 
@@ -364,14 +361,10 @@ pull request from that worktree.
 The lead publishes its own messages on GitHub. _dreamcatcher_ records
 the lead's final output in the feed and posts none of it.
 
-_dreamcatcher_'s prompt asks the lead to end every post with the agent
-marker, except feedback that it gives a sub-issue's assignment on that
-assignment's pull request. The lead posts under the same account as the
-user, so the assignment's relay gives that unmarked feedback to the
-assignment's agent as a user post. A campaign skill must not tell the
-lead to mark that feedback, or to leave the marker off any other post,
-because an unmarked comment on the parent would reach the lead as the
-user's.
+The lead's feedback on a sub-issue's pull request reaches the
+assignment's agent as user posts, as the user's feedback does, because
+_dreamcatcher_'s prompt asks the lead to leave the agent marker off that
+feedback alone.
 
 ### The parent issue
 

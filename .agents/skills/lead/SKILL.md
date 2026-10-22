@@ -62,9 +62,6 @@ their own:
 
 > written by an agent
 
-That visible line is not the agent marker. The prompt says which posts
-carry the marker, and which don't.
-
 ## Each round
 
 Work through these steps in order, then end your turn:
@@ -129,8 +126,8 @@ parent which one to use, and leave the stage unlabelled until they
 answer. Ask too when the routes are ones whose skills you don't know,
 since the user has customised them.
 
-You may start every ready stage in the same round. _dreamcatcher_ holds
-a stage whose blocking issues are still open until they close, so the
+You may start every ready stage in the same round. _dreamcatcher_ does
+not start a blocked stage until the issues that block it close, so the
 dependencies on GitHub decide which stage starts first. If the plan says
 that a stage depends on another and GitHub does not record it, record
 the dependency before you label the stage, because the dependency is
