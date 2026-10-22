@@ -24,9 +24,12 @@ stage is done. It asks you on the parent before it changes the plan.
 `init` never changes an existing `dreamcatcher.toml`, so a file written
 before the route existed has none. Copy the `[[campaign]]` route from
 the [default configuration](configuration-reference.md#complete-example)
-into it. The dream plugin has had `dream:lead` since version 43.3.0. If
-you installed the plugin before then, update it for each harness that
-runs the route.
+into it.
+
+The dream plugin has had `dream:lead` since version 43.3.0, and `init`
+leaves an installed plugin as it is. If you installed the plugin before
+then, update it with the plugin commands of each harness that runs the
+route.
 
 To give the lead other instructions, add a campaign route of your own
 beside `dream:lead`, under a label of its own. Its prompt tells the lead
