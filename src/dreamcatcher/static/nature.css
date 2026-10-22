@@ -233,6 +233,7 @@ body::after {
 
 .fact dt,
 .agent-work-facts dt,
+.agent-work-kind,
 .scheduler-failures h1 {
   color: var(--dim);
   font-size: 12px;

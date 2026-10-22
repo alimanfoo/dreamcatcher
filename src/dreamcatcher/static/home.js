@@ -1,7 +1,6 @@
 "use strict";
 
 const outputAnimations = new Set();
-let selectedTabId = null;
 let shouldRestoreTabFocus = false;
 
 function activateWorkTab(tab, shouldFocus = false) {
@@ -20,25 +19,30 @@ function activateWorkTab(tab, shouldFocus = false) {
   }
 }
 
-const initialTab = document.querySelector(
-  '#home [role="tab"][aria-selected="true"]',
-);
-if (initialTab !== null) {
-  activateWorkTab(initialTab);
+// The address's fragment names the selected tab, so every selection is a
+// history entry. A fragment that names no tab selects the first.
+function activateAddressedWorkTab(shouldFocus = false) {
+  const tabs = [...document.querySelectorAll('#home [role="tab"]')];
+  const tab =
+    tabs.find((candidate) => candidate.hash === window.location.hash) ??
+    tabs[0];
+  if (tab !== undefined) {
+    activateWorkTab(tab, shouldFocus);
+  }
 }
 
-document.body.addEventListener("click", (event) => {
-  if (!(event.target instanceof Element)) {
-    return;
-  }
-  const tab = event.target.closest('#home [role="tab"]');
-  if (tab !== null) {
-    activateWorkTab(tab);
-  }
-});
+activateAddressedWorkTab();
+window.addEventListener("hashchange", () => activateAddressedWorkTab());
 
 document.body.addEventListener("keydown", (event) => {
-  if (!(event.target instanceof Element)) {
+  // A held modifier leaves the key to the browser, as Alt+ArrowLeft goes back.
+  if (
+    !(event.target instanceof Element) ||
+    event.altKey ||
+    event.ctrlKey ||
+    event.metaKey ||
+    event.shiftKey
+  ) {
     return;
   }
   const tab = event.target.closest('#home [role="tab"]');
@@ -61,7 +65,8 @@ document.body.addEventListener("keydown", (event) => {
     return;
   }
   event.preventDefault();
-  activateWorkTab(tabs[nextIndex], true);
+  tabs[nextIndex].focus();
+  window.location.hash = tabs[nextIndex].hash;
 });
 
 function latestOutputsByWork(home) {
@@ -83,8 +88,6 @@ document.body.addEventListener("htmx:beforeSwap", (event) => {
   if (currentHome === null || updatedHome === null) {
     return;
   }
-  selectedTabId =
-    currentHome.querySelector('[role="tab"][aria-selected="true"]')?.id ?? null;
   shouldRestoreTabFocus =
     currentHome.querySelector('[role="tab"]:focus') !== null;
   const currentOutputs = latestOutputsByWork(currentHome);
@@ -108,15 +111,8 @@ document.body.addEventListener("htmx:afterSwap", (event) => {
   if (event.detail.target.id !== "home") {
     return;
   }
-  const home = event.detail.target;
-  const tabs = [...home.querySelectorAll('[role="tab"]')];
-  const selectedTab = tabs.find((tab) => tab.id === selectedTabId) ?? tabs[0];
-  const shouldFocus = shouldRestoreTabFocus;
-  selectedTabId = null;
+  activateAddressedWorkTab(shouldRestoreTabFocus);
   shouldRestoreTabFocus = false;
-  if (selectedTab !== undefined) {
-    activateWorkTab(selectedTab, shouldFocus);
-  }
   const prefersReducedMotion = window.matchMedia(
     "(prefers-reduced-motion: reduce)",
   ).matches;

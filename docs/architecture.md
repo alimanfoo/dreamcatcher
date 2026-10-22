@@ -643,6 +643,11 @@ A conversation and a campaign share one page layout, because the issue
 is the channel of each. A conversation the tick has found but not yet
 saved has no page.
 
+The home page shows each kind of work on a tab of its own. The address's
+fragment names the selected tab, as in `/#campaign`, so the browser's
+back and forward buttons move between tabs. A work page links home to
+the tab of its kind.
+
 The web interface can ask a running round to stop. It writes a
 same-origin stop request through the agent-round boundary, into that
 round's own directory. The daemon still owns the live process and

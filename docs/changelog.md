@@ -48,6 +48,10 @@ the change.
   Claude and `gpt-5.6-terra` at high effort for Codex. Existing
   configuration files and work already created keep their recipes.
   ([#707](https://github.com/alimanfoo/dreamcatcher/pull/707))
+- A work page on the web names its kind and opens in the same browser
+  tab, and its `< home` link returns to the tab of that kind. The home
+  page's tabs are in the address, so the back button moves between them.
+  ([#698](https://github.com/alimanfoo/dreamcatcher/pull/698))
 
 ### Fixed
 

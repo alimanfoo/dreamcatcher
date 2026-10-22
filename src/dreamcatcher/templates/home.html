@@ -9,7 +9,7 @@
         {% if view.sections %}
           <div class="work-tabs" role="tablist" aria-label="Agent work">
             {% for section in view.sections %}
-              <button id="{{ section.kind }}-tab" class="work-tab" type="button" role="tab" aria-selected="{{ 'true' if loop.first else 'false' }}" aria-controls="{{ section.kind }}-panel">{{ section.heading|capitalize }}</button>
+              <a id="{{ section.kind }}-tab" class="work-tab" href="#{{ section.kind }}" role="tab" aria-selected="{{ 'true' if loop.first else 'false' }}" aria-controls="{{ section.kind }}-panel">{{ section.heading|capitalize }}</a>
             {% endfor %}
           </div>
         {% endif %}

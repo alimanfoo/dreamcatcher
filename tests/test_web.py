@@ -221,6 +221,30 @@ def test_a_campaign_renders_as_its_golden_page(issue, tmp_path, pytestconfig):
 
 
 @pytest.mark.parametrize(
+    ("identifier", "kind"),
+    [
+        ("GH13-20260819-184158-assignment", "assignment"),
+        ("GH8-20260819-184158-conversation", "conversation"),
+        ("GH60-20260819-184158-campaign", "campaign"),
+    ],
+)
+def test_a_work_page_names_its_kind_and_links_home_to_its_tab(
+    identifier, kind, tmp_path
+):
+    state = StateDirectory(root=tmp_path)
+    fabricate_conversation(state=state)
+    fabricate_everything(state=state, other_rows=fabricate_campaigns(state=state))
+
+    page = render_assignment(state=state, identifier=identifier)
+
+    assert f'<p class="agent-work-kind">{kind}</p>' in page
+    assert f'<a class="agent-work-navigation" href="/#{kind}">&lt; home</a>' in page
+    assert f'id="{kind}-tab" class="work-tab" href="#{kind}"' in render_home(
+        state=state
+    )
+
+
+@pytest.mark.parametrize(
     ("children", "summary"), [(None, "sub-issues unknown"), ([], "no sub-issues")]
 )
 def test_a_campaign_with_no_children_to_show_says_why_and_shows_no_cards(
@@ -733,9 +757,7 @@ def test_a_home_card_links_to_its_exact_assignment(tmp_path):
 
     assignment_link = (
         'class="agent-work-open" href="/work/GH13-20260819-184158-assignment" '
-        'target="_blank" rel="noopener noreferrer" '
-        'aria-label="Open assignment GH13-20260819-184158-assignment '
-        '(opens in new tab)"'
+        'aria-label="Open assignment GH13-20260819-184158-assignment"'
     )
     assert assignment_link in page
     assert page.count('href="/work/GH13-20260819-184158-assignment"') == 1
@@ -1077,6 +1099,19 @@ def test_github_links_open_in_a_new_tab(tmp_path):
 
     assert links
     assert all('target="_blank" rel="noopener noreferrer"' in link for link in links)
+
+
+def test_links_to_dreamcatcher_pages_stay_in_the_same_tab(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    fabricate_everything(state=state)
+
+    pages = render_home(state=state) + render_assignment(
+        state=state, identifier="GH13-20260819-184158-assignment"
+    )
+    links = re.findall(r'<a [^>]*href="[/?#][^>]*>', pages)
+
+    assert any('href="/work/' in link for link in links)
+    assert not any("target=" in link for link in links)
 
 
 def test_repository_links_are_separated(tmp_path):

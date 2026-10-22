@@ -150,6 +150,7 @@ class WebAgentTail:
 class WebAssignmentView:
     """Represent every value that the assignment template lays out."""
 
+    kind: AgentWorkKind
     repository: str
     github_repository_url: str | None
     daemon: DreamcatcherDaemonStatus

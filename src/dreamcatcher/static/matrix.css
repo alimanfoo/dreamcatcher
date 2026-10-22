@@ -185,6 +185,7 @@ body::after {
 }
 
 .fact dt,
+.agent-work-kind,
 .scheduler-failures h1 {
   color: var(--dim);
 }
@@ -266,14 +267,11 @@ body::after {
   padding: 0 0 var(--space-4);
   margin: 0 0 calc(var(--line) * -1);
   color: var(--dim);
-  background: transparent;
-  border: 0;
   border-bottom: var(--line) solid transparent;
-  cursor: pointer;
-  font-family: inherit;
   font-size: var(--font-size);
   font-weight: 700;
   letter-spacing: var(--letter-label);
+  text-decoration: none;
   text-transform: uppercase;
 }
 
@@ -521,6 +519,10 @@ body::after {
 .agent-work-overview {
   display: grid;
   gap: var(--space-5);
+}
+
+.agent-work-kind {
+  margin: 0;
 }
 
 .agent-work-heading {
