@@ -354,7 +354,10 @@ main, deleting every local commit and file that an earlier round left.
 The lead may comment on, create and edit issues, comment on, review and
 merge pull requests, read checks, and fetch and check out commits to
 verify work. It must not edit project source, commit, push or open a
-pull request from that worktree.
+pull request from that worktree. _dreamcatcher_'s prompt asks the lead
+to run each merge as a shell command of its own, because Claude's
+unattended permissions approve a merge only when nothing else shares its
+call.
 
 ### Publication
 

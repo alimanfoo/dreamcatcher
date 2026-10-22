@@ -307,7 +307,11 @@ round builders in `_CodexHarnessAdapter` in
 [`codex.py`](../../src/dreamcatcher/codex.py). They choose permissions
 by work kind. Claude receives tool allow/deny settings, and a campaign's
 let the lead comment, review, merge, edit issues, fetch and check out
-commits, while denying editing and other Git mutations. Codex receives
+commits, while denying editing and other Git mutations. Claude approves
+a shell call by those rules only when every command in it matches one,
+and otherwise its auto mode classifier judges the call, refusing a merge
+that no person approved. The campaign input prompt therefore asks the
+lead to run each `gh pr merge` as a command of its own. Codex receives
 sandbox and approval settings; a campaign round takes an assignment's
 reviewed settings, so under Codex the prompt alone keeps the lead from
 implementing. These are the arguments this code supplies, rather than

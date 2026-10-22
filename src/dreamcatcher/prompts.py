@@ -129,7 +129,10 @@ reply is needed."""
 # What a campaign round is given beside its instructions. The lead works through
 # GitHub and publishes its own messages, so the prompt names the input and the
 # limits that keep the campaign in the user's hands. The user's comments go to
-# the input file, never into the prompt.
+# the input file, never into the prompt. Claude approves a shell call by its
+# allow rules only when every command in it matches one, and its auto mode
+# classifier refuses any other call that merges a pull request without a
+# person's approval, so a merge must stand alone to match its allow rule.
 _CAMPAIGN_INPUT_PROMPT = """Campaign input for parent issue GH{issue}:
 
   {round_input}
@@ -146,6 +149,8 @@ labels and recipes that the running daemon can dispatch a sub-issue's assignment
 with. The `revision` field names the commit of main checked out in your
 worktree, which dreamcatcher refreshes to main before every round, discarding
 any local change. Do not commit, push or open a pull request from this worktree.
+Run every `gh pr merge` as a shell command of its own, with no other command
+joined to it, because the unattended permissions approve a merge only then.
 Inspect GitHub before each change and do not repeat an action that an earlier
 attempt completed. Do not close the parent issue or change its assignees or
 labels, because the user closes it to end the campaign and removing its label or

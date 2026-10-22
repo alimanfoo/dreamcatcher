@@ -206,9 +206,11 @@ git checkout --detach FETCH_HEAD
 ```
 
 Then run the commands that the proof names, such as the tests and
-checks. Don't change any file to make them pass. If the proof needs
-something you can't do from your worktree, such as a run in another
-repository, read the evidence that the pull request gives for it.
+checks. Don't change any file to make them pass. Leave the worktree at
+that commit when you finish, because _dreamcatcher_ resets it to main
+before your next round. If the proof needs something you can't do from
+your worktree, such as a run in another repository, read the evidence
+that the pull request gives for it.
 
 Take account of changes on main that bear on the stage. Look at what
 reached main since the pull request's branch left it:

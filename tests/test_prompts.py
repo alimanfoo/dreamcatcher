@@ -335,6 +335,10 @@ def test_the_campaign_input_prompt_names_its_input_and_the_users_decisions(
     assert "`assignment_routes` holds the labels and recipes" in words
     assert "refreshes to main before every round" in words
     assert "Do not commit, push or open a pull request from this worktree" in words
+    assert (
+        "Run every `gh pr merge` as a shell command of its own, with no other "
+        "command joined to it" in words
+    )
     assert "do not repeat an action that an earlier attempt completed" in words
     assert "Do not close the parent issue or change its assignees or labels" in words
     assert "posts none of it" in words
