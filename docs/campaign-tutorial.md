@@ -15,6 +15,12 @@ pull request.
 
 ## 1. Set up dreamcatcher
 
+Campaigns need _dreamcatcher_ 7.0.0 or later, and
+`dreamcatcher --version` prints the version you have. If you have an
+earlier version, read
+[Upgrade from v6 to v7.0.0](compatibility.md#upgrade-from-v6-to-v700)
+before you upgrade it.
+
 Follow steps 1 to 4 of [From issue to pull request](tutorial.md), and
 stop once you have pushed `dreamcatcher.toml` at the end of
 [step 4](tutorial.md#4-run-dreamcatcher-init). Don't prepare an issue or
@@ -39,7 +45,7 @@ From the main checkout, create the parent issue and assign it to
 yourself:
 
 ```sh
-gh issue create --assignee @me --title "Add a project glossary" --body "Give the project a glossary that readers can reach from the README. Each sub-issue is one stage."
+gh issue create --assignee "@me" --title "Add a project glossary" --body "Give the project a glossary that readers can reach from the README. Each sub-issue is one stage."
 ```
 
 `gh` prints the address of the new issue. Suppose it ends in
