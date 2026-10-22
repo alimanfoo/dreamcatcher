@@ -347,6 +347,15 @@ def read_assignments(*, state: StateDirectory) -> list[agent_work.AgentWork]:
     ]
 
 
+def read_newest_work(
+    *, state: StateDirectory, issue: int, kind: AgentWorkKind
+) -> agent_work.AgentWork:
+    """Return the newest work of the kind at the issue, which the test has written."""
+    work = agent_work.find_newest_agent_work(state=state, issue=issue, kind=kind)
+    assert work is not None
+    return work
+
+
 def read_campaign(*, state: StateDirectory, issue: int) -> agent_work.AgentWork | None:
     """Return the newest campaign at the parent issue, if there is one."""
     return agent_work.find_newest_agent_work(

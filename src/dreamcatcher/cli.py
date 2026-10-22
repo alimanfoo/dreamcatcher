@@ -469,19 +469,23 @@ def _show_web(*, arguments: argparse.Namespace) -> None:
 
 
 def _show_agent_work(*, arguments: argparse.Namespace) -> None:
+    state = _find_state_directory(root=Path.cwd())
     tui.show_agent_work_view(
-        state=_find_state_directory(root=Path.cwd()),
-        reference=arguments.work,
-        kind=arguments.work_kind,
+        state=state,
+        work=select_agent_work(
+            state=state, reference=arguments.work, kind=arguments.work_kind
+        ),
         console=tui.open_tui_console(),
     )
 
 
 def _show_feed(*, arguments: argparse.Namespace) -> None:
+    state = _find_state_directory(root=Path.cwd())
     tui.show_feed_view(
-        state=_find_state_directory(root=Path.cwd()),
-        reference=arguments.work,
-        kind=arguments.work_kind,
+        state=state,
+        work=select_agent_work(
+            state=state, reference=arguments.work, kind=arguments.work_kind
+        ),
         console=tui.open_tui_console(),
         round_number=arguments.round,
     )

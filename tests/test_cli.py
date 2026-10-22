@@ -467,16 +467,24 @@ def test_cancel_refuses_an_assignment_that_has_already_ended(
     assert capsys.readouterr().err == f"{ASSIGNMENT_ID} has already ended.\n"
 
 
-@pytest.mark.parametrize("selector", ["--assignment", "--conversation"])
-def test_stop_refuses_an_issue_without_the_selected_agent_work(
-    monkeypatch, tmp_path, capsys, selector
+@pytest.mark.parametrize(
+    "command",
+    [
+        ["stop", "--assignment"],
+        ["stop", "--conversation"],
+        ["conversation"],
+        ["feed", "--conversation"],
+    ],
+)
+def test_a_command_refuses_an_issue_without_the_selected_agent_work(
+    monkeypatch, tmp_path, capsys, command
 ):
     state = StateDirectory(root=tmp_path)
     state.bootstrap()
     state.path.mkdir()
     monkeypatch.chdir(tmp_path)
 
-    assert main(argv=["stop", "GH13", selector]) == 1
+    assert main(argv=[command[0], "GH13", *command[1:]]) == 1
     assert "here for GH13." in capsys.readouterr().err
 
 

@@ -313,6 +313,15 @@ def find_agent_work(*, state: StateDirectory, identifier: str) -> AgentWork | No
     )
 
 
+def refresh_agent_work(*, state: StateDirectory, work: AgentWork) -> AgentWork:
+    """Return the agent work as its persisted state reads now.
+
+    The record is written once, so only the facts that change beside it are
+    read again.
+    """
+    return _read_agent_work(state=state, directory=work.directory, record=work.record)
+
+
 def select_agent_work(
     *, state: StateDirectory, reference: AgentWorkReference, kind: AgentWorkKind
 ) -> AgentWork:

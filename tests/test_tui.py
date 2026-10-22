@@ -16,6 +16,7 @@ from conftest import DAEMON_PID, FIXTURES, assert_matches_view_golden
 from records import (
     MERGED_INPUT,
     SCOUT_ROUTES,
+    read_newest_work,
     write_assignment,
     write_daemon_run,
     write_feed,
@@ -366,8 +367,7 @@ def viewed(*, state, issue: int, width: int = WIDTH) -> str:
     written_to = StringIO()
     show_agent_work_view(
         state=state,
-        reference=issue,
-        kind=AgentWorkKind.ASSIGNMENT,
+        work=read_newest_work(state=state, issue=issue, kind=AgentWorkKind.ASSIGNMENT),
         console=pinned(written_to=written_to, width=width),
         clock=lambda: LOOKED_AT,
         wait=refusing,
@@ -432,8 +432,7 @@ def test_assignment_status_alone_is_coloured_and_latest_output_is_dim(tmp_path):
 
     show_agent_work_view(
         state=state,
-        reference=13,
-        kind=AgentWorkKind.ASSIGNMENT,
+        work=read_newest_work(state=state, issue=13, kind=AgentWorkKind.ASSIGNMENT),
         console=console,
         clock=lambda: LOOKED_AT,
         wait=refusing,
@@ -479,8 +478,7 @@ def test_an_assignment_view_shows_the_round_that_starts_while_it_is_open(tmp_pat
 
     show_agent_work_view(
         state=state,
-        reference=20,
-        kind=AgentWorkKind.ASSIGNMENT,
+        work=read_newest_work(state=state, issue=20, kind=AgentWorkKind.ASSIGNMENT),
         console=pinned(written_to=written_to, is_terminal=True),
         clock=lambda: LOOKED_AT,
         wait=wait,
@@ -501,8 +499,7 @@ def test_an_assignment_view_of_an_ended_assignment_never_waits(tmp_path):
 
     show_agent_work_view(
         state=state,
-        reference=12,
-        kind=AgentWorkKind.ASSIGNMENT,
+        work=read_newest_work(state=state, issue=12, kind=AgentWorkKind.ASSIGNMENT),
         console=pinned(written_to=written_to, is_terminal=True),
         clock=lambda: LOOKED_AT,
         wait=refusing,
@@ -524,8 +521,7 @@ def test_an_assignment_view_in_fault_keeps_watching(tmp_path):
 
     show_agent_work_view(
         state=state,
-        reference=9,
-        kind=AgentWorkKind.ASSIGNMENT,
+        work=read_newest_work(state=state, issue=9, kind=AgentWorkKind.ASSIGNMENT),
         console=pinned(written_to=written_to, is_terminal=True),
         clock=lambda: LOOKED_AT,
         wait=interrupting,
@@ -545,8 +541,7 @@ def test_an_assignment_view_of_an_ended_assignment_keeps_its_last_picture(
 
     show_agent_work_view(
         state=state,
-        reference=12,
-        kind=AgentWorkKind.ASSIGNMENT,
+        work=read_newest_work(state=state, issue=12, kind=AgentWorkKind.ASSIGNMENT),
         console=pinned(written_to=written_to, is_terminal=True),
         clock=lambda: LOOKED_AT,
         wait=refusing,
@@ -565,8 +560,7 @@ def followed(*, state, issue: int, wait=refusing) -> str:
     written_to = StringIO()
     show_feed_view(
         state=state,
-        reference=issue,
-        kind=AgentWorkKind.ASSIGNMENT,
+        work=read_newest_work(state=state, issue=issue, kind=AgentWorkKind.ASSIGNMENT),
         console=pinned(written_to=written_to, is_terminal=True),
         wait=wait,
         zone=DISPLAY_TIME_ZONE,
@@ -583,8 +577,7 @@ def test_a_feed_nobody_is_watching_shows_what_is_there_and_returns(tmp_path):
     # that followed for as long as this assignment runs could be none of those.
     show_feed_view(
         state=state,
-        reference=13,
-        kind=AgentWorkKind.ASSIGNMENT,
+        work=read_newest_work(state=state, issue=13, kind=AgentWorkKind.ASSIGNMENT),
         console=pinned(written_to=written_to),
         wait=refusing,
         zone=DISPLAY_TIME_ZONE,
@@ -849,8 +842,7 @@ def viewed_round(
     written_to = StringIO()
     show_feed_view(
         state=state,
-        reference=issue,
-        kind=AgentWorkKind.ASSIGNMENT,
+        work=read_newest_work(state=state, issue=issue, kind=AgentWorkKind.ASSIGNMENT),
         console=pinned(written_to=written_to, is_terminal=is_terminal),
         round_number=number,
         wait=wait,
@@ -935,8 +927,3 @@ def test_a_round_the_assignment_never_ran_says_how_many_it_did(tmp_path):
 
     with pytest.raises(ReportableError, match="has run 2 rounds"):
         viewed_round(state=state, issue=13, number=7)
-
-
-def test_an_issue_no_assignment_here_has_says_so(tmp_path):
-    with pytest.raises(ReportableError, match="GH99"):
-        viewed(state=StateDirectory(root=tmp_path), issue=99)
