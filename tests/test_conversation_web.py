@@ -69,7 +69,7 @@ def test_home_lists_a_conversation_and_links_to_its_page(tmp_path):
 
     assert page.index('id="assignment-tab"') < page.index('id="conversation-tab"')
     assert 'class="agent-work-card' in page
-    assert 'aria-controls="conversation-panel">Conversations</button>' in page
+    assert 'aria-controls="conversation-panel">Conversations</a>' in page
     assert 'id="GH8-20260819-184158-conversation"' in page
     conversation_link = (
         'class="agent-work-open" href="/work/GH8-20260819-184158-conversation" '

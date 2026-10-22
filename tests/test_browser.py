@@ -256,6 +256,31 @@ def test_home_tabs_switch_by_pointer_and_keyboard_and_survive_refresh(
     expect(conversation_panel).to_be_hidden()
 
 
+def test_the_address_names_the_home_tab_so_back_and_forward_move_between_tabs(
+    page: Page, live_web: str
+) -> None:
+    page.goto(f"{live_web}/#conversation")
+    assignments = page.get_by_role("tab", name="Assignments")
+    conversations = page.get_by_role("tab", name="Conversations")
+    campaigns = page.get_by_role("tab", name="Campaigns")
+    expect(conversations).to_have_attribute("aria-selected", "true")
+
+    campaigns.click()
+    expect(page).to_have_url(f"{live_web}/#campaign")
+    campaigns.press("ArrowRight")
+    expect(page).to_have_url(f"{live_web}/#assignment")
+    expect(assignments).to_have_attribute("aria-selected", "true")
+
+    page.go_back()
+    expect(campaigns).to_have_attribute("aria-selected", "true")
+    expect(page.get_by_role("tabpanel", name="Campaigns")).to_be_visible()
+    page.go_back()
+    expect(conversations).to_have_attribute("aria-selected", "true")
+    page.go_forward()
+    expect(campaigns).to_have_attribute("aria-selected", "true")
+    expect(page.get_by_role("tabpanel", name="Conversations")).to_be_hidden()
+
+
 def test_refresh_focuses_the_first_tab_when_the_selected_section_disappears(
     page: Page, live_web: str
 ) -> None:

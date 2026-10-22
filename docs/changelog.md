@@ -29,6 +29,10 @@ the change.
 
 ### Changed
 
+- Selecting a tab on the web home page puts the tab in the address, as
+  in `/#campaign`, so the browser's back and forward buttons move
+  between tabs.
+  ([#698](https://github.com/alimanfoo/dreamcatcher/pull/698))
 - A card's `>` link on the web home page opens the work's page in the
   same browser tab. Only links to GitHub and the documentation open a
   new tab. ([#698](https://github.com/alimanfoo/dreamcatcher/pull/698))

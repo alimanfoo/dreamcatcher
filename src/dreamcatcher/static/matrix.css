@@ -274,6 +274,7 @@ body::after {
   font-size: var(--font-size);
   font-weight: 700;
   letter-spacing: var(--letter-label);
+  text-decoration: none;
   text-transform: uppercase;
 }
 
