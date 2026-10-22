@@ -265,10 +265,15 @@ class PullRequest(GitHubResponseProjection):
 
 
 class _RestIssueProjection(GitHubResponseProjection):
-    """Model an issue as a REST endpoint lists it, by its number and state."""
+    """Model an issue as a REST endpoint lists it, by its number, state and repository.
+
+    The issue can be in another repository than the one asked about. The
+    repository is named as its owner and name, as in `owner/name`.
+    """
 
     number: int
     state: IssueState
+    repository: str = Field(alias="repository_url")
 
     @field_validator("state", mode="before")
     @classmethod
@@ -276,25 +281,21 @@ class _RestIssueProjection(GitHubResponseProjection):
         """Normalize the REST API's lower-case spelling at its boundary."""
         return str(value).upper()
 
+    @field_validator("repository", mode="before")
+    @classmethod
+    def _name_repository(cls, value: object, /) -> str:
+        """Keep the owner and name that end the REST API's repository URL."""
+        return "/".join(str(value).rstrip("/").split("/")[-2:])
+
 
 class BlockingIssue(_RestIssueProjection):
     """Model an issue that blocks another issue."""
 
 
 class SubIssue(_RestIssueProjection):
-    """Model a direct child of a parent issue, which can be in another repository.
-
-    The repository is named as its owner and name, as in `owner/name`.
-    """
+    """Model a direct child of a parent issue."""
 
     title: str
-    repository: str = Field(alias="repository_url")
-
-    @field_validator("repository", mode="before")
-    @classmethod
-    def _name_repository(cls, value: object, /) -> str:
-        """Keep the owner and name that end the REST API's repository URL."""
-        return "/".join(str(value).rstrip("/").split("/")[-2:])
 
 
 class PullRequestReference(GitHubResponseProjection):

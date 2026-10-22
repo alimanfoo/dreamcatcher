@@ -536,15 +536,23 @@ def test_the_blockers_of_an_issue_come_back_with_their_states(fake):
     gh.replies(
         stdout=pages(
             items=[
-                {"number": 7, "state": "closed"},
-                {"number": 8, "state": "open"},
+                {
+                    "number": 7,
+                    "state": "closed",
+                    "repository_url": f"https://api.github.com/repos/{REPOSITORY}",
+                },
+                {
+                    "number": 8,
+                    "state": "open",
+                    "repository_url": "https://api.github.com/repos/other/repo",
+                },
             ]
         )
     )
 
     assert list_blocking_issues(repository=REPOSITORY, issue=9) == [
-        BlockingIssue(number=7, state=IssueState.CLOSED),
-        BlockingIssue(number=8, state=IssueState.OPEN),
+        BlockingIssue(number=7, state=IssueState.CLOSED, repository=REPOSITORY),
+        BlockingIssue(number=8, state=IssueState.OPEN, repository="other/repo"),
     ]
     assert gh.calls[0].arguments == [
         "api",
@@ -559,8 +567,20 @@ def test_an_open_blocker_on_the_second_page_comes_back(fake):
     gh.replies(
         stdout=json.dumps(
             [
-                [{"number": 7, "state": "closed"}],
-                [{"number": 8, "state": "open"}],
+                [
+                    {
+                        "number": 7,
+                        "state": "closed",
+                        "repository_url": f"https://api.github.com/repos/{REPOSITORY}",
+                    }
+                ],
+                [
+                    {
+                        "number": 8,
+                        "state": "open",
+                        "repository_url": f"https://api.github.com/repos/{REPOSITORY}",
+                    }
+                ],
             ]
         )
     )

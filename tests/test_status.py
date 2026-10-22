@@ -47,6 +47,7 @@ from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.scheduler.models import (
     ConflictingLabelsFinding,
     GlobalCooldown,
+    IssueReference,
     PullRequestFinding,
     ReadFailureFinding,
     RequestRow,
@@ -993,7 +994,10 @@ def test_a_stopped_daemon_has_no_current_scheduler_failures(state):
 def test_a_blocked_request_names_its_claims_and_blockers_as_numbers(state):
     blocked = request_row(
         issue=20,
-        finding=StartTimeFinding(linked_pull_requests=[28], blocking_issues=[10, 11]),
+        finding=StartTimeFinding(
+            linked_pull_requests=[28],
+            blocking_issues=[IssueReference(number=10), IssueReference(number=11)],
+        ),
     )
     write_tick(
         state=state,
@@ -1010,7 +1014,10 @@ def test_a_blocked_request_names_its_claims_and_blockers_as_numbers(state):
         value=RequestStatusValue.BLOCKED,
         reasons=(
             RequestReason(words="claimed by", pull_requests=(28,)),
-            RequestReason(words="blocked by", issues=(10, 11)),
+            RequestReason(
+                words="blocked by",
+                issues=(IssueReference(number=10), IssueReference(number=11)),
+            ),
         ),
     )
 
