@@ -471,7 +471,8 @@ selects these changes:
 - **check completion**: some checks ran and none still runs, and the
   head, the check result or whether any check runs differs;
 - **mergeable**: GitHub's merge status entered one of `CLEAN`,
-  `HAS_HOOKS` or `UNSTABLE` from any other state;
+  `HAS_HOOKS` or `UNSTABLE` from a state outside that set. A move
+  between two of those states does not notify;
 - **ending** or **fault**: the assignment ended or entered fault.
 
 A sub-issue added or removed notifies at once. Every other change waits

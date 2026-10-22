@@ -114,17 +114,19 @@ _CAMPAIGN_INPUT_PROMPT = """Campaign input for parent issue GH{issue}:
 
 Read that JSON file. Act on every comment in `comments`, the user's new comments
 on the parent issue, and every entry in `notifications`, the sub-issues whose
-changes since your previous input call for you, if either holds any, per your
-campaign's rules. Each notification names its sub-issue's `issue` and its
-`changes`. The `children` field is the current picture of the parent's
-sub-issues and their assignments, and `assignment_routes` holds the labels and
-recipes that the running daemon can dispatch a sub-issue's assignment with. The
-`revision` field names the commit of main checked out in your worktree, which
-dreamcatcher refreshes to main before every round, discarding any local change.
-Do not commit, push or open a pull request from this worktree. Inspect GitHub
-before each change and do not repeat an action that an earlier attempt
-completed. Do not close the parent issue or change its assignees or labels,
-because the user closes it to end the campaign and removing its label or
+changes since your previous delivered input call for you, if either holds any,
+per your campaign's rules. A round that errored or was interrupted delivered
+nothing, so after one the notifications run from the input before it, and you
+may already have acted on some of them. Each notification names its sub-issue's
+`issue` and its `changes`. The `children` field is the current picture of the
+parent's sub-issues and their assignments, and `assignment_routes` holds the
+labels and recipes that the running daemon can dispatch a sub-issue's assignment
+with. The `revision` field names the commit of main checked out in your
+worktree, which dreamcatcher refreshes to main before every round, discarding
+any local change. Do not commit, push or open a pull request from this worktree.
+Inspect GitHub before each change and do not repeat an action that an earlier
+attempt completed. Do not close the parent issue or change its assignees or
+labels, because the user closes it to end the campaign and removing its label or
 assignee pauses it. Post anything the user needs to read on GitHub yourself:
 dreamcatcher keeps your final output in the feed and posts none of it. End your
 turn when done."""
