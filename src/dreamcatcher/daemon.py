@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import os
+import signal
 import sys
-from contextlib import nullcontext, suppress
+from contextlib import contextmanager, nullcontext, suppress
 from time import sleep
 from typing import TYPE_CHECKING
 
@@ -15,7 +16,7 @@ from dreamcatcher.agent_rounds import (
     record_agent_round_stop,
 )
 from dreamcatcher.agent_work import read_agent_work
-from dreamcatcher.clock import WaitForSeconds, read_current_time
+from dreamcatcher.clock import WaitForSeconds, read_boot_time, read_current_time
 from dreamcatcher.config import AgentHarness, read_dreamcatcher_config
 from dreamcatcher.daemon_runs import DaemonRunRecord, RecordedRoute
 from dreamcatcher.documents import write_json, write_text
@@ -35,16 +36,26 @@ from dreamcatcher.version import DREAMCATCHER_VERSION
 from dreamcatcher.words import describe_time
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Callable, Generator
     from contextlib import AbstractContextManager
     from datetime import datetime, tzinfo
     from pathlib import Path
+    from types import FrameType
 
-    from dreamcatcher.agent_rounds import AgentRound
+    from dreamcatcher.agent_rounds import AgentRound, AgentRoundRecord
+    from dreamcatcher.agent_work import AgentWork
     from dreamcatcher.scheduler import SchedulerRecord
 
 DEFAULT_INTERVAL_SECONDS = 120
 _NO_COMPANION = nullcontext()
+
+# The signals that end the daemon as Ctrl-C does: a kill, a shutdown, and on
+# POSIX the hangup that closing its terminal sends. Windows has no hangup, and
+# seldom sends SIGTERM, because it ends a console program by other means. Its
+# Job Objects end the harnesses of a daemon that dies.
+_TERMINATION_SIGNALS = (
+    (signal.SIGTERM,) if sys.platform == "win32" else (signal.SIGTERM, signal.SIGHUP)
+)
 
 
 def _write_output(*, line: str) -> None:
@@ -55,6 +66,37 @@ def _write_output(*, line: str) -> None:
         print(safe_line, flush=True)
     except (OSError, UnicodeError) as error:
         raise ReportableError("Could not write daemon output.") from error
+
+
+def _raise_interrupt(signal_number: int, frame: FrameType | None, /) -> None:
+    """Ignore every further termination signal, then interrupt the daemon.
+
+    The interrupt lands where the daemon is, as Ctrl-C does. Ignoring the next
+    signal keeps a second kill or hangup from cutting short the ending of the
+    rounds. The signal module calls this with positional arguments.
+    """
+    for number in _TERMINATION_SIGNALS:
+        signal.signal(number, signal.SIG_IGN)
+    raise KeyboardInterrupt
+
+
+@contextmanager
+def _interrupt_on_termination_signals() -> Generator[None]:
+    """Turn each termination signal into an interrupt, and then restore it.
+
+    A signal that the daemon was started to ignore stays ignored, so a daemon
+    started under nohup still outlives its terminal.
+    """
+    previous_handlers = {
+        number: signal.signal(number, _raise_interrupt)
+        for number in _TERMINATION_SIGNALS
+        if signal.getsignal(number) is not signal.SIG_IGN
+    }
+    try:
+        yield
+    finally:
+        for number, handler in previous_handlers.items():
+            signal.signal(number, handler)
 
 
 class DreamcatcherDaemon:
@@ -109,6 +151,9 @@ class DreamcatcherDaemon:
 
         The companion starts after the daemon's startup checks pass and ends with the
         daemon.
+
+        While the loop runs, a termination signal interrupts it as Ctrl-C does, so
+        `kill`, a shutdown or a closed terminal ends the rounds as well.
         """
         # A label carrying one dispatch recipe runs on that harness whatever the
         # preference, so every harness a route can settle a label on must be there.
@@ -146,27 +191,28 @@ class DreamcatcherDaemon:
                 max_agents=self.max_agents,
             )
             self._sweep_orphans()
-            try:
-                with suppress(KeyboardInterrupt), companion:
-                    at = self.clock()
-                    _write_output(
-                        line=(
-                            f"{describe_time(at=at, zone=self.zone)}  "
-                            f"dreamcatcher v{DREAMCATCHER_VERSION} is running"
-                        )
-                    )
-                    while True:
-                        self.run_scheduler_tick(scheduler=scheduler, at=at)
-                        self.wait(self.interval)
-                        daemon_lock.require_held()
+            with _interrupt_on_termination_signals():
+                try:
+                    with suppress(KeyboardInterrupt), companion:
                         at = self.clock()
-            finally:
-                # Rounds die with the daemon by design, so this happens however
-                # the daemon run ends: on the user's interrupt, and on a failure the
-                # daemon could not carry on from. A round that already ended
-                # keeps the ending it recorded for itself.
-                for agent_round in self.rounds.values():
-                    agent_round.end_for_daemon_shutdown()
+                        _write_output(
+                            line=(
+                                f"{describe_time(at=at, zone=self.zone)}  "
+                                f"dreamcatcher v{DREAMCATCHER_VERSION} is running"
+                            )
+                        )
+                        while True:
+                            self.run_scheduler_tick(scheduler=scheduler, at=at)
+                            self.wait(self.interval)
+                            daemon_lock.require_held()
+                            at = self.clock()
+                finally:
+                    # Rounds die with the daemon by design, so this happens
+                    # however the daemon run ends: on the user's interrupt, and
+                    # on a failure the daemon could not carry on from. A round
+                    # that already ended keeps the ending it recorded for itself.
+                    for agent_round in self.rounds.values():
+                        agent_round.end_for_daemon_shutdown()
 
     def run_scheduler_tick(self, *, scheduler: Scheduler, at: datetime) -> None:
         """Run one scheduler tick, then persist and report its result.
@@ -205,35 +251,36 @@ class DreamcatcherDaemon:
         A terminal record is left unchanged. A record with a pending stop
         request is marked stopped; every other record without an ending is
         marked interrupted so that a later scheduler tick gives its input
-        again. A record with no process id ended before its harness was
-        spawned, so there is nothing to terminate.
+        again.
 
-        The pid is the one the record kept, and the operating system was free
-        to give it to somebody else once the daemon that recorded it died.
-        Ending it reaches that pid's own process group, and a pid handed on to
-        a stranger is almost never a group of its own, so it names no group and
-        nothing happens. A reused pid that does lead a process group can cause
-        this sweep to terminate an unrelated group. The record can be stale
-        for the whole interval between daemon runs.
+        The sweep ends the process group that each such record's pid leads,
+        unless nothing of its round can still be alive. A record with no
+        process id ended before its harness was spawned, and a round that
+        started before the machine last booted ended with the machine.
+
+        A pid that the system has since given to the leader of another group
+        gets that group ended, which the stories accept under "The daemon is
+        killed".
 
         Windows Job Objects empty when the earlier daemon closes its last
         handle, so termination there is already complete.
         """
+        boot_time = read_boot_time()
         for work in read_agent_work(state=self.state):
             for record in work.rounds:
                 if record.ending is None:
-                    if record.pid is not None:
-                        teardown.end_process_tree(pid=record.pid)
-                    paths = work.compose_round_paths(number=record.number)
-                    if paths.stop_request.is_file():
-                        record_agent_round_stop(
-                            record=record, path=paths.record, at=self.clock()
-                        )
-                    else:
-                        record_agent_round_interruption(
-                            record=record,
-                            path=paths.record,
-                        )
+                    self._end_orphan(work=work, record=record, boot_time=boot_time)
+
+    def _end_orphan(
+        self, *, work: AgentWork, record: AgentRoundRecord, boot_time: datetime
+    ) -> None:
+        if record.pid is not None and record.started > boot_time:
+            teardown.end_process_tree(pid=record.pid)
+        paths = work.compose_round_paths(number=record.number)
+        if paths.stop_request.is_file():
+            record_agent_round_stop(record=record, path=paths.record, at=self.clock())
+        else:
+            record_agent_round_interruption(record=record, path=paths.record)
 
 
 def _describe_tick_outcome(

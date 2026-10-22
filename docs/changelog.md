@@ -44,6 +44,15 @@ the change.
 
 ### Fixed
 
+- On macOS and Linux, closing the terminal that runs `dreamcatcher run`,
+  ending the daemon with `kill`, or shutting the machine down now ends
+  its rounds as interrupted, as Ctrl-C does. Before, their harnesses
+  carried on without the daemon.
+  ([#690](https://github.com/alimanfoo/dreamcatcher/pull/690))
+- After the machine restarts, starting the daemon no longer ends a
+  program that has taken the process identifier of a round from before
+  the restart.
+  ([#690](https://github.com/alimanfoo/dreamcatcher/pull/690))
 - The reason given when a campaign cannot observe a sub-issue names it
   by its number alone, and the reason given when a conversation cannot
   post its answer names no issue, so the web pages no longer show an
