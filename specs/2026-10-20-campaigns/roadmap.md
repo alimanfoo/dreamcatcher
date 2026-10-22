@@ -9,6 +9,13 @@ delivers a stage when earlier work or implementation discoveries justify
 that change. It must raise changes to the stages, boundaries, order or
 dependencies with the user.
 
+The supervisor runs each stage's live acceptance exercise in the private
+`alimanfoo/dreamcatcher-sandbox` repository before the stage merges. A
+session implementing a stage maintains its automated coverage and leaves
+the live exercise to the supervisor: it files no test issues in this
+repository and launches no live harness runs. Each stage's exercise and
+its success criteria stay as written.
+
 ## Stage 1: Start and end a campaign
 
 Add the campaign kind, configurable campaign routes and state format 7.
