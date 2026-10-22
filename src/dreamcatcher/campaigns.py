@@ -22,7 +22,6 @@ from dreamcatcher.github import (
     CheckResult,
     IssueComment,
     IssueState,
-    PullRequestMergeState,
 )
 from dreamcatcher.relay import IssueCommentCursor
 from dreamcatcher.state import StateDirectory
@@ -102,17 +101,6 @@ class CampaignRoundInput(WriteOnceDreamcatcherDocument):
     cursor: IssueCommentCursor | None
     revision: str
     assignment_routes: list[AssignmentRoute]
-
-
-# The merge states in which GitHub would merge the pull request. A move between
-# two of them is no news to the lead.
-_MERGEABLE_STATES = frozenset(
-    {
-        PullRequestMergeState.CLEAN,
-        PullRequestMergeState.HAS_HOOKS,
-        PullRequestMergeState.UNSTABLE,
-    }
-)
 
 
 def compare_campaign_children(
@@ -226,8 +214,8 @@ def _list_pull_request_changes(
         )
     ):
         changes.append(CampaignChildChange.CHECK_COMPLETION)
-    if current.merge_state in _MERGEABLE_STATES and (
-        previous is None or previous.merge_state not in _MERGEABLE_STATES
+    if current.merge_state.is_mergeable and (
+        previous is None or not previous.merge_state.is_mergeable
     ):
         changes.append(CampaignChildChange.MERGEABLE)
     return changes

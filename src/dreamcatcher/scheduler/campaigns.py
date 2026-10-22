@@ -24,7 +24,6 @@ from dreamcatcher.campaigns import (
     read_delivered_campaign_input,
 )
 from dreamcatcher.config import DispatchRoute
-from dreamcatcher.errors import ReportableError
 from dreamcatcher.github import (
     Issue,
     IssueComment,
@@ -249,18 +248,9 @@ def _inspect_lead_input(
     if isinstance(children, ReadFailureFinding):
         return Inspection(row=row.model_copy(update={"finding": children}))
     campaign = work_or_route if isinstance(work_or_route, AgentWork) else None
-    try:
-        previous = (
-            None
-            if campaign is None
-            else read_delivered_campaign_input(campaign=campaign)
-        )
-    except ReportableError as failure:
-        return Inspection(
-            row=row.model_copy(
-                update={"finding": ReadFailureFinding(reason=str(failure))}
-            )
-        )
+    previous = (
+        None if campaign is None else read_delivered_campaign_input(campaign=campaign)
+    )
     comments = list_new_comments(
         context=context,
         issue=issue.number,

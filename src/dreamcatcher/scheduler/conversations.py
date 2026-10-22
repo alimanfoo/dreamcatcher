@@ -4,7 +4,6 @@ from functools import partial
 
 from dreamcatcher.agent_work import AgentWork
 from dreamcatcher.config import DispatchRoute
-from dreamcatcher.errors import ReportableError
 from dreamcatcher.github import Issue, IssueComment
 from dreamcatcher.issue_conversations import (
     post_conversation_answer,
@@ -66,19 +65,15 @@ def _inspect_comments(
     It reads for the open conversation, or for the route of the one that would
     start, and the row is the request's row before the read.
     """
-    try:
-        cursor = (
+    comments = list_new_comments(
+        context=context,
+        issue=issue.number,
+        cursor=(
             read_issue_comment_cursor(conversation=work_or_route)
             if isinstance(work_or_route, AgentWork)
             else None
-        )
-    except ReportableError as failure:
-        return Inspection(
-            row=row.model_copy(
-                update={"finding": ReadFailureFinding(reason=str(failure))}
-            )
-        )
-    comments = list_new_comments(context=context, issue=issue.number, cursor=cursor)
+        ),
+    )
     if isinstance(comments, ReadFailureFinding):
         return Inspection(row=row.model_copy(update={"finding": comments}))
     row = row.model_copy(
