@@ -1,4 +1,4 @@
-"""Prepare campaign rounds and read back the input delivered to the lead.
+"""Prepare campaign rounds and read back the input each round was given.
 
 A campaign's channel is its parent issue. Every round runs in a detached
 worktree refreshed to fetched main, and the lead publishes its own messages, so
@@ -32,15 +32,3 @@ def read_campaign_input(*, campaign: AgentWork, number: int) -> CampaignRoundInp
         model=CampaignRoundInput,
         path=campaign.compose_round_paths(number=number).round_input,
     )
-
-
-def read_delivered_campaign_input(*, campaign: AgentWork) -> CampaignRoundInput | None:
-    """Return the newest input delivered to the lead, if any has been.
-
-    A round that took its turn, or is still running, delivered its input. A
-    round that did not finish delivered nothing, so its input is given again.
-    """
-    delivered = campaign.list_relayed_round_paths()
-    if not delivered:
-        return None
-    return read_campaign_input(campaign=campaign, number=delivered[0].number)

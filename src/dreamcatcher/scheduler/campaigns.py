@@ -3,7 +3,7 @@
 from functools import partial
 
 from dreamcatcher.agent_work import AgentWork
-from dreamcatcher.campaigns import prepare_campaign_round, read_delivered_campaign_input
+from dreamcatcher.campaigns import prepare_campaign_round
 from dreamcatcher.config import DispatchRoute
 from dreamcatcher.github import Issue
 from dreamcatcher.prompts import compose_campaign_input_prompt
@@ -26,7 +26,10 @@ def inspect_open_campaign(
         work=work,
         is_fault=is_fault,
         inspect_eligible=partial(
-            _inspect_lead_input, context=context, work_or_route=work
+            _inspect_lead_input,
+            context=context,
+            work_or_route=work,
+            is_input_due=not work.list_relayed_round_paths(),
         ),
     )
 
@@ -43,7 +46,7 @@ def inspect_campaign_request(
     The label on the listed parent is the whole request, so nothing more is read.
     """
     return _inspect_lead_input(
-        context=context, issue=issue, work_or_route=route, row=row
+        context=context, issue=issue, work_or_route=route, row=row, is_input_due=True
     )
 
 
@@ -53,17 +56,13 @@ def _inspect_lead_input(
     issue: Issue,
     work_or_route: AgentWork | DispatchRoute,
     row: RequestRow,
+    is_input_due: bool,
 ) -> Inspection:
-    """Return a candidate while no round has delivered the lead its input.
+    """Return a candidate while the lead has input due.
 
     It inspects the open campaign, or the route of the one that would start, and
-    the row is the request's row before the inspection. A round that did not
-    finish delivered nothing, so its campaign is due a round again.
+    the row is the request's row before the inspection.
     """
-    is_input_due = (
-        not isinstance(work_or_route, AgentWork)
-        or read_delivered_campaign_input(campaign=work_or_route) is None
-    )
     row = row.model_copy(update={"finding": CampaignFinding(is_input_due=is_input_due)})
     if not is_input_due:
         return Inspection(row=row)

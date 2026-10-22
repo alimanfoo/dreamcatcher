@@ -103,7 +103,8 @@ class CampaignFinding(DreamcatcherDocument):
 
     The tick found the parent open, assigned to the account and carrying the
     campaign's label and no other of its kind. Input is due until a round that
-    took its turn, or is running, has delivered it.
+    took its turn, or is running, has delivered it. A round that did not finish
+    delivered nothing, so its input is given again.
     """
 
     found: Literal["campaign"] = "campaign"

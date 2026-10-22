@@ -127,9 +127,9 @@ fabricated web server in one terminal:
 uv run python tests/serve_fabricated_web.py
 ```
 
-The command prints the home, assignment and conversation page addresses
-and runs until interrupted. Use one of those addresses with Playwright
-to exercise the page or capture a screenshot:
+The command prints the page addresses and runs until interrupted. Use
+one of those addresses with Playwright to exercise the page or capture a
+screenshot:
 
 ```sh
 uv run playwright screenshot --full-page --viewport-size="1280,800" ADDRESS SCREENSHOT.png

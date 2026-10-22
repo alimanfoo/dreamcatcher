@@ -230,13 +230,12 @@ invocations.
 
 ### Campaigns
 
-`campaigns.py` owns a campaign round's input and the reader of the input
-last delivered to the lead. Creating and ending a campaign go through
-`agent_work.py`, and creating one writes its work record and nothing
-else. Each round's preparation resets the detached worktree to fetched
-main, adding it when it is missing, and freezes the parent issue and
-that revision. A campaign's worktree never acquires a branch or a pull
-request.
+`campaigns.py` owns a campaign round's input. Creating and ending a
+campaign go through `agent_work.py`, and creating one writes its work
+record and nothing else. Each round's preparation resets the detached
+worktree to fetched main, adding it when it is missing, and freezes the
+parent issue and that revision. A campaign's worktree never acquires a
+branch or a pull request.
 
 Each tick reads an open campaign's parent issue, as it reads a
 conversation's issue, and decides from it whether the campaign is paused
