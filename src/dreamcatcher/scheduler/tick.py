@@ -213,13 +213,17 @@ class Scheduler:
             if issue.number not in assigned_issues:
                 yield from self._inspect_requests_of_kind(
                     issue=issue,
-                    routes=config.identify_assignment_routes(labels=labels),
+                    routes=config.identify_routes(
+                        kind=AgentWorkKind.ASSIGNMENT, labels=labels
+                    ),
                     answered=answered,
                     inspect_request=inspect_assignment_request,
                 )
             yield from self._inspect_requests_of_kind(
                 issue=issue,
-                routes=config.identify_conversation_routes(labels=labels),
+                routes=config.identify_routes(
+                    kind=AgentWorkKind.CONVERSATION, labels=labels
+                ),
                 answered=answered,
                 inspect_request=inspect_conversation_request,
             )

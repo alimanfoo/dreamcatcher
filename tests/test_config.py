@@ -13,6 +13,7 @@ from dreamcatcher.config import (
     write_default_dreamcatcher_config_if_absent,
 )
 from dreamcatcher.errors import ReportableError
+from dreamcatcher.harness_adapters import AgentWorkKind
 
 WITHOUT_CODEX = SMITH_CLAUDE
 
@@ -84,8 +85,9 @@ def test_a_conversation_is_configured_separately(tmp_path):
             claude=CLAUDE_CONVERSATION_RECIPE,
         )
     ]
-    assert config.identify_conversation_routes(
-        labels=["maintenance", "DREAM:CONVERSATION"]
+    assert config.identify_routes(
+        kind=AgentWorkKind.CONVERSATION,
+        labels=["maintenance", "DREAM:CONVERSATION"],
     ) == [config.conversation[0]]
     assert config.routed_harnesses == {AgentHarness.CLAUDE, AgentHarness.CODEX}
 
@@ -173,8 +175,9 @@ def test_the_config_identifies_assignment_routes_without_giving_one_precedence(
 
     config = read_dreamcatcher_config(root=tmp_path)
 
-    routes = config.identify_assignment_routes(
-        labels=["maintenance", "DREAM:LESS", "dream:smith"]
+    routes = config.identify_routes(
+        kind=AgentWorkKind.ASSIGNMENT,
+        labels=["maintenance", "DREAM:LESS", "dream:smith"],
     )
 
     assert [route.label for route in routes] == ["dream:less", "dream:smith"]

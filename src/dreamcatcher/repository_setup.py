@@ -25,6 +25,7 @@ from dreamcatcher.github import (
     require_github_identity,
     require_known_github_value,
 )
+from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.harnesses import HARNESS_ADAPTERS, require_harnesses_on_path
 
 # The plugin whose skills the default configuration's prompts invoke.
@@ -138,10 +139,8 @@ def _create_missing_labels(*, repository: str, config: DreamcatcherConfig) -> No
     names = [label.name for label in labels]
     existing = {
         route.label
-        for route in [
-            *config.identify_assignment_routes(labels=names),
-            *config.identify_conversation_routes(labels=names),
-        ]
+        for kind in AgentWorkKind
+        for route in config.identify_routes(kind=kind, labels=names)
     }
     descriptions = {
         **{route.label: _ASSIGNMENT_LABEL_DESCRIPTION for route in config.assignment},

@@ -93,7 +93,9 @@ def _find_pause(
         return PausedFinding(cause=PauseCause.ISSUE_UNASSIGNED)
     others = [
         route.label
-        for route in context.config.identify_conversation_routes(labels=labels)
+        for route in context.config.identify_routes(
+            kind=conversation.record.kind, labels=labels
+        )
         if route.label.casefold() != label
     ]
     if others:
