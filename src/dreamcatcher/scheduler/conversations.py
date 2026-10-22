@@ -27,13 +27,11 @@ from dreamcatcher.scheduler.inspection import (
     compose_open_work_row,
 )
 from dreamcatcher.scheduler.models import (
-    ConflictingLabelsFinding,
     IssueCommentsFinding,
-    PauseCause,
-    PausedFinding,
     ReadFailureFinding,
     RequestRow,
 )
+from dreamcatcher.scheduler.pauses import find_pause
 
 
 def inspect_open_conversation(
@@ -65,7 +63,7 @@ def inspect_open_conversation(
                 at=context.clock(),
             )
         return Inspection(row=unread)
-    pause = _find_pause(context=context, conversation=work, issue=issue)
+    pause = find_pause(context=context, work=work, issue=issue)
     if pause is not None:
         return Inspection(row=compose_open_work_row(work=work, finding=pause))
     if is_fault:
@@ -73,38 +71,6 @@ def inspect_open_conversation(
     return _inspect_comments(
         context=context, issue=issue, work_or_route=work, row=unread
     )
-
-
-def _find_pause(
-    *, context: SchedulingContext, conversation: AgentWork, issue: Issue
-) -> PausedFinding | ConflictingLabelsFinding | None:
-    """Return why the open conversation at this open issue is paused, if it is.
-
-    A second configured conversation label on the issue is a routing conflict,
-    held as the labels. The conversation's own label counts whether or not its
-    route is still configured.
-    """
-    labels = [label.name for label in issue.labels]
-    label = conversation.record.dispatch_label.casefold()
-    if label not in {name.casefold() for name in labels}:
-        return PausedFinding(cause=PauseCause.LABEL_REMOVED)
-    account = context.account.casefold()
-    if account not in {assignee.login.casefold() for assignee in issue.assignees}:
-        return PausedFinding(cause=PauseCause.ISSUE_UNASSIGNED)
-    others = [
-        route.label
-        for route in context.config.identify_routes(
-            kind=conversation.record.kind, labels=labels
-        )
-        if route.label.casefold() != label
-    ]
-    if others:
-        return ConflictingLabelsFinding(
-            labels=sorted(
-                [conversation.record.dispatch_label, *others], key=str.casefold
-            )
-        )
-    return None
 
 
 def inspect_conversation_request(
