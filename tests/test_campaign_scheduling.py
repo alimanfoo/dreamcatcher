@@ -839,6 +839,7 @@ def test_a_lead_stopped_before_its_first_input_waits_for_a_comment(
         ),
     )
     offer_parent(gh=gh)
+    waiting = tick(scheduler=scheduler)
     earlier = say(identifier=1, body="The plan is on the parent.")
     offer_comments(gh=gh, comments=[earlier])
     lead(harnesses=harnesses)
@@ -846,6 +847,7 @@ def test_a_lead_stopped_before_its_first_input_waits_for_a_comment(
     woken = tick(scheduler=scheduler)
     finish(scheduler=scheduler)
 
+    assert waiting.launched_agent_work_identifiers == []
     assert woken.launched_agent_work_identifiers == [
         compose_campaign_identifier(issue=PARENT)
     ]
