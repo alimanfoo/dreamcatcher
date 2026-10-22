@@ -294,9 +294,10 @@ Every input contains:
   in the parent's comments;
 - `revision`, identifying the fetched main commit checked out in the
   detached worktree;
-- `assignment_routes`, the assignment routes of the running daemon, each
-  with its label and its recipes, for the lead to choose among when it
-  gives a child an assignment label.
+- `assignment_routes`, the assignment routes of the running daemon, for
+  the lead to choose among when it gives a child an assignment label.
+  Each route names its `label`, and its `claude` and `codex` recipes,
+  either of which may be `null`.
 
 Each child names its `issue`, `title` and `state`, whether it
 `is_settled`, and its newest `assignment`, which is `null` when the
