@@ -9,7 +9,7 @@ writers in different processes or threads never erase each other's facts.
 """
 
 import re
-from collections.abc import Callable, Iterable
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import StrEnum
@@ -269,7 +269,7 @@ def read_agent_work(*, state: StateDirectory) -> list[AgentWork]:
     """
     return _read_selected_agent_work(
         state=state,
-        directories=state.work.iterdir(),
+        pattern="*",
         is_selected=lambda record: True,
     )
 
@@ -284,7 +284,7 @@ def read_agent_work_at_issue(
     """
     return _read_selected_agent_work(
         state=state,
-        directories=state.work.glob(f"GH{issue}-*-{kind}"),
+        pattern=f"GH{issue}-*-{kind}",
         is_selected=lambda record: record.issue == issue and record.kind is kind,
     )
 
@@ -350,18 +350,19 @@ def _is_agent_work_recorded(*, state: StateDirectory, identifier: str) -> bool:
 def _read_selected_agent_work(
     *,
     state: StateDirectory,
-    directories: Iterable[Path],
+    pattern: str,
     is_selected: Callable[[AgentWorkRecord], bool],
 ) -> list[AgentWork]:
-    """Return the agent work among `directories` whose record is selected.
+    """Return the agent work matching `pattern` whose record is selected.
 
     The work is ordered by identifier. Each record is read first, so work that
-    is not selected costs one read.
+    is not selected costs one read. An absent `work/`, as on first use, holds
+    no work.
     """
-    if not state.work.is_dir():
-        return []
     selected = []
-    for directory in sorted(directories):
+    # A glob over an absent directory yields nothing, where from Python 3.13
+    # iterdir raises at once.
+    for directory in sorted(state.work.glob(pattern)):
         path = directory / _WORK_RECORD_NAME
         if not path.is_file():
             continue

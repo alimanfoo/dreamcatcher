@@ -11,10 +11,10 @@ program is correct.
 
 The default suite measures branch coverage over `src/` and fails below
 100%. This establishes that it executes every measured branch in the
-application source on each supported operating system. It helps expose
-untested alternatives and dead code. It does not establish that the
-assertions are sufficient, that every possible input was tried, or that
-an external service behaves as expected.
+application source on each supported operating system and Python
+version. It helps expose untested alternatives and dead code. It does
+not establish that the assertions are sufficient, that every possible
+input was tried, or that an external service behaves as expected.
 
 ### Encoding failures
 
