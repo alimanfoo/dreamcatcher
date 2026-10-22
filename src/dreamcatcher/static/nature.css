@@ -291,7 +291,8 @@ body::after {
 }
 
 .agent-work-card,
-.request-row {
+.request-row,
+.campaign-child {
   padding: 16px 0;
 }
 
@@ -384,13 +385,14 @@ body::after {
 .status-ended,
 .status-idle,
 .status-unknown,
-.status-blocked {
+.status-blocked,
+.status-open,
+.status-closed {
   color: var(--dim);
 }
 
 .agent-work-detail,
 .agent-work-meta,
-.agent-work-children,
 .labels {
   color: var(--dim);
 }
@@ -463,6 +465,7 @@ body::after {
 }
 
 .ended-work summary,
+.campaign-children > summary,
 .empty,
 .agent-work-navigation {
   color: var(--dim);

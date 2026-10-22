@@ -19,7 +19,7 @@ from dreamcatcher.agent_rounds import (
 from dreamcatcher.agent_work import AgentWork
 from dreamcatcher.campaigns import CampaignChild
 from dreamcatcher.documents import read_text
-from dreamcatcher.github import IssueState, PullRequestState
+from dreamcatcher.github import PullRequestState
 from dreamcatcher.harness_adapters import AgentWorkKind, HarnessSessionIdentifier
 from dreamcatcher.harnesses import HARNESS_ADAPTERS
 from dreamcatcher.issue_conversations import is_no_reply
@@ -162,7 +162,7 @@ class AgentWorkStatus:
             return "sub-issues unknown"
         if not children:
             return "no sub-issues"
-        closed = sum(child.state is IssueState.CLOSED for child in children)
+        closed = sum(child.is_closed for child in children)
         total = describe_count(number=len(children), noun="sub-issue")
         return f"{closed} of {total} closed"
 

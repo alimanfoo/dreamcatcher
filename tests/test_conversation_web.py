@@ -697,7 +697,7 @@ def test_home_lists_a_conversation_request_before_its_conversation_is_saved(
 
     page = application(state=state).test_client().get("/").text
 
-    assert 'id="request-9-dream:conversation"' in page
+    assert 'id="request-9-dream%3Aconversation"' in page
     assert "Open conversation #9" not in page
     assert '<span class="chip status-available">1 comment to answer</span>' in page
 
@@ -745,9 +745,9 @@ def test_home_lists_conversations_in_attention_order_before_requests(tmp_path):
     assert (
         page.index('id="GH11-20260819-184158-conversation"')
         < page.index('id="GH8-20260819-184158-conversation"')
-        < page.index('id="request-9-dream:conversation"')
-        < page.index('id="request-10-dream:conversation"')
-        < page.index('id="request-12-dream:conversation"')
+        < page.index('id="request-9-dream%3Aconversation"')
+        < page.index('id="request-10-dream%3Aconversation"')
+        < page.index('id="request-12-dream%3Aconversation"')
     )
     assert "status-working" in page
     assert '<span class="chip status-unknown">cannot tell: gh: offline</span>' in page

@@ -1,6 +1,7 @@
 """Read local status for campaigns."""
 
 import os
+from collections.abc import Sequence
 from datetime import timedelta
 
 import pytest
@@ -9,13 +10,14 @@ from records import (
     compose_campaign_identifier,
     hold_daemon_lock_for_test,
     read_campaign,
+    write_assignment,
     write_campaign,
     write_daemon_run,
     write_ending,
     write_round,
     write_tick,
 )
-from rows import request_row
+from rows import UNCLAIMED, request_row
 
 from dreamcatcher.agent_rounds import (
     AgentRoundRecord,
@@ -28,6 +30,7 @@ from dreamcatcher.agent_rounds import (
 from dreamcatcher.agent_work import AgentWorkEndReason
 from dreamcatcher.campaigns import (
     CampaignChild,
+    CampaignChildAssignment,
     CampaignChildChange,
     CampaignChildNotification,
     CampaignRoundInput,
@@ -37,9 +40,11 @@ from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.relay import IssueCommentCursor
 from dreamcatcher.scheduler.models import (
     CampaignFinding,
+    IssueCommentsFinding,
     PauseCause,
     PausedFinding,
     RequestFinding,
+    RequestRow,
     SchedulerRecord,
     StartedRound,
 )
@@ -131,8 +136,12 @@ def observe(
     ended_round: int | None = None,
     started_round: StartedRound | None = None,
     children: list[CampaignChild] | None = None,
+    other_rows: Sequence[RequestRow] = (),
 ) -> None:
-    """Write a tick that saw the campaign with this finding and these children."""
+    """Write a tick that saw the campaign with this finding and these children.
+
+    The tick also saw the other rows.
+    """
     write_tick(
         state=state,
         tick=SchedulerRecord(
@@ -145,7 +154,8 @@ def observe(
                     ended_round=ended_round,
                     finding=finding,
                     started_round=started_round,
-                ).model_copy(update={"children": children})
+                ).model_copy(update={"children": children}),
+                *other_rows,
             ],
         ),
     )
@@ -406,3 +416,61 @@ def test_an_ended_campaign_shows_no_children(state):
     status = campaign_status(state=state)
 
     assert (status.children, status.children_summary) == (None, None)
+
+
+def test_each_child_of_an_active_campaign_has_its_assignment_and_requests(state):
+    assignment = "GH21-20260819-184158-assignment"
+    write_assignment(state=state, identifier=assignment, issue=21)
+    lead_round(state=state, number=1, ending=SUCCESSFUL)
+    children = [
+        stage(issue=21, state=IssueState.OPEN).model_copy(
+            update={
+                "assignment": CampaignChildAssignment(
+                    identifier=assignment,
+                    pull_request=52,
+                    observed_pull_request=None,
+                    finished_turn=None,
+                    ending=None,
+                    is_fault=False,
+                )
+            }
+        ),
+        stage(issue=22, state=IssueState.OPEN),
+        stage(issue=23, state=IssueState.CLOSED),
+    ]
+    observe(
+        state=state,
+        finding=NOTHING_NEW,
+        ended_round=1,
+        children=children,
+        other_rows=[
+            request_row(issue=22, finding=UNCLAIMED),
+            request_row(
+                issue=23,
+                kind=AgentWorkKind.CONVERSATION,
+                finding=IssueCommentsFinding(new_comments=0),
+            ),
+        ],
+    )
+    report = read_status_report(state=state, clock=lambda: LOOKED_AT)
+    [campaign] = report.list_active_work_statuses(kind=AgentWorkKind.CAMPAIGN)
+
+    child_statuses = report.list_campaign_child_statuses(campaign=campaign)
+
+    assert [status.child for status in child_statuses] == children
+    assert [
+        None if status.assignment is None else status.assignment.work.identifier
+        for status in child_statuses
+    ] == [assignment, None, None]
+    assert [
+        [request.row.issue for request in status.requests] for status in child_statuses
+    ] == [[], [22], []]
+
+
+def test_a_campaign_whose_children_are_unknown_has_no_child_statuses(state):
+    lead_round(state=state, number=1, ending=SUCCESSFUL)
+    observe(state=state, finding=NOTHING_NEW, ended_round=1, children=None)
+    report = read_status_report(state=state, clock=lambda: LOOKED_AT)
+    [campaign] = report.list_active_work_statuses(kind=AgentWorkKind.CAMPAIGN)
+
+    assert report.list_campaign_child_statuses(campaign=campaign) == []

@@ -292,10 +292,31 @@ body::after {
 }
 
 .agent-work-card,
-.request-row {
+.request-row,
+.campaign-child {
   min-width: 0;
   padding: var(--space-6) 0;
   border-bottom: var(--line) solid var(--rule-inner);
+}
+
+/* A campaign's lead card and its children's block share one rule beneath. */
+
+.campaign {
+  min-width: 0;
+  border-bottom: var(--line) solid var(--rule-inner);
+}
+
+.campaign > .agent-work-card {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.campaign-children > :not(summary) {
+  margin-left: var(--space-9);
+}
+
+.campaign-children > :last-child {
+  border-bottom: 0;
 }
 
 .card-heading,
@@ -379,7 +400,9 @@ body::after {
 .status-unknown,
 .status-ended,
 .status-idle,
-.status-blocked {
+.status-blocked,
+.status-open,
+.status-closed {
   color: var(--dim);
 }
 
@@ -392,7 +415,6 @@ body::after {
 }
 
 .agent-work-detail,
-.agent-work-children,
 .latest-output,
 .labels,
 .error-message {
@@ -401,7 +423,6 @@ body::after {
 
 .agent-work-detail,
 .agent-work-meta,
-.agent-work-children,
 .labels {
   color: var(--dim);
 }
@@ -469,11 +490,13 @@ body::after {
 }
 
 .ended-work summary,
+.campaign-children > summary,
 .empty {
   color: var(--dim);
 }
 
-.ended-work summary {
+.ended-work summary,
+.campaign-children > summary {
   padding: var(--space-4) 0;
   cursor: pointer;
 }

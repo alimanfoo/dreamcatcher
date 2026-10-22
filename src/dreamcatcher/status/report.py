@@ -11,6 +11,7 @@ from dreamcatcher.agent_work import (
     read_agent_work,
     read_agent_work_at_issue,
 )
+from dreamcatcher.campaigns import CampaignChild
 from dreamcatcher.clock import read_current_time
 from dreamcatcher.config import AgentHarness
 from dreamcatcher.daemon_runs import DaemonRunRecord
@@ -75,6 +76,20 @@ class AgentWorkStatusSection:
 
     heading: str
     empty_message: str | None
+
+
+@dataclass(frozen=True, kw_only=True)
+class CampaignChildStatus:
+    """Describe where one child of an active campaign stands.
+
+    The assignment is the one that the latest update matched to the child, and
+    the requests are the child's requests for an assignment that have no open
+    work.
+    """
+
+    child: CampaignChild
+    assignment: AgentWorkStatus | None
+    requests: list[RequestStatus]
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -252,6 +267,31 @@ class DreamcatcherStatusReport:
             key=lambda status: cast("AgentWorkEnding", status.work.ending).at,
             reverse=True,
         )
+
+    def list_campaign_child_statuses(
+        self, *, campaign: AgentWorkStatus
+    ) -> list[CampaignChildStatus]:
+        """Return where each of an active campaign's children stands, in order.
+
+        A campaign has none when its status gives it no children, as when its
+        children are unknown.
+        """
+        statuses = {status.work.identifier: status for status in self.work_statuses}
+        requests = self.list_request_statuses(kind=AgentWorkKind.ASSIGNMENT)
+        return [
+            CampaignChildStatus(
+                child=child,
+                assignment=(
+                    None
+                    if child.assignment is None
+                    else statuses.get(child.assignment.identifier)
+                ),
+                requests=[
+                    request for request in requests if request.row.issue == child.issue
+                ],
+            )
+            for child in campaign.children or ()
+        ]
 
     def _list_work_statuses(self, *, kind: AgentWorkKind) -> list[AgentWorkStatus]:
         return [

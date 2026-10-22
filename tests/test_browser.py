@@ -2,19 +2,23 @@
 
 import re
 from collections.abc import Iterator
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
 import pytest
 from playwright.sync_api import Locator, Page, expect
+from records import write_ending, write_tick
+from status_fabrications import CAMPAIGN_CHILDREN, LOOKED_AT
 from web_browser import (
     BROWSER_ASSIGNMENT_IDENTIFIER,
     serve_fabricated_web,
 )
 
-from dreamcatcher.agent_work import find_agent_work
-from dreamcatcher.documents import append_text
+from dreamcatcher.agent_work import AgentWorkEndReason, find_agent_work
+from dreamcatcher.campaigns import CampaignChild
+from dreamcatcher.documents import append_text, read_json
 from dreamcatcher.feed import FeedLine
+from dreamcatcher.scheduler.models import SchedulerRecord
 from dreamcatcher.state import StateDirectory
 
 pytestmark = pytest.mark.browser
@@ -87,6 +91,118 @@ def test_a_refresh_leaves_an_opened_section_open(page: Page, live_web: str) -> N
     wait_for_refresh(page=page)
 
     expect(ended).to_have_attribute("open", "")
+
+
+CAMPAIGN_IDENTIFIER = "GH60-20260819-184158-campaign"
+CHILD_ASSIGNMENT_IDENTIFIER = "GH64-20260819-184158-assignment"
+
+
+def expand_campaign(*, page: Page) -> Locator:
+    """Show the Campaigns tab, expand the idle campaign's children and return them."""
+    page.get_by_role("tab", name="Campaigns").click()
+    children = page.locator(f"#{CAMPAIGN_IDENTIFIER}-children")
+    children.locator("summary").click()
+    expect(children).to_have_attribute("open", "")
+    return children
+
+
+def test_a_refresh_leaves_an_expanded_campaign_open(page: Page, live_web: str) -> None:
+    page.goto(live_web)
+    children = expand_campaign(page=page)
+    expect(
+        children.locator(".agent-work-card, .request-row, .campaign-child")
+    ).to_have_count(4)
+
+    wait_for_refresh(page=page)
+
+    expect(children).to_have_attribute("open", "")
+    expect(page.locator(f"#{CAMPAIGN_IDENTIFIER} .latest-output")).to_have_count(0)
+
+
+def observe_campaign_children(
+    *, state: StateDirectory, children: list[CampaignChild] | None
+) -> None:
+    """Rewrite the latest update so that it observed these children of the campaign."""
+    tick = read_json(model=SchedulerRecord, path=state.scheduler_record)
+    write_tick(
+        state=state,
+        tick=tick.model_copy(
+            update={
+                "rows": [
+                    row.model_copy(update={"children": children})
+                    if row.agent_work_identifier == CAMPAIGN_IDENTIFIER
+                    else row
+                    for row in tick.rows
+                ]
+            }
+        ),
+    )
+
+
+def test_an_expanded_campaign_stays_open_while_its_children_are_unknown(
+    page: Page, live_web: str, tmp_path: Path
+) -> None:
+    state = StateDirectory(root=tmp_path)
+    page.goto(live_web)
+    children = expand_campaign(page=page)
+    entries = children.locator(".agent-work-card, .request-row, .campaign-child")
+    expect(entries).to_have_count(4)
+
+    observe_campaign_children(state=state, children=None)
+
+    expect(children.locator("summary")).to_have_text("+ sub-issues unknown")
+    expect(entries).to_have_count(0)
+    expect(children).to_have_attribute("open", "")
+
+    observe_campaign_children(state=state, children=CAMPAIGN_CHILDREN)
+
+    expect(entries).to_have_count(4)
+    expect(children).to_have_attribute("open", "")
+
+
+def test_an_expanded_campaign_whose_parent_closes_keeps_only_its_card(
+    page: Page, live_web: str, tmp_path: Path
+) -> None:
+    page.goto(live_web)
+    expand_campaign(page=page)
+
+    write_ending(
+        directory=StateDirectory(root=tmp_path).work / CAMPAIGN_IDENTIFIER,
+        reason=AgentWorkEndReason.ISSUE_CLOSED,
+        at=LOOKED_AT,
+    )
+
+    ended = page.locator("#campaign-panel details.ended-work")
+    expect(ended.locator(f"#{CAMPAIGN_IDENTIFIER}")).to_have_count(1)
+    expect(page.locator(f"[id^='{CAMPAIGN_IDENTIFIER}-']")).to_have_count(0)
+
+
+def test_a_child_assignment_shows_its_new_output_in_both_tabs(
+    page: Page, live_web: str, tmp_path: Path
+) -> None:
+    page.goto(live_web)
+    children = expand_campaign(page=page)
+    child_output = children.locator(
+        f"#{CAMPAIGN_IDENTIFIER}-{CHILD_ASSIGNMENT_IDENTIFIER} .latest-output"
+    )
+    expect(child_output).to_have_text("agent [Bash] pytest -q")
+    assignment = find_agent_work(
+        state=StateDirectory(root=tmp_path), identifier=CHILD_ASSIGNMENT_IDENTIFIER
+    )
+    assert assignment is not None
+    latest = assignment.rounds[-1]
+    append_text(
+        text=FeedLine(
+            at=latest.started + timedelta(minutes=5), text="[Bash] git push"
+        ).render(),
+        path=assignment.compose_round_paths(number=latest.number).feed,
+    )
+
+    expect(child_output).to_have_text("agent [Bash] git push")
+    page.get_by_role("tab", name="Assignments").click()
+    expect(page.locator(f"#{CHILD_ASSIGNMENT_IDENTIFIER} .latest-output")).to_have_text(
+        "agent [Bash] git push"
+    )
 
 
 def test_home_tabs_switch_by_pointer_and_keyboard_and_survive_refresh(
@@ -288,7 +404,7 @@ def test_dark_nature_uses_the_dusk_palette_and_follows_the_night(
 
     expect(page.locator("html")).to_have_css("background-color", "rgb(26, 24, 48)")
     expect(page.locator("body")).to_have_css("color", "rgb(236, 230, 220)")
-    expect(page.locator(".status-working")).to_have_css(
+    expect(page.locator(".status-working").first).to_have_css(
         "color",
         "rgb(179, 203, 166)",
     )

@@ -17,8 +17,8 @@ from dreamcatcher.status import (
 class WebAgentWorkCard:
     """Represent the values rendered in one card for agent work of any kind.
 
-    Only an assignment has a pull request. Only an active campaign has a
-    children summary, and its child issues are those the summary counts.
+    Only an assignment has a pull request. Only an active campaign has a child
+    overview.
     """
 
     identifier: str
@@ -33,9 +33,31 @@ class WebAgentWorkCard:
     effort: str
     pull_request: int | None
     pull_request_summary: str | None
-    children_summary: str | None
-    child_issues: tuple[int, ...]
+    child_overview: "WebCampaignChildOverview | None"
     latest_output: str | None
+
+
+@dataclass(frozen=True, kw_only=True)
+class WebCampaignChild:
+    """Represent one child in its campaign's overview.
+
+    The child shows its assignment's card and its requests' rows, or its issue
+    alone when it has neither.
+    """
+
+    issue: int
+    title: str
+    is_closed: bool
+    assignment: WebAgentWorkCard | None
+    requests: tuple[RequestStatus, ...]
+
+
+@dataclass(frozen=True, kw_only=True)
+class WebCampaignChildOverview:
+    """Represent an active campaign's children, with the words that count them."""
+
+    summary: str
+    children: tuple[WebCampaignChild, ...]
 
 
 @dataclass(frozen=True, kw_only=True)

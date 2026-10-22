@@ -16,7 +16,7 @@
         {% for section in view.sections %}
           <section id="{{ section.kind }}-panel" class="panel work-tab-panel" role="tabpanel" aria-labelledby="{{ section.kind }}-tab">
             {% for card in section.active %}
-              {% include "partials/agent-work-card.html" %}
+              {% if card.child_overview is none %}{% include "partials/agent-work-card.html" %}{% else %}{% include "partials/campaign.html" %}{% endif %}
             {% endfor %}
             {% for request in section.requests %}
               {% include "partials/request-row.html" %}
