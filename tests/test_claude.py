@@ -157,8 +157,9 @@ def test_a_campaign_round_may_coordinate_and_verify_but_not_implement():
         ):
             assert tool in allowed
             assert tool not in denied
-        for tool in ("Edit", "Write", "Bash(git commit:*)", "Bash(git push:*)"):
-            assert tool in denied.split(" ")
+        assert denied.startswith("Edit Write ")
+        assert "Bash(git commit:*)" in denied
+        assert "Bash(git push:*)" in denied
 
 
 def test_a_person_continues_the_harness_session_where_it_ran():
