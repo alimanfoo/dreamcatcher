@@ -130,7 +130,7 @@ Before you install a release with a different state format:
 1. Stop the old daemon. This also stops the web page that
    `dreamcatcher run` serves.
 2. Stop every standalone view: `dreamcatcher web`, and any refreshing
-   `status`, `assignment`, `conversation` or `feed` view.
+   `status`, `assignment`, `conversation`, `campaign` or `feed` view.
 
 After you install it, start the daemon and any views you still want from
 the new installation. The restart depends on the state format, not the
