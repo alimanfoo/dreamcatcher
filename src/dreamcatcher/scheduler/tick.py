@@ -28,6 +28,7 @@ from dreamcatcher.scheduler.assignments import (
     inspect_open_assignment,
 )
 from dreamcatcher.scheduler.campaigns import (
+    AssignmentObservations,
     inspect_campaign_request,
     inspect_open_campaign,
 )
@@ -72,10 +73,15 @@ _REQUEST_INSPECTORS: dict[AgentWorkKind, RequestInspector] = {
 
 @dataclass(frozen=True, kw_only=True)
 class _IssueListing:
-    """Collect the listed issues, oldest first, and the listings that failed."""
+    """Collect the listed issues, oldest first, and the listings that failed.
+
+    The assignment failures are those of the failures that listed under an
+    assignment label.
+    """
 
     issues: list[Issue]
     failures: list[str]
+    assignment_failures: list[str]
 
 
 @dataclass(kw_only=True)
@@ -120,9 +126,8 @@ class Scheduler:
             if previous_record is None
             else previous_record.most_recent_cooldown_ended
         )
-        open_work = [
-            work for work in read_agent_work(state=self.context.state) if work.is_open
-        ]
+        all_work = read_agent_work(state=self.context.state)
+        open_work = [work for work in all_work if work.is_open]
         listing = self._list_issues()
         inspect = partial(
             self._inspect,
@@ -130,14 +135,26 @@ class Scheduler:
             issues=listing.issues,
             most_recent_cooldown_ended=most_recent_cooldown_ended,
         )
+        ordinary_inspections = inspect(
+            open_work_inspectors=_OPEN_WORK_INSPECTORS,
+            request_inspectors=_REQUEST_INSPECTORS,
+        )
+        observations = _observe_assignments(
+            work=all_work, inspections=ordinary_inspections, listing=listing
+        )
         inspections = [
+            *ordinary_inspections,
             *inspect(
-                open_work_inspectors=_OPEN_WORK_INSPECTORS,
-                request_inspectors=_REQUEST_INSPECTORS,
-            ),
-            *inspect(
-                open_work_inspectors={AgentWorkKind.CAMPAIGN: inspect_open_campaign},
-                request_inspectors={AgentWorkKind.CAMPAIGN: inspect_campaign_request},
+                open_work_inspectors={
+                    AgentWorkKind.CAMPAIGN: partial(
+                        inspect_open_campaign, observations=observations
+                    )
+                },
+                request_inspectors={
+                    AgentWorkKind.CAMPAIGN: partial(
+                        inspect_campaign_request, observations=observations
+                    )
+                },
             ),
         ]
         cooldown = start_cooldown_if_required(
@@ -169,6 +186,7 @@ class Scheduler:
         """List the open issues assigned to the account under every dispatch label."""
         issues_by_number: dict[int, Issue] = {}
         failures: list[str] = []
+        assignment_failures: list[str] = []
         for route in self.context.config.routes:
             listed = list_issues(
                 repository=self.context.repository,
@@ -176,9 +194,10 @@ class Scheduler:
                 assignee=self.context.account,
             )
             if isinstance(listed, UnknownGitHubResponse):
-                failures.append(
-                    f"could not list issues for {route.label}: {listed.reason}"
-                )
+                failure = f"could not list issues for {route.label}: {listed.reason}"
+                failures.append(failure)
+                if route.kind is AgentWorkKind.ASSIGNMENT:
+                    assignment_failures.append(failure)
             else:
                 issues_by_number.update((issue.number, issue) for issue in listed)
         return _IssueListing(
@@ -187,6 +206,7 @@ class Scheduler:
                 key=lambda issue: (issue.created_at, issue.number),
             ),
             failures=failures,
+            assignment_failures=assignment_failures,
         )
 
     def _inspect(
@@ -428,3 +448,26 @@ class Scheduler:
         )
         request_round_stop_if_ended(work=work, paths=paths)
         return started_round
+
+
+def _observe_assignments(
+    *, work: list[AgentWork], inspections: list[Inspection], listing: _IssueListing
+) -> AssignmentObservations:
+    """Return what the first pass found of the assignments, for the campaigns.
+
+    The work is every piece of work in identifier order, so the last assignment
+    at an issue is its newest.
+    """
+    return AssignmentObservations(
+        assignments={
+            assignment.record.issue: assignment
+            for assignment in work
+            if assignment.record.kind is AgentWorkKind.ASSIGNMENT
+        },
+        inspections={
+            inspection.row.issue: inspection
+            for inspection in inspections
+            if inspection.row.kind is AgentWorkKind.ASSIGNMENT
+        },
+        listing_failure=next(iter(listing.assignment_failures), None),
+    )

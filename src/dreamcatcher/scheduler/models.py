@@ -13,6 +13,7 @@ from pydantic import (
     model_validator,
 )
 
+from dreamcatcher.campaigns import CampaignChild
 from dreamcatcher.documents import DreamcatcherDocument
 from dreamcatcher.github import (
     CheckResult,
@@ -148,7 +149,9 @@ class RequestRow(DreamcatcherDocument):
     A request is one dispatch label on one issue. The row names the open agent
     work the request led to, if any, and that work's latest round when it had
     ended as the tick read the work. A row has no finding when the tick found
-    nothing to record for it.
+    nothing to record for it. A campaign's row holds the children of its parent
+    as the tick observed them, whether or not the campaign may take a round,
+    and holds none when the tick could not observe them all.
     """
 
     issue: PositiveInt
@@ -159,6 +162,7 @@ class RequestRow(DreamcatcherDocument):
     ended_round: PositiveInt | None = None
     finding: RequestFinding | None = None
     started_round: StartedRound | None = None
+    children: list[CampaignChild] | None = None
 
 
 class GlobalCooldown(DreamcatcherDocument):

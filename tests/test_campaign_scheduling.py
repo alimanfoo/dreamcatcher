@@ -1,6 +1,7 @@
 """Scheduling of campaigns, from a parent's label to its closure."""
 
 import json
+from collections.abc import Sequence
 from datetime import timedelta
 from unittest.mock import Mock
 
@@ -8,13 +9,16 @@ import pytest
 from clocks import PINNED, Ticking
 from conftest import (
     CAMPAIGN_CLAUDE,
+    HEAD,
     POSTED_BY,
     REPOSITORY,
+    check_run,
     comment,
     commit,
     configure,
     git,
     pages,
+    pull_request,
     streamed,
 )
 from fakes import Line
@@ -23,6 +27,7 @@ from records import (
     read_campaign,
     write_assignment,
     write_campaign,
+    write_ending,
     write_round,
 )
 from rows import request_row
@@ -36,11 +41,22 @@ from dreamcatcher.agent_rounds import (
     SuccessfulAgentRoundEnding,
 )
 from dreamcatcher.agent_work import AgentWorkEndReason, request_agent_work_retry
-from dreamcatcher.campaigns import CampaignRoundInput
+from dreamcatcher.campaigns import (
+    CampaignChild,
+    CampaignChildAssignment,
+    CampaignChildPullRequest,
+    CampaignRoundInput,
+)
 from dreamcatcher.config import AgentHarness, read_dreamcatcher_config
 from dreamcatcher.documents import read_json
 from dreamcatcher.git import _read_worktree_revision
-from dreamcatcher.github import IssueComment
+from dreamcatcher.github import (
+    CheckResult,
+    IssueComment,
+    IssueState,
+    PullRequestMergeState,
+    PullRequestState,
+)
 from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.prompts import AGENT_POST_MARKER
 from dreamcatcher.relay import IssueCommentCursor
@@ -194,8 +210,9 @@ def campaign_row(
     agent_work_identifier: str | None = None,
     ended_round: int | None = None,
     started_round: StartedRound | None = None,
+    children: Sequence[CampaignChild] | None = (),
 ) -> RequestRow:
-    """Return the row of a campaign request at the parent."""
+    """Return the row of a campaign request at the parent, by default childless."""
     return request_row(
         issue=PARENT,
         kind=AgentWorkKind.CAMPAIGN,
@@ -204,7 +221,12 @@ def campaign_row(
         ended_round=ended_round,
         finding=finding,
         started_round=started_round,
-    ).model_copy(update={"title": f"Parent {PARENT}"})
+    ).model_copy(
+        update={
+            "title": f"Parent {PARENT}",
+            "children": None if children is None else list(children),
+        }
+    )
 
 
 def finish(*, scheduler: Scheduler) -> None:
@@ -617,8 +639,8 @@ def test_two_campaign_labels_on_a_parent_are_a_routing_conflict(
 
     conflict = ConflictingLabelsFinding(labels=[LABEL, "dream:steward"])
     assert observed.rows == [
-        campaign_row(finding=conflict),
-        campaign_row(label="dream:steward", finding=conflict),
+        campaign_row(finding=conflict, children=None),
+        campaign_row(label="dream:steward", finding=conflict, children=None),
     ]
     assert read_campaign(state=scheduler.context.state, issue=PARENT) is None
     assert harnesses["claude"].calls == []
@@ -1052,3 +1074,426 @@ def test_a_codex_lead_resumes_its_session_for_a_parent_comment(cloned, gh, harne
     assert read_lead_input(scheduler=scheduler, number=2).revision == (
         _read_worktree_revision(worktree=campaign.worktree)
     )
+
+
+FIRST_CHILD = 21
+SECOND_CHILD = 22
+CHILD_ASSIGNMENT = "GH21-20260923-010000-assignment"
+CHILDREN_PATH = f"api repos/{REPOSITORY}/issues/{PARENT}/sub_issues?per_page=100"
+SMITH = "dream:smith"
+
+
+def sub_issue(*, number: int, state: str = "open") -> dict:
+    """Return what GitHub lists of one child of the parent."""
+    return {"number": number, "title": f"Stage {number}", "state": state}
+
+
+def offer_children(*, gh, children: list[dict]) -> None:
+    """Have GitHub list these children of the parent."""
+    gh.replies(stdout=pages(items=children), to=CHILDREN_PATH)
+
+
+def settle_lead(*, state: StateDirectory) -> None:
+    """Write a campaign whose lead took its turn, so no lead round is due."""
+    write_rounds(state=state, endings=[SuccessfulAgentRoundEnding(at=PINNED)])
+
+
+def write_child_assignment(
+    *,
+    state: StateDirectory,
+    endings: list,
+    identifier: str = CHILD_ASSIGNMENT,
+    pull_request: int | None = 52,
+) -> None:
+    """Write an assignment at the first child whose rounds ended these ways.
+
+    An ending of None is a round still running.
+    """
+    directory = write_assignment(
+        state=state,
+        identifier=identifier,
+        issue=FIRST_CHILD,
+        pull_request=pull_request,
+    )
+    for number, ending in enumerate(endings, start=1):
+        write_round(
+            directory=directory,
+            number=number,
+            record=AgentRoundRecord(
+                number=number,
+                started=PINNED + timedelta(minutes=number),
+                pid=number,
+                ending=ending,
+            ),
+        )
+
+
+def observe_children(*, scheduler: Scheduler) -> list[CampaignChild] | None:
+    """Run one tick and return the children that the campaign's row holds."""
+    [row] = [
+        row
+        for row in tick(scheduler=scheduler).rows
+        if row.kind is AgentWorkKind.CAMPAIGN
+    ]
+    return row.children
+
+
+def child(**fields) -> CampaignChild:
+    """Return the first child as observed, settled and with no assignment."""
+    return CampaignChild.model_validate(
+        {
+            "issue": FIRST_CHILD,
+            "title": f"Stage {FIRST_CHILD}",
+            "state": IssueState.OPEN,
+            "is_settled": True,
+            "assignment": None,
+        }
+        | fields
+    )
+
+
+def child_assignment(**fields) -> CampaignChildAssignment:
+    """Return the first child's assignment, open with its pull request unread."""
+    return CampaignChildAssignment.model_validate(
+        {
+            "identifier": CHILD_ASSIGNMENT,
+            "pull_request": 52,
+            "observed_pull_request": None,
+            "finished_turn": None,
+            "ending": None,
+            "is_fault": False,
+        }
+        | fields
+    )
+
+
+DRAFT_PULL_REQUEST = CampaignChildPullRequest(
+    state=PullRequestState.OPEN,
+    is_draft=True,
+    merge_state=PullRequestMergeState.CLEAN,
+    head=HEAD,
+    check_result=CheckResult.PASSING,
+    has_running_checks=False,
+)
+
+
+def test_a_paused_lead_still_observes_every_child_in_githubs_order(
+    campaign_scheduler, harnesses
+):
+    scheduler, gh = campaign_scheduler
+    settle_lead(state=scheduler.context.state)
+    show_parent(gh=gh, issue=parent_issue(labels=()))
+    offer_children(
+        gh=gh,
+        children=[
+            sub_issue(number=SECOND_CHILD, state="closed"),
+            sub_issue(number=FIRST_CHILD),
+        ],
+    )
+
+    observed = tick(scheduler=scheduler)
+
+    assert observed.rows == [
+        campaign_row(
+            finding=PausedFinding(cause=PauseCause.LABEL_REMOVED),
+            agent_work_identifier=compose_campaign_identifier(issue=PARENT),
+            ended_round=1,
+            children=[
+                child(
+                    issue=SECOND_CHILD,
+                    title=f"Stage {SECOND_CHILD}",
+                    state=IssueState.CLOSED,
+                ),
+                child(),
+            ],
+        )
+    ]
+
+
+def test_a_child_whose_assignment_may_start_has_work_due(campaign_scheduler, harnesses):
+    scheduler, gh = campaign_scheduler
+    settle_lead(state=scheduler.context.state)
+    offer_parent(gh=gh)
+    offer_children(gh=gh, children=[sub_issue(number=FIRST_CHILD)])
+    list_parents(
+        gh=gh,
+        label=SMITH,
+        issues=[parent_issue(labels=(SMITH,), number=FIRST_CHILD)],
+    )
+    scheduler.rounds["busy-assignment"] = Mock(is_alive=True)
+
+    assert observe_children(scheduler=scheduler) == [child(is_settled=False)]
+
+
+def test_a_working_child_has_work_running_and_its_pull_request_observed(
+    campaign_scheduler, harnesses
+):
+    scheduler, gh = campaign_scheduler
+    settle_lead(state=scheduler.context.state)
+    write_child_assignment(
+        state=scheduler.context.state,
+        endings=[SuccessfulAgentRoundEnding(at=PINNED), None],
+    )
+    offer_parent(gh=gh)
+    offer_children(gh=gh, children=[sub_issue(number=FIRST_CHILD)])
+
+    assert observe_children(scheduler=scheduler) == [
+        child(
+            is_settled=False,
+            assignment=child_assignment(
+                observed_pull_request=DRAFT_PULL_REQUEST, finished_turn=1
+            ),
+        )
+    ]
+
+
+def test_a_settled_child_names_its_last_finished_turn_and_its_checks(
+    campaign_scheduler, harnesses
+):
+    scheduler, gh = campaign_scheduler
+    settle_lead(state=scheduler.context.state)
+    write_child_assignment(
+        state=scheduler.context.state,
+        endings=[
+            SuccessfulAgentRoundEnding(at=PINNED),
+            StoppedAgentRoundEnding(at=PINNED),
+        ],
+    )
+    offer_parent(gh=gh)
+    offer_children(gh=gh, children=[sub_issue(number=FIRST_CHILD)])
+    gh.replies(
+        stdout=pull_request(
+            state="OPEN",
+            merge_state="UNKNOWN",
+            checks=[check_run(), check_run(status="IN_PROGRESS")],
+        ),
+        to="pr view",
+    )
+
+    assert observe_children(scheduler=scheduler) == [
+        child(
+            assignment=child_assignment(
+                observed_pull_request=CampaignChildPullRequest(
+                    state=PullRequestState.OPEN,
+                    is_draft=False,
+                    merge_state=PullRequestMergeState.UNKNOWN,
+                    head=HEAD,
+                    check_result=CheckResult.RUNNING,
+                    has_running_checks=True,
+                ),
+                finished_turn=2,
+            ),
+        )
+    ]
+
+
+def test_a_faulted_child_keeps_its_pull_request_but_has_no_fresh_read(
+    campaign_scheduler, harnesses
+):
+    scheduler, gh = campaign_scheduler
+    settle_lead(state=scheduler.context.state)
+    write_child_assignment(
+        state=scheduler.context.state,
+        endings=[SuccessfulAgentRoundEnding(at=PINNED), ERRORED, ERRORED],
+    )
+    offer_parent(gh=gh)
+    offer_children(gh=gh, children=[sub_issue(number=FIRST_CHILD)])
+
+    assert observe_children(scheduler=scheduler) == [
+        child(assignment=child_assignment(finished_turn=1, is_fault=True))
+    ]
+
+
+def test_an_ended_child_assignment_stays_visible_as_ended(
+    campaign_scheduler, harnesses
+):
+    scheduler, gh = campaign_scheduler
+    settle_lead(state=scheduler.context.state)
+    write_child_assignment(
+        state=scheduler.context.state,
+        endings=[SuccessfulAgentRoundEnding(at=PINNED)],
+    )
+    write_ending(
+        directory=scheduler.context.state.work / CHILD_ASSIGNMENT,
+        reason=AgentWorkEndReason.COMPLETED,
+        at=PINNED,
+    )
+    offer_parent(gh=gh)
+    offer_children(gh=gh, children=[sub_issue(number=FIRST_CHILD, state="closed")])
+
+    assert observe_children(scheduler=scheduler) == [
+        child(
+            state=IssueState.CLOSED,
+            assignment=child_assignment(
+                finished_turn=1, ending=AgentWorkEndReason.COMPLETED
+            ),
+        )
+    ]
+
+
+def test_a_cancelled_child_still_stopping_has_work_running(
+    campaign_scheduler, harnesses
+):
+    scheduler, gh = campaign_scheduler
+    settle_lead(state=scheduler.context.state)
+    write_child_assignment(state=scheduler.context.state, endings=[None])
+    write_ending(
+        directory=scheduler.context.state.work / CHILD_ASSIGNMENT,
+        reason=AgentWorkEndReason.CANCELLED,
+        at=PINNED,
+    )
+    offer_parent(gh=gh)
+    offer_children(gh=gh, children=[sub_issue(number=FIRST_CHILD)])
+
+    assert observe_children(scheduler=scheduler) == [
+        child(
+            is_settled=False,
+            assignment=child_assignment(ending=AgentWorkEndReason.CANCELLED),
+        )
+    ]
+
+
+def test_a_replacement_assignment_takes_the_place_of_the_one_it_replaced(
+    campaign_scheduler, harnesses
+):
+    scheduler, gh = campaign_scheduler
+    settle_lead(state=scheduler.context.state)
+    write_child_assignment(
+        state=scheduler.context.state,
+        endings=[SuccessfulAgentRoundEnding(at=PINNED)],
+    )
+    write_ending(
+        directory=scheduler.context.state.work / CHILD_ASSIGNMENT,
+        reason=AgentWorkEndReason.CANCELLED,
+        at=PINNED,
+    )
+    replacement = "GH21-20260924-010000-assignment"
+    write_child_assignment(
+        state=scheduler.context.state,
+        identifier=replacement,
+        endings=[None],
+        pull_request=None,
+    )
+    offer_parent(gh=gh)
+    offer_children(gh=gh, children=[sub_issue(number=FIRST_CHILD)])
+
+    assert observe_children(scheduler=scheduler) == [
+        child(
+            is_settled=False,
+            assignment=child_assignment(identifier=replacement, pull_request=None),
+        )
+    ]
+
+
+def test_a_change_among_the_children_alone_starts_no_lead_round(
+    campaign_scheduler, harnesses
+):
+    scheduler, gh = campaign_scheduler
+    settle_lead(state=scheduler.context.state)
+    offer_parent(gh=gh)
+    before = tick(scheduler=scheduler)
+    offer_children(gh=gh, children=[sub_issue(number=FIRST_CHILD, state="closed")])
+
+    after = tick(scheduler=scheduler)
+
+    assert [before.rows[0].children, after.rows[0].children] == [
+        [],
+        [child(state=IssueState.CLOSED)],
+    ]
+    assert after.launched_agent_work_identifiers == []
+    assert harnesses["claude"].calls == []
+
+
+def fail_to_list_children(*, gh) -> None:
+    """Have GitHub fail to list the parent's children."""
+    gh.fails(stderr="gh: could not connect to github.com", to=CHILDREN_PATH)
+
+
+def fail_to_read_the_childs_pull_request(*, gh) -> None:
+    """Have the first child's assignment fail to read its pull request."""
+    offer_children(gh=gh, children=[sub_issue(number=FIRST_CHILD)])
+    gh.fails(stderr="gh: could not connect to github.com", to="pr view")
+
+
+def fail_to_list_assignment_requests(*, gh) -> None:
+    """Have the listing under the assignment label fail."""
+    offer_children(gh=gh, children=[sub_issue(number=FIRST_CHILD)])
+    gh.fails(
+        stderr="gh: could not connect to github.com",
+        to=f"issue list --repo {REPOSITORY} --assignee {POSTED_BY} --label {SMITH}",
+    )
+
+
+@pytest.mark.parametrize(
+    ("fail", "has_child_assignment", "reason"),
+    [
+        (fail_to_list_children, False, f"gh {CHILDREN_PATH}: gh: could not connect"),
+        (
+            fail_to_read_the_childs_pull_request,
+            True,
+            "could not observe child GH21: gh pr view 52: gh: could not connect",
+        ),
+        (
+            fail_to_list_assignment_requests,
+            False,
+            "could not observe child GH21: could not list issues for dream:smith",
+        ),
+    ],
+)
+def test_an_incomplete_picture_of_the_children_withholds_the_lead(
+    campaign_scheduler, harnesses, fail, has_child_assignment, reason
+):
+    scheduler, gh = campaign_scheduler
+    write_rounds(state=scheduler.context.state, endings=[ERRORED])
+    if has_child_assignment:
+        write_child_assignment(
+            state=scheduler.context.state,
+            endings=[SuccessfulAgentRoundEnding(at=PINNED)],
+        )
+    offer_parent(gh=gh)
+    offer_comments(gh=gh, comments=[say(identifier=1)])
+    fail(gh=gh)
+
+    observed = tick(scheduler=scheduler)
+
+    [row] = [row for row in observed.rows if row.kind is AgentWorkKind.CAMPAIGN]
+    assert row.children is None
+    assert isinstance(row.finding, ReadFailureFinding)
+    assert row.finding.reason.startswith(reason)
+    assert count_comment_reads(gh=gh) == 0
+    assert observed.launched_agent_work_identifiers == []
+    assert harnesses["claude"].calls == []
+
+
+def test_a_new_campaign_waits_for_a_complete_picture_of_its_children(
+    campaign_scheduler, harnesses
+):
+    scheduler, gh = campaign_scheduler
+    offer_parent(gh=gh)
+    fail_to_list_children(gh=gh)
+
+    observed = tick(scheduler=scheduler)
+
+    assert observed.rows == [
+        campaign_row(
+            finding=ReadFailureFinding(
+                reason=f"gh {CHILDREN_PATH}: gh: could not connect to github.com"
+            ),
+            children=None,
+        )
+    ]
+    assert read_campaign(state=scheduler.context.state, issue=PARENT) is None
+
+
+def test_a_paused_lead_whose_children_cannot_be_read_is_still_paused(
+    campaign_scheduler, harnesses
+):
+    scheduler, gh = campaign_scheduler
+    settle_lead(state=scheduler.context.state)
+    show_parent(gh=gh, issue=parent_issue(labels=()))
+    fail_to_list_children(gh=gh)
+
+    observed = tick(scheduler=scheduler)
+
+    assert observed.rows[0].finding == PausedFinding(cause=PauseCause.LABEL_REMOVED)
+    assert observed.rows[0].children is None

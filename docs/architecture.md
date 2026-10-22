@@ -245,13 +245,35 @@ forward the cursor of the newest input delivered to the lead, so that
 input alone always says how far the lead has read. A campaign's worktree
 never acquires a branch or a pull request.
 
-Each tick reads an open campaign's parent issue, as it reads a
+Each tick first observes a campaign's children, for an open campaign and
+for a campaign request alike. It lists the parent's direct sub-issues
+and matches each to the newest assignment at its issue, ended ones
+included, and to what the tick's first pass found of that assignment or
+of the assignment request at the issue. `campaigns.py` owns the snapshot
+that results, one `CampaignChild` per sub-issue in GitHub's order: the
+child's number, title and state, whether it is settled, and where its
+newest assignment stands. A child is settled when no assignment round of
+it is running and the first pass made none due, where a request that may
+start an assignment counts as a round due. Its assignment's entry names
+the assignment, its pull request, what the first pass read of that pull
+request, the newest round that took its turn, its ending and whether it
+is in fault. An assignment that has ended or is in fault keeps its pull
+request's number, but the first pass read nothing of it. No child's pull
+request is read a second time. The observation fails when the sub-issue
+read fails, when the first pass could not read a child's assignment or
+assignment request, or when a listing under an assignment label failed
+and a child has no open assignment. A failed observation holds no
+partial picture.
+
+The tick then reads an open campaign's parent issue, as it reads a
 conversation's issue, and decides from it whether the campaign is paused
 or has ended. An unpaused campaign that is not in fault then reads the
-parent's eligible comments past its cursor. A round is due when one
-waits, when no round has run yet, or when the last round errored or was
-interrupted. A stopped round took its turn, so after one the lead waits
-for a new comment. The lead's next round resumes its harness session.
+parent's eligible comments past its cursor, unless its children could
+not be observed, which starts no round and records the failure. A round
+is due when one waits, when no round has run yet, or when the last round
+errored or was interrupted. A stopped round took its turn, so after one
+the lead waits for a new comment. A change among the children alone
+makes no round due. The lead's next round resumes its harness session.
 
 The lead publishes its own messages, so a campaign's round plan has no
 finishing step, and its final output stays in the feed. Claude's
@@ -482,9 +504,10 @@ round when it had ended as the tick read the work. It holds what the
 tick found as a typed finding:
 
 - for an assignment whose pull request the tick read, the pull request's
-  number, state, draft flag, merge state and check result, the count of
-  user posts and the pull request signals past the cursor, and whether
-  the relay rule withheld a check-failure;
+  number, state, draft flag, merge state, head and check result, whether
+  any check still runs, the count of user posts and the pull request
+  signals past the cursor, and whether the relay rule withheld a
+  check-failure;
 - for a conversation whose comments the tick read, the count of comments
   past the cursor;
 - for a campaign request, or an open campaign whose parent lets the lead
@@ -509,6 +532,12 @@ for a failure, no row holds a sentence meant for a person. Status
 composes the words from these values once, and keeps the issue and pull
 request numbers as numbers, so both presentations link them and neither
 parses text.
+
+A campaign's row also holds the parent's children as the tick observed
+them, beside its finding, so they stay current while the lead is paused
+or in fault. The row holds no children when the tick could not observe
+them all, or read nothing for a campaign request with conflicting
+labels.
 
 `AgentWorkStatus` is one summary status from the ontology, derived in
 one chain for every kind of agent work. `RequestStatus` gives a request
