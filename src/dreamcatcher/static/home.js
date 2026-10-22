@@ -35,7 +35,14 @@ activateAddressedWorkTab();
 window.addEventListener("hashchange", () => activateAddressedWorkTab());
 
 document.body.addEventListener("keydown", (event) => {
-  if (!(event.target instanceof Element)) {
+  // A held modifier leaves the key to the browser, as Alt+ArrowLeft goes back.
+  if (
+    !(event.target instanceof Element) ||
+    event.altKey ||
+    event.ctrlKey ||
+    event.metaKey ||
+    event.shiftKey
+  ) {
     return;
   }
   const tab = event.target.closest('#home [role="tab"]');

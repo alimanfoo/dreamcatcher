@@ -236,6 +236,9 @@ def test_home_tabs_switch_by_pointer_and_keyboard_and_survive_refresh(
     conversations.press("Home")
     expect(assignments).to_have_attribute("aria-selected", "true")
 
+    assignments.press("Alt+ArrowLeft")
+    expect(assignments).to_have_attribute("aria-selected", "true")
+
     assignments.press("End")
     expect(campaigns).to_have_attribute("aria-selected", "true")
 
