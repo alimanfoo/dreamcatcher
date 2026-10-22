@@ -48,6 +48,7 @@ from dreamcatcher.agent_work import (
     read_agent_work_at_issue,
     record_harness_session_identifier,
 )
+from dreamcatcher.clock import read_current_time
 from dreamcatcher.config import AgentHarness, read_dreamcatcher_config
 from dreamcatcher.daemon import DreamcatcherDaemon
 from dreamcatcher.documents import read_json, write_json
@@ -1650,7 +1651,7 @@ def test_a_daemon_orphan_is_given_its_comments_again_in_its_saved_session(
         number=1,
         record=AgentRoundRecord(
             number=1,
-            started=clock(),
+            started=read_current_time(),
             pid=left_running.pid,
         ),
     )

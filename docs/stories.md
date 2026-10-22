@@ -570,8 +570,11 @@ issue, not only the newest.
 The user needs to stop the daemon: there is a new version to install, a
 setting to change, or they are closing the laptop for the night. They do
 not want to wait for every agent to finish first, and they do not want
-to lose anything either. So they stop it. Every running round ends, and
-shows as interrupted. When the daemon starts again, each interrupted
+to lose anything either. So they stop it: they press Ctrl-C, or on macOS
+and Linux they close its terminal, end it with `kill`, or shut the
+machine down. If they started the daemon under `nohup`, closing its
+terminal leaves it running, as `nohup` asks. Every running round ends,
+and shows as interrupted. When the daemon starts again, each interrupted
 round's work carries on in the same session, told that the previous
 round did not finish, and nothing the user posted in between is lost.
 
@@ -862,14 +865,25 @@ it saw are cleared and the daemon tries that work again.
 
 ### The daemon is killed
 
-The daemon's process is killed outright, so it gets no chance to end its
-rounds. On macOS and Linux a harness that was running outlives it, keeps
-working, and may push or post before anyone notices; whatever it did
-stands. On Windows the harness dies with the daemon. Either way the
-round has no ending, so the home page shows its work as waiting. When
-the daemon next starts, it ends any harness still running, records the
-round as interrupted, and the work carries on in its session, given its
-input again.
+The daemon's process is killed outright, by SIGKILL or a crash, so it
+gets no chance to end its rounds. On macOS and Linux a harness that was
+running outlives it, keeps working, and may push or post before anyone
+notices; whatever it did stands. On Windows every way to end the daemon
+other than Ctrl-C is like this, and the harness dies with the daemon.
+Either way the round has no ending, so the home page shows its work as
+waiting. When the daemon next starts, it ends any harness still running,
+records the round as interrupted, and the work carries on in its
+session, given its input again.
+
+The daemon knows a harness only by the process identifier that its round
+recorded, and once the daemon is gone the system may give that
+identifier to another program. If the machine restarted since the round
+started, the daemon ends nothing for it, because nothing of the round
+survived the restart. Without a restart, the identifier may have passed
+to a program that leads a process group of its own, and the daemon then
+ends that program and whatever runs in its group. That is accepted: it
+needs the daemon killed outright and the identifier reused before the
+daemon next starts.
 
 ### The machine sleeps
 
