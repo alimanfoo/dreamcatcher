@@ -60,11 +60,12 @@ def _inspect_lead_input(
     the row is the request's row before the inspection. A round that did not
     finish delivered nothing, so its campaign is due a round again.
     """
-    row = row.model_copy(update={"finding": CampaignFinding()})
-    if (
-        isinstance(work_or_route, AgentWork)
-        and read_delivered_campaign_input(campaign=work_or_route) is not None
-    ):
+    is_input_due = (
+        not isinstance(work_or_route, AgentWork)
+        or read_delivered_campaign_input(campaign=work_or_route) is None
+    )
+    row = row.model_copy(update={"finding": CampaignFinding(is_input_due=is_input_due)})
+    if not is_input_due:
         return Inspection(row=row)
     return Inspection(
         row=row,

@@ -27,6 +27,7 @@ from dreamcatcher.scheduler.faults import (
     is_last_round_unfinished,
 )
 from dreamcatcher.scheduler.models import (
+    CampaignFinding,
     ConflictingLabelsFinding,
     IssueCommentsFinding,
     PausedFinding,
@@ -215,8 +216,8 @@ class AgentWorkStatusReader:
     def derive(self, *, work: AgentWork) -> AgentWorkStatus:
         """Derive one piece of work's status from its records and the latest tick.
 
-        The first that applies of working, ended, fault, unknown, idle for a
-        paused conversation, idle while awaiting an update, and waiting is the
+        The first that applies of working, ended, fault, unknown, idle for
+        paused work, idle while awaiting an update, and waiting is the
         status. Otherwise the work is idle, or unknown when the latest tick has
         no row for it or read nothing for it.
         """
@@ -306,9 +307,9 @@ class AgentWorkStatusReader:
     def _derive_paused(
         self, *, work: AgentWork, row: RequestRow | None
     ) -> AgentWorkStatus | None:
-        """Derive the idle status of a paused conversation, which waits for nothing.
+        """Derive the idle status of paused work, which waits for nothing.
 
-        A second conversation label on its issue pauses it as a routing
+        A second label of the work's kind on its issue pauses it as a routing
         conflict.
         """
         finding = None if row is None else row.finding
@@ -393,7 +394,11 @@ class AgentWorkStatusReader:
         if isinstance(finding, PullRequestFinding):
             detail = describe_idle_pull_request(finding=finding)
         elif isinstance(finding, IssueCommentsFinding):
-            detail = _describe_idle_conversation_round(work=work)
+            detail = _describe_idle_round(
+                work=work, ending=_describe_conversation_answer(work=work)
+            )
+        elif isinstance(finding, CampaignFinding):
+            detail = _describe_idle_round(work=work, ending=None)
         else:
             return _compose_unknown(work=work, row=row)
         return AgentWorkStatus(
@@ -471,6 +476,8 @@ def _describe_what_is_new(*, finding: RequestFinding | None) -> str | None:
     """Describe what the latest tick found new in the work's channel, if anything."""
     if isinstance(finding, IssueCommentsFinding) and finding.new_comments:
         return describe_comments_to_answer(count=finding.new_comments)
+    if isinstance(finding, CampaignFinding) and finding.is_input_due:
+        return "input to deliver to the lead"
     if not isinstance(finding, PullRequestFinding):
         return None
     if finding.is_wrap_up_due:
@@ -484,24 +491,30 @@ def _describe_what_is_new(*, finding: RequestFinding | None) -> str | None:
     return ", ".join(words) or None
 
 
-def _describe_idle_conversation_round(*, work: AgentWork) -> str:
-    """Describe how the latest round of an idle conversation ended.
+def _describe_conversation_answer(*, work: AgentWork) -> str | None:
+    """Say what the latest conversation round posted, when it was successful.
 
-    Only a successful round posted an answer or found that none was needed. An
-    interrupted round has no duration.
+    Only a successful round posted an answer or found that none was needed.
     """
     latest = work.rounds[-1]
-    ending = describe_round_outcome(record=latest, outcome=latest.outcome)
-    if latest.outcome is AgentRoundOutcome.SUCCESSFUL:
-        final_output = read_text(
-            path=work.compose_round_paths(number=latest.number).final_output
-        )
-        ending = (
-            "no reply needed" if is_no_reply(final_output=final_output) else "answered"
-        )
+    if latest.outcome is not AgentRoundOutcome.SUCCESSFUL:
+        return None
+    final_output = read_text(
+        path=work.compose_round_paths(number=latest.number).final_output
+    )
+    return "no reply needed" if is_no_reply(final_output=final_output) else "answered"
+
+
+def _describe_idle_round(*, work: AgentWork, ending: str | None) -> str:
+    """Describe how the latest round of idle work ended, and how long it ran.
+
+    The ending is said in words of the work's kind when it has some, and as the
+    round's outcome otherwise. An interrupted round has no duration.
+    """
+    latest = work.rounds[-1]
     words = [
         f"round {latest.number}",
-        ending,
+        ending or describe_round_outcome(record=latest, outcome=latest.outcome),
         compose_round_duration_description(record=latest),
     ]
     return ", ".join(word for word in words if word)

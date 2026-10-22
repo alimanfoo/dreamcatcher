@@ -99,13 +99,15 @@ class PausedFinding(DreamcatcherDocument):
 
 
 class CampaignFinding(DreamcatcherDocument):
-    """Record that a campaign's parent issue lets the lead take a round.
+    """Hold whether the lead has input due, at a parent that lets it take a round.
 
     The tick found the parent open, assigned to the account and carrying the
-    campaign's label and no other of its kind.
+    campaign's label and no other of its kind. Input is due until a round that
+    took its turn, or is running, has delivered it.
     """
 
     found: Literal["campaign"] = "campaign"
+    is_input_due: bool
 
 
 class ReadFailureFinding(DreamcatcherDocument):

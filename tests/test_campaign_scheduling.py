@@ -242,7 +242,7 @@ def test_a_labelled_parent_starts_a_lead_that_reads_its_input_and_posts_nothing(
     assert launched.launched_agent_work_identifiers == [identifier]
     assert launched.rows == [
         campaign_row(
-            finding=CampaignFinding(),
+            finding=CampaignFinding(is_input_due=True),
             agent_work_identifier=identifier,
             started_round=StartedRound(number=1),
         )
@@ -282,7 +282,9 @@ def test_a_lead_that_took_its_turn_waits_through_further_updates(
     later = [tick(scheduler=scheduler) for _ in range(2)]
 
     assert [record.launched_agent_work_identifiers for record in later] == [[], []]
-    assert [record.rows[0].finding for record in later] == [CampaignFinding()] * 2
+    assert [record.rows[0].finding for record in later] == [
+        CampaignFinding(is_input_due=False)
+    ] * 2
     assert len(harnesses["claude"].calls) == 1
 
 
@@ -299,7 +301,7 @@ def test_a_lead_given_its_input_has_no_round_due(campaign_scheduler, harnesses, 
 
     assert observed.rows == [
         campaign_row(
-            finding=CampaignFinding(),
+            finding=CampaignFinding(is_input_due=False),
             agent_work_identifier=compose_campaign_identifier(issue=PARENT),
             ended_round=1,
         )
@@ -535,7 +537,7 @@ def test_a_running_lead_is_observed_without_starting_another_round(
     observed = tick(scheduler=scheduler)
 
     assert observed.launched_agent_work_identifiers == []
-    assert observed.rows[0].finding == CampaignFinding()
+    assert observed.rows[0].finding == CampaignFinding(is_input_due=False)
     assert len(harnesses["claude"].calls) == 1
 
 
@@ -569,7 +571,7 @@ def test_a_campaign_waits_for_shared_capacity(campaign_scheduler, harnesses):
 
     observed = tick(scheduler=scheduler)
 
-    assert observed.rows == [campaign_row(finding=CampaignFinding())]
+    assert observed.rows == [campaign_row(finding=CampaignFinding(is_input_due=True))]
     assert read_campaign(state=scheduler.context.state, issue=PARENT) is None
 
 
