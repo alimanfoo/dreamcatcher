@@ -29,6 +29,9 @@ the change.
 
 ### Changed
 
+- A work page on the web names the work's kind above its heading:
+  assignment, conversation or campaign.
+  ([#698](https://github.com/alimanfoo/dreamcatcher/pull/698))
 - The `< home` link on a work page opens the web home page on the tab of
   the work's kind.
   ([#698](https://github.com/alimanfoo/dreamcatcher/pull/698))

@@ -5,6 +5,7 @@
     <div class="agent-work-content">
       <a class="agent-work-navigation" href="{{ url_for('show_home', _anchor=view.kind) }}">&lt; home</a>
       <section class="agent-work-overview" aria-labelledby="agent-work-heading">
+        <p class="agent-work-kind">{{ view.kind }}</p>
         <div class="agent-work-heading">
           {% if view.github_repository_url %}
             <h1 id="agent-work-heading"><a class="agent-work-issue" href="{{ view.github_repository_url }}/issues/{{ view.issue }}" target="_blank" rel="noopener noreferrer">#{{ view.issue }} <span>{{ view.title }}</span></a></h1>

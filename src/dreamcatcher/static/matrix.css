@@ -185,6 +185,7 @@ body::after {
 }
 
 .fact dt,
+.agent-work-kind,
 .scheduler-failures h1 {
   color: var(--dim);
 }
@@ -522,6 +523,10 @@ body::after {
 .agent-work-overview {
   display: grid;
   gap: var(--space-5);
+}
+
+.agent-work-kind {
+  margin: 0;
 }
 
 .agent-work-heading {
