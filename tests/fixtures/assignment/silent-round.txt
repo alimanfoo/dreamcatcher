@@ -7,7 +7,7 @@ assignment
   pull request                #52                                                       
   label                       dream:smith                                               
   branch                      dreamcatcher-GH13-20260819-184158-assignment              
-  worktree                    .dreamcatcher/v6/worktrees/GH13-20260819-184158-assignment
+  worktree                    .dreamcatcher/v7/worktrees/GH13-20260819-184158-assignment
   harness                     claude                                                    
   harness session identifier  abc-123                                                   
   model                       opus[1m]                                                  

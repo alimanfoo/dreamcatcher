@@ -27,6 +27,15 @@ the change.
 
 ## Unreleased
 
+### Breaking
+
+- Saved state moves to state format 7, in `.dreamcatcher/v7/`. Saved
+  work from v6 does not carry across: before upgrading, let each
+  assignment reach its wrap-up or finish its pull request by hand, and
+  accept that conversations start afresh, as
+  [the upgrade instructions](compatibility.md#upgrade-from-v6-to-v700)
+  describe. ([#662](https://github.com/alimanfoo/dreamcatcher/pull/662))
+
 ### Fixed
 
 - The animated status view on the documentation home page now shows the
