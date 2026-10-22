@@ -43,6 +43,7 @@ from status_fabrications import (
     running,
     written,
 )
+from werkzeug.serving import make_server
 from werkzeug.test import TestResponse
 
 import dreamcatcher.status.report as report_module
@@ -2078,6 +2079,22 @@ def test_a_background_server_that_returns_is_a_failure(monkeypatch):
         assert notified.wait(timeout=1)
 
     server.server_close.assert_called_once_with()
+
+
+def test_a_background_server_that_already_ended_stops_at_once(monkeypatch):
+    notified = Event()
+    server = make_server(web_server_module.WEB_HOST, 0, lambda environ, start: [])
+    monkeypatch.setattr(web_server_module, "interrupt_main", notified.set)
+
+    def end_serving():
+        server.shutdown()
+        assert notified.wait(timeout=1)
+
+    with (
+        pytest.raises(ReportableError, match="stopped unexpectedly"),
+        run_web_server_in_background(server=server),
+    ):
+        end_serving()
 
 
 def test_a_background_thread_that_cannot_start_still_closes_the_server(monkeypatch):
