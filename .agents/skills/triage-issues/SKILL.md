@@ -11,6 +11,10 @@ description:
 
 Please help me to triage issues.
 
+Before you start, load the dream plugin's coherent coding skill
+(`/dream:coherent-coding` in Claude Code, `$dream:coherent-coding` in
+Codex), and judge every proposed change by its guide.
+
 ## Questions for each issue
 
 Here are some questions we should ask of every issue:
@@ -30,11 +34,19 @@ Here are some questions we should ask of every issue:
 Don't invent or guess at anything. In God we trust, all others bring
 data.
 
+These questions guide your investigation. They are not the shape of your
+reply.
+
 ## Pace and responsibility
 
 Please tutor me through one issue and one decision at a time. I am a
 mere human and cannot absorb much information at once. Keep explanations
 short and concrete, and develop them through the conversation.
+
+Treat it as a conversation. Open each issue with only what the issue is,
+as you understand it after investigating, in a few sentences. Bring your
+recommendation next, then one decision per turn. Don't end every turn
+with a question; I will follow up.
 
 Act as the experienced lead. Investigate and make a recommendation where
 you can, rather than standing back and waiting for me to direct routine
@@ -84,10 +96,32 @@ Be skeptical of agent-raised issues. Do not invent a supported workflow
 to justify one. For example, the maintainer rejected redirected `init`
 output as a requirement: setup is intended to be interactive.
 
+The same skepticism applies to an issue's facts and proposed fix. Check
+its premises against current code and data, because an issue may already
+be fixed or its evidence may come from an older harness. Test the
+proposed fix rather than inherit it: a pid start-time check once
+proposed for the startup sweep would have passed for exactly the reused
+pid it was meant to refuse.
+
+When an issue records my own request in an agent's words, confirm the
+scope with me before refining it. An agent once widened "only
+`dream:less`" to every default route.
+
+Look for earlier decisions before recommending. Search closed issues and
+pull requests on the same mechanism, and the project documents. A
+process start-time comparison was replaced by a file lock in #401
+because a clock correction shifted it, and that lesson applies wherever
+process identity comes up again.
+
 A bug contradicts a user story, including the handling it promises for a
 user error or external fault. Ask whether the current response breaks a
 promise or whether the proposal asks for a stronger promise. Behaviour a
 story explicitly accepts is not a bug.
+
+Look past the reported instance to the family it belongs to, and prefer
+the fix that makes like things uniform. A bug where `retry` reached only
+the newest work became one argument rule for every command, which
+removed a special case, unwanted behaviour and code together.
 
 Any new concept, architectural mechanism or conditional branch warrants
 deeper inspection. Ask whether the user benefit justifies the added
