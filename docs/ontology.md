@@ -80,10 +80,8 @@ agent to answer the user on an issue without implementing a change.
 A **campaign** is _dreamcatcher_'s durable commission to an agent, its
 **lead**, to carry a planned body of work through GitHub. The campaign's
 **parent issue** holds the goal, and the parent's direct sub-issues are
-the stages. The code and its docstrings call each sub-issue a **child**
-of the parent, and the sub-issues together its **children**, as the
-`children` field of a campaign round's input does. Everything else
-written for the user says sub-issue.
+the stages. The code, and the `children` field of a campaign round's
+input, call each sub-issue a **child** of the parent.
 
 ### Agent work and agent work identifier
 
