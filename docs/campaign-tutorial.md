@@ -22,13 +22,12 @@ start _dreamcatcher_ yet. Those steps install the tools, sign you in and
 write a `dreamcatcher.toml` that routes the `dream:lead` label to
 campaigns.
 
-If you already run _dreamcatcher_ on the repository, its
-`dreamcatcher.toml` needs the `dream:lead` campaign route and at least
-one assignment route for the lead to give the stages. Your `dream`
-plugin needs to be version 43.3.0 or later, and `gh` version 2.94.0 or
-later.
+If you already run _dreamcatcher_ on the repository, check that your
+tools meet [step 1](tutorial.md#1-install-the-tools) of that tutorial.
+Its `dreamcatcher.toml` needs the `dream:lead` campaign route and at
+least one assignment route for the lead to give the stages.
 [Configure a campaign route](start-a-campaign.md#configure-a-campaign-route)
-says how to add the route and update the plugin.
+says how to add the route and update the `dream` plugin.
 
 ## 2. Write the plan
 

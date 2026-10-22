@@ -52,24 +52,11 @@ way the lead needs to hear of also wakes it, for example when a stage's
 pull request is ready for review. Either way, the next round tells the
 lead that you stopped its previous round.
 
-## Pause a conversation or campaign
-
-To pause a conversation or a campaign, remove its label from the issue,
-unassign the issue from yourself, or add a second label of the same
-kind. A round that is already running finishes, and no new round starts,
-not even one to recover a round that did not finish. Comments you post
-meanwhile wake nothing.
-
-To resume the work, undo that change. The work carries on in the same
-harness session, and is given the comments you posted while it was
-paused. A lead is also given the current state of the parent's
-sub-issues, with what changed among them meanwhile.
-
-Close the issue to end a conversation, or close the parent issue to end
-a campaign. The work ends once any running round finishes.
-
-Removing an assignment label neither pauses nor stops an assignment.
-Cancel the assignment to stop it for good.
+Removing an assignment label does not stop an active assignment. To
+pause or end a conversation or a campaign, follow
+[Pause, resume or end a conversation](discuss-an-issue.md#pause-resume-or-end-a-conversation)
+or
+[Pause or end a campaign](start-a-campaign.md#pause-or-end-a-campaign).
 
 ## Take over an assignment's pull request
 

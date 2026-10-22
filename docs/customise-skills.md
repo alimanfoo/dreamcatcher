@@ -64,7 +64,5 @@ effort = "high"
 ```
 
 Then label an issue with your new label, and an agent works on it with
-your skill. A conversation or campaign route has the same shape, under
-`[[conversation]]` or `[[campaign]]`.
-[Configure labels and harnesses](configure.md) explains routes in more
-detail, including how to give a route a Codex recipe too.
+your skill. [Configure labels and harnesses](configure.md) explains
+routes in more detail, including how to give a route a Codex recipe too.

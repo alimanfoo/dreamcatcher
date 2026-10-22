@@ -76,10 +76,10 @@ the change.
   [From parent issue to merged stages](campaign-tutorial.md), takes a
   parent issue with two dependent sub-issues through `dream:lead` to
   merge, and shows what you see and when the lead needs you.
-  [Stop and recover work](stop-and-recover.md) says how to pause, resume
-  and end a conversation or campaign, and
-  [Customise skills](customise-skills.md) says how to write a campaign
-  skill. ([#680](https://github.com/alimanfoo/dreamcatcher/pull/680))
+  [Stop and recover work](stop-and-recover.md) covers stopping a lead's
+  round, and [Customise skills](customise-skills.md) says how to write a
+  campaign skill.
+  ([#680](https://github.com/alimanfoo/dreamcatcher/pull/680))
 
 ### Fixed
 
