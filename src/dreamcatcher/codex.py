@@ -130,7 +130,7 @@ class _CodexHarnessAdapter(HarnessAdapter):
         """Return how to run a round that starts a new harness session.
 
         The command does not say which directory to work in, so whoever runs
-        it has to run it in the agent work item's worktree.
+        it has to run it in the work's worktree.
         """
         round_arguments = (
             [

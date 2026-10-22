@@ -1,10 +1,10 @@
 """Select what is past a piece of agent work's cursor in its channel.
 
 The relay returns the user posts and pull request signals past an assignment's
-cursor, and the issue comments past a conversation's, without writing state.
-The inputs of the rounds that took their turn record what each relayed. Posts
-and comments written through the shared GitHub account are user input only when
-they do not carry the agent marker.
+cursor, and the issue comments past a conversation's or a campaign's, without
+writing state. The inputs of the rounds that took their turn record what each
+relayed. Posts and comments written through the shared GitHub account are user
+input only when they do not carry the agent marker.
 """
 
 from dataclasses import dataclass

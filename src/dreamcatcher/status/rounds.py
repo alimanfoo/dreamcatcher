@@ -30,7 +30,7 @@ from dreamcatcher.words import describe_count, describe_span
 
 @dataclass(frozen=True, kw_only=True)
 class AgentRoundRevision:
-    """Describe the code revision one agent round investigated."""
+    """Describe the revision of main that one agent round was given."""
 
     value: str
     description: str

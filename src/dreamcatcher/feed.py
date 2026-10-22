@@ -60,8 +60,8 @@ def compose_agent_round_boundary(
     """Return the line that opens a round, saying what woke it.
 
     A feed holds one round, so nothing writes this line as the round runs.
-    Whoever reads an agent work item's rounds in order writes it between them,
-    stamped with the time that round started.
+    Whoever reads the rounds of a piece of agent work in order writes it between
+    them, stamped with the time that round started.
     """
     description = trigger if detail is None else f"{trigger}; {detail}"
     return FeedLine(at=at, text=f"round {number}: {description}")
