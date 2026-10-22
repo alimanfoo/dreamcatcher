@@ -47,7 +47,7 @@ def wait_for_refresh(*, page: Page) -> None:
 
 def locate_first_line_of_round(*, page: Page, number: int) -> Locator:
     """Locate the first feed line beneath one round boundary."""
-    return page.locator(f"#feed-round-{number} + .feed-line")
+    return page.locator(f"#feed-round-{number} > .round-boundary + .feed-line")
 
 
 def test_a_round_link_brings_its_round_into_view_from_the_tail(
@@ -59,10 +59,6 @@ def test_a_round_link_brings_its_round_into_view_from_the_tail(
     expect(page.get_by_text("daemon not running", exact=True)).to_have_count(0)
     expect(page.get_by_text("resume by hand", exact=True)).to_have_count(0)
     page.wait_for_function(FEED_IS_AT_END)
-    first_round = page.locator("#feed-round-1")
-    first_round.evaluate(
-        "element => element.style.setProperty('position', 'sticky', 'important')"
-    )
     tail = page.get_by_role("button", name="TAIL ↓")
     expect(tail).to_be_hidden()
     second_round = locate_first_line_of_round(page=page, number=2)
@@ -74,12 +70,29 @@ def test_a_round_link_brings_its_round_into_view_from_the_tail(
 
     page.get_by_role("link", name="01 start").click()
     expect(locate_first_line_of_round(page=page, number=1)).to_be_in_viewport()
-    assert first_round.evaluate(
-        """element => ({
-          value: element.style.getPropertyValue("position"),
-          priority: element.style.getPropertyPriority("position"),
-        })"""
-    ) == {"value": "sticky", "priority": "important"}
+
+
+def test_a_round_boundary_leaves_the_top_when_its_round_does(
+    page: Page,
+    live_web: str,
+) -> None:
+    page.goto(f"{live_web}/work/{BROWSER_ASSIGNMENT_IDENTIFIER}")
+    page.wait_for_function(FEED_IS_AT_END)
+
+    page.get_by_role("link", name="02 1 post").click()
+
+    page.wait_for_function(
+        """() => {
+          const feedTop = document.querySelector(".feed-records")
+            .getBoundingClientRect().top;
+          const secondRoundTop = document.querySelector("#feed-round-2")
+            .getBoundingClientRect().top;
+          const [first, second] = document.querySelectorAll(".round-boundary");
+          return secondRoundTop <= feedTop + 1
+            && first.getBoundingClientRect().bottom
+              <= second.getBoundingClientRect().top;
+        }"""
+    )
 
 
 def test_a_refresh_leaves_an_opened_section_open(page: Page, live_web: str) -> None:
@@ -349,7 +362,9 @@ def test_a_failed_feed_refresh_keeps_the_feed_and_reports_why(
     )
 
     expect(alert).to_be_hidden(timeout=5_000)
-    expect(page.get_by_text("after repair")).to_have_count(1)
+    expect(
+        page.locator(f"#feed-round-{last_round.number}").get_by_text("after repair")
+    ).to_have_count(1)
     wait_for_refresh(page=page)
     expect(lines).to_have_count(line_count + 1)
 

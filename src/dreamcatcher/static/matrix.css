@@ -792,6 +792,17 @@ body::after {
   white-space: pre-wrap;
 }
 
+.feed-round {
+  display: grid;
+  gap: var(--space-2);
+  margin-top: var(--space-6);
+  scroll-margin-top: var(--space-3);
+}
+
+.feed-round:first-child {
+  margin-top: 0;
+}
+
 .round-boundary {
   position: sticky;
   z-index: 1;
@@ -801,12 +812,6 @@ body::after {
   background: var(--background);
   border-bottom: var(--line) solid var(--rule);
   font-weight: 700;
-  margin-top: var(--space-6);
-  scroll-margin-top: var(--space-3);
-}
-
-.round-boundary:first-child {
-  margin-top: 0;
 }
 
 @media (max-width: 900px) {

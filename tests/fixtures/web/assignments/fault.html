@@ -81,20 +81,20 @@
           <button class="feed-tail" type="button" aria-controls="records">TAIL ↓</button>
           <p id="feed-refresh-error" class="refresh-error" role="alert" hidden></p>
           <input type="hidden" id="cursor" name="cursor" value="2:55">
-          <div id="records" class="feed-records" hx-get="/work/GH9-20260819-184158-assignment/tail" hx-trigger="every 2s" hx-include="#cursor" hx-select=".feed-line" hx-swap="beforeend" data-refresh-alert="feed-refresh-error">
+          <div id="records" class="feed-records" hx-get="/work/GH9-20260819-184158-assignment/tail" hx-trigger="every 2s" hx-include="#cursor" hx-select=".feed-round" hx-swap="beforeend" data-refresh-alert="feed-refresh-error">
             
-              <div id="feed-round-1" class="feed-line round-boundary">
+              <div id="feed-round-1" class="feed-round"><div class="feed-line round-boundary">
   <time>2026-08-20 02:42:58</time>
   <span class="feed-content"><span class="feed-detail">round 1: start</span></span>
-</div>
+</div></div>
             
-              <div id="feed-round-2" class="feed-line round-boundary">
+              <div id="feed-round-2" class="feed-round"><div class="feed-line round-boundary">
   <time>2026-08-20 02:43:58</time>
   <span class="feed-content"><span class="feed-detail">round 2: recover</span></span>
 </div><div class="feed-line">
   <time>2026-08-20 02:44:58</time>
   <span class="feed-content"><span class="feed-label">failed</span> <span class="feed-detail">You hit your spend cap.</span></span>
-</div>
+</div></div>
             
           </div>
         </section>
