@@ -106,7 +106,7 @@ The lead does not post on the parent to say what it started. Follow it
 in its feed instead, on the campaign's page or in a second terminal:
 
 ```sh
-dreamcatcher feed GH123 --campaign
+dreamcatcher feed GH123
 ```
 
 ## 5. Watch the first stage
