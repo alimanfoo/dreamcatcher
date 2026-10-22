@@ -116,9 +116,10 @@ conversation, and closing the issue ends it.
 explains both.
 
 A campaign starts on an open parent issue that is assigned to the
-authenticated account and carries exactly one configured campaign label.
-It pauses and ends as a conversation does.
-[Start a campaign](start-a-campaign.md) explains how.
+authenticated account, carries exactly one configured campaign label and
+has no open issue recorded by GitHub as blocking it. It pauses and ends
+as a conversation does. [Start a campaign](start-a-campaign.md) explains
+how.
 
 Labels of different kinds may coexist on an issue because they select
 different kinds of work.

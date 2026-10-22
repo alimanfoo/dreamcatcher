@@ -32,6 +32,7 @@ from dreamcatcher.github import (
 )
 from dreamcatcher.prompts import compose_campaign_input_prompt
 from dreamcatcher.relay import IssueCommentCursor
+from dreamcatcher.scheduler.blockers import list_open_blocking_issues
 from dreamcatcher.scheduler.faults import is_last_round_unfinished
 from dreamcatcher.scheduler.inspection import (
     Candidate,
@@ -41,6 +42,7 @@ from dreamcatcher.scheduler.inspection import (
 )
 from dreamcatcher.scheduler.issue_work import inspect_open_issue_work, list_new_comments
 from dreamcatcher.scheduler.models import (
+    BlockingIssuesFinding,
     CampaignFinding,
     PullRequestFinding,
     ReadFailureFinding,
@@ -99,11 +101,23 @@ def inspect_campaign_request(
     route: DispatchRoute,
     row: RequestRow,
 ) -> Inspection:
-    """Observe the children and read the comments at a request with no open campaign.
+    """Read what may start a campaign at a request with no open campaign.
 
-    The label on the listed parent is the whole request, so a campaign starts
-    whether or not a comment waits. Its first input holds those that do.
+    An open issue blocking the parent holds the request, and so does a failed
+    read of what blocks it, so neither observes the children nor reads the
+    comments. Otherwise the label on the listed parent is the whole request,
+    so a campaign starts whether or not a comment waits. Its first input holds
+    those that do.
     """
+    blocking = list_open_blocking_issues(context=context, issue=issue.number)
+    if isinstance(blocking, ReadFailureFinding):
+        return Inspection(row=row.model_copy(update={"finding": blocking}))
+    if blocking:
+        return Inspection(
+            row=row.model_copy(
+                update={"finding": BlockingIssuesFinding(blocking_issues=blocking)}
+            )
+        )
     children = _observe_children(
         context=context, parent=issue.number, observations=observations
     )

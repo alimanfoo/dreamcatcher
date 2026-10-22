@@ -86,11 +86,12 @@ may start, and how it composes a round's plan. `issue_work.py` holds
 what conversations and campaigns share: the lifetime rules, by which a
 closed issue ends the work once no round of it runs and the issue's
 labels and assignee decide whether it is paused, and the read of the
-eligible comments past the work's cursor. `inspection.py` holds the
-shapes they share: the scheduling context, the candidate, the round plan
-and the inspection of one request. `models.py` holds the scheduler
-record and its request rows, and `faults.py` the fault and cooldown
-rules.
+eligible comments past the work's cursor. `blockers.py` holds the read
+of the open issues that block an issue, which assignment and campaign
+requests share. `inspection.py` holds the shapes they share: the
+scheduling context, the candidate, the round plan and the inspection of
+one request. `models.py` holds the scheduler record and its request
+rows, and `faults.py` the fault and cooldown rules.
 
 One scheduler tick:
 
@@ -109,8 +110,10 @@ One scheduler tick:
    and no round of it is running;
 5. then, for each request of the pass's kinds with no open work, skips
    an assignment label whose issue already has an open assignment,
-   checks for a routing conflict, then asks the start-time questions, or
-   reads the comments of a conversation's issue or a campaign's parent;
+   checks for a routing conflict, then asks an assignment request the
+   start-time questions, reads the comments of a conversation's issue,
+   or asks which open issues block a campaign's parent and, when none
+   does, reads the parent's comments;
 6. starts a global cooldown when the counted faults call for one, and
    launches nothing while a cooldown is active;
 7. launches candidates until the daemon run's requested capacity is full
@@ -248,26 +251,33 @@ newest input delivered to the lead, so that input alone always says how
 far the lead has read and which sub-issues it was last given. A
 campaign's worktree never acquires a branch or a pull request.
 
-Each tick first observes a campaign's sub-issues, for an open campaign
-and for a campaign request alike. It lists the parent's direct
-sub-issues and matches each to the newest assignment at its issue, ended
-ones included, and to what the tick's first pass found of that
-assignment or of the assignment request at the issue. `campaigns.py`
-owns the snapshot that results, one `CampaignChild` per sub-issue in
-GitHub's order: the sub-issue's number, title and state, whether it is
-settled, and where its newest assignment stands. A sub-issue is settled
-when no assignment round of it is running and the first pass made none
-due, where a request that may start an assignment counts as a round due.
-Its assignment's entry names the assignment, its pull request, what the
-first pass read of that pull request, the newest round that took its
-turn, its ending and whether it is in fault. An assignment that has
-ended or is in fault keeps its pull request's number, but the first pass
-read nothing of it. No sub-issue's pull request is read a second time.
-The observation fails when the sub-issue read fails, when a sub-issue is
-in another repository, whose work this daemon never sees, when the first
-pass could not read a sub-issue's assignment or assignment request, or
-when a listing under an assignment label failed and a sub-issue has no
-open assignment. A failed observation holds no partial picture.
+For a campaign request, each tick first lists the open issues that block
+the parent. An open blocker, or a failed read of the blockers, holds the
+request, so the tick observes no sub-issues and reads no comments for
+it. An open campaign reads no blockers, so a blocker added after the
+campaign starts changes nothing for it.
+
+Each tick then observes a campaign's sub-issues, for an open campaign
+and for a campaign request that nothing blocks. It lists the parent's
+direct sub-issues and matches each to the newest assignment at its
+issue, ended ones included, and to what the tick's first pass found of
+that assignment or of the assignment request at the issue.
+`campaigns.py` owns the snapshot that results, one `CampaignChild` per
+sub-issue in GitHub's order: the sub-issue's number, title and state,
+whether it is settled, and where its newest assignment stands. A
+sub-issue is settled when no assignment round of it is running and the
+first pass made none due, where a request that may start an assignment
+counts as a round due. Its assignment's entry names the assignment, its
+pull request, what the first pass read of that pull request, the newest
+round that took its turn, its ending and whether it is in fault. An
+assignment that has ended or is in fault keeps its pull request's
+number, but the first pass read nothing of it. No sub-issue's pull
+request is read a second time. The observation fails when the sub-issue
+read fails, when a sub-issue is in another repository, whose work this
+daemon never sees, when the first pass could not read a sub-issue's
+assignment or assignment request, or when a listing under an assignment
+label failed and a sub-issue has no open assignment. A failed
+observation holds no partial picture.
 
 The tick then reads an open campaign's parent issue, as it reads a
 conversation's issue, and decides from it whether the campaign is paused
@@ -544,6 +554,8 @@ tick found as a typed finding:
 - for an assignment request with no open work, the open linked pull
   requests, as numbers, and the open blocking issues, each as a number
   with its repository when that is another one;
+- for a campaign request whose parent an open issue blocks, those
+  blocking issues in the same form;
 - for a request or an open conversation or campaign whose issue carries
   two labels of its kind, those labels;
 - for a conversation or campaign paused for any other reason, the cause;
@@ -566,21 +578,22 @@ parses text.
 A campaign's row also holds the parent's sub-issues as the tick observed
 them, beside its finding, so they stay current while the lead is paused
 or in fault. The row holds no sub-issues when the tick could not observe
-them all, or read nothing for a campaign request with conflicting
-labels. Status gives an active campaign those sub-issues and the words
-that count its closed sub-issues out of the total, or says that its
-sub-issues are unknown. The status report gives each sub-issue the
-status of the assignment that the tick matched to it, and the request
-statuses of its assignment labels that have no open work. The web home
-page puts an active campaign's lead card and the expandable block of its
-sub-issues side by side in one wrapper, so the latest output of a
-sub-issue's card is never read as the lead's. The block stays in place,
-holding only its count while the sub-issues are unknown or there are
-none, so a refresh keeps it open through a failed observation. Each card
-or request row in that block takes the campaign's identifier as a prefix
-to its HTML identifier, so it differs from the same card on the
-Assignments tab. A request row's identifier holds its label
-percent-encoded, so two distinct labels on one issue never share one.
+them all, or observed none for a campaign request whose labels conflict
+or whose parent an open issue blocks. Status gives an active campaign
+those sub-issues and the words that count its closed sub-issues out of
+the total, or says that its sub-issues are unknown. The status report
+gives each sub-issue the status of the assignment that the tick matched
+to it, and the request statuses of its assignment labels that have no
+open work. The web home page puts an active campaign's lead card and the
+expandable block of its sub-issues side by side in one wrapper, so the
+latest output of a sub-issue's card is never read as the lead's. The
+block stays in place, holding only its count while the sub-issues are
+unknown or there are none, so a refresh keeps it open through a failed
+observation. Each card or request row in that block takes the campaign's
+identifier as a prefix to its HTML identifier, so it differs from the
+same card on the Assignments tab. A request row's identifier holds its
+label percent-encoded, so two distinct labels on one issue never share
+one.
 
 `AgentWorkStatus` is one summary status from the ontology, derived in
 one chain for every kind of agent work. `RequestStatus` gives a request

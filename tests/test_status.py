@@ -45,6 +45,7 @@ from dreamcatcher.github import (
 )
 from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.scheduler.models import (
+    BlockingIssuesFinding,
     ConflictingLabelsFinding,
     GlobalCooldown,
     IssueReference,
@@ -1017,6 +1018,36 @@ def test_a_blocked_request_names_its_claims_and_blockers_as_numbers(state):
             RequestReason(
                 words="blocked by",
                 issues=(IssueReference(number=10), IssueReference(number=11)),
+            ),
+        ),
+    )
+
+
+def test_a_campaign_request_names_the_issues_that_block_its_parent(state):
+    blocked = request_row(
+        issue=20,
+        kind=AgentWorkKind.CAMPAIGN,
+        finding=BlockingIssuesFinding(
+            blocking_issues=[
+                IssueReference(number=10),
+                IssueReference(number=1016, repository="alimanfoo/dream"),
+            ]
+        ),
+    )
+    write_tick(state=state, tick=SchedulerRecord(at=PINNED, rows=[blocked]))
+
+    [request] = report(state=state).request_statuses
+
+    assert request == RequestStatus(
+        row=blocked,
+        value=RequestStatusValue.BLOCKED,
+        reasons=(
+            RequestReason(
+                words="blocked by",
+                issues=(
+                    IssueReference(number=10),
+                    IssueReference(number=1016, repository="alimanfoo/dream"),
+                ),
             ),
         ),
     )

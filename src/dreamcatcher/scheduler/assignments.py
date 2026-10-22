@@ -13,20 +13,18 @@ from dreamcatcher.agent_assignments import (
 from dreamcatcher.agent_work import AgentWork
 from dreamcatcher.config import DispatchRoute
 from dreamcatcher.github import (
-    BlockingIssue,
     Issue,
-    IssueState,
     PullRequest,
     PullRequestSignal,
     PullRequestState,
     UnknownGitHubResponse,
     UserPost,
-    list_blocking_issues,
     read_issue_pull_request_context,
     read_pull_request,
 )
 from dreamcatcher.prompts import compose_assignment_input_prompt
 from dreamcatcher.relay import find_pull_request_signals, list_user_posts_past_cursor
+from dreamcatcher.scheduler.blockers import list_open_blocking_issues
 from dreamcatcher.scheduler.faults import is_last_round_unfinished
 from dreamcatcher.scheduler.inspection import (
     Candidate,
@@ -36,7 +34,6 @@ from dreamcatcher.scheduler.inspection import (
     compose_open_work_row,
 )
 from dreamcatcher.scheduler.models import (
-    IssueReference,
     PullRequestFinding,
     ReadFailureFinding,
     RequestRow,
@@ -170,28 +167,15 @@ def _ask_start_time_questions(
     )
     if isinstance(pull_request_context, UnknownGitHubResponse):
         return ReadFailureFinding(reason=pull_request_context.reason)
-    blocking = list_blocking_issues(repository=context.repository, issue=issue)
-    if isinstance(blocking, UnknownGitHubResponse):
-        return ReadFailureFinding(reason=blocking.reason)
+    blocking = list_open_blocking_issues(context=context, issue=issue)
+    if isinstance(blocking, ReadFailureFinding):
+        return blocking
     return StartTimeFinding(
         linked_pull_requests=[
             pull_request.number for pull_request in pull_request_context.pull_requests
         ],
-        blocking_issues=[
-            _refer_to_issue(context=context, issue=blocker)
-            for blocker in blocking
-            if blocker.state is IssueState.OPEN
-        ],
+        blocking_issues=blocking,
     )
-
-
-def _refer_to_issue(
-    *, context: SchedulingContext, issue: BlockingIssue
-) -> IssueReference:
-    """Return a reference that names the issue's repository when it is another one."""
-    if issue.repository.casefold() == context.repository.casefold():
-        return IssueReference(number=issue.number)
-    return IssueReference(number=issue.number, repository=issue.repository)
 
 
 def _compose_opening_round(*, context: SchedulingContext, work: AgentWork) -> RoundPlan:

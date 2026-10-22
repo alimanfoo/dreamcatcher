@@ -62,6 +62,9 @@ On GitHub:
 2. Assign it to the account authenticated through `gh`.
 3. Add exactly one configured campaign label, such as `dream:lead`.
 
+If open issues block the parent on GitHub, the campaign waits until
+every one of them is closed.
+
 A campaign needs no comment to start. At its next update with a free
 agent slot, _dreamcatcher_ checks out current `origin/main` in a
 worktree of the campaign's own, and starts the lead with the configured
@@ -84,6 +87,20 @@ campaign in the terminal:
 dreamcatcher campaign GH123
 dreamcatcher feed GH123 --campaign
 ```
+
+## Queue campaigns
+
+To run one campaign after another, mark the later parent as blocked by
+the earlier parent on GitHub, then assign and label both parents, and
+leave their sub-issues for the leads to start. The later campaign waits,
+and its request shows as blocked by the earlier parent. The block holds
+back only the later lead, so a sub-issue that you label for an
+assignment yourself starts according to its own dependencies.
+
+Close the earlier parent when you are satisfied with its campaign, and
+the later campaign starts at the next update with a free agent slot.
+Closing every sub-issue does not close the parent, and the lead is told
+never to close it, so the next campaign waits for you.
 
 ## Talk to the lead
 

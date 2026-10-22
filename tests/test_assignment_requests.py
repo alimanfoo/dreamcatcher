@@ -15,6 +15,7 @@ from conftest import (
     POSTED_BY,
     PULL_REQUEST,
     REPOSITORY,
+    blocker,
     listing,
     pages,
     pull_request,
@@ -148,20 +149,12 @@ def test_a_later_route_failure_keeps_the_rows_of_earlier_routes(gh, state):
     assert [row.issue for row in found.rows] == [8]
 
 
-def _blocker(*, number, state, repository=REPOSITORY):
-    return {
-        "number": number,
-        "state": state,
-        "repository_url": f"https://api.github.com/repos/{repository}",
-    }
-
-
 def test_a_request_names_the_open_issues_that_block_it(gh, state):
     gh.replies(
         stdout=pages(
             items=[
-                _blocker(number=7, state="closed"),
-                _blocker(number=9, state="open"),
+                blocker(number=7, state="closed"),
+                blocker(number=9, state="open"),
             ]
         ),
         to="api",
@@ -178,8 +171,8 @@ def test_a_request_names_the_repository_of_a_blocker_in_another_one(gh, state):
     gh.replies(
         stdout=pages(
             items=[
-                _blocker(number=9, state="open", repository=REPOSITORY.upper()),
-                _blocker(number=1016, state="open", repository="alimanfoo/dream"),
+                blocker(number=9, state="open", repository=REPOSITORY.upper()),
+                blocker(number=1016, state="open", repository="alimanfoo/dream"),
             ]
         ),
         to="api",
