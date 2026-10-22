@@ -142,12 +142,12 @@ progress towards the standard. Meeting the criteria is.
 
 - Measure: whether a reader can install, configure, run and consult a
   command reference without reading how the scheduler thinks.
-- Bar: four kinds of page, kept apart: a tutorial that takes an issue to
-  a pull request ready for review, how-to pages for each task, a
-  reference for every command and setting, and explanation for the
-  design. The README is a short entrance to user documentation and
-  contributor guidance. User-facing pages do not link to developer
-  design documents.
+- Bar: four kinds of page, kept apart: tutorials that take an issue to a
+  pull request ready for review and a small campaign to its end, how-to
+  pages for each task, a reference for every command and setting, and
+  explanation for the design. The README is a short entrance to user
+  documentation and contributor guidance. User-facing pages do not link
+  to developer design documents.
 - Check: review of the documentation map that `uncoded` maintains.
 
 **C4. Formats and contracts are versioned.**

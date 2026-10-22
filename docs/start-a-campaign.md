@@ -9,7 +9,9 @@ for each comment you post on the parent, and another when a sub-issue
 changes in a way that the lead needs to hear of. It ends the campaign
 when you close the parent.
 
-You need a configured campaign route and a running daemon.
+You need a configured campaign route and a running daemon. For a first
+campaign, follow the worked example in
+[From parent issue to merged stages](campaign-tutorial.md).
 
 ## Configure a campaign route
 

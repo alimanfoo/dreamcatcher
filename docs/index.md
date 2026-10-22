@@ -71,7 +71,9 @@ uv tool install dreamcatcher
 ```
 
 Then follow [From issue to pull request](tutorial.md) for the complete
-setup and a first assignment.
+setup and a first assignment. To try a campaign, follow
+[From parent issue to merged stages](campaign-tutorial.md), which uses
+the same setup.
 
 ## Guides
 

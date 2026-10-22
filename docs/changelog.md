@@ -72,6 +72,11 @@ the change.
   carries a parent issue's sub-issues through their assignments to
   merge. [Start a campaign](start-a-campaign.md) explains what it does.
   ([#677](https://github.com/alimanfoo/dreamcatcher/pull/677))
+- A second tutorial,
+  [From parent issue to merged stages](campaign-tutorial.md), takes a
+  parent issue with two dependent sub-issues through `dream:lead` to
+  merge, and shows what you see and when the lead needs you.
+  ([#680](https://github.com/alimanfoo/dreamcatcher/pull/680))
 
 ### Fixed
 
