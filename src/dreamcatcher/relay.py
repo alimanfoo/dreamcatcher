@@ -14,6 +14,7 @@ from dreamcatcher.agent_assignments import (
     read_signal_relay_head,
 )
 from dreamcatcher.agent_work import AgentWork
+from dreamcatcher.documents import DreamcatcherDocument
 from dreamcatcher.github import (
     CheckResult,
     IssueComment,
@@ -25,8 +26,14 @@ from dreamcatcher.github import (
     list_issue_comments,
     list_user_posts,
 )
-from dreamcatcher.issue_conversations import IssueCommentCursor
 from dreamcatcher.prompts import AGENT_POST_MARKER
+
+
+class IssueCommentCursor(DreamcatcherDocument):
+    """Identify the newest issue comment behind a cursor in an issue's comments."""
+
+    written_at: str
+    id: int
 
 
 @dataclass(frozen=True, kw_only=True)

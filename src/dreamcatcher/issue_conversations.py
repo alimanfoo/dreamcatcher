@@ -19,6 +19,7 @@ from dreamcatcher.github import (
     post_issue_comment,
 )
 from dreamcatcher.prompts import AGENT_POST_MARKER
+from dreamcatcher.relay import IssueCommentCursor
 from dreamcatcher.state import StateDirectory
 
 NO_REPLY = "NO_REPLY"
@@ -40,13 +41,6 @@ class ConversationRoundInput(WriteOnceDreamcatcherDocument):
     )
     comments: list[IssueComment]
     revision: str
-
-
-class IssueCommentCursor(DreamcatcherDocument):
-    """Identify the newest issue comment behind a conversation's cursor."""
-
-    written_at: str
-    id: int
 
 
 def prepare_conversation_round(
