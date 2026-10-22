@@ -14,6 +14,7 @@ from dreamcatcher.github import (
     list_issues,
     list_labels,
     list_pull_requests,
+    list_sub_issues,
     read_issue_pull_request_context,
 )
 
@@ -28,6 +29,9 @@ MERGED_BRANCH = "dream-catcher-GH7-20260819-184158"
 # The phase 4 issue, which the phase 3 issue blocks.
 BLOCKED = 9
 BLOCKING = 8
+# The campaign issue, whose first stage is one of its children.
+PARENT = 593
+FIRST_STAGE = 654
 
 
 def test_this_checkout_is_this_repository():
@@ -83,3 +87,10 @@ def test_a_blocked_issue_names_what_blocks_it():
 
     assert isinstance(found, list)
     assert BLOCKING in [blocker.number for blocker in found]
+
+
+def test_a_parent_names_its_children():
+    found = list_sub_issues(repository=REPOSITORY, issue=PARENT)
+
+    assert isinstance(found, list)
+    assert FIRST_STAGE in [child.number for child in found]

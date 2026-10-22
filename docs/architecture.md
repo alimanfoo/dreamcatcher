@@ -373,6 +373,7 @@ constructs GitHub commands. It owns projections and operations for:
 - repository and account identity, and whether the account can push;
 - the repository's labels, and creating a label;
 - issue title, state, assignees, labels, and dependencies;
+- a parent issue's direct children, with their titles and states;
 - linked pull requests;
 - pull-request identity, draft state, readiness, terminal state, merge
   state, head commit, and what its checks add up to;

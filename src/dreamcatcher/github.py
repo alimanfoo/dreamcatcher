@@ -263,6 +263,12 @@ class BlockingIssue(_RestIssueProjection):
     """Model an issue that blocks another issue."""
 
 
+class SubIssue(_RestIssueProjection):
+    """Model a direct child of a parent issue."""
+
+    title: str
+
+
 class PullRequestReference(GitHubResponseProjection):
     """Model a pull request known only by its number."""
 
@@ -409,6 +415,7 @@ _GITHUB_PULL_REQUEST_REFERENCE_LIST_RESPONSE_ADAPTER = TypeAdapter(
 _GITHUB_PULL_REQUEST_REFERENCE_RESPONSE_ADAPTER = TypeAdapter(PullRequestReference)
 _GITHUB_PULL_REQUEST_RESPONSE_ADAPTER = TypeAdapter(PullRequest)
 _GITHUB_BLOCKING_ISSUE_LIST_RESPONSE_ADAPTER = TypeAdapter(list[list[BlockingIssue]])
+_GITHUB_SUB_ISSUE_PAGES_ADAPTER = TypeAdapter(list[list[SubIssue]])
 _GITHUB_ISSUE_PULL_REQUEST_CONTEXT_RESPONSE_ADAPTER = TypeAdapter(
     IssuePullRequestContext
 )
@@ -691,6 +698,16 @@ def list_blocking_issues(
     return _read_github_pages(
         response_adapter=_GITHUB_BLOCKING_ISSUE_LIST_RESPONSE_ADAPTER,
         endpoint=f"repos/{repository}/issues/{issue}/dependencies/blocked_by",
+    )
+
+
+def list_sub_issues(
+    *, repository: str, issue: int
+) -> list[SubIssue] | UnknownGitHubResponse:
+    """Return the issue's direct children, in GitHub's order, whatever their states."""
+    return _read_github_pages(
+        response_adapter=_GITHUB_SUB_ISSUE_PAGES_ADAPTER,
+        endpoint=f"repos/{repository}/issues/{issue}/sub_issues",
     )
 
 
