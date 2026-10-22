@@ -394,17 +394,20 @@ tolerant projections. Documents owned by _dreamcatcher_ remain strict.
 ### Relay
 
 `relay.py` owns what is past a piece of agent work's cursor in its
-channel, for assignments and conversations. For an assignment it selects
-the user posts past the cursor, oldest first, by comparing normalized
-user posts from the GitHub boundary with the assignment's cursor, read
-from the newest input that contains posts among the rounds that took
-their turn or are running. It raises the pull request signals of a pull
+channel, for every kind of agent work. For an assignment it selects the
+user posts past the cursor, oldest first, by comparing normalized user
+posts from the GitHub boundary with the assignment's cursor, read from
+the newest input that contains posts among the rounds that took their
+turn or are running. It raises the pull request signals of a pull
 request that is open and ready for review, each at a head other than the
 one at which it was last relayed, and leaves out a check-failure that
-the relay rule withholds. For a conversation it selects the eligible
-issue comments past the conversation's cursor, oldest first. One rule
-decides, for both channels, which posts are the user's to relay. Each
-kind's own module reads its cursor from the round inputs that it owns.
+the relay rule withholds. For a conversation or a campaign it selects
+the eligible issue comments past the work's cursor, oldest first, and it
+owns `IssueCommentCursor`, which marks a position in an issue's
+comments. One rule decides, for every channel, which posts are the
+user's to relay. Each kind's own module reads its cursor from the round
+inputs that it owns: a conversation's is its newest relayed comment, and
+a campaign's is the cursor that its newest delivered input records.
 
 Relay does not define a separate inbox domain entity and does not decide
 when a round should run. The scheduler determines whether posts,
