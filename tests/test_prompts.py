@@ -277,6 +277,8 @@ def test_the_campaign_input_prompt_names_its_input_and_the_users_decisions(
     assert composed.startswith("Campaign input for parent issue GH20:")
     assert str(round_input) in composed
     assert "Act on every comment in `comments`" in words
+    assert "The `children` field is the current picture" in words
+    assert "`assignment_routes` holds the labels and recipes" in words
     assert "refreshes to main before every round" in words
     assert "Do not commit, push or open a pull request from this worktree" in words
     assert "do not repeat an action that an earlier attempt completed" in words

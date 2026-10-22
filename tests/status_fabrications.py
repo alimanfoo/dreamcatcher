@@ -34,12 +34,13 @@ from dreamcatcher.agent_rounds import (
     _compose_agent_round_ending,
 )
 from dreamcatcher.agent_work import AgentWorkEndReason, read_agent_work_at_issue
-from dreamcatcher.campaigns import CampaignRoundInput
+from dreamcatcher.campaigns import CampaignChild, CampaignRoundInput
 from dreamcatcher.documents import write_json, write_text
 from dreamcatcher.feed import FeedLine
 from dreamcatcher.github import (
     CheckResult,
     IssueComment,
+    IssueState,
     PullRequestMergeState,
     PullRequestState,
 )
@@ -92,7 +93,9 @@ def _draft_pull_request(*, new_posts: int = 0) -> PullRequestFinding:
         state=PullRequestState.OPEN,
         is_draft=True,
         merge_state=PullRequestMergeState.CLEAN,
+        head=HEAD,
         check_result=CheckResult.PASSING,
+        has_running_checks=False,
         new_posts=new_posts,
         new_pull_request_signals=[],
         is_check_failure_withheld=False,
@@ -225,10 +228,24 @@ def campaign_row(
     )
 
 
+# The children of the idle campaign's parent, one of them closed.
+CAMPAIGN_CHILDREN = [
+    CampaignChild(
+        issue=issue,
+        title=f"Stage {issue}",
+        state=state,
+        is_settled=True,
+        assignment=None,
+    )
+    for issue, state in ((63, IssueState.CLOSED), (64, IssueState.OPEN))
+]
+
+
 def fabricate_campaigns(*, state: StateDirectory) -> list[RequestRow]:
     """Write an idle campaign and an ended one, and return their requests' rows.
 
-    The rows also hold a labelled parent whose campaign has not started.
+    The idle campaign's row holds its children. The rows also hold a labelled
+    parent whose campaign has not started.
     """
     for issue in (60, 61):
         directory = write_campaign(state=state, issue=issue)
@@ -238,7 +255,12 @@ def fabricate_campaigns(*, state: StateDirectory) -> list[RequestRow]:
             number=1,
             record=record,
             round_input=CampaignRoundInput(
-                issue=issue, comments=[], cursor=None, revision="abc123"
+                issue=issue,
+                children=[],
+                comments=[],
+                cursor=None,
+                revision="abc123",
+                assignment_routes=[],
             ),
         )
         write_feed(
@@ -256,7 +278,9 @@ def fabricate_campaigns(*, state: StateDirectory) -> list[RequestRow]:
         at=PINNED + timedelta(minutes=30),
     )
     return [
-        campaign_row(finding=CampaignFinding(new_comments=0), ended_round=1),
+        campaign_row(finding=CampaignFinding(new_comments=0), ended_round=1).model_copy(
+            update={"children": CAMPAIGN_CHILDREN}
+        ),
         request_row(
             issue=62,
             kind=AgentWorkKind.CAMPAIGN,
@@ -644,7 +668,9 @@ def fabricate_titles_and_pull_request_states(*, state):
                     state=pull_request_state,
                     is_draft=is_draft,
                     merge_state=merge_state,
+                    head=HEAD,
                     check_result=check_result,
+                    has_running_checks=False,
                     new_posts=0,
                     new_pull_request_signals=[],
                     is_check_failure_withheld=check_result is CheckResult.FAILING,

@@ -75,10 +75,19 @@ the campaign label.
 
 Add a paginated GitHub read for
 `repos/{repository}/issues/{parent}/sub_issues`. It returns the direct
-children with their issue numbers, titles, states, labels and assignees.
-Normalise the REST fields through the GitHub projection boundary. The
-GitHub relationship is authoritative; no separate campaign ownership
-file is introduced.
+children with their issue numbers, titles and states. The snapshot uses
+nothing else, and the lead reads a child's labels and assignees from
+GitHub itself. Normalise the REST fields through the GitHub projection
+boundary, keeping each child's repository. The GitHub relationship is
+authoritative; no separate campaign ownership file is introduced.
+
+A daemon observes work in its own repository alone. GitHub lets a
+sub-issue come from another repository, and that child could never have
+an assignment here, so matching it by number would give it a local
+issue's assignment. Treat a child in another repository as one the
+update cannot observe: report it, start no lead round and show the
+overview as unknown, as for a failed read. Match the remaining children
+to local work by number only once their repository is this one.
 
 Keep the work already read at the start of an update available for
 lookup, including ended assignments. Match each child to its newest
@@ -388,9 +397,11 @@ start no lead round from that incomplete picture. Do not treat missing
 data as a removed child or a state transition. The next update retries,
 leaving the comparison point unchanged. This deliberately allows one
 unreadable child to delay the lead, including a reply to a parent
-comment. Other assignments continue under their own inspections. Not
-having a fresh pull-request read because an assignment is in fault or
-ended is not itself a read failure.
+comment. A failed listing under an assignment label counts too, for a
+child with no open assignment, because the request that the listing
+missed could make that child's round due. Other assignments continue
+under their own inspections. Not having a fresh pull-request read
+because an assignment is in fault or ended is not itself a read failure.
 
 Campaigns share fault and cooldown rules. A user retry clears the fault
 by recording a timestamp. The lead investigates a child's fault, posts

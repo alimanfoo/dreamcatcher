@@ -286,18 +286,41 @@ not contradict them.
 Every input contains:
 
 - `issue`, identifying the parent issue;
+- `children`, the parent's direct sub-issues in GitHub's order, as the
+  update that started the round observed them;
 - `comments`, the user's eligible comments on the parent since the last
   input delivered to the lead, oldest first, which may be empty;
 - `cursor`, which _dreamcatcher_ uses to tell how far the lead has read
   in the parent's comments;
 - `revision`, identifying the fetched main commit checked out in the
-  detached worktree.
+  detached worktree;
+- `assignment_routes`, the assignment routes of the running daemon, for
+  the lead to choose among when it gives a sub-issue an assignment
+  label. Each route names its `label`, and its `claude` and `codex`
+  recipes, either of which may be `null`.
+
+Each sub-issue names its `issue`, `title` and `state`, whether it
+`is_settled`, and its newest `assignment`, which is `null` when the
+sub-issue has never had one. A settled sub-issue has no assignment round
+running or due, where an assignment that may start for the sub-issue
+counts as a round due. An assignment names its `identifier`, its
+`pull_request` number, the `observed_pull_request` that the update read,
+the `finished_turn` of its newest round that took its turn, its `ending`
+and whether it `is_fault`. The observed pull request holds the pull
+request's `state`, `is_draft`, `merge_state`, `head`, `check_result` and
+`has_running_checks`, and is `null` when the update read nothing of it,
+as for an assignment that has ended or is in fault. The daemon's routes
+can differ from the configuration on main, which only takes effect when
+the daemon restarts.
 
 The first input holds every eligible comment already on the parent. A
 comment is eligible when the signed-in user wrote it, it says something
 and it does not carry the agent marker, so the lead's own posts never
 reach it as comments. The lead reads the parent, its sub-issues and
-anything else it needs from GitHub itself.
+anything else it needs from GitHub itself. _dreamcatcher_ starts no
+round while it cannot observe every sub-issue, so no input holds a
+partial picture. A sub-issue in another repository is one it cannot
+observe, so every sub-issue in an input is an issue of this repository.
 
 ### Workspace
 

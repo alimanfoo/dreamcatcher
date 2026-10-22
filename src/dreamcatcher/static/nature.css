@@ -390,6 +390,7 @@ body::after {
 
 .agent-work-detail,
 .agent-work-meta,
+.agent-work-children,
 .labels {
   color: var(--dim);
 }

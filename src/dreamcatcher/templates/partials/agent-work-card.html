@@ -7,7 +7,8 @@
     </span>
   </div>
   <p class="agent-work-detail">{{ card.detail }}</p>
-  {% if card.latest_output %}<p class="latest-output"><span>agent</span> {{ card.latest_output }}</p>{% endif %}
+  {% if card.children_summary %}<p class="agent-work-children">{{ card.children_summary }}{% for issue in card.child_issues %} {{ github_reference(issue, "issues") }}{% endfor %}</p>
+  {% endif %}{% if card.latest_output %}<p class="latest-output"><span>agent</span> {{ card.latest_output }}</p>{% endif %}
   <div class="agent-work-meta">
     <span>{{ card.dispatch_label }} · {{ card.harness }} · {{ card.model }} · {{ card.effort }}</span>
     {% if card.kind == "assignment" %}{% if card.pull_request is none %}<span class="pr-chip">no pull request yet</span>{% elif view.github_repository_url %}<a class="pr-chip" href="{{ view.github_repository_url }}/pull/{{ card.pull_request }}" target="_blank" rel="noopener noreferrer">PR #{{ card.pull_request }}{% if card.pull_request_summary %} {{ card.pull_request_summary }}{% endif %}</a>{% else %}<span class="pr-chip">PR #{{ card.pull_request }}{% if card.pull_request_summary %} {{ card.pull_request_summary }}{% endif %}</span>{% endif %}{% endif %}

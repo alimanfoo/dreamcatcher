@@ -392,6 +392,7 @@ body::after {
 }
 
 .agent-work-detail,
+.agent-work-children,
 .latest-output,
 .labels,
 .error-message {
@@ -400,6 +401,7 @@ body::after {
 
 .agent-work-detail,
 .agent-work-meta,
+.agent-work-children,
 .labels {
   color: var(--dim);
 }

@@ -79,8 +79,8 @@ agent to answer the user on an issue without implementing a change.
 
 A **campaign** is _dreamcatcher_'s durable commission to an agent, its
 **lead**, to carry a planned body of work through GitHub. The campaign's
-**parent issue** holds the goal, and the parent's sub-issues are the
-stages.
+**parent issue** holds the goal, and the parent's direct sub-issues are
+the stages.
 
 ### Agent work and agent work identifier
 
@@ -419,11 +419,14 @@ started it. A _dreamcatcher_ instance has at most one open campaign for
 each campaign label on an issue, and it keeps a paused campaign until
 the parent issue closes.
 
-Each campaign round input records the parent issue, the eligible
-comments past the cursor, the cursor that the input reaches and the main
-revision. A round given no new comment carries the cursor forward. The
-lead reads everything else it needs from GitHub, and posts its own
-messages there. Its final output stays in the feed.
+Each campaign round input records the parent issue, the parent's
+sub-issues and where each one's newest assignment stands, the eligible
+comments past the cursor, the cursor that the input reaches, the main
+revision and the running daemon's assignment routes. A round given no
+new comment carries the cursor forward. No round starts while an update
+cannot observe every sub-issue. The lead reads anything else it needs
+from GitHub, and posts its own messages there. Its final output stays in
+the feed.
 
 ### Starting an issue conversation
 

@@ -30,6 +30,7 @@ from dreamcatcher.github import (
     PullRequestReview,
     PullRequestReviewVerdict,
     PullRequestState,
+    SubIssue,
     UnknownGitHubResponse,
     UserPost,
     _identify_github_account,
@@ -42,6 +43,7 @@ from dreamcatcher.github import (
     list_issues,
     list_labels,
     list_pull_requests,
+    list_sub_issues,
     list_user_posts,
     post_issue_comment,
     read_issue,
@@ -346,6 +348,21 @@ def test_a_pull_requests_checks_add_up_to_one_result(checks, result):
     assert found.check_result is result
 
 
+@pytest.mark.parametrize(
+    ("checks", "has_running_checks"),
+    [
+        ([], False),
+        ([check_run(), check_run(conclusion="FAILURE")], False),
+        ([check_run(status="IN_PROGRESS"), check_run(conclusion="FAILURE")], True),
+        ([status_context(state="PENDING"), check_run()], True),
+    ],
+)
+def test_a_failing_result_still_says_whether_a_check_runs(checks, has_running_checks):
+    found = PullRequest.model_validate_json(pull_request(state="OPEN", checks=checks))
+
+    assert found.has_running_checks is has_running_checks
+
+
 def test_a_linked_draft_pull_request_is_opened_for_the_assignment_branch(fake):
     gh = fake(program="gh")
     gh.replies(
@@ -554,6 +571,47 @@ def test_an_open_blocker_on_the_second_page_comes_back(fake):
     assert [blocker.number for blocker in found] == [7, 8]
 
 
+def test_the_children_of_a_parent_come_back_in_order_across_pages(fake):
+    gh = fake(program="gh")
+    gh.replies(
+        stdout=json.dumps(
+            [
+                [
+                    {
+                        "number": 21,
+                        "title": "Stage 1",
+                        "state": "closed",
+                        "repository_url": f"https://api.github.com/repos/{REPOSITORY}",
+                    }
+                ],
+                [
+                    {
+                        "number": 22,
+                        "title": "Stage 2",
+                        "state": "open",
+                        "repository_url": "https://github.example.com/api/v3/repos/other/tools",
+                    }
+                ],
+            ]
+        )
+    )
+
+    assert list_sub_issues(repository=REPOSITORY, issue=20) == [
+        SubIssue(
+            number=21, title="Stage 1", state=IssueState.CLOSED, repository=REPOSITORY
+        ),
+        SubIssue(
+            number=22, title="Stage 2", state=IssueState.OPEN, repository="other/tools"
+        ),
+    ]
+    assert gh.calls[0].arguments == [
+        "api",
+        f"repos/{REPOSITORY}/issues/20/sub_issues?per_page=100",
+        "--paginate",
+        "--slurp",
+    ]
+
+
 def posted() -> list[UserPost]:
     """The pull request's posts, given that gh answered every one of its lists."""
     found = list_user_posts(repository=REPOSITORY, pull_request=PULL_REQUEST)
@@ -701,6 +759,10 @@ def test_a_recorded_inline_comment_carries_the_diff_it_was_written_against(
         pytest.param(
             lambda: list_blocking_issues(repository=REPOSITORY, issue=9),
             id="the blockers",
+        ),
+        pytest.param(
+            lambda: list_sub_issues(repository=REPOSITORY, issue=20),
+            id="the children",
         ),
         pytest.param(
             lambda: list_user_posts(repository=REPOSITORY, pull_request=PULL_REQUEST),

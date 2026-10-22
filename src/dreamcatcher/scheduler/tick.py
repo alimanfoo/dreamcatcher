@@ -1,6 +1,6 @@
 """Run one scheduler tick over every kind of agent work."""
 
-from collections.abc import Iterator, Sequence
+from collections.abc import Iterator, Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from datetime import datetime
 from functools import partial
@@ -28,6 +28,7 @@ from dreamcatcher.scheduler.assignments import (
     inspect_open_assignment,
 )
 from dreamcatcher.scheduler.campaigns import (
+    AssignmentObservations,
     inspect_campaign_request,
     inspect_open_campaign,
 )
@@ -55,27 +56,32 @@ from dreamcatcher.scheduler.models import (
     StartedRound,
 )
 
-# How the tick inspects the channel of open work, by the work's kind.
+# How the tick's first pass inspects the channel of open work, by the work's
+# kind. Campaigns are inspected in the second pass.
 _OPEN_WORK_INSPECTORS: dict[AgentWorkKind, OpenWorkInspector] = {
     AgentWorkKind.ASSIGNMENT: inspect_open_assignment,
     AgentWorkKind.CONVERSATION: inspect_open_conversation,
-    AgentWorkKind.CAMPAIGN: inspect_open_campaign,
 }
 
-# How the tick inspects a request that no open work answers, by its kind.
+# How the tick's first pass inspects a request that no open work answers, by
+# its kind.
 _REQUEST_INSPECTORS: dict[AgentWorkKind, RequestInspector] = {
     AgentWorkKind.ASSIGNMENT: inspect_assignment_request,
     AgentWorkKind.CONVERSATION: inspect_conversation_request,
-    AgentWorkKind.CAMPAIGN: inspect_campaign_request,
 }
 
 
 @dataclass(frozen=True, kw_only=True)
 class _IssueListing:
-    """Collect the listed issues, oldest first, and the listings that failed."""
+    """Collect the listed issues, oldest first, and the listings that failed.
+
+    The assignment failure is the first of the failures that listed under an
+    assignment label.
+    """
 
     issues: list[Issue]
     failures: list[str]
+    assignment_failure: str | None
 
 
 @dataclass(kw_only=True)
@@ -103,11 +109,12 @@ class Scheduler:
         next tick tries again.
 
         The requests come from the open agent work on disk and from the
-        dispatch labels on the listed issues. Open work is inspected first, in
-        identifier order, then the requests with no open work, in listing
-        order, and that is the order in which candidates start. A failed
-        listing starts no work for an issue that no other listing returns, and
-        leaves open work inspected.
+        dispatch labels on the listed issues. The first pass inspects the
+        assignments and conversations, and the second pass the campaigns. Each
+        pass inspects open work first, in identifier order, then the requests
+        with no open work, in listing order, and within each kind that is the
+        order in which candidates start. A failed listing starts no work for an
+        issue that no other listing returns, and leaves open work inspected.
 
         A global cooldown prevents every launch but does not prevent reads, so
         the rows remain current while the cooldown is active.
@@ -119,18 +126,36 @@ class Scheduler:
             if previous_record is None
             else previous_record.most_recent_cooldown_ended
         )
-        open_work = [
-            work for work in read_agent_work(state=self.context.state) if work.is_open
-        ]
+        all_work = read_agent_work(state=self.context.state)
+        open_work = [work for work in all_work if work.is_open]
         listing = self._list_issues()
+        inspect = partial(
+            self._inspect,
+            open_work=open_work,
+            issues=listing.issues,
+            most_recent_cooldown_ended=most_recent_cooldown_ended,
+        )
+        ordinary_inspections = inspect(
+            open_work_inspectors=_OPEN_WORK_INSPECTORS,
+            request_inspectors=_REQUEST_INSPECTORS,
+        )
+        observations = _observe_assignments(
+            work=all_work, inspections=ordinary_inspections, listing=listing
+        )
         inspections = [
-            *(
-                self._inspect_open_work(
-                    work=work, most_recent_cooldown_ended=most_recent_cooldown_ended
-                )
-                for work in open_work
+            *ordinary_inspections,
+            *inspect(
+                open_work_inspectors={
+                    AgentWorkKind.CAMPAIGN: partial(
+                        inspect_open_campaign, observations=observations
+                    )
+                },
+                request_inspectors={
+                    AgentWorkKind.CAMPAIGN: partial(
+                        inspect_campaign_request, observations=observations
+                    )
+                },
             ),
-            *self._inspect_requests(issues=listing.issues, open_work=open_work),
         ]
         cooldown = start_cooldown_if_required(
             active=None if previous_record is None else previous_record.cooldown,
@@ -161,6 +186,7 @@ class Scheduler:
         """List the open issues assigned to the account under every dispatch label."""
         issues_by_number: dict[int, Issue] = {}
         failures: list[str] = []
+        assignment_failure = None
         for route in self.context.config.routes:
             listed = list_issues(
                 repository=self.context.repository,
@@ -168,9 +194,10 @@ class Scheduler:
                 assignee=self.context.account,
             )
             if isinstance(listed, UnknownGitHubResponse):
-                failures.append(
-                    f"could not list issues for {route.label}: {listed.reason}"
-                )
+                failure = f"could not list issues for {route.label}: {listed.reason}"
+                failures.append(failure)
+                if route.kind is AgentWorkKind.ASSIGNMENT:
+                    assignment_failure = assignment_failure or failure
             else:
                 issues_by_number.update((issue.number, issue) for issue in listed)
         return _IssueListing(
@@ -179,10 +206,40 @@ class Scheduler:
                 key=lambda issue: (issue.created_at, issue.number),
             ),
             failures=failures,
+            assignment_failure=assignment_failure,
         )
 
+    def _inspect(
+        self,
+        *,
+        open_work: list[AgentWork],
+        issues: list[Issue],
+        most_recent_cooldown_ended: datetime | None,
+        open_work_inspectors: Mapping[AgentWorkKind, OpenWorkInspector],
+        request_inspectors: Mapping[AgentWorkKind, RequestInspector],
+    ) -> list[Inspection]:
+        """Inspect the open work and then the requests of the inspectors' kinds."""
+        return [
+            *(
+                self._inspect_open_work(
+                    work=work,
+                    inspect_work=open_work_inspectors[work.record.kind],
+                    most_recent_cooldown_ended=most_recent_cooldown_ended,
+                )
+                for work in open_work
+                if work.record.kind in open_work_inspectors
+            ),
+            *self._inspect_requests(
+                issues=issues, open_work=open_work, inspectors=request_inspectors
+            ),
+        ]
+
     def _inspect_open_work(
-        self, *, work: AgentWork, most_recent_cooldown_ended: datetime | None
+        self,
+        *,
+        work: AgentWork,
+        inspect_work: OpenWorkInspector,
+        most_recent_cooldown_ended: datetime | None,
     ) -> Inspection:
         """Inspect one piece of open work through its kind's channel.
 
@@ -194,17 +251,19 @@ class Scheduler:
             retry_requested_at=work.retry_requested_at,
             most_recent_cooldown_ended=most_recent_cooldown_ended,
         )
-        inspection = _OPEN_WORK_INSPECTORS[work.record.kind](
-            context=self.context, work=work, is_fault=is_fault
-        )
+        inspection = inspect_work(context=self.context, work=work, is_fault=is_fault)
         if not work.is_round_running:
             return inspection
         return replace(inspection, candidate=None)
 
     def _inspect_requests(
-        self, *, issues: list[Issue], open_work: list[AgentWork]
+        self,
+        *,
+        issues: list[Issue],
+        open_work: list[AgentWork],
+        inspectors: Mapping[AgentWorkKind, RequestInspector],
     ) -> Iterator[Inspection]:
-        """Inspect each dispatch label on each listed issue that no open work answers.
+        """Inspect each label of the inspectors' kinds that no open work answers.
 
         Open work answers the request it came from. An open assignment also
         answers every assignment label on its issue, since an issue has at most
@@ -221,7 +280,7 @@ class Scheduler:
         }
         for issue in issues:
             labels = [label.name for label in issue.labels]
-            for kind, inspect_request in _REQUEST_INSPECTORS.items():
+            for kind, inspect_request in inspectors.items():
                 if kind is AgentWorkKind.ASSIGNMENT and issue.number in assigned_issues:
                     continue
                 yield from self._inspect_requests_of_kind(
@@ -389,3 +448,26 @@ class Scheduler:
         )
         request_round_stop_if_ended(work=work, paths=paths)
         return started_round
+
+
+def _observe_assignments(
+    *, work: list[AgentWork], inspections: list[Inspection], listing: _IssueListing
+) -> AssignmentObservations:
+    """Return what the first pass found of the assignments, for the campaigns.
+
+    The work is every piece of work in identifier order, so the last assignment
+    at an issue is its newest.
+    """
+    return AssignmentObservations(
+        assignments={
+            assignment.record.issue: assignment
+            for assignment in work
+            if assignment.record.kind is AgentWorkKind.ASSIGNMENT
+        },
+        inspections={
+            inspection.row.issue: inspection
+            for inspection in inspections
+            if inspection.row.kind is AgentWorkKind.ASSIGNMENT
+        },
+        listing_failure=listing.assignment_failure,
+    )

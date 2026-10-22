@@ -245,9 +245,14 @@ class PullRequest(GitHubResponseProjection):
                 return result
         return CheckResult.NONE
 
+    @property
+    def has_running_checks(self) -> bool:
+        """Whether any check at the head is still running, whatever the others say."""
+        return any(check.result is CheckResult.RUNNING for check in self.checks)
 
-class BlockingIssue(GitHubResponseProjection):
-    """Model an issue that blocks another issue."""
+
+class _RestIssueProjection(GitHubResponseProjection):
+    """Model an issue as a REST endpoint lists it, by its number and state."""
 
     number: int
     state: IssueState
@@ -257,6 +262,26 @@ class BlockingIssue(GitHubResponseProjection):
     def _normalize_rest_state(cls, value: object, /) -> str:
         """Normalize the REST API's lower-case spelling at its boundary."""
         return str(value).upper()
+
+
+class BlockingIssue(_RestIssueProjection):
+    """Model an issue that blocks another issue."""
+
+
+class SubIssue(_RestIssueProjection):
+    """Model a direct child of a parent issue, which can be in another repository.
+
+    The repository is named as its owner and name, as in `owner/name`.
+    """
+
+    title: str
+    repository: str = Field(alias="repository_url")
+
+    @field_validator("repository", mode="before")
+    @classmethod
+    def _name_repository(cls, value: object, /) -> str:
+        """Keep the owner and name that end the REST API's repository URL."""
+        return "/".join(str(value).rstrip("/").split("/")[-2:])
 
 
 class PullRequestReference(GitHubResponseProjection):
@@ -405,6 +430,7 @@ _GITHUB_PULL_REQUEST_REFERENCE_LIST_RESPONSE_ADAPTER = TypeAdapter(
 _GITHUB_PULL_REQUEST_REFERENCE_RESPONSE_ADAPTER = TypeAdapter(PullRequestReference)
 _GITHUB_PULL_REQUEST_RESPONSE_ADAPTER = TypeAdapter(PullRequest)
 _GITHUB_BLOCKING_ISSUE_LIST_RESPONSE_ADAPTER = TypeAdapter(list[list[BlockingIssue]])
+_GITHUB_SUB_ISSUE_PAGES_ADAPTER = TypeAdapter(list[list[SubIssue]])
 _GITHUB_ISSUE_PULL_REQUEST_CONTEXT_RESPONSE_ADAPTER = TypeAdapter(
     IssuePullRequestContext
 )
@@ -687,6 +713,16 @@ def list_blocking_issues(
     return _read_github_pages(
         response_adapter=_GITHUB_BLOCKING_ISSUE_LIST_RESPONSE_ADAPTER,
         endpoint=f"repos/{repository}/issues/{issue}/dependencies/blocked_by",
+    )
+
+
+def list_sub_issues(
+    *, repository: str, issue: int
+) -> list[SubIssue] | UnknownGitHubResponse:
+    """Return the issue's direct children, in GitHub's order, whatever their states."""
+    return _read_github_pages(
+        response_adapter=_GITHUB_SUB_ISSUE_PAGES_ADAPTER,
+        endpoint=f"repos/{repository}/issues/{issue}/sub_issues",
     )
 
 

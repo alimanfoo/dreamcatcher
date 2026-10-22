@@ -356,14 +356,18 @@ needed. As soon as _dreamcatcher_ has available agent capacity, it
 checks out main in a worktree of the campaign's own and starts the lead
 in a new harness session.
 
-The lead reads the parent and its sub-issues on GitHub, and any comments
-the user had already left on the parent, and does what its prompt asks,
-posting on GitHub itself, with every post marked as the agent's own. Its
-final words stay in the feed, so the parent issue holds only what the
-lead chose to say there. At later updates the lead is left alone until
-the user comments on the parent. The home page has a Campaigns tab,
-where the campaign shows as idle with how its round ended, and its page
-shows the feed.
+The lead is given the current picture of the parent's sub-issues, with
+where each one's assignment stands, and the assignment routes that the
+running daemon offers. It reads the parent and its sub-issues on GitHub,
+and any comments the user had already left on the parent, and does what
+its prompt asks, posting on GitHub itself, with every post marked as the
+agent's own. Its final words stay in the feed, so the parent issue holds
+only what the lead chose to say there. At later updates the lead is left
+alone until the user comments on the parent, and a change among the
+sub-issues does not wake it. The home page has a Campaigns tab, where
+the campaign shows as idle with how its round ended and how many of the
+parent's sub-issues are closed out of the total, with a link to each,
+and its page shows the feed.
 
 When the user is satisfied, they close the parent, and the campaign ends
 once any round that is still running finishes. If they reopen the parent
@@ -397,9 +401,10 @@ The user wants the lead to leave the parent alone for a while. They take
 the campaign label off the parent, or unassign it from themselves, and
 the campaign pauses. A round that is already running finishes, and no
 other round starts, not even one to recover a round that did not finish.
-Comments the user posts on the parent meanwhile wake nothing. When they
-put the label back, the same campaign carries on in its saved harness
-session, and the lead is given every comment posted while it was paused.
+Comments the user posts on the parent meanwhile wake nothing, but the
+Campaigns tab keeps counting the closed sub-issues. When they put the
+label back, the same campaign carries on in its saved harness session,
+and the lead is given every comment posted while it was paused.
 
 The value to the user is that the lead is on the parent only when
 wanted.
@@ -730,6 +735,19 @@ record it cannot read. The user needs to delete the file and start the
 daemon again. The next update writes a fresh one, since the file holds
 only what the last update found.
 
+### Adding a sub-issue from another repository
+
+The user adds an issue from another repository as a sub-issue of a
+campaign's parent. _dreamcatcher_ only sees work in its own repository,
+so it cannot tell where that sub-issue stands. The campaign's card shows
+its sub-issues as unknown, and the lead starts no round, not even for a
+comment on the parent, so it is never given a picture that leaves the
+sub-issue out or confuses it with a local issue of the same number. A
+lead that could otherwise take a round shows as unknown, naming the
+sub-issue that is in another repository. The user needs to remove that
+sub-issue from the parent, or move the issue into this repository, and
+the next update gives the lead the whole picture.
+
 ### Naming work that is not there
 
 The user gives a terminal command an agent work identifier with a typo
@@ -746,9 +764,14 @@ work in the detail view, and use a command of the same kind.
 GitHub is down, or rate-limited, or the network is. The update's reads
 fail, nothing starts, and nothing is lost. A failed listing shows among
 the scheduler failures on the status report while the daemon runs, and a
-failed read for one piece of work or one request shows on its row. The
-next update tries again. Work whose round is already running carries on,
-and its pushes and posts fail or succeed as GitHub allows.
+failed read for one piece of work or one request shows on its row. When
+a campaign's sub-issues, or their assignments, cannot all be read, its
+card shows its sub-issues as unknown in place of the closed count, and
+its lead starts no round from the partial picture. A lead that is not
+working, paused or in fault shows as unknown too, with the failed read;
+otherwise the lead keeps its status. The next update tries again. Work
+whose round is already running carries on, and its pushes and posts fail
+or succeed as GitHub allows.
 
 ### The harness refuses or breaks
 

@@ -26,8 +26,8 @@ from dreamcatcher.agent_rounds import (
     _compose_agent_round_ending,
 )
 from dreamcatcher.agent_work import AgentWorkEndReason
-from dreamcatcher.campaigns import CampaignRoundInput
-from dreamcatcher.github import IssueComment
+from dreamcatcher.campaigns import CampaignChild, CampaignRoundInput
+from dreamcatcher.github import IssueComment, IssueState
 from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.relay import IssueCommentCursor
 from dreamcatcher.scheduler.models import (
@@ -95,6 +95,7 @@ def lead_round(
             if revision is None
             else CampaignRoundInput(
                 issue=PARENT,
+                children=[],
                 comments=given,
                 cursor=(
                     IssueCommentCursor(written_at=given[-1].written_at, id=given[-1].id)
@@ -102,6 +103,7 @@ def lead_round(
                     else None
                 ),
                 revision=revision,
+                assignment_routes=[],
             )
         ),
     )
@@ -113,8 +115,9 @@ def observe(
     finding: RequestFinding | None,
     ended_round: int | None = None,
     started_round: StartedRound | None = None,
+    children: list[CampaignChild] | None = None,
 ) -> None:
-    """Write a tick that saw the campaign with this finding."""
+    """Write a tick that saw the campaign with this finding and these children."""
     write_tick(
         state=state,
         tick=SchedulerRecord(
@@ -127,7 +130,7 @@ def observe(
                     ended_round=ended_round,
                     finding=finding,
                     started_round=started_round,
-                )
+                ).model_copy(update={"children": children})
             ],
         ),
     )
@@ -307,3 +310,58 @@ def test_lead_rounds_name_their_trigger_and_the_revision_of_main_they_were_given
         "code revision def456 (unchanged)",
         None,
     ]
+
+
+def stage(*, issue: int, state: IssueState) -> CampaignChild:
+    """Return one settled child with no assignment, in this state."""
+    return CampaignChild(
+        issue=issue,
+        title=f"Stage {issue}",
+        state=state,
+        is_settled=True,
+        assignment=None,
+    )
+
+
+@pytest.mark.parametrize(
+    ("children", "summary"),
+    [
+        (None, "sub-issues unknown"),
+        ([], "no sub-issues"),
+        (
+            [
+                stage(issue=21, state=IssueState.CLOSED),
+                stage(issue=22, state=IssueState.OPEN),
+                stage(issue=23, state=IssueState.CLOSED),
+            ],
+            "2 of 3 sub-issues closed",
+        ),
+    ],
+)
+def test_an_active_campaign_counts_its_closed_children(state, children, summary):
+    lead_round(state=state, number=1, ending=SUCCESSFUL)
+    observe(state=state, finding=NOTHING_NEW, ended_round=1, children=children)
+
+    status = campaign_status(state=state)
+
+    assert status.children == children
+    assert status.children_summary == summary
+
+
+def test_an_ended_campaign_shows_no_children(state):
+    lead_round(state=state, number=1, ending=SUCCESSFUL)
+    write_ending(
+        directory=state.work / compose_campaign_identifier(issue=PARENT),
+        reason=AgentWorkEndReason.ISSUE_CLOSED,
+        at=LOOKED_AT,
+    )
+    observe(
+        state=state,
+        finding=None,
+        ended_round=1,
+        children=[stage(issue=21, state=IssueState.CLOSED)],
+    )
+
+    status = campaign_status(state=state)
+
+    assert (status.children, status.children_summary) == (None, None)
