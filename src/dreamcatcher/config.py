@@ -118,6 +118,12 @@ class ConversationRoute(DispatchRoute):
     kind: ClassVar[AgentWorkKind] = AgentWorkKind.CONVERSATION
 
 
+class CampaignRoute(DispatchRoute):
+    """Map a campaign label to its available dispatch recipes."""
+
+    kind: ClassVar[AgentWorkKind] = AgentWorkKind.CAMPAIGN
+
+
 def _identify_routes[Route: DispatchRoute](
     *, labels: list[str], routes: list[Route]
 ) -> list[Route]:
@@ -134,11 +140,12 @@ class DreamcatcherConfig(DreamcatcherDocument):
 
     assignment: list[AssignmentRoute] = Field(default_factory=list)
     conversation: list[ConversationRoute] = Field(default_factory=list)
+    campaign: list[CampaignRoute] = Field(default_factory=list)
 
     @property
     def routes(self) -> list[DispatchRoute]:
-        """Every configured route, the assignment routes first."""
-        return [*self.assignment, *self.conversation]
+        """Every configured route, in the order of their kinds."""
+        return [*self.assignment, *self.conversation, *self.campaign]
 
     @property
     def routed_harnesses(self) -> set[AgentHarness]:
@@ -149,41 +156,41 @@ class DreamcatcherConfig(DreamcatcherDocument):
         """
         return {harness for route in self.routes for harness in route.recipes}
 
-    def identify_assignment_routes(self, *, labels: list[str]) -> list[AssignmentRoute]:
-        """Return the assignment routes matching the observed labels."""
-        return _identify_routes(labels=labels, routes=self.assignment)
-
-    def identify_conversation_routes(
-        self, *, labels: list[str]
-    ) -> list[ConversationRoute]:
-        """Return the conversation routes matching the observed labels."""
-        return _identify_routes(labels=labels, routes=self.conversation)
+    def identify_routes(
+        self, *, kind: AgentWorkKind, labels: list[str]
+    ) -> list[DispatchRoute]:
+        """Return the routes of one kind matching the observed labels."""
+        return _identify_routes(
+            labels=labels, routes=[route for route in self.routes if route.kind is kind]
+        )
 
     @model_validator(mode="after")
     def _require_one_route_per_label(self) -> Self:
         """Refuse two routes for one label, since the label is the identity."""
-        route_groups = (
-            ("assignment", self.assignment),
-            ("conversation", self.conversation),
-        )
-        for name, routes in route_groups:
-            identities = [route.label.casefold() for route in routes]
+        kinds_by_label: dict[str, list[AgentWorkKind]] = {}
+        for route in self.routes:
+            kinds_by_label.setdefault(route.label.casefold(), []).append(route.kind)
+        for kind in AgentWorkKind:
             repeated = sorted(
-                {identity for identity in identities if identities.count(identity) > 1}
+                label
+                for label, kinds in kinds_by_label.items()
+                if kinds.count(kind) > 1
             )
             if repeated:
-                repeated_label_names = ", ".join(repeated)
                 raise ValueError(
-                    f"more than one {name} entry uses the label {repeated_label_names}"
+                    f"more than one {kind} entry uses the label {', '.join(repeated)}"
                 )
-        assignment_labels = {route.label.casefold() for route in self.assignment}
-        conversation_labels = {route.label.casefold() for route in self.conversation}
-        shared = sorted(assignment_labels & conversation_labels)
+        shared = [
+            (label, kinds)
+            for label, kinds in sorted(kinds_by_label.items())
+            if len(kinds) > 1
+        ]
         if shared:
-            shared_label_names = ", ".join(shared)
             raise ValueError(
-                "assignment and conversation entries use the same label: "
-                f"{shared_label_names}"
+                "; ".join(
+                    f"{' and '.join(kinds)} entries use the same label: {label}"
+                    for label, kinds in shared
+                )
             )
         return self
 

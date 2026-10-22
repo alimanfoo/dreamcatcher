@@ -18,8 +18,9 @@ Issue arguments use `GH<n>`, where `<n>` is a string of decimal digits.
 The `GH` prefix is case-insensitive, so `GH123` and `gh123` both name
 issue 123.
 
-`stop`, `assignment`, `conversation` and `feed` act on one piece of
-agent work of one kind, and take either of two references to it:
+`stop`, `assignment`, `conversation`, `campaign` and `feed` act on one
+piece of agent work of one kind, and take either of two references to
+it:
 
 - an issue argument, such as `GH123`, selects the newest work of that
   kind at the issue;
@@ -28,21 +29,22 @@ agent work of one kind, and take either of two references to it:
   argument, and it must name work of the command's kind.
 
 A reference that names no work of the kind is an error, and the command
-acts on no other work. The `assignment` and `conversation` views list
-the identifiers of the other work of their kind at the issue.
+acts on no other work. The `assignment`, `conversation` and `campaign`
+views list the identifiers of the other work of their kind at the issue.
 
-| Command        | Purpose                                              |
-| -------------- | ---------------------------------------------------- |
-| `init`         | Prepare this repository's main checkout.             |
-| `run`          | Run the daemon for this repository.                  |
-| `retry`        | Allow faulted work at one issue to run again.        |
-| `stop`         | Stop one running assignment or conversation round.   |
-| `cancel`       | Cancel one issue's newest assignment.                |
-| `web`          | Serve the local status report in a browser.          |
-| `status`       | Show the whole local status report in the terminal.  |
-| `assignment`   | Show one assignment.                                 |
-| `conversation` | Show one issue conversation.                         |
-| `feed`         | Follow an assignment or conversation's agent output. |
+| Command        | Purpose                                             |
+| -------------- | --------------------------------------------------- |
+| `init`         | Prepare this repository's main checkout.            |
+| `run`          | Run the daemon for this repository.                 |
+| `retry`        | Allow faulted work at one issue to run again.       |
+| `stop`         | Stop one running round of agent work.               |
+| `cancel`       | Cancel one issue's newest assignment.               |
+| `web`          | Serve the local status report in a browser.         |
+| `status`       | Show the whole local status report in the terminal. |
+| `assignment`   | Show one assignment.                                |
+| `conversation` | Show one issue conversation.                        |
+| `campaign`     | Show one campaign.                                  |
+| `feed`         | Follow one piece of agent work's output.            |
 
 ## `init`
 
@@ -104,14 +106,14 @@ format and harness-selection rules.
 | -------------------- | -------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `--harness`          | Yes      | None    | `claude` or `codex`. This is the preferred harness for routes that configure both. A route with only one dispatch recipe uses that recipe's harness instead. |
 | `--interval SECONDS` | No       | `120`   | A positive integer number of seconds between checks for work. The maximum is platform-dependent; an out-of-range value reports the allowed maximum.          |
-| `--max-agents N`     | No       | `1`     | A positive integer. This is the shared maximum number of assignment and conversation rounds that may run at once.                                            |
+| `--max-agents N`     | No       | `1`     | A positive integer. This is the shared maximum number of agent rounds, of every kind, that may run at once.                                                  |
 | `--noweb`            | No       | Off     | Run the daemon without opening or serving the web interface.                                                                                                 |
 
 The named harness and every harness configured on any route must be
 installed on `PATH`, even when a single-harness route would override the
-command's preferred harness. Existing assignments and conversations keep
-the harness saved when they were created; changing `--harness` affects
-only newly created agent work.
+command's preferred harness. Existing agent work keeps the harness saved
+when it was created; changing `--harness` affects only newly created
+agent work.
 
 The companion web server uses the same automatic port selection as
 `dreamcatcher web`. Use `--noweb` and run the standalone command when
@@ -124,26 +126,26 @@ dreamcatcher retry GH<n>
 ```
 
 Record a retry request for any currently faulted work at the issue. The
-command checks the newest assignment and the newest issue conversation
-independently and clears the fault of each one that is in fault. It
-preserves the failed round records.
+command checks the newest assignment, the newest issue conversation and
+the newest campaign independently, and clears the fault of each one that
+is in fault. It preserves the failed round records.
 
-At least one of those two items must currently be in fault. Otherwise
-the command reports that the issue has no agent work in fault. A
-successful request lets the named work's next round start on a later
-scheduler update, outside any active global cooldown; it does not start
-a round itself. The web page's retry control writes the same request for
-the one assignment or conversation it shows.
+At least one of them must currently be in fault. Otherwise the command
+reports that the issue has no agent work in fault. A successful request
+lets the named work's next round start on a later scheduler update,
+outside any active global cooldown; it does not start a round itself.
+The web page's retry control writes the same request for the one piece
+of agent work it shows.
 
 ## `stop`
 
 ```text
-dreamcatcher stop (GH<n> | IDENTIFIER) (--assignment | --conversation)
+dreamcatcher stop (GH<n> | IDENTIFIER) (--assignment | --conversation | --campaign)
 ```
 
 Request a stop for the current round of the selected agent work. The
-`--assignment` option selects an assignment, and `--conversation` an
-issue conversation.
+`--assignment` option selects an assignment, `--conversation` an issue
+conversation, and `--campaign` a campaign.
 
 The round must be running under the daemon, have a resumable harness
 session, and have no pending stop request. The command writes the same
@@ -201,8 +203,8 @@ port if that port is already in use.
 dreamcatcher status
 ```
 
-Show the repository and daemon facts, assignments and issue
-conversations, and each dispatch label on an issue that has no work yet,
+Show the repository and daemon facts, assignments, issue conversations
+and campaigns, and each dispatch label on an issue that has no work yet,
 in dispatch order, with why no work has started.
 
 In an interactive terminal the view refreshes and occupies the terminal
@@ -243,23 +245,41 @@ stays on the conversation it selected when it started, even if a newer
 one arrives at the issue. When output is piped, redirected or captured,
 it prints one snapshot and returns.
 
+## `campaign`
+
+```text
+dreamcatcher campaign (GH<n> | IDENTIFIER)
+```
+
+Show the selected campaign's settings, harness session, worktree, code
+revision and rounds, with a hand-resume command when one is available.
+`GH<n>` names the campaign's parent issue. The view also lists the other
+campaigns at the same parent, each with its identifier, dispatch label
+and status; a paused campaign is idle, and its status detail says why.
+
+In an interactive terminal it refreshes until the campaign ends. It
+stays on the campaign it selected when it started, even if a newer one
+arrives at the parent. When output is piped, redirected or captured, it
+prints one snapshot and returns.
+
 ## `feed`
 
 ```text
-dreamcatcher feed (GH<n> | IDENTIFIER) (--assignment | --conversation) [--round N]
+dreamcatcher feed (GH<n> | IDENTIFIER) (--assignment | --conversation | --campaign) [--round N]
 ```
 
 Show the agent actions and output recorded for the selected agent work.
 Exactly one selector of the kind of work is required: `--assignment`
-selects an assignment, and `--conversation` an issue conversation.
+selects an assignment, `--conversation` an issue conversation, and
+`--campaign` a campaign.
 
 Without `--round`, the command shows all of that work's rounds and
 follows later output until the work ends. It stays on the work it
 selected when it started, even if newer work arrives at the issue.
 `--round N` selects one exact integer round number and ends when that
-round ends. The corresponding `assignment` or `conversation` view lists
-the available round numbers; requesting a round that does not exist is
-an error.
+round ends. The corresponding `assignment`, `conversation` or `campaign`
+view lists the available round numbers; requesting a round that does not
+exist is an error.
 
 A feed prints incrementally so terminal scrollback is preserved. When
 its output is piped, redirected or captured, it prints the currently

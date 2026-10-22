@@ -1,7 +1,7 @@
 """Map configured harnesses to adapters and inspect their durable output.
 
 The lookup sits here rather than in `harness_adapters.py`, because every adapter
-imports `harness_adapters.py` itself. Both kinds of agent work also use the
+imports `harness_adapters.py` itself. Every kind of agent work also uses the
 lookup to find a harness session identifier in recorded raw output.
 """
 

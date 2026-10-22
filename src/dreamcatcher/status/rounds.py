@@ -1,4 +1,4 @@
-"""Describe the agent rounds of either kind of agent work."""
+"""Describe the agent rounds of any kind of agent work."""
 
 from dataclasses import dataclass
 from datetime import datetime
@@ -14,6 +14,7 @@ from dreamcatcher.agent_rounds import (
     interpret_agent_round_outcome,
 )
 from dreamcatcher.agent_work import AgentWork
+from dreamcatcher.campaigns import read_campaign_input
 from dreamcatcher.documents import read_json_if_exists
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import read_last_feed_line
@@ -132,20 +133,19 @@ def describe_round_outcome(
 def list_round_statuses(*, work: AgentWork, is_working: bool) -> list[AgentRoundStatus]:
     """Return the derived status of every round of the work, in run order.
 
-    A conversation round also names the code revision it investigated, against
-    the revision of the conversation round before it.
+    A round given a checkout of main also names the code revision it was given,
+    against the revision of the round before it.
     """
     statuses: list[AgentRoundStatus] = []
     previous_revision = None
     for record in work.rounds:
         revision = None
-        if work.record.kind is AgentWorkKind.CONVERSATION:
-            round_input = _read_conversation_input(work=work, number=record.number)
-            if round_input is not None:
-                revision = _compose_round_revision(
-                    previous_revision=previous_revision, revision=round_input.revision
-                )
-                previous_revision = round_input.revision
+        given_revision = _read_given_revision(work=work, number=record.number)
+        if given_revision is not None:
+            revision = _compose_round_revision(
+                previous_revision=previous_revision, revision=given_revision
+            )
+            previous_revision = given_revision
         outcome = interpret_agent_round_outcome(
             record=record,
             is_daemon_running=is_working and record.number == work.rounds[-1].number,
@@ -172,8 +172,12 @@ def describe_round_trigger(*, work: AgentWork, number: int) -> str:
 
     An assignment round given no input opened, or tried to open, the pull
     request. Comments wake every conversation round, so one whose input is
-    still to be written, or never was, says so without a count.
+    still to be written, or never was, says so without a count. A campaign
+    round starts the lead, unless it recovers a round that did not finish.
     """
+    if work.record.kind is AgentWorkKind.CAMPAIGN:
+        previous = [record for record in work.rounds if record.number == number - 1]
+        return "recover" if previous and previous[0].is_unfinished else "start"
     if work.record.kind is AgentWorkKind.CONVERSATION:
         conversation_input = _read_conversation_input(work=work, number=number)
         if conversation_input is None:
@@ -195,6 +199,22 @@ def describe_round_trigger(*, work: AgentWork, number: int) -> str:
     return ", ".join(words) or "recover"
 
 
+def _read_given_revision(*, work: AgentWork, number: int) -> str | None:
+    """Return the revision of main a round of the work was given, when it reads.
+
+    A conversation or campaign round is given a checkout of main. An assignment
+    round works on its own branch and is given none.
+    """
+    try:
+        if work.record.kind is AgentWorkKind.CONVERSATION:
+            return read_conversation_input(conversation=work, number=number).revision
+        if work.record.kind is AgentWorkKind.CAMPAIGN:
+            return read_campaign_input(campaign=work, number=number).revision
+    except ReportableError:
+        return None
+    return None
+
+
 def _read_conversation_input(
     *, work: AgentWork, number: int
 ) -> ConversationRoundInput | None:
@@ -208,7 +228,7 @@ def _read_conversation_input(
 def _compose_round_revision(
     *, previous_revision: str | None, revision: str
 ) -> AgentRoundRevision:
-    """Describe the revision one conversation round investigated."""
+    """Describe the revision of main that one round was given."""
     if previous_revision is None:
         description = f"code revision {revision}"
     elif previous_revision == revision:

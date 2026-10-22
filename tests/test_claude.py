@@ -122,6 +122,46 @@ def test_a_conversation_round_allows_issue_tools_and_denies_implementation_tools
         assert invocation.arguments[denied_at + 1] == expected_disallowed_tools
 
 
+def test_a_campaign_round_may_coordinate_and_verify_but_not_implement():
+    request = AgentRoundLaunchRequest(
+        agent_work_identifier="GH20-20260923-010000-campaign",
+        model="opus[1m]",
+        effort="xhigh",
+        prompt="Acknowledge GH20.",
+        work_kind=AgentWorkKind.CAMPAIGN,
+    )
+
+    invocations = [
+        CLAUDE_ADAPTER.build_new_session_round(
+            request=request, final_output_path=FINAL_OUTPUT_PATH
+        ),
+        CLAUDE_ADAPTER.build_resumed_round(
+            request=request,
+            harness_session_identifier="abc-123",
+            final_output_path=FINAL_OUTPUT_PATH,
+        ),
+    ]
+
+    for invocation in invocations:
+        arguments = invocation.arguments
+        allowed = arguments[arguments.index("--allowedTools") + 1]
+        denied = arguments[arguments.index("--disallowedTools") + 1]
+        for tool in (
+            "Bash(gh issue edit:*)",
+            "Bash(gh issue comment:*)",
+            "Bash(gh pr comment:*)",
+            "Bash(gh pr review:*)",
+            "Bash(gh pr merge:*)",
+            "Bash(git fetch:*)",
+            "Bash(git checkout:*)",
+        ):
+            assert tool in allowed
+            assert tool not in denied
+        assert denied.startswith("Edit Write ")
+        assert "Bash(git commit:*)" in denied
+        assert "Bash(git push:*)" in denied
+
+
 def test_a_person_continues_the_harness_session_where_it_ran():
     assert CLAUDE_ADAPTER.build_hand_resume(
         model="opus[1m]",

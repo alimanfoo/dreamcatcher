@@ -35,7 +35,7 @@ def test_bootstrap_says_so_when_a_file_sits_where_the_directory_goes(repo):
 def test_the_daemon_files_use_the_versioned_root_and_shared_lock(tmp_path):
     state = StateDirectory(root=tmp_path)
 
-    assert state.path == tmp_path / ".dreamcatcher" / "v6"
+    assert state.path == tmp_path / ".dreamcatcher" / "v7"
     assert state.lock == state.path.parent / "daemon.lock"
     assert state.repository == state.path / "repository"
     assert state.daemon_run_record == state.path / "daemon.json"
@@ -48,7 +48,7 @@ def test_a_path_the_checkout_holds_reads_from_the_checkout(tmp_path):
     state = StateDirectory(root=tmp_path)
 
     assert state.describe_path(path=state.worktrees / "GH13") == (
-        ".dreamcatcher/v6/worktrees/GH13"
+        ".dreamcatcher/v7/worktrees/GH13"
     )
 
 

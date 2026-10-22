@@ -15,7 +15,7 @@ from dreamcatcher.status import (
 
 @dataclass(frozen=True, kw_only=True)
 class WebAgentWorkCard:
-    """Represent the values rendered in one card for agent work of either kind.
+    """Represent the values rendered in one card for agent work of any kind.
 
     Only an assignment has a pull request.
     """
@@ -143,9 +143,13 @@ class WebAssignmentView:
 
 
 @dataclass(frozen=True, kw_only=True)
-class WebConversationView:
-    """Represent every value that the conversation template lays out."""
+class WebIssueWorkView:
+    """Represent every value that the page of work whose channel is its issue shows.
 
+    A conversation and a campaign each talk to the user on their issue.
+    """
+
+    kind: AgentWorkKind
     repository: str
     github_repository_url: str | None
     daemon: DreamcatcherDaemonStatus

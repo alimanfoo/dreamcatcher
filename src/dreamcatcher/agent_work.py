@@ -1,6 +1,6 @@
-"""Read and record agent work of both kinds.
+"""Read and record agent work of every kind.
 
-Every assignment and every conversation is a piece of agent work, with a
+Every assignment, conversation and campaign is a piece of agent work, with a
 directory under `work/` and a worktree under `worktrees/`, both named by its
 identifier. Creation writes the work record once, and nothing writes it again.
 Every fact that changes later has a file of its own in the work's directory,
@@ -258,7 +258,7 @@ def _record_agent_work(
 
 
 def read_agent_work(*, state: StateDirectory) -> list[AgentWork]:
-    """Return every piece of agent work of both kinds, ordered by identifier.
+    """Return every piece of agent work of every kind, ordered by identifier.
 
     A directory under `work/` is agent work once its record exists, so a
     directory without one is omitted. An invalid record raises ReportableError.

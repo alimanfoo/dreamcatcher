@@ -15,6 +15,13 @@ UNCLAIMED = StartTimeFinding(linked_pull_requests=[], blocking_issues=[])
 
 CONVERSATION_LABEL = "dream:conversation"
 
+# The label that a request of each kind carries unless a test gives another.
+_USUAL_LABELS = {
+    AgentWorkKind.ASSIGNMENT: ASSIGNMENT_LABEL,
+    AgentWorkKind.CONVERSATION: CONVERSATION_LABEL,
+    AgentWorkKind.CAMPAIGN: "dream:lead",
+}
+
 
 def request_row(
     *,
@@ -34,13 +41,7 @@ def request_row(
     return RequestRow(
         issue=issue,
         title=f"Issue {issue}",
-        dispatch_label=(
-            label
-            if label is not None
-            else ASSIGNMENT_LABEL
-            if kind is AgentWorkKind.ASSIGNMENT
-            else CONVERSATION_LABEL
-        ),
+        dispatch_label=_USUAL_LABELS[kind] if label is None else label,
         kind=kind,
         agent_work_identifier=agent_work_identifier,
         ended_round=ended_round,

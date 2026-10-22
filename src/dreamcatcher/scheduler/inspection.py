@@ -1,4 +1,4 @@
-"""Describe what inspecting one request gives the tick, for both kinds of work."""
+"""Describe what inspecting one request gives the tick, for every kind of work."""
 
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -16,7 +16,7 @@ from dreamcatcher.state import StateDirectory
 
 @dataclass(frozen=True, kw_only=True)
 class SchedulingContext:
-    """Hold what the tick reads GitHub and local state with, for both kinds."""
+    """Hold what the tick reads GitHub and local state with, for every kind."""
 
     repository: str
     account: str
@@ -69,6 +69,15 @@ class Inspection:
     row: RequestRow
     candidate: Candidate | None = None
     is_counted_fault: bool = False
+
+
+class OpenWorkInspector(Protocol):
+    """Inspect the channel of one piece of open work of a kind."""
+
+    def __call__(
+        self, *, context: SchedulingContext, work: AgentWork, is_fault: bool
+    ) -> Inspection:
+        """Return the work's row, and its candidate when a round is due."""
 
 
 class RequestInspector(Protocol):

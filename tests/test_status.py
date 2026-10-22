@@ -34,7 +34,7 @@ from dreamcatcher.agent_rounds import (
 from dreamcatcher.agent_work import AgentWork, find_agent_work
 from dreamcatcher.config import AgentHarness
 from dreamcatcher.daemon import DEFAULT_INTERVAL_SECONDS
-from dreamcatcher.daemon_runs import DaemonRunRecord
+from dreamcatcher.daemon_runs import DaemonRunRecord, RecordedRoute
 from dreamcatcher.documents import write_text
 from dreamcatcher.github import (
     CheckResult,
@@ -239,6 +239,27 @@ def test_an_empty_report_names_the_labels_the_daemon_routes_without_a_config(
         ),
     )
     assert found.describe_section(kind=AgentWorkKind.CONVERSATION) is None
+
+
+def test_an_empty_campaign_section_says_how_to_start_a_campaign(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    write_daemon_run(
+        state=state,
+        pid=os.getpid(),
+        routes=[RecordedRoute(label="dream:lead", kind=AgentWorkKind.CAMPAIGN)],
+    )
+
+    found = read_status_report(state=state, clock=lambda: LOOKED_AT)
+
+    assert found.describe_section(
+        kind=AgentWorkKind.CAMPAIGN
+    ) == AgentWorkStatusSection(
+        heading="campaigns",
+        empty_message=(
+            "Assign a parent issue to yourself and label it with dream:lead "
+            "to start a campaign."
+        ),
+    )
 
 
 def test_the_instance_record_names_the_repository(state):

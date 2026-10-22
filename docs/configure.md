@@ -1,9 +1,10 @@
 # Configure labels and harnesses
 
-Use `dreamcatcher.toml` to decide which GitHub labels start assignments
-or issue conversations, and which dispatch recipe each label uses. Put
-the file in the root of the repository's main checkout and commit it
-when everyone watching the repository should use the same routes.
+Use `dreamcatcher.toml` to decide which GitHub labels start assignments,
+issue conversations or campaigns, and which dispatch recipe each label
+uses. Put the file in the root of the repository's main checkout and
+commit it when everyone watching the repository should use the same
+routes.
 
 You need the harness CLIs you configure on `PATH`, plus an authenticated
 `gh`. _dreamcatcher_ reads the file when the daemon starts, so restart a
@@ -80,8 +81,8 @@ _dreamcatcher_ passes each entry to every Codex round. The
 [configuration reference](configuration-reference.md#codex-config) says
 which values it accepts and which settings it keeps for itself.
 
-Existing assignments and conversations keep the label, harness and
-recipe they started with, even if their route is later removed.
+Existing agent work keeps the label, harness and recipe it started with,
+even if its route is later removed.
 
 See the [configuration reference](configuration-reference.md) for a
 two-harness example and every accepted setting.
@@ -111,8 +112,13 @@ conversation, and closing the issue ends it.
 [Discuss an issue](discuss-an-issue.md#pause-resume-or-end-a-conversation)
 explains both.
 
-One assignment label and one conversation label may coexist on an issue
-because they select different kinds of work.
+A campaign starts on an open parent issue that is assigned to the
+authenticated account and carries exactly one configured campaign label.
+It pauses and ends as a conversation does.
+[Start a campaign](start-a-campaign.md) explains how.
+
+Labels of different kinds may coexist on an issue because they select
+different kinds of work.
 
 ## Apply and check the configuration
 

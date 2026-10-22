@@ -12,6 +12,7 @@ from dreamcatcher.prompts import (
     _AGENT_POST_INSTRUCTIONS,
     AGENT_POST_MARKER,
     compose_assignment_input_prompt,
+    compose_campaign_input_prompt,
     compose_conversation_input_prompt,
     compose_issue_instructions,
     compose_round_prompt,
@@ -263,3 +264,20 @@ def test_every_round_prompt_the_daemon_composes_asks_for_the_marker(
 
     assert composed.endswith(_AGENT_POST_INSTRUCTIONS)
     assert AGENT_POST_MARKER in composed
+
+
+def test_the_campaign_input_prompt_names_its_input_and_the_users_decisions(
+    tmp_path,
+):
+    round_input = tmp_path / "round-input.json"
+
+    composed = compose_campaign_input_prompt(issue=20, round_input=round_input)
+
+    words = " ".join(composed.split())
+    assert composed.startswith("Campaign input for parent issue GH20:")
+    assert str(round_input) in composed
+    assert "refreshes to main before every round" in words
+    assert "Do not commit, push or open a pull request from this worktree" in words
+    assert "do not repeat an action that an earlier attempt completed" in words
+    assert "Do not close the parent issue or change its assignees or labels" in words
+    assert "posts none of it" in words

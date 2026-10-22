@@ -72,6 +72,7 @@ class AgentWorkKind(StrEnum):
 
     ASSIGNMENT = "assignment"
     CONVERSATION = "conversation"
+    CAMPAIGN = "campaign"
 
 
 @dataclass(frozen=True, kw_only=True)

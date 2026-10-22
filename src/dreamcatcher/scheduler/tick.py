@@ -1,4 +1,4 @@
-"""Run one scheduler tick over both kinds of agent work."""
+"""Run one scheduler tick over every kind of agent work."""
 
 from collections.abc import Iterator, Sequence
 from dataclasses import dataclass, field, replace
@@ -27,6 +27,10 @@ from dreamcatcher.scheduler.assignments import (
     inspect_assignment_request,
     inspect_open_assignment,
 )
+from dreamcatcher.scheduler.campaigns import (
+    inspect_campaign_request,
+    inspect_open_campaign,
+)
 from dreamcatcher.scheduler.conversations import (
     inspect_conversation_request,
     inspect_open_conversation,
@@ -39,6 +43,7 @@ from dreamcatcher.scheduler.faults import (
 from dreamcatcher.scheduler.inspection import (
     Candidate,
     Inspection,
+    OpenWorkInspector,
     RequestInspector,
     SchedulingContext,
 )
@@ -49,6 +54,20 @@ from dreamcatcher.scheduler.models import (
     SchedulerRecord,
     StartedRound,
 )
+
+# How the tick inspects the channel of open work, by the work's kind.
+_OPEN_WORK_INSPECTORS: dict[AgentWorkKind, OpenWorkInspector] = {
+    AgentWorkKind.ASSIGNMENT: inspect_open_assignment,
+    AgentWorkKind.CONVERSATION: inspect_open_conversation,
+    AgentWorkKind.CAMPAIGN: inspect_open_campaign,
+}
+
+# How the tick inspects a request that no open work answers, by its kind.
+_REQUEST_INSPECTORS: dict[AgentWorkKind, RequestInspector] = {
+    AgentWorkKind.ASSIGNMENT: inspect_assignment_request,
+    AgentWorkKind.CONVERSATION: inspect_conversation_request,
+    AgentWorkKind.CAMPAIGN: inspect_campaign_request,
+}
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -175,16 +194,9 @@ class Scheduler:
             retry_requested_at=work.retry_requested_at,
             most_recent_cooldown_ended=most_recent_cooldown_ended,
         )
-        if work.record.kind is AgentWorkKind.ASSIGNMENT:
-            inspection = inspect_open_assignment(
-                context=self.context, assignment=work, is_fault=is_fault
-            )
-        else:
-            inspection = inspect_open_conversation(
-                context=self.context,
-                conversation=work,
-                is_fault=is_fault,
-            )
+        inspection = _OPEN_WORK_INSPECTORS[work.record.kind](
+            context=self.context, work=work, is_fault=is_fault
+        )
         if not work.is_round_running:
             return inspection
         return replace(inspection, candidate=None)
@@ -196,7 +208,7 @@ class Scheduler:
 
         Open work answers the request it came from. An open assignment also
         answers every assignment label on its issue, since an issue has at most
-        one, while a conversation answers only its own label.
+        one, while a conversation or a campaign answers only its own label.
         """
         answered = {
             (work.record.issue, work.record.dispatch_label.casefold())
@@ -207,22 +219,19 @@ class Scheduler:
             for work in open_work
             if work.record.kind is AgentWorkKind.ASSIGNMENT
         }
-        config = self.context.config
         for issue in issues:
             labels = [label.name for label in issue.labels]
-            if issue.number not in assigned_issues:
+            for kind, inspect_request in _REQUEST_INSPECTORS.items():
+                if kind is AgentWorkKind.ASSIGNMENT and issue.number in assigned_issues:
+                    continue
                 yield from self._inspect_requests_of_kind(
                     issue=issue,
-                    routes=config.identify_assignment_routes(labels=labels),
+                    routes=self.context.config.identify_routes(
+                        kind=kind, labels=labels
+                    ),
                     answered=answered,
-                    inspect_request=inspect_assignment_request,
+                    inspect_request=inspect_request,
                 )
-            yield from self._inspect_requests_of_kind(
-                issue=issue,
-                routes=config.identify_conversation_routes(labels=labels),
-                answered=answered,
-                inspect_request=inspect_conversation_request,
-            )
 
     def _inspect_requests_of_kind(
         self,
@@ -260,7 +269,7 @@ class Scheduler:
     def _launch_candidates(
         self, *, record: SchedulerRecord, inspections: list[Inspection]
     ) -> SchedulerRecord:
-        """Fill free capacity in candidate order, alternating between work kinds.
+        """Fill free capacity in candidate order, the work kinds taking turns.
 
         The record's rows are the inspections' rows, in the same order. A
         launch that fails takes no slot, and the next candidate is tried. The
@@ -309,21 +318,18 @@ class Scheduler:
         """Return the first ready candidate of the kind whose turn it is.
 
         Each candidate comes with the position of its request's row. The kinds
-        take turns while both have candidates, and either kind goes on alone
-        once the other has none.
+        take turns in their listed order, each after the kind selected last, and
+        a kind with no candidate gives up its turn to the next.
         """
-        turn = (
-            AgentWorkKind.CONVERSATION
-            if self._last_selected_work_kind is AgentWorkKind.ASSIGNMENT
-            else AgentWorkKind.ASSIGNMENT
-        )
-        return next(
-            (
-                (position, candidate)
-                for position, candidate in ready
-                if rows[position].kind is turn
+        kinds = list(AgentWorkKind)
+        last = self._last_selected_work_kind
+        first_turn = 0 if last is None else kinds.index(last) + 1
+        turns = kinds[first_turn:] + kinds[:first_turn]
+        return min(
+            ready,
+            key=lambda position_and_candidate: turns.index(
+                rows[position_and_candidate[0]].kind
             ),
-            ready[0],
         )
 
     def _launch(

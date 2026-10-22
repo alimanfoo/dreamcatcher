@@ -1,11 +1,12 @@
 from pathlib import Path
 
 import pytest
-from conftest import CONFIG, SMITH_CLAUDE, SMITH_CODEX
+from conftest import CAMPAIGN_CLAUDE, CONFIG, SMITH_CLAUDE, SMITH_CODEX
 
 from dreamcatcher.config import (
     DREAMCATCHER_CONFIG_NAME,
     AgentHarness,
+    CampaignRoute,
     ClaudeRecipe,
     CodexRecipe,
     ConversationRoute,
@@ -13,6 +14,7 @@ from dreamcatcher.config import (
     write_default_dreamcatcher_config_if_absent,
 )
 from dreamcatcher.errors import ReportableError
+from dreamcatcher.harness_adapters import AgentWorkKind
 
 WITHOUT_CODEX = SMITH_CLAUDE
 
@@ -84,10 +86,35 @@ def test_a_conversation_is_configured_separately(tmp_path):
             claude=CLAUDE_CONVERSATION_RECIPE,
         )
     ]
-    assert config.identify_conversation_routes(
-        labels=["maintenance", "DREAM:CONVERSATION"]
+    assert config.identify_routes(
+        kind=AgentWorkKind.CONVERSATION,
+        labels=["maintenance", "DREAM:CONVERSATION"],
     ) == [config.conversation[0]]
     assert config.routed_harnesses == {AgentHarness.CLAUDE, AgentHarness.CODEX}
+
+
+def test_a_campaign_is_configured_separately(tmp_path):
+    write_config(root=tmp_path, text=CONFIG + CAMPAIGN_CLAUDE)
+
+    config = read_dreamcatcher_config(root=tmp_path)
+
+    assert config.campaign == [
+        CampaignRoute(
+            label="dream:lead",
+            claude=ClaudeRecipe(
+                prompt="Acknowledge GH{issue} with a comment on it.",
+                model="opus[1m]",
+                effort="xhigh",
+            ),
+        )
+    ]
+    assert config.identify_routes(
+        kind=AgentWorkKind.CAMPAIGN, labels=["DREAM:LEAD", "dream:smith"]
+    ) == [config.campaign[0]]
+    assert [route.kind for route in config.routes] == [
+        AgentWorkKind.ASSIGNMENT,
+        AgentWorkKind.CAMPAIGN,
+    ]
 
 
 def test_a_config_can_omit_assignment_routes(tmp_path):
@@ -173,8 +200,9 @@ def test_the_config_identifies_assignment_routes_without_giving_one_precedence(
 
     config = read_dreamcatcher_config(root=tmp_path)
 
-    routes = config.identify_assignment_routes(
-        labels=["maintenance", "DREAM:LESS", "dream:smith"]
+    routes = config.identify_routes(
+        kind=AgentWorkKind.ASSIGNMENT,
+        labels=["maintenance", "DREAM:LESS", "dream:smith"],
     )
 
     assert [route.label for route in routes] == ["dream:less", "dream:smith"]
@@ -299,6 +327,29 @@ def test_a_label_one_harness_can_run_runs_on_that_one_whatever_the_run_named(tmp
             CONFIG + CONVERSATION + CONVERSATION,
             "Value error, more than one conversation entry uses the label "
             "dream:conversation",
+        ),
+        (
+            "one campaign label routed twice",
+            CONFIG + CAMPAIGN_CLAUDE + CAMPAIGN_CLAUDE,
+            "Value error, more than one campaign entry uses the label dream:lead",
+        ),
+        (
+            "one label routes a conversation and a campaign",
+            CONFIG
+            + CONVERSATION
+            + CAMPAIGN_CLAUDE.replace("dream:lead", "dream:conversation"),
+            "Value error, conversation and campaign entries use the same label: "
+            "dream:conversation",
+        ),
+        (
+            "two labels each routing two kinds of work",
+            CONFIG
+            + CONVERSATION.replace("dream:conversation", "DREAM:SMITH")
+            + CAMPAIGN_CLAUDE.replace("dream:lead", "dream:conversation")
+            + CONVERSATION,
+            "Value error, conversation and campaign entries use the same label: "
+            "dream:conversation; assignment and conversation entries use the same "
+            "label: dream:smith",
         ),
         (
             "one label routes both kinds of work",

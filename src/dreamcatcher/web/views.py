@@ -3,7 +3,6 @@
 from datetime import tzinfo
 from pathlib import Path
 
-from dreamcatcher.agent_work import AgentWork
 from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.status import (
@@ -22,9 +21,9 @@ from dreamcatcher.web.models import (
     WebAgentWorkControl,
     WebAgentWorkSection,
     WebAssignmentView,
-    WebConversationView,
     WebHandResume,
     WebHomeView,
+    WebIssueWorkView,
 )
 from dreamcatcher.words import describe_time
 
@@ -167,39 +166,37 @@ def compose_assignment_view(
     )
 
 
-def compose_conversation_view(
+def compose_issue_work_view(
     *,
     state: StateDirectory,
     status: AgentWorkStatus,
     daemon: DreamcatcherDaemonStatus,
     live: WebAgentLiveState,
     zone: tzinfo | None,
-) -> WebConversationView:
-    """Return the values shown on one issue-conversation page."""
-    conversation = status.work
+) -> WebIssueWorkView:
+    """Return the values shown on the page of work whose channel is its issue."""
+    work = status.work
+    record = work.record
     repository = read_repository(state=state)
-    feed = read_agent_feed(work=conversation, zone=zone, rounds=live.rounds)
-    return WebConversationView(
+    feed = read_agent_feed(work=work, zone=zone, rounds=live.rounds)
+    return WebIssueWorkView(
+        kind=record.kind,
         repository=repository or "repository unknown",
         github_repository_url=_compose_github_repository_url(repository=repository),
         daemon=daemon,
-        identifier=conversation.identifier,
-        issue=conversation.record.issue,
-        title=conversation.record.title,
-        facts=_compose_conversation_facts(conversation=conversation),
+        identifier=work.identifier,
+        issue=record.issue,
+        title=record.title,
+        facts=(
+            StatusFact(label="label", value=record.dispatch_label),
+            StatusFact(label="harness", value=str(record.harness)),
+            StatusFact(
+                label="model · effort", value=f"{record.model} · {record.effort}"
+            ),
+        ),
         live=live,
         feed_rounds=feed.rounds,
         feed_cursor=feed.feed_cursor,
-    )
-
-
-def _compose_conversation_facts(*, conversation: AgentWork) -> tuple[StatusFact, ...]:
-    """Return the settings that a conversation's work record holds."""
-    record = conversation.record
-    return (
-        StatusFact(label="label", value=record.dispatch_label),
-        StatusFact(label="harness", value=str(record.harness)),
-        StatusFact(label="model · effort", value=f"{record.model} · {record.effort}"),
     )
 
 

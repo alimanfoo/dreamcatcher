@@ -21,12 +21,12 @@ a shorter interval or more concurrent rounds:
 dreamcatcher run --harness claude --interval 30 --max-agents 2
 ```
 
-The agent capacity is shared by assignments and issue conversations.
-Start with one until you know how much agent activity and review work
-you want at once. A second daemon for the same checkout refuses to
-start. The command opens the web home page in your browser and serves it
-until the daemon ends. The page reads the local state directory alone,
-and does not contact GitHub itself.
+The agent capacity is shared by every kind of agent work. Start with one
+until you know how much agent activity and review work you want at once.
+A second daemon for the same checkout refuses to start. The command
+opens the web home page in your browser and serves it until the daemon
+ends. The page reads the local state directory alone, and does not
+contact GitHub itself.
 
 `run` must start in the main checkout. _dreamcatcher_ stores its local
 state under that checkout's `.dreamcatcher/` directory. Use this same
@@ -56,11 +56,11 @@ dreamcatcher web --port 8123
 ```
 
 The home page shows daemon facts, any scheduler failures, active and
-ended assignments and issue conversations, and the labelled issues that
-have no work yet, with why: available, blocked by an issue or claimed by
-a pull request, waiting for a comment, carrying conflicting labels, or
-unknown because a read failed. Open an assignment or conversation to see
-its rounds and live feed.
+ended assignments, issue conversations and campaigns, each kind on a tab
+of its own, and the labelled issues that have no work yet, with why:
+available, blocked by an issue or claimed by a pull request, waiting for
+a comment, carrying conflicting labels, or unknown because a read
+failed. Open a piece of work to see its rounds and live feed.
 
 ## Monitor from the terminal
 
@@ -75,6 +75,7 @@ Use a detail view for one issue:
 ```sh
 dreamcatcher assignment GH123
 dreamcatcher conversation GH123
+dreamcatcher campaign GH123
 ```
 
 Use `feed` when you want the agent's actions and output in terminal
@@ -83,12 +84,12 @@ scrollback:
 ```sh
 dreamcatcher feed GH123 --assignment
 dreamcatcher feed GH123 --conversation
+dreamcatcher feed GH123 --campaign
 ```
 
 An issue reference selects the newest work of the kind at the issue. To
-select an older assignment or conversation, copy its identifier from the
-list of other work at the foot of the detail view, and use it in place
-of the issue reference:
+select older work, copy its identifier from the list of other work at
+the foot of the detail view, and use it in place of the issue reference:
 
 ```sh
 dreamcatcher conversation GH123-20260912-193000-conversation
@@ -100,7 +101,7 @@ Interrupting a view closes only that view; it does not stop the daemon
 or the agent. When a view is piped or redirected, it prints one snapshot
 and returns.
 
-Assignments and conversations share these statuses:
+Every kind of agent work shares these statuses:
 
 - **working**: an agent round is running;
 - **waiting**: a round is ready to start, and the detail says why;
@@ -108,15 +109,15 @@ Assignments and conversations share these statuses:
   awaits the next update, for an assignment whether its pull request is
   ready for review, still a draft and needing your feedback, failing its
   checks after two attempts, or merged or closed after its wrap-up
-  round, and for a conversation how its latest round ended, or why the
-  conversation is paused;
+  round, and for a conversation or campaign how its latest round ended,
+  or why it is paused;
 - **fault**: repeated errors need attention;
 - **unknown**: _dreamcatcher_ could not read what it needed, or the
   latest update has not seen the work; the accompanying detail says
   which; and
 - **ended**: the work is over, and the detail says why: an assignment
-  completed after a successful wrap-up or you cancelled it, or a
-  conversation's issue was closed.
+  completed after a successful wrap-up or you cancelled it, or the issue
+  of a conversation or campaign was closed.
 
 The [command reference](command-reference.md) gives the complete syntax
 and explains when each view ends. For interruption and failures,

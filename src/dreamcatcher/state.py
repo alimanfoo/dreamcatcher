@@ -7,7 +7,7 @@ from pathlib import Path
 from dreamcatcher.documents import DocumentCache, write_text
 
 _STATE_DIRECTORY_NAME = ".dreamcatcher"
-STATE_FORMAT_VERSION = 6
+STATE_FORMAT_VERSION = 7
 
 
 @dataclass(frozen=True, kw_only=True)

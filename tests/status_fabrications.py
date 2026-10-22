@@ -9,12 +9,15 @@ from conftest import ASSIGNMENT_LABEL, DAEMON_PID, REPOSITORY, comment
 from records import (
     HEAD,
     MERGED_INPUT,
+    compose_campaign_identifier,
     compose_conversation_identifier,
     hold_daemon_lock_for_test,
     release_daemon_lock,
     write_assignment,
+    write_campaign,
     write_conversation,
     write_daemon_run,
+    write_ending,
     write_feed,
     write_final_output,
     write_round,
@@ -30,7 +33,8 @@ from dreamcatcher.agent_rounds import (
     AgentRoundRecord,
     _compose_agent_round_ending,
 )
-from dreamcatcher.agent_work import read_agent_work_at_issue
+from dreamcatcher.agent_work import AgentWorkEndReason, read_agent_work_at_issue
+from dreamcatcher.campaigns import CampaignRoundInput
 from dreamcatcher.documents import write_json, write_text
 from dreamcatcher.feed import FeedLine
 from dreamcatcher.github import (
@@ -45,6 +49,7 @@ from dreamcatcher.issue_conversations import (
     InitialConversationIssue,
 )
 from dreamcatcher.scheduler.models import (
+    CampaignFinding,
     ConflictingLabelsFinding,
     IssueCommentsFinding,
     PauseCause,
@@ -207,6 +212,57 @@ def fabricate_conversation(
     write_final_output(directory=directory, number=1, text="The answer.")
 
 
+def campaign_row(
+    *, finding: RequestFinding | None, issue: int = 60, ended_round: int | None = None
+) -> RequestRow:
+    """Return the row of the campaign that the tests write at the parent."""
+    return request_row(
+        issue=issue,
+        kind=AgentWorkKind.CAMPAIGN,
+        agent_work_identifier=compose_campaign_identifier(issue=issue),
+        ended_round=ended_round,
+        finding=finding,
+    )
+
+
+def fabricate_campaigns(*, state: StateDirectory) -> list[RequestRow]:
+    """Write an idle campaign and an ended one, and return their requests' rows.
+
+    The rows also hold a labelled parent whose campaign has not started.
+    """
+    for issue in (60, 61):
+        directory = write_campaign(state=state, issue=issue)
+        record = ended(minute=1)
+        write_round(
+            directory=directory,
+            number=1,
+            record=record,
+            round_input=CampaignRoundInput(issue=issue, revision="abc123"),
+        )
+        write_feed(
+            directory=directory,
+            number=1,
+            lines=[
+                compose_feed_line(
+                    record=record, text="I acknowledged the plan on the parent."
+                )
+            ],
+        )
+    write_ending(
+        directory=state.work / compose_campaign_identifier(issue=61),
+        reason=AgentWorkEndReason.ISSUE_CLOSED,
+        at=PINNED + timedelta(minutes=30),
+    )
+    return [
+        campaign_row(finding=CampaignFinding(is_input_due=False), ended_round=1),
+        request_row(
+            issue=62,
+            kind=AgentWorkKind.CAMPAIGN,
+            finding=CampaignFinding(is_input_due=True),
+        ),
+    ]
+
+
 # What an assignment round woken by one post from the user was given.
 ONE_POST_INPUT = AssignmentRoundInput(
     pull_request_state=PullRequestState.OPEN,
@@ -306,7 +362,7 @@ def fabricate_nothing(*, state):
 def fabricate_everything(
     *,
     state,
-    conversation_rows: Sequence[RequestRow] = (),
+    other_rows: Sequence[RequestRow] = (),
     latest_output: str = "[Bash] pytest",
 ):
     """Write a running daemon with varied issue and assignment statuses."""
@@ -392,7 +448,7 @@ def fabricate_everything(
                 _assignment_row(issue=35, ended_round=1, finding=_draft_pull_request()),
                 _assignment_row(issue=9, ended_round=2),
                 _assignment_row(issue=44),
-                *conversation_rows,
+                *other_rows,
             ],
         ),
     )
@@ -621,6 +677,18 @@ def fabricate_titles_and_pull_request_states(*, state):
     )
 
 
+def fabricate_campaign_report(*, state):
+    """Write a running daemon with an idle campaign, an ended one and a request."""
+    holding(state=state)
+    write_tick(
+        state=state,
+        tick=SchedulerRecord(
+            at=PINNED + timedelta(hours=1, minutes=58),
+            rows=fabricate_campaigns(state=state),
+        ),
+    )
+
+
 STATUS_REPORTS = {
     "nothing": fabricate_nothing,
     "everything": fabricate_status_everything,
@@ -628,4 +696,5 @@ STATUS_REPORTS = {
     "at-cap": fabricate_the_cap,
     "silent-round": fabricate_a_silent_round,
     "repeat-assignments": fabricate_repeat_assignments,
+    "campaigns": fabricate_campaign_report,
 }

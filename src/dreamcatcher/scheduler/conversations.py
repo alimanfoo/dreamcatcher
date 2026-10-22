@@ -2,15 +2,13 @@
 
 from functools import partial
 
-from dreamcatcher.agent_work import AgentWork, AgentWorkEndReason, end_agent_work
+from dreamcatcher.agent_work import AgentWork
 from dreamcatcher.config import DispatchRoute
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.github import (
     Issue,
     IssueComment,
-    IssueState,
     UnknownGitHubResponse,
-    read_issue,
 )
 from dreamcatcher.issue_conversations import (
     post_conversation_answer,
@@ -24,85 +22,27 @@ from dreamcatcher.scheduler.inspection import (
     Inspection,
     RoundPlan,
     SchedulingContext,
-    compose_open_work_row,
 )
+from dreamcatcher.scheduler.issue_work import inspect_open_issue_work
 from dreamcatcher.scheduler.models import (
-    ConflictingLabelsFinding,
     IssueCommentsFinding,
-    PauseCause,
-    PausedFinding,
     ReadFailureFinding,
     RequestRow,
 )
 
 
 def inspect_open_conversation(
-    *,
-    context: SchedulingContext,
-    conversation: AgentWork,
-    is_fault: bool,
+    *, context: SchedulingContext, work: AgentWork, is_fault: bool
 ) -> Inspection:
-    """Read an open conversation's issue, then its comments unless paused or in fault.
-
-    A closed issue ends the conversation once its running round finishes. A
-    paused conversation's fault does not count, since it starts no round
-    however its rounds ended.
-    """
-    unread = compose_open_work_row(work=conversation, finding=None)
-    issue = read_issue(repository=context.repository, issue=conversation.record.issue)
-    if isinstance(issue, UnknownGitHubResponse):
-        return Inspection(
-            row=compose_open_work_row(
-                work=conversation, finding=ReadFailureFinding(reason=issue.reason)
-            ),
-            is_counted_fault=is_fault,
-        )
-    if issue.state is IssueState.CLOSED:
-        if not conversation.is_round_running:
-            end_agent_work(
-                work=conversation,
-                reason=AgentWorkEndReason.ISSUE_CLOSED,
-                at=context.clock(),
-            )
-        return Inspection(row=unread)
-    pause = _find_pause(context=context, conversation=conversation, issue=issue)
-    if pause is not None:
-        return Inspection(row=compose_open_work_row(work=conversation, finding=pause))
-    if is_fault:
-        return Inspection(row=unread, is_counted_fault=True)
-    return _inspect_comments(
-        context=context, issue=issue, work_or_route=conversation, row=unread
+    """Read an open conversation's issue, then its comments unless it may not run."""
+    return inspect_open_issue_work(
+        context=context,
+        work=work,
+        is_fault=is_fault,
+        inspect_eligible=partial(
+            _inspect_comments, context=context, work_or_route=work
+        ),
     )
-
-
-def _find_pause(
-    *, context: SchedulingContext, conversation: AgentWork, issue: Issue
-) -> PausedFinding | ConflictingLabelsFinding | None:
-    """Return why the open conversation at this open issue is paused, if it is.
-
-    A second configured conversation label on the issue is a routing conflict,
-    held as the labels. The conversation's own label counts whether or not its
-    route is still configured.
-    """
-    labels = [label.name for label in issue.labels]
-    label = conversation.record.dispatch_label.casefold()
-    if label not in {name.casefold() for name in labels}:
-        return PausedFinding(cause=PauseCause.LABEL_REMOVED)
-    account = context.account.casefold()
-    if account not in {assignee.login.casefold() for assignee in issue.assignees}:
-        return PausedFinding(cause=PauseCause.ISSUE_UNASSIGNED)
-    others = [
-        route.label
-        for route in context.config.identify_conversation_routes(labels=labels)
-        if route.label.casefold() != label
-    ]
-    if others:
-        return ConflictingLabelsFinding(
-            labels=sorted(
-                [conversation.record.dispatch_label, *others], key=str.casefold
-            )
-        )
-    return None
 
 
 def inspect_conversation_request(

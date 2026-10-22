@@ -478,13 +478,15 @@ to the lead and supplies the comparison point for later rounds. Both use
 the campaign module's snapshot type. Do not add a separate mutable
 last-snapshot file or notification queue.
 
-Keep separate conversation and campaign inspectors, sharing the small
-decision about whether the issue's labels and assignment permit new
-rounds. A paused conversation can stop reading further input; a paused
-campaign still needs current child membership for its overview. Both
-kinds reuse the detached-worktree refresh in `git.py`, while retaining
-their own input preparation and publication behaviour. No workflow
-framework or new round runner is required.
+Keep separate conversation and campaign inspectors. They share the
+issue's lifetime rules in `scheduler/issue_work.py`: a closed issue ends
+the work once no round runs, and the issue's labels and assignment
+decide whether new rounds are permitted. A paused conversation can stop
+reading further input; a paused campaign still needs current child
+membership for its overview. Both kinds reuse the detached-worktree
+refresh in `git.py`, while retaining their own input preparation and
+publication behaviour. No workflow framework or new round runner is
+required.
 
 Update the places that assume two kinds explicitly: configuration,
 setup, request inspection, scheduling alternation, prompt selection,
@@ -532,7 +534,9 @@ and checking out commits to verify them. Configure these in the
 adapters, where this repository already owns unattended permissions,
 rather than trying to set reserved permission keys through recipe
 config. Keep the existing assignment and conversation permission
-behaviours intact.
+behaviours intact. Codex runs a campaign round under its own reviewer,
+as it runs an assignment's, because fetching writes into the checkout's
+repository outside the worktree.
 
 ### Status and the web overview
 

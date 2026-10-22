@@ -1,1 +1,1 @@
-"""Manage labelled issues through agent conversations and assignments."""
+"""Manage labelled issues through agent conversations, assignments and campaigns."""

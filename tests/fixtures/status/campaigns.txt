@@ -1,0 +1,15 @@
+alimanfoo/dreamcatcher
+
+instance
+  daemon             running · dreamcatcher v3.0.0.beta1 · pid 4242
+  preferred harness  claude                                        
+  next update in     0s                                            
+  agent capacity     0 of 1 working                                
+
+assignments
+  Assign an issue to yourself and label it with dream:smith to create an assignment.
+
+campaigns
+  GH60-20260819-184158-campaign  idle  round 1, successful, ran 4m
+  GH62  dream:lead  available                                     
+  1 ended campaign                                                

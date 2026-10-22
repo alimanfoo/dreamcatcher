@@ -82,9 +82,9 @@ class ConflictingLabelsFinding(DreamcatcherDocument):
 class PauseCause(StrEnum):
     """The causes of a pause that the issue's labels and assignee give alone.
 
-    The tick checks them in this order. A second conversation label is the
-    third cause, which the tick checks after them and holds as the conflicting
-    labels.
+    The tick checks them in this order. A second label of the paused work's
+    kind is the third cause, which the tick checks after them and holds as the
+    conflicting labels.
     """
 
     LABEL_REMOVED = "label removed"
@@ -92,10 +92,23 @@ class PauseCause(StrEnum):
 
 
 class PausedFinding(DreamcatcherDocument):
-    """Say which of the causes that the issue gives alone pauses a conversation."""
+    """Say which of the causes that the issue gives alone pauses work at it."""
 
     found: Literal["paused"] = "paused"
     cause: PauseCause
+
+
+class CampaignFinding(DreamcatcherDocument):
+    """Hold whether the lead has input due, at a parent that lets it take a round.
+
+    The tick found the parent open, assigned to the account and carrying the
+    campaign's label and no other of its kind. Input is due until a round that
+    took its turn, or is running, has delivered it. A round that did not finish
+    delivered nothing, so its input is given again.
+    """
+
+    found: Literal["campaign"] = "campaign"
+    is_input_due: bool
 
 
 class ReadFailureFinding(DreamcatcherDocument):
@@ -111,6 +124,7 @@ type RequestFinding = Annotated[
     | StartTimeFinding
     | ConflictingLabelsFinding
     | PausedFinding
+    | CampaignFinding
     | ReadFailureFinding,
     Field(discriminator="found"),
 ]

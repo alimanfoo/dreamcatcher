@@ -50,6 +50,10 @@ code. Label an issue for a conversation, assign it to yourself, and post
 a question as a comment. The agent reads the code and answers on the
 issue. Post another question, and the conversation carries on.
 
+A **campaign** gives a planned body of work to an agent called the lead.
+Label a parent issue for a campaign and assign it to yourself, and the
+lead takes up the plan on GitHub. Close the parent to end the campaign.
+
 Several agents can work at once, up to a number that you set. Follow
 them all on a local web page, or in the terminal.
 

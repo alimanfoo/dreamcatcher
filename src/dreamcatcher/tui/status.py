@@ -37,7 +37,7 @@ def show_status_view(
     wait: WaitForSeconds = sleep,
     zone: tzinfo | None = None,
 ) -> None:
-    """Show instance, assignment, request and conversation status until interrupted.
+    """Show the instance, its agent work and its requests until interrupted.
 
     A non-terminal or dumb terminal renders one report and returns.
     """
@@ -66,8 +66,7 @@ def _render_status(*, report: DreamcatcherStatusReport) -> RenderableType:
         parts=[
             Text(report.repository or "repository unknown", style="bold"),
             _render_instance_status(report=report),
-            _render_agent_work(report=report, kind=AgentWorkKind.ASSIGNMENT),
-            _render_agent_work(report=report, kind=AgentWorkKind.CONVERSATION),
+            *(_render_agent_work(report=report, kind=kind) for kind in AgentWorkKind),
         ]
     )
 

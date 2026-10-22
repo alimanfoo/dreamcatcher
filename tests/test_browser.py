@@ -80,7 +80,7 @@ def test_a_round_link_brings_its_round_into_view_from_the_tail(
 
 def test_a_refresh_leaves_an_opened_section_open(page: Page, live_web: str) -> None:
     page.goto(live_web)
-    ended = page.locator("details.ended-work")
+    ended = page.locator("#assignment-panel details.ended-work")
     ended.locator("summary").click()
     expect(ended).to_have_attribute("open", "")
 
@@ -95,29 +95,33 @@ def test_home_tabs_switch_by_pointer_and_keyboard_and_survive_refresh(
     page.goto(live_web)
     assignments = page.get_by_role("tab", name="Assignments")
     conversations = page.get_by_role("tab", name="Conversations")
+    campaigns = page.get_by_role("tab", name="Campaigns")
     assignment_panel = page.get_by_role("tabpanel", name="Assignments")
     conversation_panel = page.get_by_role("tabpanel", name="Conversations")
+    campaign_panel = page.get_by_role("tabpanel", name="Campaigns")
 
     expect(assignments).to_have_attribute("aria-selected", "true")
     expect(assignment_panel).to_be_visible()
     expect(conversation_panel).to_be_hidden()
+    expect(campaign_panel).to_be_hidden()
 
     assignments.press("ArrowLeft")
-    expect(conversations).to_have_attribute("aria-selected", "true")
+    expect(campaigns).to_have_attribute("aria-selected", "true")
     expect(assignment_panel).to_be_hidden()
-    expect(conversation_panel).to_be_visible()
+    expect(campaign_panel).to_be_visible()
 
-    conversations.press("ArrowRight")
+    campaigns.press("ArrowRight")
     expect(assignments).to_have_attribute("aria-selected", "true")
 
     assignments.press("ArrowRight")
     expect(conversations).to_have_attribute("aria-selected", "true")
+    expect(conversation_panel).to_be_visible()
 
     conversations.press("Home")
     expect(assignments).to_have_attribute("aria-selected", "true")
 
     assignments.press("End")
-    expect(conversations).to_have_attribute("aria-selected", "true")
+    expect(campaigns).to_have_attribute("aria-selected", "true")
 
     assignments.click()
     expect(assignments).to_have_attribute("aria-selected", "true")

@@ -28,7 +28,7 @@ def describe_conflicting_labels(*, kind: AgentWorkKind, labels: list[str]) -> st
 
 
 def describe_pause(*, cause: str) -> str:
-    """Say why a conversation is paused until the cause is removed."""
+    """Say why work at an issue is paused until the cause is removed."""
     return f"paused, {cause}"
 
 

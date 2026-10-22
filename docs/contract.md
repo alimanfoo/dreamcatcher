@@ -1,13 +1,15 @@
 # Agent-facing contract
 
-Contract version **1** covers assignments and issue conversations. See
-the [compatibility policy](compatibility.md#agent-contract) for what
-this version promises and when it changes.
+Contract version **1** covers assignments, issue conversations and
+campaigns. See the
+[compatibility policy](compatibility.md#agent-contract) for what this
+version promises and when it changes.
 
-This page contains two contracts. The assignment skill contract covers a
-skill that guides an agent through an agent assignment. The conversation
-skill contract covers a skill that guides an agent through an issue
-conversation.
+This page contains three contracts. The assignment skill contract covers
+a skill that guides an agent through an agent assignment. The
+conversation skill contract covers a skill that guides an agent through
+an issue conversation. The campaign skill contract covers a skill that
+guides a lead through a campaign.
 
 For working examples, read the skills in
 [dream](https://alimanfoo.github.io/dream/) that follow this contract:
@@ -269,3 +271,66 @@ conversation prompt needs no special instructions for this.
 A conversation round that the user stopped waits for a new eligible
 comment. The next round begins by saying that the earlier round was
 stopped.
+
+## Campaign skill contract
+
+A campaign skill guides the lead, the agent of a campaign, to carry a
+parent issue's planned stages through GitHub. It must accept the parent
+issue's number in the same `GH123` form as an assignment skill.
+_dreamcatcher_ adds the input and operational instructions around the
+configured prompt, so the prompt does not need to repeat them and must
+not contradict them.
+
+### Input
+
+Every input contains:
+
+- `issue`, identifying the parent issue;
+- `revision`, identifying the fetched main commit checked out in the
+  detached worktree.
+
+The lead reads the parent, its sub-issues and anything else it needs
+from GitHub itself.
+
+### Workspace
+
+Before every round, _dreamcatcher_ resets the lead's worktree to fetched
+main, deleting every local commit and file that an earlier round left.
+The lead may comment on, create and edit issues, comment on, review and
+merge pull requests, read checks, and fetch and check out commits to
+verify work. It must not edit project source, commit, push or open a
+pull request from that worktree.
+
+### Publication
+
+The lead publishes its own messages on GitHub. _dreamcatcher_ records
+the lead's final output in the feed and posts none of it.
+
+### The parent issue
+
+The user ends a campaign by closing its parent issue. The lead must not
+close the parent or change its assignees or labels, because closing it
+ends the campaign and removing its label or assignee pauses the
+campaign.
+
+### Ending a turn
+
+A campaign skill must instruct the lead to end its turn once it has
+nothing left to do. It must not instruct the lead to run anything that
+waits for a person, because nothing answers it and the round stalls.
+
+### Rounds
+
+The first round starts a new harness session with the configured prompt
+followed by the prompt that names the input. A campaign receives no
+further input once a round that took its turn has delivered its first
+input.
+
+A round that errored or was interrupted did not take its turn, so the
+next round is given the input again. It resumes the recorded harness
+session, or starts a new session with the configured prompt when none
+was recorded. Its prompt opens by saying that the previous round did not
+finish, and the lead must inspect GitHub before it repeats an action.
+
+A round that the user stopped took its turn, and no round follows it on
+its own.

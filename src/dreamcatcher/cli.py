@@ -88,9 +88,10 @@ def _build_cli_parser() -> argparse.ArgumentParser:
         "run",
         help="run the dreamcatcher daemon",
         description=(
-            "Watch this repository for labelled issue conversations and agent "
-            "assignments, and carry every assignment through review until its "
-            "pull request is merged or closed and its wrap-up round succeeds. "
+            "Watch this repository for labelled issue conversations, agent "
+            "assignments and campaigns, and carry every assignment through "
+            "review until its pull request is merged or closed and its wrap-up "
+            "round succeeds. "
             "One daemon runs per checkout, so a second daemon here refuses while "
             "the first is alive. The command opens and serves the web interface "
             "for the same lifetime unless --noweb is present."
@@ -131,17 +132,17 @@ def _build_cli_parser() -> argparse.ArgumentParser:
         "retry",
         help="retry faulted work at an issue after fixing its problem",
         description=(
-            "Clear the current faults of the newest assignment and issue "
-            "conversation after you have fixed what caused their rounds to "
-            "fail. The daemon may run them again on the next scheduler update "
-            "outside a global cooldown."
+            "Clear the current faults of the newest assignment, issue "
+            "conversation and campaign after you have fixed what caused their "
+            "rounds to fail. The daemon may run them again on the next "
+            "scheduler update outside a global cooldown."
         ),
     )
     _add_issue_argument(parser=retry_parser)
     retry_parser.set_defaults(act=_retry_agent_work)
     stop_parser = subcommands.add_parser(
         "stop",
-        help="stop one running assignment or conversation round",
+        help="stop one running assignment, conversation or campaign round",
         description=(
             "Request a stop for the current round of the selected agent work. "
             "The round must be running under the daemon and have a resumable "
@@ -186,8 +187,8 @@ def _build_cli_parser() -> argparse.ArgumentParser:
         "status",
         help="show the instance, its agent work, and the labels waiting for work",
         description=(
-            "Show instance and daemon facts, each assignment and conversation, "
-            "and each dispatch label on an issue that has no work yet, in "
+            "Show instance and daemon facts, each assignment, conversation and "
+            "campaign, and each dispatch label on an issue that has no work yet, in "
             "dispatch order, with why no work has started. It "
             "refreshes automatically "
             "until you interrupt it. "
@@ -236,13 +237,29 @@ def _build_cli_parser() -> argparse.ArgumentParser:
     conversation_parser.set_defaults(
         act=_show_agent_work, work_kind=AgentWorkKind.CONVERSATION
     )
+    campaign_parser = subcommands.add_parser(
+        "campaign",
+        help="show one campaign in detail",
+        description=(
+            "Show the campaign that you name: what its work record holds, its "
+            "harness session, worktree, code revision, and rounds, and the "
+            "other campaigns at the same parent issue with the identifiers "
+            "that name them. It stays on that campaign, and keeps up until the "
+            "campaign ends. "
+            + _HELP_WHEN_A_VIEW_TAKES_THE_SCREEN
+            + " "
+            + _HELP_WHEN_NOTHING_WATCHES
+        ),
+    )
+    _add_agent_work_argument(parser=campaign_parser)
+    campaign_parser.set_defaults(act=_show_agent_work, work_kind=AgentWorkKind.CAMPAIGN)
     feed_parser = subcommands.add_parser(
         "feed",
         help="show what the agent said, as it says it",
         description=(
             "Show the agent's actions and outputs from every round of "
-            "the selected assignment or conversation, and keep showing what "
-            "arrives until the work ends. " + _HELP_WHEN_NOTHING_WATCHES
+            "the selected assignment, conversation or campaign, and keep "
+            "showing what arrives until the work ends. " + _HELP_WHEN_NOTHING_WATCHES
         ),
     )
     _add_agent_work_argument(parser=feed_parser)
@@ -275,6 +292,13 @@ def _add_agent_work_selector(*, parser: argparse.ArgumentParser) -> None:
         action="store_const",
         const=AgentWorkKind.CONVERSATION,
         help="select an issue conversation",
+    )
+    work_kind_group.add_argument(
+        "--campaign",
+        dest="work_kind",
+        action="store_const",
+        const=AgentWorkKind.CAMPAIGN,
+        help="select a campaign",
     )
 
 
@@ -360,14 +384,8 @@ def _run_daemon(*, arguments: argparse.Namespace) -> None:
 
 
 def _retry_agent_work(*, arguments: argparse.Namespace) -> None:
-    """Clear the faults of the newest assignment and issue conversation at an issue."""
+    """Clear the faults of the newest work of every kind at an issue."""
     state = _find_state_directory(root=Path.cwd())
-    assignment = find_newest_agent_work(
-        state=state, issue=arguments.issue, kind=AgentWorkKind.ASSIGNMENT
-    )
-    conversation = find_newest_agent_work(
-        state=state, issue=arguments.issue, kind=AgentWorkKind.CONVERSATION
-    )
     current_time = read_current_time()
     scheduler_record = read_scheduler_record(state=state, at=current_time)
     most_recent_cooldown_ended = (
@@ -375,33 +393,36 @@ def _retry_agent_work(*, arguments: argparse.Namespace) -> None:
         if scheduler_record is None
         else scheduler_record.most_recent_cooldown_ended
     )
-    retried: list[str] = []
-    if assignment is not None and derive_agent_work_fault(
-        rounds=assignment.rounds,
-        retry_requested_at=assignment.retry_requested_at,
-        most_recent_cooldown_ended=most_recent_cooldown_ended,
-    ):
-        request_agent_work_retry(work=assignment, at=current_time)
-        retried.append(assignment.identifier)
-    if conversation is not None and derive_agent_work_fault(
-        rounds=conversation.rounds,
-        retry_requested_at=conversation.retry_requested_at,
-        most_recent_cooldown_ended=most_recent_cooldown_ended,
-    ):
-        if retried:
-            try:
-                request_agent_work_retry(work=conversation, at=current_time)
-            except ReportableError as failure:
-                cleared = ", ".join(retried)
-                raise ReportableError(
-                    f"{cleared} can run again on a later scheduler update, but "
-                    f"{conversation.identifier} could not be retried: {failure}"
-                ) from failure
-        else:
-            request_agent_work_retry(work=conversation, at=current_time)
-        retried.append(conversation.identifier)
-    if not retried:
+    faulted = [
+        work
+        for kind in AgentWorkKind
+        if (
+            work := find_newest_agent_work(
+                state=state, issue=arguments.issue, kind=kind
+            )
+        )
+        is not None
+        and derive_agent_work_fault(
+            rounds=work.rounds,
+            retry_requested_at=work.retry_requested_at,
+            most_recent_cooldown_ended=most_recent_cooldown_ended,
+        )
+    ]
+    if not faulted:
         raise ReportableError(f"GH{arguments.issue} has no agent work in fault.")
+    retried: list[str] = []
+    for work in faulted:
+        try:
+            request_agent_work_retry(work=work, at=current_time)
+        except ReportableError as failure:
+            if not retried:
+                raise
+            cleared = ", ".join(retried)
+            raise ReportableError(
+                f"{cleared} can run again on a later scheduler update, but "
+                f"{work.identifier} could not be retried: {failure}"
+            ) from failure
+        retried.append(work.identifier)
     print(f"{', '.join(retried)} can run again on a later scheduler update.")
 
 

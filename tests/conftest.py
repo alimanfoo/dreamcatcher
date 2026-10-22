@@ -77,6 +77,14 @@ effort = "xhigh"
 
 CONFIG = SMITH_CLAUDE + SMITH_CODEX
 
+CAMPAIGN_CLAUDE = """[[campaign]]
+label = "dream:lead"
+[campaign.claude]
+prompt = "Acknowledge GH{issue} with a comment on it."
+model = "opus[1m]"
+effort = "xhigh"
+"""
+
 
 @pytest.fixture(autouse=True)
 def _release_daemon_locks():
