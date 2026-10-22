@@ -218,7 +218,11 @@ def compose_round_prompt(
     parts = [] if is_resuming and input_prompt is not None else [instructions]
     if input_prompt is not None:
         parts.append(_PREVIOUS_ROUND_LINES.get(previous_outcome, "") + input_prompt)
-    return "\n\n".join(parts) + _POST_INSTRUCTIONS[work_kind]
+    return "\n\n".join(parts) + (
+        _CAMPAIGN_POST_INSTRUCTIONS
+        if work_kind is AgentWorkKind.CAMPAIGN
+        else _AGENT_POST_INSTRUCTIONS
+    )
 
 
 # What opens a round's input, by how the previous round ended.
@@ -226,13 +230,6 @@ _PREVIOUS_ROUND_LINES = {
     AgentRoundOutcome.STOPPED: _STOPPED_ROUND_LINE,
     AgentRoundOutcome.ERRORED: _UNFINISHED_ROUND_LINE,
     AgentRoundOutcome.INTERRUPTED: _UNFINISHED_ROUND_LINE,
-}
-
-# What ends a round's prompt, by the kind of its work.
-_POST_INSTRUCTIONS = {
-    AgentWorkKind.ASSIGNMENT: _AGENT_POST_INSTRUCTIONS,
-    AgentWorkKind.CONVERSATION: _AGENT_POST_INSTRUCTIONS,
-    AgentWorkKind.CAMPAIGN: _CAMPAIGN_POST_INSTRUCTIONS,
 }
 
 # What opens a round's input, for each signal it relays.

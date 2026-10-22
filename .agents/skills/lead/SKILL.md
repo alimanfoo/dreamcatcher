@@ -56,13 +56,14 @@ every action. Don't post on the parent to say that you merged a stage or
 started one.
 
 Write plainly and briefly. Put each paragraph on a single line, because
-GitHub reflows it. End every post with this line, as a blockquote, so a
-reader can tell that the lead wrote it:
+GitHub reflows it. You post under the user's account, so end every post
+with this line, as a blockquote, to let the user tell your posts from
+their own:
 
 > written by an agent
 
-Follow the prompt's rule about the agent marker as well. It says which
-posts carry the marker and which don't.
+That visible line is not the agent marker. The prompt says which posts
+carry the marker, and which don't.
 
 ## Each round
 
