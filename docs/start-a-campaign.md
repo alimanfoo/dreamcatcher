@@ -62,8 +62,8 @@ On GitHub:
 2. Assign it to the account authenticated through `gh`.
 3. Add exactly one configured campaign label, such as `dream:lead`.
 
-If an open issue blocks the parent on GitHub, the campaign waits until
-that issue is closed.
+If open issues block the parent on GitHub, the campaign waits until
+every one of them is closed.
 
 A campaign needs no comment to start. At its next update with a free
 agent slot, _dreamcatcher_ checks out current `origin/main` in a
@@ -93,14 +93,12 @@ dreamcatcher feed GH123 --campaign
 To run one campaign after another, mark the later parent as blocked by
 the earlier parent on GitHub, then assign and label both parents. The
 later campaign waits, and its request shows as blocked by the earlier
-parent. A parent with several blockers waits until all of them are
-closed.
+parent.
 
 Close the earlier parent when you are satisfied with its campaign, and
 the later campaign starts at the next update with a free agent slot.
-Closing every sub-issue does not close the parent, and the lead never
-closes it, so the next campaign waits for you. A blocker added to a
-parent after its campaign has started does not pause that campaign.
+Closing every sub-issue does not close the parent, and the lead is told
+never to close it, so the next campaign waits for you.
 
 ## Talk to the lead
 

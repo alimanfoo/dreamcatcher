@@ -1,4 +1,4 @@
-"""Read the open issues that block an issue, for the kinds of new work they hold."""
+"""Read the open issues that block an issue, as assignment and campaign requests do."""
 
 from dreamcatcher.github import (
     BlockingIssue,

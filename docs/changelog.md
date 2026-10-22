@@ -72,12 +72,10 @@ the change.
   carries a parent issue's sub-issues through their assignments to
   merge. [Start a campaign](start-a-campaign.md) explains what it does.
   ([#677](https://github.com/alimanfoo/dreamcatcher/pull/677))
-- Campaigns can be queued. A campaign waits while an open issue blocks
-  its parent on GitHub, and its request shows as blocked by that issue
-  on the web home page and in `dreamcatcher status`. Once every blocker
-  is closed, the campaign starts at the next update. A campaign that has
-  already started carries on whatever blocks its parent.
-  [Start a campaign](start-a-campaign.md#queue-campaigns) explains how.
+- Campaigns can be queued: a campaign shows as blocked while an open
+  issue blocks its parent on GitHub, and starts once every blocker is
+  closed. [Start a campaign](start-a-campaign.md#queue-campaigns)
+  explains how.
   ([#682](https://github.com/alimanfoo/dreamcatcher/pull/682))
 - A second tutorial,
   [From parent issue to merged stages](campaign-tutorial.md), takes a
