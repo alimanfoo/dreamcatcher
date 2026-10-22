@@ -19,6 +19,7 @@ documentation stays coherent as one whole.
 - `2026-10-05-agent-work-facts`
 - `2026-10-06-init`
 - `2026-10-16-state-format-6`
+- `2026-10-20-campaigns`
 
 A dated folder that is absent from this list is an active phase. If you
 find that an unlisted phase has already ended, add it to this list
