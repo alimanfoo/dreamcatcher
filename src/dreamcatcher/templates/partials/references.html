@@ -5,3 +5,11 @@
     <strong class="issue-number">#{{ number }}</strong>
   {%- endif %}
 {%- endmacro %}
+{#- An issue in another repository links there and is named with it, as GitHub names one. -#}
+{% macro issue_reference(issue) -%}
+  {% if issue.repository -%}
+    <a class="issue-number" href="https://github.com/{{ issue.repository }}/issues/{{ issue.number }}" target="_blank" rel="noopener noreferrer">{{ issue.repository }}#{{ issue.number }}</a>
+  {%- else -%}
+    {{ github_reference(issue.number, "issues") }}
+  {%- endif %}
+{%- endmacro %}

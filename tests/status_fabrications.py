@@ -57,6 +57,7 @@ from dreamcatcher.scheduler.models import (
     CampaignFinding,
     ConflictingLabelsFinding,
     IssueCommentsFinding,
+    IssueReference,
     PauseCause,
     PausedFinding,
     PullRequestFinding,
@@ -519,7 +520,8 @@ def fabricate_everything(
                 request_row(
                     issue=52,
                     finding=StartTimeFinding(
-                        linked_pull_requests=[], blocking_issues=[50]
+                        linked_pull_requests=[],
+                        blocking_issues=[IssueReference(number=50)],
                     ),
                 ),
                 request_row(issue=53, label="dream:less", finding=DOUBLE_LABELLED),
@@ -527,7 +529,11 @@ def fabricate_everything(
                 request_row(
                     issue=55,
                     finding=StartTimeFinding(
-                        linked_pull_requests=[61], blocking_issues=[50, 51]
+                        linked_pull_requests=[61],
+                        blocking_issues=[
+                            IssueReference(number=50),
+                            IssueReference(number=1016, repository="alimanfoo/dream"),
+                        ],
                     ),
                 ),
                 _assignment_row(
@@ -761,7 +767,8 @@ def fabricate_titles_and_pull_request_states(*, state):
                 request_row(
                     issue=21,
                     finding=StartTimeFinding(
-                        linked_pull_requests=[], blocking_issues=[20]
+                        linked_pull_requests=[],
+                        blocking_issues=[IssueReference(number=20)],
                     ),
                 ).model_copy(update={"title": "Blocked issue"}),
                 *pull_request_rows,

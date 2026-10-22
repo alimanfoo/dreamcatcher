@@ -55,12 +55,23 @@ class IssueCommentsFinding(DreamcatcherDocument):
     new_comments: NonNegativeInt
 
 
+class IssueReference(DreamcatcherDocument):
+    """Name an issue by its number, and by its repository when that is another one.
+
+    An issue without a repository is in the daemon's own repository. Another
+    repository is named as its owner and name, as in `owner/name`.
+    """
+
+    number: PositiveInt
+    repository: str | None = None
+
+
 class StartTimeFinding(DreamcatcherDocument):
     """Hold the open pull requests claiming an issue and the open issues blocking it."""
 
     found: Literal["start-time answers"] = "start-time answers"
     linked_pull_requests: list[PositiveInt]
-    blocking_issues: list[PositiveInt]
+    blocking_issues: list[IssueReference]
 
     @property
     def is_clear(self) -> bool:

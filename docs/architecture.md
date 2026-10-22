@@ -532,7 +532,8 @@ tick found as a typed finding:
   take a round, the count of the parent's comments past the cursor and
   the count of sub-issues with a notification;
 - for an assignment request with no open work, the open linked pull
-  requests and the open blocking issues, as numbers;
+  requests, as numbers, and the open blocking issues, each as a number
+  with its repository when that is another one;
 - for a request or an open conversation or campaign whose issue carries
   two labels of its kind, those labels;
 - for a conversation or campaign paused for any other reason, the cause;

@@ -71,6 +71,13 @@ the change.
   shows, rather than a "needs user feedback" status that the web page no
   longer has.
   ([#647](https://github.com/alimanfoo/dreamcatcher/pull/647))
+- A request blocked by an issue in another repository now names that
+  issue with its repository, as `owner/name#123`, on the web home page
+  and in `dreamcatcher status`, and the web page links to it there. It
+  had been shown and linked as an issue in this repository. The web home
+  page also no longer puts a space before each comma between the issues
+  a request names.
+  ([#676](https://github.com/alimanfoo/dreamcatcher/pull/676))
 
 ## [v6.3.0](https://github.com/alimanfoo/dreamcatcher/releases/tag/v6.3.0) — 2026-10-21
 

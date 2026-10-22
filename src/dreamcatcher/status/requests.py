@@ -9,6 +9,7 @@ from dreamcatcher.scheduler.models import (
     CampaignFinding,
     ConflictingLabelsFinding,
     IssueCommentsFinding,
+    IssueReference,
     ReadFailureFinding,
     RequestRow,
     StartTimeFinding,
@@ -50,11 +51,12 @@ class RequestStatusValue(StrEnum):
 class RequestReason:
     """Say one thing about why no work has started for a request.
 
-    A reason names the issues or pull requests it refers to as numbers.
+    A reason names the pull requests it refers to as numbers, and the issues
+    by references that name another repository where one holds the issue.
     """
 
     words: str
-    issues: tuple[int, ...] = ()
+    issues: tuple[IssueReference, ...] = ()
     pull_requests: tuple[int, ...] = ()
 
 
