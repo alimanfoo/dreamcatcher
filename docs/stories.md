@@ -349,14 +349,15 @@ wanted, and forgets nothing in between.
 #### The user starts a campaign on a parent issue
 
 The user has planned a body of work as a parent issue, with a sub-issue
-for each stage, and wants an agent to take the plan up. They have added
-a campaign route to the configuration, with a prompt that tells the lead
-what to do with the parent and with their comments on it, such as
-summarising the plan and replying to what they say. They assign the
-parent to themselves and put the campaign label on it. No comment is
-needed. As soon as _dreamcatcher_ has available agent capacity, it
-checks out main in a worktree of the campaign's own and starts the lead
-in a new harness session.
+for each stage, and wants an agent to take the plan up. The
+configuration has a campaign route whose prompt tells the lead what to
+do with the parent and with their comments on it, such as the
+`dream:lead` route that `init` writes, which carries the stages through
+their assignments to merge. They assign the parent to themselves and put
+the campaign label on it. No comment is needed. As soon as
+_dreamcatcher_ has available agent capacity, it checks out main in a
+worktree of the campaign's own and starts the lead in a new harness
+session.
 
 The lead is given the current picture of the parent's sub-issues, with
 where each one's assignment stands, and the assignment routes that the
