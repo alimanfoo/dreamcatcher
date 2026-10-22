@@ -4,6 +4,7 @@ from pathlib import Path
 
 from dreamcatcher.agent_rounds import AgentRoundOutcome
 from dreamcatcher.github import PullRequestSignal
+from dreamcatcher.harness_adapters import AgentWorkKind
 
 # The line that every post an agent makes on GitHub ends with. The daemon and the
 # agent share one GitHub account, so this is what tells the two apart: a post
@@ -17,9 +18,10 @@ AGENT_POST_MARKER = "<!-- dreamcatcher -->"
 _ISSUE_PLACEHOLDER = "{issue}"
 
 # What every prompt that the daemon composes ends with, whichever harness runs
-# the round and whatever woke it. The daemon adds this itself, so a skill it
-# dispatches needs no knowledge of the marker.
-_AGENT_POST_INSTRUCTIONS = f"""
+# the round and whatever woke it, before the words that say which posts carry
+# the marker. The daemon adds this itself, so a skill it dispatches needs no
+# knowledge of the marker.
+_AGENT_POST_MARKER_LINES = f"""
 
 End every post you make on GitHub with this line, on a line of its own:
 
@@ -27,8 +29,28 @@ End every post you make on GitHub with this line, on a line of its own:
 
 The line tells dreamcatcher that the post is yours, so it never relays your
 own words back to you. GitHub renders nothing for an HTML comment, so nobody
-reading the post sees the line. Every post counts: a pull request's
+reading the post sees the line. """
+
+# What ends an assignment's or a conversation's prompt, where the marker goes on
+# every post.
+_AGENT_POST_INSTRUCTIONS = (
+    _AGENT_POST_MARKER_LINES
+    + """Every post counts: a pull request's
 description, a comment, a reply on a line of the diff, and an issue you file."""
+)
+
+# What ends a campaign's prompt. The lead shares the user's GitHub account, so
+# its feedback on a sub-issue's pull request reaches the assignment's agent
+# through the ordinary relay only when it carries no marker.
+_CAMPAIGN_POST_INSTRUCTIONS = (
+    _AGENT_POST_MARKER_LINES
+    + """Every post counts, such as a comment, a review, a
+reply on a line of the diff and an issue you file, with one exception. Leave the
+line off feedback that you give a sub-issue's assignment on its pull request,
+such as a correction that you request or an answer to its agent's question.
+dreamcatcher relays an unmarked post on that pull request to the assignment's
+agent, as it relays the user's."""
+)
 
 
 # What opens the input of a round whose previous round the user stopped.
@@ -107,7 +129,10 @@ reply is needed."""
 # What a campaign round is given beside its instructions. The lead works through
 # GitHub and publishes its own messages, so the prompt names the input and the
 # limits that keep the campaign in the user's hands. The user's comments go to
-# the input file, never into the prompt.
+# the input file, never into the prompt. Claude approves a shell call by its
+# allow rules only when every command in it matches one, and its auto mode
+# classifier refuses any other call that merges a pull request without a
+# person's approval, so a merge must stand alone to match its allow rule.
 _CAMPAIGN_INPUT_PROMPT = """Campaign input for parent issue GH{issue}:
 
   {round_input}
@@ -124,6 +149,8 @@ labels and recipes that the running daemon can dispatch a sub-issue's assignment
 with. The `revision` field names the commit of main checked out in your
 worktree, which dreamcatcher refreshes to main before every round, discarding
 any local change. Do not commit, push or open a pull request from this worktree.
+Run every `gh pr merge` as a shell command of its own, with no other command
+joined to it, because the unattended permissions approve a merge only then.
 Inspect GitHub before each change and do not repeat an action that an earlier
 attempt completed. Do not close the parent issue or change its assignees or
 labels, because the user closes it to end the campaign and removing its label or
@@ -182,18 +209,25 @@ def compose_round_prompt(
     is_resuming: bool,
     input_prompt: str | None,
     previous_outcome: AgentRoundOutcome | None,
+    work_kind: AgentWorkKind,
 ) -> str:
     """Return the whole prompt for one round of agent work.
 
     A round that resumes a harness session and has input to relay is given that
     input alone. Any other round begins with the work's instructions, because a
     new session has not seen them. The input opens with a line saying why the
-    previous round ended when the user stopped it or it did not finish.
+    previous round ended when the user stopped it or it did not finish. The
+    prompt ends by saying which of the agent's posts carry the agent marker,
+    which depends on the kind of work.
     """
     parts = [] if is_resuming and input_prompt is not None else [instructions]
     if input_prompt is not None:
         parts.append(_PREVIOUS_ROUND_LINES.get(previous_outcome, "") + input_prompt)
-    return "\n\n".join(parts) + _AGENT_POST_INSTRUCTIONS
+    return "\n\n".join(parts) + (
+        _CAMPAIGN_POST_INSTRUCTIONS
+        if work_kind is AgentWorkKind.CAMPAIGN
+        else _AGENT_POST_INSTRUCTIONS
+    )
 
 
 # What opens a round's input, by how the previous round ended.
