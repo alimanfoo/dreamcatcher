@@ -27,6 +27,14 @@ the change.
 
 ## Unreleased
 
+### Fixed
+
+- The reason given when a campaign cannot observe a sub-issue names it
+  by its number alone, and the reason given when a conversation cannot
+  post its answer names no issue, so the web pages no longer show an
+  issue in the terminal's `GH12` form.
+  ([#692](https://github.com/alimanfoo/dreamcatcher/pull/692))
+
 ## [v7.0.0](https://github.com/alimanfoo/dreamcatcher/releases/tag/v7.0.0) — 2026-10-22
 
 ### Breaking

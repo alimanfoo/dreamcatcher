@@ -498,10 +498,9 @@ def test_a_retry_clears_a_conversation_fault(conversation_state):
         pytest.param(
             FinishingErroredAgentRoundEnding(
                 at=ENDED,
-                reason="could not post the answer on GH8: network unavailable",
+                reason="could not post the answer: network unavailable",
             ),
-            "round 1 errored (exit 0): "
-            "could not post the answer on GH8: network unavailable",
+            "round 1 errored (exit 0): could not post the answer: network unavailable",
             "errored",
             id="finishing",
         ),
