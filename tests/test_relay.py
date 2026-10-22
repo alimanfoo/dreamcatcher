@@ -20,9 +20,9 @@ from dreamcatcher.github import (
     UnknownGitHubResponse,
     UserPost,
 )
-from dreamcatcher.issue_conversations import IssueCommentCursor
 from dreamcatcher.prompts import AGENT_POST_MARKER
 from dreamcatcher.relay import (
+    IssueCommentCursor,
     list_issue_comments_past_cursor,
     list_user_posts_past_cursor,
 )

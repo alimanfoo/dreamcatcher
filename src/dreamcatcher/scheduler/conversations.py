@@ -4,26 +4,20 @@ from functools import partial
 
 from dreamcatcher.agent_work import AgentWork
 from dreamcatcher.config import DispatchRoute
-from dreamcatcher.errors import ReportableError
-from dreamcatcher.github import (
-    Issue,
-    IssueComment,
-    UnknownGitHubResponse,
-)
+from dreamcatcher.github import Issue, IssueComment
 from dreamcatcher.issue_conversations import (
     post_conversation_answer,
     prepare_conversation_round,
     read_issue_comment_cursor,
 )
 from dreamcatcher.prompts import compose_conversation_input_prompt
-from dreamcatcher.relay import list_issue_comments_past_cursor
 from dreamcatcher.scheduler.inspection import (
     Candidate,
     Inspection,
     RoundPlan,
     SchedulingContext,
 )
-from dreamcatcher.scheduler.issue_work import inspect_open_issue_work
+from dreamcatcher.scheduler.issue_work import inspect_open_issue_work, list_new_comments
 from dreamcatcher.scheduler.models import (
     IssueCommentsFinding,
     ReadFailureFinding,
@@ -71,10 +65,14 @@ def _inspect_comments(
     It reads for the open conversation, or for the route of the one that would
     start, and the row is the request's row before the read.
     """
-    comments = _list_comments_to_answer(
+    comments = list_new_comments(
         context=context,
         issue=issue.number,
-        conversation=(work_or_route if isinstance(work_or_route, AgentWork) else None),
+        read_cursor=(
+            partial(read_issue_comment_cursor, conversation=work_or_route)
+            if isinstance(work_or_route, AgentWork)
+            else None
+        ),
     )
     if isinstance(comments, ReadFailureFinding):
         return Inspection(row=row.model_copy(update={"finding": comments}))
@@ -92,32 +90,6 @@ def _inspect_comments(
             ),
         ),
     )
-
-
-def _list_comments_to_answer(
-    *, context: SchedulingContext, issue: int, conversation: AgentWork | None
-) -> list[IssueComment] | ReadFailureFinding:
-    """Return the eligible comments past the cursor.
-
-    A read that fails answers why.
-    """
-    try:
-        cursor = (
-            None
-            if conversation is None
-            else read_issue_comment_cursor(conversation=conversation)
-        )
-    except ReportableError as failure:
-        return ReadFailureFinding(reason=str(failure))
-    comments = list_issue_comments_past_cursor(
-        repository=context.repository,
-        issue=issue,
-        account=context.account,
-        cursor=cursor,
-    )
-    if isinstance(comments, UnknownGitHubResponse):
-        return ReadFailureFinding(reason=comments.reason)
-    return comments
 
 
 def _compose_comment_round(

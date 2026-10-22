@@ -99,16 +99,14 @@ class PausedFinding(DreamcatcherDocument):
 
 
 class CampaignFinding(DreamcatcherDocument):
-    """Hold whether the lead has input due, at a parent that lets it take a round.
+    """Hold how many of the user's eligible parent comments are past the cursor.
 
     The tick found the parent open, assigned to the account and carrying the
-    campaign's label and no other of its kind. Input is due until a round that
-    took its turn, or is running, has delivered it. A round that did not finish
-    delivered nothing, so its input is given again.
+    campaign's label and no other of its kind.
     """
 
     found: Literal["campaign"] = "campaign"
-    is_input_due: bool
+    new_comments: NonNegativeInt
 
 
 class ReadFailureFinding(DreamcatcherDocument):

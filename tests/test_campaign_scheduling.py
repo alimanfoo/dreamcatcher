@@ -11,7 +11,9 @@ from conftest import (
     POSTED_BY,
     REPOSITORY,
     comment,
+    commit,
     configure,
+    git,
     pages,
     streamed,
 )
@@ -33,12 +35,15 @@ from dreamcatcher.agent_rounds import (
     StoppedAgentRoundEnding,
     SuccessfulAgentRoundEnding,
 )
-from dreamcatcher.agent_work import AgentWorkEndReason
+from dreamcatcher.agent_work import AgentWorkEndReason, request_agent_work_retry
 from dreamcatcher.campaigns import CampaignRoundInput
 from dreamcatcher.config import AgentHarness, read_dreamcatcher_config
 from dreamcatcher.documents import read_json
 from dreamcatcher.git import _read_worktree_revision
+from dreamcatcher.github import IssueComment
 from dreamcatcher.harness_adapters import AgentWorkKind
+from dreamcatcher.prompts import AGENT_POST_MARKER
+from dreamcatcher.relay import IssueCommentCursor
 from dreamcatcher.scheduler import Scheduler, SchedulingContext
 from dreamcatcher.scheduler.models import (
     CampaignFinding,
@@ -54,6 +59,7 @@ from dreamcatcher.state import StateDirectory
 
 PARENT = 20
 LABEL = "dream:lead"
+COMMENTS_PATH = f"api repos/{REPOSITORY}/issues/{PARENT}/comments?per_page=100"
 SECOND_CAMPAIGN_CLAUDE = CAMPAIGN_CLAUDE.replace("dream:lead", "dream:steward")
 CONVERSATION_CLAUDE = """[[conversation]]
 label = "dream:conversation"
@@ -207,10 +213,26 @@ def finish(*, scheduler: Scheduler) -> None:
         running.wait()
 
 
-def write_rounds(*, state: StateDirectory, endings: list):
-    """Write a campaign whose rounds ended these ways, each given the input."""
+def write_rounds(
+    *,
+    state: StateDirectory,
+    endings: list,
+    delivered: list[list[dict]] | None = None,
+):
+    """Write a campaign whose rounds ended these ways, each given its comments.
+
+    Each round's input reaches its newest comment, or carries the cursor of the
+    round before it when it holds none. A round given no comments here holds
+    none.
+    """
     directory = write_campaign(state=state, issue=PARENT)
+    cursor = None
     for number, ending in enumerate(endings, start=1):
+        comments = [] if delivered is None else delivered[number - 1]
+        if comments:
+            cursor = IssueCommentCursor(
+                written_at=comments[-1]["created_at"], id=comments[-1]["id"]
+            )
         write_round(
             directory=directory,
             number=number,
@@ -220,9 +242,45 @@ def write_rounds(*, state: StateDirectory, endings: list):
                 pid=number,
                 ending=ending,
             ),
-            round_input=CampaignRoundInput(issue=PARENT, revision="abc123"),
+            round_input=CampaignRoundInput(
+                issue=PARENT,
+                comments=[IssueComment.model_validate(item) for item in comments],
+                cursor=cursor,
+                revision="abc123",
+            ),
         )
     return directory
+
+
+def say(*, identifier: int, body: str = "Carry on.") -> dict:
+    """Return one eligible comment on the parent."""
+    return comment(id=identifier, body=body)
+
+
+def offer_comments(*, gh, comments: list[dict]) -> None:
+    """Have GitHub answer a read of the parent's comments with these."""
+    gh.replies(stdout=pages(items=comments), to=COMMENTS_PATH)
+
+
+def count_comment_reads(*, gh) -> int:
+    """Return how often GitHub was asked for the parent's comments."""
+    expected = COMMENTS_PATH.split()
+    return sum(call.arguments[: len(expected)] == expected for call in gh.calls)
+
+
+def read_lead_input(*, scheduler: Scheduler, number: int) -> CampaignRoundInput:
+    """Return the input that one round of the campaign at the parent was given."""
+    campaign = read_campaign(state=scheduler.context.state, issue=PARENT)
+    assert campaign is not None
+    return read_json(
+        model=CampaignRoundInput,
+        path=campaign.compose_round_paths(number=number).round_input,
+    )
+
+
+def position(*, of: dict) -> IssueCommentCursor:
+    """Return the cursor that reaches this comment."""
+    return IssueCommentCursor(written_at=of["created_at"], id=of["id"])
 
 
 ERRORED = HarnessErroredAgentRoundEnding(at=PINNED + timedelta(hours=1), status=1)
@@ -242,7 +300,7 @@ def test_a_labelled_parent_starts_a_lead_that_reads_its_input_and_posts_nothing(
     assert launched.launched_agent_work_identifiers == [identifier]
     assert launched.rows == [
         campaign_row(
-            finding=CampaignFinding(is_input_due=True),
+            finding=CampaignFinding(new_comments=0),
             agent_work_identifier=identifier,
             started_round=StartedRound(number=1),
         )
@@ -255,6 +313,8 @@ def test_a_labelled_parent_starts_a_lead_that_reads_its_input_and_posts_nothing(
     assert read_json(model=CampaignRoundInput, path=paths.round_input) == (
         CampaignRoundInput(
             issue=PARENT,
+            comments=[],
+            cursor=None,
             revision=_read_worktree_revision(worktree=campaign.worktree),
         )
     )
@@ -283,7 +343,7 @@ def test_a_lead_that_took_its_turn_waits_through_further_updates(
 
     assert [record.launched_agent_work_identifiers for record in later] == [[], []]
     assert [record.rows[0].finding for record in later] == [
-        CampaignFinding(is_input_due=False)
+        CampaignFinding(new_comments=0)
     ] * 2
     assert len(harnesses["claude"].calls) == 1
 
@@ -301,7 +361,7 @@ def test_a_lead_given_its_input_has_no_round_due(campaign_scheduler, harnesses, 
 
     assert observed.rows == [
         campaign_row(
-            finding=CampaignFinding(is_input_due=False),
+            finding=CampaignFinding(new_comments=0),
             agent_work_identifier=compose_campaign_identifier(issue=PARENT),
             ended_round=1,
         )
@@ -537,7 +597,7 @@ def test_a_running_lead_is_observed_without_starting_another_round(
     observed = tick(scheduler=scheduler)
 
     assert observed.launched_agent_work_identifiers == []
-    assert observed.rows[0].finding == CampaignFinding(is_input_due=False)
+    assert observed.rows[0].finding == CampaignFinding(new_comments=0)
     assert len(harnesses["claude"].calls) == 1
 
 
@@ -571,7 +631,7 @@ def test_a_campaign_waits_for_shared_capacity(campaign_scheduler, harnesses):
 
     observed = tick(scheduler=scheduler)
 
-    assert observed.rows == [campaign_row(finding=CampaignFinding(is_input_due=True))]
+    assert observed.rows == [campaign_row(finding=CampaignFinding(new_comments=0))]
     assert read_campaign(state=scheduler.context.state, issue=PARENT) is None
 
 
@@ -639,3 +699,333 @@ def test_a_codex_lead_works_under_codexs_reviewer_without_a_final_file(
     [call] = harnesses["codex"].calls
     assert "--approve-for-me" in call.arguments
     assert "--output-last-message" not in call.arguments
+
+
+def test_the_first_round_is_given_the_comments_already_on_the_parent(
+    campaign_scheduler, harnesses
+):
+    scheduler, gh = campaign_scheduler
+    offer_parent(gh=gh)
+    first, second = say(identifier=1), say(identifier=2, body="Mind the order.")
+    offer_comments(gh=gh, comments=[first, second])
+    lead(harnesses=harnesses)
+
+    launched = tick(scheduler=scheduler)
+    finish(scheduler=scheduler)
+
+    assert launched.rows[0].finding == CampaignFinding(new_comments=2)
+    given = read_lead_input(scheduler=scheduler, number=1)
+    assert given.comments == [
+        IssueComment.model_validate(item) for item in (first, second)
+    ]
+    assert given.cursor == position(of=second)
+
+
+def test_a_parent_comment_wakes_the_lead_in_its_session_on_refreshed_main(
+    campaign_scheduler, harnesses
+):
+    scheduler, gh = campaign_scheduler
+    root = scheduler.context.state.root
+    write_rounds(
+        state=scheduler.context.state, endings=[SuccessfulAgentRoundEnding(at=PINNED)]
+    )
+    (root / "README.md").write_bytes(b"what main holds now\n")
+    commit(path=root, message="change main")
+    git(arguments=["push", "origin", "main"], cwd=root)
+    offer_parent(gh=gh)
+    question = say(identifier=1, body="How far have the stages got?")
+    offer_comments(gh=gh, comments=[question])
+    lead(harnesses=harnesses)
+
+    launched = tick(scheduler=scheduler)
+    finish(scheduler=scheduler)
+
+    assert launched.launched_agent_work_identifiers == [
+        compose_campaign_identifier(issue=PARENT)
+    ]
+    assert launched.rows[0].finding == CampaignFinding(new_comments=1)
+    given = read_lead_input(scheduler=scheduler, number=2)
+    assert given.comments == [IssueComment.model_validate(question)]
+    assert given.cursor == position(of=question)
+    assert given.revision == git(arguments=["rev-parse", "HEAD"], cwd=root).strip()
+    [call] = harnesses["claude"].calls
+    assert call.arguments[-2:] == ["--resume", "lead-session"]
+    assert call.prompt.startswith("Campaign input for parent issue GH20:")
+
+
+def test_the_leads_own_marked_replies_wake_nothing(campaign_scheduler, harnesses):
+    scheduler, gh = campaign_scheduler
+    write_rounds(
+        state=scheduler.context.state, endings=[SuccessfulAgentRoundEnding(at=PINNED)]
+    )
+    offer_parent(gh=gh)
+    offer_comments(
+        gh=gh,
+        comments=[say(identifier=1, body=f"Stage 1 is done.\n\n{AGENT_POST_MARKER}")],
+    )
+
+    observed = tick(scheduler=scheduler)
+
+    assert observed.launched_agent_work_identifiers == []
+    assert observed.rows[0].finding == CampaignFinding(new_comments=0)
+    assert harnesses["claude"].calls == []
+
+
+@pytest.mark.parametrize(
+    "paused",
+    [
+        parent_issue(labels=()),
+        parent_issue(assignees=()),
+        parent_issue(labels=(LABEL, "dream:steward")),
+    ],
+)
+def test_comments_posted_while_paused_reach_the_lead_when_it_resumes(
+    campaign_scheduler, harnesses, paused
+):
+    scheduler, gh = campaign_scheduler
+    configure(
+        root=scheduler.context.state.root, head=CAMPAIGN_CLAUDE + SECOND_CAMPAIGN_CLAUDE
+    )
+    scheduler = create_scheduler(root=scheduler.context.state.root)
+    write_rounds(
+        state=scheduler.context.state, endings=[SuccessfulAgentRoundEnding(at=PINNED)]
+    )
+    show_parent(gh=gh, issue=paused)
+    waiting = say(identifier=1, body="Wait for the release first.")
+    offer_comments(gh=gh, comments=[waiting])
+    while_paused = tick(scheduler=scheduler)
+    offer_parent(gh=gh)
+    lead(harnesses=harnesses)
+
+    resumed = tick(scheduler=scheduler)
+    finish(scheduler=scheduler)
+
+    assert while_paused.launched_agent_work_identifiers == []
+    assert count_comment_reads(gh=gh) == 1
+    assert resumed.launched_agent_work_identifiers == [
+        compose_campaign_identifier(issue=PARENT)
+    ]
+    assert read_lead_input(scheduler=scheduler, number=2).comments == [
+        IssueComment.model_validate(waiting)
+    ]
+    [call] = harnesses["claude"].calls
+    assert call.arguments[-2:] == ["--resume", "lead-session"]
+
+
+def test_a_stopped_lead_waits_for_fresh_direction_and_is_told_it_was_stopped(
+    campaign_scheduler, harnesses
+):
+    scheduler, gh = campaign_scheduler
+    first = say(identifier=1, body="Review stage 1.")
+    write_rounds(
+        state=scheduler.context.state,
+        endings=[StoppedAgentRoundEnding(at=PINNED)],
+        delivered=[[first]],
+    )
+    offer_parent(gh=gh)
+    offer_comments(gh=gh, comments=[first])
+    waiting = tick(scheduler=scheduler)
+    redirect = say(identifier=2, body="Review stage 2 instead.")
+    offer_comments(gh=gh, comments=[first, redirect])
+    lead(harnesses=harnesses)
+
+    redirected = tick(scheduler=scheduler)
+    finish(scheduler=scheduler)
+
+    assert waiting.launched_agent_work_identifiers == []
+    assert redirected.launched_agent_work_identifiers == [
+        compose_campaign_identifier(issue=PARENT)
+    ]
+    assert read_lead_input(scheduler=scheduler, number=2).comments == [
+        IssueComment.model_validate(redirect)
+    ]
+    [call] = harnesses["claude"].calls
+    assert call.prompt.startswith("The user stopped your previous round")
+
+
+def test_a_lead_stopped_before_its_first_input_waits_for_a_comment(
+    campaign_scheduler, harnesses
+):
+    scheduler, gh = campaign_scheduler
+    directory = write_campaign(state=scheduler.context.state, issue=PARENT)
+    write_round(
+        directory=directory,
+        number=1,
+        record=AgentRoundRecord(
+            number=1, started=PINNED, ending=StoppedAgentRoundEnding(at=PINNED)
+        ),
+    )
+    offer_parent(gh=gh)
+    waiting = tick(scheduler=scheduler)
+    earlier = say(identifier=1, body="The plan is on the parent.")
+    offer_comments(gh=gh, comments=[earlier])
+    lead(harnesses=harnesses)
+
+    woken = tick(scheduler=scheduler)
+    finish(scheduler=scheduler)
+
+    assert waiting.launched_agent_work_identifiers == []
+    assert woken.launched_agent_work_identifiers == [
+        compose_campaign_identifier(issue=PARENT)
+    ]
+    assert read_lead_input(scheduler=scheduler, number=2).comments == [
+        IssueComment.model_validate(earlier)
+    ]
+
+
+@pytest.mark.parametrize("ending", [InterruptedAgentRoundEnding(), ERRORED])
+def test_an_unfinished_rounds_comments_are_given_again_with_any_since(
+    campaign_scheduler, harnesses, ending
+):
+    scheduler, gh = campaign_scheduler
+    first, second, third = (say(identifier=identifier) for identifier in (1, 2, 3))
+    write_rounds(
+        state=scheduler.context.state,
+        endings=[SuccessfulAgentRoundEnding(at=PINNED), ending],
+        delivered=[[first], [second]],
+    )
+    offer_parent(gh=gh)
+    offer_comments(gh=gh, comments=[first, second, third])
+    lead(harnesses=harnesses)
+
+    tick(scheduler=scheduler)
+    finish(scheduler=scheduler)
+
+    given = read_lead_input(scheduler=scheduler, number=3)
+    assert given.comments == [
+        IssueComment.model_validate(item) for item in (second, third)
+    ]
+    assert given.cursor == position(of=third)
+    [call] = harnesses["claude"].calls
+    assert call.prompt.startswith("Your previous round did not finish.")
+
+
+def test_a_recovery_with_no_new_comment_carries_the_cursor_forward(
+    campaign_scheduler, harnesses
+):
+    scheduler, gh = campaign_scheduler
+    first = say(identifier=1)
+    write_rounds(
+        state=scheduler.context.state,
+        endings=[SuccessfulAgentRoundEnding(at=PINNED), InterruptedAgentRoundEnding()],
+        delivered=[[first], []],
+    )
+    offer_parent(gh=gh)
+    offer_comments(gh=gh, comments=[first])
+    lead(harnesses=harnesses)
+
+    recovered = tick(scheduler=scheduler)
+    finish(scheduler=scheduler)
+
+    assert recovered.rows[0].finding == CampaignFinding(new_comments=0)
+    given = read_lead_input(scheduler=scheduler, number=3)
+    assert given.comments == []
+    assert given.cursor == position(of=first)
+
+
+@pytest.mark.parametrize("is_open", [True, False])
+def test_parent_comments_that_cannot_be_read_start_no_round(
+    campaign_scheduler, harnesses, is_open
+):
+    scheduler, gh = campaign_scheduler
+    if is_open:
+        write_rounds(
+            state=scheduler.context.state, endings=[InterruptedAgentRoundEnding()]
+        )
+    offer_parent(gh=gh)
+    gh.fails(stderr="GitHub is down", to=COMMENTS_PATH)
+
+    observed = tick(scheduler=scheduler)
+
+    assert isinstance(observed.rows[0].finding, ReadFailureFinding)
+    assert observed.launched_agent_work_identifiers == []
+    assert harnesses["claude"].calls == []
+
+
+def test_an_open_campaign_with_no_round_yet_starts_its_lead(
+    campaign_scheduler, harnesses
+):
+    scheduler, gh = campaign_scheduler
+    write_campaign(
+        state=scheduler.context.state, issue=PARENT, harness_session_identifier=None
+    )
+    offer_parent(gh=gh)
+    lead(harnesses=harnesses)
+
+    launched = tick(scheduler=scheduler)
+    finish(scheduler=scheduler)
+
+    assert launched.launched_agent_work_identifiers == [
+        compose_campaign_identifier(issue=PARENT)
+    ]
+    [call] = harnesses["claude"].calls
+    assert call.prompt.startswith("Acknowledge GH20 with a comment on it.\n\n")
+
+
+def test_a_retry_clears_the_fault_and_the_lead_recovers(campaign_scheduler, harnesses):
+    scheduler, gh = campaign_scheduler
+    write_rounds(state=scheduler.context.state, endings=[ERRORED, ERRORED])
+    campaign = read_campaign(state=scheduler.context.state, issue=PARENT)
+    assert campaign is not None
+    request_agent_work_retry(work=campaign, at=ERRORED.at + timedelta(minutes=1))
+    offer_parent(gh=gh)
+    lead(harnesses=harnesses)
+
+    retried = tick(scheduler=scheduler)
+    finish(scheduler=scheduler)
+
+    assert retried.launched_agent_work_identifiers == [
+        compose_campaign_identifier(issue=PARENT)
+    ]
+    [call] = harnesses["claude"].calls
+    assert call.prompt.startswith("Your previous round did not finish.")
+
+
+def test_a_codex_lead_resumes_its_session_for_a_parent_comment(cloned, gh, harnesses):
+    configure(root=cloned, head=CODEX_CAMPAIGN)
+    scheduler = create_scheduler(root=cloned, harness=AgentHarness.CODEX)
+    state = scheduler.context.state
+    directory = write_campaign(
+        state=state,
+        issue=PARENT,
+        harness=AgentHarness.CODEX,
+        harness_session_identifier="lead-codex-session",
+    )
+    write_round(
+        directory=directory,
+        number=1,
+        record=AgentRoundRecord(
+            number=1, started=PINNED, ending=SuccessfulAgentRoundEnding(at=PINNED)
+        ),
+        round_input=CampaignRoundInput(
+            issue=PARENT, comments=[], cursor=None, revision="abc123"
+        ),
+    )
+    offer_parent(gh=gh)
+    offer_comments(gh=gh, comments=[say(identifier=1)])
+    harnesses["codex"].streams(
+        lines=[
+            Line(
+                text=streamed(type="thread.started", thread_id="lead-codex-session")
+                + "\n"
+            )
+        ],
+        status=0,
+    )
+
+    try:
+        tick(scheduler=scheduler)
+        finish(scheduler=scheduler)
+    finally:
+        for running in scheduler.rounds.values():
+            running.interrupt()
+
+    [call] = harnesses["codex"].calls
+    assert call.arguments[:2] == ["exec", "resume"]
+    assert "lead-codex-session" in call.arguments
+    assert call.prompt.startswith("Campaign input for parent issue GH20:")
+    campaign = read_campaign(state=state, issue=PARENT)
+    assert campaign is not None
+    assert read_lead_input(scheduler=scheduler, number=2).revision == (
+        _read_worktree_revision(worktree=campaign.worktree)
+    )

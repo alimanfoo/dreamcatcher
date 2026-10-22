@@ -40,13 +40,17 @@ the change.
 
 - Campaigns, a third kind of agent work. A `[[campaign]]` route in
   `dreamcatcher.toml` names a label and the lead's recipes. Labelling a
-  parent issue assigned to you starts a campaign: the lead takes one
-  round in a worktree checked out at main, posts on GitHub itself, and
-  keeps its final output in the feed. Closing the parent ends the
-  campaign. [Start a campaign](start-a-campaign.md) explains how, and
-  the [campaign skill contract](contract.md#campaign-skill-contract)
-  says what the lead is given.
-  ([#662](https://github.com/alimanfoo/dreamcatcher/pull/662))
+  parent issue assigned to you starts a campaign: the lead takes a round
+  in a worktree checked out at main, posts on GitHub itself, and keeps
+  its final output in the feed. Each comment you post on the parent then
+  wakes the lead in the same harness session, on main refreshed, and
+  comments posted while the campaign is paused reach it when it resumes.
+  Closing the parent ends the campaign.
+  [Start a campaign](start-a-campaign.md) explains how, and the
+  [campaign skill contract](contract.md#campaign-skill-contract) says
+  what the lead is given.
+  ([#662](https://github.com/alimanfoo/dreamcatcher/pull/662),
+  [#667](https://github.com/alimanfoo/dreamcatcher/pull/667))
 - The web home page has a Campaigns tab, and the terminal has a
   `dreamcatcher campaign` view. `stop` and `feed` take `--campaign`, and
   `retry` also clears the fault of the newest campaign at the issue.

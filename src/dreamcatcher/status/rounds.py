@@ -14,7 +14,7 @@ from dreamcatcher.agent_rounds import (
     interpret_agent_round_outcome,
 )
 from dreamcatcher.agent_work import AgentWork
-from dreamcatcher.campaigns import read_campaign_input
+from dreamcatcher.campaigns import CampaignRoundInput, read_campaign_input
 from dreamcatcher.documents import read_json_if_exists
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import read_last_feed_line
@@ -172,12 +172,11 @@ def describe_round_trigger(*, work: AgentWork, number: int) -> str:
 
     An assignment round given no input opened, or tried to open, the pull
     request. Comments wake every conversation round, so one whose input is
-    still to be written, or never was, says so without a count. A campaign
-    round starts the lead, unless it recovers a round that did not finish.
+    still to be written, or never was, says so without a count, and so does a
+    campaign round woken by comments alone.
     """
     if work.record.kind is AgentWorkKind.CAMPAIGN:
-        previous = [record for record in work.rounds if record.number == number - 1]
-        return "recover" if previous and previous[0].is_unfinished else "start"
+        return _describe_campaign_round_trigger(work=work, number=number)
     if work.record.kind is AgentWorkKind.CONVERSATION:
         conversation_input = _read_conversation_input(work=work, number=number)
         if conversation_input is None:
@@ -197,6 +196,30 @@ def describe_round_trigger(*, work: AgentWork, number: int) -> str:
             0, describe_count(number=len(assignment_input.user_posts), noun="post")
         )
     return ", ".join(words) or "recover"
+
+
+def _describe_campaign_round_trigger(*, work: AgentWork, number: int) -> str:
+    """Describe what woke one lead round, from its place and its input.
+
+    The first round starts the lead, and a round after one that did not finish
+    recovers it. The count of the parent comments that the round was given
+    follows.
+    """
+    previous = [record for record in work.rounds if record.number == number - 1]
+    words = []
+    if not previous:
+        words.append("start")
+    elif previous[0].is_unfinished:
+        words.append("recover")
+    campaign_input = read_json_if_exists(
+        model=CampaignRoundInput,
+        path=work.compose_round_paths(number=number).round_input,
+    )
+    if campaign_input is not None and campaign_input.comments:
+        words.append(
+            describe_count(number=len(campaign_input.comments), noun="comment")
+        )
+    return ", ".join(words) or "comments"
 
 
 def _read_given_revision(*, work: AgentWork, number: int) -> str | None:

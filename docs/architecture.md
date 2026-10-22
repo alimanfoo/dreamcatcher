@@ -82,13 +82,15 @@ when. The tick in `tick.py` has one path for every kind of agent work.
 Each kind's module, `assignments.py`, `conversations.py` or
 `campaigns.py`, supplies only what differs by kind: how it inspects the
 channel of open work, how it decides whether a request with no open work
-may start, and how it composes a round's plan. `issue_work.py` holds the
-lifetime rules that conversations and campaigns share: a closed issue
-ends the work once no round of it runs, and the issue's labels and
-assignee decide whether it is paused. `inspection.py` holds the shapes
-they share: the scheduling context, the candidate, the round plan and
-the inspection of one request. `models.py` holds the scheduler record
-and its request rows, and `faults.py` the fault and cooldown rules.
+may start, and how it composes a round's plan. `issue_work.py` holds
+what conversations and campaigns share: the lifetime rules, by which a
+closed issue ends the work once no round of it runs and the issue's
+labels and assignee decide whether it is paused, and the read of the
+eligible comments past the work's cursor. `inspection.py` holds the
+shapes they share: the scheduling context, the candidate, the round plan
+and the inspection of one request. `models.py` holds the scheduler
+record and its request rows, and `faults.py` the fault and cooldown
+rules.
 
 One scheduler tick:
 
@@ -99,13 +101,13 @@ One scheduler tick:
    issue and label;
 3. inspects each piece of open work's channel: an assignment's pull
    request and user posts, a conversation's issue and then its comments,
-   or a campaign's parent issue and then whether its lead has input due,
-   ending a conversation or campaign if its issue is closed and no round
-   of it is running;
+   or a campaign's parent issue and then its comments, ending a
+   conversation or campaign if its issue is closed and no round of it is
+   running;
 4. for each request with no open work, skips an assignment label whose
    issue already has an open assignment, checks for a routing conflict,
-   then asks the start-time questions, reads the comments, or for a
-   campaign reads nothing more;
+   then asks the start-time questions, or reads the comments of a
+   conversation's issue or a campaign's parent;
 5. starts a global cooldown when the counted faults call for one, and
    launches nothing while a cooldown is active;
 6. launches candidates until the daemon run's requested capacity is full
@@ -234,13 +236,19 @@ invocations.
 campaign go through `agent_work.py`, and creating one writes its work
 record and nothing else. Each round's preparation resets the detached
 worktree to fetched main, adding it when it is missing, and freezes the
-parent issue and that revision. A campaign's worktree never acquires a
-branch or a pull request.
+parent issue, the eligible comments past the cursor, the cursor that the
+input reaches and that revision. A round given no new comment carries
+forward the cursor of the newest input delivered to the lead, so that
+input alone always says how far the lead has read. A campaign's worktree
+never acquires a branch or a pull request.
 
 Each tick reads an open campaign's parent issue, as it reads a
 conversation's issue, and decides from it whether the campaign is paused
-or has ended. A campaign whose lead has not yet been given its input,
-because no round that took its turn has delivered it, is due a round.
+or has ended. An unpaused campaign that is not in fault then reads the
+parent's eligible comments past its cursor. A round is due when one
+waits, when no round has run yet, or when the last round errored or was
+interrupted. A stopped round took its turn, so after one the lead waits
+for a new comment. The lead's next round resumes its harness session.
 
 The lead publishes its own messages, so a campaign's round plan has no
 finishing step, and its final output stays in the feed. Claude's
@@ -343,12 +351,12 @@ user posts that an assignment round receives beside its prompt once its
 pull request exists. `issue_conversations.py` owns
 `ConversationRoundInput`, which freezes the issue, eligible comments and
 investigated revision for a conversation round, and `campaigns.py` owns
-`CampaignRoundInput`, which freezes the parent issue and revision for a
-campaign round. The round runner writes whichever input the preparation
-returns without reading it, and it hands the final output to the
-finishing step without knowing what that step does with it. The round
-module therefore stays clear of Git and GitHub, and each kind's own
-module owns what its steps write.
+`CampaignRoundInput`, which freezes the parent issue, eligible comments,
+cursor and revision for a campaign round. The round runner writes
+whichever input the preparation returns without reading it, and it hands
+the final output to the finishing step without knowing what that step
+does with it. The round module therefore stays clear of Git and GitHub,
+and each kind's own module owns what its steps write.
 
 The scheduler decides the input and the prompt a new round has. The
 round boundary executes and records that decision; it does not inspect
@@ -385,17 +393,20 @@ tolerant projections. Documents owned by _dreamcatcher_ remain strict.
 ### Relay
 
 `relay.py` owns what is past a piece of agent work's cursor in its
-channel, for assignments and conversations. For an assignment it selects
-the user posts past the cursor, oldest first, by comparing normalized
-user posts from the GitHub boundary with the assignment's cursor, read
-from the newest input that contains posts among the rounds that took
-their turn or are running. It raises the pull request signals of a pull
+channel, for every kind of agent work. For an assignment it selects the
+user posts past the cursor, oldest first, by comparing normalized user
+posts from the GitHub boundary with the assignment's cursor, read from
+the newest input that contains posts among the rounds that took their
+turn or are running. It raises the pull request signals of a pull
 request that is open and ready for review, each at a head other than the
 one at which it was last relayed, and leaves out a check-failure that
-the relay rule withholds. For a conversation it selects the eligible
-issue comments past the conversation's cursor, oldest first. One rule
-decides, for both channels, which posts are the user's to relay. Each
-kind's own module reads its cursor from the round inputs that it owns.
+the relay rule withholds. For a conversation or a campaign it selects
+the eligible issue comments past the work's cursor, oldest first, and it
+owns `IssueCommentCursor`, which marks a position in an issue's
+comments. One rule decides, for every channel, which posts are the
+user's to relay. Each kind's own module reads its cursor from the round
+inputs that it owns: a conversation's is its newest relayed comment, and
+a campaign's is the cursor that its newest delivered input records.
 
 Relay does not define a separate inbox domain entity and does not decide
 when a round should run. The scheduler determines whether posts,
@@ -472,7 +483,7 @@ tick found as a typed finding:
 - for a conversation whose comments the tick read, the count of comments
   past the cursor;
 - for a campaign request, or an open campaign whose parent lets the lead
-  take a round, whether the lead has input due;
+  take a round, the count of the parent's comments past the cursor;
 - for an assignment request with no open work, the open linked pull
   requests and the open blocking issues, as numbers;
 - for a request or an open conversation or campaign whose issue carries
@@ -717,7 +728,8 @@ assignment's do. Its route and recipe stay frozen for its life. Each
 round input persists its investigated revision and the eligible comments
 it relays; the input of a round that starts a new harness session also
 persists the issue title and body. A campaign's round input persists the
-parent issue and the revision it was given.
+parent issue, the eligible comments it relays, the cursor it reaches and
+the revision it was given.
 
 Instance records persist the repository identity and the most recent
 daemon run's preferred harness, _dreamcatcher_ version, capacity,

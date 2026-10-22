@@ -38,13 +38,13 @@ from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.issue_conversations import (
     ConversationRoundInput,
     InitialConversationIssue,
-    IssueCommentCursor,
     post_conversation_answer,
     prepare_conversation_round,
     read_conversation_input,
     read_issue_comment_cursor,
 )
 from dreamcatcher.prompts import AGENT_POST_MARKER
+from dreamcatcher.relay import IssueCommentCursor
 from dreamcatcher.state import StateDirectory
 
 PROMPT_TEMPLATE = "/dream:conversation GH" + "{issue}"

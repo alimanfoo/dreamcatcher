@@ -106,20 +106,22 @@ reply is needed."""
 
 # What a campaign round is given beside its instructions. The lead works through
 # GitHub and publishes its own messages, so the prompt names the input and the
-# limits that keep the campaign in the user's hands.
+# limits that keep the campaign in the user's hands. The user's comments go to
+# the input file, never into the prompt.
 _CAMPAIGN_INPUT_PROMPT = """Campaign input for parent issue GH{issue}:
 
   {round_input}
 
-Read that JSON file. The `revision` field names the commit of main checked out
-in your worktree, which dreamcatcher refreshes to main before every round,
-discarding any local change. Do not commit, push or open a pull request from
-this worktree. Inspect GitHub before each change and do not repeat an action
-that an earlier attempt completed. Do not close the parent issue or change its
-assignees or labels, because the user closes it to end the campaign and removing
-its label or assignee pauses it. Post anything the user needs to read on GitHub
-yourself: dreamcatcher keeps your final output in the feed and posts none of it.
-End your turn when done."""
+Read that JSON file. Act on every comment in `comments`, the user's new comments
+on the parent issue, if it holds any, per your campaign's rules. The `revision`
+field names the commit of main checked out in your worktree, which dreamcatcher
+refreshes to main before every round, discarding any local change. Do not
+commit, push or open a pull request from this worktree. Inspect GitHub before
+each change and do not repeat an action that an earlier attempt completed. Do
+not close the parent issue or change its assignees or labels, because the user
+closes it to end the campaign and removing its label or assignee pauses it. Post
+anything the user needs to read on GitHub yourself: dreamcatcher keeps your
+final output in the feed and posts none of it. End your turn when done."""
 
 
 def compose_issue_instructions(*, template: str, issue: int) -> str:

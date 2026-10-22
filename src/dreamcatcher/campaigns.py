@@ -8,22 +8,41 @@ a round has no finishing step.
 from dreamcatcher.agent_work import AgentWork
 from dreamcatcher.documents import WriteOnceDreamcatcherDocument, read_json
 from dreamcatcher.git import refresh_detached_worktree
+from dreamcatcher.github import IssueComment
+from dreamcatcher.relay import IssueCommentCursor
 from dreamcatcher.state import StateDirectory
 
 
 class CampaignRoundInput(WriteOnceDreamcatcherDocument):
-    """Model the input frozen for one campaign round."""
+    """Model the input frozen for one campaign round.
+
+    The comments are the user's eligible comments on the parent past the
+    cursor, oldest first. The cursor is how far this input reaches in the
+    parent's comments: the newest comment's position, or the previous delivered
+    input's cursor when the input holds no comment.
+    """
 
     issue: int
+    comments: list[IssueComment]
+    cursor: IssueCommentCursor | None
     revision: str
 
 
 def prepare_campaign_round(
-    *, state: StateDirectory, campaign: AgentWork
+    *, state: StateDirectory, campaign: AgentWork, comments: list[IssueComment]
 ) -> CampaignRoundInput:
     """Reset the worktree to fetched main and freeze the round's input."""
     revision = refresh_detached_worktree(root=state.root, worktree=campaign.worktree)
-    return CampaignRoundInput(issue=campaign.record.issue, revision=revision)
+    return CampaignRoundInput(
+        issue=campaign.record.issue,
+        comments=comments,
+        cursor=(
+            IssueCommentCursor(written_at=comments[-1].written_at, id=comments[-1].id)
+            if comments
+            else read_parent_comment_cursor(campaign=campaign)
+        ),
+        revision=revision,
+    )
 
 
 def read_campaign_input(*, campaign: AgentWork, number: int) -> CampaignRoundInput:
@@ -32,3 +51,15 @@ def read_campaign_input(*, campaign: AgentWork, number: int) -> CampaignRoundInp
         model=CampaignRoundInput,
         path=campaign.compose_round_paths(number=number).round_input,
     )
+
+
+def read_parent_comment_cursor(*, campaign: AgentWork) -> IssueCommentCursor | None:
+    """Return the cursor of the newest input delivered to the lead.
+
+    No input delivered yet leaves the cursor at the beginning of the parent's
+    comments.
+    """
+    delivered = campaign.list_relayed_round_paths()
+    if not delivered:
+        return None
+    return read_campaign_input(campaign=campaign, number=delivered[0].number).cursor

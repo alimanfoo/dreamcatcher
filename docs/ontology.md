@@ -230,24 +230,24 @@ the cursor is new, and something new calls for a round.
 ### Signal
 
 A **signal** is something new in a piece of agent work's channel that
-calls for a turn. A conversation has one kind, an **eligible comment**
-past the cursor: a comment on the issue by the signed-in account that
-says something and does not carry the marker that _dreamcatcher_ asks
-every agent post to end with. An assignment has four: a user post past
-the cursor; its pull request being merged or closed before its wrap-up
-round has taken its turn; **out-of-date**, a pull request that is ready
-for review and behind its base branch or in conflict with it; and
-**check-failure**, a pull request that is ready for review with a
-finished check that failed. The last two are the **pull request
-signals**, which _dreamcatcher_ raises from the pull request's merge
-state and checks rather than from anything the user did. A draft raises
-neither, because the agent has not finished. GitHub reports a branch as
-behind its base only when the repository requires branches to be up to
-date before merging, so elsewhere a pull request that falls behind
-without a conflict raises no out-of-date signal. A round that takes its
-turn relays each pull request signal at most once for each head commit
-of the pull request, so the signal is raised again only once the head
-moves.
+calls for a turn. A conversation and a campaign have one kind, an
+**eligible comment** past the cursor: a comment on the issue by the
+signed-in account that says something and does not carry the marker that
+_dreamcatcher_ asks every agent post to end with. An assignment has
+four: a user post past the cursor; its pull request being merged or
+closed before its wrap-up round has taken its turn; **out-of-date**, a
+pull request that is ready for review and behind its base branch or in
+conflict with it; and **check-failure**, a pull request that is ready
+for review with a finished check that failed. The last two are the
+**pull request signals**, which _dreamcatcher_ raises from the pull
+request's merge state and checks rather than from anything the user did.
+A draft raises neither, because the agent has not finished. GitHub
+reports a branch as behind its base only when the repository requires
+branches to be up to date before merging, so elsewhere a pull request
+that falls behind without a conflict raises no out-of-date signal. A
+round that takes its turn relays each pull request signal at most once
+for each head commit of the pull request, so the signal is raised again
+only once the head moves.
 
 The **relay rule** gives an agent two attempts at a red build on its
 own. A check-failure is withheld when the last two rounds whose input is
@@ -419,9 +419,11 @@ started it. A _dreamcatcher_ instance has at most one open campaign for
 each campaign label on an issue, and it keeps a paused campaign until
 the parent issue closes.
 
-Each campaign round input records the parent issue and the main
-revision. The lead reads everything else it needs from GitHub, and posts
-its own messages there. Its final output stays in the feed.
+Each campaign round input records the parent issue, the eligible
+comments past the cursor, the cursor that the input reaches and the main
+revision. A round given no new comment carries the cursor forward. The
+lead reads everything else it needs from GitHub, and posts its own
+messages there. Its final output stays in the feed.
 
 ### Starting an issue conversation
 
@@ -439,9 +441,10 @@ signed-in account is the whole request, so it needs no comment. An open
 assignment or conversation at the issue, a linked pull request and a
 dependency have no bearing on campaigns.
 
-A campaign's first round delivers the lead its input. Until a round that
-took its turn has done so, a round is due. Once one has, a campaign
-receives no further input.
+A campaign's first round is due as soon as the campaign starts, and its
+input holds every eligible comment already on the parent. After that,
+each eligible comment past the cursor makes a round due, which resumes
+the lead's harness session.
 
 ### Pausing and ending a conversation or campaign
 
@@ -449,11 +452,10 @@ An open conversation or campaign is **paused** while its own dispatch
 label is off its issue, the issue is not assigned to the signed-in
 account, or the issue carries another configured label of its kind.
 Paused is derived each tick from the issue, not recorded. Paused work
-starts no round, a paused conversation's comments are not read, and the
-fault of paused work does not count towards a global cooldown. Removing
-the cause resumes the work in the same harness session, and a
-conversation is then given every comment posted since its last finished
-round.
+starts no round, its issue's comments are not read, and the fault of
+paused work does not count towards a global cooldown. Removing the cause
+resumes the work in the same harness session, and the work is then given
+every comment posted since its last finished round.
 
 When a tick finds the issue of a conversation or campaign closed, it
 records the work's ending with the reason "issue closed" once no round
@@ -472,18 +474,18 @@ what woke it. It is read from the round's input, so nothing else records
 it:
 
 - **start**: an assignment round with no input, which opens the pull
-  request, or a campaign round that does not follow one that did not
-  finish;
+  request, or a campaign's first round;
 - a count of posts or comments: the user posts or issue comments
-  relayed, or **comments** without a count for a conversation round that
-  has no input yet;
+  relayed, or **comments** without a count for a conversation round, or
+  a campaign round woken by comments alone, that has no input yet;
 - **main moved** or **checks failed**: the other signals an assignment
   round relayed, after any count of posts;
 - **merged** or **closed**: the state of a finished pull request, which
   calls for the assignment's final round, its **wrap-up round**;
 - **recover**: an assignment round whose input relays nothing new, given
   again after a round that did not finish, or a campaign round that
-  follows one that did not finish.
+  follows one that did not finish. A campaign's start or recover comes
+  before the count of comments it was given.
 
 ### Requests
 
@@ -505,9 +507,9 @@ open assignment exists, because they decide only whether one may start.
 An open pull request **claims** an issue when GitHub links it as one
 that will close the issue, as `Closes #123` in its description does. A
 conversation request reads the issue's comments, and a campaign request
-reads nothing more. A request whose issue carries more than one label of
-its kind has a routing conflict, and nothing of that kind starts while
-it lasts.
+reads the parent's comments, to give them to its first round. A request
+whose issue carries more than one label of its kind has a routing
+conflict, and nothing of that kind starts while it lasts.
 
 A request with no open work has one of these request statuses:
 
@@ -536,8 +538,9 @@ was interrupted, because it is then given its pull request's state again
 even with nothing new. A conversation has nothing to give but comments,
 so once the user deletes every comment that its unfinished round was
 given, it is not a candidate until a new eligible comment arrives. A
-campaign is a candidate until a round that took its turn has delivered
-the lead its input.
+campaign is also a candidate when no round has run yet, and when its
+last round errored or was interrupted, because the lead is then given
+its input again even with nothing new.
 
 Rounds of every kind share the daemon's capacity and the global
 cooldown. Within each kind, open work takes precedence over new work.
@@ -598,11 +601,11 @@ Agent work of every kind has one of these summary statuses:
 - **Waiting**: a round is due but has not started. Its last round
   errored or was interrupted, including a round left without an ending
   by a daemon that has gone; no round has run yet; an assignment's pull
-  request is not yet open; a campaign's input is not yet delivered; or
-  the latest tick found a signal. A conversation whose last round
-  errored or was interrupted is not waiting once a tick that read it
-  after that round ended found no eligible comment past the cursor. A
-  free agent slot, or the end of a cooldown, starts it.
+  request is not yet open; or the latest tick found a signal. A
+  conversation whose last round errored or was interrupted is not
+  waiting once a tick that read it after that round ended found no
+  eligible comment past the cursor. A free agent slot, or the end of a
+  cooldown, starts it.
 - **Idle**: no round is known to be due. A round that took its turn
   after the latest tick read the work is idle until the next tick,
   unless the earlier tick found input that the round did not consume.

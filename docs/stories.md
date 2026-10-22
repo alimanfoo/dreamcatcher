@@ -24,9 +24,9 @@ never relayed to it as feedback.
 Each story is told from the user's seat, in the order things happen,
 using the ontology's words without defining them and citing no rule and
 no mechanism. The happy paths come first, grouped as assignments,
-conversations and running _dreamcatcher_, and each says what the user
-gained. Then come the user errors, each saying what the user needs to
-do, and then the expected faults.
+conversations, campaigns and running _dreamcatcher_, and each says what
+the user gained. Then come the user errors, each saying what the user
+needs to do, and then the expected faults.
 
 Agents should read the stories before judging a finding in the code. A
 bug is behaviour that contradicts a story, whether a happy path or the
@@ -349,17 +349,19 @@ wanted, and forgets nothing in between.
 The user has planned a body of work as a parent issue, with a sub-issue
 for each stage, and wants an agent to take the plan up. They have added
 a campaign route to the configuration, with a prompt that tells the lead
-what to do with the parent, such as reading the plan and summarising it
-in a comment. They assign the parent to themselves and put the campaign
-label on it. No comment is needed. As soon as _dreamcatcher_ has
-available agent capacity, it checks out main in a worktree of the
-campaign's own and starts the lead in a new harness session.
+what to do with the parent and with their comments on it, such as
+summarising the plan and replying to what they say. They assign the
+parent to themselves and put the campaign label on it. No comment is
+needed. As soon as _dreamcatcher_ has available agent capacity, it
+checks out main in a worktree of the campaign's own and starts the lead
+in a new harness session.
 
-The lead reads the parent and its sub-issues on GitHub and does what its
-prompt asks, posting on GitHub itself, with every post marked as the
-agent's own. Its final words stay in the feed, so the parent issue holds
-only what the lead chose to say there. At later updates the lead is left
-alone, because it has taken its turn. The home page has a Campaigns tab,
+The lead reads the parent and its sub-issues on GitHub, and any comments
+the user had already left on the parent, and does what its prompt asks,
+posting on GitHub itself, with every post marked as the agent's own. Its
+final words stay in the feed, so the parent issue holds only what the
+lead chose to say there. At later updates the lead is left alone until
+the user comments on the parent. The home page has a Campaigns tab,
 where the campaign shows as idle with how its round ended, and its page
 shows the feed.
 
@@ -370,14 +372,34 @@ with its label still on, a new campaign starts.
 The value to the user is that a planned body of work has an agent of its
 own, started with one label and ended by closing the parent.
 
+#### The user talks to the lead on the parent issue
+
+The user wants to tell the lead something, or ask it how the plan
+stands. They comment on the parent. At the next update the lead is given
+the comment, and any others the user has posted since its last round, in
+the same harness session, so it remembers what it has already done and
+said. It answers on the parent itself. Its own replies carry the agent's
+mark, so they never wake it again. While it works the campaign shows as
+working, with the number of comments that woke it.
+
+If the lead heads off in the wrong direction, the user stops the round
+from the campaign's page or with `dreamcatcher stop`. The lead then
+waits, rather than starting the same work again. The user comments with
+fresh direction, and at the next update the lead takes it up in the same
+session, told that the user stopped its previous round.
+
+The value to the user is that they steer the lead in the same place they
+read its plan, and the lead never loses the thread.
+
 #### The user pauses a campaign by removing its label
 
 The user wants the lead to leave the parent alone for a while. They take
 the campaign label off the parent, or unassign it from themselves, and
 the campaign pauses. A round that is already running finishes, and no
 other round starts, not even one to recover a round that did not finish.
-When they put the label back, the same campaign carries on in its saved
-harness session.
+Comments the user posts on the parent meanwhile wake nothing. When they
+put the label back, the same campaign carries on in its saved harness
+session, and the lead is given every comment posted while it was paused.
 
 The value to the user is that the lead is on the parent only when
 wanted.
@@ -643,8 +665,9 @@ If they wanted only their fix in, they need do nothing.
 The user comments on the issue of an assignment, expecting the agent to
 see it. It does not, because an assignment's channel is its pull
 request. The user needs to post on the pull request instead. The reverse
-holds for a conversation, whose channel is the issue, so a comment meant
-for it on the pull request needs to go on the issue.
+holds for a conversation and a campaign, whose channel is the issue, so
+a comment meant for one of them on a pull request needs to go on the
+issue.
 
 ### Asking a colleague to give the agent feedback
 

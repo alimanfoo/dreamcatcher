@@ -3,7 +3,7 @@
 ## The big picture
 
 This guide follows the code behind the
-[campaign requirements](requirements.md) as stage 1 leaves it. Read the
+[campaign requirements](requirements.md) as stage 2 leaves it. Read the
 sections in order, starting with `Scheduler.tick` in
 [`scheduler/tick.py`](../../src/dreamcatcher/scheduler/tick.py).
 
@@ -172,33 +172,38 @@ The round publishes its final answer with attribution and the agent
 marker. `NO_REPLY` publishes nothing. A missing answer or failed post
 errors the round, leaving its comments eligible again.
 
-## The stage 1 campaign
+## The campaign so far
 
 Read `inspect_open_campaign`, `inspect_campaign_request`,
 `_inspect_lead_input` and `_compose_campaign_round` in
 [`scheduler/campaigns.py`](../../src/dreamcatcher/scheduler/campaigns.py).
 A campaign label on an open, assigned parent starts a campaign without a
-comment. An open campaign has input due until a round that took its
-turn, or is running, has delivered it: the inspector asks
-`AgentWork.list_relayed_round_paths`. The row's `CampaignFinding` in
+comment. Both inspectors read the parent's eligible comments past the
+cursor through `list_new_comments` in
+[`scheduler/issue_work.py`](../../src/dreamcatcher/scheduler/issue_work.py),
+which conversations share. A round is due for a new comment, for a
+campaign with no round yet, and after a round that errored or was
+interrupted. A stopped round took its turn, so the lead then waits for a
+new comment. The row's `CampaignFinding` in
 [`scheduler/models.py`](../../src/dreamcatcher/scheduler/models.py)
-records `is_input_due`, which status reads. A round that errored or was
-interrupted delivered nothing, so recovery uses the shared runner and
-prompt composition unchanged.
+records the count of new comments, which status reads.
 
-Then read `prepare_campaign_round` in
-[`campaigns.py`](../../src/dreamcatcher/campaigns.py). It refreshes the
-detached worktree, as a conversation round does, and freezes a
-`CampaignRoundInput` holding the parent issue and the revision.
+Then read `prepare_campaign_round` and `read_parent_comment_cursor` in
+[`campaigns.py`](../../src/dreamcatcher/campaigns.py). Preparation
+refreshes the detached worktree, as a conversation round does, and
+freezes a `CampaignRoundInput` holding the parent issue, the comments,
+the cursor and the revision. The cursor reaches the newest comment, or
+carries forward the cursor of the newest delivered input, which
+`AgentWork.list_relayed_round_paths` selects. Recovery therefore
+recomputes the comments from GitHub against the last delivered input.
 `compose_campaign_input_prompt` in
 [`prompts.py`](../../src/dreamcatcher/prompts.py) names that input and
 the limits on the lead. The round plan has no finishing step, so the
 lead's final output stays in the feed.
 
-Stage 1 stops there. The input holds no comments, comment position,
-child snapshot, notifications or routes, and nothing compares inputs, so
-a campaign that has delivered its input takes no further round. Later
-stages add those through the same inspector and input.
+Stage 2 stops there. The input holds no child snapshot, notifications or
+routes, and nothing compares inputs, so child changes wake no lead
+round. Later stages add those through the same inspector and input.
 
 ## Fault, retry, stop and cancel
 
@@ -309,11 +314,11 @@ issue for collaboration rather than routine action logging.
   returns a paused finding before any further inspection. A paused
   conversation needs nothing more, but stage 3's paused campaign still
   needs its child picture, so that shared path must change for it.
-- `CampaignFinding.is_input_due` and the "start" or "recover" trigger in
+- `CampaignFinding.new_comments` and the campaign trigger in
   `describe_round_trigger` in
   [`status/rounds.py`](../../src/dreamcatcher/status/rounds.py) describe
-  only stage 1's single delivery. Parent comments and child changes need
-  their own finding fields and trigger words.
+  parent comments, a start and a recovery. Child changes need their own
+  finding fields and trigger words.
 - `_is_eligible` in [`relay.py`](../../src/dreamcatcher/relay.py)
   ignores marked agent posts, including a lead's marked review. The
   current prompts require that marker everywhere. Both sides matter when

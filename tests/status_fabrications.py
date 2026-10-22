@@ -237,7 +237,9 @@ def fabricate_campaigns(*, state: StateDirectory) -> list[RequestRow]:
             directory=directory,
             number=1,
             record=record,
-            round_input=CampaignRoundInput(issue=issue, revision="abc123"),
+            round_input=CampaignRoundInput(
+                issue=issue, comments=[], cursor=None, revision="abc123"
+            ),
         )
         write_feed(
             directory=directory,
@@ -254,11 +256,11 @@ def fabricate_campaigns(*, state: StateDirectory) -> list[RequestRow]:
         at=PINNED + timedelta(minutes=30),
     )
     return [
-        campaign_row(finding=CampaignFinding(is_input_due=False), ended_round=1),
+        campaign_row(finding=CampaignFinding(new_comments=0), ended_round=1),
         request_row(
             issue=62,
             kind=AgentWorkKind.CAMPAIGN,
-            finding=CampaignFinding(is_input_due=True),
+            finding=CampaignFinding(new_comments=0),
         ),
     ]
 
