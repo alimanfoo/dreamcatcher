@@ -281,6 +281,23 @@ def test_the_address_names_the_home_tab_so_back_and_forward_move_between_tabs(
     expect(page.get_by_role("tabpanel", name="Conversations")).to_be_hidden()
 
 
+def test_a_work_page_opened_from_a_tab_leads_home_to_that_tab(
+    page: Page, live_web: str
+) -> None:
+    page.goto(live_web)
+    page.get_by_role("tab", name="Campaigns").click()
+    page.get_by_role("link", name=f"Open campaign {CAMPAIGN_IDENTIFIER}").click()
+    expect(page).to_have_url(f"{live_web}/work/{CAMPAIGN_IDENTIFIER}")
+
+    page.get_by_role("link", name="< home").click()
+
+    expect(page).to_have_url(f"{live_web}/#campaign")
+    expect(page.get_by_role("tab", name="Campaigns")).to_have_attribute(
+        "aria-selected", "true"
+    )
+    expect(page.get_by_role("tabpanel", name="Campaigns")).to_be_visible()
+
+
 def test_refresh_focuses_the_first_tab_when_the_selected_section_disappears(
     page: Page, live_web: str
 ) -> None:

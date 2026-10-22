@@ -181,6 +181,7 @@ def compose_assignment_view(
     repository = read_repository(state=state)
     feed = read_agent_feed(work=assignment, zone=zone, rounds=live.rounds)
     return WebAssignmentView(
+        kind=record.kind,
         repository=repository or "repository unknown",
         github_repository_url=_compose_github_repository_url(repository=repository),
         daemon=daemon,

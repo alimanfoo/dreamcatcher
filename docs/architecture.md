@@ -642,7 +642,8 @@ saved has no page.
 
 The home page shows each kind of work on a tab of its own. The address's
 fragment names the selected tab, as in `/#campaign`, so the browser's
-back and forward buttons move between tabs.
+back and forward buttons move between tabs. A work page links home to
+the tab of its kind.
 
 A link to a page of the web interface opens in the browser tab that
 holds the link. A link to GitHub or the documentation opens a new tab.

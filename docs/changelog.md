@@ -29,6 +29,9 @@ the change.
 
 ### Changed
 
+- The `< home` link on a work page opens the web home page on the tab of
+  the work's kind.
+  ([#698](https://github.com/alimanfoo/dreamcatcher/pull/698))
 - Selecting a tab on the web home page puts the tab in the address, as
   in `/#campaign`, so the browser's back and forward buttons move
   between tabs.
