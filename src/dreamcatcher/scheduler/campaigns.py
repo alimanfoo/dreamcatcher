@@ -17,10 +17,12 @@ from dreamcatcher.agent_work import AgentWork
 from dreamcatcher.campaigns import (
     CampaignChild,
     CampaignChildAssignment,
+    CampaignRoundInput,
     prepare_campaign_round,
-    read_parent_comment_cursor,
+    read_delivered_campaign_input,
 )
 from dreamcatcher.config import DispatchRoute
+from dreamcatcher.errors import ReportableError
 from dreamcatcher.github import (
     Issue,
     IssueComment,
@@ -244,14 +246,22 @@ def _inspect_lead_input(
     if isinstance(children, ReadFailureFinding):
         return Inspection(row=row.model_copy(update={"finding": children}))
     campaign = work_or_route if isinstance(work_or_route, AgentWork) else None
+    try:
+        previous = (
+            None
+            if campaign is None
+            else read_delivered_campaign_input(campaign=campaign)
+        )
+    except ReportableError as failure:
+        return Inspection(
+            row=row.model_copy(
+                update={"finding": ReadFailureFinding(reason=str(failure))}
+            )
+        )
     comments = list_new_comments(
         context=context,
         issue=issue.number,
-        read_cursor=(
-            None
-            if campaign is None
-            else partial(read_parent_comment_cursor, campaign=campaign)
-        ),
+        cursor=None if previous is None else previous.cursor,
     )
     if isinstance(comments, ReadFailureFinding):
         return Inspection(row=row.model_copy(update={"finding": comments}))
@@ -274,6 +284,7 @@ def _inspect_lead_input(
                 context=context,
                 children=children,
                 comments=comments,
+                previous=previous,
             ),
         ),
     )
@@ -284,6 +295,7 @@ def _compose_campaign_round(
     context: SchedulingContext,
     children: list[CampaignChild],
     comments: list[IssueComment],
+    previous: CampaignRoundInput | None,
     work: AgentWork,
 ) -> RoundPlan:
     """Return the plan of a round that gives the lead its input.
@@ -299,6 +311,7 @@ def _compose_campaign_round(
             campaign=work,
             children=children,
             comments=comments,
+            previous=previous,
             assignment_routes=context.config.assignment,
         ),
         input_prompt=compose_campaign_input_prompt(

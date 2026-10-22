@@ -991,6 +991,28 @@ def test_parent_comments_that_cannot_be_read_start_no_round(
     assert harnesses["claude"].calls == []
 
 
+def test_a_delivered_input_that_cannot_be_read_starts_no_round(
+    campaign_scheduler, harnesses
+):
+    scheduler, gh = campaign_scheduler
+    settle_lead(state=scheduler.context.state)
+    campaign = read_campaign(state=scheduler.context.state, issue=PARENT)
+    assert campaign is not None
+    round_input = campaign.compose_round_paths(number=1).round_input
+    round_input.write_bytes(b"{")
+    offer_parent(gh=gh)
+    offer_comments(gh=gh, comments=[say(identifier=1)])
+
+    observed = tick(scheduler=scheduler)
+
+    [row] = observed.rows
+    assert isinstance(row.finding, ReadFailureFinding)
+    assert round_input.name in row.finding.reason
+    assert observed.launched_agent_work_identifiers == []
+    assert count_comment_reads(gh=gh) == 0
+    assert harnesses["claude"].calls == []
+
+
 def test_an_open_campaign_with_no_round_yet_starts_its_lead(
     campaign_scheduler, harnesses
 ):

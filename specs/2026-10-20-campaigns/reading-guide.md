@@ -232,7 +232,7 @@ round input share. The observed pull request is `ObservedPullRequest` in
 [`agent_assignments.py`](../../src/dreamcatcher/agent_assignments.py),
 which `PullRequestFinding` extends, so the campaign module imports no
 scheduler type. Then read `prepare_campaign_round` and
-`read_parent_comment_cursor`. Preparation refreshes the detached
+`read_delivered_campaign_input`. Preparation refreshes the detached
 worktree, as a conversation round does, and freezes a
 `CampaignRoundInput` holding the parent issue, the sub-issues, the
 comments, the cursor, the revision and the running daemon's assignment

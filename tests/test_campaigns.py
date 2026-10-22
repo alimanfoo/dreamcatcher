@@ -14,7 +14,7 @@ from dreamcatcher.campaigns import (
     CampaignChild,
     CampaignRoundInput,
     prepare_campaign_round,
-    read_parent_comment_cursor,
+    read_delivered_campaign_input,
 )
 from dreamcatcher.config import (
     AgentHarness,
@@ -86,6 +86,7 @@ def test_a_campaign_round_starts_from_main_in_a_detached_worktree(cloned):
         campaign=campaign,
         children=[CHILD],
         comments=[FIRST, SECOND],
+        previous=None,
         assignment_routes=[SMITH],
     )
 
@@ -101,7 +102,9 @@ def test_a_campaign_round_starts_from_main_in_a_detached_worktree(cloned):
 
 
 @pytest.mark.parametrize("is_second_round_delivered", [True, False])
-def test_the_cursor_is_the_newest_delivered_inputs(tmp_path, is_second_round_delivered):
+def test_the_delivered_input_is_the_newest_that_took_its_turn(
+    tmp_path, is_second_round_delivered
+):
     state = StateDirectory(root=tmp_path)
     directory = write_campaign(state=state, issue=PARENT)
     later = PINNED + timedelta(minutes=5)
@@ -122,7 +125,7 @@ def test_the_cursor_is_the_newest_delivered_inputs(tmp_path, is_second_round_del
             round_input=lead_input(comments=comments),
         )
 
-    cursor = read_parent_comment_cursor(campaign=campaign_at(state=state))
+    delivered = read_delivered_campaign_input(campaign=campaign_at(state=state))
 
     newest = SECOND if is_second_round_delivered else FIRST
-    assert cursor == IssueCommentCursor(written_at=newest.written_at, id=newest.id)
+    assert delivered == lead_input(comments=[newest])

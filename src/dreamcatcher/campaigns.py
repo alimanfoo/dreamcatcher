@@ -80,9 +80,14 @@ def prepare_campaign_round(
     campaign: AgentWork,
     children: list[CampaignChild],
     comments: list[IssueComment],
+    previous: CampaignRoundInput | None,
     assignment_routes: list[AssignmentRoute],
 ) -> CampaignRoundInput:
-    """Reset the worktree to fetched main and freeze the round's input."""
+    """Reset the worktree to fetched main and freeze the round's input.
+
+    The previous input is the newest one delivered to the lead, whose cursor a
+    round given no comment carries forward.
+    """
     revision = refresh_detached_worktree(root=state.root, worktree=campaign.worktree)
     return CampaignRoundInput(
         issue=campaign.record.issue,
@@ -91,7 +96,9 @@ def prepare_campaign_round(
         cursor=(
             IssueCommentCursor(written_at=comments[-1].written_at, id=comments[-1].id)
             if comments
-            else read_parent_comment_cursor(campaign=campaign)
+            else None
+            if previous is None
+            else previous.cursor
         ),
         revision=revision,
         assignment_routes=assignment_routes,
@@ -106,13 +113,13 @@ def read_campaign_input(*, campaign: AgentWork, number: int) -> CampaignRoundInp
     )
 
 
-def read_parent_comment_cursor(*, campaign: AgentWork) -> IssueCommentCursor | None:
-    """Return the cursor of the newest input delivered to the lead.
+def read_delivered_campaign_input(*, campaign: AgentWork) -> CampaignRoundInput | None:
+    """Return the newest input delivered to the lead, if one has been.
 
-    No input delivered yet leaves the cursor at the beginning of the parent's
-    comments.
+    It says how far the lead has read in the parent's comments, and holds the
+    picture of the children that the lead was last given.
     """
     delivered = campaign.list_relayed_round_paths()
     if not delivered:
         return None
-    return read_campaign_input(campaign=campaign, number=delivered[0].number).cursor
+    return read_campaign_input(campaign=campaign, number=delivered[0].number)
