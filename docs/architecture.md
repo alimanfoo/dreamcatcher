@@ -236,8 +236,11 @@ invocations.
 campaign go through `agent_work.py`, and creating one writes its work
 record and nothing else. Each round's preparation resets the detached
 worktree to fetched main, adding it when it is missing, and freezes the
-parent issue, the eligible comments past the cursor and that revision. A
-campaign's worktree never acquires a branch or a pull request.
+parent issue, the eligible comments past the cursor, the cursor that the
+input reaches and that revision. A round given no new comment carries
+forward the cursor of the newest input delivered to the lead, so that
+input alone always says how far the lead has read. A campaign's worktree
+never acquires a branch or a pull request.
 
 Each tick reads an open campaign's parent issue, as it reads a
 conversation's issue, and decides from it whether the campaign is paused
@@ -348,12 +351,12 @@ user posts that an assignment round receives beside its prompt once its
 pull request exists. `issue_conversations.py` owns
 `ConversationRoundInput`, which freezes the issue, eligible comments and
 investigated revision for a conversation round, and `campaigns.py` owns
-`CampaignRoundInput`, which freezes the parent issue, eligible comments
-and revision for a campaign round. The round runner writes whichever
-input the preparation returns without reading it, and it hands the final
-output to the finishing step without knowing what that step does with
-it. The round module therefore stays clear of Git and GitHub, and each
-kind's own module owns what its steps write.
+`CampaignRoundInput`, which freezes the parent issue, eligible comments,
+cursor and revision for a campaign round. The round runner writes
+whichever input the preparation returns without reading it, and it hands
+the final output to the finishing step without knowing what that step
+does with it. The round module therefore stays clear of Git and GitHub,
+and each kind's own module owns what its steps write.
 
 The scheduler decides the input and the prompt a new round has. The
 round boundary executes and records that decision; it does not inspect
@@ -402,8 +405,8 @@ the eligible issue comments past the work's cursor, oldest first, and it
 owns `IssueCommentCursor`, which marks a position in an issue's
 comments. One rule decides, for every channel, which posts are the
 user's to relay. Each kind's own module reads its cursor from the round
-inputs that it owns: a conversation's and a campaign's is the newest
-comment among the inputs that took their turn or are running.
+inputs that it owns: a conversation's is its newest relayed comment, and
+a campaign's is the cursor that its newest delivered input records.
 
 Relay does not define a separate inbox domain entity and does not decide
 when a round should run. The scheduler determines whether posts,
@@ -725,8 +728,8 @@ assignment's do. Its route and recipe stay frozen for its life. Each
 round input persists its investigated revision and the eligible comments
 it relays; the input of a round that starts a new harness session also
 persists the issue title and body. A campaign's round input persists the
-parent issue, the eligible comments it relays and the revision it was
-given.
+parent issue, the eligible comments it relays, the cursor it reaches and
+the revision it was given.
 
 Instance records persist the repository identity and the most recent
 daemon run's preferred harness, _dreamcatcher_ version, capacity,

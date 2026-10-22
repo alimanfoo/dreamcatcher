@@ -31,8 +31,15 @@ SECOND = IssueComment(
 
 
 def lead_input(*, comments: list[IssueComment]) -> CampaignRoundInput:
-    """Return an input that delivered these comments."""
-    return CampaignRoundInput(issue=PARENT, comments=comments, revision="abc123")
+    """Return an input that delivered these comments, reaching the newest."""
+    return CampaignRoundInput(
+        issue=PARENT,
+        comments=comments,
+        cursor=IssueCommentCursor(
+            written_at=comments[-1].written_at, id=comments[-1].id
+        ),
+        revision="abc123",
+    )
 
 
 def campaign_at(*, state: StateDirectory) -> AgentWork:
@@ -66,14 +73,13 @@ def test_a_campaign_round_starts_from_main_in_a_detached_worktree(cloned):
     assert campaign.record.instructions == "Acknowledge GH20."
     assert frozen.issue == PARENT
     assert frozen.comments == [FIRST, SECOND]
+    assert frozen.cursor == IssueCommentCursor(written_at=SECOND.written_at, id=2)
     assert frozen.revision
     assert campaign.worktree.joinpath(".git").is_file()
 
 
 @pytest.mark.parametrize("is_second_round_delivered", [True, False])
-def test_the_cursor_is_the_newest_delivered_comment(
-    tmp_path, is_second_round_delivered
-):
+def test_the_cursor_is_the_newest_delivered_inputs(tmp_path, is_second_round_delivered):
     state = StateDirectory(root=tmp_path)
     directory = write_campaign(state=state, issue=PARENT)
     later = PINNED + timedelta(minutes=5)
@@ -86,7 +92,6 @@ def test_the_cursor_is_the_newest_delivered_comment(
             if is_second_round_delivered
             else HarnessErroredAgentRoundEnding(at=later, status=1),
         ),
-        (3, [], SuccessfulAgentRoundEnding(at=later)),
     ):
         write_round(
             directory=directory,

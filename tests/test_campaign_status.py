@@ -29,6 +29,7 @@ from dreamcatcher.agent_work import AgentWorkEndReason
 from dreamcatcher.campaigns import CampaignRoundInput
 from dreamcatcher.github import IssueComment
 from dreamcatcher.harness_adapters import AgentWorkKind
+from dreamcatcher.relay import IssueCommentCursor
 from dreamcatcher.scheduler.models import (
     CampaignFinding,
     PauseCause,
@@ -95,6 +96,11 @@ def lead_round(
             else CampaignRoundInput(
                 issue=PARENT,
                 comments=given,
+                cursor=(
+                    IssueCommentCursor(written_at=given[-1].written_at, id=given[-1].id)
+                    if given
+                    else None
+                ),
                 revision=revision,
             )
         ),

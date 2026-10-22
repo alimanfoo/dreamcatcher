@@ -237,7 +237,9 @@ def fabricate_campaigns(*, state: StateDirectory) -> list[RequestRow]:
             directory=directory,
             number=1,
             record=record,
-            round_input=CampaignRoundInput(issue=issue, comments=[], revision="abc123"),
+            round_input=CampaignRoundInput(
+                issue=issue, comments=[], cursor=None, revision="abc123"
+            ),
         )
         write_feed(
             directory=directory,

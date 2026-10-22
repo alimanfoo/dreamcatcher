@@ -288,6 +288,8 @@ Every input contains:
 - `issue`, identifying the parent issue;
 - `comments`, the user's eligible comments on the parent since the last
   input delivered to the lead, oldest first, which may be empty;
+- `cursor`, which _dreamcatcher_ uses to tell how far the lead has read
+  in the parent's comments;
 - `revision`, identifying the fetched main commit checked out in the
   detached worktree.
 

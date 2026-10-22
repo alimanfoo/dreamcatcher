@@ -43,6 +43,7 @@ from dreamcatcher.git import _read_worktree_revision
 from dreamcatcher.github import IssueComment
 from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.prompts import AGENT_POST_MARKER
+from dreamcatcher.relay import IssueCommentCursor
 from dreamcatcher.scheduler import Scheduler, SchedulingContext
 from dreamcatcher.scheduler.models import (
     CampaignFinding,
@@ -220,11 +221,18 @@ def write_rounds(
 ):
     """Write a campaign whose rounds ended these ways, each given its comments.
 
-    A round given no comments here holds none.
+    Each round's input reaches its newest comment, or carries the cursor of the
+    round before it when it holds none. A round given no comments here holds
+    none.
     """
     directory = write_campaign(state=state, issue=PARENT)
+    cursor = None
     for number, ending in enumerate(endings, start=1):
         comments = [] if delivered is None else delivered[number - 1]
+        if comments:
+            cursor = IssueCommentCursor(
+                written_at=comments[-1]["created_at"], id=comments[-1]["id"]
+            )
         write_round(
             directory=directory,
             number=number,
@@ -237,6 +245,7 @@ def write_rounds(
             round_input=CampaignRoundInput(
                 issue=PARENT,
                 comments=[IssueComment.model_validate(item) for item in comments],
+                cursor=cursor,
                 revision="abc123",
             ),
         )
@@ -267,6 +276,11 @@ def read_lead_input(*, scheduler: Scheduler, number: int) -> CampaignRoundInput:
         model=CampaignRoundInput,
         path=campaign.compose_round_paths(number=number).round_input,
     )
+
+
+def position(*, of: dict) -> IssueCommentCursor:
+    """Return the cursor that reaches this comment."""
+    return IssueCommentCursor(written_at=of["created_at"], id=of["id"])
 
 
 ERRORED = HarnessErroredAgentRoundEnding(at=PINNED + timedelta(hours=1), status=1)
@@ -300,6 +314,7 @@ def test_a_labelled_parent_starts_a_lead_that_reads_its_input_and_posts_nothing(
         CampaignRoundInput(
             issue=PARENT,
             comments=[],
+            cursor=None,
             revision=_read_worktree_revision(worktree=campaign.worktree),
         )
     )
@@ -703,6 +718,7 @@ def test_the_first_round_is_given_the_comments_already_on_the_parent(
     assert given.comments == [
         IssueComment.model_validate(item) for item in (first, second)
     ]
+    assert given.cursor == position(of=second)
 
 
 def test_a_parent_comment_wakes_the_lead_in_its_session_on_refreshed_main(
@@ -730,6 +746,7 @@ def test_a_parent_comment_wakes_the_lead_in_its_session_on_refreshed_main(
     assert launched.rows[0].finding == CampaignFinding(new_comments=1)
     given = read_lead_input(scheduler=scheduler, number=2)
     assert given.comments == [IssueComment.model_validate(question)]
+    assert given.cursor == position(of=question)
     assert given.revision == git(arguments=["rev-parse", "HEAD"], cwd=root).strip()
     [call] = harnesses["claude"].calls
     assert call.arguments[-2:] == ["--resume", "lead-session"]
@@ -878,11 +895,12 @@ def test_an_unfinished_rounds_comments_are_given_again_with_any_since(
     assert given.comments == [
         IssueComment.model_validate(item) for item in (second, third)
     ]
+    assert given.cursor == position(of=third)
     [call] = harnesses["claude"].calls
     assert call.prompt.startswith("Your previous round did not finish.")
 
 
-def test_a_recovery_with_no_new_comment_is_given_no_delivered_comment_again(
+def test_a_recovery_with_no_new_comment_carries_the_cursor_forward(
     campaign_scheduler, harnesses
 ):
     scheduler, gh = campaign_scheduler
@@ -902,6 +920,7 @@ def test_a_recovery_with_no_new_comment_is_given_no_delivered_comment_again(
     assert recovered.rows[0].finding == CampaignFinding(new_comments=0)
     given = read_lead_input(scheduler=scheduler, number=3)
     assert given.comments == []
+    assert given.cursor == position(of=first)
 
 
 @pytest.mark.parametrize("is_open", [True, False])
@@ -978,7 +997,9 @@ def test_a_codex_lead_resumes_its_session_for_a_parent_comment(cloned, gh, harne
         record=AgentRoundRecord(
             number=1, started=PINNED, ending=SuccessfulAgentRoundEnding(at=PINNED)
         ),
-        round_input=CampaignRoundInput(issue=PARENT, comments=[], revision="abc123"),
+        round_input=CampaignRoundInput(
+            issue=PARENT, comments=[], cursor=None, revision="abc123"
+        ),
     )
     offer_parent(gh=gh)
     offer_comments(gh=gh, comments=[say(identifier=1)])

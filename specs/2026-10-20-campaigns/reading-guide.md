@@ -191,12 +191,12 @@ records the count of new comments, which status reads.
 Then read `prepare_campaign_round` and `read_parent_comment_cursor` in
 [`campaigns.py`](../../src/dreamcatcher/campaigns.py). Preparation
 refreshes the detached worktree, as a conversation round does, and
-freezes a `CampaignRoundInput` holding the parent issue, the comments
-and the revision. The cursor is the newest comment among the delivered
-inputs, which `AgentWork.list_relayed_round_paths` selects, as an
-assignment's is the newest post among its relayed inputs. Recovery
-therefore recomputes the comments from GitHub against the delivered
-inputs. `compose_campaign_input_prompt` in
+freezes a `CampaignRoundInput` holding the parent issue, the comments,
+the cursor and the revision. The cursor reaches the newest comment, or
+carries forward the cursor of the newest delivered input, which
+`AgentWork.list_relayed_round_paths` selects. Recovery therefore
+recomputes the comments from GitHub against the last delivered input.
+`compose_campaign_input_prompt` in
 [`prompts.py`](../../src/dreamcatcher/prompts.py) names that input and
 the limits on the lead. The round plan has no finishing step, so the
 lead's final output stays in the feed.
