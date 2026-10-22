@@ -94,9 +94,9 @@ to you.
 Pressing Ctrl-C in the `dreamcatcher run` terminal shuts the daemon
 down, ends the rounds it owns and stops the web page it serves. On macOS
 and Linux, closing that terminal, ending the daemon with `kill`, or
-shutting the machine down does the same, unless you started the daemon
-under `nohup`, which keeps it running when its terminal closes. Start it
-again from the same main checkout:
+shutting the machine down does the same. A daemon started under `nohup`
+keeps running when its terminal closes. Start it again from the same
+main checkout:
 
 ```sh
 dreamcatcher run --harness claude
