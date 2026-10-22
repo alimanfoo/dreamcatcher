@@ -645,9 +645,6 @@ fragment names the selected tab, as in `/#campaign`, so the browser's
 back and forward buttons move between tabs. A work page links home to
 the tab of its kind.
 
-A link to a page of the web interface opens in the browser tab that
-holds the link. A link to GitHub or the documentation opens a new tab.
-
 The web interface can ask a running round to stop. It writes a
 same-origin stop request through the agent-round boundary, into that
 round's own directory. The daemon still owns the live process and

@@ -29,19 +29,10 @@ the change.
 
 ### Changed
 
-- A work page on the web names the work's kind above its heading:
-  assignment, conversation or campaign.
+- A work page on the web names its kind and opens in the same browser
+  tab, and its `< home` link returns to the tab of that kind. The home
+  page's tabs are in the address, so the back button moves between them.
   ([#698](https://github.com/alimanfoo/dreamcatcher/pull/698))
-- The `< home` link on a work page opens the web home page on the tab of
-  the work's kind.
-  ([#698](https://github.com/alimanfoo/dreamcatcher/pull/698))
-- Selecting a tab on the web home page puts the tab in the address, as
-  in `/#campaign`, so the browser's back and forward buttons move
-  between tabs.
-  ([#698](https://github.com/alimanfoo/dreamcatcher/pull/698))
-- A card's `>` link on the web home page opens the work's page in the
-  same browser tab. Only links to GitHub and the documentation open a
-  new tab. ([#698](https://github.com/alimanfoo/dreamcatcher/pull/698))
 
 ### Fixed
 
