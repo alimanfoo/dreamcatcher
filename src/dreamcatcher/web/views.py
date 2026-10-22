@@ -21,6 +21,8 @@ from dreamcatcher.web.models import (
     WebAgentWorkControl,
     WebAgentWorkSection,
     WebAssignmentView,
+    WebCampaignChild,
+    WebCampaignChildOverview,
     WebHandResume,
     WebHomeView,
     WebIssueWorkView,
@@ -80,18 +82,20 @@ def _compose_section(
         heading=section.heading,
         empty_message=section.empty_message,
         active=tuple(
-            _compose_work_card(status=status)
+            _compose_work_card(report=report, status=status)
             for status in report.list_active_work_statuses(kind=kind)
         ),
         requests=tuple(report.list_request_statuses(kind=kind)),
         ended=tuple(
-            _compose_work_card(status=status)
+            _compose_work_card(report=report, status=status)
             for status in report.list_ended_work_statuses(kind=kind)
         ),
     )
 
 
-def _compose_work_card(*, status: AgentWorkStatus) -> WebAgentWorkCard:
+def _compose_work_card(
+    *, report: DreamcatcherStatusReport, status: AgentWorkStatus
+) -> WebAgentWorkCard:
     """Return the values shown for one piece of agent work on the home page."""
     work = status.work
     record = work.record
@@ -108,9 +112,36 @@ def _compose_work_card(*, status: AgentWorkStatus) -> WebAgentWorkCard:
         effort=record.effort,
         pull_request=status.pull_request,
         pull_request_summary=status.pull_request_summary,
-        children_summary=status.children_summary,
-        child_issues=tuple(child.issue for child in status.children or ()),
+        child_overview=_compose_child_overview(report=report, campaign=status),
         latest_output=status.latest_output,
+    )
+
+
+def _compose_child_overview(
+    *, report: DreamcatcherStatusReport, campaign: AgentWorkStatus
+) -> WebCampaignChildOverview | None:
+    """Return an active campaign's child overview; other work has none."""
+    summary = campaign.children_summary
+    if summary is None:
+        return None
+    return WebCampaignChildOverview(
+        summary=summary,
+        children=tuple(
+            WebCampaignChild(
+                issue=child_status.child.issue,
+                title=child_status.child.title,
+                is_closed=child_status.child.is_closed,
+                assignment=(
+                    None
+                    if child_status.assignment is None
+                    else _compose_work_card(
+                        report=report, status=child_status.assignment
+                    )
+                ),
+                requests=tuple(child_status.requests),
+            )
+            for child_status in report.list_campaign_child_statuses(campaign=campaign)
+        ),
     )
 
 

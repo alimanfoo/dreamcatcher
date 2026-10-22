@@ -270,13 +270,12 @@ class DreamcatcherStatusReport:
 
     def list_campaign_child_statuses(
         self, *, campaign: AgentWorkStatus
-    ) -> list[CampaignChildStatus] | None:
+    ) -> list[CampaignChildStatus]:
         """Return where each of an active campaign's children stands, in order.
 
-        A campaign has none when its status gives it no children.
+        A campaign has none when its status gives it no children, as when its
+        children are unknown.
         """
-        if campaign.children is None:
-            return None
         statuses = {status.work.identifier: status for status in self.work_statuses}
         requests = self.list_request_statuses(kind=AgentWorkKind.ASSIGNMENT)
         return [
@@ -291,7 +290,7 @@ class DreamcatcherStatusReport:
                     request for request in requests if request.row.issue == child.issue
                 ],
             )
-            for child in campaign.children
+            for child in campaign.children or ()
         ]
 
     def _list_work_statuses(self, *, kind: AgentWorkKind) -> list[AgentWorkStatus]:

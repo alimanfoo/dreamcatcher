@@ -59,6 +59,11 @@ class CampaignChild(DreamcatcherDocument):
     is_settled: bool
     assignment: CampaignChildAssignment | None
 
+    @property
+    def is_closed(self) -> bool:
+        """Whether the child's issue is closed."""
+        return self.state is IssueState.CLOSED
+
 
 class CampaignChildChange(StrEnum):
     """List the changes to a child that call for the lead's attention."""

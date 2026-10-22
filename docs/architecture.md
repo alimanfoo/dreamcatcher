@@ -558,7 +558,14 @@ or in fault. The row holds no sub-issues when the tick could not observe
 them all, or read nothing for a campaign request with conflicting
 labels. Status gives an active campaign those sub-issues and the words
 that count its closed sub-issues out of the total, or says that its
-sub-issues are unknown, and the web card links each one by number.
+sub-issues are unknown. The status report gives each sub-issue the
+status of the assignment that the tick matched to it, and the request
+statuses of its assignment labels that have no open work. The web home
+page puts an active campaign's lead card and the expandable block of its
+sub-issues side by side in one wrapper, so the latest output of a
+sub-issue's card is never read as the lead's. Each card or request row
+in that block takes the campaign's identifier as a prefix to its HTML
+identifier, so it differs from the same card on the Assignments tab.
 
 `AgentWorkStatus` is one summary status from the ontology, derived in
 one chain for every kind of agent work. `RequestStatus` gives a request

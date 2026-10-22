@@ -2,7 +2,7 @@
 
 import re
 from collections.abc import Iterator
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
 import pytest
@@ -87,6 +87,60 @@ def test_a_refresh_leaves_an_opened_section_open(page: Page, live_web: str) -> N
     wait_for_refresh(page=page)
 
     expect(ended).to_have_attribute("open", "")
+
+
+CAMPAIGN_IDENTIFIER = "GH60-20260819-184158-campaign"
+CHILD_ASSIGNMENT_IDENTIFIER = "GH64-20260819-184158-assignment"
+
+
+def expand_campaign(*, page: Page) -> Locator:
+    """Show the Campaigns tab, expand the idle campaign's children and return them."""
+    page.get_by_role("tab", name="Campaigns").click()
+    children = page.locator(f"#{CAMPAIGN_IDENTIFIER}-children")
+    children.locator("summary").click()
+    expect(children).to_have_attribute("open", "")
+    return children
+
+
+def test_a_refresh_leaves_an_expanded_campaign_open(page: Page, live_web: str) -> None:
+    page.goto(live_web)
+    children = expand_campaign(page=page)
+    expect(
+        children.locator(".agent-work-card, .request-row, .campaign-child")
+    ).to_have_count(4)
+
+    wait_for_refresh(page=page)
+
+    expect(children).to_have_attribute("open", "")
+    expect(page.locator(f"#{CAMPAIGN_IDENTIFIER} .latest-output")).to_have_count(0)
+
+
+def test_a_child_assignment_shows_its_new_output_in_both_tabs(
+    page: Page, live_web: str, tmp_path: Path
+) -> None:
+    page.goto(live_web)
+    children = expand_campaign(page=page)
+    child_output = children.locator(
+        f"#{CAMPAIGN_IDENTIFIER}-{CHILD_ASSIGNMENT_IDENTIFIER} .latest-output"
+    )
+    expect(child_output).to_have_text("agent [Bash] pytest -q")
+    assignment = find_agent_work(
+        state=StateDirectory(root=tmp_path), identifier=CHILD_ASSIGNMENT_IDENTIFIER
+    )
+    assert assignment is not None
+    latest = assignment.rounds[-1]
+    append_text(
+        text=FeedLine(
+            at=latest.started + timedelta(minutes=5), text="[Bash] git push"
+        ).render(),
+        path=assignment.compose_round_paths(number=latest.number).feed,
+    )
+
+    expect(child_output).to_have_text("agent [Bash] git push")
+    page.get_by_role("tab", name="Assignments").click()
+    expect(page.locator(f"#{CHILD_ASSIGNMENT_IDENTIFIER} .latest-output")).to_have_text(
+        "agent [Bash] git push"
+    )
 
 
 def test_home_tabs_switch_by_pointer_and_keyboard_and_survive_refresh(
@@ -288,7 +342,7 @@ def test_dark_nature_uses_the_dusk_palette_and_follows_the_night(
 
     expect(page.locator("html")).to_have_css("background-color", "rgb(26, 24, 48)")
     expect(page.locator("body")).to_have_css("color", "rgb(236, 230, 220)")
-    expect(page.locator(".status-working")).to_have_css(
+    expect(page.locator(".status-working").first).to_have_css(
         "color",
         "rgb(179, 203, 166)",
     )

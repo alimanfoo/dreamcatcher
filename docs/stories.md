@@ -366,8 +366,14 @@ only what the lead chose to say there. At later updates the lead is left
 alone until the user comments on the parent or a sub-issue changes in a
 way that it needs to hear of. The home page has a Campaigns tab, where
 the campaign shows as idle with how its round ended and how many of the
-parent's sub-issues are closed out of the total, with a link to each,
-and its page shows the feed.
+parent's sub-issues are closed out of the total, and its page shows the
+feed. The user expands the count to see every sub-issue, each with its
+assignment's card as the Assignments tab shows it, or the row of its
+label while no assignment has started, or the sub-issue alone while
+nothing has asked for one. The cards keep updating, and the sub-issues
+stay expanded until the user folds them. Once the campaign ends, it
+moves to the ended list with its own card alone, and the user goes to
+GitHub for the history.
 
 When the user is satisfied, they close the parent, and the campaign ends
 once any round that is still running finishes. If they reopen the parent

@@ -1,5 +1,7 @@
 {% extends "base.html" %}
 {% block content %}
+  {#- A card or request row that appears again within a campaign prefixes its identifier. #}
+  {%- set id_prefix = "" %}
   <main id="home" hx-get="{{ url_for('show_home') }}" hx-trigger="every 2s" hx-select="#home" hx-swap="morph" data-refresh-alert="home-refresh-error">
     {% include "partials/site-header.html" %}
     <div class="home-content">
@@ -16,7 +18,7 @@
         {% for section in view.sections %}
           <section id="{{ section.kind }}-panel" class="panel work-tab-panel" role="tabpanel" aria-labelledby="{{ section.kind }}-tab">
             {% for card in section.active %}
-              {% include "partials/agent-work-card.html" %}
+              {% if card.child_overview is none %}{% include "partials/agent-work-card.html" %}{% else %}{% include "partials/campaign.html" %}{% endif %}
             {% endfor %}
             {% for request in section.requests %}
               {% include "partials/request-row.html" %}

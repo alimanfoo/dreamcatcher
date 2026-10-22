@@ -457,7 +457,6 @@ def test_each_child_of_an_active_campaign_has_its_assignment_and_requests(state)
 
     child_statuses = report.list_campaign_child_statuses(campaign=campaign)
 
-    assert child_statuses is not None
     assert [status.child for status in child_statuses] == children
     assert [
         None if status.assignment is None else status.assignment.work.identifier
@@ -474,4 +473,4 @@ def test_a_campaign_whose_children_are_unknown_has_no_child_statuses(state):
     report = read_status_report(state=state, clock=lambda: LOOKED_AT)
     [campaign] = report.list_active_work_statuses(kind=AgentWorkKind.CAMPAIGN)
 
-    assert report.list_campaign_child_statuses(campaign=campaign) is None
+    assert report.list_campaign_child_statuses(campaign=campaign) == []

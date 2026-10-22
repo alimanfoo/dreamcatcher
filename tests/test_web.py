@@ -33,10 +33,12 @@ from status_fabrications import (
     fabricate_a_dead_daemon,
     fabricate_a_silent_round,
     fabricate_campaign_report,
+    fabricate_campaigns,
     fabricate_conversation,
     fabricate_everything,
     fabricate_nothing,
     fabricate_titles_and_pull_request_states,
+    holding,
     running,
     written,
 )
@@ -214,6 +216,45 @@ def test_a_campaign_renders_as_its_golden_page(issue, tmp_path, pytestconfig):
         path=FIXTURES / "web" / "campaigns" / f"GH{issue}.html",
         config=pytestconfig,
     )
+
+
+@pytest.mark.parametrize(
+    ("children", "summary"), [(None, "sub-issues unknown"), ([], "no sub-issues")]
+)
+def test_a_campaign_with_no_children_to_show_says_why_without_expanding(
+    children, summary, tmp_path
+):
+    state = StateDirectory(root=tmp_path)
+    holding(state=state)
+    campaign_row, *other_rows = fabricate_campaigns(state=state)
+    write_tick(
+        state=state,
+        tick=SchedulerRecord(
+            at=LOOKED_AT,
+            rows=[campaign_row.model_copy(update={"children": children}), *other_rows],
+        ),
+    )
+
+    page = render_home(state=state)
+
+    assert f'<p class="campaign-children">{summary}</p>' in page
+    assert '<details id="GH60-20260819-184158-campaign-children"' not in page
+
+
+def test_a_card_that_appears_within_a_campaign_too_has_an_identifier_for_each(
+    tmp_path,
+):
+    state = StateDirectory(root=tmp_path)
+    fabricate_everything(state=state, other_rows=fabricate_campaigns(state=state))
+
+    page = render_home(state=state)
+    identifiers = re.findall(r'\bid="([^"]+)"', page)
+
+    assert "GH64-20260819-184158-assignment" in identifiers
+    assert (
+        "GH60-20260819-184158-campaign-GH64-20260819-184158-assignment" in identifiers
+    )
+    assert len(identifiers) == len(set(identifiers))
 
 
 @pytest.mark.parametrize("name", sorted(WEB_ASSIGNMENT_PAGES))
