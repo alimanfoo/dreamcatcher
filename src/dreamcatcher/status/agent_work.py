@@ -40,6 +40,7 @@ from dreamcatcher.scheduler.models import (
 )
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.status.findings import (
+    describe_changed_children,
     describe_comments_to_answer,
     describe_conflicting_labels,
     describe_idle_pull_request,
@@ -507,10 +508,14 @@ def _compose_waiting(
 
 def _describe_what_is_new(*, finding: RequestFinding | None) -> str | None:
     """Describe what the latest tick found new in the work's channel, if anything."""
-    if (
-        isinstance(finding, IssueCommentsFinding | CampaignFinding)
-        and finding.new_comments
-    ):
+    if isinstance(finding, CampaignFinding):
+        words = []
+        if finding.new_comments:
+            words.append(describe_comments_to_answer(count=finding.new_comments))
+        if finding.changed_children:
+            words.append(describe_changed_children(count=finding.changed_children))
+        return ", ".join(words) or None
+    if isinstance(finding, IssueCommentsFinding) and finding.new_comments:
         return describe_comments_to_answer(count=finding.new_comments)
     if not isinstance(finding, PullRequestFinding):
         return None

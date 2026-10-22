@@ -172,8 +172,7 @@ def describe_round_trigger(*, work: AgentWork, number: int) -> str:
 
     An assignment round given no input opened, or tried to open, the pull
     request. Comments wake every conversation round, so one whose input is
-    still to be written, or never was, says so without a count, and so does a
-    campaign round woken by comments alone.
+    still to be written, or never was, says so without a count.
     """
     if work.record.kind is AgentWorkKind.CAMPAIGN:
         return _describe_campaign_round_trigger(work=work, number=number)
@@ -202,8 +201,9 @@ def _describe_campaign_round_trigger(*, work: AgentWork, number: int) -> str:
     """Describe what woke one lead round, from its place and its input.
 
     The first round starts the lead, and a round after one that did not finish
-    recovers it. The count of the parent comments that the round was given
-    follows.
+    recovers it. The counts of the parent comments and of the changed children
+    that the round was given follow. A round with no input to read was woken by
+    one or the other.
     """
     previous = [record for record in work.rounds if record.number == number - 1]
     words = []
@@ -215,11 +215,17 @@ def _describe_campaign_round_trigger(*, work: AgentWork, number: int) -> str:
         model=CampaignRoundInput,
         path=work.compose_round_paths(number=number).round_input,
     )
-    if campaign_input is not None and campaign_input.comments:
+    if campaign_input is None:
+        return ", ".join(words) or "comments or sub-issues"
+    if campaign_input.comments:
         words.append(
             describe_count(number=len(campaign_input.comments), noun="comment")
         )
-    return ", ".join(words) or "comments"
+    if campaign_input.notifications:
+        words.append(
+            describe_count(number=len(campaign_input.notifications), noun="sub-issue")
+        )
+    return ", ".join(words)
 
 
 def _read_given_revision(*, work: AgentWork, number: int) -> str | None:
