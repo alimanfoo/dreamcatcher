@@ -362,7 +362,7 @@ def fabricate_nothing(*, state):
 def fabricate_everything(
     *,
     state,
-    conversation_rows: Sequence[RequestRow] = (),
+    other_rows: Sequence[RequestRow] = (),
     latest_output: str = "[Bash] pytest",
 ):
     """Write a running daemon with varied issue and assignment statuses."""
@@ -448,7 +448,7 @@ def fabricate_everything(
                 _assignment_row(issue=35, ended_round=1, finding=_draft_pull_request()),
                 _assignment_row(issue=9, ended_round=2),
                 _assignment_row(issue=44),
-                *conversation_rows,
+                *other_rows,
             ],
         ),
     )
@@ -677,6 +677,18 @@ def fabricate_titles_and_pull_request_states(*, state):
     )
 
 
+def fabricate_campaign_report(*, state):
+    """Write a running daemon with an idle campaign, an ended one and a request."""
+    holding(state=state)
+    write_tick(
+        state=state,
+        tick=SchedulerRecord(
+            at=PINNED + timedelta(hours=1, minutes=58),
+            rows=fabricate_campaigns(state=state),
+        ),
+    )
+
+
 STATUS_REPORTS = {
     "nothing": fabricate_nothing,
     "everything": fabricate_status_everything,
@@ -684,4 +696,5 @@ STATUS_REPORTS = {
     "at-cap": fabricate_the_cap,
     "silent-round": fabricate_a_silent_round,
     "repeat-assignments": fabricate_repeat_assignments,
+    "campaigns": fabricate_campaign_report,
 }

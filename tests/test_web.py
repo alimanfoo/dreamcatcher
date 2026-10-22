@@ -32,6 +32,7 @@ from status_fabrications import (
     ended,
     fabricate_a_dead_daemon,
     fabricate_a_silent_round,
+    fabricate_campaign_report,
     fabricate_conversation,
     fabricate_everything,
     fabricate_nothing,
@@ -196,6 +197,22 @@ def test_an_empty_home_hides_an_unrouted_assignment_section(tmp_path):
     assert (
         "Assign an issue to yourself, label it with dream:scout and post a comment "
         "to start a conversation." in page
+    )
+
+
+@pytest.mark.parametrize("issue", [60, 61])
+def test_a_campaign_renders_as_its_golden_page(issue, tmp_path, pytestconfig):
+    state = StateDirectory(root=tmp_path)
+    fabricate_campaign_report(state=state)
+
+    page = render_assignment(
+        state=state, identifier=f"GH{issue}-20260819-184158-campaign"
+    )
+
+    assert_matches_view_golden(
+        rendered=page,
+        path=FIXTURES / "web" / "campaigns" / f"GH{issue}.html",
+        config=pytestconfig,
     )
 
 
@@ -656,9 +673,7 @@ def test_status_classes_do_not_depend_on_status_wording(tmp_path, monkeypatch):
     fabricate_conversation(state=state)
     fabricate_everything(
         state=state,
-        conversation_rows=[
-            conversation_row(finding=IssueCommentsFinding(new_comments=0))
-        ],
+        other_rows=[conversation_row(finding=IssueCommentsFinding(new_comments=0))],
     )
 
     # A real rewording changes each member's string value, which patching
