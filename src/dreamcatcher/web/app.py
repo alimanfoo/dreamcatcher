@@ -47,8 +47,8 @@ from dreamcatcher.web.server import (
 from dreamcatcher.web.views import (
     compose_agent_live_state,
     compose_assignment_view,
-    compose_conversation_view,
     compose_home_view,
+    compose_issue_work_view,
 )
 
 _HTMX_STOP_POLLING_STATUS = 286
@@ -152,8 +152,8 @@ def _show_work(
             ),
         )
     return render_template(
-        "conversation.html",
-        view=compose_conversation_view(
+        "issue-work.html",
+        view=compose_issue_work_view(
             state=state,
             status=status,
             daemon=daemon,

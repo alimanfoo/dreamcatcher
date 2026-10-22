@@ -4,12 +4,12 @@
     {% include "partials/site-header.html" %}
     <div class="agent-work-content">
       <a class="agent-work-navigation" href="{{ url_for('show_home') }}">&lt; home</a>
-      <section class="agent-work-overview" aria-labelledby="conversation-heading">
+      <section class="agent-work-overview" aria-labelledby="{{ view.kind }}-heading">
         <div class="agent-work-heading">
           {% if view.github_repository_url %}
-            <h1 id="conversation-heading"><a class="agent-work-issue" href="{{ view.github_repository_url }}/issues/{{ view.issue }}" target="_blank" rel="noopener noreferrer">#{{ view.issue }} <span>{{ view.title }}</span></a></h1>
+            <h1 id="{{ view.kind }}-heading"><a class="agent-work-issue" href="{{ view.github_repository_url }}/issues/{{ view.issue }}" target="_blank" rel="noopener noreferrer">#{{ view.issue }} <span>{{ view.title }}</span></a></h1>
           {% else %}
-            <h1 id="conversation-heading"><strong class="agent-work-issue">#{{ view.issue }} <span>{{ view.title }}</span></strong></h1>
+            <h1 id="{{ view.kind }}-heading"><strong class="agent-work-issue">#{{ view.issue }} <span>{{ view.title }}</span></strong></h1>
           {% endif %}
           <div class="agent-work-heading-actions">
             {% include "partials/agent-work-retry.html" %}
