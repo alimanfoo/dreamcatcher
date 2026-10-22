@@ -658,10 +658,10 @@ An `AssignmentRoute` specializes a dispatch route for assignments, and
 its prompt normally invokes an assignment skill. A `ConversationRoute`
 specializes a dispatch route for issue conversations, and its prompt
 normally invokes a conversation skill. A `CampaignRoute` specializes a
-dispatch route for campaigns, and its prompt gives the lead its
-instructions. Every kind uses the same harness-selection rule: the
-preferred harness wins when the route has a recipe for it, while the
-sole recipe wins when only one exists.
+dispatch route for campaigns, and its prompt normally invokes a campaign
+skill. Every kind uses the same harness-selection rule: the preferred
+harness wins when the route has a recipe for it, while the sole recipe
+wins when only one exists.
 
 The repository configuration carries choices that everyone working in
 the repository shares. The daemon interval and agent capacity belong to

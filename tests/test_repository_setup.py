@@ -138,8 +138,20 @@ def test_only_the_route_labels_the_repository_lacks_are_created(
             "--description",
             "Start a dreamcatcher issue conversation",
         ],
+        [
+            "label",
+            "create",
+            "dream:lead",
+            "--repo",
+            REPOSITORY,
+            "--description",
+            "Start a dreamcatcher campaign",
+        ],
     ]
-    assert "Created the labels dream:less, dream:scout." in capsys.readouterr().out
+    assert (
+        "Created the labels dream:less, dream:scout, dream:lead."
+        in capsys.readouterr().out
+    )
 
 
 def test_a_second_setup_leaves_the_configuration_and_labels_alone(

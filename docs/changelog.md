@@ -66,6 +66,12 @@ the change.
   ([#662](https://github.com/alimanfoo/dreamcatcher/pull/662),
   [#671](https://github.com/alimanfoo/dreamcatcher/pull/671),
   [#673](https://github.com/alimanfoo/dreamcatcher/pull/673))
+- The `dreamcatcher.toml` that `dreamcatcher init` writes routes the
+  `dream:lead` label to campaigns, and `init` creates that label. The
+  route's recipes run the dream plugin's `dream:lead` skill, which
+  carries a parent issue's sub-issues through their assignments to
+  merge. [Start a campaign](start-a-campaign.md) explains what it does.
+  ([#677](https://github.com/alimanfoo/dreamcatcher/pull/677))
 
 ### Fixed
 
