@@ -54,8 +54,8 @@ instance:
   that it still holds the daemon lock; and
 - stop active child processes during shutdown.
 
-The daemon does not decide which issue, assignment or conversation
-deserves work. It knows that scheduling happens, but not the scheduling
+The daemon does not decide which issue or piece of agent work deserves a
+round. It knows that scheduling happens, but not the scheduling
 priorities.
 
 ### Repository setup
@@ -726,11 +726,11 @@ and its kind of agent work. An instance-wide scheduler record persists
 the last tick's result, including its failures, its request rows, the
 active global cooldown, and the time at which the most recent cooldown
 ended. Its rows preserve operational evidence of what the tick read
-rather than authoritative state. Assignments and conversations persist
-the time of their latest user retry request. These boundaries allow
-fault to remain a derived status: ending a cooldown or requesting a
-retry changes which round errors count towards fault rather than writing
-a lifecycle status.
+rather than authoritative state. Agent work of every kind persists the
+time of its latest user retry request. These boundaries allow fault to
+remain a derived status: ending a cooldown or requesting a retry changes
+which round errors count towards fault rather than writing a lifecycle
+status.
 
 The following are derived rather than persisted as authoritative state:
 
@@ -775,5 +775,5 @@ imports directly.
 ## Agent-facing contract
 
 The [agent-facing contract](contract.md) describes the protocols between
-_dreamcatcher_ and assignment and conversation skills. It records each
-side's responsibilities, not implementation history.
+_dreamcatcher_ and assignment, conversation and campaign skills. It
+records each side's responsibilities, not implementation history.

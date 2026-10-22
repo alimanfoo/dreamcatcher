@@ -228,7 +228,7 @@ def _read_conversation_input(
 def _compose_round_revision(
     *, previous_revision: str | None, revision: str
 ) -> AgentRoundRevision:
-    """Describe the revision one conversation round investigated."""
+    """Describe the revision of main that one round was given."""
     if previous_revision is None:
         description = f"code revision {revision}"
     elif previous_revision == revision:
