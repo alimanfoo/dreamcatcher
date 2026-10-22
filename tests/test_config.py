@@ -457,6 +457,7 @@ def test_the_default_config_routes_every_label_to_the_installed_harnesses(
     assert config.routed_harnesses == harnesses
     assert [route.label for route in config.conversation] == ["dream:scout"]
     assert [route.label for route in config.assignment] == ["dream:smith", "dream:less"]
+    assert [route.label for route in config.campaign] == ["dream:lead"]
 
 
 def test_the_default_config_keeps_the_recipes_of_a_missing_harness_as_comments(

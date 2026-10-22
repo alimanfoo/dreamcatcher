@@ -301,7 +301,7 @@ def test_a_lead_leaves_the_marker_off_its_feedback_on_a_sub_issues_pull_request(
     tmp_path,
 ):
     composed = compose_round_prompt(
-        instructions="/lead GH20",
+        instructions="/dream:lead GH20",
         is_resuming=True,
         input_prompt=compose_campaign_input_prompt(
             issue=20, round_input=tmp_path / "round-input.json"

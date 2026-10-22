@@ -22,9 +22,7 @@ routes.
 --8<-- "default_config.toml"
 ```
 
-This file offers both supported harnesses for every route. It has no
-campaign route, because the lead's prompt is yours to write;
-[Start a campaign](start-a-campaign.md) gives an example. A route may
+This file offers both supported harnesses for every route. A route may
 instead contain only its `claude` or only its `codex` block. When `init`
 writes the file, it comments out the blocks of a harness that is not
 installed.
@@ -95,7 +93,7 @@ Assignment prompts normally invoke an assignment skill that follows the
 Conversation prompts may be plain instructions or invoke a conversation
 skill, but they must follow the
 [conversation skill contract](contract.md#conversation-skill-contract).
-Campaign prompts give the lead its instructions, and must follow the
+Campaign prompts normally invoke a campaign skill, and must follow the
 [campaign skill contract](contract.md#campaign-skill-contract).
 _dreamcatcher_ adds its operational instructions to every prompt.
 

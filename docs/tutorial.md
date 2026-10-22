@@ -117,16 +117,17 @@ assignment runs. The plugin provides `dream:smith`, the assignment skill
 this tutorial uses.
 
 The `dreamcatcher.toml` that `init` writes routes the `dream:smith` and
-`dream:less` labels to assignments, and the `dream:scout` label to issue
-conversations. If Codex is not installed, the file keeps the Codex
-recipes as comments. The label connects a GitHub issue to its route, and
-`{issue}` in a prompt becomes the issue number, so issue 123 starts
-Claude with `/dream:smith GH123`.
+`dream:less` labels to assignments, the `dream:scout` label to issue
+conversations, and the `dream:lead` label to campaigns. If Codex is not
+installed, the file keeps the Codex recipes as comments. The label
+connects a GitHub issue to its route, and `{issue}` in a prompt becomes
+the issue number, so issue 123 starts Claude with `/dream:smith GH123`.
 
 `dream:smith` plans a change, builds it a commit at a time, and reviews
 it thoroughly. `dream:less` implements smaller tasks with lighter
 review. `dream:scout` answers your questions on an issue, and writes no
-code.
+code. `dream:lead` leads a campaign through a parent issue's sub-issues,
+as [Start a campaign](start-a-campaign.md) explains.
 
 Until `origin/main` holds the file, `init` ends by printing the commands
 that commit and push it. Run them, so the assignment worktree contains

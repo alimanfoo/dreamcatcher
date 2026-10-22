@@ -317,23 +317,23 @@ reviewed settings, so under Codex the prompt alone keeps the lead from
 implementing. These are the arguments this code supplies, rather than
 guarantees about every external harness version.
 
-## The prototype lead skill
+## The lead skill
 
-Read the prototype `lead` skill in
-[`.agents/skills/lead/SKILL.md`](../../.agents/skills/lead/SKILL.md),
-which Codex finds there and which
-[`.claude/skills/lead/SKILL.md`](../../.claude/skills/lead/SKILL.md)
-points Claude at, the layout that `triage-issues` already uses. Then
-read the `[[campaign]]` route in
-[`dreamcatcher.toml`](../../dreamcatcher.toml), labelled `dream:lead`,
-whose recipes invoke it as `/lead GH{issue}` and `$lead GH{issue}`. The
-skill owns the lead's judgment: it takes up each sub-issue by where its
-work stands, starts the stages on a route that it chooses, reviews and
-proves each settled pull request, prepares the later stages before a
+Read the `dream:lead` skill in
+[`plugins/dream/skills/lead/SKILL.md`](https://github.com/alimanfoo/dream/blob/main/plugins/dream/skills/lead/SKILL.md)
+in the dream repository. Then read the `[[campaign]]` route in
+[`default_config.toml`](../../src/dreamcatcher/default_config.toml),
+labelled `dream:lead`, whose recipes invoke it as
+`/dream:lead GH{issue}` and `$dream:lead GH{issue}`, with the models and
+efforts of the `dream:smith` route. `init` writes that route and creates
+its label, and the repository's own
+[`dreamcatcher.toml`](../../dreamcatcher.toml) carries the same route.
+The skill owns the lead's judgment: it takes up each sub-issue by where
+its work stands, starts the stages on a route that it chooses, reviews
+and proves each settled pull request, prepares the later stages before a
 merge releases them, and asks the user on the parent before any change
 to the plan. The daemon supplies the input and the marker rule around
-it, so the skill repeats neither. Stage 7 replaces it with the published
-`dream:lead`.
+it, so the skill repeats neither.
 
 ## Status, cards and refreshes
 
