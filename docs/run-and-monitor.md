@@ -70,30 +70,29 @@ Use `status` for the whole repository:
 dreamcatcher status
 ```
 
-Use a detail view for one issue:
+Use `view` for one piece of agent work:
 
 ```sh
-dreamcatcher assignment GH123
-dreamcatcher conversation GH123
-dreamcatcher campaign GH123
+dreamcatcher view GH123
 ```
 
 Use `feed` when you want the agent's actions and output in terminal
 scrollback:
 
 ```sh
-dreamcatcher feed GH123 --assignment
-dreamcatcher feed GH123 --conversation
-dreamcatcher feed GH123 --campaign
+dreamcatcher feed GH123
 ```
 
-An issue reference selects the newest work of the kind at the issue. To
-select older work, copy its identifier from the list of other work at
-the foot of the detail view, and use it in place of the issue reference:
+An issue reference selects the one piece of agent work at the issue, of
+any kind, whether or not it has ended. When the issue has more than one,
+such as an ended assignment and a later conversation, the command prints
+a command for each piece, with the agent work identifier that selects
+it. Each identifier ends with the kind of its work. Run the one you
+want:
 
 ```sh
-dreamcatcher conversation GH123-20260912-193000-conversation
-dreamcatcher feed GH123-20260912-193000-conversation --conversation
+dreamcatcher view GH123-20260912-193000-conversation
+dreamcatcher feed GH123-20260912-193000-conversation
 ```
 
 These views refresh automatically in an interactive terminal.

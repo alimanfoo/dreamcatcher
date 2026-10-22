@@ -616,9 +616,7 @@ def test_a_new_label_starts_a_fresh_conversation_while_the_old_one_stays_paused(
             started_round=StartedRound(number=1),
         ),
     ]
-    conversations = read_agent_work_at_issue(
-        state=scheduler.context.state, issue=8, kind=AgentWorkKind.CONVERSATION
-    )
+    conversations = read_agent_work_at_issue(state=scheduler.context.state, issue=8)
     assert [
         (conversation.record.dispatch_label, conversation.is_open)
         for conversation in conversations
