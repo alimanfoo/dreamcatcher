@@ -71,6 +71,15 @@ class Inspection:
     is_counted_fault: bool = False
 
 
+class OpenWorkInspector(Protocol):
+    """Inspect the channel of one piece of open work of a kind."""
+
+    def __call__(
+        self, *, context: SchedulingContext, work: AgentWork, is_fault: bool
+    ) -> Inspection:
+        """Return the work's row, and its candidate when a round is due."""
+
+
 class RequestInspector(Protocol):
     """Inspect one label of a kind on a listed issue that no open work answers."""
 

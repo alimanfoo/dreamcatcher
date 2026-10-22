@@ -39,7 +39,7 @@ from dreamcatcher.scheduler.models import (
 def inspect_open_conversation(
     *,
     context: SchedulingContext,
-    conversation: AgentWork,
+    work: AgentWork,
     is_fault: bool,
 ) -> Inspection:
     """Read an open conversation's issue, then its comments unless paused or in fault.
@@ -48,30 +48,30 @@ def inspect_open_conversation(
     paused conversation's fault does not count, since it starts no round
     however its rounds ended.
     """
-    unread = compose_open_work_row(work=conversation, finding=None)
-    issue = read_issue(repository=context.repository, issue=conversation.record.issue)
+    unread = compose_open_work_row(work=work, finding=None)
+    issue = read_issue(repository=context.repository, issue=work.record.issue)
     if isinstance(issue, UnknownGitHubResponse):
         return Inspection(
             row=compose_open_work_row(
-                work=conversation, finding=ReadFailureFinding(reason=issue.reason)
+                work=work, finding=ReadFailureFinding(reason=issue.reason)
             ),
             is_counted_fault=is_fault,
         )
     if issue.state is IssueState.CLOSED:
-        if not conversation.is_round_running:
+        if not work.is_round_running:
             end_agent_work(
-                work=conversation,
+                work=work,
                 reason=AgentWorkEndReason.ISSUE_CLOSED,
                 at=context.clock(),
             )
         return Inspection(row=unread)
-    pause = _find_pause(context=context, conversation=conversation, issue=issue)
+    pause = _find_pause(context=context, conversation=work, issue=issue)
     if pause is not None:
-        return Inspection(row=compose_open_work_row(work=conversation, finding=pause))
+        return Inspection(row=compose_open_work_row(work=work, finding=pause))
     if is_fault:
         return Inspection(row=unread, is_counted_fault=True)
     return _inspect_comments(
-        context=context, issue=issue, work_or_route=conversation, row=unread
+        context=context, issue=issue, work_or_route=work, row=unread
     )
 
 

@@ -39,6 +39,7 @@ from dreamcatcher.scheduler.faults import (
 from dreamcatcher.scheduler.inspection import (
     Candidate,
     Inspection,
+    OpenWorkInspector,
     RequestInspector,
     SchedulingContext,
 )
@@ -49,6 +50,12 @@ from dreamcatcher.scheduler.models import (
     SchedulerRecord,
     StartedRound,
 )
+
+# How the tick inspects the channel of open work, by the work's kind.
+_OPEN_WORK_INSPECTORS: dict[AgentWorkKind, OpenWorkInspector] = {
+    AgentWorkKind.ASSIGNMENT: inspect_open_assignment,
+    AgentWorkKind.CONVERSATION: inspect_open_conversation,
+}
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -175,16 +182,9 @@ class Scheduler:
             retry_requested_at=work.retry_requested_at,
             most_recent_cooldown_ended=most_recent_cooldown_ended,
         )
-        if work.record.kind is AgentWorkKind.ASSIGNMENT:
-            inspection = inspect_open_assignment(
-                context=self.context, assignment=work, is_fault=is_fault
-            )
-        else:
-            inspection = inspect_open_conversation(
-                context=self.context,
-                conversation=work,
-                is_fault=is_fault,
-            )
+        inspection = _OPEN_WORK_INSPECTORS[work.record.kind](
+            context=self.context, work=work, is_fault=is_fault
+        )
         if not work.is_round_running:
             return inspection
         return replace(inspection, candidate=None)

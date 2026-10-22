@@ -76,7 +76,7 @@ def inspect(*, state: StateDirectory, is_fault: bool = False) -> Inspection:
     """Inspect the one assignment in that state directory."""
     return inspect_open_assignment(
         context=create_scheduling_context(state=state),
-        assignment=read_assignments(state=state)[0],
+        work=read_assignments(state=state)[0],
         is_fault=is_fault,
     )
 
