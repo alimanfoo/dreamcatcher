@@ -60,7 +60,7 @@ from dreamcatcher.github import (
     PullRequestState,
 )
 from dreamcatcher.harness_adapters import AgentWorkKind
-from dreamcatcher.prompts import AGENT_POST_MARKER
+from dreamcatcher.prompts import _CAMPAIGN_POST_INSTRUCTIONS, AGENT_POST_MARKER
 from dreamcatcher.relay import IssueCommentCursor
 from dreamcatcher.scheduler import Scheduler, SchedulingContext
 from dreamcatcher.scheduler.models import (
@@ -355,6 +355,7 @@ def test_a_labelled_parent_starts_a_lead_that_reads_its_input_and_posts_nothing(
     assert f"Campaign input for parent issue GH20:\n\n  {paths.round_input}" in (
         call.prompt
     )
+    assert call.prompt.endswith(_CAMPAIGN_POST_INSTRUCTIONS)
     assert "--resume" not in call.arguments
     assert not any(
         call.arguments[:1] in (["pr"], ["api"]) and "POST" in call.arguments

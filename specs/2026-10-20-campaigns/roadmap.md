@@ -207,8 +207,10 @@ guidance.
 
 The acceptance exercise starts from a clean installation without the
 local prototype, runs setup and carries a small campaign through the
-published skill. Verify both default recipes and test
-setup/configuration changes.
+published skill with Claude. Verify both default recipes by inspection
+and the automated tests, and test setup/configuration changes. Codex
+support and its automated coverage stay; the user has directed that the
+remaining live exercises run with Claude alone.
 
 Do not include release preparation, release measurement or publication.
 The state-format and compatibility changes belong with the
