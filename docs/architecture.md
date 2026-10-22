@@ -99,23 +99,26 @@ One scheduler tick:
 2. builds the requests from two sources, each dispatch label on each
    listed issue and each piece of open agent work, which names its own
    issue and label;
-3. inspects each piece of open work's channel: an assignment's pull
-   request and user posts, a conversation's issue and then its comments,
-   or a campaign's parent issue and then its comments, ending a
-   conversation or campaign if its issue is closed and no round of it is
-   running;
-4. for each request with no open work, skips an assignment label whose
-   issue already has an open assignment, checks for a routing conflict,
-   then asks the start-time questions, or reads the comments of a
-   conversation's issue or a campaign's parent;
-5. starts a global cooldown when the counted faults call for one, and
+3. inspects the assignments and conversations in a first pass, and the
+   campaigns in a second pass, so that a campaign can use what the first
+   pass found;
+4. in each pass, inspects each piece of open work's channel first: an
+   assignment's pull request and user posts, a conversation's issue and
+   then its comments, or a campaign's parent issue and then its
+   comments, ending a conversation or campaign if its issue is closed
+   and no round of it is running;
+5. then, for each request of the pass's kinds with no open work, skips
+   an assignment label whose issue already has an open assignment,
+   checks for a routing conflict, then asks the start-time questions, or
+   reads the comments of a conversation's issue or a campaign's parent;
+6. starts a global cooldown when the counted faults call for one, and
    launches nothing while a cooldown is active;
-6. launches candidates until the daemon run's requested capacity is full
+7. launches candidates until the daemon run's requested capacity is full
    or no candidate remains, open work first in identifier order and then
    new requests in listing order, the kinds taking turns in the order
    assignment, conversation, campaign, and a kind with no candidate
    giving up its turn; and
-7. returns a `SchedulerRecord`, holding one request row per request, for
+8. returns a `SchedulerRecord`, holding one request row per request, for
    operational reporting.
 
 A candidate is open work the tick may start a round for, or a request it

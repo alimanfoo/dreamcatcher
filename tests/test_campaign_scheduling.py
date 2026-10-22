@@ -635,6 +635,29 @@ def test_a_campaign_waits_for_shared_capacity(campaign_scheduler, harnesses):
     assert read_campaign(state=scheduler.context.state, issue=PARENT) is None
 
 
+def test_campaigns_are_inspected_after_the_assignments(campaign_scheduler):
+    scheduler, gh = campaign_scheduler
+    write_rounds(
+        state=scheduler.context.state, endings=[SuccessfulAgentRoundEnding(at=PINNED)]
+    )
+    write_assignment(
+        state=scheduler.context.state,
+        identifier="GH30-20260923-010000-assignment",
+        issue=30,
+        pull_request=None,
+    )
+    offer_parent(gh=gh)
+    offer_comments(gh=gh, comments=[])
+    scheduler.rounds["busy-assignment"] = Mock(is_alive=True)
+
+    observed = tick(scheduler=scheduler)
+
+    assert [(row.kind, row.issue) for row in observed.rows] == [
+        (AgentWorkKind.ASSIGNMENT, 30),
+        (AgentWorkKind.CAMPAIGN, PARENT),
+    ]
+
+
 def test_the_three_kinds_take_turns_for_free_slots(cloned, gh, harnesses):
     configure(root=cloned, head=CONVERSATION_CLAUDE + CAMPAIGN_CLAUDE)
     scheduler = create_scheduler(root=cloned)
