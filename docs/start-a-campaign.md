@@ -9,7 +9,9 @@ for each comment you post on the parent, and another when a sub-issue
 changes in a way that the lead needs to hear of. It ends the campaign
 when you close the parent.
 
-You need a configured campaign route and a running daemon.
+You need a configured campaign route and a running daemon. For a first
+campaign, follow the worked example in
+[From parent issue to merged stages](campaign-tutorial.md).
 
 ## Configure a campaign route
 
@@ -124,18 +126,7 @@ Close the parent to end the campaign. It ends once any running round
 finishes. Only you close the parent: the lead is told never to close it.
 If you reopen the parent with its label still on, a new campaign starts.
 
-## When a round does not finish
+## Stop or recover a round
 
-If a lead round errors, or the daemon stops during it, the next update
-gives the lead its comments again, with any you have posted since and
-the changes among the sub-issues since its last finished round, in the
-same harness session, and tells it that its previous round did not
-finish. Two errored rounds in a row put the campaign in fault. Fix the
-cause, then run `dreamcatcher retry GH123` or use the retry control on
-the campaign's web page.
-
-To stop a running round, run `dreamcatcher stop GH123 --campaign` or use
-the stop control on the campaign's web page. A stopped lead has taken
-its turn, so no round follows it on its own. Comment on the parent with
-fresh direction, and the next round tells the lead that you stopped its
-previous round.
+To stop a lead's round, or to recover after one errors or the daemon
+stops, follow [Stop and recover work](stop-and-recover.md).

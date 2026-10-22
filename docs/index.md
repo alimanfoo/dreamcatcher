@@ -71,7 +71,9 @@ uv tool install dreamcatcher
 ```
 
 Then follow [From issue to pull request](tutorial.md) for the complete
-setup and a first assignment.
+setup and a first assignment. To try a campaign, follow
+[From parent issue to merged stages](campaign-tutorial.md), which uses
+the same setup.
 
 ## Guides
 
@@ -79,6 +81,8 @@ setup and a first assignment.
   feedback.
 - [Discuss an issue](discuss-an-issue.md) without starting an
   implementation assignment.
+- [Start a campaign](start-a-campaign.md) to hand a parent issue's
+  sub-issues to a lead.
 - [Stop and recover work](stop-and-recover.md).
 - [Run and monitor _dreamcatcher_](run-and-monitor.md).
 - [Configure labels and harnesses](configure.md).
@@ -91,7 +95,7 @@ setup and a first assignment.
   [command reference](command-reference.md).
 - Find every accepted setting in the
   [configuration reference](configuration-reference.md).
-- Write an assignment skill or a conversation prompt to the
-  [agent-facing contract](contract.md).
+- Write an assignment skill, a conversation skill or a campaign skill to
+  the [agent-facing contract](contract.md).
 - Plan upgrades with [Compatibility and upgrades](compatibility.md), and
   see user-visible changes in the [changelog](changelog.md).

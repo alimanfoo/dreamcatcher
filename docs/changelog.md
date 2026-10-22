@@ -72,9 +72,17 @@ the change.
   carries a parent issue's sub-issues through their assignments to
   merge. [Start a campaign](start-a-campaign.md) explains what it does.
   ([#677](https://github.com/alimanfoo/dreamcatcher/pull/677))
+- A second tutorial,
+  [From parent issue to merged stages](campaign-tutorial.md), takes a
+  parent issue with two dependent sub-issues through `dream:lead` to
+  merge. ([#680](https://github.com/alimanfoo/dreamcatcher/pull/680))
 
 ### Fixed
 
+- [Stop and recover work](stop-and-recover.md) now says that work
+  resumed after an errored or interrupted round also takes up what
+  arrived meanwhile.
+  ([#680](https://github.com/alimanfoo/dreamcatcher/pull/680))
 - The animated status view on the documentation home page now shows the
   statuses, round details and dispatch labels that the web home page
   shows, rather than a "needs user feedback" status that the web page no
