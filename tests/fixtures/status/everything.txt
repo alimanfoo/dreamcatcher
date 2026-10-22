@@ -21,5 +21,5 @@ assignments
   GH52  dream:smith  blocked by GH50                                                                
   GH53  dream:less   multiple assignment labels: dream:less, dream:smith                            
   GH53  dream:smith  multiple assignment labels: dream:less, dream:smith                            
-  GH55  dream:smith  claimed by #61; blocked by GH50, GH51                                          
+  GH55  dream:smith  claimed by #61; blocked by GH50, alimanfoo/dream#1016                          
   2 ended assignments                                                                               

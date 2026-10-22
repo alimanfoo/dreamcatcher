@@ -13,6 +13,7 @@ from dreamcatcher.agent_assignments import (
 from dreamcatcher.agent_work import AgentWork
 from dreamcatcher.config import DispatchRoute
 from dreamcatcher.github import (
+    BlockingIssue,
     Issue,
     IssueState,
     PullRequest,
@@ -35,6 +36,7 @@ from dreamcatcher.scheduler.inspection import (
     compose_open_work_row,
 )
 from dreamcatcher.scheduler.models import (
+    IssueReference,
     PullRequestFinding,
     ReadFailureFinding,
     RequestRow,
@@ -176,9 +178,20 @@ def _ask_start_time_questions(
             pull_request.number for pull_request in pull_request_context.pull_requests
         ],
         blocking_issues=[
-            blocker.number for blocker in blocking if blocker.state is IssueState.OPEN
+            _refer_to_issue(context=context, issue=blocker)
+            for blocker in blocking
+            if blocker.state is IssueState.OPEN
         ],
     )
+
+
+def _refer_to_issue(
+    *, context: SchedulingContext, issue: BlockingIssue
+) -> IssueReference:
+    """Return a reference that names the issue's repository when it is another one."""
+    if issue.repository.casefold() == context.repository.casefold():
+        return IssueReference(number=issue.number)
+    return IssueReference(number=issue.number, repository=issue.repository)
 
 
 def _compose_opening_round(*, context: SchedulingContext, work: AgentWork) -> RoundPlan:

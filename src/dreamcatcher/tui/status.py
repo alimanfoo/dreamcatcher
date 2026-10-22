@@ -130,7 +130,12 @@ def _render_request_rows(*, requests: Sequence[RequestStatus]) -> list[Renderabl
 def _render_request_reason(*, reason: RequestReason) -> str:
     """Return one reason's words followed by the issues and pull requests it names."""
     references = [
-        *(f"GH{number}" for number in reason.issues),
+        *(
+            f"{issue.repository}#{issue.number}"
+            if issue.repository
+            else f"GH{issue.number}"
+            for issue in reason.issues
+        ),
         *(f"#{number}" for number in reason.pull_requests),
     ]
     if not references:

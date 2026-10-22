@@ -69,6 +69,7 @@ from dreamcatcher.scheduler.faults import (
 )
 from dreamcatcher.scheduler.models import (
     GlobalCooldown,
+    IssueReference,
     PullRequestFinding,
     SchedulerRecord,
     StartedRound,
@@ -549,7 +550,15 @@ def test_a_tick_at_the_cap_records_a_candidate_listing_failure(
 
 def test_a_tick_with_nothing_eligible_starts_no_assignment(ready_repo, offered):
     offered.replies(
-        stdout=pages(items=[{"number": 7, "state": "open"}]),
+        stdout=pages(
+            items=[
+                {
+                    "number": 7,
+                    "state": "open",
+                    "repository_url": f"https://api.github.com/repos/{REPOSITORY}",
+                }
+            ]
+        ),
         to="api",
     )
     scheduler, clock = create_scheduler(root=ready_repo)
@@ -560,7 +569,9 @@ def test_a_tick_with_nothing_eligible_starts_no_assignment(ready_repo, offered):
     assert observed.rows == [
         request_row(
             issue=8,
-            finding=StartTimeFinding(linked_pull_requests=[], blocking_issues=[7]),
+            finding=StartTimeFinding(
+                linked_pull_requests=[], blocking_issues=[IssueReference(number=7)]
+            ),
         )
     ]
     assert not scheduler.context.state.worktrees.exists()
