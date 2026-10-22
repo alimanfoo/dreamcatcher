@@ -287,6 +287,14 @@ class _RestIssueProjection(GitHubResponseProjection):
         """Keep the owner and name that end the REST API's repository URL."""
         return "/".join(str(value).rstrip("/").split("/")[-2:])
 
+    def is_in_repository(self, *, repository: str) -> bool:
+        """Return whether the issue is in the repository named as `owner/name`.
+
+        GitHub compares both the owner and the name case-insensitively, so
+        this does too.
+        """
+        return self.repository.casefold() == repository.casefold()
+
 
 class BlockingIssue(_RestIssueProjection):
     """Model an issue that blocks another issue."""

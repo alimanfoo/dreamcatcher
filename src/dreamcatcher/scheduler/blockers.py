@@ -31,6 +31,6 @@ def _refer_to_issue(
     *, context: SchedulingContext, issue: BlockingIssue
 ) -> IssueReference:
     """Return a reference that names the issue's repository when it is another one."""
-    if issue.repository.casefold() == context.repository.casefold():
+    if issue.is_in_repository(repository=context.repository):
         return IssueReference(number=issue.number)
     return IssueReference(number=issue.number, repository=issue.repository)
