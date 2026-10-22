@@ -53,7 +53,9 @@ labels they name from that record.
 An **issue** is a GitHub issue that _dreamcatcher_ may handle. Its
 GitHub number is its **issue identifier**, written as `GH123` in the
 terminal and in the identifiers built from it. The web pages write an
-issue or pull request number as `#123`, as GitHub does.
+issue or pull request number as `#123`, as GitHub does. An issue in
+another repository is written with that repository, as `owner/name#123`,
+in the terminal and on the web pages alike.
 
 ### Agent assignment and agent assignment identifier
 

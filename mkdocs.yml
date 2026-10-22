@@ -1,6 +1,7 @@
 site_name: dreamcatcher
 site_description: >-
-  Carry labelled issues to pull requests with autonomous agent assignments
+  Dispatch autonomous agent conversations, coding assignments and campaigns
+  from labelled issues
 site_url: https://alimanfoo.github.io/dreamcatcher/
 repo_url: https://github.com/alimanfoo/dreamcatcher
 repo_name: alimanfoo/dreamcatcher

@@ -188,7 +188,7 @@ def _build_cli_parser() -> argparse.ArgumentParser:
         help="show the instance, its agent work, and the labels waiting for work",
         description=(
             "Show instance and daemon facts, each assignment, conversation and "
-            "campaign, and each dispatch label on an issue that has no work yet, in "
+            "campaign, and each dispatch label that no open work answers, in "
             "dispatch order, with why no work has started. It "
             "refreshes automatically "
             "until you interrupt it. "

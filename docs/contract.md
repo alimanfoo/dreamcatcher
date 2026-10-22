@@ -66,12 +66,12 @@ final account of the work.
 
 ### Ending a turn
 
-_dreamcatcher_ runs an agent in rounds, and a round is over when the
-agent's process exits. An assignment skill must instruct the agent to
-end its turn once it has nothing left to do, and to post anything it has
-to tell the user on the pull request rather than relying on its turn
-output. _dreamcatcher_ records that output in the feed, but does not
-publish it as a message to the user.
+_dreamcatcher_ runs an agent in rounds, and the agent's turn in a round
+is over when its process exits. An assignment skill must instruct the
+agent to end its turn once it has nothing left to do, and to post
+anything it has to tell the user on the pull request rather than relying
+on its turn output. _dreamcatcher_ records that output in the feed, but
+does not publish it as a message to the user.
 
 An assignment skill must not instruct the agent to run anything that
 waits for a person, such as a command that asks to be approved, an
@@ -239,7 +239,7 @@ commit and file left by the earlier investigation.
 An issue conversation is investigation work. Its instructions may tell
 the agent to read source and Git history, run code, reproduce a
 suspected bug, and make issue changes on GitHub when the user asks, such
-as filing or linking a subissue. Before making a GitHub change, the
+as filing or linking a sub-issue. Before making a GitHub change, the
 agent must inspect GitHub and must not repeat an action that an earlier
 attempt completed. It must not close the conversation issue or change
 its assignees or labels, because closing the issue ends the conversation

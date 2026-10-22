@@ -204,8 +204,8 @@ dreamcatcher status
 ```
 
 Show the repository and daemon facts, assignments, issue conversations
-and campaigns, and each dispatch label on an issue that has no work yet,
-in dispatch order, with why no work has started.
+and campaigns, and each dispatch label that no open work answers, in
+dispatch order, with why no work has started.
 
 In an interactive terminal the view refreshes and occupies the terminal
 until interrupted. When output is piped, redirected or captured, it
@@ -217,7 +217,7 @@ prints one snapshot and returns.
 dreamcatcher assignment (GH<n> | IDENTIFIER)
 ```
 
-Show the selected assignment. The view includes its settled route and
+Show the selected assignment. The view includes its recorded route and
 harness settings, its rounds, a hand-resume command when one is
 available, and the other assignments at the same issue, each with its
 identifier, dispatch label and status.

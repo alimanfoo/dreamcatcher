@@ -139,10 +139,11 @@ output. A scheduler tick that fails before returning one is reported in
 daemon output and leaves the last complete scheduler record in place. A
 local record that cannot be read, or a write that fails while open work
 is inspected, fails the tick this way whichever work it belongs to. A
-conversation's comment cursor is the exception, and its row holds the
-failure. An invalid scheduler record ends the daemon because retrying
-cannot repair the document, and so does a scheduler record that cannot
-be written, because the daemon then has no way to report anything.
+round input that a conversation or campaign reads while it is inspected
+is the exception, and the work's row holds the failure. An invalid
+scheduler record ends the daemon because retrying cannot repair the
+document, and so does a scheduler record that cannot be written, because
+the daemon then has no way to report anything.
 
 If a GitHub read for a request fails, the tick holds the reason in that
 request's row and prevents only the launches that depend on what it
@@ -301,8 +302,8 @@ The lead publishes its own messages, so a campaign's round plan has no
 finishing step, and its final output stays in the feed. Claude's
 campaign permissions let the lead coordinate through GitHub and verify
 work without implementing it: Claude allows selected `gh issue` and
-`gh pr` commands, `gh api`, `git fetch`, `git checkout` and
-`git switch`, and denies direct editing and the other Git mutations.
+`gh pr` commands, `gh run view`, `gh api`, `git fetch`, `git checkout`
+and `git switch`, and denies direct editing and the other Git mutations.
 Claude approves a shell call by these rules only when every command in
 it matches one, and its auto mode classifier refuses any other call that
 merges a pull request that no person approved, so the campaign input
@@ -413,12 +414,12 @@ pull request exists. `issue_conversations.py` owns
 `ConversationRoundInput`, which freezes the issue, eligible comments and
 investigated revision for a conversation round, and `campaigns.py` owns
 `CampaignRoundInput`, which freezes the parent issue, sub-issues,
-notifications, eligible comments, cursor and revision for a campaign
-round. The round runner writes whichever input the preparation returns
-without reading it, and it hands the final output to the finishing step
-without knowing what that step does with it. The round module therefore
-stays clear of Git and GitHub, and each kind's own module owns what its
-steps write.
+notifications, eligible comments, cursor, revision and assignment routes
+for a campaign round. The round runner writes whichever input the
+preparation returns without reading it, and it hands the final output to
+the finishing step without knowing what that step does with it. The
+round module therefore stays clear of Git and GitHub, and each kind's
+own module owns what its steps write.
 
 The scheduler decides the input and the prompt a new round has. The
 round boundary executes and records that decision; it does not inspect
@@ -818,8 +819,9 @@ assignment's do. Its route and recipe stay frozen for its life. Each
 round input persists its investigated revision and the eligible comments
 it relays; the input of a round that starts a new harness session also
 persists the issue title and body. A campaign's round input persists the
-parent issue, the eligible comments it relays, the cursor it reaches and
-the revision it was given.
+parent issue, its sub-issues and the notifications about them, the
+eligible comments it relays, the cursor it reaches, the revision it was
+given and the assignment routes.
 
 Instance records persist the repository identity and the most recent
 daemon run's preferred harness, _dreamcatcher_ version, capacity,

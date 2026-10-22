@@ -72,7 +72,7 @@ can start the mode _dreamcatcher_ uses. Leave Claude with `/exit`.
 
 Use the main checkout of an ordinary clone, not a linked Git worktree.
 _dreamcatcher_ deliberately refuses to run from a linked worktree
-because it creates and manages child worktrees of its own.
+because it creates and manages worktrees of its own.
 
 ```sh
 git clone https://github.com/OWNER/REPOSITORY.git
@@ -112,9 +112,9 @@ run `init` again. If Codex is installed as well as Claude, the file uses
 both, so sign in to Codex too, with `codex login`.
 
 The `dream` plugin is installed at user scope, outside the repository,
-so its skills are available in the child Git worktree where an
-assignment runs. The plugin provides `dream:smith`, the assignment skill
-this tutorial uses.
+so its skills are available in the Git worktree where an assignment
+runs. The plugin provides `dream:smith`, the assignment skill this
+tutorial uses.
 
 The `dreamcatcher.toml` that `init` writes routes the `dream:smith` and
 `dream:less` labels to assignments, the `dream:scout` label to issue
@@ -169,9 +169,10 @@ dreamcatcher run --harness claude --interval 30 --max-agents 1
 ```
 
 Keep this terminal open. Every 30 seconds _dreamcatcher_ looks for work,
-with at most one agent round running at a time. A round is one turn by
-the agent: _dreamcatcher_ readies the worktree and the round's input,
-runs the agent process, and finishes up after that process exits.
+with at most one agent round running at a time. A round is one attempt
+by the agent to take a turn: _dreamcatcher_ readies the worktree and the
+round's input, runs the agent process, and finishes up after that
+process exits.
 
 _dreamcatcher_ starts Claude non-interactively in auto permission mode
 and allows the selected Git, pull-request and issue commands the
@@ -181,9 +182,9 @@ sandbox or a guarantee about what a plugin will do, so use a repository,
 plugin and GitHub account you trust.
 
 On dispatch, _dreamcatcher_ fetches `origin/main`, creates a branch and
-child worktree, pushes an empty commit, and opens a linked **draft**
+a worktree for it, pushes an empty commit, and opens a linked **draft**
 pull request. The draft means the assignment has begun; it does not mean
-the implementation is ready for review. Claude then works in that child
+the implementation is ready for review. Claude then works in that
 worktree.
 
 ## 7. Watch the assignment

@@ -114,7 +114,7 @@ _CONVERSATION_INPUT_PROMPT = """Issue-conversation input for GH{issue}:
 Read that JSON file and answer the user's comments together. You may read the
 source and Git history, run code, and reproduce a suspected bug. Do not edit
 project source, mutate Git, or implement a change. You may make issue changes on
-GitHub when the user asks, such as filing a subissue. Inspect GitHub before each
+GitHub when the user asks, such as filing a sub-issue. Inspect GitHub before each
 change and do not repeat an action that an earlier attempt completed. Do not
 close the conversation issue or change its assignees or labels, because closing
 the issue ends the conversation and removing its label or assignee pauses it. Do

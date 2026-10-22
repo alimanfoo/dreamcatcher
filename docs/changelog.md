@@ -27,6 +27,8 @@ the change.
 
 ## Unreleased
 
+## [v7.0.0](https://github.com/alimanfoo/dreamcatcher/releases/tag/v7.0.0) — 2026-10-22
+
 ### Breaking
 
 - Saved state moves to state format 7, in `.dreamcatcher/v7/`. Saved
@@ -84,6 +86,9 @@ the change.
 
 ### Fixed
 
+- Starting _dreamcatcher_ for the first time in a repository no longer
+  fails on Python 3.13 before any agent work exists.
+  ([#664](https://github.com/alimanfoo/dreamcatcher/pull/664))
 - [Stop and recover work](stop-and-recover.md) now says that work
   resumed after an errored or interrupted round also takes up what
   arrived meanwhile.
