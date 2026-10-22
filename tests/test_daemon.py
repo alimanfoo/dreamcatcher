@@ -35,6 +35,7 @@ from dreamcatcher.agent_rounds import (
     request_agent_round_stop,
 )
 from dreamcatcher.agent_work import find_agent_work
+from dreamcatcher.clock import read_boot_time, read_current_time
 from dreamcatcher.config import DREAMCATCHER_CONFIG_NAME, AgentHarness
 from dreamcatcher.daemon import DreamcatcherDaemon
 from dreamcatcher.daemon_runs import DaemonRunRecord, RecordedRoute
@@ -475,7 +476,9 @@ def test_a_round_the_daemon_before_this_one_left_running_is_ended(
     write_round(
         directory=directory,
         number=1,
-        record=AgentRoundRecord(number=1, started=PINNED, pid=left_running.pid),
+        record=AgentRoundRecord(
+            number=1, started=read_current_time(), pid=left_running.pid
+        ),
     )
     daemon, _, _ = idling(root=watched)
 
@@ -527,7 +530,9 @@ def test_a_pending_stop_survives_daemon_restart(watched, harnesses, gh, left_run
     write_round(
         directory=directory,
         number=1,
-        record=AgentRoundRecord(number=1, started=PINNED, pid=left_running.pid),
+        record=AgentRoundRecord(
+            number=1, started=read_current_time(), pid=left_running.pid
+        ),
     )
     assignment = find_agent_work(state=state, identifier=ASSIGNMENT_ID)
     assert assignment is not None
@@ -552,7 +557,7 @@ def test_a_conversation_round_left_running_is_ended(
         number=1,
         record=AgentRoundRecord(
             number=1,
-            started=PINNED,
+            started=read_current_time(),
             pid=left_running.pid,
         ),
     )
@@ -565,6 +570,42 @@ def test_a_conversation_round_left_running_is_ended(
         (directory / "rounds" / "1" / "round.json").read_text(encoding="utf-8")
     )
     assert record.outcome is AgentRoundOutcome.INTERRUPTED
+
+
+@pytest.mark.parametrize(
+    ("is_stop_requested", "outcome"),
+    [
+        (False, AgentRoundOutcome.INTERRUPTED),
+        (True, AgentRoundOutcome.STOPPED),
+    ],
+)
+def test_the_sweep_ends_no_pid_of_a_round_from_before_the_machine_booted(
+    watched, harnesses, gh, left_running, is_stop_requested, outcome
+):
+    state = StateDirectory(root=watched)
+    directory = write_assignment(state=state, identifier=ASSIGNMENT_ID, issue=13)
+    write_round(
+        directory=directory,
+        number=1,
+        record=AgentRoundRecord(
+            number=1,
+            started=read_boot_time() - timedelta(hours=1),
+            pid=left_running.pid,
+        ),
+    )
+    if is_stop_requested:
+        assignment = find_agent_work(state=state, identifier=ASSIGNMENT_ID)
+        assert assignment is not None
+        request_agent_round_stop(paths=assignment.compose_round_paths(number=1))
+    daemon, _, _ = idling(root=watched)
+
+    daemon.run()
+
+    assert psutil.pid_exists(left_running.pid)
+    record = AgentRoundRecord.model_validate_json(
+        (directory / "rounds" / "1" / "round.json").read_text(encoding="utf-8")
+    )
+    assert record.outcome is outcome
 
 
 def test_a_round_that_recorded_an_ending_is_left_running_by_the_sweep(

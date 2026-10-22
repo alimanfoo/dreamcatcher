@@ -16,7 +16,7 @@ from dreamcatcher.agent_rounds import (
     record_agent_round_stop,
 )
 from dreamcatcher.agent_work import read_agent_work
-from dreamcatcher.clock import WaitForSeconds, read_current_time
+from dreamcatcher.clock import WaitForSeconds, read_boot_time, read_current_time
 from dreamcatcher.config import AgentHarness, read_dreamcatcher_config
 from dreamcatcher.daemon_runs import DaemonRunRecord, RecordedRoute
 from dreamcatcher.documents import write_json, write_text
@@ -42,7 +42,8 @@ if TYPE_CHECKING:
     from pathlib import Path
     from types import FrameType
 
-    from dreamcatcher.agent_rounds import AgentRound
+    from dreamcatcher.agent_rounds import AgentRound, AgentRoundRecord
+    from dreamcatcher.agent_work import AgentWork
     from dreamcatcher.scheduler import SchedulerRecord
 
 DEFAULT_INTERVAL_SECONDS = 120
@@ -248,35 +249,40 @@ class DreamcatcherDaemon:
         A terminal record is left unchanged. A record with a pending stop
         request is marked stopped; every other record without an ending is
         marked interrupted so that a later scheduler tick gives its input
-        again. A record with no process id ended before its harness was
-        spawned, so there is nothing to terminate.
+        again.
+
+        The sweep ends the process group that each such record's pid leads,
+        unless nothing of its round can still be alive. A record with no
+        process id ended before its harness was spawned, and a round that
+        started before the machine last booted ended with the machine.
 
         The pid is the one the record kept, and the operating system was free
-        to give it to somebody else once the daemon that recorded it died.
-        Ending it reaches that pid's own process group, and a pid handed on to
-        a stranger is almost never a group of its own, so it names no group and
-        nothing happens. A reused pid that does lead a process group can cause
-        this sweep to terminate an unrelated group. The record can be stale
-        for the whole interval between daemon runs.
+        to give it to another process once the daemon that recorded it died.
+        On macOS most processes lead a group of their own, so a reused pid
+        usually names a group, and the sweep then ends a group that was never
+        a round. The stories accept this under "The daemon is killed", since
+        it needs the daemon killed outright and the pid reused before the next
+        daemon starts, with no reboot in between.
 
         Windows Job Objects empty when the earlier daemon closes its last
         handle, so termination there is already complete.
         """
+        boot_time = read_boot_time()
         for work in read_agent_work(state=self.state):
             for record in work.rounds:
                 if record.ending is None:
-                    if record.pid is not None:
-                        teardown.end_process_tree(pid=record.pid)
-                    paths = work.compose_round_paths(number=record.number)
-                    if paths.stop_request.is_file():
-                        record_agent_round_stop(
-                            record=record, path=paths.record, at=self.clock()
-                        )
-                    else:
-                        record_agent_round_interruption(
-                            record=record,
-                            path=paths.record,
-                        )
+                    self._end_orphan(work=work, record=record, boot_time=boot_time)
+
+    def _end_orphan(
+        self, *, work: AgentWork, record: AgentRoundRecord, boot_time: datetime
+    ) -> None:
+        if record.pid is not None and record.started > boot_time:
+            teardown.end_process_tree(pid=record.pid)
+        paths = work.compose_round_paths(number=record.number)
+        if paths.stop_request.is_file():
+            record_agent_round_stop(record=record, path=paths.record, at=self.clock())
+        else:
+            record_agent_round_interruption(record=record, path=paths.record)
 
 
 def _describe_tick_outcome(

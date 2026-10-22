@@ -874,6 +874,15 @@ work as waiting. When the daemon next starts, it ends any harness still
 running, records the round as interrupted, and the work carries on in
 its session, given its input again.
 
+The daemon knows a harness only by the process number that its round
+recorded, and once the daemon is gone the system may give that number to
+another program. If the machine restarted since the round started, the
+daemon ends nothing for it, because nothing of the round survived the
+restart. Without a restart, the number may have passed to a program that
+leads a process group of its own, and the daemon then ends that program
+and everything it started. That is accepted: it needs the daemon killed
+outright and the number reused before the daemon next starts.
+
 ### The machine sleeps
 
 The laptop lid closes with the daemon running. Nothing dies. When the

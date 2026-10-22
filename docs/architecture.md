@@ -46,8 +46,9 @@ instance:
   enables it;
 - reconcile round records that an earlier daemon left without an ending
   by ending their recorded process trees at startup, skipping a record
-  with no process identifier, then asking the round boundary to record
-  them as stopped when the user asked to stop them, and otherwise as
+  with no process identifier or one whose round started before the
+  machine last booted, then asking the round boundary to record them as
+  stopped when the user asked to stop them, and otherwise as
   interrupted;
 - call the scheduler repeatedly;
 - wait for the daemon run's requested interval between ticks, then check
