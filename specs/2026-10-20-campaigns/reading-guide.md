@@ -373,6 +373,23 @@ when they are known again. Read
 [`tests/test_browser.py`](../../tests/test_browser.py) for the exercised
 behaviour.
 
+## The activity feed
+
+Read `AgentRound._read_stdout` and `_append_feed_events` in
+[`agent_rounds.py`](../../src/dreamcatcher/agent_rounds.py), then
+`FeedRenderer` in [`feed.py`](../../src/dreamcatcher/feed.py). Raw
+harness stdout is saved separately from the readable feed. The feed
+timestamps prose and tool notes; tool-note details are flattened and
+clipped at 200 characters. It is an activity view, not a lossless tool
+transcript.
+
+For the web reader, follow `read_agent_feed` and `read_agent_tail` in
+[`web/feed.py`](../../src/dreamcatcher/web/feed.py). They read across
+numbered rounds. Their cursor is a round number and file position,
+separate from the GitHub cursor that controls input delivery. This is
+the existing activity record behind the decision to keep the parent
+issue for collaboration rather than routine action logging.
+
 ## The sharp edges
 
 - The campaign inspectors read the sub-issues before
