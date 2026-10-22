@@ -266,9 +266,11 @@ def write_rounds(
             ),
             round_input=CampaignRoundInput(
                 issue=PARENT,
+                children=[],
                 comments=[IssueComment.model_validate(item) for item in comments],
                 cursor=cursor,
                 revision="abc123",
+                assignment_routes=[],
             ),
         )
     return directory
@@ -335,9 +337,11 @@ def test_a_labelled_parent_starts_a_lead_that_reads_its_input_and_posts_nothing(
     assert read_json(model=CampaignRoundInput, path=paths.round_input) == (
         CampaignRoundInput(
             issue=PARENT,
+            children=[],
             comments=[],
             cursor=None,
             revision=_read_worktree_revision(worktree=campaign.worktree),
+            assignment_routes=scheduler.context.config.assignment,
         )
     )
     [call] = harnesses["claude"].calls
@@ -1043,7 +1047,12 @@ def test_a_codex_lead_resumes_its_session_for_a_parent_comment(cloned, gh, harne
             number=1, started=PINNED, ending=SuccessfulAgentRoundEnding(at=PINNED)
         ),
         round_input=CampaignRoundInput(
-            issue=PARENT, comments=[], cursor=None, revision="abc123"
+            issue=PARENT,
+            children=[],
+            comments=[],
+            cursor=None,
+            revision="abc123",
+            assignment_routes=[],
         ),
     )
     offer_parent(gh=gh)
@@ -1383,6 +1392,36 @@ def test_a_replacement_assignment_takes_the_place_of_the_one_it_replaced(
             assignment=child_assignment(identifier=replacement, pull_request=None),
         )
     ]
+
+
+def test_a_lead_round_is_given_the_children_that_its_update_observed(
+    campaign_scheduler, harnesses
+):
+    scheduler, gh = campaign_scheduler
+    write_child_assignment(
+        state=scheduler.context.state,
+        endings=[SuccessfulAgentRoundEnding(at=PINNED)],
+    )
+    offer_parent(gh=gh)
+    offer_children(
+        gh=gh,
+        children=[sub_issue(number=FIRST_CHILD), sub_issue(number=SECOND_CHILD)],
+    )
+    lead(harnesses=harnesses)
+
+    tick(scheduler=scheduler)
+    finish(scheduler=scheduler)
+
+    given = read_lead_input(scheduler=scheduler, number=1)
+    assert given.children == [
+        child(
+            assignment=child_assignment(
+                observed_pull_request=DRAFT_PULL_REQUEST, finished_turn=1
+            )
+        ),
+        child(issue=SECOND_CHILD, title=f"Stage {SECOND_CHILD}"),
+    ]
+    assert given.assignment_routes == scheduler.context.config.assignment
 
 
 def test_a_change_among_the_children_alone_starts_no_lead_round(

@@ -11,12 +11,18 @@ from dreamcatcher.agent_rounds import (
 )
 from dreamcatcher.agent_work import AgentWork, create_agent_work
 from dreamcatcher.campaigns import (
+    CampaignChild,
     CampaignRoundInput,
     prepare_campaign_round,
     read_parent_comment_cursor,
 )
-from dreamcatcher.config import AgentHarness, CampaignRoute, ClaudeRecipe
-from dreamcatcher.github import IssueComment
+from dreamcatcher.config import (
+    AgentHarness,
+    AssignmentRoute,
+    CampaignRoute,
+    ClaudeRecipe,
+)
+from dreamcatcher.github import IssueComment, IssueState
 from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.relay import IssueCommentCursor
 from dreamcatcher.state import StateDirectory
@@ -29,16 +35,26 @@ SECOND = IssueComment(
     id=2, author="alimanfoo", written_at="2026-09-23T02:00:00Z", body="Go on."
 )
 
+CHILD = CampaignChild(
+    issue=21, title="Stage 1", state=IssueState.OPEN, is_settled=True, assignment=None
+)
+SMITH = AssignmentRoute(
+    label="dream:smith",
+    claude=ClaudeRecipe(prompt="/dream:smith GH{issue}", model="opus", effort="high"),
+)
+
 
 def lead_input(*, comments: list[IssueComment]) -> CampaignRoundInput:
     """Return an input that delivered these comments, reaching the newest."""
     return CampaignRoundInput(
         issue=PARENT,
+        children=[],
         comments=comments,
         cursor=IssueCommentCursor(
             written_at=comments[-1].written_at, id=comments[-1].id
         ),
         revision="abc123",
+        assignment_routes=[],
     )
 
 
@@ -66,13 +82,19 @@ def test_a_campaign_round_starts_from_main_in_a_detached_worktree(cloned):
     )
 
     frozen = prepare_campaign_round(
-        state=state, campaign=campaign, comments=[FIRST, SECOND]
+        state=state,
+        campaign=campaign,
+        children=[CHILD],
+        comments=[FIRST, SECOND],
+        assignment_routes=[SMITH],
     )
 
     assert campaign.record.kind is AgentWorkKind.CAMPAIGN
     assert campaign.record.instructions == "Acknowledge GH20."
     assert frozen.issue == PARENT
+    assert frozen.children == [CHILD]
     assert frozen.comments == [FIRST, SECOND]
+    assert frozen.assignment_routes == [SMITH]
     assert frozen.cursor == IssueCommentCursor(written_at=SECOND.written_at, id=2)
     assert frozen.revision
     assert campaign.worktree.joinpath(".git").is_file()

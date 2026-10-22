@@ -8,6 +8,7 @@ main, and the lead publishes its own messages, so a round has no finishing step.
 from pydantic import PositiveInt
 
 from dreamcatcher.agent_work import AgentWork, AgentWorkEndReason
+from dreamcatcher.config import AssignmentRoute
 from dreamcatcher.documents import (
     DreamcatcherDocument,
     WriteOnceDreamcatcherDocument,
@@ -76,25 +77,36 @@ class CampaignChild(DreamcatcherDocument):
 class CampaignRoundInput(WriteOnceDreamcatcherDocument):
     """Model the input frozen for one campaign round.
 
-    The comments are the user's eligible comments on the parent past the
-    cursor, oldest first. The cursor is how far this input reaches in the
-    parent's comments: the newest comment's position, or the previous delivered
-    input's cursor when the input holds no comment.
+    The children are the parent's children as the update that started the
+    round observed them. The comments are the user's eligible comments on the
+    parent past the cursor, oldest first. The cursor is how far this input
+    reaches in the parent's comments: the newest comment's position, or the
+    previous delivered input's cursor when the input holds no comment. The
+    assignment routes are those of the daemon that started the round, which
+    the lead chooses among for a child.
     """
 
     issue: int
+    children: list[CampaignChild]
     comments: list[IssueComment]
     cursor: IssueCommentCursor | None
     revision: str
+    assignment_routes: list[AssignmentRoute]
 
 
 def prepare_campaign_round(
-    *, state: StateDirectory, campaign: AgentWork, comments: list[IssueComment]
+    *,
+    state: StateDirectory,
+    campaign: AgentWork,
+    children: list[CampaignChild],
+    comments: list[IssueComment],
+    assignment_routes: list[AssignmentRoute],
 ) -> CampaignRoundInput:
     """Reset the worktree to fetched main and freeze the round's input."""
     revision = refresh_detached_worktree(root=state.root, worktree=campaign.worktree)
     return CampaignRoundInput(
         issue=campaign.record.issue,
+        children=children,
         comments=comments,
         cursor=(
             IssueCommentCursor(written_at=comments[-1].written_at, id=comments[-1].id)
@@ -102,6 +114,7 @@ def prepare_campaign_round(
             else read_parent_comment_cursor(campaign=campaign)
         ),
         revision=revision,
+        assignment_routes=assignment_routes,
     )
 
 

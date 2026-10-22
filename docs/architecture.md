@@ -239,11 +239,13 @@ invocations.
 campaign go through `agent_work.py`, and creating one writes its work
 record and nothing else. Each round's preparation resets the detached
 worktree to fetched main, adding it when it is missing, and freezes the
-parent issue, the eligible comments past the cursor, the cursor that the
-input reaches and that revision. A round given no new comment carries
-forward the cursor of the newest input delivered to the lead, so that
-input alone always says how far the lead has read. A campaign's worktree
-never acquires a branch or a pull request.
+parent issue, the children that the round's update observed, the
+eligible comments past the cursor, the cursor that the input reaches,
+that revision and the running daemon's assignment routes with their
+recipes. A round given no new comment carries forward the cursor of the
+newest input delivered to the lead, so that input alone always says how
+far the lead has read. A campaign's worktree never acquires a branch or
+a pull request.
 
 Each tick first observes a campaign's children, for an open campaign and
 for a campaign request alike. It lists the parent's direct sub-issues

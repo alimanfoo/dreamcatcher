@@ -240,7 +240,12 @@ def fabricate_campaigns(*, state: StateDirectory) -> list[RequestRow]:
             number=1,
             record=record,
             round_input=CampaignRoundInput(
-                issue=issue, comments=[], cursor=None, revision="abc123"
+                issue=issue,
+                children=[],
+                comments=[],
+                cursor=None,
+                revision="abc123",
+                assignment_routes=[],
             ),
         )
         write_feed(

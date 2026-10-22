@@ -266,25 +266,36 @@ def _inspect_lead_input(
         candidate=Candidate(
             work_or_route=work_or_route,
             compose_round=partial(
-                _compose_campaign_round, context=context, comments=comments
+                _compose_campaign_round,
+                context=context,
+                children=children,
+                comments=comments,
             ),
         ),
     )
 
 
 def _compose_campaign_round(
-    *, context: SchedulingContext, comments: list[IssueComment], work: AgentWork
+    *,
+    context: SchedulingContext,
+    children: list[CampaignChild],
+    comments: list[IssueComment],
+    work: AgentWork,
 ) -> RoundPlan:
     """Return the plan of a round that gives the lead its input.
 
-    The lead publishes its own messages, so the round has no finishing step.
+    The input offers the lead the assignment routes of this daemon, which may
+    differ from the configuration on main. The lead publishes its own
+    messages, so the round has no finishing step.
     """
     return RoundPlan(
         prepare_round=partial(
             prepare_campaign_round,
             state=context.state,
             campaign=work,
+            children=children,
             comments=comments,
+            assignment_routes=context.config.assignment,
         ),
         input_prompt=compose_campaign_input_prompt(
             issue=work.record.issue,

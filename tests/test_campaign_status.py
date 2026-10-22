@@ -95,6 +95,7 @@ def lead_round(
             if revision is None
             else CampaignRoundInput(
                 issue=PARENT,
+                children=[],
                 comments=given,
                 cursor=(
                     IssueCommentCursor(written_at=given[-1].written_at, id=given[-1].id)
@@ -102,6 +103,7 @@ def lead_round(
                     else None
                 ),
                 revision=revision,
+                assignment_routes=[],
             )
         ),
     )
