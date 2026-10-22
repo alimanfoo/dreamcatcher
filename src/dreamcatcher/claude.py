@@ -99,6 +99,53 @@ _CLAUDE_CONVERSATION_DISALLOWED_TOOLS = (
     "Bash(git worktree:*)",
 )
 
+# What an unattended campaign lead may do without being asked: coordinate its
+# children through issues, comments, reviews and merges, and fetch and check out
+# the commits it reviews.
+_CLAUDE_CAMPAIGN_ALLOWED_TOOLS = (
+    "Bash(gh issue create:*)",
+    "Bash(gh issue edit:*)",
+    "Bash(gh issue comment:*)",
+    "Bash(gh pr comment:*)",
+    "Bash(gh pr review:*)",
+    "Bash(gh pr merge:*)",
+    "Bash(gh pr checks:*)",
+    "Bash(gh run view:*)",
+    "Bash(gh api:*)",
+    "Bash(git fetch:*)",
+    "Bash(git checkout:*)",
+    "Bash(git switch:*)",
+)
+
+# A lead reviews the work of its children's agents and never implements it, so
+# it is denied what a conversation is denied, apart from the Git commands that
+# fetch and check out the commits it reviews.
+_CLAUDE_CAMPAIGN_DISALLOWED_TOOLS = tuple(
+    tool
+    for tool in _CLAUDE_CONVERSATION_DISALLOWED_TOOLS
+    if tool not in _CLAUDE_CAMPAIGN_ALLOWED_TOOLS
+)
+
+# The permission arguments of every round, by the kind of its work.
+_CLAUDE_PERMISSION_ARGUMENTS = {
+    AgentWorkKind.ASSIGNMENT: [
+        "--allowedTools",
+        " ".join(_CLAUDE_ASSIGNMENT_ALLOWED_TOOLS),
+    ],
+    AgentWorkKind.CONVERSATION: [
+        "--allowedTools",
+        " ".join(_CLAUDE_CONVERSATION_ALLOWED_TOOLS),
+        "--disallowedTools",
+        " ".join(_CLAUDE_CONVERSATION_DISALLOWED_TOOLS),
+    ],
+    AgentWorkKind.CAMPAIGN: [
+        "--allowedTools",
+        " ".join(_CLAUDE_CAMPAIGN_ALLOWED_TOOLS),
+        "--disallowedTools",
+        " ".join(_CLAUDE_CAMPAIGN_DISALLOWED_TOOLS),
+    ],
+}
+
 # The inputs of a tool call that say most about it, most telling first. The
 # whole input comes last, so a tool none of these names still says something.
 _TOOL_INPUT_KEYS_BY_PRIORITY = (
@@ -213,18 +260,6 @@ class _ClaudeHarnessAdapter(HarnessAdapter):
 
     def _build_base_arguments(self, *, request: AgentRoundLaunchRequest) -> list[str]:
         """Return the arguments every round shares."""
-        if request.work_kind is AgentWorkKind.CONVERSATION:
-            permissions = [
-                "--allowedTools",
-                " ".join(_CLAUDE_CONVERSATION_ALLOWED_TOOLS),
-                "--disallowedTools",
-                " ".join(_CLAUDE_CONVERSATION_DISALLOWED_TOOLS),
-            ]
-        else:
-            permissions = [
-                "--allowedTools",
-                " ".join(_CLAUDE_ASSIGNMENT_ALLOWED_TOOLS),
-            ]
         return [
             "--print",
             "--output-format",
@@ -232,7 +267,7 @@ class _ClaudeHarnessAdapter(HarnessAdapter):
             "--verbose",
             "--permission-mode",
             "auto",
-            *permissions,
+            *_CLAUDE_PERMISSION_ARGUMENTS[request.work_kind],
             "--name",
             request.agent_work_identifier,
         ]

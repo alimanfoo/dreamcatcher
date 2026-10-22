@@ -30,10 +30,13 @@ _NETWORK_ACCESS_SETTING = {"sandbox_workspace_write.network_access": True}
 # needs no word of its own for this.
 _STDIN_ARGUMENT = "-"
 
-# What an unattended assignment resume may do without being asked. A round that
-# starts a new session gets this from `--approve-for-me`, but a resume does not
-# keep it, so the resumed command has to set the same permissions again itself.
-_ASSIGNMENT_RESUME_PERMISSION_SETTINGS = {
+# What an unattended assignment or campaign resume may do without being asked.
+# Both run Git commands that write outside the worktree, into the checkout's own
+# repository, so they work under Codex's own reviewer rather than the sandbox
+# alone. A round that starts a new session gets this from `--approve-for-me`, but
+# a resume does not keep it, so the resumed command has to set the same
+# permissions again itself.
+_REVIEWED_RESUME_PERMISSION_SETTINGS = {
     "sandbox_mode": "workspace-write",
     **_NETWORK_ACCESS_SETTING,
     "approval_policy": "on-request",
@@ -58,7 +61,7 @@ _DREAMCATCHER_SETTING_KEYS = frozenset(
     {
         "model",
         _EFFORT_KEY,
-        *_ASSIGNMENT_RESUME_PERMISSION_SETTINGS,
+        *_REVIEWED_RESUME_PERMISSION_SETTINGS,
         *_CONVERSATION_PERMISSION_SETTINGS,
         "default_permissions",
         "permissions",
@@ -179,7 +182,7 @@ class _CodexHarnessAdapter(HarnessAdapter):
         permission_settings = (
             _CONVERSATION_PERMISSION_SETTINGS
             if request.work_kind is AgentWorkKind.CONVERSATION
-            else _ASSIGNMENT_RESUME_PERMISSION_SETTINGS
+            else _REVIEWED_RESUME_PERMISSION_SETTINGS
         )
         return HarnessInvocation(
             program=self.program,
