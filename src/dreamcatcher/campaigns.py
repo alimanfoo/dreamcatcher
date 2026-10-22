@@ -17,14 +17,11 @@ class CampaignRoundInput(WriteOnceDreamcatcherDocument):
     """Model the input frozen for one campaign round.
 
     The comments are the user's eligible comments on the parent past the
-    cursor, oldest first. The cursor is how far this input reaches in the
-    parent's comments: the newest comment's position, or the previous delivered
-    input's cursor when the input holds no comment.
+    cursor, oldest first.
     """
 
     issue: int
     comments: list[IssueComment]
-    cursor: IssueCommentCursor | None
     revision: str
 
 
@@ -34,14 +31,7 @@ def prepare_campaign_round(
     """Reset the worktree to fetched main and freeze the round's input."""
     revision = refresh_detached_worktree(root=state.root, worktree=campaign.worktree)
     return CampaignRoundInput(
-        issue=campaign.record.issue,
-        comments=comments,
-        cursor=(
-            IssueCommentCursor(written_at=comments[-1].written_at, id=comments[-1].id)
-            if comments
-            else read_parent_comment_cursor(campaign=campaign)
-        ),
-        revision=revision,
+        issue=campaign.record.issue, comments=comments, revision=revision
     )
 
 
@@ -54,12 +44,15 @@ def read_campaign_input(*, campaign: AgentWork, number: int) -> CampaignRoundInp
 
 
 def read_parent_comment_cursor(*, campaign: AgentWork) -> IssueCommentCursor | None:
-    """Return the cursor of the newest input delivered to the lead.
+    """Return the newest parent comment among those already delivered to the lead.
 
-    No input delivered yet leaves the cursor at the beginning of the parent's
-    comments.
+    A campaign that has delivered no comment reads the parent's comments from
+    the beginning.
     """
-    delivered = campaign.list_relayed_round_paths()
-    if not delivered:
-        return None
-    return read_campaign_input(campaign=campaign, number=delivered[0].number).cursor
+    for paths in campaign.list_relayed_round_paths():
+        comments = read_campaign_input(campaign=campaign, number=paths.number).comments
+        if comments:
+            return IssueCommentCursor(
+                written_at=comments[-1].written_at, id=comments[-1].id
+            )
+    return None

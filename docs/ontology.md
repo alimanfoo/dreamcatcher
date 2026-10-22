@@ -420,10 +420,9 @@ each campaign label on an issue, and it keeps a paused campaign until
 the parent issue closes.
 
 Each campaign round input records the parent issue, the eligible
-comments past the cursor, the cursor that the input reaches and the main
-revision. A round given no new comment carries the cursor forward. The
-lead reads everything else it needs from GitHub, and posts its own
-messages there. Its final output stays in the feed.
+comments past the cursor and the main revision. The lead reads
+everything else it needs from GitHub, and posts its own messages there.
+Its final output stays in the feed.
 
 ### Starting an issue conversation
 

@@ -65,8 +65,8 @@ def _inspect_lead_input(
     It reads for the open campaign, or for the route of the one that would
     start, and the row is the request's row before the read. A round is due to
     start the campaign, for new comments, and to give the lead its input again
-    after a round that did not finish. A stopped round delivered its input, so
-    the lead waits for a new comment after it.
+    after a round that did not finish. A stopped round took its turn, so the
+    lead waits for a new comment after it.
     """
     campaign = work_or_route if isinstance(work_or_route, AgentWork) else None
     comments = list_new_comments(

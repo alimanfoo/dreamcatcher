@@ -351,11 +351,10 @@ new input rather than restricting what it may inspect.
 
 Each campaign input contains the parent reference, the current child
 snapshot, the highlighted changes, the new eligible parent comments, the
-cursor that the input reaches in the parent's comments, the checked-out
-main revision, and the daemon's active assignment routes with their
-recipes. The cursor is carried forward when a round contains no new
-parent comments, so the previous delivered input is sufficient for the
-next comparison. It is part of the round input, not a separate file.
+checked-out main revision, and the daemon's active assignment routes
+with their recipes. The cursor in the parent's comments is the newest
+comment among the delivered inputs, as an assignment's cursor is the
+newest post among its relayed inputs, rather than a separate file.
 
 Supplying active routes matters because the daemon's startup
 configuration may differ from the file now on main. Existing campaign
