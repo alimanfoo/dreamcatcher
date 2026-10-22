@@ -138,6 +138,4 @@ def post_conversation_answer(
         body=f"{answer}\n\n> written by an agent\n\n{AGENT_POST_MARKER}",
     )
     if isinstance(response, UnknownGitHubResponse):
-        raise ReportableError(
-            f"could not post the answer on GH{issue}: {response.reason}"
-        )
+        raise ReportableError(f"could not post the answer: {response.reason}")

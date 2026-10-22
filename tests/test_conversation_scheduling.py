@@ -1508,9 +1508,9 @@ def test_a_failed_post_gives_its_comments_again_with_new_ones(
     assert conversation is not None
     ending = conversation.rounds[0].ending
     assert isinstance(ending, FinishingErroredAgentRoundEnding)
-    assert ending.reason.startswith("could not post the answer on GH8: ")
+    assert ending.reason.startswith("could not post the answer: ")
     feed = conversation.compose_round_paths(number=1).feed.read_text(encoding="utf-8")
-    assert "[failed] could not post the answer on GH8: " in feed
+    assert "[failed] could not post the answer: " in feed
     assert observed.failures == []
     assert observed.launched_agent_work_identifiers == [
         "GH8-20260819-184158-conversation"

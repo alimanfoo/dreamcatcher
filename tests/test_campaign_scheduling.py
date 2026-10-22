@@ -1638,12 +1638,12 @@ def offer_a_foreign_child(*, gh) -> None:
         (
             fail_to_read_the_childs_pull_request,
             True,
-            "could not observe sub-issue GH21: gh pr view 52: gh: could not connect",
+            "could not observe sub-issue 21: gh pr view 52: gh: could not connect",
         ),
         (
             fail_to_list_assignment_requests,
             False,
-            "could not observe sub-issue GH21: could not list issues for dream:smith",
+            "could not observe sub-issue 21: could not list issues for dream:smith",
         ),
     ],
 )
