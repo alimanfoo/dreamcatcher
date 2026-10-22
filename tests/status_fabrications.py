@@ -518,9 +518,7 @@ def fabricate_everything(
     written(state=state, issue=44, records=[])
     written(state=state, issue=70, records=[ended(minute=1)])
     cancel_assignment(
-        assignment=read_agent_work_at_issue(
-            state=state, issue=70, kind=AgentWorkKind.ASSIGNMENT
-        )[0],
+        assignment=read_agent_work_at_issue(state=state, issue=70)[0],
         at=PINNED + timedelta(minutes=10),
     )
     write_tick(

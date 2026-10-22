@@ -52,7 +52,6 @@ from dreamcatcher.config import (
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.git import add_worktree, fetch_main, make_empty_commit, push_branch
 from dreamcatcher.github import IssueComment, PullRequestState
-from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.state import StateDirectory
 
 ASSIGNMENT_ID = "GH12-20260819-184158-assignment"
@@ -289,9 +288,7 @@ def test_assignments_at_one_issue_are_read_behind_the_assignment_boundary(fabric
         state=fabricated, identifier="GH12-20260820-090000-assignment", issue=12
     )
 
-    assignments = read_agent_work_at_issue(
-        state=fabricated, issue=12, kind=AgentWorkKind.ASSIGNMENT
-    )
+    assignments = read_agent_work_at_issue(state=fabricated, issue=12)
 
     assert [assignment.identifier for assignment in assignments] == [
         "GH12-20260818-090000-assignment",

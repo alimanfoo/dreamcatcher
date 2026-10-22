@@ -84,8 +84,8 @@ list and shows only the campaign itself. You can also monitor the
 campaign in the terminal:
 
 ```sh
-dreamcatcher campaign GH123
-dreamcatcher feed GH123 --campaign
+dreamcatcher view GH123
+dreamcatcher feed GH123
 ```
 
 ## Queue campaigns

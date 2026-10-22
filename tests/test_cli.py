@@ -8,8 +8,8 @@ from conftest import configure
 from records import (
     MERGED_INPUT,
     hold_daemon_lock_for_test,
-    read_campaign,
     read_conversation,
+    read_newest_work,
     write_assignment,
     write_campaign,
     write_conversation,
@@ -22,7 +22,11 @@ from dreamcatcher.agent_rounds import (
     AgentRoundRecord,
     _compose_agent_round_ending,
 )
-from dreamcatcher.agent_work import read_agent_work_at_issue, request_agent_work_retry
+from dreamcatcher.agent_work import (
+    AgentWorkEndReason,
+    end_agent_work,
+    read_agent_work_at_issue,
+)
 from dreamcatcher.cli import _MAX_INTERVAL_SECONDS, main
 from dreamcatcher.config import AgentHarness
 from dreamcatcher.daemon import DreamcatcherDaemon
@@ -185,35 +189,23 @@ def test_status_shows_every_assignment(monkeypatch, watching, capsys):
     assert "working" in capsys.readouterr().out
 
 
-def test_assignment_shows_the_newest_assignment_at_the_issue(
+def test_view_shows_the_one_piece_of_agent_work_at_the_issue(
     monkeypatch, watching, capsys
 ):
     monkeypatch.chdir(watching.root)
 
-    assert main(argv=["assignment", "GH13"]) == 0
+    assert main(argv=["view", "GH13"]) == 0
     assert ASSIGNMENT_ID in capsys.readouterr().out
 
 
 def test_an_issue_reads_however_the_reader_wrote_it(monkeypatch, watching, capsys):
     monkeypatch.chdir(watching.root)
 
-    assert main(argv=["assignment", "gh13"]) == 0
+    assert main(argv=["view", "gh13"]) == 0
     assert ASSIGNMENT_ID in capsys.readouterr().out
 
 
-@pytest.mark.parametrize("command", ["retry", "cancel"])
-@pytest.mark.parametrize(
-    "text", ["the one about the parser", "GH\u0661\u0662", ASSIGNMENT_ID]
-)
-def test_a_command_that_takes_an_issue_refuses_anything_else(command, text, capsys):
-    with pytest.raises(SystemExit) as exit_info:
-        main(argv=[command, text])
-
-    assert exit_info.value.code == 2
-    assert f"name an issue as GH123, not as {text}" in capsys.readouterr().err
-
-
-def test_retry_clears_the_newest_assignments_fault(monkeypatch, faulted, capsys):
+def test_retry_clears_the_assignments_fault(monkeypatch, faulted, capsys):
     requested = PINNED + timedelta(minutes=3)
     write_json(
         document=SchedulerRecord(
@@ -227,9 +219,9 @@ def test_retry_clears_the_newest_assignments_fault(monkeypatch, faulted, capsys)
 
     assert main(argv=["retry", "GH13"]) == 0
 
-    assignment = read_agent_work_at_issue(
+    assignment = read_newest_work(
         state=faulted, issue=13, kind=AgentWorkKind.ASSIGNMENT
-    )[-1]
+    )
     assert assignment.retry_requested_at == requested
     assert not derive_agent_work_fault(
         rounds=assignment.rounds,
@@ -239,77 +231,52 @@ def test_retry_clears_the_newest_assignments_fault(monkeypatch, faulted, capsys)
     assert "later scheduler update" in capsys.readouterr().out
 
 
-def test_retry_clears_a_conversations_fault(monkeypatch, tmp_path, capsys):
+@pytest.mark.parametrize("write_work", [write_conversation, write_campaign])
+def test_retry_clears_the_fault_of_a_conversation_or_campaign(
+    monkeypatch, tmp_path, capsys, write_work
+):
     state = StateDirectory(root=tmp_path)
     state.bootstrap()
-    write_faulted_conversation(state=state, issue=13)
+    directory = write_work(state=state, issue=13)
+    write_faulted_rounds(directory=directory)
     requested = PINNED + timedelta(minutes=3)
     monkeypatch.chdir(tmp_path)
     monkeypatch.setattr("dreamcatcher.cli.read_current_time", lambda: requested)
 
     assert main(argv=["retry", "GH13"]) == 0
 
-    conversation = read_conversation(state=state, issue=13)
-    assert conversation is not None
-    assert conversation.retry_requested_at == requested
+    work = read_agent_work_at_issue(state=state, issue=13)[-1]
+    assert work.retry_requested_at == requested
     assert not derive_agent_work_fault(
-        rounds=conversation.rounds,
-        retry_requested_at=conversation.retry_requested_at,
+        rounds=work.rounds,
+        retry_requested_at=work.retry_requested_at,
         most_recent_cooldown_ended=None,
     )
-    assert "GH13-20260819-184158-conversation" in capsys.readouterr().out
+    assert directory.name in capsys.readouterr().out
 
 
-def test_retry_clears_assignment_and_conversation_faults(monkeypatch, faulted, capsys):
-    write_faulted_conversation(state=faulted, issue=13)
-    requested = PINNED + timedelta(minutes=3)
-    monkeypatch.chdir(faulted.root)
-    monkeypatch.setattr("dreamcatcher.cli.read_current_time", lambda: requested)
-
-    assert main(argv=["retry", "GH13"]) == 0
-
-    assignment = read_agent_work_at_issue(
-        state=faulted, issue=13, kind=AgentWorkKind.ASSIGNMENT
-    )[-1]
-    conversation = read_conversation(state=faulted, issue=13)
-    assert conversation is not None
-    assert assignment.retry_requested_at == requested
-    assert conversation.retry_requested_at == requested
-    output = capsys.readouterr().out
-    assert assignment.identifier in output
-    assert conversation.identifier in output
-
-
-def test_retry_reports_when_only_the_assignment_retry_was_saved(
+def test_retry_clears_the_fault_of_the_work_it_names_and_no_other(
     monkeypatch, faulted, capsys
 ):
     write_faulted_conversation(state=faulted, issue=13)
     requested = PINNED + timedelta(minutes=3)
     monkeypatch.chdir(faulted.root)
     monkeypatch.setattr("dreamcatcher.cli.read_current_time", lambda: requested)
-
-    def refuse_conversation_retry(*, work, at):
-        if work.record.kind is AgentWorkKind.CONVERSATION:
-            raise ReportableError("conversation record is read-only")
-        request_agent_work_retry(work=work, at=at)
-
-    monkeypatch.setattr(
-        "dreamcatcher.cli.request_agent_work_retry", refuse_conversation_retry
-    )
-
-    assert main(argv=["retry", "GH13"]) == 1
-
-    assignment = read_agent_work_at_issue(
-        state=faulted, issue=13, kind=AgentWorkKind.ASSIGNMENT
-    )[-1]
     conversation = read_conversation(state=faulted, issue=13)
     assert conversation is not None
-    assert assignment.retry_requested_at == requested
-    assert conversation.retry_requested_at is None
-    error = capsys.readouterr().err
-    assert f"{assignment.identifier} can run again" in error
-    assert "GH13-20260819-184158-conversation could not be retried" in error
-    assert "conversation record is read-only" in error
+
+    assert main(argv=["retry", conversation.identifier]) == 0
+
+    assignment = read_newest_work(
+        state=faulted, issue=13, kind=AgentWorkKind.ASSIGNMENT
+    )
+    conversation = read_conversation(state=faulted, issue=13)
+    assert conversation is not None
+    assert assignment.retry_requested_at is None
+    assert conversation.retry_requested_at == requested
+    assert capsys.readouterr().out == (
+        f"{conversation.identifier} can run again on a later scheduler update.\n"
+    )
 
 
 def test_retry_refuses_a_fault_an_elapsed_cooldown_cleared(
@@ -324,47 +291,31 @@ def test_retry_refuses_a_fault_an_elapsed_cooldown_cleared(
         path=faulted.scheduler_record,
     )
     monkeypatch.chdir(faulted.root)
-    monkeypatch.setattr(
-        "dreamcatcher.cli.read_current_time",
-        lambda: cooldown_ended,
-    )
 
     assert main(argv=["retry", "GH13"]) == 1
 
-    assignment = read_agent_work_at_issue(
+    assignment = read_newest_work(
         state=faulted, issue=13, kind=AgentWorkKind.ASSIGNMENT
-    )[-1]
+    )
     assert assignment.retry_requested_at is None
-    assert "no agent work in fault" in capsys.readouterr().err
-
-
-def test_retry_refuses_an_issue_with_no_agent_work(monkeypatch, tmp_path, capsys):
-    state = StateDirectory(root=tmp_path)
-    state.bootstrap()
-    state.path.mkdir()
-    monkeypatch.chdir(tmp_path)
-
-    assert main(argv=["retry", "GH13"]) == 1
-    assert "no agent work in fault" in capsys.readouterr().err
+    assert capsys.readouterr().err == f"{ASSIGNMENT_ID} is not in fault.\n"
 
 
 def test_retry_refuses_an_issue_with_no_work_in_fault(monkeypatch, watching, capsys):
     monkeypatch.chdir(watching.root)
 
     assert main(argv=["retry", "GH13"]) == 1
-    assert "no agent work in fault" in capsys.readouterr().err
+    assert capsys.readouterr().err == f"{ASSIGNMENT_ID} is not in fault.\n"
 
 
-def test_stop_requests_the_newest_assignments_running_round(
-    monkeypatch, watching, capsys
-):
+def test_stop_requests_the_assignments_running_round(monkeypatch, watching, capsys):
     monkeypatch.chdir(watching.root)
 
-    assert main(argv=["stop", "GH13", "--assignment"]) == 0
+    assert main(argv=["stop", "GH13"]) == 0
 
-    assignment = read_agent_work_at_issue(
+    assignment = read_newest_work(
         state=watching, issue=13, kind=AgentWorkKind.ASSIGNMENT
-    )[-1]
+    )
     paths = assignment.compose_round_paths(number=1)
     assert paths.stop_request.read_text(encoding="utf-8") == ""
     assert (
@@ -391,7 +342,7 @@ def test_stop_requests_an_issue_conversations_running_round(
     )
     monkeypatch.chdir(tmp_path)
 
-    assert main(argv=["stop", "GH13", "--conversation"]) == 0
+    assert main(argv=["stop", "GH13"]) == 0
 
     conversation = read_conversation(state=state, issue=13)
     assert conversation is not None
@@ -403,16 +354,16 @@ def test_stop_requests_an_issue_conversations_running_round(
     )
 
 
-def test_cancel_ends_the_newest_assignment_and_stops_its_running_round(
+def test_cancel_ends_the_assignment_and_stops_its_running_round(
     monkeypatch, watching, capsys
 ):
     monkeypatch.chdir(watching.root)
 
     assert main(argv=["cancel", "GH13"]) == 0
 
-    assignment = read_agent_work_at_issue(
+    assignment = read_newest_work(
         state=watching, issue=13, kind=AgentWorkKind.ASSIGNMENT
-    )[-1]
+    )
     assert not assignment.is_open
     assert assignment.compose_round_paths(number=1).stop_request.is_file()
     assert capsys.readouterr().out == f"{ASSIGNMENT_ID} is cancelled.\n"
@@ -436,24 +387,12 @@ def test_cancel_leaves_older_assignments_at_the_issue_alone(monkeypatch, watchin
     )
     monkeypatch.chdir(watching.root)
 
-    assert main(argv=["cancel", "GH13"]) == 0
+    assert main(argv=["cancel", ASSIGNMENT_ID]) == 0
 
-    older, newest = read_agent_work_at_issue(
-        state=watching, issue=13, kind=AgentWorkKind.ASSIGNMENT
-    )
+    older, newest = read_agent_work_at_issue(state=watching, issue=13)
     assert older.is_open
     assert newest.identifier == ASSIGNMENT_ID
     assert not newest.is_open
-
-
-def test_cancel_refuses_an_issue_with_no_assignment(monkeypatch, tmp_path, capsys):
-    state = StateDirectory(root=tmp_path)
-    state.bootstrap()
-    state.path.mkdir()
-    monkeypatch.chdir(tmp_path)
-
-    assert main(argv=["cancel", "GH13"]) == 1
-    assert capsys.readouterr().err == "GH13 has no assignment.\n"
 
 
 def test_cancel_refuses_an_assignment_that_has_already_ended(
@@ -467,17 +406,20 @@ def test_cancel_refuses_an_assignment_that_has_already_ended(
     assert capsys.readouterr().err == f"{ASSIGNMENT_ID} has already ended.\n"
 
 
-@pytest.mark.parametrize("selector", ["--assignment", "--conversation"])
-def test_stop_refuses_an_issue_without_the_selected_agent_work(
-    monkeypatch, tmp_path, capsys, selector
+@pytest.mark.parametrize(
+    "command",
+    ["retry", "stop", "cancel", "view", "feed"],
+)
+def test_a_command_refuses_an_issue_without_agent_work(
+    monkeypatch, tmp_path, capsys, command
 ):
     state = StateDirectory(root=tmp_path)
     state.bootstrap()
     state.path.mkdir()
     monkeypatch.chdir(tmp_path)
 
-    assert main(argv=["stop", "GH13", selector]) == 1
-    assert "here for GH13." in capsys.readouterr().err
+    assert main(argv=[command, "GH13"]) == 1
+    assert capsys.readouterr().err == "No agent work here for GH13.\n"
 
 
 def test_stop_refuses_a_round_without_a_resumable_session(
@@ -503,11 +445,9 @@ def test_stop_refuses_a_round_without_a_resumable_session(
     )
     monkeypatch.chdir(tmp_path)
 
-    assert main(argv=["stop", "GH13", "--assignment"]) == 1
+    assert main(argv=["stop", "GH13"]) == 1
 
-    assignment = read_agent_work_at_issue(
-        state=state, issue=13, kind=AgentWorkKind.ASSIGNMENT
-    )[-1]
+    assignment = read_newest_work(state=state, issue=13, kind=AgentWorkKind.ASSIGNMENT)
     paths = assignment.compose_round_paths(number=1)
     assert not paths.stop_request.exists()
     assert "has no running round that can be stopped" in capsys.readouterr().err
@@ -535,7 +475,7 @@ def test_stop_refuses_a_conversation_round_without_a_resumable_session(
     )
     monkeypatch.chdir(tmp_path)
 
-    assert main(argv=["stop", "GH13", "--conversation"]) == 1
+    assert main(argv=["stop", "GH13"]) == 1
 
     conversation = read_conversation(state=state, issue=13)
     assert conversation is not None
@@ -563,14 +503,14 @@ def test_feed_shows_what_the_assignment_said(monkeypatch, watching, capsys):
         round_input=MERGED_INPUT,
     )
 
-    assert main(argv=["feed", "GH13", "--assignment"]) == 0
+    assert main(argv=["feed", "GH13"]) == 0
     assert "round 1: start" in capsys.readouterr().out
 
 
 def test_feed_naming_a_round_shows_that_rounds_feed(monkeypatch, watching, capsys):
     monkeypatch.chdir(watching.root)
 
-    assert main(argv=["feed", "GH13", "--assignment", "--round", "1"]) == 0
+    assert main(argv=["feed", "GH13", "--round", "1"]) == 0
     assert "round 1: start" in capsys.readouterr().out
 
 
@@ -578,7 +518,7 @@ def test_conversation_shows_its_local_detail(monkeypatch, watching, capsys):
     write_conversation(state=watching, issue=8)
     monkeypatch.chdir(watching.root)
 
-    assert main(argv=["conversation", "GH8"]) == 0
+    assert main(argv=["view", "GH8"]) == 0
     assert "conversation GH8-" in capsys.readouterr().out
 
 
@@ -601,26 +541,27 @@ def test_feed_shows_what_the_conversation_said(monkeypatch, watching, capsys):
     )
     monkeypatch.chdir(watching.root)
 
-    assert main(argv=["feed", "GH8", "--conversation"]) == 0
+    assert main(argv=["feed", "GH8"]) == 0
     assert "The answer." in capsys.readouterr().out
 
 
-@pytest.mark.parametrize("command", ["stop", "feed"])
-def test_an_agent_work_command_requires_one_work_kind_selector(command, capsys):
+@pytest.mark.parametrize(
+    "arguments",
+    [
+        ["assignment", "GH13"],
+        ["conversation", "GH13"],
+        ["campaign", "GH13"],
+        ["stop", "GH13", "--assignment"],
+        ["feed", "GH13", "--conversation"],
+        ["feed", "GH13", "--campaign"],
+    ],
+)
+def test_a_command_or_kind_selector_that_is_gone_is_refused(arguments, capsys):
     with pytest.raises(SystemExit) as exit_info:
-        main(argv=[command, "GH13"])
+        main(argv=arguments)
 
     assert exit_info.value.code == 2
-    assert "--assignment --conversation" in capsys.readouterr().err
-
-
-@pytest.mark.parametrize("command", ["stop", "feed"])
-def test_an_agent_work_command_refuses_two_work_kind_selectors(command, capsys):
-    with pytest.raises(SystemExit) as exit_info:
-        main(argv=[command, "GH13", "--assignment", "--conversation"])
-
-    assert exit_info.value.code == 2
-    assert "not allowed with argument" in capsys.readouterr().err
+    assert "usage:" in capsys.readouterr().err
 
 
 def test_a_feed_with_no_issue_to_show_asks_for_one(capsys):
@@ -633,7 +574,7 @@ def test_a_feed_with_no_issue_to_show_asks_for_one(capsys):
 
 def test_a_round_belongs_to_the_feed_and_to_no_other_command(capsys):
     with pytest.raises(SystemExit) as exit_info:
-        main(argv=["assignment", "GH13", "--round", "1"])
+        main(argv=["view", "GH13", "--round", "1"])
 
     assert exit_info.value.code == 2
     assert "--round" in capsys.readouterr().err
@@ -657,8 +598,7 @@ def test_status_takes_no_issue(capsys):
         "cancel",
         "web",
         "status",
-        "assignment",
-        "conversation",
+        "view",
         "feed",
     ],
 )
@@ -677,8 +617,7 @@ def test_every_command_describes_itself_in_its_own_help(command, capsys):
 @pytest.mark.parametrize(
     ("command", "description"),
     [
-        ("assignment", "until the assignment ends"),
-        ("conversation", "until the conversation ends"),
+        ("view", "until the work ends"),
         ("feed", "until the work ends"),
     ],
 )
@@ -849,17 +788,16 @@ def write_older_assignment(*, state: StateDirectory) -> None:
     )
 
 
-def test_an_identifier_shows_that_assignment_rather_than_the_newest(
+def test_an_identifier_shows_that_assignment_and_no_other(
     monkeypatch, watching, capsys
 ):
     write_older_assignment(state=watching)
     monkeypatch.chdir(watching.root)
 
-    assert main(argv=["assignment", OLDER_ASSIGNMENT_ID.lower()]) == 0
-    shown = " ".join(capsys.readouterr().out.split())
+    assert main(argv=["view", OLDER_ASSIGNMENT_ID.lower()]) == 0
+    shown = capsys.readouterr().out
     assert f"assignment {OLDER_ASSIGNMENT_ID}" in shown
-    assert "other assignments GH13-20260819-184158" in shown
-    assert "dream:smith working" in shown
+    assert ASSIGNMENT_ID not in shown
 
 
 @pytest.mark.parametrize("round_selection", [[], ["--round", "1"]])
@@ -869,9 +807,7 @@ def test_an_identifier_shows_that_assignments_feed_alone(
     write_older_assignment(state=watching)
     monkeypatch.chdir(watching.root)
 
-    assert (
-        main(argv=["feed", OLDER_ASSIGNMENT_ID, "--assignment", *round_selection]) == 0
-    )
+    assert main(argv=["feed", OLDER_ASSIGNMENT_ID, *round_selection]) == 0
     shown = capsys.readouterr().out
     assert "[Bash] git log" in shown
     assert "[Bash] pytest" not in shown
@@ -909,11 +845,12 @@ def test_an_older_conversation_can_be_selected_after_a_label_switch(
     older, newer = write_switched_conversations(state=watching)
     monkeypatch.chdir(watching.root)
 
-    assert main(argv=["conversation", "GH8"]) == 0
-    assert f"conversation {newer}" in capsys.readouterr().out
-    assert main(argv=["conversation", older]) == 0
+    assert main(argv=["view", "GH8"]) == 1
+    asked = capsys.readouterr().err
+    assert f"dreamcatcher view {older}\n  dreamcatcher view {newer}" in asked
+    assert main(argv=["view", older]) == 0
     assert f"conversation {older}" in capsys.readouterr().out
-    assert main(argv=["feed", older, "--conversation"]) == 0
+    assert main(argv=["feed", older]) == 0
     shown = capsys.readouterr().out
     assert "The first answer." in shown
     assert "The second answer." not in shown
@@ -925,7 +862,7 @@ def test_stop_names_an_older_conversation_and_stops_it_alone(
     older, newer = write_switched_conversations(state=watching)
     monkeypatch.chdir(watching.root)
 
-    assert main(argv=["stop", older, "--conversation"]) == 0
+    assert main(argv=["stop", older]) == 0
 
     assert f"Requested a stop for {older} round 1." in capsys.readouterr().out
     assert (watching.work / older / "rounds" / "1" / "stop-request").is_file()
@@ -938,7 +875,7 @@ def test_stop_refuses_an_older_assignment_with_no_running_round(
     write_older_assignment(state=watching)
     monkeypatch.chdir(watching.root)
 
-    assert main(argv=["stop", OLDER_ASSIGNMENT_ID, "--assignment"]) == 1
+    assert main(argv=["stop", OLDER_ASSIGNMENT_ID]) == 1
 
     assert (
         f"{OLDER_ASSIGNMENT_ID} has no running round that can be stopped."
@@ -950,51 +887,33 @@ def test_stop_refuses_an_older_assignment_with_no_running_round(
 @pytest.mark.parametrize(
     "arguments",
     [
-        ["assignment", "GH8-20260819-184158-conversation"],
-        ["conversation", ASSIGNMENT_ID],
-        ["feed", ASSIGNMENT_ID, "--conversation"],
-        ["stop", ASSIGNMENT_ID, "--conversation"],
-        ["stop", "GH13-20260101-090000-assignment", "--assignment"],
+        ["view", "GH8-20260101-090000-conversation"],
+        ["feed", "GH13-20260101-090000-assignment"],
+        ["stop", "GH13-20260101-090000-assignment"],
+        ["retry", "GH13-20260101-090000-assignment"],
+        ["cancel", "GH13-20260101-090000-assignment"],
     ],
 )
-def test_an_identifier_of_no_work_of_the_kind_is_refused(
-    monkeypatch, watching, capsys, arguments
-):
+def test_an_identifier_of_no_work_is_refused(monkeypatch, watching, capsys, arguments):
     write_conversation(state=watching, issue=8)
     monkeypatch.chdir(watching.root)
 
     assert main(argv=arguments) == 1
 
-    assert f"here is named {arguments[1]}." in capsys.readouterr().err
+    assert capsys.readouterr().err == f"No agent work here is named {arguments[1]}.\n"
     assert not list(watching.work.glob("*/rounds/*/stop-request"))
 
 
-def test_text_that_names_neither_an_issue_nor_work_is_refused(capsys):
+@pytest.mark.parametrize("command", ["retry", "stop", "cancel", "view", "feed"])
+@pytest.mark.parametrize(
+    "text", ["the one about the parser", "GH\u0661\u0662", "GH13-yesterday-assignment"]
+)
+def test_text_that_names_neither_an_issue_nor_work_is_refused(command, text, capsys):
     with pytest.raises(SystemExit) as exit_info:
-        main(argv=["assignment", "GH13-yesterday-assignment"])
+        main(argv=[command, text])
 
     assert exit_info.value.code == 2
-    assert "not as GH13-yesterday-assignment" in capsys.readouterr().err
-
-
-def test_retry_clears_the_faults_of_every_kind_at_the_issue(
-    monkeypatch, faulted, capsys
-):
-    write_faulted_conversation(state=faulted, issue=13)
-    write_faulted_rounds(directory=write_campaign(state=faulted, issue=13))
-    requested = PINNED + timedelta(minutes=3)
-    monkeypatch.chdir(faulted.root)
-    monkeypatch.setattr("dreamcatcher.cli.read_current_time", lambda: requested)
-
-    assert main(argv=["retry", "GH13"]) == 0
-
-    campaign = read_campaign(state=faulted, issue=13)
-    assert campaign is not None
-    assert campaign.retry_requested_at == requested
-    output = capsys.readouterr().out
-    assert ASSIGNMENT_ID in output
-    assert "GH13-20260819-184158-conversation" in output
-    assert campaign.identifier in output
+    assert f"not as {text}" in capsys.readouterr().err
 
 
 def test_campaign_shows_its_local_detail_and_feed(monkeypatch, watching, capsys):
@@ -1016,9 +935,9 @@ def test_campaign_shows_its_local_detail_and_feed(monkeypatch, watching, capsys)
     )
     monkeypatch.chdir(watching.root)
 
-    assert main(argv=["campaign", "GH20"]) == 0
+    assert main(argv=["view", "GH20"]) == 0
     assert "campaign GH20-" in capsys.readouterr().out
-    assert main(argv=["feed", "GH20", "--campaign"]) == 0
+    assert main(argv=["feed", "GH20"]) == 0
     assert "I acknowledged the plan." in capsys.readouterr().out
 
 
@@ -1026,7 +945,7 @@ def test_stop_refuses_a_campaign_with_no_running_round(monkeypatch, watching, ca
     write_campaign(state=watching, issue=20)
     monkeypatch.chdir(watching.root)
 
-    assert main(argv=["stop", "GH20", "--campaign"]) == 1
+    assert main(argv=["stop", "GH20"]) == 1
     assert "has no running round that can be stopped" in capsys.readouterr().err
 
 
@@ -1040,3 +959,81 @@ def test_retry_reports_a_retry_that_could_not_be_saved(monkeypatch, faulted, cap
 
     assert main(argv=["retry", "GH13"]) == 1
     assert capsys.readouterr().err == "assignment record is read-only\n"
+
+
+@pytest.mark.parametrize("command", ["retry", "stop", "cancel", "view", "feed"])
+def test_an_issue_with_more_than_one_piece_of_work_asks_which(
+    monkeypatch, watching, capsys, command
+):
+    directory = write_conversation(
+        state=watching, issue=13, at=PINNED - timedelta(days=1)
+    )
+    write_faulted_rounds(directory=directory)
+    monkeypatch.chdir(watching.root)
+
+    assert main(argv=[command, "GH13"]) == 1
+
+    assert capsys.readouterr() == (
+        "",
+        "GH13 has more than one piece of agent work. Run one of these:\n"
+        f"  dreamcatcher {command} {directory.name}\n"
+        f"  dreamcatcher {command} {ASSIGNMENT_ID}\n",
+    )
+    assert not list(watching.work.glob("*/rounds/*/stop-request"))
+    assert not list(watching.work.glob("*/retry-request.json"))
+    assert not list(watching.work.glob("*/ended.json"))
+
+
+def test_an_identifier_selects_its_work_when_the_issue_has_more(
+    monkeypatch, watching, capsys
+):
+    write_conversation(state=watching, issue=13, at=PINNED - timedelta(days=1))
+    monkeypatch.chdir(watching.root)
+
+    assert main(argv=["stop", ASSIGNMENT_ID]) == 0
+
+    assert f"Requested a stop for {ASSIGNMENT_ID} round 1." in capsys.readouterr().out
+
+
+def test_retry_reaches_an_older_conversation_in_fault_after_a_label_switch(
+    monkeypatch, watching, capsys
+):
+    older, newer = write_switched_conversations(state=watching)
+    write_faulted_rounds(directory=watching.work / older)
+    monkeypatch.chdir(watching.root)
+
+    assert main(argv=["retry", older]) == 0
+
+    assert (watching.work / older / "retry-request.json").is_file()
+    assert not (watching.work / newer / "retry-request.json").exists()
+    assert f"{older} can run again" in capsys.readouterr().out
+
+
+def test_retry_refuses_ended_work_whose_last_rounds_errored(
+    monkeypatch, faulted, capsys
+):
+    assignment = read_newest_work(
+        state=faulted, issue=13, kind=AgentWorkKind.ASSIGNMENT
+    )
+    end_agent_work(work=assignment, reason=AgentWorkEndReason.CANCELLED, at=PINNED)
+    monkeypatch.chdir(faulted.root)
+
+    assert main(argv=["retry", "GH13"]) == 1
+
+    assert capsys.readouterr().err == f"{ASSIGNMENT_ID} is not in fault.\n"
+    assert not (faulted.work / ASSIGNMENT_ID / "retry-request.json").exists()
+
+
+@pytest.mark.parametrize("write_work", [write_conversation, write_campaign])
+def test_cancel_refuses_work_that_is_not_an_assignment(
+    monkeypatch, tmp_path, capsys, write_work
+):
+    state = StateDirectory(root=tmp_path)
+    state.bootstrap()
+    identifier = write_work(state=state, issue=13).name
+    monkeypatch.chdir(tmp_path)
+
+    assert main(argv=["cancel", "GH13"]) == 1
+
+    assert capsys.readouterr().err == f"{identifier} is not an assignment.\n"
+    assert not (state.work / identifier / "ended.json").exists()

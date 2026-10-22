@@ -11,7 +11,7 @@ from rich.padding import Padding
 from rich.text import Text
 
 from dreamcatcher.agent_assignments import compose_assignment_branch
-from dreamcatcher.agent_work import AgentWork, AgentWorkReference, select_agent_work
+from dreamcatcher.agent_work import AgentWork, refresh_agent_work
 from dreamcatcher.clock import WaitForSeconds, read_current_time
 from dreamcatcher.documents import read_lines_from
 from dreamcatcher.errors import ReportableError
@@ -28,7 +28,6 @@ from dreamcatcher.status import (
     AgentRoundStatus,
     AgentWorkStatus,
     read_agent_work_status,
-    read_agent_work_statuses_at_issue,
     read_dreamcatcher_daemon_status,
 )
 from dreamcatcher.tui.shared import (
@@ -48,27 +47,23 @@ from dreamcatcher.words import describe_count, describe_time
 def show_agent_work_view(
     *,
     state: StateDirectory,
-    reference: AgentWorkReference,
-    kind: AgentWorkKind,
+    work: AgentWork,
     console: Console,
     clock: Callable[[], datetime] = read_current_time,
     wait: WaitForSeconds = sleep,
     zone: tzinfo | None = None,
 ) -> None:
-    """Show the agent work of this kind that the reference names, until it ends.
+    """Show the agent work until it ends.
 
-    The view selects its work once and stays on it, even when newer work of the
-    kind arrives at the issue. It remains open between rounds. A non-terminal or
-    dumb terminal renders one snapshot and returns. Times use the given zone, or
-    the machine's local zone when it is None.
+    The view stays on that work, even when newer work arrives at the issue. It
+    remains open between rounds. A non-terminal or dumb terminal renders one
+    snapshot and returns. Times use the given zone, or the machine's local zone
+    when it is None.
     """
-    identifier = select_agent_work(
-        state=state, reference=reference, kind=kind
-    ).identifier
     refresh_live_view(
         console=console,
         read_snapshot=lambda: _read_agent_work_snapshot(
-            state=state, identifier=identifier, kind=kind, clock=clock, zone=zone
+            state=state, work=work, clock=clock, zone=zone
         ),
         wait=wait,
     )
@@ -77,36 +72,34 @@ def show_agent_work_view(
 def _read_agent_work_snapshot(
     *,
     state: StateDirectory,
-    identifier: str,
-    kind: AgentWorkKind,
+    work: AgentWork,
     clock: Callable[[], datetime],
     zone: tzinfo | None,
 ) -> ViewSnapshot:
     """Return the work's view and whether to stop refreshing it.
 
-    Each refresh reads the statuses at the issue once and derives both the
-    rendered view and whether the work has ended from that read.
+    Each refresh reads the work's status once and derives both the rendered view
+    and whether the work has ended from that read.
     """
-    statuses = read_agent_work_statuses_at_issue(
+    status = read_agent_work_status(
         state=state,
-        work=select_agent_work(state=state, reference=identifier, kind=kind),
+        work=refresh_agent_work(state=state, work=work),
         daemon=read_dreamcatcher_daemon_status(state=state),
         clock=clock,
     )
     return ViewSnapshot(
-        renderable=_render_agent_work(state=state, statuses=statuses, zone=zone),
-        should_stop_refreshing=statuses[0].has_ended,
+        renderable=_render_agent_work(state=state, status=status, zone=zone),
+        should_stop_refreshing=status.has_ended,
     )
 
 
 def _render_agent_work(
     *,
     state: StateDirectory,
-    statuses: list[AgentWorkStatus],
+    status: AgentWorkStatus,
     zone: tzinfo | None,
 ) -> RenderableType:
-    """Render the work, with the other work of its kind at its issue beneath it."""
-    status = statuses[0]
+    """Render the work's status, settings, rounds and hand-resume command."""
     work = status.work
     status_value = str(status.value)
     rendered_status = Text(f"{status_value}  {status.detail}")
@@ -137,7 +130,6 @@ def _render_agent_work(
                 worktree=work.worktree,
                 hand_resume_command=status.hand_resume_command,
             ),
-            _render_other_work(kind=kind, other_statuses=statuses[1:]),
         ]
     )
 
@@ -250,46 +242,23 @@ def _render_harness_resume(
     )
 
 
-def _render_other_work(
-    *, kind: AgentWorkKind, other_statuses: list[AgentWorkStatus]
-) -> RenderableType | None:
-    """Return the other work of the kind at the issue, by the names that select it."""
-    if not other_statuses:
-        return None
-    table = create_table(columns=4)
-    for status in other_statuses:
-        table.add_row(
-            Text(status.work.identifier),
-            Text(status.work.record.dispatch_label),
-            Text(str(status.value), style=AGENT_WORK_STATUS_STYLES[status.value]),
-            Text(status.detail),
-        )
-    return render_section(heading=f"other {kind}s", body=table)
-
-
 def show_feed_view(
     *,
     state: StateDirectory,
-    reference: AgentWorkReference,
-    kind: AgentWorkKind,
+    work: AgentWork,
     console: Console,
     round_number: int | None = None,
     wait: WaitForSeconds = sleep,
     zone: tzinfo | None = None,
 ) -> None:
-    """Show and follow the feed of the agent work of this kind that the reference names.
+    """Show and follow the feed of the agent work.
 
-    The view selects its work once and stays on it, even when newer work of the
-    kind arrives at the issue.
+    The view stays on that work, even when newer work arrives at the issue.
     """
-    identifier = select_agent_work(
-        state=state, reference=reference, kind=kind
-    ).identifier
     if round_number is not None:
         _show_one_round(
             state=state,
-            identifier=identifier,
-            kind=kind,
+            work=work,
             number=round_number,
             console=console,
             wait=wait,
@@ -300,7 +269,7 @@ def show_feed_view(
 
     def refresh_feed() -> bool:
         """Show new output and return whether refreshing should stop."""
-        status = _read_feed_status(state=state, identifier=identifier, kind=kind)
+        status = _read_feed_status(state=state, work=work)
         view.show_new_output(work=status.work, round_statuses=status.round_statuses)
         return status.has_ended
 
@@ -310,8 +279,7 @@ def show_feed_view(
 def _show_one_round(
     *,
     state: StateDirectory,
-    identifier: str,
-    kind: AgentWorkKind,
+    work: AgentWork,
     number: int,
     console: Console,
     wait: WaitForSeconds,
@@ -322,8 +290,7 @@ def _show_one_round(
 
     def refresh_round_feed() -> bool:
         """Show output since the previous refresh and return whether it has ended."""
-        status = _read_feed_status(state=state, identifier=identifier, kind=kind)
-        work = status.work
+        status = _read_feed_status(state=state, work=work)
         round_status = next(
             (
                 round_status
@@ -335,22 +302,20 @@ def _show_one_round(
         if round_status is None:
             raise ReportableError(
                 f"{work.identifier} has run "
-                f"{describe_count(number=len(work.rounds), noun='round')}, "
+                f"{describe_count(number=len(status.work.rounds), noun='round')}, "
                 f"so it has no round {number}."
             )
-        view.show_new_output(work=work, round_statuses=[round_status])
+        view.show_new_output(work=status.work, round_statuses=[round_status])
         return round_status.record.ending is not None
 
     refresh_until_view_ends(console=console, refresh_view=refresh_round_feed, wait=wait)
 
 
-def _read_feed_status(
-    *, state: StateDirectory, identifier: str, kind: AgentWorkKind
-) -> AgentWorkStatus:
-    """Return the status of the work that the identifier names, as it reads now."""
+def _read_feed_status(*, state: StateDirectory, work: AgentWork) -> AgentWorkStatus:
+    """Return the status of the work as it reads now."""
     return read_agent_work_status(
         state=state,
-        work=select_agent_work(state=state, reference=identifier, kind=kind),
+        work=refresh_agent_work(state=state, work=work),
         daemon=read_dreamcatcher_daemon_status(state=state),
     )
 
