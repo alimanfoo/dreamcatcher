@@ -293,8 +293,7 @@ body::after {
 
 .agent-work-card,
 .request-row,
-.campaign-child,
-.campaign {
+.campaign-child {
   min-width: 0;
   padding: var(--space-6) 0;
   border-bottom: var(--line) solid var(--rule-inner);
@@ -303,7 +302,8 @@ body::after {
 /* A campaign's lead card and its children's block share one rule beneath. */
 
 .campaign {
-  padding: 0;
+  min-width: 0;
+  border-bottom: var(--line) solid var(--rule-inner);
 }
 
 .campaign > .agent-work-card {

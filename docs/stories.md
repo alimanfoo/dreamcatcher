@@ -368,12 +368,12 @@ way that it needs to hear of. The home page has a Campaigns tab, where
 the campaign shows as idle with how its round ended and how many of the
 parent's sub-issues are closed out of the total, and its page shows the
 feed. The user expands the count to see every sub-issue, each with its
-assignment's card as the Assignments tab shows it and the row of any
-assignment label on it that no open assignment answers yet, or the
-sub-issue alone when it has neither. The cards keep updating, and the
-sub-issues stay expanded until the user folds them. Once the campaign
-ends, it moves to the ended list with its own card alone, and the user
-goes to GitHub for the history.
+assignment's card as the Assignments tab shows it and the row of each
+request for an assignment on it that has no open work, or the sub-issue
+alone when it has neither. The cards keep updating, and the sub-issues
+stay expanded until the user folds them. Once the campaign ends, it
+moves to the ended list with its own card alone, and the user goes to
+GitHub for the history.
 
 When the user is satisfied, they close the parent, and the campaign ends
 once any round that is still running finishes. If they reopen the parent

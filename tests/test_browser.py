@@ -7,12 +7,14 @@ from pathlib import Path
 
 import pytest
 from playwright.sync_api import Locator, Page, expect
+from records import write_ending
+from status_fabrications import LOOKED_AT
 from web_browser import (
     BROWSER_ASSIGNMENT_IDENTIFIER,
     serve_fabricated_web,
 )
 
-from dreamcatcher.agent_work import find_agent_work
+from dreamcatcher.agent_work import AgentWorkEndReason, find_agent_work
 from dreamcatcher.documents import append_text
 from dreamcatcher.feed import FeedLine
 from dreamcatcher.state import StateDirectory
@@ -113,6 +115,23 @@ def test_a_refresh_leaves_an_expanded_campaign_open(page: Page, live_web: str) -
 
     expect(children).to_have_attribute("open", "")
     expect(page.locator(f"#{CAMPAIGN_IDENTIFIER} .latest-output")).to_have_count(0)
+
+
+def test_an_expanded_campaign_whose_parent_closes_keeps_only_its_card(
+    page: Page, live_web: str, tmp_path: Path
+) -> None:
+    page.goto(live_web)
+    expand_campaign(page=page)
+
+    write_ending(
+        directory=StateDirectory(root=tmp_path).work / CAMPAIGN_IDENTIFIER,
+        reason=AgentWorkEndReason.ISSUE_CLOSED,
+        at=LOOKED_AT,
+    )
+
+    ended = page.locator("#campaign-panel details.ended-work")
+    expect(ended.locator(f"#{CAMPAIGN_IDENTIFIER}")).to_have_count(1)
+    expect(page.locator(f"[id^='{CAMPAIGN_IDENTIFIER}-']")).to_have_count(0)
 
 
 def test_a_child_assignment_shows_its_new_output_in_both_tabs(
