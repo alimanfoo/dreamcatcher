@@ -1,9 +1,11 @@
-"""Model a campaign's children, prepare its rounds and read back their input.
+"""Model a campaign's children, compare them, prepare rounds and read their input.
 
 A campaign's channel is its parent issue, and its children are the parent's
 direct sub-issues. Every round runs in a detached worktree refreshed to fetched
 main, and the lead publishes its own messages, so a round has no finishing step.
 """
+
+from enum import StrEnum
 
 from pydantic import PositiveInt
 
@@ -16,7 +18,12 @@ from dreamcatcher.documents import (
     read_json,
 )
 from dreamcatcher.git import refresh_detached_worktree
-from dreamcatcher.github import IssueComment, IssueState
+from dreamcatcher.github import (
+    CheckResult,
+    IssueComment,
+    IssueState,
+    PullRequestMergeState,
+)
 from dreamcatcher.relay import IssueCommentCursor
 from dreamcatcher.state import StateDirectory
 
@@ -54,6 +61,27 @@ class CampaignChild(DreamcatcherDocument):
     assignment: CampaignChildAssignment | None
 
 
+class CampaignChildChange(StrEnum):
+    """List the changes to a child that call for the lead's attention."""
+
+    ADDED = "added"
+    REMOVED = "removed"
+    ISSUE_STATE = "issue_state"
+    HANDBACK = "handback"
+    PULL_REQUEST = "pull_request"
+    CHECK_COMPLETION = "check_completion"
+    MERGEABLE = "mergeable"
+    ENDING = "ending"
+    FAULT = "fault"
+
+
+class CampaignChildNotification(DreamcatcherDocument):
+    """Model the changes to one child since the newest input delivered to the lead."""
+
+    issue: PositiveInt
+    changes: list[CampaignChildChange]
+
+
 class CampaignRoundInput(WriteOnceDreamcatcherDocument):
     """Model the input frozen for one campaign round.
 
@@ -72,6 +100,135 @@ class CampaignRoundInput(WriteOnceDreamcatcherDocument):
     cursor: IssueCommentCursor | None
     revision: str
     assignment_routes: list[AssignmentRoute]
+
+
+# The merge states in which GitHub would merge the pull request. A move between
+# two of them is no news to the lead.
+_MERGEABLE_STATES = frozenset(
+    {
+        PullRequestMergeState.CLEAN,
+        PullRequestMergeState.HAS_HOOKS,
+        PullRequestMergeState.UNSTABLE,
+    }
+)
+
+
+def compare_campaign_children(
+    *, previous: list[CampaignChild], current: list[CampaignChild]
+) -> list[CampaignChildNotification]:
+    """Return a notification for each child whose changes call for the lead.
+
+    The previous children are those of the newest input delivered to the lead.
+    Children are matched by issue, so a change of order is none. A child added
+    or removed notifies at once, and any other change waits until the child is
+    settled. The notifications follow the current children's order, then the
+    removed children's.
+    """
+    previous_by_issue = {child.issue: child for child in previous}
+    current_issues = {child.issue for child in current}
+    changes_by_issue = [
+        (
+            child.issue,
+            _list_child_changes(
+                previous=previous_by_issue.get(child.issue), current=child
+            ),
+        )
+        for child in current
+    ] + [
+        (child.issue, [CampaignChildChange.REMOVED])
+        for child in previous
+        if child.issue not in current_issues
+    ]
+    return [
+        CampaignChildNotification(issue=issue, changes=changes)
+        for issue, changes in changes_by_issue
+        if changes
+    ]
+
+
+def _list_child_changes(
+    *, previous: CampaignChild | None, current: CampaignChild
+) -> list[CampaignChildChange]:
+    """Return what changed of a child that the previous picture held, if anything."""
+    if previous is None:
+        return [CampaignChildChange.ADDED]
+    if not current.is_settled:
+        return []
+    changes = (
+        [] if current.state is previous.state else [CampaignChildChange.ISSUE_STATE]
+    )
+    if current.assignment is None:
+        return changes
+    return changes + _list_assignment_changes(
+        previous=previous, current=current.assignment
+    )
+
+
+def _list_assignment_changes(
+    *, previous: CampaignChild, current: CampaignChildAssignment
+) -> list[CampaignChildChange]:
+    """Return what changed of a settled child's assignment.
+
+    The child hands back when it was not settled before, or when its assignment
+    or its finished turn differs. A replacement shares nothing with the
+    assignment it replaced, so every fact it holds is a change.
+    """
+    before = (
+        previous.assignment
+        if previous.assignment is not None
+        and previous.assignment.identifier == current.identifier
+        else None
+    )
+    changes = []
+    if (
+        before is None
+        or not previous.is_settled
+        or before.finished_turn != current.finished_turn
+    ):
+        changes.append(CampaignChildChange.HANDBACK)
+    if current.observed_pull_request is not None:
+        changes += _list_pull_request_changes(
+            previous=None if before is None else before.observed_pull_request,
+            current=current.observed_pull_request,
+        )
+    if current.ending is not None and (before is None or before.ending is None):
+        changes.append(CampaignChildChange.ENDING)
+    if current.is_fault and (before is None or not before.is_fault):
+        changes.append(CampaignChildChange.FAULT)
+    return changes
+
+
+def _list_pull_request_changes(
+    *, previous: ObservedPullRequest | None, current: ObservedPullRequest
+) -> list[CampaignChildChange]:
+    """Return what changed of a pull request since the previous read of it.
+
+    With no previous read, every fact is a change. Checks complete when some
+    ran and none still runs, compared by the head, the result and whether any
+    runs, so a failing result whose last running check finishes completes.
+    """
+    changes = []
+    if previous is None or (previous.state, previous.is_draft, previous.head) != (
+        current.state,
+        current.is_draft,
+        current.head,
+    ):
+        changes.append(CampaignChildChange.PULL_REQUEST)
+    if (
+        current.check_result is not CheckResult.NONE
+        and not current.has_running_checks
+        and (
+            previous is None
+            or (previous.head, previous.check_result, previous.has_running_checks)
+            != (current.head, current.check_result, current.has_running_checks)
+        )
+    ):
+        changes.append(CampaignChildChange.CHECK_COMPLETION)
+    if current.merge_state in _MERGEABLE_STATES and (
+        previous is None or previous.merge_state not in _MERGEABLE_STATES
+    ):
+        changes.append(CampaignChildChange.MERGEABLE)
+    return changes
 
 
 def prepare_campaign_round(

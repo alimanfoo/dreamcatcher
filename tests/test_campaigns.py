@@ -4,15 +4,20 @@ import pytest
 from clocks import PINNED
 from records import read_campaign, write_campaign, write_round
 
+from dreamcatcher.agent_assignments import ObservedPullRequest
 from dreamcatcher.agent_rounds import (
     AgentRoundRecord,
     HarnessErroredAgentRoundEnding,
     SuccessfulAgentRoundEnding,
 )
-from dreamcatcher.agent_work import AgentWork, create_agent_work
+from dreamcatcher.agent_work import AgentWork, AgentWorkEndReason, create_agent_work
 from dreamcatcher.campaigns import (
     CampaignChild,
+    CampaignChildAssignment,
+    CampaignChildChange,
+    CampaignChildNotification,
     CampaignRoundInput,
+    compare_campaign_children,
     prepare_campaign_round,
     read_delivered_campaign_input,
 )
@@ -22,7 +27,13 @@ from dreamcatcher.config import (
     CampaignRoute,
     ClaudeRecipe,
 )
-from dreamcatcher.github import IssueComment, IssueState
+from dreamcatcher.github import (
+    CheckResult,
+    IssueComment,
+    IssueState,
+    PullRequestMergeState,
+    PullRequestState,
+)
 from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.relay import IssueCommentCursor
 from dreamcatcher.state import StateDirectory
@@ -129,3 +140,289 @@ def test_the_delivered_input_is_the_newest_that_took_its_turn(
 
     newest = SECOND if is_second_round_delivered else FIRST
     assert delivered == lead_input(comments=[newest])
+
+
+REVIEWED = ObservedPullRequest(
+    state=PullRequestState.OPEN,
+    is_draft=False,
+    merge_state=PullRequestMergeState.UNKNOWN,
+    head="a1",
+    check_result=CheckResult.PASSING,
+    has_running_checks=False,
+)
+
+
+def reviewed(**fields) -> ObservedPullRequest:
+    """Return the child's pull request as read, ready with passing checks."""
+    return REVIEWED.model_copy(update=fields)
+
+
+def assigned(**fields) -> CampaignChildAssignment:
+    """Return the child's assignment, whose first round took its turn."""
+    return CampaignChildAssignment.model_validate(
+        {
+            "identifier": "GH21-20260923-010000-assignment",
+            "pull_request": 52,
+            "observed_pull_request": REVIEWED,
+            "finished_turn": 1,
+            "ending": None,
+            "is_fault": False,
+        }
+        | fields
+    )
+
+
+def stage(**fields) -> CampaignChild:
+    """Return the first child, settled with its assignment."""
+    return CampaignChild.model_validate(
+        {
+            "issue": 21,
+            "title": "Stage 1",
+            "state": IssueState.OPEN,
+            "is_settled": True,
+            "assignment": assigned(),
+        }
+        | fields
+    )
+
+
+SECOND_STAGE = stage(issue=22, title="Stage 2", assignment=None)
+ENDED = assigned(observed_pull_request=None, ending=AgentWorkEndReason.COMPLETED)
+FAULTED = assigned(observed_pull_request=None, is_fault=True)
+REPLACEMENT = "GH21-20260924-010000-assignment"
+CHANGES = CampaignChildChange
+
+
+@pytest.mark.parametrize(
+    ("previous", "current", "changes"),
+    [
+        ([], [stage(is_settled=False)], [CHANGES.ADDED]),
+        ([stage()], [stage(state=IssueState.CLOSED)], [CHANGES.ISSUE_STATE]),
+        (
+            [stage(is_settled=False)],
+            [stage(assignment=assigned(finished_turn=2))],
+            [CHANGES.HANDBACK],
+        ),
+        ([stage(is_settled=False)], [stage()], [CHANGES.HANDBACK]),
+        ([stage()], [stage(assignment=assigned(finished_turn=2))], [CHANGES.HANDBACK]),
+        (
+            [stage(assignment=None)],
+            [stage()],
+            [CHANGES.HANDBACK, CHANGES.PULL_REQUEST, CHANGES.CHECK_COMPLETION],
+        ),
+        (
+            [stage(assignment=ENDED)],
+            [stage(assignment=assigned(identifier=REPLACEMENT, finished_turn=1))],
+            [CHANGES.HANDBACK, CHANGES.PULL_REQUEST, CHANGES.CHECK_COMPLETION],
+        ),
+        (
+            [stage(assignment=assigned(observed_pull_request=reviewed(is_draft=True)))],
+            [stage()],
+            [CHANGES.PULL_REQUEST],
+        ),
+        (
+            [stage()],
+            [stage(assignment=assigned(observed_pull_request=reviewed(head="b2")))],
+            [CHANGES.PULL_REQUEST, CHANGES.CHECK_COMPLETION],
+        ),
+        (
+            [stage()],
+            [
+                stage(
+                    assignment=assigned(
+                        observed_pull_request=reviewed(
+                            head="b2", check_result=CheckResult.NONE
+                        )
+                    )
+                )
+            ],
+            [CHANGES.PULL_REQUEST],
+        ),
+        (
+            [stage()],
+            [
+                stage(
+                    assignment=assigned(
+                        observed_pull_request=reviewed(state=PullRequestState.MERGED)
+                    )
+                )
+            ],
+            [CHANGES.PULL_REQUEST],
+        ),
+        (
+            [
+                stage(
+                    assignment=assigned(
+                        observed_pull_request=reviewed(
+                            check_result=CheckResult.RUNNING, has_running_checks=True
+                        )
+                    )
+                )
+            ],
+            [stage()],
+            [CHANGES.CHECK_COMPLETION],
+        ),
+        (
+            [
+                stage(
+                    assignment=assigned(
+                        observed_pull_request=reviewed(
+                            check_result=CheckResult.FAILING, has_running_checks=True
+                        )
+                    )
+                )
+            ],
+            [
+                stage(
+                    assignment=assigned(
+                        observed_pull_request=reviewed(check_result=CheckResult.FAILING)
+                    )
+                )
+            ],
+            [CHANGES.CHECK_COMPLETION],
+        ),
+        (
+            [stage()],
+            [
+                stage(
+                    assignment=assigned(
+                        observed_pull_request=reviewed(check_result=CheckResult.FAILING)
+                    )
+                )
+            ],
+            [CHANGES.CHECK_COMPLETION],
+        ),
+        (
+            [stage()],
+            [
+                stage(
+                    assignment=assigned(
+                        observed_pull_request=reviewed(
+                            merge_state=PullRequestMergeState.CLEAN
+                        )
+                    )
+                )
+            ],
+            [CHANGES.MERGEABLE],
+        ),
+        ([stage()], [stage(assignment=ENDED)], [CHANGES.ENDING]),
+        (
+            [stage(assignment=ENDED)],
+            [stage(assignment=ENDED.model_copy(update={"identifier": REPLACEMENT}))],
+            [CHANGES.HANDBACK, CHANGES.ENDING],
+        ),
+        ([stage()], [stage(assignment=FAULTED)], [CHANGES.FAULT]),
+        (
+            [stage(assignment=FAULTED)],
+            [stage(assignment=FAULTED.model_copy(update={"identifier": REPLACEMENT}))],
+            [CHANGES.HANDBACK, CHANGES.FAULT],
+        ),
+    ],
+    ids=[
+        "added while working",
+        "issue closed",
+        "turn finished",
+        "settled again",
+        "turn finished between updates",
+        "first assignment",
+        "replacement",
+        "marked ready",
+        "new head",
+        "new head with no checks",
+        "merged",
+        "checks finished",
+        "last running check of a failure finished",
+        "result changed",
+        "became mergeable",
+        "ended",
+        "replacement ended",
+        "fault",
+        "replacement in fault",
+    ],
+)
+def test_a_change_to_a_child_notifies_the_lead(previous, current, changes):
+    notifications = compare_campaign_children(
+        previous=[*previous, SECOND_STAGE], current=[*current, SECOND_STAGE]
+    )
+
+    assert notifications == [CampaignChildNotification(issue=21, changes=changes)]
+
+
+def test_a_removed_child_notifies_after_the_current_children():
+    notifications = compare_campaign_children(
+        previous=[stage(), SECOND_STAGE], current=[SECOND_STAGE, stage(issue=23)]
+    )
+
+    assert notifications == [
+        CampaignChildNotification(issue=23, changes=[CHANGES.ADDED]),
+        CampaignChildNotification(issue=21, changes=[CHANGES.REMOVED]),
+    ]
+
+
+@pytest.mark.parametrize(
+    ("previous", "current"),
+    [
+        ([stage(), SECOND_STAGE], [SECOND_STAGE, stage()]),
+        (
+            [stage(is_settled=False)],
+            [
+                stage(
+                    is_settled=False,
+                    state=IssueState.CLOSED,
+                    assignment=assigned(
+                        finished_turn=2,
+                        observed_pull_request=reviewed(
+                            head="b2", merge_state=PullRequestMergeState.CLEAN
+                        ),
+                    ),
+                )
+            ],
+        ),
+        (
+            [stage()],
+            [
+                stage(
+                    assignment=assigned(
+                        observed_pull_request=reviewed(
+                            check_result=CheckResult.FAILING, has_running_checks=True
+                        )
+                    )
+                )
+            ],
+        ),
+        (
+            [
+                stage(
+                    assignment=assigned(
+                        observed_pull_request=reviewed(
+                            merge_state=PullRequestMergeState.CLEAN
+                        )
+                    )
+                )
+            ],
+            [
+                stage(
+                    assignment=assigned(
+                        observed_pull_request=reviewed(
+                            merge_state=PullRequestMergeState.UNSTABLE
+                        )
+                    )
+                )
+            ],
+        ),
+        ([stage(assignment=ENDED)], [stage(assignment=ENDED)]),
+        ([stage(assignment=FAULTED)], [stage(assignment=FAULTED)]),
+        ([stage(assignment=None)], [stage(assignment=None)]),
+    ],
+    ids=[
+        "reordered",
+        "working",
+        "checks still running",
+        "mergeable still",
+        "still ended",
+        "still in fault",
+        "no assignment yet",
+    ],
+)
+def test_a_child_with_nothing_new_for_the_lead_notifies_nothing(previous, current):
+    assert compare_campaign_children(previous=previous, current=current) == []
