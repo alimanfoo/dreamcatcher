@@ -13,15 +13,16 @@ You need a configured campaign route and a running daemon.
 ## Configure a campaign route
 
 The `dreamcatcher.toml` that `dreamcatcher init` writes has no campaign
-route, so add one. Its prompt tells the lead what to do with the parent.
-For example:
+route, so add one. Its prompt tells the lead what to do with the parent
+and with your comments on it. For example, this prompt makes a lead that
+summarises the plan and then talks with you:
 
 ```toml
 [[campaign]]
 label = "dream:lead"
 
 [campaign.claude]
-prompt = "Read GH{issue} and its sub-issues, then post a comment on GH{issue} that summarises the plan."
+prompt = "Read GH{issue} and its sub-issues. Reply to the comments in your input in one comment on GH{issue}. If your input holds no comment, post a comment on GH{issue} that summarises the plan."
 model = "opus[1m]"
 effort = "high"
 ```
