@@ -466,7 +466,6 @@ body::after {
 
 .ended-work summary,
 .campaign-children > summary,
-p.campaign-children,
 .empty,
 .agent-work-navigation {
   color: var(--dim);

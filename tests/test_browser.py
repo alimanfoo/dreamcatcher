@@ -7,16 +7,18 @@ from pathlib import Path
 
 import pytest
 from playwright.sync_api import Locator, Page, expect
-from records import write_ending
-from status_fabrications import LOOKED_AT
+from records import write_ending, write_tick
+from status_fabrications import CAMPAIGN_CHILDREN, LOOKED_AT
 from web_browser import (
     BROWSER_ASSIGNMENT_IDENTIFIER,
     serve_fabricated_web,
 )
 
 from dreamcatcher.agent_work import AgentWorkEndReason, find_agent_work
-from dreamcatcher.documents import append_text
+from dreamcatcher.campaigns import CampaignChild
+from dreamcatcher.documents import append_text, read_json
 from dreamcatcher.feed import FeedLine
+from dreamcatcher.scheduler.models import SchedulerRecord
 from dreamcatcher.state import StateDirectory
 
 pytestmark = pytest.mark.browser
@@ -115,6 +117,47 @@ def test_a_refresh_leaves_an_expanded_campaign_open(page: Page, live_web: str) -
 
     expect(children).to_have_attribute("open", "")
     expect(page.locator(f"#{CAMPAIGN_IDENTIFIER} .latest-output")).to_have_count(0)
+
+
+def observe_campaign_children(
+    *, state: StateDirectory, children: list[CampaignChild] | None
+) -> None:
+    """Rewrite the latest update so that it observed these children of the campaign."""
+    tick = read_json(model=SchedulerRecord, path=state.scheduler_record)
+    write_tick(
+        state=state,
+        tick=tick.model_copy(
+            update={
+                "rows": [
+                    row.model_copy(update={"children": children})
+                    if row.agent_work_identifier == CAMPAIGN_IDENTIFIER
+                    else row
+                    for row in tick.rows
+                ]
+            }
+        ),
+    )
+
+
+def test_an_expanded_campaign_stays_open_while_its_children_are_unknown(
+    page: Page, live_web: str, tmp_path: Path
+) -> None:
+    state = StateDirectory(root=tmp_path)
+    page.goto(live_web)
+    children = expand_campaign(page=page)
+    entries = children.locator(".agent-work-card, .request-row, .campaign-child")
+    expect(entries).to_have_count(4)
+
+    observe_campaign_children(state=state, children=None)
+
+    expect(children.locator("summary")).to_have_text("+ sub-issues unknown")
+    expect(entries).to_have_count(0)
+    expect(children).to_have_attribute("open", "")
+
+    observe_campaign_children(state=state, children=CAMPAIGN_CHILDREN)
+
+    expect(entries).to_have_count(4)
+    expect(children).to_have_attribute("open", "")
 
 
 def test_an_expanded_campaign_whose_parent_closes_keeps_only_its_card(

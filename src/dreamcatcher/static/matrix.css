@@ -491,7 +491,6 @@ body::after {
 
 .ended-work summary,
 .campaign-children > summary,
-p.campaign-children,
 .empty {
   color: var(--dim);
 }
@@ -500,11 +499,6 @@ p.campaign-children,
 .campaign-children > summary {
   padding: var(--space-4) 0;
   cursor: pointer;
-}
-
-p.campaign-children {
-  margin: 0;
-  padding: var(--space-4) 0;
 }
 
 .empty {

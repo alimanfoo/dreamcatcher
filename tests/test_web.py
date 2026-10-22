@@ -25,6 +25,7 @@ from records import (
     write_round,
     write_tick,
 )
+from rows import UNCLAIMED, request_row
 from status_fabrications import (
     LOOKED_AT,
     STATUS_REPORTS,
@@ -221,7 +222,7 @@ def test_a_campaign_renders_as_its_golden_page(issue, tmp_path, pytestconfig):
 @pytest.mark.parametrize(
     ("children", "summary"), [(None, "sub-issues unknown"), ([], "no sub-issues")]
 )
-def test_a_campaign_with_no_children_to_show_says_why_without_expanding(
+def test_a_campaign_with_no_children_to_show_says_why_and_shows_no_cards(
     children, summary, tmp_path
 ):
     state = StateDirectory(root=tmp_path)
@@ -236,9 +237,13 @@ def test_a_campaign_with_no_children_to_show_says_why_without_expanding(
     )
 
     page = render_home(state=state)
+    children_block = page[
+        page.index('<details id="GH60-20260819-184158-campaign-children"') :
+    ]
+    children_block = children_block[: children_block.index("</details>")]
 
-    assert f'<p class="campaign-children">{summary}</p>' in page
-    assert '<details id="GH60-20260819-184158-campaign-children"' not in page
+    assert f"<summary>+ {summary}</summary>" in children_block
+    assert "<article" not in children_block
 
 
 def test_a_card_that_appears_within_a_campaign_too_has_an_identifier_for_each(
@@ -254,6 +259,36 @@ def test_a_card_that_appears_within_a_campaign_too_has_an_identifier_for_each(
     assert (
         "GH60-20260819-184158-campaign-GH64-20260819-184158-assignment" in identifiers
     )
+    assert len(identifiers) == len(set(identifiers))
+
+
+def test_requests_whose_labels_differ_only_in_spacing_have_their_own_identifiers(
+    tmp_path,
+):
+    state = StateDirectory(root=tmp_path)
+    holding(state=state)
+    write_tick(
+        state=state,
+        tick=SchedulerRecord(
+            at=LOOKED_AT,
+            rows=[
+                *fabricate_campaigns(state=state),
+                *(
+                    request_row(issue=65, label=label, finding=UNCLAIMED)
+                    for label in ("test:cards one", "test:cards-one")
+                ),
+            ],
+        ),
+    )
+
+    page = render_home(state=state)
+    identifiers = re.findall(r'\bid="([^"]+)"', page)
+
+    assert {
+        f"{prefix}request-65-{label}"
+        for prefix in ("", "GH60-20260819-184158-campaign-")
+        for label in ("test%3Acards%20one", "test%3Acards-one")
+    } <= set(identifiers)
     assert len(identifiers) == len(set(identifiers))
 
 
@@ -1606,7 +1641,7 @@ def test_dashboard_groups_assignment_requests_with_assignments(tmp_path):
     page = render_home(state=state)
 
     assert page.index('id="assignment-panel"') < page.index(
-        'id="request-50-dream:smith"'
+        'id="request-50-dream%3Asmith"'
     )
     assert 'id="issue-tab"' not in page
     assert 'id="conversation-tab"' not in page

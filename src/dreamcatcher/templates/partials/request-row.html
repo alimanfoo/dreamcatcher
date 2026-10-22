@@ -1,4 +1,5 @@
-{% from "partials/status-class.html" import status_class %}{% from "partials/references.html" import github_reference with context %}<article id="{{ id_prefix }}request-{{ request.row.issue }}-{{ request.row.dispatch_label|replace(' ', '-') }}" class="request-row" aria-label="Issue #{{ request.row.issue }} {{ request.row.dispatch_label }}">
+{#- Percent-encoding keeps every distinct label distinct in the identifier. -#}
+{% from "partials/status-class.html" import status_class %}{% from "partials/references.html" import github_reference with context %}<article id="{{ id_prefix }}request-{{ request.row.issue }}-{{ request.row.dispatch_label|urlencode }}" class="request-row" aria-label="Issue #{{ request.row.issue }} {{ request.row.dispatch_label }}">
   <div class="card-heading">
     <div>{{ github_reference(request.row.issue, "issues") }} <span class="title">{{ request.row.title }}</span></div>
     <span class="chip {{ status_class(request.value) }}">{% for reason in request.reasons %}{% if not loop.first %}; {% endif %}{{ reason.words }}{% for number in reason.issues %}{% if loop.first %} {% else %}, {% endif %}{{ github_reference(number, "issues") }}{% endfor %}{% for number in reason.pull_requests %}{% if loop.first %} {% else %}, {% endif %}{{ github_reference(number, "pull") }}{% endfor %}{% endfor %}</span>
