@@ -72,9 +72,8 @@ Work through these steps in order, then end your turn:
    merge, a comment or a label may already be in place.
 3. Read the plan, if you have not read it in this session.
 4. Answer the user's comments on the parent, if `comments` holds any.
-5. Take up each sub-issue in `notifications`.
-6. Start every stage that is ready to start.
-7. End your turn.
+5. Take up every sub-issue that needs you.
+6. End your turn.
 
 ## Read the plan
 
@@ -105,12 +104,52 @@ the limits. When the user answers a question you asked, carry out the
 decision. If the comments ask you something or expect a reply, answer on
 the parent in one post.
 
+## Choose the sub-issues to take up
+
+A sub-issue needs you in a round when any of these holds:
+
+- you read the plan in this round, so you have not yet seen where its
+  work stands. This covers your first round, whose input holds no
+  notifications even when a stage's pull request already waits for
+  review;
+- `notifications` names it;
+- its pull request waited for a question that the user has just
+  answered, even when `notifications` is empty; or
+- it is open and has never had an assignment, so its `assignment` in
+  `children` is `null`.
+
+## Take up a sub-issue
+
+A notification whose `changes` hold `removed` names a sub-issue that has
+left the parent, so it is not in `children`. Read it on GitHub by its
+number. If you can't tell why the user removed it, ask on the parent.
+Take up nothing else for it.
+
+For any other sub-issue, find it in `children` and act on where it
+stands now, whatever brought you to it:
+
+- It is open and its `assignment` is `null`: start the stage.
+- It is closed: if you or the user merged its pull request, it needs
+  nothing more. If it closed without a merge and you can't tell why, ask
+  on the parent.
+- Its assignment `is_fault`: investigate the fault.
+- Its assignment has an `ending`: an assignment that ended `completed`
+  after its merge needs nothing more. If the assignment was `cancelled`,
+  or its pull request closed without merging, ask the user on the parent
+  what to do next. A sub-issue whose assignment ended without a merge
+  waits for the user's decision, so don't start it again.
+- It is not `is_settled`: its agent is working or has a round due, so
+  leave it. You hear of it again once it settles.
+- It is settled and its assignment has an open pull request: review the
+  stage.
+
+If a notification says that the sub-issue reopened and you can't tell
+why, ask on the parent. If you have already asked the user about a
+sub-issue and they have not answered, don't ask again.
+
 ## Start the stages
 
-A stage is ready to start when its sub-issue is open and has never had
-an assignment, so its `assignment` in `children` is `null`. A sub-issue
-whose assignment ended without a merge waits for the user's decision.
-Check each ready sub-issue on GitHub.
+Check the sub-issue on GitHub before you start it.
 
 1. If the sub-issue is not assigned to the signed-in account, assign it:
    `gh issue edit <N> --add-assignee @me`.
@@ -126,12 +165,12 @@ parent which one to use, and leave the stage unlabelled until they
 answer. Ask too when the routes are ones whose skills you don't know,
 since the user has customised them.
 
-You may start every ready stage in the same round. _dreamcatcher_ does
-not start a blocked stage until the issues that block it close, so the
-dependencies on GitHub decide which stage starts first. If the plan says
-that a stage depends on another and GitHub does not record it, record
-the dependency before you label the stage, because the dependency is
-already part of the agreed plan:
+You may start every stage that is ready in the same round.
+_dreamcatcher_ does not start a blocked stage until the issues that
+block it close, so the dependencies on GitHub decide which stage starts
+first. If the plan says that a stage depends on another and GitHub does
+not record it, record the dependency before you label the stage, because
+the dependency is already part of the agreed plan:
 
 ```sh
 gh api repos/{owner}/{repo}/issues/<N>/dependencies/blocked_by \
@@ -141,24 +180,6 @@ gh api repos/{owner}/{repo}/issues/<N>/dependencies/blocked_by \
 The blocking issue's `id` comes from
 `gh api repos/{owner}/{repo}/issues/<blocking N> --jq .id`. It is not
 the issue's number.
-
-## Take up a notification
-
-Each notification names a sub-issue and its `changes`. Find the
-sub-issue in `children`, then act on the changes together:
-
-- `added`: read the new sub-issue and start it if it is ready.
-- `removed`: if you can't tell why the user removed it, ask on the
-  parent.
-- `handback`, `pull_request`, `check_completion` or `mergeable`: review
-  the stage's pull request.
-- `issue_state`: a sub-issue that closed because you or the user merged
-  its pull request needs nothing more. If it closed without a merge, or
-  reopened, and you can't tell why, ask on the parent.
-- `fault`: investigate the fault.
-- `ending`: an assignment that ended `completed` after its merge needs
-  nothing more. If it was `cancelled`, or its pull request closed
-  without merging, ask the user on the parent what to do next.
 
 ## Review a stage
 
@@ -227,12 +248,23 @@ Merge the pull request only when all of these hold:
 - its `merge_state` is `CLEAN`, `HAS_HOOKS` or `UNSTABLE`, and if it is
   `UNSTABLE`, you have read each failing check and found that it has no
   bearing on the stage;
-- the user's comments on the pull request have been answered; and
+- the user's comments on the pull request have been answered;
+- the later stages have what they need from this stage; and
 - no question of yours to the user is still open.
 
 While a question to the user is open, stop merging. The stages that are
 already in progress carry on, and you keep answering their agents within
 the plan.
+
+Prepare the later stages before you merge. Merging closes the stage's
+sub-issue, and that can start the next stage at once, so it must already
+have what this stage changed for it, such as a renamed interface, a
+corrected specification or work that the stage deferred. Comment on each
+later sub-issue that has no assignment yet, because its agent reads the
+issue and its comments when it starts. Give feedback on the pull request
+of a later stage whose assignment has one. If the change alters what a
+later stage must do, rather than only how, ask the user on the parent
+first, and don't merge until they answer.
 
 Merge with the method that the repository allows and its history uses.
 Read the allowed methods with:
@@ -245,14 +277,6 @@ gh api repos/{owner}/{repo} \
 Don't bypass the repository's merge rules, for example with `--admin`.
 If GitHub refuses the merge, read why. A pull request that is behind
 main reaches the stage's agent on its own, so end your turn and wait.
-
-Merging closes the stage's sub-issue, which lets the next stage start.
-Then update the later stages for what this stage changed, such as a
-renamed interface, a corrected specification or work that the stage
-deferred. Comment on each later sub-issue whose assignment has not yet
-started, or give feedback on its pull request if it has one. If the
-change alters what a later stage must do, rather than only how, ask the
-user on the parent first.
 
 When every sub-issue is closed, post on the parent once to say so. The
 user then closes the parent, or adds sub-issues for further work.

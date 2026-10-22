@@ -3,7 +3,7 @@
 ## The big picture
 
 This guide follows the code behind the
-[campaign requirements](requirements.md) as stage 5 leaves it. Read the
+[campaign requirements](requirements.md) as stage 6 leaves it. Read the
 sections in order, starting with `Scheduler.tick` in
 [`scheduler/tick.py`](../../src/dreamcatcher/scheduler/tick.py).
 
@@ -291,10 +291,15 @@ Read `compose_round_prompt` and the conversation and campaign input
 prompts in [`prompts.py`](../../src/dreamcatcher/prompts.py), alongside
 the [agent-facing contract](../../docs/contract.md). The prompt directs
 an agent to its saved input and explains an earlier stopped or
-unfinished round. Every round receives the instruction to mark every
-GitHub post. Conversation instructions allow investigation and requested
-issue changes, but forbid implementation, Git mutations, pull-request
-changes and direct publication of the conversation reply.
+unfinished round. Every round ends with the instruction to mark its
+GitHub posts, which `compose_round_prompt` chooses by the work's kind.
+An assignment or a conversation marks every post. A campaign's lead
+marks every post except its feedback on a sub-issue's pull request,
+which `_CAMPAIGN_POST_INSTRUCTIONS` asks it to leave unmarked so that
+the assignment relay gives it to the stage's agent as a user post.
+Conversation instructions allow investigation and requested issue
+changes, but forbid implementation, Git mutations, pull-request changes
+and direct publication of the conversation reply.
 
 Continue to `_CLAUDE_PERMISSION_ARGUMENTS` in
 [`claude.py`](../../src/dreamcatcher/claude.py) and the first/resumed
@@ -307,6 +312,24 @@ sandbox and approval settings; a campaign round takes an assignment's
 reviewed settings, so under Codex the prompt alone keeps the lead from
 implementing. These are the arguments this code supplies, rather than
 guarantees about every external harness version.
+
+## The prototype lead skill
+
+Read the prototype `lead` skill in
+[`.agents/skills/lead/SKILL.md`](../../.agents/skills/lead/SKILL.md),
+which Codex finds there and which
+[`.claude/skills/lead/SKILL.md`](../../.claude/skills/lead/SKILL.md)
+points Claude at, the layout that `triage-issues` already uses. Then
+read the `[[campaign]]` route in
+[`dreamcatcher.toml`](../../dreamcatcher.toml), labelled `dream:lead`,
+whose recipes invoke it as `/lead GH{issue}` and `$lead GH{issue}`. The
+skill owns the lead's judgment: it takes up each sub-issue by where its
+work stands, starts the stages on a route that it chooses, reviews and
+proves each settled pull request, prepares the later stages before a
+merge releases them, and asks the user on the parent before any change
+to the plan. The daemon supplies the input and the marker rule around
+it, so the skill repeats neither. Stage 7 replaces it with the published
+`dream:lead`.
 
 ## Status, cards and refreshes
 
@@ -404,9 +427,12 @@ issue for collaboration rather than routine action logging.
   start, a recovery and both counts. A round with no input yet says only
   that comments or changes woke it.
 - `_is_eligible` in [`relay.py`](../../src/dreamcatcher/relay.py)
-  ignores marked agent posts, including a lead's marked review. The
-  current prompts require that marker everywhere. Both sides matter when
-  tracing how a lead's feedback could reach a child.
+  ignores marked agent posts, including a lead's marked review. A
+  campaign's prompt asks the lead to leave the marker off its feedback
+  on a sub-issue's pull request alone, so that feedback reaches the
+  stage's agent and every other post of the lead's stays out of the
+  relay. Both sides matter when tracing how a lead's feedback reaches a
+  child.
 - `PullRequest.check_result` in
   [`github.py`](../../src/dreamcatcher/github.py) prioritises failure
   over running checks, so a failing aggregate does not establish that
