@@ -11,8 +11,9 @@ permissions:
 
 jobs:
   # The test and checks jobs take their interpreter from .python-version. The
-  # package job takes whatever uvx picks, which is what a user installing the
-  # tool gets.
+  # newer-python job runs the tests on a later Python the package supports,
+  # because the standard library behaves differently there. The package job
+  # takes whatever uvx picks, which is what a user installing the tool gets.
   test:
     needs: checks
     runs-on: ${{ matrix.os }}
@@ -35,6 +36,21 @@ jobs:
       # Arms the EncodingWarning gate. Without it the interpreter never emits
       # the warning, and pytest refuses to run.
       - run: uv run pytest --durations=30
+        env:
+          PYTHONWARNDEFAULTENCODING: "1"
+
+  newer-python:
+    needs: checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          python-version: "3.13"
+      - run: uv sync --locked
+      - run: uv run pytest
         env:
           PYTHONWARNDEFAULTENCODING: "1"
 

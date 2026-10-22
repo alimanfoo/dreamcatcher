@@ -487,6 +487,14 @@ def test_a_round_the_daemon_before_this_one_left_running_is_ended(
     assert record.outcome is AgentRoundOutcome.INTERRUPTED
 
 
+def test_a_sweep_of_a_fresh_state_directory_finds_no_work(watched):
+    DreamcatcherDaemon(
+        root=watched, preferred_harness=AgentHarness.CLAUDE
+    )._sweep_orphans()
+
+    assert not StateDirectory(root=watched).work.exists()
+
+
 def test_a_round_left_preparing_is_interrupted_with_nothing_to_end(
     watched, monkeypatch
 ):

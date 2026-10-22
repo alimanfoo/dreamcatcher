@@ -62,8 +62,10 @@ uv run pre-commit install
 ```
 
 `.python-version` names the interpreter, and CI reads the same file, so
-every machine runs the same Python. `uv sync` installs the `dev`
-dependency group without being asked.
+every machine runs the same Python. CI also runs the tests once on
+Python 3.13, where the standard library behaves differently. To run them
+there yourself, set `UV_PYTHON=3.13` for the test command. `uv sync`
+installs the `dev` dependency group without being asked.
 
 ## Commands
 
