@@ -74,7 +74,7 @@ def test_work_refuses_a_different_harness_session(tmp_path):
 @pytest.mark.parametrize(
     ("identifier", "message"),
     [
-        ("", "identifier is empty"),
+        ("", "must begin with a letter or digit"),
         ("bad%identifier", "cannot hold a percent sign"),
         ("--last", "must begin with a letter or digit"),
         ("abc; touch another-file", "contain only ASCII letters"),
