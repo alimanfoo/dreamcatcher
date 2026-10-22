@@ -361,6 +361,15 @@ pull request from that worktree.
 The lead publishes its own messages on GitHub. _dreamcatcher_ records
 the lead's final output in the feed and posts none of it.
 
+_dreamcatcher_'s prompt asks the lead to end every post with the agent
+marker, except feedback that it gives a sub-issue's assignment on that
+assignment's pull request. The lead posts under the same account as the
+user, so the assignment's relay gives that unmarked feedback to the
+assignment's agent as a user post. A campaign skill must not tell the
+lead to mark that feedback, or to leave the marker off any other post,
+because an unmarked comment on the parent would reach the lead as the
+user's.
+
 ### The parent issue
 
 The user ends a campaign by closing its parent issue. The lead must not

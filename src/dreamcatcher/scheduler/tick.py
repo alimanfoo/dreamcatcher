@@ -433,6 +433,7 @@ class Scheduler:
                         previous_outcome=(
                             work.rounds[-1].outcome if work.rounds else None
                         ),
+                        work_kind=work.record.kind,
                     ),
                     work_kind=work.record.kind,
                 ),

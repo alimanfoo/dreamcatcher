@@ -72,6 +72,11 @@ free agent slot, _dreamcatcher_ refreshes the lead's worktree to current
 last round, in the same harness session. The lead answers on GitHub
 itself. Its own posts carry the agent marker, so they never wake it.
 
+When the lead gives a sub-issue's assignment feedback on its pull
+request, it leaves the marker off. The assignment's agent is then given
+the feedback as it is given yours, and the lead hears of the agent's
+answer once the assignment hands back.
+
 ## Changes among the sub-issues
 
 At each update, _dreamcatcher_ compares the parent's sub-issues with

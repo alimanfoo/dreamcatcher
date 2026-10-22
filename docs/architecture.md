@@ -296,7 +296,13 @@ work without implementing it: Claude allows selected `gh issue` and
 Codex runs a campaign round under its own reviewer, as it runs an
 assignment's, because fetching writes outside the worktree, so there the
 prompt alone keeps the lead from implementing. Every prompt requires the
-agent marker on every GitHub post that the lead makes.
+agent marker on every GitHub post that the lead makes, except feedback
+that it gives a sub-issue's assignment on that assignment's pull
+request. `compose_round_prompt` in `prompts.py` chooses those words by
+the kind of work. The ordinary assignment relay then gives the unmarked
+feedback to the assignment's agent as a user post, so the lead reaches a
+stage's agent through the same channel as the user, and no campaign code
+relays it.
 
 ### Agent assignments
 

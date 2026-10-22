@@ -19,7 +19,9 @@ issue. GitHub is where the work happens and where the user acts. The
 home page and the terminal are a window on what the daemon is doing,
 with the few controls GitHub has no place for: stop, cancel and retry.
 The agent hears only the user: a post or a comment from anyone else is
-never relayed to it as feedback.
+never relayed to it as feedback. A campaign's lead works under the
+user's account, so the agent of a stage hears the lead's feedback as it
+hears the user's.
 
 Each story is told from the user's seat, in the order things happen,
 using the ontology's words without defining them and citing no rule and
@@ -361,13 +363,14 @@ where each one's assignment stands, and the assignment routes that the
 running daemon offers. It reads the parent and its sub-issues on GitHub,
 and any comments the user had already left on the parent, and does what
 its prompt asks, posting on GitHub itself, with every post marked as the
-agent's own. Its final words stay in the feed, so the parent issue holds
-only what the lead chose to say there. At later updates the lead is left
-alone until the user comments on the parent or a sub-issue changes in a
-way that it needs to hear of. The home page has a Campaigns tab, where
-the campaign shows as idle with how its round ended and how many of the
-parent's sub-issues are closed out of the total, and its page shows the
-feed. The user expands the count to see every sub-issue, each with its
+agent's own, apart from feedback on a sub-issue's pull request. Its
+final words stay in the feed, so the parent issue holds only what the
+lead chose to say there. At later updates the lead is left alone until
+the user comments on the parent or a sub-issue changes in a way that it
+needs to hear of. The home page has a Campaigns tab, where the campaign
+shows as idle with how its round ended and how many of the parent's
+sub-issues are closed out of the total, and its page shows the feed. The
+user expands the count to see every sub-issue, each with its
 assignment's card as the Assignments tab shows it and the row of each
 request for an assignment on it that has no open work, or the sub-issue
 alone when it has neither. The cards keep updating, and the sub-issues
@@ -425,6 +428,21 @@ counts them.
 The value to the user is that the lead takes up each stage's result as
 soon as it is ready, and never spends a round on work that is still
 going on.
+
+#### The lead gives a stage's agent feedback
+
+The lead reviews a sub-issue's pull request and finds something to
+correct, or the stage's agent has asked a question there. The lead
+comments on the pull request without the agent's mark, and at the next
+update the assignment's agent is given the comment as it would be given
+the user's, in its own harness session, and answers on the pull request.
+The user can comment on the same pull request, and the agent is given
+both. When the agent has answered and has no round running or due, the
+lead hears of it and reads the answer on GitHub.
+
+The value to the user is that the lead and each stage's agent work
+through the pull request, as the user would, so the user can read the
+whole exchange and join it.
 
 #### The user pauses a campaign by removing its label
 

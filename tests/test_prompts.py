@@ -8,6 +8,7 @@ from dreamcatcher.config import (
     read_dreamcatcher_config,
 )
 from dreamcatcher.github import PullRequestSignal
+from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.prompts import (
     _AGENT_POST_INSTRUCTIONS,
     AGENT_POST_MARKER,
@@ -48,6 +49,7 @@ def test_a_round_with_nothing_to_relay_is_given_its_instructions_then_the_postsc
         is_resuming=False,
         input_prompt=None,
         previous_outcome=None,
+        work_kind=AgentWorkKind.ASSIGNMENT,
     )
 
     assert composed == OPENINGS[harness] + _AGENT_POST_INSTRUCTIONS
@@ -60,6 +62,7 @@ def test_a_round_with_no_input_is_given_its_instructions_resumed_or_not(is_resum
         is_resuming=is_resuming,
         input_prompt=None,
         previous_outcome=AgentRoundOutcome.ERRORED,
+        work_kind=AgentWorkKind.ASSIGNMENT,
     )
 
     assert composed == "/dream:smith GH12" + _AGENT_POST_INSTRUCTIONS
@@ -71,6 +74,7 @@ def test_a_new_session_is_given_its_instructions_before_its_input():
         is_resuming=False,
         input_prompt=INPUT_PROMPT,
         previous_outcome=None,
+        work_kind=AgentWorkKind.CONVERSATION,
     )
 
     assert composed == (
@@ -84,6 +88,7 @@ def test_a_resumed_session_is_given_its_input_alone():
         is_resuming=True,
         input_prompt=INPUT_PROMPT,
         previous_outcome=AgentRoundOutcome.SUCCESSFUL,
+        work_kind=AgentWorkKind.ASSIGNMENT,
     )
 
     assert composed == INPUT_PROMPT + _AGENT_POST_INSTRUCTIONS
@@ -106,12 +111,14 @@ def test_input_after_a_round_that_ended_short_says_why(previous_outcome, opening
         is_resuming=True,
         input_prompt=INPUT_PROMPT,
         previous_outcome=previous_outcome,
+        work_kind=AgentWorkKind.ASSIGNMENT,
     )
     fresh = compose_round_prompt(
         instructions="/dream:smith GH12",
         is_resuming=False,
         input_prompt=INPUT_PROMPT,
         previous_outcome=previous_outcome,
+        work_kind=AgentWorkKind.ASSIGNMENT,
     )
 
     assert resumed.startswith(opening)
@@ -163,6 +170,7 @@ def test_a_signal_line_follows_the_line_about_the_previous_round(tmp_path):
             is_previous_round_unfinished=True,
         ),
         previous_outcome=AgentRoundOutcome.ERRORED,
+        work_kind=AgentWorkKind.ASSIGNMENT,
     )
 
     assert prompt.startswith("Your previous round did not finish.")
@@ -187,6 +195,7 @@ def test_an_open_assignment_after_a_round_that_did_not_finish_is_told_to_continu
             is_previous_round_unfinished=True,
         ),
         previous_outcome=previous_outcome,
+        work_kind=AgentWorkKind.ASSIGNMENT,
     )
 
     words = " ".join(prompt.split())
@@ -218,6 +227,7 @@ def test_an_assignment_after_a_round_that_took_its_turn_acts_on_its_posts(
             is_previous_round_unfinished=False,
         ),
         previous_outcome=previous_outcome,
+        work_kind=AgentWorkKind.ASSIGNMENT,
     )
 
     words = " ".join(prompt.split())
@@ -252,18 +262,62 @@ def test_the_conversation_input_prompt_names_its_input_and_host_boundary(tmp_pat
 
 @pytest.mark.parametrize("input_prompt", [None, INPUT_PROMPT])
 @pytest.mark.parametrize("is_resuming", [False, True])
+@pytest.mark.parametrize("work_kind", list(AgentWorkKind))
 def test_every_round_prompt_the_daemon_composes_asks_for_the_marker(
-    input_prompt, is_resuming
+    input_prompt, is_resuming, work_kind
 ):
     composed = compose_round_prompt(
         instructions="/dream:smith GH12",
         is_resuming=is_resuming,
         input_prompt=input_prompt,
         previous_outcome=AgentRoundOutcome.STOPPED,
+        work_kind=work_kind,
+    )
+
+    words = " ".join(composed.split())
+    assert (
+        "End every post you make on GitHub with this line, on a line of its own: "
+        f"{AGENT_POST_MARKER}" in words
+    )
+
+
+@pytest.mark.parametrize(
+    "work_kind", [AgentWorkKind.ASSIGNMENT, AgentWorkKind.CONVERSATION]
+)
+def test_an_assignment_or_conversation_marks_every_post(work_kind):
+    composed = compose_round_prompt(
+        instructions="/dream:smith GH12",
+        is_resuming=False,
+        input_prompt=INPUT_PROMPT,
+        previous_outcome=None,
+        work_kind=work_kind,
     )
 
     assert composed.endswith(_AGENT_POST_INSTRUCTIONS)
-    assert AGENT_POST_MARKER in composed
+    assert "Leave the line off" not in composed
+
+
+def test_a_lead_leaves_the_marker_off_its_feedback_on_a_sub_issues_pull_request(
+    tmp_path,
+):
+    composed = compose_round_prompt(
+        instructions="/lead GH20",
+        is_resuming=True,
+        input_prompt=compose_campaign_input_prompt(
+            issue=20, round_input=tmp_path / "round-input.json"
+        ),
+        previous_outcome=AgentRoundOutcome.SUCCESSFUL,
+        work_kind=AgentWorkKind.CAMPAIGN,
+    )
+
+    words = " ".join(composed.split())
+    assert "Every post counts, such as a comment, a review" in words
+    assert (
+        "Leave the line off feedback that you give a sub-issue's assignment on its "
+        "pull request" in words
+    )
+    assert "dreamcatcher relays an unmarked post on that pull request" in words
+    assert "Every post counts: a pull request's description" not in words
 
 
 def test_the_campaign_input_prompt_names_its_input_and_the_users_decisions(

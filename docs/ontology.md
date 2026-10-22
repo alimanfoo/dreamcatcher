@@ -198,9 +198,11 @@ answer is missing or cannot be posted is errored.
 A **user post** is a contribution to an assignment's pull request by the
 signed-in account that does not carry the marker _dreamcatcher_ asks
 every agent post to end with, since the agent posts under that same
-account. It normalizes the different places in which GitHub lets the
-user write: comments on the pull request, review bodies, review
-verdicts, and inline review comments.
+account. A campaign's lead leaves that marker off its feedback on a
+sub-issue's pull request, so the feedback is a user post too. A user
+post normalizes the different places in which GitHub lets the user
+write: comments on the pull request, review bodies, review verdicts, and
+inline review comments.
 
 Collectively, user posts are **feedback**. _dreamcatcher_ **relays** new
 user posts into a later agent round. Relay is an action, not a separate
