@@ -82,13 +82,15 @@ when. The tick in `tick.py` has one path for every kind of agent work.
 Each kind's module, `assignments.py`, `conversations.py` or
 `campaigns.py`, supplies only what differs by kind: how it inspects the
 channel of open work, how it decides whether a request with no open work
-may start, and how it composes a round's plan. `issue_work.py` holds the
-lifetime rules that conversations and campaigns share: a closed issue
-ends the work once no round of it runs, and the issue's labels and
-assignee decide whether it is paused. `inspection.py` holds the shapes
-they share: the scheduling context, the candidate, the round plan and
-the inspection of one request. `models.py` holds the scheduler record
-and its request rows, and `faults.py` the fault and cooldown rules.
+may start, and how it composes a round's plan. `issue_work.py` holds
+what conversations and campaigns share: the lifetime rules, by which a
+closed issue ends the work once no round of it runs and the issue's
+labels and assignee decide whether it is paused, and the read of the
+eligible comments past the work's cursor. `inspection.py` holds the
+shapes they share: the scheduling context, the candidate, the round plan
+and the inspection of one request. `models.py` holds the scheduler
+record and its request rows, and `faults.py` the fault and cooldown
+rules.
 
 One scheduler tick:
 

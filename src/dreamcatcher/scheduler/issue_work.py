@@ -1,19 +1,24 @@
-"""Inspect the lifetime of open work whose channel is its issue.
+"""Inspect the lifetime and the comments of work whose channel is its issue.
 
 A conversation and a campaign each belong to the label that started them. Their
 issue's state, labels and assignee decide whether they have ended, are paused or
-may take another round.
+may take another round, and the user talks to their agent in the issue's
+comments.
 """
 
+from collections.abc import Callable
 from typing import Protocol
 
 from dreamcatcher.agent_work import AgentWork, AgentWorkEndReason, end_agent_work
+from dreamcatcher.errors import ReportableError
 from dreamcatcher.github import (
     Issue,
+    IssueComment,
     IssueState,
     UnknownGitHubResponse,
     read_issue,
 )
+from dreamcatcher.relay import IssueCommentCursor, list_issue_comments_past_cursor
 from dreamcatcher.scheduler.inspection import (
     Inspection,
     SchedulingContext,
@@ -100,3 +105,29 @@ def find_pause(
             labels=sorted([work.record.dispatch_label, *others], key=str.casefold)
         )
     return None
+
+
+def list_new_comments(
+    *,
+    context: SchedulingContext,
+    issue: int,
+    read_cursor: Callable[[], IssueCommentCursor | None] | None,
+) -> list[IssueComment] | ReadFailureFinding:
+    """Return the eligible comments at the issue past the work's cursor.
+
+    Work not yet started has no cursor to read, so it is given every eligible
+    comment. A read that fails answers why.
+    """
+    try:
+        cursor = None if read_cursor is None else read_cursor()
+    except ReportableError as failure:
+        return ReadFailureFinding(reason=str(failure))
+    comments = list_issue_comments_past_cursor(
+        repository=context.repository,
+        issue=issue,
+        account=context.account,
+        cursor=cursor,
+    )
+    if isinstance(comments, UnknownGitHubResponse):
+        return ReadFailureFinding(reason=comments.reason)
+    return comments
