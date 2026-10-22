@@ -362,7 +362,9 @@ def test_a_failed_feed_refresh_keeps_the_feed_and_reports_why(
     )
 
     expect(alert).to_be_hidden(timeout=5_000)
-    expect(page.get_by_text("after repair")).to_have_count(1)
+    expect(
+        page.locator(f"#feed-round-{last_round.number}").get_by_text("after repair")
+    ).to_have_count(1)
     wait_for_refresh(page=page)
     expect(lines).to_have_count(line_count + 1)
 
