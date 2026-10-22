@@ -9,15 +9,17 @@ It is an enduring part of the project.
 The theory of use is short. One developer runs _dreamcatcher_ on their
 own machine, under their own GitHub account, against a repository they
 work in. They hand it work by labelling issues that are assigned to
-them, and the work is of two kinds: an assignment, where an agent
-implements the issue and brings it to a pull request, and a
-conversation, where an agent investigates and answers on the issue. From
-then on the developer works as they would with a colleague, reviewing
-the pull request or replying on the issue. GitHub is where the work
-happens and where the user acts. The home page and the terminal are a
-window on what the daemon is doing, with the few controls GitHub has no
-place for: stop, cancel and retry. The agent hears only the user: a post
-or a comment from anyone else is never relayed to it as feedback.
+them, and the work is of three kinds: an assignment, where an agent
+implements the issue and brings it to a pull request; a conversation,
+where an agent investigates and answers on the issue; and a campaign,
+where an agent called the lead takes up a parent issue whose sub-issues
+hold a planned body of work. From then on the developer works as they
+would with a colleague, reviewing the pull request or replying on the
+issue. GitHub is where the work happens and where the user acts. The
+home page and the terminal are a window on what the daemon is doing,
+with the few controls GitHub has no place for: stop, cancel and retry.
+The agent hears only the user: a post or a comment from anyone else is
+never relayed to it as feedback.
 
 Each story is told from the user's seat, in the order things happen,
 using the ontology's words without defining them and citing no rule and
@@ -340,6 +342,46 @@ question without recapping.
 The value to the user is that the agent is on the issue only when
 wanted, and forgets nothing in between.
 
+### Campaigns
+
+#### The user starts a campaign on a parent issue
+
+The user has planned a body of work as a parent issue, with a sub-issue
+for each stage, and wants an agent to take the plan up. They have added
+a campaign route to the configuration, with a prompt that tells the lead
+what to do with the parent, such as reading the plan and summarising it
+in a comment. They assign the parent to themselves and put the campaign
+label on it. No comment is needed. As soon as _dreamcatcher_ has
+available agent capacity, it checks out main in a worktree of the
+campaign's own and starts the lead in a new harness session.
+
+The lead reads the parent and its sub-issues on GitHub and does what its
+prompt asks, posting on GitHub itself, with every post marked as the
+agent's own. Its final words stay in the feed, so the parent issue holds
+only what the lead chose to say there. At later updates the lead is left
+alone: it has taken its turn, and nothing yet wakes it again. The home
+page has a Campaigns tab, where the campaign shows as idle with how its
+round ended, and its page shows the feed.
+
+When the user is satisfied, they close the parent, and the campaign ends
+once any round that is still running finishes. If they reopen the parent
+with its label still on, a new campaign starts.
+
+The value to the user is that a planned body of work has an agent of its
+own, started with one label and ended by closing the parent.
+
+#### The user pauses a campaign by removing its label
+
+The user wants the lead to leave the parent alone for a while. They take
+the campaign label off the parent, or unassign it from themselves, and
+the campaign pauses. A round that is already running finishes, and no
+other round starts, not even one to recover a round that did not finish.
+When they put the label back, the same campaign carries on in its saved
+harness session.
+
+The value to the user is that the lead is on the parent only when
+wanted.
+
 ### Running dreamcatcher
 
 #### The user sets up dreamcatcher on a new repository
@@ -378,20 +420,20 @@ The user labelled a handful of issues in the morning and has been in
 meetings since. Now they want to know what needs them, without opening
 every pull request to find out. So they open the home page, or run
 `dreamcatcher status` if they are already in a terminal. Every
-assignment and every conversation has a row. So does every dispatch
+assignment, conversation and campaign has a row. So does every dispatch
 label that no work answers yet, and that row stands for the label until
-work starts for it. Assignments and conversations each have a section,
-and within each the rows come in the order that deserves attention:
-anything in fault first, then what is working, then what is waiting for
-its turn, then what is idle, then anything the last update could not
-read, and after all of those the labels where nothing has started yet.
-Each row says why it is where it is. This pull request is ready for
-review. That one is still a draft, so the agent has probably asked
-something. This issue has not started because another pull request
-already claims it. The pull requests the user needs to read are a click
-away, and ended work is folded under a collapsed list, so the page shows
-only what is live. The terminal gives the same rows, with a count of
-ended work in place of the list.
+work starts for it. Each kind of work has a section, and within each the
+rows come in the order that deserves attention: anything in fault first,
+then what is working, then what is waiting for its turn, then what is
+idle, then anything the last update could not read, and after all of
+those the labels where nothing has started yet. Each row says why it is
+where it is. This pull request is ready for review. That one is still a
+draft, so the agent has probably asked something. This issue has not
+started because another pull request already claims it. The pull
+requests the user needs to read are a click away, and ended work is
+folded under a collapsed list, so the page shows only what is live. The
+terminal gives the same rows, with a count of ended work in place of the
+list.
 
 Both show the daemon's last update, and keep showing it after the daemon
 stops, so the user can still see where things stood.
@@ -524,12 +566,12 @@ checkout.
 ### Two labels of one kind on one issue
 
 The user puts two assignment labels on an issue, or two conversation
-labels, perhaps to try both recipes. That is a routing conflict. Until
-work exists to answer a label, its row stands for that label, so the two
-labels show as two request rows. Each says there is a conflict and names
-both labels, and nothing of that kind starts while both are there. The
-user needs to take one of the two labels off the issue, and the one that
-stays decides the recipe.
+labels, or two campaign labels, perhaps to try both recipes. That is a
+routing conflict. Until work exists to answer a label, its row stands
+for that label, so the two labels show as two request rows. Each says
+there is a conflict and names both labels, and nothing of that kind
+starts while both are there. The user needs to take one of the two
+labels off the issue, and the one that stays decides the recipe.
 
 Once an assignment exists, its row stands for that assignment, which
 keeps the label it started with. While the assignment is open, adding or
@@ -543,10 +585,11 @@ A conversation answers only its own label. With two conversation labels,
 the user may see two request rows, a conversation and a request row, or
 two conversations, depending on which labels already have one. The
 conflict stops new rounds. A conversation with a round running finishes
-that round, and then pauses until the other label comes off.
+that round, and then pauses until the other label comes off. A campaign
+answers only its own label in the same way.
 
-One assignment label and one conversation label on the same issue are
-not a conflict, and each can start its own work.
+Labels of different kinds on the same issue are not a conflict, and each
+can start its own work.
 
 ### A label without an assignee
 

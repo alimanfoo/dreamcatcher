@@ -140,8 +140,10 @@ records.
 ## Agent contract
 
 The current [agent contract](contract.md) is version **1**. It covers
-assignment skills and conversation skills. Existing conforming skills
-remain compatible while the contract version stays the same.
+assignment skills, conversation skills and campaign skills. Existing
+conforming skills remain compatible while the contract version stays the
+same. Adding the campaign skill contract required no assignment or
+conversation skill to change.
 
 The contract number is an integer independent of the release and
 state-format versions. A change that requires an existing conforming

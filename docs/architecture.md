@@ -78,14 +78,17 @@ decision and starts no agent work.
 ### Scheduling
 
 The scheduler package owns all decisions about what work starts and
-when. The tick in `tick.py` has one path for both kinds of agent work.
-Each kind's module, `assignments.py` or `conversations.py`, supplies
-only what differs by kind: how it inspects the channel of open work, how
-it decides whether a request with no open work may start, and how it
-composes a round's plan. `inspection.py` holds the shapes they share:
-the scheduling context, the candidate, the round plan and the inspection
-of one request. `models.py` holds the scheduler record and its request
-rows, and `faults.py` the fault and cooldown rules.
+when. The tick in `tick.py` has one path for every kind of agent work.
+Each kind's module, `assignments.py`, `conversations.py` or
+`campaigns.py`, supplies only what differs by kind: how it inspects the
+channel of open work, how it decides whether a request with no open work
+may start, and how it composes a round's plan. `issue_work.py` holds the
+lifetime rules that conversations and campaigns share: a closed issue
+ends the work once no round of it runs, and the issue's labels and
+assignee decide whether it is paused. `inspection.py` holds the shapes
+they share: the scheduling context, the candidate, the round plan and
+the inspection of one request. `models.py` holds the scheduler record
+and its request rows, and `faults.py` the fault and cooldown rules.
 
 One scheduler tick:
 
@@ -95,18 +98,21 @@ One scheduler tick:
    listed issue and each piece of open agent work, which names its own
    issue and label;
 3. inspects each piece of open work's channel: an assignment's pull
-   request and user posts, or a conversation's issue and then its
-   comments, ending the conversation if the issue is closed and no round
+   request and user posts, a conversation's issue and then its comments,
+   or a campaign's parent issue and then whether its lead has input due,
+   ending a conversation or campaign if its issue is closed and no round
    of it is running;
 4. for each request with no open work, skips an assignment label whose
    issue already has an open assignment, checks for a routing conflict,
-   then asks the start-time questions or reads the comments;
+   then asks the start-time questions, reads the comments, or for a
+   campaign reads nothing more;
 5. starts a global cooldown when the counted faults call for one, and
    launches nothing while a cooldown is active;
 6. launches candidates until the daemon run's requested capacity is full
    or no candidate remains, open work first in identifier order and then
-   new requests in listing order, alternating between the two kinds
-   while both have candidates; and
+   new requests in listing order, the kinds taking turns in the order
+   assignment, conversation, campaign, and a kind with no candidate
+   giving up its turn; and
 7. returns a `SchedulerRecord`, holding one request row per request, for
    operational reporting.
 
@@ -115,7 +121,7 @@ may start work for. It carries a composer that builds the round's plan
 once the work exists: the preparation that runs inside the round, the
 input prompt, and the finishing step. The tick creates the work of a new
 request, then starts the round the plan describes, so creating and
-launching are one path for both kinds.
+launching are one path for every kind.
 
 Alternation advances when a kind is selected, including when its start
 fails, and begins afresh after a daemon restart.
@@ -222,6 +228,31 @@ a Codex conversation, the adapter gives `codex exec` the round's
 `final.md` path as its last-message output file on first and resumed
 invocations.
 
+### Campaigns
+
+`campaigns.py` owns a campaign round's input and the reader of the input
+last delivered to the lead. Creating and ending a campaign go through
+`agent_work.py`, and creating one writes its work record and nothing
+else. Each round's preparation resets the detached worktree to fetched
+main, adding it when it is missing, and freezes the parent issue and
+that revision. A campaign's worktree never acquires a branch or a pull
+request.
+
+Each tick reads an open campaign's parent issue, as it reads a
+conversation's issue, and decides from it whether the campaign is paused
+or has ended. A campaign whose lead has not yet been given its input,
+because no round that took its turn has delivered it, is due a round.
+
+The lead publishes its own messages, so a campaign's round plan has no
+finishing step, and its final output stays in the feed. Campaign harness
+permissions let the lead coordinate through GitHub and verify work
+without implementing it. Claude allows selected `gh issue` and `gh pr`
+commands, `gh api`, `git fetch`, `git checkout` and `git switch`, and
+denies direct editing and the other Git mutations. Codex runs a campaign
+round under its own reviewer, as it runs an assignment's, because
+fetching writes outside the worktree. Every prompt requires the agent
+marker on every GitHub post that the lead makes.
+
 ### Agent assignments
 
 `agent_assignments.py` owns what only an assignment records and does. It
@@ -239,11 +270,11 @@ should provide cohesive operations to:
 - complete an assignment as its wrap-up round finishes; and
 - cancel an assignment.
 
-`agent_work.py` owns what both kinds of agent work share: the work
-record, the agent work identifier, creating work of either kind from its
+`agent_work.py` owns what every kind of agent work shares: the work
+record, the agent work identifier, creating work of any kind from its
 dispatch route, and the one reader through which the scheduler, status,
-the commands and the views list agent work of either kind. It also
-records the facts that change later for both kinds: the harness session
+the commands and the views list agent work of any kind. It also records
+the facts that change later for every kind: the harness session
 identifier, when the user retries work after resolving a fault, and when
 and why the work ended.
 
@@ -277,10 +308,10 @@ work should run.
 ### Agent rounds
 
 `agent_rounds.py` owns agent-round records and the supervised lifetime
-of a round process for both assignments and conversations. Before
-anything is recorded, it asks a harness adapter to build the round's
-invocation, so a failure there is a scheduler failure. It should then
-provide operations to:
+of a round process for every kind of agent work. Before anything is
+recorded, it asks a harness adapter to build the round's invocation, so
+a failure there is a scheduler failure. It should then provide
+operations to:
 
 - record the round, with the next number that its work allocated, before
   anything else happens;
@@ -311,11 +342,13 @@ state and head commit, the relayed pull request signals and the relayed
 user posts that an assignment round receives beside its prompt once its
 pull request exists. `issue_conversations.py` owns
 `ConversationRoundInput`, which freezes the issue, eligible comments and
-investigated revision for a conversation round. The round runner writes
-whichever input the preparation returns without reading it, and it hands
-the final output to the finishing step without knowing what that step
-does with it. The round module therefore stays clear of Git and GitHub,
-and each kind's own module owns what its steps write.
+investigated revision for a conversation round, and `campaigns.py` owns
+`CampaignRoundInput`, which freezes the parent issue and revision for a
+campaign round. The round runner writes whichever input the preparation
+returns without reading it, and it hands the final output to the
+finishing step without knowing what that step does with it. The round
+module therefore stays clear of Git and GitHub, and each kind's own
+module owns what its steps write.
 
 The scheduler decides the input and the prompt a new round has. The
 round boundary executes and records that decision; it does not inspect
@@ -352,17 +385,17 @@ tolerant projections. Documents owned by _dreamcatcher_ remain strict.
 ### Relay
 
 `relay.py` owns what is past a piece of agent work's cursor in its
-channel, for both kinds. For an assignment it selects the user posts
-past the cursor, oldest first, by comparing normalized user posts from
-the GitHub boundary with the assignment's cursor, read from the newest
-input that contains posts among the rounds that took their turn or are
-running. It raises the pull request signals of a pull request that is
-open and ready for review, each at a head other than the one at which it
-was last relayed, and leaves out a check-failure that the relay rule
-withholds. For a conversation it selects the eligible issue comments
-past the conversation's cursor, oldest first. One rule decides, for both
-channels, which posts are the user's to relay. Each kind's own module
-reads its cursor from the round inputs that it owns.
+channel, for assignments and conversations. For an assignment it selects
+the user posts past the cursor, oldest first, by comparing normalized
+user posts from the GitHub boundary with the assignment's cursor, read
+from the newest input that contains posts among the rounds that took
+their turn or are running. It raises the pull request signals of a pull
+request that is open and ready for review, each at a head other than the
+one at which it was last relayed, and leaves out a check-failure that
+the relay rule withholds. For a conversation it selects the eligible
+issue comments past the conversation's cursor, oldest first. One rule
+decides, for both channels, which posts are the user's to relay. Each
+kind's own module reads its cursor from the round inputs that it owns.
 
 Relay does not define a separate inbox domain entity and does not decide
 when a round should run. The scheduler determines whether posts,
@@ -438,28 +471,31 @@ tick found as a typed finding:
   the relay rule withheld a check-failure;
 - for a conversation whose comments the tick read, the count of comments
   past the cursor;
+- for a campaign request, or an open campaign whose parent lets the lead
+  take a round, whether the lead has input due;
 - for an assignment request with no open work, the open linked pull
   requests and the open blocking issues, as numbers;
-- for a request or an open conversation whose issue carries two labels
-  of its kind, those labels;
-- for a conversation paused for any other reason, the cause;
+- for a request or an open conversation or campaign whose issue carries
+  two labels of its kind, those labels;
+- for a conversation or campaign paused for any other reason, the cause;
 - for a read that failed, the reason, in place of what it would have
   found.
 
 A row has no finding when the tick found nothing to record for it, as
-for an assignment in fault, an unpaused conversation in fault, a
-conversation whose issue it found closed, or an assignment whose pull
-request no round has opened yet. A running round does not prevent the
-tick from recording a finding, but it prevents the finding from making
-the work a candidate for another round. A row also names the round the
-tick started for it and, when that round errored during its preparation
-or startup, the reason. Apart from those reasons for a failure, no row
-holds a sentence meant for a person. Status composes the words from
-these values once, and keeps the issue and pull request numbers as
-numbers, so both presentations link them and neither parses text.
+for an assignment in fault, an unpaused conversation or campaign in
+fault, a conversation or campaign whose issue it found closed, or an
+assignment whose pull request no round has opened yet. A running round
+does not prevent the tick from recording a finding, but it prevents the
+finding from making the work a candidate for another round. A row also
+names the round the tick started for it and, when that round errored
+during its preparation or startup, the reason. Apart from those reasons
+for a failure, no row holds a sentence meant for a person. Status
+composes the words from these values once, and keeps the issue and pull
+request numbers as numbers, so both presentations link them and neither
+parses text.
 
 `AgentWorkStatus` is one summary status from the ontology, derived in
-one chain for both kinds of agent work. `RequestStatus` gives a request
+one chain for every kind of agent work. `RequestStatus` gives a request
 with no open work its request status and its reasons, each as words with
 the issues or pull requests it names.
 
@@ -496,9 +532,11 @@ starts after the daemon's startup checks pass and stops when the daemon
 ends. `dreamcatcher web` serves the same interface by itself for manual
 control.
 
-Every piece of agent work, of either kind, has its page at
+Every piece of agent work, of any kind, has its page at
 `/work/<identifier>`, and its feed tail and controls below that address.
-A conversation the tick has found but not yet saved has no page.
+A conversation and a campaign share one page layout, because the issue
+is the channel of each. A conversation the tick has found but not yet
+saved has no page.
 
 The web interface can ask a running round to stop. It writes a
 same-origin stop request through the agent-round boundary, into that
@@ -516,9 +554,8 @@ that round's record exists.
 
 The web interface can also request a retry for agent work that status
 derives as in fault. It writes the retry request time into the directory
-of the assignment or conversation. The scheduler reads the request on a
-later tick, so the daemon still decides when the work's next round
-starts.
+of the work. The scheduler reads the request on a later tick, so the
+daemon still decides when the work's next round starts.
 
 ### Configuration, dispatch labels, and routes
 
@@ -532,9 +569,11 @@ one recipe per harness that the route configures.
 An `AssignmentRoute` specializes a dispatch route for assignments, and
 its prompt normally invokes an assignment skill. A `ConversationRoute`
 specializes a dispatch route for issue conversations, and its prompt
-normally invokes a conversation skill. Both kinds use the same
-harness-selection rule: the preferred harness wins when the route has a
-recipe for it, while the sole recipe wins when only one exists.
+normally invokes a conversation skill. A `CampaignRoute` specializes a
+dispatch route for campaigns, and its prompt gives the lead its
+instructions. Every kind uses the same harness-selection rule: the
+preferred harness wins when the route has a recipe for it, while the
+sole recipe wins when only one exists.
 
 The repository configuration carries choices that everyone working in
 the repository shares. The daemon interval and agent capacity belong to
@@ -546,10 +585,10 @@ harness that is not installed commented out, and the configuration
 reference includes the same file.
 
 The configuration module validates labels, routes, and recipes. Each
-dispatch label belongs to one route, so a label cannot configure both
-kinds of agent work. Given an issue's labels, the module identifies the
-matching routes. It does not silently resolve multiple labels by list
-order. The scheduler applies the routing rules to the routes it returns.
+dispatch label belongs to one route, so a label configures one kind of
+agent work. Given an issue's labels, the module identifies the matching
+routes. It does not silently resolve multiple labels by list order. The
+scheduler applies the routing rules to the routes it returns.
 
 ### State and documents
 
@@ -575,10 +614,9 @@ projections.
 The on-disk layout follows ownership:
 
 - instance-wide operational records live at the versioned root;
-- each piece of agent work, of either kind, owns a directory under
-  `work/` named by its identifier, holding its durable record, a file
-  for each fact that changes after its creation, and numbered round
-  records;
+- each piece of agent work, of any kind, owns a directory under `work/`
+  named by its identifier, holding its durable record, a file for each
+  fact that changes after its creation, and numbered round records;
 - each round owns its prompt, raw output, rendered feed, final output
   when the harness reports one, and any input it relays; and
 - each piece of agent work's worktree lives under `worktrees/`, named by
@@ -626,7 +664,7 @@ The architecture persists facts needed to recover identity, ownership,
 and acknowledged work.
 
 Creation writes the work record, `work.json`, once, and nothing writes
-it again. The same record serves both kinds of agent work. It persists:
+it again. The same record serves every kind of agent work. It persists:
 
 - the issue identifier, while the agent work identifier names the
   directory that holds the record and the worktree;
@@ -678,7 +716,8 @@ request each have a file of their own beside its record, as an
 assignment's do. Its route and recipe stay frozen for its life. Each
 round input persists its investigated revision and the eligible comments
 it relays; the input of a round that starts a new harness session also
-persists the issue title and body.
+persists the issue title and body. A campaign's round input persists the
+parent issue and the revision it was given.
 
 Instance records persist the repository identity and the most recent
 daemon run's preferred harness, _dreamcatcher_ version, capacity,
@@ -697,7 +736,7 @@ The following are derived rather than persisted as authoritative state:
 
 - which requests exist, and whether a request with no open work may
   start;
-- whether either kind of agent work is in fault;
+- whether agent work of any kind is in fault;
 - whether agent work requires a round;
 - what input the next round is given; and
 - every agent work status and request status shown in a status report.

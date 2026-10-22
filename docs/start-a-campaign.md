@@ -1,0 +1,80 @@
+# Start a campaign
+
+A campaign hands a planned body of work to an agent, the lead. The
+campaign's parent issue holds the goal, and the parent's sub-issues are
+the stages. The lead works through GitHub, as its prompt directs.
+
+_dreamcatcher_ gives the lead one round when the campaign starts, and
+ends the campaign when you close the parent. Comments on the parent and
+changes to its sub-issues do not yet start further rounds.
+
+You need a configured campaign route and a running daemon.
+
+## Configure a campaign route
+
+The `dreamcatcher.toml` that `dreamcatcher init` writes has no campaign
+route, so add one. Its prompt tells the lead what to do with the parent.
+For example:
+
+```toml
+[[campaign]]
+label = "dream:lead"
+
+[campaign.claude]
+prompt = "Read GH{issue} and its sub-issues, then post a comment on GH{issue} that summarises the plan."
+model = "opus[1m]"
+effort = "high"
+```
+
+Run [`dreamcatcher init`](command-reference.md#init) to create the label
+on GitHub, then restart the daemon so that it reads the new route. The
+[campaign skill contract](contract.md#campaign-skill-contract) says what
+_dreamcatcher_ gives the lead and what the lead must leave to you.
+
+## Start the campaign
+
+On GitHub:
+
+1. Keep the parent issue open.
+2. Assign it to the account authenticated through `gh`.
+3. Add exactly one configured campaign label, such as `dream:lead`.
+
+A campaign needs no comment to start. At its next update with a free
+agent slot, _dreamcatcher_ checks out current `origin/main` in a
+worktree of the campaign's own, and starts the lead with the configured
+prompt. The lead posts on GitHub itself. _dreamcatcher_ keeps the lead's
+final output in the feed and posts none of it.
+
+Monitor the campaign on the web home page's Campaigns tab, or in the
+terminal:
+
+```sh
+dreamcatcher campaign GH123
+dreamcatcher feed GH123 --campaign
+```
+
+## Pause or end a campaign
+
+Remove the campaign's label from the parent, or unassign the parent from
+yourself, to pause the campaign. A round that is already running
+finishes. Restore the label and the assignee to resume the same
+campaign. A second campaign label on the parent is a routing conflict,
+and pauses the campaign in the same way until one of the labels comes
+off.
+
+Close the parent to end the campaign. It ends once any running round
+finishes. Only you close the parent: the lead is told never to close it.
+If you reopen the parent with its label still on, a new campaign starts.
+
+## When a round does not finish
+
+If a lead round errors, or the daemon stops during it, the next update
+gives the lead its input again in the same harness session, and tells it
+that its previous round did not finish. Two errored rounds in a row put
+the campaign in fault. Fix the cause, then run
+`dreamcatcher retry GH123` or use the retry control on the campaign's
+web page.
+
+To stop a running round, run `dreamcatcher stop GH123 --campaign` or use
+the stop control on the campaign's web page. A stopped lead has taken
+its turn, so no round follows it on its own.

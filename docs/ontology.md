@@ -75,13 +75,20 @@ primary communication channel between the agent and the user.
 An **issue conversation** is _dreamcatcher_'s durable commission to an
 agent to answer the user on an issue without implementing a change.
 
+### Campaign, lead and parent issue
+
+A **campaign** is _dreamcatcher_'s durable commission to an agent, its
+**lead**, to carry a planned body of work through GitHub. The campaign's
+**parent issue** holds the goal, and the parent's sub-issues are the
+stages.
+
 ### Agent work and agent work identifier
 
-**Agent work** is either an agent assignment or an issue conversation.
-Its **agent work identifier** combines the issue identifier, the time
-the work was created and its kind, as in
-`GH123-20260912-192458-assignment` or
-`GH123-20260912-193000-conversation`. The kind is in the name for a
+**Agent work** is an agent assignment, an issue conversation or a
+campaign. Its **agent work identifier** combines the issue identifier,
+the time the work was created and its kind, as in
+`GH123-20260912-192458-assignment`, `GH123-20260912-193000-conversation`
+or `GH123-20260912-193500-campaign`. The kind is in the name for a
 person reading a directory listing, a daemon line or a web address, or
 naming the work to a terminal command; the work's record says it too.
 
@@ -96,9 +103,9 @@ An **agent harness** is a program, such as Claude Code or Codex, through
 which _dreamcatcher_ runs an agent.
 
 A **harness session** is the continuing context maintained by the agent
-harness for one agent assignment or issue conversation. The harness
-supplies its own **harness session identifier**, which is distinct from
-the agent work identifier.
+harness for one piece of agent work. The harness supplies its own
+**harness session identifier**, which is distinct from the agent work
+identifier.
 
 ### Assignment skill
 
@@ -112,6 +119,12 @@ A **conversation skill** is an agent skill which follows
 _dreamcatcher_'s conversation skill contract and guides an agent through
 an issue conversation. It may be invoked by a dispatch recipe.
 
+### Campaign skill
+
+A **campaign skill** is an agent skill which follows _dreamcatcher_'s
+campaign skill contract and guides a lead through a campaign. It may be
+invoked by a dispatch recipe.
+
 ### Dispatch recipe
 
 A **dispatch recipe** specifies how _dreamcatcher_ starts one kind of
@@ -121,42 +134,42 @@ harness config, the settings beyond the model and effort that
 _dreamcatcher_ passes to the harness on every round. The harness adapter
 decides which harness config it takes. An assignment recipe normally
 invokes an assignment skill; a conversation recipe normally invokes a
-conversation skill, but may instead give the agent its instructions
-directly.
+conversation skill, and a campaign recipe a campaign skill, but either
+may instead give the agent its instructions directly.
 
 ### Dispatch label
 
 A **dispatch label** is a GitHub issue label configured to mark issues
 for handling by _dreamcatcher_.
 
-### Dispatch, assignment and conversation routes
+### Dispatch, assignment, conversation and campaign routes
 
 A **dispatch route** maps one dispatch label to one dispatch recipe for
 each agent harness that the route configures. An **assignment route** is
 a dispatch route for agent assignments. A **conversation route** is a
-dispatch route for issue conversations. A route may offer recipes for
-all the harnesses _dreamcatcher_ supports or for only some of them.
+dispatch route for issue conversations. A **campaign route** is a
+dispatch route for campaigns. A route may offer recipes for all the
+harnesses _dreamcatcher_ supports or for only some of them.
 
 ### Agent round
 
-An **agent round** is one attempt by an assignment or an issue
-conversation to take a turn. It begins when _dreamcatcher_ records it,
-before anything else happens, and it holds everything the attempt does,
-in this order:
+An **agent round** is one attempt by a piece of agent work to take a
+turn. It begins when _dreamcatcher_ records it, before anything else
+happens, and it holds everything the attempt does, in this order:
 
-1. the **preparation**, which resets a conversation's worktree to main
-   or, for an assignment whose pull request does not exist yet, makes
-   the worktree and branch and opens the pull request, and then freezes
-   the round's input;
+1. the **preparation**, which resets a conversation's or a campaign's
+   worktree to main or, for an assignment whose pull request does not
+   exist yet, makes the worktree and branch and opens the pull request,
+   and then freezes the round's input;
 2. the harness invocation, which starts or resumes the harness session
    with a prompt; and
 3. the finishing step after a successful exit, which posts a
-   conversation's answer or records that an assignment has completed.
+   conversation's answer or records that an assignment has completed. A
+   campaign round has none, because the lead posts its own messages.
 
 An agent round is a _dreamcatcher_ concept. It is not a model turn, a
 tool call, or the harness session itself. An agent round has a number
-which identifies its position within one assignment or issue
-conversation.
+which identifies its position within one piece of agent work.
 
 ### Round outcome
 
@@ -202,9 +215,9 @@ interval. Users see a scheduler tick called an update.
 ### Channel and cursor
 
 A piece of agent work's **channel** is the GitHub object through which
-the agent and the user talk: an assignment's pull request, or a
-conversation's issue. An assignment's channel exists once the round that
-opens its pull request has done so.
+the agent and the user talk: an assignment's pull request, a
+conversation's issue, or a campaign's parent issue. An assignment's
+channel exists once the round that opens its pull request has done so.
 
 The **cursor** is how far the agent has read in its channel. Nothing
 stores it on its own: it is read back from the inputs of the rounds that
@@ -262,7 +275,7 @@ conflicting labels. When a read fails, the finding holds the reason in
 place of what the read would have found.
 
 An **agent work status** is one piece of agent work's single summary
-status in a status report, derived the same way for both kinds from the
+status in a status report, derived the same way for every kind from the
 work's record, its rounds, the daemon process and its request row.
 
 A **request status** is the single summary status of a request with no
@@ -283,7 +296,8 @@ afterwards.
 
 Agent work is open until its ending is recorded, with the time and the
 reason, and then it has **ended**. An assignment ends when it is
-complete or cancelled. A conversation ends when its issue closes.
+complete or cancelled. A conversation ends when its issue closes, and a
+campaign when its parent issue closes.
 
 Agent work keeps the harness, route and recipe settings that its work
 record holds, even after its route is removed from the configuration.
@@ -342,16 +356,16 @@ issue title and body.
 
 An issue with no dispatch label is outside _dreamcatcher_'s scope. Each
 configured dispatch label belongs to exactly one dispatch route, so one
-label cannot be both an assignment label and a conversation label.
+label configures exactly one kind of agent work.
 
 An issue with more than one assignment label has an assignment routing
 conflict. An issue with more than one conversation label has a
-conversation routing conflict. One assignment label and one conversation
-label can coexist without a routing conflict. The order of routes in the
-configuration does not give one route precedence over another.
+conversation routing conflict, and one with more than one campaign label
+has a campaign routing conflict. Labels of different kinds can coexist
+without a routing conflict. The order of routes in the configuration
+does not give one route precedence over another.
 
-Exactly one assignment label selects exactly one assignment route, and
-exactly one conversation label selects exactly one conversation route.
+Exactly one label of a kind selects exactly one route of that kind.
 _dreamcatcher_ then selects the dispatch recipe for the harness through
 which that agent work will run.
 
@@ -389,6 +403,24 @@ claims the issue, so no new assignment starts for the issue. If the user
 merges it, GitHub closes the issue. If the user closes it without
 merging, the issue may receive another assignment.
 
+### Campaign composition
+
+Each campaign has exactly one:
+
+- parent issue;
+- detached Git worktree;
+- agent harness.
+
+It has no branch or pull request, so the parent issue is its
+communication channel. A campaign belongs to the dispatch label that
+started it. A _dreamcatcher_ instance has at most one open campaign for
+each campaign label on an issue, and it keeps a paused campaign until
+the parent issue closes.
+
+Each campaign round input records the parent issue and the main
+revision. The lead reads everything else it needs from GitHub, and posts
+its own messages there. Its final output stays in the feed.
+
 ### Starting an issue conversation
 
 A conversation request starts a conversation only when its issue carries
@@ -397,24 +429,38 @@ comment. The issue's title and body alone start nothing. An open
 assignment at the issue, a linked pull request, a dependency and an
 assignment routing conflict have no bearing on conversations.
 
-### Pausing and ending a conversation
+### Starting a campaign
 
-An open conversation is **paused** while its own dispatch label is off
-its issue, the issue is not assigned to the signed-in account, or the
-issue carries another configured conversation label. Paused is derived
-each tick from the issue, not recorded. A paused conversation starts no
-round, its comments are not read, and its fault does not count towards a
-global cooldown. Removing the cause resumes it in the same harness
-session, and it is then given every comment posted since its last
-finished round.
+A campaign request starts a campaign when its issue carries no other
+configured campaign label. The label on an open issue assigned to the
+signed-in account is the whole request, so it needs no comment. An open
+assignment or conversation at the issue, a linked pull request and a
+dependency have no bearing on campaigns.
 
-When a tick finds a conversation's issue closed, it records the
-conversation's ending with the reason "issue closed" once no round is
-running. A round that is running when the issue closes finishes first.
+A campaign's first round delivers the lead its input. Until a round that
+took its turn has done so, a round is due. Once one has, a campaign
+receives no further input.
 
-A paused conversation does not block a new one under another label.
-Taking label A off an issue and adding label B starts a fresh
-conversation under B, while A's stays paused.
+### Pausing and ending a conversation or campaign
+
+An open conversation or campaign is **paused** while its own dispatch
+label is off its issue, the issue is not assigned to the signed-in
+account, or the issue carries another configured label of its kind.
+Paused is derived each tick from the issue, not recorded. Paused work
+starts no round, a paused conversation's comments are not read, and the
+fault of paused work does not count towards a global cooldown. Removing
+the cause resumes the work in the same harness session, and a
+conversation is then given every comment posted since its last finished
+round.
+
+When a tick finds the issue of a conversation or campaign closed, it
+records the work's ending with the reason "issue closed" once no round
+is running. A round that is running when the issue closes finishes
+first. Only the user closes a campaign's parent issue.
+
+Paused work does not block new work of its kind under another label.
+Taking label A off an issue and adding label B starts fresh work under
+B, while A's stays paused.
 
 ### Describing an agent round
 
@@ -424,7 +470,8 @@ what woke it. It is read from the round's input, so nothing else records
 it:
 
 - **start**: an assignment round with no input, which opens the pull
-  request;
+  request, or a campaign round that does not follow one that did not
+  finish;
 - a count of posts or comments: the user posts or issue comments
   relayed, or **comments** without a count for a conversation round that
   has no input yet;
@@ -433,7 +480,8 @@ it:
 - **merged** or **closed**: the state of a finished pull request, which
   calls for the assignment's final round, its **wrap-up round**;
 - **recover**: an assignment round whose input relays nothing new, given
-  again after a round that did not finish.
+  again after a round that did not finish, or a campaign round that
+  follows one that did not finish.
 
 ### Requests
 
@@ -442,8 +490,8 @@ each open issue assigned to the signed-in account, and each piece of
 open agent work, which names its own issue and label. Open work answers
 the request it came from. An open assignment also answers every
 assignment label on its issue, so those labels make no request row of
-their own. A conversation answers only its own label, so another
-conversation label on its issue is a request of its own.
+their own. A conversation or a campaign answers only its own label, so
+another label of its kind on its issue is a request of its own.
 
 For a request with no open work the tick records what decides whether
 work may start, and the tick makes these reads only for an issue whose
@@ -454,9 +502,10 @@ which open issue dependencies block it. They are asked only while no
 open assignment exists, because they decide only whether one may start.
 An open pull request **claims** an issue when GitHub links it as one
 that will close the issue, as `Closes #123` in its description does. A
-conversation request reads the issue's comments. A request whose issue
-carries more than one label of its kind has a routing conflict, and
-nothing of that kind starts while it lasts.
+conversation request reads the issue's comments, and a campaign request
+reads nothing more. A request whose issue carries more than one label of
+its kind has a routing conflict, and nothing of that kind starts while
+it lasts.
 
 A request with no open work has one of these request statuses:
 
@@ -484,14 +533,17 @@ round has opened its pull request yet, or when its last round errored or
 was interrupted, because it is then given its pull request's state again
 even with nothing new. A conversation has nothing to give but comments,
 so once the user deletes every comment that its unfinished round was
-given, it is not a candidate until a new eligible comment arrives.
+given, it is not a candidate until a new eligible comment arrives. A
+campaign is a candidate until a round that took its turn has delivered
+the lead its input.
 
-Rounds of both kinds share the daemon's capacity and the global
-cooldown. Open work takes precedence over new work. Open work starts in
-the order of its identifiers, and new work in the order of its requests.
-While both kinds have candidates, they take turns for each free agent
-slot; when only one kind has any, it goes on alone. A launch that fails
-takes no slot.
+Rounds of every kind share the daemon's capacity and the global
+cooldown. Within each kind, open work takes precedence over new work.
+Open work starts in the order of its identifiers, and new work in the
+order of its requests. The kinds take turns for each free agent slot, in
+the order assignment, conversation, campaign, and a kind with no
+candidate gives up its turn to the next. A launch that fails takes no
+slot.
 
 A failed read from GitHub prevents only the launches that depend on it.
 A failed listing for a dispatch label starts no work for the issues it
@@ -511,25 +563,25 @@ an assignment's wrap-up round, until a retry or the end of a global
 cooldown clears the fault.
 
 No single error is taken as a sign of a global problem. Each tick counts
-every assignment in fault, and every conversation in fault unless it is
-paused. A conversation whose issue could not be read counts, because
-whether it is paused is unknown. Two counted faults, of either kind, are
-evidence of a shared problem and start a global cooldown. When the
-cooldown ends, the errors before it no longer count, so the faults it
-saw are cleared. This simple policy keeps one piece of work's failure
-from blocking all other work.
+every assignment in fault, and every conversation or campaign in fault
+unless it is paused. A conversation or campaign whose issue could not be
+read counts, because whether it is paused is unknown. Two counted
+faults, of any kinds, are evidence of a shared problem and start a
+global cooldown. When the cooldown ends, the errors before it no longer
+count, so the faults it saw are cleared. This simple policy keeps one
+piece of work's failure from blocking all other work.
 
 A **retry** clears the current fault of the work it names, and erases
 none of its errored rounds. A retry from the command line names an issue
-and clears the fault of the newest assignment and the newest
-conversation at that issue; one from the web page clears the fault of
-the work the page shows. Only errors at or after the later of the work's
-latest retry and the end of the latest global cooldown count towards a
-new fault.
+and clears the fault of the newest assignment, the newest conversation
+and the newest campaign at that issue; one from the web page clears the
+fault of the work the page shows. Only errors at or after the later of
+the work's latest retry and the end of the latest global cooldown count
+towards a new fault.
 
 ### Agent work status
 
-Agent work of either kind has one of these summary statuses:
+Agent work of every kind has one of these summary statuses:
 
 - **Working**: a round is running under the daemon. A cancelled
   assignment whose round is still stopping is working until the round
@@ -544,11 +596,11 @@ Agent work of either kind has one of these summary statuses:
 - **Waiting**: a round is due but has not started. Its last round
   errored or was interrupted, including a round left without an ending
   by a daemon that has gone; no round has run yet; an assignment's pull
-  request is not yet open; or the latest tick found a signal. A
-  conversation whose last round errored or was interrupted is not
-  waiting once a tick that read it after that round ended found no
-  eligible comment past the cursor. A free agent slot, or the end of a
-  cooldown, starts it.
+  request is not yet open; a campaign's input is not yet delivered; or
+  the latest tick found a signal. A conversation whose last round
+  errored or was interrupted is not waiting once a tick that read it
+  after that round ended found no eligible comment past the cursor. A
+  free agent slot, or the end of a cooldown, starts it.
 - **Idle**: no round is known to be due. A round that took its turn
   after the latest tick read the work is idle until the next tick,
   unless the earlier tick found input that the round did not consume.
@@ -557,17 +609,19 @@ Agent work of either kind has one of these summary statuses:
   still a draft and so needing feedback, merged or closed after its
   wrap-up round, or failing its checks after two attempts under the
   relay rule; a conversation's latest round answered, needed no reply,
-  was stopped, errored or was interrupted; or a conversation is paused,
-  and the detail is the cause.
+  was stopped, errored or was interrupted; a campaign's latest round
+  ended; or a conversation or campaign is paused, and the detail is the
+  cause.
 
 The statuses are decided in an order. Working comes first, then ended,
 then fault, so the user can see a fault and retry whatever else is true.
-A failed read comes next, as unknown. A paused conversation is idle
-before it can be waiting, because no round will start however its last
-round ended. The awaiting-update idle case comes before waiting when the
-latest tick found no new input, or started the round that then took its
-turn. Then come waiting and idle, and work that the latest tick has no
-row for, or read nothing for, is unknown when nothing else applies.
+A failed read comes next, as unknown. A paused conversation or campaign
+is idle before it can be waiting, because no round will start however
+its last round ended. The awaiting-update idle case comes before waiting
+when the latest tick found no new input, or started the round that then
+took its turn. Then come waiting and idle, and work that the latest tick
+has no row for, or read nothing for, is unknown when nothing else
+applies.
 
 These statuses summarize what matters now; they are not a persisted
 lifecycle or a substitute for the underlying facts. In particular,
@@ -577,13 +631,13 @@ they contribute to the summary.
 
 A status report lists the open work of each kind in attention order,
 fault, working, waiting, idle and then unknown, followed by the requests
-of that kind with no open work. Ended work of either kind is counted
+of that kind with no open work. Ended work of every kind is counted
 apart from active work, in a collapsed list of ended work on the web
 home page and in a count of ended work in the terminal.
 
-A running round remains working when its issue gains a second
-conversation label, because a routing conflict does not cancel work
-already in progress. The conversation is paused after that round ends,
+A running round remains working when its issue gains a second label of
+its kind, because a routing conflict does not cancel work already in
+progress. The conversation or campaign is paused after that round ends,
 unless it is then in fault.
 
 ### Status reports do not control work

@@ -15,9 +15,9 @@ skills below read the index.
 
 ## What this is
 
-_dreamcatcher_ dispatches autonomous agent conversations and coding
-assignments from labelled issues. It carries each assignment to a pull
-request for review.
+_dreamcatcher_ dispatches autonomous agent conversations, coding
+assignments and campaigns from labelled issues. It carries each
+assignment to a pull request for review.
 
 ## The enduring documents
 

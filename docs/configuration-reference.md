@@ -2,9 +2,9 @@
 
 _dreamcatcher_ reads `dreamcatcher.toml` from the root of the main
 checkout where `dreamcatcher run` starts. The file defines which issue
-labels dispatch assignments or issue conversations, and the dispatch
-recipes available for each label. It does not configure daemon controls
-such as the interval or agent capacity; those are
+labels dispatch assignments, issue conversations or campaigns, and the
+dispatch recipes available for each label. It does not configure daemon
+controls such as the interval or agent capacity; those are
 [`run` options](command-reference.md#run).
 
 The file is required and must be UTF-8 TOML. `run` reports a missing,
@@ -22,10 +22,12 @@ routes.
 --8<-- "default_config.toml"
 ```
 
-This file offers both supported harnesses for every route. A route may
-instead contain only its `claude` or only its `codex` block. When `init`
-writes the file, it comments out the blocks of a harness that is not
-installed.
+This file offers both supported harnesses for every route. It has no
+campaign route, because a campaign's lead needs a prompt that you write
+for now; [Start a campaign](start-a-campaign.md) gives an example. A
+route may instead contain only its `claude` or only its `codex` block.
+When `init` writes the file, it comments out the blocks of a harness
+that is not installed.
 
 ## Top-level settings
 
@@ -33,15 +35,16 @@ installed.
 | -------------- | ---------------------------------------------------- | -------- | ----------- | ------------------------------------------------- |
 | `assignment`   | Array of route tables, written as `[[assignment]]`   | No       | Empty array | Each entry defines a separate assignment route.   |
 | `conversation` | Array of route tables, written as `[[conversation]]` | No       | Empty array | Each entry defines a separate conversation route. |
+| `campaign`     | Array of route tables, written as `[[campaign]]`     | No       | Empty array | Each entry defines a separate campaign route.     |
 
 No other top-level settings are accepted. In particular, `assignee`,
 `interval` and `max_agents` are not configuration-file settings.
 _dreamcatcher_ obtains the account from authenticated `gh`; use
 `run --interval` and `run --max-agents` for the two daemon controls.
 
-## Assignment and conversation routes
+## Assignment, conversation and campaign routes
 
-An `[[assignment]]` entry and a `[[conversation]]` entry have the same
+An `[[assignment]]`, `[[conversation]]` or `[[campaign]]` entry has this
 schema:
 
 | Setting  | Value           | Required | Default | Constraint                                                                     |
@@ -53,28 +56,27 @@ schema:
 Every route must contain at least one dispatch recipe. `claude` and
 `codex` are the only accepted harness-table names.
 
-A label is a case-insensitive identity. No two assignment routes may
-repeat a label, no two conversation routes may repeat one, and an
-assignment route and a conversation route may not share one. Route order
-gives no route precedence. Issue labels are also matched
-case-insensitively.
+A label is a case-insensitive identity. No two routes may share a label,
+whether they are of one kind or of different kinds. Route order gives no
+route precedence. Issue labels are also matched case-insensitively.
 
 If an issue matches more than one assignment route, that assignment work
 has a routing conflict. The same is independently true of conversation
-routes. One assignment label and one conversation label may coexist on
+routes and of campaign routes. Labels of different kinds may coexist on
 an issue. An assignment conflict prevents a new assignment but does not
-stop an existing assignment's rounds. A conversation conflict prevents
-new conversation rounds, though a round already running may finish.
+stop an existing assignment's rounds. A conversation or campaign
+conflict prevents new rounds of that kind, though a round already
+running may finish.
 
 ## Dispatch recipes
 
 Each `[assignment.claude]`, `[assignment.codex]`,
-`[conversation.claude]` or `[conversation.codex]` table requires three
-settings, which have no defaults. Each table also accepts a `config`
-table, the harness config, which holds settings for the harness beyond
-its model and effort. Codex takes the settings described in
-[Codex config](#codex-config). Claude takes none, so a Claude table's
-`config` must be empty.
+`[conversation.claude]`, `[conversation.codex]`, `[campaign.claude]` or
+`[campaign.codex]` table requires three settings, which have no
+defaults. Each table also accepts a `config` table, the harness config,
+which holds settings for the harness beyond its model and effort. Codex
+takes the settings described in [Codex config](#codex-config). Claude
+takes none, so a Claude table's `config` must be empty.
 
 | Setting  | Value  | Effect and constraint                                                                                                                                                                            |
 | -------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -93,7 +95,9 @@ Assignment prompts normally invoke an assignment skill that follows the
 Conversation prompts may be plain instructions or invoke a conversation
 skill, but they must follow the
 [conversation skill contract](contract.md#conversation-skill-contract).
-_dreamcatcher_ adds its operational instructions to either prompt.
+Campaign prompts give the lead its instructions, and must follow the
+[campaign skill contract](contract.md#campaign-skill-contract).
+_dreamcatcher_ adds its operational instructions to every prompt.
 
 ## Codex config
 
@@ -138,19 +142,20 @@ preferred harness for newly created work:
 
 The option is therefore a preference, not a repository-wide pin. At
 startup, _dreamcatcher_ requires the named harness and every harness
-present in any route to be installed on `PATH`. An existing assignment
-or conversation keeps the label, harness, prompt, model, effort and
-harness config chosen when it was created; later configuration changes
-do not rewrite that record.
+present in any route to be installed on `PATH`. Existing agent work of
+any kind keeps the label, harness, prompt, model, effort and harness
+config chosen when it was created; later configuration changes do not
+rewrite that record.
 
 A conversation belongs to the conversation label that started it.
 Another conversation label starts a conversation of its own, with that
 label's route and recipe, once it is the only conversation label on the
 issue. While both are on the issue, the labels conflict and nothing
-starts.
+starts. A campaign belongs to its campaign label in the same way.
 
 A matching label selects a route but does not by itself make an issue
 ready for dispatch. [From issue to pull request](tutorial.md) explains
 how to prepare an assignment issue;
 [Discuss an issue](discuss-an-issue.md) explains how to start and
-continue a conversation.
+continue a conversation, and [Start a campaign](start-a-campaign.md)
+explains how to start and end a campaign.
