@@ -78,8 +78,16 @@ Add a paginated GitHub read for
 children with their issue numbers, titles and states. The snapshot uses
 nothing else, and the lead reads a child's labels and assignees from
 GitHub itself. Normalise the REST fields through the GitHub projection
-boundary. The GitHub relationship is authoritative; no separate campaign
-ownership file is introduced.
+boundary, keeping each child's repository. The GitHub relationship is
+authoritative; no separate campaign ownership file is introduced.
+
+A daemon observes work in its own repository alone. GitHub lets a
+sub-issue come from another repository, and that child could never have
+an assignment here, so matching it by number would give it a local
+issue's assignment. Treat a child in another repository as one the
+update cannot observe: report it, start no lead round and show the
+overview as unknown, as for a failed read. Match the remaining children
+to local work by number only once their repository is this one.
 
 Keep the work already read at the start of an update available for
 lookup, including ended assignments. Match each child to its newest

@@ -576,15 +576,33 @@ def test_the_children_of_a_parent_come_back_in_order_across_pages(fake):
     gh.replies(
         stdout=json.dumps(
             [
-                [{"number": 21, "title": "Stage 1", "state": "closed"}],
-                [{"number": 22, "title": "Stage 2", "state": "open"}],
+                [
+                    {
+                        "number": 21,
+                        "title": "Stage 1",
+                        "state": "closed",
+                        "repository_url": f"https://api.github.com/repos/{REPOSITORY}",
+                    }
+                ],
+                [
+                    {
+                        "number": 22,
+                        "title": "Stage 2",
+                        "state": "open",
+                        "repository_url": "https://github.example.com/api/v3/repos/other/tools",
+                    }
+                ],
             ]
         )
     )
 
     assert list_sub_issues(repository=REPOSITORY, issue=20) == [
-        SubIssue(number=21, title="Stage 1", state=IssueState.CLOSED),
-        SubIssue(number=22, title="Stage 2", state=IssueState.OPEN),
+        SubIssue(
+            number=21, title="Stage 1", state=IssueState.CLOSED, repository=REPOSITORY
+        ),
+        SubIssue(
+            number=22, title="Stage 2", state=IssueState.OPEN, repository="other/tools"
+        ),
     ]
     assert gh.calls[0].arguments == [
         "api",

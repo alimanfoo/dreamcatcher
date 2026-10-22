@@ -262,10 +262,11 @@ first pass read of that pull request, the newest round that took its
 turn, its ending and whether it is in fault. An assignment that has
 ended or is in fault keeps its pull request's number, but the first pass
 read nothing of it. No sub-issue's pull request is read a second time.
-The observation fails when the sub-issue read fails, when the first pass
-could not read a sub-issue's assignment or assignment request, or when a
-listing under an assignment label failed and a sub-issue has no open
-assignment. A failed observation holds no partial picture.
+The observation fails when the sub-issue read fails, when a sub-issue is
+in another repository, whose work this daemon never sees, when the first
+pass could not read a sub-issue's assignment or assignment request, or
+when a listing under an assignment label failed and a sub-issue has no
+open assignment. A failed observation holds no partial picture.
 
 The tick then reads an open campaign's parent issue, as it reads a
 conversation's issue, and decides from it whether the campaign is paused

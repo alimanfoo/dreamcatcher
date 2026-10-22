@@ -1090,11 +1090,19 @@ SECOND_CHILD = 22
 CHILD_ASSIGNMENT = "GH21-20260923-010000-assignment"
 CHILDREN_PATH = f"api repos/{REPOSITORY}/issues/{PARENT}/sub_issues?per_page=100"
 SMITH = "dream:smith"
+FOREIGN = "other/tools"
 
 
-def sub_issue(*, number: int, state: str = "open") -> dict:
-    """Return what GitHub lists of one child of the parent."""
-    return {"number": number, "title": f"Stage {number}", "state": state}
+def sub_issue(
+    *, number: int, state: str = "open", repository: str = REPOSITORY
+) -> dict:
+    """Return what GitHub lists of one child of the parent, by default a local one."""
+    return {
+        "number": number,
+        "title": f"Stage {number}",
+        "state": state,
+        "repository_url": f"https://api.github.com/repos/{repository}",
+    }
 
 
 def offer_children(*, gh, children: list[dict]) -> None:
@@ -1463,9 +1471,19 @@ def fail_to_list_assignment_requests(*, gh) -> None:
     )
 
 
+def offer_a_foreign_child(*, gh) -> None:
+    """List a child from another repository, numbered like the local child."""
+    offer_children(gh=gh, children=[sub_issue(number=FIRST_CHILD, repository=FOREIGN)])
+
+
 @pytest.mark.parametrize(
     ("fail", "has_child_assignment", "reason"),
     [
+        (
+            offer_a_foreign_child,
+            True,
+            f"could not observe child {FOREIGN}#21: it is in another repository",
+        ),
         (fail_to_list_children, False, f"gh {CHILDREN_PATH}: gh: could not connect"),
         (
             fail_to_read_the_childs_pull_request,
@@ -1536,3 +1554,22 @@ def test_a_paused_lead_whose_children_cannot_be_read_is_still_paused(
 
     assert observed.rows[0].finding == PausedFinding(cause=PauseCause.LABEL_REMOVED)
     assert observed.rows[0].children is None
+
+
+def test_a_paused_lead_with_a_foreign_child_shows_its_children_unknown(
+    campaign_scheduler, harnesses
+):
+    scheduler, gh = campaign_scheduler
+    settle_lead(state=scheduler.context.state)
+    write_child_assignment(
+        state=scheduler.context.state,
+        endings=[SuccessfulAgentRoundEnding(at=PINNED)],
+    )
+    show_parent(gh=gh, issue=parent_issue(labels=()))
+    offer_a_foreign_child(gh=gh)
+
+    observed = tick(scheduler=scheduler)
+
+    [row] = [row for row in observed.rows if row.kind is AgentWorkKind.CAMPAIGN]
+    assert row.finding == PausedFinding(cause=PauseCause.LABEL_REMOVED)
+    assert row.children is None

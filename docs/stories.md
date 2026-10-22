@@ -735,6 +735,19 @@ record it cannot read. The user needs to delete the file and start the
 daemon again. The next update writes a fresh one, since the file holds
 only what the last update found.
 
+### Adding a sub-issue from another repository
+
+The user adds an issue from another repository as a sub-issue of a
+campaign's parent. _dreamcatcher_ only sees work in its own repository,
+so it cannot tell where that sub-issue stands. The campaign's card shows
+its sub-issues as unknown, and the lead starts no round, not even for a
+comment on the parent, so it is never given a picture that leaves the
+sub-issue out or confuses it with a local issue of the same number. A
+lead that could otherwise take a round shows as unknown, naming the
+sub-issue that is in another repository. The user needs to remove that
+sub-issue from the parent, or move the issue into this repository, and
+the next update gives the lead the whole picture.
+
 ### Naming work that is not there
 
 The user gives a terminal command an agent work identifier with a typo

@@ -269,9 +269,19 @@ class BlockingIssue(_RestIssueProjection):
 
 
 class SubIssue(_RestIssueProjection):
-    """Model a direct child of a parent issue."""
+    """Model a direct child of a parent issue, which can be in another repository.
+
+    The repository is named as its owner and name, as in `owner/name`.
+    """
 
     title: str
+    repository: str = Field(alias="repository_url")
+
+    @field_validator("repository", mode="before")
+    @classmethod
+    def _name_repository(cls, value: object, /) -> str:
+        """Keep the owner and name that end the REST API's repository URL."""
+        return "/".join(str(value).rstrip("/").split("/")[-2:])
 
 
 class PullRequestReference(GitHubResponseProjection):

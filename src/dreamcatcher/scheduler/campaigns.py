@@ -116,13 +116,20 @@ def _observe_children(
     """Return the parent's children as this update found them, in GitHub's order.
 
     A child that the update could not observe leaves the picture incomplete,
-    so the answer is why, rather than a picture with the child missing.
+    so the answer is why, rather than a picture with the child missing. The
+    daemon observes work in its own repository alone, so a child in another
+    repository is one it cannot observe.
     """
     sub_issues = list_sub_issues(repository=context.repository, issue=parent)
     if isinstance(sub_issues, UnknownGitHubResponse):
         return ReadFailureFinding(reason=sub_issues.reason)
     children: list[CampaignChild] = []
     for sub_issue in sub_issues:
+        if sub_issue.repository.casefold() != context.repository.casefold():
+            return ReadFailureFinding(
+                reason=f"could not observe child {sub_issue.repository}"
+                f"#{sub_issue.number}: it is in another repository"
+            )
         child = _observe_child(sub_issue=sub_issue, observations=observations)
         if isinstance(child, ReadFailureFinding):
             return child

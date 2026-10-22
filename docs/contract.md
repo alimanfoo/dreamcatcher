@@ -319,7 +319,8 @@ and it does not carry the agent marker, so the lead's own posts never
 reach it as comments. The lead reads the parent, its sub-issues and
 anything else it needs from GitHub itself. _dreamcatcher_ starts no
 round while it cannot observe every sub-issue, so no input holds a
-partial picture.
+partial picture. A sub-issue in another repository is one it cannot
+observe, so every sub-issue in an input is an issue of this repository.
 
 ### Workspace
 

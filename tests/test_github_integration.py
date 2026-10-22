@@ -93,4 +93,6 @@ def test_a_parent_names_its_children():
     found = list_sub_issues(repository=REPOSITORY, issue=PARENT)
 
     assert isinstance(found, list)
-    assert FIRST_STAGE in [child.number for child in found]
+    assert (FIRST_STAGE, REPOSITORY) in [
+        (child.number, child.repository) for child in found
+    ]

@@ -385,9 +385,12 @@ issue for collaboration rather than routine action logging.
   cannot itself clear fault. Ended assignments leave the scheduler's
   open-work inspection, including those cancelled for manual takeover,
   so a sub-issue's ended assignment has no observed pull request.
-- `_observe_child` matches a sub-issue to local work by its number
-  alone. GitHub can list a sub-issue from another repository, which
-  would then pick up a local assignment numbered the same.
+- GitHub can list a sub-issue from another repository. `SubIssue` keeps
+  its repository, and `_observe_children` treats one from another
+  repository as unobservable before `_observe_child` matches the rest to
+  local work by number, so a campaign with such a sub-issue waits with
+  its overview unknown. Observing work in another repository is not
+  supported.
 - An unreadable `pull-request.json` under any sub-issue's newest
   assignment, ended ones included, fails the whole update, as the story
   of a local record that cannot be read promises.
