@@ -458,6 +458,18 @@ def test_the_default_config_routes_every_label_to_the_installed_harnesses(
     assert [route.label for route in config.conversation] == ["dream:scout"]
     assert [route.label for route in config.assignment] == ["dream:smith", "dream:less"]
     assert [route.label for route in config.campaign] == ["dream:lead"]
+    less_recipes = {
+        harness: (recipe.model, recipe.effort)
+        for harness, recipe in config.assignment[1].recipes.items()
+    }
+    assert less_recipes == {
+        harness: recipe
+        for harness, recipe in {
+            AgentHarness.CLAUDE: ("sonnet", "high"),
+            AgentHarness.CODEX: ("gpt-5.6-terra", "high"),
+        }.items()
+        if harness in harnesses
+    }
 
 
 def test_the_default_config_keeps_the_recipes_of_a_missing_harness_as_comments(

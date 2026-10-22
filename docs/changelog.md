@@ -42,6 +42,13 @@ the change.
   no longer lists the other work at the issue.
   ([#691](https://github.com/alimanfoo/dreamcatcher/pull/691))
 
+### Changed
+
+- The default `dream:less` recipes now use Sonnet at high effort for
+  Claude and `gpt-5.6-terra` at high effort for Codex. Existing
+  configuration files and work already created keep their recipes.
+  ([#707](https://github.com/alimanfoo/dreamcatcher/pull/707))
+
 ### Fixed
 
 - On macOS and Linux, closing the terminal that runs `dreamcatcher run`,
