@@ -55,15 +55,15 @@ lead that you stopped its previous round.
 ## Pause a conversation or campaign
 
 To pause a conversation or a campaign, remove its label from the issue,
-or unassign the issue from yourself. A round that is already running
-finishes, and no new round starts, not even one to recover a round that
-did not finish. Comments you post meanwhile wake nothing.
+unassign the issue from yourself, or add a second label of the same
+kind. A round that is already running finishes, and no new round starts,
+not even one to recover a round that did not finish. Comments you post
+meanwhile wake nothing.
 
-To resume the work, put back the label or the assignee that you removed.
-The work carries on in the same harness session, and is given the
-comments you posted while it was paused. A lead is also given the
-current state of the parent's sub-issues, with what changed among them
-meanwhile.
+To resume the work, undo that change. The work carries on in the same
+harness session, and is given the comments you posted while it was
+paused. A lead is also given the current state of the parent's
+sub-issues, with what changed among them meanwhile.
 
 Close the issue to end a conversation, or close the parent issue to end
 a campaign. The work ends once any running round finishes.

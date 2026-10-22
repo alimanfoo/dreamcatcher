@@ -23,10 +23,12 @@ write a `dreamcatcher.toml` that routes the `dream:lead` label to
 campaigns.
 
 If you already run _dreamcatcher_ on the repository, its
-`dreamcatcher.toml` needs the `dream:lead` campaign route, and your
-`dream` plugin needs to be version 43.3.0 or later.
+`dreamcatcher.toml` needs the `dream:lead` campaign route and at least
+one assignment route for the lead to give the stages. Your `dream`
+plugin needs to be version 43.3.0 or later, and `gh` version 2.94.0 or
+later.
 [Configure a campaign route](start-a-campaign.md#configure-a-campaign-route)
-says how to add both.
+says how to add the route and update the plugin.
 
 ## 2. Write the plan
 
@@ -145,7 +147,11 @@ The lead asks you on the parent when a decision is yours, for example:
 
 The lead posts under your account, so GitHub does not notify you of its
 comments. Its posts end with "written by an agent". If the stages stop
-moving while the campaign shows as **idle**, read the parent.
+moving while the campaign shows as **idle**, read the parent:
+
+```sh
+gh issue view 123 --comments
+```
 
 Answer with a comment on the parent. At the next update, the lead is
 given your comment and carries on from where it stopped.
@@ -164,6 +170,9 @@ gh issue close 123
 The campaign ends once any running round finishes, and its card moves to
 the ended list. If you want more work instead, add another sub-issue to
 the parent, and the lead starts it.
+
+When you have no more work for _dreamcatcher_, press Ctrl-C in the
+terminal where it runs to stop it.
 
 Continue with [Start a campaign](start-a-campaign.md) to give the lead a
 plan of your own, talk to it on the parent, or pause the campaign.
