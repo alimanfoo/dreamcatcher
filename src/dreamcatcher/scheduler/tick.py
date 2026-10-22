@@ -264,7 +264,7 @@ class Scheduler:
     def _launch_candidates(
         self, *, record: SchedulerRecord, inspections: list[Inspection]
     ) -> SchedulerRecord:
-        """Fill free capacity in candidate order, alternating between work kinds.
+        """Fill free capacity in candidate order, the work kinds taking turns.
 
         The record's rows are the inspections' rows, in the same order. A
         launch that fails takes no slot, and the next candidate is tried. The
@@ -313,21 +313,18 @@ class Scheduler:
         """Return the first ready candidate of the kind whose turn it is.
 
         Each candidate comes with the position of its request's row. The kinds
-        take turns while both have candidates, and either kind goes on alone
-        once the other has none.
+        take turns in their listed order, each after the kind selected last, and
+        a kind with no candidate gives up its turn to the next.
         """
-        turn = (
-            AgentWorkKind.CONVERSATION
-            if self._last_selected_work_kind is AgentWorkKind.ASSIGNMENT
-            else AgentWorkKind.ASSIGNMENT
-        )
-        return next(
-            (
-                (position, candidate)
-                for position, candidate in ready
-                if rows[position].kind is turn
+        kinds = list(AgentWorkKind)
+        last = self._last_selected_work_kind
+        first_turn = 0 if last is None else kinds.index(last) + 1
+        turns = kinds[first_turn:] + kinds[:first_turn]
+        return min(
+            ready,
+            key=lambda position_and_candidate: turns.index(
+                rows[position_and_candidate[0]].kind
             ),
-            ready[0],
         )
 
     def _launch(
