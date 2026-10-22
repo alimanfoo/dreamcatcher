@@ -732,9 +732,7 @@ def test_a_home_card_links_to_its_exact_assignment(tmp_path):
 
     assignment_link = (
         'class="agent-work-open" href="/work/GH13-20260819-184158-assignment" '
-        'target="_blank" rel="noopener noreferrer" '
-        'aria-label="Open assignment GH13-20260819-184158-assignment '
-        '(opens in new tab)"'
+        'aria-label="Open assignment GH13-20260819-184158-assignment"'
     )
     assert assignment_link in page
     assert page.count('href="/work/GH13-20260819-184158-assignment"') == 1
@@ -1078,6 +1076,19 @@ def test_github_links_open_in_a_new_tab(tmp_path):
 
     assert links
     assert all('target="_blank" rel="noopener noreferrer"' in link for link in links)
+
+
+def test_links_to_dreamcatcher_pages_stay_in_the_same_tab(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    fabricate_everything(state=state)
+
+    pages = render_home(state=state) + render_assignment(
+        state=state, identifier="GH13-20260819-184158-assignment"
+    )
+    links = re.findall(r'<a [^>]*href="[/?#][^>]*>', pages)
+
+    assert any('href="/work/' in link for link in links)
+    assert not any("target=" in link for link in links)
 
 
 def test_repository_links_are_separated(tmp_path):

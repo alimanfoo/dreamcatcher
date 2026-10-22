@@ -640,6 +640,9 @@ A conversation and a campaign share one page layout, because the issue
 is the channel of each. A conversation the tick has found but not yet
 saved has no page.
 
+A link to a page of the web interface opens in the browser tab that
+holds the link. A link to GitHub or the documentation opens a new tab.
+
 The web interface can ask a running round to stop. It writes a
 same-origin stop request through the agent-round boundary, into that
 round's own directory. The daemon still owns the live process and

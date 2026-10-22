@@ -27,6 +27,12 @@ the change.
 
 ## Unreleased
 
+### Changed
+
+- A card's `>` link on the web home page opens the work's page in the
+  same browser tab. Only links to GitHub and the documentation open a
+  new tab. ([#698](https://github.com/alimanfoo/dreamcatcher/pull/698))
+
 ### Fixed
 
 - The reason given when a campaign cannot observe a sub-issue names it
