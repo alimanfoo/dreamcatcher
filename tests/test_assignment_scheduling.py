@@ -27,7 +27,6 @@ from dreamcatcher.agent_rounds import (
     _compose_agent_round_ending,
 )
 from dreamcatcher.config import AgentHarness, read_dreamcatcher_config
-from dreamcatcher.documents import write_json
 from dreamcatcher.github import (
     IssueComment,
     PullRequestSignal,
@@ -447,19 +446,18 @@ def test_a_batch_of_posts_says_how_many_it_holds(state, gh):
 
 
 def test_a_post_at_the_assignment_cursor_wakes_nothing(state, gh):
-    ran(state=state, number=1)
-    gh.replies(
-        stdout=pages(items=[comment()]), to=f"api {POST_LIST_PATHS['conversation']}"
-    )
-    assignment = read_assignments(state=state)[0]
-    write_json(
-        document=AssignmentRoundInput(
+    ran(
+        state=state,
+        number=1,
+        round_input=AssignmentRoundInput(
             pull_request_state=PullRequestState.OPEN,
             pull_request_head=HEAD,
             signals=[],
             user_posts=[IssueComment.model_validate(comment())],
         ),
-        path=assignment.compose_round_paths(number=1).round_input,
+    )
+    gh.replies(
+        stdout=pages(items=[comment()]), to=f"api {POST_LIST_PATHS['conversation']}"
     )
 
     assert found(state=state) is None
