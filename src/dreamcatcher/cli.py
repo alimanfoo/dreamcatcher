@@ -200,7 +200,7 @@ def _build_cli_parser() -> argparse.ArgumentParser:
     status_parser.set_defaults(act=_show_status)
     view_parser = subcommands.add_parser(
         "view",
-        help="show one assignment, conversation or campaign in detail",
+        help="show one piece of agent work in detail",
         description=(
             "Show an overview of the agent work that you name: what its work "
             "record holds, its harness session, worktree and rounds, and the "

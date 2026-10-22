@@ -308,9 +308,7 @@ def test_retry_refuses_an_issue_with_no_work_in_fault(monkeypatch, watching, cap
     assert capsys.readouterr().err == f"{ASSIGNMENT_ID} is not in fault.\n"
 
 
-def test_stop_requests_the_newest_assignments_running_round(
-    monkeypatch, watching, capsys
-):
+def test_stop_requests_the_assignments_running_round(monkeypatch, watching, capsys):
     monkeypatch.chdir(watching.root)
 
     assert main(argv=["stop", "GH13"]) == 0
@@ -356,7 +354,7 @@ def test_stop_requests_an_issue_conversations_running_round(
     )
 
 
-def test_cancel_ends_the_newest_assignment_and_stops_its_running_round(
+def test_cancel_ends_the_assignment_and_stops_its_running_round(
     monkeypatch, watching, capsys
 ):
     monkeypatch.chdir(watching.root)
@@ -790,7 +788,7 @@ def write_older_assignment(*, state: StateDirectory) -> None:
     )
 
 
-def test_an_identifier_shows_that_assignment_rather_than_the_newest(
+def test_an_identifier_shows_that_assignment_and_no_other(
     monkeypatch, watching, capsys
 ):
     write_older_assignment(state=watching)
