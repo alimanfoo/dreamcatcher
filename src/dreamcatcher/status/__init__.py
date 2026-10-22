@@ -7,6 +7,7 @@ from dreamcatcher.status.agent_work import (
 )
 from dreamcatcher.status.report import (
     AgentWorkStatusSection,
+    CampaignChildStatus,
     DaemonStatusFact,
     DreamcatcherDaemonStatus,
     DreamcatcherStatusReport,
@@ -27,6 +28,7 @@ __all__ = [
     "AgentWorkStatus",
     "AgentWorkStatusSection",
     "AgentWorkStatusValue",
+    "CampaignChildStatus",
     "DaemonStatusFact",
     "DreamcatcherDaemonStatus",
     "DreamcatcherStatusReport",
