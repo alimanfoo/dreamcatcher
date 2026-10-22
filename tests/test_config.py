@@ -1,11 +1,12 @@
 from pathlib import Path
 
 import pytest
-from conftest import CONFIG, SMITH_CLAUDE, SMITH_CODEX
+from conftest import CAMPAIGN_CLAUDE, CONFIG, SMITH_CLAUDE, SMITH_CODEX
 
 from dreamcatcher.config import (
     DREAMCATCHER_CONFIG_NAME,
     AgentHarness,
+    CampaignRoute,
     ClaudeRecipe,
     CodexRecipe,
     ConversationRoute,
@@ -90,6 +91,30 @@ def test_a_conversation_is_configured_separately(tmp_path):
         labels=["maintenance", "DREAM:CONVERSATION"],
     ) == [config.conversation[0]]
     assert config.routed_harnesses == {AgentHarness.CLAUDE, AgentHarness.CODEX}
+
+
+def test_a_campaign_is_configured_separately(tmp_path):
+    write_config(root=tmp_path, text=CONFIG + CAMPAIGN_CLAUDE)
+
+    config = read_dreamcatcher_config(root=tmp_path)
+
+    assert config.campaign == [
+        CampaignRoute(
+            label="dream:lead",
+            claude=ClaudeRecipe(
+                prompt="Acknowledge GH{issue} with a comment on it.",
+                model="opus[1m]",
+                effort="xhigh",
+            ),
+        )
+    ]
+    assert config.identify_routes(
+        kind=AgentWorkKind.CAMPAIGN, labels=["DREAM:LEAD", "dream:smith"]
+    ) == [config.campaign[0]]
+    assert [route.kind for route in config.routes] == [
+        AgentWorkKind.ASSIGNMENT,
+        AgentWorkKind.CAMPAIGN,
+    ]
 
 
 def test_a_config_can_omit_assignment_routes(tmp_path):
@@ -301,6 +326,19 @@ def test_a_label_one_harness_can_run_runs_on_that_one_whatever_the_run_named(tmp
             "one conversation label routed twice",
             CONFIG + CONVERSATION + CONVERSATION,
             "Value error, more than one conversation entry uses the label "
+            "dream:conversation",
+        ),
+        (
+            "one campaign label routed twice",
+            CONFIG + CAMPAIGN_CLAUDE + CAMPAIGN_CLAUDE,
+            "Value error, more than one campaign entry uses the label dream:lead",
+        ),
+        (
+            "one label routes a conversation and a campaign",
+            CONFIG
+            + CONVERSATION
+            + CAMPAIGN_CLAUDE.replace("dream:lead", "dream:conversation"),
+            "Value error, conversation and campaign entries use the same label: "
             "dream:conversation",
         ),
         (

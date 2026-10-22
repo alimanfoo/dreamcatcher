@@ -32,8 +32,12 @@ from dreamcatcher.harnesses import HARNESS_ADAPTERS, require_harnesses_on_path
 _DREAM_MARKETPLACE = "alimanfoo/dream"
 _DREAM_PLUGIN = "dream@dream"
 
-_ASSIGNMENT_LABEL_DESCRIPTION = "Start a dreamcatcher assignment"
-_CONVERSATION_LABEL_DESCRIPTION = "Start a dreamcatcher issue conversation"
+# The description of each kind's labels, as init creates them on GitHub.
+_LABEL_DESCRIPTIONS = {
+    AgentWorkKind.ASSIGNMENT: "Start a dreamcatcher assignment",
+    AgentWorkKind.CONVERSATION: "Start a dreamcatcher issue conversation",
+    AgentWorkKind.CAMPAIGN: "Start a dreamcatcher campaign",
+}
 
 
 def set_up_repository(*, root: Path) -> None:
@@ -143,11 +147,7 @@ def _create_missing_labels(*, repository: str, config: DreamcatcherConfig) -> No
         for route in config.identify_routes(kind=kind, labels=names)
     }
     descriptions = {
-        **{route.label: _ASSIGNMENT_LABEL_DESCRIPTION for route in config.assignment},
-        **{
-            route.label: _CONVERSATION_LABEL_DESCRIPTION
-            for route in config.conversation
-        },
+        route.label: _LABEL_DESCRIPTIONS[route.kind] for route in config.routes
     }
     created = [label for label in descriptions if label not in existing]
     for label in created:
@@ -179,9 +179,15 @@ def _report_next_steps(
             f"  Assign an issue to {account}, label it "
             f"{config.conversation[0].label}, and comment with your question."
         )
+    elif config.campaign:
+        lines.append(
+            f"  Assign a parent issue to {account}, and label it "
+            f"{config.campaign[0].label}."
+        )
     else:
         lines.append(
-            f"  Add an assignment or conversation route to {DREAMCATCHER_CONFIG_NAME}."
+            "  Add an assignment, conversation or campaign route to "
+            f"{DREAMCATCHER_CONFIG_NAME}."
         )
     if config.routed_harnesses:
         lines.append(f"  dreamcatcher run --harness {min(config.routed_harnesses)}")

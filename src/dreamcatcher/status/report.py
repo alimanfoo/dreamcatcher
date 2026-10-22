@@ -38,6 +38,10 @@ _EMPTY_SECTION_GUIDANCE = {
         "Assign an issue to yourself, label it with {labels} "
         "and post a comment to start a conversation."
     ),
+    AgentWorkKind.CAMPAIGN: (
+        "Assign a parent issue to yourself and label it with {labels} "
+        "to start a campaign."
+    ),
 }
 
 

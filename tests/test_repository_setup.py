@@ -4,7 +4,15 @@ import shutil
 from pathlib import Path
 
 import pytest
-from conftest import POSTED_BY, REPOSITORY, SMITH_CLAUDE, SMITH_CODEX, commit, git
+from conftest import (
+    CAMPAIGN_CLAUDE,
+    POSTED_BY,
+    REPOSITORY,
+    SMITH_CLAUDE,
+    SMITH_CODEX,
+    commit,
+    git,
+)
 
 from dreamcatcher.cli import main
 from dreamcatcher.config import (
@@ -222,6 +230,32 @@ def test_a_conversation_only_configuration_explains_how_to_start_one(
     )
 
 
+def test_a_campaign_only_configuration_explains_how_to_start_one(
+    checkout, gh, installed, capsys
+):
+    installed(programs=["claude"])
+    (checkout / DREAMCATCHER_CONFIG_NAME).write_text(CAMPAIGN_CLAUDE, encoding="utf-8")
+
+    set_up_repository(root=checkout)
+
+    created = [call.arguments for call in gh.calls if call.arguments[0] == "label"]
+    assert created == [
+        [
+            "label",
+            "create",
+            "dream:lead",
+            "--repo",
+            REPOSITORY,
+            "--description",
+            "Start a dreamcatcher campaign",
+        ]
+    ]
+    assert capsys.readouterr().out.endswith(
+        f"  Assign a parent issue to {POSTED_BY}, and label it dream:lead.\n"
+        "  dreamcatcher run --harness claude\n"
+    )
+
+
 def test_a_configuration_with_no_routes_explains_what_to_add(
     checkout, gh, installed, capsys
 ):
@@ -234,7 +268,8 @@ def test_a_configuration_with_no_routes_explains_what_to_add(
     output = capsys.readouterr().out
     assert "dreamcatcher run" not in output
     assert output.endswith(
-        f"  Add an assignment or conversation route to {DREAMCATCHER_CONFIG_NAME}.\n"
+        "  Add an assignment, conversation or campaign route to "
+        f"{DREAMCATCHER_CONFIG_NAME}.\n"
     )
 
 
