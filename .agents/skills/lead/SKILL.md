@@ -276,6 +276,16 @@ gh api repos/{owner}/{repo} \
   --jq '{merge: .allow_merge_commit, squash: .allow_squash_merge, rebase: .allow_rebase_merge}'
 ```
 
+Name the head that you reviewed and proved in the merge command, so that
+GitHub refuses the merge if the head has moved since:
+
+```sh
+gh pr merge <N> --<method> --match-head-commit <reviewed head>
+```
+
+If the head has changed, don't merge. Review the new head and prove it
+first.
+
 Don't bypass the repository's merge rules, for example with `--admin`.
 If GitHub refuses the merge, read why. A pull request that is behind
 main reaches the stage's agent on its own, so end your turn and wait.
