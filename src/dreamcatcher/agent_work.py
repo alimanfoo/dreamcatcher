@@ -72,7 +72,7 @@ type AgentWorkReference = int | str
 
 
 class AgentWorkRecord(WriteOnceDreamcatcherDocument):
-    """Model the issue, label and kind of a piece of agent work, and its settings.
+    """Model the issue, title, label and kind of a piece of agent work, and its recipe.
 
     Creation writes the record once, and nothing writes it again. Every round
     reads this record, so later config edits do not change work in progress.

@@ -145,9 +145,10 @@ def _render_agent_work(
 def _render_issue_work_summary(
     *, state: StateDirectory, status: AgentWorkStatus
 ) -> RenderableType:
-    """Return what describes the work as a whole, rather than any one round.
+    """Return the table that names a conversation or a campaign.
 
-    It describes a conversation or a campaign, whose channel is its issue.
+    It names the issue and its title, the work, its worktree, its harness session
+    and the settings that its recipe gave.
     """
     work = status.work
     record = work.record
@@ -173,7 +174,11 @@ def _render_issue_work_summary(
 def _render_assignment_summary(
     *, state: StateDirectory, status: AgentWorkStatus
 ) -> RenderableType:
-    """Return what describes the assignment as a whole, rather than any one round."""
+    """Return the table that names an assignment.
+
+    It names the issue, the work, its pull request, branch and worktree, its
+    harness session and the settings that its recipe gave.
+    """
     assignment = status.work
     record = assignment.record
     table = create_table(columns=2)
