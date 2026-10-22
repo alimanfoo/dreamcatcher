@@ -3,7 +3,7 @@
 ## The big picture
 
 This guide follows the code behind the
-[campaign requirements](requirements.md) as stage 4 leaves it. Read the
+[campaign requirements](requirements.md) as stage 5 leaves it. Read the
 sections in order, starting with `Scheduler.tick` in
 [`scheduler/tick.py`](../../src/dreamcatcher/scheduler/tick.py).
 
@@ -321,7 +321,13 @@ round can finish while its displayed status awaits another update.
 `AgentWorkStatus.children` and `children_summary` give an active
 campaign the sub-issues that its latest row holds, and the words that
 count the closed ones out of the total, or "sub-issues unknown" when the
-row holds none.
+row holds none. An ended campaign has neither. Then read
+`DreamcatcherStatusReport.list_campaign_child_statuses`. It pairs each
+sub-issue with a `CampaignChildStatus`: the status of the assignment
+that the update matched to it, looked up by that assignment's
+identifier, and the request statuses at its issue for an assignment that
+has no open work. The report does not match sub-issues to work again; it
+reads the match from the row.
 
 Follow `compose_home_view` and `_compose_section` in
 [`web/views.py`](../../src/dreamcatcher/web/views.py) into
@@ -330,40 +336,42 @@ Each kind, campaigns included, has a tab, with active work cards,
 unstarted request rows and collapsed ended work. A conversation's or a
 campaign's page uses
 [`issue-work.html`](../../src/dreamcatcher/templates/issue-work.html),
-composed by `compose_issue_work_view`. The
+composed by `compose_issue_work_view`. `_compose_work_card` gives an
+active campaign's card a `WebCampaignChildOverview` through
+`_compose_child_overview`: the count, and a `WebCampaignChild` for each
+sub-issue holding its assignment's card, composed by the same
+`_compose_work_card`, and its request statuses. Every other card has no
+overview, an ended campaign's included, so an ended campaign shows only
+its own card in the ended list.
+
+`home.html` renders a card with an overview through
+[`campaign.html`](../../src/dreamcatcher/templates/partials/campaign.html).
+It puts the lead's
 [`agent-work-card.html`](../../src/dreamcatcher/templates/partials/agent-work-card.html)
-template shows an active campaign's count and a link to each sub-issue
-by number. It needs saved work; an unstarted issue instead uses
+and a `details` block of the sub-issues side by side in one wrapper, so
+the lead's card never contains a sub-issue's latest output. Inside the
+block, each sub-issue shows its assignment's card and the
 [`request-row.html`](../../src/dreamcatcher/templates/partials/request-row.html)
-and has no work page yet. A view of every campaign child must account
-for that distinction.
+of each of its requests, or a row of its own when it has neither. The
+block sets `id_prefix` to the campaign's identifier, and both partials
+put that prefix before their HTML identifier, so a card inside a
+campaign never shares an identifier with the same card on its own tab. A
+request row's identifier also holds its label percent-encoded, so two
+distinct labels on one issue never share one.
 
 The home view refreshes every two seconds.
 [`static/home.js`](../../src/dreamcatcher/static/home.js) restores the
-selected tab after refresh, and
-[`static/base.js`](../../src/dreamcatcher/static/base.js) prevents
-refreshes from changing whether a details element is open. Read
-`test_home_tabs_switch_by_pointer_and_keyboard_and_survive_refresh` and
-`test_a_refresh_leaves_an_opened_section_open` in
+selected tab after refresh, and keys each card's latest-output animation
+by its HTML identifier, so the two appearances of one assignment animate
+apart. [`static/base.js`](../../src/dreamcatcher/static/base.js)
+prevents refreshes from changing whether a details element is open. The
+sub-issues' block always renders, holding only its count while the
+sub-issues are unknown or there are none, so the same element stays open
+when they are known again. Read
+`test_home_tabs_switch_by_pointer_and_keyboard_and_survive_refresh`,
+`test_a_refresh_leaves_an_opened_section_open` and the campaign tests in
 [`tests/test_browser.py`](../../tests/test_browser.py) for the exercised
 behaviour.
-
-## The activity feed
-
-Read `AgentRound._read_stdout` and `_append_feed_events` in
-[`agent_rounds.py`](../../src/dreamcatcher/agent_rounds.py), then
-`FeedRenderer` in [`feed.py`](../../src/dreamcatcher/feed.py). Raw
-harness stdout is saved separately from the readable feed. The feed
-timestamps prose and tool notes; tool-note details are flattened and
-clipped at 200 characters. It is an activity view, not a lossless tool
-transcript.
-
-For the web reader, follow `read_agent_feed` and `read_agent_tail` in
-[`web/feed.py`](../../src/dreamcatcher/web/feed.py). They read across
-numbered rounds. Their cursor is a round number and file position,
-separate from the GitHub cursor that controls input delivery. This is
-the existing activity record behind the decision to keep the parent
-issue for collaboration rather than routine action logging.
 
 ## The sharp edges
 
@@ -406,10 +414,9 @@ issue for collaboration rather than routine action logging.
   [`relay.py`](../../src/dreamcatcher/relay.py) use different cursor
   precision. Pull-request posts compare timestamps alone; issue comments
   compare timestamp and identifier.
-- The
-  [`agent-work-card.html`](../../src/dreamcatcher/templates/partials/agent-work-card.html)
-  template uses the work identifier as its HTML identifier. Rendering
-  the same card in both its normal tab and an expanded campaign would
-  duplicate that identifier. `latestOutputsByWork` in
-  [`static/home.js`](../../src/dreamcatcher/static/home.js) also keys
-  activity updates by that identifier.
+- A sub-issue's card on the Campaigns tab is composed from the same
+  status as its card on the Assignments tab, but the overview follows
+  the latest update's match, while the Assignments tab reads local work
+  directly. An update observes the sub-issues before it launches
+  anything, so an assignment that it starts appears on the Assignments
+  tab at once, and under its sub-issue only after the next update.
