@@ -12,11 +12,12 @@ from dreamcatcher import repository_setup, tui, web
 from dreamcatcher.agent_assignments import cancel_assignment
 from dreamcatcher.agent_rounds import request_agent_round_stop
 from dreamcatcher.agent_work import (
-    AgentWorkReference,
+    AgentWork,
+    find_agent_work,
     find_newest_agent_work,
     parse_agent_work_identifier,
+    read_agent_work_at_issue,
     request_agent_work_retry,
-    select_agent_work,
 )
 from dreamcatcher.clock import read_current_time
 from dreamcatcher.config import AgentHarness
@@ -35,6 +36,11 @@ from dreamcatcher.version import DREAMCATCHER_VERSION
 # How a view names the issue it is about, as the issue itself is written.
 _ISSUE_REFERENCE_PATTERN = re.compile(r"gh(\d+)\Z", re.IGNORECASE | re.ASCII)
 _MAX_INTERVAL_SECONDS = int(TIMEOUT_MAX) - 1
+
+# How a command names the agent work it acts on. An issue number names the one
+# piece of agent work at that issue, and an agent work identifier names that
+# exact work.
+type _AgentWorkReference = int | str
 
 # The help that says what a view does to the terminal it runs in, which every
 # view that draws a picture over the one before gives.
@@ -65,8 +71,9 @@ def _build_cli_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--version", action="version", version=DREAMCATCHER_VERSION)
 
-    # Nothing reads dest, but argparse names it when a bare invocation omits
-    # the command.
+    # A command that finds more than one piece of agent work at an issue reads
+    # dest to name itself in the commands it suggests, and argparse names it
+    # when a bare invocation omits the command.
     subcommands = parser.add_subparsers(title="commands", dest="command", required=True)
     init_parser = subcommands.add_parser(
         "init",
@@ -142,7 +149,7 @@ def _build_cli_parser() -> argparse.ArgumentParser:
     retry_parser.set_defaults(act=_retry_agent_work)
     stop_parser = subcommands.add_parser(
         "stop",
-        help="stop one running assignment, conversation or campaign round",
+        help="stop one running round of agent work",
         description=(
             "Request a stop for the current round of the selected agent work. "
             "The round must be running under the daemon and have a resumable "
@@ -150,7 +157,6 @@ def _build_cli_parser() -> argparse.ArgumentParser:
         ),
     )
     _add_agent_work_argument(parser=stop_parser)
-    _add_agent_work_selector(parser=stop_parser)
     stop_parser.set_defaults(act=_stop_agent_work)
     cancel_parser = subcommands.add_parser(
         "cancel",
@@ -198,61 +204,24 @@ def _build_cli_parser() -> argparse.ArgumentParser:
         ),
     )
     status_parser.set_defaults(act=_show_status)
-    assignment_parser = subcommands.add_parser(
-        "assignment",
-        help="show one assignment in detail",
+    view_parser = subcommands.add_parser(
+        "view",
+        help="show one assignment, conversation or campaign in detail",
         description=(
-            "Show an overview of the assignment that you name: what its work "
-            "record holds, the rounds it has run, the command that resumes the "
-            "harness session by hand, and the other assignments at the same "
-            "issue with the identifiers that name them. It stays on that "
-            "assignment, and keeps up until the assignment ends after a "
-            "successful wrap-up or a cancel. Interrupt it to end it sooner. "
+            "Show an overview of the agent work that you name: what its work "
+            "record holds, its harness session, worktree and rounds, and the "
+            "command that resumes the harness session by hand. An assignment's "
+            "overview also gives its pull request and branch. It stays on that "
+            "work, and keeps up until the work ends, as an assignment does after "
+            "a successful wrap-up or a cancel. Interrupt it to end it sooner. "
             + _HELP_WHEN_A_VIEW_TAKES_THE_SCREEN
-            + " An ended assignment stays on the screen for you to read. "
-            "Interrupt one that is still going and nothing is left behind. "
+            + " Ended work stays on the screen for you to read. "
+            "Interrupt work that is still going and nothing is left behind. "
             + _HELP_WHEN_NOTHING_WATCHES
         ),
     )
-    _add_agent_work_argument(parser=assignment_parser)
-    assignment_parser.set_defaults(
-        act=_show_agent_work, work_kind=AgentWorkKind.ASSIGNMENT
-    )
-    conversation_parser = subcommands.add_parser(
-        "conversation",
-        help="show one issue conversation in detail",
-        description=(
-            "Show the issue conversation that you name: what its work record "
-            "holds, its harness session, worktree, code revision, and rounds, "
-            "and the other conversations at the same issue with the "
-            "identifiers that name them. "
-            "It stays on that conversation, and keeps up until the "
-            "conversation ends. "
-            + _HELP_WHEN_A_VIEW_TAKES_THE_SCREEN
-            + " "
-            + _HELP_WHEN_NOTHING_WATCHES
-        ),
-    )
-    _add_agent_work_argument(parser=conversation_parser)
-    conversation_parser.set_defaults(
-        act=_show_agent_work, work_kind=AgentWorkKind.CONVERSATION
-    )
-    campaign_parser = subcommands.add_parser(
-        "campaign",
-        help="show one campaign in detail",
-        description=(
-            "Show the campaign that you name: what its work record holds, its "
-            "harness session, worktree, code revision, and rounds, and the "
-            "other campaigns at the same parent issue with the identifiers "
-            "that name them. It stays on that campaign, and keeps up until the "
-            "campaign ends. "
-            + _HELP_WHEN_A_VIEW_TAKES_THE_SCREEN
-            + " "
-            + _HELP_WHEN_NOTHING_WATCHES
-        ),
-    )
-    _add_agent_work_argument(parser=campaign_parser)
-    campaign_parser.set_defaults(act=_show_agent_work, work_kind=AgentWorkKind.CAMPAIGN)
+    _add_agent_work_argument(parser=view_parser)
+    view_parser.set_defaults(act=_show_agent_work)
     feed_parser = subcommands.add_parser(
         "feed",
         help="show what the agent said, as it says it",
@@ -263,43 +232,17 @@ def _build_cli_parser() -> argparse.ArgumentParser:
         ),
     )
     _add_agent_work_argument(parser=feed_parser)
-    _add_agent_work_selector(parser=feed_parser)
     feed_parser.add_argument(
         "--round",
         type=int,
         metavar="N",
         help=(
             "show the feed of that round alone, ending when that round "
-            "ends. The selected work's detail view lists its round numbers"
+            "ends. The view of the selected work lists its round numbers"
         ),
     )
     feed_parser.set_defaults(act=_show_feed)
     return parser
-
-
-def _add_agent_work_selector(*, parser: argparse.ArgumentParser) -> None:
-    work_kind_group = parser.add_mutually_exclusive_group(required=True)
-    work_kind_group.add_argument(
-        "--assignment",
-        dest="work_kind",
-        action="store_const",
-        const=AgentWorkKind.ASSIGNMENT,
-        help="select an assignment",
-    )
-    work_kind_group.add_argument(
-        "--conversation",
-        dest="work_kind",
-        action="store_const",
-        const=AgentWorkKind.CONVERSATION,
-        help="select an issue conversation",
-    )
-    work_kind_group.add_argument(
-        "--campaign",
-        dest="work_kind",
-        action="store_const",
-        const=AgentWorkKind.CAMPAIGN,
-        help="select a campaign",
-    )
 
 
 def _add_agent_work_argument(*, parser: argparse.ArgumentParser) -> None:
@@ -308,9 +251,9 @@ def _add_agent_work_argument(*, parser: argparse.ArgumentParser) -> None:
         type=_parse_agent_work_reference,
         metavar="GH<n>|IDENTIFIER",
         help=(
-            "an issue as GH123, for its newest work of the kind, or an agent "
-            "work identifier such as GH123-20260912-192458-assignment, for "
-            "that exact work"
+            "an issue as GH123, for the one piece of agent work at it, or an "
+            "agent work identifier such as GH123-20260912-192458-assignment, "
+            "for that exact work"
         ),
     )
 
@@ -429,9 +372,7 @@ def _retry_agent_work(*, arguments: argparse.Namespace) -> None:
 def _stop_agent_work(*, arguments: argparse.Namespace) -> None:
     """Request a stop for the selected agent work's live round."""
     state = _find_state_directory(root=Path.cwd())
-    work = select_agent_work(
-        state=state, reference=arguments.work, kind=arguments.work_kind
-    )
+    work = _select_agent_work(state=state, arguments=arguments)
     paths = read_agent_work_status(
         state=state, work=work, daemon=read_dreamcatcher_daemon_status(state=state)
     ).stoppable_round_paths
@@ -472,9 +413,7 @@ def _show_agent_work(*, arguments: argparse.Namespace) -> None:
     state = _find_state_directory(root=Path.cwd())
     tui.show_agent_work_view(
         state=state,
-        work=select_agent_work(
-            state=state, reference=arguments.work, kind=arguments.work_kind
-        ),
+        work=_select_agent_work(state=state, arguments=arguments),
         console=tui.open_tui_console(),
     )
 
@@ -483,9 +422,7 @@ def _show_feed(*, arguments: argparse.Namespace) -> None:
     state = _find_state_directory(root=Path.cwd())
     tui.show_feed_view(
         state=state,
-        work=select_agent_work(
-            state=state, reference=arguments.work, kind=arguments.work_kind
-        ),
+        work=_select_agent_work(state=state, arguments=arguments),
         console=tui.open_tui_console(),
         round_number=arguments.round,
     )
@@ -507,6 +444,37 @@ def _find_state_directory(*, root: Path) -> StateDirectory:
     return state_directory
 
 
+def _select_agent_work(
+    *, state: StateDirectory, arguments: argparse.Namespace
+) -> AgentWork:
+    """Return the one piece of agent work that the command's reference names.
+
+    An issue names the one piece of agent work at it, of any kind, ended or not.
+    When the issue has more than one, the ReportableError gives the command
+    again for each piece, by its identifier, in identifier order.
+    """
+    reference: _AgentWorkReference = arguments.work
+    if isinstance(reference, str):
+        work = find_agent_work(state=state, identifier=reference)
+        if work is None:
+            raise ReportableError(f"No agent work here is named {reference}.")
+        return work
+    match read_agent_work_at_issue(state=state, issue=reference):
+        case []:
+            raise ReportableError(f"No agent work here for GH{reference}.")
+        case [work]:
+            return work
+        case every_work:
+            commands = "".join(
+                f"\n  dreamcatcher {arguments.command} {work.identifier}"
+                for work in every_work
+            )
+            raise ReportableError(
+                f"GH{reference} has more than one piece of agent work. "
+                f"Run one of these:{commands}"
+            )
+
+
 def _parse_issue_reference(issue_reference: str, /) -> int:
     """Return the issue number the argument names, as GH123 names issue 123.
 
@@ -521,7 +489,7 @@ def _parse_issue_reference(issue_reference: str, /) -> int:
     return int(reference_match.group(1))
 
 
-def _parse_agent_work_reference(text: str, /) -> AgentWorkReference:
+def _parse_agent_work_reference(text: str, /) -> _AgentWorkReference:
     """Return the issue number or agent work identifier that the argument names.
 
     argparse is what calls this, as the type behind the work argument, and it

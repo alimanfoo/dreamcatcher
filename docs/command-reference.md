@@ -18,33 +18,39 @@ Issue arguments use `GH<n>`, where `<n>` is a string of decimal digits.
 The `GH` prefix is case-insensitive, so `GH123` and `gh123` both name
 issue 123.
 
-`stop`, `assignment`, `conversation`, `campaign` and `feed` act on one
-piece of agent work of one kind, and take either of two references to
-it:
+`stop`, `view` and `feed` act on one piece of agent work, of any kind,
+and take either of two references to it:
 
-- an issue argument, such as `GH123`, selects the newest work of that
-  kind at the issue;
 - an agent work identifier, such as `GH123-20260912-192458-assignment`,
   selects that exact work. It is case-insensitive like an issue
-  argument, and it must name work of the command's kind.
+  argument.
+- an issue argument, such as `GH123`, selects the one piece of agent
+  work at the issue, of any kind, whether or not it has ended.
 
-A reference that names no work of the kind is an error, and the command
-acts on no other work. The `assignment`, `conversation` and `campaign`
-views list the identifiers of the other work of their kind at the issue.
+When the issue has more than one piece of agent work, the command
+changes nothing and returns status 1. It prints the command again for
+each piece, with the identifier that selects it, in identifier order:
 
-| Command        | Purpose                                             |
-| -------------- | --------------------------------------------------- |
-| `init`         | Prepare this repository's main checkout.            |
-| `run`          | Run the daemon for this repository.                 |
-| `retry`        | Allow faulted work at one issue to run again.       |
-| `stop`         | Stop one running round of agent work.               |
-| `cancel`       | Cancel one issue's newest assignment.               |
-| `web`          | Serve the local status report in a browser.         |
-| `status`       | Show the whole local status report in the terminal. |
-| `assignment`   | Show one assignment.                                |
-| `conversation` | Show one issue conversation.                        |
-| `campaign`     | Show one campaign.                                  |
-| `feed`         | Follow one piece of agent work's output.            |
+```text
+$ dreamcatcher stop GH644
+GH644 has more than one piece of agent work. Run one of these:
+  dreamcatcher stop GH644-20261020-231849-conversation
+  dreamcatcher stop GH644-20261021-005621-assignment
+```
+
+A reference that names no work is an error.
+
+| Command  | Purpose                                             |
+| -------- | --------------------------------------------------- |
+| `init`   | Prepare this repository's main checkout.            |
+| `run`    | Run the daemon for this repository.                 |
+| `retry`  | Allow faulted work at one issue to run again.       |
+| `stop`   | Stop one running round of agent work.               |
+| `cancel` | Cancel one issue's newest assignment.               |
+| `web`    | Serve the local status report in a browser.         |
+| `status` | Show the whole local status report in the terminal. |
+| `view`   | Show one piece of agent work.                       |
+| `feed`   | Follow one piece of agent work's output.            |
 
 ## `init`
 
@@ -140,12 +146,10 @@ of agent work it shows.
 ## `stop`
 
 ```text
-dreamcatcher stop (GH<n> | IDENTIFIER) (--assignment | --conversation | --campaign)
+dreamcatcher stop (GH<n> | IDENTIFIER)
 ```
 
-Request a stop for the current round of the selected agent work. The
-`--assignment` option selects an assignment, `--conversation` an issue
-conversation, and `--campaign` a campaign.
+Request a stop for the current round of the selected agent work.
 
 The round must be running under the daemon, have a resumable harness
 session, and have no pending stop request. The command writes the same
@@ -169,8 +173,8 @@ stay in place, so you can carry on in the assignment's worktree. An
 assignment cancelled before any round opened a pull request has none to
 finish; any worktree or branch that a round made also stays in place.
 The cancelled assignment shows as **ended** with the detail cancelled on
-the web home page and in `dreamcatcher assignment`, and
-`dreamcatcher status` counts it among the ended assignments.
+the web home page and in `dreamcatcher view`, and `dreamcatcher status`
+counts it among the ended assignments.
 
 The issue must have an assignment, and that assignment must not have
 ended. A cancel cannot be undone. The command writes only local state,
@@ -211,75 +215,38 @@ In an interactive terminal the view refreshes and occupies the terminal
 until interrupted. When output is piped, redirected or captured, it
 prints one snapshot and returns.
 
-## `assignment`
+## `view`
 
 ```text
-dreamcatcher assignment (GH<n> | IDENTIFIER)
+dreamcatcher view (GH<n> | IDENTIFIER)
 ```
 
-Show the selected assignment. The view includes its recorded route and
-harness settings, its rounds, a hand-resume command when one is
-available, and the other assignments at the same issue, each with its
-identifier, dispatch label and status.
+Show the selected agent work's status, recorded route and harness
+settings, harness session, worktree and rounds, with a hand-resume
+command when one is available. An assignment's view also shows its pull
+request and branch. A campaign's `GH<n>` is its parent issue. A paused
+conversation or campaign is idle, and its status detail says why.
 
-In an interactive terminal it refreshes until the assignment ends, after
-a successful wrap-up or a cancel. It stays on the assignment it selected
-when it started, even if a newer one arrives at the issue. An ended
-assignment remains on screen. When output is piped, redirected or
+In an interactive terminal it refreshes until the work ends, as an
+assignment does after a successful wrap-up or a cancel. It stays on the
+work it selected when it started, even if newer work arrives at the
+issue. Ended work remains on screen. When output is piped, redirected or
 captured, it prints one snapshot and returns.
-
-## `conversation`
-
-```text
-dreamcatcher conversation (GH<n> | IDENTIFIER)
-```
-
-Show the selected issue conversation's settings, harness session,
-worktree, code revision and rounds, with a hand-resume command when one
-is available. The view also lists the other conversations at the same
-issue, each with its identifier, dispatch label and status; a paused
-conversation is idle, and its status detail says why.
-
-In an interactive terminal it refreshes until the conversation ends. It
-stays on the conversation it selected when it started, even if a newer
-one arrives at the issue. When output is piped, redirected or captured,
-it prints one snapshot and returns.
-
-## `campaign`
-
-```text
-dreamcatcher campaign (GH<n> | IDENTIFIER)
-```
-
-Show the selected campaign's settings, harness session, worktree, code
-revision and rounds, with a hand-resume command when one is available.
-`GH<n>` names the campaign's parent issue. The view also lists the other
-campaigns at the same parent, each with its identifier, dispatch label
-and status; a paused campaign is idle, and its status detail says why.
-
-In an interactive terminal it refreshes until the campaign ends. It
-stays on the campaign it selected when it started, even if a newer one
-arrives at the parent. When output is piped, redirected or captured, it
-prints one snapshot and returns.
 
 ## `feed`
 
 ```text
-dreamcatcher feed (GH<n> | IDENTIFIER) (--assignment | --conversation | --campaign) [--round N]
+dreamcatcher feed (GH<n> | IDENTIFIER) [--round N]
 ```
 
 Show the agent actions and output recorded for the selected agent work.
-Exactly one selector of the kind of work is required: `--assignment`
-selects an assignment, `--conversation` an issue conversation, and
-`--campaign` a campaign.
 
 Without `--round`, the command shows all of that work's rounds and
 follows later output until the work ends. It stays on the work it
 selected when it started, even if newer work arrives at the issue.
 `--round N` selects one exact integer round number and ends when that
-round ends. The corresponding `assignment`, `conversation` or `campaign`
-view lists the available round numbers; requesting a round that does not
-exist is an error.
+round ends. The `view` of the same work lists the available round
+numbers; requesting a round that does not exist is an error.
 
 A feed prints incrementally so terminal scrollback is preserved. When
 its output is piped, redirected or captured, it prints the currently

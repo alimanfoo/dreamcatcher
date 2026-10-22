@@ -28,7 +28,6 @@ from dreamcatcher.status import (
     AgentRoundStatus,
     AgentWorkStatus,
     read_agent_work_status,
-    read_agent_work_statuses_at_issue,
     read_dreamcatcher_daemon_status,
 )
 from dreamcatcher.tui.shared import (
@@ -79,29 +78,28 @@ def _read_agent_work_snapshot(
 ) -> ViewSnapshot:
     """Return the work's view and whether to stop refreshing it.
 
-    Each refresh reads the statuses at the issue once and derives both the
-    rendered view and whether the work has ended from that read.
+    Each refresh reads the work's status once and derives both the rendered view
+    and whether the work has ended from that read.
     """
-    statuses = read_agent_work_statuses_at_issue(
+    status = read_agent_work_status(
         state=state,
         work=refresh_agent_work(state=state, work=work),
         daemon=read_dreamcatcher_daemon_status(state=state),
         clock=clock,
     )
     return ViewSnapshot(
-        renderable=_render_agent_work(state=state, statuses=statuses, zone=zone),
-        should_stop_refreshing=statuses[0].has_ended,
+        renderable=_render_agent_work(state=state, status=status, zone=zone),
+        should_stop_refreshing=status.has_ended,
     )
 
 
 def _render_agent_work(
     *,
     state: StateDirectory,
-    statuses: list[AgentWorkStatus],
+    status: AgentWorkStatus,
     zone: tzinfo | None,
 ) -> RenderableType:
-    """Render the work, with the other work of its kind at its issue beneath it."""
-    status = statuses[0]
+    """Render the work's status, settings, rounds and hand-resume command."""
     work = status.work
     status_value = str(status.value)
     rendered_status = Text(f"{status_value}  {status.detail}")
@@ -132,7 +130,6 @@ def _render_agent_work(
                 worktree=work.worktree,
                 hand_resume_command=status.hand_resume_command,
             ),
-            _render_other_work(kind=kind, other_statuses=statuses[1:]),
         ]
     )
 
@@ -243,23 +240,6 @@ def _render_harness_resume(
         heading="resume by hand",
         body=Text(f"cd {described_worktree}\n{command}"),
     )
-
-
-def _render_other_work(
-    *, kind: AgentWorkKind, other_statuses: list[AgentWorkStatus]
-) -> RenderableType | None:
-    """Return the other work of the kind at the issue, by the names that select it."""
-    if not other_statuses:
-        return None
-    table = create_table(columns=4)
-    for status in other_statuses:
-        table.add_row(
-            Text(status.work.identifier),
-            Text(status.work.record.dispatch_label),
-            Text(str(status.value), style=AGENT_WORK_STATUS_STYLES[status.value]),
-            Text(status.detail),
-        )
-    return render_section(heading=f"other {kind}s", body=table)
 
 
 def show_feed_view(

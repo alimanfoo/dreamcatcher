@@ -19,7 +19,6 @@ from dreamcatcher.agent_work import (
     read_agent_work_at_issue,
     record_harness_session_identifier,
     request_agent_work_retry,
-    select_agent_work,
 )
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.harness_adapters import AgentWorkKind
@@ -156,20 +155,18 @@ def test_a_state_directory_with_no_work_reads_as_none(tmp_path):
     assert find_agent_work(state=state, identifier=IDENTIFIER) is None
 
 
-def test_the_newest_work_at_an_issue_is_of_the_kind_asked_for(tmp_path):
+def test_the_work_at_an_issue_is_every_kind_in_identifier_order(tmp_path):
     state = StateDirectory(root=tmp_path)
     older = "GH8-20260818-090000-assignment"
     newer = "GH8-20260819-090000-assignment"
     for identifier in (newer, older):
         write_assignment(state=state, identifier=identifier, issue=8)
-    write_conversation(state=state, issue=8)
+    conversation = write_conversation(state=state, issue=8).name
 
-    assignments = read_agent_work_at_issue(
-        state=state, issue=8, kind=AgentWorkKind.ASSIGNMENT
-    )
+    work = read_agent_work_at_issue(state=state, issue=8)
     newest = find_newest_agent_work(state=state, issue=8, kind=AgentWorkKind.ASSIGNMENT)
 
-    assert [work.identifier for work in assignments] == [older, newer]
+    assert [item.identifier for item in work] == [older, newer, conversation]
     assert newest is not None
     assert newest.identifier == newer
     assert (
@@ -178,7 +175,7 @@ def test_the_newest_work_at_an_issue_is_of_the_kind_asked_for(tmp_path):
     )
 
 
-def test_a_lookup_at_an_issue_reads_only_records_of_that_issue_and_kind(tmp_path):
+def test_a_lookup_at_an_issue_reads_only_records_of_that_issue(tmp_path):
     state = StateDirectory(root=tmp_path)
     older = "GH12-20260818-090000-assignment"
     write_assignment(state=state, identifier=older, issue=12)
@@ -186,37 +183,22 @@ def test_a_lookup_at_an_issue_reads_only_records_of_that_issue_and_kind(tmp_path
     write_assignment(
         state=state, identifier="GH123-20260819-184158-assignment", issue=123
     )
-    write_conversation(state=state, issue=12)
     write_conversation(state=state, issue=1)
-    for directory in (
-        state.work / "GH123-20260819-184158-assignment",
-        find_conversation_directory(state=state, issue=12),
-    ):
-        (directory / "work.json").write_bytes(b"null")
+    (state.work / "GH123-20260819-184158-assignment" / "work.json").write_bytes(b"null")
 
-    assignments = read_agent_work_at_issue(
-        state=state, issue=12, kind=AgentWorkKind.ASSIGNMENT
-    )
-    conversations = read_agent_work_at_issue(
-        state=state, issue=1, kind=AgentWorkKind.CONVERSATION
-    )
+    assignments = read_agent_work_at_issue(state=state, issue=12)
+    conversations = read_agent_work_at_issue(state=state, issue=1)
 
     assert [work.identifier for work in assignments] == [older, IDENTIFIER]
     assert [work.record.issue for work in conversations] == [1]
-    assert (
-        read_agent_work_at_issue(state=state, issue=2, kind=AgentWorkKind.CONVERSATION)
-        == []
-    )
+    assert read_agent_work_at_issue(state=state, issue=2) == []
 
 
 def test_a_lookup_at_an_issue_skips_a_record_its_directory_misnames(tmp_path):
     state = StateDirectory(root=tmp_path)
     write_assignment(state=state, identifier=IDENTIFIER, issue=13)
 
-    assert (
-        read_agent_work_at_issue(state=state, issue=12, kind=AgentWorkKind.ASSIGNMENT)
-        == []
-    )
+    assert read_agent_work_at_issue(state=state, issue=12) == []
 
 
 def test_a_selected_record_that_will_not_read_is_reportable(tmp_path):
@@ -274,56 +256,3 @@ def test_an_identifier_reads_as_its_work_spells_it(text):
 )
 def test_text_that_could_name_no_work_is_no_identifier(text):
     assert parse_agent_work_identifier(text=text) is None
-
-
-def test_an_issue_selects_its_newest_work_of_the_kind(tmp_path):
-    state = StateDirectory(root=tmp_path)
-    write_assignment(
-        state=state, identifier="GH12-20260818-090000-assignment", issue=12
-    )
-    write_assignment(state=state, identifier=IDENTIFIER, issue=12)
-    write_conversation(state=state, issue=12)
-
-    selected = select_agent_work(
-        state=state, reference=12, kind=AgentWorkKind.ASSIGNMENT
-    )
-
-    assert selected.identifier == IDENTIFIER
-
-
-def test_an_identifier_selects_that_exact_work(tmp_path):
-    state = StateDirectory(root=tmp_path)
-    older = "GH12-20260818-090000-assignment"
-    write_assignment(state=state, identifier=older, issue=12)
-    write_assignment(state=state, identifier=IDENTIFIER, issue=12)
-
-    selected = select_agent_work(
-        state=state, reference=older, kind=AgentWorkKind.ASSIGNMENT
-    )
-
-    assert selected.identifier == older
-
-
-def test_an_issue_without_work_of_the_kind_selects_none(tmp_path):
-    state = StateDirectory(root=tmp_path)
-    write_assignment(state=state, identifier=IDENTIFIER, issue=12)
-
-    with pytest.raises(ReportableError, match=r"No conversation here for GH12\."):
-        select_agent_work(state=state, reference=12, kind=AgentWorkKind.CONVERSATION)
-
-
-@pytest.mark.parametrize(
-    "identifier", [IDENTIFIER, "GH12-20260801-090000-conversation"]
-)
-def test_an_identifier_names_no_work_of_another_kind_or_none_at_all(
-    identifier, tmp_path
-):
-    state = StateDirectory(root=tmp_path)
-    write_assignment(state=state, identifier=IDENTIFIER, issue=12)
-
-    with pytest.raises(
-        ReportableError, match=f"No conversation here is named {identifier}"
-    ):
-        select_agent_work(
-            state=state, reference=identifier, kind=AgentWorkKind.CONVERSATION
-        )

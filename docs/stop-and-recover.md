@@ -15,24 +15,21 @@ daemon have different consequences.
 
 ## Stop one running round
 
-Run the command that selects the work you want to stop:
+Run `stop` with the issue:
 
 ```sh
-dreamcatcher stop GH123 --assignment
-dreamcatcher stop GH123 --conversation
-dreamcatcher stop GH123 --campaign
+dreamcatcher stop GH123
 ```
 
-Use `--assignment` for the newest assignment at the issue,
-`--conversation` for its newest issue conversation, or `--campaign` for
-its newest campaign. To stop a round of older work at the issue, such as
-a conversation under a label you switched away from, give its agent work
-identifier in place of the issue reference. You can instead open the
-work in the web page that `run` opened, select **stop round**, and
-confirm. If you ran the daemon with `--noweb`, start `dreamcatcher web`
-first. Both controls are available only while the round is running and
-_dreamcatcher_ has learned its harness session. The round normally stops
-within about a second.
+When the issue has more than one piece of agent work, such as a
+conversation under a label you switched away from, the command stops
+nothing and prints a command for each piece, with the agent work
+identifier that selects it. Run the one for the work you want to stop.
+You can instead open the work in the web page that `run` opened, select
+**stop round**, and confirm. If you ran the daemon with `--noweb`, start
+`dreamcatcher web` first. Both controls are available only while the
+round is running and _dreamcatcher_ has learned its harness session. The
+round normally stops within about a second.
 
 After an assignment round is stopped, an open pull request waits for a
 new comment or review from you. Once it is ready for review, it also
@@ -75,8 +72,8 @@ assignment**, and confirm. If you ran the daemon with `--noweb`, start
 _dreamcatcher_ asks a running round to stop, runs no further rounds for
 the assignment, and stops relaying your comments and reviews on its pull
 request. The assignment shows as **ended** with the detail cancelled on
-the web home page and in `dreamcatcher assignment`, and
-`dreamcatcher status` counts it among the ended assignments.
+the web home page and in `dreamcatcher view`, and `dreamcatcher status`
+counts it among the ended assignments.
 
 Carry on in the assignment's worktree, which still has the branch
 checked out. Once no round is running, and when _dreamcatcher_ has
@@ -128,13 +125,9 @@ and a new comment starts its next round.
 Read the detail and feed to find the cause:
 
 ```sh
-dreamcatcher assignment GH123
-dreamcatcher feed GH123 --assignment
+dreamcatcher view GH123
+dreamcatcher feed GH123
 ```
-
-For a conversation or a campaign, replace `assignment` and
-`--assignment` with `conversation` and `--conversation`, or `campaign`
-and `--campaign`.
 
 Fix the underlying problem first: for example, restore a missing
 credential, repair a project setup command or make a required service

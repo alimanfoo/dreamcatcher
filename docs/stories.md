@@ -548,22 +548,22 @@ conversation has answered since. Now they want the first discussion
 back, so they take the second label off and put the first one back. The
 first conversation picks up where it left off, and the second is paused.
 
-In the terminal, `dreamcatcher conversation GH123` shows the newest
-conversation, which is the paused second one. Beneath it the view lists
-the first conversation, with its identifier, its label and its status.
-The user runs the command again with that identifier, and the view shows
-the first conversation and stays on it. `dreamcatcher feed` with the
-same identifier shows what that conversation's agent has said, and
-nothing from the other one. When a round of it heads the wrong way,
-`dreamcatcher stop` with the identifier stops that round and leaves the
-other conversation alone.
+In the terminal, `dreamcatcher view GH123` finds two conversations at
+the issue, so it shows neither. It prints a whole command for each one,
+with the identifier that selects it, oldest first. The user runs the
+command for the first conversation, and the view shows that conversation
+and stays on it. `dreamcatcher feed` with the same identifier shows what
+that conversation's agent has said, and nothing from the other one. When
+a round of it heads the wrong way, `dreamcatcher stop` with the
+identifier stops that round and leaves the other conversation alone.
 
-An issue that has had several assignments works the same way. The
-assignment view lists the other assignments at the issue, and each one's
-identifier selects its detail and its feed.
+An issue that has had several pieces of agent work, of any kinds, works
+the same way. Each command given the issue lists a command for each
+piece, and each piece's identifier selects it. An issue with one piece
+of agent work needs no identifier.
 
-The value to the user is that the terminal can show any work on an
-issue, not only the newest.
+The value to the user is that the terminal can reach any work on an
+issue, and never acts on work that the user did not choose.
 
 #### The user stops and starts the daemon
 
@@ -823,11 +823,10 @@ the next update gives the lead the whole picture.
 ### Naming work that is not there
 
 The user gives a terminal command an agent work identifier with a typo
-in it, or gives a conversation's identifier to a command about
-assignments. The command says that no work of its kind has that name,
-and acts on no work at all. It never falls back to the newest work at
-the issue. The user needs to copy the identifier from the list of other
-work in the detail view, and use a command of the same kind.
+in it. The command says that no work has that name, and acts on no work
+at all. It never falls back to other work at the issue. The user needs
+to give the command the issue instead, and copy the identifier from the
+commands that it lists.
 
 ## Expected faults
 

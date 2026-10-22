@@ -85,7 +85,6 @@ FEEDS = {
 ASSIGNMENTS = {
     "working": (fabricate_everything, 13),
     "silent-round": (fabricate_a_silent_round, 13),
-    "older-assignments": (fabricate_repeat_assignments, 13),
     "fault": (fabricate_everything, 9),
     "waiting-to-start": (fabricate_everything, 44),
 }
@@ -240,9 +239,7 @@ def test_only_ended_assignments_are_summarized(tmp_path):
     )
     written(state=state, issue=13, records=[ended(minute=1)])
     cancel_assignment(
-        assignment=read_agent_work_at_issue(
-            state=state, issue=13, kind=AgentWorkKind.ASSIGNMENT
-        )[0],
+        assignment=read_agent_work_at_issue(state=state, issue=13)[0],
         at=PINNED,
     )
 
