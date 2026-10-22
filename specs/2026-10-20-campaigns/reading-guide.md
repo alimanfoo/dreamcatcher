@@ -2,15 +2,15 @@
 
 ## The big picture
 
-This guide follows the existing code behind the
-[campaign requirements](requirements.md). Read the sections in order,
-starting with `Scheduler.tick` in
+This guide follows the code behind the
+[campaign requirements](requirements.md) as stage 1 leaves it. Read the
+sections in order, starting with `Scheduler.tick` in
 [`scheduler/tick.py`](../../src/dreamcatcher/scheduler/tick.py).
 
-Assignments and conversations share that scheduling loop. Each kind
-supplies its own inspection rules and round preparation. The shared
-runner executes the round and records its outcome; status reporting
-reads those records for the terminal and web views.
+Assignments, conversations and campaigns share that scheduling loop.
+Each kind supplies its own inspection rules and round preparation. The
+shared runner executes the round and records its outcome; status
+reporting reads those records for the terminal and web views.
 
 To see who holds the loop, read `DreamcatcherDaemon.run` and
 `run_scheduler_tick` in [`daemon.py`](../../src/dreamcatcher/daemon.py).
@@ -24,22 +24,25 @@ Read `DreamcatcherConfig` and `DispatchRoute` in
 [`config.py`](../../src/dreamcatcher/config.py), then
 `Scheduler._list_issues` and `_inspect_requests` in
 [`scheduler/tick.py`](../../src/dreamcatcher/scheduler/tick.py). A label
-selects a route containing harness recipes. Matching is
-case-insensitive. Discovery lists open issues assigned to the signed-in
-account, deduplicates them and orders them by creation time and number.
+selects a route containing harness recipes, and
+`DreamcatcherConfig.identify_routes` finds the routes of one kind among
+an issue's labels. Matching is case-insensitive. Discovery lists open
+issues assigned to the signed-in account, deduplicates them and orders
+them by creation time and number.
 
 For a new assignment, `_ask_start_time_questions` in
 [`scheduler/assignments.py`](../../src/dreamcatcher/scheduler/assignments.py)
 checks for open linked pull requests and open blocking issues. Either
 prevents a start. An existing assignment answers all assignment labels
 on its issue and no longer uses those start-time checks. A conversation
-answers only its own label.
+or a campaign answers only its own label. The tick looks up each kind's
+inspectors in `_OPEN_WORK_INSPECTORS` and `_REQUEST_INSPECTORS`.
 
 Continue to `Scheduler._launch_candidates` and `_choose_next_candidate`.
 Inspection happens even at capacity. Launching then fills free slots,
-alternating assignments and conversations while both have candidates.
-Within each kind, existing work precedes new requests. A failed launch
-takes no slot.
+the kinds taking turns in the order assignment, conversation, campaign,
+and a kind with no candidate giving up its turn. Within each kind,
+existing work precedes new requests. A failed launch takes no slot.
 
 ## Creating durable work
 
@@ -62,7 +65,7 @@ branch. The work record exists before any of these external steps.
 For the directory layout, read `StateDirectory` in
 [`state.py`](../../src/dreamcatcher/state.py) and `AgentRoundPaths` in
 [`agent_rounds.py`](../../src/dreamcatcher/agent_rounds.py). Work and
-worktrees live separately under `.dreamcatcher/v6/`; each work directory
+worktrees live separately under `.dreamcatcher/v7/`; each work directory
 holds numbered round directories.
 
 ## Running and resuming a round
@@ -140,14 +143,19 @@ the previous assignment is still wrapping up.
 
 ## Conversations, pausing and publication
 
-Read `inspect_open_conversation` and `_find_pause` in
-[`scheduler/conversations.py`](../../src/dreamcatcher/scheduler/conversations.py).
-The issue is read first. Removing the conversation's label, removing the
-user as assignee, or adding another configured conversation label pauses
-new rounds. Paused conversations read no comments; a running round
-continues. Restoring eligibility resumes the saved conversation with
-comments past its cursor. Closing the issue ends it once no round is
-running.
+Read `inspect_open_issue_work` and `find_pause` in
+[`scheduler/issue_work.py`](../../src/dreamcatcher/scheduler/issue_work.py),
+which conversations and campaigns share. The issue is read first.
+Closing it ends the work once no round is running. Removing the work's
+label, removing the user as assignee, or adding another configured label
+of its kind pauses new rounds; a running round continues. Only work that
+is neither paused nor in fault reaches its kind's further inspection.
+
+`inspect_open_conversation` in
+[`scheduler/conversations.py`](../../src/dreamcatcher/scheduler/conversations.py)
+passes that further inspection: reading the comments past the cursor.
+Paused conversations read no comments. Restoring eligibility resumes the
+saved conversation with comments past its cursor.
 
 Follow `prepare_conversation_round` in
 [`issue_conversations.py`](../../src/dreamcatcher/issue_conversations.py)
@@ -164,6 +172,34 @@ The round publishes its final answer with attribution and the agent
 marker. `NO_REPLY` publishes nothing. A missing answer or failed post
 errors the round, leaving its comments eligible again.
 
+## The stage 1 campaign
+
+Read `inspect_open_campaign`, `inspect_campaign_request`,
+`_inspect_lead_input` and `_compose_campaign_round` in
+[`scheduler/campaigns.py`](../../src/dreamcatcher/scheduler/campaigns.py).
+A campaign label on an open, assigned parent starts a campaign without a
+comment. An open campaign has input due until a round that took its
+turn, or is running, has delivered it: the inspector asks
+`AgentWork.list_relayed_round_paths`. The row's `CampaignFinding` in
+[`scheduler/models.py`](../../src/dreamcatcher/scheduler/models.py)
+records `is_input_due`, which status reads. A round that errored or was
+interrupted delivered nothing, so recovery uses the shared runner and
+prompt composition unchanged.
+
+Then read `prepare_campaign_round` in
+[`campaigns.py`](../../src/dreamcatcher/campaigns.py). It refreshes the
+detached worktree, as a conversation round does, and freezes a
+`CampaignRoundInput` holding the parent issue and the revision.
+`compose_campaign_input_prompt` in
+[`prompts.py`](../../src/dreamcatcher/prompts.py) names that input and
+the limits on the lead. The round plan has no finishing step, so the
+lead's final output stays in the feed.
+
+Stage 1 stops there. The input holds no comments, comment position,
+child snapshot, notifications or routes, and nothing compares inputs, so
+a campaign that has delivered its input takes no further round. Later
+stages add those through the same inspector and input.
+
 ## Fault, retry, stop and cancel
 
 Read `derive_agent_work_fault`, `read_scheduler_record` and
@@ -171,14 +207,14 @@ Read `derive_agent_work_fault`, `read_scheduler_record` and
 [`scheduler/faults.py`](../../src/dreamcatcher/scheduler/faults.py). The
 latest two endings must both be errors at or after the later of the
 retry timestamp and the last cooldown's end. Two counted faults start a
-15-minute shared cooldown. Expiry advances that boundary. Paused
-conversation faults do not count towards a new cooldown.
+15-minute shared cooldown. Expiry advances that boundary. The faults of
+paused conversations and campaigns do not count towards a new cooldown.
 
 `request_agent_work_retry` in
 [`agent_work.py`](../../src/dreamcatcher/agent_work.py) records a
 timestamp; it does not launch a process or erase history. Read
 `_retry_agent_work` in [`cli.py`](../../src/dreamcatcher/cli.py) for the
-command that retries faulted work of both existing kinds at an issue.
+command that retries the newest faulted work of every kind at an issue.
 `_request_work_retry` in
 [`web/app.py`](../../src/dreamcatcher/web/app.py) targets one work item
 and checks that the submitted round is still the faulted one.
@@ -193,22 +229,26 @@ starting a round to cover a concurrent cancellation.
 
 ## Instructions and harness permissions
 
-Read `compose_round_prompt` and the conversation input prompt in
-[`prompts.py`](../../src/dreamcatcher/prompts.py), alongside the
-[agent-facing contract](../../docs/contract.md). The prompt directs an
-agent to its saved input and explains an earlier stopped or unfinished
-round. Every round receives the instruction to mark every GitHub post.
-Conversation instructions allow investigation and requested issue
-changes, but forbid implementation, Git mutations, pull-request changes
-and direct publication of the conversation reply.
+Read `compose_round_prompt` and the conversation and campaign input
+prompts in [`prompts.py`](../../src/dreamcatcher/prompts.py), alongside
+the [agent-facing contract](../../docs/contract.md). The prompt directs
+an agent to its saved input and explains an earlier stopped or
+unfinished round. Every round receives the instruction to mark every
+GitHub post. Conversation instructions allow investigation and requested
+issue changes, but forbid implementation, Git mutations, pull-request
+changes and direct publication of the conversation reply.
 
-Continue to `_ClaudeHarnessAdapter._build_base_arguments` in
+Continue to `_CLAUDE_PERMISSION_ARGUMENTS` in
 [`claude.py`](../../src/dreamcatcher/claude.py) and the first/resumed
 round builders in `_CodexHarnessAdapter` in
 [`codex.py`](../../src/dreamcatcher/codex.py). They choose permissions
-by work kind. Claude receives tool allow/deny settings; Codex receives
-sandbox and approval settings. These are the arguments this code
-supplies, rather than guarantees about every external harness version.
+by work kind. Claude receives tool allow/deny settings, and a campaign's
+let the lead comment, review, merge, edit issues, fetch and check out
+commits, while denying editing and other Git mutations. Codex receives
+sandbox and approval settings; a campaign round takes an assignment's
+reviewed settings, so under Codex the prompt alone keeps the lead from
+implementing. These are the arguments this code supplies, rather than
+guarantees about every external harness version.
 
 ## Status, cards and refreshes
 
@@ -224,8 +264,11 @@ round can finish while its displayed status awaits another update.
 Follow `compose_home_view` and `_compose_section` in
 [`web/views.py`](../../src/dreamcatcher/web/views.py) into
 [`templates/home.html`](../../src/dreamcatcher/templates/home.html).
-Each kind has a tab, with active work cards, unstarted request rows and
-collapsed ended work. The
+Each kind, campaigns included, has a tab, with active work cards,
+unstarted request rows and collapsed ended work. A conversation's or a
+campaign's page uses
+[`issue-work.html`](../../src/dreamcatcher/templates/issue-work.html),
+composed by `compose_issue_work_view`. The
 [`agent-work-card.html`](../../src/dreamcatcher/templates/partials/agent-work-card.html)
 template needs saved work; an unstarted issue instead uses
 [`request-row.html`](../../src/dreamcatcher/templates/partials/request-row.html)
@@ -261,15 +304,16 @@ issue for collaboration rather than routine action logging.
 
 ## The sharp edges
 
-- `Scheduler._inspect_open_work` and `_choose_next_candidate` in
-  [`scheduler/tick.py`](../../src/dreamcatcher/scheduler/tick.py) assume
-  two kinds. So do `_show_work` in
-  [`web/app.py`](../../src/dreamcatcher/web/app.py),
+- `inspect_open_issue_work` in
+  [`scheduler/issue_work.py`](../../src/dreamcatcher/scheduler/issue_work.py)
+  returns a paused finding before any further inspection. A paused
+  conversation needs nothing more, but stage 3's paused campaign still
+  needs its child picture, so that shared path must change for it.
+- `CampaignFinding.is_input_due` and the "start" or "recover" trigger in
   `describe_round_trigger` in
-  [`status/rounds.py`](../../src/dreamcatcher/status/rounds.py), and
-  `_render_status` in
-  [`tui/status.py`](../../src/dreamcatcher/tui/status.py). A new enum
-  member alone would not supply another complete path.
+  [`status/rounds.py`](../../src/dreamcatcher/status/rounds.py) describe
+  only stage 1's single delivery. Parent comments and child changes need
+  their own finding fields and trigger words.
 - `_is_eligible` in [`relay.py`](../../src/dreamcatcher/relay.py)
   ignores marked agent posts, including a lead's marked review. The
   current prompts require that marker everywhere. Both sides matter when
