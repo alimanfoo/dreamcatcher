@@ -359,9 +359,9 @@ The lead reads the parent and its sub-issues on GitHub and does what its
 prompt asks, posting on GitHub itself, with every post marked as the
 agent's own. Its final words stay in the feed, so the parent issue holds
 only what the lead chose to say there. At later updates the lead is left
-alone: it has taken its turn, and nothing yet wakes it again. The home
-page has a Campaigns tab, where the campaign shows as idle with how its
-round ended, and its page shows the feed.
+alone, because it has taken its turn. The home page has a Campaigns tab,
+where the campaign shows as idle with how its round ended, and its page
+shows the feed.
 
 When the user is satisfied, they close the parent, and the campaign ends
 once any round that is still running finishes. If they reopen the parent

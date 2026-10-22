@@ -243,14 +243,15 @@ or has ended. A campaign whose lead has not yet been given its input,
 because no round that took its turn has delivered it, is due a round.
 
 The lead publishes its own messages, so a campaign's round plan has no
-finishing step, and its final output stays in the feed. Campaign harness
-permissions let the lead coordinate through GitHub and verify work
-without implementing it. Claude allows selected `gh issue` and `gh pr`
-commands, `gh api`, `git fetch`, `git checkout` and `git switch`, and
-denies direct editing and the other Git mutations. Codex runs a campaign
-round under its own reviewer, as it runs an assignment's, because
-fetching writes outside the worktree. Every prompt requires the agent
-marker on every GitHub post that the lead makes.
+finishing step, and its final output stays in the feed. Claude's
+campaign permissions let the lead coordinate through GitHub and verify
+work without implementing it: Claude allows selected `gh issue` and
+`gh pr` commands, `gh api`, `git fetch`, `git checkout` and
+`git switch`, and denies direct editing and the other Git mutations.
+Codex runs a campaign round under its own reviewer, as it runs an
+assignment's, because fetching writes outside the worktree, so there the
+prompt alone keeps the lead from implementing. Every prompt requires the
+agent marker on every GitHub post that the lead makes.
 
 ### Agent assignments
 

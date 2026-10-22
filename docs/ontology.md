@@ -216,8 +216,10 @@ interval. Users see a scheduler tick called an update.
 
 A piece of agent work's **channel** is the GitHub object through which
 the agent and the user talk: an assignment's pull request, a
-conversation's issue, or a campaign's parent issue. An assignment's
-channel exists once the round that opens its pull request has done so.
+conversation's issue, or a campaign's parent issue. A conversation and a
+campaign are **issue work**, because the issue is the channel of each.
+An assignment's channel exists once the round that opens its pull
+request has done so.
 
 The **cursor** is how far the agent has read in its channel. Nothing
 stores it on its own: it is read back from the inputs of the rounds that

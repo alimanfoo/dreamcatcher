@@ -23,11 +23,11 @@ routes.
 ```
 
 This file offers both supported harnesses for every route. It has no
-campaign route, because a campaign's lead needs a prompt that you write
-for now; [Start a campaign](start-a-campaign.md) gives an example. A
-route may instead contain only its `claude` or only its `codex` block.
-When `init` writes the file, it comments out the blocks of a harness
-that is not installed.
+campaign route, because the lead's prompt is yours to write;
+[Start a campaign](start-a-campaign.md) gives an example. A route may
+instead contain only its `claude` or only its `codex` block. When `init`
+writes the file, it comments out the blocks of a harness that is not
+installed.
 
 ## Top-level settings
 

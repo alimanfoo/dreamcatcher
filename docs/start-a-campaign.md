@@ -6,7 +6,7 @@ the stages. The lead works through GitHub, as its prompt directs.
 
 _dreamcatcher_ gives the lead one round when the campaign starts, and
 ends the campaign when you close the parent. Comments on the parent and
-changes to its sub-issues do not yet start further rounds.
+changes to its sub-issues start no further rounds.
 
 You need a configured campaign route and a running daemon.
 

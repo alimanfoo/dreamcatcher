@@ -342,6 +342,16 @@ def test_a_label_one_harness_can_run_runs_on_that_one_whatever_the_run_named(tmp
             "dream:conversation",
         ),
         (
+            "two labels each routing two kinds of work",
+            CONFIG
+            + CONVERSATION.replace("dream:conversation", "DREAM:SMITH")
+            + CAMPAIGN_CLAUDE.replace("dream:lead", "dream:conversation")
+            + CONVERSATION,
+            "Value error, conversation and campaign entries use the same label: "
+            "dream:conversation; assignment and conversation entries use the same "
+            "label: dream:smith",
+        ),
+        (
             "one label routes both kinds of work",
             CONFIG + CONVERSATION.replace("dream:conversation", "DREAM:SMITH"),
             "Value error, assignment and conversation entries use the same label: "

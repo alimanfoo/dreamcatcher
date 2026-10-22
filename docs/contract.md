@@ -8,8 +8,8 @@ version promises and when it changes.
 This page contains three contracts. The assignment skill contract covers
 a skill that guides an agent through an agent assignment. The
 conversation skill contract covers a skill that guides an agent through
-an issue conversation. The campaign skill contract covers a skill or
-prompt that guides a lead through a campaign.
+an issue conversation. The campaign skill contract covers a skill that
+guides a lead through a campaign.
 
 For working examples, read the skills in
 [dream](https://alimanfoo.github.io/dream/) that follow this contract:
@@ -276,11 +276,10 @@ stopped.
 
 A campaign skill guides the lead, the agent of a campaign, to carry a
 parent issue's planned stages through GitHub. It must accept the parent
-issue's number in the same `GH123` form as an assignment skill. A
-campaign route's prompt may invoke such a skill or give the lead its
-instructions directly. _dreamcatcher_ adds the input and operational
-instructions around the configured prompt, so the prompt does not need
-to repeat them and must not contradict them.
+issue's number in the same `GH123` form as an assignment skill.
+_dreamcatcher_ adds the input and operational instructions around the
+configured prompt, so the prompt does not need to repeat them and must
+not contradict them.
 
 ### Input
 
@@ -297,20 +296,15 @@ from GitHub itself.
 
 Before every round, _dreamcatcher_ resets the lead's worktree to fetched
 main, deleting every local commit and file that an earlier round left.
-The lead may fetch and check out commits to verify work. It must not
-commit, push or open a pull request from that worktree.
-
-The lead's harness may comment on, create and edit issues, comment on,
-review and merge pull requests, read checks, call `gh api`, and run
-`git fetch`, `git checkout` and `git switch` without asking. Claude
-denies it the editing tools and the Git commands that change history.
-Codex runs it under Codex's own reviewer, as it runs an assignment.
+The lead may comment on, create and edit issues, comment on, review and
+merge pull requests, read checks, and fetch and check out commits to
+verify work. It must not edit project source, commit, push or open a
+pull request from that worktree.
 
 ### Publication
 
 The lead publishes its own messages on GitHub. _dreamcatcher_ records
-the lead's final output in the feed and posts none of it. Every post the
-lead makes ends with the agent marker, as every agent post does.
+the lead's final output in the feed and posts none of it.
 
 ### The parent issue
 

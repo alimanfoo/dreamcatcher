@@ -186,9 +186,11 @@ class DreamcatcherConfig(DreamcatcherDocument):
             if len(kinds) > 1
         ]
         if shared:
-            label, kinds = shared[0]
             raise ValueError(
-                f"{' and '.join(kinds)} entries use the same label: {label}"
+                "; ".join(
+                    f"{' and '.join(kinds)} entries use the same label: {label}"
+                    for label, kinds in shared
+                )
             )
         return self
 
