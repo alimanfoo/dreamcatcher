@@ -35,8 +35,8 @@ local feed rather than becoming partial GitHub replies.
 Monitor it on the web home page or in the terminal:
 
 ```sh
-dreamcatcher conversation GH123
-dreamcatcher feed GH123 --conversation
+dreamcatcher view GH123
+dreamcatcher feed GH123
 ```
 
 ## Continue the discussion
@@ -75,9 +75,10 @@ Taking one conversation label off and putting another on pauses the
 first conversation and starts a new one under the new label, with a
 session of its own. The new conversation is given every comment you have
 posted on the issue. Each conversation keeps its own agent work
-identifier. `dreamcatcher conversation GH123` shows the newest one and
-lists the others, and giving another's identifier in place of `GH123`
-shows that one.
+identifier. With more than one piece of agent work at the issue,
+`dreamcatcher view GH123` prints a command for each piece, with the
+identifier that selects it, and giving one of those identifiers in place
+of `GH123` shows that one.
 
 To stop just the round that is running, follow
 [Stop and recover work](stop-and-recover.md).

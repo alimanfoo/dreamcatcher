@@ -7,8 +7,8 @@ is finished. Begin your normal code review when the assignment skill
 marks the pull request ready for review.
 
 You need the daemon running for feedback and final wrap-up to reach the
-agent. Use the web home page or `dreamcatcher assignment GH123` to
-confirm which pull request belongs to the assignment.
+agent. Use the web home page or `dreamcatcher view GH123` to confirm
+which pull request belongs to the assignment.
 
 ## Answer questions and give feedback
 
@@ -33,7 +33,7 @@ update can resume the same harness session with your answer.
 Follow the response locally when useful:
 
 ```sh
-dreamcatcher feed GH123 --assignment
+dreamcatcher feed GH123
 ```
 
 If another decision is needed after the agent responds, add a new
@@ -76,7 +76,7 @@ earlier. Keep the daemon running until the assignment has **ended** with
 the detail completed: only a successful wrap-up releases it.
 
 ```sh
-dreamcatcher assignment GH123
+dreamcatcher view GH123
 ```
 
 After a failed or interrupted wrap-up, the next round is given the
