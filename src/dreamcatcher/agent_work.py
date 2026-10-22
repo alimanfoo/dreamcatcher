@@ -36,7 +36,7 @@ from dreamcatcher.harness_adapters import (
     AgentWorkKind,
     HarnessConfig,
     HarnessSessionIdentifier,
-    refuse_reportable_harness_session_identifier,
+    require_valid_harness_session_identifier,
 )
 from dreamcatcher.harnesses import find_harness_session_identifier
 from dreamcatcher.prompts import compose_issue_instructions
@@ -423,7 +423,7 @@ def record_harness_session_identifier(*, work: AgentWork, identifier: str) -> No
     session raises ReportableError, because all the rounds of one piece of agent
     work continue one session.
     """
-    safe_identifier = refuse_reportable_harness_session_identifier(
+    safe_identifier = require_valid_harness_session_identifier(
         agent_work_identifier=work.identifier, identifier=identifier
     )
     recorded = _read_harness_session_identifier(directory=work.directory)
