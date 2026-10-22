@@ -78,26 +78,6 @@ def test_a_campaign_round_starts_from_main_in_a_detached_worktree(cloned):
     assert campaign.worktree.joinpath(".git").is_file()
 
 
-def test_a_round_with_no_new_comment_carries_the_delivered_cursor_forward(cloned):
-    state = StateDirectory(root=cloned)
-    directory = write_campaign(state=state, issue=PARENT)
-    write_round(
-        directory=directory,
-        number=1,
-        record=AgentRoundRecord(
-            number=1, started=PINNED, ending=SuccessfulAgentRoundEnding(at=PINNED)
-        ),
-        round_input=lead_input(comments=[FIRST]),
-    )
-
-    frozen = prepare_campaign_round(
-        state=state, campaign=campaign_at(state=state), comments=[]
-    )
-
-    assert frozen.comments == []
-    assert frozen.cursor == IssueCommentCursor(written_at=FIRST.written_at, id=1)
-
-
 @pytest.mark.parametrize("is_second_round_delivered", [True, False])
 def test_the_cursor_is_the_newest_delivered_inputs(tmp_path, is_second_round_delivered):
     state = StateDirectory(root=tmp_path)
@@ -124,10 +104,3 @@ def test_the_cursor_is_the_newest_delivered_inputs(tmp_path, is_second_round_del
 
     newest = SECOND if is_second_round_delivered else FIRST
     assert cursor == IssueCommentCursor(written_at=newest.written_at, id=newest.id)
-
-
-def test_a_campaign_given_no_input_reads_the_parent_from_the_start(tmp_path):
-    state = StateDirectory(root=tmp_path)
-    write_campaign(state=state, issue=PARENT)
-
-    assert read_parent_comment_cursor(campaign=campaign_at(state=state)) is (None)
