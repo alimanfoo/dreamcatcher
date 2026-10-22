@@ -46,13 +46,16 @@ instance:
   enables it;
 - reconcile round records that an earlier daemon left without an ending
   by ending their recorded process trees at startup, skipping a record
-  with no process identifier, then asking the round boundary to record
-  them as stopped when the user asked to stop them, and otherwise as
+  with no process identifier or one whose round started before the
+  machine last booted, then asking the round boundary to record them as
+  stopped when the user asked to stop them, and otherwise as
   interrupted;
 - call the scheduler repeatedly;
 - wait for the daemon run's requested interval between ticks, then check
   that it still holds the daemon lock; and
-- stop active child processes during shutdown.
+- stop active child processes during shutdown, which SIGTERM and, on
+  POSIX, SIGHUP begin as Ctrl-C does, unless the daemon was started to
+  ignore that signal.
 
 The daemon does not decide which issue or piece of agent work deserves a
 round. It knows that scheduling happens, but not the scheduling

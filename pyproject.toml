@@ -18,29 +18,28 @@ classifiers = [
 dependencies = [
     # filelock holds the daemon lock and coordinates replacement documents.
     # Flask renders and serves the local web view. pydantic validates the
-    # config and every JSON document the tool owns. rich renders the views. On
-    # Windows alone, pywin32 reaches the Job Object that holds a round, and
-    # psutil finds the thread that starts it.
+    # config and every JSON document the tool owns. psutil reads when the
+    # machine booted, and on Windows finds the thread that starts a round. rich
+    # renders the views. On Windows alone, pywin32 reaches the Job Object that
+    # holds a round.
     "filelock>=3.32",
     "flask>=3.1.3",
     "pydantic>=2.0",
-    "psutil>=6.0; sys_platform == 'win32'",
+    "psutil>=6.0",
     "rich>=13.0",
     "pywin32>=306; sys_platform == 'win32'",
 ]
 
 [dependency-groups]
 # uv installs this group on a bare `uv sync`, so the tools cannot go missing.
-# Pin every tool whose output is enforced, committed or published. The tests use
-# psutil to watch processes on every platform. MkDocs and Material build the
-# documentation site.
+# Pin every tool whose output is enforced, committed or published. MkDocs and
+# Material build the documentation site.
 dev = [
     "complexipy==8.0.1",
     "mkdocs==1.6.1",
     "mkdocs-material==9.7.7",
     "playwright==1.64.0",
     "pre-commit>=4.0",
-    "psutil>=6.0",
     "pytest>=8.0",
     "pytest-cov>=6.0",
     "pytest-playwright==0.10.0",
