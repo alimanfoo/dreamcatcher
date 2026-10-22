@@ -14,16 +14,12 @@ from dreamcatcher.agent_rounds import (
     interpret_agent_round_outcome,
 )
 from dreamcatcher.agent_work import AgentWork
-from dreamcatcher.campaigns import CampaignRoundInput, read_campaign_input
+from dreamcatcher.campaigns import CampaignRoundInput
 from dreamcatcher.documents import read_json_if_exists
-from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import read_last_feed_line
 from dreamcatcher.github import PullRequestState
 from dreamcatcher.harness_adapters import AgentWorkKind, HarnessSessionIdentifier
-from dreamcatcher.issue_conversations import (
-    ConversationRoundInput,
-    read_conversation_input,
-)
+from dreamcatcher.issue_conversations import ConversationRoundInput
 from dreamcatcher.status.findings import describe_changed_children, describe_signal
 from dreamcatcher.words import describe_count, describe_span
 
@@ -177,7 +173,10 @@ def describe_round_trigger(*, work: AgentWork, number: int) -> str:
     if work.record.kind is AgentWorkKind.CAMPAIGN:
         return _describe_campaign_round_trigger(work=work, number=number)
     if work.record.kind is AgentWorkKind.CONVERSATION:
-        conversation_input = _read_conversation_input(work=work, number=number)
+        conversation_input = read_json_if_exists(
+            model=ConversationRoundInput,
+            path=work.compose_round_paths(number=number).round_input,
+        )
         if conversation_input is None:
             return "comments"
         return describe_count(number=len(conversation_input.comments), noun="comment")
@@ -227,29 +226,23 @@ def _describe_campaign_round_trigger(*, work: AgentWork, number: int) -> str:
 
 
 def _read_given_revision(*, work: AgentWork, number: int) -> str | None:
-    """Return the revision of main a round of the work was given, when it reads.
+    """Return the revision of main a round of the work was given, if it was.
 
     A conversation or campaign round is given a checkout of main. An assignment
-    round works on its own branch and is given none.
+    round works on its own branch and is given none, and a round whose input
+    is still to be written, or never was, has none to read.
     """
-    try:
-        if work.record.kind is AgentWorkKind.CONVERSATION:
-            return read_conversation_input(conversation=work, number=number).revision
-        if work.record.kind is AgentWorkKind.CAMPAIGN:
-            return read_campaign_input(campaign=work, number=number).revision
-    except ReportableError:
+    model: type[ConversationRoundInput | CampaignRoundInput]
+    if work.record.kind is AgentWorkKind.CONVERSATION:
+        model = ConversationRoundInput
+    elif work.record.kind is AgentWorkKind.CAMPAIGN:
+        model = CampaignRoundInput
+    else:
         return None
-    return None
-
-
-def _read_conversation_input(
-    *, work: AgentWork, number: int
-) -> ConversationRoundInput | None:
-    """Return one conversation round's input, or None when it cannot be read."""
-    try:
-        return read_conversation_input(conversation=work, number=number)
-    except ReportableError:
-        return None
+    round_input = read_json_if_exists(
+        model=model, path=work.compose_round_paths(number=number).round_input
+    )
+    return None if round_input is None else round_input.revision
 
 
 def _compose_round_revision(

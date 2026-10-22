@@ -1,6 +1,7 @@
 """Read local status for campaigns."""
 
 import os
+import re
 from collections.abc import Sequence
 from datetime import timedelta
 
@@ -35,6 +36,7 @@ from dreamcatcher.campaigns import (
     CampaignChildNotification,
     CampaignRoundInput,
 )
+from dreamcatcher.errors import ReportableError
 from dreamcatcher.github import IssueComment, IssueState
 from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.relay import IssueCommentCursor
@@ -474,3 +476,16 @@ def test_a_campaign_whose_children_are_unknown_has_no_child_statuses(state):
     [campaign] = report.list_active_work_statuses(kind=AgentWorkKind.CAMPAIGN)
 
     assert report.list_campaign_child_statuses(campaign=campaign) == []
+
+
+def test_an_unreadable_lead_round_input_fails_the_status_naming_the_file(state):
+    lead_round(state=state, number=1, ending=SUCCESSFUL)
+    campaign = read_campaign(state=state, issue=PARENT)
+    assert campaign is not None
+    round_input = campaign.compose_round_paths(number=1).round_input
+    round_input.write_bytes(b"not json")
+
+    found = campaign_status(state=state)
+
+    with pytest.raises(ReportableError, match=re.escape(str(round_input))):
+        _ = found.round_statuses

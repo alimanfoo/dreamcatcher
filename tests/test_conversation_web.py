@@ -1,5 +1,6 @@
 """Render issue conversations in the local web interface."""
 
+import html
 import re
 from datetime import timedelta
 from unittest.mock import MagicMock
@@ -355,12 +356,13 @@ def test_conversation_retry_requests_must_come_from_the_page(tmp_path):
     assert conversation.retry_requested_at is None
 
 
-def test_conversation_page_with_an_unreadable_input_still_renders(tmp_path):
+def test_conversation_page_with_an_unreadable_input_names_the_file(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_conversation(state=state)
     conversation = read_conversation(state=state, issue=8)
     assert conversation is not None
-    conversation.compose_round_paths(number=1).round_input.write_bytes(b"not json")
+    round_input = conversation.compose_round_paths(number=1).round_input
+    round_input.write_bytes(b"not json")
 
     response = (
         application(state=state)
@@ -368,8 +370,9 @@ def test_conversation_page_with_an_unreadable_input_still_renders(tmp_path):
         .get("/work/GH8-20260819-184158-conversation")
     )
 
-    assert response.status_code == 200
-    assert "I found the answer." in response.text
+    assert response.status_code == 500
+    assert html.escape(str(round_input)) in response.text
+    assert "I found the answer." not in response.text
 
 
 def test_conversation_page_shows_a_failed_round_waiting_to_run_again(tmp_path):

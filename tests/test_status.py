@@ -1,4 +1,5 @@
 import os
+import re
 from collections.abc import Sequence
 from datetime import timedelta
 
@@ -36,6 +37,7 @@ from dreamcatcher.config import AgentHarness
 from dreamcatcher.daemon import DEFAULT_INTERVAL_SECONDS
 from dreamcatcher.daemon_runs import DaemonRunRecord, RecordedRoute
 from dreamcatcher.documents import write_text
+from dreamcatcher.errors import ReportableError
 from dreamcatcher.github import (
     CheckResult,
     IssueComment,
@@ -676,6 +678,26 @@ def test_a_round_says_which_signals_woke_it(state, signals, posts, trigger):
     round_status = only_assignment(state=state).round_statuses[0]
 
     assert round_status.trigger_description == trigger
+
+
+def test_an_unreadable_round_input_fails_the_status_naming_the_file(state):
+    ran(state=state, number=1)
+    (assignment,) = read_assignments(state=state)
+    round_input = assignment.compose_round_paths(number=1).round_input
+    round_input.write_bytes(b"not json")
+
+    found = only_assignment(state=state)
+
+    with pytest.raises(ReportableError, match=re.escape(str(round_input))):
+        _ = found.round_statuses
+
+
+def test_a_round_with_no_input_was_the_start(state):
+    ran(state=state, number=1)
+
+    round_status = only_assignment(state=state).round_statuses[0]
+
+    assert round_status.trigger_description == "start"
 
 
 def test_an_assignment_the_tick_read_nothing_for_reports_no_pull_request_summary(state):

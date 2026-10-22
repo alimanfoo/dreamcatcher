@@ -1,6 +1,7 @@
 """Read local status for issue conversations."""
 
 import os
+import re
 from datetime import timedelta
 
 import pytest
@@ -35,6 +36,7 @@ from dreamcatcher.agent_rounds import (
 from dreamcatcher.agent_work import AgentWorkEndReason, request_agent_work_retry
 from dreamcatcher.config import AgentHarness
 from dreamcatcher.documents import read_json, write_json
+from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import FeedLine
 from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.issue_conversations import (
@@ -706,17 +708,31 @@ def test_a_round_that_needed_no_reply_says_so(conversation_state):
     assert found.detail == "round 1, no reply needed, ran 4m"
 
 
-def test_an_unreadable_round_input_still_shows_the_round(conversation_state):
+def test_an_unreadable_round_input_fails_the_status_naming_the_file(
+    conversation_state,
+):
     conversation_round(state=conversation_state)
     conversation = read_conversation(state=conversation_state, issue=8)
     assert conversation is not None
-    conversation.compose_round_paths(number=1).round_input.write_bytes(b"not json")
+    round_input = conversation.compose_round_paths(number=1).round_input
+    round_input.write_bytes(b"not json")
 
     found = status(state=conversation_state)
 
-    assert found.value is AgentWorkStatusValue.IDLE
-    assert found.round_statuses[0].revision is None
-    assert found.round_statuses[0].outcome_description == "successful"
+    with pytest.raises(ReportableError, match=re.escape(str(round_input))):
+        _ = found.round_statuses
+
+
+def test_a_round_with_no_input_was_woken_by_comments(conversation_state):
+    conversation_round(state=conversation_state)
+    conversation = read_conversation(state=conversation_state, issue=8)
+    assert conversation is not None
+    conversation.compose_round_paths(number=1).round_input.unlink()
+
+    round_status = status(state=conversation_state).round_statuses[0]
+
+    assert round_status.trigger_description == "comments"
+    assert round_status.revision is None
 
 
 def test_a_posted_answer_leaves_the_conversation_idle(conversation_state):
