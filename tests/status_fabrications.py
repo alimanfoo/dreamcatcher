@@ -39,7 +39,7 @@ from dreamcatcher.campaigns import (
     CampaignChildAssignment,
     CampaignRoundInput,
 )
-from dreamcatcher.documents import write_json, write_text
+from dreamcatcher.documents import write_text
 from dreamcatcher.feed import FeedLine
 from dreamcatcher.github import (
     CheckResult,
@@ -193,9 +193,11 @@ def fabricate_conversation(
             at=PINNED + timedelta(minutes=4), status=status
         ),
     )
-    write_round(directory=directory, number=1, record=record)
-    write_json(
-        document=ConversationRoundInput(
+    write_round(
+        directory=directory,
+        number=1,
+        record=record,
+        round_input=ConversationRoundInput(
             issue=8,
             initial_issue=InitialConversationIssue(
                 title="Issue 8",
@@ -211,7 +213,6 @@ def fabricate_conversation(
             ],
             revision="abc123",
         ),
-        path=(directory / "rounds" / "1" / "round-input.json"),
     )
     write_feed(
         directory=directory,

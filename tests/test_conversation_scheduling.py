@@ -376,9 +376,7 @@ def write_faulted_conversation(
                     at=at + timedelta(minutes=number), status=2
                 ),
             ),
-        )
-        write_json(
-            document=ConversationRoundInput(
+            round_input=ConversationRoundInput(
                 issue=issue,
                 initial_issue=(
                     InitialConversationIssue(
@@ -391,7 +389,6 @@ def write_faulted_conversation(
                 comments=[ask()],
                 revision=revision,
             ),
-            path=directory / "rounds" / str(number) / "round-input.json",
         )
 
 
@@ -1642,10 +1639,6 @@ def test_a_daemon_orphan_is_given_its_comments_again_in_its_saved_session(
         comments=[ask()],
         revision=_read_worktree_revision(worktree=conversation.worktree),
     )
-    write_json(
-        document=first_input,
-        path=conversation.compose_round_paths(number=1).round_input,
-    )
     write_round(
         directory=directory,
         number=1,
@@ -1654,6 +1647,7 @@ def test_a_daemon_orphan_is_given_its_comments_again_in_its_saved_session(
             started=read_current_time(),
             pid=left_running.pid,
         ),
+        round_input=first_input,
     )
     daemon = DreamcatcherDaemon(
         root=scheduler.context.state.root,

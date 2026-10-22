@@ -105,11 +105,7 @@ def conversation_round(
             pid=1,
             ending=ending,
         ),
-    )
-    conversation = read_conversation(state=state, issue=8)
-    assert conversation is not None
-    write_json(
-        document=ConversationRoundInput(
+        round_input=ConversationRoundInput(
             issue=8,
             initial_issue=InitialConversationIssue(
                 title="Issue 8",
@@ -125,7 +121,6 @@ def conversation_round(
             ],
             revision="abc123",
         ),
-        path=conversation.compose_round_paths(number=1).round_input,
     )
     if final_output is not None:
         write_final_output(directory=directory, number=1, text=final_output)
@@ -150,10 +145,7 @@ def write_second_conversation_error(*, state: StateDirectory) -> None:
                 at=PINNED + timedelta(minutes=8), status=2
             ),
         ),
-    )
-    write_json(
-        document=first_input.model_copy(update={"initial_issue": None}),
-        path=conversation.compose_round_paths(number=2).round_input,
+        round_input=first_input.model_copy(update={"initial_issue": None}),
     )
 
 

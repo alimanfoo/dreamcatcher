@@ -336,15 +336,12 @@ def test_a_stopped_last_round_is_not_given_the_finished_pull_request_again(
             pid=1,
             ending=StoppedAgentRoundEnding(at=started),
         ),
-    )
-    write_json(
-        document=AssignmentRoundInput(
+        round_input=AssignmentRoundInput(
             pull_request_state=PullRequestState(pull_request_state),
             pull_request_head=HEAD,
             signals=[],
             user_posts=[],
         ),
-        path=read_assignments(state=state)[0].compose_round_paths(number=1).round_input,
     )
     gh_with_no_posts.replies(
         stdout=pull_request(state=pull_request_state), to="pr view"

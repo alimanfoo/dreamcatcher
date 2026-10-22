@@ -49,7 +49,6 @@ from dreamcatcher.config import (
     AgentHarness,
     read_dreamcatcher_config,
 )
-from dreamcatcher.documents import write_json
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.git import add_worktree, fetch_main, make_empty_commit, push_branch
 from dreamcatcher.github import IssueComment, PullRequestState
@@ -657,9 +656,7 @@ def test_an_assignment_reads_back_its_user_post_cursor(state, route):
             pid=1,
             ending=_compose_agent_round_ending(at=PINNED, status=0),
         ),
-    )
-    write_json(
-        document=AssignmentRoundInput(
+        round_input=AssignmentRoundInput(
             pull_request_state=PullRequestState.OPEN,
             pull_request_head=HEAD,
             signals=[],
@@ -667,7 +664,6 @@ def test_an_assignment_reads_back_its_user_post_cursor(state, route):
                 IssueComment.model_validate(comment(created_at="2026-09-03T22:31:51Z"))
             ],
         ),
-        path=created.compose_round_paths(number=1).round_input,
     )
 
     assert (
@@ -701,15 +697,12 @@ def test_the_user_post_cursor_scans_past_an_input_that_relayed_no_posts(state, r
                 pid=1,
                 ending=_compose_agent_round_ending(at=PINNED, status=0),
             ),
-        )
-        write_json(
-            document=AssignmentRoundInput(
+            round_input=AssignmentRoundInput(
                 pull_request_state=PullRequestState.OPEN,
                 pull_request_head=HEAD,
                 signals=[],
                 user_posts=posts,
             ),
-            path=created.compose_round_paths(number=number).round_input,
         )
 
     assert (
