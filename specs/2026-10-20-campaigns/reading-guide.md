@@ -3,7 +3,7 @@
 ## The big picture
 
 This guide follows the code behind the
-[campaign requirements](requirements.md) as stage 2 leaves it. Read the
+[campaign requirements](requirements.md) as stage 3 leaves it. Read the
 sections in order, starting with `Scheduler.tick` in
 [`scheduler/tick.py`](../../src/dreamcatcher/scheduler/tick.py).
 
@@ -35,8 +35,11 @@ For a new assignment, `_ask_start_time_questions` in
 checks for open linked pull requests and open blocking issues. Either
 prevents a start. An existing assignment answers all assignment labels
 on its issue and no longer uses those start-time checks. A conversation
-or a campaign answers only its own label. The tick looks up each kind's
-inspectors in `_OPEN_WORK_INSPECTORS` and `_REQUEST_INSPECTORS`.
+or a campaign answers only its own label. The tick inspects in two
+passes. The first looks up the assignment and conversation inspectors in
+`_OPEN_WORK_INSPECTORS` and `_REQUEST_INSPECTORS`, and the second
+inspects campaigns, so that a campaign can read what the first pass
+found. Each pass inspects open work before new requests.
 
 Continue to `Scheduler._launch_candidates` and `_choose_next_candidate`.
 Inspection happens even at capacity. Launching then fills free slots,
@@ -174,36 +177,78 @@ errors the round, leaving its comments eligible again.
 
 ## The campaign so far
 
-Read `inspect_open_campaign`, `inspect_campaign_request`,
+Read `Scheduler.tick` and `_observe_assignments` in
+[`scheduler/tick.py`](../../src/dreamcatcher/scheduler/tick.py). After
+the first pass, the tick keeps every piece of work it read at the start
+of the update, ended assignments included, and the first pass's
+assignment inspections. `_observe_assignments` turns them into
+`AssignmentObservations`: the newest assignment at each issue, this
+update's inspection of the open assignment or of the assignment request
+at each issue, and the first failed listing under an assignment label,
+if any.
+
+Then read `inspect_open_campaign`, `inspect_campaign_request`,
+`_observe_children`, `_observe_child`, `_observe_child_assignment`,
 `_inspect_lead_input` and `_compose_campaign_round` in
 [`scheduler/campaigns.py`](../../src/dreamcatcher/scheduler/campaigns.py).
-A campaign label on an open, assigned parent starts a campaign without a
-comment. Both inspectors read the parent's eligible comments past the
-cursor through `list_new_comments` in
-[`scheduler/issue_work.py`](../../src/dreamcatcher/scheduler/issue_work.py),
-which conversations share. A round is due for a new comment, for a
-campaign with no round yet, and after a round that errored or was
-interrupted. A stopped round took its turn, so the lead then waits for a
-new comment. The row's `CampaignFinding` in
-[`scheduler/models.py`](../../src/dreamcatcher/scheduler/models.py)
-records the count of new comments, which status reads.
+Both inspectors observe the sub-issues first, through `list_sub_issues`
+in [`github.py`](../../src/dreamcatcher/github.py), and only then hand
+the open campaign to `inspect_open_issue_work` in
+[`scheduler/issue_work.py`](../../src/dreamcatcher/scheduler/issue_work.py).
+That shared path is unchanged: a paused campaign still returns its pause
+before any further inspection, and `_record_children` adds the observed
+sub-issues to whatever row comes back, so the overview stays current
+while the lead is paused or in fault.
 
-Then read `prepare_campaign_round` and `read_parent_comment_cursor` in
-[`campaigns.py`](../../src/dreamcatcher/campaigns.py). Preparation
-refreshes the detached worktree, as a conversation round does, and
-freezes a `CampaignRoundInput` holding the parent issue, the comments,
-the cursor and the revision. The cursor reaches the newest comment, or
-carries forward the cursor of the newest delivered input, which
+A sub-issue is settled when its newest assignment has no round running
+and the first pass made no round due for it, where a startable
+assignment request counts as a round due. `_observe_child_assignment`
+records the assignment's identifier, its pull request number, the newest
+round that took its turn, its ending and whether it is in fault. It
+copies the observed pull request from the first pass's
+`PullRequestFinding`, and no sub-issue's pull request is read again. An
+assignment that has ended or is in fault keeps its pull request number
+with no observation.
+
+The observation fails, and holds no partial picture, when the sub-issue
+read fails, when the first pass could not read a sub-issue's assignment
+or assignment request, or when a listing under an assignment label
+failed and a sub-issue has no open assignment. `_inspect_lead_input`
+then records the failure as the row's finding, reads no comments and
+starts no round. Otherwise it reads the parent's eligible comments past
+the cursor through `list_new_comments`, which conversations share. A
+round is due for a new comment, for a campaign with no round yet, and
+after a round that errored or was interrupted. A stopped round took its
+turn, so the lead then waits for a new comment. The row's
+`CampaignFinding` in
+[`scheduler/models.py`](../../src/dreamcatcher/scheduler/models.py)
+records the count of new comments, and `RequestRow.children` the
+observed sub-issues.
+
+Read the models in
+[`campaigns.py`](../../src/dreamcatcher/campaigns.py): `CampaignChild`
+and `CampaignChildAssignment` form the snapshot, which the row and the
+round input share. The observed pull request is `ObservedPullRequest` in
+[`agent_assignments.py`](../../src/dreamcatcher/agent_assignments.py),
+which `PullRequestFinding` extends, so the campaign module imports no
+scheduler type. Then read `prepare_campaign_round` and
+`read_parent_comment_cursor`. Preparation refreshes the detached
+worktree, as a conversation round does, and freezes a
+`CampaignRoundInput` holding the parent issue, the sub-issues, the
+comments, the cursor, the revision and the running daemon's assignment
+routes. The cursor reaches the newest comment, or carries forward the
+cursor of the newest delivered input, which
 `AgentWork.list_relayed_round_paths` selects. Recovery therefore
-recomputes the comments from GitHub against the last delivered input.
-`compose_campaign_input_prompt` in
+recomputes the comments and the sub-issues from GitHub against the last
+delivered input. `compose_campaign_input_prompt` in
 [`prompts.py`](../../src/dreamcatcher/prompts.py) names that input and
 the limits on the lead. The round plan has no finishing step, so the
 lead's final output stays in the feed.
 
-Stage 2 stops there. The input holds no child snapshot, notifications or
-routes, and nothing compares inputs, so child changes wake no lead
-round. Later stages add those through the same inspector and input.
+Stage 3 stops there. Nothing yet compares the current sub-issues with
+the newest delivered input, so a change among the sub-issues wakes no
+lead round. Stage 4 adds that comparison and its notifications through
+the same inspector and input.
 
 ## Fault, retry, stop and cancel
 
@@ -265,6 +310,10 @@ The report reads local work, rounds and the latest scheduler record. The
 scheduler never consumes the report. `_did_tick_read_ending` uses the
 row's round number to tell whether the update saw the latest ending. A
 round can finish while its displayed status awaits another update.
+`AgentWorkStatus.children` and `children_summary` give an active
+campaign the sub-issues that its latest row holds, and the words that
+count the closed ones out of the total, or "sub-issues unknown" when the
+row holds none.
 
 Follow `compose_home_view` and `_compose_section` in
 [`web/views.py`](../../src/dreamcatcher/web/views.py) into
@@ -275,7 +324,8 @@ campaign's page uses
 [`issue-work.html`](../../src/dreamcatcher/templates/issue-work.html),
 composed by `compose_issue_work_view`. The
 [`agent-work-card.html`](../../src/dreamcatcher/templates/partials/agent-work-card.html)
-template needs saved work; an unstarted issue instead uses
+template shows an active campaign's count and a link to each sub-issue
+by number. It needs saved work; an unstarted issue instead uses
 [`request-row.html`](../../src/dreamcatcher/templates/partials/request-row.html)
 and has no work page yet. A view of every campaign child must account
 for that distinction.
@@ -309,11 +359,12 @@ issue for collaboration rather than routine action logging.
 
 ## The sharp edges
 
-- `inspect_open_issue_work` in
-  [`scheduler/issue_work.py`](../../src/dreamcatcher/scheduler/issue_work.py)
-  returns a paused finding before any further inspection. A paused
-  conversation needs nothing more, but stage 3's paused campaign still
-  needs its child picture, so that shared path must change for it.
+- The campaign inspectors read the sub-issues before
+  `inspect_open_issue_work` reads the parent, so a paused campaign keeps
+  its overview without changing that shared path. The cost is one
+  sub-issue read on the update that finds the parent closed or cannot
+  read it. A campaign request with conflicting labels reads nothing, so
+  its row holds no sub-issues.
 - `CampaignFinding.new_comments` and the campaign trigger in
   `describe_round_trigger` in
   [`status/rounds.py`](../../src/dreamcatcher/status/rounds.py) describe
@@ -325,15 +376,21 @@ issue for collaboration rather than routine action logging.
   tracing how a lead's feedback could reach a child.
 - `PullRequest.check_result` in
   [`github.py`](../../src/dreamcatcher/github.py) prioritises failure
-  over running checks. A failing aggregate does not establish that all
-  checks have finished. The boundary reads blockers, but has no
-  operation for listing a parent's sub-issues.
+  over running checks, so a failing aggregate does not establish that
+  all checks have finished. `PullRequest.has_running_checks` carries
+  that separately, and stage 4's check-completion rule compares both.
 - `inspect_open_assignment` in
   [`scheduler/assignments.py`](../../src/dreamcatcher/scheduler/assignments.py)
   reads nothing from GitHub while the assignment is in fault. A comment
-  cannot itself clear fault. Ended assignments also leave the
-  scheduler's open-work inspection, including those cancelled for manual
-  takeover.
+  cannot itself clear fault. Ended assignments leave the scheduler's
+  open-work inspection, including those cancelled for manual takeover,
+  so a sub-issue's ended assignment has no observed pull request.
+- `_observe_child` matches a sub-issue to local work by its number
+  alone. GitHub can list a sub-issue from another repository, which
+  would then pick up a local assignment numbered the same.
+- An unreadable `pull-request.json` under any sub-issue's newest
+  assignment, ended ones included, fails the whole update, as the story
+  of a local record that cannot be read promises.
 - `list_user_posts_past_cursor` and `list_issue_comments_past_cursor` in
   [`relay.py`](../../src/dreamcatcher/relay.py) use different cursor
   precision. Pull-request posts compare timestamps alone; issue comments

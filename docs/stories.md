@@ -751,12 +751,14 @@ work in the detail view, and use a command of the same kind.
 GitHub is down, or rate-limited, or the network is. The update's reads
 fail, nothing starts, and nothing is lost. A failed listing shows among
 the scheduler failures on the status report while the daemon runs, and a
-failed read for one piece of work or one request shows on its row. A
-campaign whose sub-issues, or whose sub-issues' assignments, could not
-all be read shows as unknown, and its lead starts no round from the
-partial picture. The next update tries again. Work whose round is
-already running carries on, and its pushes and posts fail or succeed as
-GitHub allows.
+failed read for one piece of work or one request shows on its row. When
+a campaign's sub-issues, or their assignments, cannot all be read, its
+card shows its sub-issues as unknown in place of the closed count, and
+its lead starts no round from the partial picture. A lead that is not
+working, paused or in fault shows as unknown too, with the failed read;
+otherwise the lead keeps its status. The next update tries again. Work
+whose round is already running carries on, and its pushes and posts fail
+or succeed as GitHub allows.
 
 ### The harness refuses or breaks
 
