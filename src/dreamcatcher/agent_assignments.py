@@ -65,7 +65,7 @@ _PULL_REQUEST_RECORD_NAME = "pull-request.json"
 
 
 class ObservedPullRequest(DreamcatcherDocument):
-    """Model what an update read of an assignment's pull request.
+    """Model what a tick read of an assignment's pull request.
 
     The head is the commit that the checks ran at. A failing check result can
     still have checks running.

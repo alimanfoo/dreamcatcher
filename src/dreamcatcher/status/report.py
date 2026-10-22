@@ -82,7 +82,7 @@ class AgentWorkStatusSection:
 class CampaignChildStatus:
     """Describe where one child of an active campaign stands.
 
-    The assignment is the one that the latest update matched to the child, and
+    The assignment is the one that the latest tick matched to the child, and
     the requests are the child's requests for an assignment that have no open
     work.
     """

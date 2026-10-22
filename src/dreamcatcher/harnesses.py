@@ -16,7 +16,7 @@ from dreamcatcher.documents import read_lines_from
 from dreamcatcher.harness_adapters import (
     HarnessAdapter,
     HarnessSessionIdentifier,
-    refuse_reportable_harness_session_identifier,
+    require_valid_harness_session_identifier,
 )
 
 HARNESS_ADAPTERS: dict[AgentHarness, HarnessAdapter] = {
@@ -67,7 +67,7 @@ def _find_harness_session_identifier_in_output(
     for line in lines:
         identifier = adapter.read_output(line=line).harness_session_identifier
         if identifier is not None:
-            return refuse_reportable_harness_session_identifier(
+            return require_valid_harness_session_identifier(
                 agent_work_identifier=agent_work_identifier,
                 identifier=identifier,
             )

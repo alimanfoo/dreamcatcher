@@ -1514,18 +1514,18 @@ def offer_a_foreign_child(*, gh) -> None:
         (
             offer_a_foreign_child,
             True,
-            f"could not observe child {FOREIGN}#21: it is in another repository",
+            f"could not observe sub-issue {FOREIGN}#21: it is in another repository",
         ),
         (fail_to_list_children, False, f"gh {CHILDREN_PATH}: gh: could not connect"),
         (
             fail_to_read_the_childs_pull_request,
             True,
-            "could not observe child GH21: gh pr view 52: gh: could not connect",
+            "could not observe sub-issue GH21: gh pr view 52: gh: could not connect",
         ),
         (
             fail_to_list_assignment_requests,
             False,
-            "could not observe child GH21: could not list issues for dream:smith",
+            "could not observe sub-issue GH21: could not list issues for dream:smith",
         ),
     ],
 )

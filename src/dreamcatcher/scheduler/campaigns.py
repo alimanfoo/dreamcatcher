@@ -1,7 +1,7 @@
 """Inspect campaigns' parents and children and compose the rounds they call for.
 
 The tick inspects campaigns after the assignments, so a campaign observes its
-children through what this update already found of their assignments, and reads
+children through what this tick already found of their assignments, and reads
 none of their pull requests again.
 """
 
@@ -51,10 +51,10 @@ from dreamcatcher.scheduler.models import (
 
 @dataclass(frozen=True, kw_only=True)
 class AssignmentObservations:
-    """Hold what an update found of the assignments, for its campaigns to observe.
+    """Hold what a tick found of the assignments, for its campaigns to observe.
 
     The assignments are the newest at each issue, ended ones included. The
-    inspections are the update's inspections of the open assignments and of
+    inspections are the tick's inspections of the open assignments and of
     the assignment requests with no open assignment, by issue. A listing
     failure says why some assignment request may have gone uninspected.
     """
@@ -116,9 +116,9 @@ def inspect_campaign_request(
 def _observe_children(
     *, context: SchedulingContext, parent: int, observations: AssignmentObservations
 ) -> list[CampaignChild] | ReadFailureFinding:
-    """Return the parent's children as this update found them, in GitHub's order.
+    """Return the parent's children as this tick found them, in GitHub's order.
 
-    A child that the update could not observe leaves the picture incomplete,
+    A child that the tick could not observe leaves the picture incomplete,
     so the answer is why, rather than a picture with the child missing. The
     daemon observes work in its own repository alone, so a child in another
     repository is one it cannot observe.
@@ -130,7 +130,7 @@ def _observe_children(
     for sub_issue in sub_issues:
         if sub_issue.repository.casefold() != context.repository.casefold():
             return ReadFailureFinding(
-                reason=f"could not observe child {sub_issue.repository}"
+                reason=f"could not observe sub-issue {sub_issue.repository}"
                 f"#{sub_issue.number}: it is in another repository"
             )
         child = _observe_child(sub_issue=sub_issue, observations=observations)
@@ -143,9 +143,9 @@ def _observe_children(
 def _observe_child(
     *, sub_issue: SubIssue, observations: AssignmentObservations
 ) -> CampaignChild | ReadFailureFinding:
-    """Return one child as this update found it, or why the update cannot tell.
+    """Return one child as this tick found it, or why the tick cannot tell.
 
-    The child's newest assignment and this update's assignment inspection at
+    The child's newest assignment and this tick's assignment inspection at
     its issue say whether it has a round running or due. A failed listing
     leaves a child with no open assignment unknown, since its request may be
     the one that went uninspected.
@@ -155,13 +155,13 @@ def _observe_child(
     finding = None if inspection is None else inspection.row.finding
     if isinstance(finding, ReadFailureFinding):
         return ReadFailureFinding(
-            reason=f"could not observe child GH{sub_issue.number}: {finding.reason}"
+            reason=f"could not observe sub-issue GH{sub_issue.number}: {finding.reason}"
         )
     if observations.listing_failure is not None and not (
         assignment is not None and assignment.is_open
     ):
         return ReadFailureFinding(
-            reason=f"could not observe child GH{sub_issue.number}: "
+            reason=f"could not observe sub-issue GH{sub_issue.number}: "
             f"{observations.listing_failure}"
         )
     return CampaignChild(
@@ -187,7 +187,7 @@ def _observe_child(
 def _observe_child_assignment(
     *, assignment: AgentWork, finding: RequestFinding | None, is_fault: bool
 ) -> CampaignChildAssignment:
-    """Return where the child's newest assignment stands, given what the update found.
+    """Return where the child's newest assignment stands, given what the tick found.
 
     Only an open assignment's own inspection holds a pull request finding.
     """
@@ -237,11 +237,11 @@ def _inspect_lead_input(
 
     It reads for the open campaign, or for the route of the one that would
     start, and the row is the request's row before the read. Children that the
-    update could not observe start no round and leave the comments unread, so
+    tick could not observe start no round and leave the comments unread, so
     the lead is never given an incomplete picture. A round is due to start the
     campaign, for new comments, for changes among the children since the
     newest input delivered to the lead, and to give the lead its input again
-    after a round that did not finish. Each update compares afresh, so changes
+    after a round that did not finish. Each tick compares afresh, so changes
     wait for capacity in the comparison itself. A stopped round took its turn,
     so the lead waits for new input after it.
     """

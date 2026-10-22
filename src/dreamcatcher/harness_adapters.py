@@ -36,14 +36,10 @@ def _refuse_invalid_harness_session_identifier(identifier: str, /) -> str:
     return safe_identifier
 
 
-def refuse_reportable_harness_session_identifier(
+def require_valid_harness_session_identifier(
     *, agent_work_identifier: str, identifier: str
 ) -> str:
     """Return a safe session identifier, or report why the work cannot use it."""
-    if not identifier:
-        raise ReportableError(
-            f"{agent_work_identifier}'s harness session identifier is empty."
-        )
     try:
         return _refuse_invalid_harness_session_identifier(identifier)
     except ValueError as error:
