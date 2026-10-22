@@ -416,8 +416,8 @@ class AgentWorkStatusReader:
 
         An unfinished conversation round's input is its comments past the
         cursor, so nothing is due once a tick that read the work after the round
-        ended found none of them left. An assignment's unfinished round is
-        always due.
+        ended found none of them left. An assignment's or a campaign's
+        unfinished round is always due.
         """
         if not is_last_round_unfinished(
             rounds=work.rounds, is_daemon_running=self.is_daemon_running
@@ -474,10 +474,11 @@ def _compose_waiting(
 
 def _describe_what_is_new(*, finding: RequestFinding | None) -> str | None:
     """Describe what the latest tick found new in the work's channel, if anything."""
-    if isinstance(finding, IssueCommentsFinding) and finding.new_comments:
+    if (
+        isinstance(finding, IssueCommentsFinding | CampaignFinding)
+        and finding.new_comments
+    ):
         return describe_comments_to_answer(count=finding.new_comments)
-    if isinstance(finding, CampaignFinding) and finding.is_input_due:
-        return "input to deliver to the lead"
     if not isinstance(finding, PullRequestFinding):
         return None
     if finding.is_wrap_up_due:

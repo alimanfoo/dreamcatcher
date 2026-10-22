@@ -51,8 +51,7 @@ LOOKED_AT = PINNED + timedelta(hours=2)
 PARENT = 20
 ERRORED = _compose_agent_round_ending(at=PINNED + timedelta(minutes=4), status=2)
 SUCCESSFUL = SuccessfulAgentRoundEnding(at=PINNED + timedelta(minutes=3))
-GIVEN = CampaignFinding(is_input_due=False)
-DUE = CampaignFinding(is_input_due=True)
+NOTHING_NEW = CampaignFinding(new_comments=0)
 
 
 @pytest.fixture
@@ -82,7 +81,9 @@ def lead_round(
         round_input=(
             None
             if revision is None
-            else CampaignRoundInput(issue=PARENT, revision=revision)
+            else CampaignRoundInput(
+                issue=PARENT, comments=[], cursor=None, revision=revision
+            )
         ),
     )
 
@@ -132,7 +133,11 @@ def test_a_labelled_parent_with_no_campaign_yet_is_available(tmp_path):
         state=state,
         tick=SchedulerRecord(
             at=PINNED,
-            rows=[request_row(issue=PARENT, kind=AgentWorkKind.CAMPAIGN, finding=DUE)],
+            rows=[
+                request_row(
+                    issue=PARENT, kind=AgentWorkKind.CAMPAIGN, finding=NOTHING_NEW
+                )
+            ],
         ),
     )
 
@@ -145,7 +150,7 @@ def test_a_labelled_parent_with_no_campaign_yet_is_available(tmp_path):
 
 
 def test_a_campaign_whose_lead_has_not_run_is_waiting(state):
-    observe(state=state, finding=DUE)
+    observe(state=state, finding=NOTHING_NEW)
 
     status = campaign_status(state=state)
 
@@ -155,7 +160,7 @@ def test_a_campaign_whose_lead_has_not_run_is_waiting(state):
 
 def test_a_running_lead_is_working_on_its_start(state):
     lead_round(state=state, number=1, ending=None)
-    observe(state=state, finding=DUE, started_round=StartedRound(number=1))
+    observe(state=state, finding=NOTHING_NEW, started_round=StartedRound(number=1))
 
     status = campaign_status(state=state)
 
@@ -177,7 +182,7 @@ def test_a_lead_that_took_its_turn_is_idle_with_how_its_round_ended(
     state, ending, detail
 ):
     lead_round(state=state, number=1, ending=ending)
-    observe(state=state, finding=GIVEN, ended_round=1)
+    observe(state=state, finding=NOTHING_NEW, ended_round=1)
 
     status = campaign_status(state=state)
 
@@ -187,7 +192,7 @@ def test_a_lead_that_took_its_turn_is_idle_with_how_its_round_ended(
 
 def test_a_lead_that_finished_after_the_update_started_it_awaits_the_next(state):
     lead_round(state=state, number=1, ending=SUCCESSFUL)
-    observe(state=state, finding=DUE, started_round=StartedRound(number=1))
+    observe(state=state, finding=NOTHING_NEW, started_round=StartedRound(number=1))
 
     status = campaign_status(state=state)
 
@@ -195,25 +200,23 @@ def test_a_lead_that_finished_after_the_update_started_it_awaits_the_next(state)
     assert status.detail == "round 1 ended, awaiting next update"
 
 
-def test_a_lead_whose_stopped_round_delivered_nothing_is_waiting(state):
-    lead_round(state=state, number=1, ending=ERRORED)
+def test_a_lead_with_new_parent_comments_is_waiting_to_answer_them(state):
     lead_round(
         state=state,
-        number=2,
-        ending=StoppedAgentRoundEnding(at=PINNED + timedelta(minutes=5)),
-        revision=None,
+        number=1,
+        ending=StoppedAgentRoundEnding(at=PINNED + timedelta(minutes=2)),
     )
-    observe(state=state, finding=DUE, ended_round=2)
+    observe(state=state, finding=CampaignFinding(new_comments=2), ended_round=1)
 
     status = campaign_status(state=state)
 
     assert status.value is AgentWorkStatusValue.WAITING
-    assert status.detail == "input to deliver to the lead"
+    assert status.detail == "2 comments to answer"
 
 
 def test_a_lead_whose_round_did_not_finish_waits_to_recover(state):
     lead_round(state=state, number=1, ending=InterruptedAgentRoundEnding())
-    observe(state=state, finding=DUE, ended_round=1)
+    observe(state=state, finding=NOTHING_NEW, ended_round=1)
 
     status = campaign_status(state=state)
 
