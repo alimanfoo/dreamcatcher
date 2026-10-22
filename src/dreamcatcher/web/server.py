@@ -69,8 +69,8 @@ class _BackgroundWebServer:
         """Stop serving, join the thread, and close the server."""
         self.is_stopping.set()
         if self.thread.ident is not None:
-            if self.thread.is_alive():
-                self.server.shutdown()
+            # shutdown returns at once when serve_forever has already ended.
+            self.server.shutdown()
             self.thread.join()
         self.server.server_close()
 
