@@ -748,6 +748,7 @@ def test_a_failed_read_of_the_blockers_leaves_the_request_unknown(
     assert isinstance(row.finding, ReadFailureFinding)
     assert "GitHub is down" in row.finding.reason
     assert row.children is None
+    assert count_reads_past_the_blockers(gh=gh) == 0
     assert read_campaign(state=scheduler.context.state, issue=PARENT) is None
     assert harnesses["claude"].calls == []
 

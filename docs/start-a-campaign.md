@@ -62,6 +62,9 @@ On GitHub:
 2. Assign it to the account authenticated through `gh`.
 3. Add exactly one configured campaign label, such as `dream:lead`.
 
+If an open issue blocks the parent on GitHub, the campaign waits until
+that issue is closed.
+
 A campaign needs no comment to start. At its next update with a free
 agent slot, _dreamcatcher_ checks out current `origin/main` in a
 worktree of the campaign's own, and starts the lead with the configured
