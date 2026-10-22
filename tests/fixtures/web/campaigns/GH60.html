@@ -75,15 +75,15 @@
           <button class="feed-tail" type="button" aria-controls="records">TAIL ↓</button>
           <p id="feed-refresh-error" class="refresh-error" role="alert" hidden></p>
           <input type="hidden" id="cursor" name="cursor" value="1:61">
-          <div id="records" class="feed-records" hx-get="/work/GH60-20260819-184158-campaign/tail" hx-trigger="every 2s" hx-include="#cursor" hx-select=".feed-line" hx-swap="beforeend" data-refresh-alert="feed-refresh-error">
+          <div id="records" class="feed-records" hx-get="/work/GH60-20260819-184158-campaign/tail" hx-trigger="every 2s" hx-include="#cursor" hx-select=".feed-round" hx-swap="beforeend" data-refresh-alert="feed-refresh-error">
             
-              <div id="feed-round-1" class="feed-line round-boundary">
+              <div id="feed-round-1" class="feed-round"><div class="feed-line round-boundary">
   <time>2026-08-20 02:42:58</time>
   <span class="feed-content"><span class="feed-detail">round 1: start; code revision abc123</span></span>
 </div><div class="feed-line">
   <time>2026-08-20 02:43:58</time>
   <span class="feed-content"><span class="feed-detail">I acknowledged the plan on the parent.</span></span>
-</div>
+</div></div>
             
           </div>
         </section>

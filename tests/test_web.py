@@ -836,7 +836,7 @@ def test_assignment_page_polls_its_tail_from_the_last_complete_line(tmp_path):
     assert (
         f'id="records" class="feed-records" '
         f'hx-get="/work/{identifier}/tail" hx-trigger="every 2s" '
-        'hx-include="#cursor" hx-select=".feed-line" hx-swap="beforeend"' in page
+        'hx-include="#cursor" hx-select=".feed-round" hx-swap="beforeend"' in page
     )
 
 
@@ -1243,6 +1243,7 @@ def test_a_tail_returns_only_complete_lines_after_its_cursor(tmp_path):
 
     assert "the first line" not in complete_read.text
     assert "the second line" in complete_read.text
+    assert '<div hx-swap-oob="beforeend:#feed-round-1">' in complete_read.text
     assert _read_cursor(response=complete_read) != cursor
 
 

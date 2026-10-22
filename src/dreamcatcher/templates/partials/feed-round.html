@@ -1,0 +1,10 @@
+{#- A round that opens here holds its own boundary, which sticks only while its lines are in view. The rest of a round goes on the end of the one already on the page. -#}
+{%- if feed_round.lines[0].is_boundary -%}
+<div id="feed-round-{{ feed_round.number }}" class="feed-round">
+  {%- for line in feed_round.lines %}{% include "partials/feed-line.html" %}{% endfor -%}
+</div>
+{%- else -%}
+<div hx-swap-oob="beforeend:#feed-round-{{ feed_round.number }}">
+  {%- for line in feed_round.lines %}{% include "partials/feed-line.html" %}{% endfor -%}
+</div>
+{%- endif -%}

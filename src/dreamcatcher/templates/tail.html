@@ -1,5 +1,5 @@
 {%- for feed_round in tail.feed_rounds -%}
-  {%- for line in feed_round.lines -%}{% include "partials/feed-line.html" %}{%- endfor -%}
+  {%- include "partials/feed-round.html" -%}
 {%- endfor -%}
 {%- if tail.has_empty_feed_placeholder and tail.feed_rounds -%}<p id="empty-feed" hx-swap-oob="delete"></p>{%- endif -%}
 <input type="hidden" id="cursor" name="cursor" value="{{ tail.feed_cursor }}" hx-swap-oob="true">
