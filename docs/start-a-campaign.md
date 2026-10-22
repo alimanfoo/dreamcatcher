@@ -4,9 +4,10 @@ A campaign hands a planned body of work to an agent, the lead. The
 campaign's parent issue holds the goal, and the parent's sub-issues are
 the stages. The lead works through GitHub, as its prompt directs.
 
-_dreamcatcher_ gives the lead one round when the campaign starts, and
-ends the campaign when you close the parent. Comments on the parent and
-changes to its sub-issues start no further rounds.
+_dreamcatcher_ gives the lead a round when the campaign starts and
+another for each comment you post on the parent, and ends the campaign
+when you close the parent. Changes to the parent's sub-issues start no
+round.
 
 You need a configured campaign route and a running daemon.
 
@@ -43,7 +44,8 @@ On GitHub:
 A campaign needs no comment to start. At its next update with a free
 agent slot, _dreamcatcher_ checks out current `origin/main` in a
 worktree of the campaign's own, and starts the lead with the configured
-prompt. The lead posts on GitHub itself. _dreamcatcher_ keeps the lead's
+prompt. Its input holds any comments you have already posted on the
+parent. The lead posts on GitHub itself. _dreamcatcher_ keeps the lead's
 final output in the feed and posts none of it.
 
 Monitor the campaign on the web home page's Campaigns tab, or in the
@@ -54,14 +56,23 @@ dreamcatcher campaign GH123
 dreamcatcher feed GH123 --campaign
 ```
 
+## Talk to the lead
+
+Comment on the parent to talk to the lead. At the next update with a
+free agent slot, _dreamcatcher_ refreshes the lead's worktree to current
+`origin/main` and gives the lead every comment you have posted since its
+last round, in the same harness session. The lead answers on GitHub
+itself. Its own posts carry the agent marker, so they never wake it.
+
 ## Pause or end a campaign
 
 Remove the campaign's label from the parent, or unassign the parent from
 yourself, to pause the campaign. A round that is already running
-finishes. Restore the label and the assignee to resume the same
-campaign. A second campaign label on the parent is a routing conflict,
-and pauses the campaign in the same way until one of the labels comes
-off.
+finishes. Comments you post while the campaign is paused wake nothing.
+Restore the label and the assignee to resume the same campaign, and the
+lead is given every comment you posted while it was paused. A second
+campaign label on the parent is a routing conflict, and pauses the
+campaign in the same way until one of the labels comes off.
 
 Close the parent to end the campaign. It ends once any running round
 finishes. Only you close the parent: the lead is told never to close it.
@@ -70,12 +81,14 @@ If you reopen the parent with its label still on, a new campaign starts.
 ## When a round does not finish
 
 If a lead round errors, or the daemon stops during it, the next update
-gives the lead its input again in the same harness session, and tells it
-that its previous round did not finish. Two errored rounds in a row put
-the campaign in fault. Fix the cause, then run
-`dreamcatcher retry GH123` or use the retry control on the campaign's
-web page.
+gives the lead its comments again, with any you have posted since, in
+the same harness session, and tells it that its previous round did not
+finish. Two errored rounds in a row put the campaign in fault. Fix the
+cause, then run `dreamcatcher retry GH123` or use the retry control on
+the campaign's web page.
 
 To stop a running round, run `dreamcatcher stop GH123 --campaign` or use
 the stop control on the campaign's web page. A stopped lead has taken
-its turn, so no round follows it on its own.
+its turn, so no round follows it on its own. Comment on the parent with
+fresh direction, and the next round tells the lead that you stopped its
+previous round.

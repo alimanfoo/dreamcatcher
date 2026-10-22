@@ -286,11 +286,18 @@ not contradict them.
 Every input contains:
 
 - `issue`, identifying the parent issue;
+- `comments`, the user's eligible comments on the parent since the last
+  input delivered to the lead, oldest first, which may be empty;
+- `cursor`, which _dreamcatcher_ uses to tell how far the lead has read
+  in the parent's comments;
 - `revision`, identifying the fetched main commit checked out in the
   detached worktree.
 
-The lead reads the parent, its sub-issues and anything else it needs
-from GitHub itself.
+The first input holds every eligible comment already on the parent. A
+comment is eligible when the signed-in user wrote it, it says something
+and it does not carry the agent marker, so the lead's own posts never
+reach it as comments. The lead reads the parent, its sub-issues and
+anything else it needs from GitHub itself.
 
 ### Workspace
 
@@ -322,9 +329,11 @@ waits for a person, because nothing answers it and the round stalls.
 ### Rounds
 
 The first round starts a new harness session with the configured prompt
-followed by the prompt that names the input. A campaign receives no
-further input once a round that took its turn has delivered its first
-input.
+followed by the prompt that names the input. Each later eligible comment
+on the parent wakes the lead for another round, which resumes the
+recorded harness session with the prompt that names the new input. A
+campaign that is paused takes no round, and its first round after it
+resumes is given every comment posted while it was paused.
 
 A round that errored or was interrupted did not take its turn, so the
 next round is given the input again. It resumes the recorded harness
@@ -333,4 +342,5 @@ was recorded. Its prompt opens by saying that the previous round did not
 finish, and the lead must inspect GitHub before it repeats an action.
 
 A round that the user stopped took its turn, and no round follows it on
-its own.
+its own. The next comment on the parent wakes the lead, and that round's
+prompt opens by saying that the user stopped the previous round.
