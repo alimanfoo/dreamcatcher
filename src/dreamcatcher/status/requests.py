@@ -6,6 +6,7 @@ from typing import cast
 
 from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.scheduler.models import (
+    BlockingIssuesFinding,
     CampaignFinding,
     ConflictingLabelsFinding,
     IssueCommentsFinding,
@@ -24,6 +25,7 @@ from dreamcatcher.status.findings import (
 # may start, or why that read failed.
 type _StartFinding = (
     StartTimeFinding
+    | BlockingIssuesFinding
     | IssueCommentsFinding
     | CampaignFinding
     | ConflictingLabelsFinding
@@ -35,7 +37,8 @@ class RequestStatusValue(StrEnum):
     """List the summary statuses of a request that has no open agent work.
 
     Available means that work starts once an agent slot is free. Blocked means
-    that an open pull request claims the issue or an open issue blocks it. Idle
+    that an open pull request claims an assignment's issue, or that an open
+    issue blocks an assignment's issue or a campaign's parent. Idle
     means that a conversation waits for the user's first comment. Routing
     conflict means that the user must remove all but one label of the kind.
     """
@@ -87,16 +90,14 @@ def _describe_finding(
     """Return the status and reasons that what the tick found gives a request."""
     if isinstance(finding, StartTimeFinding):
         return _describe_start_time_answers(finding=finding)
+    if isinstance(finding, BlockingIssuesFinding):
+        return RequestStatusValue.BLOCKED, (
+            _describe_blockers(issues=finding.blocking_issues),
+        )
     if isinstance(finding, CampaignFinding):
         return _describe_available()
     if isinstance(finding, IssueCommentsFinding):
-        if finding.new_comments:
-            return RequestStatusValue.AVAILABLE, (
-                RequestReason(
-                    words=describe_comments_to_answer(count=finding.new_comments)
-                ),
-            )
-        return RequestStatusValue.IDLE, (RequestReason(words="waiting for a comment"),)
+        return _describe_comments(finding=finding)
     if isinstance(finding, ConflictingLabelsFinding):
         return RequestStatusValue.ROUTING_CONFLICT, (
             RequestReason(
@@ -123,10 +124,26 @@ def _describe_start_time_answers(
             )
         )
     if finding.blocking_issues:
-        reasons.append(
-            RequestReason(words="blocked by", issues=tuple(finding.blocking_issues))
-        )
+        reasons.append(_describe_blockers(issues=finding.blocking_issues))
     return RequestStatusValue.BLOCKED, tuple(reasons)
+
+
+def _describe_comments(
+    *, finding: IssueCommentsFinding
+) -> tuple[RequestStatusValue, tuple[RequestReason, ...]]:
+    """Return what a conversation request has to answer, or that it waits for it."""
+    if finding.new_comments:
+        return RequestStatusValue.AVAILABLE, (
+            RequestReason(
+                words=describe_comments_to_answer(count=finding.new_comments)
+            ),
+        )
+    return RequestStatusValue.IDLE, (RequestReason(words="waiting for a comment"),)
+
+
+def _describe_blockers(*, issues: list[IssueReference]) -> RequestReason:
+    """Return the reason that names the open issues blocking a request's issue."""
+    return RequestReason(words="blocked by", issues=tuple(issues))
 
 
 def _describe_available() -> tuple[RequestStatusValue, tuple[RequestReason, ...]]:

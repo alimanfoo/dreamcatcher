@@ -12,6 +12,7 @@ from conftest import (
     HEAD,
     POSTED_BY,
     REPOSITORY,
+    blocker,
     check_run,
     comment,
     commit,
@@ -64,8 +65,10 @@ from dreamcatcher.prompts import _CAMPAIGN_POST_INSTRUCTIONS, AGENT_POST_MARKER
 from dreamcatcher.relay import IssueCommentCursor
 from dreamcatcher.scheduler import Scheduler, SchedulingContext
 from dreamcatcher.scheduler.models import (
+    BlockingIssuesFinding,
     CampaignFinding,
     ConflictingLabelsFinding,
+    IssueReference,
     PauseCause,
     PausedFinding,
     ReadFailureFinding,
@@ -78,6 +81,9 @@ from dreamcatcher.state import StateDirectory
 PARENT = 20
 LABEL = "dream:lead"
 COMMENTS_PATH = f"api repos/{REPOSITORY}/issues/{PARENT}/comments?per_page=100"
+BLOCKERS_PATH = (
+    f"api repos/{REPOSITORY}/issues/{PARENT}/dependencies/blocked_by?per_page=100"
+)
 SECOND_CAMPAIGN_CLAUDE = CAMPAIGN_CLAUDE.replace("dream:lead", "dream:steward")
 CONVERSATION_CLAUDE = """[[conversation]]
 label = "dream:conversation"
@@ -657,6 +663,117 @@ def test_two_campaign_labels_on_a_parent_are_a_routing_conflict(
     ]
     assert read_campaign(state=scheduler.context.state, issue=PARENT) is None
     assert harnesses["claude"].calls == []
+
+
+def offer_blockers(*, gh, blockers: list[dict]) -> None:
+    """Have GitHub answer a read of what blocks the parent with these."""
+    gh.replies(stdout=pages(items=blockers), to=BLOCKERS_PATH)
+
+
+def count_blocker_reads(*, gh) -> int:
+    """Return how often GitHub was asked what blocks the parent."""
+    expected = BLOCKERS_PATH.split()
+    return sum(call.arguments[: len(expected)] == expected for call in gh.calls)
+
+
+def count_reads_past_the_blockers(*, gh) -> int:
+    """Return how often GitHub was asked for the parent's sub-issues or comments."""
+    return sum(
+        "/sub_issues" in argument or "/comments" in argument
+        for call in gh.calls
+        for argument in call.arguments
+    )
+
+
+def test_an_open_blocker_queues_the_campaign_with_no_lead(
+    campaign_scheduler, harnesses
+):
+    scheduler, gh = campaign_scheduler
+    offer_parent(gh=gh)
+    offer_blockers(
+        gh=gh,
+        blockers=[
+            blocker(number=7, state="closed"),
+            blocker(number=18, state="open"),
+            blocker(number=1016, state="open", repository="alimanfoo/dream"),
+        ],
+    )
+
+    observed = tick(scheduler=scheduler)
+
+    assert observed.rows == [
+        campaign_row(
+            finding=BlockingIssuesFinding(
+                blocking_issues=[
+                    IssueReference(number=18),
+                    IssueReference(number=1016, repository="alimanfoo/dream"),
+                ]
+            ),
+            children=None,
+        )
+    ]
+    assert read_campaign(state=scheduler.context.state, issue=PARENT) is None
+    assert count_reads_past_the_blockers(gh=gh) == 0
+    assert harnesses["claude"].calls == []
+
+
+def test_a_queued_campaign_starts_once_its_blockers_close(
+    campaign_scheduler, harnesses
+):
+    scheduler, gh = campaign_scheduler
+    offer_parent(gh=gh)
+    offer_blockers(gh=gh, blockers=[blocker(number=18, state="open")])
+    tick(scheduler=scheduler)
+    offer_blockers(gh=gh, blockers=[blocker(number=18, state="closed")])
+    lead(harnesses=harnesses)
+
+    launched = tick(scheduler=scheduler)
+    finish(scheduler=scheduler)
+
+    assert launched.launched_agent_work_identifiers == [
+        compose_campaign_identifier(issue=PARENT, at=launched.at)
+    ]
+
+
+def test_a_failed_read_of_the_blockers_leaves_the_request_unknown(
+    campaign_scheduler, harnesses
+):
+    scheduler, gh = campaign_scheduler
+    offer_parent(gh=gh)
+    gh.fails(stderr="GitHub is down", to=BLOCKERS_PATH)
+
+    observed = tick(scheduler=scheduler)
+
+    [row] = observed.rows
+    assert isinstance(row.finding, ReadFailureFinding)
+    assert "GitHub is down" in row.finding.reason
+    assert row.children is None
+    assert read_campaign(state=scheduler.context.state, issue=PARENT) is None
+    assert harnesses["claude"].calls == []
+
+
+def test_an_open_campaign_carries_on_whatever_blocks_its_parent(
+    campaign_scheduler, harnesses
+):
+    scheduler, gh = campaign_scheduler
+    write_rounds(
+        state=scheduler.context.state, endings=[SuccessfulAgentRoundEnding(at=PINNED)]
+    )
+    offer_parent(gh=gh)
+    offer_blockers(gh=gh, blockers=[blocker(number=18, state="open")])
+    offer_comments(gh=gh, comments=[say(identifier=1)])
+    lead(harnesses=harnesses)
+
+    observed = tick(scheduler=scheduler)
+    finish(scheduler=scheduler)
+
+    assert observed.rows[0].finding == CampaignFinding(
+        new_comments=1, changed_children=0
+    )
+    assert observed.launched_agent_work_identifiers == [
+        compose_campaign_identifier(issue=PARENT)
+    ]
+    assert count_blocker_reads(gh=gh) == 0
 
 
 def test_a_campaign_waits_for_shared_capacity(campaign_scheduler, harnesses):

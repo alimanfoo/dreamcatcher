@@ -79,6 +79,13 @@ class StartTimeFinding(DreamcatcherDocument):
         return not (self.linked_pull_requests or self.blocking_issues)
 
 
+class BlockingIssuesFinding(DreamcatcherDocument):
+    """Hold the open issues that block a campaign request's parent."""
+
+    found: Literal["blocking issues"] = "blocking issues"
+    blocking_issues: list[IssueReference] = Field(min_length=1)
+
+
 class ConflictingLabelsFinding(DreamcatcherDocument):
     """Hold the dispatch labels of one kind that an issue carries together."""
 
@@ -131,6 +138,7 @@ type RequestFinding = Annotated[
     PullRequestFinding
     | IssueCommentsFinding
     | StartTimeFinding
+    | BlockingIssuesFinding
     | ConflictingLabelsFinding
     | PausedFinding
     | CampaignFinding

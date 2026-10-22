@@ -242,6 +242,15 @@ def pages(*, items: Sequence[dict]) -> str:
     return json.dumps([list(items)])
 
 
+def blocker(*, number: int, state: str, repository: str = REPOSITORY) -> dict:
+    """Return what GitHub lists of an issue that blocks another, in this state."""
+    return {
+        "number": number,
+        "state": state,
+        "repository_url": f"https://api.github.com/repos/{repository}",
+    }
+
+
 def recorded_posts(*, source: str) -> str:
     """Return what gh answered for one post list of the recorded pull request."""
     recording = FIXTURES / "github" / f"pull-request-{PULL_REQUEST}" / f"{source}.json"
