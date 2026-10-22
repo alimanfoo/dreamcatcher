@@ -1,14 +1,16 @@
 # Stop and recover work
 
 Choose the control that matches what you want to stop. Closing a status
-view, stopping one agent round and stopping the daemon have different
-consequences.
+view, stopping one agent round, pausing or ending work, and stopping the
+daemon have different consequences.
 
 | Action                                                                    | What stops                                                | What happens next                                                                      |
 | ------------------------------------------------------------------------- | --------------------------------------------------------- | -------------------------------------------------------------------------------------- |
 | Interrupt a standalone view, such as `web`, `status` or `feed`            | Only that view                                            | The daemon and agents continue.                                                        |
 | Run `dreamcatcher stop` or select **stop round** on the web page          | The current agent round                                   | The work waits for something new unless a merged or closed pull request needs wrap-up. |
 | Run `dreamcatcher cancel` or select **cancel assignment** on the web page | The assignment and any running round                      | You finish the pull request by hand. _dreamcatcher_ runs no further rounds.            |
+| Remove a conversation's or campaign's label, or unassign its issue        | No new round starts; a running round finishes             | Put back what you removed to resume the work in the same session.                      |
+| Close a conversation's issue or a campaign's parent issue                 | The work, once a running round finishes                   | Nothing more. Reopening the issue with its label starts new work.                      |
 | Press Ctrl-C in the terminal running `dreamcatcher run`                   | The daemon, its current rounds and the web page it serves | Work that still needs a round can run again after the daemon starts again.             |
 
 ## Stop one running round
@@ -44,9 +46,30 @@ After a conversation round is stopped, post a new eligible issue comment
 to resume the discussion. The next round answers that input; the stopped
 round's comments are not given again.
 
-Removing an assignment label does not stop an active assignment.
-Removing a conversation's own label pauses it, but does not cancel a
-round already running.
+After a campaign round is stopped, the lead waits. Comment on the parent
+issue with fresh direction to resume it. A sub-issue that changes in a
+way the lead needs to hear of also wakes it, for example when a stage's
+pull request is ready for review. Either way, the next round tells the
+lead that you stopped its previous round.
+
+## Pause a conversation or campaign
+
+To pause a conversation or a campaign, remove its label from the issue,
+or unassign the issue from yourself. A round that is already running
+finishes, and no new round starts, not even one to recover a round that
+did not finish. Comments you post meanwhile wake nothing.
+
+To resume the work, put back the label or the assignee that you removed.
+The work carries on in the same harness session, and is given the
+comments you posted while it was paused. A lead is also given the
+current state of the parent's sub-issues, with what changed among them
+meanwhile.
+
+Close the issue to end a conversation, or close the parent issue to end
+a campaign. The work ends once any running round finishes.
+
+Removing an assignment label neither pauses nor stops an assignment.
+Cancel the assignment to stop it for good.
 
 ## Take over an assignment's pull request
 
@@ -91,20 +114,26 @@ dreamcatcher run --harness claude
 
 Repeat any non-default `--interval` and `--max-agents` values you want;
 those are options for each daemon run, not saved configuration. On
-startup _dreamcatcher_ also detects rounds orphaned by an earlier
-daemon. It records them as interrupted, and unless the work is paused a
-later round is given the interrupted round's input again. That round
-normally resumes the recorded harness session; you do not need to use
-the hand-resume command.
+startup _dreamcatcher_ also detects rounds orphaned by an earlier daemon
+and records them as interrupted.
+
+Unless the work is paused, a later round carries on the interrupted
+work, normally in the recorded harness session, so you do not need to
+use the hand-resume command. That round is told that the previous round
+did not finish. It is given what the interrupted round was given, less
+any comments or posts you have deleted, with anything that has arrived
+since. A lead's round also holds the current state of the parent's
+sub-issues, with what changed among them since the lead last took its
+turn.
 
 ## Recover from errors and faults
 
-After one errored round, the next round is given the same input again,
-and unrelated work can continue. A round can error before its agent
-starts, for example when it cannot push an assignment's branch, and that
-counts the same way. Two consecutive errored rounds put that piece of
-work in **fault** so _dreamcatcher_ does not repeat the same failure
-forever.
+After one errored round, the next round carries on the work in the same
+way as after an interrupted round, and unrelated work can continue. A
+round can error before its agent starts, for example when it cannot push
+an assignment's branch, and that counts the same way. Two consecutive
+errored rounds put that piece of work in **fault** so _dreamcatcher_
+does not repeat the same failure forever.
 
 A conversation round that errored is given its comments again only while
 they are still on the issue. If you delete them before the next update,
@@ -134,8 +163,8 @@ dreamcatcher retry GH123
 assignment, the newest conversation and the newest campaign at that
 issue, clearing each one's fault if it has one. It does not start an
 agent itself; on a later scheduler update the daemon may start the
-work's next round, given the failed round's input again, less any
-comments or posts you have deleted.
+work's next round, which carries on the work as after an interrupted
+round.
 
 You can instead open the faulted work in the web page that `run` opened,
 and select **Retry**. If the daemon is stopped or ran with `--noweb`,
