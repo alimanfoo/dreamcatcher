@@ -196,7 +196,7 @@ without publishing the agent's working notes to GitHub. You can also
 follow the same feed in a second terminal:
 
 ```sh
-dreamcatcher feed GH123 --assignment
+dreamcatcher feed GH123
 ```
 
 If the agent needs a decision, it should ask on the draft pull request.

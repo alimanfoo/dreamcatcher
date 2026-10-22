@@ -65,11 +65,6 @@ _AGENT_WORK_IDENTIFIER_PATTERN = re.compile(
     re.IGNORECASE | re.ASCII,
 )
 
-# How a command names the agent work it acts on. An issue number names the
-# newest work of the command's kind at that issue, and an agent work identifier
-# names that exact work.
-type AgentWorkReference = int | str
-
 
 class AgentWorkRecord(WriteOnceDreamcatcherDocument):
     """Model the issue, title, label and kind of a piece of agent work, and its recipe.
@@ -274,27 +269,17 @@ def read_agent_work(*, state: StateDirectory) -> list[AgentWork]:
     )
 
 
-def read_agent_work_at_issue(
-    *, state: StateDirectory, issue: int, kind: AgentWorkKind
-) -> list[AgentWork]:
-    """Return the agent work of one kind at the issue, oldest first.
+def read_agent_work_at_issue(*, state: StateDirectory, issue: int) -> list[AgentWork]:
+    """Return the agent work of every kind at the issue, oldest first.
 
-    Only directories whose identifier names this issue and kind have their
-    records read, so other work that cannot be read does not hide this work.
+    Only directories whose identifier names this issue have their records read,
+    so other work that cannot be read does not hide this work.
     """
     return _read_selected_agent_work(
         state=state,
-        pattern=f"GH{issue}-*-{kind}",
-        is_selected=lambda record: record.issue == issue and record.kind is kind,
+        pattern=f"GH{issue}-*",
+        is_selected=lambda record: record.issue == issue,
     )
-
-
-def find_newest_agent_work(
-    *, state: StateDirectory, issue: int, kind: AgentWorkKind
-) -> AgentWork | None:
-    """Return the newest agent work of one kind at the issue, if there is any."""
-    work = read_agent_work_at_issue(state=state, issue=issue, kind=kind)
-    return work[-1] if work else None
 
 
 def find_agent_work(*, state: StateDirectory, identifier: str) -> AgentWork | None:
@@ -313,25 +298,13 @@ def find_agent_work(*, state: StateDirectory, identifier: str) -> AgentWork | No
     )
 
 
-def select_agent_work(
-    *, state: StateDirectory, reference: AgentWorkReference, kind: AgentWorkKind
-) -> AgentWork:
-    """Return the agent work of this kind that the reference names.
+def refresh_agent_work(*, state: StateDirectory, work: AgentWork) -> AgentWork:
+    """Return the agent work as its persisted state reads now.
 
-    Work of another kind never matches, so an identifier names work of this kind
-    or none. A reference that names no work raises ReportableError.
+    The record is written once, so only the facts that change beside it are
+    read again.
     """
-    if isinstance(reference, int):
-        work = find_newest_agent_work(state=state, issue=reference, kind=kind)
-        missing = f"No {kind} here for GH{reference}."
-    else:
-        work = find_agent_work(state=state, identifier=reference)
-        if work is not None and work.record.kind is not kind:
-            work = None
-        missing = f"No {kind} here is named {reference}."
-    if work is None:
-        raise ReportableError(missing)
-    return work
+    return _read_agent_work(state=state, directory=work.directory, record=work.record)
 
 
 def _is_agent_work_recorded(*, state: StateDirectory, identifier: str) -> bool:
