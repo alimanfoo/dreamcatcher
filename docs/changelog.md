@@ -70,8 +70,7 @@ the change.
   `dream:lead` label to campaigns, and `init` creates that label. The
   route's recipes run the dream plugin's `dream:lead` skill, which
   carries a parent issue's sub-issues through their assignments to
-  merge, and needs dream 43.3.0 or later.
-  [Start a campaign](start-a-campaign.md) explains what it does.
+  merge. [Start a campaign](start-a-campaign.md) explains what it does.
   ([#677](https://github.com/alimanfoo/dreamcatcher/pull/677))
 
 ### Fixed

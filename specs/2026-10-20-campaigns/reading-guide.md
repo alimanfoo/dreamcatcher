@@ -321,8 +321,7 @@ guarantees about every external harness version.
 
 Read the `dream:lead` skill in
 [`plugins/dream/skills/lead/SKILL.md`](https://github.com/alimanfoo/dream/blob/main/plugins/dream/skills/lead/SKILL.md)
-in the dream repository, which the dream plugin publishes from version
-43.3.0. Then read the `[[campaign]]` route in
+in the dream repository. Then read the `[[campaign]]` route in
 [`default_config.toml`](../../src/dreamcatcher/default_config.toml),
 labelled `dream:lead`, whose recipes invoke it as
 `/dream:lead GH{issue}` and `$dream:lead GH{issue}`, with the models and
