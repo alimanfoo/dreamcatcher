@@ -54,6 +54,7 @@ from dreamcatcher.issue_conversations import (
     InitialConversationIssue,
 )
 from dreamcatcher.scheduler.models import (
+    BlockingIssuesFinding,
     CampaignFinding,
     ConflictingLabelsFinding,
     IssueCommentsFinding,
@@ -310,7 +311,8 @@ def fabricate_campaigns(*, state: StateDirectory) -> list[RequestRow]:
 
     The idle campaign's row holds its children, whose assignments and request
     the rows also hold. The rows also hold a labelled parent whose campaign has
-    not started.
+    not started, and one queued behind open blockers, one of them in another
+    repository.
     """
     for issue in (60, 61):
         directory = write_campaign(state=state, issue=issue)
@@ -351,6 +353,16 @@ def fabricate_campaigns(*, state: StateDirectory) -> list[RequestRow]:
             issue=62,
             kind=AgentWorkKind.CAMPAIGN,
             finding=CampaignFinding(new_comments=0, changed_children=0),
+        ),
+        request_row(
+            issue=67,
+            kind=AgentWorkKind.CAMPAIGN,
+            finding=BlockingIssuesFinding(
+                blocking_issues=[
+                    IssueReference(number=62),
+                    IssueReference(number=1016, repository="alimanfoo/dream"),
+                ]
+            ),
         ),
         *_fabricate_campaign_children(state=state),
     ]
