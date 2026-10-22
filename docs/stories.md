@@ -572,10 +572,11 @@ setting to change, or they are closing the laptop for the night. They do
 not want to wait for every agent to finish first, and they do not want
 to lose anything either. So they stop it: they press Ctrl-C, or on macOS
 and Linux they close its terminal, end it with `kill`, or shut the
-machine down. Every running round ends, and shows as interrupted. When
-the daemon starts again, each interrupted round's work carries on in the
-same session, told that the previous round did not finish, and nothing
-the user posted in between is lost.
+machine down. If they started the daemon under `nohup`, closing its
+terminal leaves it running, as `nohup` asks. Every running round ends,
+and shows as interrupted. When the daemon starts again, each interrupted
+round's work carries on in the same session, told that the previous
+round did not finish, and nothing the user posted in between is lost.
 
 The value to the user is that stopping the daemon is always safe,
 whatever the agents are in the middle of.
@@ -874,14 +875,15 @@ work as waiting. When the daemon next starts, it ends any harness still
 running, records the round as interrupted, and the work carries on in
 its session, given its input again.
 
-The daemon knows a harness only by the process number that its round
-recorded, and once the daemon is gone the system may give that number to
-another program. If the machine restarted since the round started, the
-daemon ends nothing for it, because nothing of the round survived the
-restart. Without a restart, the number may have passed to a program that
-leads a process group of its own, and the daemon then ends that program
-and everything it started. That is accepted: it needs the daemon killed
-outright and the number reused before the daemon next starts.
+The daemon knows a harness only by the process identifier that its round
+recorded, and once the daemon is gone the system may give that
+identifier to another program. If the machine restarted since the round
+started, the daemon ends nothing for it, because nothing of the round
+survived the restart. Without a restart, the identifier may have passed
+to a program that leads a process group of its own, and the daemon then
+ends that program and everything it started. That is accepted: it needs
+the daemon killed outright and the identifier reused before the daemon
+next starts.
 
 ### The machine sleeps
 

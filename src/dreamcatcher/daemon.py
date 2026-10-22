@@ -51,7 +51,8 @@ _NO_COMPANION = nullcontext()
 
 # The signals that end the daemon as Ctrl-C does: a kill, a shutdown, and on
 # POSIX the hangup that closing its terminal sends. Windows has no hangup, and
-# its Job Objects already end the harnesses of a daemon that dies.
+# seldom sends SIGTERM, because it ends a console program by other means. Its
+# Job Objects end the harnesses of a daemon that dies.
 _TERMINATION_SIGNALS = (
     (signal.SIGTERM,) if sys.platform == "win32" else (signal.SIGTERM, signal.SIGHUP)
 )
@@ -68,10 +69,14 @@ def _write_output(*, line: str) -> None:
 
 
 def _raise_interrupt(signal_number: int, frame: FrameType | None, /) -> None:
-    """Raise an interrupt where the daemon is, as Ctrl-C does.
+    """Ignore every further termination signal, then interrupt the daemon.
 
-    The signal module calls this with positional arguments.
+    The interrupt lands where the daemon is, as Ctrl-C does. Ignoring the next
+    signal keeps a second kill or hangup from cutting short the ending of the
+    rounds. The signal module calls this with positional arguments.
     """
+    for number in _TERMINATION_SIGNALS:
+        signal.signal(number, signal.SIG_IGN)
     raise KeyboardInterrupt
 
 
@@ -186,31 +191,28 @@ class DreamcatcherDaemon:
                 max_agents=self.max_agents,
             )
             self._sweep_orphans()
-            try:
-                with (
-                    suppress(KeyboardInterrupt),
-                    _interrupt_on_termination_signals(),
-                    companion,
-                ):
-                    at = self.clock()
-                    _write_output(
-                        line=(
-                            f"{describe_time(at=at, zone=self.zone)}  "
-                            f"dreamcatcher v{DREAMCATCHER_VERSION} is running"
-                        )
-                    )
-                    while True:
-                        self.run_scheduler_tick(scheduler=scheduler, at=at)
-                        self.wait(self.interval)
-                        daemon_lock.require_held()
+            with _interrupt_on_termination_signals():
+                try:
+                    with suppress(KeyboardInterrupt), companion:
                         at = self.clock()
-            finally:
-                # Rounds die with the daemon by design, so this happens however
-                # the daemon run ends: on the user's interrupt, and on a failure the
-                # daemon could not carry on from. A round that already ended
-                # keeps the ending it recorded for itself.
-                for agent_round in self.rounds.values():
-                    agent_round.end_for_daemon_shutdown()
+                        _write_output(
+                            line=(
+                                f"{describe_time(at=at, zone=self.zone)}  "
+                                f"dreamcatcher v{DREAMCATCHER_VERSION} is running"
+                            )
+                        )
+                        while True:
+                            self.run_scheduler_tick(scheduler=scheduler, at=at)
+                            self.wait(self.interval)
+                            daemon_lock.require_held()
+                            at = self.clock()
+                finally:
+                    # Rounds die with the daemon by design, so this happens
+                    # however the daemon run ends: on the user's interrupt, and
+                    # on a failure the daemon could not carry on from. A round
+                    # that already ended keeps the ending it recorded for itself.
+                    for agent_round in self.rounds.values():
+                        agent_round.end_for_daemon_shutdown()
 
     def run_scheduler_tick(self, *, scheduler: Scheduler, at: datetime) -> None:
         """Run one scheduler tick, then persist and report its result.

@@ -29,6 +29,7 @@ from records import (
 from rows import request_row
 
 from dreamcatcher.agent_rounds import (
+    AgentRound,
     AgentRoundOutcome,
     AgentRoundRecord,
     _compose_agent_round_ending,
@@ -760,6 +761,31 @@ def test_a_termination_signal_ends_the_daemon_and_its_rounds_as_an_interrupt_doe
     daemon.run()
 
     assert waiting.waited == []
+    agent_round = daemon.rounds[CREATED_ASSIGNMENT_ID]
+    assert agent_round.record.outcome is AgentRoundOutcome.INTERRUPTED
+    assert gone(pid=agent_round.harness_process.pid)
+
+
+@pytest.mark.parametrize("number", TERMINATION_SIGNALS)
+def test_a_second_termination_signal_leaves_the_rounds_to_end(
+    ready_repo, harnesses, number, monkeypatch
+):
+    harnesses["claude"].streams(
+        lines=[Line(text="still working\n")], delay=STILL_RUNNING
+    )
+    daemon, waiting, _ = idling(root=ready_repo)
+    waiting.settle = lambda: signal.raise_signal(number)
+    end_for_daemon_shutdown = AgentRound.end_for_daemon_shutdown
+
+    def end_after_another_signal(agent_round: AgentRound, /) -> None:
+        """Stand in for the method, which Python hands the round by position."""
+        signal.raise_signal(number)
+        end_for_daemon_shutdown(agent_round)
+
+    monkeypatch.setattr(AgentRound, "end_for_daemon_shutdown", end_after_another_signal)
+
+    daemon.run()
+
     agent_round = daemon.rounds[CREATED_ASSIGNMENT_ID]
     assert agent_round.record.outcome is AgentRoundOutcome.INTERRUPTED
     assert gone(pid=agent_round.harness_process.pid)

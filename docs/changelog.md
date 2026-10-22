@@ -35,8 +35,9 @@ the change.
   carried on without the daemon.
   ([#690](https://github.com/alimanfoo/dreamcatcher/pull/690))
 - After the machine restarts, starting the daemon no longer ends a
-  program that has taken the process number of a round from before the
-  restart. ([#690](https://github.com/alimanfoo/dreamcatcher/pull/690))
+  program that has taken the process identifier of a round from before
+  the restart.
+  ([#690](https://github.com/alimanfoo/dreamcatcher/pull/690))
 
 ## [v7.0.0](https://github.com/alimanfoo/dreamcatcher/releases/tag/v7.0.0) — 2026-10-22
 

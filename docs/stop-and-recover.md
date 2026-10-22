@@ -4,14 +4,14 @@ Choose the control that matches what you want to stop. Closing a status
 view, stopping one agent round, pausing or ending work, and stopping the
 daemon have different consequences.
 
-| Action                                                                    | What stops                                                | What happens next                                                                      |
-| ------------------------------------------------------------------------- | --------------------------------------------------------- | -------------------------------------------------------------------------------------- |
-| Interrupt a standalone view, such as `web`, `status` or `feed`            | Only that view                                            | The daemon and agents continue.                                                        |
-| Run `dreamcatcher stop` or select **stop round** on the web page          | The current agent round                                   | The work waits for something new unless a merged or closed pull request needs wrap-up. |
-| Run `dreamcatcher cancel` or select **cancel assignment** on the web page | The assignment and any running round                      | You finish the pull request by hand. _dreamcatcher_ runs no further rounds.            |
-| Remove a conversation's or campaign's label, or unassign its issue        | No new round starts; a running round finishes             | Put back what you removed to resume the work in the same session.                      |
-| Close a conversation's issue or a campaign's parent issue                 | The work, once a running round finishes                   | Nothing more. Reopening the issue with its label starts new work.                      |
-| Press Ctrl-C in the terminal running `dreamcatcher run`                   | The daemon, its current rounds and the web page it serves | Work that still needs a round can run again after the daemon starts again.             |
+| Action                                                                         | What stops                                                | What happens next                                                                      |
+| ------------------------------------------------------------------------------ | --------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| Interrupt a standalone view, such as `web`, `status` or `feed`                 | Only that view                                            | The daemon and agents continue.                                                        |
+| Run `dreamcatcher stop` or select **stop round** on the web page               | The current agent round                                   | The work waits for something new unless a merged or closed pull request needs wrap-up. |
+| Run `dreamcatcher cancel` or select **cancel assignment** on the web page      | The assignment and any running round                      | You finish the pull request by hand. _dreamcatcher_ runs no further rounds.            |
+| Remove a conversation's or campaign's label, or unassign its issue             | No new round starts; a running round finishes             | Put back what you removed to resume the work in the same session.                      |
+| Close a conversation's issue or a campaign's parent issue                      | The work, once a running round finishes                   | Nothing more. Reopening the issue with its label starts new work.                      |
+| Press Ctrl-C in the terminal running `dreamcatcher run`, or end it with `kill` | The daemon, its current rounds and the web page it serves | Work that still needs a round can run again after the daemon starts again.             |
 
 ## Stop one running round
 
@@ -94,8 +94,9 @@ to you.
 Pressing Ctrl-C in the `dreamcatcher run` terminal shuts the daemon
 down, ends the rounds it owns and stops the web page it serves. On macOS
 and Linux, closing that terminal, ending the daemon with `kill`, or
-shutting the machine down does the same. Start it again from the same
-main checkout:
+shutting the machine down does the same, unless you started the daemon
+under `nohup`, which keeps it running when its terminal closes. Start it
+again from the same main checkout:
 
 ```sh
 dreamcatcher run --harness claude
