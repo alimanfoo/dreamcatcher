@@ -348,6 +348,21 @@ def test_a_pull_requests_checks_add_up_to_one_result(checks, result):
     assert found.check_result is result
 
 
+@pytest.mark.parametrize(
+    ("checks", "has_running_checks"),
+    [
+        ([], False),
+        ([check_run(), check_run(conclusion="FAILURE")], False),
+        ([check_run(status="IN_PROGRESS"), check_run(conclusion="FAILURE")], True),
+        ([status_context(state="PENDING"), check_run()], True),
+    ],
+)
+def test_a_failing_result_still_says_whether_a_check_runs(checks, has_running_checks):
+    found = PullRequest.model_validate_json(pull_request(state="OPEN", checks=checks))
+
+    assert found.has_running_checks is has_running_checks
+
+
 def test_a_linked_draft_pull_request_is_opened_for_the_assignment_branch(fake):
     gh = fake(program="gh")
     gh.replies(

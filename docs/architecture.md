@@ -376,7 +376,8 @@ constructs GitHub commands. It owns projections and operations for:
 - a parent issue's direct children, with their titles and states;
 - linked pull requests;
 - pull-request identity, draft state, readiness, terminal state, merge
-  state, head commit, and what its checks add up to;
+  state, head commit, what its checks add up to, and whether any of them
+  still runs;
 - creating the linked draft pull request;
 - reading ordinary issue comments and posting a conversation answer; and
 - reading and normalizing user posts from comments, reviews, verdicts,

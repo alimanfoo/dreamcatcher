@@ -245,6 +245,11 @@ class PullRequest(GitHubResponseProjection):
                 return result
         return CheckResult.NONE
 
+    @property
+    def has_running_checks(self) -> bool:
+        """Whether any check at the head is still running, whatever the others say."""
+        return any(check.result is CheckResult.RUNNING for check in self.checks)
+
 
 class _RestIssueProjection(GitHubResponseProjection):
     """Model an issue as a REST endpoint lists it, by its number and state."""

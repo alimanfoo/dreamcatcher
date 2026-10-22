@@ -37,7 +37,9 @@ _UtcDateTime = Annotated[AwareDatetime, AfterValidator(_normalize_utc)]
 class PullRequestFinding(DreamcatcherDocument):
     """Hold what the tick read of an open assignment's pull request.
 
-    A withheld check failure is one that the relay rule kept from the agent.
+    The head is the commit that the checks ran at. A failing check result can
+    still have checks running. A withheld check failure is one that the relay
+    rule kept from the agent.
     """
 
     found: Literal["pull request"] = "pull request"
@@ -45,7 +47,9 @@ class PullRequestFinding(DreamcatcherDocument):
     state: PullRequestState
     is_draft: bool
     merge_state: PullRequestMergeState
+    head: str
     check_result: CheckResult
+    has_running_checks: bool
     new_posts: NonNegativeInt
     new_pull_request_signals: list[PullRequestSignal]
     is_check_failure_withheld: bool
