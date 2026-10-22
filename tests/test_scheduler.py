@@ -1528,7 +1528,7 @@ def test_agent_work_that_has_run_no_round_has_no_unfinished_round():
         pytest.param(HarnessErroredAgentRoundEnding(at=PINNED, status=2), id="harness"),
         pytest.param(
             FinishingErroredAgentRoundEnding(
-                at=PINNED, reason="could not post the answer on GH8"
+                at=PINNED, reason="could not post the answer"
             ),
             id="finishing",
         ),
