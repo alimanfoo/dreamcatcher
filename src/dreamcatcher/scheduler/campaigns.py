@@ -18,7 +18,6 @@ from dreamcatcher.campaigns import (
     CampaignChild,
     CampaignChildAssignment,
     CampaignChildNotification,
-    CampaignRoundInput,
     compare_campaign_children,
     prepare_campaign_round,
     read_delivered_campaign_input,
@@ -32,6 +31,7 @@ from dreamcatcher.github import (
     list_sub_issues,
 )
 from dreamcatcher.prompts import compose_campaign_input_prompt
+from dreamcatcher.relay import IssueCommentCursor
 from dreamcatcher.scheduler.faults import is_last_round_unfinished
 from dreamcatcher.scheduler.inspection import (
     Candidate,
@@ -251,10 +251,9 @@ def _inspect_lead_input(
     previous = (
         None if campaign is None else read_delivered_campaign_input(campaign=campaign)
     )
+    delivered_cursor = None if previous is None else previous.cursor
     comments = list_new_comments(
-        context=context,
-        issue=issue.number,
-        cursor=None if previous is None else previous.cursor,
+        context=context, issue=issue.number, cursor=delivered_cursor
     )
     if isinstance(comments, ReadFailureFinding):
         return Inspection(row=row.model_copy(update={"finding": comments}))
@@ -288,7 +287,7 @@ def _inspect_lead_input(
                 children=children,
                 notifications=notifications,
                 comments=comments,
-                previous=previous,
+                delivered_cursor=delivered_cursor,
             ),
         ),
     )
@@ -300,7 +299,7 @@ def _compose_campaign_round(
     children: list[CampaignChild],
     notifications: list[CampaignChildNotification],
     comments: list[IssueComment],
-    previous: CampaignRoundInput | None,
+    delivered_cursor: IssueCommentCursor | None,
     work: AgentWork,
 ) -> RoundPlan:
     """Return the plan of a round that gives the lead its input.
@@ -317,7 +316,7 @@ def _compose_campaign_round(
             children=children,
             notifications=notifications,
             comments=comments,
-            previous=previous,
+            delivered_cursor=delivered_cursor,
             assignment_routes=context.config.assignment,
         ),
         input_prompt=compose_campaign_input_prompt(

@@ -164,7 +164,11 @@ class PullRequestMergeState(StrEnum):
 
     @property
     def is_mergeable(self) -> bool:
-        """Whether GitHub would merge the pull request, whatever its checks say."""
+        """Whether GitHub would merge the pull request now.
+
+        An unstable pull request is mergeable with checks that are failing but
+        not required.
+        """
         return self in {
             PullRequestMergeState.CLEAN,
             PullRequestMergeState.HAS_HOOKS,

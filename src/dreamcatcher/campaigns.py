@@ -228,13 +228,13 @@ def prepare_campaign_round(
     children: list[CampaignChild],
     notifications: list[CampaignChildNotification],
     comments: list[IssueComment],
-    previous: CampaignRoundInput | None,
+    delivered_cursor: IssueCommentCursor | None,
     assignment_routes: list[AssignmentRoute],
 ) -> CampaignRoundInput:
     """Reset the worktree to fetched main and freeze the round's input.
 
-    The previous input is the newest one delivered to the lead, whose cursor a
-    round given no comment carries forward.
+    The delivered cursor is that of the newest input delivered to the lead,
+    which a round given no comment carries forward.
     """
     revision = refresh_detached_worktree(root=state.root, worktree=campaign.worktree)
     return CampaignRoundInput(
@@ -245,9 +245,7 @@ def prepare_campaign_round(
         cursor=(
             IssueCommentCursor(written_at=comments[-1].written_at, id=comments[-1].id)
             if comments
-            else None
-            if previous is None
-            else previous.cursor
+            else delivered_cursor
         ),
         revision=revision,
         assignment_routes=assignment_routes,

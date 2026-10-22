@@ -46,12 +46,8 @@ the change.
   wakes the lead in the same harness session, on main refreshed, and
   comments posted while the campaign is paused reach it when it resumes.
   Closing the parent ends the campaign. The lead's input also holds the
-  parent's sub-issues and where each one's assignment stands. A
-  sub-issue added or removed, and, once its assignment has no round
-  running or due, a sub-issue whose assignment hands back, ends or falls
-  into fault, whose issue closes or reopens, or whose pull request
-  changes, finishes its checks or becomes mergeable, wakes the lead too,
-  and the input names what changed.
+  parent's sub-issues and where each one's assignment stands, and a
+  sub-issue that needs the lead's attention wakes it too.
   [Start a campaign](start-a-campaign.md) explains how, and the
   [campaign skill contract](contract.md#campaign-skill-contract) says
   what the lead is given.

@@ -470,20 +470,17 @@ selects these changes:
   differs;
 - **check completion**: some checks ran and none still runs, and the
   head, the check result or whether any check runs differs;
-- **mergeable**: GitHub's merge status entered `CLEAN`, `HAS_HOOKS` or
-  `UNSTABLE` from outside them;
+- **mergeable**: GitHub's merge status entered one of `CLEAN`,
+  `HAS_HOOKS` or `UNSTABLE` from any other state;
 - **ending** or **fault**: the assignment ended or entered fault.
 
 A sub-issue added or removed notifies at once. Every other change waits
 until the sub-issue is settled, so the lead hears of an assignment's
-work once it has stopped. Only an open assignment that is not in fault
-has its pull request read, so the pull request changes need that read. A
-replacement assignment shares nothing with the one that it replaced, so
-every fact that it holds is a change. Nothing records the changes
-between updates. A change that reverts before the lead is given it is no
-change, and a change waits in the comparison itself while the lead is
-paused or no agent slot is free. Until an input has been delivered there
-is nothing to compare with, so a first round is given no notification.
+work once it has stopped. A replacement assignment shares nothing with
+the one that it replaced, so every fact that it holds is a change. A
+change that reverts before the lead is given it is no change. Until an
+input has been delivered there is nothing to compare with, so a first
+round is given no notification.
 
 ### Pausing and ending a conversation or campaign
 
@@ -518,8 +515,8 @@ it:
 - a count of posts or comments: the user posts or issue comments
   relayed, or **comments** without a count for a conversation round that
   has no input yet;
-- a count of sub-issues: the notifications that a campaign round was
-  given, after any count of comments, or **comments or sub-issues**
+- a count of sub-issues changed: the notifications that a campaign round
+  was given, after any count of comments, or **comments or changes**
   without a count for a campaign round, other than a start or a recover,
   that has no input yet;
 - **main moved** or **checks failed**: the other signals an assignment

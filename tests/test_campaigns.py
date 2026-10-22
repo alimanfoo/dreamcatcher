@@ -99,7 +99,7 @@ def test_a_campaign_round_starts_from_main_in_a_detached_worktree(cloned):
         children=[CHILD],
         notifications=[],
         comments=[FIRST, SECOND],
-        previous=None,
+        delivered_cursor=None,
         assignment_routes=[SMITH],
     )
 

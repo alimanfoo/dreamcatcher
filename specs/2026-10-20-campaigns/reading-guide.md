@@ -377,7 +377,7 @@ issue for collaboration rather than routine action logging.
   sub-issues, and the campaign trigger in `describe_round_trigger` in
   [`status/rounds.py`](../../src/dreamcatcher/status/rounds.py) names a
   start, a recovery and both counts. A round with no input yet says only
-  that comments or sub-issues woke it.
+  that comments or changes woke it.
 - `_is_eligible` in [`relay.py`](../../src/dreamcatcher/relay.py)
   ignores marked agent posts, including a lead's marked review. The
   current prompts require that marker everywhere. Both sides matter when

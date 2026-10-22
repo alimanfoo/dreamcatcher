@@ -337,9 +337,9 @@ def test_lead_rounds_name_their_trigger_and_the_revision_of_main_they_were_given
     assert [round_status.trigger_description for round_status in rounds] == [
         "start, 1 comment",
         "recover, 1 comment",
-        "2 comments, 1 sub-issue",
-        "2 sub-issues",
-        "comments or sub-issues",
+        "2 comments, 1 sub-issue changed",
+        "2 sub-issues changed",
+        "comments or changes",
     ]
     assert [
         None if round_status.revision is None else round_status.revision.description

@@ -326,8 +326,8 @@ each of which is one of these:
   `head` differs;
 - `check_completion`: some checks ran and none still runs, and the
   `head`, the `check_result` or `has_running_checks` differs;
-- `mergeable`: the `merge_state` became `CLEAN`, `HAS_HOOKS` or
-  `UNSTABLE` from outside them;
+- `mergeable`: the `merge_state` entered one of `CLEAN`, `HAS_HOOKS` or
+  `UNSTABLE` from any other state;
 - `ending` or `fault`: the assignment ended or entered fault.
 
 A removed sub-issue is not among the `children`. Every change but

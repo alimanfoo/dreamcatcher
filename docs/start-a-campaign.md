@@ -80,10 +80,6 @@ names each sub-issue that changed and what changed, beside the whole
 current picture. Changes that arrive together, or while the lead cannot
 take a round, reach it in one round.
 
-To watch what the lead is given before you rely on a real lead skill,
-give the route a prompt that only reports its input, such as
-`Print the notifications in your input. Do not change anything on GitHub.`
-
 ## Pause or end a campaign
 
 Remove the campaign's label from the parent, or unassign the parent from

@@ -24,7 +24,7 @@ from dreamcatcher.issue_conversations import (
     ConversationRoundInput,
     read_conversation_input,
 )
-from dreamcatcher.status.findings import describe_signal
+from dreamcatcher.status.findings import describe_changed_children, describe_signal
 from dreamcatcher.words import describe_count, describe_span
 
 
@@ -203,7 +203,7 @@ def _describe_campaign_round_trigger(*, work: AgentWork, number: int) -> str:
     The first round starts the lead, and a round after one that did not finish
     recovers it. The counts of the parent comments and of the changed children
     that the round was given follow. A round with no input to read was woken by
-    one or the other.
+    comments or changes.
     """
     previous = [record for record in work.rounds if record.number == number - 1]
     words = []
@@ -216,15 +216,13 @@ def _describe_campaign_round_trigger(*, work: AgentWork, number: int) -> str:
         path=work.compose_round_paths(number=number).round_input,
     )
     if campaign_input is None:
-        return ", ".join(words) or "comments or sub-issues"
+        return ", ".join(words) or "comments or changes"
     if campaign_input.comments:
         words.append(
             describe_count(number=len(campaign_input.comments), noun="comment")
         )
     if campaign_input.notifications:
-        words.append(
-            describe_count(number=len(campaign_input.notifications), noun="sub-issue")
-        )
+        words.append(describe_changed_children(count=len(campaign_input.notifications)))
     return ", ".join(words)
 
 
