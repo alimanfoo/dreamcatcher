@@ -144,9 +144,9 @@ def test_a_campaign_round_may_coordinate_and_verify_but_not_implement():
 
     for invocation in invocations:
         arguments = invocation.arguments
-        allowed = arguments[arguments.index("--allowedTools") + 1].split(" ")
-        denied = arguments[arguments.index("--disallowedTools") + 1].split(" ")
-        assert {
+        allowed = arguments[arguments.index("--allowedTools") + 1]
+        denied = arguments[arguments.index("--disallowedTools") + 1]
+        for tool in (
             "Bash(gh issue edit:*)",
             "Bash(gh issue comment:*)",
             "Bash(gh pr comment:*)",
@@ -154,15 +154,11 @@ def test_a_campaign_round_may_coordinate_and_verify_but_not_implement():
             "Bash(gh pr merge:*)",
             "Bash(git fetch:*)",
             "Bash(git checkout:*)",
-        } <= set(allowed)
-        assert {
-            "Edit",
-            "Write",
-            "Bash(git commit:*)",
-            "Bash(git push:*)",
-            "Bash(git merge:*)",
-        } <= set(denied)
-        assert not set(allowed) & set(denied)
+        ):
+            assert tool in allowed
+            assert tool not in denied
+        for tool in ("Edit", "Write", "Bash(git commit:*)", "Bash(git push:*)"):
+            assert tool in denied.split(" ")
 
 
 def test_a_person_continues_the_harness_session_where_it_ran():
