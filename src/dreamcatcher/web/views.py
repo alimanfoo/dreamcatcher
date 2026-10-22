@@ -108,6 +108,8 @@ def _compose_work_card(*, status: AgentWorkStatus) -> WebAgentWorkCard:
         effort=record.effort,
         pull_request=status.pull_request,
         pull_request_summary=status.pull_request_summary,
+        children_summary=status.children_summary,
+        child_issues=tuple(child.issue for child in status.children or ()),
         latest_output=status.latest_output,
     )
 

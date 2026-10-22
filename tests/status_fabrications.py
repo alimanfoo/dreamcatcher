@@ -34,12 +34,13 @@ from dreamcatcher.agent_rounds import (
     _compose_agent_round_ending,
 )
 from dreamcatcher.agent_work import AgentWorkEndReason, read_agent_work_at_issue
-from dreamcatcher.campaigns import CampaignRoundInput
+from dreamcatcher.campaigns import CampaignChild, CampaignRoundInput
 from dreamcatcher.documents import write_json, write_text
 from dreamcatcher.feed import FeedLine
 from dreamcatcher.github import (
     CheckResult,
     IssueComment,
+    IssueState,
     PullRequestMergeState,
     PullRequestState,
 )
@@ -227,10 +228,24 @@ def campaign_row(
     )
 
 
+# The children of the idle campaign's parent, one of them closed.
+CAMPAIGN_CHILDREN = [
+    CampaignChild(
+        issue=issue,
+        title=f"Stage {issue}",
+        state=state,
+        is_settled=True,
+        assignment=None,
+    )
+    for issue, state in ((63, IssueState.CLOSED), (64, IssueState.OPEN))
+]
+
+
 def fabricate_campaigns(*, state: StateDirectory) -> list[RequestRow]:
     """Write an idle campaign and an ended one, and return their requests' rows.
 
-    The rows also hold a labelled parent whose campaign has not started.
+    The idle campaign's row holds its children. The rows also hold a labelled
+    parent whose campaign has not started.
     """
     for issue in (60, 61):
         directory = write_campaign(state=state, issue=issue)
@@ -263,7 +278,9 @@ def fabricate_campaigns(*, state: StateDirectory) -> list[RequestRow]:
         at=PINNED + timedelta(minutes=30),
     )
     return [
-        campaign_row(finding=CampaignFinding(new_comments=0), ended_round=1),
+        campaign_row(finding=CampaignFinding(new_comments=0), ended_round=1).model_copy(
+            update={"children": CAMPAIGN_CHILDREN}
+        ),
         request_row(
             issue=62,
             kind=AgentWorkKind.CAMPAIGN,

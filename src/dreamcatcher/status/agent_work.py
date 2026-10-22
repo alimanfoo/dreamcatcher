@@ -17,8 +17,9 @@ from dreamcatcher.agent_rounds import (
     interpret_agent_round_outcome,
 )
 from dreamcatcher.agent_work import AgentWork
+from dreamcatcher.campaigns import CampaignChild
 from dreamcatcher.documents import read_text
-from dreamcatcher.github import PullRequestState
+from dreamcatcher.github import IssueState, PullRequestState
 from dreamcatcher.harness_adapters import AgentWorkKind, HarnessSessionIdentifier
 from dreamcatcher.harnesses import HARNESS_ADAPTERS
 from dreamcatcher.issue_conversations import is_no_reply
@@ -135,6 +136,38 @@ class AgentWorkStatus:
         if relayed is None or relayed is PullRequestState.OPEN:
             return None
         return relayed.value.lower()
+
+    @property
+    def children(self) -> list[CampaignChild] | None:
+        """An active campaign's children as the latest tick observed them.
+
+        Other work has none, and so does a campaign whose children the latest
+        tick could not observe, or that it did not see.
+        """
+        if not self._is_active_campaign:
+            return None
+        return None if self.row is None else self.row.children
+
+    @property
+    def children_summary(self) -> str | None:
+        """How many of an active campaign's children are closed, of how many.
+
+        Other work has no summary.
+        """
+        if not self._is_active_campaign:
+            return None
+        children = self.children
+        if children is None:
+            return "sub-issues unknown"
+        if not children:
+            return "no sub-issues"
+        closed = sum(child.state is IssueState.CLOSED for child in children)
+        total = describe_count(number=len(children), noun="sub-issue")
+        return f"{closed} of {total} closed"
+
+    @property
+    def _is_active_campaign(self) -> bool:
+        return self.work.record.kind is AgentWorkKind.CAMPAIGN and self.is_active
 
     @cached_property
     def round_statuses(self) -> list[AgentRoundStatus]:

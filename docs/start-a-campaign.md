@@ -45,11 +45,14 @@ A campaign needs no comment to start. At its next update with a free
 agent slot, _dreamcatcher_ checks out current `origin/main` in a
 worktree of the campaign's own, and starts the lead with the configured
 prompt. Its input holds any comments you have already posted on the
-parent. The lead posts on GitHub itself. _dreamcatcher_ keeps the lead's
-final output in the feed and posts none of it.
+parent, the parent's sub-issues with where each one's assignment stands,
+and the daemon's assignment routes. The lead posts on GitHub itself.
+_dreamcatcher_ keeps the lead's final output in the feed and posts none
+of it.
 
-Monitor the campaign on the web home page's Campaigns tab, or in the
-terminal:
+Monitor the campaign on the web home page's Campaigns tab, where its
+card shows how many of the parent's sub-issues are closed and links to
+each, or in the terminal:
 
 ```sh
 dreamcatcher campaign GH123

@@ -17,7 +17,8 @@ from dreamcatcher.status import (
 class WebAgentWorkCard:
     """Represent the values rendered in one card for agent work of any kind.
 
-    Only an assignment has a pull request.
+    Only an assignment has a pull request. Only an active campaign has a
+    children summary, and its child issues are those the summary counts.
     """
 
     identifier: str
@@ -32,6 +33,8 @@ class WebAgentWorkCard:
     effort: str
     pull_request: int | None
     pull_request_summary: str | None
+    children_summary: str | None
+    child_issues: tuple[int, ...]
     latest_output: str | None
 
 

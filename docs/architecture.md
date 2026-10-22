@@ -539,7 +539,9 @@ A campaign's row also holds the parent's children as the tick observed
 them, beside its finding, so they stay current while the lead is paused
 or in fault. The row holds no children when the tick could not observe
 them all, or read nothing for a campaign request with conflicting
-labels.
+labels. Status gives an active campaign those children and the words
+that count its closed children out of the total, or says that its
+children are unknown, and the web card links each child by number.
 
 `AgentWorkStatus` is one summary status from the ontology, derived in
 one chain for every kind of agent work. `RequestStatus` gives a request
