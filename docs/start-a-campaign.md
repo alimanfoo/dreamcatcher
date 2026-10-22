@@ -91,9 +91,11 @@ dreamcatcher feed GH123 --campaign
 ## Queue campaigns
 
 To run one campaign after another, mark the later parent as blocked by
-the earlier parent on GitHub, then assign and label both parents. The
-later campaign waits, and its request shows as blocked by the earlier
-parent.
+the earlier parent on GitHub, then assign and label both parents, and
+leave their sub-issues for the leads to start. The later campaign waits,
+and its request shows as blocked by the earlier parent. The block holds
+back only the later lead, so a sub-issue that you label for an
+assignment yourself starts according to its own dependencies.
 
 Close the earlier parent when you are satisfied with its campaign, and
 the later campaign starts at the next update with a free agent slot.
