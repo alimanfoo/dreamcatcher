@@ -114,6 +114,11 @@ class AgentWorkStatus:
         """Whether a round of the work is running."""
         return self.value is AgentWorkStatusValue.WORKING
 
+    @property
+    def is_in_fault(self) -> bool:
+        """Whether the work is in fault."""
+        return self.value is AgentWorkStatusValue.FAULT
+
     @cached_property
     def pull_request(self) -> int | None:
         """The number of the assignment's pull request, once a round opened it."""
@@ -197,7 +202,7 @@ class AgentWorkStatus:
     @property
     def faulted_round_number(self) -> int | None:
         """The latest round while the work is in fault, else None."""
-        if self.value is not AgentWorkStatusValue.FAULT:
+        if not self.is_in_fault:
             return None
         return self.work.rounds[-1].number
 

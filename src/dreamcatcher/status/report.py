@@ -9,7 +9,6 @@ from dreamcatcher.agent_work import (
     AgentWork,
     AgentWorkEnding,
     read_agent_work,
-    read_agent_work_at_issue,
 )
 from dreamcatcher.campaigns import CampaignChild
 from dreamcatcher.clock import read_current_time
@@ -374,31 +373,6 @@ def read_dreamcatcher_daemon_status(
         is_running=is_daemon_lock_held(path=state.lock),
         run=read_json_if_exists(model=DaemonRunRecord, path=state.daemon_run_record),
     )
-
-
-def read_agent_work_statuses_at_issue(
-    *,
-    state: StateDirectory,
-    work: AgentWork,
-    daemon: DreamcatcherDaemonStatus,
-    clock: Callable[[], datetime] = read_current_time,
-) -> list[AgentWorkStatus]:
-    """Read the work's status, then the statuses of the other work like it.
-
-    The other work is every other piece of the work's kind at its issue, newest
-    first. The caller reads the daemon status, so a view that also shows it
-    shows the same answer that its round statuses came from.
-    """
-    reader = _create_status_reader(state=state, daemon=daemon, clock=clock)
-    record = work.record
-    others = [
-        other
-        for other in reversed(
-            read_agent_work_at_issue(state=state, issue=record.issue, kind=record.kind)
-        )
-        if other.identifier != work.identifier
-    ]
-    return [reader.derive(work=item) for item in (work, *others)]
 
 
 def read_agent_work_status(
