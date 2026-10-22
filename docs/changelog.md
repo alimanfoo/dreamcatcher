@@ -27,6 +27,14 @@ the change.
 
 ## Unreleased
 
+### Fixed
+
+- On macOS and Linux, closing the terminal that runs `dreamcatcher run`,
+  ending the daemon with `kill`, or shutting the machine down now ends
+  its rounds as interrupted, as Ctrl-C does. Before, their harnesses
+  carried on without the daemon.
+  ([#690](https://github.com/alimanfoo/dreamcatcher/pull/690))
+
 ## [v7.0.0](https://github.com/alimanfoo/dreamcatcher/releases/tag/v7.0.0) — 2026-10-22
 
 ### Breaking

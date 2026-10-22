@@ -92,8 +92,10 @@ to you.
 ## Restart an interrupted daemon
 
 Pressing Ctrl-C in the `dreamcatcher run` terminal shuts the daemon
-down, ends the rounds it owns and stops the web page it serves. Start it
-again from the same main checkout:
+down, ends the rounds it owns and stops the web page it serves. On macOS
+and Linux, closing that terminal, ending the daemon with `kill`, or
+shutting the machine down does the same. Start it again from the same
+main checkout:
 
 ```sh
 dreamcatcher run --harness claude

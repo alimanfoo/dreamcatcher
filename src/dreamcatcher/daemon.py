@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import os
+import signal
 import sys
-from contextlib import nullcontext, suppress
+from contextlib import contextmanager, nullcontext, suppress
 from time import sleep
 from typing import TYPE_CHECKING
 
@@ -35,16 +36,24 @@ from dreamcatcher.version import DREAMCATCHER_VERSION
 from dreamcatcher.words import describe_time
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Callable, Generator
     from contextlib import AbstractContextManager
     from datetime import datetime, tzinfo
     from pathlib import Path
+    from types import FrameType
 
     from dreamcatcher.agent_rounds import AgentRound
     from dreamcatcher.scheduler import SchedulerRecord
 
 DEFAULT_INTERVAL_SECONDS = 120
 _NO_COMPANION = nullcontext()
+
+# The signals that end the daemon as Ctrl-C does: a kill, a shutdown, and on
+# POSIX the hangup that closing its terminal sends. Windows has no hangup, and
+# its Job Objects already end the harnesses of a daemon that dies.
+_TERMINATION_SIGNALS = (
+    (signal.SIGTERM,) if sys.platform == "win32" else (signal.SIGTERM, signal.SIGHUP)
+)
 
 
 def _write_output(*, line: str) -> None:
@@ -55,6 +64,33 @@ def _write_output(*, line: str) -> None:
         print(safe_line, flush=True)
     except (OSError, UnicodeError) as error:
         raise ReportableError("Could not write daemon output.") from error
+
+
+def _raise_interrupt(signal_number: int, frame: FrameType | None, /) -> None:
+    """Raise an interrupt where the daemon is, as Ctrl-C does.
+
+    The signal module calls this with positional arguments.
+    """
+    raise KeyboardInterrupt
+
+
+@contextmanager
+def _interrupt_on_termination_signals() -> Generator[None]:
+    """Turn each termination signal into an interrupt, and then restore it.
+
+    A signal that the daemon was started to ignore stays ignored, so a daemon
+    started under nohup still outlives its terminal.
+    """
+    previous_handlers = {
+        number: signal.signal(number, _raise_interrupt)
+        for number in _TERMINATION_SIGNALS
+        if signal.getsignal(number) is not signal.SIG_IGN
+    }
+    try:
+        yield
+    finally:
+        for number, handler in previous_handlers.items():
+            signal.signal(number, handler)
 
 
 class DreamcatcherDaemon:
@@ -109,6 +145,9 @@ class DreamcatcherDaemon:
 
         The companion starts after the daemon's startup checks pass and ends with the
         daemon.
+
+        While the loop runs, a termination signal interrupts it as Ctrl-C does, so
+        `kill`, a shutdown or a closed terminal ends the rounds as well.
         """
         # A label carrying one dispatch recipe runs on that harness whatever the
         # preference, so every harness a route can settle a label on must be there.
@@ -147,7 +186,11 @@ class DreamcatcherDaemon:
             )
             self._sweep_orphans()
             try:
-                with suppress(KeyboardInterrupt), companion:
+                with (
+                    suppress(KeyboardInterrupt),
+                    _interrupt_on_termination_signals(),
+                    companion,
+                ):
                     at = self.clock()
                     _write_output(
                         line=(

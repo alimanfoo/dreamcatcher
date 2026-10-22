@@ -1,5 +1,6 @@
 import json
 import os
+import signal
 import sys
 from collections.abc import Sequence
 from contextlib import contextmanager
@@ -690,6 +691,62 @@ def test_the_daemon_ends_the_rounds_it_holds_as_it_goes_down(ready_repo, harness
     agent_round = daemon.rounds[CREATED_ASSIGNMENT_ID]
     assert not agent_round.is_alive
     assert gone(pid=agent_round.harness_process.pid)
+
+
+# The signals that should end a daemon as Ctrl+C does. Windows has no hangup.
+TERMINATION_SIGNALS = [
+    pytest.param(signal.SIGTERM, id="SIGTERM"),
+    pytest.param(
+        getattr(signal, "SIGHUP", None),
+        id="SIGHUP",
+        marks=pytest.mark.skipif(
+            sys.platform == "win32", reason="Windows has no hangup signal"
+        ),
+    ),
+]
+
+
+@pytest.mark.parametrize("number", TERMINATION_SIGNALS)
+def test_a_termination_signal_ends_the_daemon_and_its_rounds_as_an_interrupt_does(
+    ready_repo, harnesses, number
+):
+    harnesses["claude"].streams(
+        lines=[Line(text="still working\n")], delay=STILL_RUNNING
+    )
+    daemon, waiting, _ = idling(root=ready_repo)
+    waiting.settle = lambda: signal.raise_signal(number)
+
+    daemon.run()
+
+    assert waiting.waited == []
+    agent_round = daemon.rounds[CREATED_ASSIGNMENT_ID]
+    assert agent_round.record.outcome is AgentRoundOutcome.INTERRUPTED
+    assert gone(pid=agent_round.harness_process.pid)
+
+
+@pytest.mark.parametrize("number", TERMINATION_SIGNALS)
+def test_the_daemon_puts_back_the_signal_handler_it_found(
+    watched, harnesses, gh, number
+):
+    found = signal.getsignal(number)
+    daemon, _, _ = idling(root=watched)
+
+    daemon.run()
+
+    assert signal.getsignal(number) == found
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="Windows has no hangup signal")
+def test_a_daemon_started_to_ignore_hangups_outlives_one(watched, harnesses, gh):
+    daemon, waiting, _ = idling(root=watched)
+    waiting.settle = lambda: signal.raise_signal(signal.SIGHUP)
+    found = signal.signal(signal.SIGHUP, signal.SIG_IGN)
+    try:
+        daemon.run()
+    finally:
+        signal.signal(signal.SIGHUP, found)
+
+    assert waiting.waited == [300, 300]
 
 
 def test_a_daemon_that_loses_its_lock_runs_no_other_tick_and_stops_rounds(
