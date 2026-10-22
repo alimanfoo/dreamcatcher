@@ -704,18 +704,18 @@ def test_a_daemon_that_loses_its_lock_runs_no_other_tick_and_stops_rounds(
     run_scheduler_tick = Mock(wraps=daemon.run_scheduler_tick)
     daemon.run_scheduler_tick = run_scheduler_tick
 
-    interval.ensure_held.side_effect = ReportableError("the daemon lock was lost")
+    interval.require_held.side_effect = ReportableError("the daemon lock was lost")
     monkeypatch.setattr(
         _HeldDaemonLock,
-        "ensure_held",
-        interval.ensure_held,
+        "require_held",
+        interval.require_held,
     )
 
     with pytest.raises(ReportableError, match="daemon lock was lost"):
         daemon.run()
 
     assert run_scheduler_tick.call_count == 1
-    assert interval.mock_calls == [call.wait(300), call.ensure_held()]
+    assert interval.mock_calls == [call.wait(300), call.require_held()]
     agent_round = daemon.rounds[CREATED_ASSIGNMENT_ID]
     assert not agent_round.is_alive
     assert gone(pid=agent_round.harness_process.pid)

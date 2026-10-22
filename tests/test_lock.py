@@ -30,7 +30,7 @@ def test_the_lock_is_held_until_the_daemon_releases_it(tmp_path):
     lock = tmp_path / "daemon.lock"
 
     with hold_daemon_lock(path=lock) as held_lock:
-        held_lock.ensure_held()
+        held_lock.require_held()
         assert is_daemon_lock_held(path=lock)
 
     assert not is_daemon_lock_held(path=lock)
@@ -58,7 +58,7 @@ def test_a_lock_whose_path_is_replaced_reports_that_it_was_lost(tmp_path, monkey
             lock.touch()
 
         with pytest.raises(ReportableError, match=r"daemon lock .* was lost"):
-            held_lock.ensure_held()
+            held_lock.require_held()
 
 
 def test_a_lock_whose_path_disappears_reports_that_it_was_lost(tmp_path, monkeypatch):
@@ -81,7 +81,7 @@ def test_a_lock_whose_path_disappears_reports_that_it_was_lost(tmp_path, monkeyp
             lock.unlink()
 
         with pytest.raises(ReportableError, match=r"daemon lock .* was lost"):
-            held_lock.ensure_held()
+            held_lock.require_held()
 
 
 def test_a_lock_that_cannot_be_checked_says_so(tmp_path, monkeypatch):
@@ -95,7 +95,7 @@ def test_a_lock_that_cannot_be_checked_says_so(tmp_path, monkeypatch):
         )
 
         with pytest.raises(ReportableError, match=r"cannot check .* cannot be read"):
-            held_lock.ensure_held()
+            held_lock.require_held()
 
 
 def test_a_missing_lock_is_not_held_and_the_probe_leaves_it_missing(tmp_path):

@@ -158,7 +158,7 @@ class DreamcatcherDaemon:
                     while True:
                         self.run_scheduler_tick(scheduler=scheduler, at=at)
                         self.wait(self.interval)
-                        daemon_lock.ensure_held()
+                        daemon_lock.require_held()
                         at = self.clock()
             finally:
                 # Rounds die with the daemon by design, so this happens however
