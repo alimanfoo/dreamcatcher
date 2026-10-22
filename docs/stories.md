@@ -385,6 +385,28 @@ with its label still on, a new campaign starts.
 The value to the user is that a planned body of work has an agent of its
 own, started with one label and ended by closing the parent.
 
+#### The user queues one campaign behind another
+
+The user has planned two bodies of work, each as a parent issue with its
+sub-issues, and the second should not start until the first is done.
+They mark the second parent as blocked by the first on GitHub, as they
+would for any pair of issues, then assign both parents to themselves and
+put a campaign label on each. The first campaign starts as soon as there
+is agent capacity. The second waits with no lead, and the home page and
+`dreamcatcher status` show its request as blocked, naming the parent it
+waits for, with its repository when that is another one.
+
+Closing every sub-issue of the first parent does not close that parent,
+so the second campaign keeps waiting while the user checks the first
+one's work. When they are satisfied, they close the first parent, and at
+the next update the second campaign starts, with no further comment or
+label. A parent with several blockers waits until every one of them is
+closed. A blocker added to a parent whose campaign has already started
+changes nothing for that campaign.
+
+The value to the user is that they can line up several campaigns at once
+and let the dependencies set the order in which the leads take them up.
+
 #### The user talks to the lead on the parent issue
 
 The user wants to tell the lead something, or ask it how the plan

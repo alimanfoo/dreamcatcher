@@ -443,10 +443,11 @@ assignment routing conflict have no bearing on conversations.
 ### Starting a campaign
 
 A campaign request starts a campaign when its issue carries no other
-configured campaign label. The label on an open issue assigned to the
-signed-in account is the whole request, so it needs no comment. An open
-assignment or conversation at the issue, a linked pull request and a
-dependency have no bearing on campaigns.
+configured campaign label and no open issue dependency blocks it. The
+label on an open issue assigned to the signed-in account is the whole
+request, so it needs no comment. An open assignment or conversation at
+the issue and a linked pull request have no bearing on campaigns. Once a
+campaign exists, its parent's dependencies no longer decide its rounds.
 
 A campaign's first round is due as soon as the campaign starts, and its
 input holds every eligible comment already on the parent. After that,
@@ -552,16 +553,19 @@ which open issue dependencies block it. They are asked only while no
 open assignment exists, because they decide only whether one may start.
 An open pull request **claims** an issue when GitHub links it as one
 that will close the issue, as `Closes #123` in its description does. A
-conversation request reads the issue's comments, and a campaign request
-reads the parent's comments, to give them to its first round. A request
-whose issue carries more than one label of its kind has a routing
-conflict, and nothing of that kind starts while it lasts.
+conversation request reads the issue's comments to give them to its
+first round. A campaign request asks which open issue dependencies block
+the parent, and only when none does reads the parent's comments to give
+them to its first round. A request whose issue carries more than one
+label of its kind has a routing conflict, and nothing of that kind
+starts while it lasts.
 
 A request with no open work has one of these request statuses:
 
 - **Available**: work starts once an agent slot is free.
-- **Blocked**: an open pull request claims the issue, or an open issue
-  blocks it.
+- **Blocked**: an open pull request claims an assignment request's
+  issue, or an open issue blocks the issue of an assignment or campaign
+  request.
 - **Idle**: a conversation request waits for the user's first comment.
 - **Routing conflict**: the issue carries more than one label of the
   request's kind.
