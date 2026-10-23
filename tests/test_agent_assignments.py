@@ -19,6 +19,7 @@ from records import (
     write_assignment,
     write_round,
 )
+from status_fabrications import compose_ended_round, compose_running_round
 
 from dreamcatcher.agent_assignments import (
     AssignmentRoundInput,
@@ -296,26 +297,6 @@ def test_assignments_at_one_issue_are_read_behind_the_assignment_boundary(bare_s
         "GH12-20260818-090000-assignment",
         "GH12-20260820-090000-assignment",
     ]
-
-
-def compose_ended_round(*, status, minute=0, number: int = 1):
-    """Return a round that started that minute past the hour and ended."""
-    started = PINNED + timedelta(minutes=minute)
-    return AgentRoundRecord(
-        number=number,
-        started=started,
-        pid=1,
-        ending=_compose_agent_round_ending(at=started, status=status),
-    )
-
-
-def compose_running_round(*, minute=0, number: int = 1):
-    """Return a round that started that minute past the hour and is still going."""
-    return AgentRoundRecord(
-        number=number,
-        started=PINNED + timedelta(minutes=minute),
-        pid=1,
-    )
 
 
 def test_a_round_an_assignment_has_run_is_found_by_the_number_it_ran_as(bare_state):

@@ -422,7 +422,7 @@ def write_assignment_with_rounds(
 
 def compose_ended_round(
     *,
-    minute: int,
+    minute: int = 0,
     number: int = 1,
     status: int = 0,
 ):
@@ -440,7 +440,7 @@ def compose_ended_round(
 
 def compose_running_round(
     *,
-    minute: int,
+    minute: int = 0,
     number: int = 1,
 ):
     """Return a round that started that minute and is still running."""

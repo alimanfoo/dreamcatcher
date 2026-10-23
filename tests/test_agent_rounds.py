@@ -120,7 +120,7 @@ def ignore_harness_session_identifier(*, identifier: str) -> None:
     """Accept a harness session identifier that a test does not inspect."""
 
 
-def compose_round_harness(
+def create_round_harness(
     *,
     adapter: HarnessAdapter = CLAUDE_ADAPTER,
     invocation: HarnessInvocation | None = None,
@@ -242,7 +242,7 @@ def test_a_round_runs_the_command_it_was_given_in_the_worktree(
 
     AgentRound(
         agent_work_identifier="GH9-20260819-184158",
-        harness=compose_round_harness(
+        harness=create_round_harness(
             invocation=HarnessInvocation(
                 program="harness", arguments=["--print"], prompt=PROMPT
             )
@@ -262,7 +262,7 @@ def test_a_round_gives_the_harness_its_prompt_to_read(fake, worktree, directory)
 
     running = AgentRound(
         agent_work_identifier="GH9-20260819-184158",
-        harness=compose_round_harness(),
+        harness=create_round_harness(),
         paths=compose_round_paths(worktree=worktree, directory=directory),
         prepare_round=relay_nothing,
         clock=lambda: PINNED,
@@ -346,7 +346,7 @@ def test_a_round_writes_the_pull_request_state_and_user_posts_it_was_given(
 
     running = AgentRound(
         agent_work_identifier="GH9-20260819-184158",
-        harness=compose_round_harness(),
+        harness=create_round_harness(),
         paths=compose_round_paths(worktree=worktree, directory=directory),
         prepare_round=lambda: AssignmentRoundInput(
             pull_request_state=PullRequestState.OPEN,
@@ -377,7 +377,7 @@ def test_the_feed_a_round_writes_is_the_feed_its_stream_renders_as(
 
     running = AgentRound(
         agent_work_identifier="GH9-20260819-184158",
-        harness=compose_round_harness(),
+        harness=create_round_harness(),
         paths=compose_round_paths(worktree=worktree, directory=directory),
         prepare_round=relay_nothing,
         clock=lambda: PINNED,
@@ -396,7 +396,7 @@ def test_a_round_keeps_the_harnesss_own_stream_as_it_arrived(fake, worktree, dir
 
     running = AgentRound(
         agent_work_identifier="GH9-20260819-184158",
-        harness=compose_round_harness(),
+        harness=create_round_harness(),
         paths=compose_round_paths(worktree=worktree, directory=directory),
         prepare_round=relay_nothing,
         clock=lambda: PINNED,
@@ -431,7 +431,7 @@ def test_a_round_records_the_harness_session_after_its_raw_event_lands(
 
     running = AgentRound(
         agent_work_identifier="GH9-20260819-184158",
-        harness=compose_round_harness(record=record),
+        harness=create_round_harness(record=record),
         paths=paths,
         prepare_round=relay_nothing,
         clock=lambda: PINNED,
@@ -457,7 +457,7 @@ def test_what_the_harness_says_on_stderr_lands_where_it_happened(
 
     running = AgentRound(
         agent_work_identifier="GH9-20260819-184158",
-        harness=compose_round_harness(),
+        harness=create_round_harness(),
         paths=compose_round_paths(worktree=worktree, directory=directory),
         prepare_round=relay_nothing,
         clock=lambda: PINNED,
@@ -479,7 +479,7 @@ def test_a_line_the_feed_cannot_write_costs_that_line_alone(fake, worktree, dire
 
     running = AgentRound(
         agent_work_identifier="GH9-20260819-184158",
-        harness=compose_round_harness(adapter=Unrenderable()),
+        harness=create_round_harness(adapter=Unrenderable()),
         paths=compose_round_paths(worktree=worktree, directory=directory),
         prepare_round=relay_nothing,
         clock=lambda: PINNED,
@@ -499,7 +499,7 @@ def test_a_round_records_its_number_start_and_process(fake, worktree, directory)
 
     running = AgentRound(
         agent_work_identifier="GH9-20260819-184158",
-        harness=compose_round_harness(),
+        harness=create_round_harness(),
         paths=compose_round_paths(worktree=worktree, directory=directory),
         prepare_round=relay_nothing,
         clock=lambda: PINNED,
@@ -522,7 +522,7 @@ def test_a_round_that_finished_says_how_it_ended(fake, worktree, directory):
 
     running = AgentRound(
         agent_work_identifier="GH9-20260819-184158",
-        harness=compose_round_harness(),
+        harness=create_round_harness(),
         paths=compose_round_paths(worktree=worktree, directory=directory),
         prepare_round=relay_nothing,
         clock=lambda: PINNED,
@@ -674,7 +674,7 @@ def test_a_round_interrupted_as_its_harness_succeeds_is_not_finished(
     finish_round = Mock()
     running = AgentRound(
         agent_work_identifier="GH9-20260819-184158-conversation",
-        harness=compose_round_harness(
+        harness=create_round_harness(
             invocation=HarnessInvocation(
                 program=sys.executable,
                 arguments=["-c", EXITS_WHEN_RELEASED, str(release)],
@@ -826,7 +826,7 @@ def test_interrupting_a_round_records_interruption(fake, worktree, directory):
 
     running = AgentRound(
         agent_work_identifier="GH9-20260819-184158",
-        harness=compose_round_harness(),
+        harness=create_round_harness(),
         paths=compose_round_paths(worktree=worktree, directory=directory),
         prepare_round=relay_nothing,
         clock=lambda: PINNED,
@@ -846,7 +846,7 @@ def test_daemon_shutdown_honours_a_pending_stop_request(fake, worktree, director
     )
     running = AgentRound(
         agent_work_identifier="GH9-20260819-184158",
-        harness=compose_round_harness(),
+        harness=create_round_harness(),
         paths=compose_round_paths(worktree=worktree, directory=directory),
         prepare_round=relay_nothing,
         clock=lambda: PINNED,
@@ -868,7 +868,7 @@ def test_the_daemon_stopping_a_finished_round_keeps_its_ending(
 
     running = AgentRound(
         agent_work_identifier="GH9-20260819-184158",
-        harness=compose_round_harness(),
+        harness=create_round_harness(),
         paths=compose_round_paths(worktree=worktree, directory=directory),
         prepare_round=relay_nothing,
         clock=lambda: PINNED,
@@ -901,7 +901,7 @@ def test_a_stop_request_stops_the_round_and_records_why(fake, worktree, director
 
     running = AgentRound(
         agent_work_identifier="GH9-20260819-184158",
-        harness=compose_round_harness(),
+        harness=create_round_harness(),
         paths=paths,
         prepare_round=relay_nothing,
         clock=lambda: PINNED,
@@ -934,7 +934,7 @@ def test_a_stop_requested_while_the_round_prepared_stops_it_at_once(
 
     running = AgentRound(
         agent_work_identifier="GH9-20260819-184158",
-        harness=compose_round_harness(),
+        harness=create_round_harness(),
         paths=paths,
         prepare_round=request_stop,
         clock=lambda: PINNED,
@@ -954,7 +954,7 @@ def test_the_first_reason_for_ending_a_round_wins(fake, worktree, directory):
     )
     running = AgentRound(
         agent_work_identifier="GH9-20260819-184158",
-        harness=compose_round_harness(),
+        harness=create_round_harness(),
         paths=compose_round_paths(worktree=worktree, directory=directory),
         prepare_round=relay_nothing,
         clock=lambda: PINNED,
@@ -981,7 +981,7 @@ def test_a_round_that_cannot_write_its_feed_stops_rather_than_stalls(
 
     running = AgentRound(
         agent_work_identifier="GH9-20260819-184158",
-        harness=compose_round_harness(),
+        harness=create_round_harness(),
         paths=compose_round_paths(worktree=worktree, directory=directory),
         prepare_round=relay_nothing,
         clock=lambda: PINNED,
@@ -1008,7 +1008,7 @@ def test_a_round_that_cannot_write_its_prompt_errors_without_a_process(
     ):
         AgentRound(
             agent_work_identifier="GH9-20260819-184158",
-            harness=compose_round_harness(
+            harness=create_round_harness(
                 invocation=HarnessInvocation(
                     program="harness", arguments=[], prompt=PROMPT
                 )
@@ -1041,7 +1041,7 @@ def test_a_round_whose_preparation_fails_errors_with_its_reason(
     ) as raised:
         AgentRound(
             agent_work_identifier="GH9-20260819-184158",
-            harness=compose_round_harness(),
+            harness=create_round_harness(),
             paths=paths,
             prepare_round=refuse_to_prepare,
             clock=lambda: PINNED,
@@ -1076,7 +1076,7 @@ def test_a_round_whose_harness_cannot_be_contained_errors_without_a_process(
     with pytest.raises(AgentRoundLaunchError, match="Access is denied"):
         AgentRound(
             agent_work_identifier="GH9-20260819-184158",
-            harness=compose_round_harness(),
+            harness=create_round_harness(),
             paths=paths,
             prepare_round=relay_nothing,
             clock=lambda: PINNED,
@@ -1109,7 +1109,7 @@ def test_a_round_whose_process_cannot_be_recorded_does_not_run_on(
     with pytest.raises(ReportableError, match=r"round\.json"):
         AgentRound(
             agent_work_identifier="GH9-20260819-184158",
-            harness=compose_round_harness(
+            harness=create_round_harness(
                 invocation=HarnessInvocation(
                     program="harness", arguments=[], prompt=PROMPT
                 )
@@ -1149,7 +1149,7 @@ def test_a_round_whose_process_cannot_be_recorded_ends_without_an_exit_status(
     with pytest.raises(AgentRoundLaunchError, match=r"cannot write .*round\.json"):
         AgentRound(
             agent_work_identifier="GH9-20260819-184158",
-            harness=compose_round_harness(
+            harness=create_round_harness(
                 invocation=HarnessInvocation(
                     program="harness", arguments=[], prompt=PROMPT
                 )
@@ -1178,7 +1178,7 @@ def test_a_round_that_cannot_record_its_start_prepares_and_spawns_nothing(
     with pytest.raises(ReportableError, match=r"round\.json"):
         AgentRound(
             agent_work_identifier="GH9-20260819-184158",
-            harness=compose_round_harness(
+            harness=create_round_harness(
                 invocation=HarnessInvocation(
                     program="harness", arguments=[], prompt=PROMPT
                 )
@@ -1197,7 +1197,7 @@ def test_a_round_a_straggler_outlives_still_records_an_ending(
 ):
     running = AgentRound(
         agent_work_identifier="GH9-20260819-184158",
-        harness=compose_round_harness(
+        harness=create_round_harness(
             invocation=HarnessInvocation(
                 program=sys.executable,
                 arguments=["-c", LEAVES_A_STRAGGLER, str(straggler)],
@@ -1228,7 +1228,7 @@ def test_a_finished_round_a_straggler_outlives_still_records_an_ending(
     finish_round = Mock()
     running = AgentRound(
         agent_work_identifier="GH9-20260819-184158",
-        harness=compose_round_harness(
+        harness=create_round_harness(
             invocation=HarnessInvocation(
                 program=sys.executable,
                 arguments=["-c", LEAVES_A_STRAGGLER, str(straggler)],
@@ -1249,7 +1249,7 @@ def test_a_finished_round_a_straggler_outlives_still_records_an_ending(
 def test_a_round_a_straggler_outlives_still_stops(worktree, directory, straggler):
     running = AgentRound(
         agent_work_identifier="GH9-20260819-184158",
-        harness=compose_round_harness(
+        harness=create_round_harness(
             invocation=HarnessInvocation(
                 program=sys.executable,
                 arguments=["-c", LEAVES_A_STRAGGLER + AND_WAITS, str(straggler)],
