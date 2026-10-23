@@ -69,8 +69,7 @@ but only for the repository facts they read.
 Every test in every group has two minutes to finish, counting its
 fixture setup and teardown. A session-scoped fixture counts against the
 first test that uses it. The limit is there to end a run that has hung,
-not to measure speed: the slowest test takes well under a minute on
-every platform that CI runs.
+not to measure speed.
 
 Ten seconds before the limit, pytest writes the stack of every thread to
 standard error. When the limit passes, `pytest-timeout` ends the test.
