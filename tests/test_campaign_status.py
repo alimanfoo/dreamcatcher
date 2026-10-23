@@ -371,7 +371,7 @@ def test_lead_rounds_name_their_trigger_and_the_revision_of_main_they_were_given
     ]
 
 
-def compose_stage(*, issue: int, state: IssueState) -> CampaignChild:
+def compose_child(*, issue: int, state: IssueState) -> CampaignChild:
     """Return one settled child with no assignment, in this state."""
     return CampaignChild(
         issue=issue,
@@ -389,9 +389,9 @@ def compose_stage(*, issue: int, state: IssueState) -> CampaignChild:
         ([], "no sub-issues"),
         (
             [
-                compose_stage(issue=21, state=IssueState.CLOSED),
-                compose_stage(issue=22, state=IssueState.OPEN),
-                compose_stage(issue=23, state=IssueState.CLOSED),
+                compose_child(issue=21, state=IssueState.CLOSED),
+                compose_child(issue=22, state=IssueState.OPEN),
+                compose_child(issue=23, state=IssueState.CLOSED),
             ],
             "2 of 3 sub-issues closed",
         ),
@@ -418,7 +418,7 @@ def test_an_ended_campaign_shows_no_children(state):
         state=state,
         finding=None,
         ended_round=1,
-        children=[compose_stage(issue=21, state=IssueState.CLOSED)],
+        children=[compose_child(issue=21, state=IssueState.CLOSED)],
     )
 
     status = read_campaign_status(state=state)
@@ -431,7 +431,7 @@ def test_each_child_of_an_active_campaign_has_its_assignment_and_requests(state)
     write_assignment(state=state, identifier=assignment, issue=21)
     write_lead_round(state=state, number=1, ending=SUCCESSFUL)
     children = [
-        compose_stage(issue=21, state=IssueState.OPEN).model_copy(
+        compose_child(issue=21, state=IssueState.OPEN).model_copy(
             update={
                 "assignment": CampaignChildAssignment(
                     identifier=assignment,
@@ -443,8 +443,8 @@ def test_each_child_of_an_active_campaign_has_its_assignment_and_requests(state)
                 )
             }
         ),
-        compose_stage(issue=22, state=IssueState.OPEN),
-        compose_stage(issue=23, state=IssueState.CLOSED),
+        compose_child(issue=22, state=IssueState.OPEN),
+        compose_child(issue=23, state=IssueState.CLOSED),
     ]
     observe(
         state=state,

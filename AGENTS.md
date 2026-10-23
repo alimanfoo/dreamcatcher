@@ -278,14 +278,14 @@ $env:PYTHONWARNDEFAULTENCODING = "1"; uv run pytest --regenerate-view-goldens
   `stop`, `strip_worktree_path`. A name like `rendered` or `holder`
   reads as a value, so a reader takes it for a property and not for
   something that runs. This holds for a helper in the tests too.
-- Name a function that builds data, such as a row, a record or a line,
-  with `compose_`: `compose_round_prompt`, `compose_running_round`. Name
-  a function that builds an object with behaviour of its own, such as a
-  console, a table or a scheduler, with `create_`: `create_table`.
+- Name a helper in the tests that builds data, such as a row, a record
+  or a line, with `compose_`: `compose_running_round`. Name one that
+  builds an object with behaviour of its own, such as a console or a
+  scheduler, with `create_`: `create_scheduler`.
 - Name a boolean for the question it answers: `is_alive`, `is_subagent`,
   not `alive` or `subagent`. `if round.is_alive:` then reads as English.
 - Name a fixture for what the test is handed, with a noun phrase:
-  `cloned_repo`, `gh_with_free_issue`, not `cloned` or `offered`. A
+  `cloned_repo`, `gh_with_available_issue`, not `cloned` or `offered`. A
   test's signature then says what it receives.
 - Name a class or a function that a module exports so that it still says
   what it is when another module imports it bare: `create_assignment`,

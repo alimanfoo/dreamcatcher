@@ -655,9 +655,9 @@ def read_tick_record(*, daemon) -> SchedulerRecord:
 
 
 def test_a_tick_whose_listing_failed_records_what_it_could_not_read(
-    ready_repo, gh_with_free_issue, capsys
+    ready_repo, gh_with_available_issue, capsys
 ):
-    gh_with_free_issue.fails(
+    gh_with_available_issue.fails(
         stderr="gh: could not connect to github.com\ngh: try again", to="issue list"
     )
     daemon, _, _ = create_idle_daemon(root=ready_repo, ticks=1)
@@ -676,9 +676,9 @@ def test_a_tick_whose_listing_failed_records_what_it_could_not_read(
 
 
 def test_tick_output_escapes_text_the_stream_cannot_encode(
-    ready_repo, gh_with_free_issue, harnesses, monkeypatch
+    ready_repo, gh_with_available_issue, harnesses, monkeypatch
 ):
-    gh_with_free_issue.fails(stderr="gh: wait — try again", to="issue list")
+    gh_with_available_issue.fails(stderr="gh: wait — try again", to="issue list")
     daemon, _, _ = create_idle_daemon(root=ready_repo, ticks=1)
     buffered = BytesIO()
     output = TextIOWrapper(buffered, encoding="ascii", newline="\n")

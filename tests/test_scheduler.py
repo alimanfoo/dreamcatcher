@@ -295,9 +295,9 @@ def test_a_new_assignments_round_records_what_caused_it_and_what_it_said(
 
 
 def test_a_tick_fills_free_capacity_with_available_issues(
-    ready_repo, gh_with_free_issue
+    ready_repo, gh_with_available_issue
 ):
-    gh_with_free_issue.replies(
+    gh_with_available_issue.replies(
         stdout=compose_issue_listing(
             issues=[(8, FILED), (9, LATER), (10, "2026-08-21T01:00:00Z")]
         ),
@@ -336,9 +336,9 @@ def test_a_tick_fills_free_capacity_with_available_issues(
 
 
 def test_a_failed_launch_goes_on_to_the_next_candidate(
-    ready_repo, gh_with_free_issue, monkeypatch
+    ready_repo, gh_with_available_issue, monkeypatch
 ):
-    gh_with_free_issue.replies(
+    gh_with_available_issue.replies(
         stdout=compose_issue_listing(
             issues=[
                 (8, FILED),
@@ -368,9 +368,11 @@ def test_a_failed_launch_goes_on_to_the_next_candidate(
 
 
 def test_a_round_that_cannot_open_its_pull_request_is_named_in_its_row(
-    ready_repo, gh_with_free_issue
+    ready_repo, gh_with_available_issue
 ):
-    gh_with_free_issue.fails(stderr="gh: pull request create failed", to="pr create")
+    gh_with_available_issue.fails(
+        stderr="gh: pull request create failed", to="pr create"
+    )
     scheduler, clock = create_scheduler(root=ready_repo)
 
     observed = scheduler.tick(at=clock())
@@ -493,12 +495,12 @@ def test_a_tick_at_the_cap_leaves_a_wound_up_assignment_waiting_on_nothing(
 
 
 def test_a_tick_at_the_cap_refreshes_the_candidates(
-    ready_repo, gh_with_free_issue, harnesses
+    ready_repo, gh_with_available_issue, harnesses
 ):
     harnesses["claude"].streams(
         lines=[Line(text="still working\n")], delay=STILL_RUNNING
     )
-    gh_with_free_issue.replies(
+    gh_with_available_issue.replies(
         stdout=compose_issue_listing(issues=[(8, FILED), (9, LATER)]), to="issue list"
     )
     scheduler, clock = create_scheduler(root=ready_repo)
@@ -518,7 +520,7 @@ def test_a_tick_at_the_cap_refreshes_the_candidates(
 
 
 def test_a_tick_at_the_cap_records_a_candidate_listing_failure(
-    ready_repo, gh_with_free_issue, harnesses
+    ready_repo, gh_with_available_issue, harnesses
 ):
     harnesses["claude"].streams(
         lines=[Line(text="still working\n")], delay=STILL_RUNNING
@@ -534,7 +536,7 @@ def test_a_tick_at_the_cap_records_a_candidate_listing_failure(
     )
     scheduler, clock = create_scheduler(root=ready_repo)
     scheduler.tick(at=clock())
-    gh_with_free_issue.fails(
+    gh_with_available_issue.fails(
         stderr="gh: could not connect to github.com", to="issue list"
     )
     observed = scheduler.tick(at=clock())
@@ -559,9 +561,9 @@ def test_a_tick_at_the_cap_records_a_candidate_listing_failure(
 
 
 def test_a_tick_with_nothing_eligible_starts_no_assignment(
-    ready_repo, gh_with_free_issue
+    ready_repo, gh_with_available_issue
 ):
-    gh_with_free_issue.replies(
+    gh_with_available_issue.replies(
         stdout=compose_page(
             items=[
                 {
@@ -632,7 +634,7 @@ def test_one_faulted_assignment_does_not_block_unrelated_work(ready_repo):
 
 
 def test_a_deleted_assignment_worktree_errors_twice_while_other_work_runs(
-    assigned_checkout, gh, gh_with_free_issue
+    assigned_checkout, gh, gh_with_available_issue
 ):
     write_assignment_round(root=assigned_checkout, number=1)
     missing_worktree = StateDirectory(root=assigned_checkout).worktrees / ASSIGNMENT_ID
@@ -840,7 +842,7 @@ def test_an_assignment_that_has_run_no_round_at_all_gets_its_first(ready_repo):
 
 
 def test_a_dispatch_whose_round_will_not_start_keeps_the_assignment_for_next_time(
-    ready_repo, gh_with_free_issue
+    ready_repo, gh_with_available_issue
 ):
     # A file where the assignment's rounds go, so no round can record its start.
     occupied = StateDirectory(root=ready_repo).work / CREATED_ASSIGNMENT_ID / "rounds"
@@ -865,7 +867,7 @@ def test_a_dispatch_whose_round_will_not_start_keeps_the_assignment_for_next_tim
     assert (record / "round.json").is_file()
     created = [
         call
-        for call in gh_with_free_issue.calls
+        for call in gh_with_available_issue.calls
         if call.arguments[:2] == ["pr", "create"]
     ]
     assert len(created) == 1
@@ -873,7 +875,7 @@ def test_a_dispatch_whose_round_will_not_start_keeps_the_assignment_for_next_tim
 
 @pytest.mark.parametrize("checkpoint", ["worktree", "commit", "push", "pull request"])
 def test_a_round_after_one_that_failed_part_way_finishes_its_preparation(
-    ready_repo, gh_with_free_issue, checkpoint
+    ready_repo, gh_with_available_issue, checkpoint
 ):
     state = StateDirectory(root=ready_repo)
     directory = write_assignment(
@@ -903,7 +905,7 @@ def test_a_round_after_one_that_failed_part_way_finishes_its_preparation(
     if checkpoint in {"push", "pull request"}:
         push_branch(root=ready_repo, branch=branch)
     if checkpoint == "pull request":
-        gh_with_free_issue.replies(
+        gh_with_available_issue.replies(
             stdout=compose_pull_request_listing(numbers=[PULL_REQUEST]), to="pr list"
         )
     scheduler, clock = create_scheduler(root=ready_repo)
@@ -923,7 +925,7 @@ def test_a_round_after_one_that_failed_part_way_finishes_its_preparation(
     assert f"refs/heads/{branch}" in remote
     created = [
         call
-        for call in gh_with_free_issue.calls
+        for call in gh_with_available_issue.calls
         if call.arguments[:2] == ["pr", "create"]
     ]
     assert len(created) == (0 if checkpoint == "pull request" else 1)
@@ -1337,7 +1339,7 @@ def test_a_last_round_that_was_interrupted_is_carried_on_as_the_last_round(
 
 
 def test_open_work_is_carried_on_before_a_new_issue_is_assigned(
-    assigned_checkout, gh, gh_with_free_issue
+    assigned_checkout, gh, gh_with_available_issue
 ):
     write_round(
         directory=StateDirectory(root=assigned_checkout).work / ASSIGNMENT_ID,
@@ -1368,7 +1370,7 @@ def test_open_work_is_carried_on_before_a_new_issue_is_assigned(
 
 
 def test_a_failed_issue_listing_starts_nothing_for_its_label_alone(
-    ready_repo, gh_with_free_issue
+    ready_repo, gh_with_available_issue
 ):
     configure(root=ready_repo, head=SMITH_CLAUDE.replace("dream:smith", "dream:less"))
     write_assignment(
@@ -1377,7 +1379,7 @@ def test_a_failed_issue_listing_starts_nothing_for_its_label_alone(
         issue=13,
     )
     write_assignment_round(root=ready_repo, number=1, status=1)
-    gh_with_free_issue.fails(
+    gh_with_available_issue.fails(
         stderr="gh: could not connect to github.com",
         to=f"issue list --repo {REPOSITORY} --assignee {POSTED_BY} --label dream:less",
     )
@@ -1447,10 +1449,12 @@ def test_an_active_global_cooldown_survives_a_scheduler_restart(ready_repo):
     assert observed.launched_agent_work_identifiers == []
 
 
-def test_a_cooldown_reports_an_issue_listing_failure(ready_repo, gh_with_free_issue):
+def test_a_cooldown_reports_an_issue_listing_failure(
+    ready_repo, gh_with_available_issue
+):
     write_faulted_assignment(root=ready_repo, identifier=ASSIGNMENT_ID, issue=13)
     write_faulted_assignment(root=ready_repo, identifier=SECOND_ASSIGNMENT_ID, issue=14)
-    gh_with_free_issue.fails(
+    gh_with_available_issue.fails(
         stderr="gh: could not connect to github.com", to="issue list"
     )
     scheduler, clock = create_scheduler(root=ready_repo)

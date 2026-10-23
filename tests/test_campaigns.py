@@ -176,7 +176,7 @@ def compose_child_assignment(**fields) -> CampaignChildAssignment:
     )
 
 
-def compose_stage(**fields) -> CampaignChild:
+def compose_child(**fields) -> CampaignChild:
     """Return the first child, settled with its assignment."""
     return CampaignChild.model_validate(
         {
@@ -190,7 +190,7 @@ def compose_stage(**fields) -> CampaignChild:
     )
 
 
-SECOND_STAGE = compose_stage(issue=22, title="Stage 2", assignment=None)
+SECOND_STAGE = compose_child(issue=22, title="Stage 2", assignment=None)
 ENDED = compose_child_assignment(
     observed_pull_request=None, ending=AgentWorkEndReason.COMPLETED
 )
@@ -202,32 +202,32 @@ CHANGES = CampaignChildChange
 @pytest.mark.parametrize(
     ("previous", "current", "changes"),
     [
-        ([], [compose_stage(is_settled=False)], [CHANGES.ADDED]),
+        ([], [compose_child(is_settled=False)], [CHANGES.ADDED]),
         (
-            [compose_stage()],
-            [compose_stage(state=IssueState.CLOSED)],
+            [compose_child()],
+            [compose_child(state=IssueState.CLOSED)],
             [CHANGES.ISSUE_STATE],
         ),
         (
-            [compose_stage(is_settled=False)],
-            [compose_stage(assignment=compose_child_assignment(finished_turn=2))],
+            [compose_child(is_settled=False)],
+            [compose_child(assignment=compose_child_assignment(finished_turn=2))],
             [CHANGES.HANDBACK],
         ),
-        ([compose_stage(is_settled=False)], [compose_stage()], [CHANGES.HANDBACK]),
+        ([compose_child(is_settled=False)], [compose_child()], [CHANGES.HANDBACK]),
         (
-            [compose_stage()],
-            [compose_stage(assignment=compose_child_assignment(finished_turn=2))],
+            [compose_child()],
+            [compose_child(assignment=compose_child_assignment(finished_turn=2))],
             [CHANGES.HANDBACK],
         ),
         (
-            [compose_stage(assignment=None)],
-            [compose_stage()],
+            [compose_child(assignment=None)],
+            [compose_child()],
             [CHANGES.HANDBACK, CHANGES.PULL_REQUEST, CHANGES.CHECK_COMPLETION],
         ),
         (
-            [compose_stage(assignment=ENDED)],
+            [compose_child(assignment=ENDED)],
             [
-                compose_stage(
+                compose_child(
                     assignment=compose_child_assignment(
                         identifier=REPLACEMENT, finished_turn=1
                     )
@@ -237,7 +237,7 @@ CHANGES = CampaignChildChange
         ),
         (
             [
-                compose_stage(
+                compose_child(
                     assignment=compose_child_assignment(
                         observed_pull_request=compose_reviewed_pull_request(
                             is_draft=True
@@ -245,13 +245,13 @@ CHANGES = CampaignChildChange
                     )
                 )
             ],
-            [compose_stage()],
+            [compose_child()],
             [CHANGES.PULL_REQUEST],
         ),
         (
-            [compose_stage()],
+            [compose_child()],
             [
-                compose_stage(
+                compose_child(
                     assignment=compose_child_assignment(
                         observed_pull_request=compose_reviewed_pull_request(head="b2")
                     )
@@ -260,9 +260,9 @@ CHANGES = CampaignChildChange
             [CHANGES.PULL_REQUEST, CHANGES.CHECK_COMPLETION],
         ),
         (
-            [compose_stage()],
+            [compose_child()],
             [
-                compose_stage(
+                compose_child(
                     assignment=compose_child_assignment(
                         observed_pull_request=compose_reviewed_pull_request(
                             head="b2", check_result=CheckResult.NONE
@@ -273,9 +273,9 @@ CHANGES = CampaignChildChange
             [CHANGES.PULL_REQUEST],
         ),
         (
-            [compose_stage()],
+            [compose_child()],
             [
-                compose_stage(
+                compose_child(
                     assignment=compose_child_assignment(
                         observed_pull_request=compose_reviewed_pull_request(
                             state=PullRequestState.MERGED
@@ -287,7 +287,7 @@ CHANGES = CampaignChildChange
         ),
         (
             [
-                compose_stage(
+                compose_child(
                     assignment=compose_child_assignment(
                         observed_pull_request=compose_reviewed_pull_request(
                             check_result=CheckResult.RUNNING, has_running_checks=True
@@ -295,12 +295,12 @@ CHANGES = CampaignChildChange
                     )
                 )
             ],
-            [compose_stage()],
+            [compose_child()],
             [CHANGES.CHECK_COMPLETION],
         ),
         (
             [
-                compose_stage(
+                compose_child(
                     assignment=compose_child_assignment(
                         observed_pull_request=compose_reviewed_pull_request(
                             check_result=CheckResult.FAILING, has_running_checks=True
@@ -309,7 +309,7 @@ CHANGES = CampaignChildChange
                 )
             ],
             [
-                compose_stage(
+                compose_child(
                     assignment=compose_child_assignment(
                         observed_pull_request=compose_reviewed_pull_request(
                             check_result=CheckResult.FAILING
@@ -320,9 +320,9 @@ CHANGES = CampaignChildChange
             [CHANGES.CHECK_COMPLETION],
         ),
         (
-            [compose_stage()],
+            [compose_child()],
             [
-                compose_stage(
+                compose_child(
                     assignment=compose_child_assignment(
                         observed_pull_request=compose_reviewed_pull_request(
                             check_result=CheckResult.FAILING
@@ -333,9 +333,9 @@ CHANGES = CampaignChildChange
             [CHANGES.CHECK_COMPLETION],
         ),
         (
-            [compose_stage()],
+            [compose_child()],
             [
-                compose_stage(
+                compose_child(
                     assignment=compose_child_assignment(
                         observed_pull_request=compose_reviewed_pull_request(
                             merge_state=PullRequestMergeState.CLEAN
@@ -345,21 +345,21 @@ CHANGES = CampaignChildChange
             ],
             [CHANGES.MERGEABLE],
         ),
-        ([compose_stage()], [compose_stage(assignment=ENDED)], [CHANGES.ENDING]),
+        ([compose_child()], [compose_child(assignment=ENDED)], [CHANGES.ENDING]),
         (
-            [compose_stage(assignment=ENDED)],
+            [compose_child(assignment=ENDED)],
             [
-                compose_stage(
+                compose_child(
                     assignment=ENDED.model_copy(update={"identifier": REPLACEMENT})
                 )
             ],
             [CHANGES.HANDBACK, CHANGES.ENDING],
         ),
-        ([compose_stage()], [compose_stage(assignment=FAULTED)], [CHANGES.FAULT]),
+        ([compose_child()], [compose_child(assignment=FAULTED)], [CHANGES.FAULT]),
         (
-            [compose_stage(assignment=FAULTED)],
+            [compose_child(assignment=FAULTED)],
             [
-                compose_stage(
+                compose_child(
                     assignment=FAULTED.model_copy(update={"identifier": REPLACEMENT})
                 )
             ],
@@ -398,8 +398,8 @@ def test_a_change_to_a_child_notifies_the_lead(previous, current, changes):
 
 def test_a_removed_child_notifies_after_the_current_children():
     notifications = compare_campaign_children(
-        previous=[compose_stage(), SECOND_STAGE],
-        current=[SECOND_STAGE, compose_stage(issue=23)],
+        previous=[compose_child(), SECOND_STAGE],
+        current=[SECOND_STAGE, compose_child(issue=23)],
     )
 
     assert notifications == [
@@ -411,11 +411,11 @@ def test_a_removed_child_notifies_after_the_current_children():
 @pytest.mark.parametrize(
     ("previous", "current"),
     [
-        ([compose_stage(), SECOND_STAGE], [SECOND_STAGE, compose_stage()]),
+        ([compose_child(), SECOND_STAGE], [SECOND_STAGE, compose_child()]),
         (
-            [compose_stage(is_settled=False)],
+            [compose_child(is_settled=False)],
             [
-                compose_stage(
+                compose_child(
                     is_settled=False,
                     state=IssueState.CLOSED,
                     assignment=compose_child_assignment(
@@ -428,9 +428,9 @@ def test_a_removed_child_notifies_after_the_current_children():
             ],
         ),
         (
-            [compose_stage()],
+            [compose_child()],
             [
-                compose_stage(
+                compose_child(
                     assignment=compose_child_assignment(
                         observed_pull_request=compose_reviewed_pull_request(
                             check_result=CheckResult.FAILING, has_running_checks=True
@@ -441,7 +441,7 @@ def test_a_removed_child_notifies_after_the_current_children():
         ),
         (
             [
-                compose_stage(
+                compose_child(
                     assignment=compose_child_assignment(
                         observed_pull_request=compose_reviewed_pull_request(
                             merge_state=PullRequestMergeState.CLEAN
@@ -450,7 +450,7 @@ def test_a_removed_child_notifies_after_the_current_children():
                 )
             ],
             [
-                compose_stage(
+                compose_child(
                     assignment=compose_child_assignment(
                         observed_pull_request=compose_reviewed_pull_request(
                             merge_state=PullRequestMergeState.UNSTABLE
@@ -459,9 +459,9 @@ def test_a_removed_child_notifies_after_the_current_children():
                 )
             ],
         ),
-        ([compose_stage(assignment=ENDED)], [compose_stage(assignment=ENDED)]),
-        ([compose_stage(assignment=FAULTED)], [compose_stage(assignment=FAULTED)]),
-        ([compose_stage(assignment=None)], [compose_stage(assignment=None)]),
+        ([compose_child(assignment=ENDED)], [compose_child(assignment=ENDED)]),
+        ([compose_child(assignment=FAULTED)], [compose_child(assignment=FAULTED)]),
+        ([compose_child(assignment=None)], [compose_child(assignment=None)]),
     ],
     ids=[
         "reordered",

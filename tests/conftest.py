@@ -444,14 +444,14 @@ def gh(fake):
 
 
 @pytest.fixture
-def gh_with_free_issue(gh):
-    """Return gh offering one labelled issue that is free for assignment."""
+def gh_with_available_issue(gh):
+    """Return gh offering one labelled issue that is available for assignment."""
     gh.replies(stdout=compose_issue_listing(issues=[(8, FILED)]), to="issue list")
     return gh
 
 
 @pytest.fixture
-def ready_repo(cloned_repo, gh_with_free_issue, harnesses):
+def ready_repo(cloned_repo, gh_with_available_issue, harnesses):
     """Return a checkout that can create an assignment for a labelled issue."""
     configure(root=cloned_repo)
     harnesses["claude"].streams(

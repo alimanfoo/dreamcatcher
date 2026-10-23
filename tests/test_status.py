@@ -157,7 +157,7 @@ def read_report(*, state: StateDirectory):
     return read_status_report(state=state, clock=lambda: LOOKED_AT)
 
 
-def read_only_assignment(*, state: StateDirectory):
+def read_sole_assignment_status(*, state: StateDirectory):
     """Return the only agent-assignment status in the fixture."""
     assignments = read_report(state=state).work_statuses
     assert len(assignments) == 1
@@ -321,7 +321,7 @@ def test_a_live_round_keeps_the_pull_request_summary_the_tick_read(held_state):
     write_assignment_round(state=held_state, number=1, status=None)
     write_tick_rows(state=held_state, rows=[compose_pull_request_row()])
 
-    assert read_only_assignment(state=held_state).pull_request_summary == "ready"
+    assert read_sole_assignment_status(state=held_state).pull_request_summary == "ready"
 
 
 @pytest.mark.parametrize(
@@ -354,7 +354,7 @@ def test_a_terminal_round_status_describes_its_outcome_and_duration(
         ),
     )
 
-    round_status = read_only_assignment(state=state).round_statuses[0]
+    round_status = read_sole_assignment_status(state=state).round_statuses[0]
 
     assert round_status.outcome_description == outcome_description
     assert round_status.duration_description == duration
@@ -371,7 +371,7 @@ def test_an_unended_round_status_follows_the_daemon(
         hold_daemon_lock_for_test(path=state.lock)
     write_assignment_round(state=state, number=1, status=None)
 
-    round_status = read_only_assignment(state=state).round_statuses[0]
+    round_status = read_sole_assignment_status(state=state).round_statuses[0]
 
     assert round_status.outcome_description == outcome_description
     assert round_status.duration_description == ""
@@ -405,7 +405,7 @@ def test_status_finds_the_harness_session_and_builds_its_resume_command(tmp_path
         path=directory / "rounds" / "1" / "raw.jsonl",
     )
 
-    status = read_only_assignment(state=state)
+    status = read_sole_assignment_status(state=state)
 
     assert status.harness_session_identifier == "abc-123"
     assert status.hand_resume_command == ["claude", "--resume", "abc-123"]
@@ -424,7 +424,7 @@ def test_status_reads_harness_resume_details_only_when_requested(state, monkeypa
         find_harness_session_identifier,
     )
 
-    status = read_only_assignment(state=state)
+    status = read_sole_assignment_status(state=state)
 
     assert calls == []
     assert status.harness_session_identifier == "abc-123"
@@ -453,7 +453,7 @@ def test_status_with_no_harness_session_has_no_resume_command(tmp_path):
         ),
     )
 
-    status = read_only_assignment(state=state)
+    status = read_sole_assignment_status(state=state)
 
     assert status.harness_session_identifier is None
     assert status.hand_resume_command is None
@@ -462,7 +462,7 @@ def test_status_with_no_harness_session_has_no_resume_command(tmp_path):
 def test_a_live_round_that_has_said_nothing_reports_that(held_state):
     write_assignment_round(state=held_state, number=1, status=None)
 
-    status = read_only_assignment(state=held_state)
+    status = read_sole_assignment_status(state=held_state)
 
     assert status.value is AgentWorkStatusValue.WORKING
     assert status.detail == "round 1, start, running 1h 59m, has said nothing yet"
@@ -482,7 +482,7 @@ def test_a_round_that_errored_before_its_harness_ran_says_why_without_a_status(
         ),
     )
 
-    status = read_only_assignment(state=state)
+    status = read_sole_assignment_status(state=state)
 
     assert status.value is AgentWorkStatusValue.WAITING
     assert status.detail == "round 1 errored: git push failed"
@@ -502,7 +502,7 @@ def test_an_unfinished_round_waits_to_be_given_its_input_again(
     write_assignment_round(state=state, number=1, status=round_status)
     write_tick_rows(state=state, rows=[compose_pull_request_row()])
 
-    status = read_only_assignment(state=state)
+    status = read_sole_assignment_status(state=state)
 
     assert status.value is AgentWorkStatusValue.WAITING
     assert status.detail == detail
@@ -512,7 +512,7 @@ def test_a_successful_wrap_up_is_complete(state):
     write_assignment_round(state=state, number=1)
     write_assignment_round(state=state, number=2, round_input=MERGED_INPUT)
 
-    status = read_only_assignment(state=state)
+    status = read_sole_assignment_status(state=state)
 
     assert status.value is AgentWorkStatusValue.ENDED
     assert status.detail == "completed"
@@ -528,7 +528,7 @@ def test_a_cancelled_assignment_has_ended(state):
     write_assignment_round(state=state, number=1)
     cancel(state=state)
 
-    status = read_only_assignment(state=state)
+    status = read_sole_assignment_status(state=state)
 
     assert status.value is AgentWorkStatusValue.ENDED
     assert status.detail == "cancelled"
@@ -539,7 +539,7 @@ def test_a_round_still_running_after_a_cancel_is_working(held_state):
     write_assignment_round(state=held_state, number=1, status=None)
     cancel(state=held_state)
 
-    status = read_only_assignment(state=held_state)
+    status = read_sole_assignment_status(state=held_state)
 
     assert status.value is AgentWorkStatusValue.WORKING
     assert not status.has_ended
@@ -550,12 +550,12 @@ def test_a_cancelled_assignment_has_ended_rather_than_being_in_fault(state):
     write_assignment_round(state=state, number=2, status=2)
     cancel(state=state)
 
-    status = read_only_assignment(state=state)
+    status = read_sole_assignment_status(state=state)
 
     assert status.value is AgentWorkStatusValue.ENDED
 
 
-def compose_pull_request_row_holding(**facts: object) -> RequestRow:
+def compose_pull_request_row_with(**facts: object) -> RequestRow:
     """Return the row of the fixture's assignment, its pull request holding these."""
     row = compose_pull_request_row()
     assert row.finding is not None
@@ -592,9 +592,9 @@ def test_an_open_assignment_reports_where_the_tick_found_its_pull_request(
     state, facts, words
 ):
     write_assignment_round(state=state, number=1)
-    write_tick_rows(state=state, rows=[compose_pull_request_row_holding(**facts)])
+    write_tick_rows(state=state, rows=[compose_pull_request_row_with(**facts)])
 
-    assert read_only_assignment(state=state).pull_request_summary == words
+    assert read_sole_assignment_status(state=state).pull_request_summary == words
 
 
 @pytest.mark.parametrize(
@@ -624,9 +624,9 @@ def test_a_ready_pull_request_with_nothing_new_says_where_it_has_got_to(
     state, facts, detail
 ):
     write_assignment_round(state=state, number=1)
-    write_tick_rows(state=state, rows=[compose_pull_request_row_holding(**facts)])
+    write_tick_rows(state=state, rows=[compose_pull_request_row_with(**facts)])
 
-    status = read_only_assignment(state=state)
+    status = read_sole_assignment_status(state=state)
 
     assert status.value is AgentWorkStatusValue.IDLE
     assert status.detail == detail
@@ -637,7 +637,7 @@ def test_signals_found_by_the_tick_make_the_assignment_wait(state):
     write_tick_rows(
         state=state,
         rows=[
-            compose_pull_request_row_holding(
+            compose_pull_request_row_with(
                 new_posts=1,
                 new_pull_request_signals=[
                     PullRequestSignal.OUT_OF_DATE,
@@ -647,7 +647,7 @@ def test_signals_found_by_the_tick_make_the_assignment_wait(state):
         ],
     )
 
-    status = read_only_assignment(state=state)
+    status = read_sole_assignment_status(state=state)
 
     assert status.value is AgentWorkStatusValue.WAITING
     assert status.detail == "1 new post to answer, main moved, checks failed"
@@ -673,7 +673,7 @@ def test_a_round_says_which_signals_woke_it(state, signals, posts, trigger):
         ),
     )
 
-    round_status = read_only_assignment(state=state).round_statuses[0]
+    round_status = read_sole_assignment_status(state=state).round_statuses[0]
 
     assert round_status.trigger_description == trigger
 
@@ -684,7 +684,7 @@ def test_an_unreadable_round_input_fails_the_status_naming_the_file(state):
     round_input = assignment.compose_round_paths(number=1).round_input
     round_input.write_bytes(b"not json")
 
-    found = read_only_assignment(state=state)
+    found = read_sole_assignment_status(state=state)
 
     with pytest.raises(ReportableError, match=re.escape(str(round_input))):
         _ = found.round_statuses
@@ -693,7 +693,7 @@ def test_an_unreadable_round_input_fails_the_status_naming_the_file(state):
 def test_a_round_with_no_input_was_the_start(state):
     write_assignment_round(state=state, number=1)
 
-    round_status = read_only_assignment(state=state).round_statuses[0]
+    round_status = read_sole_assignment_status(state=state).round_statuses[0]
 
     assert round_status.trigger_description == "start"
 
@@ -705,7 +705,7 @@ def test_an_assignment_the_tick_read_nothing_for_reports_no_pull_request_summary
         rows=[compose_request_row(issue=13, agent_work_identifier=ASSIGNMENT_ID)],
     )
 
-    assert read_only_assignment(state=state).pull_request_summary is None
+    assert read_sole_assignment_status(state=state).pull_request_summary is None
 
 
 def test_a_cancelled_assignment_stops_reporting_its_pull_request_summary(state):
@@ -714,7 +714,7 @@ def test_a_cancelled_assignment_stops_reporting_its_pull_request_summary(state):
 
     cancel(state=state)
 
-    assert read_only_assignment(state=state).pull_request_summary is None
+    assert read_sole_assignment_status(state=state).pull_request_summary is None
 
 
 @pytest.mark.parametrize("status", [0, None])
@@ -730,13 +730,13 @@ def test_a_wrapped_up_assignment_reports_the_state_its_last_round_was_given(
         rows=[compose_request_row(issue=13, agent_work_identifier=ASSIGNMENT_ID)],
     )
 
-    assert read_only_assignment(state=state).pull_request_summary == "merged"
+    assert read_sole_assignment_status(state=state).pull_request_summary == "merged"
 
 
 def test_an_assignment_that_has_run_no_round_waits_for_its_first(state):
     write_tick_rows(state=state, rows=[])
 
-    status = read_only_assignment(state=state)
+    status = read_sole_assignment_status(state=state)
 
     assert status.value is AgentWorkStatusValue.WAITING
     assert status.detail == "no round has run yet"
@@ -747,7 +747,7 @@ def test_new_posts_found_by_the_tick_make_the_assignment_wait(state):
     write_assignment_round(state=state, number=1)
     write_tick_rows(state=state, rows=[compose_pull_request_row(new_posts=1)])
 
-    status = read_only_assignment(state=state)
+    status = read_sole_assignment_status(state=state)
 
     assert status.value is AgentWorkStatusValue.WAITING
     assert status.detail == "1 new post to answer"
@@ -765,7 +765,7 @@ def test_a_finished_pull_request_waits_for_its_wrap_up_round(state, pull_request
         ],
     )
 
-    status = read_only_assignment(state=state)
+    status = read_sole_assignment_status(state=state)
 
     assert status.value is AgentWorkStatusValue.WAITING
     assert status.detail == f"the pull request is {pull_request_state.lower()}"
@@ -784,7 +784,7 @@ def test_a_failed_read_makes_the_assignment_unknown_with_the_reason(state):
         ],
     )
 
-    status = read_only_assignment(state=state)
+    status = read_sole_assignment_status(state=state)
 
     assert status.value is AgentWorkStatusValue.UNKNOWN
     assert status.detail == "cannot tell: unavailable"
@@ -793,7 +793,7 @@ def test_a_failed_read_makes_the_assignment_unknown_with_the_reason(state):
 def test_an_assignment_before_any_update_is_unknown(state):
     write_assignment_round(state=state, number=1)
 
-    status = read_only_assignment(state=state)
+    status = read_sole_assignment_status(state=state)
 
     assert status.value is AgentWorkStatusValue.UNKNOWN
     assert status.detail == "not seen by the latest update"
@@ -810,7 +810,7 @@ def test_a_round_ending_after_the_latest_tick_is_idle_until_the_next_update(stat
         ],
     )
 
-    status = read_only_assignment(state=state)
+    status = read_sole_assignment_status(state=state)
 
     assert status.value is AgentWorkStatusValue.IDLE
     assert status.detail == "round 1 ended, awaiting next update"
@@ -820,7 +820,7 @@ def test_an_assignment_the_latest_update_did_not_see_is_unknown(state):
     write_assignment_round(state=state, number=1)
     write_tick_rows(state=state, rows=[])
 
-    status = read_only_assignment(state=state)
+    status = read_sole_assignment_status(state=state)
 
     assert status.value is AgentWorkStatusValue.UNKNOWN
     assert status.detail == "not seen by the latest update"
@@ -832,7 +832,7 @@ def test_a_later_update_replaces_the_read_that_predated_a_rounds_ending(state):
         state=state, rows=[compose_pull_request_row(is_draft=True, ended_round=None)]
     )
 
-    awaiting_update = read_only_assignment(state=state)
+    awaiting_update = read_sole_assignment_status(state=state)
 
     assert awaiting_update.value is AgentWorkStatusValue.IDLE
     assert awaiting_update.detail == "round 1 ended, awaiting next update"
@@ -840,7 +840,7 @@ def test_a_later_update_replaces_the_read_that_predated_a_rounds_ending(state):
 
     write_tick_rows(state=state, rows=[compose_pull_request_row(is_draft=True)])
 
-    refreshed = read_only_assignment(state=state)
+    refreshed = read_sole_assignment_status(state=state)
 
     assert refreshed.value is AgentWorkStatusValue.IDLE
     assert refreshed.detail == "needs feedback"
@@ -862,7 +862,7 @@ def test_a_stopped_round_ending_after_the_latest_tick_is_idle_until_the_next_upd
     )
     write_tick_rows(state=state, rows=[compose_pull_request_row(ended_round=None)])
 
-    status = read_only_assignment(state=state)
+    status = read_sole_assignment_status(state=state)
 
     assert status.value is AgentWorkStatusValue.IDLE
     assert status.detail == "round 1 ended, awaiting next update"
@@ -874,7 +874,7 @@ def test_new_posts_found_while_a_round_ran_wait_after_it_ends(state):
         state=state, rows=[compose_pull_request_row(new_posts=1, ended_round=None)]
     )
 
-    status = read_only_assignment(state=state)
+    status = read_sole_assignment_status(state=state)
 
     assert status.value is AgentWorkStatusValue.WAITING
     assert status.detail == "1 new post to answer"
@@ -884,7 +884,7 @@ def test_a_ready_pull_request_with_nothing_new_is_idle_ready_for_review(state):
     write_assignment_round(state=state, number=1)
     write_tick_rows(state=state, rows=[compose_pull_request_row()])
 
-    status = read_only_assignment(state=state)
+    status = read_sole_assignment_status(state=state)
 
     assert status.value is AgentWorkStatusValue.IDLE
     assert status.detail == "ready for review"
@@ -894,7 +894,7 @@ def test_a_draft_pull_request_with_nothing_new_is_idle_needing_feedback(state):
     write_assignment_round(state=state, number=1)
     write_tick_rows(state=state, rows=[compose_pull_request_row(is_draft=True)])
 
-    assert read_only_assignment(state=state).detail == "needs feedback"
+    assert read_sole_assignment_status(state=state).detail == "needs feedback"
 
 
 def test_a_finished_pull_request_whose_wrap_up_round_took_its_turn_is_idle(state):
@@ -913,7 +913,7 @@ def test_a_finished_pull_request_whose_wrap_up_round_took_its_turn_is_idle(state
         state=state, rows=[compose_pull_request_row(state=PullRequestState.MERGED)]
     )
 
-    status = read_only_assignment(state=state)
+    status = read_sole_assignment_status(state=state)
 
     assert status.value is AgentWorkStatusValue.IDLE
     assert status.detail == "merged"
@@ -933,7 +933,7 @@ def test_a_stopped_assignment_is_idle(state):
     )
     write_tick_rows(state=state, rows=[compose_pull_request_row()])
 
-    status = read_only_assignment(state=state)
+    status = read_sole_assignment_status(state=state)
 
     assert status.value is AgentWorkStatusValue.IDLE
     assert status.round_statuses[0].duration_description == "ran 4m"
@@ -948,7 +948,7 @@ def test_two_current_errors_put_an_assignment_in_fault(state):
         texts=["[failed] You hit your spend cap."],
     )
 
-    status = read_only_assignment(state=state)
+    status = read_sole_assignment_status(state=state)
 
     assert status.value is AgentWorkStatusValue.FAULT
     assert status.detail == "round 2 errored (exit 2)"
@@ -960,7 +960,7 @@ def test_a_fault_with_no_output_names_the_latest_round_ending(state):
     write_assignment_round(state=state, number=1, status=1)
     write_assignment_round(state=state, number=2, status=2)
 
-    status = read_only_assignment(state=state)
+    status = read_sole_assignment_status(state=state)
 
     assert status.detail == "round 2 errored (exit 2)"
     assert status.latest_output is None
@@ -1118,7 +1118,7 @@ def test_an_assignment_whose_pull_request_is_not_yet_open_waits_for_it(tmp_path)
         ],
     )
 
-    status = read_only_assignment(state=state)
+    status = read_sole_assignment_status(state=state)
 
     assert status.value is AgentWorkStatusValue.WAITING
     assert status.detail == "no pull request yet"
