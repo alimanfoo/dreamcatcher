@@ -711,7 +711,7 @@ scheduler applies the routing rules to the routes it returns.
 mechanics required to bootstrap that directory. The modules that own
 agent work and rounds name the files within their own directories. A
 state-format constant selects the versioned root, currently
-`.dreamcatcher/v7/`, so one format never reads another format's files.
+`.dreamcatcher/v8/`, so one format never reads another format's files.
 The shared `.dreamcatcher/daemon.lock` stays outside that root, so
 daemons using different formats from v5 on use the same lock. The daemon
 acquires an operating-system lock on that empty file before it starts

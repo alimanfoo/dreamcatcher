@@ -27,6 +27,15 @@ the change.
 
 ## Unreleased
 
+### Breaking
+
+- Saved state moves to state format 8, in `.dreamcatcher/v8/`. Saved
+  work from v8 does not carry across: before upgrading, let each
+  assignment reach its wrap-up or finish its pull request by hand, and
+  accept that conversations and campaigns start afresh, as
+  [the upgrade instructions](compatibility.md#upgrade-from-v8-to-v900)
+  describe. ([#740](https://github.com/alimanfoo/dreamcatcher/pull/740))
+
 ### Changed
 
 - Each update lists the open issues assigned to the signed-in account
