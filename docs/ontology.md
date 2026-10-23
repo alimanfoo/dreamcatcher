@@ -43,10 +43,10 @@ the same repository.
 A **daemon** is the process that runs a _dreamcatcher_ instance. At most
 one daemon runs an instance at a time. A **daemon run** is one daemon
 process from start to stop. Each daemon run writes a **daemon run
-record** when it starts, holding its process, preferred harness,
-version, capacity, interval and the dispatch routes it loaded, each as a
-dispatch label and its kind of agent work. Status reports take the
-labels they name from that record.
+record** when it starts, holding its process, start time, preferred
+harness, version, capacity, interval and the dispatch routes it loaded,
+each as a dispatch label and its kind of agent work. Status reports take
+the labels they name from that record.
 
 ### Issue and issue identifier
 
@@ -215,8 +215,9 @@ durable domain object.
 ### Scheduler
 
 The **scheduler** decides what work _dreamcatcher_ starts and when. It
-decides once per **scheduler tick**, and the daemon runs one tick per
-interval. Users see a scheduler tick called an update.
+decides once per **scheduler tick**, and the daemon waits its interval
+after each tick finishes before it starts the next. Users see a
+scheduler tick called an update.
 
 ### Channel and cursor
 
@@ -699,14 +700,15 @@ unless it is then in fault.
 ### Status reports do not control work
 
 A status report may include operational facts such as the repository
-identity, whether the daemon is running, when the last scheduler tick
-occurred, current capacity, whether a global cooldown is active, and the
-scheduler failures. A scheduler failure is a failure in the latest tick
-that no request row holds: a failed issue listing, or a launch that
-failed before its round was recorded. A failed read for a request is
-held in its request row, and so is a round that errored during its
-preparation or startup. Its request statuses and agent work statuses are
-projections derived for a person to read.
+identity, whether the daemon is running, how long until the next
+scheduler tick, or that a tick is running, current capacity, whether a
+global cooldown is active, and the scheduler failures. A scheduler
+failure is a failure in the latest tick that no request row holds: a
+failed issue listing, or a launch that failed before its round was
+recorded. A failed read for a request is held in its request row, and so
+is a round that errored during its preparation or startup. Its request
+statuses and agent work statuses are projections derived for a person to
+read.
 
 The status report never schedules work and is never an input to
 scheduling. Scheduling and reporting must nevertheless interpret the

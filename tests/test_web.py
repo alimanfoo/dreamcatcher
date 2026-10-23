@@ -257,6 +257,7 @@ def test_a_campaign_with_no_children_to_show_says_why_and_shows_no_cards(
         state=state,
         tick=SchedulerRecord(
             at=LOOKED_AT,
+            finished=LOOKED_AT,
             rows=[campaign_row.model_copy(update={"children": children}), *other_rows],
         ),
     )
@@ -296,6 +297,7 @@ def test_requests_whose_labels_differ_only_in_spacing_have_their_own_identifiers
         state=state,
         tick=SchedulerRecord(
             at=LOOKED_AT,
+            finished=LOOKED_AT,
             rows=[
                 *fabricate_campaigns(state=state),
                 *(
@@ -1726,7 +1728,20 @@ def test_next_update_is_left_out_when_no_daemon_is_running(tmp_path):
 
     page = render_home(state=state)
 
-    assert "<dt>next update in</dt>" not in page
+    assert "<dt>next update</dt>" not in page
+
+
+def test_a_running_update_pulses_and_a_countdown_does_not(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    fabricate_everything(state=state)
+
+    counting_down = render_home(state=state)
+    write_tick(state=state, tick=SchedulerRecord(at=PINNED, finished=PINNED))
+    updating = render_home(state=state)
+
+    assert "in-progress" not in counting_down
+    assert '<div class="fact in-progress">' in updating
+    assert "<dd>updating</dd>" in updating
 
 
 def test_an_active_cooldown_is_a_warning_fact(tmp_path):
@@ -1736,6 +1751,7 @@ def test_an_active_cooldown_is_a_warning_fact(tmp_path):
         state=state,
         tick=SchedulerRecord(
             at=PINNED,
+            finished=PINNED,
             cooldown=GlobalCooldown(
                 started=LOOKED_AT, ends=LOOKED_AT + timedelta(minutes=15)
             ),

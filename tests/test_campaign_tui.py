@@ -21,7 +21,9 @@ def state(tmp_path):
     write_running_daemon(state=state)
     write_tick(
         state=state,
-        tick=SchedulerRecord(at=PINNED, rows=fabricate_campaigns(state=state)),
+        tick=SchedulerRecord(
+            at=PINNED, finished=PINNED, rows=fabricate_campaigns(state=state)
+        ),
     )
     return state
 

@@ -196,12 +196,14 @@ class GlobalCooldown(DreamcatcherDocument):
 class SchedulerRecord(DreamcatcherDocument):
     """Record what one scheduler tick found and started.
 
-    The tick writes one row per request it saw. Its failures are those that no
-    row holds: a failed issue listing, or a launch that failed before its round
-    was recorded.
+    The tick reads the clock once as it starts, for every decision it makes,
+    and again as it finishes. It writes one row per request it saw. Its
+    failures are those that no row holds: a failed issue listing, or a launch
+    that failed before its round was recorded.
     """
 
     at: _UtcDateTime
+    finished: _UtcDateTime
     failures: ReadOnlyList[str] = Field(default_factory=list)
     rows: ReadOnlyList[RequestRow] = Field(default_factory=list)
     cooldown: GlobalCooldown | None = None

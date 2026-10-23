@@ -129,7 +129,7 @@ def test_conversation_detail_shows_settings_revision_session_and_round(tmp_path)
     assert "1 comment" in shown
     assert "successful" in shown
     assert "resume by hand" in shown
-    assert "cd .dreamcatcher/v7/worktrees/GH8-20260819-184158-conversation" in shown
+    assert "cd .dreamcatcher/v8/worktrees/GH8-20260819-184158-conversation" in shown
     assert "claude --resume recovered-session" in shown
 
 
@@ -315,6 +315,7 @@ def write_unsaved_conversation_state(*, root) -> StateDirectory:
         state=state,
         tick=SchedulerRecord(
             at=PINNED,
+            finished=PINNED,
             rows=[
                 compose_request_row(
                     issue=9,
@@ -354,6 +355,7 @@ def test_conversations_are_listed_in_attention_order_before_requests(tmp_path):
         state=state,
         tick=SchedulerRecord(
             at=PINNED,
+            finished=PINNED,
             rows=[
                 compose_conversation_row(
                     ended_round=1, finding=IssueCommentsFinding(new_comments=0)
@@ -476,6 +478,7 @@ def test_a_conversation_view_with_a_routing_conflict_keeps_watching(tmp_path):
         state=state,
         tick=SchedulerRecord(
             at=PINNED,
+            finished=PINNED,
             rows=[
                 compose_conversation_row(
                     finding=ConflictingLabelsFinding(labels=["discuss", "scout"])

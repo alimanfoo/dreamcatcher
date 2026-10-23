@@ -162,7 +162,7 @@ def test_conversation_page_shows_settings_revision_round_and_feed(tmp_path):
     assert "I found the answer." in page
     assert 'hx-get="/work/GH8-20260819-184158-conversation/tail"' in page
     assert "<summary>resume by hand</summary>" in page
-    assert "cd .dreamcatcher/v7/worktrees/GH8-20260819-184158-conversation" in page
+    assert "cd .dreamcatcher/v8/worktrees/GH8-20260819-184158-conversation" in page
     assert "claude --resume recovered-session" in page
 
 
@@ -537,6 +537,7 @@ def test_a_routing_conflict_keeps_empty_conversation_tail_polling(tmp_path):
         state=state,
         tick=SchedulerRecord(
             at=PINNED,
+            finished=PINNED,
             rows=[
                 compose_conversation_row(
                     finding=ConflictingLabelsFinding(labels=["discuss", "scout"])
@@ -604,6 +605,7 @@ def test_conversation_tail_adds_a_later_round_without_repeating_the_first(tmp_pa
         state=state,
         tick=SchedulerRecord(
             at=PINNED,
+            finished=PINNED,
             rows=[
                 compose_conversation_row(
                     finding=PausedFinding(cause=PauseCause.LABEL_REMOVED)
@@ -671,6 +673,7 @@ def fabricate_unsaved_conversation(*, state: StateDirectory) -> None:
         state=state,
         tick=SchedulerRecord(
             at=PINNED,
+            finished=PINNED,
             rows=[
                 compose_request_row(
                     issue=9,
@@ -712,6 +715,7 @@ def test_home_lists_conversations_in_attention_order_before_requests(tmp_path):
         state=state,
         tick=SchedulerRecord(
             at=PINNED,
+            finished=PINNED,
             rows=[
                 compose_conversation_row(finding=IssueCommentsFinding(new_comments=0)),
                 compose_conversation_row(

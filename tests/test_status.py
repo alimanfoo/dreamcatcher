@@ -201,7 +201,9 @@ def compose_pull_request_row(
 
 def write_tick_rows(*, state: StateDirectory, rows: list[RequestRow]) -> None:
     """Write a tick that wrote these rows."""
-    write_tick(state=state, tick=SchedulerRecord(at=LOOKED_AT, rows=rows))
+    write_tick(
+        state=state, tick=SchedulerRecord(at=LOOKED_AT, finished=LOOKED_AT, rows=rows)
+    )
 
 
 def test_an_empty_instance_reports_unknown_capacity_and_no_work(tmp_path):
@@ -215,8 +217,7 @@ def test_an_empty_instance_reports_unknown_capacity_and_no_work(tmp_path):
     assert found.daemon.pid is None
     assert found.daemon.preferred_harness is None
     assert found.daemon.dreamcatcher_version is None
-    assert found.latest_scheduler_tick is None
-    assert found.daemon.interval_seconds is None
+    assert found.latest_update_finished is None
     assert found.scheduler_failures == ()
     assert found.daemon.max_agents is None
     assert found.running_agents == 0
@@ -974,6 +975,7 @@ def test_an_elapsed_cooldown_clears_the_fault_and_the_cooldown(state):
         state=state,
         tick=SchedulerRecord(
             at=PINNED,
+            finished=PINNED,
             cooldown=GlobalCooldown(started=PINNED, ends=ended),
         ),
     )
@@ -990,6 +992,7 @@ def test_an_active_cooldown_is_an_instance_fact_and_failures_are_listed(held_sta
         state=held_state,
         tick=SchedulerRecord(
             at=PINNED,
+            finished=PINNED,
             failures=["could not start assignment", "could not read comments for GH8"],
             cooldown=cooldown,
         ),
@@ -997,8 +1000,7 @@ def test_an_active_cooldown_is_an_instance_fact_and_failures_are_listed(held_sta
 
     found = read_report(state=held_state)
 
-    assert found.latest_scheduler_tick == PINNED
-    assert found.daemon.interval_seconds == DEFAULT_INTERVAL_SECONDS
+    assert found.latest_update_finished == PINNED
     assert found.scheduler_failures == (
         "could not start assignment",
         "could not read comments for GH8",
@@ -1007,16 +1009,89 @@ def test_an_active_cooldown_is_an_instance_fact_and_failures_are_listed(held_sta
     assert found.active_global_cooldown == cooldown
     assert found.instance_facts == (
         StatusFact(label="preferred harness", value="claude"),
-        StatusFact(label="next update in", value="0s"),
+        StatusFact(label="next update", value="updating", is_in_progress=True),
         StatusFact(label="agent capacity", value="0 of 3 working"),
         StatusFact(label="global cooldown", value="ends in 1m", is_warning=True),
     )
 
 
+def read_next_update(*, state: StateDirectory) -> StatusFact | None:
+    """Return the next-update fact of the fixture's status report, if it has one."""
+    facts = read_report(state=state).instance_facts
+    return next((fact for fact in facts if fact.label == "next update"), None)
+
+
+def test_the_countdown_runs_from_when_the_last_update_finished(held_state):
+    write_tick(
+        state=held_state,
+        tick=SchedulerRecord(
+            at=LOOKED_AT - timedelta(seconds=200),
+            finished=LOOKED_AT - timedelta(seconds=80),
+        ),
+    )
+
+    assert read_next_update(state=held_state) == StatusFact(
+        label="next update", value="in 40s"
+    )
+
+
+def test_an_update_is_running_once_the_countdown_runs_out(held_state):
+    write_tick(
+        state=held_state,
+        tick=SchedulerRecord(
+            at=LOOKED_AT - timedelta(seconds=130),
+            finished=LOOKED_AT - timedelta(seconds=DEFAULT_INTERVAL_SECONDS),
+        ),
+    )
+
+    assert read_next_update(state=held_state) == StatusFact(
+        label="next update", value="updating", is_in_progress=True
+    )
+
+
+def test_an_update_is_running_before_the_daemon_runs_first_finishes(held_state):
+    assert read_next_update(state=held_state) == StatusFact(
+        label="next update", value="updating", is_in_progress=True
+    )
+
+
+def test_an_earlier_daemon_runs_update_counts_nothing_down(held_state):
+    write_tick(
+        state=held_state,
+        tick=SchedulerRecord(
+            at=LOOKED_AT - timedelta(seconds=20),
+            finished=LOOKED_AT - timedelta(seconds=10),
+        ),
+    )
+    write_daemon_run(
+        state=held_state,
+        pid=os.getpid(),
+        started=LOOKED_AT - timedelta(seconds=5),
+    )
+
+    assert read_next_update(state=held_state) == StatusFact(
+        label="next update", value="updating", is_in_progress=True
+    )
+
+
+def test_a_stopped_daemon_has_no_next_update(state):
+    write_tick(
+        state=state,
+        tick=SchedulerRecord(
+            at=LOOKED_AT - timedelta(seconds=20),
+            finished=LOOKED_AT - timedelta(seconds=10),
+        ),
+    )
+
+    assert read_next_update(state=state) is None
+
+
 def test_a_stopped_daemon_has_no_current_scheduler_failures(state):
     write_tick(
         state=state,
-        tick=SchedulerRecord(at=PINNED, failures=["could not start assignment"]),
+        tick=SchedulerRecord(
+            at=PINNED, finished=PINNED, failures=["could not start assignment"]
+        ),
     )
 
     assert read_report(state=state).scheduler_failures == ()
@@ -1034,6 +1109,7 @@ def test_a_blocked_request_names_its_claims_and_blockers_as_numbers(state):
         state=state,
         tick=SchedulerRecord(
             at=PINNED,
+            finished=PINNED,
             rows=[blocked],
         ),
     )
@@ -1064,7 +1140,9 @@ def test_a_campaign_request_names_the_issues_that_block_its_parent(state):
             ]
         ),
     )
-    write_tick(state=state, tick=SchedulerRecord(at=PINNED, rows=[blocked]))
+    write_tick(
+        state=state, tick=SchedulerRecord(at=PINNED, finished=PINNED, rows=[blocked])
+    )
 
     [request] = read_report(state=state).request_statuses
 
@@ -1088,6 +1166,7 @@ def test_a_request_that_an_open_pull_request_claims_is_blocked(state):
         state=state,
         tick=SchedulerRecord(
             at=PINNED,
+            finished=PINNED,
             rows=[
                 compose_request_row(
                     issue=20,
@@ -1128,7 +1207,9 @@ def test_a_request_nothing_claims_or_blocks_is_available(state):
     write_tick(
         state=state,
         tick=SchedulerRecord(
-            at=PINNED, rows=[compose_request_row(issue=20, finding=UNCLAIMED)]
+            at=PINNED,
+            finished=PINNED,
+            rows=[compose_request_row(issue=20, finding=UNCLAIMED)],
         ),
     )
 
@@ -1144,6 +1225,7 @@ def test_two_labels_of_one_kind_are_a_routing_conflict_named_in_each_row(state):
         state=state,
         tick=SchedulerRecord(
             at=PINNED,
+            finished=PINNED,
             rows=[
                 compose_request_row(issue=20, label="dream:less", finding=conflict),
                 compose_request_row(issue=20, finding=conflict),
@@ -1167,6 +1249,7 @@ def test_a_request_whose_read_failed_is_unknown_with_the_reason(state):
         state=state,
         tick=SchedulerRecord(
             at=PINNED,
+            finished=PINNED,
             rows=[
                 compose_request_row(
                     issue=20, finding=ReadFailureFinding(reason="gh: offline")
@@ -1186,6 +1269,7 @@ def test_a_request_that_led_to_open_work_is_reported_through_its_work(state):
         state=state,
         tick=SchedulerRecord(
             at=PINNED,
+            finished=PINNED,
             rows=[
                 compose_request_row(
                     issue=13, agent_work_identifier=ASSIGNMENT_ID, finding=UNCLAIMED
@@ -1202,6 +1286,7 @@ def test_requests_keep_the_order_the_tick_saw_them_in(state):
         state=state,
         tick=SchedulerRecord(
             at=PINNED,
+            finished=PINNED,
             rows=[
                 compose_request_row(issue=21, finding=UNCLAIMED),
                 compose_request_row(issue=20, finding=UNCLAIMED),
@@ -1376,6 +1461,7 @@ def test_an_assignment_keeps_its_section_after_its_routes_are_removed(state):
             True,
             DaemonRunRecord(
                 pid=42,
+                started=PINNED,
                 preferred_harness=AgentHarness.CLAUDE,
                 version="5.3.0",
                 max_agents=3,

@@ -1460,6 +1460,7 @@ def test_the_cooldown_boundary_clears_faults_and_permits_rounds(ready_repo):
     write_json(
         document=SchedulerRecord(
             at=PINNED - timedelta(minutes=15),
+            finished=PINNED - timedelta(minutes=15),
             cooldown=GlobalCooldown(
                 started=PINNED - timedelta(minutes=15), ends=PINNED
             ),

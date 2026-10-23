@@ -157,16 +157,20 @@ class Scheduler:
             fault_count=sum(inspection.is_counted_fault for inspection in inspections),
             at=at,
         )
-        record = SchedulerRecord(
+        rows = [inspection.row for inspection in inspections]
+        failures = [] if listing.failure is None else [listing.failure]
+        if cooldown is None:
+            self._launch_candidates(
+                rows=rows, failures=failures, inspections=inspections, at=at
+            )
+        return SchedulerRecord(
             at=at,
-            failures=[] if listing.failure is None else [listing.failure],
-            rows=[inspection.row for inspection in inspections],
+            finished=self.context.clock(),
+            failures=failures,
+            rows=rows,
             cooldown=cooldown,
             most_recent_cooldown_ended=most_recent_cooldown_ended,
         )
-        if cooldown is not None:
-            return record
-        return self._launch_candidates(record=record, inspections=inspections)
 
     def _forget_ended_rounds(self) -> None:
         ended_identifiers = [
@@ -308,18 +312,22 @@ class Scheduler:
                 )
 
     def _launch_candidates(
-        self, *, record: SchedulerRecord, inspections: list[Inspection]
-    ) -> SchedulerRecord:
+        self,
+        *,
+        rows: list[RequestRow],
+        failures: list[str],
+        inspections: list[Inspection],
+        at: datetime,
+    ) -> None:
         """Fill free capacity in candidate order, the work kinds taking turns.
 
-        The record's rows are the inspections' rows, in the same order. A
-        launch that fails takes no slot, and the next candidate is tried. The
-        row of each request names the round started for it, and why that round
-        errored if it did so during its preparation or startup. A launch that
-        fails before any round exists is a scheduler failure.
+        The rows are the inspections' rows, in the same order, and this updates
+        them and the failures in place. A launch that fails takes no slot, and
+        the next candidate is tried. The row of each request names the round
+        started for it, and why that round errored if it did so during its
+        preparation or startup. A launch that fails before any round exists is
+        a scheduler failure.
         """
-        rows = list(record.rows)
-        failures = list(record.failures)
         ready = [
             (position, candidate)
             for position, inspection in enumerate(inspections)
@@ -331,7 +339,7 @@ class Scheduler:
             row = rows[position]
             self._last_selected_work_kind = row.kind
             try:
-                launched = self._launch(row=row, candidate=candidate, at=record.at)
+                launched = self._launch(row=row, candidate=candidate, at=at)
             except AgentRoundLaunchError as failure:
                 identifier = failure.agent_work_identifier
                 started_round = StartedRound(
@@ -351,7 +359,6 @@ class Scheduler:
                     "started_round": started_round,
                 }
             )
-        return record.model_copy(update={"rows": rows, "failures": failures})
 
     def _choose_next_candidate(
         self, *, ready: list[tuple[int, Candidate]], rows: list[RequestRow]
