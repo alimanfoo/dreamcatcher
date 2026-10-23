@@ -710,8 +710,9 @@ routes. It does not silently resolve multiple labels by list order. The
 scheduler applies the routing rules to the routes it returns.
 
 GitHub matches label names in any case. `identify_label` gives each
-label name its identity, and every comparison of two label names, in the
-configuration module and in the scheduler, compares identities.
+label name its identity. Every comparison of two label names compares
+their identities, and every sorted list of label names is in the order
+of their identities.
 
 ### State and documents
 

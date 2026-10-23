@@ -2,7 +2,7 @@
 
 from pydantic import Field, PositiveInt
 
-from dreamcatcher.config import AgentHarness
+from dreamcatcher.config import AgentHarness, identify_label
 from dreamcatcher.documents import DreamcatcherDocument, ReadOnlyList
 from dreamcatcher.harness_adapters import AgentWorkKind
 
@@ -30,10 +30,6 @@ class DaemonRunRecord(DreamcatcherDocument):
     routes: ReadOnlyList[RecordedRoute]
 
     def list_labels(self, *, kind: AgentWorkKind) -> tuple[str, ...]:
-        """Return the routed labels of one kind, sorted case-insensitively."""
-        return tuple(
-            sorted(
-                (route.label for route in self.routes if route.kind is kind),
-                key=str.casefold,
-            )
-        )
+        """Return the routed labels of one kind, in the order of their identities."""
+        labels = [route.label for route in self.routes if route.kind is kind]
+        return tuple(sorted(labels, key=lambda name: identify_label(name=name)))
