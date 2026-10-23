@@ -75,8 +75,8 @@
           <h1 id="feed-heading">Feed</h1>
           <button class="feed-tail" type="button" aria-controls="records">TAIL ↓</button>
           <p id="feed-refresh-error" class="refresh-error" role="alert" hidden></p>
-          <input type="hidden" id="cursor" name="cursor" value="1:61">
-          <div id="records" class="feed-records" hx-get="/work/GH60-20260819-184158-campaign/tail" hx-trigger="every 2s" hx-include="#cursor" hx-select=".feed-round" hx-swap="beforeend" data-refresh-alert="feed-refresh-error">
+          <input type="hidden" id="position" name="position" value="1:61">
+          <div id="records" class="feed-records" hx-get="/work/GH60-20260819-184158-campaign/tail" hx-trigger="every 2s" hx-include="#position" hx-select=".feed-round" hx-swap="beforeend" data-refresh-alert="feed-refresh-error">
             
               <div id="feed-round-1" class="feed-round"><div class="feed-line round-boundary">
   <time>2026-08-20 02:42:58</time>

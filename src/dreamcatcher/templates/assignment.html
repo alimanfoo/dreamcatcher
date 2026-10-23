@@ -33,8 +33,8 @@
           <h1 id="feed-heading">Feed</h1>
           <button class="feed-tail" type="button" aria-controls="records">TAIL ↓</button>
           <p id="feed-refresh-error" class="refresh-error" role="alert" hidden></p>
-          <input type="hidden" id="cursor" name="cursor" value="{{ view.feed_cursor }}">
-          <div id="records" class="feed-records" hx-get="{{ url_for('show_work_tail', identifier=view.identifier) }}" hx-trigger="every 2s" hx-include="#cursor" hx-select=".feed-round" hx-swap="beforeend" data-refresh-alert="feed-refresh-error">
+          <input type="hidden" id="position" name="position" value="{{ view.feed_position }}">
+          <div id="records" class="feed-records" hx-get="{{ url_for('show_work_tail', identifier=view.identifier) }}" hx-trigger="every 2s" hx-include="#position" hx-select=".feed-round" hx-swap="beforeend" data-refresh-alert="feed-refresh-error">
             {% for feed_round in view.feed_rounds %}
               {% include "partials/feed-round.html" %}
             {% else %}

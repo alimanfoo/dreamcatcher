@@ -192,7 +192,7 @@ def compose_assignment_view(
         effort=record.effort,
         live=live,
         feed_rounds=feed.rounds,
-        feed_cursor=feed.feed_cursor,
+        feed_position=feed.feed_position,
     )
 
 
@@ -226,7 +226,7 @@ def compose_issue_work_view(
         ),
         live=live,
         feed_rounds=feed.rounds,
-        feed_cursor=feed.feed_cursor,
+        feed_position=feed.feed_position,
     )
 
 
