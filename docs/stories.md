@@ -643,14 +643,16 @@ release notes say what to do first: let each assignment reach its
 wrap-up, or cancel it and finish its pull request by hand, and accept
 that conversations start afresh, which can mean an agent answering an
 old comment again if its label is still on. The old state stays on disk
-untouched, and everything on GitHub stays where it is. Across a change
-of state format, the user also stops every standalone view, such as
-`dreamcatcher web` or a refreshing `dreamcatcher status`, and starts
-again from the new installation any they still want. The web page that
-`dreamcatcher run` serves stops with its daemon, so it needs no extra
-step. A view reads only the records of its own state format, so one left
-running from the old installation may show stale status, and
-_dreamcatcher_ does not promise to notice.
+untouched, and everything on GitHub stays where it is. Once they have
+finished with the old state, they can reclaim its disk by hand, as
+[Reclaim disk from an earlier state format](compatibility.md#reclaim-disk-from-an-earlier-state-format)
+describes. Across a change of state format, the user also stops every
+standalone view, such as `dreamcatcher web` or a refreshing
+`dreamcatcher status`, and starts again from the new installation any
+they still want. The web page that `dreamcatcher run` serves stops with
+its daemon, so it needs no extra step. A view reads only the records of
+its own state format, so one left running from the old installation may
+show stale status, and _dreamcatcher_ does not promise to notice.
 
 The value to the user is that a minor upgrade is a restart, and a major
 one tells them in advance what it will cost.

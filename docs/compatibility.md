@@ -34,7 +34,9 @@ Before installing v7.0.0:
 
 The new release starts with empty local state in `.dreamcatcher/v7/`. It
 leaves `.dreamcatcher/v6/` untouched but does not read it. Existing
-GitHub issues, comments and pull requests remain on GitHub.
+GitHub issues, comments and pull requests remain on GitHub. To reclaim
+the disk it holds once you have finished with it, see
+[Reclaim disk from an earlier state format](#reclaim-disk-from-an-earlier-state-format).
 
 A fresh conversation has read none of the issue's comments. If its issue
 still has a conversation label, the new conversation is given every
@@ -61,7 +63,9 @@ Before installing v6.0.0:
 
 The new release starts with empty local state in `.dreamcatcher/v6/`. It
 leaves `.dreamcatcher/v5/` untouched but does not read it. Existing
-GitHub issues, comments and pull requests remain on GitHub.
+GitHub issues, comments and pull requests remain on GitHub. To reclaim
+the disk it holds once you have finished with it, see
+[Reclaim disk from an earlier state format](#reclaim-disk-from-an-earlier-state-format).
 
 A fresh conversation has read none of the issue's comments. If its issue
 still has a conversation label, the new conversation is given every
@@ -84,7 +88,9 @@ Before installing v5.0.0:
 
 The new release starts with empty local state in `.dreamcatcher/v5/`. It
 leaves `.dreamcatcher/v4/` untouched but does not read it. Existing
-GitHub issues, comments and pull requests remain on GitHub.
+GitHub issues, comments and pull requests remain on GitHub. To reclaim
+the disk it holds once you have finished with it, see
+[Reclaim disk from an earlier state format](#reclaim-disk-from-an-earlier-state-format).
 
 A fresh conversation has read none of the issue's comments. If its issue
 still has a conversation label, _dreamcatcher_ may treat existing
@@ -150,6 +156,24 @@ After you install it, start the daemon and any views you still want from
 the new installation. The restart depends on the state format, not the
 release version. Releases that share a state format read the same
 records.
+
+### Reclaim disk from an earlier state format
+
+An earlier format's directory, `.dreamcatcher/vN/`, stays on disk with
+every worktree in it. _dreamcatcher_ never deletes it, because a
+cancelled assignment's worktree in there is yours to work on. Once you
+have finished with that state, reclaim the space by hand from the main
+checkout, with `N` as the earlier format:
+
+1. Look in `.dreamcatcher/vN/worktrees/` for a cancelled assignment's
+   worktree you still want. Commit any work in it that you want to keep.
+   Its branch stays after the next steps, but uncommitted changes do
+   not.
+2. Delete the directory. On macOS and Linux run
+   `rm -rf .dreamcatcher/vN`. In Windows PowerShell run
+   `Remove-Item -Recurse -Force .dreamcatcher\vN`.
+3. Run `git worktree prune`, so git forgets the worktrees you deleted
+   and `git worktree list` no longer shows them.
 
 ## Agent contract
 
