@@ -129,6 +129,10 @@ the fix that makes like things uniform. A bug where `retry` reached only
 the newest work became one argument rule for every command, which
 removed a special case, unwanted behaviour and code together.
 
+When an issue is a race or a case of fault handling, ask first whether a
+change of design would remove its whole class, before refining a fix for
+the one instance.
+
 Any new concept, architectural mechanism or conditional branch warrants
 deeper inspection. Ask whether the user benefit justifies the added
 complexity and whether existing rules can do the job. Keep strong
