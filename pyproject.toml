@@ -76,14 +76,11 @@ markers = [
     "integration: calls the real gh against this repository, read-only",
 ]
 filterwarnings = ["error::EncodingWarning"]
-# A test that hangs fails after two minutes, with the stack it hung in, rather
-# than holding the run until someone cancels it. The limit covers fixture
-# setup and teardown as well as the test. It bounds a hang and is no measure of
-# speed: the slowest test takes well under a minute.
+# A test that hangs is ended after two minutes. docs/testing.md says what that
+# looks like on each platform, and how to lift the limit. Keep the stack dump
+# below the timeout, so that the stack is written before Windows ends the
+# worker that hung.
 timeout = 120
-# Ten seconds before the timeout, pytest writes every thread's stack to stderr.
-# On Windows the timeout ends a hung xdist worker, and the stack that it prints
-# goes to the worker's discarded stdout, so this is the only stack that shows.
 faulthandler_timeout = 110
 
 [tool.coverage.run]

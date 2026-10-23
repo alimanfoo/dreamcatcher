@@ -67,20 +67,26 @@ but only for the repository facts they read.
 ## Hung tests
 
 Every test in every group has two minutes to finish, counting its
-fixture setup and teardown. The limit is there to end a run that has
-hung, not to measure speed: the slowest test takes well under a minute
-on every platform that CI runs.
+fixture setup and teardown. A session-scoped fixture counts against the
+first test that uses it. The limit is there to end a run that has hung,
+not to measure speed: the slowest test takes well under a minute on
+every platform that CI runs.
 
 Ten seconds before the limit, pytest writes the stack of every thread to
 standard error. When the limit passes, `pytest-timeout` ends the test.
-On Linux and macOS it fails the test with the stack where the test hung,
-runs the fixture teardown, and the run carries on. On Windows it ends
-the process that runs the test, which in the default run is an xdist
-worker. The report then says that the worker crashed, and the stack that
-pytest wrote ten seconds before is the only one that shows. The run
+
+On Linux and macOS it fails the test with the stack where the test hung.
+The fixture teardown then runs with no limit, and the run carries on
+unless the teardown hangs as well.
+
+On Windows it ends the process that runs the test. In the default run
+that process is an xdist worker, and the report says that the worker
+crashed while it ran the hung test, which the report names. The stack
+that pytest wrote ten seconds before is the only one that shows. The run
 carries on in a new worker, but the fixture teardown of the hung test
 never runs, and the coverage gate fails as well, because the
-measurements of the ended worker are lost.
+measurements of the ended worker are lost. With `-n 0` the process is
+pytest itself, so the whole run ends there.
 
 Don't rely on any cleanup after a timeout. A timeout is a last resort
 for a run that is already broken, and a hung test can leave a child
