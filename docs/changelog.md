@@ -29,11 +29,12 @@ the change.
 
 ### Changed
 
-- The feed shows a subagent when the agent sends it and its report when
-  it finishes, and no longer the steps in between, so subagents that run
-  at once no longer interleave their lines with each other's and the
-  agent's. The report is no longer indented. A Codex round shows a
-  `[wait]` line as soon as the agent waits on its subagents.
+- The feed no longer shows a subagent's steps, so subagents that run at
+  once no longer interleave their lines with each other's and the
+  agent's. A Claude round still shows each subagent when the agent sends
+  it and its report when it finishes, and the report is no longer
+  indented. A Codex round shows a `[wait]` line as soon as the agent
+  waits on its subagents.
   ([#729](https://github.com/alimanfoo/dreamcatcher/pull/729))
 
 ### Fixed

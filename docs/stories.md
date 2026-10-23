@@ -196,11 +196,11 @@ An assignment has been working for longer than the user expected. They
 open its page on the _dreamcatcher_ web UI to see what the agent is
 doing. The feed shows each step the agent takes. When the agent sends
 subagents to do part of the work, several at once perhaps, the feed
-shows each subagent when the agent sends it and its report when it
-finishes, never the steps in between, so the agent's own path stays easy
-to follow. While a Codex agent waits on its subagents, the feed says
-that it is waiting, so a long quiet spell does not look like a hung
-round.
+leaves out the subagents' own steps, so the agent's own path stays easy
+to follow. A Claude agent's feed shows each subagent when the agent
+sends it and its report when it finishes. A Codex agent's feed says when
+the agent starts to wait on its subagents. Either way, a long quiet
+spell after that line is the subagents at work, not a hung round.
 
 In this round, the feed shows the agent heading the wrong way: rewriting
 something the issue never asked for, or chasing a problem that is not
