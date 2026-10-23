@@ -30,6 +30,11 @@ class DreamcatcherDocument(BaseModel):
 
     Every document refuses a key that it does not expect. A typo is then a
     named error, not a setting that the tool quietly ignores.
+
+    Every document is frozen, and declares each collection field as a
+    `Sequence` or a `Mapping`, so the type checker refuses a caller that
+    appends to one or assigns through one. The containers themselves are not
+    immutable at runtime.
     """
 
     model_config = ConfigDict(extra="forbid", frozen=True)

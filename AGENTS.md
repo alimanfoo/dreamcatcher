@@ -222,6 +222,11 @@ $env:PYTHONWARNDEFAULTENCODING = "1"; uv run pytest --regenerate-view-goldens
   pass, because GitHub owns that document and adds to it as it pleases.
   A `DreamcatcherDocument` refuses a key that it doesn't expect, which
   is right only for a document the tool owns itself.
+- Declare each collection field of a document or a projection as a
+  `Sequence` or a `Mapping` from `collections.abc`, not as a `list` or a
+  `dict`. The type checker then refuses code that changes what a
+  document holds. Keep `list` and `dict` for code that builds a
+  collection before it constructs the document.
 
 ### Module and process boundaries
 

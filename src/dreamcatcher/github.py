@@ -58,6 +58,10 @@ class GitHubResponseProjection(BaseModel):
     GitHub owns the document, so a key we do not declare passes without
     complaint. That is the opposite of a DreamcatcherDocument, which refuses a
     key that it does not expect.
+
+    Every projection is frozen, and declares each collection field as a
+    `Sequence`, so the type checker refuses a caller that changes what GitHub
+    answered. The containers themselves are not immutable at runtime.
     """
 
     model_config = ConfigDict(frozen=True, populate_by_name=True)
