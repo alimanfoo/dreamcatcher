@@ -1,6 +1,5 @@
 """Persistent scheduler records and shared scheduling facts."""
 
-from collections.abc import Sequence
 from datetime import UTC, datetime, timedelta
 from enum import StrEnum
 from typing import Annotated, Literal, Self
@@ -16,7 +15,7 @@ from pydantic import (
 
 from dreamcatcher.agent_assignments import ObservedPullRequest
 from dreamcatcher.campaigns import CampaignChild
-from dreamcatcher.documents import DreamcatcherDocument
+from dreamcatcher.documents import DreamcatcherDocument, ReadOnlyList
 from dreamcatcher.github import (
     PullRequestSignal,
 )
@@ -44,7 +43,7 @@ class PullRequestFinding(ObservedPullRequest):
     found: Literal["pull request"] = "pull request"
     number: PositiveInt
     new_posts: NonNegativeInt
-    new_pull_request_signals: Sequence[PullRequestSignal]
+    new_pull_request_signals: ReadOnlyList[PullRequestSignal]
     is_check_failure_withheld: bool
     is_wrap_up_due: bool
 
@@ -71,8 +70,8 @@ class StartTimeFinding(DreamcatcherDocument):
     """Hold the open pull requests claiming an issue and the open issues blocking it."""
 
     found: Literal["start-time answers"] = "start-time answers"
-    linked_pull_requests: Sequence[PositiveInt]
-    blocking_issues: Sequence[IssueReference]
+    linked_pull_requests: ReadOnlyList[PositiveInt]
+    blocking_issues: ReadOnlyList[IssueReference]
 
     @property
     def is_clear(self) -> bool:
@@ -84,14 +83,14 @@ class BlockingIssuesFinding(DreamcatcherDocument):
     """Hold the open issues that block a campaign request's parent."""
 
     found: Literal["blocking issues"] = "blocking issues"
-    blocking_issues: Sequence[IssueReference] = Field(min_length=1)
+    blocking_issues: ReadOnlyList[IssueReference] = Field(min_length=1)
 
 
 class ConflictingLabelsFinding(DreamcatcherDocument):
     """Hold the dispatch labels of one kind that an issue carries together."""
 
     found: Literal["conflicting labels"] = "conflicting labels"
-    labels: Sequence[str] = Field(min_length=2)
+    labels: ReadOnlyList[str] = Field(min_length=2)
 
 
 class PauseCause(StrEnum):
@@ -177,7 +176,7 @@ class RequestRow(DreamcatcherDocument):
     ended_round: PositiveInt | None = None
     finding: RequestFinding | None = None
     started_round: StartedRound | None = None
-    children: Sequence[CampaignChild] | None = None
+    children: ReadOnlyList[CampaignChild] | None = None
 
 
 class GlobalCooldown(DreamcatcherDocument):
@@ -203,8 +202,8 @@ class SchedulerRecord(DreamcatcherDocument):
     """
 
     at: _UtcDateTime
-    failures: Sequence[str] = Field(default_factory=list)
-    rows: Sequence[RequestRow] = Field(default_factory=list)
+    failures: ReadOnlyList[str] = Field(default_factory=list)
+    rows: ReadOnlyList[RequestRow] = Field(default_factory=list)
     cooldown: GlobalCooldown | None = None
     most_recent_cooldown_ended: _UtcDateTime | None = None
 

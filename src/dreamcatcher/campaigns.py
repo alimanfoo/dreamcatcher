@@ -15,6 +15,7 @@ from dreamcatcher.agent_work import AgentWork, AgentWorkEndReason
 from dreamcatcher.config import AssignmentRoute
 from dreamcatcher.documents import (
     DreamcatcherDocument,
+    ReadOnlyList,
     WriteOnceDreamcatcherDocument,
     read_json,
 )
@@ -84,7 +85,7 @@ class CampaignChildNotification(DreamcatcherDocument):
     """Model the changes to one child since the newest input delivered to the lead."""
 
     issue: PositiveInt
-    changes: Sequence[CampaignChildChange]
+    changes: ReadOnlyList[CampaignChildChange]
 
 
 class CampaignRoundInput(WriteOnceDreamcatcherDocument):
@@ -101,12 +102,12 @@ class CampaignRoundInput(WriteOnceDreamcatcherDocument):
     """
 
     issue: int
-    children: Sequence[CampaignChild]
-    notifications: Sequence[CampaignChildNotification]
-    comments: Sequence[IssueComment]
+    children: ReadOnlyList[CampaignChild]
+    notifications: ReadOnlyList[CampaignChildNotification]
+    comments: ReadOnlyList[IssueComment]
     cursor: IssueCommentCursor | None
     revision: str
-    assignment_routes: Sequence[AssignmentRoute]
+    assignment_routes: ReadOnlyList[AssignmentRoute]
 
 
 def compare_campaign_children(

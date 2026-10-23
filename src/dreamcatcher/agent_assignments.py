@@ -6,7 +6,7 @@ request prepares and publishes the branch and opens the linked draft pull
 request, the assignment's channel, before the harness runs.
 """
 
-from collections.abc import Callable, Iterator, Sequence
+from collections.abc import Callable, Iterator
 from contextlib import suppress
 from datetime import datetime
 from itertools import islice
@@ -30,6 +30,7 @@ from dreamcatcher.commands import CommandError
 from dreamcatcher.documents import (
     DocumentCache,
     DreamcatcherDocument,
+    ReadOnlyList,
     WriteOnceDreamcatcherDocument,
     read_json,
     read_json_if_exists,
@@ -88,8 +89,8 @@ class AssignmentRoundInput(WriteOnceDreamcatcherDocument):
 
     pull_request_state: PullRequestState
     pull_request_head: str
-    signals: Sequence[PullRequestSignal]
-    user_posts: Sequence[UserPost]
+    signals: ReadOnlyList[PullRequestSignal]
+    user_posts: ReadOnlyList[UserPost]
 
 
 class _PullRequestRecord(WriteOnceDreamcatcherDocument):

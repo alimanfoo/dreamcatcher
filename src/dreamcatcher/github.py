@@ -22,6 +22,7 @@ from pydantic import (
 )
 
 from dreamcatcher.commands import CommandError, run_command
+from dreamcatcher.documents import ReadOnlyList
 from dreamcatcher.errors import ReportableError
 
 # gh lists thirty of anything unless you tell it otherwise, and thirty issues is
@@ -60,8 +61,8 @@ class GitHubResponseProjection(BaseModel):
     key that it does not expect.
 
     Every projection is frozen, and declares each collection field as a
-    `Sequence`, so the type checker refuses a caller that changes what GitHub
-    answered. The containers themselves are not immutable at runtime.
+    `ReadOnlyList`, so the type checker refuses a caller that changes what
+    GitHub answered. The containers themselves are not immutable at runtime.
     """
 
     model_config = ConfigDict(frozen=True, populate_by_name=True)
@@ -140,8 +141,8 @@ class Issue(GitHubResponseProjection):
     body: str = ""
     created_at: datetime = Field(alias="createdAt")
     state: IssueState
-    assignees: Sequence[GitHubUserAccount]
-    labels: Sequence[GitHubLabel]
+    assignees: ReadOnlyList[GitHubUserAccount]
+    labels: ReadOnlyList[GitHubLabel]
 
 
 _ISSUE_RESPONSE_FIELDS = ",".join(
@@ -247,7 +248,7 @@ class PullRequest(GitHubResponseProjection):
     is_draft: bool = Field(alias="isDraft")
     merge_state: PullRequestMergeState = Field(alias="mergeStateStatus")
     head: str = Field(alias="headRefOid")
-    checks: Sequence[PullRequestCheck] = Field(alias="statusCheckRollup")
+    checks: ReadOnlyList[PullRequestCheck] = Field(alias="statusCheckRollup")
 
     @property
     def check_result(self) -> CheckResult:
@@ -326,7 +327,7 @@ class IssuePullRequestContext(GitHubResponseProjection):
     """
 
     issue: int = Field(alias="number")
-    pull_requests: Sequence[PullRequestReference] = Field(
+    pull_requests: ReadOnlyList[PullRequestReference] = Field(
         alias="closedByPullRequestsReferences"
     )
 

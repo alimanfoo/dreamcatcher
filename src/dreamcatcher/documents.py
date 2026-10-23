@@ -1,15 +1,22 @@
 """Read and write the files that dreamcatcher owns."""
 
 import tomllib
-from collections.abc import Callable, Generator
+from collections.abc import Callable, Generator, Sequence
 from contextlib import contextmanager, nullcontext, suppress
 from io import SEEK_END, BytesIO
 from pathlib import Path
-from typing import IO, ClassVar
+from typing import IO, Annotated, Any, ClassVar, get_args
 from uuid import uuid4
 
 from filelock import FileLock, Timeout
-from pydantic import BaseModel, ConfigDict, ValidationError
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    GetCoreSchemaHandler,
+    GetPydanticSchema,
+    ValidationError,
+)
+from pydantic_core import CoreSchema
 
 from dreamcatcher.errors import ReportableError
 
@@ -25,6 +32,21 @@ _DOCUMENT_LOCK_TIMEOUT_SECONDS = 10.0
 _BACKWARD_READ_SIZE = 4096
 
 
+def _validate_as_list(source: Any, handler: GetCoreSchemaHandler, /) -> CoreSchema:
+    """Return the schema of a list of the read-only list's item type.
+
+    pydantic is what calls this, as it builds a model's schema, and it passes
+    both arguments positionally, so the parameters are positional-only.
+    """
+    (item,) = get_args(source)
+    return handler(list[item])
+
+
+# A list field that a checked caller can only read. pydantic validates and
+# writes it as a list, so it takes, refuses and holds what a list field does.
+type ReadOnlyList[T] = Annotated[Sequence[T], GetPydanticSchema(_validate_as_list)]
+
+
 class DreamcatcherDocument(BaseModel):
     """Model a document that dreamcatcher owns.
 
@@ -32,7 +54,7 @@ class DreamcatcherDocument(BaseModel):
     named error, not a setting that the tool quietly ignores.
 
     Every document is frozen, and declares each collection field as a
-    `Sequence` or a `Mapping`, so the type checker refuses a caller that
+    `ReadOnlyList` or a `Mapping`, so the type checker refuses a caller that
     appends to one or assigns through one. The containers themselves are not
     immutable at runtime.
     """
