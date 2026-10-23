@@ -190,7 +190,7 @@ class DreamcatcherStatusReport:
     repository: str | None
     daemon: DreamcatcherDaemonStatus
     latest_update_finished: datetime | None
-    scheduler_failures: tuple[str, ...]
+    scheduler_failures: Sequence[str]
     running_agents: int
     active_global_cooldown: GlobalCooldown | None
     request_statuses: Sequence[RequestStatus]

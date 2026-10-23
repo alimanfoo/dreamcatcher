@@ -61,7 +61,7 @@ class AgentRoundTrigger:
     """
 
     words: str
-    notifications: tuple[AgentRoundTriggerNotification, ...] = ()
+    notifications: Sequence[AgentRoundTriggerNotification] = ()
 
     def describe(self) -> str:
         """Return what woke the round as one line of plain text."""

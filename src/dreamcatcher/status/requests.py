@@ -60,8 +60,8 @@ class RequestReason:
     """
 
     words: str
-    issues: tuple[IssueReference, ...] = ()
-    pull_requests: tuple[int, ...] = ()
+    issues: Sequence[IssueReference] = ()
+    pull_requests: Sequence[int] = ()
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -74,7 +74,7 @@ class RequestStatus:
 
     row: RequestRow
     value: RequestStatusValue
-    reasons: tuple[RequestReason, ...]
+    reasons: Sequence[RequestReason]
 
 
 def describe_request(*, row: RequestRow) -> RequestStatus:
