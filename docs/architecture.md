@@ -98,8 +98,9 @@ rows, and `faults.py` the fault and cooldown rules.
 
 One scheduler tick:
 
-1. reads every piece of agent work from disk, and lists in one read the
-   open issues assigned to the signed-in account, whatever their labels;
+1. reads every piece of agent work from disk, and, when any route is
+   configured, lists in one read the open issues assigned to the
+   signed-in account, whatever their labels;
 2. builds the requests from two sources, each dispatch label on each
    listed issue and each piece of open agent work, which names its own
    issue and label;

@@ -178,7 +178,12 @@ class Scheduler:
             del self.rounds[identifier]
 
     def _list_issues(self) -> _IssueListing:
-        """List the open issues assigned to the account, whatever their labels."""
+        """List the open issues assigned to the account, whatever their labels.
+
+        With no route to request work, there is nothing to list.
+        """
+        if not self.context.config.routes:
+            return _IssueListing(issues=[], failure=None)
         listed = list_issues(
             repository=self.context.repository, assignee=self.context.account
         )

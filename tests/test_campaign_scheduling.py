@@ -868,6 +868,28 @@ def test_one_listing_finds_the_requests_of_every_kind(cloned, gh):
     assert len(listings) == 1
 
 
+def test_a_failed_listing_starts_no_request_of_any_kind(cloned, gh, harnesses):
+    configure(root=cloned, head=CONVERSATION_CLAUDE + CAMPAIGN_CLAUDE)
+    scheduler = create_scheduler(root=cloned)
+    offer_listing(
+        gh=gh,
+        issues=[
+            parent_issue(labels=(SMITH,), number=13),
+            parent_issue(labels=("dream:conversation",), number=8),
+            parent_issue(),
+        ],
+    )
+    gh.fails(stderr="gh: could not connect to github.com", to="issue list")
+
+    observed = tick(scheduler=scheduler)
+
+    assert observed.failures == [
+        "could not list issues: gh issue list: gh: could not connect to github.com"
+    ]
+    assert observed.rows == []
+    assert harnesses["claude"].calls == []
+
+
 def test_a_codex_lead_works_under_codexs_reviewer_without_a_final_file(
     cloned, gh, harnesses
 ):
