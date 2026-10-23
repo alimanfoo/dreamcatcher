@@ -52,6 +52,9 @@ their issues. When an issue belongs to a phase, the issue description
 names the phase and references the relevant specification; follow the
 status and editing rules in `specs/AGENTS.md`.
 
+A dated folder that `specs/AGENTS.md` lists is a completed phase and a
+historical record: never edit it to match the code.
+
 ## Dev setup
 
 Install the tools and the commit hooks:
