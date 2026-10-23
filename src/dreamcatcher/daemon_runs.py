@@ -3,7 +3,7 @@
 from pydantic import Field, PositiveInt
 
 from dreamcatcher.config import AgentHarness
-from dreamcatcher.documents import DreamcatcherDocument
+from dreamcatcher.documents import DreamcatcherDocument, ReadOnlyList
 from dreamcatcher.harness_adapters import AgentWorkKind
 
 
@@ -27,7 +27,7 @@ class DaemonRunRecord(DreamcatcherDocument):
     version: str = Field(min_length=1)
     max_agents: PositiveInt
     interval_seconds: PositiveInt
-    routes: list[RecordedRoute]
+    routes: ReadOnlyList[RecordedRoute]
 
     def list_labels(self, *, kind: AgentWorkKind) -> tuple[str, ...]:
         """Return the routed labels of one kind, sorted case-insensitively."""

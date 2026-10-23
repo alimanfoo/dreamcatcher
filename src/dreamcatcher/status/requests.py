@@ -1,5 +1,6 @@
 """Describe the requests that have no open agent work, and why nothing started."""
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from enum import StrEnum
 from typing import cast
@@ -141,7 +142,7 @@ def _describe_comments(
     return RequestStatusValue.IDLE, (RequestReason(words="waiting for a comment"),)
 
 
-def _describe_blockers(*, issues: list[IssueReference]) -> RequestReason:
+def _describe_blockers(*, issues: Sequence[IssueReference]) -> RequestReason:
     """Return the reason that names the open issues blocking a request's issue."""
     return RequestReason(words="blocked by", issues=tuple(issues))
 

@@ -104,7 +104,7 @@ _CodexConfigKey = Annotated[
 # Settings that every round of one piece of agent work passes to Codex, each
 # with `-c`.
 CodexConfig = Annotated[
-    dict[_CodexConfigKey, HarnessConfigValue],
+    Mapping[_CodexConfigKey, HarnessConfigValue],
     AfterValidator(_refuse_unusable_codex_config),
 ]
 
@@ -210,7 +210,7 @@ class _CodexHarnessAdapter(HarnessAdapter):
         *,
         model: str,
         effort: str,
-        harness_config: Mapping[str, HarnessConfigValue],
+        harness_config: HarnessConfig,
         harness_session_identifier: HarnessSessionIdentifier,
     ) -> list[str]:
         """Return the command that resumes the harness session interactively.
@@ -285,7 +285,7 @@ CODEX_ADAPTER = _CodexHarnessAdapter()
 
 
 def _build_round_settings(
-    *, model: str, effort: str, harness_config: Mapping[str, HarnessConfigValue]
+    *, model: str, effort: str, harness_config: HarnessConfig
 ) -> list[str]:
     """Return the model, effort and Codex config flags that every round uses."""
     return [

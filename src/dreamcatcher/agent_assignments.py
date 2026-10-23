@@ -30,6 +30,7 @@ from dreamcatcher.commands import CommandError
 from dreamcatcher.documents import (
     DocumentCache,
     DreamcatcherDocument,
+    ReadOnlyList,
     WriteOnceDreamcatcherDocument,
     read_json,
     read_json_if_exists,
@@ -88,8 +89,8 @@ class AssignmentRoundInput(WriteOnceDreamcatcherDocument):
 
     pull_request_state: PullRequestState
     pull_request_head: str
-    signals: list[PullRequestSignal]
-    user_posts: list[UserPost]
+    signals: ReadOnlyList[PullRequestSignal]
+    user_posts: ReadOnlyList[UserPost]
 
 
 class _PullRequestRecord(WriteOnceDreamcatcherDocument):
