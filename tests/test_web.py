@@ -27,6 +27,7 @@ from records import (
 )
 from rows import UNCLAIMED, compose_request_row
 from status_fabrications import (
+    CAMPAIGN_CHILDREN,
     LOOKED_AT,
     STATUS_REPORTS,
     compose_conversation_row,
@@ -61,6 +62,11 @@ from dreamcatcher.agent_work import (
     AgentWorkEndReason,
     find_agent_work,
     read_agent_work_at_issue,
+)
+from dreamcatcher.campaigns import (
+    CampaignChildChange,
+    CampaignChildNotification,
+    CampaignRoundInput,
 )
 from dreamcatcher.daemon_runs import RecordedRoute
 from dreamcatcher.documents import append_text, write_text
@@ -218,6 +224,52 @@ def test_a_campaign_renders_as_its_golden_page(issue, tmp_path, pytestconfig):
         path=FIXTURES / "web" / "campaigns" / f"GH{issue}.html",
         config=pytestconfig,
     )
+
+
+def test_a_lead_rounds_trigger_links_each_sub_issue_it_names(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    fabricate_campaign_report(state=state)
+    identifier = "GH60-20260819-184158-campaign"
+    write_round(
+        directory=state.work / identifier,
+        number=2,
+        record=compose_ended_round(minute=5, number=2),
+        round_input=CampaignRoundInput(
+            issue=60,
+            children=CAMPAIGN_CHILDREN,
+            notifications=[
+                CampaignChildNotification(
+                    issue=63,
+                    changes=[
+                        CampaignChildChange.ISSUE_STATE,
+                        CampaignChildChange.ENDING,
+                    ],
+                ),
+                CampaignChildNotification(
+                    issue=68, changes=[CampaignChildChange.REMOVED]
+                ),
+            ],
+            comments=[],
+            cursor=None,
+            revision="abc123",
+            assignment_routes=[],
+        ),
+    )
+    link = (
+        '<a class="issue-number" href="https://github.com/{repository}/issues/{issue}"'
+        ' target="_blank" rel="noopener noreferrer">#{issue}</a>'
+    )
+    trigger = (
+        f"{link.format(repository=REPOSITORY, issue=63)}: closed, ended; "
+        f"{link.format(repository=REPOSITORY, issue=68)}: removed"
+    )
+
+    page = render_assignment(state=state, identifier=identifier)
+    tail = _read_tail(state=state, identifier=identifier, cursor="2:0")
+
+    assert f'<span class="round-trigger">{trigger}</span>' in page
+    assert f'<span class="round-trigger">{trigger}</span>' in tail.text
+    assert "round 2: #63: closed, ended; #68: removed" in page
 
 
 @pytest.mark.parametrize(

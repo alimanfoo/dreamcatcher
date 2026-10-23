@@ -62,6 +62,7 @@ def decode_feed_cursor(*, value: str) -> WebFeedCursor:
 def read_agent_tail(
     *,
     work: AgentWork,
+    github_repository_url: str | None,
     live: WebAgentLiveState,
     feed_cursor: WebFeedCursor,
     zone: tzinfo | None,
@@ -92,6 +93,7 @@ def read_agent_tail(
         position = 0
         is_opening_round = True
     return WebAgentTail(
+        github_repository_url=github_repository_url,
         feed_cursor=_encode_feed_cursor(feed_cursor=next_feed_cursor),
         feed_rounds=tuple(feed_rounds),
         live=live,

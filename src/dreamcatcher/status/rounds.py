@@ -1,5 +1,6 @@
 """Describe the agent rounds of any kind of agent work."""
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime
 
@@ -14,25 +15,62 @@ from dreamcatcher.agent_rounds import (
     interpret_agent_round_outcome,
 )
 from dreamcatcher.agent_work import AgentWork
-from dreamcatcher.campaigns import CampaignRoundInput
+from dreamcatcher.campaigns import (
+    CampaignChild,
+    CampaignChildChange,
+    CampaignChildNotification,
+    CampaignRoundInput,
+)
 from dreamcatcher.documents import read_json_if_exists
 from dreamcatcher.feed import read_last_feed_line
 from dreamcatcher.github import PullRequestState
 from dreamcatcher.harness_adapters import AgentWorkKind, HarnessSessionIdentifier
 from dreamcatcher.issue_conversations import ConversationRoundInput
-from dreamcatcher.status.findings import describe_changed_children, describe_signal
+from dreamcatcher.status.findings import describe_signal
 from dreamcatcher.words import describe_count, describe_span
+
+# What a lead round's trigger calls each change to a sub-issue, apart from a
+# change of issue state, which reads as the state that the sub-issue entered.
+_CHILD_CHANGE_WORDS = {
+    CampaignChildChange.ADDED: "added",
+    CampaignChildChange.REMOVED: "removed",
+    CampaignChildChange.HANDBACK: "handback",
+    CampaignChildChange.PULL_REQUEST: "pull request",
+    CampaignChildChange.CHECK_COMPLETION: "checks finished",
+    CampaignChildChange.MERGEABLE: "mergeable",
+    CampaignChildChange.ENDING: "ended",
+    CampaignChildChange.FAULT: "fault",
+}
+
+
+@dataclass(frozen=True, kw_only=True)
+class AgentRoundTriggerNotification:
+    """Name one sub-issue whose changes woke a lead round, with words for them."""
+
+    issue: int
+    changes: str
 
 
 @dataclass(frozen=True, kw_only=True)
 class AgentRoundTrigger:
-    """Say what woke one agent round, in words that every view writes as they are."""
+    """Say what woke one agent round.
+
+    The notifications name the sub-issues whose changes woke a lead round. They
+    follow the words for anything else that woke it, which are empty when
+    nothing else did.
+    """
 
     words: str
+    notifications: tuple[AgentRoundTriggerNotification, ...] = ()
 
     def describe(self) -> str:
         """Return what woke the round as one line of plain text."""
-        return self.words
+        parts = [self.words] if self.words else []
+        parts.extend(
+            f"#{notification.issue}: {notification.changes}"
+            for notification in self.notifications
+        )
+        return "; ".join(parts)
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -205,9 +243,9 @@ def _describe_campaign_round_trigger(
     """Describe what woke one lead round, from its place and its input.
 
     The first round starts the lead, and a round after one that did not finish
-    recovers it. The counts of the parent comments and of the changed children
-    that the round was given follow. A round with no input to read was woken by
-    comments or changes.
+    recovers it. The count of the parent comments that the round was given
+    follows, and then each notification it was given. A round with no input to
+    read was woken by comments or changes.
     """
     previous = [record for record in work.rounds if record.number == number - 1]
     words = []
@@ -225,6 +263,33 @@ def _describe_campaign_round_trigger(
         words.append(
             describe_count(number=len(campaign_input.comments), noun="comment")
         )
-    if campaign_input.notifications:
-        words.append(describe_changed_children(count=len(campaign_input.notifications)))
-    return AgentRoundTrigger(words=", ".join(words))
+    return AgentRoundTrigger(
+        words=", ".join(words),
+        notifications=tuple(
+            _describe_notification(
+                notification=notification, children=campaign_input.children
+            )
+            for notification in campaign_input.notifications
+        ),
+    )
+
+
+def _describe_notification(
+    *, notification: CampaignChildNotification, children: Sequence[CampaignChild]
+) -> AgentRoundTriggerNotification:
+    """Name the sub-issue of one notification, with words for each of its changes.
+
+    A change of issue state reads as closed or reopened, by the state of the
+    sub-issue among the children that the round was given.
+    """
+    is_closed = any(
+        child.is_closed for child in children if child.issue == notification.issue
+    )
+    words = {
+        **_CHILD_CHANGE_WORDS,
+        CampaignChildChange.ISSUE_STATE: "closed" if is_closed else "reopened",
+    }
+    return AgentRoundTriggerNotification(
+        issue=notification.issue,
+        changes=", ".join(words[change] for change in notification.changes),
+    )

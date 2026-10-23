@@ -139,6 +139,7 @@ class WebAgentLiveState:
 class WebAgentTail:
     """Represent one incremental agent-feed response."""
 
+    github_repository_url: str | None
     feed_cursor: str
     feed_rounds: tuple[WebFeedRound, ...]
     live: WebAgentLiveState

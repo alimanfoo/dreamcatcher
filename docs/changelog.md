@@ -34,6 +34,14 @@ the change.
   dispatch label. A failed listing now starts no new work of any kind,
   and shows as one scheduler failure.
   ([#726](https://github.com/alimanfoo/dreamcatcher/pull/726))
+- A lead round's trigger names each sub-issue that woke it, with what
+  changed, such as `#687: checks finished, mergeable`, in place of a
+  count of the sub-issues that changed. The web page links each
+  sub-issue.
+  ([#741](https://github.com/alimanfoo/dreamcatcher/pull/741))
+- No view shows the revision of main that a conversation or campaign
+  round was given.
+  ([#741](https://github.com/alimanfoo/dreamcatcher/pull/741))
 
 ## [v8.0.0](https://github.com/alimanfoo/dreamcatcher/releases/tag/v8.0.0) — 2026-10-23
 

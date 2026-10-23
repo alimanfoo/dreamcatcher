@@ -445,7 +445,7 @@ not yet be given, because it was working, paused or waiting for an agent
 slot, reaches it in its next round, and a change that reverted meanwhile
 is not news. While a round is due for such changes, the campaign shows
 as waiting with how many sub-issues changed, and the round's trigger
-counts them.
+names each one with what changed.
 
 The value to the user is that the lead takes up each stage's result as
 soon as it is ready, and never spends a round on work that is still

@@ -45,7 +45,8 @@ def _compose_hand_resume(
     )
 
 
-def _compose_github_repository_url(*, repository: str | None) -> str | None:
+def compose_github_repository_url(*, repository: str | None) -> str | None:
+    """Return the address of the repository on GitHub, when it is known."""
     if repository is None:
         return None
     return f"https://github.com/{repository}"
@@ -56,7 +57,7 @@ def compose_home_view(*, report: DreamcatcherStatusReport) -> WebHomeView:
     daemon = report.daemon
     return WebHomeView(
         repository=report.repository or "repository unknown",
-        github_repository_url=_compose_github_repository_url(
+        github_repository_url=compose_github_repository_url(
             repository=report.repository
         ),
         daemon=daemon,
@@ -183,7 +184,7 @@ def compose_assignment_view(
     return WebAssignmentView(
         kind=record.kind,
         repository=repository or "repository unknown",
-        github_repository_url=_compose_github_repository_url(repository=repository),
+        github_repository_url=compose_github_repository_url(repository=repository),
         daemon=daemon,
         identifier=assignment.identifier,
         issue=record.issue,
@@ -216,7 +217,7 @@ def compose_issue_work_view(
     return WebIssueWorkView(
         kind=record.kind,
         repository=repository or "repository unknown",
-        github_repository_url=_compose_github_repository_url(repository=repository),
+        github_repository_url=compose_github_repository_url(repository=repository),
         daemon=daemon,
         identifier=work.identifier,
         issue=record.issue,
