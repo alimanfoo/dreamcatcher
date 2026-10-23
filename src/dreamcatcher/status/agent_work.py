@@ -295,7 +295,7 @@ class AgentWorkStatusReader:
         latest = work.rounds[-1]
         detail, latest_output = describe_running_round(
             record=latest,
-            trigger_description=describe_round_trigger(work=work, number=latest.number),
+            trigger=describe_round_trigger(work=work, number=latest.number),
             paths=work.compose_round_paths(number=latest.number),
             at=self.at,
         )

@@ -21,7 +21,9 @@ def state(tmp_path):
     write_running_daemon(state=state)
     write_tick(
         state=state,
-        tick=SchedulerRecord(at=PINNED, rows=fabricate_campaigns(state=state)),
+        tick=SchedulerRecord(
+            at=PINNED, finished=PINNED, rows=fabricate_campaigns(state=state)
+        ),
     )
     return state
 
@@ -60,7 +62,7 @@ def test_campaign_detail_shows_its_parent_settings_and_rounds(state):
     assert "campaign GH60-20260819-184158-campaign" in shown
     assert "\ncampaign\n" in shown
     assert "dream:lead" in shown
-    assert "abc123" in shown
+    assert "abc123" not in shown
     assert "start" in shown
     assert "claude --resume lead-session" in shown
 

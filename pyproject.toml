@@ -43,6 +43,7 @@ dev = [
     "pytest>=8.0",
     "pytest-cov>=6.0",
     "pytest-playwright==0.10.0",
+    "pytest-timeout>=2.4",
     "pytest-xdist>=3.0",
     "ruff==0.17.1",
     "ty==0.0.89",
@@ -75,6 +76,10 @@ markers = [
     "integration: calls the real gh against this repository, read-only",
 ]
 filterwarnings = ["error::EncodingWarning"]
+# docs/testing.md says what happens when a test hangs, and how to lift the
+# limit. Keep the stack dump below the timeout.
+timeout = 120
+faulthandler_timeout = 110
 
 [tool.coverage.run]
 source = ["src"]

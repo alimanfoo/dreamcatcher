@@ -22,9 +22,12 @@ from conftest import (
 )
 from fakes import Line
 from records import (
+    MISORDERED_COMMENTS,
+    REPEATED_COMMENTS,
     compose_conversation_identifier,
     read_assignments,
     read_conversation,
+    replace_relayed_comments,
     write_assignment,
     write_conversation,
     write_ending,
@@ -1319,6 +1322,7 @@ def test_a_conversation_waits_for_the_active_global_cooldown(
     write_json(
         document=SchedulerRecord(
             at=at,
+            finished=at,
             cooldown=GlobalCooldown(started=at, ends=at + timedelta(minutes=15)),
         ),
         path=scheduler.context.state.scheduler_record,
@@ -1416,6 +1420,7 @@ def test_the_cooldown_boundary_clears_conversation_faults(
     write_json(
         document=SchedulerRecord(
             at=fault_started,
+            finished=fault_started,
             cooldown=GlobalCooldown(
                 started=fault_started,
                 ends=cooldown_ends,
@@ -1693,10 +1698,12 @@ def test_an_interrupted_round_from_v6_1_is_withdrawn_once_an_update_finds_nothin
         path=conversation.compose_round_paths(number=1).round_input,
     )
     # An update made while the round ran counted its comment as relayed.
+    updated = clock()
     write_tick(
         state=state,
         tick=SchedulerRecord(
-            at=clock(),
+            at=updated,
+            finished=updated,
             rows=[
                 compose_conversation_row(
                     agent_work_identifier=conversation.identifier,
@@ -2073,6 +2080,42 @@ def test_a_relayed_round_whose_input_cannot_be_read_launches_nothing(
 
 
 @pytest.mark.parametrize(
+    "comments",
+    [[], MISORDERED_COMMENTS, REPEATED_COMMENTS],
+    ids=["none", "misordered", "repeated"],
+)
+def test_a_relayed_round_with_comments_the_relay_never_gives_launches_nothing(
+    conversation_scheduler, harnesses, comments
+):
+    scheduler, clock, gh = conversation_scheduler
+    directory = write_conversation(state=scheduler.context.state, issue=8)
+    write_round(
+        directory=directory,
+        number=1,
+        record=AgentRoundRecord(
+            number=1,
+            started=clock(),
+            pid=1,
+            ending=SuccessfulAgentRoundEnding(at=clock()),
+        ),
+        round_input=ConversationRoundInput(
+            issue=8, comments=[compose_question()], revision="abc123"
+        ),
+    )
+    round_input = directory / "rounds" / "1" / "round-input.json"
+    replace_relayed_comments(path=round_input, comments=comments)
+    offer_conversation(gh=gh, comments=[compose_question(identifier=2)])
+
+    observed = scheduler.tick(at=clock())
+
+    [row] = observed.rows
+    assert isinstance(row.finding, ReadFailureFinding)
+    assert row.finding.reason.startswith(f"{round_input} is not valid")
+    assert observed.launched_agent_work_identifiers == []
+    assert harnesses["claude"].calls == []
+
+
+@pytest.mark.parametrize(
     ("issue", "cause"),
     [
         (compose_conversation_issue(labels=()), PauseCause.LABEL_REMOVED),
@@ -2153,6 +2196,42 @@ def test_an_open_conversation_carries_on_when_its_route_is_removed(
     assert observed.rows == [
         compose_conversation_row(
             title="Issue 8",
+            agent_work_identifier=compose_conversation_identifier(issue=8),
+            finding=IssueCommentsFinding(new_comments=0),
+        )
+    ]
+
+
+def test_an_open_conversation_matches_its_label_and_assignee_in_any_case(
+    conversation_scheduler,
+):
+    scheduler, clock, gh = conversation_scheduler
+    root = scheduler.context.state.root
+    configure(
+        root=root,
+        head=CONVERSATION_CONFIG.replace(
+            'label = "dream:conversation"', 'label = "Dream:Conversation"'
+        ),
+    )
+    set_scheduler_config(
+        scheduler=scheduler, config=read_dreamcatcher_config(root=root)
+    )
+    write_conversation(
+        state=scheduler.context.state, issue=8, dispatch_label="dream:CONVERSATION"
+    )
+    issue = compose_conversation_issue(
+        labels=("DREAM:CONVERSATION",), assignees=(POSTED_BY.upper(),)
+    )
+    offer_listing(gh=gh, issues=[issue])
+    show_conversation_issue(gh=gh, issue=issue)
+    gh.replies(stdout=compose_page(items=[]), to=COMMENT_PATH)
+
+    observed = scheduler.tick(at=clock())
+
+    assert observed.rows == [
+        compose_conversation_row(
+            title="Issue 8",
+            label="dream:CONVERSATION",
             agent_work_identifier=compose_conversation_identifier(issue=8),
             finding=IssueCommentsFinding(new_comments=0),
         )

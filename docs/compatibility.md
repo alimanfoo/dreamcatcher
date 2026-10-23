@@ -1,9 +1,36 @@
 # Compatibility and upgrades
 
-v8.0.0 uses state format 7, as v7.0.0 did. v6.0.0 through v6.3.0 used
-state format 6, v5.0.0 through v5.6.2 used state format 5, and v4.0.0
-used state format 4. Saved work does not carry across from one format to
-the next.
+v9.0.0 uses state format 8. v7.0.0 and v8.0.0 used state format 7,
+v6.0.0 through v6.3.0 used state format 6, v5.0.0 through v5.6.2 used
+state format 5, and v4.0.0 used state format 4. Saved work does not
+carry across from one format to the next.
+
+## Upgrade from v8.0.0 to v9.0.0
+
+Before installing v9.0.0:
+
+1. Decide whether you can start issue conversations and campaigns
+   afresh. If you still need their saved context, postpone the upgrade.
+2. Let every assignment finish its successful wrap-up and reach
+   **complete**, or decide to finish its pull request yourself. v9.0.0
+   does not carry on an assignment that v8.0.0 started, and while its
+   pull request stays open and linked to the issue, it claims the issue,
+   so no new assignment starts there.
+3. Stop the v8.0.0 _dreamcatcher_ daemon and every standalone view, as
+   [Restart views across state formats](#restart-views-across-state-formats)
+   describes.
+
+The new release starts with empty local state in `.dreamcatcher/v8/`. It
+leaves `.dreamcatcher/v7/` untouched but does not read it. Existing
+GitHub issues, comments and pull requests remain on GitHub.
+
+A fresh conversation or campaign has read none of the issue's comments.
+If its issue still has a conversation or campaign label, the new
+conversation or campaign is given every comment you have posted on the
+issue, and _dreamcatcher_ may answer them again.
+
+There is no state migration. Once you have accepted the fresh start, run
+the new daemon normally from the same main checkout.
 
 ## Upgrade from v7.0.0 to v8.0.0
 
@@ -34,7 +61,9 @@ Before installing v7.0.0:
 
 The new release starts with empty local state in `.dreamcatcher/v7/`. It
 leaves `.dreamcatcher/v6/` untouched but does not read it. Existing
-GitHub issues, comments and pull requests remain on GitHub.
+GitHub issues, comments and pull requests remain on GitHub. To reclaim
+the disk it holds once you have finished with it, see
+[Reclaim disk from an earlier state format](#reclaim-disk-from-an-earlier-state-format).
 
 A fresh conversation has read none of the issue's comments. If its issue
 still has a conversation label, the new conversation is given every
@@ -61,7 +90,9 @@ Before installing v6.0.0:
 
 The new release starts with empty local state in `.dreamcatcher/v6/`. It
 leaves `.dreamcatcher/v5/` untouched but does not read it. Existing
-GitHub issues, comments and pull requests remain on GitHub.
+GitHub issues, comments and pull requests remain on GitHub. To reclaim
+the disk it holds once you have finished with it, see
+[Reclaim disk from an earlier state format](#reclaim-disk-from-an-earlier-state-format).
 
 A fresh conversation has read none of the issue's comments. If its issue
 still has a conversation label, the new conversation is given every
@@ -84,7 +115,9 @@ Before installing v5.0.0:
 
 The new release starts with empty local state in `.dreamcatcher/v5/`. It
 leaves `.dreamcatcher/v4/` untouched but does not read it. Existing
-GitHub issues, comments and pull requests remain on GitHub.
+GitHub issues, comments and pull requests remain on GitHub. To reclaim
+the disk it holds once you have finished with it, see
+[Reclaim disk from an earlier state format](#reclaim-disk-from-an-earlier-state-format).
 
 A fresh conversation has read none of the issue's comments. If its issue
 still has a conversation label, _dreamcatcher_ may treat existing
@@ -150,6 +183,24 @@ After you install it, start the daemon and any views you still want from
 the new installation. The restart depends on the state format, not the
 release version. Releases that share a state format read the same
 records.
+
+### Reclaim disk from an earlier state format
+
+An earlier format's directory, `.dreamcatcher/vN/`, stays on disk with
+every worktree in it. _dreamcatcher_ never deletes it, because a
+cancelled assignment's worktree in there is yours to work on. Once you
+have finished with that state, reclaim the space by hand from the main
+checkout, with `N` as the earlier format:
+
+1. Look in `.dreamcatcher/vN/worktrees/` for a cancelled assignment's
+   worktree you still want. Commit any work in it that you want to keep.
+   Its branch stays after the next steps, but uncommitted changes do
+   not.
+2. Delete the directory. On macOS and Linux run
+   `rm -rf .dreamcatcher/vN`. In Windows PowerShell run
+   `Remove-Item -Recurse -Force .dreamcatcher\vN`.
+3. Run `git worktree prune`, so git forgets the worktrees you deleted
+   and `git worktree list` no longer shows them.
 
 ## Agent contract
 

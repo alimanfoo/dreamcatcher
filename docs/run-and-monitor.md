@@ -14,8 +14,8 @@ The setup walkthrough is in [From issue to pull request](tutorial.md).
 dreamcatcher run --harness claude
 ```
 
-The daemon looks for work immediately, then again every 120 seconds. For
-a shorter interval or more concurrent rounds:
+The daemon looks for work immediately, then waits 120 seconds after each
+look before the next. For a shorter interval or more concurrent rounds:
 
 ```sh
 dreamcatcher run --harness claude --interval 30 --max-agents 2

@@ -42,7 +42,7 @@ from dreamcatcher.scheduler.models import (
 
 
 def inspect_open_assignment(
-    *, context: SchedulingContext, work: AgentWork, is_fault: bool
+    *, context: SchedulingContext, work: AgentWork, is_in_fault: bool
 ) -> Inspection:
     """Inspect an open assignment, reading its pull request once it has one.
 
@@ -50,7 +50,7 @@ def inspect_open_assignment(
     opened yet calls for the round that opens it.
     """
     unread = compose_open_work_row(work=work, finding=None)
-    if is_fault:
+    if is_in_fault:
         return Inspection(row=unread, is_counted_fault=True)
     pull_request = read_assignment_pull_request_number(assignment=work)
     if pull_request is None:

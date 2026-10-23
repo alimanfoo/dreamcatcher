@@ -27,22 +27,49 @@ the change.
 
 ## Unreleased
 
+### Breaking
+
+- Saved state moves to state format 8, in `.dreamcatcher/v8/`. Saved
+  work from v7.0.0 and v8.0.0 does not carry across: before upgrading,
+  let each assignment reach its wrap-up or finish its pull request by
+  hand, and accept that conversations and campaigns start afresh, as
+  [the upgrade instructions](compatibility.md#upgrade-from-v800-to-v900)
+  describe. ([#740](https://github.com/alimanfoo/dreamcatcher/pull/740))
+
 ### Changed
 
+- The status views count down to the next update from when the last
+  update finished, and show **updating** while an update runs, with a
+  pulse on the web page unless the browser asks for reduced motion. The
+  countdown used to start when an update started, so it reached 0s early
+  and stayed there through the next update.
+  ([#740](https://github.com/alimanfoo/dreamcatcher/pull/740))
 - Each update lists the open issues assigned to the signed-in account
   once, whatever the number of routes, rather than once for each
   dispatch label. A failed listing now starts no new work of any kind,
   and shows as one scheduler failure.
   ([#726](https://github.com/alimanfoo/dreamcatcher/pull/726))
+- A lead round's trigger names each sub-issue that woke it, with what
+  changed, such as `#687: checks finished, mergeable`, in place of a
+  count of the sub-issues that changed. The web page links each
+  sub-issue.
+  ([#741](https://github.com/alimanfoo/dreamcatcher/pull/741))
+- No view shows the revision of main that a conversation or campaign
+  round was given.
+  ([#741](https://github.com/alimanfoo/dreamcatcher/pull/741))
 - Once an assignment completes, or a conversation or campaign ends with
   its issue, the next update removes its worktree, and an assignment's
   local branch, to free the disk. Its record stays, so the home page,
   `dreamcatcher status` and `dreamcatcher view` still show it, without
   the worktree or a hand-resume command. A cancelled assignment keeps
-  both, and work that ended before this release keeps its worktree until
-  you remove it. A removal that fails is printed with the update and not
-  tried again.
-  ([#732](https://github.com/alimanfoo/dreamcatcher/pull/732))
+  both. A removal that fails is printed with the update and not tried
+  again. ([#732](https://github.com/alimanfoo/dreamcatcher/pull/732))
+
+### Fixed
+
+- Switching theme on the web keeps the page's place in the address, so
+  the home page stays on the tab it showed.
+  ([#744](https://github.com/alimanfoo/dreamcatcher/pull/744))
 
 ## [v8.0.0](https://github.com/alimanfoo/dreamcatcher/releases/tag/v8.0.0) — 2026-10-23
 

@@ -7,11 +7,14 @@ from datetime import timedelta
 import pytest
 from clocks import PINNED
 from records import (
+    MISORDERED_COMMENTS,
+    REPEATED_COMMENTS,
     SCOUT_ROUTES,
     compose_conversation_identifier,
     find_conversation_directory,
     hold_daemon_lock_for_test,
     read_conversation,
+    replace_relayed_comments,
     write_conversation,
     write_daemon_run,
     write_ending,
@@ -64,7 +67,6 @@ from dreamcatcher.status import (
     read_status_report,
 )
 from dreamcatcher.status.requests import RequestStatusValue
-from dreamcatcher.status.rounds import _compose_round_revision
 
 LOOKED_AT = PINNED + timedelta(hours=2)
 
@@ -167,6 +169,7 @@ def observe(
         state=state,
         tick=SchedulerRecord(
             at=LOOKED_AT,
+            finished=LOOKED_AT,
             rows=[
                 compose_request_row(
                     issue=8,
@@ -345,8 +348,6 @@ def test_a_live_round_shows_a_paused_conversation_as_working(
     assert found.detail == ("round 1, 1 comment, running 2h 0m, last output 1h 59m ago")
     assert found.latest_output == "I am reading the scheduler."
     assert found.round_statuses[0].outcome_description == "running"
-    assert found.round_statuses[0].revision is not None
-    assert found.round_statuses[0].revision.value == "abc123"
     assert found.harness_session_identifier == "conversation-session"
     assert found.hand_resume_command is None
 
@@ -715,6 +716,26 @@ def test_an_unreadable_round_input_fails_the_status_naming_the_file(
         _ = found.round_statuses
 
 
+@pytest.mark.parametrize(
+    "comments",
+    [[], MISORDERED_COMMENTS, REPEATED_COMMENTS],
+    ids=["none", "misordered", "repeated"],
+)
+def test_a_round_input_with_comments_the_relay_never_gives_fails_the_status(
+    conversation_state, comments
+):
+    write_conversation_round(state=conversation_state)
+    conversation = read_conversation(state=conversation_state, issue=8)
+    assert conversation is not None
+    round_input = conversation.compose_round_paths(number=1).round_input
+    replace_relayed_comments(path=round_input, comments=comments)
+
+    found = read_conversation_status(state=conversation_state)
+
+    with pytest.raises(ReportableError, match=re.escape(str(round_input))):
+        _ = found.round_statuses
+
+
 def test_a_round_with_no_input_was_woken_by_comments(conversation_state):
     write_conversation_round(state=conversation_state)
     conversation = read_conversation(state=conversation_state, issue=8)
@@ -723,8 +744,7 @@ def test_a_round_with_no_input_was_woken_by_comments(conversation_state):
 
     round_status = read_conversation_status(state=conversation_state).round_statuses[0]
 
-    assert round_status.trigger_description == "comments"
-    assert round_status.revision is None
+    assert round_status.trigger.describe() == "comments"
 
 
 def test_a_posted_answer_leaves_the_conversation_idle(conversation_state):
@@ -753,7 +773,7 @@ def test_a_stopped_conversation_waits_for_new_comments(conversation_state):
 
 def list_conversation_requests(*, state: StateDirectory, rows: list[RequestRow]):
     """Return the conversation requests that a tick writing these rows reports."""
-    write_tick(state=state, tick=SchedulerRecord(at=PINNED, rows=rows))
+    write_tick(state=state, tick=SchedulerRecord(at=PINNED, finished=PINNED, rows=rows))
     report = read_status_report(state=state, clock=lambda: LOOKED_AT)
     return report.list_request_statuses(kind=AgentWorkKind.CONVERSATION)
 
@@ -797,32 +817,6 @@ def test_an_issue_nobody_has_commented_on_waits_for_a_comment(tmp_path):
 
 def test_an_unobserved_issue_with_no_record_has_no_conversation(conversation_state):
     assert read_conversation(state=conversation_state, issue=9) is None
-
-
-@pytest.mark.parametrize(
-    ("previous", "current", "expected"),
-    [
-        (None, "abc123", "code revision abc123"),
-        ("abc123", "abc123", "code revision abc123 (unchanged)"),
-        ("abc123", "def456", "code revision abc123 -> def456"),
-        (
-            "0123456" + "0" * 33,
-            "0123456" + "f" * 33,
-            f"code revision {'0123456' + '0' * 33} -> {'0123456' + 'f' * 33}",
-        ),
-    ],
-)
-def test_a_round_revision_description_names_its_transition(previous, current, expected):
-    found = _compose_round_revision(previous_revision=previous, revision=current)
-
-    assert found.description == expected
-
-
-def test_a_round_revision_keeps_its_whole_value():
-    found = _compose_round_revision(previous_revision=None, revision="0123456789abcdef")
-
-    assert found.value == "0123456789abcdef"
-    assert found.description == "code revision 0123456789abcdef"
 
 
 def end_conversation(*, state: StateDirectory, minutes: int = 10) -> None:
@@ -871,6 +865,7 @@ def test_the_report_lists_ended_conversations_apart_newest_first(tmp_path):
         state=state,
         tick=SchedulerRecord(
             at=PINNED,
+            finished=PINNED,
             rows=[
                 compose_request_row(
                     issue=10,
