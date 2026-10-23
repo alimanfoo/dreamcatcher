@@ -314,6 +314,19 @@ def test_a_work_page_opened_from_a_tab_leads_home_to_that_tab(
     expect(page.get_by_role("tabpanel", name="Campaigns")).to_be_visible()
 
 
+def test_switching_theme_keeps_the_selected_home_tab(page: Page, live_web: str) -> None:
+    page.goto(live_web)
+    page.get_by_role("tab", name="Campaigns").click()
+
+    page.get_by_role("link", name="Nature").click()
+
+    expect(page).to_have_url(f"{live_web}/?theme=nature#campaign")
+    expect(page.get_by_role("tab", name="Campaigns")).to_have_attribute(
+        "aria-selected", "true"
+    )
+    expect(page.get_by_role("tabpanel", name="Campaigns")).to_be_visible()
+
+
 def test_refresh_focuses_the_first_tab_when_the_selected_section_disappears(
     page: Page, live_web: str
 ) -> None:
