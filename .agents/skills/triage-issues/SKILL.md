@@ -75,6 +75,12 @@ the agent guide. After triage, give an open issue one current outcome:
 - `ready-to-implement`: the maintainer has agreed to implementation, and
   the scope, expected behaviour and acceptance criteria are sufficiently
   clear for an agent to proceed.
+- `blocked-externally`: the maintainer has agreed to the work, but it
+  waits on something outside this repository, such as an upstream
+  release. Leave a comment that names the event to wait for and what to
+  do when it happens. In later sessions, check only whether that event
+  has happened. Once it has, replace the label with
+  `ready-to-implement`.
 
 Replace the previous outcome when the decision changes; do not leave
 conflicting outcomes on an issue. Apply an outcome only after triage.
