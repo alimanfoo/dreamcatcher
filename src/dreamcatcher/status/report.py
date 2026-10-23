@@ -28,6 +28,9 @@ from dreamcatcher.status.agent_work import (
 from dreamcatcher.status.requests import RequestStatus, describe_request
 from dreamcatcher.words import describe_countdown, describe_span
 
+# The address of the documentation site, which the views link to.
+DOCUMENTATION_URL = "https://alimanfoo.github.io/dreamcatcher/"
+
 # The guidance that an empty section of each kind gives, naming its labels.
 _EMPTY_SECTION_GUIDANCE = {
     AgentWorkKind.ASSIGNMENT: (
