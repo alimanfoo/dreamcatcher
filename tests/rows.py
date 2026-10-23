@@ -48,3 +48,30 @@ def compose_request_row(
         finding=finding,
         started_round=started_round,
     )
+
+
+def compose_conversation_row(
+    *,
+    finding: RequestFinding | None,
+    issue: int = 8,
+    title: str | None = None,
+    label: str | None = None,
+    agent_work_identifier: str | None = None,
+    ended_round: int | None = None,
+    started_round: StartedRound | None = None,
+) -> RequestRow:
+    """Return the row of a conversation request at the issue.
+
+    The row names no conversation unless the test gives its identifier. Its
+    title is `Issue <n>` unless the test gives another.
+    """
+    row = compose_request_row(
+        issue=issue,
+        kind=AgentWorkKind.CONVERSATION,
+        label=label,
+        agent_work_identifier=agent_work_identifier,
+        ended_round=ended_round,
+        finding=finding,
+        started_round=started_round,
+    )
+    return row if title is None else row.model_copy(update={"title": title})

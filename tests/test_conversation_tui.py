@@ -7,6 +7,7 @@ from io import StringIO
 import pytest
 from clocks import PINNED
 from records import (
+    compose_conversation_identifier,
     find_conversation_directory,
     hold_daemon_lock_for_test,
     read_newest_work,
@@ -18,8 +19,8 @@ from records import (
     write_tick,
 )
 from rich.console import Console
-from rows import compose_request_row
-from status_fabrications import compose_conversation_row, fabricate_conversation
+from rows import compose_conversation_row, compose_request_row
+from status_fabrications import fabricate_conversation
 
 from dreamcatcher.agent_rounds import (
     AgentRoundRecord,
@@ -360,10 +361,14 @@ def test_conversations_are_listed_in_attention_order_before_requests(tmp_path):
             finished=PINNED,
             rows=[
                 compose_conversation_row(
-                    ended_round=1, finding=IssueCommentsFinding(new_comments=0)
+                    ended_round=1,
+                    finding=IssueCommentsFinding(new_comments=0),
+                    agent_work_identifier=compose_conversation_identifier(issue=8),
                 ),
                 compose_conversation_row(
-                    issue=11, finding=IssueCommentsFinding(new_comments=0)
+                    issue=11,
+                    finding=IssueCommentsFinding(new_comments=0),
+                    agent_work_identifier=compose_conversation_identifier(issue=11),
                 ),
                 compose_request_row(
                     issue=9,
@@ -483,7 +488,8 @@ def test_a_conversation_view_with_a_routing_conflict_keeps_watching(tmp_path):
             finished=PINNED,
             rows=[
                 compose_conversation_row(
-                    finding=ConflictingLabelsFinding(labels=["discuss", "scout"])
+                    finding=ConflictingLabelsFinding(labels=["discuss", "scout"]),
+                    agent_work_identifier=compose_conversation_identifier(issue=8),
                 )
             ],
         ),

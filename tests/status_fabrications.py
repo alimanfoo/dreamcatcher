@@ -23,7 +23,7 @@ from records import (
     write_round,
     write_tick,
 )
-from rows import UNCLAIMED, compose_request_row
+from rows import UNCLAIMED, compose_conversation_row, compose_request_row
 
 from dreamcatcher.agent_assignments import (
     AssignmentRoundInput,
@@ -109,19 +109,6 @@ def _compose_draft_pull_request(*, new_posts: int = 0) -> PullRequestFinding:
     )
 
 
-def compose_conversation_row(
-    *, finding: RequestFinding, issue: int = 8, ended_round: int | None = None
-) -> RequestRow:
-    """Return the row of the conversation that the tests write at the issue."""
-    return compose_request_row(
-        issue=issue,
-        kind=AgentWorkKind.CONVERSATION,
-        agent_work_identifier=compose_conversation_identifier(issue=issue),
-        ended_round=ended_round,
-        finding=finding,
-    )
-
-
 SAID = (
     FeedLine(
         at=PINNED + timedelta(minutes=1),
@@ -180,6 +167,7 @@ def fabricate_conversation(
                         if is_paused
                         else IssueCommentsFinding(new_comments=int(status != 0))
                     ),
+                    agent_work_identifier=compose_conversation_identifier(issue=8),
                 )
             ],
         ),

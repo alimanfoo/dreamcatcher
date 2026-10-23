@@ -18,6 +18,7 @@ from records import (
     MERGED_INPUT,
     SCOUT_ROUTES,
     SMITH_ROUTES,
+    compose_conversation_identifier,
     release_daemon_lock,
     write_assignment,
     write_daemon_run,
@@ -25,12 +26,11 @@ from records import (
     write_round,
     write_tick,
 )
-from rows import UNCLAIMED, compose_request_row
+from rows import UNCLAIMED, compose_conversation_row, compose_request_row
 from status_fabrications import (
     CAMPAIGN_CHILDREN,
     LOOKED_AT,
     STATUS_REPORTS,
-    compose_conversation_row,
     compose_ended_round,
     compose_running_round,
     fabricate_a_dead_daemon,
@@ -827,7 +827,10 @@ def test_status_classes_do_not_depend_on_status_wording(tmp_path, monkeypatch):
     fabricate_everything(
         state=state,
         other_rows=[
-            compose_conversation_row(finding=IssueCommentsFinding(new_comments=0))
+            compose_conversation_row(
+                finding=IssueCommentsFinding(new_comments=0),
+                agent_work_identifier=compose_conversation_identifier(issue=8),
+            )
         ],
     )
 
