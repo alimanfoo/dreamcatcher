@@ -39,9 +39,10 @@ making every domain phrase into a class. In particular, it should:
 instance:
 
 - acquire and release the checkout's daemon lock;
-- record the daemon process identifier and the dispatch routes it loaded
-  in the daemon run record, whose model `daemon_runs.py` owns, as soon
-  as it holds the lock;
+- record the daemon process identifier, the time the daemon run started,
+  which is also the time of its first tick, and the dispatch routes it
+  loaded in the daemon run record, whose model `daemon_runs.py` owns, as
+  soon as it holds the lock;
 - keep the web server inside the established daemon lifetime when `run`
   enables it;
 - reconcile round records that an earlier daemon left without an ending
@@ -837,17 +838,17 @@ eligible comments it relays, the cursor it reaches, the revision it was
 given and the assignment routes.
 
 Instance records persist the repository identity and the most recent
-daemon run's preferred harness, _dreamcatcher_ version, capacity,
-interval, and the dispatch routes it loaded, each as a dispatch label
-and its kind of agent work. An instance-wide scheduler record persists
-the last tick's result, including when it started and finished, its
-failures, its request rows, the active global cooldown, and the time at
-which the most recent cooldown ended. Its rows preserve operational
-evidence of what the tick read rather than authoritative state. Agent
-work of every kind persists the time of its latest user retry request.
-These boundaries allow fault to remain a derived status: ending a
-cooldown or requesting a retry changes which round errors count towards
-fault rather than writing a lifecycle status.
+daemon run's start time, preferred harness, _dreamcatcher_ version,
+capacity, interval, and the dispatch routes it loaded, each as a
+dispatch label and its kind of agent work. An instance-wide scheduler
+record persists the last tick's result, including when it started and
+finished, its failures, its request rows, the active global cooldown,
+and the time at which the most recent cooldown ended. Its rows preserve
+operational evidence of what the tick read rather than authoritative
+state. Agent work of every kind persists the time of its latest user
+retry request. These boundaries allow fault to remain a derived status:
+ending a cooldown or requesting a retry changes which round errors count
+towards fault rather than writing a lifecycle status.
 
 The following are derived rather than persisted as authoritative state:
 

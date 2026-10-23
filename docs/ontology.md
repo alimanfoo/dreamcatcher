@@ -43,10 +43,10 @@ the same repository.
 A **daemon** is the process that runs a _dreamcatcher_ instance. At most
 one daemon runs an instance at a time. A **daemon run** is one daemon
 process from start to stop. Each daemon run writes a **daemon run
-record** when it starts, holding its process, preferred harness,
-version, capacity, interval and the dispatch routes it loaded, each as a
-dispatch label and its kind of agent work. Status reports take the
-labels they name from that record.
+record** when it starts, holding its process, start time, preferred
+harness, version, capacity, interval and the dispatch routes it loaded,
+each as a dispatch label and its kind of agent work. Status reports take
+the labels they name from that record.
 
 ### Issue and issue identifier
 

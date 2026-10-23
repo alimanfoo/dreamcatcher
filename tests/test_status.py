@@ -1392,6 +1392,7 @@ def test_an_assignment_keeps_its_section_after_its_routes_are_removed(state):
             True,
             DaemonRunRecord(
                 pid=42,
+                started=PINNED,
                 preferred_harness=AgentHarness.CLAUDE,
                 version="5.3.0",
                 max_agents=3,

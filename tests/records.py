@@ -7,7 +7,7 @@ the state it is about without a GitHub, an origin to cut from, or a harness to r
 
 from collections.abc import Sequence
 from contextlib import ExitStack
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
 from clocks import PINNED
@@ -59,6 +59,7 @@ def write_daemon_run(
     *,
     state: StateDirectory,
     pid: int,
+    started: datetime = PINNED - timedelta(hours=1),
     harness: AgentHarness = AgentHarness.CLAUDE,
     version: str = "3.0.0.beta1",
     max_agents: int = 1,
@@ -68,6 +69,7 @@ def write_daemon_run(
     write_json(
         document=DaemonRunRecord(
             pid=pid,
+            started=started,
             preferred_harness=harness,
             version=version,
             max_agents=max_agents,
