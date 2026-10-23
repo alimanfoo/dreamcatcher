@@ -59,14 +59,14 @@ does not, a pull request that falls behind main without a conflict wakes
 nobody until it conflicts with main or you post. If you want such a pull
 request brought up to date, ask the agent on the pull request.
 
+If the repository runs campaigns, read
+[Keep stage pull requests from updating one another](campaign-tutorial.md#keep-stage-pull-requests-from-updating-one-another)
+before you turn on the up-to-date requirement.
+
 If the checks fail after two attempts in a row, _dreamcatcher_ stops
 waking the agent for them, and the assignment shows as idle with the
 detail "checks failing after two attempts". A post from you wakes the
 agent again, and gives it two more attempts.
-
-If the repository runs campaigns, read
-[Keep stage pull requests from updating one another](campaign-tutorial.md#keep-stage-pull-requests-from-updating-one-another)
-before you turn on the up-to-date requirement.
 
 ## Merge or close
 
