@@ -472,6 +472,15 @@ body::after {
   color: var(--dim);
 }
 
+.guidance-link {
+  color: var(--link);
+  text-decoration: none;
+}
+
+.guidance-link:hover {
+  color: var(--link-hover);
+}
+
 .agent-work-content {
   gap: 24px;
 }

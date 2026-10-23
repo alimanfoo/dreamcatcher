@@ -252,15 +252,23 @@ def test_only_ended_assignments_are_summarized(tmp_path):
     assert "GH13-20260819-184158-assignment" not in rendered
 
 
-def test_status_shows_only_the_routed_empty_agent_work(tmp_path):
+def test_status_says_how_to_route_an_unrouted_kind(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_nothing(state=state)
     write_daemon_run(state=state, pid=DAEMON_PID, routes=SCOUT_ROUTES)
 
-    rendered = render_status_view(state=state)
+    rendered = render_status_view(state=state, width=200)
 
-    assert "assignments" not in rendered
-    assert "conversations" in rendered
+    assert "assignments" in rendered
+    assert "campaigns" in rendered
+    assert (
+        "The daemon routes no campaigns. Add a [[campaign]] route to "
+        "dreamcatcher.toml and restart the daemon." in rendered
+    )
+    assert (
+        "Configure a campaign route: https://alimanfoo.github.io/dreamcatcher/"
+        "start-a-campaign/#configure-a-campaign-route" in rendered
+    )
     assert (
         "Assign an issue to yourself, label it with dream:scout and post a comment "
         "to start a conversation." in rendered

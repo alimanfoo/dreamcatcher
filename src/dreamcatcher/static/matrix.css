@@ -513,6 +513,15 @@ body::after {
   margin: var(--space-5) 0;
 }
 
+.guidance-link {
+  color: var(--phosphor);
+  text-decoration: none;
+}
+
+.guidance-link:hover {
+  text-shadow: var(--shadow);
+}
+
 .error-page {
   padding-top: calc(var(--space-12) * 2);
 }

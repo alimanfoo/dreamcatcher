@@ -9,6 +9,7 @@ from dreamcatcher.status import (
     AgentWorkStatusValue,
     DreamcatcherDaemonStatus,
     RequestStatus,
+    SectionGuidance,
     StatusFact,
 )
 
@@ -198,7 +199,7 @@ class WebAgentWorkSection:
 
     kind: AgentWorkKind
     heading: str
-    empty_message: str | None
+    guidance: SectionGuidance | None
     active: tuple[WebAgentWorkCard, ...]
     requests: tuple[RequestStatus, ...]
     ended: tuple[WebAgentWorkCard, ...]

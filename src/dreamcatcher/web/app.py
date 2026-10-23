@@ -23,6 +23,7 @@ from dreamcatcher.errors import ReportableError
 from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.status import (
+    DOCUMENTATION_URL,
     AgentWorkStatus,
     read_agent_work_status,
     read_dreamcatcher_daemon_status,
@@ -78,6 +79,7 @@ def _create_app(
     """
     app = Flask(__name__, static_folder="../static", template_folder="../templates")
     app.config["TRUSTED_HOSTS"] = [WEB_HOST, "localhost"]
+    app.context_processor(_add_documentation_url)
     _configure_web_theme(app=app)
     app.add_url_rule(
         "/",
@@ -373,6 +375,10 @@ def _invalid_feed_position_response() -> tuple[str, int]:
 def _show_reportable_error(error: ReportableError, /) -> tuple[str, int]:
     """Render a reportable failure for Flask, which passes the error by position."""
     return render_template("error.html", message=str(error)), 500
+
+
+def _add_documentation_url() -> dict[str, object]:
+    return {"documentation_url": DOCUMENTATION_URL}
 
 
 def _configure_web_theme(*, app: Flask) -> None:

@@ -6,13 +6,11 @@
       <p id="home-refresh-error" class="refresh-error" role="alert" hidden></p>
       {% include "partials/instance.html" %}
       <div class="dashboard">
-        {% if view.sections %}
-          <div class="work-tabs" role="tablist" aria-label="Agent work">
-            {% for section in view.sections %}
-              <a id="{{ section.kind }}-tab" class="work-tab" href="#{{ section.kind }}" role="tab" aria-selected="{{ 'true' if loop.first else 'false' }}" aria-controls="{{ section.kind }}-panel">{{ section.heading|capitalize }}</a>
-            {% endfor %}
-          </div>
-        {% endif %}
+        <div class="work-tabs" role="tablist" aria-label="Agent work">
+          {% for section in view.sections %}
+            <a id="{{ section.kind }}-tab" class="work-tab" href="#{{ section.kind }}" role="tab" aria-selected="{{ 'true' if loop.first else 'false' }}" aria-controls="{{ section.kind }}-panel">{{ section.heading|capitalize }}</a>
+          {% endfor %}
+        </div>
         {% for section in view.sections %}
           <section id="{{ section.kind }}-panel" class="panel work-tab-panel" role="tabpanel" aria-labelledby="{{ section.kind }}-tab">
             {% for card in section.active %}
@@ -21,7 +19,7 @@
             {% for request in section.requests %}
               {% include "partials/request-row.html" %}
             {% endfor %}
-            {% if section.empty_message %}<p class="empty">{{ section.empty_message }}</p>{% endif %}
+            {% if section.guidance %}<p class="empty">{{ section.guidance.message }}{% if section.guidance.documentation %} <a class="guidance-link" href="{{ section.guidance.documentation.url }}" target="_blank" rel="noopener noreferrer">{{ section.guidance.documentation.title }}</a>{% endif %}</p>{% endif %}
             {% if section.ended %}
               <details class="ended-work">
                 <summary>+ {{ section.ended|length }} ended</summary>

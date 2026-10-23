@@ -64,6 +64,13 @@ the change.
   the worktree or a hand-resume command. A cancelled assignment keeps
   both. A removal that fails is printed with the update and not tried
   again. ([#732](https://github.com/alimanfoo/dreamcatcher/pull/732))
+- The web home page always shows the Assignments, Conversations and
+  Campaigns tabs, and `dreamcatcher status` a section for each kind.
+  Before, a kind's tab and section were hidden while the daemon routed
+  no label of that kind and had none of its work. Now the tab says that
+  the daemon routes none of that kind, and links to the documentation
+  that shows how to add the route to `dreamcatcher.toml`.
+  ([#751](https://github.com/alimanfoo/dreamcatcher/pull/751))
 
 ### Fixed
 

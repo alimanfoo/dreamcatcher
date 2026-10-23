@@ -71,6 +71,7 @@ from dreamcatcher.status import (
     read_dreamcatcher_daemon_status,
     read_status_report,
 )
+from dreamcatcher.status.report import DocumentationLink, SectionGuidance
 from dreamcatcher.status.requests import RequestStatusValue
 
 ASSIGNMENT_ID = "GH13-20260819-184158-assignment"
@@ -238,12 +239,14 @@ def test_an_empty_report_names_the_labels_the_daemon_routes_without_a_config(
         kind=AgentWorkKind.ASSIGNMENT
     ) == AgentWorkStatusSection(
         heading="assignments",
-        empty_message=(
-            "Assign an issue to yourself and label it with dream:smith "
-            "to create an assignment."
+        guidance=SectionGuidance(
+            message=(
+                "Assign an issue to yourself and label it with dream:smith "
+                "to create an assignment."
+            ),
+            documentation=None,
         ),
     )
-    assert found.describe_section(kind=AgentWorkKind.CONVERSATION) is None
 
 
 def test_an_empty_campaign_section_says_how_to_start_a_campaign(tmp_path):
@@ -260,9 +263,50 @@ def test_an_empty_campaign_section_says_how_to_start_a_campaign(tmp_path):
         kind=AgentWorkKind.CAMPAIGN
     ) == AgentWorkStatusSection(
         heading="campaigns",
-        empty_message=(
-            "Assign a parent issue to yourself and label it with dream:lead "
-            "to start a campaign."
+        guidance=SectionGuidance(
+            message=(
+                "Assign a parent issue to yourself and label it with dream:lead "
+                "to start a campaign."
+            ),
+            documentation=None,
+        ),
+    )
+
+
+def test_a_section_gives_no_guidance_before_any_daemon_has_run(tmp_path):
+    state = StateDirectory(root=tmp_path)
+
+    found = read_status_report(state=state, clock=lambda: LOOKED_AT)
+
+    assert [found.describe_section(kind=kind) for kind in AgentWorkKind] == [
+        AgentWorkStatusSection(heading="assignments", guidance=None),
+        AgentWorkStatusSection(heading="conversations", guidance=None),
+        AgentWorkStatusSection(heading="campaigns", guidance=None),
+    ]
+
+
+def test_a_kind_the_daemon_does_not_route_says_how_to_route_it(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    write_daemon_run(state=state, pid=os.getpid())
+
+    found = read_status_report(state=state, clock=lambda: LOOKED_AT)
+
+    assert found.describe_section(
+        kind=AgentWorkKind.CAMPAIGN
+    ) == AgentWorkStatusSection(
+        heading="campaigns",
+        guidance=SectionGuidance(
+            message=(
+                "The daemon routes no campaigns. Add a [[campaign]] route to "
+                "dreamcatcher.toml and restart the daemon."
+            ),
+            documentation=DocumentationLink(
+                title="Configure a campaign route",
+                url=(
+                    "https://alimanfoo.github.io/dreamcatcher/start-a-campaign/"
+                    "#configure-a-campaign-route"
+                ),
+            ),
         ),
     )
 
@@ -1430,14 +1474,14 @@ def test_a_report_orders_active_assignments_by_attention_and_ended_ones_newest_f
     ] == [70, 12]
 
 
-def test_an_assignment_keeps_its_section_after_its_routes_are_removed(state):
+def test_active_assignments_give_no_guidance_after_their_routes_are_removed(state):
     write_daemon_run(state=state, pid=os.getpid(), routes=[])
 
     found = read_report(state=state)
 
     assert found.describe_section(
         kind=AgentWorkKind.ASSIGNMENT
-    ) == AgentWorkStatusSection(heading="assignments", empty_message=None)
+    ) == AgentWorkStatusSection(heading="assignments", guidance=None)
 
 
 @pytest.mark.parametrize(

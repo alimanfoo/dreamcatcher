@@ -28,6 +28,9 @@ from dreamcatcher.status.agent_work import (
 from dreamcatcher.status.requests import RequestStatus, describe_request
 from dreamcatcher.words import describe_span
 
+# The address of the documentation site, which the views link to.
+DOCUMENTATION_URL = "https://alimanfoo.github.io/dreamcatcher/"
+
 # The guidance that an empty section of each kind gives, naming its labels.
 _EMPTY_SECTION_GUIDANCE = {
     AgentWorkKind.ASSIGNMENT: (
@@ -75,11 +78,45 @@ class DaemonStatusFact:
 
 
 @dataclass(frozen=True, kw_only=True)
+class DocumentationLink:
+    """Name one page or section of the documentation site, with its address."""
+
+    title: str
+    url: str
+
+
+@dataclass(frozen=True, kw_only=True)
+class SectionGuidance:
+    """Say how to start work of a kind whose section has nothing active.
+
+    Guidance for a kind that the daemon does not route links to how to route it.
+    """
+
+    message: str
+    documentation: DocumentationLink | None
+
+
+@dataclass(frozen=True, kw_only=True)
 class AgentWorkStatusSection:
     """Describe one kind of agent work as a status view shows it."""
 
     heading: str
-    empty_message: str | None
+    guidance: SectionGuidance | None
+
+
+# The documentation that says how to route each kind, for a kind the daemon
+# does not route.
+_CONFIGURE_DOCUMENTATION = DocumentationLink(
+    title="Configure labels and harnesses", url=f"{DOCUMENTATION_URL}configure/"
+)
+_ROUTE_DOCUMENTATION = {
+    AgentWorkKind.ASSIGNMENT: _CONFIGURE_DOCUMENTATION,
+    AgentWorkKind.CONVERSATION: _CONFIGURE_DOCUMENTATION,
+    AgentWorkKind.CAMPAIGN: DocumentationLink(
+        title="Configure a campaign route",
+        url=f"{DOCUMENTATION_URL}start-a-campaign/#configure-a-campaign-route",
+    ),
+}
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -126,10 +163,6 @@ class DreamcatcherDaemonStatus:
     def max_agents(self) -> int | None:
         """The agent capacity selected for the current or latest daemon run."""
         return None if self.run is None else self.run.max_agents
-
-    def list_labels(self, *, kind: AgentWorkKind) -> tuple[str, ...]:
-        """Return the labels of one kind that the current or latest run routes."""
-        return () if self.run is None else self.run.list_labels(kind=kind)
 
     @property
     def status_fact(self) -> DaemonStatusFact:
@@ -214,27 +247,26 @@ class DreamcatcherStatusReport:
                 )
         return StatusFact(label="next update", value="updating", is_in_progress=True)
 
-    def describe_section(self, *, kind: AgentWorkKind) -> AgentWorkStatusSection | None:
-        """Describe one kind's section, shown once the kind is routed or has work.
+    def describe_section(self, *, kind: AgentWorkKind) -> AgentWorkStatusSection:
+        """Describe one kind's section, which every kind has.
 
-        The guidance shows only while nothing of the kind is active, and names
-        the labels that the current or latest daemon run routes.
+        The guidance shows only while nothing of the kind is active and a daemon
+        run is recorded, because the routes are those of the current or latest
+        run. It names the labels of the kind that the run routes, or says how to
+        route the kind when the run routes none.
         """
-        labels = self.daemon.list_labels(kind=kind)
-        work_statuses = self._list_work_statuses(kind=kind)
-        request_statuses = self.list_request_statuses(kind=kind)
-        if not (labels or work_statuses or request_statuses):
-            return None
+        run = self.daemon.run
         is_active = bool(
-            request_statuses or any(status.is_active for status in work_statuses)
+            self.list_request_statuses(kind=kind)
+            or any(status.is_active for status in self._list_work_statuses(kind=kind))
         )
         return AgentWorkStatusSection(
             heading=f"{kind}s",
-            empty_message=(
+            guidance=(
                 None
-                if is_active or not labels
-                else _EMPTY_SECTION_GUIDANCE[kind].format(
-                    labels=_describe_route_labels(labels=labels)
+                if is_active or run is None
+                else _compose_section_guidance(
+                    kind=kind, labels=run.list_labels(kind=kind)
                 )
             ),
         )
@@ -303,6 +335,25 @@ class DreamcatcherStatusReport:
         return [
             status for status in self.work_statuses if status.work.record.kind is kind
         ]
+
+
+def _compose_section_guidance(
+    *, kind: AgentWorkKind, labels: tuple[str, ...]
+) -> SectionGuidance:
+    if not labels:
+        return SectionGuidance(
+            message=(
+                f"The daemon routes no {kind}s. Add a [[{kind}]] route to "
+                "dreamcatcher.toml and restart the daemon."
+            ),
+            documentation=_ROUTE_DOCUMENTATION[kind],
+        )
+    return SectionGuidance(
+        message=_EMPTY_SECTION_GUIDANCE[kind].format(
+            labels=_describe_route_labels(labels=labels)
+        ),
+        documentation=None,
+    )
 
 
 def _describe_route_labels(*, labels: tuple[str, ...]) -> str:

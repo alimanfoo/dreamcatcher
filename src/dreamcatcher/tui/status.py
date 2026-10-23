@@ -90,19 +90,20 @@ def _render_instance_status(*, report: DreamcatcherStatusReport) -> RenderableTy
 
 def _render_agent_work(
     *, report: DreamcatcherStatusReport, kind: AgentWorkKind
-) -> RenderableType | None:
+) -> RenderableType:
     """Render one kind of agent work as one section, mirroring the web home view.
 
     Orders the active work, the requests with no open work, the guidance and
     the count of ended work in that sequence.
     """
     section = report.describe_section(kind=kind)
-    if section is None:
-        return None
     rows = _render_work_rows(statuses=report.list_active_work_statuses(kind=kind))
     rows += _render_request_rows(requests=report.list_request_statuses(kind=kind))
-    if section.empty_message is not None:
-        rows.append(Text(section.empty_message))
+    if section.guidance is not None:
+        rows.append(Text(section.guidance.message))
+        if section.guidance.documentation is not None:
+            documentation = section.guidance.documentation
+            rows.append(Text(f"{documentation.title}: {documentation.url}"))
     ended = report.list_ended_work_statuses(kind=kind)
     if ended:
         rows.append(Text(describe_count(number=len(ended), noun=f"ended {kind}")))

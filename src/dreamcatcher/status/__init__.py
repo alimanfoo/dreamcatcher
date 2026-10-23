@@ -6,10 +6,12 @@ from dreamcatcher.status.agent_work import (
     AgentWorkStatusValue,
 )
 from dreamcatcher.status.report import (
+    DOCUMENTATION_URL,
     AgentWorkStatusSection,
     DaemonStatusFact,
     DreamcatcherDaemonStatus,
     DreamcatcherStatusReport,
+    SectionGuidance,
     StatusFact,
     read_agent_work_status,
     read_dreamcatcher_daemon_status,
@@ -21,6 +23,7 @@ from dreamcatcher.status.rounds import AgentRoundStatus, AgentRoundTrigger
 
 __all__ = [
     "AGENT_WORK_STATUS_VALUES_IN_ATTENTION_ORDER",
+    "DOCUMENTATION_URL",
     "AgentRoundStatus",
     "AgentRoundTrigger",
     "AgentWorkStatus",
@@ -31,6 +34,7 @@ __all__ = [
     "DreamcatcherStatusReport",
     "RequestReason",
     "RequestStatus",
+    "SectionGuidance",
     "StatusFact",
     "read_agent_work_status",
     "read_dreamcatcher_daemon_status",

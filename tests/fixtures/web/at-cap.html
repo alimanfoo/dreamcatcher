@@ -64,13 +64,15 @@
   
 </section>
       <div class="dashboard">
-        
-          <div class="work-tabs" role="tablist" aria-label="Agent work">
-            
-              <a id="assignment-tab" class="work-tab" href="#assignment" role="tab" aria-selected="true" aria-controls="assignment-panel">Assignments</a>
-            
-          </div>
-        
+        <div class="work-tabs" role="tablist" aria-label="Agent work">
+          
+            <a id="assignment-tab" class="work-tab" href="#assignment" role="tab" aria-selected="true" aria-controls="assignment-panel">Assignments</a>
+          
+            <a id="conversation-tab" class="work-tab" href="#conversation" role="tab" aria-selected="false" aria-controls="conversation-panel">Conversations</a>
+          
+            <a id="campaign-tab" class="work-tab" href="#campaign" role="tab" aria-selected="false" aria-controls="campaign-panel">Campaigns</a>
+          
+        </div>
         
           <section id="assignment-panel" class="panel work-tab-panel" role="tabpanel" aria-labelledby="assignment-tab">
             
@@ -108,6 +110,20 @@
             
             
             
+            
+          </section>
+        
+          <section id="conversation-panel" class="panel work-tab-panel" role="tabpanel" aria-labelledby="conversation-tab">
+            
+            
+            <p class="empty">The daemon routes no conversations. Add a [[conversation]] route to dreamcatcher.toml and restart the daemon. <a class="guidance-link" href="https://alimanfoo.github.io/dreamcatcher/configure/" target="_blank" rel="noopener noreferrer">Configure labels and harnesses</a></p>
+            
+          </section>
+        
+          <section id="campaign-panel" class="panel work-tab-panel" role="tabpanel" aria-labelledby="campaign-tab">
+            
+            
+            <p class="empty">The daemon routes no campaigns. Add a [[campaign]] route to dreamcatcher.toml and restart the daemon. <a class="guidance-link" href="https://alimanfoo.github.io/dreamcatcher/start-a-campaign/#configure-a-campaign-route" target="_blank" rel="noopener noreferrer">Configure a campaign route</a></p>
             
           </section>
         

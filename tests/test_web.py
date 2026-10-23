@@ -197,15 +197,24 @@ def test_an_empty_home_names_every_routed_label(tmp_path):
     )
 
 
-def test_an_empty_home_hides_an_unrouted_assignment_section(tmp_path):
+def test_an_empty_home_says_how_to_route_an_unrouted_kind(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_nothing(state=state)
     write_daemon_run(state=state, pid=DAEMON_PID, routes=SCOUT_ROUTES)
 
     page = render_home(state=state)
 
-    assert 'id="assignment-tab"' not in page
+    assert 'id="assignment-tab"' in page
     assert 'id="conversation-tab"' in page
+    assert 'id="campaign-tab"' in page
+    assert (
+        "The daemon routes no campaigns. Add a [[campaign]] route to "
+        "dreamcatcher.toml and restart the daemon. "
+        '<a class="guidance-link" '
+        'href="https://alimanfoo.github.io/dreamcatcher/start-a-campaign/'
+        '#configure-a-campaign-route" target="_blank" '
+        'rel="noopener noreferrer">Configure a campaign route</a>' in page
+    )
     assert (
         "Assign an issue to yourself, label it with dream:scout and post a comment "
         "to start a conversation." in page
@@ -1787,7 +1796,6 @@ def test_dashboard_groups_assignment_requests_with_assignments(tmp_path):
         'id="request-50-dream%3Asmith"'
     )
     assert 'id="issue-tab"' not in page
-    assert 'id="conversation-tab"' not in page
 
 
 def test_a_scheduler_failure_is_listed_apart_from_the_facts(tmp_path):
