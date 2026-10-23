@@ -88,10 +88,6 @@ never runs, and the coverage gate fails as well, because the
 measurements of the ended worker are lost. With `-n 0` the process is
 pytest itself, so the whole run ends there.
 
-Don't rely on any cleanup after a timeout. A timeout is a last resort
-for a run that is already broken, and a hung test can leave a child
-process or a temporary directory behind.
-
 To debug a test without the limit, pass
 `--timeout=0 -o faulthandler_timeout=0`.
 

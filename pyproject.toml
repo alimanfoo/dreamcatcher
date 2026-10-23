@@ -76,10 +76,8 @@ markers = [
     "integration: calls the real gh against this repository, read-only",
 ]
 filterwarnings = ["error::EncodingWarning"]
-# A test that hangs is ended after two minutes. docs/testing.md says what that
-# looks like on each platform, and how to lift the limit. Keep the stack dump
-# below the timeout, so that the stack is written before Windows ends the
-# worker that hung.
+# docs/testing.md says what happens when a test hangs, and how to lift the
+# limit. Keep the stack dump below the timeout.
 timeout = 120
 faulthandler_timeout = 110
 
