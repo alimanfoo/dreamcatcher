@@ -378,6 +378,17 @@ stay expanded until the user folds them. Once the campaign ends, it
 moves to the ended list with its own card alone, and the user goes to
 GitHub for the history.
 
+Several stages may have open pull requests at once. The user uses a
+merge queue when GitHub offers one for the repository, so each stage is
+tested against current main when its turn to merge comes. Otherwise,
+they leave "Require branches to be up to date before merging" off. If it
+were on, every merge would leave every other stage behind, waking each
+stage's agent to merge main, running its checks again and waking the
+lead for the new head, though only one stage can merge next. With it
+off, a stage that falls behind without conflicting still merges cleanly,
+and a stage that conflicts still wakes its agent to bring the branch up
+to date.
+
 When the user is satisfied, they close the parent, and the campaign ends
 once any round that is still running finishes. If they reopen the parent
 with its label still on, a new campaign starts.

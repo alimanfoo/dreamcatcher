@@ -64,6 +64,10 @@ waking the agent for them, and the assignment shows as idle with the
 detail "checks failing after two attempts". A post from you wakes the
 agent again, and gives it two more attempts.
 
+If the repository runs campaigns, read
+[Keep stage pull requests from updating one another](campaign-tutorial.md#keep-stage-pull-requests-from-updating-one-another)
+before you turn on the up-to-date requirement.
+
 ## Merge or close
 
 Merge the pull request when the change meets your repository's normal
