@@ -15,10 +15,11 @@ from conftest import (
     POSTED_BY,
     PULL_REQUEST,
     REPOSITORY,
+    assignment_issues,
     comment,
     configure,
     git,
-    listing,
+    offer_listing,
     pages,
     pull_request,
     pull_requests,
@@ -294,9 +295,11 @@ def test_a_new_assignments_round_records_what_caused_it_and_what_it_said(
 
 
 def test_a_tick_fills_free_capacity_with_available_issues(ready_repo, offered):
-    offered.replies(
-        stdout=listing(issues=[(8, FILED), (9, LATER), (10, "2026-08-21T01:00:00Z")]),
-        to="issue list",
+    offer_listing(
+        gh=offered,
+        issues=assignment_issues(
+            filed=[(8, FILED), (9, LATER), (10, "2026-08-21T01:00:00Z")]
+        ),
     )
     scheduler, clock = create_scheduler(root=ready_repo, max_agents=2)
 
@@ -333,15 +336,11 @@ def test_a_tick_fills_free_capacity_with_available_issues(ready_repo, offered):
 def test_a_failed_launch_goes_on_to_the_next_candidate(
     ready_repo, offered, monkeypatch
 ):
-    offered.replies(
-        stdout=listing(
-            issues=[
-                (8, FILED),
-                (9, LATER),
-                (10, "2026-08-21T01:00:00Z"),
-            ]
+    offer_listing(
+        gh=offered,
+        issues=assignment_issues(
+            filed=[(8, FILED), (9, LATER), (10, "2026-08-21T01:00:00Z")]
         ),
-        to="issue list",
     )
     scheduler, clock = create_scheduler(root=ready_repo, max_agents=3)
 
@@ -491,7 +490,7 @@ def test_a_tick_at_the_cap_refreshes_the_candidates(ready_repo, offered, harness
     harnesses["claude"].streams(
         lines=[Line(text="still working\n")], delay=STILL_RUNNING
     )
-    offered.replies(stdout=listing(issues=[(8, FILED), (9, LATER)]), to="issue list")
+    offer_listing(gh=offered, issues=assignment_issues(filed=[(8, FILED), (9, LATER)]))
     scheduler, clock = create_scheduler(root=ready_repo)
 
     observed = scheduler.tick(at=clock())
@@ -766,7 +765,7 @@ def test_an_assignment_with_nothing_new_reads_only_its_pull_request_and_posts(
     resuming, gh
 ):
     ran(root=resuming, number=1)
-    gh.replies(stdout=listing(issues=[(13, FILED)]), to="issue list")
+    offer_listing(gh=gh, issues=assignment_issues(filed=[(13, FILED)]))
     gh.replies(stdout=pull_request(state="OPEN"), to="pr view")
     scheduler, clock = create_scheduler(root=resuming)
 

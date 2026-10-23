@@ -125,21 +125,22 @@ def streamed(**fields: object) -> str:
     return json.dumps(fields)
 
 
-def listing(*, issues: Sequence[tuple[int, str]]) -> str:
-    """Return what gh answers an issue listing with."""
-    return json.dumps(
-        [
-            {
-                "number": number,
-                "title": f"Issue {number}",
-                "createdAt": created,
-                "state": "OPEN",
-                "assignees": [{"login": POSTED_BY}],
-                "labels": [{"name": ASSIGNMENT_LABEL}],
-            }
-            for number, created in issues
-        ]
-    )
+def assignment_issues(*, filed: Sequence[tuple[int, str]]) -> list[dict]:
+    """Return open issues assigned to the account, each with the assignment label.
+
+    Each issue is given by its number and when it was filed.
+    """
+    return [
+        {
+            "number": number,
+            "title": f"Issue {number}",
+            "createdAt": created,
+            "state": "OPEN",
+            "assignees": [{"login": POSTED_BY}],
+            "labels": [{"name": ASSIGNMENT_LABEL}],
+        }
+        for number, created in filed
+    ]
 
 
 def offer_listing(*, gh, issues: list[dict]) -> None:
@@ -447,7 +448,7 @@ def gh(fake):
 @pytest.fixture
 def offered(gh):
     """Return gh offering one labelled issue that is free for assignment."""
-    gh.replies(stdout=listing(issues=[(8, FILED)]), to="issue list")
+    offer_listing(gh=gh, issues=assignment_issues(filed=[(8, FILED)]))
     return gh
 
 

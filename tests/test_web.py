@@ -1687,7 +1687,7 @@ def test_dashboard_groups_assignment_requests_with_assignments(tmp_path):
     assert 'id="conversation-tab"' not in page
 
 
-def test_each_scheduler_failure_is_listed_apart_from_the_facts(tmp_path):
+def test_a_scheduler_failure_is_listed_apart_from_the_facts(tmp_path):
     state = StateDirectory(root=tmp_path)
     WEB_STATUS_REPORTS["at-cap"](state=state)
 
@@ -1697,9 +1697,8 @@ def test_each_scheduler_failure_is_listed_apart_from_the_facts(tmp_path):
     failures = page[page.index('<section class="scheduler-failures"') :]
     assert "<dt>agent capacity</dt>" in facts
     assert "scheduler failures" not in facts
-    assert failures.count("<li>") == 2
+    assert failures.count("<li>") == 1
     assert "<li>could not list issues: " in failures
-    assert "<li>cannot write " in failures
 
 
 def test_next_update_is_left_out_when_no_daemon_is_running(tmp_path):

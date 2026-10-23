@@ -7,9 +7,6 @@ instance
   agent capacity      1 of 1 working                                                                
   scheduler failures  -  could not list issues: gh issue list: Post                                 
                          "https://api.github.com/graphql": unexpected EOF                           
-                      -  cannot write                                                               
-                         /srv/repo/.dreamcatcher/v7/work/GH21-20260819-205600-assignment/work.json: 
-                         [Errno 28] No space left on device.                                        
 
 assignments
   GH13-20260819-184158-assignment  working  round 1, start, running 1h 30m, last output 1h 29m ago

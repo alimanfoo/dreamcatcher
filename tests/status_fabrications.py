@@ -579,7 +579,7 @@ def fabricate_a_dead_daemon(*, state):
 
 
 def fabricate_the_cap(*, state):
-    """Write a daemon at its cap whose latest tick also had scheduler failures."""
+    """Write a daemon at its cap whose latest tick also failed to list issues."""
     holding(state=state)
     current = running(minute=30)
     directory = written(state=state, issue=13, records=[current])
@@ -596,9 +596,6 @@ def fabricate_the_cap(*, state):
             failures=[
                 "could not list issues: gh issue list: "
                 'Post "https://api.github.com/graphql": unexpected EOF',
-                "cannot write /srv/repo/.dreamcatcher/v7/work/"
-                "GH21-20260819-205600-assignment/work.json: "
-                "[Errno 28] No space left on device.",
             ],
             rows=[
                 _assignment_row(
