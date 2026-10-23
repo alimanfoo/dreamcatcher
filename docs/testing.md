@@ -64,6 +64,31 @@ deliberately outside the default suite and CI. They establish that the
 GitHub commands and response projections still match the live service,
 but only for the repository facts they read.
 
+## Hung tests
+
+Every test in every group has two minutes to finish, counting its
+fixture setup and teardown. The limit is there to end a run that has
+hung, not to measure speed: the slowest test takes well under a minute
+on every platform that CI runs.
+
+Ten seconds before the limit, pytest writes the stack of every thread to
+standard error. When the limit passes, `pytest-timeout` ends the test.
+On Linux and macOS it fails the test with the stack where the test hung,
+runs the fixture teardown, and the run carries on. On Windows it ends
+the process that runs the test, which in the default run is an xdist
+worker. The report then says that the worker crashed, and the stack that
+pytest wrote ten seconds before is the only one that shows. The run
+carries on in a new worker, but the fixture teardown of the hung test
+never runs, and the coverage gate fails as well, because the
+measurements of the ended worker are lost.
+
+Don't rely on any cleanup after a timeout. A timeout is a last resort
+for a run that is already broken, and a hung test can leave a child
+process or a temporary directory behind.
+
+To debug a test without the limit, pass
+`--timeout=0 -o faulthandler_timeout=0`.
+
 ## What CI runs
 
 For every push and pull request to `main`, the
