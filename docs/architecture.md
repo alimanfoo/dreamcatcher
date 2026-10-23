@@ -840,14 +840,14 @@ Instance records persist the repository identity and the most recent
 daemon run's preferred harness, _dreamcatcher_ version, capacity,
 interval, and the dispatch routes it loaded, each as a dispatch label
 and its kind of agent work. An instance-wide scheduler record persists
-the last tick's result, including its failures, its request rows, the
-active global cooldown, and the time at which the most recent cooldown
-ended. Its rows preserve operational evidence of what the tick read
-rather than authoritative state. Agent work of every kind persists the
-time of its latest user retry request. These boundaries allow fault to
-remain a derived status: ending a cooldown or requesting a retry changes
-which round errors count towards fault rather than writing a lifecycle
-status.
+the last tick's result, including when it started and finished, its
+failures, its request rows, the active global cooldown, and the time at
+which the most recent cooldown ended. Its rows preserve operational
+evidence of what the tick read rather than authoritative state. Agent
+work of every kind persists the time of its latest user retry request.
+These boundaries allow fault to remain a derived status: ending a
+cooldown or requesting a retry changes which round errors count towards
+fault rather than writing a lifecycle status.
 
 The following are derived rather than persisted as authoritative state:
 

@@ -167,6 +167,7 @@ def observe(
         state=state,
         tick=SchedulerRecord(
             at=LOOKED_AT,
+            finished=LOOKED_AT,
             rows=[
                 compose_request_row(
                     issue=8,
@@ -753,7 +754,7 @@ def test_a_stopped_conversation_waits_for_new_comments(conversation_state):
 
 def list_conversation_requests(*, state: StateDirectory, rows: list[RequestRow]):
     """Return the conversation requests that a tick writing these rows reports."""
-    write_tick(state=state, tick=SchedulerRecord(at=PINNED, rows=rows))
+    write_tick(state=state, tick=SchedulerRecord(at=PINNED, finished=PINNED, rows=rows))
     report = read_status_report(state=state, clock=lambda: LOOKED_AT)
     return report.list_request_statuses(kind=AgentWorkKind.CONVERSATION)
 
@@ -871,6 +872,7 @@ def test_the_report_lists_ended_conversations_apart_newest_first(tmp_path):
         state=state,
         tick=SchedulerRecord(
             at=PINNED,
+            finished=PINNED,
             rows=[
                 compose_request_row(
                     issue=10,

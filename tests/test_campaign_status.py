@@ -148,6 +148,7 @@ def observe(
         state=state,
         tick=SchedulerRecord(
             at=PINNED,
+            finished=PINNED,
             rows=[
                 compose_request_row(
                     issue=PARENT,
@@ -182,6 +183,7 @@ def test_a_labelled_parent_with_no_campaign_yet_is_available(tmp_path):
         state=state,
         tick=SchedulerRecord(
             at=PINNED,
+            finished=PINNED,
             rows=[
                 compose_request_row(
                     issue=PARENT, kind=AgentWorkKind.CAMPAIGN, finding=NOTHING_NEW

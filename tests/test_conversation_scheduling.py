@@ -1290,6 +1290,7 @@ def test_a_conversation_waits_for_the_active_global_cooldown(
     write_json(
         document=SchedulerRecord(
             at=at,
+            finished=at,
             cooldown=GlobalCooldown(started=at, ends=at + timedelta(minutes=15)),
         ),
         path=scheduler.context.state.scheduler_record,
@@ -1387,6 +1388,7 @@ def test_the_cooldown_boundary_clears_conversation_faults(
     write_json(
         document=SchedulerRecord(
             at=fault_started,
+            finished=fault_started,
             cooldown=GlobalCooldown(
                 started=fault_started,
                 ends=cooldown_ends,
@@ -1664,10 +1666,12 @@ def test_an_interrupted_round_from_v6_1_is_withdrawn_once_an_update_finds_nothin
         path=conversation.compose_round_paths(number=1).round_input,
     )
     # An update made while the round ran counted its comment as relayed.
+    updated = clock()
     write_tick(
         state=state,
         tick=SchedulerRecord(
-            at=clock(),
+            at=updated,
+            finished=updated,
             rows=[
                 compose_conversation_row(
                     agent_work_identifier=conversation.identifier,

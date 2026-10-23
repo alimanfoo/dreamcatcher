@@ -257,6 +257,7 @@ def test_a_campaign_with_no_children_to_show_says_why_and_shows_no_cards(
         state=state,
         tick=SchedulerRecord(
             at=LOOKED_AT,
+            finished=LOOKED_AT,
             rows=[campaign_row.model_copy(update={"children": children}), *other_rows],
         ),
     )
@@ -296,6 +297,7 @@ def test_requests_whose_labels_differ_only_in_spacing_have_their_own_identifiers
         state=state,
         tick=SchedulerRecord(
             at=LOOKED_AT,
+            finished=LOOKED_AT,
             rows=[
                 *fabricate_campaigns(state=state),
                 *(
@@ -1736,6 +1738,7 @@ def test_an_active_cooldown_is_a_warning_fact(tmp_path):
         state=state,
         tick=SchedulerRecord(
             at=PINNED,
+            finished=PINNED,
             cooldown=GlobalCooldown(
                 started=LOOKED_AT, ends=LOOKED_AT + timedelta(minutes=15)
             ),

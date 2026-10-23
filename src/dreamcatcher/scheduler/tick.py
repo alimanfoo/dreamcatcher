@@ -165,6 +165,7 @@ class Scheduler:
             )
         return SchedulerRecord(
             at=at,
+            finished=self.context.clock(),
             failures=failures,
             rows=rows,
             cooldown=cooldown,

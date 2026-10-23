@@ -201,7 +201,9 @@ def compose_pull_request_row(
 
 def write_tick_rows(*, state: StateDirectory, rows: list[RequestRow]) -> None:
     """Write a tick that wrote these rows."""
-    write_tick(state=state, tick=SchedulerRecord(at=LOOKED_AT, rows=rows))
+    write_tick(
+        state=state, tick=SchedulerRecord(at=LOOKED_AT, finished=LOOKED_AT, rows=rows)
+    )
 
 
 def test_an_empty_instance_reports_unknown_capacity_and_no_work(tmp_path):
@@ -974,6 +976,7 @@ def test_an_elapsed_cooldown_clears_the_fault_and_the_cooldown(state):
         state=state,
         tick=SchedulerRecord(
             at=PINNED,
+            finished=PINNED,
             cooldown=GlobalCooldown(started=PINNED, ends=ended),
         ),
     )
@@ -990,6 +993,7 @@ def test_an_active_cooldown_is_an_instance_fact_and_failures_are_listed(held_sta
         state=held_state,
         tick=SchedulerRecord(
             at=PINNED,
+            finished=PINNED,
             failures=["could not start assignment", "could not read comments for GH8"],
             cooldown=cooldown,
         ),
@@ -1016,7 +1020,9 @@ def test_an_active_cooldown_is_an_instance_fact_and_failures_are_listed(held_sta
 def test_a_stopped_daemon_has_no_current_scheduler_failures(state):
     write_tick(
         state=state,
-        tick=SchedulerRecord(at=PINNED, failures=["could not start assignment"]),
+        tick=SchedulerRecord(
+            at=PINNED, finished=PINNED, failures=["could not start assignment"]
+        ),
     )
 
     assert read_report(state=state).scheduler_failures == ()
@@ -1034,6 +1040,7 @@ def test_a_blocked_request_names_its_claims_and_blockers_as_numbers(state):
         state=state,
         tick=SchedulerRecord(
             at=PINNED,
+            finished=PINNED,
             rows=[blocked],
         ),
     )
@@ -1064,7 +1071,9 @@ def test_a_campaign_request_names_the_issues_that_block_its_parent(state):
             ]
         ),
     )
-    write_tick(state=state, tick=SchedulerRecord(at=PINNED, rows=[blocked]))
+    write_tick(
+        state=state, tick=SchedulerRecord(at=PINNED, finished=PINNED, rows=[blocked])
+    )
 
     [request] = read_report(state=state).request_statuses
 
@@ -1088,6 +1097,7 @@ def test_a_request_that_an_open_pull_request_claims_is_blocked(state):
         state=state,
         tick=SchedulerRecord(
             at=PINNED,
+            finished=PINNED,
             rows=[
                 compose_request_row(
                     issue=20,
@@ -1128,7 +1138,9 @@ def test_a_request_nothing_claims_or_blocks_is_available(state):
     write_tick(
         state=state,
         tick=SchedulerRecord(
-            at=PINNED, rows=[compose_request_row(issue=20, finding=UNCLAIMED)]
+            at=PINNED,
+            finished=PINNED,
+            rows=[compose_request_row(issue=20, finding=UNCLAIMED)],
         ),
     )
 
@@ -1144,6 +1156,7 @@ def test_two_labels_of_one_kind_are_a_routing_conflict_named_in_each_row(state):
         state=state,
         tick=SchedulerRecord(
             at=PINNED,
+            finished=PINNED,
             rows=[
                 compose_request_row(issue=20, label="dream:less", finding=conflict),
                 compose_request_row(issue=20, finding=conflict),
@@ -1167,6 +1180,7 @@ def test_a_request_whose_read_failed_is_unknown_with_the_reason(state):
         state=state,
         tick=SchedulerRecord(
             at=PINNED,
+            finished=PINNED,
             rows=[
                 compose_request_row(
                     issue=20, finding=ReadFailureFinding(reason="gh: offline")
@@ -1186,6 +1200,7 @@ def test_a_request_that_led_to_open_work_is_reported_through_its_work(state):
         state=state,
         tick=SchedulerRecord(
             at=PINNED,
+            finished=PINNED,
             rows=[
                 compose_request_row(
                     issue=13, agent_work_identifier=ASSIGNMENT_ID, finding=UNCLAIMED
@@ -1202,6 +1217,7 @@ def test_requests_keep_the_order_the_tick_saw_them_in(state):
         state=state,
         tick=SchedulerRecord(
             at=PINNED,
+            finished=PINNED,
             rows=[
                 compose_request_row(issue=21, finding=UNCLAIMED),
                 compose_request_row(issue=20, finding=UNCLAIMED),
