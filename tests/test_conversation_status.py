@@ -7,11 +7,14 @@ from datetime import timedelta
 import pytest
 from clocks import PINNED
 from records import (
+    MISORDERED_COMMENTS,
+    REPEATED_COMMENTS,
     SCOUT_ROUTES,
     compose_conversation_identifier,
     find_conversation_directory,
     hold_daemon_lock_for_test,
     read_conversation,
+    replace_relayed_comments,
     write_conversation,
     write_daemon_run,
     write_ending,
@@ -708,6 +711,26 @@ def test_an_unreadable_round_input_fails_the_status_naming_the_file(
     assert conversation is not None
     round_input = conversation.compose_round_paths(number=1).round_input
     round_input.write_bytes(b"not json")
+
+    found = read_conversation_status(state=conversation_state)
+
+    with pytest.raises(ReportableError, match=re.escape(str(round_input))):
+        _ = found.round_statuses
+
+
+@pytest.mark.parametrize(
+    "comments",
+    [[], MISORDERED_COMMENTS, REPEATED_COMMENTS],
+    ids=["none", "misordered", "repeated"],
+)
+def test_a_round_input_with_comments_the_relay_never_gives_fails_the_status(
+    conversation_state, comments
+):
+    write_conversation_round(state=conversation_state)
+    conversation = read_conversation(state=conversation_state, issue=8)
+    assert conversation is not None
+    round_input = conversation.compose_round_paths(number=1).round_input
+    replace_relayed_comments(path=round_input, comments=comments)
 
     found = read_conversation_status(state=conversation_state)
 

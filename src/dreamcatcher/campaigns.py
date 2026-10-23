@@ -25,7 +25,7 @@ from dreamcatcher.github import (
     IssueComment,
     IssueState,
 )
-from dreamcatcher.relay import IssueCommentCursor
+from dreamcatcher.relay import IssueCommentCursor, OrderedIssueComments
 from dreamcatcher.state import StateDirectory
 
 
@@ -104,7 +104,7 @@ class CampaignRoundInput(WriteOnceDreamcatcherDocument):
     issue: int
     children: ReadOnlyList[CampaignChild]
     notifications: ReadOnlyList[CampaignChildNotification]
-    comments: ReadOnlyList[IssueComment]
+    comments: OrderedIssueComments
     cursor: IssueCommentCursor | None
     revision: str
     assignment_routes: ReadOnlyList[AssignmentRoute]

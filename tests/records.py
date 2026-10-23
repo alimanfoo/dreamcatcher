@@ -5,6 +5,7 @@ writes them here, rather than creating them through the scheduler. So it reaches
 the state it is about without a GitHub, an origin to cut from, or a harness to run.
 """
 
+import json
 from collections.abc import Sequence
 from contextlib import ExitStack
 from datetime import datetime
@@ -53,6 +54,20 @@ MERGED_INPUT = agent_assignments.AssignmentRoundInput(
 
 # The number of the pull request a fabricated assignment opened, unless a test says.
 _PULL_REQUEST_52 = 52
+
+# A comment as a round input records it.
+_RELAYED_COMMENT = {
+    "kind": "comment",
+    "id": 1,
+    "author": "alice",
+    "written_at": "2026-09-23T01:00:00Z",
+    "body": "Please explain.",
+}
+
+# Comments that no round input relays: two written in the same second out of
+# the order of their ids, and one comment twice.
+MISORDERED_COMMENTS = [{**_RELAYED_COMMENT, "id": 2}, _RELAYED_COMMENT]
+REPEATED_COMMENTS = [_RELAYED_COMMENT, _RELAYED_COMMENT]
 
 
 def write_daemon_run(
@@ -277,6 +292,17 @@ def write_feed(*, directory: Path, number: int, lines: Sequence[FeedLine]) -> No
         text="".join(line.render() for line in lines),
         path=_compose_round_paths(directory=directory, number=number).feed,
     )
+
+
+def replace_relayed_comments(*, path: Path, comments: Sequence[dict]) -> None:
+    """Replace the comments that the round input at the path relays, by hand.
+
+    The edit bypasses the input's model, so it can leave a state that the model
+    refuses.
+    """
+    round_input = json.loads(path.read_bytes())
+    round_input["comments"] = comments
+    path.write_bytes(json.dumps(round_input).encode())
 
 
 def write_tick(*, state: StateDirectory, tick: SchedulerRecord) -> None:

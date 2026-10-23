@@ -5,7 +5,6 @@ from pydantic import Field
 from dreamcatcher.agent_work import AgentWork
 from dreamcatcher.documents import (
     DreamcatcherDocument,
-    ReadOnlyList,
     WriteOnceDreamcatcherDocument,
     read_json,
 )
@@ -20,7 +19,7 @@ from dreamcatcher.github import (
     post_issue_comment,
 )
 from dreamcatcher.prompts import AGENT_POST_MARKER
-from dreamcatcher.relay import IssueCommentCursor
+from dreamcatcher.relay import IssueCommentCursor, OrderedIssueComments
 from dreamcatcher.state import StateDirectory
 
 NO_REPLY = "NO_REPLY"
@@ -34,13 +33,16 @@ class InitialConversationIssue(DreamcatcherDocument):
 
 
 class ConversationRoundInput(WriteOnceDreamcatcherDocument):
-    """Model the eligible issue input frozen for one conversation round."""
+    """Model the eligible issue input frozen for one conversation round.
+
+    Comments wake every conversation round, so the input relays at least one.
+    """
 
     issue: int
     initial_issue: InitialConversationIssue | None = Field(
         default=None, exclude_if=lambda value: value is None
     )
-    comments: ReadOnlyList[IssueComment]
+    comments: OrderedIssueComments = Field(min_length=1)
     revision: str
 
 
@@ -76,23 +78,11 @@ def prepare_conversation_round(
 def read_conversation_input(
     *, conversation: AgentWork, number: int
 ) -> ConversationRoundInput:
-    """Read and validate the durable input for one conversation round."""
-    round_input = read_json(
+    """Read the durable input of one conversation round."""
+    return read_json(
         model=ConversationRoundInput,
         path=conversation.compose_round_paths(number=number).round_input,
     )
-    if not round_input.comments:
-        raise ReportableError(
-            f"Conversation {conversation.identifier} round {number} "
-            "relayed no issue comments."
-        )
-    positions = [(comment.written_at, comment.id) for comment in round_input.comments]
-    if positions != sorted(set(positions)):
-        raise ReportableError(
-            f"Conversation {conversation.identifier} round {number} "
-            "comments are not strictly ordered."
-        )
-    return round_input
 
 
 def read_issue_comment_cursor(*, conversation: AgentWork) -> IssueCommentCursor | None:

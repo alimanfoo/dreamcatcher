@@ -7,14 +7,18 @@ relayed. Posts and comments written through the shared GitHub account are user
 input only when they do not carry the agent marker.
 """
 
+from collections.abc import Sequence
 from dataclasses import dataclass
+from typing import Annotated
+
+from pydantic import AfterValidator
 
 from dreamcatcher.agent_assignments import (
     is_check_failure_withheld,
     read_signal_relay_head,
 )
 from dreamcatcher.agent_work import AgentWork
-from dreamcatcher.documents import DreamcatcherDocument
+from dreamcatcher.documents import DreamcatcherDocument, ReadOnlyList
 from dreamcatcher.github import (
     CheckResult,
     IssueComment,
@@ -34,6 +38,24 @@ class IssueCommentCursor(DreamcatcherDocument):
 
     written_at: str
     id: int
+
+
+def _refuse_misordered_comments(
+    comments: Sequence[IssueComment], /
+) -> Sequence[IssueComment]:
+    """Refuse comments out of the relay's order; pydantic calls this validator."""
+    positions = [(comment.written_at, comment.id) for comment in comments]
+    if positions != sorted(set(positions)):
+        raise ValueError("comments are not strictly ordered by time, then id")
+    return comments
+
+
+# Issue comments in the order that the relay selects them past a cursor: oldest
+# first, with comments written in the same second ordered by id, and none
+# repeated.
+OrderedIssueComments = Annotated[
+    ReadOnlyList[IssueComment], AfterValidator(_refuse_misordered_comments)
+]
 
 
 @dataclass(frozen=True, kw_only=True)
