@@ -98,8 +98,8 @@ rows, and `faults.py` the fault and cooldown rules.
 
 One scheduler tick:
 
-1. reads every piece of agent work from disk, and lists the open issues
-   assigned to the signed-in account under each dispatch label;
+1. reads every piece of agent work from disk, and lists in one read the
+   open issues assigned to the signed-in account, whatever their labels;
 2. builds the requests from two sources, each dispatch label on each
    listed issue and each piece of open agent work, which names its own
    issue and label;
@@ -151,10 +151,14 @@ the daemon then has no way to report anything.
 If a GitHub read for a request fails, the tick holds the reason in that
 request's row and prevents only the launches that depend on what it
 would have read. A failed listing is a scheduler failure, because it
-belongs to no request, and it starts no work for the issues it would
-have listed. Open work is found on disk and reads its own channel, so a
-failed listing leaves it inspected. A later tick retries the failed
-read.
+belongs to no request, and it starts no new work of any kind. Open work
+is found on disk and reads its own channel, so a failed listing leaves
+it inspected. A later tick retries the failed read.
+
+The listing holds at most 500 issues, counted over every open issue
+assigned to the signed-in account, whether or not a dispatch label is on
+it. An account assigned more than 500 open issues may therefore have a
+labelled issue left out of a tick.
 
 A launch that fails takes no agent slot. The tick keeps every round that
 it already started and goes on to the next candidate. A round that
@@ -279,9 +283,9 @@ number, but the first pass read nothing of it. No sub-issue's pull
 request is read a second time. The observation fails when the sub-issue
 read fails, when a sub-issue is in another repository, whose work this
 daemon never sees, when the first pass could not read a sub-issue's
-assignment or assignment request, or when a listing under an assignment
-label failed and a sub-issue has no open assignment. A failed
-observation holds no partial picture.
+assignment or assignment request, or when the listing failed and a
+sub-issue has no open assignment. A failed observation holds no partial
+picture.
 
 The tick then reads an open campaign's parent issue, as it reads a
 conversation's issue, and decides from it whether the campaign is paused
