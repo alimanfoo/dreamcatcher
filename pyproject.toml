@@ -84,7 +84,7 @@ timeout = 120
 # Ten seconds before the timeout, pytest writes every thread's stack to stderr.
 # On Windows the timeout ends a hung xdist worker, and the stack that it prints
 # goes to the worker's discarded stdout, so this is the only stack that shows.
-faulthandler_timeout = 110
+faulthandler_timeout = 10
 
 [tool.coverage.run]
 source = ["src"]
