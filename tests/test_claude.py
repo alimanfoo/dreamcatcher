@@ -334,6 +334,23 @@ def test_a_finished_subagent_reports_what_it_did_on_the_main_thread():
     ]
 
 
+def test_a_subagent_that_handed_its_report_back_reports_its_own_words():
+    line = streamed(
+        type="system",
+        subtype="task_notification",
+        status="completed",
+        summary="This agent's report was delivered to you as a message.",
+        usage={"output_tokens": 21},
+        handback="send",
+        handback_report={"text": "Two files."},
+    )
+
+    assert CLAUDE_ADAPTER.read(line=line) == [
+        FeedNote(label="report", detail="completed"),
+        FeedProse(text="Two files."),
+    ]
+
+
 def test_a_background_command_finishing_is_not_a_report():
     line = streamed(
         type="system",

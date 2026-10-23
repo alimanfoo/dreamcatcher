@@ -303,7 +303,7 @@ def _read_system_event(*, harness_event: dict) -> HarnessOutput:
         return HarnessOutput(
             events=[
                 FeedNote(label="report", detail=harness_event["status"]),
-                FeedProse(text=harness_event["summary"]),
+                FeedProse(text=_read_subagent_report(harness_event=harness_event)),
             ]
         )
     # A retried round says nothing else while it waits, and ten retries of a
@@ -323,6 +323,19 @@ def _read_system_event(*, harness_event: dict) -> HarnessOutput:
             ]
         )
     return HarnessOutput(events=[])
+
+
+def _read_subagent_report(*, harness_event: dict) -> str:
+    """Return the words of a finished subagent's report.
+
+    A subagent that hands its report back sends it as the handback report, and
+    Claude then fills the summary with a line that only points at it. Otherwise
+    the summary is the report.
+    """
+    handback_report = harness_event.get("handback_report")
+    if handback_report is None:
+        return harness_event["summary"]
+    return handback_report["text"]
 
 
 class _ReadsClaudeBlock(Protocol):
