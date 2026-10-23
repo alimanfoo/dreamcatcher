@@ -235,6 +235,13 @@ $env:PYTHONWARNDEFAULTENCODING = "1"; uv run pytest --regenerate-view-goldens
   that changes what a document holds, while pydantic still validates the
   field as a list or a dict. Keep `list` and `dict` for code that builds
   a collection before it constructs the document.
+- Declare each collection field of a frozen dataclass as a `Sequence`
+  from `collections.abc`, and each mapping field as a `Mapping`, so the
+  type checker refuses code that changes a value. A builder can still
+  pass a list or a tuple. Keep a fixed-position tuple, such as
+  `tuple[str, int]`, because its positions describe a structure. Keep a
+  mutable type for a field that the code changes on purpose, as
+  `_FeedView` in `tui/views.py` records how far it has read.
 
 ### Module and process boundaries
 
