@@ -43,10 +43,10 @@ the same repository.
 A **daemon** is the process that runs a _dreamcatcher_ instance. At most
 one daemon runs an instance at a time. A **daemon run** is one daemon
 process from start to stop. Each daemon run writes a **daemon run
-record** when it starts, holding its process, preferred harness,
-version, capacity, interval and the dispatch routes it loaded, each as a
-dispatch label and its kind of agent work. Status reports take the
-labels they name from that record.
+record** when it starts, holding its process, start time, preferred
+harness, version, capacity, interval and the dispatch routes it loaded,
+each as a dispatch label and its kind of agent work. Status reports take
+the labels they name from that record.
 
 ### Issue and issue identifier
 
@@ -215,8 +215,9 @@ durable domain object.
 ### Scheduler
 
 The **scheduler** decides what work _dreamcatcher_ starts and when. It
-decides once per **scheduler tick**, and the daemon runs one tick per
-interval. Users see a scheduler tick called an update.
+decides once per **scheduler tick**, and the daemon waits its interval
+after each tick finishes before it starts the next. Users see a
+scheduler tick called an update.
 
 ### Channel and cursor
 
@@ -389,6 +390,10 @@ no later assignment for it. If the pull request was closed without being
 merged, the issue remains open and may receive another assignment after
 the previous assignment has completed.
 
+Once a completed assignment's wrap-up round has ended, _dreamcatcher_
+removes its worktree and its local branch, and keeps its record and the
+branch on GitHub.
+
 ### Stopping a round
 
 The user can **stop** a running round, from the work's page or the
@@ -409,7 +414,8 @@ undone.
 _dreamcatcher_ leaves the pull request as it is, and while it is open it
 claims the issue, so no new assignment starts for the issue. If the user
 merges it, GitHub closes the issue. If the user closes it without
-merging, the issue may receive another assignment.
+merging, the issue may receive another assignment. A cancelled
+assignment keeps its worktree and branch for the user.
 
 ### Campaign composition
 
@@ -505,7 +511,9 @@ the notifications of the changes among the sub-issues since then.
 When a tick finds the issue of a conversation or campaign closed, it
 records the work's ending with the reason "issue closed" once no round
 is running. A round that is running when the issue closes finishes
-first. Only the user closes a campaign's parent issue.
+first. Only the user closes a campaign's parent issue. Once the work has
+ended and no round of it is running, _dreamcatcher_ removes its worktree
+and keeps its record.
 
 Paused work does not block new work of its kind under another label.
 Taking label A off an issue and adding label B starts fresh work under
@@ -523,10 +531,13 @@ it:
 - a count of posts or comments: the user posts or issue comments
   relayed, or **comments** without a count for a conversation round that
   has no input yet;
-- a count of sub-issues changed: the notifications that a campaign round
-  was given, after any count of comments, or **comments or changes**
-  without a count for a campaign round, other than a start or a recover,
-  that has no input yet;
+- each notification that a campaign round was given, after any count of
+  comments: the sub-issue's number and the words for its changes. Each
+  change reads as its name, except that a change of issue state reads as
+  **closed** or **reopened**, by the state that the sub-issue entered,
+  check completion reads as **checks finished**, and ending reads as
+  **ended**. A campaign round, other than a start or a recover, that has
+  no input yet reads as **comments or changes**;
 - **main moved** or **checks failed**: the other signals an assignment
   round relayed, after any count of posts;
 - **merged** or **closed**: the state of a finished pull request, which
@@ -534,7 +545,7 @@ it:
 - **recover**: an assignment round whose input relays nothing new, given
   again after a round that did not finish, or a campaign round that
   follows one that did not finish. A campaign's start or recover comes
-  before the counts of comments and sub-issues it was given.
+  before the count of comments and the notifications it was given.
 
 ### Requests
 
@@ -699,14 +710,15 @@ unless it is then in fault.
 ### Status reports do not control work
 
 A status report may include operational facts such as the repository
-identity, whether the daemon is running, when the last scheduler tick
-occurred, current capacity, whether a global cooldown is active, and the
-scheduler failures. A scheduler failure is a failure in the latest tick
-that no request row holds: a failed issue listing, or a launch that
-failed before its round was recorded. A failed read for a request is
-held in its request row, and so is a round that errored during its
-preparation or startup. Its request statuses and agent work statuses are
-projections derived for a person to read.
+identity, whether the daemon is running, how long until the next
+scheduler tick, or that a tick is running, current capacity, whether a
+global cooldown is active, and the scheduler failures. A scheduler
+failure is a failure in the latest tick that no request row holds: a
+failed issue listing, or a launch that failed before its round was
+recorded. A failed read for a request is held in its request row, and so
+is a round that errored during its preparation or startup. Its request
+statuses and agent work statuses are projections derived for a person to
+read.
 
 The status report never schedules work and is never an input to
 scheduling. Scheduling and reporting must nevertheless interpret the

@@ -1,5 +1,6 @@
 """Describe the agent rounds of any kind of agent work."""
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime
 
@@ -14,7 +15,12 @@ from dreamcatcher.agent_rounds import (
     interpret_agent_round_outcome,
 )
 from dreamcatcher.agent_work import AgentWork
-from dreamcatcher.campaigns import CampaignRoundInput
+from dreamcatcher.campaigns import (
+    CampaignChild,
+    CampaignChildChange,
+    CampaignChildNotification,
+    CampaignRoundInput,
+)
 from dreamcatcher.documents import read_json_if_exists
 from dreamcatcher.feed import read_last_feed_line
 from dreamcatcher.github import PullRequestState
@@ -23,13 +29,55 @@ from dreamcatcher.issue_conversations import ConversationRoundInput
 from dreamcatcher.status.findings import describe_changed_children, describe_signal
 from dreamcatcher.words import describe_count, describe_span
 
+# What a lead round's trigger calls each change to a sub-issue, apart from a
+# change of issue state, which reads as the state that the sub-issue entered.
+_CHILD_CHANGE_WORDS = {
+    CampaignChildChange.ADDED: "added",
+    CampaignChildChange.REMOVED: "removed",
+    CampaignChildChange.HANDBACK: "handback",
+    CampaignChildChange.PULL_REQUEST: "pull request",
+    CampaignChildChange.CHECK_COMPLETION: "checks finished",
+    CampaignChildChange.MERGEABLE: "mergeable",
+    CampaignChildChange.ENDING: "ended",
+    CampaignChildChange.FAULT: "fault",
+}
+
 
 @dataclass(frozen=True, kw_only=True)
-class AgentRoundRevision:
-    """Describe the revision of main that one agent round was given."""
+class AgentRoundTriggerNotification:
+    """Name one sub-issue whose changes woke a lead round, with words for them."""
 
-    value: str
-    description: str
+    issue: int
+    changes: str
+
+
+@dataclass(frozen=True, kw_only=True)
+class AgentRoundTrigger:
+    """Say what woke one agent round.
+
+    The notifications name the sub-issues whose changes woke a lead round. They
+    follow the words for anything else that woke it, which are empty when
+    nothing else did.
+    """
+
+    words: str
+    notifications: tuple[AgentRoundTriggerNotification, ...] = ()
+
+    def describe(self) -> str:
+        """Return what woke the round as one line of plain text."""
+        parts = [self.words] if self.words else []
+        parts.extend(
+            f"#{notification.issue}: {notification.changes}"
+            for notification in self.notifications
+        )
+        return "; ".join(parts)
+
+    def summarize(self) -> str:
+        """Return what woke the round in a few words, counting the sub-issues."""
+        parts = [self.words] if self.words else []
+        if self.notifications:
+            parts.append(describe_changed_children(count=len(self.notifications)))
+        return ", ".join(parts)
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -37,11 +85,10 @@ class AgentRoundStatus:
     """Describe one agent round for a status view."""
 
     record: AgentRoundRecord
-    trigger_description: str
+    trigger: AgentRoundTrigger
     duration_description: str
     outcome: AgentRoundOutcome
     outcome_description: str
-    revision: AgentRoundRevision | None = None
 
     @property
     def listed_outcome_description(self) -> str:
@@ -54,13 +101,13 @@ class AgentRoundStatus:
 def describe_running_round(
     *,
     record: AgentRoundRecord,
-    trigger_description: str,
+    trigger: AgentRoundTrigger,
     paths: AgentRoundPaths,
     at: datetime,
 ) -> tuple[str, str | None]:
     """Describe a running round and what woke it, and return its latest output."""
     detail = (
-        f"round {record.number}, {trigger_description}, "
+        f"round {record.number}, {trigger.summarize()}, "
         f"running {describe_span(span=at - record.started)}"
     )
     line = read_last_feed_line(path=paths.feed)
@@ -134,21 +181,9 @@ def describe_round_outcome(
 
 
 def list_round_statuses(*, work: AgentWork, is_working: bool) -> list[AgentRoundStatus]:
-    """Return the derived status of every round of the work, in run order.
-
-    A round given a checkout of main also names the code revision it was given,
-    against the revision of the round before it.
-    """
+    """Return the derived status of every round of the work, in run order."""
     statuses: list[AgentRoundStatus] = []
-    previous_revision = None
     for record in work.rounds:
-        revision = None
-        given_revision = _read_given_revision(work=work, number=record.number)
-        if given_revision is not None:
-            revision = _compose_round_revision(
-                previous_revision=previous_revision, revision=given_revision
-            )
-            previous_revision = given_revision
         outcome = interpret_agent_round_outcome(
             record=record,
             is_daemon_running=is_working and record.number == work.rounds[-1].number,
@@ -156,37 +191,50 @@ def list_round_statuses(*, work: AgentWork, is_working: bool) -> list[AgentRound
         statuses.append(
             AgentRoundStatus(
                 record=record,
-                trigger_description=describe_round_trigger(
-                    work=work, number=record.number
-                ),
+                trigger=describe_round_trigger(work=work, number=record.number),
                 duration_description=compose_round_duration_description(record=record),
                 outcome=outcome,
                 outcome_description=describe_round_outcome(
                     record=record, outcome=outcome
                 ),
-                revision=revision,
             )
         )
     return statuses
 
 
-def describe_round_trigger(*, work: AgentWork, number: int) -> str:
-    """Describe what woke one round of the work, from the input it was given.
-
-    An assignment round given no input opened, or tried to open, the pull
-    request. Comments wake every conversation round, so one whose input is
-    still to be written, or never was, says so without a count.
-    """
+def describe_round_trigger(*, work: AgentWork, number: int) -> AgentRoundTrigger:
+    """Describe what woke one round of the work, from the input it was given."""
     if work.record.kind is AgentWorkKind.CAMPAIGN:
         return _describe_campaign_round_trigger(work=work, number=number)
     if work.record.kind is AgentWorkKind.CONVERSATION:
-        conversation_input = read_json_if_exists(
-            model=ConversationRoundInput,
-            path=work.compose_round_paths(number=number).round_input,
+        return AgentRoundTrigger(
+            words=_describe_conversation_round_trigger(work=work, number=number)
         )
-        if conversation_input is None:
-            return "comments"
-        return describe_count(number=len(conversation_input.comments), noun="comment")
+    return AgentRoundTrigger(
+        words=_describe_assignment_round_trigger(work=work, number=number)
+    )
+
+
+def _describe_conversation_round_trigger(*, work: AgentWork, number: int) -> str:
+    """Count the comments that woke one conversation round.
+
+    Comments wake every conversation round, so one whose input is still to be
+    written, or never was, says so without a count.
+    """
+    conversation_input = read_json_if_exists(
+        model=ConversationRoundInput,
+        path=work.compose_round_paths(number=number).round_input,
+    )
+    if conversation_input is None:
+        return "comments"
+    return describe_count(number=len(conversation_input.comments), noun="comment")
+
+
+def _describe_assignment_round_trigger(*, work: AgentWork, number: int) -> str:
+    """Say what woke one assignment round.
+
+    A round given no input opened, or tried to open, the pull request.
+    """
     assignment_input = read_json_if_exists(
         model=AssignmentRoundInput,
         path=work.compose_round_paths(number=number).round_input,
@@ -203,13 +251,15 @@ def describe_round_trigger(*, work: AgentWork, number: int) -> str:
     return ", ".join(words) or "recover"
 
 
-def _describe_campaign_round_trigger(*, work: AgentWork, number: int) -> str:
+def _describe_campaign_round_trigger(
+    *, work: AgentWork, number: int
+) -> AgentRoundTrigger:
     """Describe what woke one lead round, from its place and its input.
 
     The first round starts the lead, and a round after one that did not finish
-    recovers it. The counts of the parent comments and of the changed children
-    that the round was given follow. A round with no input to read was woken by
-    comments or changes.
+    recovers it. The count of the parent comments that the round was given
+    follows, and then each notification it was given. A round with no input to
+    read was woken by comments or changes.
     """
     previous = [record for record in work.rounds if record.number == number - 1]
     words = []
@@ -222,44 +272,38 @@ def _describe_campaign_round_trigger(*, work: AgentWork, number: int) -> str:
         path=work.compose_round_paths(number=number).round_input,
     )
     if campaign_input is None:
-        return ", ".join(words) or "comments or changes"
+        return AgentRoundTrigger(words=", ".join(words) or "comments or changes")
     if campaign_input.comments:
         words.append(
             describe_count(number=len(campaign_input.comments), noun="comment")
         )
-    if campaign_input.notifications:
-        words.append(describe_changed_children(count=len(campaign_input.notifications)))
-    return ", ".join(words)
-
-
-def _read_given_revision(*, work: AgentWork, number: int) -> str | None:
-    """Return the revision of main a round of the work was given, if it was.
-
-    A conversation or campaign round is given a checkout of main. An assignment
-    round works on its own branch and is given none, and a round whose input
-    is still to be written, or never was, has none to read.
-    """
-    model: type[ConversationRoundInput | CampaignRoundInput]
-    if work.record.kind is AgentWorkKind.CONVERSATION:
-        model = ConversationRoundInput
-    elif work.record.kind is AgentWorkKind.CAMPAIGN:
-        model = CampaignRoundInput
-    else:
-        return None
-    round_input = read_json_if_exists(
-        model=model, path=work.compose_round_paths(number=number).round_input
+    return AgentRoundTrigger(
+        words=", ".join(words),
+        notifications=tuple(
+            _describe_notification(
+                notification=notification, children=campaign_input.children
+            )
+            for notification in campaign_input.notifications
+        ),
     )
-    return None if round_input is None else round_input.revision
 
 
-def _compose_round_revision(
-    *, previous_revision: str | None, revision: str
-) -> AgentRoundRevision:
-    """Describe the revision of main that one round was given."""
-    if previous_revision is None:
-        description = f"code revision {revision}"
-    elif previous_revision == revision:
-        description = f"code revision {revision} (unchanged)"
-    else:
-        description = f"code revision {previous_revision} -> {revision}"
-    return AgentRoundRevision(value=revision, description=description)
+def _describe_notification(
+    *, notification: CampaignChildNotification, children: Sequence[CampaignChild]
+) -> AgentRoundTriggerNotification:
+    """Name the sub-issue of one notification, with words for each of its changes.
+
+    A change of issue state reads as closed or reopened, by the state of the
+    sub-issue among the children that the round was given.
+    """
+    is_closed = any(
+        child.is_closed for child in children if child.issue == notification.issue
+    )
+    words = {
+        **_CHILD_CHANGE_WORDS,
+        CampaignChildChange.ISSUE_STATE: "closed" if is_closed else "reopened",
+    }
+    return AgentRoundTriggerNotification(
+        issue=notification.issue,
+        changes=", ".join(words[change] for change in notification.changes),
+    )

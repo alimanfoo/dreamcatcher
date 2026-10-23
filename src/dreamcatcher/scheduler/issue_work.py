@@ -9,12 +9,14 @@ comments.
 from typing import Protocol
 
 from dreamcatcher.agent_work import AgentWork, AgentWorkEndReason, end_agent_work
+from dreamcatcher.config import identify_label
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.github import (
     Issue,
     IssueComment,
     IssueState,
     UnknownGitHubResponse,
+    is_login_of_account,
     read_issue,
 )
 from dreamcatcher.relay import IssueCommentCursor, list_issue_comments_past_cursor
@@ -43,7 +45,7 @@ def inspect_open_issue_work(
     *,
     context: SchedulingContext,
     work: AgentWork,
-    is_fault: bool,
+    is_in_fault: bool,
     inspect_eligible: EligibleIssueWorkInspector,
 ) -> Inspection:
     """Read the work's issue, then inspect it further unless paused or in fault.
@@ -61,7 +63,7 @@ def inspect_open_issue_work(
             row=compose_open_work_row(
                 work=work, finding=ReadFailureFinding(reason=issue.reason)
             ),
-            is_counted_fault=is_fault,
+            is_counted_fault=is_in_fault,
         )
     if issue.state is IssueState.CLOSED:
         if not work.is_round_running:
@@ -72,7 +74,7 @@ def inspect_open_issue_work(
     pause = _find_pause(context=context, work=work, issue=issue)
     if pause is not None:
         return Inspection(row=compose_open_work_row(work=work, finding=pause))
-    if is_fault:
+    if is_in_fault:
         return Inspection(row=unread, is_counted_fault=True)
     try:
         return inspect_eligible(issue=issue, row=unread)
@@ -94,23 +96,27 @@ def _find_pause(
     The work's own label counts whether or not its route is still configured.
     """
     labels = [label.name for label in issue.labels]
-    label = work.record.dispatch_label.casefold()
-    if label not in {name.casefold() for name in labels}:
+    label = identify_label(name=work.record.dispatch_label)
+    if label not in {identify_label(name=name) for name in labels}:
         return PausedFinding(cause=PauseCause.LABEL_REMOVED)
-    account = context.account.casefold()
-    if account not in {assignee.login.casefold() for assignee in issue.assignees}:
+    if not any(
+        is_login_of_account(login=assignee.login, account=context.account)
+        for assignee in issue.assignees
+    ):
         return PausedFinding(cause=PauseCause.ISSUE_UNASSIGNED)
     others = [
         route.label
         for route in context.config.identify_routes(
             kind=work.record.kind, labels=labels
         )
-        if route.label.casefold() != label
+        if identify_label(name=route.label) != label
     ]
     if others:
-        return ConflictingLabelsFinding(
-            labels=sorted([work.record.dispatch_label, *others], key=str.casefold)
+        conflicting = sorted(
+            [work.record.dispatch_label, *others],
+            key=lambda name: identify_label(name=name),
         )
+        return ConflictingLabelsFinding(labels=conflicting)
     return None
 
 

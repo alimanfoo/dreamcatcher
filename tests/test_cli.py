@@ -34,7 +34,7 @@ from dreamcatcher.documents import write_json
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import FeedLine
 from dreamcatcher.harness_adapters import AgentWorkKind
-from dreamcatcher.scheduler import derive_agent_work_fault
+from dreamcatcher.scheduler.faults import derive_agent_work_fault
 from dreamcatcher.scheduler.models import GlobalCooldown, SchedulerRecord
 from dreamcatcher.state import StateDirectory
 
@@ -212,6 +212,7 @@ def test_retry_clears_the_assignments_fault(monkeypatch, faulted_checkout, capsy
     write_json(
         document=SchedulerRecord(
             at=PINNED,
+            finished=PINNED,
             most_recent_cooldown_ended=PINNED - timedelta(minutes=1),
         ),
         path=faulted_checkout.scheduler_record,
@@ -288,6 +289,7 @@ def test_retry_refuses_a_fault_an_elapsed_cooldown_cleared(
     write_json(
         document=SchedulerRecord(
             at=PINNED,
+            finished=PINNED,
             cooldown=GlobalCooldown(started=PINNED, ends=cooldown_ended),
         ),
         path=faulted_checkout.scheduler_record,

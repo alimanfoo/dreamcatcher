@@ -224,18 +224,23 @@ def test_a_tick_output_the_daemon_cannot_write_is_a_named_failure(
     assert daemon.state.scheduler_record.exists()
 
 
-def test_every_tick_records_when_it_ran(configured_repo, harnesses, gh, capsys):
+def test_every_tick_records_when_it_started_and_finished(
+    configured_repo, harnesses, gh, capsys
+):
     daemon, _, ticking = create_idle_daemon(root=configured_repo)
 
     daemon.run()
 
-    recorded = daemon.state.scheduler_record.read_text(encoding="utf-8")
-    assert len(ticking.readings) == 2
-    assert SchedulerRecord.model_validate_json(recorded).at == ticking.readings[-1]
+    recorded = SchedulerRecord.model_validate_json(
+        daemon.state.scheduler_record.read_text(encoding="utf-8")
+    )
+    assert len(ticking.readings) == 4
+    assert recorded.at == ticking.readings[-2]
+    assert recorded.finished == ticking.readings[-1]
     assert capsys.readouterr().out == (
         f"2026-08-20 02:41:58  dreamcatcher v{DREAMCATCHER_VERSION} is running\n"
         "2026-08-20 02:41:58  nothing launched\n"
-        "2026-08-20 02:46:58  nothing launched\n"
+        "2026-08-20 02:51:58  nothing launched\n"
     )
 
 
@@ -246,6 +251,7 @@ def test_a_successful_scheduler_tick_is_recorded_and_reported(
     scheduler = create_scheduler(daemon=daemon)
     scheduler_record = SchedulerRecord(
         at=PINNED,
+        finished=PINNED,
         rows=[
             compose_request_row(
                 issue=13,
@@ -281,6 +287,7 @@ def test_multiple_launches_are_recorded_and_reported(
     scheduler = create_scheduler(daemon=daemon)
     scheduler_record = SchedulerRecord(
         at=PINNED,
+        finished=PINNED,
         rows=[
             compose_request_row(
                 issue=13,
@@ -314,6 +321,7 @@ def test_a_round_that_errored_before_its_harness_ran_is_reported_from_its_row(
     scheduler = create_scheduler(daemon=daemon)
     scheduler_record = SchedulerRecord(
         at=PINNED,
+        finished=PINNED,
         rows=[
             compose_request_row(
                 issue=13,
@@ -340,6 +348,7 @@ def test_a_cooldown_report_names_its_local_end(configured_repo, capsys, monkeypa
     scheduler = create_scheduler(daemon=daemon)
     scheduler_record = SchedulerRecord(
         at=PINNED,
+        finished=PINNED,
         cooldown=GlobalCooldown(started=PINNED, ends=PINNED + timedelta(minutes=15)),
     )
 
@@ -360,7 +369,7 @@ def test_a_tick_at_capacity_reports_capacity_before_its_failures(
     scheduler = create_scheduler(daemon=daemon)
     monkeypatch.setitem(scheduler.rounds, ASSIGNMENT_ID, Mock())
     scheduler_record = SchedulerRecord(
-        at=PINNED, failures=["could not refresh assignments"]
+        at=PINNED, finished=PINNED, failures=["could not refresh assignments"]
     )
     monkeypatch.setattr(scheduler, "tick", lambda *, at: scheduler_record)
 
@@ -386,6 +395,7 @@ def test_the_daemon_bootstraps_the_state_directory_and_releases_the_lock(
         path=daemon.state.daemon_run_record,
     ) == DaemonRunRecord(
         pid=os.getpid(),
+        started=PINNED,
         preferred_harness=AgentHarness.CLAUDE,
         version=DREAMCATCHER_VERSION,
         max_agents=1,
@@ -866,6 +876,7 @@ def test_a_failed_tick_preserves_the_last_scheduler_record(ready_repo, capsys):
     daemon, _, _ = create_idle_daemon(root=ready_repo)
     previous = SchedulerRecord(
         at=PINNED,
+        finished=PINNED,
         cooldown=GlobalCooldown(started=PINNED, ends=PINNED + timedelta(minutes=15)),
     )
     write_json(document=previous, path=daemon.state.scheduler_record)

@@ -140,7 +140,8 @@ parent is a routing conflict, and pauses the campaign in the same way
 until one of the labels comes off.
 
 Close the parent to end the campaign. It ends once any running round
-finishes. Only you close the parent: the lead is told never to close it.
+finishes, and _dreamcatcher_ then removes its worktree and keeps its
+record. Only you close the parent: the lead is told never to close it.
 If you reopen the parent with its label still on, a new campaign starts.
 
 ## Stop or recover a round

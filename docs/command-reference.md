@@ -108,16 +108,17 @@ running agent rounds, ends the daemon, and stops the web server.
 
 The command reads `dreamcatcher.toml`, identifies the repository and the
 account authenticated through `gh`, checks the required harness
-programs, and then runs one scheduler update per interval. See the
+programs, and then runs scheduler updates, waiting the interval after
+each one finishes. See the
 [configuration reference](configuration-reference.md) for the file
 format and harness-selection rules.
 
-| Option               | Required | Default | Accepted value and effect                                                                                                                                    |
-| -------------------- | -------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `--harness`          | Yes      | None    | `claude` or `codex`. This is the preferred harness for routes that configure both. A route with only one dispatch recipe uses that recipe's harness instead. |
-| `--interval SECONDS` | No       | `120`   | A positive integer number of seconds between checks for work. The maximum is platform-dependent; an out-of-range value reports the allowed maximum.          |
-| `--max-agents N`     | No       | `1`     | A positive integer. This is the shared maximum number of agent rounds, of every kind, that may run at once.                                                  |
-| `--noweb`            | No       | Off     | Run the daemon without opening or serving the web interface.                                                                                                 |
+| Option               | Required | Default | Accepted value and effect                                                                                                                                                     |
+| -------------------- | -------- | ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--harness`          | Yes      | None    | `claude` or `codex`. This is the preferred harness for routes that configure both. A route with only one dispatch recipe uses that recipe's harness instead.                  |
+| `--interval SECONDS` | No       | `120`   | A positive integer number of seconds to wait after each check for work before the next. The maximum is platform-dependent; an out-of-range value reports the allowed maximum. |
+| `--max-agents N`     | No       | `1`     | A positive integer. This is the shared maximum number of agent rounds, of every kind, that may run at once.                                                                   |
+| `--noweb`            | No       | Off     | Run the daemon without opening or serving the web interface.                                                                                                                  |
 
 The named harness and every harness configured on any route must be
 installed on `PATH`, even when a single-harness route would override the
@@ -225,9 +226,11 @@ dreamcatcher view (GH<n> | IDENTIFIER)
 
 Show the selected agent work's status, recorded route and harness
 settings, harness session, worktree and rounds, with a hand-resume
-command when one is available. An assignment's view also shows its pull
-request and branch. A campaign's `GH<n>` is its parent issue. A paused
-conversation or campaign is idle, and its status detail says why.
+command when one is available. Ended work whose worktree _dreamcatcher_
+has removed shows the worktree as removed, and no hand-resume command.
+An assignment's view also shows its pull request and branch. A
+campaign's `GH<n>` is its parent issue. A paused conversation or
+campaign is idle, and its status detail says why.
 
 In an interactive terminal it refreshes until the work ends, as an
 assignment does after a successful wrap-up or a cancel. It stays on the

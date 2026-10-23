@@ -25,8 +25,11 @@ from conftest import (
 )
 from fakes import Line
 from records import (
+    MISORDERED_COMMENTS,
+    REPEATED_COMMENTS,
     compose_campaign_identifier,
     read_campaign,
+    replace_relayed_comments,
     write_assignment,
     write_campaign,
     write_ending,
@@ -1201,6 +1204,30 @@ def test_a_delivered_input_that_cannot_be_read_starts_no_round(
     assert round_input.name in row.finding.reason
     assert observed.launched_agent_work_identifiers == []
     assert count_comment_reads(gh=gh) == 0
+    assert harnesses["claude"].calls == []
+
+
+@pytest.mark.parametrize(
+    "comments", [MISORDERED_COMMENTS, REPEATED_COMMENTS], ids=["misordered", "repeated"]
+)
+def test_a_delivered_input_with_comments_the_relay_never_gives_starts_no_round(
+    campaign_scheduler, harnesses, comments
+):
+    scheduler, gh = campaign_scheduler
+    settle_lead(state=scheduler.context.state)
+    campaign = read_campaign(state=scheduler.context.state, issue=PARENT)
+    assert campaign is not None
+    round_input = campaign.compose_round_paths(number=1).round_input
+    replace_relayed_comments(path=round_input, comments=comments)
+    offer_parent(gh=gh)
+    offer_comments(gh=gh, comments=[compose_parent_comment(identifier=3)])
+
+    observed = tick(scheduler=scheduler)
+
+    [row] = observed.rows
+    assert isinstance(row.finding, ReadFailureFinding)
+    assert round_input.name in row.finding.reason
+    assert observed.launched_agent_work_identifiers == []
     assert harnesses["claude"].calls == []
 
 

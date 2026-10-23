@@ -1,12 +1,12 @@
-<aside id="agent-work-rounds" class="panel" aria-labelledby="rounds-heading"{% if is_tail|default(false) %} hx-swap-oob="morph"{% endif %}>
+{% from "partials/references.html" import github_reference with context %}<aside id="agent-work-rounds" class="panel" aria-labelledby="rounds-heading"{% if is_tail|default(false) %} hx-swap-oob="morph"{% endif %}>
   <h1 id="rounds-heading">Rounds</h1>
   {% for round in view.live.rounds %}
     <a class="round-link" href="#feed-round-{{ round.number }}" aria-controls="feed-round-{{ round.number }}">
       <span class="round-number">{{ "%02d"|format(round.number) }}</span>
       <span class="round-summary">
-        <span class="round-trigger">{{ round.trigger }}</span>
+        <span class="round-trigger">{{ round.trigger.words }}{% for notification in round.trigger.notifications %}{% if round.trigger.words or not loop.first %}; {% endif %}{{ github_reference(notification.issue, "issues") }}: {{ notification.changes }}{% endfor %}</span>
         {% if round.outcome_description %}<span class="round-outcome outcome-{{ round.outcome }}">{{ round.outcome_description }}</span>{% endif %}
-        <span class="round-timing">{{ round.started }}{% if round.duration %} · {{ round.duration }}{% endif %}{% if round.revision %} · {{ round.revision.value }}{% endif %}</span>
+        <span class="round-timing">{{ round.started }}{% if round.duration %} · {{ round.duration }}{% endif %}</span>
       </span>
     </a>
   {% endfor %}

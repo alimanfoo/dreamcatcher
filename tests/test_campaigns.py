@@ -2,7 +2,14 @@ from datetime import timedelta
 
 import pytest
 from clocks import PINNED
-from records import read_campaign, write_campaign, write_round
+from pydantic import ValidationError
+from records import (
+    MISORDERED_COMMENTS,
+    REPEATED_COMMENTS,
+    read_campaign,
+    write_campaign,
+    write_round,
+)
 
 from dreamcatcher.agent_assignments import ObservedPullRequest
 from dreamcatcher.agent_rounds import (
@@ -27,6 +34,7 @@ from dreamcatcher.config import (
     CampaignRoute,
     ClaudeRecipe,
 )
+from dreamcatcher.documents import read_json, write_json
 from dreamcatcher.github import (
     CheckResult,
     IssueComment,
@@ -75,6 +83,22 @@ def read_parent_campaign(*, state: StateDirectory) -> AgentWork:
     campaign = read_campaign(state=state, issue=PARENT)
     assert campaign is not None
     return campaign
+
+
+@pytest.mark.parametrize(
+    "comments", [MISORDERED_COMMENTS, REPEATED_COMMENTS], ids=["misordered", "repeated"]
+)
+def test_a_campaign_round_input_refuses_comments_the_relay_never_gives(comments):
+    with pytest.raises(ValidationError, match="not strictly ordered"):
+        CampaignRoundInput(
+            issue=PARENT,
+            children=[],
+            notifications=[],
+            comments=comments,
+            cursor=None,
+            revision="abc123",
+            assignment_routes=[],
+        )
 
 
 def test_a_campaign_round_starts_from_main_in_a_detached_worktree(cloned_repo):
@@ -475,3 +499,15 @@ def test_a_removed_child_notifies_after_the_current_children():
 )
 def test_a_child_with_nothing_new_for_the_lead_notifies_nothing(previous, current):
     assert compare_campaign_children(previous=previous, current=current) == []
+
+
+def test_a_round_input_names_the_fault_flag_as_the_contract_does(tmp_path):
+    path = tmp_path / "input.json"
+    round_input = compose_lead_input(comments=[FIRST]).model_copy(
+        update={"children": [compose_child(assignment=FAULTED)]}
+    )
+
+    write_json(document=round_input, path=path)
+
+    assert '"is_fault": true' in path.read_text(encoding="utf-8")
+    assert read_json(model=CampaignRoundInput, path=path) == round_input
