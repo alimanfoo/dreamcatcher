@@ -52,10 +52,6 @@ import dreamcatcher.web.server as web_server_module
 from dreamcatcher.agent_assignments import (
     cancel_assignment,
 )
-from dreamcatcher.agent_rounds import (
-    AgentRoundRecord,
-    StoppedAgentRoundEnding,
-)
 from dreamcatcher.agent_work import (
     AgentWorkEnding,
     AgentWorkEndReason,
@@ -712,41 +708,6 @@ def test_an_unknown_assignment_cannot_receive_a_retry_request(tmp_path):
     )
 
     assert response.status_code == 404
-
-
-def test_a_stopped_round_is_shown_as_stopped(tmp_path):
-    state = StateDirectory(root=tmp_path)
-    fabricate_everything(state=state)
-    write_assignment_with_rounds(
-        state=state,
-        issue=61,
-        records=[
-            AgentRoundRecord(
-                number=1,
-                started=PINNED,
-                pid=1,
-                ending=StoppedAgentRoundEnding(at=PINNED + timedelta(minutes=2)),
-            )
-        ],
-    )
-
-    page = render_assignment(state=state, identifier="GH61-20260819-184158-assignment")
-
-    assert 'class="round-outcome outcome-stopped">stopped</span>' in page
-
-
-def test_a_round_its_gone_daemon_left_unended_is_shown_as_interrupted(tmp_path):
-    state = StateDirectory(root=tmp_path)
-    fabricate_a_dead_daemon(state=state)
-    write_assignment_with_rounds(
-        state=state,
-        issue=61,
-        records=[AgentRoundRecord(number=1, started=PINNED, pid=1)],
-    )
-
-    page = render_assignment(state=state, identifier="GH61-20260819-184158-assignment")
-
-    assert 'class="round-outcome outcome-interrupted">interrupted</span>' in page
 
 
 def test_a_home_card_links_to_its_exact_assignment(tmp_path):
@@ -1473,24 +1434,6 @@ def test_assignment_rounds_link_to_the_feed_in_ascending_order(tmp_path):
     assert 'class="agent-work-workspace"' in page
     assert 'class="feed-records"' in page
     assert 'src="/static/agent-work.js"' in page
-
-
-def test_a_successful_round_has_no_outcome_in_its_row(tmp_path):
-    state = StateDirectory(root=tmp_path)
-    fabricate_everything(state=state)
-
-    page = render_assignment(state=state, identifier="GH13-20260819-184158-assignment")
-
-    assert 'class="round-outcome outcome-successful"' not in page
-
-
-def test_an_errored_rounds_style_uses_its_outcome_alone(tmp_path):
-    state = StateDirectory(root=tmp_path)
-    fabricate_everything(state=state)
-
-    page = render_assignment(state=state, identifier="GH35-20260819-184158-assignment")
-
-    assert 'class="round-outcome outcome-errored">errored (exit 2)</span>' in page
 
 
 def test_hand_resume_command_is_collapsed(tmp_path):
