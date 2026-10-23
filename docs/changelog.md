@@ -35,6 +35,12 @@ the change.
   and shows as one scheduler failure.
   ([#726](https://github.com/alimanfoo/dreamcatcher/pull/726))
 
+### Fixed
+
+- Switching theme on the web keeps the page's place in the address, so
+  the home page stays on the tab it showed.
+  ([#744](https://github.com/alimanfoo/dreamcatcher/pull/744))
+
 ## [v8.0.0](https://github.com/alimanfoo/dreamcatcher/releases/tag/v8.0.0) — 2026-10-23
 
 ### Breaking
