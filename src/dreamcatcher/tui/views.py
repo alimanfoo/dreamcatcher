@@ -3,7 +3,6 @@
 from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime, tzinfo
-from pathlib import Path
 from time import sleep
 
 from rich.console import Console, RenderableType
@@ -125,11 +124,7 @@ def _render_agent_work(
                 else _render_issue_work_summary(state=state, status=status)
             ),
             _render_round_statuses(round_statuses=status.round_statuses, zone=zone),
-            _render_harness_resume(
-                state=state,
-                worktree=work.worktree,
-                hand_resume_command=status.hand_resume_command,
-            ),
+            _render_harness_resume(state=state, status=status),
         ]
     )
 
@@ -146,7 +141,7 @@ def _render_issue_work_summary(
         ("agent work identifier", work.identifier),
         ("title", record.title),
         ("label", record.dispatch_label),
-        ("worktree", state.describe_path(path=work.worktree)),
+        ("worktree", _describe_worktree(state=state, status=status)),
         ("harness", record.harness),
         (
             "harness session identifier",
@@ -172,7 +167,7 @@ def _render_assignment_summary(
         ("pull request", _describe_pull_request(status=status)),
         ("label", record.dispatch_label),
         ("branch", compose_assignment_branch(identifier=assignment.identifier)),
-        ("worktree", state.describe_path(path=assignment.worktree)),
+        ("worktree", _describe_worktree(state=state, status=status)),
         ("harness", record.harness),
         (
             "harness session identifier",
@@ -213,14 +208,19 @@ def _render_round_statuses(
     return render_section(heading="rounds", body=table)
 
 
+def _describe_worktree(*, state: StateDirectory, status: AgentWorkStatus) -> str:
+    """Return where the work's worktree is, or that it has been removed."""
+    worktree = status.worktree
+    return "removed" if worktree is None else state.describe_path(path=worktree)
+
+
 def _render_harness_resume(
-    *,
-    state: StateDirectory,
-    worktree: Path,
-    hand_resume_command: list[str] | None,
+    *, state: StateDirectory, status: AgentWorkStatus
 ) -> RenderableType | None:
     """Return how to resume the harness session by hand, when one exists."""
-    if hand_resume_command is None:
+    worktree = status.worktree
+    hand_resume_command = status.hand_resume_command
+    if worktree is None or hand_resume_command is None:
         return None
     described_worktree = state.describe_path(path=worktree)
     command = " ".join(hand_resume_command)

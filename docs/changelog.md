@@ -57,6 +57,13 @@ the change.
 - No view shows the revision of main that a conversation or campaign
   round was given.
   ([#741](https://github.com/alimanfoo/dreamcatcher/pull/741))
+- Once an assignment completes, or a conversation or campaign ends with
+  its issue, the next update removes its worktree, and an assignment's
+  local branch, to free the disk. Its record stays, so the home page,
+  `dreamcatcher status` and `dreamcatcher view` still show it, without
+  the worktree or a hand-resume command. A cancelled assignment keeps
+  both. A removal that fails is printed with the update and not tried
+  again. ([#732](https://github.com/alimanfoo/dreamcatcher/pull/732))
 
 ### Fixed
 

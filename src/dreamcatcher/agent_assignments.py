@@ -10,7 +10,6 @@ from collections.abc import Callable, Iterator
 from contextlib import suppress
 from datetime import datetime
 from itertools import islice
-from pathlib import Path
 
 from pydantic import PositiveInt
 
@@ -25,6 +24,7 @@ from dreamcatcher.agent_work import (
     AgentWork,
     AgentWorkEndReason,
     end_agent_work,
+    remove_agent_work_worktree,
 )
 from dreamcatcher.commands import CommandError
 from dreamcatcher.documents import (
@@ -43,9 +43,9 @@ from dreamcatcher.git import (
     fetch_main,
     has_commits_since_main,
     is_linked_worktree,
+    is_local_branch,
     make_empty_commit,
     push_branch,
-    remove_worktree,
 )
 from dreamcatcher.github import (
     CheckResult,
@@ -148,6 +148,27 @@ def complete_assignment(
     end_agent_work(work=assignment, reason=AgentWorkEndReason.COMPLETED, at=clock())
 
 
+def remove_assignment_worktree_and_branch(
+    *, state: StateDirectory, assignment: AgentWork
+) -> None:
+    """Remove the assignment's worktree, then its local branch.
+
+    The branch on origin stays, and so do the assignment's records. A worktree
+    or branch that is not there is already removed. A removal or a deletion
+    that Git refuses raises ReportableError.
+    """
+    remove_agent_work_worktree(state=state, work=assignment)
+    branch = compose_assignment_branch(identifier=assignment.identifier)
+    if not is_local_branch(root=state.root, branch=branch):
+        return
+    try:
+        delete_branch(root=state.root, branch=branch)
+    except CommandError as failure:
+        raise ReportableError(
+            f"could not delete the branch {branch}: {failure.reason}"
+        ) from failure
+
+
 def open_assignment_pull_request(
     *, state: StateDirectory, repository: str, assignment: AgentWork
 ) -> None:
@@ -169,9 +190,10 @@ def open_assignment_pull_request(
         try:
             add_worktree(root=state.root, path=assignment.worktree, branch=branch)
         except ReportableError:
-            _discard_worktree_and_branch(
-                state=state, worktree=assignment.worktree, branch=branch
-            )
+            with suppress(ReportableError):
+                remove_assignment_worktree_and_branch(
+                    state=state, assignment=assignment
+                )
             raise
     if not has_commits_since_main(worktree=assignment.worktree):
         make_empty_commit(worktree=assignment.worktree, message=f"GH{issue} [skip ci]")
@@ -239,13 +261,3 @@ def _read_relayed_inputs(*, assignment: AgentWork) -> Iterator[AssignmentRoundIn
     """Yield the inputs already relayed, newest first."""
     for paths in assignment.list_relayed_round_paths():
         yield read_json(model=AssignmentRoundInput, path=paths.round_input)
-
-
-def _discard_worktree_and_branch(
-    *, state: StateDirectory, worktree: Path, branch: str
-) -> None:
-    """Remove artifacts that a failed worktree creation may have left."""
-    with suppress(CommandError):
-        remove_worktree(root=state.root, path=worktree)
-    with suppress(CommandError):
-        delete_branch(root=state.root, branch=branch)

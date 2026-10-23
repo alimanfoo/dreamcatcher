@@ -76,6 +76,10 @@ tell.
 The user merges when satisfied. GitHub closes the issue, and at the next
 update the agent takes one last turn to wrap up, which allows it to
 raise any issues for outstanding work not addressed in the pull request.
+The assignment then ends, and the update after removes its worktree and
+its local branch, so finished assignments do not fill the disk. Its
+record stays, so the home page and the assignment's page still show it,
+without a worktree to resume its session from.
 
 The value to the user is that they need only label an issue, wait for
 the pull request to be ready, then review it and iterate until happy
@@ -216,13 +220,13 @@ An assignment has got as far as the agent can take it, and the last
 stretch is quicker for the user to do by hand than to explain. They
 cancel it, from its page or with `dreamcatcher cancel`. Any running
 round stops, no further round runs, and the pull request, branch and
-worktree are the user's to work on outside of _dreamcatcher_. The
-assignment's page shows where the worktree is and the command that picks
-up the agent's session by hand, should they want to carry on the
-conversation themselves. The assignment shows as ended, cancelled, and
-while the pull request stays open no new assignment starts for the
-issue. The user finishes the branch and merges it, or closes it, as they
-would their own.
+worktree are the user's to work on outside of _dreamcatcher_, and
+_dreamcatcher_ never removes them. The assignment's page shows where the
+worktree is and the command that picks up the agent's session by hand,
+should they want to carry on the conversation themselves. The assignment
+shows as ended, cancelled, and while the pull request stays open no new
+assignment starts for the issue. The user finishes the branch and merges
+it, or closes it, as they would their own.
 
 The value to the user is that taking over is one click and nothing is
 lost: the agent's commits are theirs to build on.
@@ -235,10 +239,11 @@ idea. Explaining what to change would take longer than starting over, or
 there is nothing to start over. If they do not want another attempt,
 they take the assignment label off the issue first. Then they close the
 pull request without merging. At the next update the agent takes its
-last turn to wrap up, and the assignment ends. The branch and worktree
-stay in place, and the issue stays open. If the user does want a fresh
-attempt, perhaps after rewriting the issue, they leave the label on or
-put it back, and a new assignment starts.
+last turn to wrap up, and the assignment ends. Its worktree and local
+branch are removed, as for a merged pull request, while the branch stays
+on GitHub with the closed pull request, and the issue stays open. If the
+user does want a fresh attempt, perhaps after rewriting the issue, they
+leave the label on or put it back, and a new assignment starts.
 
 The value to the user is that rejecting an agent's work is the same
 close button as rejecting anyone's.
@@ -266,7 +271,8 @@ conversation. For example, if the conversation verified a bug, then the
 user might start an assignment for the issue, which leads to a pull
 request, and ultimately closes the issue as resolved. Or, if the
 conversation showed a bug report invalid, the user may close the issue
-as unplanned. Once the issue is closed, the conversation is ended.
+as unplanned. Once the issue is closed, the conversation is ended, and
+its worktree is removed while its record stays.
 
 The value to the user is that they need only label an issue and ask
 their question as a comment, then read the answer and reply, as they
@@ -390,8 +396,9 @@ and a stage that conflicts still wakes its agent to bring the branch up
 to date.
 
 When the user is satisfied, they close the parent, and the campaign ends
-once any round that is still running finishes. If they reopen the parent
-with its label still on, a new campaign starts.
+once any round that is still running finishes. Its worktree is then
+removed, and its record stays for the ended list. If they reopen the
+parent with its label still on, a new campaign starts.
 
 The value to the user is that a planned body of work has an agent of its
 own, started with one label and ended by closing the parent.
@@ -937,6 +944,19 @@ it has no way left to report anything; the user frees the disk and
 starts it again. No more than that is handled, and that is accepted,
 because a disk that will not write is the user's to fix, and nothing
 _dreamcatcher_ holds is the only copy of anything.
+
+### An ended piece of work's worktree is not removed
+
+An assignment has completed, or a conversation or campaign has ended
+with its issue, and Git refuses to remove its worktree or to delete the
+assignment's local branch, perhaps because the worktree is locked or a
+file in it is held open. The daemon prints what failed with that update
+and carries on. The work stays ended, and the worktree or branch stays
+where it is. The worktree also stays when the daemon stops, or the
+update fails, after an assignment completes and before the update that
+would remove it. Nothing tries the removal again, and that is accepted,
+because the leftover takes only disk space, and the user can remove it
+with Git.
 
 ### A local record cannot be read
 

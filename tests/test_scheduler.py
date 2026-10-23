@@ -2,6 +2,7 @@
 
 import json
 from datetime import UTC, datetime, timedelta, timezone
+from pathlib import Path
 from unittest.mock import Mock
 
 import pytest
@@ -32,6 +33,7 @@ from rows import UNCLAIMED, compose_request_row
 import dreamcatcher.scheduler.tick as tick_module
 from dreamcatcher.agent_assignments import (
     AssignmentRoundInput,
+    cancel_assignment,
     read_assignment_pull_request_number,
     read_user_post_cursor,
 )
@@ -78,6 +80,7 @@ from dreamcatcher.scheduler.models import (
 from dreamcatcher.state import StateDirectory
 
 ASSIGNMENT_ID = "GH13-20260819-184158-assignment"
+ASSIGNMENT_BRANCH = f"dreamcatcher-{ASSIGNMENT_ID}"
 SECOND_ASSIGNMENT_ID = "GH14-20260819-184158-assignment"
 STILL_RUNNING = 30
 CREATED_ASSIGNMENT_ID = "GH8-20260819-184158-assignment"
@@ -1280,6 +1283,122 @@ def test_a_pull_request_that_is_finished_gets_one_last_round(
     [completed] = read_assignments(state=scheduler.context.state)
     assert completed.ending is not None
     assert completed.ending.reason is AgentWorkEndReason.COMPLETED
+
+
+def check_out_assignment(*, root) -> Path:
+    """Put the assignment's worktree on its branch, and return the worktree."""
+    worktree = StateDirectory(root=root).worktrees / ASSIGNMENT_ID
+    worktree.rmdir()
+    fetch_main(root=root)
+    add_worktree(root=root, path=worktree, branch=ASSIGNMENT_BRANCH)
+    return worktree
+
+
+def list_branches(*, root) -> str:
+    """Return the names of the checkout's local branches."""
+    return run_git(arguments=["branch", "--format=%(refname:short)"], cwd=root)
+
+
+def test_a_completed_assignment_loses_its_worktree_and_branch_at_the_next_tick(
+    assigned_checkout, gh
+):
+    worktree = check_out_assignment(root=assigned_checkout)
+    write_assignment_round(root=assigned_checkout, number=1)
+    gh.replies(stdout=compose_pull_request(state="MERGED"), to="pr view")
+    scheduler, clock = create_scheduler(root=assigned_checkout)
+    scheduler.tick(at=clock())
+    finish_rounds(scheduler=scheduler)
+    assert worktree.is_dir()
+
+    observed = scheduler.tick(at=clock())
+
+    assert observed.failures == []
+    assert not worktree.exists()
+    assert ASSIGNMENT_BRANCH not in list_branches(root=assigned_checkout)
+    [completed] = read_assignments(state=scheduler.context.state)
+    assert completed.ending is not None
+    assert completed.ending.reason is AgentWorkEndReason.COMPLETED
+    assert [record.number for record in completed.rounds] == [1, 2]
+    assert read_assignment_pull_request_number(assignment=completed) == PULL_REQUEST
+
+
+def test_a_cancelled_assignment_keeps_its_worktree_and_branch(
+    assigned_checkout, gh, harnesses
+):
+    worktree = check_out_assignment(root=assigned_checkout)
+    write_assignment_round(root=assigned_checkout, number=1)
+    gh.replies(stdout=compose_pull_request(state="MERGED"), to="pr view")
+    harnesses["claude"].streams(
+        lines=[Line(text="still working\n")], delay=STILL_RUNNING
+    )
+    scheduler, clock = create_scheduler(root=assigned_checkout)
+    scheduler.tick(at=clock())
+    [assignment] = read_assignments(state=scheduler.context.state)
+    cancel_assignment(assignment=assignment, at=clock())
+    finish_rounds(scheduler=scheduler)
+
+    observed = scheduler.tick(at=clock())
+
+    assert observed.failures == []
+    assert worktree.is_dir()
+    assert ASSIGNMENT_BRANCH in list_branches(root=assigned_checkout)
+    [cancelled] = read_assignments(state=scheduler.context.state)
+    assert cancelled.ending is not None
+    assert cancelled.ending.reason is AgentWorkEndReason.CANCELLED
+
+
+def test_a_worktree_that_will_not_go_is_reported_once_and_left(assigned_checkout, gh):
+    worktree = check_out_assignment(root=assigned_checkout)
+    run_git(arguments=["worktree", "lock", str(worktree)], cwd=assigned_checkout)
+    write_assignment_round(root=assigned_checkout, number=1)
+    gh.replies(stdout=compose_pull_request(state="MERGED"), to="pr view")
+    scheduler, clock = create_scheduler(root=assigned_checkout)
+    scheduler.tick(at=clock())
+    finish_rounds(scheduler=scheduler)
+
+    reported = scheduler.tick(at=clock())
+    later = scheduler.tick(at=clock())
+
+    assert find_sole_failure(observed=reported).startswith(
+        f"could not remove the worktree of {ASSIGNMENT_ID}: "
+    )
+    assert later.failures == []
+    assert worktree.is_dir()
+    assert ASSIGNMENT_BRANCH in list_branches(root=assigned_checkout)
+    [completed] = read_assignments(state=scheduler.context.state)
+    assert completed.ending is not None
+    assert completed.ending.reason is AgentWorkEndReason.COMPLETED
+
+
+def test_a_completed_assignment_with_no_worktree_or_branch_left_reports_nothing(
+    assigned_checkout, gh
+):
+    write_assignment_round(root=assigned_checkout, number=1)
+    gh.replies(stdout=compose_pull_request(state="MERGED"), to="pr view")
+    scheduler, clock = create_scheduler(root=assigned_checkout)
+    scheduler.tick(at=clock())
+    finish_rounds(scheduler=scheduler)
+
+    observed = scheduler.tick(at=clock())
+
+    assert observed.failures == []
+
+
+def test_a_branch_that_will_not_go_is_reported(assigned_checkout, gh):
+    # The main checkout has the branch checked out, so Git will not delete it.
+    run_git(arguments=["switch", "--create", ASSIGNMENT_BRANCH], cwd=assigned_checkout)
+    write_assignment_round(root=assigned_checkout, number=1)
+    gh.replies(stdout=compose_pull_request(state="MERGED"), to="pr view")
+    scheduler, clock = create_scheduler(root=assigned_checkout)
+    scheduler.tick(at=clock())
+    finish_rounds(scheduler=scheduler)
+
+    observed = scheduler.tick(at=clock())
+
+    assert find_sole_failure(observed=observed).startswith(
+        f"could not delete the branch {ASSIGNMENT_BRANCH}: "
+    )
+    assert ASSIGNMENT_BRANCH in list_branches(root=assigned_checkout)
 
 
 def test_a_last_round_that_fails_leaves_its_assignment_open(

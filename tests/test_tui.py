@@ -514,6 +514,34 @@ def test_an_assignment_view_of_an_ended_assignment_never_waits(tmp_path):
     assert f"GH12-{ASSIGNMENT_TIMESTAMP}-assignment" in written_to.getvalue()
 
 
+def test_a_completed_assignment_whose_worktree_is_gone_offers_no_hand_resume(
+    tmp_path,
+):
+    state = StateDirectory(root=tmp_path)
+    fabricate_everything(state=state)
+    worktree = state.worktrees / f"GH12-{ASSIGNMENT_TIMESTAMP}-assignment"
+    worktree.rmdir()
+
+    view = render_assignment_view(state=state, issue=12)
+
+    assert "worktree                    removed" in view
+    assert state.describe_path(path=worktree) not in view
+    assert "resume by hand" not in view
+    assert "claude --resume" not in view
+
+
+def test_a_cancelled_assignment_offers_a_hand_resume_from_its_worktree(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    fabricate_everything(state=state)
+    worktree = state.worktrees / f"GH70-{ASSIGNMENT_TIMESTAMP}-assignment"
+
+    view = render_assignment_view(state=state, issue=70)
+
+    assert f"worktree                    {state.describe_path(path=worktree)}" in view
+    assert f"cd {state.describe_path(path=worktree)}" in view
+    assert "claude --resume abc-123" in view
+
+
 def test_an_assignment_view_in_fault_keeps_watching(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
