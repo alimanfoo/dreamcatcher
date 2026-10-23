@@ -116,11 +116,6 @@ def relay_nothing() -> None:
     """Prepare a round that has no input to relay."""
 
 
-def read_pinned_time():
-    """The clock every round here reads, so a feed line's stamp is known."""
-    return PINNED
-
-
 def ignore_harness_session_identifier(*, identifier: str) -> None:
     """Accept a harness session identifier that a test does not inspect."""
 
@@ -254,7 +249,7 @@ def test_a_round_runs_the_command_it_was_given_in_the_worktree(
         ),
         paths=compose_round_paths(worktree=worktree, directory=directory),
         prepare_round=relay_nothing,
-        clock=read_pinned_time,
+        clock=lambda: PINNED,
     ).wait()
 
     assert harness.calls[0].arguments == ["--print"]
@@ -270,7 +265,7 @@ def test_a_round_gives_the_harness_its_prompt_to_read(fake, worktree, directory)
         harness=compose_round_harness(),
         paths=compose_round_paths(worktree=worktree, directory=directory),
         prepare_round=relay_nothing,
-        clock=read_pinned_time,
+        clock=lambda: PINNED,
     )
     running.wait()
 
@@ -297,7 +292,7 @@ def test_a_new_session_round_builds_its_harness_invocation(fake, worktree, direc
             paths=compose_round_paths(worktree=worktree, directory=directory),
             prepare_round=relay_nothing,
         ),
-        clock=read_pinned_time,
+        clock=lambda: PINNED,
     ).wait()
 
     call = harness.calls[0]
@@ -325,7 +320,7 @@ def test_a_resumed_round_builds_its_harness_invocation(fake, worktree, directory
             paths=compose_round_paths(worktree=worktree, directory=directory),
             prepare_round=relay_nothing,
         ),
-        clock=read_pinned_time,
+        clock=lambda: PINNED,
     ).wait()
 
     call = harness.calls[0]
@@ -359,7 +354,7 @@ def test_a_round_writes_the_pull_request_state_and_user_posts_it_was_given(
             signals=[],
             user_posts=posts,
         ),
-        clock=read_pinned_time,
+        clock=lambda: PINNED,
     )
     running.wait()
 
@@ -385,14 +380,14 @@ def test_the_feed_a_round_writes_is_the_feed_its_stream_renders_as(
         harness=compose_round_harness(),
         paths=compose_round_paths(worktree=worktree, directory=directory),
         prepare_round=relay_nothing,
-        clock=read_pinned_time,
+        clock=lambda: PINNED,
     )
     running.wait()
 
     assert running.paths.feed.read_text(encoding="utf-8") == render_harness_recording(
         adapter=CLAUDE_ADAPTER,
         lines=RECORDING.read_text(encoding="utf-8").splitlines(),
-        renderer=FeedRenderer(worktree=worktree, clock=read_pinned_time),
+        renderer=FeedRenderer(worktree=worktree, clock=lambda: PINNED),
     )
 
 
@@ -404,7 +399,7 @@ def test_a_round_keeps_the_harnesss_own_stream_as_it_arrived(fake, worktree, dir
         harness=compose_round_harness(),
         paths=compose_round_paths(worktree=worktree, directory=directory),
         prepare_round=relay_nothing,
-        clock=read_pinned_time,
+        clock=lambda: PINNED,
     )
     running.wait()
 
@@ -439,7 +434,7 @@ def test_a_round_records_the_harness_session_after_its_raw_event_lands(
         harness=compose_round_harness(record=record),
         paths=paths,
         prepare_round=relay_nothing,
-        clock=read_pinned_time,
+        clock=lambda: PINNED,
     )
     running.wait()
 
@@ -465,7 +460,7 @@ def test_what_the_harness_says_on_stderr_lands_where_it_happened(
         harness=compose_round_harness(),
         paths=compose_round_paths(worktree=worktree, directory=directory),
         prepare_round=relay_nothing,
-        clock=read_pinned_time,
+        clock=lambda: PINNED,
     )
     running.wait()
 
@@ -487,7 +482,7 @@ def test_a_line_the_feed_cannot_write_costs_that_line_alone(fake, worktree, dire
         harness=compose_round_harness(adapter=Unrenderable()),
         paths=compose_round_paths(worktree=worktree, directory=directory),
         prepare_round=relay_nothing,
-        clock=read_pinned_time,
+        clock=lambda: PINNED,
     )
     running.wait()
 
@@ -507,7 +502,7 @@ def test_a_round_records_its_number_start_and_process(fake, worktree, directory)
         harness=compose_round_harness(),
         paths=compose_round_paths(worktree=worktree, directory=directory),
         prepare_round=relay_nothing,
-        clock=read_pinned_time,
+        clock=lambda: PINNED,
     )
 
     assert running.is_alive
@@ -530,7 +525,7 @@ def test_a_round_that_finished_says_how_it_ended(fake, worktree, directory):
         harness=compose_round_harness(),
         paths=compose_round_paths(worktree=worktree, directory=directory),
         prepare_round=relay_nothing,
-        clock=read_pinned_time,
+        clock=lambda: PINNED,
     )
     running.wait()
 
@@ -583,7 +578,7 @@ def start_conversation_round(
             paths=paths,
             prepare_round=relay_nothing,
         ),
-        clock=read_pinned_time,
+        clock=lambda: PINNED,
     )
 
 
@@ -689,7 +684,7 @@ def test_a_round_interrupted_as_its_harness_succeeds_is_not_finished(
         paths=paths,
         prepare_round=relay_nothing,
         finish_round=finish_round,
-        clock=read_pinned_time,
+        clock=lambda: PINNED,
     )
 
     # The race that `_end_process_tree` records: the harness exits cleanly just
@@ -834,7 +829,7 @@ def test_interrupting_a_round_records_interruption(fake, worktree, directory):
         harness=compose_round_harness(),
         paths=compose_round_paths(worktree=worktree, directory=directory),
         prepare_round=relay_nothing,
-        clock=read_pinned_time,
+        clock=lambda: PINNED,
     )
     running.interrupt()
 
@@ -854,7 +849,7 @@ def test_daemon_shutdown_honours_a_pending_stop_request(fake, worktree, director
         harness=compose_round_harness(),
         paths=compose_round_paths(worktree=worktree, directory=directory),
         prepare_round=relay_nothing,
-        clock=read_pinned_time,
+        clock=lambda: PINNED,
     )
     request_agent_round_stop(paths=running.paths)
 
@@ -876,7 +871,7 @@ def test_the_daemon_stopping_a_finished_round_keeps_its_ending(
         harness=compose_round_harness(),
         paths=compose_round_paths(worktree=worktree, directory=directory),
         prepare_round=relay_nothing,
-        clock=read_pinned_time,
+        clock=lambda: PINNED,
     )
     running.wait()
 
@@ -909,7 +904,7 @@ def test_a_stop_request_stops_the_round_and_records_why(fake, worktree, director
         harness=compose_round_harness(),
         paths=paths,
         prepare_round=relay_nothing,
-        clock=read_pinned_time,
+        clock=lambda: PINNED,
         wait_for_round_end=request_stop_on_the_second_poll,
     )
     running.wait()
@@ -942,7 +937,7 @@ def test_a_stop_requested_while_the_round_prepared_stops_it_at_once(
         harness=compose_round_harness(),
         paths=paths,
         prepare_round=request_stop,
-        clock=read_pinned_time,
+        clock=lambda: PINNED,
         wait_for_round_end=count_poll,
     )
     running.wait()
@@ -962,7 +957,7 @@ def test_the_first_reason_for_ending_a_round_wins(fake, worktree, directory):
         harness=compose_round_harness(),
         paths=compose_round_paths(worktree=worktree, directory=directory),
         prepare_round=relay_nothing,
-        clock=read_pinned_time,
+        clock=lambda: PINNED,
     )
 
     running._end_process_tree(ending=StoppedAgentRoundEnding(at=PINNED))
@@ -989,7 +984,7 @@ def test_a_round_that_cannot_write_its_feed_stops_rather_than_stalls(
         harness=compose_round_harness(),
         paths=compose_round_paths(worktree=worktree, directory=directory),
         prepare_round=relay_nothing,
-        clock=read_pinned_time,
+        clock=lambda: PINNED,
     )
     running.wait()
 
@@ -1020,7 +1015,7 @@ def test_a_round_that_cannot_write_its_prompt_errors_without_a_process(
             ),
             paths=paths,
             prepare_round=relay_nothing,
-            clock=read_pinned_time,
+            clock=lambda: PINNED,
         )
 
     record = read_round_record(path=paths.record)
@@ -1049,7 +1044,7 @@ def test_a_round_whose_preparation_fails_errors_with_its_reason(
             harness=compose_round_harness(),
             paths=paths,
             prepare_round=refuse_to_prepare,
-            clock=read_pinned_time,
+            clock=lambda: PINNED,
         )
 
     assert raised.value.agent_work_identifier == "GH9-20260819-184158"
@@ -1084,7 +1079,7 @@ def test_a_round_whose_harness_cannot_be_contained_errors_without_a_process(
             harness=compose_round_harness(),
             paths=paths,
             prepare_round=relay_nothing,
-            clock=read_pinned_time,
+            clock=lambda: PINNED,
         )
 
     record = read_round_record(path=paths.record)
@@ -1121,7 +1116,7 @@ def test_a_round_whose_process_cannot_be_recorded_does_not_run_on(
             ),
             paths=paths,
             prepare_round=relay_nothing,
-            clock=read_pinned_time,
+            clock=lambda: PINNED,
         )
 
     assert spawned
@@ -1161,7 +1156,7 @@ def test_a_round_whose_process_cannot_be_recorded_ends_without_an_exit_status(
             ),
             paths=paths,
             prepare_round=relay_nothing,
-            clock=read_pinned_time,
+            clock=lambda: PINNED,
         )
 
     ending = read_round_record(path=paths.record).ending
@@ -1190,7 +1185,7 @@ def test_a_round_that_cannot_record_its_start_prepares_and_spawns_nothing(
             ),
             paths=paths,
             prepare_round=relay_nothing,
-            clock=read_pinned_time,
+            clock=lambda: PINNED,
         )
 
     assert not paths.prompt.exists()
@@ -1211,7 +1206,7 @@ def test_a_round_a_straggler_outlives_still_records_an_ending(
         ),
         paths=compose_round_paths(worktree=worktree, directory=directory),
         prepare_round=relay_nothing,
-        clock=read_pinned_time,
+        clock=lambda: PINNED,
     )
 
     assert wait_until(seconds=30, holds=lambda: not running.is_alive)
@@ -1243,7 +1238,7 @@ def test_a_finished_round_a_straggler_outlives_still_records_an_ending(
         paths=paths,
         prepare_round=relay_nothing,
         finish_round=finish_round,
-        clock=read_pinned_time,
+        clock=lambda: PINNED,
     )
 
     assert wait_until(seconds=30, holds=lambda: not running.is_alive)
@@ -1263,7 +1258,7 @@ def test_a_round_a_straggler_outlives_still_stops(worktree, directory, straggler
         ),
         paths=compose_round_paths(worktree=worktree, directory=directory),
         prepare_round=relay_nothing,
-        clock=read_pinned_time,
+        clock=lambda: PINNED,
     )
     assert wait_until(seconds=30, holds=straggler.exists)
 
