@@ -2,7 +2,7 @@ import sys
 from unittest.mock import Mock
 
 import pytest
-from conftest import gone
+from conftest import wait_for_exit
 
 from dreamcatcher import teardown
 from dreamcatcher.commands import CommandError, spawn_command
@@ -92,7 +92,7 @@ def test_a_child_whose_containment_fails_never_runs(
             cwd=tmp_path,
         )
 
-    assert gone(pid=contained[0])
+    assert wait_for_exit(pid=contained[0])
     assert not mark.exists()
     opened, closed = handles
     assert sorted(closed) == sorted(opened)

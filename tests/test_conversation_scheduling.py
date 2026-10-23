@@ -11,13 +11,13 @@ from conftest import (
     ASSIGNMENT_LABEL,
     POSTED_BY,
     REPOSITORY,
-    comment,
     commit,
+    compose_comment,
+    compose_page,
+    compose_stream_line,
     configure,
-    git,
-    gone,
-    pages,
-    streamed,
+    run_git,
+    wait_for_exit,
 )
 from fakes import Line
 from records import (
@@ -30,7 +30,7 @@ from records import (
     write_round,
     write_tick,
 )
-from rows import request_row
+from rows import compose_request_row
 
 from dreamcatcher import agent_rounds
 from dreamcatcher.agent_rounds import (
@@ -232,7 +232,7 @@ def offer_conversation(
         gh=gh, issue=conversation_issue(labels=(label,), title=title, body=body)
     )
     gh.replies(
-        stdout=pages(items=comments),
+        stdout=compose_page(items=comments),
         to=f"api repos/{REPOSITORY}/issues/8/comments?per_page=100",
     )
 
@@ -248,7 +248,7 @@ def conversation_row(
     started_round: StartedRound | None = None,
 ) -> RequestRow:
     """Return the row of a conversation request at the issue the tests offer."""
-    return request_row(
+    return compose_request_row(
         issue=issue,
         kind=AgentWorkKind.CONVERSATION,
         label=label,
@@ -270,7 +270,7 @@ def answer(
     harnesses["claude"].streams(
         lines=[
             Line(
-                text=streamed(
+                text=compose_stream_line(
                     type="system",
                     subtype="init",
                     model="claude-opus-5",
@@ -279,7 +279,7 @@ def answer(
                 + "\n"
             ),
             Line(
-                text=streamed(
+                text=compose_stream_line(
                     type="result",
                     subtype="success",
                     is_error=False,
@@ -314,7 +314,7 @@ def codex_answer(
             if session_identifier is None
             else [
                 Line(
-                    text=streamed(
+                    text=compose_stream_line(
                         type="thread.started",
                         thread_id=session_identifier,
                     )
@@ -329,7 +329,7 @@ def codex_answer(
 
 def ask(*, identifier: int = 1, body: str = "Please explain.") -> dict:
     """Return one eligible ordinary issue comment."""
-    return comment(id=identifier, created_at=ASKED, body=body)
+    return compose_comment(id=identifier, created_at=ASKED, body=body)
 
 
 def count_comment_reads(*, gh) -> int:
@@ -949,7 +949,7 @@ def test_a_follow_up_refreshes_to_changed_main(conversation_scheduler, harnesses
     ).revision
     (scheduler.context.state.root / "README.md").write_bytes(b"what main holds now\n")
     commit(path=scheduler.context.state.root, message="change main")
-    git(arguments=["push", "origin", "main"], cwd=scheduler.context.state.root)
+    run_git(arguments=["push", "origin", "main"], cwd=scheduler.context.state.root)
     offer_conversation(
         gh=gh,
         comments=[ask(), ask(identifier=2, body="Does the answer still hold?")],
@@ -1029,7 +1029,7 @@ def test_a_round_whose_input_cannot_be_saved_errors_and_the_next_refreshes(
     assert conversation is not None
     (scheduler.context.state.root / "README.md").write_bytes(b"main moved\n")
     commit(path=scheduler.context.state.root, message="move main")
-    git(arguments=["push", "origin", "main"], cwd=scheduler.context.state.root)
+    run_git(arguments=["push", "origin", "main"], cwd=scheduler.context.state.root)
     comments = [ask(), ask(identifier=2, body="Does this still hold?")]
     offer_conversation(gh=gh, comments=comments)
     write_json = agent_rounds.write_json
@@ -1088,7 +1088,7 @@ def test_a_follow_up_refreshes_again_after_a_launch_failure(
     assert conversation is not None
     (scheduler.context.state.root / "README.md").write_bytes(b"first move\n")
     commit(path=scheduler.context.state.root, message="move main once")
-    git(arguments=["push", "origin", "main"], cwd=scheduler.context.state.root)
+    run_git(arguments=["push", "origin", "main"], cwd=scheduler.context.state.root)
     comments = [ask(), ask(identifier=2, body="Does this still hold?")]
     offer_conversation(gh=gh, comments=comments)
     with monkeypatch.context() as launch_failure:
@@ -1109,7 +1109,7 @@ def test_a_follow_up_refreshes_again_after_a_launch_failure(
     )
     (scheduler.context.state.root / "README.md").write_bytes(b"second move\n")
     commit(path=scheduler.context.state.root, message="move main twice")
-    git(arguments=["push", "origin", "main"], cwd=scheduler.context.state.root)
+    run_git(arguments=["push", "origin", "main"], cwd=scheduler.context.state.root)
     offer_conversation(gh=gh, comments=comments)
     answer(harnesses=harnesses, body="The changed answer.")
     gh.replies(stdout=json.dumps({"id": 100}), to=POST_PATH)
@@ -1464,7 +1464,7 @@ def test_the_cooldown_boundary_clears_conversation_faults(
             issue=conversation_issue(labels=("dream:conversation",), number=issue),
         )
         gh.replies(
-            stdout=pages(items=[ask()]),
+            stdout=compose_page(items=[ask()]),
             to=f"api repos/{REPOSITORY}/issues/{issue}/comments?per_page=100",
         )
     answer(harnesses=harnesses, body=NO_REPLY)
@@ -1652,7 +1652,7 @@ def test_a_daemon_orphan_is_given_its_comments_again_in_its_saved_session(
         preferred_harness=AgentHarness.CLAUDE,
     )
     daemon._sweep_orphans()
-    assert gone(pid=left_running.pid)
+    assert wait_for_exit(pid=left_running.pid)
     offer_conversation(gh=gh, comments=[ask(), ask(identifier=2)])
     answer(harnesses=harnesses, body="The recovered answer.")
     gh.replies(stdout=json.dumps({"id": 99}), to=POST_PATH)
@@ -1850,7 +1850,7 @@ def test_a_failed_conversation_listing_leaves_open_conversations_inspected(
     show_conversation_issue(
         gh=gh, issue=conversation_issue(labels=("dream:conversation",))
     )
-    gh.replies(stdout=pages(items=[]), to=COMMENT_PATH)
+    gh.replies(stdout=compose_page(items=[]), to=COMMENT_PATH)
 
     observed = scheduler.tick(at=clock())
 
@@ -2181,7 +2181,7 @@ def test_an_open_conversation_carries_on_when_its_route_is_removed(
     show_conversation_issue(
         gh=gh, issue=conversation_issue(labels=("dream:conversation",))
     )
-    gh.replies(stdout=pages(items=[]), to=COMMENT_PATH)
+    gh.replies(stdout=compose_page(items=[]), to=COMMENT_PATH)
 
     observed = scheduler.tick(at=clock())
 
@@ -2377,13 +2377,13 @@ def test_a_failed_comment_read_leaves_the_other_requests_to_start(
             "--label dream:conversation"
         ),
     )
-    gh.replies(stdout=pages(items=[ask()]), to=COMMENT_PATH)
+    gh.replies(stdout=compose_page(items=[ask()]), to=COMMENT_PATH)
     gh.fails(
         stderr="issue-specific failure",
         to=f"api repos/{REPOSITORY}/issues/9/comments?per_page=100",
     )
     gh.replies(
-        stdout=pages(items=[ask(identifier=2)]),
+        stdout=compose_page(items=[ask(identifier=2)]),
         to=f"api repos/{REPOSITORY}/issues/10/comments?per_page=100",
     )
 
@@ -2412,7 +2412,7 @@ def test_an_existing_empty_conversation_can_start(conversation_scheduler, harnes
     _add_detached_worktree(root=scheduler.context.state.root, path=worktree)
     (scheduler.context.state.root / "README.md").write_bytes(b"new main before retry\n")
     commit(path=scheduler.context.state.root, message="advance main before retry")
-    git(arguments=["push", "origin", "main"], cwd=scheduler.context.state.root)
+    run_git(arguments=["push", "origin", "main"], cwd=scheduler.context.state.root)
     offer_conversation(gh=gh, comments=[ask()])
     answer(harnesses=harnesses)
 
@@ -2432,7 +2432,7 @@ def test_an_existing_empty_conversation_can_start(conversation_scheduler, harnes
         "new main before retry\n"
     )
     assert (
-        git(
+        run_git(
             arguments=["branch", "--show-current"], cwd=scheduler.context.state.root
         ).strip()
         == "main"
@@ -2459,7 +2459,7 @@ def test_a_missing_conversation_worktree_is_added_without_detaching_main(
     assert conversation is not None
     assert conversation.worktree.joinpath(".git").is_file()
     assert (
-        git(
+        run_git(
             arguments=["branch", "--show-current"], cwd=scheduler.context.state.root
         ).strip()
         == "main"
@@ -2513,13 +2513,13 @@ def test_new_conversations_start_in_listing_order(conversation_scheduler, harnes
         ),
     )
     gh.replies(
-        stdout=pages(
+        stdout=compose_page(
             items=[ask(identifier=2) | {"created_at": "2026-09-23T02:00:00Z"}]
         ),
         to=f"api repos/{REPOSITORY}/issues/8/comments?per_page=100",
     )
     gh.replies(
-        stdout=pages(
+        stdout=compose_page(
             items=[ask(identifier=1) | {"created_at": "2026-09-23T01:00:00Z"}]
         ),
         to=f"api repos/{REPOSITORY}/issues/9/comments?per_page=100",
@@ -2562,7 +2562,7 @@ def test_an_open_conversation_starts_before_a_new_one(
         ),
     )
     gh.replies(
-        stdout=pages(items=[ask(identifier=2)]),
+        stdout=compose_page(items=[ask(identifier=2)]),
         to=f"api repos/{REPOSITORY}/issues/9/comments?per_page=100",
     )
     answer(harnesses=harnesses)

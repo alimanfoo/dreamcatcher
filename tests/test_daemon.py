@@ -18,7 +18,7 @@ from conftest import (
     REPOSITORY,
     SMITH_CLAUDE,
     configure,
-    gone,
+    wait_for_exit,
 )
 from fakes import Line
 from records import (
@@ -27,7 +27,7 @@ from records import (
     write_daemon_run,
     write_round,
 )
-from rows import request_row
+from rows import compose_request_row
 
 from dreamcatcher.agent_rounds import (
     AgentRound,
@@ -247,7 +247,7 @@ def test_a_successful_scheduler_tick_is_recorded_and_reported(
     scheduler_record = SchedulerRecord(
         at=PINNED,
         rows=[
-            request_row(
+            compose_request_row(
                 issue=13,
                 agent_work_identifier=ASSIGNMENT_ID,
                 started_round=StartedRound(number=1),
@@ -280,12 +280,12 @@ def test_multiple_launches_are_recorded_and_reported(watched, capsys, monkeypatc
     scheduler_record = SchedulerRecord(
         at=PINNED,
         rows=[
-            request_row(
+            compose_request_row(
                 issue=13,
                 agent_work_identifier=ASSIGNMENT_ID,
                 started_round=StartedRound(number=1),
             ),
-            request_row(
+            compose_request_row(
                 issue=8,
                 kind=AgentWorkKind.CONVERSATION,
                 agent_work_identifier="GH8-20260819-184158-conversation",
@@ -313,7 +313,7 @@ def test_a_round_that_errored_before_its_harness_ran_is_reported_from_its_row(
     scheduler_record = SchedulerRecord(
         at=PINNED,
         rows=[
-            request_row(
+            compose_request_row(
                 issue=13,
                 agent_work_identifier=ASSIGNMENT_ID,
                 started_round=StartedRound(
@@ -486,7 +486,7 @@ def test_a_round_the_daemon_before_this_one_left_running_is_ended(
 
     daemon.run()
 
-    assert gone(pid=left_running.pid)
+    assert wait_for_exit(pid=left_running.pid)
     record = AgentRoundRecord.model_validate_json(
         (directory / "rounds" / "1" / "round.json").read_text(encoding="utf-8")
     )
@@ -543,7 +543,7 @@ def test_a_pending_stop_survives_daemon_restart(watched, harnesses, gh, left_run
 
     daemon.run()
 
-    assert gone(pid=left_running.pid)
+    assert wait_for_exit(pid=left_running.pid)
     record = AgentRoundRecord.model_validate_json(
         (directory / "rounds" / "1" / "round.json").read_text(encoding="utf-8")
     )
@@ -567,7 +567,7 @@ def test_a_conversation_round_left_running_is_ended(
 
     daemon.run()
 
-    assert gone(pid=left_running.pid)
+    assert wait_for_exit(pid=left_running.pid)
     record = AgentRoundRecord.model_validate_json(
         (directory / "rounds" / "1" / "round.json").read_text(encoding="utf-8")
     )
@@ -733,7 +733,7 @@ def test_the_daemon_ends_the_rounds_it_holds_as_it_goes_down(ready_repo, harness
 
     agent_round = daemon.rounds[CREATED_ASSIGNMENT_ID]
     assert not agent_round.is_alive
-    assert gone(pid=agent_round.harness_process.pid)
+    assert wait_for_exit(pid=agent_round.harness_process.pid)
 
 
 # The signals that should end a daemon as Ctrl-C does. Windows has no hangup.
@@ -758,7 +758,7 @@ def test_a_termination_signal_ends_the_daemon_and_its_rounds_as_an_interrupt_doe
     assert waiting.waited == []
     agent_round = daemon.rounds[CREATED_ASSIGNMENT_ID]
     assert agent_round.record.outcome is AgentRoundOutcome.INTERRUPTED
-    assert gone(pid=agent_round.harness_process.pid)
+    assert wait_for_exit(pid=agent_round.harness_process.pid)
 
 
 @pytest.mark.parametrize("number", TERMINATION_SIGNALS, ids=attrgetter("name"))
@@ -783,7 +783,7 @@ def test_a_second_termination_signal_leaves_the_rounds_to_end(
 
     agent_round = daemon.rounds[CREATED_ASSIGNMENT_ID]
     assert agent_round.record.outcome is AgentRoundOutcome.INTERRUPTED
-    assert gone(pid=agent_round.harness_process.pid)
+    assert wait_for_exit(pid=agent_round.harness_process.pid)
 
 
 @pytest.mark.parametrize("number", TERMINATION_SIGNALS, ids=attrgetter("name"))
@@ -838,7 +838,7 @@ def test_a_daemon_that_loses_its_lock_runs_no_other_tick_and_stops_rounds(
     assert interval.mock_calls == [call.wait(300), call.require_held()]
     agent_round = daemon.rounds[CREATED_ASSIGNMENT_ID]
     assert not agent_round.is_alive
-    assert gone(pid=agent_round.harness_process.pid)
+    assert wait_for_exit(pid=agent_round.harness_process.pid)
 
 
 def test_a_run_that_cannot_read_an_assignment_refuses_to_start(ready_repo):

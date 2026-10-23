@@ -18,8 +18,8 @@ from records import (
     write_tick,
 )
 from rich.console import Console
-from rows import request_row
-from status_fabrications import conversation_row, fabricate_conversation
+from rows import compose_request_row
+from status_fabrications import compose_conversation_row, fabricate_conversation
 
 from dreamcatcher.agent_rounds import (
     AgentRoundRecord,
@@ -316,7 +316,7 @@ def unsaved_conversation_state(*, root) -> StateDirectory:
         tick=SchedulerRecord(
             at=PINNED,
             rows=[
-                request_row(
+                compose_request_row(
                     issue=9,
                     kind=AgentWorkKind.CONVERSATION,
                     finding=IssueCommentsFinding(new_comments=1),
@@ -355,23 +355,23 @@ def test_conversations_are_listed_in_attention_order_before_requests(tmp_path):
         tick=SchedulerRecord(
             at=PINNED,
             rows=[
-                conversation_row(
+                compose_conversation_row(
                     ended_round=1, finding=IssueCommentsFinding(new_comments=0)
                 ),
-                conversation_row(
+                compose_conversation_row(
                     issue=11, finding=IssueCommentsFinding(new_comments=0)
                 ),
-                request_row(
+                compose_request_row(
                     issue=9,
                     kind=AgentWorkKind.CONVERSATION,
                     finding=IssueCommentsFinding(new_comments=0),
                 ),
-                request_row(
+                compose_request_row(
                     issue=10,
                     kind=AgentWorkKind.CONVERSATION,
                     finding=IssueCommentsFinding(new_comments=1),
                 ),
-                request_row(
+                compose_request_row(
                     issue=12,
                     kind=AgentWorkKind.CONVERSATION,
                     finding=ReadFailureFinding(reason="gh: offline"),
@@ -477,7 +477,7 @@ def test_a_conversation_view_with_a_routing_conflict_keeps_watching(tmp_path):
         tick=SchedulerRecord(
             at=PINNED,
             rows=[
-                conversation_row(
+                compose_conversation_row(
                     finding=ConflictingLabelsFinding(labels=["discuss", "scout"])
                 )
             ],

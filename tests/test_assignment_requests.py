@@ -15,13 +15,13 @@ from conftest import (
     POSTED_BY,
     PULL_REQUEST,
     REPOSITORY,
-    blocker,
-    listing,
-    pages,
-    pull_request,
+    compose_blocker,
+    compose_issue_listing,
+    compose_page,
+    compose_pull_request,
 )
 from records import read_assignments, write_assignment
-from rows import UNCLAIMED, request_row
+from rows import UNCLAIMED, compose_request_row
 
 from dreamcatcher.agent_assignments import cancel_assignment
 from dreamcatcher.clock import read_current_time
@@ -52,7 +52,7 @@ def config_with_routes(*, labels: Sequence[str]) -> DreamcatcherConfig:
 def gh(fake):
     """Return gh listing one open, assigned issue that nothing claims or blocks."""
     stand_in = fake(program="gh")
-    stand_in.replies(stdout=listing(issues=[(8, FILED)]), to="issue list")
+    stand_in.replies(stdout=compose_issue_listing(issues=[(8, FILED)]), to="issue list")
     stand_in.replies(
         stdout=json.dumps(
             {
@@ -63,7 +63,7 @@ def gh(fake):
         ),
         to="issue view",
     )
-    stand_in.replies(stdout=pages(items=[]), to="api")
+    stand_in.replies(stdout=compose_page(items=[]), to="api")
     return stand_in
 
 
@@ -101,11 +101,13 @@ def rows_for(*, state: StateDirectory, config: DreamcatcherConfig):
 def test_an_issue_nothing_claims_or_blocks_is_a_clear_request(gh, state):
     rows = rows_for(state=state, config=config_with_routes(labels=[ASSIGNMENT_LABEL]))
 
-    assert rows == [request_row(issue=8, finding=UNCLAIMED)]
+    assert rows == [compose_request_row(issue=8, finding=UNCLAIMED)]
 
 
 def test_requests_are_ordered_oldest_issue_first(gh, state):
-    gh.replies(stdout=listing(issues=[(8, LATER), (3, FILED)]), to="issue list")
+    gh.replies(
+        stdout=compose_issue_listing(issues=[(8, LATER), (3, FILED)]), to="issue list"
+    )
 
     rows = rows_for(state=state, config=config_with_routes(labels=[ASSIGNMENT_LABEL]))
 
@@ -126,7 +128,7 @@ def test_a_listing_failure_leaves_no_rows_and_is_a_failure(gh, state):
 
 def test_a_later_route_failure_keeps_the_rows_of_earlier_routes(gh, state):
     gh.replies(
-        stdout=listing(issues=[(8, FILED)]),
+        stdout=compose_issue_listing(issues=[(8, FILED)]),
         to=(
             f"issue list --repo {REPOSITORY} --assignee {POSTED_BY} "
             f"--label {ASSIGNMENT_LABEL}"
@@ -151,10 +153,10 @@ def test_a_later_route_failure_keeps_the_rows_of_earlier_routes(gh, state):
 
 def test_a_request_names_the_open_issues_that_block_it(gh, state):
     gh.replies(
-        stdout=pages(
+        stdout=compose_page(
             items=[
-                blocker(number=7, state="closed"),
-                blocker(number=9, state="open"),
+                compose_blocker(number=7, state="closed"),
+                compose_blocker(number=9, state="open"),
             ]
         ),
         to="api",
@@ -169,10 +171,12 @@ def test_a_request_names_the_open_issues_that_block_it(gh, state):
 
 def test_a_request_names_the_repository_of_a_blocker_in_another_one(gh, state):
     gh.replies(
-        stdout=pages(
+        stdout=compose_page(
             items=[
-                blocker(number=9, state="open", repository=REPOSITORY.upper()),
-                blocker(number=1016, state="open", repository="alimanfoo/dream"),
+                compose_blocker(number=9, state="open", repository=REPOSITORY.upper()),
+                compose_blocker(
+                    number=1016, state="open", repository="alimanfoo/dream"
+                ),
             ]
         ),
         to="api",
@@ -197,7 +201,7 @@ def test_a_request_names_the_open_pull_requests_that_claim_it(gh, state):
         to="issue view",
     )
     gh.replies(
-        stdout=pull_request(state="OPEN", number=28, is_draft=True),
+        stdout=compose_pull_request(state="OPEN", number=28, is_draft=True),
         to="pr view",
     )
 
@@ -225,7 +229,7 @@ def test_a_cancelled_assignments_pull_request_claims_its_issue(gh, state):
         to="issue view",
     )
     gh.replies(
-        stdout=pull_request(state="OPEN"),
+        stdout=compose_pull_request(state="OPEN"),
         to="pr view",
     )
 
@@ -237,7 +241,7 @@ def test_a_cancelled_assignments_pull_request_claims_its_issue(gh, state):
 
 
 def test_each_of_two_assignment_labels_is_a_request_with_conflicting_labels(gh, state):
-    issue = json.loads(listing(issues=[(8, FILED)]))[0]
+    issue = json.loads(compose_issue_listing(issues=[(8, FILED)]))[0]
     issue["labels"] = [{"name": ASSIGNMENT_LABEL}, {"name": "dream:less"}]
     gh.replies(stdout=json.dumps([issue]), to="issue list")
 

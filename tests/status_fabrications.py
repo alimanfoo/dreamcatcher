@@ -5,7 +5,7 @@ from datetime import timedelta
 from types import MappingProxyType
 
 from clocks import PINNED
-from conftest import ASSIGNMENT_LABEL, DAEMON_PID, REPOSITORY, comment
+from conftest import ASSIGNMENT_LABEL, DAEMON_PID, REPOSITORY, compose_comment
 from records import (
     HEAD,
     MERGED_INPUT,
@@ -23,7 +23,7 @@ from records import (
     write_round,
     write_tick,
 )
-from rows import UNCLAIMED, request_row
+from rows import UNCLAIMED, compose_request_row
 
 from dreamcatcher.agent_assignments import (
     AssignmentRoundInput,
@@ -75,7 +75,7 @@ ASSIGNMENT_TIMESTAMP = "20260819-184158"
 HARNESS_SESSION_IDENTIFIER = "abc-123"
 
 
-def _assignment_row(
+def _compose_assignment_row(
     *,
     issue: int,
     ended_round: int | None = None,
@@ -83,7 +83,7 @@ def _assignment_row(
     started_round: StartedRound | None = None,
 ) -> RequestRow:
     """Return the row of the assignment that the fabrications write at the issue."""
-    return request_row(
+    return compose_request_row(
         issue=issue,
         agent_work_identifier=f"GH{issue}-{ASSIGNMENT_TIMESTAMP}-assignment",
         ended_round=ended_round,
@@ -92,7 +92,7 @@ def _assignment_row(
     )
 
 
-def _draft_pull_request(*, new_posts: int = 0) -> PullRequestFinding:
+def _compose_draft_pull_request(*, new_posts: int = 0) -> PullRequestFinding:
     """Return what the tick reads of the draft that the fabrications open."""
     return PullRequestFinding(
         number=52,
@@ -109,11 +109,11 @@ def _draft_pull_request(*, new_posts: int = 0) -> PullRequestFinding:
     )
 
 
-def conversation_row(
+def compose_conversation_row(
     *, finding: RequestFinding, issue: int = 8, ended_round: int | None = None
 ) -> RequestRow:
     """Return the row of the conversation that the tests write at the issue."""
-    return request_row(
+    return compose_request_row(
         issue=issue,
         kind=AgentWorkKind.CONVERSATION,
         agent_work_identifier=compose_conversation_identifier(issue=issue),
@@ -172,7 +172,7 @@ def fabricate_conversation(
         tick=SchedulerRecord(
             at=PINNED + timedelta(minutes=5),
             rows=[
-                conversation_row(
+                compose_conversation_row(
                     ended_round=1 if has_round else None,
                     finding=(
                         PausedFinding(cause=PauseCause.LABEL_REMOVED)
@@ -222,11 +222,11 @@ def fabricate_conversation(
     write_final_output(directory=directory, number=1, text="The answer.")
 
 
-def campaign_row(
+def compose_campaign_row(
     *, finding: RequestFinding | None, issue: int = 60, ended_round: int | None = None
 ) -> RequestRow:
     """Return the row of the campaign that the tests write at the parent."""
-    return request_row(
+    return compose_request_row(
         issue=issue,
         kind=AgentWorkKind.CAMPAIGN,
         agent_work_identifier=compose_campaign_identifier(issue=issue),
@@ -235,7 +235,7 @@ def campaign_row(
     )
 
 
-def _campaign_child(
+def _compose_campaign_child(
     *,
     issue: int,
     state: IssueState,
@@ -271,16 +271,18 @@ def _campaign_child(
 # completed, one whose assignment is working, one whose request waits for an
 # agent slot, and one that nothing has asked to be implemented.
 CAMPAIGN_CHILDREN = [
-    _campaign_child(
+    _compose_campaign_child(
         issue=63,
         state=IssueState.CLOSED,
         is_settled=True,
         finished_turn=2,
         ending=AgentWorkEndReason.COMPLETED,
     ),
-    _campaign_child(issue=64, state=IssueState.OPEN, is_settled=False, finished_turn=1),
-    _campaign_child(issue=65, state=IssueState.OPEN, is_settled=False),
-    _campaign_child(issue=66, state=IssueState.OPEN, is_settled=True),
+    _compose_campaign_child(
+        issue=64, state=IssueState.OPEN, is_settled=False, finished_turn=1
+    ),
+    _compose_campaign_child(issue=65, state=IssueState.OPEN, is_settled=False),
+    _compose_campaign_child(issue=66, state=IssueState.OPEN, is_settled=True),
 ]
 
 
@@ -289,21 +291,28 @@ def _fabricate_campaign_children(*, state: StateDirectory) -> list[RequestRow]:
 
     The rows are those of the working assignment and of the waiting request.
     """
-    written(
+    write_assignment_with_rounds(
         state=state,
         issue=63,
-        records=[ended(minute=1), ended(minute=2, number=2)],
+        records=[
+            compose_ended_round(minute=1),
+            compose_ended_round(minute=2, number=2),
+        ],
         round_inputs={2: MERGED_INPUT},
     )
-    current = running(minute=40, number=2)
+    current = compose_running_round(minute=40, number=2)
     write_feed(
-        directory=written(state=state, issue=64, records=[ended(minute=1), current]),
+        directory=write_assignment_with_rounds(
+            state=state, issue=64, records=[compose_ended_round(minute=1), current]
+        ),
         number=2,
         lines=[compose_feed_line(record=current, text="[Bash] pytest -q")],
     )
     return [
-        _assignment_row(issue=64, ended_round=1, started_round=StartedRound(number=2)),
-        request_row(issue=65, finding=UNCLAIMED),
+        _compose_assignment_row(
+            issue=64, ended_round=1, started_round=StartedRound(number=2)
+        ),
+        compose_request_row(issue=65, finding=UNCLAIMED),
     ]
 
 
@@ -317,7 +326,7 @@ def fabricate_campaigns(*, state: StateDirectory) -> list[RequestRow]:
     """
     for issue in (60, 61):
         directory = write_campaign(state=state, issue=issue)
-        record = ended(minute=1)
+        record = compose_ended_round(minute=1)
         write_round(
             directory=directory,
             number=1,
@@ -347,15 +356,15 @@ def fabricate_campaigns(*, state: StateDirectory) -> list[RequestRow]:
         at=PINNED + timedelta(minutes=30),
     )
     return [
-        campaign_row(
+        compose_campaign_row(
             finding=CampaignFinding(new_comments=0, changed_children=0), ended_round=1
         ).model_copy(update={"children": CAMPAIGN_CHILDREN}),
-        request_row(
+        compose_request_row(
             issue=62,
             kind=AgentWorkKind.CAMPAIGN,
             finding=CampaignFinding(new_comments=0, changed_children=0),
         ),
-        request_row(
+        compose_request_row(
             issue=67,
             kind=AgentWorkKind.CAMPAIGN,
             finding=BlockingIssuesFinding(
@@ -374,7 +383,7 @@ ONE_POST_INPUT = AssignmentRoundInput(
     pull_request_state=PullRequestState.OPEN,
     pull_request_head=HEAD,
     signals=[],
-    user_posts=[IssueComment.model_validate(comment())],
+    user_posts=[IssueComment.model_validate(compose_comment())],
 )
 
 # What an assignment round given the input of one that did not finish was given,
@@ -387,7 +396,7 @@ CARRY_ON_INPUT = AssignmentRoundInput(
 )
 
 
-def written(
+def write_assignment_with_rounds(
     *,
     state,
     issue: int,
@@ -411,7 +420,7 @@ def written(
     return directory
 
 
-def ended(
+def compose_ended_round(
     *,
     minute: int,
     number: int = 1,
@@ -429,7 +438,7 @@ def ended(
     )
 
 
-def running(
+def compose_running_round(
     *,
     minute: int,
     number: int = 1,
@@ -452,7 +461,7 @@ def compose_feed_line(
     return FeedLine(at=record.started + timedelta(minutes=minutes), text=text)
 
 
-def holding(*, state, max_agents: int = 1):
+def write_running_daemon(*, state, max_agents: int = 1):
     """Record the instance and hold the lock as its running daemon."""
     write_text(text=f"{REPOSITORY}\n", path=state.repository)
     write_daemon_run(state=state, pid=DAEMON_PID, max_agents=max_agents)
@@ -472,12 +481,12 @@ def fabricate_everything(
     latest_output: str = "[Bash] pytest",
 ):
     """Write a running daemon with varied issue and assignment statuses."""
-    holding(state=state, max_agents=2)
-    current = running(minute=30, number=2)
-    directory = written(
+    write_running_daemon(state=state, max_agents=2)
+    current = compose_running_round(minute=30, number=2)
+    directory = write_assignment_with_rounds(
         state=state,
         issue=13,
-        records=[ended(minute=1), current],
+        records=[compose_ended_round(minute=1), current],
         round_inputs={2: ONE_POST_INPUT},
     )
     write_feed(directory=directory, number=1, lines=SAID)
@@ -486,20 +495,26 @@ def fabricate_everything(
         number=2,
         lines=[compose_feed_line(record=current, text=latest_output)],
     )
-    pushed = ended(minute=115)
+    pushed = compose_ended_round(minute=115)
     write_feed(
-        directory=written(state=state, issue=20, records=[pushed]),
+        directory=write_assignment_with_rounds(state=state, issue=20, records=[pushed]),
         number=1,
         lines=[compose_feed_line(record=pushed, text="[Bash] git push")],
     )
-    written(state=state, issue=31, records=[ended(minute=1)])
-    written(state=state, issue=35, records=[ended(minute=1, status=2)])
-    written(state=state, issue=40, records=[ended(minute=1)])
-    capped = ended(minute=2, number=2, status=2)
-    faulted_directory = written(
+    write_assignment_with_rounds(
+        state=state, issue=31, records=[compose_ended_round(minute=1)]
+    )
+    write_assignment_with_rounds(
+        state=state, issue=35, records=[compose_ended_round(minute=1, status=2)]
+    )
+    write_assignment_with_rounds(
+        state=state, issue=40, records=[compose_ended_round(minute=1)]
+    )
+    capped = compose_ended_round(minute=2, number=2, status=2)
+    faulted_directory = write_assignment_with_rounds(
         state=state,
         issue=9,
-        records=[ended(minute=1, status=1), capped],
+        records=[compose_ended_round(minute=1, status=1), capped],
         round_inputs={2: CARRY_ON_INPUT},
     )
     write_feed(
@@ -509,14 +524,19 @@ def fabricate_everything(
             compose_feed_line(record=capped, text="[failed] You hit your spend cap.")
         ],
     )
-    written(
+    write_assignment_with_rounds(
         state=state,
         issue=12,
-        records=[ended(minute=1), ended(minute=2, number=2)],
+        records=[
+            compose_ended_round(minute=1),
+            compose_ended_round(minute=2, number=2),
+        ],
         round_inputs={2: MERGED_INPUT},
     )
-    written(state=state, issue=44, records=[])
-    written(state=state, issue=70, records=[ended(minute=1)])
+    write_assignment_with_rounds(state=state, issue=44, records=[])
+    write_assignment_with_rounds(
+        state=state, issue=70, records=[compose_ended_round(minute=1)]
+    )
     cancel_assignment(
         assignment=read_agent_work_at_issue(state=state, issue=70)[0],
         at=PINNED + timedelta(minutes=10),
@@ -526,18 +546,20 @@ def fabricate_everything(
         tick=SchedulerRecord(
             at=PINNED + timedelta(hours=1, minutes=58),
             rows=[
-                request_row(issue=50, finding=UNCLAIMED),
-                request_row(issue=51, finding=UNCLAIMED),
-                request_row(
+                compose_request_row(issue=50, finding=UNCLAIMED),
+                compose_request_row(issue=51, finding=UNCLAIMED),
+                compose_request_row(
                     issue=52,
                     finding=StartTimeFinding(
                         linked_pull_requests=[],
                         blocking_issues=[IssueReference(number=50)],
                     ),
                 ),
-                request_row(issue=53, label="dream:less", finding=DOUBLE_LABELLED),
-                request_row(issue=53, finding=DOUBLE_LABELLED),
-                request_row(
+                compose_request_row(
+                    issue=53, label="dream:less", finding=DOUBLE_LABELLED
+                ),
+                compose_request_row(issue=53, finding=DOUBLE_LABELLED),
+                compose_request_row(
                     issue=55,
                     finding=StartTimeFinding(
                         linked_pull_requests=[61],
@@ -547,16 +569,22 @@ def fabricate_everything(
                         ],
                     ),
                 ),
-                _assignment_row(
+                _compose_assignment_row(
                     issue=13, ended_round=1, started_round=StartedRound(number=2)
                 ),
-                _assignment_row(
-                    issue=31, ended_round=1, finding=_draft_pull_request(new_posts=1)
+                _compose_assignment_row(
+                    issue=31,
+                    ended_round=1,
+                    finding=_compose_draft_pull_request(new_posts=1),
                 ),
-                _assignment_row(issue=20, finding=_draft_pull_request()),
-                _assignment_row(issue=35, ended_round=1, finding=_draft_pull_request()),
-                _assignment_row(issue=9, ended_round=2),
-                _assignment_row(issue=44),
+                _compose_assignment_row(
+                    issue=20, finding=_compose_draft_pull_request()
+                ),
+                _compose_assignment_row(
+                    issue=35, ended_round=1, finding=_compose_draft_pull_request()
+                ),
+                _compose_assignment_row(issue=9, ended_round=2),
+                _compose_assignment_row(issue=44),
                 *other_rows,
             ],
         ),
@@ -580,15 +608,17 @@ def fabricate_a_dead_daemon(*, state):
 
 def fabricate_the_cap(*, state):
     """Write a daemon at its cap whose latest tick also failed to list issues twice."""
-    holding(state=state)
-    current = running(minute=30)
-    directory = written(state=state, issue=13, records=[current])
+    write_running_daemon(state=state)
+    current = compose_running_round(minute=30)
+    directory = write_assignment_with_rounds(state=state, issue=13, records=[current])
     write_feed(
         directory=directory,
         number=1,
         lines=[compose_feed_line(record=current, text="[Bash] pytest")],
     )
-    written(state=state, issue=20, records=[ended(minute=1)])
+    write_assignment_with_rounds(
+        state=state, issue=20, records=[compose_ended_round(minute=1)]
+    )
     write_tick(
         state=state,
         tick=SchedulerRecord(
@@ -601,8 +631,10 @@ def fabricate_the_cap(*, state):
                 "timeout",
             ],
             rows=[
-                _assignment_row(
-                    issue=20, ended_round=1, finding=_draft_pull_request(new_posts=1)
+                _compose_assignment_row(
+                    issue=20,
+                    ended_round=1,
+                    finding=_compose_draft_pull_request(new_posts=1),
                 )
             ],
         ),
@@ -616,15 +648,15 @@ def fabricate_repeat_assignments(*, state):
     for stamp, rounds, round_inputs in (
         (
             "20260817-090000",
-            (ended(minute=1), ended(minute=2, number=2)),
+            (compose_ended_round(minute=1), compose_ended_round(minute=2, number=2)),
             (None, MERGED_INPUT),
         ),
         (
             "20260818-090000",
-            (ended(minute=1), ended(minute=2, number=2)),
+            (compose_ended_round(minute=1), compose_ended_round(minute=2, number=2)),
             (None, MERGED_INPUT),
         ),
-        ("20260819-184158", (ended(minute=1),), (None,)),
+        ("20260819-184158", (compose_ended_round(minute=1),), (None,)),
     ):
         directory = write_assignment(
             state=state, identifier=f"GH13-{stamp}-assignment", issue=13
@@ -648,7 +680,9 @@ def fabricate_repeat_assignments(*, state):
         tick=SchedulerRecord(
             at=PINNED + timedelta(hours=1, minutes=58),
             rows=[
-                _assignment_row(issue=13, ended_round=1, finding=_draft_pull_request())
+                _compose_assignment_row(
+                    issue=13, ended_round=1, finding=_compose_draft_pull_request()
+                )
             ],
         ),
     )
@@ -656,12 +690,12 @@ def fabricate_repeat_assignments(*, state):
 
 def fabricate_a_silent_round(*, state):
     """Write a daemon running a round that has yet to write its own line."""
-    holding(state=state)
-    pushed = ended(minute=1)
-    directory = written(
+    write_running_daemon(state=state)
+    pushed = compose_ended_round(minute=1)
+    directory = write_assignment_with_rounds(
         state=state,
         issue=13,
-        records=[pushed, running(minute=30, number=2)],
+        records=[pushed, compose_running_round(minute=30, number=2)],
         round_inputs={2: ONE_POST_INPUT},
     )
     write_feed(
@@ -674,7 +708,7 @@ def fabricate_a_silent_round(*, state):
         tick=SchedulerRecord(
             at=PINNED + timedelta(hours=1, minutes=58),
             rows=[
-                _assignment_row(
+                _compose_assignment_row(
                     issue=13, ended_round=1, started_round=StartedRound(number=2)
                 )
             ],
@@ -684,7 +718,7 @@ def fabricate_a_silent_round(*, state):
 
 def fabricate_titles_and_pull_request_states(*, state):
     """Write assignments and issues carrying every web reporting fact."""
-    holding(state=state)
+    write_running_daemon(state=state)
     pull_request_rows = []
     for issue, title, pull_request_state, is_draft, merge_state, check_result in (
         (
@@ -744,7 +778,7 @@ def fabricate_titles_and_pull_request_states(*, state):
             harness_session_identifier=None,
         )
         pull_request_rows.append(
-            _assignment_row(
+            _compose_assignment_row(
                 issue=issue,
                 finding=PullRequestFinding(
                     number=52,
@@ -772,10 +806,10 @@ def fabricate_titles_and_pull_request_states(*, state):
         tick=SchedulerRecord(
             at=PINNED + timedelta(hours=1, minutes=58),
             rows=[
-                request_row(issue=20, finding=UNCLAIMED).model_copy(
+                compose_request_row(issue=20, finding=UNCLAIMED).model_copy(
                     update={"title": "Available issue"}
                 ),
-                request_row(
+                compose_request_row(
                     issue=21,
                     finding=StartTimeFinding(
                         linked_pull_requests=[],
@@ -783,7 +817,7 @@ def fabricate_titles_and_pull_request_states(*, state):
                     ),
                 ).model_copy(update={"title": "Blocked issue"}),
                 *pull_request_rows,
-                _assignment_row(issue=14),
+                _compose_assignment_row(issue=14),
             ],
         ),
     )
@@ -791,7 +825,7 @@ def fabricate_titles_and_pull_request_states(*, state):
 
 def fabricate_campaign_report(*, state):
     """Write a running daemon with an idle campaign, an ended one and a request."""
-    holding(state=state)
+    write_running_daemon(state=state)
     write_tick(
         state=state,
         tick=SchedulerRecord(

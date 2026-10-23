@@ -6,7 +6,7 @@ import pytest
 from clocks import PINNED
 from records import read_newest_work, write_tick
 from rich.console import Console
-from status_fabrications import LOOKED_AT, fabricate_campaigns, holding
+from status_fabrications import LOOKED_AT, fabricate_campaigns, write_running_daemon
 
 from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.scheduler.models import SchedulerRecord
@@ -18,7 +18,7 @@ from dreamcatcher.tui import show_agent_work_view, show_feed_view, show_status_v
 def state(tmp_path):
     """Return a running daemon's state holding an idle and an ended campaign."""
     state = StateDirectory(root=tmp_path)
-    holding(state=state)
+    write_running_daemon(state=state)
     write_tick(
         state=state,
         tick=SchedulerRecord(at=PINNED, rows=fabricate_campaigns(state=state)),

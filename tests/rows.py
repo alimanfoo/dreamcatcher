@@ -23,7 +23,7 @@ _USUAL_LABELS = {
 }
 
 
-def request_row(
+def compose_request_row(
     *,
     issue: int,
     kind: AgentWorkKind = AgentWorkKind.ASSIGNMENT,

@@ -31,17 +31,17 @@ from status_fabrications import (
     ONE_POST_INPUT,
     SAID,
     STATUS_REPORTS,
+    compose_ended_round,
     compose_feed_line,
-    ended,
+    compose_running_round,
     fabricate_a_dead_daemon,
     fabricate_a_silent_round,
     fabricate_everything,
     fabricate_nothing,
     fabricate_repeat_assignments,
     fabricate_status_everything,
-    holding,
-    running,
-    written,
+    write_assignment_with_rounds,
+    write_running_daemon,
 )
 
 from dreamcatcher.agent_assignments import (
@@ -231,13 +231,15 @@ def test_ended_assignments_are_summarized(tmp_path):
 
 def test_only_ended_assignments_are_summarized(tmp_path):
     state = StateDirectory(root=tmp_path)
-    written(
+    write_assignment_with_rounds(
         state=state,
         issue=12,
-        records=[ended(minute=1)],
+        records=[compose_ended_round(minute=1)],
         round_inputs={1: MERGED_INPUT},
     )
-    written(state=state, issue=13, records=[ended(minute=1)])
+    write_assignment_with_rounds(
+        state=state, issue=13, records=[compose_ended_round(minute=1)]
+    )
     cancel_assignment(
         assignment=read_agent_work_at_issue(state=state, issue=13)[0],
         at=PINNED,
@@ -290,9 +292,11 @@ def test_status_a_reader_watches_keeps_up_with_what_the_daemon_writes(tmp_path):
         looks.append(seconds)
         if len(looks) > 1:
             raise KeyboardInterrupt
-        holding(state=state)
-        current = running(minute=30)
-        directory = written(state=state, issue=13, records=[current])
+        write_running_daemon(state=state)
+        current = compose_running_round(minute=30)
+        directory = write_assignment_with_rounds(
+            state=state, issue=13, records=[current]
+        )
         write_feed(
             directory=directory,
             number=1,
@@ -387,9 +391,9 @@ def test_an_assignment_with_no_pull_request_yet_says_so(tmp_path):
 
 def test_assignment_latest_output_is_indented_on_one_line(tmp_path):
     state = StateDirectory(root=tmp_path)
-    holding(state=state)
-    current = running(minute=1)
-    directory = written(state=state, issue=13, records=[current])
+    write_running_daemon(state=state)
+    current = compose_running_round(minute=1)
+    directory = write_assignment_with_rounds(state=state, issue=13, records=[current])
     write_feed(
         directory=directory,
         number=1,
@@ -469,7 +473,7 @@ def test_an_assignment_view_shows_the_round_that_starts_while_it_is_open(tmp_pat
         write_round(
             directory=state.work / f"GH20-{ASSIGNMENT_TIMESTAMP}-assignment",
             number=2,
-            record=running(minute=60, number=2),
+            record=compose_running_round(minute=60, number=2),
             round_input=ONE_POST_INPUT,
         )
 
@@ -660,7 +664,7 @@ def test_a_following_view_looks_once_more_when_the_last_round_stops(tmp_path):
         write_round(
             directory=directory,
             number=2,
-            record=ended(minute=30, number=2),
+            record=compose_ended_round(minute=30, number=2),
             round_input=MERGED_INPUT,
         )
 
@@ -681,7 +685,7 @@ def test_a_round_that_starts_while_the_view_is_going_arrives_in_it(tmp_path):
         looks.append(seconds)
         if len(looks) > 1:
             raise KeyboardInterrupt
-        current = running(minute=60, number=2)
+        current = compose_running_round(minute=60, number=2)
         write_round(
             directory=directory,
             number=2,
@@ -852,7 +856,7 @@ def test_a_round_view_uses_the_number_persisted_by_the_round(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
     directory = state.work / f"GH12-{ASSIGNMENT_TIMESTAMP}-assignment"
-    fourth = ended(minute=40, number=4)
+    fourth = compose_ended_round(minute=40, number=4)
     write_round(directory=directory, number=4, record=fourth)
     write_feed(
         directory=directory,
@@ -908,7 +912,11 @@ def test_a_view_of_a_running_round_ends_when_that_round_does(tmp_path):
         looks.append(seconds)
         if len(looks) > 2:
             raise AssertionError("the view outlived the round it was showing")
-        write_round(directory=directory, number=2, record=ended(minute=30, number=2))
+        write_round(
+            directory=directory,
+            number=2,
+            record=compose_ended_round(minute=30, number=2),
+        )
 
     shown = viewed_round(state=state, issue=13, number=2, wait=wait, is_terminal=True)
 

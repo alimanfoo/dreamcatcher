@@ -11,7 +11,7 @@ from conftest import (
     SMITH_CLAUDE,
     SMITH_CODEX,
     commit,
-    git,
+    run_git,
 )
 
 from dreamcatcher.cli import main
@@ -160,7 +160,7 @@ def test_a_second_setup_leaves_the_configuration_and_labels_alone(
     harnesses = installed(programs=["claude"])
     (checkout / DREAMCATCHER_CONFIG_NAME).write_text(SMITH_CLAUDE, encoding="utf-8")
     commit(path=checkout, message="Configure dreamcatcher")
-    git(arguments=["push", "origin", "main"], cwd=checkout)
+    run_git(arguments=["push", "origin", "main"], cwd=checkout)
     gh.replies(stdout=json.dumps([[{"name": "dream:smith"}]]), to=LABELS)
 
     set_up_repository(root=checkout)
@@ -325,7 +325,7 @@ def test_an_account_that_cannot_push_is_refused(checkout, gh, installed):
 
 def test_a_checkout_whose_origin_cannot_be_fetched_is_refused(checkout, gh, installed):
     installed(programs=["claude"])
-    git(
+    run_git(
         arguments=["remote", "set-url", "origin", str(checkout.parent / "gone.git")],
         cwd=checkout,
     )
@@ -355,9 +355,9 @@ def test_a_checkout_where_git_has_no_identity_is_refused(
     installed(programs=["claude"])
     monkeypatch.setenv("GIT_CONFIG_GLOBAL", os.devnull)
     monkeypatch.setenv("GIT_CONFIG_NOSYSTEM", "1")
-    git(arguments=["config", "--unset", "user.name"], cwd=cloned)
-    git(arguments=["config", "--unset", "user.email"], cwd=cloned)
-    git(arguments=["config", "user.useConfigOnly", "true"], cwd=cloned)
+    run_git(arguments=["config", "--unset", "user.name"], cwd=cloned)
+    run_git(arguments=["config", "--unset", "user.email"], cwd=cloned)
+    run_git(arguments=["config", "user.useConfigOnly", "true"], cwd=cloned)
 
     with pytest.raises(ReportableError, match="Please tell me who you are"):
         set_up_repository(root=cloned)

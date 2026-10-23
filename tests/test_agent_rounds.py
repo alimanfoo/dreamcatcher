@@ -17,13 +17,13 @@ from conftest import (
     HEAD,
     HUNK,
     POSTED_BY,
-    comment,
-    gone,
-    inline_comment,
-    review,
-    streamed,
+    compose_comment,
+    compose_inline_comment,
+    compose_review,
+    compose_stream_line,
+    wait_for_exit,
 )
-from fakes import Line, Stream, recorded
+from fakes import Line, Stream, read_recorded_lines
 from recordings import render_harness_recording
 
 from dreamcatcher import agent_rounds
@@ -342,11 +342,11 @@ def test_a_round_writes_the_pull_request_state_and_user_posts_it_was_given(
     harness = fake(program="harness")
     harness.replies(stdout="")
     posts = [
-        IssueComment.model_validate(comment()),
+        IssueComment.model_validate(compose_comment()),
         PullRequestReview.model_validate(
-            review(body="have a look", user={"login": POSTED_BY})
+            compose_review(body="have a look", user={"login": POSTED_BY})
         ),
-        InlineReviewComment.model_validate(inline_comment()),
+        InlineReviewComment.model_validate(compose_inline_comment()),
     ]
 
     running = AgentRound(
@@ -378,7 +378,7 @@ def test_a_round_writes_the_pull_request_state_and_user_posts_it_was_given(
 def test_the_feed_a_round_writes_is_the_feed_its_stream_renders_as(
     fake, worktree, directory
 ):
-    fake(program="harness").streams(lines=recorded(path=RECORDING))
+    fake(program="harness").streams(lines=read_recorded_lines(path=RECORDING))
 
     running = AgentRound(
         agent_work_identifier="GH9-20260819-184158",
@@ -397,7 +397,7 @@ def test_the_feed_a_round_writes_is_the_feed_its_stream_renders_as(
 
 
 def test_a_round_keeps_the_harnesss_own_stream_as_it_arrived(fake, worktree, directory):
-    fake(program="harness").streams(lines=recorded(path=RECORDING))
+    fake(program="harness").streams(lines=read_recorded_lines(path=RECORDING))
 
     running = AgentRound(
         agent_work_identifier="GH9-20260819-184158",
@@ -547,7 +547,7 @@ def test_a_round_that_finished_says_how_it_ended(fake, worktree, directory):
 
 def stream_final_result(*, result: str) -> str:
     """Return stdout for a Claude round with one successful result event."""
-    final_result = streamed(
+    final_result = compose_stream_line(
         type="result",
         subtype="success",
         is_error=False,
@@ -1109,7 +1109,7 @@ def test_a_round_whose_process_cannot_be_recorded_does_not_run_on(
         )
 
     assert spawned
-    assert within(seconds=30, holds=lambda: gone(pid=spawned[0]))
+    assert within(seconds=30, holds=lambda: wait_for_exit(pid=spawned[0]))
     assert written(path=paths.record).pid is None
 
 

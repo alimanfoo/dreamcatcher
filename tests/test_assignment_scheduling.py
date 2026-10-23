@@ -7,11 +7,11 @@ from conftest import (
     POSTED_BY,
     PULL_REQUEST,
     REPOSITORY,
-    check_run,
-    comment,
+    compose_check_run,
+    compose_comment,
+    compose_page,
+    compose_pull_request,
     configure,
-    pages,
-    pull_request,
 )
 from records import HEAD, MERGED_INPUT, read_assignments, write_assignment, write_round
 
@@ -45,7 +45,7 @@ PUSHED = "b4e9a1c2d3f405162738495a6b7c8d9e0f1a2b3c"
 PUSHED_AGAIN = "c5f0b2d3e4a516273849506b7c8d9e0f1a2b3c4d"
 
 # What gh reports among the checks of a pull request whose build went red.
-RED = (check_run(conclusion="FAILURE"),)
+RED = (compose_check_run(conclusion="FAILURE"),)
 
 # What found answers for an assignment whose next round opens its pull request.
 OPENS_PULL_REQUEST = "opens the pull request"
@@ -83,7 +83,7 @@ def inspect(*, state: StateDirectory, is_fault: bool = False) -> Inspection:
 @pytest.fixture
 def gh(gh_with_no_posts):
     """A gh answering with one open pull request that nobody has posted on."""
-    gh_with_no_posts.replies(stdout=pull_request(state="OPEN"), to="pr view")
+    gh_with_no_posts.replies(stdout=compose_pull_request(state="OPEN"), to="pr view")
     return gh_with_no_posts
 
 
@@ -245,9 +245,10 @@ def test_a_terminal_pull_request_makes_an_interrupted_round_a_wrap_up(state, gh)
         number=1,
         status=None,
     )
-    gh.replies(stdout=pull_request(state="MERGED"), to="pr view")
+    gh.replies(stdout=compose_pull_request(state="MERGED"), to="pr view")
     gh.replies(
-        stdout=pages(items=[comment()]), to=f"api {POST_LIST_PATHS['conversation']}"
+        stdout=compose_page(items=[compose_comment()]),
+        to=f"api {POST_LIST_PATHS['conversation']}",
     )
 
     resume = found(state=state)
@@ -311,7 +312,7 @@ def test_a_terminal_pull_request_wraps_up_a_stopped_assignment(
         ),
     )
     gh_with_no_posts.replies(
-        stdout=pull_request(state=pull_request_state), to="pr view"
+        stdout=compose_pull_request(state=pull_request_state), to="pr view"
     )
 
     resume = found(state=state)
@@ -343,7 +344,7 @@ def test_a_stopped_last_round_is_not_given_the_finished_pull_request_again(
         ),
     )
     gh_with_no_posts.replies(
-        stdout=pull_request(state=pull_request_state), to="pr view"
+        stdout=compose_pull_request(state=pull_request_state), to="pr view"
     )
 
     assert found(state=state) is None
@@ -362,7 +363,8 @@ def test_a_stopped_assignment_uses_new_feedback(state, gh):
         ),
     )
     gh.replies(
-        stdout=pages(items=[comment()]), to=f"api {POST_LIST_PATHS['conversation']}"
+        stdout=compose_page(items=[compose_comment()]),
+        to=f"api {POST_LIST_PATHS['conversation']}",
     )
 
     resume = found(state=state)
@@ -374,7 +376,8 @@ def test_a_stopped_assignment_uses_new_feedback(state, gh):
 def test_a_cancelled_assignment_is_not_inspected_for_rounds(state, gh):
     ran(state=state, number=1)
     gh.replies(
-        stdout=pages(items=[comment()]), to=f"api {POST_LIST_PATHS['conversation']}"
+        stdout=compose_page(items=[compose_comment()]),
+        to=f"api {POST_LIST_PATHS['conversation']}",
     )
     gh.replies(stdout="[]", to="issue list")
     cancel_assignment(assignment=read_assignments(state=state)[0], at=PINNED)
@@ -404,7 +407,8 @@ def test_a_round_started_for_an_assignment_cancelled_after_inspection_stops(
 def test_an_assignment_the_user_has_posted_on_answers_what_they_said(state, gh):
     ran(state=state, number=1)
     gh.replies(
-        stdout=pages(items=[comment()]), to=f"api {POST_LIST_PATHS['conversation']}"
+        stdout=compose_page(items=[compose_comment()]),
+        to=f"api {POST_LIST_PATHS['conversation']}",
     )
 
     resume = found(state=state)
@@ -419,10 +423,11 @@ def test_an_assignment_the_user_has_posted_on_answers_what_they_said(state, gh):
 def test_a_post_on_a_draft_pull_request_wakes_its_assignment(state, gh_with_no_posts):
     ran(state=state, number=1)
     gh_with_no_posts.replies(
-        stdout=pull_request(state="OPEN", is_draft=True), to="pr view"
+        stdout=compose_pull_request(state="OPEN", is_draft=True), to="pr view"
     )
     gh_with_no_posts.replies(
-        stdout=pages(items=[comment()]), to=f"api {POST_LIST_PATHS['conversation']}"
+        stdout=compose_page(items=[compose_comment()]),
+        to=f"api {POST_LIST_PATHS['conversation']}",
     )
 
     resume = found(state=state)
@@ -433,8 +438,11 @@ def test_a_post_on_a_draft_pull_request_wakes_its_assignment(state, gh_with_no_p
 def test_a_batch_of_posts_says_how_many_it_holds(state, gh):
     ran(state=state, number=1)
     gh.replies(
-        stdout=pages(
-            items=[comment(), comment(id=2, created_at="2026-09-03T22:20:55Z")]
+        stdout=compose_page(
+            items=[
+                compose_comment(),
+                compose_comment(id=2, created_at="2026-09-03T22:20:55Z"),
+            ]
         ),
         to=f"api {POST_LIST_PATHS['conversation']}",
     )
@@ -453,11 +461,12 @@ def test_a_post_at_the_assignment_cursor_wakes_nothing(state, gh):
             pull_request_state=PullRequestState.OPEN,
             pull_request_head=HEAD,
             signals=[],
-            user_posts=[IssueComment.model_validate(comment())],
+            user_posts=[IssueComment.model_validate(compose_comment())],
         ),
     )
     gh.replies(
-        stdout=pages(items=[comment()]), to=f"api {POST_LIST_PATHS['conversation']}"
+        stdout=compose_page(items=[compose_comment()]),
+        to=f"api {POST_LIST_PATHS['conversation']}",
     )
 
     assert found(state=state) is None
@@ -466,7 +475,8 @@ def test_a_post_at_the_assignment_cursor_wakes_nothing(state, gh):
 def test_a_posts_resume_carries_the_facts_launch_will_prepare(state, gh):
     ran(state=state, number=1)
     gh.replies(
-        stdout=pages(items=[comment()]), to=f"api {POST_LIST_PATHS['conversation']}"
+        stdout=compose_page(items=[compose_comment()]),
+        to=f"api {POST_LIST_PATHS['conversation']}",
     )
 
     resume = found(state=state)
@@ -483,7 +493,7 @@ def test_a_pull_request_that_is_finished_calls_for_one_last_round(
     state, gh, state_name
 ):
     ran(state=state, number=1)
-    gh.replies(stdout=pull_request(state=state_name), to="pr view")
+    gh.replies(stdout=compose_pull_request(state=state_name), to="pr view")
 
     resume = found(state=state)
 
@@ -494,9 +504,10 @@ def test_a_pull_request_that_is_finished_calls_for_one_last_round(
 
 def test_a_last_round_carries_what_the_user_said_before_the_merge(state, gh):
     ran(state=state, number=1)
-    gh.replies(stdout=pull_request(state="MERGED"), to="pr view")
+    gh.replies(stdout=compose_pull_request(state="MERGED"), to="pr view")
     gh.replies(
-        stdout=pages(items=[comment()]), to=f"api {POST_LIST_PATHS['conversation']}"
+        stdout=compose_page(items=[compose_comment()]),
+        to=f"api {POST_LIST_PATHS['conversation']}",
     )
 
     resume = found(state=state)
@@ -510,7 +521,7 @@ def test_a_last_round_carries_what_the_user_said_before_the_merge(state, gh):
 def test_an_assignment_whose_last_round_wound_it_up_needs_nothing(state, gh):
     ran(state=state, number=1)
     ran(state=state, number=2, round_input=MERGED_INPUT)
-    gh.replies(stdout=pull_request(state="MERGED"), to="pr view")
+    gh.replies(stdout=compose_pull_request(state="MERGED"), to="pr view")
 
     assert found(state=state) is None
 
@@ -519,7 +530,7 @@ def test_a_last_round_that_was_carried_on_is_still_the_last_round(state, gh):
     ran(state=state, number=1)
     ran(state=state, number=2, status=None, round_input=MERGED_INPUT)
     ran(state=state, number=3, round_input=MERGED_INPUT)
-    gh.replies(stdout=pull_request(state="MERGED"), to="pr view")
+    gh.replies(stdout=compose_pull_request(state="MERGED"), to="pr view")
 
     assert found(state=state) is None
 
@@ -556,7 +567,7 @@ def relayed(
         pull_request_head=head,
         signals=signals,
         user_posts=[
-            IssueComment.model_validate(comment(id=number))
+            IssueComment.model_validate(compose_comment(id=number))
             for number in range(1, posts + 1)
         ],
     )
@@ -574,7 +585,9 @@ def test_a_ready_pull_request_that_main_moved_under_wakes_its_assignment(
     state, gh, merge_state
 ):
     ran(state=state, number=1)
-    gh.replies(stdout=pull_request(state="OPEN", merge_state=merge_state), to="pr view")
+    gh.replies(
+        stdout=compose_pull_request(state="OPEN", merge_state=merge_state), to="pr view"
+    )
 
     resume = found(state=state)
 
@@ -593,7 +606,9 @@ def test_an_out_of_date_pull_request_is_relayed_once_at_each_head(state, gh):
         number=2,
         round_input=relayed(signals=[PullRequestSignal.OUT_OF_DATE]),
     )
-    gh.replies(stdout=pull_request(state="OPEN", merge_state="BEHIND"), to="pr view")
+    gh.replies(
+        stdout=compose_pull_request(state="OPEN", merge_state="BEHIND"), to="pr view"
+    )
 
     assert found(state=state) is None
 
@@ -606,7 +621,7 @@ def test_main_moving_again_after_a_push_wakes_the_assignment_again(state, gh):
         round_input=relayed(signals=[PullRequestSignal.OUT_OF_DATE]),
     )
     gh.replies(
-        stdout=pull_request(state="OPEN", merge_state="BEHIND", head=PUSHED),
+        stdout=compose_pull_request(state="OPEN", merge_state="BEHIND", head=PUSHED),
         to="pr view",
     )
 
@@ -618,18 +633,18 @@ def test_main_moving_again_after_a_push_wakes_the_assignment_again(state, gh):
 
 
 @pytest.mark.parametrize(
-    "checks", [(check_run(),), (check_run(status="IN_PROGRESS"),), ()]
+    "checks", [(compose_check_run(),), (compose_check_run(status="IN_PROGRESS"),), ()]
 )
 def test_a_green_running_or_unchecked_pull_request_wakes_nothing(state, gh, checks):
     ran(state=state, number=1)
-    gh.replies(stdout=pull_request(state="OPEN", checks=checks), to="pr view")
+    gh.replies(stdout=compose_pull_request(state="OPEN", checks=checks), to="pr view")
 
     assert found(state=state) is None
 
 
 def test_a_red_check_wakes_the_assignment(state, gh):
     ran(state=state, number=1)
-    gh.replies(stdout=pull_request(state="OPEN", checks=RED), to="pr view")
+    gh.replies(stdout=compose_pull_request(state="OPEN", checks=RED), to="pr view")
 
     resume = found(state=state)
 
@@ -644,7 +659,7 @@ def test_a_red_check_is_relayed_once_at_each_head(state, gh):
         number=2,
         round_input=relayed(signals=[PullRequestSignal.CHECK_FAILURE]),
     )
-    gh.replies(stdout=pull_request(state="OPEN", checks=RED), to="pr view")
+    gh.replies(stdout=compose_pull_request(state="OPEN", checks=RED), to="pr view")
 
     assert found(state=state) is None
     assert not pull_request_finding(state=state).is_check_failure_withheld
@@ -657,7 +672,9 @@ def test_a_red_check_after_one_attempt_wakes_the_assignment_a_second_time(state,
         number=2,
         round_input=relayed(signals=[PullRequestSignal.CHECK_FAILURE]),
     )
-    gh.replies(stdout=pull_request(state="OPEN", checks=RED, head=PUSHED), to="pr view")
+    gh.replies(
+        stdout=compose_pull_request(state="OPEN", checks=RED, head=PUSHED), to="pr view"
+    )
 
     resume = found(state=state)
 
@@ -678,7 +695,8 @@ def test_a_red_check_after_two_attempts_waits_for_the_user(state, gh):
         round_input=relayed(signals=[PullRequestSignal.CHECK_FAILURE], head=PUSHED),
     )
     gh.replies(
-        stdout=pull_request(state="OPEN", checks=RED, head=PUSHED_AGAIN), to="pr view"
+        stdout=compose_pull_request(state="OPEN", checks=RED, head=PUSHED_AGAIN),
+        to="pr view",
     )
 
     assert found(state=state) is None
@@ -700,10 +718,11 @@ def test_a_post_after_two_attempts_still_wakes_the_assignment(state, gh):
         round_input=relayed(signals=[PullRequestSignal.CHECK_FAILURE], head=PUSHED),
     )
     gh.replies(
-        stdout=pull_request(state="OPEN", checks=RED, head=PUSHED_AGAIN), to="pr view"
+        stdout=compose_pull_request(state="OPEN", checks=RED, head=PUSHED_AGAIN),
+        to="pr view",
     )
     gh.replies(
-        stdout=pages(items=[comment(created_at="2026-09-04T09:00:00Z")]),
+        stdout=compose_page(items=[compose_comment(created_at="2026-09-04T09:00:00Z")]),
         to=f"api {POST_LIST_PATHS['conversation']}",
     )
 
@@ -723,7 +742,8 @@ def test_a_round_woken_by_a_post_breaks_a_run_of_red_checks(state, gh):
     )
     ran(state=state, number=3, round_input=relayed(signals=[], head=PUSHED, posts=1))
     gh.replies(
-        stdout=pull_request(state="OPEN", checks=RED, head=PUSHED_AGAIN), to="pr view"
+        stdout=compose_pull_request(state="OPEN", checks=RED, head=PUSHED_AGAIN),
+        to="pr view",
     )
 
     resume = found(state=state)
@@ -745,7 +765,9 @@ def test_a_round_that_errored_does_not_count_as_an_attempt(state, gh):
         status=1,
         round_input=relayed(signals=[PullRequestSignal.CHECK_FAILURE], head=PUSHED),
     )
-    gh.replies(stdout=pull_request(state="OPEN", checks=RED, head=PUSHED), to="pr view")
+    gh.replies(
+        stdout=compose_pull_request(state="OPEN", checks=RED, head=PUSHED), to="pr view"
+    )
 
     resume = found(state=state)
 
@@ -756,7 +778,7 @@ def test_a_round_that_errored_does_not_count_as_an_attempt(state, gh):
 def test_a_draft_raises_neither_signal(state, gh):
     ran(state=state, number=1)
     gh.replies(
-        stdout=pull_request(
+        stdout=compose_pull_request(
             state="OPEN", is_draft=True, merge_state="BEHIND", checks=RED
         ),
         to="pr view",
@@ -769,7 +791,7 @@ def test_a_draft_raises_neither_signal(state, gh):
 def test_a_merged_pull_request_raises_no_signal_in_its_last_round(state, gh):
     ran(state=state, number=1)
     gh.replies(
-        stdout=pull_request(state="MERGED", merge_state="UNKNOWN", checks=RED),
+        stdout=compose_pull_request(state="MERGED", merge_state="UNKNOWN", checks=RED),
         to="pr view",
     )
 
@@ -782,7 +804,7 @@ def test_a_merged_pull_request_raises_no_signal_in_its_last_round(state, gh):
 
 def test_a_round_woken_by_a_signal_is_told_of_it_before_its_input(state, gh):
     ran(state=state, number=1)
-    gh.replies(stdout=pull_request(state="OPEN", checks=RED), to="pr view")
+    gh.replies(stdout=compose_pull_request(state="OPEN", checks=RED), to="pr view")
     candidate = inspect(state=state).candidate
     assert candidate is not None
 
@@ -805,7 +827,7 @@ def test_each_signal_is_relayed_against_its_own_last_head(state, gh):
         round_input=relayed(signals=[PullRequestSignal.OUT_OF_DATE], head=PUSHED_AGAIN),
     )
     gh.replies(
-        stdout=pull_request(
+        stdout=compose_pull_request(
             state="OPEN", merge_state="BEHIND", checks=RED, head=PUSHED_AGAIN
         ),
         to="pr view",
@@ -830,7 +852,7 @@ def test_a_withheld_check_failure_leaves_an_out_of_date_signal_to_relay(state, g
         round_input=relayed(signals=[PullRequestSignal.CHECK_FAILURE], head=PUSHED),
     )
     gh.replies(
-        stdout=pull_request(
+        stdout=compose_pull_request(
             state="OPEN", merge_state="DIRTY", checks=RED, head=PUSHED_AGAIN
         ),
         to="pr view",

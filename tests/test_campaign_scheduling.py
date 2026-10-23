@@ -12,15 +12,15 @@ from conftest import (
     HEAD,
     POSTED_BY,
     REPOSITORY,
-    blocker,
-    check_run,
-    comment,
     commit,
+    compose_blocker,
+    compose_check_run,
+    compose_comment,
+    compose_page,
+    compose_pull_request,
+    compose_stream_line,
     configure,
-    git,
-    pages,
-    pull_request,
-    streamed,
+    run_git,
 )
 from fakes import Line
 from records import (
@@ -31,7 +31,7 @@ from records import (
     write_ending,
     write_round,
 )
-from rows import request_row
+from rows import compose_request_row
 
 from dreamcatcher.agent_assignments import ObservedPullRequest
 from dreamcatcher.agent_rounds import (
@@ -181,7 +181,7 @@ def lead(*, harnesses, status: int = 0, delay: float = 0) -> None:
     harnesses["claude"].streams(
         lines=[
             Line(
-                text=streamed(
+                text=compose_stream_line(
                     type="system",
                     subtype="init",
                     model="claude-opus-5",
@@ -190,7 +190,7 @@ def lead(*, harnesses, status: int = 0, delay: float = 0) -> None:
                 + "\n"
             ),
             Line(
-                text=streamed(
+                text=compose_stream_line(
                     type="result",
                     subtype="success",
                     is_error=False,
@@ -221,7 +221,7 @@ def campaign_row(
     children: Sequence[CampaignChild] | None = (),
 ) -> RequestRow:
     """Return the row of a campaign request at the parent, by default childless."""
-    return request_row(
+    return compose_request_row(
         issue=PARENT,
         kind=AgentWorkKind.CAMPAIGN,
         label=label,
@@ -289,12 +289,12 @@ def write_rounds(
 
 def say(*, identifier: int, body: str = "Carry on.") -> dict:
     """Return one eligible comment on the parent."""
-    return comment(id=identifier, body=body)
+    return compose_comment(id=identifier, body=body)
 
 
 def offer_comments(*, gh, comments: list[dict]) -> None:
     """Have GitHub answer a read of the parent's comments with these."""
-    gh.replies(stdout=pages(items=comments), to=COMMENTS_PATH)
+    gh.replies(stdout=compose_page(items=comments), to=COMMENTS_PATH)
 
 
 def count_comment_reads(*, gh) -> int:
@@ -667,7 +667,7 @@ def test_two_campaign_labels_on_a_parent_are_a_routing_conflict(
 
 def offer_blockers(*, gh, blockers: list[dict]) -> None:
     """Have GitHub answer a read of what blocks the parent with these."""
-    gh.replies(stdout=pages(items=blockers), to=BLOCKERS_PATH)
+    gh.replies(stdout=compose_page(items=blockers), to=BLOCKERS_PATH)
 
 
 def count_blocker_reads(*, gh) -> int:
@@ -693,9 +693,9 @@ def test_an_open_blocker_queues_the_campaign_with_no_lead(
     offer_blockers(
         gh=gh,
         blockers=[
-            blocker(number=7, state="closed"),
-            blocker(number=18, state="open"),
-            blocker(number=1016, state="open", repository="alimanfoo/dream"),
+            compose_blocker(number=7, state="closed"),
+            compose_blocker(number=18, state="open"),
+            compose_blocker(number=1016, state="open", repository="alimanfoo/dream"),
         ],
     )
 
@@ -722,9 +722,9 @@ def test_a_queued_campaign_starts_once_its_blockers_close(
 ):
     scheduler, gh = campaign_scheduler
     offer_parent(gh=gh)
-    offer_blockers(gh=gh, blockers=[blocker(number=18, state="open")])
+    offer_blockers(gh=gh, blockers=[compose_blocker(number=18, state="open")])
     tick(scheduler=scheduler)
-    offer_blockers(gh=gh, blockers=[blocker(number=18, state="closed")])
+    offer_blockers(gh=gh, blockers=[compose_blocker(number=18, state="closed")])
     lead(harnesses=harnesses)
 
     launched = tick(scheduler=scheduler)
@@ -761,7 +761,7 @@ def test_an_open_campaign_carries_on_whatever_blocks_its_parent(
         state=scheduler.context.state, endings=[SuccessfulAgentRoundEnding(at=PINNED)]
     )
     offer_parent(gh=gh)
-    offer_blockers(gh=gh, blockers=[blocker(number=18, state="open")])
+    offer_blockers(gh=gh, blockers=[compose_blocker(number=18, state="open")])
     offer_comments(gh=gh, comments=[say(identifier=1)])
     lead(harnesses=harnesses)
 
@@ -828,7 +828,7 @@ def test_the_three_kinds_take_turns_for_free_slots(cloned, gh, harnesses):
     conversation = parent_issue(labels=("dream:conversation",), number=8)
     list_parents(gh=gh, label="dream:conversation", issues=[conversation])
     gh.replies(
-        stdout=pages(items=[comment(id=1, body="Please explain.")]),
+        stdout=compose_page(items=[compose_comment(id=1, body="Please explain.")]),
         to=f"api repos/{REPOSITORY}/issues/8/comments?per_page=100",
     )
     harnesses["claude"].replies(stdout="")
@@ -857,7 +857,9 @@ def test_a_codex_lead_works_under_codexs_reviewer_without_a_final_file(
     harnesses["codex"].streams(
         lines=[
             Line(
-                text=streamed(type="thread.started", thread_id="lead-codex-session")
+                text=compose_stream_line(
+                    type="thread.started", thread_id="lead-codex-session"
+                )
                 + "\n"
             )
         ],
@@ -911,7 +913,7 @@ def test_a_parent_comment_wakes_the_lead_in_its_session_on_refreshed_main(
     )
     (root / "README.md").write_bytes(b"what main holds now\n")
     commit(path=root, message="change main")
-    git(arguments=["push", "origin", "main"], cwd=root)
+    run_git(arguments=["push", "origin", "main"], cwd=root)
     offer_parent(gh=gh)
     question = say(identifier=1, body="How far have the stages got?")
     offer_comments(gh=gh, comments=[question])
@@ -929,7 +931,7 @@ def test_a_parent_comment_wakes_the_lead_in_its_session_on_refreshed_main(
     given = read_lead_input(scheduler=scheduler, number=2)
     assert given.comments == [IssueComment.model_validate(question)]
     assert given.cursor == position(of=question)
-    assert given.revision == git(arguments=["rev-parse", "HEAD"], cwd=root).strip()
+    assert given.revision == run_git(arguments=["rev-parse", "HEAD"], cwd=root).strip()
     [call] = harnesses["claude"].calls
     assert call.arguments[-2:] == ["--resume", "lead-session"]
     assert call.prompt.startswith("Campaign input for parent issue GH20:")
@@ -1220,7 +1222,9 @@ def test_a_codex_lead_resumes_its_session_for_a_parent_comment(cloned, gh, harne
     harnesses["codex"].streams(
         lines=[
             Line(
-                text=streamed(type="thread.started", thread_id="lead-codex-session")
+                text=compose_stream_line(
+                    type="thread.started", thread_id="lead-codex-session"
+                )
                 + "\n"
             )
         ],
@@ -1267,7 +1271,7 @@ def sub_issue(
 
 def offer_children(*, gh, children: list[dict]) -> None:
     """Have GitHub list these children of the parent."""
-    gh.replies(stdout=pages(items=children), to=CHILDREN_PATH)
+    gh.replies(stdout=compose_page(items=children), to=CHILDREN_PATH)
 
 
 def settle_lead(
@@ -1448,10 +1452,10 @@ def test_a_settled_child_names_its_last_finished_turn_and_its_checks(
     offer_parent(gh=gh)
     offer_children(gh=gh, children=[sub_issue(number=FIRST_CHILD)])
     gh.replies(
-        stdout=pull_request(
+        stdout=compose_pull_request(
             state="OPEN",
             merge_state="UNKNOWN",
-            checks=[check_run(), check_run(status="IN_PROGRESS")],
+            checks=[compose_check_run(), compose_check_run(status="IN_PROGRESS")],
         ),
         to="pr view",
     )
@@ -1804,7 +1808,7 @@ def test_a_working_child_wakes_no_lead_round(campaign_scheduler, harnesses):
     )
     offer_parent(gh=gh)
     offer_children(gh=gh, children=[sub_issue(number=FIRST_CHILD, state="closed")])
-    gh.replies(stdout=pull_request(state="MERGED", head="f00d"), to="pr view")
+    gh.replies(stdout=compose_pull_request(state="MERGED", head="f00d"), to="pr view")
 
     observed = tick(scheduler=scheduler)
 
@@ -1836,7 +1840,9 @@ def test_a_failed_check_that_makes_a_repair_due_wakes_no_lead_round(
     offer_parent(gh=gh)
     offer_children(gh=gh, children=[sub_issue(number=FIRST_CHILD)])
     gh.replies(
-        stdout=pull_request(state="OPEN", checks=[check_run(conclusion="FAILURE")]),
+        stdout=compose_pull_request(
+            state="OPEN", checks=[compose_check_run(conclusion="FAILURE")]
+        ),
         to="pr view",
     )
 
@@ -1888,7 +1894,9 @@ def test_a_settled_childs_merge_state_wakes_the_lead_only_into_mergeable(
     )
     offer_parent(gh=gh)
     offer_children(gh=gh, children=[sub_issue(number=FIRST_CHILD)])
-    gh.replies(stdout=pull_request(state="OPEN", merge_state=seen), to="pr view")
+    gh.replies(
+        stdout=compose_pull_request(state="OPEN", merge_state=seen), to="pr view"
+    )
     lead(harnesses=harnesses)
 
     observed = tick(scheduler=scheduler)

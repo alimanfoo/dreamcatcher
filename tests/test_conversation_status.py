@@ -20,7 +20,7 @@ from records import (
     write_round,
     write_tick,
 )
-from rows import request_row
+from rows import compose_request_row
 
 from dreamcatcher.agent_rounds import (
     AgentRoundRecord,
@@ -168,7 +168,7 @@ def observe(
         tick=SchedulerRecord(
             at=LOOKED_AT,
             rows=[
-                request_row(
+                compose_request_row(
                     issue=8,
                     kind=AgentWorkKind.CONVERSATION,
                     agent_work_identifier=compose_conversation_identifier(issue=8),
@@ -766,7 +766,7 @@ def test_an_issue_with_a_comment_waiting_is_a_request_until_its_conversation_sta
     [request] = conversation_requests(
         state=state,
         rows=[
-            request_row(
+            compose_request_row(
                 issue=9,
                 kind=AgentWorkKind.CONVERSATION,
                 finding=IssueCommentsFinding(new_comments=1),
@@ -783,7 +783,7 @@ def test_an_issue_nobody_has_commented_on_waits_for_a_comment(tmp_path):
     [request] = conversation_requests(
         state=StateDirectory(root=tmp_path),
         rows=[
-            request_row(
+            compose_request_row(
                 issue=9,
                 kind=AgentWorkKind.CONVERSATION,
                 finding=IssueCommentsFinding(new_comments=0),
@@ -869,7 +869,7 @@ def test_the_report_lists_ended_conversations_apart_newest_first(tmp_path):
         tick=SchedulerRecord(
             at=PINNED,
             rows=[
-                request_row(
+                compose_request_row(
                     issue=10,
                     kind=AgentWorkKind.CONVERSATION,
                     finding=IssueCommentsFinding(new_comments=0),

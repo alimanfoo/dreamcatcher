@@ -9,10 +9,10 @@ from conftest import (
     HEAD,
     PULL_REQUEST,
     REPOSITORY,
-    comment,
     commit,
-    git,
-    pull_requests,
+    compose_comment,
+    compose_pull_request_listing,
+    run_git,
 )
 from records import (
     read_assignments,
@@ -146,11 +146,11 @@ def test_an_assignment_cuts_a_branch_of_its_own_from_origins_main_as_it_is_now(
 ):
     # Move origin's main on, then leave the checkout believing what it knew
     # before. Only a fetch of its own brings the creation the newer main.
-    known = git(arguments=["rev-parse", "origin/main"], cwd=state.root).strip()
+    known = run_git(arguments=["rev-parse", "origin/main"], cwd=state.root).strip()
     (state.root / "later.txt").write_text("main moved on\n", encoding="utf-8")
     commit(path=state.root, message="move main on")
-    git(arguments=["push", "origin", "main"], cwd=state.root)
-    git(arguments=["update-ref", "refs/remotes/origin/main", known], cwd=state.root)
+    run_git(arguments=["push", "origin", "main"], cwd=state.root)
+    run_git(arguments=["update-ref", "refs/remotes/origin/main", known], cwd=state.root)
 
     assignment = open_assignment(
         state=state,
@@ -161,9 +161,9 @@ def test_an_assignment_cuts_a_branch_of_its_own_from_origins_main_as_it_is_now(
     )
 
     assert compose_assignment_branch(identifier=assignment.identifier) == BRANCH
-    assert BRANCH in git(arguments=["branch", "--list", BRANCH], cwd=state.root)
+    assert BRANCH in run_git(arguments=["branch", "--list", BRANCH], cwd=state.root)
     assert (assignment.worktree / "later.txt").exists()
-    message = git(
+    message = run_git(
         arguments=["log", "-1", "--format=%s"], cwd=assignment.worktree
     ).strip()
     assert message == "GH12 [skip ci]"
@@ -219,7 +219,7 @@ def test_an_assignment_is_recorded_before_any_git_or_github_step(state, route, g
     assert read_assignments(state=state) == [assignment]
     assert not assignment.worktree.exists()
     assert read_assignment_pull_request_number(assignment=assignment) is None
-    assert git(arguments=["branch", "--list", BRANCH], cwd=state.root) == ""
+    assert run_git(arguments=["branch", "--list", BRANCH], cwd=state.root) == ""
     assert gh.calls == []
 
 
@@ -501,7 +501,7 @@ def test_an_assignment_git_cannot_cut_leaves_no_branch_behind(state, route):
             at=PINNED,
         )
 
-    assert git(arguments=["branch", "--list", BRANCH], cwd=state.root) == ""
+    assert run_git(arguments=["branch", "--list", BRANCH], cwd=state.root) == ""
 
 
 @pytest.mark.parametrize("checkpoint", ["worktree", "commit", "push", "pull request"])
@@ -517,14 +517,20 @@ def test_a_first_round_continues_from_what_an_earlier_attempt_left(
     if checkpoint in {"push", "pull request"}:
         push_branch(root=state.root, branch=BRANCH)
     if checkpoint == "pull request":
-        gh.replies(stdout=pull_requests(numbers=[PULL_REQUEST]), to="pr list")
+        gh.replies(
+            stdout=compose_pull_request_listing(numbers=[PULL_REQUEST]), to="pr list"
+        )
 
     open_pull_request(state=state, assignment=assignment)
 
     assert read_assignment_pull_request_number(assignment=assignment) == PULL_REQUEST
-    commits = git(arguments=["rev-list", "--count", "origin/main..HEAD"], cwd=worktree)
+    commits = run_git(
+        arguments=["rev-list", "--count", "origin/main..HEAD"], cwd=worktree
+    )
     assert commits.strip() == "1"
-    remote = git(arguments=["ls-remote", "--heads", "origin", BRANCH], cwd=state.root)
+    remote = run_git(
+        arguments=["ls-remote", "--heads", "origin", BRANCH], cwd=state.root
+    )
     assert f"refs/heads/{BRANCH}" in remote
     created = [call for call in gh.calls if call.arguments[:2] == ["pr", "create"]]
     assert len(created) == (0 if checkpoint == "pull request" else 1)
@@ -543,7 +549,7 @@ def test_a_pull_request_listing_failure_leaves_the_round_to_try_again(state, rou
 
 def test_several_pull_requests_on_the_assignments_branch_are_reported(state, route, gh):
     gh.replies(
-        stdout=pull_requests(numbers=[PULL_REQUEST, 53]),
+        stdout=compose_pull_request_listing(numbers=[PULL_REQUEST, 53]),
         to="pr list",
     )
     assignment = record_assignment(state=state, route=route)
@@ -563,7 +569,9 @@ def test_a_created_pull_request_that_cannot_be_read_is_adopted_next_time(
     ):
         open_pull_request(state=state, assignment=assignment)
 
-    gh.replies(stdout=pull_requests(numbers=[PULL_REQUEST]), to="pr list")
+    gh.replies(
+        stdout=compose_pull_request_listing(numbers=[PULL_REQUEST]), to="pr list"
+    )
     open_pull_request(state=state, assignment=assignment)
 
     assert read_assignment_pull_request_number(assignment=assignment) == PULL_REQUEST
@@ -658,7 +666,9 @@ def test_an_assignment_reads_back_its_user_post_cursor(state, route):
             pull_request_head=HEAD,
             signals=[],
             user_posts=[
-                IssueComment.model_validate(comment(created_at="2026-09-03T22:31:51Z"))
+                IssueComment.model_validate(
+                    compose_comment(created_at="2026-09-03T22:31:51Z")
+                )
             ],
         ),
     )
@@ -681,7 +691,11 @@ def test_the_user_post_cursor_scans_past_an_input_that_relayed_no_posts(state, r
     for number, posts in (
         (
             1,
-            [IssueComment.model_validate(comment(created_at="2026-09-03T22:31:51Z"))],
+            [
+                IssueComment.model_validate(
+                    compose_comment(created_at="2026-09-03T22:31:51Z")
+                )
+            ],
         ),
         (2, []),
     ):

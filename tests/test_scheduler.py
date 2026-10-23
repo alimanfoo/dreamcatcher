@@ -16,18 +16,18 @@ from conftest import (
     PULL_REQUEST,
     REPOSITORY,
     SMITH_CLAUDE,
-    comment,
+    compose_comment,
+    compose_issue_listing,
+    compose_page,
+    compose_pull_request,
+    compose_pull_request_listing,
     configure,
-    git,
-    listing,
-    pages,
-    pull_request,
-    pull_requests,
+    run_git,
 )
 from fakes import Line
 from pydantic import ValidationError
 from records import MERGED_INPUT, read_assignments, write_assignment, write_round
-from rows import UNCLAIMED, request_row
+from rows import UNCLAIMED, compose_request_row
 
 import dreamcatcher.scheduler.tick as tick_module
 from dreamcatcher.agent_assignments import (
@@ -261,7 +261,7 @@ def test_a_tick_assigns_the_oldest_issue_nothing_stands_in_the_way_of(
     assert (assignment / "work.json").exists()
     assert observed.launched_agent_work_identifiers == [CREATED_ASSIGNMENT_ID]
     assert observed.rows == [
-        request_row(
+        compose_request_row(
             issue=8,
             agent_work_identifier=CREATED_ASSIGNMENT_ID,
             finding=UNCLAIMED,
@@ -296,7 +296,9 @@ def test_a_new_assignments_round_records_what_caused_it_and_what_it_said(
 
 def test_a_tick_fills_free_capacity_with_available_issues(ready_repo, offered):
     offered.replies(
-        stdout=listing(issues=[(8, FILED), (9, LATER), (10, "2026-08-21T01:00:00Z")]),
+        stdout=compose_issue_listing(
+            issues=[(8, FILED), (9, LATER), (10, "2026-08-21T01:00:00Z")]
+        ),
         to="issue list",
     )
     scheduler, clock = create_scheduler(root=ready_repo, max_agents=2)
@@ -309,19 +311,19 @@ def test_a_tick_fills_free_capacity_with_available_issues(ready_repo, offered):
     ]
     assert scheduler.is_at_capacity
     assert observed.rows == [
-        request_row(
+        compose_request_row(
             issue=8,
             agent_work_identifier=CREATED_ASSIGNMENT_ID,
             finding=UNCLAIMED,
             started_round=StartedRound(number=1),
         ),
-        request_row(
+        compose_request_row(
             issue=9,
             agent_work_identifier="GH9-20260819-184158-assignment",
             finding=UNCLAIMED,
             started_round=StartedRound(number=1),
         ),
-        request_row(issue=10, finding=UNCLAIMED),
+        compose_request_row(issue=10, finding=UNCLAIMED),
     ]
     assert (
         scheduler.context.state.worktrees / "GH9-20260819-184158-assignment"
@@ -335,7 +337,7 @@ def test_a_failed_launch_goes_on_to_the_next_candidate(
     ready_repo, offered, monkeypatch
 ):
     offered.replies(
-        stdout=listing(
+        stdout=compose_issue_listing(
             issues=[
                 (8, FILED),
                 (9, LATER),
@@ -360,7 +362,7 @@ def test_a_failed_launch_goes_on_to_the_next_candidate(
         "GH10-20260819-184158-assignment",
     ]
     assert observed.failures == ["could not create an assignment for GH9"]
-    assert observed.rows[1] == request_row(issue=9, finding=UNCLAIMED)
+    assert observed.rows[1] == compose_request_row(issue=9, finding=UNCLAIMED)
 
 
 def test_a_round_that_cannot_open_its_pull_request_is_named_in_its_row(
@@ -415,7 +417,7 @@ def test_a_completed_assignment_releases_its_issue(ready_repo):
 
     assert observed.launched_agent_work_identifiers == [CREATED_ASSIGNMENT_ID]
     assert observed.rows == [
-        request_row(
+        compose_request_row(
             issue=8,
             agent_work_identifier=CREATED_ASSIGNMENT_ID,
             finding=UNCLAIMED,
@@ -448,13 +450,13 @@ def test_a_tick_at_the_cap_holds_an_assignment_that_needs_a_round(
     # The first tick assigned issue 8, and its round is what fills the cap,
     # so the assignment already on disk is the one the cap holds.
     assert observed.rows == [
-        request_row(
+        compose_request_row(
             issue=13,
             agent_work_identifier=ASSIGNMENT_ID,
             ended_round=1,
             finding=NOTHING_NEW,
         ),
-        request_row(
+        compose_request_row(
             issue=8,
             agent_work_identifier=CREATED_ASSIGNMENT_ID,
             finding=NOTHING_NEW,
@@ -480,7 +482,7 @@ def test_a_tick_at_the_cap_leaves_a_wound_up_assignment_waiting_on_nothing(
     observed = scheduler.tick(at=clock())
 
     assert observed.rows == [
-        request_row(
+        compose_request_row(
             issue=8,
             agent_work_identifier=CREATED_ASSIGNMENT_ID,
             finding=NOTHING_NEW,
@@ -492,7 +494,9 @@ def test_a_tick_at_the_cap_refreshes_the_candidates(ready_repo, offered, harness
     harnesses["claude"].streams(
         lines=[Line(text="still working\n")], delay=STILL_RUNNING
     )
-    offered.replies(stdout=listing(issues=[(8, FILED), (9, LATER)]), to="issue list")
+    offered.replies(
+        stdout=compose_issue_listing(issues=[(8, FILED), (9, LATER)]), to="issue list"
+    )
     scheduler, clock = create_scheduler(root=ready_repo)
 
     observed = scheduler.tick(at=clock())
@@ -500,12 +504,12 @@ def test_a_tick_at_the_cap_refreshes_the_candidates(ready_repo, offered, harness
 
     assert scheduler.is_at_capacity
     assert observed.rows == [
-        request_row(
+        compose_request_row(
             issue=8,
             agent_work_identifier=CREATED_ASSIGNMENT_ID,
             finding=NOTHING_NEW,
         ),
-        request_row(issue=9, finding=UNCLAIMED),
+        compose_request_row(issue=9, finding=UNCLAIMED),
     ]
 
 
@@ -534,13 +538,13 @@ def test_a_tick_at_the_cap_records_a_candidate_listing_failure(
     assert failure.startswith("could not list issues for dream:smith: ")
     assert "could not connect" in failure
     assert observed.rows == [
-        request_row(
+        compose_request_row(
             issue=13,
             agent_work_identifier=ASSIGNMENT_ID,
             ended_round=1,
             finding=NOTHING_NEW,
         ),
-        request_row(
+        compose_request_row(
             issue=8,
             agent_work_identifier=CREATED_ASSIGNMENT_ID,
             finding=NOTHING_NEW,
@@ -550,7 +554,7 @@ def test_a_tick_at_the_cap_records_a_candidate_listing_failure(
 
 def test_a_tick_with_nothing_eligible_starts_no_assignment(ready_repo, offered):
     offered.replies(
-        stdout=pages(
+        stdout=compose_page(
             items=[
                 {
                     "number": 7,
@@ -567,7 +571,7 @@ def test_a_tick_with_nothing_eligible_starts_no_assignment(ready_repo, offered):
 
     assert observed.launched_agent_work_identifiers == []
     assert observed.rows == [
-        request_row(
+        compose_request_row(
             issue=8,
             finding=StartTimeFinding(
                 linked_pull_requests=[], blocking_issues=[IssueReference(number=7)]
@@ -607,8 +611,10 @@ def test_one_faulted_assignment_does_not_block_unrelated_work(ready_repo):
 
     assert observed.launched_agent_work_identifiers == [CREATED_ASSIGNMENT_ID]
     assert observed.rows == [
-        request_row(issue=13, agent_work_identifier=ASSIGNMENT_ID, ended_round=2),
-        request_row(
+        compose_request_row(
+            issue=13, agent_work_identifier=ASSIGNMENT_ID, ended_round=2
+        ),
+        compose_request_row(
             issue=8,
             agent_work_identifier=CREATED_ASSIGNMENT_ID,
             finding=UNCLAIMED,
@@ -623,9 +629,10 @@ def test_a_deleted_assignment_worktree_errors_twice_while_other_work_runs(
     ran(root=resuming, number=1)
     missing_worktree = StateDirectory(root=resuming).worktrees / ASSIGNMENT_ID
     missing_worktree.rmdir()
-    gh.replies(stdout=pull_request(state="OPEN"), to="pr view")
+    gh.replies(stdout=compose_pull_request(state="OPEN"), to="pr view")
     gh.replies(
-        stdout=pages(items=[comment()]), to=f"api {POST_LIST_PATHS['conversation']}"
+        stdout=compose_page(items=[compose_comment()]),
+        to=f"api {POST_LIST_PATHS['conversation']}",
     )
     scheduler, clock = create_scheduler(root=resuming)
 
@@ -667,14 +674,14 @@ def test_a_user_retry_clears_one_fault_and_starts_a_round(ready_repo):
 
     assert observed.launched_agent_work_identifiers == [ASSIGNMENT_ID]
     assert observed.rows == [
-        request_row(
+        compose_request_row(
             issue=13,
             agent_work_identifier=ASSIGNMENT_ID,
             ended_round=2,
             finding=NOTHING_NEW,
             started_round=StartedRound(number=3),
         ),
-        request_row(issue=8, finding=UNCLAIMED),
+        compose_request_row(issue=8, finding=UNCLAIMED),
     ]
 
 
@@ -704,7 +711,7 @@ def test_a_running_assignment_is_observed_without_starting_another_round(
 
     scheduler.tick(at=clock())
     gh.replies(
-        stdout=pages(items=[comment()]),
+        stdout=compose_page(items=[compose_comment()]),
         to=f"api {POST_LIST_PATHS['conversation']}",
     )
     observed = scheduler.tick(at=clock())
@@ -721,7 +728,7 @@ def test_a_running_assignment_is_observed_without_starting_another_round(
         is None
     )
     assert observed.rows == [
-        request_row(
+        compose_request_row(
             issue=8,
             agent_work_identifier=CREATED_ASSIGNMENT_ID,
             finding=NOTHING_NEW.model_copy(update={"new_posts": 1}),
@@ -739,7 +746,7 @@ def test_an_ended_round_is_inspected_while_its_runner_finishes(resuming):
     observed = scheduler.tick(at=clock())
 
     assert observed.rows == [
-        request_row(
+        compose_request_row(
             issue=13,
             agent_work_identifier=ASSIGNMENT_ID,
             ended_round=1,
@@ -750,9 +757,10 @@ def test_an_ended_round_is_inspected_while_its_runner_finishes(resuming):
 
 def test_a_round_that_replaces_a_finishing_runner_is_reported(resuming, gh):
     ran(root=resuming, number=1)
-    gh.replies(stdout=pull_request(state="OPEN"), to="pr view")
+    gh.replies(stdout=compose_pull_request(state="OPEN"), to="pr view")
     gh.replies(
-        stdout=pages(items=[comment()]), to=f"api {POST_LIST_PATHS['conversation']}"
+        stdout=compose_page(items=[compose_comment()]),
+        to=f"api {POST_LIST_PATHS['conversation']}",
     )
     scheduler, clock = create_scheduler(root=resuming, max_agents=2)
     scheduler.rounds[ASSIGNMENT_ID] = Mock(is_alive=True)
@@ -767,8 +775,8 @@ def test_an_assignment_with_nothing_new_reads_only_its_pull_request_and_posts(
     resuming, gh
 ):
     ran(root=resuming, number=1)
-    gh.replies(stdout=listing(issues=[(13, FILED)]), to="issue list")
-    gh.replies(stdout=pull_request(state="OPEN"), to="pr view")
+    gh.replies(stdout=compose_issue_listing(issues=[(13, FILED)]), to="issue list")
+    gh.replies(stdout=compose_pull_request(state="OPEN"), to="pr view")
     scheduler, clock = create_scheduler(root=resuming)
 
     observed = scheduler.tick(at=clock())
@@ -777,7 +785,7 @@ def test_an_assignment_with_nothing_new_reads_only_its_pull_request_and_posts(
     assignment = read_assignments(state=scheduler.context.state)[0]
     assert assignment.record.title == "Issue 13"
     assert observed.rows == [
-        request_row(
+        compose_request_row(
             issue=13,
             agent_work_identifier=ASSIGNMENT_ID,
             ended_round=1,
@@ -883,7 +891,9 @@ def test_a_round_after_one_that_failed_part_way_finishes_its_preparation(
     if checkpoint in {"push", "pull request"}:
         push_branch(root=ready_repo, branch=branch)
     if checkpoint == "pull request":
-        offered.replies(stdout=pull_requests(numbers=[PULL_REQUEST]), to="pr list")
+        offered.replies(
+            stdout=compose_pull_request_listing(numbers=[PULL_REQUEST]), to="pr list"
+        )
     scheduler, clock = create_scheduler(root=ready_repo)
 
     observed = scheduler.tick(at=clock())
@@ -891,9 +901,13 @@ def test_a_round_after_one_that_failed_part_way_finishes_its_preparation(
 
     assert observed.launched_agent_work_identifiers == [ASSIGNMENT_ID]
     assert record_of(scheduler=scheduler, number=2).number == 2
-    commits = git(arguments=["rev-list", "--count", "origin/main..HEAD"], cwd=worktree)
+    commits = run_git(
+        arguments=["rev-list", "--count", "origin/main..HEAD"], cwd=worktree
+    )
     assert commits.strip() == "1"
-    remote = git(arguments=["ls-remote", "--heads", "origin", branch], cwd=ready_repo)
+    remote = run_git(
+        arguments=["ls-remote", "--heads", "origin", branch], cwd=ready_repo
+    )
     assert f"refs/heads/{branch}" in remote
     created = [call for call in offered.calls if call.arguments[:2] == ["pr", "create"]]
     assert len(created) == (0 if checkpoint == "pull request" else 1)
@@ -913,7 +927,7 @@ def test_an_assignment_with_a_round_that_has_no_ending_starts_nothing(resuming):
 
     assert observed.launched_agent_work_identifiers == []
     assert observed.rows == [
-        request_row(
+        compose_request_row(
             issue=13,
             agent_work_identifier=ASSIGNMENT_ID,
             finding=NOTHING_NEW,
@@ -1014,7 +1028,9 @@ def test_an_unfinished_round_without_a_harness_session_starts_a_new_session(
     )
     assert "--resume" not in harnesses["claude"].calls[-1].arguments
     assert faulted.rows == [
-        request_row(issue=13, agent_work_identifier=ASSIGNMENT_ID, ended_round=2)
+        compose_request_row(
+            issue=13, agent_work_identifier=ASSIGNMENT_ID, ended_round=2
+        )
     ]
 
 
@@ -1023,9 +1039,10 @@ def test_a_follow_up_without_a_harness_session_starts_a_new_one_with_its_input(
 ):
     ran(root=resuming, number=1)
     forget_harness_session_identifier(root=resuming)
-    gh.replies(stdout=pull_request(state="OPEN"), to="pr view")
+    gh.replies(stdout=compose_pull_request(state="OPEN"), to="pr view")
     gh.replies(
-        stdout=pages(items=[comment()]), to=f"api {POST_LIST_PATHS['conversation']}"
+        stdout=compose_page(items=[compose_comment()]),
+        to=f"api {POST_LIST_PATHS['conversation']}",
     )
     scheduler, clock = create_scheduler(root=resuming)
 
@@ -1044,9 +1061,10 @@ def test_a_terminal_round_after_an_error_without_a_session_receives_wrap_up_inpu
 ):
     ran(root=resuming, number=1, status=1)
     forget_harness_session_identifier(root=resuming)
-    gh.replies(stdout=pull_request(state="MERGED"), to="pr view")
+    gh.replies(stdout=compose_pull_request(state="MERGED"), to="pr view")
     gh.replies(
-        stdout=pages(items=[comment()]), to=f"api {POST_LIST_PATHS['conversation']}"
+        stdout=compose_page(items=[compose_comment()]),
+        to=f"api {POST_LIST_PATHS['conversation']}",
     )
     scheduler, clock = create_scheduler(root=resuming)
 
@@ -1069,9 +1087,10 @@ def test_a_terminal_round_after_an_error_without_a_session_receives_wrap_up_inpu
 def test_a_round_after_an_errored_one_is_given_its_posts_again(resuming, gh, harnesses):
     ran(root=resuming, number=1, status=1)
     forget_harness_session_identifier(root=resuming)
-    gh.replies(stdout=pull_request(state="MERGED"), to="pr view")
+    gh.replies(stdout=compose_pull_request(state="MERGED"), to="pr view")
     gh.replies(
-        stdout=pages(items=[comment()]), to=f"api {POST_LIST_PATHS['conversation']}"
+        stdout=compose_page(items=[compose_comment()]),
+        to=f"api {POST_LIST_PATHS['conversation']}",
     )
     harnesses["claude"].streams(lines=[], status=1)
     scheduler, clock = create_scheduler(root=resuming)
@@ -1125,9 +1144,10 @@ def test_a_round_after_an_interrupted_one_is_given_the_input_again(resuming):
 
 def test_an_assignment_the_user_has_posted_on_is_told_what_they_said(resuming, gh):
     ran(root=resuming, number=1)
-    gh.replies(stdout=pull_request(state="OPEN"), to="pr view")
+    gh.replies(stdout=compose_pull_request(state="OPEN"), to="pr view")
     gh.replies(
-        stdout=pages(items=[comment()]), to=f"api {POST_LIST_PATHS['conversation']}"
+        stdout=compose_page(items=[compose_comment()]),
+        to=f"api {POST_LIST_PATHS['conversation']}",
     )
     scheduler, clock = create_scheduler(root=resuming)
 
@@ -1141,7 +1161,7 @@ def test_an_assignment_the_user_has_posted_on_is_told_what_they_said(resuming, g
     assert round_input["pull_request_state"] == "OPEN"
     assert [post["kind"] for post in round_input["user_posts"]] == ["comment"]
     assert observed.rows == [
-        request_row(
+        compose_request_row(
             issue=13,
             agent_work_identifier=ASSIGNMENT_ID,
             ended_round=1,
@@ -1172,9 +1192,10 @@ def test_an_assignment_the_user_has_posted_on_is_told_what_they_said(resuming, g
 
 def test_an_assignment_receives_a_batch_only_once(resuming, gh):
     ran(root=resuming, number=1)
-    gh.replies(stdout=pull_request(state="OPEN"), to="pr view")
+    gh.replies(stdout=compose_pull_request(state="OPEN"), to="pr view")
     gh.replies(
-        stdout=pages(items=[comment()]), to=f"api {POST_LIST_PATHS['conversation']}"
+        stdout=compose_page(items=[compose_comment()]),
+        to=f"api {POST_LIST_PATHS['conversation']}",
     )
     scheduler, clock = create_scheduler(root=resuming)
 
@@ -1191,9 +1212,10 @@ def test_a_batch_no_round_ever_launched_is_read_again_next_tick(
     resuming, gh, harnesses
 ):
     ran(root=resuming, number=1)
-    gh.replies(stdout=pull_request(state="OPEN"), to="pr view")
+    gh.replies(stdout=compose_pull_request(state="OPEN"), to="pr view")
     gh.replies(
-        stdout=pages(items=[comment()]), to=f"api {POST_LIST_PATHS['conversation']}"
+        stdout=compose_page(items=[compose_comment()]),
+        to=f"api {POST_LIST_PATHS['conversation']}",
     )
     # A file where the round's own directory goes, so no round can ever start.
     occupied = StateDirectory(root=resuming).work / ASSIGNMENT_ID / "rounds" / "2"
@@ -1215,7 +1237,7 @@ def test_a_batch_no_round_ever_launched_is_read_again_next_tick(
 @pytest.mark.parametrize("state_name", ["MERGED", "CLOSED"])
 def test_a_pull_request_that_is_finished_gets_one_last_round(resuming, gh, state_name):
     ran(root=resuming, number=1)
-    gh.replies(stdout=pull_request(state=state_name), to="pr view")
+    gh.replies(stdout=compose_pull_request(state=state_name), to="pr view")
     scheduler, clock = create_scheduler(root=resuming)
 
     observed = scheduler.tick(at=clock())
@@ -1237,7 +1259,7 @@ def test_a_pull_request_that_is_finished_gets_one_last_round(resuming, gh, state
 
 def test_a_last_round_that_fails_leaves_its_assignment_open(resuming, gh, harnesses):
     ran(root=resuming, number=1)
-    gh.replies(stdout=pull_request(state="MERGED"), to="pr view")
+    gh.replies(stdout=compose_pull_request(state="MERGED"), to="pr view")
     harnesses["claude"].streams(lines=[], status=1)
     scheduler, clock = create_scheduler(root=resuming)
 
@@ -1251,7 +1273,7 @@ def test_a_last_round_that_fails_leaves_its_assignment_open(resuming, gh, harnes
 def test_an_assignment_that_has_had_its_last_round_gets_no_other(resuming, gh):
     ran(root=resuming, number=1)
     ran(root=resuming, number=2, round_input=MERGED_INPUT)
-    gh.replies(stdout=pull_request(state="MERGED"), to="pr view")
+    gh.replies(stdout=compose_pull_request(state="MERGED"), to="pr view")
     scheduler, clock = create_scheduler(root=resuming)
 
     observed = scheduler.tick(at=clock())
@@ -1274,7 +1296,7 @@ def test_a_last_round_that_was_interrupted_is_carried_on_as_the_last_round(
             ending=InterruptedAgentRoundEnding(),
         ),
     )
-    gh.replies(stdout=pull_request(state="MERGED"), to="pr view")
+    gh.replies(stdout=compose_pull_request(state="MERGED"), to="pr view")
     scheduler, clock = create_scheduler(root=resuming)
 
     scheduler.tick(at=clock())
@@ -1304,14 +1326,14 @@ def test_open_work_is_carried_on_before_a_new_issue_is_assigned(resuming, gh, of
     assert observed.launched_agent_work_identifiers == [ASSIGNMENT_ID]
     assert not (scheduler.context.state.worktrees / CREATED_ASSIGNMENT_ID).exists()
     assert observed.rows == [
-        request_row(
+        compose_request_row(
             issue=13,
             agent_work_identifier=ASSIGNMENT_ID,
             ended_round=1,
             finding=NOTHING_NEW,
             started_round=StartedRound(number=2),
         ),
-        request_row(issue=8, finding=UNCLAIMED),
+        compose_request_row(issue=8, finding=UNCLAIMED),
     ]
 
 
@@ -1337,14 +1359,14 @@ def test_a_failed_issue_listing_starts_nothing_for_its_label_alone(ready_repo, o
         CREATED_ASSIGNMENT_ID,
     ]
     assert observed.rows == [
-        request_row(
+        compose_request_row(
             issue=13,
             agent_work_identifier=ASSIGNMENT_ID,
             ended_round=1,
             finding=NOTHING_NEW,
             started_round=StartedRound(number=2),
         ),
-        request_row(
+        compose_request_row(
             issue=8,
             agent_work_identifier=CREATED_ASSIGNMENT_ID,
             finding=UNCLAIMED,
@@ -1366,11 +1388,13 @@ def test_two_faulted_assignments_start_a_global_cooldown(ready_repo):
     )
     assert observed.failures == []
     assert observed.rows == [
-        request_row(issue=13, agent_work_identifier=ASSIGNMENT_ID, ended_round=2),
-        request_row(
+        compose_request_row(
+            issue=13, agent_work_identifier=ASSIGNMENT_ID, ended_round=2
+        ),
+        compose_request_row(
             issue=14, agent_work_identifier=SECOND_ASSIGNMENT_ID, ended_round=2
         ),
-        request_row(issue=8, finding=UNCLAIMED),
+        compose_request_row(issue=8, finding=UNCLAIMED),
     ]
 
 
@@ -1424,20 +1448,20 @@ def test_the_cooldown_boundary_clears_faults_and_permits_rounds(ready_repo):
     assert observed.most_recent_cooldown_ended == PINNED
     assert observed.launched_agent_work_identifiers == [ASSIGNMENT_ID]
     assert observed.rows == [
-        request_row(
+        compose_request_row(
             issue=13,
             agent_work_identifier=ASSIGNMENT_ID,
             ended_round=2,
             finding=NOTHING_NEW,
             started_round=StartedRound(number=3),
         ),
-        request_row(
+        compose_request_row(
             issue=14,
             agent_work_identifier=SECOND_ASSIGNMENT_ID,
             ended_round=2,
             finding=NOTHING_NEW,
         ),
-        request_row(issue=8, finding=UNCLAIMED),
+        compose_request_row(issue=8, finding=UNCLAIMED),
     ]
 
     finish_rounds(scheduler=scheduler)

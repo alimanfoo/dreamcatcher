@@ -5,7 +5,7 @@ from datetime import timedelta
 
 import pytest
 from clocks import PINNED
-from conftest import ASSIGNMENT_LABEL, PULL_REQUEST, REPOSITORY, comment
+from conftest import ASSIGNMENT_LABEL, PULL_REQUEST, REPOSITORY, compose_comment
 from records import (
     HEAD,
     MERGED_INPUT,
@@ -17,7 +17,7 @@ from records import (
     write_round,
     write_tick,
 )
-from rows import UNCLAIMED, request_row
+from rows import UNCLAIMED, compose_request_row
 from status_fabrications import compose_feed_line, fabricate_everything
 
 from dreamcatcher.agent_assignments import (
@@ -178,7 +178,7 @@ def pull_request_row(
     The tick read the assignment once its first round had ended, unless the
     test says otherwise.
     """
-    return request_row(
+    return compose_request_row(
         issue=13,
         agent_work_identifier=ASSIGNMENT_ID,
         ended_round=ended_round,
@@ -669,7 +669,7 @@ def test_a_round_says_which_signals_woke_it(state, signals, posts, trigger):
             pull_request_state=PullRequestState.OPEN,
             pull_request_head=HEAD,
             signals=signals,
-            user_posts=[IssueComment.model_validate(comment())] * posts,
+            user_posts=[IssueComment.model_validate(compose_comment())] * posts,
         ),
     )
 
@@ -701,7 +701,8 @@ def test_a_round_with_no_input_was_the_start(state):
 def test_an_assignment_the_tick_read_nothing_for_reports_no_pull_request_summary(state):
     ran(state=state, number=1, status=None)
     tick_with(
-        state=state, rows=[request_row(issue=13, agent_work_identifier=ASSIGNMENT_ID)]
+        state=state,
+        rows=[compose_request_row(issue=13, agent_work_identifier=ASSIGNMENT_ID)],
     )
 
     assert only_assignment(state=state).pull_request_summary is None
@@ -723,7 +724,8 @@ def test_a_wrapped_up_assignment_reports_the_state_its_last_round_was_given(
     ran(state=state, number=1)
     ran(state=state, number=2, status=status, round_input=MERGED_INPUT)
     tick_with(
-        state=state, rows=[request_row(issue=13, agent_work_identifier=ASSIGNMENT_ID)]
+        state=state,
+        rows=[compose_request_row(issue=13, agent_work_identifier=ASSIGNMENT_ID)],
     )
 
     assert only_assignment(state=state).pull_request_summary == "merged"
@@ -772,7 +774,7 @@ def test_a_failed_read_makes_the_assignment_unknown_with_the_reason(state):
     tick_with(
         state=state,
         rows=[
-            request_row(
+            compose_request_row(
                 issue=13,
                 agent_work_identifier=ASSIGNMENT_ID,
                 finding=ReadFailureFinding(reason="unavailable"),
@@ -1013,7 +1015,7 @@ def test_a_stopped_daemon_has_no_current_scheduler_failures(state):
 
 
 def test_a_blocked_request_names_its_claims_and_blockers_as_numbers(state):
-    blocked = request_row(
+    blocked = compose_request_row(
         issue=20,
         finding=StartTimeFinding(
             linked_pull_requests=[28],
@@ -1044,7 +1046,7 @@ def test_a_blocked_request_names_its_claims_and_blockers_as_numbers(state):
 
 
 def test_a_campaign_request_names_the_issues_that_block_its_parent(state):
-    blocked = request_row(
+    blocked = compose_request_row(
         issue=20,
         kind=AgentWorkKind.CAMPAIGN,
         finding=BlockingIssuesFinding(
@@ -1079,7 +1081,7 @@ def test_a_request_that_an_open_pull_request_claims_is_blocked(state):
         tick=SchedulerRecord(
             at=PINNED,
             rows=[
-                request_row(
+                compose_request_row(
                     issue=20,
                     finding=StartTimeFinding(
                         linked_pull_requests=[28], blocking_issues=[]
@@ -1102,7 +1104,9 @@ def test_an_assignment_whose_pull_request_is_not_yet_open_waits_for_it(tmp_path)
     tick_with(
         state=state,
         rows=[
-            request_row(issue=13, agent_work_identifier=ASSIGNMENT_ID, ended_round=1)
+            compose_request_row(
+                issue=13, agent_work_identifier=ASSIGNMENT_ID, ended_round=1
+            )
         ],
     )
 
@@ -1116,7 +1120,7 @@ def test_a_request_nothing_claims_or_blocks_is_available(state):
     write_tick(
         state=state,
         tick=SchedulerRecord(
-            at=PINNED, rows=[request_row(issue=20, finding=UNCLAIMED)]
+            at=PINNED, rows=[compose_request_row(issue=20, finding=UNCLAIMED)]
         ),
     )
 
@@ -1133,8 +1137,8 @@ def test_two_labels_of_one_kind_are_a_routing_conflict_named_in_each_row(state):
         tick=SchedulerRecord(
             at=PINNED,
             rows=[
-                request_row(issue=20, label="dream:less", finding=conflict),
-                request_row(issue=20, finding=conflict),
+                compose_request_row(issue=20, label="dream:less", finding=conflict),
+                compose_request_row(issue=20, finding=conflict),
             ],
         ),
     )
@@ -1156,7 +1160,9 @@ def test_a_request_whose_read_failed_is_unknown_with_the_reason(state):
         tick=SchedulerRecord(
             at=PINNED,
             rows=[
-                request_row(issue=20, finding=ReadFailureFinding(reason="gh: offline"))
+                compose_request_row(
+                    issue=20, finding=ReadFailureFinding(reason="gh: offline")
+                )
             ],
         ),
     )
@@ -1173,7 +1179,7 @@ def test_a_request_that_led_to_open_work_is_reported_through_its_work(state):
         tick=SchedulerRecord(
             at=PINNED,
             rows=[
-                request_row(
+                compose_request_row(
                     issue=13, agent_work_identifier=ASSIGNMENT_ID, finding=UNCLAIMED
                 )
             ],
@@ -1189,8 +1195,8 @@ def test_requests_keep_the_order_the_tick_saw_them_in(state):
         tick=SchedulerRecord(
             at=PINNED,
             rows=[
-                request_row(issue=21, finding=UNCLAIMED),
-                request_row(issue=20, finding=UNCLAIMED),
+                compose_request_row(issue=21, finding=UNCLAIMED),
+                compose_request_row(issue=20, finding=UNCLAIMED),
             ],
         ),
     )

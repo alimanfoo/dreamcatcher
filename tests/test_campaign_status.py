@@ -18,7 +18,7 @@ from records import (
     write_round,
     write_tick,
 )
-from rows import UNCLAIMED, request_row
+from rows import UNCLAIMED, compose_request_row
 
 from dreamcatcher.agent_rounds import (
     AgentRoundRecord,
@@ -149,7 +149,7 @@ def observe(
         tick=SchedulerRecord(
             at=PINNED,
             rows=[
-                request_row(
+                compose_request_row(
                     issue=PARENT,
                     kind=AgentWorkKind.CAMPAIGN,
                     agent_work_identifier=compose_campaign_identifier(issue=PARENT),
@@ -183,7 +183,7 @@ def test_a_labelled_parent_with_no_campaign_yet_is_available(tmp_path):
         tick=SchedulerRecord(
             at=PINNED,
             rows=[
-                request_row(
+                compose_request_row(
                     issue=PARENT, kind=AgentWorkKind.CAMPAIGN, finding=NOTHING_NEW
                 )
             ],
@@ -446,8 +446,8 @@ def test_each_child_of_an_active_campaign_has_its_assignment_and_requests(state)
         ended_round=1,
         children=children,
         other_rows=[
-            request_row(issue=22, finding=UNCLAIMED),
-            request_row(
+            compose_request_row(issue=22, finding=UNCLAIMED),
+            compose_request_row(
                 issue=23,
                 kind=AgentWorkKind.CONVERSATION,
                 finding=IssueCommentsFinding(new_comments=0),

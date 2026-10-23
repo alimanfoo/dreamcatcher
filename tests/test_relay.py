@@ -6,10 +6,10 @@ from conftest import (
     POSTED_BY,
     PULL_REQUEST,
     REPOSITORY,
-    comment,
-    inline_comment,
-    pages,
-    review,
+    compose_comment,
+    compose_inline_comment,
+    compose_page,
+    compose_review,
 )
 
 from dreamcatcher.github import (
@@ -51,7 +51,8 @@ def test_an_assignment_with_an_empty_cursor_receives_the_whole_history(
     gh_with_no_posts,
 ):
     gh_with_no_posts.replies(
-        stdout=pages(items=[comment()]), to=f"api {POST_LIST_PATHS['conversation']}"
+        stdout=compose_page(items=[compose_comment()]),
+        to=f"api {POST_LIST_PATHS['conversation']}",
     )
 
     assert [post.id for post in past_cursor()] == [1]
@@ -61,7 +62,8 @@ def test_a_post_at_the_assignment_cursor_does_not_come_back(
     gh_with_no_posts,
 ):
     gh_with_no_posts.replies(
-        stdout=pages(items=[comment()]), to=f"api {POST_LIST_PATHS['conversation']}"
+        stdout=compose_page(items=[compose_comment()]),
+        to=f"api {POST_LIST_PATHS['conversation']}",
     )
 
     assert past_cursor(cursor=POSTED_AT) == []
@@ -71,15 +73,17 @@ def test_the_posts_come_back_oldest_first_whichever_list_each_came_from(
     gh_with_no_posts,
 ):
     gh_with_no_posts.replies(
-        stdout=pages(items=[comment(created_at="2026-09-03T23:47:28Z")]),
+        stdout=compose_page(items=[compose_comment(created_at="2026-09-03T23:47:28Z")]),
         to=f"api {POST_LIST_PATHS['conversation']}",
     )
     gh_with_no_posts.replies(
-        stdout=pages(items=[review(submitted_at=BEFORE, body="see inline")]),
+        stdout=compose_page(
+            items=[compose_review(submitted_at=BEFORE, body="see inline")]
+        ),
         to=f"api {POST_LIST_PATHS['reviews']}",
     )
     gh_with_no_posts.replies(
-        stdout=pages(items=[inline_comment()]),
+        stdout=compose_page(items=[compose_inline_comment()]),
         to=f"api {POST_LIST_PATHS['inline-comments']}",
     )
 
@@ -94,8 +98,10 @@ def test_a_post_carrying_the_marker_is_the_assignments_own_and_does_not_come_bac
     gh_with_no_posts,
 ):
     gh_with_no_posts.replies(
-        stdout=pages(
-            items=[comment(body=f"opened the pull request\n\n{AGENT_POST_MARKER}")]
+        stdout=compose_page(
+            items=[
+                compose_comment(body=f"opened the pull request\n\n{AGENT_POST_MARKER}")
+            ]
         ),
         to=f"api {POST_LIST_PATHS['conversation']}",
     )
@@ -105,7 +111,7 @@ def test_a_post_carrying_the_marker_is_the_assignments_own_and_does_not_come_bac
 
 def test_a_post_from_another_account_does_not_come_back(gh_with_no_posts):
     gh_with_no_posts.replies(
-        stdout=pages(items=[comment(user={"login": "somebody-else"})]),
+        stdout=compose_page(items=[compose_comment(user={"login": "somebody-else"})]),
         to=f"api {POST_LIST_PATHS['conversation']}",
     )
 
@@ -116,7 +122,7 @@ def test_a_post_from_the_account_written_in_other_capitals_comes_back(
     gh_with_no_posts,
 ):
     gh_with_no_posts.replies(
-        stdout=pages(items=[comment(user={"login": POSTED_BY.upper()})]),
+        stdout=compose_page(items=[compose_comment(user={"login": POSTED_BY.upper()})]),
         to=f"api {POST_LIST_PATHS['conversation']}",
     )
 
@@ -125,7 +131,7 @@ def test_a_post_from_the_account_written_in_other_capitals_comes_back(
 
 def test_a_post_whose_body_is_only_whitespace_does_not_come_back(gh_with_no_posts):
     gh_with_no_posts.replies(
-        stdout=pages(items=[comment(body=" \n\t")]),
+        stdout=compose_page(items=[compose_comment(body=" \n\t")]),
         to=f"api {POST_LIST_PATHS['conversation']}",
     )
 
@@ -136,7 +142,7 @@ def test_a_post_whose_account_github_no_longer_knows_does_not_come_back(
     gh_with_no_posts,
 ):
     gh_with_no_posts.replies(
-        stdout=pages(items=[comment(user=None)]),
+        stdout=compose_page(items=[compose_comment(user=None)]),
         to=f"api {POST_LIST_PATHS['conversation']}",
     )
 
@@ -147,10 +153,11 @@ def test_the_empty_review_github_wrapped_an_inline_reply_in_does_not_come_back(
     gh_with_no_posts,
 ):
     gh_with_no_posts.replies(
-        stdout=pages(items=[review()]), to=f"api {POST_LIST_PATHS['reviews']}"
+        stdout=compose_page(items=[compose_review()]),
+        to=f"api {POST_LIST_PATHS['reviews']}",
     )
     gh_with_no_posts.replies(
-        stdout=pages(items=[inline_comment()]),
+        stdout=compose_page(items=[compose_inline_comment()]),
         to=f"api {POST_LIST_PATHS['inline-comments']}",
     )
 
@@ -166,7 +173,7 @@ def test_a_review_that_reached_a_verdict_comes_back_with_an_empty_body(
     gh_with_no_posts, verdict
 ):
     gh_with_no_posts.replies(
-        stdout=pages(items=[review(state=verdict)]),
+        stdout=compose_page(items=[compose_review(state=verdict)]),
         to=f"api {POST_LIST_PATHS['reviews']}",
     )
 
@@ -174,10 +181,12 @@ def test_a_review_that_reached_a_verdict_comes_back_with_an_empty_body(
 
 
 def test_a_review_nobody_has_submitted_yet_does_not_come_back(gh_with_no_posts):
-    unsubmitted = review(state=PullRequestReviewVerdict.PENDING, body="half a thought")
+    unsubmitted = compose_review(
+        state=PullRequestReviewVerdict.PENDING, body="half a thought"
+    )
     del unsubmitted["submitted_at"]
     gh_with_no_posts.replies(
-        stdout=pages(items=[unsubmitted]), to=f"api {POST_LIST_PATHS['reviews']}"
+        stdout=compose_page(items=[unsubmitted]), to=f"api {POST_LIST_PATHS['reviews']}"
     )
 
     assert past_cursor() == []
@@ -187,9 +196,9 @@ def test_a_suggestion_over_a_range_comes_back_with_its_lines_and_its_diff(
     gh_with_no_posts,
 ):
     gh_with_no_posts.replies(
-        stdout=pages(
+        stdout=compose_page(
             items=[
-                inline_comment(
+                compose_inline_comment(
                     body="```suggestion\nfrom dreamcatcher.github import posts\n```",
                     start_line=1,
                     line=3,
@@ -257,7 +266,9 @@ def test_a_comment_on_a_whole_file_says_so_rather_than_naming_line_one(
     gh_with_no_posts,
 ):
     gh_with_no_posts.replies(
-        stdout=pages(items=[inline_comment(subject_type="file", line=1)]),
+        stdout=compose_page(
+            items=[compose_inline_comment(subject_type="file", line=1)]
+        ),
         to=f"api {POST_LIST_PATHS['inline-comments']}",
     )
 
@@ -274,10 +285,11 @@ def test_a_comment_on_a_whole_file_says_so_rather_than_naming_line_one(
 def test_a_comment_gh_says_nothing_about_the_subject_of_reads_as_one_on_a_line(
     gh_with_no_posts,
 ):
-    answered = inline_comment()
+    answered = compose_inline_comment()
     del answered["subject_type"]
     gh_with_no_posts.replies(
-        stdout=pages(items=[answered]), to=f"api {POST_LIST_PATHS['inline-comments']}"
+        stdout=compose_page(items=[answered]),
+        to=f"api {POST_LIST_PATHS['inline-comments']}",
     )
 
     assert [
@@ -289,14 +301,16 @@ def test_a_comment_gh_says_nothing_about_the_subject_of_reads_as_one_on_a_line(
 
 def test_only_eligible_issue_comments_past_the_cursor_come_back(fake):
     fake(program="gh").replies(
-        stdout=pages(
+        stdout=compose_page(
             items=[
-                comment(id=4, created_at=POSTED_AT, body="later in the list"),
-                comment(id=1, created_at=BEFORE, body="before the cursor"),
-                comment(id=3, created_at=POSTED_AT, body="first after the cursor"),
-                comment(id=5, user={"login": "mallory"}, body="somebody else"),
-                comment(id=6, body=f"agent answer\n{AGENT_POST_MARKER}"),
-                comment(id=7, body="  "),
+                compose_comment(id=4, created_at=POSTED_AT, body="later in the list"),
+                compose_comment(id=1, created_at=BEFORE, body="before the cursor"),
+                compose_comment(
+                    id=3, created_at=POSTED_AT, body="first after the cursor"
+                ),
+                compose_comment(id=5, user={"login": "mallory"}, body="somebody else"),
+                compose_comment(id=6, body=f"agent answer\n{AGENT_POST_MARKER}"),
+                compose_comment(id=7, body="  "),
             ]
         )
     )

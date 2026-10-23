@@ -18,9 +18,9 @@ from records import (
     write_running_conversation,
     write_tick,
 )
-from rows import request_row
+from rows import compose_request_row
 from status_fabrications import (
-    conversation_row,
+    compose_conversation_row,
     fabricate_conversation,
     fabricate_everything,
 )
@@ -538,7 +538,7 @@ def test_a_routing_conflict_keeps_empty_conversation_tail_polling(tmp_path):
         tick=SchedulerRecord(
             at=PINNED,
             rows=[
-                conversation_row(
+                compose_conversation_row(
                     finding=ConflictingLabelsFinding(labels=["discuss", "scout"])
                 )
             ],
@@ -605,7 +605,9 @@ def test_conversation_tail_adds_a_later_round_without_repeating_the_first(tmp_pa
         tick=SchedulerRecord(
             at=PINNED,
             rows=[
-                conversation_row(finding=PausedFinding(cause=PauseCause.LABEL_REMOVED))
+                compose_conversation_row(
+                    finding=PausedFinding(cause=PauseCause.LABEL_REMOVED)
+                )
             ],
         ),
     )
@@ -670,7 +672,7 @@ def fabricate_unsaved_conversation(*, state: StateDirectory) -> None:
         tick=SchedulerRecord(
             at=PINNED,
             rows=[
-                request_row(
+                compose_request_row(
                     issue=9,
                     kind=AgentWorkKind.CONVERSATION,
                     finding=IssueCommentsFinding(new_comments=1),
@@ -711,21 +713,21 @@ def test_home_lists_conversations_in_attention_order_before_requests(tmp_path):
         tick=SchedulerRecord(
             at=PINNED,
             rows=[
-                conversation_row(finding=IssueCommentsFinding(new_comments=0)),
-                conversation_row(
+                compose_conversation_row(finding=IssueCommentsFinding(new_comments=0)),
+                compose_conversation_row(
                     issue=11, finding=IssueCommentsFinding(new_comments=0)
                 ),
-                request_row(
+                compose_request_row(
                     issue=9,
                     kind=AgentWorkKind.CONVERSATION,
                     finding=IssueCommentsFinding(new_comments=0),
                 ),
-                request_row(
+                compose_request_row(
                     issue=10,
                     kind=AgentWorkKind.CONVERSATION,
                     finding=IssueCommentsFinding(new_comments=1),
                 ),
-                request_row(
+                compose_request_row(
                     issue=12,
                     kind=AgentWorkKind.CONVERSATION,
                     finding=ReadFailureFinding(reason="gh: offline"),
