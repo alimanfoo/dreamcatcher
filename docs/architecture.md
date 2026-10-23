@@ -39,9 +39,10 @@ making every domain phrase into a class. In particular, it should:
 instance:
 
 - acquire and release the checkout's daemon lock;
-- record the daemon process identifier and the dispatch routes it loaded
-  in the daemon run record, whose model `daemon_runs.py` owns, as soon
-  as it holds the lock;
+- record the daemon process identifier, the time the daemon run started,
+  which is also the time of its first tick, and the dispatch routes it
+  loaded in the daemon run record, whose model `daemon_runs.py` owns, as
+  soon as it holds the lock;
 - keep the web server inside the established daemon lifetime when `run`
   enables it;
 - reconcile round records that an earlier daemon left without an ending
@@ -117,14 +118,16 @@ One scheduler tick:
    start-time questions, reads the comments of a conversation's issue,
    or asks which open issues block a campaign's parent and, when none
    does, reads the parent's comments;
-6. starts a global cooldown when the counted faults call for one, and
+6. removes the worktree, and an assignment's local branch, of each piece
+   of work that it sees end, unless the user cancelled it;
+7. starts a global cooldown when the counted faults call for one, and
    launches nothing while a cooldown is active;
-7. launches candidates until the daemon run's requested capacity is full
+8. launches candidates until the daemon run's requested capacity is full
    or no candidate remains, open work first in identifier order and then
    new requests in listing order, the kinds taking turns in the order
    assignment, conversation, campaign, and a kind with no candidate
    giving up its turn; and
-8. returns a `SchedulerRecord`, holding one request row per request, for
+9. returns a `SchedulerRecord`, holding one request row per request, for
    operational reporting.
 
 A candidate is open work the tick may start a round for, or a request it
@@ -167,6 +170,16 @@ and the request's row names the round and its reason, which the daemon's
 output line repeats. A launch that fails before its round is recorded,
 such as a work record that cannot be written or a harness invocation
 that cannot be built, is a scheduler failure.
+
+A tick sees work end when the work was open when the tick read it, or
+when the daemon held a round of it that the tick has just forgotten. It
+removes nothing while the daemon still holds a round of the work, so a
+later tick sees that work end once it forgets the round. No other tick
+sees the work end, so a worktree or branch that Git will not remove is a
+scheduler failure that no later tick tries again. For the same reason,
+work that ended while no daemon ran keeps its worktree, and so does an
+assignment whose wrap-up round ended just before the daemon stopped or
+the next tick failed.
 
 When the tick selects a request, it writes the work record and starts
 the first round in the same scheduling action. The record comes first,
@@ -340,8 +353,9 @@ should provide cohesive operations to:
   which each pull request signal was last relayed, whether the relay
   rule withholds, and whether a wrap-up round has been given the
   finished pull request, from recorded round inputs;
-- complete an assignment as its wrap-up round finishes; and
-- cancel an assignment.
+- complete an assignment as its wrap-up round finishes;
+- cancel an assignment; and
+- remove an ended assignment's worktree and then its local branch.
 
 `agent_work.py` owns what every kind of agent work shares: the work
 record, the agent work identifier, creating work of any kind from its
@@ -349,7 +363,8 @@ dispatch route, and the one reader through which the scheduler, status,
 the commands and the views list agent work of any kind. It also records
 the facts that change later for every kind: the harness session
 identifier, when the user retries work after resolving a fault, and when
-and why the work ended.
+and why the work ended. It removes an ended piece of work's worktree and
+keeps its records.
 
 Creating an assignment writes its work record and nothing else. The
 preparation step of a round whose assignment has no recorded pull
@@ -462,6 +477,10 @@ its newest relayed round input carried, if any.
 GitHub owns its documents and may add fields, so its responses remain
 tolerant projections. Documents owned by _dreamcatcher_ remain strict.
 
+GitHub matches a login in any case. `is_login_of_account` is the one
+comparison of a login with the signed-in account, both for the author of
+a post and for an assignee of an issue.
+
 ### Relay
 
 `relay.py` owns what is past a piece of agent work's cursor in its
@@ -528,7 +547,7 @@ Status construction may read:
 - current child-process state;
 - the instance's repository record and daemon-run record;
 - the scheduler record, with its request rows, the active global
-  cooldown, and the latest tick;
+  cooldown, and when the latest tick finished;
 - the latest rendered feed output needed for a useful summary.
 
 It may call the scheduler's pure interpretation functions, but it cannot
@@ -708,13 +727,18 @@ agent work. Given an issue's labels, the module identifies the matching
 routes. It does not silently resolve multiple labels by list order. The
 scheduler applies the routing rules to the routes it returns.
 
+GitHub matches label names in any case. `identify_label` gives each
+label name its identity. Every comparison of two label names compares
+their identities, and every sorted list of label names is in the order
+of their identities.
+
 ### State and documents
 
 `state.py` owns the top-level paths within `.dreamcatcher/` and the
 mechanics required to bootstrap that directory. The modules that own
 agent work and rounds name the files within their own directories. A
 state-format constant selects the versioned root, currently
-`.dreamcatcher/v7/`, so one format never reads another format's files.
+`.dreamcatcher/v8/`, so one format never reads another format's files.
 The shared `.dreamcatcher/daemon.lock` stays outside that root, so
 daemons using different formats from v5 on use the same lock. The daemon
 acquires an operating-system lock on that empty file before it starts
@@ -738,7 +762,8 @@ The on-disk layout follows ownership:
 - each round owns its prompt, raw output, rendered feed, final output
   when the harness reports one, and any input it relays; and
 - each piece of agent work's worktree lives under `worktrees/`, named by
-  the same identifier.
+  the same identifier, until the scheduler removes it after the work
+  ends. A cancelled assignment keeps its worktree.
 
 `documents.py` remains the only way _dreamcatcher_ reads and writes
 documents it owns. Every structured document has a strict model and
@@ -837,20 +862,23 @@ it relays; the input of a round that starts a new harness session also
 persists the issue title and body. A campaign's round input persists the
 parent issue, its sub-issues and the notifications about them, the
 eligible comments it relays, the cursor it reaches, the revision it was
-given and the assignment routes.
+given and the assignment routes. Both models refuse comments out of the
+order that the relay gives them, oldest first and each once, and a
+conversation's refuses an input that relays none, so every reader in
+scheduling and in status refuses such an input by the same rule.
 
 Instance records persist the repository identity and the most recent
-daemon run's preferred harness, _dreamcatcher_ version, capacity,
-interval, and the dispatch routes it loaded, each as a dispatch label
-and its kind of agent work. An instance-wide scheduler record persists
-the last tick's result, including its failures, its request rows, the
-active global cooldown, and the time at which the most recent cooldown
-ended. Its rows preserve operational evidence of what the tick read
-rather than authoritative state. Agent work of every kind persists the
-time of its latest user retry request. These boundaries allow fault to
-remain a derived status: ending a cooldown or requesting a retry changes
-which round errors count towards fault rather than writing a lifecycle
-status.
+daemon run's start time, preferred harness, _dreamcatcher_ version,
+capacity, interval, and the dispatch routes it loaded, each as a
+dispatch label and its kind of agent work. An instance-wide scheduler
+record persists the last tick's result, including when it started and
+finished, its failures, its request rows, the active global cooldown,
+and the time at which the most recent cooldown ended. Its rows preserve
+operational evidence of what the tick read rather than authoritative
+state. Agent work of every kind persists the time of its latest user
+retry request. These boundaries allow fault to remain a derived status:
+ending a cooldown or requesting a retry changes which round errors count
+towards fault rather than writing a lifecycle status.
 
 The following are derived rather than persisted as authoritative state:
 

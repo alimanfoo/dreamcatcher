@@ -71,12 +71,12 @@ def create_scheduling_context(*, state: StateDirectory) -> SchedulingContext:
     )
 
 
-def inspect(*, state: StateDirectory, is_fault: bool = False) -> Inspection:
+def inspect(*, state: StateDirectory, is_in_fault: bool = False) -> Inspection:
     """Inspect the one assignment in that state directory."""
     return inspect_open_assignment(
         context=create_scheduling_context(state=state),
         work=read_assignments(state=state)[0],
-        is_fault=is_fault,
+        is_in_fault=is_in_fault,
     )
 
 
@@ -196,7 +196,7 @@ def test_an_assignment_in_fault_reads_nothing_and_counts_its_fault(tmp_path):
             ),
         )
 
-    inspected = inspect(state=state, is_fault=True)
+    inspected = inspect(state=state, is_in_fault=True)
 
     assert inspected.candidate is None
     assert inspected.row.finding is None

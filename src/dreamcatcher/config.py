@@ -125,13 +125,21 @@ class CampaignRoute(DispatchRoute):
     kind: ClassVar[AgentWorkKind] = AgentWorkKind.CAMPAIGN
 
 
+def identify_label(*, name: str) -> str:
+    """Return the identity of a label name, which GitHub matches in any case.
+
+    Two names are one label exactly when their identities are equal.
+    """
+    return name.casefold()
+
+
 def _identify_routes[Route: DispatchRoute](
     *, labels: list[str], routes: list[Route]
 ) -> list[Route]:
     """Return configured routes matching the observed labels."""
-    routes_by_identity = {route.label.casefold(): route for route in routes}
+    routes_by_identity = {identify_label(name=route.label): route for route in routes}
     identities = sorted(
-        {label.casefold() for label in labels} & routes_by_identity.keys()
+        {identify_label(name=label) for label in labels} & routes_by_identity.keys()
     )
     return [routes_by_identity[identity] for identity in identities]
 
@@ -170,7 +178,9 @@ class DreamcatcherConfig(DreamcatcherDocument):
         """Refuse two routes for one label, since the label is the identity."""
         kinds_by_label: dict[str, list[AgentWorkKind]] = {}
         for route in self.routes:
-            kinds_by_label.setdefault(route.label.casefold(), []).append(route.kind)
+            kinds_by_label.setdefault(identify_label(name=route.label), []).append(
+                route.kind
+            )
         for kind in AgentWorkKind:
             repeated = sorted(
                 label

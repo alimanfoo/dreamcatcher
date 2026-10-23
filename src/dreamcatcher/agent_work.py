@@ -23,6 +23,7 @@ from dreamcatcher.agent_rounds import (
     read_agent_round_records,
     request_agent_round_stop,
 )
+from dreamcatcher.commands import CommandError
 from dreamcatcher.config import AgentHarness, DispatchRoute, QuotableText
 from dreamcatcher.documents import (
     DreamcatcherDocument,
@@ -32,6 +33,7 @@ from dreamcatcher.documents import (
     write_json,
 )
 from dreamcatcher.errors import ReportableError
+from dreamcatcher.git import is_linked_worktree, remove_worktree
 from dreamcatcher.harness_adapters import (
     AgentWorkKind,
     HarnessConfig,
@@ -452,6 +454,22 @@ def end_agent_work(
         document=AgentWorkEnding(at=at, reason=reason),
         path=work.directory / _ENDING_RECORD_NAME,
     )
+
+
+def remove_agent_work_worktree(*, state: StateDirectory, work: AgentWork) -> None:
+    """Remove the work's worktree, whatever is left in it, and keep its records.
+
+    A worktree that is not there is already removed. A removal that Git refuses
+    raises ReportableError.
+    """
+    if not is_linked_worktree(path=work.worktree):
+        return
+    try:
+        remove_worktree(root=state.root, path=work.worktree)
+    except CommandError as failure:
+        raise ReportableError(
+            f"could not remove the worktree of {work.identifier}: {failure.reason}"
+        ) from failure
 
 
 def _read_agent_work_ending(*, directory: Path) -> AgentWorkEnding | None:

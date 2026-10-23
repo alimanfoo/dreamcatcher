@@ -75,7 +75,7 @@ class OpenWorkInspector(Protocol):
     """Inspect the channel of one piece of open work of a kind."""
 
     def __call__(
-        self, *, context: SchedulingContext, work: AgentWork, is_fault: bool
+        self, *, context: SchedulingContext, work: AgentWork, is_in_fault: bool
     ) -> Inspection:
         """Return the work's row, and its candidate when a round is due."""
 

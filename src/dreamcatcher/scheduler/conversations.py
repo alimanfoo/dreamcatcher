@@ -26,13 +26,13 @@ from dreamcatcher.scheduler.models import (
 
 
 def inspect_open_conversation(
-    *, context: SchedulingContext, work: AgentWork, is_fault: bool
+    *, context: SchedulingContext, work: AgentWork, is_in_fault: bool
 ) -> Inspection:
     """Read an open conversation's issue, then its comments unless it may not run."""
     return inspect_open_issue_work(
         context=context,
         work=work,
-        is_fault=is_fault,
+        is_in_fault=is_in_fault,
         inspect_eligible=partial(
             _inspect_comments, context=context, work_or_route=work
         ),

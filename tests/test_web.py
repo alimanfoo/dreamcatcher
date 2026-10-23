@@ -27,6 +27,7 @@ from records import (
 )
 from rows import UNCLAIMED, compose_request_row
 from status_fabrications import (
+    CAMPAIGN_CHILDREN,
     LOOKED_AT,
     STATUS_REPORTS,
     compose_conversation_row,
@@ -61,6 +62,11 @@ from dreamcatcher.agent_work import (
     AgentWorkEndReason,
     find_agent_work,
     read_agent_work_at_issue,
+)
+from dreamcatcher.campaigns import (
+    CampaignChildChange,
+    CampaignChildNotification,
+    CampaignRoundInput,
 )
 from dreamcatcher.daemon_runs import RecordedRoute
 from dreamcatcher.documents import append_text, write_text
@@ -229,6 +235,52 @@ def test_a_campaign_renders_as_its_golden_page(issue, tmp_path, pytestconfig):
     )
 
 
+def test_a_lead_rounds_trigger_links_each_sub_issue_it_names(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    fabricate_campaign_report(state=state)
+    identifier = "GH60-20260819-184158-campaign"
+    write_round(
+        directory=state.work / identifier,
+        number=2,
+        record=compose_ended_round(minute=5, number=2),
+        round_input=CampaignRoundInput(
+            issue=60,
+            children=CAMPAIGN_CHILDREN,
+            notifications=[
+                CampaignChildNotification(
+                    issue=63,
+                    changes=[
+                        CampaignChildChange.ISSUE_STATE,
+                        CampaignChildChange.ENDING,
+                    ],
+                ),
+                CampaignChildNotification(
+                    issue=68, changes=[CampaignChildChange.REMOVED]
+                ),
+            ],
+            comments=[],
+            cursor=None,
+            revision="abc123",
+            assignment_routes=[],
+        ),
+    )
+    link = (
+        '<a class="issue-number" href="https://github.com/{repository}/issues/{issue}"'
+        ' target="_blank" rel="noopener noreferrer">#{issue}</a>'
+    )
+    trigger = (
+        f"{link.format(repository=REPOSITORY, issue=63)}: closed, ended; "
+        f"{link.format(repository=REPOSITORY, issue=68)}: removed"
+    )
+
+    page = render_assignment(state=state, identifier=identifier)
+    tail = _read_tail(state=state, identifier=identifier, cursor="2:0")
+
+    assert f'<span class="round-trigger">{trigger}</span>' in page
+    assert f'<span class="round-trigger">{trigger}</span>' in tail.text
+    assert "round 2: #63: closed, ended; #68: removed" in page
+
+
 @pytest.mark.parametrize(
     ("identifier", "kind"),
     [
@@ -266,6 +318,7 @@ def test_a_campaign_with_no_children_to_show_says_why_and_shows_no_cards(
         state=state,
         tick=SchedulerRecord(
             at=LOOKED_AT,
+            finished=LOOKED_AT,
             rows=[campaign_row.model_copy(update={"children": children}), *other_rows],
         ),
     )
@@ -305,6 +358,7 @@ def test_requests_whose_labels_differ_only_in_spacing_have_their_own_identifiers
         state=state,
         tick=SchedulerRecord(
             at=LOOKED_AT,
+            finished=LOOKED_AT,
             rows=[
                 *fabricate_campaigns(state=state),
                 *(
@@ -507,6 +561,34 @@ def test_assignment_tail_offers_a_hand_resume_only_while_no_round_runs(tmp_path)
     assert "<summary>resume by hand</summary>" not in working.text
     assert "<summary>resume by hand</summary>" in without_daemon.text
     assert "claude --resume abc-123" in without_daemon.text
+
+
+def test_a_completed_assignment_whose_worktree_is_gone_offers_no_hand_resume(
+    tmp_path,
+):
+    state = StateDirectory(root=tmp_path)
+    fabricate_everything(state=state)
+    identifier = "GH12-20260819-184158-assignment"
+    worktree = state.worktrees / identifier
+    worktree.rmdir()
+
+    page = render_assignment(state=state, identifier=identifier)
+
+    assert "<summary>resume by hand</summary>" not in page
+    assert state.describe_path(path=worktree) not in page
+    assert "claude --resume" not in page
+
+
+def test_a_cancelled_assignment_offers_a_hand_resume_from_its_worktree(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    fabricate_everything(state=state)
+    identifier = "GH70-20260819-184158-assignment"
+
+    page = render_assignment(state=state, identifier=identifier)
+
+    assert "<summary>resume by hand</summary>" in page
+    assert f"cd {state.describe_path(path=state.worktrees / identifier)}" in page
+    assert "claude --resume abc-123" in page
 
 
 def test_a_stale_assignment_stop_request_is_already_done(tmp_path):
@@ -1734,7 +1816,20 @@ def test_next_update_is_left_out_when_no_daemon_is_running(tmp_path):
 
     page = render_home(state=state)
 
-    assert "<dt>next update in</dt>" not in page
+    assert "<dt>next update</dt>" not in page
+
+
+def test_a_running_update_pulses_and_a_countdown_does_not(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    fabricate_everything(state=state)
+
+    counting_down = render_home(state=state)
+    write_tick(state=state, tick=SchedulerRecord(at=PINNED, finished=PINNED))
+    updating = render_home(state=state)
+
+    assert "in-progress" not in counting_down
+    assert '<div class="fact in-progress">' in updating
+    assert "<dd>updating</dd>" in updating
 
 
 def test_an_active_cooldown_is_a_warning_fact(tmp_path):
@@ -1744,6 +1839,7 @@ def test_an_active_cooldown_is_a_warning_fact(tmp_path):
         state=state,
         tick=SchedulerRecord(
             at=PINNED,
+            finished=PINNED,
             cooldown=GlobalCooldown(
                 started=LOOKED_AT, ends=LOOKED_AT + timedelta(minutes=15)
             ),

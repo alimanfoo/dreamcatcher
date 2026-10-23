@@ -333,6 +333,11 @@ class IssuePullRequestContext(GitHubResponseProjection):
     )
 
 
+def is_login_of_account(*, login: str, account: str) -> bool:
+    """Return whether the login names the account, in any case as GitHub matches."""
+    return login.casefold() == account.casefold()
+
+
 class _UserPostProjection(GitHubResponseProjection):
     """Model the fields shared by every kind of user post and issue comment.
 
@@ -366,8 +371,8 @@ class _UserPostProjection(GitHubResponseProjection):
         return bool(self.body.strip())
 
     def is_written_by(self, *, account: str) -> bool:
-        """Return whether the account wrote the post, as GitHub matches a login."""
-        return self.author.casefold() == account.casefold()
+        """Return whether the account wrote the post."""
+        return is_login_of_account(login=self.author, account=account)
 
 
 class IssueComment(_UserPostProjection):
