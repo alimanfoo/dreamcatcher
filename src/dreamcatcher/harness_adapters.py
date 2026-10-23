@@ -12,7 +12,7 @@ line that will not parse. Each adapter says what its own events mean.
 import json
 import re
 from abc import ABC, abstractmethod
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from enum import StrEnum
 from pathlib import Path
@@ -96,7 +96,7 @@ class HarnessInvocation:
     """
 
     program: str
-    arguments: list[str]
+    arguments: Sequence[str]
     prompt: str
 
 
@@ -104,7 +104,7 @@ class HarnessInvocation:
 class HarnessOutput:
     """Describe the durable information in one harness output line."""
 
-    events: list[FeedEvent]
+    events: Sequence[FeedEvent]
     harness_session_identifier: str | None = None
     final_output: str | None = None
 
@@ -174,7 +174,7 @@ class HarnessAdapter(ABC):
         does the talking.
         """
 
-    def read(self, *, line: str) -> list[FeedEvent]:
+    def read(self, *, line: str) -> Sequence[FeedEvent]:
         """Return the feed events from one line of the harness's stream."""
         return self.read_output(line=line).events
 

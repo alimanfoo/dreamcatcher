@@ -27,6 +27,7 @@ import os
 import shutil
 import stat
 import sys
+from collections.abc import Sequence
 from dataclasses import asdict, dataclass
 from enum import StrEnum
 from pathlib import Path
@@ -63,7 +64,7 @@ class Call:
     part of the call, and a test can ask for the prompt it was given.
     """
 
-    arguments: list[str]
+    arguments: Sequence[str]
     directory: Path
     prompt: str
 

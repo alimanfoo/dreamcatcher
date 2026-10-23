@@ -1,5 +1,6 @@
 """Compose the prompts for the agent rounds of every kind of agent work."""
 
+from collections.abc import Sequence
 from pathlib import Path
 
 from dreamcatcher.agent_rounds import AgentRoundOutcome
@@ -172,7 +173,7 @@ def compose_assignment_input_prompt(
     *,
     pull_request: int,
     round_input: Path,
-    pull_request_signals: list[PullRequestSignal],
+    pull_request_signals: Sequence[PullRequestSignal],
     is_previous_round_unfinished: bool,
 ) -> str:
     """Return the words that direct an assignment round to its input file.

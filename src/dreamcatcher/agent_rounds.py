@@ -6,7 +6,7 @@ numbered directory. The daemon watches rather than waits, so the round reads
 its streams and records its ending on threads of its own.
 """
 
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
@@ -751,7 +751,7 @@ class AgentRound:
         path = self.paths.final_output
         return read_text(path=path) if path.is_file() else None
 
-    def _append_feed_events(self, *, line: str, events: list[FeedEvent]) -> None:
+    def _append_feed_events(self, *, line: str, events: Sequence[FeedEvent]) -> None:
         """Append one output line's events while holding the feed write lock.
 
         Rendering happens under the same lock as the write. A line is stamped

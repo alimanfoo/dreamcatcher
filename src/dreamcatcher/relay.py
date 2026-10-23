@@ -65,7 +65,7 @@ class PullRequestSignals:
     A check failure the relay rule withholds is left out, and flagged.
     """
 
-    new_pull_request_signals: list[PullRequestSignal]
+    new_pull_request_signals: Sequence[PullRequestSignal]
     is_check_failure_withheld: bool
 
 

@@ -1,5 +1,6 @@
 """Inspect assignments' pull requests and compose the rounds they call for."""
 
+from collections.abc import Sequence
 from functools import partial
 
 from dreamcatcher.agent_assignments import (
@@ -200,7 +201,7 @@ def _compose_relay_round(
     context: SchedulingContext,
     pull_request: PullRequest,
     posts: list[UserPost],
-    pull_request_signals: list[PullRequestSignal],
+    pull_request_signals: Sequence[PullRequestSignal],
     work: AgentWork,
 ) -> RoundPlan:
     """Return the plan of a round given the pull request, its signals and posts.
