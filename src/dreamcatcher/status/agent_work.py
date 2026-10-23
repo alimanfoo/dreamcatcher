@@ -195,9 +195,12 @@ class AgentWorkStatus:
 
     @cached_property
     def hand_resume_command(self) -> list[str] | None:
-        """The hand-resume command when nobody is running the session."""
+        """The hand-resume command when nobody is running the session.
+
+        Work whose worktree is gone has none, since the command runs there.
+        """
         identifier = self.harness_session_identifier
-        if self.is_working or identifier is None:
+        if self.is_working or identifier is None or self.worktree is None:
             return None
         record = self.work.record
         return HARNESS_ADAPTERS[record.harness].build_hand_resume(

@@ -118,9 +118,7 @@ One scheduler tick:
    or asks which open issues block a campaign's parent and, when none
    does, reads the parent's comments;
 6. removes the worktree, and an assignment's local branch, of each piece
-   of work that was open when the tick read it, or whose round the tick
-   has just forgotten, and that has now ended for any reason but a
-   cancel, once the daemon holds no round of it;
+   of work that it sees end, unless the user cancelled it;
 7. starts a global cooldown when the counted faults call for one, and
    launches nothing while a cooldown is active;
 8. launches candidates until the daemon run's requested capacity is full
@@ -168,13 +166,15 @@ output line repeats. A launch that fails before its round is recorded,
 such as a work record that cannot be written or a harness invocation
 that cannot be built, is a scheduler failure.
 
-A worktree or branch that Git will not remove is a scheduler failure
-too. It stays where it is, and no later tick tries again, because once
-work has ended and the daemon holds no round of it, no later tick
-watches it. For the same reason, work keeps its worktree when no tick
-watched it end: when it ended while no daemon ran, or when its round
-ended and the daemon stopped, or the tick that forgot the round failed,
-before the removal.
+A tick sees work end when the work was open when the tick read it, or
+when the daemon held a round of it that the tick has just forgotten. It
+removes nothing while the daemon still holds a round of the work, so a
+later tick sees that work end once it forgets the round. No other tick
+sees the work end, so a worktree or branch that Git will not remove is a
+scheduler failure that no later tick tries again. For the same reason,
+work that ended while no daemon ran keeps its worktree, and so does an
+assignment whose wrap-up round ended just before the daemon stopped or
+the next tick failed.
 
 When the tick selects a request, it writes the work record and starts
 the first round in the same scheduling action. The record comes first,

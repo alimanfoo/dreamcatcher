@@ -148,7 +148,9 @@ def complete_assignment(
     end_agent_work(work=assignment, reason=AgentWorkEndReason.COMPLETED, at=clock())
 
 
-def remove_assignment_worktree(*, state: StateDirectory, assignment: AgentWork) -> None:
+def remove_assignment_worktree_and_branch(
+    *, state: StateDirectory, assignment: AgentWork
+) -> None:
     """Remove the assignment's worktree, then its local branch.
 
     The branch on origin stays, and so do the assignment's records. A worktree
@@ -189,7 +191,9 @@ def open_assignment_pull_request(
             add_worktree(root=state.root, path=assignment.worktree, branch=branch)
         except ReportableError:
             with suppress(ReportableError):
-                remove_assignment_worktree(state=state, assignment=assignment)
+                remove_assignment_worktree_and_branch(
+                    state=state, assignment=assignment
+                )
             raise
     if not has_commits_since_main(worktree=assignment.worktree):
         make_empty_commit(worktree=assignment.worktree, message=f"GH{issue} [skip ci]")
