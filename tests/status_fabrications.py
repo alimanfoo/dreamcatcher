@@ -594,11 +594,11 @@ def fabricate_the_cap(*, state):
         tick=SchedulerRecord(
             at=PINNED + timedelta(hours=1, minutes=58),
             failures=[
-                "could not list issues for dream:smith: gh issue list: "
+                "could not list issues: gh issue list: "
                 'Post "https://api.github.com/graphql": unexpected EOF',
-                "could not list issues for dream:less: gh issue list: "
-                'Post "https://api.github.com/graphql": net/http: TLS handshake '
-                "timeout",
+                "cannot write /srv/repo/.dreamcatcher/v7/work/"
+                "GH21-20260819-205600-assignment/work.json: "
+                "[Errno 28] No space left on device.",
             ],
             rows=[
                 _assignment_row(

@@ -1698,8 +1698,8 @@ def test_each_scheduler_failure_is_listed_apart_from_the_facts(tmp_path):
     assert "<dt>agent capacity</dt>" in facts
     assert "scheduler failures" not in facts
     assert failures.count("<li>") == 2
-    assert "<li>could not list issues for dream:smith: " in failures
-    assert "<li>could not list issues for dream:less: " in failures
+    assert "<li>could not list issues: " in failures
+    assert "<li>cannot write " in failures
 
 
 def test_next_update_is_left_out_when_no_daemon_is_running(tmp_path):
