@@ -76,10 +76,11 @@ tell.
 The user merges when satisfied. GitHub closes the issue, and at the next
 update the agent takes one last turn to wrap up, which allows it to
 raise any issues for outstanding work not addressed in the pull request.
-The assignment then ends, and the update after removes its worktree and
-its local branch, so finished assignments do not fill the disk. Its
-record stays, so the home page and the assignment's page still show it,
-without a worktree to resume its session from.
+Until that turn starts, the assignment shows as waiting, awaiting
+wrap-up. The assignment then ends, and the update after removes its
+worktree and its local branch, so finished assignments do not fill the
+disk. Its record stays, so the home page and the assignment's page still
+show it, without a worktree to resume its session from.
 
 The value to the user is that they need only label an issue, wait for
 the pull request to be ready, then review it and iterate until happy
@@ -248,11 +249,13 @@ idea. Explaining what to change would take longer than starting over, or
 there is nothing to start over. If they do not want another attempt,
 they take the assignment label off the issue first. Then they close the
 pull request without merging. At the next update the agent takes its
-last turn to wrap up, and the assignment ends. Its worktree and local
-branch are removed, as for a merged pull request, while the branch stays
-on GitHub with the closed pull request, and the issue stays open. If the
-user does want a fresh attempt, perhaps after rewriting the issue, they
-leave the label on or put it back, and a new assignment starts.
+last turn to wrap up, and the assignment ends. Until that turn starts,
+the assignment shows as waiting, awaiting wrap-up. Its worktree and
+local branch are removed, as for a merged pull request, while the branch
+stays on GitHub with the closed pull request, and the issue stays open.
+If the user does want a fresh attempt, perhaps after rewriting the
+issue, they leave the label on or put it back, and a new assignment
+starts.
 
 The value to the user is that rejecting an agent's work is the same
 close button as rejecting anyone's.

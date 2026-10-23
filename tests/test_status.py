@@ -813,7 +813,7 @@ def test_a_finished_pull_request_waits_for_its_wrap_up_round(state, pull_request
     status = read_sole_assignment_status(state=state)
 
     assert status.value is AgentWorkStatusValue.WAITING
-    assert status.detail == f"the pull request is {pull_request_state.lower()}"
+    assert status.detail == "awaiting wrap-up"
 
 
 def test_a_failed_read_makes_the_assignment_unknown_with_the_reason(state):
