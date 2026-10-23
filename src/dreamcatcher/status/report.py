@@ -171,45 +171,39 @@ class DreamcatcherStatusReport:
         """
         daemon = self.daemon
         cooldown = self.active_global_cooldown
+        countdown = (
+            None
+            if not daemon.is_running
+            else describe_countdown(
+                at=self.at,
+                since=self.latest_scheduler_tick,
+                span_seconds=daemon.interval_seconds,
+            )
+        )
         facts = (
-            (
-                "preferred harness",
-                None
-                if daemon.preferred_harness is None
-                else str(daemon.preferred_harness),
-                False,
+            None
+            if daemon.preferred_harness is None
+            else StatusFact(
+                label="preferred harness", value=str(daemon.preferred_harness)
             ),
-            (
-                "next update in",
-                None
-                if not daemon.is_running
-                else describe_countdown(
-                    at=self.at,
-                    since=self.latest_scheduler_tick,
-                    span_seconds=daemon.interval_seconds,
-                ),
-                False,
+            None
+            if countdown is None
+            else StatusFact(label="next update in", value=countdown),
+            None
+            if daemon.max_agents is None
+            else StatusFact(
+                label="agent capacity",
+                value=f"{self.running_agents} of {daemon.max_agents} working",
             ),
-            (
-                "agent capacity",
-                None
-                if daemon.max_agents is None
-                else f"{self.running_agents} of {daemon.max_agents} working",
-                False,
-            ),
-            (
-                "global cooldown",
-                None
-                if cooldown is None
-                else f"ends in {describe_span(span=cooldown.ends - self.at)}",
-                True,
+            None
+            if cooldown is None
+            else StatusFact(
+                label="global cooldown",
+                value=f"ends in {describe_span(span=cooldown.ends - self.at)}",
+                is_warning=True,
             ),
         )
-        return tuple(
-            StatusFact(label=label, value=value, is_warning=is_warning)
-            for label, value, is_warning in facts
-            if value is not None
-        )
+        return tuple(fact for fact in facts if fact is not None)
 
     def describe_section(self, *, kind: AgentWorkKind) -> AgentWorkStatusSection | None:
         """Describe one kind's section, shown once the kind is routed or has work.
