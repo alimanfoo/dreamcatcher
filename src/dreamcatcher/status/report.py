@@ -86,7 +86,7 @@ class AgentWorkStatusSection:
 class CampaignChildStatus:
     """Describe where one child of an active campaign stands.
 
-    The assignment is the one that the latest tick matched to the child, and
+    The assignment is the newest local assignment at the child's issue, and
     the requests are the child's requests for an assignment that have no open
     work.
     """
@@ -276,18 +276,22 @@ class DreamcatcherStatusReport:
         """Return where each of an active campaign's children stands, in order.
 
         A campaign has none when its status gives it no children, as when its
-        children are unknown.
+        children are unknown. Each child's assignment is the newest local
+        assignment at the child's issue, so its card shows before the next tick
+        records the assignment on the campaign.
         """
-        statuses = {status.work.identifier: status for status in self.work_statuses}
+        assignments = {
+            status.work.record.issue: status
+            for status in sorted(
+                self._list_work_statuses(kind=AgentWorkKind.ASSIGNMENT),
+                key=lambda status: status.work.identifier,
+            )
+        }
         requests = self.list_request_statuses(kind=AgentWorkKind.ASSIGNMENT)
         return [
             CampaignChildStatus(
                 child=child,
-                assignment=(
-                    None
-                    if child.assignment is None
-                    else statuses.get(child.assignment.identifier)
-                ),
+                assignment=assignments.get(child.issue),
                 requests=[
                     request for request in requests if request.row.issue == child.issue
                 ],

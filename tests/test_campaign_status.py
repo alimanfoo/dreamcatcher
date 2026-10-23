@@ -477,6 +477,41 @@ def test_each_child_of_an_active_campaign_has_its_assignment_and_requests(state)
     ] == [[], [22], []]
 
 
+@pytest.mark.parametrize(
+    "recorded",
+    [None, "GH21-20260819-184158-assignment"],
+    ids=["unrecorded", "older-recorded"],
+)
+def test_a_child_shows_the_newest_local_assignment_at_its_issue(state, recorded):
+    newest = "GH21-20260820-090000-assignment"
+    if recorded is not None:
+        write_assignment(state=state, identifier=recorded, issue=21)
+    write_assignment(state=state, identifier=newest, issue=21)
+    write_lead_round(state=state, number=1, ending=SUCCESSFUL)
+    child = compose_child(issue=21, state=IssueState.OPEN)
+    if recorded is not None:
+        child = child.model_copy(
+            update={
+                "assignment": CampaignChildAssignment(
+                    identifier=recorded,
+                    pull_request=52,
+                    observed_pull_request=None,
+                    finished_turn=None,
+                    ending=None,
+                    is_fault=False,
+                )
+            }
+        )
+    observe(state=state, finding=NOTHING_NEW, ended_round=1, children=[child])
+    report = read_status_report(state=state, clock=lambda: LOOKED_AT)
+    [campaign] = report.list_active_work_statuses(kind=AgentWorkKind.CAMPAIGN)
+
+    [child_status] = report.list_campaign_child_statuses(campaign=campaign)
+
+    assert child_status.assignment is not None
+    assert child_status.assignment.work.identifier == newest
+
+
 def test_a_campaign_whose_children_are_unknown_has_no_child_statuses(state):
     write_lead_round(state=state, number=1, ending=SUCCESSFUL)
     observe(state=state, finding=NOTHING_NEW, ended_round=1, children=None)
