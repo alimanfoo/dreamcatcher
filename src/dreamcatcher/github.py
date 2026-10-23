@@ -572,9 +572,9 @@ def create_label(*, repository: str, name: str, description: str) -> None:
 
 
 def list_issues(
-    *, repository: str, label: str, assignee: str
+    *, repository: str, assignee: str
 ) -> list[Issue] | UnknownGitHubResponse:
-    """Return the repository's open issues carrying label and assigned to assignee."""
+    """Return every open issue in the repository that is assigned to assignee."""
     return _read_github_response(
         response_adapter=_GITHUB_ISSUE_LIST_RESPONSE_ADAPTER,
         arguments=[
@@ -584,8 +584,6 @@ def list_issues(
             repository,
             "--assignee",
             assignee,
-            "--label",
-            label,
             "--state",
             "open",
             "--limit",

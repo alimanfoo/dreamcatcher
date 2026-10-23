@@ -226,7 +226,7 @@ def offer_conversation(
     """Have GitHub offer one assigned conversation issue and its comments."""
     gh.replies(
         stdout=conversation_listing(labels=(label,), title=title, body=body),
-        to=(f"issue list --repo {REPOSITORY} --assignee {POSTED_BY} --label {label}"),
+        to="issue list",
     )
     show_conversation_issue(
         gh=gh, issue=conversation_issue(labels=(label,), title=title, body=body)
@@ -476,13 +476,6 @@ def test_each_conversation_label_selects_its_own_route(
         scheduler=scheduler,
         config=read_dreamcatcher_config(root=scheduler.context.state.root),
     )
-    gh.replies(
-        stdout="[]",
-        to=(
-            f"issue list --repo {REPOSITORY} --assignee {POSTED_BY} "
-            "--label dream:conversation"
-        ),
-    )
     offer_conversation(gh=gh, comments=[ask()], label="dream:scout")
     answer(harnesses=harnesses)
 
@@ -513,16 +506,7 @@ def test_an_issue_with_two_conversation_labels_has_a_routing_conflict(
     listing = conversation_listing(labels=("dream:conversation", "dream:scout"))
     gh.replies(
         stdout=listing,
-        to=(
-            f"issue list --repo {REPOSITORY} --assignee {POSTED_BY} "
-            "--label dream:conversation"
-        ),
-    )
-    gh.replies(
-        stdout=listing,
-        to=(
-            f"issue list --repo {REPOSITORY} --assignee {POSTED_BY} --label dream:scout"
-        ),
+        to="issue list",
     )
 
     observed = scheduler.tick(at=clock())
@@ -554,7 +538,7 @@ def test_a_saved_conversation_whose_issue_gains_a_second_label_starts_nothing(
     labels = ("dream:conversation", "dream:scout")
     gh.replies(
         stdout=conversation_listing(labels=labels),
-        to=f"issue list --repo {REPOSITORY} --assignee {POSTED_BY}",
+        to="issue list",
     )
     show_conversation_issue(gh=gh, issue=conversation_issue(labels=labels))
 
@@ -588,13 +572,6 @@ def test_a_new_label_starts_a_fresh_conversation_while_the_old_one_stays_paused(
         config=read_dreamcatcher_config(root=scheduler.context.state.root),
     )
     write_conversation(state=scheduler.context.state, issue=8)
-    gh.replies(
-        stdout="[]",
-        to=(
-            f"issue list --repo {REPOSITORY} --assignee {POSTED_BY} "
-            "--label dream:conversation"
-        ),
-    )
     offer_conversation(gh=gh, comments=[ask()], label="dream:scout")
     answer(harnesses=harnesses)
 
@@ -620,43 +597,11 @@ def test_a_new_label_starts_a_fresh_conversation_while_the_old_one_stays_paused(
     ] == [("dream:conversation", True), ("dream:scout", True)]
 
 
-def test_route_matching_uses_the_latest_issue_labels(conversation_scheduler):
-    scheduler, clock, gh = conversation_scheduler
-    configure(
-        root=scheduler.context.state.root,
-        head=CONVERSATION_CONFIG + SECOND_CONVERSATION_CONFIG,
-    )
-    set_scheduler_config(
-        scheduler=scheduler,
-        config=read_dreamcatcher_config(root=scheduler.context.state.root),
-    )
-    gh.replies(
-        stdout=conversation_listing(labels=("dream:conversation", "dream:scout")),
-        to=(
-            f"issue list --repo {REPOSITORY} --assignee {POSTED_BY} "
-            "--label dream:conversation"
-        ),
-    )
-    offer_conversation(gh=gh, comments=[], label="dream:scout")
-
-    observed = scheduler.tick(at=clock())
-
-    assert observed.rows == [
-        conversation_row(
-            label="dream:scout", finding=IssueCommentsFinding(new_comments=0)
-        )
-    ]
-    assert count_comment_reads(gh=gh) == 1
-
-
 def test_a_listed_issue_with_no_current_route_is_inactive(conversation_scheduler):
     scheduler, clock, gh = conversation_scheduler
     gh.replies(
         stdout=conversation_listing(labels=("maintenance",)),
-        to=(
-            f"issue list --repo {REPOSITORY} --assignee {POSTED_BY} "
-            "--label dream:conversation"
-        ),
+        to="issue list",
     )
 
     observed = scheduler.tick(at=clock())
@@ -1242,11 +1187,7 @@ def test_after_a_conversation_round_the_next_round_starts_an_assignment(
     scheduler.tick(at=clock())
     offer_conversation(gh=gh, comments=[ask(), ask(identifier=2)])
     both = conversation_listing(labels=("dream:conversation", ASSIGNMENT_LABEL))
-    for label in ("dream:conversation", ASSIGNMENT_LABEL):
-        gh.replies(
-            stdout=both,
-            to=f"issue list --repo {REPOSITORY} --assignee {POSTED_BY} --label {label}",
-        )
+    gh.replies(stdout=both, to="issue list")
     harnesses["claude"].replies(stdout="")
 
     observed = scheduler.tick(at=clock())
@@ -1370,10 +1311,7 @@ def test_two_faulted_conversations_start_the_global_cooldown(
                 for issue in (8, 9)
             ]
         ),
-        to=(
-            f"issue list --repo {REPOSITORY} --assignee {POSTED_BY} "
-            "--label dream:conversation"
-        ),
+        to="issue list",
     )
     tick_at = clock()
 
@@ -1453,10 +1391,7 @@ def test_the_cooldown_boundary_clears_conversation_faults(
                 for issue in (8, 9)
             ]
         ),
-        to=(
-            f"issue list --repo {REPOSITORY} --assignee {POSTED_BY} "
-            "--label dream:conversation"
-        ),
+        to="issue list",
     )
     for issue in (8, 9):
         show_conversation_issue(
@@ -1835,17 +1770,14 @@ def test_a_follow_up_without_a_saved_session_starts_a_new_one(
     assert [comment.id for comment in follow_up.comments] == [2]
 
 
-def test_a_failed_conversation_listing_leaves_open_conversations_inspected(
+def test_a_failed_listing_leaves_open_conversations_inspected(
     conversation_scheduler,
 ):
     scheduler, clock, gh = conversation_scheduler
     write_conversation(state=scheduler.context.state, issue=8)
     gh.fails(
         stderr="network unavailable",
-        to=(
-            f"issue list --repo {REPOSITORY} --assignee {POSTED_BY} "
-            "--label dream:conversation"
-        ),
+        to="issue list",
     )
     show_conversation_issue(
         gh=gh, issue=conversation_issue(labels=("dream:conversation",))
@@ -1855,7 +1787,7 @@ def test_a_failed_conversation_listing_leaves_open_conversations_inspected(
     observed = scheduler.tick(at=clock())
 
     [failure] = observed.failures
-    assert failure.startswith("could not list issues for dream:conversation")
+    assert failure.startswith("could not list issues")
     assert observed.rows == [
         conversation_row(
             title="Issue 8",
@@ -1863,43 +1795,6 @@ def test_a_failed_conversation_listing_leaves_open_conversations_inspected(
             finding=IssueCommentsFinding(new_comments=0),
         )
     ]
-
-
-def test_a_failed_route_listing_still_starts_the_requests_of_healthy_routes(
-    conversation_scheduler, harnesses
-):
-    scheduler, clock, gh = conversation_scheduler
-    configure(
-        root=scheduler.context.state.root,
-        head=CONVERSATION_CONFIG + SECOND_CONVERSATION_CONFIG,
-    )
-    set_scheduler_config(
-        scheduler=scheduler,
-        config=read_dreamcatcher_config(root=scheduler.context.state.root),
-    )
-    gh.fails(
-        stderr="network unavailable",
-        to=(
-            f"issue list --repo {REPOSITORY} --assignee {POSTED_BY} "
-            "--label dream:conversation"
-        ),
-    )
-    offer_conversation(gh=gh, comments=[ask()], label="dream:scout")
-    answer(harnesses=harnesses)
-
-    observed = scheduler.tick(at=clock())
-
-    [failure] = observed.failures
-    assert "could not list issues for dream:conversation" in failure
-    assert observed.rows == [
-        conversation_row(
-            label="dream:scout",
-            agent_work_identifier="GH8-20260819-184158-conversation",
-            finding=IssueCommentsFinding(new_comments=1),
-            started_round=StartedRound(number=1),
-        )
-    ]
-    assert count_comment_reads(gh=gh) == 1
 
 
 def test_open_conversation_faults_start_the_cooldown_whatever_the_listing(
@@ -1919,10 +1814,7 @@ def test_open_conversation_faults_start_the_cooldown_whatever_the_listing(
         )
     gh.fails(
         stderr="network unavailable",
-        to=(
-            f"issue list --repo {REPOSITORY} --assignee {POSTED_BY} "
-            "--label dream:conversation"
-        ),
+        to="issue list",
     )
     tick_at = clock()
 
@@ -1934,7 +1826,7 @@ def test_open_conversation_faults_start_the_cooldown_whatever_the_listing(
     )
     [failure] = observed.failures
     assert observed.cooldown is not None
-    assert failure.startswith("could not list issues for dream:conversation")
+    assert failure.startswith("could not list issues")
     assert observed.rows == [
         conversation_row(
             issue=issue,
@@ -2235,33 +2127,6 @@ def test_no_conversation_routes_still_read_saved_conversations(conversation_sche
         scheduler.tick(at=clock())
 
 
-def test_a_conversation_failure_remains_visible_when_an_assignment_launches(
-    conversation_scheduler, harnesses
-):
-    scheduler, clock, gh = conversation_scheduler
-    assignment_identifier = "GH13-20260923-010000-assignment"
-    write_assignment(
-        state=scheduler.context.state,
-        identifier=assignment_identifier,
-        issue=13,
-        pull_request=None,
-    )
-    gh.fails(
-        stderr="network unavailable",
-        to=(
-            f"issue list --repo {REPOSITORY} --assignee {POSTED_BY} "
-            "--label dream:conversation"
-        ),
-    )
-    harnesses["claude"].replies(stdout="")
-
-    observed = scheduler.tick(at=clock())
-
-    assert observed.launched_agent_work_identifiers == [assignment_identifier]
-    [failure] = observed.failures
-    assert failure.startswith("could not list issues for dream:conversation")
-
-
 def test_a_failed_comment_read_records_its_reason_and_starts_nothing(
     conversation_scheduler,
 ):
@@ -2372,10 +2237,7 @@ def test_a_failed_comment_read_leaves_the_other_requests_to_start(
     ]
     gh.replies(
         stdout=json.dumps(issues),
-        to=(
-            f"issue list --repo {REPOSITORY} --assignee {POSTED_BY} "
-            "--label dream:conversation"
-        ),
+        to="issue list",
     )
     gh.replies(stdout=pages(items=[ask()]), to=COMMENT_PATH)
     gh.fails(
@@ -2507,10 +2369,7 @@ def test_new_conversations_start_in_listing_order(conversation_scheduler, harnes
     ]
     gh.replies(
         stdout=json.dumps(issue_list),
-        to=(
-            f"issue list --repo {REPOSITORY} --assignee {POSTED_BY} "
-            "--label dream:conversation"
-        ),
+        to="issue list",
     )
     gh.replies(
         stdout=pages(
@@ -2556,10 +2415,7 @@ def test_an_open_conversation_starts_before_a_new_one(
                 for number in (8, 9)
             ]
         ),
-        to=(
-            f"issue list --repo {REPOSITORY} --assignee {POSTED_BY} "
-            "--label dream:conversation"
-        ),
+        to="issue list",
     )
     gh.replies(
         stdout=pages(items=[ask(identifier=2)]),
@@ -2609,10 +2465,7 @@ def test_an_unrelated_comment_failure_does_not_block_an_unfinished_round(
                 for number in (8, 9)
             ]
         ),
-        to=(
-            f"issue list --repo {REPOSITORY} --assignee {POSTED_BY} "
-            "--label dream:conversation"
-        ),
+        to="issue list",
     )
     gh.fails(
         stderr="network unavailable",

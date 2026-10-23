@@ -124,31 +124,6 @@ def test_a_listing_failure_leaves_no_rows_and_is_a_failure(gh, state):
     assert "could not connect" in failure
 
 
-def test_a_later_route_failure_keeps_the_rows_of_earlier_routes(gh, state):
-    gh.replies(
-        stdout=listing(issues=[(8, FILED)]),
-        to=(
-            f"issue list --repo {REPOSITORY} --assignee {POSTED_BY} "
-            f"--label {ASSIGNMENT_LABEL}"
-        ),
-    )
-    gh.fails(
-        stderr="gh: could not connect to github.com",
-        to=(
-            f"issue list --repo {REPOSITORY} --assignee {POSTED_BY} --label dream:less"
-        ),
-    )
-
-    found = list_requests(
-        state=state,
-        config=config_with_routes(labels=[ASSIGNMENT_LABEL, "dream:less"]),
-    )
-
-    [failure] = found.failures
-    assert "could not connect" in failure
-    assert [row.issue for row in found.rows] == [8]
-
-
 def test_a_request_names_the_open_issues_that_block_it(gh, state):
     gh.replies(
         stdout=pages(
@@ -251,7 +226,7 @@ def test_each_of_two_assignment_labels_is_a_request_with_conflicting_labels(gh, 
         ("dream:less", conflict),
         (ASSIGNMENT_LABEL, conflict),
     ]
-    assert [call.arguments[:2] for call in gh.calls] == [["issue", "list"]] * 2
+    assert [call.arguments[:2] for call in gh.calls] == [["issue", "list"]]
 
 
 @pytest.mark.parametrize("read", ["issue view", "api"])

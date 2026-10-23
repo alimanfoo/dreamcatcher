@@ -661,7 +661,7 @@ def test_a_tick_whose_listing_failed_records_what_it_could_not_read(
     output = capsys.readouterr().out
     assert output.startswith(
         f"2026-08-20 02:41:58  dreamcatcher v{DREAMCATCHER_VERSION} is running\n"
-        "2026-08-20 02:41:58  nothing launched; could not list issues for "
+        "2026-08-20 02:41:58  nothing launched; could not list issues: "
     )
     assert output.endswith("gh: could not connect to github.com gh: try again\n")
     assert output.count("\n") == 2

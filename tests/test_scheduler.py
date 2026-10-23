@@ -15,7 +15,6 @@ from conftest import (
     POSTED_BY,
     PULL_REQUEST,
     REPOSITORY,
-    SMITH_CLAUDE,
     comment,
     configure,
     git,
@@ -531,7 +530,7 @@ def test_a_tick_at_the_cap_records_a_candidate_listing_failure(
 
     assert scheduler.is_at_capacity
     failure = sole_failure(observed=observed)
-    assert failure.startswith("could not list issues for dream:smith: ")
+    assert failure.startswith("could not list issues: ")
     assert "could not connect" in failure
     assert observed.rows == [
         request_row(
@@ -1315,27 +1314,24 @@ def test_open_work_is_carried_on_before_a_new_issue_is_assigned(resuming, gh, of
     ]
 
 
-def test_a_failed_issue_listing_starts_nothing_for_its_label_alone(ready_repo, offered):
-    configure(root=ready_repo, head=SMITH_CLAUDE.replace("dream:smith", "dream:less"))
+def test_a_failed_issue_listing_starts_no_new_work_but_carries_on_open_work(
+    ready_repo, offered
+):
     write_assignment(
         state=StateDirectory(root=ready_repo),
         identifier=ASSIGNMENT_ID,
         issue=13,
     )
     ran(root=ready_repo, number=1, status=1)
-    offered.fails(
-        stderr="gh: could not connect to github.com",
-        to=f"issue list --repo {REPOSITORY} --assignee {POSTED_BY} --label dream:less",
-    )
+    offered.fails(stderr="gh: could not connect to github.com", to="issue list")
     scheduler, clock = create_scheduler(root=ready_repo, max_agents=2)
 
     observed = scheduler.tick(at=clock())
 
-    assert "could not list issues for dream:less" in sole_failure(observed=observed)
-    assert observed.launched_agent_work_identifiers == [
-        ASSIGNMENT_ID,
-        CREATED_ASSIGNMENT_ID,
-    ]
+    assert sole_failure(observed=observed) == (
+        "could not list issues: gh issue list: gh: could not connect to github.com"
+    )
+    assert observed.launched_agent_work_identifiers == [ASSIGNMENT_ID]
     assert observed.rows == [
         request_row(
             issue=13,
@@ -1343,13 +1339,7 @@ def test_a_failed_issue_listing_starts_nothing_for_its_label_alone(ready_repo, o
             ended_round=1,
             finding=NOTHING_NEW,
             started_round=StartedRound(number=2),
-        ),
-        request_row(
-            issue=8,
-            agent_work_identifier=CREATED_ASSIGNMENT_ID,
-            finding=UNCLAIMED,
-            started_round=StartedRound(number=1),
-        ),
+        )
     ]
 
 
@@ -1399,7 +1389,7 @@ def test_a_cooldown_reports_an_issue_listing_failure(ready_repo, offered):
 
     failure = sole_failure(observed=observed)
     assert observed.cooldown is not None
-    assert "could not list issues for dream:smith" in failure
+    assert "could not list issues" in failure
     assert "could not connect" in failure
 
 
