@@ -202,7 +202,7 @@ def test_an_empty_home_says_how_to_route_an_unrouted_kind(tmp_path):
     assert (
         "The daemon routes no campaigns. Add a [[campaign]] route to "
         "dreamcatcher.toml and restart the daemon. "
-        '<a class="documentation-link" '
+        '<a class="guidance-link" '
         'href="https://alimanfoo.github.io/dreamcatcher/start-a-campaign/'
         '#configure-a-campaign-route" target="_blank" '
         'rel="noopener noreferrer">Configure a campaign route</a>' in page

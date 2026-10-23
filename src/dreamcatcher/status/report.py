@@ -164,10 +164,6 @@ class DreamcatcherDaemonStatus:
         """The interval selected for the current or latest daemon run."""
         return None if self.run is None else self.run.interval_seconds
 
-    def list_labels(self, *, kind: AgentWorkKind) -> tuple[str, ...]:
-        """Return the labels of one kind that the current or latest run routes."""
-        return () if self.run is None else self.run.list_labels(kind=kind)
-
     @property
     def status_fact(self) -> DaemonStatusFact:
         """Whether the daemon runs, with its version and process ID when it does."""
@@ -251,10 +247,12 @@ class DreamcatcherStatusReport:
     def describe_section(self, *, kind: AgentWorkKind) -> AgentWorkStatusSection:
         """Describe one kind's section, which every kind has.
 
-        The guidance shows only while nothing of the kind is active. It names the
-        labels of the kind that the current or latest daemon run routes, or says
-        how to route the kind when that run routes none.
+        The guidance shows only while nothing of the kind is active and a daemon
+        run is recorded, because the routes are those of the current or latest
+        run. It names the labels of the kind that the run routes, or says how to
+        route the kind when the run routes none.
         """
+        run = self.daemon.run
         is_active = bool(
             self.list_request_statuses(kind=kind)
             or any(status.is_active for status in self._list_work_statuses(kind=kind))
@@ -263,9 +261,9 @@ class DreamcatcherStatusReport:
             heading=f"{kind}s",
             guidance=(
                 None
-                if is_active
+                if is_active or run is None
                 else _compose_section_guidance(
-                    kind=kind, labels=self.daemon.list_labels(kind=kind)
+                    kind=kind, labels=run.list_labels(kind=kind)
                 )
             ),
         )

@@ -19,7 +19,7 @@
             {% for request in section.requests %}
               {% include "partials/request-row.html" %}
             {% endfor %}
-            {% if section.guidance %}<p class="empty">{{ section.guidance.message }}{% if section.guidance.documentation %} <a class="documentation-link" href="{{ section.guidance.documentation.url }}" target="_blank" rel="noopener noreferrer">{{ section.guidance.documentation.title }}</a>{% endif %}</p>{% endif %}
+            {% if section.guidance %}<p class="empty">{{ section.guidance.message }}{% if section.guidance.documentation %} <a class="guidance-link" href="{{ section.guidance.documentation.url }}" target="_blank" rel="noopener noreferrer">{{ section.guidance.documentation.title }}</a>{% endif %}</p>{% endif %}
             {% if section.ended %}
               <details class="ended-work">
                 <summary>+ {{ section.ended|length }} ended</summary>

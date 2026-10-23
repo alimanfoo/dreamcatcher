@@ -540,7 +540,8 @@ kind with nothing active says how to start its work, naming its labels.
 When the daemon routes no label of a kind, as after an upgrade that
 brought the kind in, its tab says so, tells the user to add the route to
 `dreamcatcher.toml` and restart the daemon, and links to the page of the
-documentation that shows how.
+documentation that shows how. Before any daemon has run, the tabs give
+no such guidance, because no routes are known yet.
 
 Both show the daemon's last update, and keep showing it after the daemon
 stops, so the user can still see where things stood.

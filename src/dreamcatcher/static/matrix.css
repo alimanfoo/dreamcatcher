@@ -503,12 +503,12 @@ body::after {
   margin: var(--space-5) 0;
 }
 
-.documentation-link {
+.guidance-link {
   color: var(--phosphor);
   text-decoration: none;
 }
 
-.documentation-link:hover {
+.guidance-link:hover {
   text-shadow: var(--shadow);
 }
 

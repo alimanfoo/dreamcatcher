@@ -272,6 +272,18 @@ def test_an_empty_campaign_section_says_how_to_start_a_campaign(tmp_path):
     )
 
 
+def test_a_section_gives_no_guidance_before_any_daemon_has_run(tmp_path):
+    state = StateDirectory(root=tmp_path)
+
+    found = read_status_report(state=state, clock=lambda: LOOKED_AT)
+
+    assert [found.describe_section(kind=kind) for kind in AgentWorkKind] == [
+        AgentWorkStatusSection(heading="assignments", guidance=None),
+        AgentWorkStatusSection(heading="conversations", guidance=None),
+        AgentWorkStatusSection(heading="campaigns", guidance=None),
+    ]
+
+
 def test_a_kind_the_daemon_does_not_route_says_how_to_route_it(tmp_path):
     state = StateDirectory(root=tmp_path)
     write_daemon_run(state=state, pid=os.getpid())

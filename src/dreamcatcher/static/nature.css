@@ -472,12 +472,12 @@ body::after {
   color: var(--dim);
 }
 
-.documentation-link {
+.guidance-link {
   color: var(--link);
   text-decoration: none;
 }
 
-.documentation-link:hover {
+.guidance-link:hover {
   color: var(--link-hover);
 }
 

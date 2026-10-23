@@ -541,9 +541,10 @@ back as domain state.
 Status reads the dispatch labels from the daemon run record, never from
 `dreamcatcher.toml`, and describes the section that every kind of agent
 work has: its heading, and the guidance for a section with nothing
-active. The guidance names the kind's labels, or, when the daemon run
-routes none, says how to route the kind and links the documentation that
-shows how. The presentations make none of those choices themselves.
+active once a daemon run is recorded. The guidance names the kind's
+labels, or, when the daemon run routes none, says how to route the kind
+and links the documentation that shows how. The presentations make none
+of those choices themselves.
 
 The scheduler record holds one `RequestRow` for each request the tick
 saw. A row names the issue, its title, the dispatch label, the kind, and
