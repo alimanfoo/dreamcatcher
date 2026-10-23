@@ -1,0 +1,56 @@
+name: Reclaim check
+
+# Temporary: checks the documented way to reclaim an earlier state format's
+# disk on Windows, for #706. Reverted once the run is recorded.
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  reclaim:
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shell: [powershell, pwsh]
+    defaults:
+      run:
+        shell: ${{ matrix.shell }}
+    steps:
+      - name: Build a scratch checkout with a v6 worktree
+        run: |
+          $PSVersionTable.PSVersion
+          git --version
+          New-Item -ItemType Directory scratch | Out-Null
+          Set-Location scratch
+          git init -q
+          git config user.email check@example.com
+          git config user.name check
+          Set-Content -Path README.md -Value "scratch"
+          git add README.md
+          git commit -q -m init
+          git worktree add -q .dreamcatcher\v6\worktrees\GH1-20260101-000000-assignment -b dreamcatcher-GH1
+          Set-Location .dreamcatcher\v6\worktrees\GH1-20260101-000000-assignment
+          python -m venv .venv
+          .venv\Scripts\python -m pip install -q --disable-pip-version-check requests
+          Set-Content -Path locked.txt -Value "read-only"
+          Set-ItemProperty -Path locked.txt -Name IsReadOnly -Value $true
+          $files = Get-ChildItem -Recurse -Force -File
+          "files: $($files.Count)"
+          "read-only files: $(($files | Where-Object IsReadOnly).Count)"
+          "longest path: $(($files | ForEach-Object { $_.FullName.Length } | Measure-Object -Maximum).Maximum)"
+          Set-Location ..\..\..\..
+          git worktree list
+      - name: Reclaim the v6 disk as docs/compatibility.md says
+        working-directory: scratch
+        run: |
+          Remove-Item -Recurse -Force .dreamcatcher\v6
+          git worktree prune
+          "v6 exists: $(Test-Path .dreamcatcher\v6)"
+          git worktree list
+          if (Test-Path .dreamcatcher\v6) { throw "v6 still exists" }
+          if (git worktree list | Select-String "v6") { throw "worktree still listed" }
