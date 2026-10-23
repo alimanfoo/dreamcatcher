@@ -18,8 +18,8 @@ from records import (
     write_tick,
 )
 from rich.console import Console
-from rows import request_row
-from status_fabrications import conversation_row, fabricate_conversation
+from rows import compose_request_row
+from status_fabrications import compose_conversation_row, fabricate_conversation
 
 from dreamcatcher.agent_rounds import (
     AgentRoundRecord,
@@ -48,7 +48,7 @@ from dreamcatcher.tui import (
 )
 
 
-def rendered_console() -> tuple[Console, StringIO]:
+def create_plain_console() -> tuple[Console, StringIO]:
     """Return a plain fixed-width console and the text it writes."""
     written = StringIO()
     return Console(file=written, width=100, color_system=None), written
@@ -57,7 +57,7 @@ def rendered_console() -> tuple[Console, StringIO]:
 def test_status_lists_the_conversation(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_conversation(state=state, is_paused=False)
-    console, written = rendered_console()
+    console, written = create_plain_console()
 
     show_status_view(
         state=state,
@@ -111,7 +111,7 @@ def test_conversation_detail_shows_settings_revision_session_and_round(tmp_path)
             revision="def456",
         ),
     )
-    console, written = rendered_console()
+    console, written = create_plain_console()
 
     show_agent_work_view(
         state=state,
@@ -136,7 +136,7 @@ def test_conversation_detail_shows_settings_revision_session_and_round(tmp_path)
 def test_conversation_detail_shows_a_failed_round(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_conversation(state=state, status=2, is_paused=False)
-    console, written = rendered_console()
+    console, written = create_plain_console()
 
     show_agent_work_view(
         state=state,
@@ -176,7 +176,7 @@ def test_conversation_detail_shows_two_errors_as_a_fault(tmp_path):
             revision="abc123",
         ),
     )
-    console, written = rendered_console()
+    console, written = create_plain_console()
     console.width = 140
 
     show_agent_work_view(
@@ -194,7 +194,7 @@ def test_conversation_detail_shows_two_errors_as_a_fault(tmp_path):
 def test_conversation_feed_shows_its_saved_activity(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_conversation(state=state)
-    console, written = rendered_console()
+    console, written = create_plain_console()
 
     show_feed_view(
         state=state,
@@ -280,7 +280,7 @@ def test_conversation_feed_follows_a_later_round_without_repeating_the_first(
 def test_conversation_feed_can_select_one_round(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_conversation(state=state)
-    console, written = rendered_console()
+    console, written = create_plain_console()
 
     show_feed_view(
         state=state,
@@ -295,7 +295,7 @@ def test_conversation_feed_can_select_one_round(tmp_path):
 def test_a_missing_conversation_round_says_how_many_exist(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_conversation(state=state)
-    console, _ = rendered_console()
+    console, _ = create_plain_console()
 
     with pytest.raises(ReportableError, match="has run 1 round, so it has no round 2"):
         show_feed_view(
@@ -308,7 +308,7 @@ def test_a_missing_conversation_round_says_how_many_exist(tmp_path):
         )
 
 
-def unsaved_conversation_state(*, root) -> StateDirectory:
+def write_unsaved_conversation_state(*, root) -> StateDirectory:
     """Return state whose latest tick found a comment to answer at GH9."""
     state = StateDirectory(root=root)
     write_tick(
@@ -316,7 +316,7 @@ def unsaved_conversation_state(*, root) -> StateDirectory:
         tick=SchedulerRecord(
             at=PINNED,
             rows=[
-                request_row(
+                compose_request_row(
                     issue=9,
                     kind=AgentWorkKind.CONVERSATION,
                     finding=IssueCommentsFinding(new_comments=1),
@@ -330,8 +330,8 @@ def unsaved_conversation_state(*, root) -> StateDirectory:
 def test_status_lists_a_conversation_request_before_its_conversation_is_saved(
     tmp_path,
 ):
-    state = unsaved_conversation_state(root=tmp_path)
-    console, written = rendered_console()
+    state = write_unsaved_conversation_state(root=tmp_path)
+    console, written = create_plain_console()
 
     show_status_view(
         state=state,
@@ -355,23 +355,23 @@ def test_conversations_are_listed_in_attention_order_before_requests(tmp_path):
         tick=SchedulerRecord(
             at=PINNED,
             rows=[
-                conversation_row(
+                compose_conversation_row(
                     ended_round=1, finding=IssueCommentsFinding(new_comments=0)
                 ),
-                conversation_row(
+                compose_conversation_row(
                     issue=11, finding=IssueCommentsFinding(new_comments=0)
                 ),
-                request_row(
+                compose_request_row(
                     issue=9,
                     kind=AgentWorkKind.CONVERSATION,
                     finding=IssueCommentsFinding(new_comments=0),
                 ),
-                request_row(
+                compose_request_row(
                     issue=10,
                     kind=AgentWorkKind.CONVERSATION,
                     finding=IssueCommentsFinding(new_comments=1),
                 ),
-                request_row(
+                compose_request_row(
                     issue=12,
                     kind=AgentWorkKind.CONVERSATION,
                     finding=ReadFailureFinding(reason="gh: offline"),
@@ -379,7 +379,7 @@ def test_conversations_are_listed_in_attention_order_before_requests(tmp_path):
             ],
         ),
     )
-    console, written = rendered_console()
+    console, written = create_plain_console()
 
     show_status_view(
         state=state,
@@ -400,7 +400,7 @@ def test_conversations_are_listed_in_attention_order_before_requests(tmp_path):
     assert "cannot tell: gh: offline" in shown
 
 
-def watched_console() -> tuple[Console, StringIO]:
+def create_terminal_console() -> tuple[Console, StringIO]:
     """Return a plain console that says it is a terminal, so a view follows."""
     written = StringIO()
     return (
@@ -417,7 +417,7 @@ def watched_console() -> tuple[Console, StringIO]:
     )
 
 
-def refusing(seconds, /):
+def refuse_to_wait(seconds, /):
     """A wait that a view with nothing more to show must never reach."""
     raise AssertionError("the view waited for something that was not coming")
 
@@ -431,14 +431,14 @@ def test_an_ended_conversation_view_never_waits(tmp_path, status):
         reason=AgentWorkEndReason.COMPLETED,
         at=PINNED + timedelta(minutes=5),
     )
-    console, written = watched_console()
+    console, written = create_terminal_console()
 
     show_agent_work_view(
         state=state,
         work=read_newest_work(state=state, issue=8, kind=AgentWorkKind.CONVERSATION),
         console=console,
         clock=lambda: PINNED,
-        wait=refusing,
+        wait=refuse_to_wait,
     )
 
     assert "conversation GH8-" in written.getvalue()
@@ -477,7 +477,7 @@ def test_a_conversation_view_with_a_routing_conflict_keeps_watching(tmp_path):
         tick=SchedulerRecord(
             at=PINNED,
             rows=[
-                conversation_row(
+                compose_conversation_row(
                     finding=ConflictingLabelsFinding(labels=["discuss", "scout"])
                 )
             ],
@@ -491,24 +491,24 @@ def assert_conversation_views_keep_watching(*, state: StateDirectory) -> None:
     """Assert that the conversation detail and feed views both keep watching."""
     waits = []
 
-    def interrupting(seconds, /):
+    def record_wait_and_interrupt(seconds, /):
         waits.append(seconds)
         raise KeyboardInterrupt
 
-    console, _ = watched_console()
+    console, _ = create_terminal_console()
     show_agent_work_view(
         state=state,
         work=read_newest_work(state=state, issue=8, kind=AgentWorkKind.CONVERSATION),
         console=console,
         clock=lambda: PINNED,
-        wait=interrupting,
+        wait=record_wait_and_interrupt,
     )
-    console, _ = watched_console()
+    console, _ = create_terminal_console()
     show_feed_view(
         state=state,
         work=read_newest_work(state=state, issue=8, kind=AgentWorkKind.CONVERSATION),
         console=console,
-        wait=interrupting,
+        wait=record_wait_and_interrupt,
     )
 
     assert len(waits) == 2
@@ -527,7 +527,7 @@ def test_status_counts_an_ended_conversation(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_conversation(state=state, is_paused=False)
     end_conversation(state=state)
-    console, written = rendered_console()
+    console, written = create_plain_console()
 
     show_status_view(state=state, console=console, clock=lambda: PINNED)
 
@@ -540,14 +540,14 @@ def test_a_view_of_an_ended_conversation_never_waits(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_conversation(state=state)
     end_conversation(state=state)
-    console, written = watched_console()
+    console, written = create_terminal_console()
 
     show_agent_work_view(
         state=state,
         work=read_newest_work(state=state, issue=8, kind=AgentWorkKind.CONVERSATION),
         console=console,
         clock=lambda: PINNED,
-        wait=refusing,
+        wait=refuse_to_wait,
     )
 
     assert "ended  completed" in written.getvalue()
@@ -584,7 +584,7 @@ def test_a_view_stays_on_its_conversation_when_a_newer_one_arrives(tmp_path):
     work = read_newest_work(state=state, issue=8, kind=AgentWorkKind.CONVERSATION)
     waits = []
 
-    def arriving(seconds, /):
+    def deliver_newer_conversation(seconds, /):
         """Let the newer conversation arrive at the first wait, then interrupt."""
         waits.append(seconds)
         if len(waits) % 2 == 0:
@@ -592,20 +592,20 @@ def test_a_view_stays_on_its_conversation_when_a_newer_one_arrives(tmp_path):
         if not (state.work / newer).exists():
             shutil.move(tmp_path / newer, state.work / newer)
 
-    detail_console, detail = watched_console()
+    detail_console, detail = create_terminal_console()
     show_agent_work_view(
         state=state,
         work=work,
         console=detail_console,
         clock=lambda: PINNED,
-        wait=arriving,
+        wait=deliver_newer_conversation,
     )
-    feed_console, feed = watched_console()
+    feed_console, feed = create_terminal_console()
     show_feed_view(
         state=state,
         work=work,
         console=feed_console,
-        wait=arriving,
+        wait=deliver_newer_conversation,
     )
 
     assert len(waits) == 4

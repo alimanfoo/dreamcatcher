@@ -5,6 +5,7 @@ from pydantic import Field
 from dreamcatcher.agent_work import AgentWork
 from dreamcatcher.documents import (
     DreamcatcherDocument,
+    ReadOnlyList,
     WriteOnceDreamcatcherDocument,
     read_json,
 )
@@ -39,7 +40,7 @@ class ConversationRoundInput(WriteOnceDreamcatcherDocument):
     initial_issue: InitialConversationIssue | None = Field(
         default=None, exclude_if=lambda value: value is None
     )
-    comments: list[IssueComment]
+    comments: ReadOnlyList[IssueComment]
     revision: str
 
 

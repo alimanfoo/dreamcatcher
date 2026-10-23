@@ -222,6 +222,12 @@ $env:PYTHONWARNDEFAULTENCODING = "1"; uv run pytest --regenerate-view-goldens
   pass, because GitHub owns that document and adds to it as it pleases.
   A `DreamcatcherDocument` refuses a key that it doesn't expect, which
   is right only for a document the tool owns itself.
+- Declare each list field of a document or a projection as a
+  `ReadOnlyList` from `documents.py`, and each mapping field as a
+  `Mapping` from `collections.abc`. The type checker then refuses code
+  that changes what a document holds, while pydantic still validates the
+  field as a list or a dict. Keep `list` and `dict` for code that builds
+  a collection before it constructs the document.
 
 ### Module and process boundaries
 
@@ -277,9 +283,16 @@ $env:PYTHONWARNDEFAULTENCODING = "1"; uv run pytest --regenerate-view-goldens
 - Name a method or a function for what it does, with a verb: `render`,
   `stop`, `strip_worktree_path`. A name like `rendered` or `holder`
   reads as a value, so a reader takes it for a property and not for
-  something that runs.
+  something that runs. This holds for a helper in the tests too.
+- Name a helper in the tests that builds data, such as a row, a record
+  or a line, with `compose_`: `compose_running_round`. Name one that
+  builds an object with behaviour of its own, such as a console or a
+  scheduler, with `create_`: `create_scheduler`.
 - Name a boolean for the question it answers: `is_alive`, `is_subagent`,
   not `alive` or `subagent`. `if round.is_alive:` then reads as English.
+- Name a fixture for what the test is handed, with a noun phrase:
+  `cloned_repo`, `gh_with_available_issue`, not `cloned` or `offered`. A
+  test's signature then says what it receives.
 - Name a class or a function that a module exports so that it still says
   what it is when another module imports it bare: `create_assignment`,
   not `create`; `compose_assignment_first_round_prompt`, not

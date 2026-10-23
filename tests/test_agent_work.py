@@ -33,7 +33,7 @@ def read_work(*, state: StateDirectory) -> AgentWork:
     return work
 
 
-def written_work(*, state: StateDirectory) -> AgentWork:
+def write_sessionless_work(*, state: StateDirectory) -> AgentWork:
     """Write an assignment with no harness session, and return it as read."""
     write_assignment(
         state=state, identifier=IDENTIFIER, issue=12, harness_session_identifier=None
@@ -43,7 +43,7 @@ def written_work(*, state: StateDirectory) -> AgentWork:
 
 def test_work_records_the_harness_session_its_first_round_reports(tmp_path):
     state = StateDirectory(root=tmp_path)
-    work = written_work(state=state)
+    work = write_sessionless_work(state=state)
     assert read_work(state=state).harness_session_identifier is None
 
     record_harness_session_identifier(work=work, identifier="abc-123")
@@ -54,7 +54,7 @@ def test_work_records_the_harness_session_its_first_round_reports(tmp_path):
 
 def test_work_refuses_a_different_harness_session(tmp_path):
     state = StateDirectory(root=tmp_path)
-    work = written_work(state=state)
+    work = write_sessionless_work(state=state)
     record_harness_session_identifier(work=work, identifier="abc-123")
 
     with pytest.raises(
@@ -82,7 +82,7 @@ def test_work_refuses_an_invalid_harness_session_identifier(
     tmp_path, identifier, message
 ):
     state = StateDirectory(root=tmp_path)
-    work = written_work(state=state)
+    work = write_sessionless_work(state=state)
     with pytest.raises(ReportableError, match=message):
         record_harness_session_identifier(work=work, identifier=identifier)
 
@@ -91,7 +91,7 @@ def test_work_refuses_an_invalid_harness_session_identifier(
 
 def test_the_latest_retry_request_is_the_one_the_work_reads(tmp_path):
     state = StateDirectory(root=tmp_path)
-    work = written_work(state=state)
+    work = write_sessionless_work(state=state)
     assert read_work(state=state).retry_requested_at is None
 
     request_agent_work_retry(work=work, at=PINNED)

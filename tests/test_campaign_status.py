@@ -18,7 +18,7 @@ from records import (
     write_round,
     write_tick,
 )
-from rows import UNCLAIMED, request_row
+from rows import UNCLAIMED, compose_request_row
 
 from dreamcatcher.agent_rounds import (
     AgentRoundRecord,
@@ -78,7 +78,7 @@ def state(tmp_path):
     return state
 
 
-def lead_round(
+def write_lead_round(
     *,
     state: StateDirectory,
     number: int,
@@ -149,7 +149,7 @@ def observe(
         tick=SchedulerRecord(
             at=PINNED,
             rows=[
-                request_row(
+                compose_request_row(
                     issue=PARENT,
                     kind=AgentWorkKind.CAMPAIGN,
                     agent_work_identifier=compose_campaign_identifier(issue=PARENT),
@@ -163,7 +163,7 @@ def observe(
     )
 
 
-def campaign_status(*, state: StateDirectory) -> AgentWorkStatus:
+def read_campaign_status(*, state: StateDirectory) -> AgentWorkStatus:
     """Return the status of the campaign at the parent."""
     campaign = read_campaign(state=state, issue=PARENT)
     assert campaign is not None
@@ -183,7 +183,7 @@ def test_a_labelled_parent_with_no_campaign_yet_is_available(tmp_path):
         tick=SchedulerRecord(
             at=PINNED,
             rows=[
-                request_row(
+                compose_request_row(
                     issue=PARENT, kind=AgentWorkKind.CAMPAIGN, finding=NOTHING_NEW
                 )
             ],
@@ -201,17 +201,17 @@ def test_a_labelled_parent_with_no_campaign_yet_is_available(tmp_path):
 def test_a_campaign_whose_lead_has_not_run_is_waiting(state):
     observe(state=state, finding=NOTHING_NEW)
 
-    status = campaign_status(state=state)
+    status = read_campaign_status(state=state)
 
     assert status.value is AgentWorkStatusValue.WAITING
     assert status.detail == "no round has run yet"
 
 
 def test_a_running_lead_is_working_on_its_start(state):
-    lead_round(state=state, number=1, ending=None)
+    write_lead_round(state=state, number=1, ending=None)
     observe(state=state, finding=NOTHING_NEW, started_round=StartedRound(number=1))
 
-    status = campaign_status(state=state)
+    status = read_campaign_status(state=state)
 
     assert status.value is AgentWorkStatusValue.WORKING
     assert status.detail.startswith("round 1, start, running ")
@@ -230,20 +230,20 @@ def test_a_running_lead_is_working_on_its_start(state):
 def test_a_lead_that_took_its_turn_is_idle_with_how_its_round_ended(
     state, ending, detail
 ):
-    lead_round(state=state, number=1, ending=ending)
+    write_lead_round(state=state, number=1, ending=ending)
     observe(state=state, finding=NOTHING_NEW, ended_round=1)
 
-    status = campaign_status(state=state)
+    status = read_campaign_status(state=state)
 
     assert status.value is AgentWorkStatusValue.IDLE
     assert status.detail == detail
 
 
 def test_a_lead_that_finished_after_the_update_started_it_awaits_the_next(state):
-    lead_round(state=state, number=1, ending=SUCCESSFUL)
+    write_lead_round(state=state, number=1, ending=SUCCESSFUL)
     observe(state=state, finding=NOTHING_NEW, started_round=StartedRound(number=1))
 
-    status = campaign_status(state=state)
+    status = read_campaign_status(state=state)
 
     assert status.value is AgentWorkStatusValue.IDLE
     assert status.detail == "round 1 ended, awaiting next update"
@@ -260,7 +260,7 @@ def test_a_lead_that_finished_after_the_update_started_it_awaits_the_next(state)
 def test_a_lead_with_new_input_is_waiting_for_it(
     state, new_comments, changed_children, detail
 ):
-    lead_round(
+    write_lead_round(
         state=state,
         number=1,
         ending=StoppedAgentRoundEnding(at=PINNED + timedelta(minutes=2)),
@@ -273,56 +273,56 @@ def test_a_lead_with_new_input_is_waiting_for_it(
         ended_round=1,
     )
 
-    status = campaign_status(state=state)
+    status = read_campaign_status(state=state)
 
     assert status.value is AgentWorkStatusValue.WAITING
     assert status.detail == detail
 
 
 def test_a_lead_whose_round_did_not_finish_waits_to_recover(state):
-    lead_round(state=state, number=1, ending=InterruptedAgentRoundEnding())
+    write_lead_round(state=state, number=1, ending=InterruptedAgentRoundEnding())
     observe(state=state, finding=NOTHING_NEW, ended_round=1)
 
-    status = campaign_status(state=state)
+    status = read_campaign_status(state=state)
 
     assert status.value is AgentWorkStatusValue.WAITING
     assert status.detail == "round 1 interrupted"
 
 
 def test_a_paused_campaign_is_idle_and_says_why(state):
-    lead_round(state=state, number=1, ending=InterruptedAgentRoundEnding())
+    write_lead_round(state=state, number=1, ending=InterruptedAgentRoundEnding())
     observe(
         state=state,
         finding=PausedFinding(cause=PauseCause.LABEL_REMOVED),
         ended_round=1,
     )
 
-    status = campaign_status(state=state)
+    status = read_campaign_status(state=state)
 
     assert status.value is AgentWorkStatusValue.IDLE
     assert status.detail == "paused, label removed"
 
 
 def test_two_errored_lead_rounds_are_a_fault(state):
-    lead_round(state=state, number=1, ending=ERRORED)
-    lead_round(state=state, number=2, ending=ERRORED)
+    write_lead_round(state=state, number=1, ending=ERRORED)
+    write_lead_round(state=state, number=2, ending=ERRORED)
     observe(state=state, finding=None, ended_round=2)
 
-    status = campaign_status(state=state)
+    status = read_campaign_status(state=state)
 
     assert status.value is AgentWorkStatusValue.FAULT
     assert status.faulted_round_number == 2
 
 
 def test_a_campaign_whose_parent_closed_has_ended(state):
-    lead_round(state=state, number=1, ending=SUCCESSFUL)
+    write_lead_round(state=state, number=1, ending=SUCCESSFUL)
     write_ending(
         directory=state.work / compose_campaign_identifier(issue=PARENT),
         reason=AgentWorkEndReason.ISSUE_CLOSED,
         at=LOOKED_AT,
     )
 
-    status = campaign_status(state=state)
+    status = read_campaign_status(state=state)
 
     assert status.value is AgentWorkStatusValue.ENDED
     assert status.detail == "issue closed"
@@ -331,9 +331,13 @@ def test_a_campaign_whose_parent_closed_has_ended(state):
 def test_lead_rounds_name_their_trigger_and_the_revision_of_main_they_were_given(
     state,
 ):
-    lead_round(state=state, number=1, ending=ERRORED, revision="abc123", comments=1)
-    lead_round(state=state, number=2, ending=SUCCESSFUL, revision="def456", comments=1)
-    lead_round(
+    write_lead_round(
+        state=state, number=1, ending=ERRORED, revision="abc123", comments=1
+    )
+    write_lead_round(
+        state=state, number=2, ending=SUCCESSFUL, revision="def456", comments=1
+    )
+    write_lead_round(
         state=state,
         number=3,
         ending=SUCCESSFUL,
@@ -341,10 +345,12 @@ def test_lead_rounds_name_their_trigger_and_the_revision_of_main_they_were_given
         comments=2,
         changed=1,
     )
-    lead_round(state=state, number=4, ending=SUCCESSFUL, revision="def456", changed=2)
-    lead_round(state=state, number=5, ending=None, revision=None)
+    write_lead_round(
+        state=state, number=4, ending=SUCCESSFUL, revision="def456", changed=2
+    )
+    write_lead_round(state=state, number=5, ending=None, revision=None)
 
-    rounds = campaign_status(state=state).round_statuses
+    rounds = read_campaign_status(state=state).round_statuses
 
     assert [round_status.trigger_description for round_status in rounds] == [
         "start, 1 comment",
@@ -365,7 +371,7 @@ def test_lead_rounds_name_their_trigger_and_the_revision_of_main_they_were_given
     ]
 
 
-def stage(*, issue: int, state: IssueState) -> CampaignChild:
+def compose_child(*, issue: int, state: IssueState) -> CampaignChild:
     """Return one settled child with no assignment, in this state."""
     return CampaignChild(
         issue=issue,
@@ -383,26 +389,26 @@ def stage(*, issue: int, state: IssueState) -> CampaignChild:
         ([], "no sub-issues"),
         (
             [
-                stage(issue=21, state=IssueState.CLOSED),
-                stage(issue=22, state=IssueState.OPEN),
-                stage(issue=23, state=IssueState.CLOSED),
+                compose_child(issue=21, state=IssueState.CLOSED),
+                compose_child(issue=22, state=IssueState.OPEN),
+                compose_child(issue=23, state=IssueState.CLOSED),
             ],
             "2 of 3 sub-issues closed",
         ),
     ],
 )
 def test_an_active_campaign_counts_its_closed_children(state, children, summary):
-    lead_round(state=state, number=1, ending=SUCCESSFUL)
+    write_lead_round(state=state, number=1, ending=SUCCESSFUL)
     observe(state=state, finding=NOTHING_NEW, ended_round=1, children=children)
 
-    status = campaign_status(state=state)
+    status = read_campaign_status(state=state)
 
     assert status.children == children
     assert status.children_summary == summary
 
 
 def test_an_ended_campaign_shows_no_children(state):
-    lead_round(state=state, number=1, ending=SUCCESSFUL)
+    write_lead_round(state=state, number=1, ending=SUCCESSFUL)
     write_ending(
         directory=state.work / compose_campaign_identifier(issue=PARENT),
         reason=AgentWorkEndReason.ISSUE_CLOSED,
@@ -412,10 +418,10 @@ def test_an_ended_campaign_shows_no_children(state):
         state=state,
         finding=None,
         ended_round=1,
-        children=[stage(issue=21, state=IssueState.CLOSED)],
+        children=[compose_child(issue=21, state=IssueState.CLOSED)],
     )
 
-    status = campaign_status(state=state)
+    status = read_campaign_status(state=state)
 
     assert (status.children, status.children_summary) == (None, None)
 
@@ -423,9 +429,9 @@ def test_an_ended_campaign_shows_no_children(state):
 def test_each_child_of_an_active_campaign_has_its_assignment_and_requests(state):
     assignment = "GH21-20260819-184158-assignment"
     write_assignment(state=state, identifier=assignment, issue=21)
-    lead_round(state=state, number=1, ending=SUCCESSFUL)
+    write_lead_round(state=state, number=1, ending=SUCCESSFUL)
     children = [
-        stage(issue=21, state=IssueState.OPEN).model_copy(
+        compose_child(issue=21, state=IssueState.OPEN).model_copy(
             update={
                 "assignment": CampaignChildAssignment(
                     identifier=assignment,
@@ -437,8 +443,8 @@ def test_each_child_of_an_active_campaign_has_its_assignment_and_requests(state)
                 )
             }
         ),
-        stage(issue=22, state=IssueState.OPEN),
-        stage(issue=23, state=IssueState.CLOSED),
+        compose_child(issue=22, state=IssueState.OPEN),
+        compose_child(issue=23, state=IssueState.CLOSED),
     ]
     observe(
         state=state,
@@ -446,8 +452,8 @@ def test_each_child_of_an_active_campaign_has_its_assignment_and_requests(state)
         ended_round=1,
         children=children,
         other_rows=[
-            request_row(issue=22, finding=UNCLAIMED),
-            request_row(
+            compose_request_row(issue=22, finding=UNCLAIMED),
+            compose_request_row(
                 issue=23,
                 kind=AgentWorkKind.CONVERSATION,
                 finding=IssueCommentsFinding(new_comments=0),
@@ -470,7 +476,7 @@ def test_each_child_of_an_active_campaign_has_its_assignment_and_requests(state)
 
 
 def test_a_campaign_whose_children_are_unknown_has_no_child_statuses(state):
-    lead_round(state=state, number=1, ending=SUCCESSFUL)
+    write_lead_round(state=state, number=1, ending=SUCCESSFUL)
     observe(state=state, finding=NOTHING_NEW, ended_round=1, children=None)
     report = read_status_report(state=state, clock=lambda: LOOKED_AT)
     [campaign] = report.list_active_work_statuses(kind=AgentWorkKind.CAMPAIGN)
@@ -479,13 +485,13 @@ def test_a_campaign_whose_children_are_unknown_has_no_child_statuses(state):
 
 
 def test_an_unreadable_lead_round_input_fails_the_status_naming_the_file(state):
-    lead_round(state=state, number=1, ending=SUCCESSFUL)
+    write_lead_round(state=state, number=1, ending=SUCCESSFUL)
     campaign = read_campaign(state=state, issue=PARENT)
     assert campaign is not None
     round_input = campaign.compose_round_paths(number=1).round_input
     round_input.write_bytes(b"not json")
 
-    found = campaign_status(state=state)
+    found = read_campaign_status(state=state)
 
     with pytest.raises(ReportableError, match=re.escape(str(round_input))):
         _ = found.round_statuses
