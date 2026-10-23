@@ -149,7 +149,6 @@ def _compose_web_round_boundary(
         number=record.number,
         trigger=round_.trigger,
         at=record.started,
-        detail=None if round_.revision is None else round_.revision.description,
     )
     return WebFeedLine(
         timestamp=round_.started,

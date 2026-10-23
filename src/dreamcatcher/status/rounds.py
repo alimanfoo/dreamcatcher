@@ -25,14 +25,6 @@ from dreamcatcher.words import describe_count, describe_span
 
 
 @dataclass(frozen=True, kw_only=True)
-class AgentRoundRevision:
-    """Describe the revision of main that one agent round was given."""
-
-    value: str
-    description: str
-
-
-@dataclass(frozen=True, kw_only=True)
 class AgentRoundStatus:
     """Describe one agent round for a status view."""
 
@@ -41,7 +33,6 @@ class AgentRoundStatus:
     duration_description: str
     outcome: AgentRoundOutcome
     outcome_description: str
-    revision: AgentRoundRevision | None = None
 
 
 def describe_running_round(
@@ -127,21 +118,9 @@ def describe_round_outcome(
 
 
 def list_round_statuses(*, work: AgentWork, is_working: bool) -> list[AgentRoundStatus]:
-    """Return the derived status of every round of the work, in run order.
-
-    A round given a checkout of main also names the code revision it was given,
-    against the revision of the round before it.
-    """
+    """Return the derived status of every round of the work, in run order."""
     statuses: list[AgentRoundStatus] = []
-    previous_revision = None
     for record in work.rounds:
-        revision = None
-        given_revision = _read_given_revision(work=work, number=record.number)
-        if given_revision is not None:
-            revision = _compose_round_revision(
-                previous_revision=previous_revision, revision=given_revision
-            )
-            previous_revision = given_revision
         outcome = interpret_agent_round_outcome(
             record=record,
             is_daemon_running=is_working and record.number == work.rounds[-1].number,
@@ -157,7 +136,6 @@ def list_round_statuses(*, work: AgentWork, is_working: bool) -> list[AgentRound
                 outcome_description=describe_round_outcome(
                     record=record, outcome=outcome
                 ),
-                revision=revision,
             )
         )
     return statuses
@@ -223,36 +201,3 @@ def _describe_campaign_round_trigger(*, work: AgentWork, number: int) -> str:
     if campaign_input.notifications:
         words.append(describe_changed_children(count=len(campaign_input.notifications)))
     return ", ".join(words)
-
-
-def _read_given_revision(*, work: AgentWork, number: int) -> str | None:
-    """Return the revision of main a round of the work was given, if it was.
-
-    A conversation or campaign round is given a checkout of main. An assignment
-    round works on its own branch and is given none, and a round whose input
-    is still to be written, or never was, has none to read.
-    """
-    model: type[ConversationRoundInput | CampaignRoundInput]
-    if work.record.kind is AgentWorkKind.CONVERSATION:
-        model = ConversationRoundInput
-    elif work.record.kind is AgentWorkKind.CAMPAIGN:
-        model = CampaignRoundInput
-    else:
-        return None
-    round_input = read_json_if_exists(
-        model=model, path=work.compose_round_paths(number=number).round_input
-    )
-    return None if round_input is None else round_input.revision
-
-
-def _compose_round_revision(
-    *, previous_revision: str | None, revision: str
-) -> AgentRoundRevision:
-    """Describe the revision of main that one round was given."""
-    if previous_revision is None:
-        description = f"code revision {revision}"
-    elif previous_revision == revision:
-        description = f"code revision {revision} (unchanged)"
-    else:
-        description = f"code revision {previous_revision} -> {revision}"
-    return AgentRoundRevision(value=revision, description=description)

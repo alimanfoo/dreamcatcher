@@ -64,7 +64,6 @@ from dreamcatcher.status import (
     read_status_report,
 )
 from dreamcatcher.status.requests import RequestStatusValue
-from dreamcatcher.status.rounds import _compose_round_revision
 
 LOOKED_AT = PINNED + timedelta(hours=2)
 
@@ -345,8 +344,6 @@ def test_a_live_round_shows_a_paused_conversation_as_working(
     assert found.detail == ("round 1, 1 comment, running 2h 0m, last output 1h 59m ago")
     assert found.latest_output == "I am reading the scheduler."
     assert found.round_statuses[0].outcome_description == "running"
-    assert found.round_statuses[0].revision is not None
-    assert found.round_statuses[0].revision.value == "abc123"
     assert found.harness_session_identifier == "conversation-session"
     assert found.hand_resume_command is None
 
@@ -724,7 +721,6 @@ def test_a_round_with_no_input_was_woken_by_comments(conversation_state):
     round_status = read_conversation_status(state=conversation_state).round_statuses[0]
 
     assert round_status.trigger_description == "comments"
-    assert round_status.revision is None
 
 
 def test_a_posted_answer_leaves_the_conversation_idle(conversation_state):
@@ -797,32 +793,6 @@ def test_an_issue_nobody_has_commented_on_waits_for_a_comment(tmp_path):
 
 def test_an_unobserved_issue_with_no_record_has_no_conversation(conversation_state):
     assert read_conversation(state=conversation_state, issue=9) is None
-
-
-@pytest.mark.parametrize(
-    ("previous", "current", "expected"),
-    [
-        (None, "abc123", "code revision abc123"),
-        ("abc123", "abc123", "code revision abc123 (unchanged)"),
-        ("abc123", "def456", "code revision abc123 -> def456"),
-        (
-            "0123456" + "0" * 33,
-            "0123456" + "f" * 33,
-            f"code revision {'0123456' + '0' * 33} -> {'0123456' + 'f' * 33}",
-        ),
-    ],
-)
-def test_a_round_revision_description_names_its_transition(previous, current, expected):
-    found = _compose_round_revision(previous_revision=previous, revision=current)
-
-    assert found.description == expected
-
-
-def test_a_round_revision_keeps_its_whole_value():
-    found = _compose_round_revision(previous_revision=None, revision="0123456789abcdef")
-
-    assert found.value == "0123456789abcdef"
-    assert found.description == "code revision 0123456789abcdef"
 
 
 def end_conversation(*, state: StateDirectory, minutes: int = 10) -> None:

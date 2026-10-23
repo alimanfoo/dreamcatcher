@@ -5,7 +5,6 @@ from typing import Literal
 
 from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.status import (
-    AgentRoundRevision,
     AgentWorkStatusValue,
     DreamcatcherDaemonStatus,
     RequestStatus,
@@ -70,7 +69,6 @@ class WebAgentRound:
     duration: str
     outcome: str
     outcome_description: str
-    revision: AgentRoundRevision | None
 
 
 @dataclass(frozen=True, kw_only=True)

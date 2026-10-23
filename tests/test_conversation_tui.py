@@ -72,7 +72,9 @@ def test_status_lists_the_conversation(tmp_path):
     assert "round 1, answered, ran 4m" in shown
 
 
-def test_conversation_detail_shows_settings_revision_session_and_round(tmp_path):
+def test_conversation_detail_shows_settings_session_and_round_but_no_revision(
+    tmp_path,
+):
     state = StateDirectory(root=tmp_path)
     fabricate_conversation(state=state, harness_session_identifier=None)
     directory = find_conversation_directory(state=state, issue=8)
@@ -123,8 +125,8 @@ def test_conversation_detail_shows_settings_revision_session_and_round(tmp_path)
     shown = written.getvalue()
     assert "conversation GH8-" in shown
     assert "recovered-session" in shown
-    assert "abc123" in shown
-    assert "def456" in shown
+    assert "abc123" not in shown
+    assert "def456" not in shown
     assert "opus[1m]" in shown
     assert "1 comment" in shown
     assert "successful" in shown
@@ -273,7 +275,7 @@ def test_conversation_feed_follows_a_later_round_without_repeating_the_first(
     assert shown.count("round 1: 1 comment") == 1
     assert shown.count("I found the answer.") == 1
     assert shown.count("round 2: 1 comment") == 1
-    assert shown.count("code revision abc123 -> def456") == 1
+    assert "def456" not in shown
     assert shown.count("I found the follow-up answer.") == 1
 
 

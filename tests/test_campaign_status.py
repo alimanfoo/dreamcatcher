@@ -83,11 +83,11 @@ def write_lead_round(
     state: StateDirectory,
     number: int,
     ending: _AgentRoundEnding | None,
-    revision: str | None = "abc123",
+    has_input: bool = True,
     comments: int = 0,
     changed: int = 0,
 ) -> None:
-    """Write one round of the campaign, given that many comments at the revision.
+    """Write one round of the campaign, given that many comments.
 
     The round is also given that many children, each notified as added.
     """
@@ -108,7 +108,7 @@ def write_lead_round(
         ),
         round_input=(
             None
-            if revision is None
+            if not has_input
             else CampaignRoundInput(
                 issue=PARENT,
                 children=[],
@@ -124,7 +124,7 @@ def write_lead_round(
                     if given
                     else None
                 ),
-                revision=revision,
+                revision="abc123",
                 assignment_routes=[],
             )
         ),
@@ -328,27 +328,12 @@ def test_a_campaign_whose_parent_closed_has_ended(state):
     assert status.detail == "issue closed"
 
 
-def test_lead_rounds_name_their_trigger_and_the_revision_of_main_they_were_given(
-    state,
-):
-    write_lead_round(
-        state=state, number=1, ending=ERRORED, revision="abc123", comments=1
-    )
-    write_lead_round(
-        state=state, number=2, ending=SUCCESSFUL, revision="def456", comments=1
-    )
-    write_lead_round(
-        state=state,
-        number=3,
-        ending=SUCCESSFUL,
-        revision="def456",
-        comments=2,
-        changed=1,
-    )
-    write_lead_round(
-        state=state, number=4, ending=SUCCESSFUL, revision="def456", changed=2
-    )
-    write_lead_round(state=state, number=5, ending=None, revision=None)
+def test_lead_rounds_name_their_trigger(state):
+    write_lead_round(state=state, number=1, ending=ERRORED, comments=1)
+    write_lead_round(state=state, number=2, ending=SUCCESSFUL, comments=1)
+    write_lead_round(state=state, number=3, ending=SUCCESSFUL, comments=2, changed=1)
+    write_lead_round(state=state, number=4, ending=SUCCESSFUL, changed=2)
+    write_lead_round(state=state, number=5, ending=None, has_input=False)
 
     rounds = read_campaign_status(state=state).round_statuses
 
@@ -358,16 +343,6 @@ def test_lead_rounds_name_their_trigger_and_the_revision_of_main_they_were_given
         "2 comments, 1 sub-issue changed",
         "2 sub-issues changed",
         "comments or changes",
-    ]
-    assert [
-        None if round_status.revision is None else round_status.revision.description
-        for round_status in rounds
-    ] == [
-        "code revision abc123",
-        "code revision abc123 -> def456",
-        "code revision def456 (unchanged)",
-        "code revision def456 (unchanged)",
-        None,
     ]
 
 

@@ -60,7 +60,7 @@ def test_campaign_detail_shows_its_parent_settings_and_rounds(state):
     assert "campaign GH60-20260819-184158-campaign" in shown
     assert "\ncampaign\n" in shown
     assert "dream:lead" in shown
-    assert "abc123" in shown
+    assert "abc123" not in shown
     assert "start" in shown
     assert "claude --resume lead-session" in shown
 

@@ -200,28 +200,16 @@ def _render_round_statuses(
     """Return agent round statuses newest first."""
     if not round_statuses:
         return None
-    shows_revision = any(status.revision is not None for status in round_statuses)
-    table = create_table(columns=6 if shows_revision else 5)
+    table = create_table(columns=5)
     for round_status in reversed(round_statuses):
         record = round_status.record
-        cells = [
+        table.add_row(
             Text(str(record.number)),
             Text(round_status.trigger_description),
-        ]
-        if shows_revision:
-            cells.append(
-                Text(
-                    "" if round_status.revision is None else round_status.revision.value
-                )
-            )
-        cells.extend(
-            [
-                Text(describe_time(at=record.started, zone=zone)),
-                Text(round_status.duration_description),
-                Text(round_status.outcome_description),
-            ]
+            Text(describe_time(at=record.started, zone=zone)),
+            Text(round_status.duration_description),
+            Text(round_status.outcome_description),
         )
-        table.add_row(*cells)
     return render_section(heading="rounds", body=table)
 
 
@@ -350,11 +338,6 @@ class _FeedView:
             number=record.number,
             trigger=round_status.trigger_description,
             at=record.started,
-            detail=(
-                None
-                if round_status.revision is None
-                else round_status.revision.description
-            ),
         )
         self.console.print(
             _render_feed_line(

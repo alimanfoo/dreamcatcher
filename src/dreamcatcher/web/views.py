@@ -246,7 +246,6 @@ def _compose_agent_rounds(
             duration=round_status.duration_description,
             outcome=str(round_status.outcome),
             outcome_description=round_status.outcome_description,
-            revision=round_status.revision,
         )
         for round_status in round_statuses
     )

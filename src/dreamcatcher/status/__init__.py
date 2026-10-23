@@ -17,11 +17,10 @@ from dreamcatcher.status.report import (
     read_status_report,
 )
 from dreamcatcher.status.requests import RequestReason, RequestStatus
-from dreamcatcher.status.rounds import AgentRoundRevision, AgentRoundStatus
+from dreamcatcher.status.rounds import AgentRoundStatus
 
 __all__ = [
     "AGENT_WORK_STATUS_VALUES_IN_ATTENTION_ORDER",
-    "AgentRoundRevision",
     "AgentRoundStatus",
     "AgentWorkStatus",
     "AgentWorkStatusSection",
