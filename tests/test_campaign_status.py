@@ -60,6 +60,7 @@ from dreamcatcher.status import (
     read_status_report,
 )
 from dreamcatcher.status.requests import RequestStatusValue
+from dreamcatcher.status.rounds import AgentRoundTriggerNotification
 
 LOOKED_AT = PINNED + timedelta(hours=2)
 PARENT = 20
@@ -83,13 +84,14 @@ def write_lead_round(
     state: StateDirectory,
     number: int,
     ending: _AgentRoundEnding | None,
-    revision: str | None = "abc123",
+    has_input: bool = True,
     comments: int = 0,
-    changed: int = 0,
+    children: Sequence[CampaignChild] = (),
+    notifications: Sequence[CampaignChildNotification] = (),
 ) -> None:
-    """Write one round of the campaign, given that many comments at the revision.
+    """Write one round of the campaign, given that many comments.
 
-    The round is also given that many children, each notified as added.
+    The round is also given these children and these notifications.
     """
     given = [
         IssueComment(
@@ -108,23 +110,18 @@ def write_lead_round(
         ),
         round_input=(
             None
-            if revision is None
+            if not has_input
             else CampaignRoundInput(
                 issue=PARENT,
-                children=[],
-                notifications=[
-                    CampaignChildNotification(
-                        issue=PARENT + offset, changes=[CampaignChildChange.ADDED]
-                    )
-                    for offset in range(1, changed + 1)
-                ],
+                children=children,
+                notifications=notifications,
                 comments=given,
                 cursor=(
                     IssueCommentCursor(written_at=given[-1].written_at, id=given[-1].id)
                     if given
                     else None
                 ),
-                revision=revision,
+                revision="abc123",
                 assignment_routes=[],
             )
         ),
@@ -217,6 +214,32 @@ def test_a_running_lead_is_working_on_its_start(state):
 
     assert status.value is AgentWorkStatusValue.WORKING
     assert status.detail.startswith("round 1, start, running ")
+
+
+def test_a_running_lead_counts_the_sub_issues_that_woke_it(state):
+    write_lead_round(state=state, number=1, ending=SUCCESSFUL)
+    write_lead_round(
+        state=state,
+        number=2,
+        ending=None,
+        comments=1,
+        children=[compose_child(issue=21, state=IssueState.CLOSED)],
+        notifications=[
+            notify(
+                issue=21,
+                changes=[CampaignChildChange.ISSUE_STATE, CampaignChildChange.ENDING],
+            ),
+            notify(issue=22, changes=[CampaignChildChange.REMOVED]),
+        ],
+    )
+    observe(state=state, finding=NOTHING_NEW, started_round=StartedRound(number=2))
+
+    status = read_campaign_status(state=state)
+
+    assert status.value is AgentWorkStatusValue.WORKING
+    assert status.detail.startswith(
+        "round 2, 1 comment, 2 sub-issues changed, running "
+    )
 
 
 @pytest.mark.parametrize(
@@ -330,47 +353,80 @@ def test_a_campaign_whose_parent_closed_has_ended(state):
     assert status.detail == "issue closed"
 
 
-def test_lead_rounds_name_their_trigger_and_the_revision_of_main_they_were_given(
-    state,
-):
-    write_lead_round(
-        state=state, number=1, ending=ERRORED, revision="abc123", comments=1
-    )
-    write_lead_round(
-        state=state, number=2, ending=SUCCESSFUL, revision="def456", comments=1
-    )
+def test_lead_rounds_name_their_trigger(state):
+    write_lead_round(state=state, number=1, ending=ERRORED, comments=1)
+    write_lead_round(state=state, number=2, ending=SUCCESSFUL, comments=1)
     write_lead_round(
         state=state,
         number=3,
         ending=SUCCESSFUL,
-        revision="def456",
         comments=2,
-        changed=1,
+        children=[compose_child(issue=21, state=IssueState.OPEN)],
+        notifications=[notify(issue=21, changes=[CampaignChildChange.ADDED])],
     )
     write_lead_round(
-        state=state, number=4, ending=SUCCESSFUL, revision="def456", changed=2
+        state=state,
+        number=4,
+        ending=SUCCESSFUL,
+        children=[compose_child(issue=21, state=IssueState.CLOSED)],
+        notifications=[
+            notify(
+                issue=21,
+                changes=[CampaignChildChange.ISSUE_STATE, CampaignChildChange.ENDING],
+            ),
+            notify(issue=22, changes=[CampaignChildChange.REMOVED]),
+        ],
     )
-    write_lead_round(state=state, number=5, ending=None, revision=None)
+    write_lead_round(state=state, number=5, ending=None, has_input=False)
 
     rounds = read_campaign_status(state=state).round_statuses
 
-    assert [round_status.trigger_description for round_status in rounds] == [
+    assert [round_status.trigger.describe() for round_status in rounds] == [
         "start, 1 comment",
         "recover, 1 comment",
-        "2 comments, 1 sub-issue changed",
-        "2 sub-issues changed",
+        "2 comments; #21: added",
+        "#21: closed, ended; #22: removed",
         "comments or changes",
     ]
-    assert [
-        None if round_status.revision is None else round_status.revision.description
-        for round_status in rounds
-    ] == [
-        "code revision abc123",
-        "code revision abc123 -> def456",
-        "code revision def456 (unchanged)",
-        "code revision def456 (unchanged)",
-        None,
-    ]
+
+
+def notify(
+    *, issue: int, changes: Sequence[CampaignChildChange]
+) -> CampaignChildNotification:
+    """Return the notification of these changes to one child."""
+    return CampaignChildNotification(issue=issue, changes=changes)
+
+
+@pytest.mark.parametrize(
+    ("state_now", "change", "words"),
+    [
+        (IssueState.OPEN, CampaignChildChange.ADDED, "added"),
+        (IssueState.OPEN, CampaignChildChange.ISSUE_STATE, "reopened"),
+        (IssueState.CLOSED, CampaignChildChange.ISSUE_STATE, "closed"),
+        (IssueState.OPEN, CampaignChildChange.HANDBACK, "handback"),
+        (IssueState.OPEN, CampaignChildChange.PULL_REQUEST, "pull request"),
+        (IssueState.OPEN, CampaignChildChange.CHECK_COMPLETION, "checks finished"),
+        (IssueState.OPEN, CampaignChildChange.MERGEABLE, "mergeable"),
+        (IssueState.OPEN, CampaignChildChange.ENDING, "ended"),
+        (IssueState.OPEN, CampaignChildChange.FAULT, "fault"),
+    ],
+)
+def test_a_lead_round_names_each_change_to_a_sub_issue(state, state_now, change, words):
+    write_lead_round(state=state, number=1, ending=SUCCESSFUL)
+    write_lead_round(
+        state=state,
+        number=2,
+        ending=SUCCESSFUL,
+        children=[compose_child(issue=21, state=state_now)],
+        notifications=[notify(issue=21, changes=[change])],
+    )
+
+    trigger = read_campaign_status(state=state).round_statuses[1].trigger
+
+    assert trigger.notifications == (
+        AgentRoundTriggerNotification(issue=21, changes=words),
+    )
+    assert trigger.describe() == f"#21: {words}"
 
 
 def compose_child(*, issue: int, state: IssueState) -> CampaignChild:

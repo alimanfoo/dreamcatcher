@@ -415,7 +415,7 @@ the comment, and any others the user has posted since its last round, in
 the same harness session, so it remembers what it has already done and
 said. It answers on the parent itself. Its own replies carry the agent's
 mark, so they never wake it again. While it works the campaign shows as
-working, with the number of comments that woke it.
+working, with the number of comments and of sub-issues that woke it.
 
 If the lead heads off in the wrong direction, the user stops the round
 from the campaign's page or with `dreamcatcher stop`. The lead then
@@ -445,7 +445,7 @@ not yet be given, because it was working, paused or waiting for an agent
 slot, reaches it in its next round, and a change that reverted meanwhile
 is not news. While a round is due for such changes, the campaign shows
 as waiting with how many sub-issues changed, and the round's trigger
-counts them.
+names each one with what changed.
 
 The value to the user is that the lead takes up each stage's result as
 soon as it is ready, and never spends a round on work that is still

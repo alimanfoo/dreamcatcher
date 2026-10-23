@@ -97,7 +97,7 @@ def test_conversation_page_asks_once_whether_the_daemon_runs(tmp_path, monkeypat
     probe.assert_called_once_with(path=state.lock)
 
 
-def test_conversation_page_shows_settings_revision_round_and_feed(tmp_path):
+def test_conversation_page_shows_settings_round_and_feed_but_no_revision(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_conversation(state=state, harness_session_identifier=None)
     directory = find_conversation_directory(state=state, issue=8)
@@ -154,9 +154,8 @@ def test_conversation_page_shows_settings_revision_round_and_feed(tmp_path):
     assert "<dt>model · effort</dt><dd>opus[1m] · xhigh</dd>" in page
     assert "<dt>worktree</dt>" not in page
     assert "<dt>session</dt>" not in page
-    assert "abc123" in page
-    assert f"code revision abc123 -&gt; {revision}" in page
-    assert revision in page
+    assert "abc123" not in page
+    assert revision not in page
     assert "opus[1m] · xhigh" in page
     assert "1 comment" in page
     assert "I found the answer." in page
@@ -628,7 +627,7 @@ def test_conversation_tail_adds_a_later_round_without_repeating_the_first(tmp_pa
     assert 'id="agent-work-detail"' in response.text
     assert "paused, label removed" in response.text
     assert response.text.count("round 2: 1 comment") == 1
-    assert response.text.count("code revision abc123 -&gt; def456") == 1
+    assert "def456" not in response.text
     assert response.text.count("I found the follow-up answer.") == 1
 
 

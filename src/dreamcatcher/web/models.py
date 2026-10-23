@@ -5,7 +5,7 @@ from typing import Literal
 
 from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.status import (
-    AgentRoundRevision,
+    AgentRoundTrigger,
     AgentWorkStatusValue,
     DreamcatcherDaemonStatus,
     RequestStatus,
@@ -65,12 +65,11 @@ class WebAgentRound:
     """Represent one round row on an agent-work page."""
 
     number: int
-    trigger: str
+    trigger: AgentRoundTrigger
     started: str
     duration: str
     outcome: str
     outcome_description: str
-    revision: AgentRoundRevision | None
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -140,6 +139,7 @@ class WebAgentLiveState:
 class WebAgentTail:
     """Represent one incremental agent-feed response."""
 
+    github_repository_url: str | None
     feed_cursor: str
     feed_rounds: tuple[WebFeedRound, ...]
     live: WebAgentLiveState

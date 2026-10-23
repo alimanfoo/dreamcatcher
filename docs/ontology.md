@@ -524,10 +524,13 @@ it:
 - a count of posts or comments: the user posts or issue comments
   relayed, or **comments** without a count for a conversation round that
   has no input yet;
-- a count of sub-issues changed: the notifications that a campaign round
-  was given, after any count of comments, or **comments or changes**
-  without a count for a campaign round, other than a start or a recover,
-  that has no input yet;
+- each notification that a campaign round was given, after any count of
+  comments: the sub-issue's number and the words for its changes. Each
+  change reads as its name, except that a change of issue state reads as
+  **closed** or **reopened**, by the state that the sub-issue entered,
+  check completion reads as **checks finished**, and ending reads as
+  **ended**. A campaign round, other than a start or a recover, that has
+  no input yet reads as **comments or changes**;
 - **main moved** or **checks failed**: the other signals an assignment
   round relayed, after any count of posts;
 - **merged** or **closed**: the state of a finished pull request, which
@@ -535,7 +538,7 @@ it:
 - **recover**: an assignment round whose input relays nothing new, given
   again after a round that did not finish, or a campaign round that
   follows one that did not finish. A campaign's start or recover comes
-  before the counts of comments and sub-issues it was given.
+  before the count of comments and the notifications it was given.
 
 ### Requests
 
