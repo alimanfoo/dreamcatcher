@@ -26,7 +26,7 @@ from dreamcatcher.config import (
     CodexRecipe,
     ConversationRoute,
 )
-from dreamcatcher.documents import write_json, write_text
+from dreamcatcher.documents import read_json, write_json, write_text
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.github import (
     GitHubLabel,
@@ -41,7 +41,6 @@ from dreamcatcher.issue_conversations import (
     InitialConversationIssue,
     post_conversation_answer,
     prepare_conversation_round,
-    read_conversation_input,
     read_issue_comment_cursor,
 )
 from dreamcatcher.prompts import AGENT_POST_MARKER
@@ -209,7 +208,7 @@ def test_a_follow_up_can_omit_the_issue_text(tmp_path):
         path=path,
     )
 
-    found = read_conversation_input(conversation=conversation, number=2)
+    found = read_json(model=ConversationRoundInput, path=path)
 
     assert found.initial_issue is None
     assert "initial_issue" not in json.loads(path.read_text(encoding="utf-8"))
@@ -232,7 +231,7 @@ def test_a_follow_up_from_an_earlier_version_can_keep_issue_text(tmp_path):
         path=path,
     )
 
-    found = read_conversation_input(conversation=conversation, number=2)
+    found = read_json(model=ConversationRoundInput, path=path)
 
     assert found.initial_issue == InitialConversationIssue(
         title="Why does this happen?",

@@ -75,16 +75,6 @@ def prepare_conversation_round(
     )
 
 
-def read_conversation_input(
-    *, conversation: AgentWork, number: int
-) -> ConversationRoundInput:
-    """Read the durable input of one conversation round."""
-    return read_json(
-        model=ConversationRoundInput,
-        path=conversation.compose_round_paths(number=number).round_input,
-    )
-
-
 def read_issue_comment_cursor(*, conversation: AgentWork) -> IssueCommentCursor | None:
     """Return the newest comment already relayed.
 
@@ -93,8 +83,8 @@ def read_issue_comment_cursor(*, conversation: AgentWork) -> IssueCommentCursor 
     relayed = conversation.list_relayed_round_paths()
     if not relayed:
         return None
-    newest = read_conversation_input(
-        conversation=conversation, number=relayed[0].number
+    newest = read_json(
+        model=ConversationRoundInput, path=relayed[0].round_input
     ).comments[-1]
     return IssueCommentCursor(written_at=newest.written_at, id=newest.id)
 
