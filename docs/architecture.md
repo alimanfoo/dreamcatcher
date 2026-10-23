@@ -462,6 +462,10 @@ its newest relayed round input carried, if any.
 GitHub owns its documents and may add fields, so its responses remain
 tolerant projections. Documents owned by _dreamcatcher_ remain strict.
 
+GitHub matches a login in any case. `is_login_of_account` is the one
+comparison of a login with the signed-in account, both for the author of
+a post and for an assignee of an issue.
+
 ### Relay
 
 `relay.py` owns what is past a piece of agent work's cursor in its
