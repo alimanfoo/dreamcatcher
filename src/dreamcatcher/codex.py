@@ -236,7 +236,8 @@ class _CodexHarnessAdapter(HarnessAdapter):
         opening line for a round, so it does not need the event that says a turn
         started. Codex reports each item three times, as it starts, as it
         changes and as it finishes, and only the last of those is complete. A
-        collaboration item is the exception, read as it starts.
+        collaboration item is the exception: it gets its line as it starts, and
+        none as it finishes.
         """
         kind = harness_event["type"]
         if kind == "thread.started":
@@ -319,11 +320,11 @@ def _compose_config_argument(*, key: str, value: HarnessConfigValue) -> str:
 def _read_started_item(*, item: dict) -> list[FeedEvent]:
     """Return the line of a collaboration item as it starts, and none for another.
 
-    The agent waits on its subagents through a collaboration item, and the wait
-    can block for an hour. Its line is written as it starts, so a long silence
-    after it reads as waiting rather than as a hung round. The label is Codex's
-    name for the tool, such as `wait`. Codex sends neither the subagents waited
-    on nor their states, so the line names neither.
+    Every collaboration item gets a line labelled with Codex's name for its
+    tool. The one Codex sends today is a wait on the agent's subagents, which
+    lasts as long as they run. Its line is written as it starts, so a long
+    silence after it reads as waiting rather than as a hung round. Codex sends
+    neither the subagents waited on nor their states, so the line names neither.
     """
     if item["type"] == "collab_tool_call":
         return [FeedNote(label=item["tool"])]

@@ -238,7 +238,7 @@ class _ClaudeHarnessAdapter(HarnessAdapter):
         """Return what one parsed Claude event says.
 
         A subagent's own event gets no feed line. The feed shows a subagent's
-        launch, which is the main thread's tool call, and its report, which is
+        launch, which is the agent's own tool call, and its report, which is
         a system event. So the steps of subagents that run at once never
         interleave with each other or with the main thread.
         """

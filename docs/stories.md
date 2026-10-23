@@ -196,13 +196,13 @@ An assignment has been working for longer than the user expected. They
 open its page on the _dreamcatcher_ web UI to see what the agent is
 doing. The feed shows each step the agent takes. When the agent sends
 subagents to do part of the work, several at once perhaps, the feed
-shows each subagent as the agent sends it and its report when it
+shows each subagent when the agent sends it and its report when it
 finishes, never the steps in between, so the agent's own path stays easy
 to follow. While a Codex agent waits on its subagents, the feed says
 that it is waiting, so a long quiet spell does not look like a hung
 round.
 
-This time the feed shows the agent heading the wrong way: rewriting
+In this round, the feed shows the agent heading the wrong way: rewriting
 something the issue never asked for, or chasing a problem that is not
 the one. Rather than let it finish and review the result, the user stops
 the round from the page, or with `dreamcatcher stop`, and it stops
