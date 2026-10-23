@@ -215,8 +215,9 @@ durable domain object.
 ### Scheduler
 
 The **scheduler** decides what work _dreamcatcher_ starts and when. It
-decides once per **scheduler tick**, and the daemon runs one tick per
-interval. Users see a scheduler tick called an update.
+decides once per **scheduler tick**, and the daemon waits its interval
+after each tick finishes before it starts the next. Users see a
+scheduler tick called an update.
 
 ### Channel and cursor
 

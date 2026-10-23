@@ -76,9 +76,10 @@ From the main checkout, start the daemon in its own terminal:
 dreamcatcher run --harness claude --interval 30 --max-agents 2
 ```
 
-Keep this terminal open. Every 30 seconds _dreamcatcher_ looks for work,
-and it runs at most two agent rounds at once, so the lead and a stage's
-agent can work at the same time. Your browser opens the web home page.
+Keep this terminal open. _dreamcatcher_ looks for work, waits 30 seconds
+after each look, and runs at most two agent rounds at once, so the lead
+and a stage's agent can work at the same time. Your browser opens the
+web home page.
 
 ## 4. Start the campaign
 
