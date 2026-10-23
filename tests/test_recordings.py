@@ -11,6 +11,10 @@ Claude's recordings sit under `tests/fixtures/claude/`.
 - `background-command.jsonl` is a round that ran one command in the background.
   Its notification carries no token usage, which is what keeps it out of the
   feed as a subagent's report.
+- `subagents.jsonl` is a round that sent two subagents at once, one to count the
+  files and one to read a file, and waited for both. Claude 2.1.309 made it, and
+  each subagent hands its report back in `handback_report`, leaving `summary` to
+  point at it.
 - `rate-limited.jsonl` is the one Claude recording not made against Claude's own
   API. The CLI ran against a local endpoint answering every request with the 429
   an exhausted rate limit returns, since a real limit is not something a test can
