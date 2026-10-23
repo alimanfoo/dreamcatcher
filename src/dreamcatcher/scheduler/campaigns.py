@@ -224,7 +224,7 @@ def _observe_child_assignment(
             None,
         ),
         ending=None if assignment.ending is None else assignment.ending.reason,
-        is_fault=is_in_fault,
+        is_in_fault=is_in_fault,
     )
 
 

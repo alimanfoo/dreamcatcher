@@ -261,7 +261,7 @@ def _compose_campaign_child(
                 observed_pull_request=None,
                 finished_turn=finished_turn,
                 ending=ending,
-                is_fault=False,
+                is_in_fault=False,
             )
         ),
     )

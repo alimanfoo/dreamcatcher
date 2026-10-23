@@ -8,7 +8,7 @@ main, and the lead publishes its own messages, so a round has no finishing step.
 from collections.abc import Sequence
 from enum import StrEnum
 
-from pydantic import PositiveInt
+from pydantic import ConfigDict, Field, PositiveInt
 
 from dreamcatcher.agent_assignments import ObservedPullRequest
 from dreamcatcher.agent_work import AgentWork, AgentWorkEndReason
@@ -36,15 +36,18 @@ class CampaignChildAssignment(DreamcatcherDocument):
     observed pull request is what the tick read of it. An assignment that has
     ended or is in fault has its pull request read by no tick. The finished
     turn is the newest round that took its turn, as a successful or a stopped
-    round does.
+    round does. The round input names the fault flag `is_fault`, as the agent
+    contract does.
     """
+
+    model_config = ConfigDict(validate_by_name=True, serialize_by_alias=True)
 
     identifier: str
     pull_request: PositiveInt | None
     observed_pull_request: ObservedPullRequest | None
     finished_turn: PositiveInt | None
     ending: AgentWorkEndReason | None
-    is_fault: bool
+    is_in_fault: bool = Field(alias="is_fault")
 
 
 class CampaignChild(DreamcatcherDocument):
@@ -190,7 +193,7 @@ def _list_assignment_changes(
         )
     if current.ending is not None and (before is None or before.ending is None):
         changes.append(CampaignChildChange.ENDING)
-    if current.is_fault and (before is None or not before.is_fault):
+    if current.is_in_fault and (before is None or not before.is_in_fault):
         changes.append(CampaignChildChange.FAULT)
     return changes
 

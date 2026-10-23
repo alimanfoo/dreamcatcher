@@ -439,7 +439,7 @@ def test_each_child_of_an_active_campaign_has_its_assignment_and_requests(state)
                     observed_pull_request=None,
                     finished_turn=None,
                     ending=None,
-                    is_fault=False,
+                    is_in_fault=False,
                 )
             }
         ),
