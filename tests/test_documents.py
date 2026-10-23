@@ -164,7 +164,7 @@ def test_a_document_that_is_not_utf_8_says_so(tmp_path, read):
         read(model=Sample, path=document)
 
 
-def growing(*, path: Path, written: str) -> Path:
+def write_growing_file(*, path: Path, written: str) -> Path:
     """Write a file that something adds a line at a time to, and return it.
 
     The bytes go down as they are written. A text-mode write turns each line
@@ -178,7 +178,7 @@ def growing(*, path: Path, written: str) -> Path:
 
 def test_a_file_reads_as_the_lines_it_holds_and_where_they_end(tmp_path):
     assert read_lines_from(
-        path=growing(path=tmp_path, written="first\nsecond\n"), position=0
+        path=write_growing_file(path=tmp_path, written="first\nsecond\n"), position=0
     ) == (
         ["first", "second"],
         13,
@@ -186,7 +186,7 @@ def test_a_file_reads_as_the_lines_it_holds_and_where_they_end(tmp_path):
 
 
 def test_a_read_from_where_the_last_one_stopped_finds_what_arrived_since(tmp_path):
-    file = growing(path=tmp_path, written="first\n")
+    file = write_growing_file(path=tmp_path, written="first\n")
     _, position = read_lines_from(path=file, position=0)
 
     append_text(text="second\n", path=file)
@@ -196,7 +196,7 @@ def test_a_read_from_where_the_last_one_stopped_finds_what_arrived_since(tmp_pat
 
 def test_a_line_still_being_written_is_not_one_a_file_holds(tmp_path):
     assert read_lines_from(
-        path=growing(path=tmp_path, written="first\nseco"), position=0
+        path=write_growing_file(path=tmp_path, written="first\nseco"), position=0
     ) == (
         ["first"],
         6,
@@ -204,7 +204,7 @@ def test_a_line_still_being_written_is_not_one_a_file_holds(tmp_path):
 
 
 def test_a_line_still_being_written_reads_whole_once_the_rest_lands(tmp_path):
-    file = growing(path=tmp_path, written="first\nseco")
+    file = write_growing_file(path=tmp_path, written="first\nseco")
     _, position = read_lines_from(path=file, position=0)
 
     append_text(text="nd\n", path=file)
@@ -213,7 +213,9 @@ def test_a_line_still_being_written_reads_whole_once_the_rest_lands(tmp_path):
 
 
 def test_a_file_with_nothing_in_it_holds_no_lines(tmp_path):
-    assert read_lines_from(path=growing(path=tmp_path, written=""), position=0) == (
+    assert read_lines_from(
+        path=write_growing_file(path=tmp_path, written=""), position=0
+    ) == (
         [],
         0,
     )
@@ -236,7 +238,7 @@ def test_a_file_that_is_not_there_holds_no_lines(tmp_path):
 def test_a_complete_line_position_is_recognised(tmp_path, written, position, expected):
     assert (
         is_complete_line_position(
-            path=growing(path=tmp_path, written=written),
+            path=write_growing_file(path=tmp_path, written=written),
             position=position,
         )
         is expected
@@ -262,25 +264,33 @@ def test_lines_that_cannot_be_read_say_so(tmp_path):
 
 def test_the_last_line_a_file_holds_is_the_last_one_written_whole(tmp_path):
     assert (
-        read_last_line(path=growing(path=tmp_path, written="first\nsecond\n"))
+        read_last_line(
+            path=write_growing_file(path=tmp_path, written="first\nsecond\n")
+        )
         == "second"
     )
 
 
 def test_a_file_holding_one_line_holds_it_as_its_last(tmp_path):
-    assert read_last_line(path=growing(path=tmp_path, written="only\n")) == "only"
+    assert (
+        read_last_line(path=write_growing_file(path=tmp_path, written="only\n"))
+        == "only"
+    )
 
 
 def test_a_line_still_being_written_is_not_the_last_a_file_holds(tmp_path):
-    assert read_last_line(path=growing(path=tmp_path, written="first\nseco")) == "first"
+    assert (
+        read_last_line(path=write_growing_file(path=tmp_path, written="first\nseco"))
+        == "first"
+    )
 
 
 def test_a_file_with_no_whole_line_in_it_yet_holds_no_last_line(tmp_path):
-    assert read_last_line(path=growing(path=tmp_path, written="fir")) is None
+    assert read_last_line(path=write_growing_file(path=tmp_path, written="fir")) is None
 
 
 def test_a_file_with_nothing_in_it_holds_no_last_line(tmp_path):
-    assert read_last_line(path=growing(path=tmp_path, written="")) is None
+    assert read_last_line(path=write_growing_file(path=tmp_path, written="")) is None
 
 
 def test_a_file_that_is_not_there_holds_no_last_line(tmp_path):
@@ -291,7 +301,9 @@ def test_a_last_line_longer_than_one_read_of_the_end_reads_whole(tmp_path):
     long_line = "x" * (_BACKWARD_READ_SIZE * 2 + 1)
 
     assert (
-        read_last_line(path=growing(path=tmp_path, written=f"first\n{long_line}\n"))
+        read_last_line(
+            path=write_growing_file(path=tmp_path, written=f"first\n{long_line}\n")
+        )
         == long_line
     )
 

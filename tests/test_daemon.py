@@ -105,7 +105,7 @@ class Interrupting:
             raise KeyboardInterrupt
 
 
-def idling(
+def create_idle_daemon(
     *, root, ticks: int = 2, max_agents: int = 1
 ) -> tuple[DreamcatcherDaemon, Interrupting, Ticking]:
     waiting = Interrupting(ticks=ticks)
@@ -140,7 +140,7 @@ def create_scheduler(*, daemon: DreamcatcherDaemon) -> Scheduler:
 def test_the_daemon_ticks_on_the_interval_until_the_user_interrupts(
     watched, harnesses, gh
 ):
-    daemon, waiting, _ = idling(root=watched)
+    daemon, waiting, _ = create_idle_daemon(root=watched)
 
     daemon.run()
 
@@ -150,7 +150,7 @@ def test_the_daemon_ticks_on_the_interval_until_the_user_interrupts(
 def test_the_daemon_keeps_its_companion_inside_its_established_lifetime(
     watched, harnesses, gh
 ):
-    daemon, _, _ = idling(root=watched, ticks=1)
+    daemon, _, _ = create_idle_daemon(root=watched, ticks=1)
     events = []
 
     @contextmanager
@@ -171,7 +171,7 @@ def test_the_daemon_keeps_its_companion_inside_its_established_lifetime(
 def test_the_daemon_reports_when_it_has_started_before_its_first_tick(
     watched, harnesses, gh, monkeypatch, capsys
 ):
-    daemon, _, _ = idling(root=watched)
+    daemon, _, _ = create_idle_daemon(root=watched)
 
     def verify_report(*, scheduler, at):
         assert (
@@ -185,13 +185,13 @@ def test_the_daemon_reports_when_it_has_started_before_its_first_tick(
 
 
 def test_the_daemon_flushes_every_report(watched, harnesses, gh, monkeypatch):
-    daemon, _, _ = idling(root=watched, ticks=1)
+    daemon, _, _ = create_idle_daemon(root=watched, ticks=1)
     reports = []
 
-    def report(line, /, *, flush):
+    def record_report(line, /, *, flush):
         reports.append((line, flush))
 
-    monkeypatch.setattr("builtins.print", report)
+    monkeypatch.setattr("builtins.print", record_report)
     daemon.run()
 
     assert reports == [
@@ -206,7 +206,7 @@ def test_the_daemon_flushes_every_report(watched, harnesses, gh, monkeypatch):
 def test_a_tick_output_the_daemon_cannot_write_is_a_named_failure(
     watched, harnesses, gh, monkeypatch
 ):
-    daemon, _, _ = idling(root=watched, ticks=1)
+    daemon, _, _ = create_idle_daemon(root=watched, ticks=1)
     writes = 0
 
     def fail_on_the_tick(_line, /, *, flush):
@@ -225,7 +225,7 @@ def test_a_tick_output_the_daemon_cannot_write_is_a_named_failure(
 
 
 def test_every_tick_records_when_it_ran(watched, harnesses, gh, capsys):
-    daemon, _, ticking = idling(root=watched)
+    daemon, _, ticking = create_idle_daemon(root=watched)
 
     daemon.run()
 
@@ -242,7 +242,7 @@ def test_every_tick_records_when_it_ran(watched, harnesses, gh, capsys):
 def test_a_successful_scheduler_tick_is_recorded_and_reported(
     watched, capsys, monkeypatch
 ):
-    daemon, _, _ = idling(root=watched, ticks=1)
+    daemon, _, _ = create_idle_daemon(root=watched, ticks=1)
     scheduler = create_scheduler(daemon=daemon)
     scheduler_record = SchedulerRecord(
         at=PINNED,
@@ -263,7 +263,7 @@ def test_a_successful_scheduler_tick_is_recorded_and_reported(
 
     daemon.run_scheduler_tick(scheduler=scheduler, at=PINNED)
 
-    assert recorded(daemon=daemon) == scheduler_record
+    assert read_tick_record(daemon=daemon) == scheduler_record
     written_record = daemon.state.scheduler_record.read_text(encoding="utf-8")
     assert [
         row["agent_work_identifier"] for row in json.loads(written_record)["rows"]
@@ -275,7 +275,7 @@ def test_a_successful_scheduler_tick_is_recorded_and_reported(
 
 
 def test_multiple_launches_are_recorded_and_reported(watched, capsys, monkeypatch):
-    daemon, _, _ = idling(root=watched, ticks=1)
+    daemon, _, _ = create_idle_daemon(root=watched, ticks=1)
     scheduler = create_scheduler(daemon=daemon)
     scheduler_record = SchedulerRecord(
         at=PINNED,
@@ -298,7 +298,7 @@ def test_multiple_launches_are_recorded_and_reported(watched, capsys, monkeypatc
 
     daemon.run_scheduler_tick(scheduler=scheduler, at=PINNED)
 
-    assert recorded(daemon=daemon) == scheduler_record
+    assert read_tick_record(daemon=daemon) == scheduler_record
     assert capsys.readouterr().out == (
         f"2026-08-20 02:41:58  launched rounds for {ASSIGNMENT_ID}, "
         "GH8-20260819-184158-conversation; could not refresh assignments\n"
@@ -308,7 +308,7 @@ def test_multiple_launches_are_recorded_and_reported(watched, capsys, monkeypatc
 def test_a_round_that_errored_before_its_harness_ran_is_reported_from_its_row(
     watched, capsys, monkeypatch
 ):
-    daemon, _, _ = idling(root=watched, ticks=1)
+    daemon, _, _ = create_idle_daemon(root=watched, ticks=1)
     scheduler = create_scheduler(daemon=daemon)
     scheduler_record = SchedulerRecord(
         at=PINNED,
@@ -334,7 +334,7 @@ def test_a_round_that_errored_before_its_harness_ran_is_reported_from_its_row(
 
 
 def test_a_cooldown_report_names_its_local_end(watched, capsys, monkeypatch):
-    daemon, _, _ = idling(root=watched, ticks=1)
+    daemon, _, _ = create_idle_daemon(root=watched, ticks=1)
     scheduler = create_scheduler(daemon=daemon)
     scheduler_record = SchedulerRecord(
         at=PINNED,
@@ -354,7 +354,7 @@ def test_a_cooldown_report_names_its_local_end(watched, capsys, monkeypatch):
 def test_a_tick_at_capacity_reports_capacity_before_its_failures(
     watched, capsys, monkeypatch
 ):
-    daemon, _, _ = idling(root=watched, ticks=1)
+    daemon, _, _ = create_idle_daemon(root=watched, ticks=1)
     scheduler = create_scheduler(daemon=daemon)
     monkeypatch.setitem(scheduler.rounds, ASSIGNMENT_ID, Mock())
     scheduler_record = SchedulerRecord(
@@ -373,7 +373,7 @@ def test_a_tick_at_capacity_reports_capacity_before_its_failures(
 def test_the_daemon_bootstraps_the_state_directory_and_releases_the_lock(
     watched, harnesses, gh
 ):
-    daemon, _, _ = idling(root=watched)
+    daemon, _, _ = create_idle_daemon(root=watched)
 
     daemon.run()
 
@@ -396,7 +396,7 @@ def test_the_daemon_bootstraps_the_state_directory_and_releases_the_lock(
 def test_a_second_daemon_refuses_while_the_first_holds_the_repo(
     watched, harnesses, gh, capsys
 ):
-    daemon, _, _ = idling(root=watched, max_agents=4)
+    daemon, _, _ = create_idle_daemon(root=watched, max_agents=4)
     daemon.state.bootstrap()
     write_daemon_run(state=daemon.state, pid=os.getpid(), max_agents=2)
     (daemon.state.path.parent / "repository").write_bytes(b"legacy\n")
@@ -453,7 +453,7 @@ def test_a_run_refuses_when_a_harness_it_could_dispatch_to_is_not_installed(
     watched, alone
 ):
     alone(programs=["claude"])
-    daemon, _, _ = idling(root=watched)
+    daemon, _, _ = create_idle_daemon(root=watched)
 
     with pytest.raises(ReportableError, match="codex is not on the PATH"):
         daemon.run()
@@ -482,7 +482,7 @@ def test_a_round_the_daemon_before_this_one_left_running_is_ended(
             number=1, started=read_current_time(), pid=left_running.pid
         ),
     )
-    daemon, _, _ = idling(root=watched)
+    daemon, _, _ = create_idle_daemon(root=watched)
 
     daemon.run()
 
@@ -539,7 +539,7 @@ def test_a_pending_stop_survives_daemon_restart(watched, harnesses, gh, left_run
     assignment = find_agent_work(state=state, identifier=ASSIGNMENT_ID)
     assert assignment is not None
     request_agent_round_stop(paths=assignment.compose_round_paths(number=1))
-    daemon, _, _ = idling(root=watched)
+    daemon, _, _ = create_idle_daemon(root=watched)
 
     daemon.run()
 
@@ -563,7 +563,7 @@ def test_a_conversation_round_left_running_is_ended(
             pid=left_running.pid,
         ),
     )
-    daemon, _, _ = idling(root=watched)
+    daemon, _, _ = create_idle_daemon(root=watched)
 
     daemon.run()
 
@@ -599,7 +599,7 @@ def test_the_sweep_ends_no_pid_of_a_round_from_before_the_machine_booted(
         assignment = find_agent_work(state=state, identifier=ASSIGNMENT_ID)
         assert assignment is not None
         request_agent_round_stop(paths=assignment.compose_round_paths(number=1))
-    daemon, _, _ = idling(root=watched)
+    daemon, _, _ = create_idle_daemon(root=watched)
 
     daemon.run()
 
@@ -626,20 +626,20 @@ def test_a_round_that_recorded_an_ending_is_left_running_by_the_sweep(
             ending=_compose_agent_round_ending(at=PINNED, status=0),
         ),
     )
-    daemon, _, _ = idling(root=watched)
+    daemon, _, _ = create_idle_daemon(root=watched)
 
     daemon.run()
 
     assert psutil.pid_exists(left_running.pid)
 
 
-def sole_failure(*, daemon) -> str:
+def read_sole_failure(*, daemon) -> str:
     """The one failure that held back the daemon's most recent tick."""
-    [failure] = recorded(daemon=daemon).failures
+    [failure] = read_tick_record(daemon=daemon).failures
     return failure
 
 
-def recorded(*, daemon) -> SchedulerRecord:
+def read_tick_record(*, daemon) -> SchedulerRecord:
     """What the daemon's most recent tick wrote down."""
     return SchedulerRecord.model_validate_json(
         daemon.state.scheduler_record.read_text(encoding="utf-8")
@@ -652,12 +652,12 @@ def test_a_tick_whose_listing_failed_records_what_it_could_not_read(
     offered.fails(
         stderr="gh: could not connect to github.com\ngh: try again", to="issue list"
     )
-    daemon, _, _ = idling(root=ready_repo, ticks=1)
+    daemon, _, _ = create_idle_daemon(root=ready_repo, ticks=1)
 
     daemon.run()
 
-    assert "could not connect" in sole_failure(daemon=daemon)
-    assert recorded(daemon=daemon).rows == []
+    assert "could not connect" in read_sole_failure(daemon=daemon)
+    assert read_tick_record(daemon=daemon).rows == []
     output = capsys.readouterr().out
     assert output.startswith(
         f"2026-08-20 02:41:58  dreamcatcher v{DREAMCATCHER_VERSION} is running\n"
@@ -671,7 +671,7 @@ def test_tick_output_escapes_text_the_stream_cannot_encode(
     ready_repo, offered, harnesses, monkeypatch
 ):
     offered.fails(stderr="gh: wait — try again", to="issue list")
-    daemon, _, _ = idling(root=ready_repo, ticks=1)
+    daemon, _, _ = create_idle_daemon(root=ready_repo, ticks=1)
     buffered = BytesIO()
     output = TextIOWrapper(buffered, encoding="ascii", newline="\n")
     monkeypatch.setattr(sys, "stdout", output)
@@ -689,12 +689,12 @@ def test_a_tick_whose_round_could_not_prepare_records_it_and_ticks_again(
     state = StateDirectory(root=ready_repo)
     state.path.mkdir(parents=True)
     state.worktrees.write_text("something else is here\n", encoding="utf-8")
-    daemon, waiting, _ = idling(root=ready_repo, ticks=2)
+    daemon, waiting, _ = create_idle_daemon(root=ready_repo, ticks=2)
 
     daemon.run()
 
     assert waiting.waited == [300, 300]
-    record = recorded(daemon=daemon)
+    record = read_tick_record(daemon=daemon)
     assert record.failures == []
     assert record.launched_agent_work_identifiers == []
     [row] = record.rows
@@ -727,7 +727,7 @@ def test_the_daemon_ends_the_rounds_it_holds_as_it_goes_down(ready_repo, harness
     harnesses["claude"].streams(
         lines=[Line(text="still working\n")], delay=STILL_RUNNING
     )
-    daemon, _, _ = idling(root=ready_repo, ticks=1)
+    daemon, _, _ = create_idle_daemon(root=ready_repo, ticks=1)
 
     daemon.run()
 
@@ -750,7 +750,7 @@ def test_a_termination_signal_ends_the_daemon_and_its_rounds_as_an_interrupt_doe
     harnesses["claude"].streams(
         lines=[Line(text="still working\n")], delay=STILL_RUNNING
     )
-    daemon, waiting, _ = idling(root=ready_repo)
+    daemon, waiting, _ = create_idle_daemon(root=ready_repo)
     waiting.settle = lambda: signal.raise_signal(number)
 
     daemon.run()
@@ -768,7 +768,7 @@ def test_a_second_termination_signal_leaves_the_rounds_to_end(
     harnesses["claude"].streams(
         lines=[Line(text="still working\n")], delay=STILL_RUNNING
     )
-    daemon, waiting, _ = idling(root=ready_repo)
+    daemon, waiting, _ = create_idle_daemon(root=ready_repo)
     waiting.settle = lambda: signal.raise_signal(number)
     end_for_daemon_shutdown = AgentRound.end_for_daemon_shutdown
 
@@ -791,7 +791,7 @@ def test_the_daemon_puts_back_the_signal_handler_it_found(
     watched, harnesses, gh, number
 ):
     found = signal.getsignal(number)
-    daemon, _, _ = idling(root=watched)
+    daemon, _, _ = create_idle_daemon(root=watched)
 
     daemon.run()
 
@@ -801,7 +801,7 @@ def test_the_daemon_puts_back_the_signal_handler_it_found(
 def test_a_daemon_started_to_ignore_hangups_outlives_one(watched, harnesses, gh):
     if sys.platform == "win32":
         pytest.skip("Windows has no hangup signal")
-    daemon, waiting, _ = idling(root=watched)
+    daemon, waiting, _ = create_idle_daemon(root=watched)
     waiting.settle = lambda: signal.raise_signal(signal.SIGHUP)
     found = signal.signal(signal.SIGHUP, signal.SIG_IGN)
     try:
@@ -818,7 +818,7 @@ def test_a_daemon_that_loses_its_lock_runs_no_other_tick_and_stops_rounds(
     harnesses["claude"].streams(
         lines=[Line(text="still working\n")], delay=STILL_RUNNING
     )
-    daemon, _, _ = idling(root=ready_repo)
+    daemon, _, _ = create_idle_daemon(root=ready_repo)
     interval = Mock()
     daemon.wait = interval.wait
     run_scheduler_tick = Mock(wraps=daemon.run_scheduler_tick)
@@ -845,7 +845,7 @@ def test_a_run_that_cannot_read_an_assignment_refuses_to_start(ready_repo):
     state = StateDirectory(root=ready_repo)
     directory = write_assignment(state=state, identifier=ASSIGNMENT_ID, issue=13)
     (directory / "work.json").write_text("{}", encoding="utf-8")
-    daemon, _, _ = idling(root=ready_repo, ticks=1)
+    daemon, _, _ = create_idle_daemon(root=ready_repo, ticks=1)
 
     with pytest.raises(ReportableError, match=r"work\.json is not valid"):
         daemon.run()
@@ -853,7 +853,7 @@ def test_a_run_that_cannot_read_an_assignment_refuses_to_start(ready_repo):
 
 def test_a_failed_tick_preserves_the_last_scheduler_record(ready_repo, capsys):
     # The startup sweep read this assignment, so only a tick meets it broken.
-    daemon, _, _ = idling(root=ready_repo)
+    daemon, _, _ = create_idle_daemon(root=ready_repo)
     previous = SchedulerRecord(
         at=PINNED,
         cooldown=GlobalCooldown(started=PINNED, ends=PINNED + timedelta(minutes=15)),
@@ -865,7 +865,7 @@ def test_a_failed_tick_preserves_the_last_scheduler_record(ready_repo, capsys):
     scheduler = create_scheduler(daemon=daemon)
     daemon.run_scheduler_tick(scheduler=scheduler, at=daemon.clock())
 
-    assert recorded(daemon=daemon) == previous
+    assert read_tick_record(daemon=daemon) == previous
     output = capsys.readouterr().out
     assert "update failed:" in output
     assert "work.json is not valid" in output
@@ -873,7 +873,7 @@ def test_a_failed_tick_preserves_the_last_scheduler_record(ready_repo, capsys):
 
 @pytest.mark.parametrize("record", ["{}", "null"])
 def test_an_invalid_scheduler_record_ends_the_run(watched, harnesses, gh, record):
-    daemon, _, _ = idling(root=watched)
+    daemon, _, _ = create_idle_daemon(root=watched)
     daemon.state.bootstrap()
     write_text(text=record, path=daemon.state.scheduler_record)
 

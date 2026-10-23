@@ -138,7 +138,7 @@ def _read_tail(*, state: StateDirectory, identifier: str, cursor: str) -> TestRe
     )
 
 
-def _feed_path(*, state: StateDirectory, identifier: str, number: int):
+def _find_feed_path(*, state: StateDirectory, identifier: str, number: int):
     assignment = find_agent_work(state=state, identifier=identifier)
     assert assignment is not None
     return assignment.compose_round_paths(number=number).feed
@@ -853,7 +853,7 @@ def test_assignment_page_polls_its_tail_from_the_last_complete_line(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
     identifier = "GH13-20260819-184158-assignment"
-    feed_path = _feed_path(state=state, identifier=identifier, number=2)
+    feed_path = _find_feed_path(state=state, identifier=identifier, number=2)
 
     page = render_assignment(state=state, identifier=identifier)
 
@@ -1268,7 +1268,7 @@ def test_a_tail_returns_only_complete_lines_after_its_cursor(tmp_path):
 
     first_read = _read_tail(state=state, identifier=identifier, cursor="1:0")
     cursor = _read_cursor(response=first_read)
-    feed_path = _feed_path(state=state, identifier=identifier, number=1)
+    feed_path = _find_feed_path(state=state, identifier=identifier, number=1)
     append_text(text=second.render().removesuffix("\n"), path=feed_path)
     incomplete_read = _read_tail(
         state=state,
@@ -1317,7 +1317,7 @@ def test_an_ended_round_moves_to_the_next_round_after_an_empty_read(tmp_path):
         number=2,
         lines=[FeedLine(at=LOOKED_AT, text="new round output")],
     )
-    first_feed = _feed_path(state=state, identifier=identifier, number=1)
+    first_feed = _find_feed_path(state=state, identifier=identifier, number=1)
 
     response = _read_tail(
         state=state,
@@ -1336,7 +1336,7 @@ def test_a_terminal_tail_returns_late_output_before_it_stops(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
     identifier = "GH12-20260819-184158-assignment"
-    feed_path = _feed_path(state=state, identifier=identifier, number=2)
+    feed_path = _find_feed_path(state=state, identifier=identifier, number=2)
     append_text(
         text=FeedLine(at=LOOKED_AT, text="late output").render(),
         path=feed_path,
@@ -1357,7 +1357,7 @@ def test_a_terminal_tail_returns_late_output_before_it_stops(tmp_path):
 def test_a_faulted_tail_keeps_polling_when_it_reads_nothing_new(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
-    feed = _feed_path(
+    feed = _find_feed_path(
         state=state, identifier="GH9-20260819-184158-assignment", number=2
     )
 
@@ -1374,7 +1374,7 @@ def test_a_tail_fragment_matches_its_golden(tmp_path, pytestconfig):
     state = StateDirectory(root=tmp_path)
     fabricate_a_silent_round(state=state)
     identifier = "GH13-20260819-184158-assignment"
-    first_feed = _feed_path(state=state, identifier=identifier, number=1)
+    first_feed = _find_feed_path(state=state, identifier=identifier, number=1)
     response = _read_tail(
         state=state,
         identifier=identifier,

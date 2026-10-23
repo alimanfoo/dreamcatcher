@@ -31,7 +31,7 @@ from dreamcatcher.relay import (
 BEFORE = "2026-09-03T16:49:35Z"
 
 
-def past_cursor(*, cursor: str = "") -> list[UserPost]:
+def list_posts_past_cursor(*, cursor: str = "") -> list[UserPost]:
     """What the user newly posted, given that gh answered every post list."""
     found = list_user_posts_past_cursor(
         repository=REPOSITORY,
@@ -44,7 +44,7 @@ def past_cursor(*, cursor: str = "") -> list[UserPost]:
 
 
 def test_a_pull_request_nobody_has_posted_on_has_nothing_to_relay(gh_with_no_posts):
-    assert past_cursor() == []
+    assert list_posts_past_cursor() == []
 
 
 def test_an_assignment_with_an_empty_cursor_receives_the_whole_history(
@@ -55,7 +55,7 @@ def test_an_assignment_with_an_empty_cursor_receives_the_whole_history(
         to=f"api {POST_LIST_PATHS['conversation']}",
     )
 
-    assert [post.id for post in past_cursor()] == [1]
+    assert [post.id for post in list_posts_past_cursor()] == [1]
 
 
 def test_a_post_at_the_assignment_cursor_does_not_come_back(
@@ -66,7 +66,7 @@ def test_a_post_at_the_assignment_cursor_does_not_come_back(
         to=f"api {POST_LIST_PATHS['conversation']}",
     )
 
-    assert past_cursor(cursor=POSTED_AT) == []
+    assert list_posts_past_cursor(cursor=POSTED_AT) == []
 
 
 def test_the_posts_come_back_oldest_first_whichever_list_each_came_from(
@@ -87,7 +87,7 @@ def test_the_posts_come_back_oldest_first_whichever_list_each_came_from(
         to=f"api {POST_LIST_PATHS['inline-comments']}",
     )
 
-    assert [type(post) for post in past_cursor()] == [
+    assert [type(post) for post in list_posts_past_cursor()] == [
         PullRequestReview,
         InlineReviewComment,
         IssueComment,
@@ -106,7 +106,7 @@ def test_a_post_carrying_the_marker_is_the_assignments_own_and_does_not_come_bac
         to=f"api {POST_LIST_PATHS['conversation']}",
     )
 
-    assert past_cursor() == []
+    assert list_posts_past_cursor() == []
 
 
 def test_a_post_from_another_account_does_not_come_back(gh_with_no_posts):
@@ -115,7 +115,7 @@ def test_a_post_from_another_account_does_not_come_back(gh_with_no_posts):
         to=f"api {POST_LIST_PATHS['conversation']}",
     )
 
-    assert past_cursor() == []
+    assert list_posts_past_cursor() == []
 
 
 def test_a_post_from_the_account_written_in_other_capitals_comes_back(
@@ -126,7 +126,7 @@ def test_a_post_from_the_account_written_in_other_capitals_comes_back(
         to=f"api {POST_LIST_PATHS['conversation']}",
     )
 
-    assert [type(post) for post in past_cursor()] == [IssueComment]
+    assert [type(post) for post in list_posts_past_cursor()] == [IssueComment]
 
 
 def test_a_post_whose_body_is_only_whitespace_does_not_come_back(gh_with_no_posts):
@@ -135,7 +135,7 @@ def test_a_post_whose_body_is_only_whitespace_does_not_come_back(gh_with_no_post
         to=f"api {POST_LIST_PATHS['conversation']}",
     )
 
-    assert past_cursor() == []
+    assert list_posts_past_cursor() == []
 
 
 def test_a_post_whose_account_github_no_longer_knows_does_not_come_back(
@@ -146,7 +146,7 @@ def test_a_post_whose_account_github_no_longer_knows_does_not_come_back(
         to=f"api {POST_LIST_PATHS['conversation']}",
     )
 
-    assert past_cursor() == []
+    assert list_posts_past_cursor() == []
 
 
 def test_the_empty_review_github_wrapped_an_inline_reply_in_does_not_come_back(
@@ -161,7 +161,7 @@ def test_the_empty_review_github_wrapped_an_inline_reply_in_does_not_come_back(
         to=f"api {POST_LIST_PATHS['inline-comments']}",
     )
 
-    assert [type(post) for post in past_cursor()] == [InlineReviewComment]
+    assert [type(post) for post in list_posts_past_cursor()] == [InlineReviewComment]
 
 
 @pytest.mark.parametrize(
@@ -177,7 +177,7 @@ def test_a_review_that_reached_a_verdict_comes_back_with_an_empty_body(
         to=f"api {POST_LIST_PATHS['reviews']}",
     )
 
-    assert [post.id for post in past_cursor()] == [2]
+    assert [post.id for post in list_posts_past_cursor()] == [2]
 
 
 def test_a_review_nobody_has_submitted_yet_does_not_come_back(gh_with_no_posts):
@@ -189,7 +189,7 @@ def test_a_review_nobody_has_submitted_yet_does_not_come_back(gh_with_no_posts):
         stdout=compose_page(items=[unsubmitted]), to=f"api {POST_LIST_PATHS['reviews']}"
     )
 
-    assert past_cursor() == []
+    assert list_posts_past_cursor() == []
 
 
 def test_a_suggestion_over_a_range_comes_back_with_its_lines_and_its_diff(
@@ -208,7 +208,7 @@ def test_a_suggestion_over_a_range_comes_back_with_its_lines_and_its_diff(
         to=f"api {POST_LIST_PATHS['inline-comments']}",
     )
 
-    suggestion = past_cursor()[0]
+    suggestion = list_posts_past_cursor()[0]
 
     assert isinstance(suggestion, InlineReviewComment)
     assert (suggestion.start_line, suggestion.line) == (1, 3)
@@ -242,7 +242,7 @@ def test_every_post_the_user_said_something_in_on_a_real_pull_request_comes_back
     # The three lists interleave by the time each post was written, and the
     # three empty reviews GitHub wrapped the last three inline comments in are
     # gone, while those inline comments come through on their own.
-    assert [type(post) for post in past_cursor()] == [
+    assert [type(post) for post in list_posts_past_cursor()] == [
         IssueComment,
         IssueComment,
         IssueComment,
@@ -272,7 +272,7 @@ def test_a_comment_on_a_whole_file_says_so_rather_than_naming_line_one(
         to=f"api {POST_LIST_PATHS['inline-comments']}",
     )
 
-    written = past_cursor()
+    written = list_posts_past_cursor()
 
     assert [type(post) for post in written] == [InlineReviewComment]
     assert [
@@ -294,7 +294,7 @@ def test_a_comment_gh_says_nothing_about_the_subject_of_reads_as_one_on_a_line(
 
     assert [
         post.subject_type
-        for post in past_cursor()
+        for post in list_posts_past_cursor()
         if isinstance(post, InlineReviewComment)
     ] == ["line"]
 
@@ -315,12 +315,14 @@ def test_only_eligible_issue_comments_past_the_cursor_come_back(fake):
         )
     )
 
-    def past(*, cursor: IssueCommentCursor | None) -> list[int]:
+    def list_comments_past_cursor(*, cursor: IssueCommentCursor | None) -> list[int]:
         found = list_issue_comments_past_cursor(
             repository=REPOSITORY, issue=8, account=POSTED_BY.upper(), cursor=cursor
         )
         assert not isinstance(found, UnknownGitHubResponse)
         return [item.id for item in found]
 
-    assert past(cursor=IssueCommentCursor(written_at=POSTED_AT, id=2)) == [3, 4]
-    assert past(cursor=None) == [1, 3, 4]
+    assert list_comments_past_cursor(
+        cursor=IssueCommentCursor(written_at=POSTED_AT, id=2)
+    ) == [3, 4]
+    assert list_comments_past_cursor(cursor=None) == [1, 3, 4]

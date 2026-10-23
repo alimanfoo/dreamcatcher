@@ -38,7 +38,7 @@ CLAUDE_BASE_ARGUMENTS = [
 FINAL_OUTPUT_PATH = Path("rounds") / "1" / "final.md"
 
 
-def assistant(*, blocks: Sequence[dict], parent: str | None = None) -> str:
+def compose_assistant_line(*, blocks: Sequence[dict], parent: str | None = None) -> str:
     return compose_stream_line(
         type="assistant",
         message={"content": list(blocks)},
@@ -211,7 +211,7 @@ def test_a_non_text_harness_session_identifier_is_left_raw():
 
 
 def test_what_the_agent_says_comes_through_whole():
-    line = assistant(
+    line = compose_assistant_line(
         blocks=[{"type": "text", "text": "I read the file.\nIt was empty."}]
     )
 
@@ -221,7 +221,7 @@ def test_what_the_agent_says_comes_through_whole():
 
 
 def test_a_thinking_block_says_only_that_the_agent_thought():
-    line = assistant(
+    line = compose_assistant_line(
         blocks=[{"type": "thinking", "thinking": "", "signature": "opaque"}]
     )
 
@@ -229,7 +229,7 @@ def test_a_thinking_block_says_only_that_the_agent_thought():
 
 
 def test_a_tool_call_reports_the_input_that_says_most_about_it():
-    line = assistant(
+    line = compose_assistant_line(
         blocks=[
             {
                 "type": "tool_use",
@@ -243,7 +243,7 @@ def test_a_tool_call_reports_the_input_that_says_most_about_it():
 
 
 def test_a_tool_the_chain_does_not_name_reports_its_whole_input():
-    line = assistant(
+    line = compose_assistant_line(
         blocks=[{"type": "tool_use", "name": "Odd", "input": {"where": "here"}}]
     )
 
@@ -295,13 +295,17 @@ def test_a_tool_result_that_worked_writes_nothing():
 
 
 def test_a_subagents_own_words_are_left_to_its_report():
-    line = assistant(blocks=[{"type": "text", "text": "counting"}], parent="toolu_1")
+    line = compose_assistant_line(
+        blocks=[{"type": "text", "text": "counting"}], parent="toolu_1"
+    )
 
     assert CLAUDE_ADAPTER.read(line=line) == []
 
 
 def test_a_subagent_that_thinks_is_marked_as_one():
-    line = assistant(blocks=[{"type": "thinking", "thinking": ""}], parent="toolu_1")
+    line = compose_assistant_line(
+        blocks=[{"type": "thinking", "thinking": ""}], parent="toolu_1"
+    )
 
     assert CLAUDE_ADAPTER.read(line=line) == [
         FeedNote(label="thinking", is_subagent=True)
@@ -309,7 +313,7 @@ def test_a_subagent_that_thinks_is_marked_as_one():
 
 
 def test_a_subagents_tool_call_is_marked_as_one():
-    line = assistant(
+    line = compose_assistant_line(
         blocks=[{"type": "tool_use", "name": "Bash", "input": {"command": "ls"}}],
         parent="toolu_1",
     )
@@ -435,7 +439,9 @@ def test_an_event_the_feed_has_no_line_for_writes_nothing():
         == []
     )
     assert (
-        CLAUDE_ADAPTER.read(line=assistant(blocks=[{"type": "image", "source": {}}]))
+        CLAUDE_ADAPTER.read(
+            line=compose_assistant_line(blocks=[{"type": "image", "source": {}}])
+        )
         == []
     )
 
@@ -461,7 +467,7 @@ def test_an_event_shaped_in_a_way_the_parser_cannot_read_comes_through_unchanged
 
 
 def test_a_tool_input_that_is_not_a_mapping_comes_through_unchanged():
-    line = assistant(
+    line = compose_assistant_line(
         blocks=[{"type": "tool_use", "name": "Odd", "input": ["not", "a", "map"]}]
     )
 

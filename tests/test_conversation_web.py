@@ -52,7 +52,7 @@ from dreamcatcher.web.app import _create_app
 LOOKED_AT = PINNED + timedelta(hours=2)
 
 
-def application(*, state: StateDirectory):
+def create_application(*, state: StateDirectory):
     """Return the local app with pinned time and display zone."""
     return _create_app(
         state=state,
@@ -66,7 +66,7 @@ def test_home_lists_a_conversation_and_links_to_its_page(tmp_path):
     fabricate_everything(state=state)
     fabricate_conversation(state=state, is_paused=False)
 
-    page = application(state=state).test_client().get("/").text
+    page = create_application(state=state).test_client().get("/").text
 
     assert page.index('id="assignment-tab"') < page.index('id="conversation-tab"')
     assert 'class="agent-work-card' in page
@@ -88,7 +88,7 @@ def test_conversation_page_asks_once_whether_the_daemon_runs(tmp_path, monkeypat
     monkeypatch.setattr(report_module, "is_daemon_lock_held", probe)
 
     response = (
-        application(state=state)
+        create_application(state=state)
         .test_client()
         .get("/work/GH8-20260819-184158-conversation")
     )
@@ -139,7 +139,7 @@ def test_conversation_page_shows_settings_revision_round_and_feed(tmp_path):
     )
 
     response = (
-        application(state=state)
+        create_application(state=state)
         .test_client()
         .get("/work/GH8-20260819-184158-conversation")
     )
@@ -170,7 +170,7 @@ def test_conversation_page_requests_a_stop_for_its_running_round(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
     write_running_conversation(state=state, issue=8, started=PINNED)
-    client = application(state=state).test_client()
+    client = create_application(state=state).test_client()
 
     page = client.get("/work/GH8-20260819-184158-conversation")
 
@@ -200,7 +200,7 @@ def test_conversation_tail_offers_a_hand_resume_only_while_no_round_runs(tmp_pat
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
     write_running_conversation(state=state, issue=8, started=PINNED)
-    client = application(state=state).test_client()
+    client = create_application(state=state).test_client()
     query = {"cursor": "0:0"}
 
     working = client.get(
@@ -228,7 +228,7 @@ def test_an_old_conversation_stop_submission_cannot_stop_the_next_round(tmp_path
             pid=1,
         ),
     )
-    client = application(state=state).test_client()
+    client = create_application(state=state).test_client()
 
     response = client.post(
         "/work/GH8-20260819-184158-conversation/stop/1",
@@ -244,7 +244,7 @@ def test_an_old_conversation_stop_submission_cannot_stop_the_next_round(tmp_path
 def test_a_stale_conversation_stop_request_is_already_done(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_conversation(state=state)
-    client = application(state=state).test_client()
+    client = create_application(state=state).test_client()
 
     response = client.post(
         "/work/GH8-20260819-184158-conversation/stop/1",
@@ -259,7 +259,7 @@ def test_a_stale_conversation_stop_request_is_already_done(tmp_path):
 
 def test_an_unknown_conversation_cannot_receive_a_stop_request(tmp_path):
     state = StateDirectory(root=tmp_path)
-    client = application(state=state).test_client()
+    client = create_application(state=state).test_client()
 
     response = client.post(
         "/work/GH8-20260819-184158-conversation/stop/1",
@@ -271,7 +271,7 @@ def test_an_unknown_conversation_cannot_receive_a_stop_request(tmp_path):
 
 def test_conversation_stop_requests_must_come_from_the_page(tmp_path):
     state = StateDirectory(root=tmp_path)
-    client = application(state=state).test_client()
+    client = create_application(state=state).test_client()
 
     response = client.post(
         "/work/GH8-20260819-184158-conversation/stop/1",
@@ -284,7 +284,7 @@ def test_conversation_stop_requests_must_come_from_the_page(tmp_path):
 def test_conversation_page_requests_a_retry_for_its_fault(tmp_path):
     state = StateDirectory(root=tmp_path)
     _fabricate_faulted_conversation(state=state)
-    client = application(state=state).test_client()
+    client = create_application(state=state).test_client()
 
     page = client.get("/work/GH8-20260819-184158-conversation")
 
@@ -309,7 +309,7 @@ def test_conversation_page_requests_a_retry_for_its_fault(tmp_path):
 def test_an_old_conversation_retry_submission_cannot_clear_a_newer_fault(tmp_path):
     state = StateDirectory(root=tmp_path)
     _fabricate_faulted_conversation(state=state)
-    client = application(state=state).test_client()
+    client = create_application(state=state).test_client()
 
     response = client.post(
         "/work/GH8-20260819-184158-conversation/retry/1",
@@ -324,7 +324,7 @@ def test_an_old_conversation_retry_submission_cannot_clear_a_newer_fault(tmp_pat
 
 def test_an_unknown_conversation_cannot_receive_a_retry_request(tmp_path):
     state = StateDirectory(root=tmp_path)
-    client = application(state=state).test_client()
+    client = create_application(state=state).test_client()
 
     response = client.post(
         "/work/GH8-20260819-184158-conversation/retry/2",
@@ -337,7 +337,7 @@ def test_an_unknown_conversation_cannot_receive_a_retry_request(tmp_path):
 def test_conversation_retry_requests_must_come_from_the_page(tmp_path):
     state = StateDirectory(root=tmp_path)
     _fabricate_faulted_conversation(state=state)
-    client = application(state=state).test_client()
+    client = create_application(state=state).test_client()
 
     response = client.post(
         "/work/GH8-20260819-184158-conversation/retry/2",
@@ -359,7 +359,7 @@ def test_conversation_page_with_an_unreadable_input_names_the_file(tmp_path):
     round_input.write_bytes(b"not json")
 
     response = (
-        application(state=state)
+        create_application(state=state)
         .test_client()
         .get("/work/GH8-20260819-184158-conversation")
     )
@@ -374,7 +374,7 @@ def test_conversation_page_shows_a_failed_round_waiting_to_run_again(tmp_path):
     fabricate_conversation(state=state, status=2, is_paused=False)
 
     page = (
-        application(state=state)
+        create_application(state=state)
         .test_client()
         .get("/work/GH8-20260819-184158-conversation")
         .text
@@ -419,7 +419,7 @@ def test_conversation_page_shows_two_errors_as_a_fault(tmp_path):
     _fabricate_faulted_conversation(state=state)
 
     page = (
-        application(state=state)
+        create_application(state=state)
         .test_client()
         .get("/work/GH8-20260819-184158-conversation")
         .text
@@ -432,7 +432,7 @@ def test_conversation_page_shows_two_errors_as_a_fault(tmp_path):
 def test_conversation_before_its_first_round_has_no_feed_yet(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_conversation(state=state, has_round=False)
-    client = application(state=state).test_client()
+    client = create_application(state=state).test_client()
 
     page = client.get("/work/GH8-20260819-184158-conversation").text
     tail = client.get(
@@ -458,7 +458,7 @@ def test_conversation_tail_returns_new_output_and_advances_its_cursor(tmp_path):
     )
 
     response = (
-        application(state=state)
+        create_application(state=state)
         .test_client()
         .get(
             "/work/GH8-20260819-184158-conversation/tail",
@@ -485,7 +485,7 @@ def test_an_ended_conversation_stops_empty_tail_polling(tmp_path):
     feed = conversation.compose_round_paths(number=1).feed
 
     response = (
-        application(state=state)
+        create_application(state=state)
         .test_client()
         .get(
             "/work/GH8-20260819-184158-conversation/tail",
@@ -501,7 +501,7 @@ def test_a_waiting_conversation_keeps_empty_tail_polling(tmp_path):
     fabricate_conversation(state=state, has_round=False, is_paused=False)
 
     response = (
-        application(state=state)
+        create_application(state=state)
         .test_client()
         .get(
             "/work/GH8-20260819-184158-conversation/tail",
@@ -519,7 +519,7 @@ def test_a_faulted_conversation_keeps_empty_tail_polling(tmp_path):
     assert conversation is not None
 
     response = (
-        application(state=state)
+        create_application(state=state)
         .test_client()
         .get(
             "/work/GH8-20260819-184158-conversation/tail",
@@ -549,7 +549,7 @@ def test_a_routing_conflict_keeps_empty_conversation_tail_polling(tmp_path):
     feed = conversation.compose_round_paths(number=1).feed
 
     response = (
-        application(state=state)
+        create_application(state=state)
         .test_client()
         .get(
             "/work/GH8-20260819-184158-conversation/tail",
@@ -613,7 +613,7 @@ def test_conversation_tail_adds_a_later_round_without_repeating_the_first(tmp_pa
     )
 
     response = (
-        application(state=state)
+        create_application(state=state)
         .test_client()
         .get(
             "/work/GH8-20260819-184158-conversation/tail",
@@ -635,7 +635,7 @@ def test_conversation_tail_refuses_an_invalid_cursor(tmp_path):
     fabricate_conversation(state=state)
 
     response = (
-        application(state=state)
+        create_application(state=state)
         .test_client()
         .get(
             "/work/GH8-20260819-184158-conversation/tail",
@@ -649,7 +649,7 @@ def test_conversation_tail_refuses_an_invalid_cursor(tmp_path):
 
 def test_missing_conversation_pages_answer_not_found(tmp_path):
     state = StateDirectory(root=tmp_path)
-    client = application(state=state).test_client()
+    client = create_application(state=state).test_client()
 
     page = client.get("/work/GH8-20260819-184158-conversation")
     tail = client.get(
@@ -688,7 +688,7 @@ def test_home_lists_a_conversation_request_before_its_conversation_is_saved(
     state = StateDirectory(root=tmp_path)
     fabricate_unsaved_conversation(state=state)
 
-    page = application(state=state).test_client().get("/").text
+    page = create_application(state=state).test_client().get("/").text
 
     assert 'id="request-9-dream%3Aconversation"' in page
     assert "Open conversation #9" not in page
@@ -736,7 +736,7 @@ def test_home_lists_conversations_in_attention_order_before_requests(tmp_path):
         ),
     )
 
-    page = application(state=state).test_client().get("/").text
+    page = create_application(state=state).test_client().get("/").text
 
     assert (
         page.index('id="GH11-20260819-184158-conversation"')
@@ -763,7 +763,7 @@ def test_home_collapses_an_ended_conversation(tmp_path):
         at=PINNED + timedelta(minutes=10),
     )
 
-    page = application(state=state).test_client().get("/").text
+    page = create_application(state=state).test_client().get("/").text
 
     conversations = page[page.index('id="conversation-panel"') :]
     ended = conversations[conversations.index('<details class="ended-work">') :]

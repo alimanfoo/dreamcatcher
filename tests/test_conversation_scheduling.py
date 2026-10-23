@@ -173,7 +173,7 @@ def codex_conversation_scheduler(cloned, gh):
         running.interrupt()
 
 
-def conversation_issue(
+def compose_conversation_issue(
     *,
     labels: tuple[str, ...],
     number: int = 8,
@@ -194,14 +194,16 @@ def conversation_issue(
     }
 
 
-def conversation_listing(
+def compose_conversation_listing(
     *,
     labels: tuple[str, ...],
     title: str = "Why does this happen?",
     body: str = "Explain the scheduler.",
 ) -> str:
     """Return GitHub's listing for one assigned conversation issue."""
-    return json.dumps([conversation_issue(labels=labels, title=title, body=body)])
+    return json.dumps(
+        [compose_conversation_issue(labels=labels, title=title, body=body)]
+    )
 
 
 def show_conversation_issue(*, gh, issue: dict) -> None:
@@ -225,11 +227,11 @@ def offer_conversation(
 ) -> None:
     """Have GitHub offer one assigned conversation issue and its comments."""
     gh.replies(
-        stdout=conversation_listing(labels=(label,), title=title, body=body),
+        stdout=compose_conversation_listing(labels=(label,), title=title, body=body),
         to=(f"issue list --repo {REPOSITORY} --assignee {POSTED_BY} --label {label}"),
     )
     show_conversation_issue(
-        gh=gh, issue=conversation_issue(labels=(label,), title=title, body=body)
+        gh=gh, issue=compose_conversation_issue(labels=(label,), title=title, body=body)
     )
     gh.replies(
         stdout=compose_page(items=comments),
@@ -237,7 +239,7 @@ def offer_conversation(
     )
 
 
-def conversation_row(
+def compose_conversation_row(
     *,
     finding: RequestFinding | None,
     issue: int = 8,
@@ -259,7 +261,7 @@ def conversation_row(
     ).model_copy(update={"title": title})
 
 
-def answer(
+def script_claude_answer(
     *,
     harnesses,
     body: str = "The scheduler waits for work.",
@@ -300,7 +302,7 @@ def answer(
     )
 
 
-def codex_answer(
+def script_codex_answer(
     *,
     harnesses,
     body: str | None = "The scheduler waits for work.",
@@ -327,7 +329,7 @@ def codex_answer(
     )
 
 
-def ask(*, identifier: int = 1, body: str = "Please explain.") -> dict:
+def compose_question(*, identifier: int = 1, body: str = "Please explain.") -> dict:
     """Return one eligible ordinary issue comment."""
     return compose_comment(id=identifier, created_at=ASKED, body=body)
 
@@ -386,7 +388,7 @@ def write_faulted_conversation(
                     if number == 1
                     else None
                 ),
-                comments=[ask()],
+                comments=[compose_question()],
                 revision=revision,
             ),
         )
@@ -420,8 +422,8 @@ def test_an_initial_conversation_freezes_input_runs_claude_and_publishes_once(
     conversation_scheduler, harnesses
 ):
     scheduler, clock, gh = conversation_scheduler
-    offer_conversation(gh=gh, comments=[ask()])
-    answer(harnesses=harnesses)
+    offer_conversation(gh=gh, comments=[compose_question()])
+    script_claude_answer(harnesses=harnesses)
     gh.replies(stdout=json.dumps({"id": 99}), to=POST_PATH)
 
     launched = scheduler.tick(at=clock())
@@ -433,7 +435,7 @@ def test_an_initial_conversation_freezes_input_runs_claude_and_publishes_once(
         "GH8-20260819-184158-conversation"
     ]
     assert launched.rows == [
-        conversation_row(
+        compose_conversation_row(
             agent_work_identifier=compose_conversation_identifier(issue=8),
             finding=IssueCommentsFinding(new_comments=1),
             started_round=StartedRound(number=1),
@@ -483,8 +485,8 @@ def test_each_conversation_label_selects_its_own_route(
             "--label dream:conversation"
         ),
     )
-    offer_conversation(gh=gh, comments=[ask()], label="dream:scout")
-    answer(harnesses=harnesses)
+    offer_conversation(gh=gh, comments=[compose_question()], label="dream:scout")
+    script_claude_answer(harnesses=harnesses)
 
     observed = scheduler.tick(at=clock())
 
@@ -510,7 +512,7 @@ def test_an_issue_with_two_conversation_labels_has_a_routing_conflict(
         scheduler=scheduler,
         config=read_dreamcatcher_config(root=scheduler.context.state.root),
     )
-    listing = conversation_listing(labels=("dream:conversation", "dream:scout"))
+    listing = compose_conversation_listing(labels=("dream:conversation", "dream:scout"))
     gh.replies(
         stdout=listing,
         to=(
@@ -530,8 +532,8 @@ def test_an_issue_with_two_conversation_labels_has_a_routing_conflict(
     assert observed.launched_agent_work_identifiers == []
     conflict = ConflictingLabelsFinding(labels=["dream:conversation", "dream:scout"])
     assert observed.rows == [
-        conversation_row(finding=conflict),
-        conversation_row(label="dream:scout", finding=conflict),
+        compose_conversation_row(finding=conflict),
+        compose_conversation_row(label="dream:scout", finding=conflict),
     ]
     assert count_comment_reads(gh=gh) == 0
     assert read_conversation(state=scheduler.context.state, issue=8) is None
@@ -553,20 +555,20 @@ def test_a_saved_conversation_whose_issue_gains_a_second_label_starts_nothing(
     write_conversation(state=scheduler.context.state, issue=8)
     labels = ("dream:conversation", "dream:scout")
     gh.replies(
-        stdout=conversation_listing(labels=labels),
+        stdout=compose_conversation_listing(labels=labels),
         to=f"issue list --repo {REPOSITORY} --assignee {POSTED_BY}",
     )
-    show_conversation_issue(gh=gh, issue=conversation_issue(labels=labels))
+    show_conversation_issue(gh=gh, issue=compose_conversation_issue(labels=labels))
 
     observed = scheduler.tick(at=clock())
 
     assert observed.rows == [
-        conversation_row(
+        compose_conversation_row(
             title="Issue 8",
             agent_work_identifier=compose_conversation_identifier(issue=8),
             finding=ConflictingLabelsFinding(labels=list(labels)),
         ),
-        conversation_row(
+        compose_conversation_row(
             label="dream:scout",
             finding=ConflictingLabelsFinding(labels=list(labels)),
         ),
@@ -595,8 +597,8 @@ def test_a_new_label_starts_a_fresh_conversation_while_the_old_one_stays_paused(
             "--label dream:conversation"
         ),
     )
-    offer_conversation(gh=gh, comments=[ask()], label="dream:scout")
-    answer(harnesses=harnesses)
+    offer_conversation(gh=gh, comments=[compose_question()], label="dream:scout")
+    script_claude_answer(harnesses=harnesses)
 
     observed = scheduler.tick(at=PINNED + timedelta(hours=1))
     finish(scheduler=scheduler)
@@ -605,8 +607,10 @@ def test_a_new_label_starts_a_fresh_conversation_while_the_old_one_stays_paused(
     [fresh] = observed.launched_agent_work_identifiers
     assert fresh != paused
     assert observed.rows == [
-        conversation_row(title="Issue 8", agent_work_identifier=paused, finding=PAUSED),
-        conversation_row(
+        compose_conversation_row(
+            title="Issue 8", agent_work_identifier=paused, finding=PAUSED
+        ),
+        compose_conversation_row(
             label="dream:scout",
             agent_work_identifier=fresh,
             finding=IssueCommentsFinding(new_comments=1),
@@ -631,7 +635,9 @@ def test_route_matching_uses_the_latest_issue_labels(conversation_scheduler):
         config=read_dreamcatcher_config(root=scheduler.context.state.root),
     )
     gh.replies(
-        stdout=conversation_listing(labels=("dream:conversation", "dream:scout")),
+        stdout=compose_conversation_listing(
+            labels=("dream:conversation", "dream:scout")
+        ),
         to=(
             f"issue list --repo {REPOSITORY} --assignee {POSTED_BY} "
             "--label dream:conversation"
@@ -642,7 +648,7 @@ def test_route_matching_uses_the_latest_issue_labels(conversation_scheduler):
     observed = scheduler.tick(at=clock())
 
     assert observed.rows == [
-        conversation_row(
+        compose_conversation_row(
             label="dream:scout", finding=IssueCommentsFinding(new_comments=0)
         )
     ]
@@ -652,7 +658,7 @@ def test_route_matching_uses_the_latest_issue_labels(conversation_scheduler):
 def test_a_listed_issue_with_no_current_route_is_inactive(conversation_scheduler):
     scheduler, clock, gh = conversation_scheduler
     gh.replies(
-        stdout=conversation_listing(labels=("maintenance",)),
+        stdout=compose_conversation_listing(labels=("maintenance",)),
         to=(
             f"issue list --repo {REPOSITORY} --assignee {POSTED_BY} "
             "--label dream:conversation"
@@ -669,8 +675,8 @@ def test_codex_first_and_resumed_rounds_capture_and_publish_final_messages(
     codex_conversation_scheduler, harnesses
 ):
     scheduler, clock, gh = codex_conversation_scheduler
-    offer_conversation(gh=gh, comments=[ask()])
-    codex_answer(harnesses=harnesses, body="The first answer.")
+    offer_conversation(gh=gh, comments=[compose_question()])
+    script_codex_answer(harnesses=harnesses, body="The first answer.")
     gh.replies(stdout=json.dumps({"id": 99}), to=POST_PATH)
 
     scheduler.tick(at=clock())
@@ -678,9 +684,12 @@ def test_codex_first_and_resumed_rounds_capture_and_publish_final_messages(
     scheduler.tick(at=clock())
     offer_conversation(
         gh=gh,
-        comments=[ask(), ask(identifier=2, body="What evidence supports that?")],
+        comments=[
+            compose_question(),
+            compose_question(identifier=2, body="What evidence supports that?"),
+        ],
     )
-    codex_answer(harnesses=harnesses, body="The follow-up answer.")
+    script_codex_answer(harnesses=harnesses, body="The follow-up answer.")
 
     scheduler.tick(at=clock())
     finish(scheduler=scheduler)
@@ -717,8 +726,8 @@ def test_a_codex_conversation_round_passes_its_recipes_config(
     codex_conversation_scheduler, harnesses
 ):
     scheduler, clock, gh = codex_conversation_scheduler
-    offer_conversation(gh=gh, comments=[ask()])
-    codex_answer(harnesses=harnesses, body="The answer.")
+    offer_conversation(gh=gh, comments=[compose_question()])
+    script_codex_answer(harnesses=harnesses, body="The answer.")
     gh.replies(stdout=json.dumps({"id": 99}), to=POST_PATH)
 
     scheduler.tick(at=clock())
@@ -743,8 +752,8 @@ def test_codex_no_reply_and_missing_output_post_nothing(
     codex_conversation_scheduler, harnesses, final_output, expected_outcome
 ):
     scheduler, clock, gh = codex_conversation_scheduler
-    offer_conversation(gh=gh, comments=[ask()])
-    codex_answer(harnesses=harnesses, body=final_output)
+    offer_conversation(gh=gh, comments=[compose_question()])
+    script_codex_answer(harnesses=harnesses, body=final_output)
 
     scheduler.tick(at=clock())
     finish(scheduler=scheduler)
@@ -759,8 +768,8 @@ def test_a_codex_round_after_an_error_keeps_its_session_revision_and_permissions
     codex_conversation_scheduler, harnesses
 ):
     scheduler, clock, gh = codex_conversation_scheduler
-    offer_conversation(gh=gh, comments=[ask()])
-    codex_answer(harnesses=harnesses, body="This failed.", status=2)
+    offer_conversation(gh=gh, comments=[compose_question()])
+    script_codex_answer(harnesses=harnesses, body="This failed.", status=2)
     scheduler.tick(at=clock())
     finish(scheduler=scheduler)
     conversation = read_conversation(state=scheduler.context.state, issue=8)
@@ -769,8 +778,8 @@ def test_a_codex_round_after_an_error_keeps_its_session_revision_and_permissions
         model=ConversationRoundInput,
         path=conversation.compose_round_paths(number=1).round_input,
     )
-    offer_conversation(gh=gh, comments=[ask()])
-    codex_answer(harnesses=harnesses, body="The recovered answer.")
+    offer_conversation(gh=gh, comments=[compose_question()])
+    script_codex_answer(harnesses=harnesses, body="The recovered answer.")
     gh.replies(stdout=json.dumps({"id": 99}), to=POST_PATH)
 
     scheduler.tick(at=clock())
@@ -796,8 +805,8 @@ def test_a_codex_round_after_an_error_starts_a_new_session_when_none_was_reporte
     codex_conversation_scheduler, harnesses
 ):
     scheduler, clock, gh = codex_conversation_scheduler
-    offer_conversation(gh=gh, comments=[ask()])
-    codex_answer(
+    offer_conversation(gh=gh, comments=[compose_question()])
+    script_codex_answer(
         harnesses=harnesses,
         body="This failed.",
         status=2,
@@ -811,8 +820,8 @@ def test_a_codex_round_after_an_error_starts_a_new_session_when_none_was_reporte
         model=ConversationRoundInput,
         path=conversation.compose_round_paths(number=1).round_input,
     )
-    offer_conversation(gh=gh, comments=[ask()])
-    codex_answer(harnesses=harnesses, body="The recovered answer.")
+    offer_conversation(gh=gh, comments=[compose_question()])
+    script_codex_answer(harnesses=harnesses, body="The recovered answer.")
     gh.replies(stdout=json.dumps({"id": 99}), to=POST_PATH)
 
     scheduler.tick(at=clock())
@@ -838,19 +847,22 @@ def test_a_follow_up_resumes_the_session_with_only_new_comments(
     conversation_scheduler, harnesses
 ):
     scheduler, clock, gh = conversation_scheduler
-    offer_conversation(gh=gh, comments=[ask()])
-    answer(harnesses=harnesses, body="The first answer.")
+    offer_conversation(gh=gh, comments=[compose_question()])
+    script_claude_answer(harnesses=harnesses, body="The first answer.")
     gh.replies(stdout=json.dumps({"id": 99}), to=POST_PATH)
     scheduler.tick(at=clock())
     finish(scheduler=scheduler)
     scheduler.tick(at=clock())
     offer_conversation(
         gh=gh,
-        comments=[ask(), ask(identifier=2, body="What evidence supports that?")],
+        comments=[
+            compose_question(),
+            compose_question(identifier=2, body="What evidence supports that?"),
+        ],
         title="What now happens?",
         body="Explain the current scheduler.",
     )
-    answer(harnesses=harnesses, body="The follow-up answer.")
+    script_claude_answer(harnesses=harnesses, body="The follow-up answer.")
 
     launched = scheduler.tick(at=clock())
     finish(scheduler=scheduler)
@@ -892,8 +904,10 @@ def test_a_stopped_conversation_waits_for_new_feedback(
         "dreamcatcher.agent_rounds._STOP_REQUEST_POLL_INTERVAL_SECONDS", 0.01
     )
     scheduler, clock, gh = conversation_scheduler
-    offer_conversation(gh=gh, comments=[ask()])
-    answer(harnesses=harnesses, body="This answer must not be posted.", delay=5)
+    offer_conversation(gh=gh, comments=[compose_question()])
+    script_claude_answer(
+        harnesses=harnesses, body="This answer must not be posted.", delay=5
+    )
     scheduler.tick(at=clock())
     conversation = read_conversation(state=scheduler.context.state, issue=8)
     assert conversation is not None
@@ -912,9 +926,12 @@ def test_a_stopped_conversation_waits_for_new_feedback(
 
     offer_conversation(
         gh=gh,
-        comments=[ask(), ask(identifier=2, body="Take a different direction.")],
+        comments=[
+            compose_question(),
+            compose_question(identifier=2, body="Take a different direction."),
+        ],
     )
-    answer(harnesses=harnesses, body="The revised answer.")
+    script_claude_answer(harnesses=harnesses, body="The revised answer.")
 
     launched = scheduler.tick(at=clock())
     finish(scheduler=scheduler)
@@ -935,8 +952,8 @@ def test_a_stopped_conversation_waits_for_new_feedback(
 
 def test_a_follow_up_refreshes_to_changed_main(conversation_scheduler, harnesses):
     scheduler, clock, gh = conversation_scheduler
-    offer_conversation(gh=gh, comments=[ask()])
-    answer(harnesses=harnesses, body="The first answer.")
+    offer_conversation(gh=gh, comments=[compose_question()])
+    script_claude_answer(harnesses=harnesses, body="The first answer.")
     gh.replies(stdout=json.dumps({"id": 99}), to=POST_PATH)
     scheduler.tick(at=clock())
     finish(scheduler=scheduler)
@@ -952,9 +969,12 @@ def test_a_follow_up_refreshes_to_changed_main(conversation_scheduler, harnesses
     run_git(arguments=["push", "origin", "main"], cwd=scheduler.context.state.root)
     offer_conversation(
         gh=gh,
-        comments=[ask(), ask(identifier=2, body="Does the answer still hold?")],
+        comments=[
+            compose_question(),
+            compose_question(identifier=2, body="Does the answer still hold?"),
+        ],
     )
-    answer(harnesses=harnesses, body="The changed answer.")
+    script_claude_answer(harnesses=harnesses, body="The changed answer.")
 
     launched = scheduler.tick(at=clock())
     finish(scheduler=scheduler)
@@ -976,15 +996,18 @@ def test_a_failed_conversation_refresh_is_an_errored_round(
     conversation_scheduler, harnesses, monkeypatch
 ):
     scheduler, clock, gh = conversation_scheduler
-    offer_conversation(gh=gh, comments=[ask()])
-    answer(harnesses=harnesses, body="The first answer.")
+    offer_conversation(gh=gh, comments=[compose_question()])
+    script_claude_answer(harnesses=harnesses, body="The first answer.")
     gh.replies(stdout=json.dumps({"id": 99}), to=POST_PATH)
     scheduler.tick(at=clock())
     finish(scheduler=scheduler)
     scheduler.tick(at=clock())
     offer_conversation(
         gh=gh,
-        comments=[ask(), ask(identifier=2, body="Does the answer still hold?")],
+        comments=[
+            compose_question(),
+            compose_question(identifier=2, body="Does the answer still hold?"),
+        ],
     )
     monkeypatch.setattr(
         "dreamcatcher.issue_conversations.refresh_detached_worktree",
@@ -995,7 +1018,7 @@ def test_a_failed_conversation_refresh_is_an_errored_round(
 
     assert observed.failures == []
     assert observed.rows == [
-        conversation_row(
+        compose_conversation_row(
             title="Why does this happen?",
             agent_work_identifier="GH8-20260819-184158-conversation",
             ended_round=1,
@@ -1019,8 +1042,8 @@ def test_a_round_whose_input_cannot_be_saved_errors_and_the_next_refreshes(
     conversation_scheduler, harnesses, monkeypatch
 ):
     scheduler, clock, gh = conversation_scheduler
-    offer_conversation(gh=gh, comments=[ask()])
-    answer(harnesses=harnesses, body="The first answer.")
+    offer_conversation(gh=gh, comments=[compose_question()])
+    script_claude_answer(harnesses=harnesses, body="The first answer.")
     gh.replies(stdout=json.dumps({"id": 99}), to=POST_PATH)
     scheduler.tick(at=clock())
     finish(scheduler=scheduler)
@@ -1030,7 +1053,10 @@ def test_a_round_whose_input_cannot_be_saved_errors_and_the_next_refreshes(
     (scheduler.context.state.root / "README.md").write_bytes(b"main moved\n")
     commit(path=scheduler.context.state.root, message="move main")
     run_git(arguments=["push", "origin", "main"], cwd=scheduler.context.state.root)
-    comments = [ask(), ask(identifier=2, body="Does this still hold?")]
+    comments = [
+        compose_question(),
+        compose_question(identifier=2, body="Does this still hold?"),
+    ]
     offer_conversation(gh=gh, comments=comments)
     write_json = agent_rounds.write_json
 
@@ -1053,7 +1079,7 @@ def test_a_round_whose_input_cannot_be_saved_errors_and_the_next_refreshes(
     )
     assert not conversation.compose_round_paths(number=2).round_input.exists()
     offer_conversation(gh=gh, comments=comments)
-    answer(harnesses=harnesses, body="The changed answer.")
+    script_claude_answer(harnesses=harnesses, body="The changed answer.")
     gh.replies(stdout=json.dumps({"id": 100}), to=POST_PATH)
 
     given_again = scheduler.tick(at=clock())
@@ -1078,8 +1104,8 @@ def test_a_follow_up_refreshes_again_after_a_launch_failure(
     conversation_scheduler, harnesses, monkeypatch
 ):
     scheduler, clock, gh = conversation_scheduler
-    offer_conversation(gh=gh, comments=[ask()])
-    answer(harnesses=harnesses, body="The first answer.")
+    offer_conversation(gh=gh, comments=[compose_question()])
+    script_claude_answer(harnesses=harnesses, body="The first answer.")
     gh.replies(stdout=json.dumps({"id": 99}), to=POST_PATH)
     scheduler.tick(at=clock())
     finish(scheduler=scheduler)
@@ -1089,7 +1115,10 @@ def test_a_follow_up_refreshes_again_after_a_launch_failure(
     (scheduler.context.state.root / "README.md").write_bytes(b"first move\n")
     commit(path=scheduler.context.state.root, message="move main once")
     run_git(arguments=["push", "origin", "main"], cwd=scheduler.context.state.root)
-    comments = [ask(), ask(identifier=2, body="Does this still hold?")]
+    comments = [
+        compose_question(),
+        compose_question(identifier=2, body="Does this still hold?"),
+    ]
     offer_conversation(gh=gh, comments=comments)
     with monkeypatch.context() as launch_failure:
         launch_failure.setattr(
@@ -1111,7 +1140,7 @@ def test_a_follow_up_refreshes_again_after_a_launch_failure(
     commit(path=scheduler.context.state.root, message="move main twice")
     run_git(arguments=["push", "origin", "main"], cwd=scheduler.context.state.root)
     offer_conversation(gh=gh, comments=comments)
-    answer(harnesses=harnesses, body="The changed answer.")
+    script_claude_answer(harnesses=harnesses, body="The changed answer.")
     gh.replies(stdout=json.dumps({"id": 100}), to=POST_PATH)
 
     given_again = scheduler.tick(at=clock())
@@ -1132,15 +1161,17 @@ def test_a_running_conversation_is_observed_without_starting_another_round(
 ):
     scheduler, clock, gh = conversation_scheduler
     scheduler.max_agents = 2
-    offer_conversation(gh=gh, comments=[ask()])
-    answer(harnesses=harnesses, delay=10)
+    offer_conversation(gh=gh, comments=[compose_question()])
+    script_claude_answer(harnesses=harnesses, delay=10)
     scheduler.tick(at=clock())
-    offer_conversation(gh=gh, comments=[ask(), ask(identifier=2)])
+    offer_conversation(
+        gh=gh, comments=[compose_question(), compose_question(identifier=2)]
+    )
 
     observed = scheduler.tick(at=clock())
 
     assert observed.rows == [
-        conversation_row(
+        compose_conversation_row(
             agent_work_identifier=compose_conversation_identifier(issue=8),
             finding=IssueCommentsFinding(new_comments=1),
         )
@@ -1155,12 +1186,14 @@ def test_a_running_conversation_finishes_before_a_closed_issue_ends_it(
     conversation_scheduler, harnesses
 ):
     scheduler, clock, gh = conversation_scheduler
-    offer_conversation(gh=gh, comments=[ask()])
-    answer(harnesses=harnesses, delay=10)
+    offer_conversation(gh=gh, comments=[compose_question()])
+    script_claude_answer(harnesses=harnesses, delay=10)
     scheduler.tick(at=clock())
     show_conversation_issue(
         gh=gh,
-        issue=conversation_issue(labels=("dream:conversation",), state="CLOSED"),
+        issue=compose_conversation_issue(
+            labels=("dream:conversation",), state="CLOSED"
+        ),
     )
 
     observed = scheduler.tick(at=clock())
@@ -1169,7 +1202,7 @@ def test_a_running_conversation_finishes_before_a_closed_issue_ends_it(
     assert conversation is not None
     assert conversation.ending is None
     assert observed.rows == [
-        conversation_row(
+        compose_conversation_row(
             agent_work_identifier=compose_conversation_identifier(issue=8),
             finding=None,
         )
@@ -1188,12 +1221,12 @@ def test_ready_assignment_rounds_and_conversations_alternate(
             issue=issue,
             pull_request=None,
         )
-    offer_conversation(gh=gh, comments=[ask()])
+    offer_conversation(gh=gh, comments=[compose_question()])
     harnesses["claude"].replies(stdout="")
 
     assignment_launch = scheduler.tick(at=clock())
     finish(scheduler=scheduler)
-    answer(harnesses=harnesses)
+    script_claude_answer(harnesses=harnesses)
     conversation_launch = scheduler.tick(at=clock())
 
     assert assignment_launch.launched_agent_work_identifiers == [
@@ -1218,8 +1251,8 @@ def test_one_tick_alternates_work_kinds_until_capacity_is_full(
             issue=issue,
             pull_request=None,
         )
-    offer_conversation(gh=gh, comments=[ask()])
-    answer(harnesses=harnesses)
+    offer_conversation(gh=gh, comments=[compose_question()])
+    script_claude_answer(harnesses=harnesses)
 
     scheduler.tick(at=clock())
 
@@ -1234,14 +1267,16 @@ def test_after_a_conversation_round_the_next_round_starts_an_assignment(
     conversation_scheduler, harnesses
 ):
     scheduler, clock, gh = conversation_scheduler
-    offer_conversation(gh=gh, comments=[ask()])
-    answer(harnesses=harnesses)
+    offer_conversation(gh=gh, comments=[compose_question()])
+    script_claude_answer(harnesses=harnesses)
     gh.replies(stdout=json.dumps({"id": 99}), to=POST_PATH)
     scheduler.tick(at=clock())
     finish(scheduler=scheduler)
     scheduler.tick(at=clock())
-    offer_conversation(gh=gh, comments=[ask(), ask(identifier=2)])
-    both = conversation_listing(labels=("dream:conversation", ASSIGNMENT_LABEL))
+    offer_conversation(
+        gh=gh, comments=[compose_question(), compose_question(identifier=2)]
+    )
+    both = compose_conversation_listing(labels=("dream:conversation", ASSIGNMENT_LABEL))
     for label in ("dream:conversation", ASSIGNMENT_LABEL):
         gh.replies(
             stdout=both,
@@ -1265,8 +1300,8 @@ def test_a_failed_assignment_candidate_does_not_block_a_ready_conversation(
         issue=13,
         pull_request=None,
     )
-    offer_conversation(gh=gh, comments=[ask()])
-    answer(harnesses=harnesses)
+    offer_conversation(gh=gh, comments=[compose_question()])
+    script_claude_answer(harnesses=harnesses)
     launch = Scheduler._launch
 
     def fail_assignments(self, *, row, candidate, at):
@@ -1291,8 +1326,11 @@ def test_an_issue_without_an_eligible_comment_does_not_start(
     offer_conversation(
         gh=gh,
         comments=[
-            ask(identifier=1, body=f"an earlier answer\n{AGENT_POST_MARKER}"),
-            ask(identifier=2, body="somebody else") | {"user": {"login": "mallory"}},
+            compose_question(
+                identifier=1, body=f"an earlier answer\n{AGENT_POST_MARKER}"
+            ),
+            compose_question(identifier=2, body="somebody else")
+            | {"user": {"login": "mallory"}},
         ],
     )
 
@@ -1300,7 +1338,7 @@ def test_an_issue_without_an_eligible_comment_does_not_start(
 
     assert observed.launched_agent_work_identifiers == []
     assert observed.rows == [
-        conversation_row(finding=IssueCommentsFinding(new_comments=0))
+        compose_conversation_row(finding=IssueCommentsFinding(new_comments=0))
     ]
     assert harnesses["claude"].calls == []
     assert read_conversation(state=scheduler.context.state, issue=8) is None
@@ -1308,14 +1346,14 @@ def test_an_issue_without_an_eligible_comment_does_not_start(
 
 def test_a_conversation_waits_for_shared_capacity(conversation_scheduler, harnesses):
     scheduler, clock, gh = conversation_scheduler
-    offer_conversation(gh=gh, comments=[ask()])
+    offer_conversation(gh=gh, comments=[compose_question()])
     scheduler.rounds["busy-assignment"] = Mock(is_alive=True)
 
     observed = scheduler.tick(at=clock())
 
     assert scheduler.is_at_capacity
     assert observed.rows == [
-        conversation_row(finding=IssueCommentsFinding(new_comments=1))
+        compose_conversation_row(finding=IssueCommentsFinding(new_comments=1))
     ]
     assert harnesses["claude"].calls == []
 
@@ -1324,7 +1362,7 @@ def test_a_conversation_waits_for_the_active_global_cooldown(
     conversation_scheduler, harnesses
 ):
     scheduler, clock, gh = conversation_scheduler
-    offer_conversation(gh=gh, comments=[ask()])
+    offer_conversation(gh=gh, comments=[compose_question()])
     at = clock()
     write_json(
         document=SchedulerRecord(
@@ -1339,7 +1377,7 @@ def test_a_conversation_waits_for_the_active_global_cooldown(
     assert observed.cooldown is not None
     assert observed.failures == []
     assert observed.rows == [
-        conversation_row(finding=IssueCommentsFinding(new_comments=1))
+        compose_conversation_row(finding=IssueCommentsFinding(new_comments=1))
     ]
     assert harnesses["claude"].calls == []
 
@@ -1461,13 +1499,15 @@ def test_the_cooldown_boundary_clears_conversation_faults(
     for issue in (8, 9):
         show_conversation_issue(
             gh=gh,
-            issue=conversation_issue(labels=("dream:conversation",), number=issue),
+            issue=compose_conversation_issue(
+                labels=("dream:conversation",), number=issue
+            ),
         )
         gh.replies(
-            stdout=compose_page(items=[ask()]),
+            stdout=compose_page(items=[compose_question()]),
             to=f"api repos/{REPOSITORY}/issues/{issue}/comments?per_page=100",
         )
-    answer(harnesses=harnesses, body=NO_REPLY)
+    script_claude_answer(harnesses=harnesses, body=NO_REPLY)
 
     observed = scheduler.tick(at=cooldown_ends)
     finish(scheduler=scheduler)
@@ -1484,8 +1524,8 @@ def test_a_failed_post_gives_its_comments_again_with_new_ones(
     conversation_scheduler, harnesses
 ):
     scheduler, clock, gh = conversation_scheduler
-    offer_conversation(gh=gh, comments=[ask()])
-    answer(harnesses=harnesses)
+    offer_conversation(gh=gh, comments=[compose_question()])
+    script_claude_answer(harnesses=harnesses)
     gh.fails(stderr="network unavailable", to=POST_PATH)
     scheduler.tick(at=clock())
     finish(scheduler=scheduler)
@@ -1495,8 +1535,10 @@ def test_a_failed_post_gives_its_comments_again_with_new_ones(
         model=ConversationRoundInput,
         path=conversation.compose_round_paths(number=1).round_input,
     )
-    offer_conversation(gh=gh, comments=[ask(), ask(identifier=2)])
-    answer(harnesses=harnesses, body="The answer, posted this time.")
+    offer_conversation(
+        gh=gh, comments=[compose_question(), compose_question(identifier=2)]
+    )
+    script_claude_answer(harnesses=harnesses, body="The answer, posted this time.")
     gh.replies(stdout=json.dumps({"id": 99}), to=POST_PATH)
 
     observed = scheduler.tick(at=clock())
@@ -1519,7 +1561,9 @@ def test_a_failed_post_gives_its_comments_again_with_new_ones(
         path=conversation.compose_round_paths(number=2).round_input,
     )
     assert given_again == ConversationRoundInput(
-        issue=8, comments=[ask(), ask(identifier=2)], revision=first_input.revision
+        issue=8,
+        comments=[compose_question(), compose_question(identifier=2)],
+        revision=first_input.revision,
     )
     resumed = harnesses["claude"].calls[1]
     assert resumed.arguments[-2:] == ["--resume", "conversation-session"]
@@ -1532,8 +1576,8 @@ def test_deleting_an_errored_rounds_comments_withdraws_them_until_a_new_one(
 ):
     scheduler, clock, gh = conversation_scheduler
     state = scheduler.context.state
-    offer_conversation(gh=gh, comments=[ask()])
-    answer(harnesses=harnesses, status=2)
+    offer_conversation(gh=gh, comments=[compose_question()])
+    script_claude_answer(harnesses=harnesses, status=2)
     write_tick(state=state, tick=scheduler.tick(at=clock()))
     finish(scheduler=scheduler)
 
@@ -1548,8 +1592,10 @@ def test_deleting_an_errored_rounds_comments_withdraws_them_until_a_new_one(
     assert found.value is AgentWorkStatusValue.IDLE
     assert found.detail.startswith("round 1, errored (exit 2), ran ")
 
-    offer_conversation(gh=gh, comments=[ask(identifier=2, body="A new question.")])
-    answer(harnesses=harnesses)
+    offer_conversation(
+        gh=gh, comments=[compose_question(identifier=2, body="A new question.")]
+    )
+    script_claude_answer(harnesses=harnesses)
     gh.replies(stdout=json.dumps({"id": 99}), to=POST_PATH)
 
     asked = scheduler.tick(at=clock())
@@ -1572,8 +1618,8 @@ def test_no_reply_completes_without_posting_a_comment(
     conversation_scheduler, harnesses
 ):
     scheduler, clock, gh = conversation_scheduler
-    offer_conversation(gh=gh, comments=[ask()])
-    answer(harnesses=harnesses, body=NO_REPLY)
+    offer_conversation(gh=gh, comments=[compose_question()])
+    script_claude_answer(harnesses=harnesses, body=NO_REPLY)
     scheduler.tick(at=clock())
     finish(scheduler=scheduler)
 
@@ -1590,13 +1636,13 @@ def test_two_errored_rounds_put_a_conversation_in_fault(
     conversation_scheduler, harnesses
 ):
     scheduler, clock, gh = conversation_scheduler
-    offer_conversation(gh=gh, comments=[ask()])
-    answer(harnesses=harnesses, status=2)
+    offer_conversation(gh=gh, comments=[compose_question()])
+    script_claude_answer(harnesses=harnesses, status=2)
     scheduler.tick(at=clock())
     finish(scheduler=scheduler)
 
-    offer_conversation(gh=gh, comments=[ask()])
-    answer(harnesses=harnesses, status=2)
+    offer_conversation(gh=gh, comments=[compose_question()])
+    script_claude_answer(harnesses=harnesses, status=2)
     retried = scheduler.tick(at=clock())
     finish(scheduler=scheduler)
 
@@ -1609,7 +1655,7 @@ def test_two_errored_rounds_put_a_conversation_in_fault(
     ]
     assert len(harnesses["claude"].calls) == 2
     assert not any(call.arguments[:4] == POST_PATH.split() for call in gh.calls)
-    offer_conversation(gh=gh, comments=[ask()])
+    offer_conversation(gh=gh, comments=[compose_question()])
 
     faulted = scheduler.tick(at=clock())
 
@@ -1634,7 +1680,7 @@ def test_a_daemon_orphan_is_given_its_comments_again_in_its_saved_session(
             title="Why does this happen?",
             body="Explain the scheduler.",
         ),
-        comments=[ask()],
+        comments=[compose_question()],
         revision=_read_worktree_revision(worktree=conversation.worktree),
     )
     write_round(
@@ -1653,8 +1699,10 @@ def test_a_daemon_orphan_is_given_its_comments_again_in_its_saved_session(
     )
     daemon._sweep_orphans()
     assert wait_for_exit(pid=left_running.pid)
-    offer_conversation(gh=gh, comments=[ask(), ask(identifier=2)])
-    answer(harnesses=harnesses, body="The recovered answer.")
+    offer_conversation(
+        gh=gh, comments=[compose_question(), compose_question(identifier=2)]
+    )
+    script_claude_answer(harnesses=harnesses, body="The recovered answer.")
     gh.replies(stdout=json.dumps({"id": 99}), to=POST_PATH)
 
     observed = scheduler.tick(at=clock())
@@ -1670,7 +1718,9 @@ def test_a_daemon_orphan_is_given_its_comments_again_in_its_saved_session(
         path=conversation.compose_round_paths(number=2).round_input,
     )
     assert recovered_input == ConversationRoundInput(
-        issue=8, comments=[ask(), ask(identifier=2)], revision=first_input.revision
+        issue=8,
+        comments=[compose_question(), compose_question(identifier=2)],
+        revision=first_input.revision,
     )
     resumed = harnesses["claude"].calls[0]
     assert resumed.arguments[-2:] == ["--resume", "conversation-session"]
@@ -1695,7 +1745,7 @@ def test_an_interrupted_round_from_v6_1_is_withdrawn_once_an_update_finds_nothin
                 title="Why does this happen?",
                 body="Explain the scheduler.",
             ),
-            comments=[ask()],
+            comments=[compose_question()],
             revision=_read_worktree_revision(worktree=conversation.worktree),
         ),
         path=conversation.compose_round_paths(number=1).round_input,
@@ -1706,7 +1756,7 @@ def test_an_interrupted_round_from_v6_1_is_withdrawn_once_an_update_finds_nothin
         tick=SchedulerRecord(
             at=clock(),
             rows=[
-                conversation_row(
+                compose_conversation_row(
                     agent_work_identifier=conversation.identifier,
                     finding=IssueCommentsFinding(new_comments=0),
                 )
@@ -1729,8 +1779,10 @@ def test_an_interrupted_round_from_v6_1_is_withdrawn_once_an_update_finds_nothin
     assert found.value is AgentWorkStatusValue.IDLE
     assert found.detail == "round 1, interrupted"
 
-    offer_conversation(gh=gh, comments=[ask(identifier=2, body="A new question.")])
-    answer(harnesses=harnesses)
+    offer_conversation(
+        gh=gh, comments=[compose_question(identifier=2, body="A new question.")]
+    )
+    script_claude_answer(harnesses=harnesses)
     gh.replies(stdout=json.dumps({"id": 99}), to=POST_PATH)
 
     asked = scheduler.tick(at=clock())
@@ -1751,15 +1803,17 @@ def test_a_session_identifier_left_in_raw_output_is_found(
     conversation_scheduler, harnesses
 ):
     scheduler, clock, gh = conversation_scheduler
-    offer_conversation(gh=gh, comments=[ask()])
-    answer(harnesses=harnesses, status=2)
+    offer_conversation(gh=gh, comments=[compose_question()])
+    script_claude_answer(harnesses=harnesses, status=2)
     scheduler.tick(at=clock())
     finish(scheduler=scheduler)
     conversation = read_conversation(state=scheduler.context.state, issue=8)
     assert conversation is not None
     (conversation.directory / _HARNESS_SESSION_RECORD_NAME).unlink()
-    offer_conversation(gh=gh, comments=[ask(), ask(identifier=2)])
-    answer(harnesses=harnesses, body="The recovered answer.")
+    offer_conversation(
+        gh=gh, comments=[compose_question(), compose_question(identifier=2)]
+    )
+    script_claude_answer(harnesses=harnesses, body="The recovered answer.")
     gh.replies(stdout=json.dumps({"id": 99}), to=POST_PATH)
 
     observed = scheduler.tick(at=clock())
@@ -1778,12 +1832,14 @@ def test_a_first_round_without_a_session_is_given_again_in_a_new_session(
     conversation_scheduler, harnesses
 ):
     scheduler, clock, gh = conversation_scheduler
-    offer_conversation(gh=gh, comments=[ask()])
+    offer_conversation(gh=gh, comments=[compose_question()])
     harnesses["claude"].streams(lines=[], status=2)
     scheduler.tick(at=clock())
     finish(scheduler=scheduler)
-    offer_conversation(gh=gh, comments=[ask(), ask(identifier=2)])
-    answer(harnesses=harnesses, body="The recovered answer.")
+    offer_conversation(
+        gh=gh, comments=[compose_question(), compose_question(identifier=2)]
+    )
+    script_claude_answer(harnesses=harnesses, body="The recovered answer.")
     gh.replies(stdout=json.dumps({"id": 99}), to=POST_PATH)
 
     observed = scheduler.tick(at=clock())
@@ -1805,8 +1861,8 @@ def test_a_follow_up_without_a_saved_session_starts_a_new_one(
     conversation_scheduler, harnesses
 ):
     scheduler, clock, gh = conversation_scheduler
-    offer_conversation(gh=gh, comments=[ask()])
-    answer(harnesses=harnesses)
+    offer_conversation(gh=gh, comments=[compose_question()])
+    script_claude_answer(harnesses=harnesses)
     gh.replies(stdout=json.dumps({"id": 99}), to=POST_PATH)
     scheduler.tick(at=clock())
     finish(scheduler=scheduler)
@@ -1815,8 +1871,10 @@ def test_a_follow_up_without_a_saved_session_starts_a_new_one(
     assert conversation is not None
     (conversation.directory / _HARNESS_SESSION_RECORD_NAME).unlink()
     conversation.compose_round_paths(number=1).raw_output.unlink()
-    offer_conversation(gh=gh, comments=[ask(), ask(identifier=2)])
-    answer(harnesses=harnesses)
+    offer_conversation(
+        gh=gh, comments=[compose_question(), compose_question(identifier=2)]
+    )
+    script_claude_answer(harnesses=harnesses)
 
     observed = scheduler.tick(at=clock())
     finish(scheduler=scheduler)
@@ -1848,7 +1906,7 @@ def test_a_failed_conversation_listing_leaves_open_conversations_inspected(
         ),
     )
     show_conversation_issue(
-        gh=gh, issue=conversation_issue(labels=("dream:conversation",))
+        gh=gh, issue=compose_conversation_issue(labels=("dream:conversation",))
     )
     gh.replies(stdout=compose_page(items=[]), to=COMMENT_PATH)
 
@@ -1857,7 +1915,7 @@ def test_a_failed_conversation_listing_leaves_open_conversations_inspected(
     [failure] = observed.failures
     assert failure.startswith("could not list issues for dream:conversation")
     assert observed.rows == [
-        conversation_row(
+        compose_conversation_row(
             title="Issue 8",
             agent_work_identifier=compose_conversation_identifier(issue=8),
             finding=IssueCommentsFinding(new_comments=0),
@@ -1884,15 +1942,15 @@ def test_a_failed_route_listing_still_starts_the_requests_of_healthy_routes(
             "--label dream:conversation"
         ),
     )
-    offer_conversation(gh=gh, comments=[ask()], label="dream:scout")
-    answer(harnesses=harnesses)
+    offer_conversation(gh=gh, comments=[compose_question()], label="dream:scout")
+    script_claude_answer(harnesses=harnesses)
 
     observed = scheduler.tick(at=clock())
 
     [failure] = observed.failures
     assert "could not list issues for dream:conversation" in failure
     assert observed.rows == [
-        conversation_row(
+        compose_conversation_row(
             label="dream:scout",
             agent_work_identifier="GH8-20260819-184158-conversation",
             finding=IssueCommentsFinding(new_comments=1),
@@ -1915,7 +1973,9 @@ def test_open_conversation_faults_start_the_cooldown_whatever_the_listing(
         )
         show_conversation_issue(
             gh=gh,
-            issue=conversation_issue(labels=("dream:conversation",), number=issue),
+            issue=compose_conversation_issue(
+                labels=("dream:conversation",), number=issue
+            ),
         )
     gh.fails(
         stderr="network unavailable",
@@ -1936,7 +1996,7 @@ def test_open_conversation_faults_start_the_cooldown_whatever_the_listing(
     assert observed.cooldown is not None
     assert failure.startswith("could not list issues for dream:conversation")
     assert observed.rows == [
-        conversation_row(
+        compose_conversation_row(
             issue=issue,
             title=f"Issue {issue}",
             agent_work_identifier=compose_conversation_identifier(issue=issue),
@@ -1950,9 +2010,9 @@ def test_open_conversation_faults_start_the_cooldown_whatever_the_listing(
 @pytest.mark.parametrize(
     ("issue", "cause"),
     [
-        (conversation_issue(labels=()), PauseCause.LABEL_REMOVED),
+        (compose_conversation_issue(labels=()), PauseCause.LABEL_REMOVED),
         (
-            conversation_issue(labels=("dream:conversation",), assignees=()),
+            compose_conversation_issue(labels=("dream:conversation",), assignees=()),
             PauseCause.ISSUE_UNASSIGNED,
         ),
     ],
@@ -1968,7 +2028,7 @@ def test_a_paused_conversation_says_why_and_its_comments_are_not_read(
     observed = scheduler.tick(at=clock())
 
     assert observed.rows == [
-        conversation_row(
+        compose_conversation_row(
             title="Issue 8",
             agent_work_identifier=compose_conversation_identifier(issue=8),
             finding=PausedFinding(cause=cause),
@@ -1983,7 +2043,10 @@ def test_a_conversation_whose_issue_closes_ends_without_its_comments_read(
     scheduler, clock, gh = conversation_scheduler
     write_conversation(state=scheduler.context.state, issue=8)
     show_conversation_issue(
-        gh=gh, issue=conversation_issue(labels=("dream:conversation",), state="CLOSED")
+        gh=gh,
+        issue=compose_conversation_issue(
+            labels=("dream:conversation",), state="CLOSED"
+        ),
     )
 
     observed = scheduler.tick(at=clock())
@@ -1993,7 +2056,7 @@ def test_a_conversation_whose_issue_closes_ends_without_its_comments_read(
     assert conversation.ending is not None
     assert conversation.ending.reason is AgentWorkEndReason.ISSUE_CLOSED
     assert observed.rows == [
-        conversation_row(
+        compose_conversation_row(
             title="Issue 8",
             agent_work_identifier=compose_conversation_identifier(issue=8),
             finding=None,
@@ -2031,12 +2094,12 @@ def test_a_paused_conversation_does_not_retry_its_errored_round(
             ending=HarnessErroredAgentRoundEnding(at=clock(), status=2),
         ),
     )
-    show_conversation_issue(gh=gh, issue=conversation_issue(labels=()))
+    show_conversation_issue(gh=gh, issue=compose_conversation_issue(labels=()))
 
     observed = scheduler.tick(at=clock())
 
     assert observed.rows == [
-        conversation_row(
+        compose_conversation_row(
             title="Issue 8",
             agent_work_identifier=compose_conversation_identifier(issue=8),
             ended_round=1,
@@ -2060,7 +2123,7 @@ def test_paused_conversation_faults_do_not_start_the_global_cooldown(
             at=fault_started,
         )
         show_conversation_issue(
-            gh=gh, issue=conversation_issue(labels=(), number=issue)
+            gh=gh, issue=compose_conversation_issue(labels=(), number=issue)
         )
     tick_at = clock()
 
@@ -2069,7 +2132,7 @@ def test_paused_conversation_faults_do_not_start_the_global_cooldown(
     assert observed.cooldown is None
     assert observed.failures == []
     assert observed.rows == [
-        conversation_row(
+        compose_conversation_row(
             issue=issue,
             title=f"Issue {issue}",
             agent_work_identifier=compose_conversation_identifier(issue=issue),
@@ -2098,7 +2161,7 @@ def test_a_relayed_round_whose_input_cannot_be_read_launches_nothing(
     )
     round_input = directory / "rounds" / "1" / "round-input.json"
     round_input.write_bytes(b"not json\n")
-    offer_conversation(gh=gh, comments=[ask()])
+    offer_conversation(gh=gh, comments=[compose_question()])
 
     observed = scheduler.tick(at=clock())
 
@@ -2113,9 +2176,9 @@ def test_a_relayed_round_whose_input_cannot_be_read_launches_nothing(
 @pytest.mark.parametrize(
     ("issue", "cause"),
     [
-        (conversation_issue(labels=()), PauseCause.LABEL_REMOVED),
+        (compose_conversation_issue(labels=()), PauseCause.LABEL_REMOVED),
         (
-            conversation_issue(labels=("dream:conversation",), assignees=()),
+            compose_conversation_issue(labels=("dream:conversation",), assignees=()),
             PauseCause.ISSUE_UNASSIGNED,
         ),
     ],
@@ -2125,8 +2188,8 @@ def test_a_resumed_conversation_is_given_comments_posted_while_it_was_paused(
     conversation_scheduler, harnesses, issue, cause
 ):
     scheduler, clock, gh = conversation_scheduler
-    offer_conversation(gh=gh, comments=[ask()])
-    answer(harnesses=harnesses, body="The first answer.")
+    offer_conversation(gh=gh, comments=[compose_question()])
+    script_claude_answer(harnesses=harnesses, body="The first answer.")
     gh.replies(stdout=json.dumps({"id": 99}), to=POST_PATH)
     scheduler.tick(at=clock())
     finish(scheduler=scheduler)
@@ -2137,7 +2200,7 @@ def test_a_resumed_conversation_is_given_comments_posted_while_it_was_paused(
     paused = scheduler.tick(at=clock())
 
     assert paused.rows == [
-        conversation_row(
+        compose_conversation_row(
             agent_work_identifier=compose_conversation_identifier(issue=8),
             ended_round=1,
             finding=PausedFinding(cause=cause),
@@ -2146,9 +2209,12 @@ def test_a_resumed_conversation_is_given_comments_posted_while_it_was_paused(
     assert count_comment_reads(gh=gh) == comment_reads_before
     offer_conversation(
         gh=gh,
-        comments=[ask(), ask(identifier=2, body="A question posted while paused")],
+        comments=[
+            compose_question(),
+            compose_question(identifier=2, body="A question posted while paused"),
+        ],
     )
-    answer(harnesses=harnesses, body="The later answer.")
+    script_claude_answer(harnesses=harnesses, body="The later answer.")
 
     resumed = scheduler.tick(at=clock())
     finish(scheduler=scheduler)
@@ -2179,14 +2245,14 @@ def test_an_open_conversation_carries_on_when_its_route_is_removed(
         config=scheduler.context.config.model_copy(update={"conversation": []}),
     )
     show_conversation_issue(
-        gh=gh, issue=conversation_issue(labels=("dream:conversation",))
+        gh=gh, issue=compose_conversation_issue(labels=("dream:conversation",))
     )
     gh.replies(stdout=compose_page(items=[]), to=COMMENT_PATH)
 
     observed = scheduler.tick(at=clock())
 
     assert observed.rows == [
-        conversation_row(
+        compose_conversation_row(
             title="Issue 8",
             agent_work_identifier=compose_conversation_identifier(issue=8),
             finding=IssueCommentsFinding(new_comments=0),
@@ -2205,14 +2271,14 @@ def test_a_conversation_whose_route_is_removed_still_pauses_for_a_second_label(
     )
     write_conversation(state=scheduler.context.state, issue=8)
     labels = ("dream:conversation", "dream:scout")
-    offer_conversation(gh=gh, comments=[ask()], label="dream:scout")
-    show_conversation_issue(gh=gh, issue=conversation_issue(labels=labels))
-    answer(harnesses=harnesses)
+    offer_conversation(gh=gh, comments=[compose_question()], label="dream:scout")
+    show_conversation_issue(gh=gh, issue=compose_conversation_issue(labels=labels))
+    script_claude_answer(harnesses=harnesses)
 
     observed = scheduler.tick(at=PINNED + timedelta(hours=1))
     finish(scheduler=scheduler)
 
-    assert observed.rows[0] == conversation_row(
+    assert observed.rows[0] == compose_conversation_row(
         title="Issue 8",
         agent_work_identifier=compose_conversation_identifier(issue=8),
         finding=ConflictingLabelsFinding(labels=list(labels)),
@@ -2277,7 +2343,7 @@ def test_a_failed_comment_read_records_its_reason_and_starts_nothing(
     assert isinstance(row.finding, ReadFailureFinding)
     assert "issues/8/comments" in row.finding.reason
     assert row.finding.reason.endswith("network unavailable")
-    assert row == conversation_row(finding=row.finding)
+    assert row == compose_conversation_row(finding=row.finding)
 
 
 def test_a_failed_cursor_read_is_recorded_in_its_row(
@@ -2297,7 +2363,7 @@ def test_a_failed_cursor_read_is_recorded_in_its_row(
     [row] = observed.rows
     assert isinstance(row.finding, ReadFailureFinding)
     assert row.finding.reason == "could not read the round input"
-    assert row == conversation_row(
+    assert row == compose_conversation_row(
         title="Issue 8",
         agent_work_identifier=compose_conversation_identifier(issue=8),
         finding=row.finding,
@@ -2326,7 +2392,7 @@ def test_an_unrecorded_round_input_is_replaced_by_the_next_batch(
                     title="Why does this happen?",
                     body="Explain the scheduler.",
                 ),
-                comments=[ask(body="stale saved input")],
+                comments=[compose_question(body="stale saved input")],
                 revision="abc123",
             ),
             path=round_input,
@@ -2334,8 +2400,8 @@ def test_an_unrecorded_round_input_is_replaced_by_the_next_batch(
     else:
         round_input.parent.mkdir(parents=True)
         round_input.write_bytes(b"not json")
-    offer_conversation(gh=gh, comments=[ask()])
-    answer(harnesses=harnesses)
+    offer_conversation(gh=gh, comments=[compose_question()])
+    script_claude_answer(harnesses=harnesses)
     gh.replies(stdout=json.dumps({"id": 99}), to=POST_PATH)
 
     observed = scheduler.tick(at=clock())
@@ -2377,17 +2443,17 @@ def test_a_failed_comment_read_leaves_the_other_requests_to_start(
             "--label dream:conversation"
         ),
     )
-    gh.replies(stdout=compose_page(items=[ask()]), to=COMMENT_PATH)
+    gh.replies(stdout=compose_page(items=[compose_question()]), to=COMMENT_PATH)
     gh.fails(
         stderr="issue-specific failure",
         to=f"api repos/{REPOSITORY}/issues/9/comments?per_page=100",
     )
     gh.replies(
-        stdout=compose_page(items=[ask(identifier=2)]),
+        stdout=compose_page(items=[compose_question(identifier=2)]),
         to=f"api repos/{REPOSITORY}/issues/10/comments?per_page=100",
     )
 
-    answer(harnesses=harnesses)
+    script_claude_answer(harnesses=harnesses)
 
     observed = scheduler.tick(at=clock())
 
@@ -2413,8 +2479,8 @@ def test_an_existing_empty_conversation_can_start(conversation_scheduler, harnes
     (scheduler.context.state.root / "README.md").write_bytes(b"new main before retry\n")
     commit(path=scheduler.context.state.root, message="advance main before retry")
     run_git(arguments=["push", "origin", "main"], cwd=scheduler.context.state.root)
-    offer_conversation(gh=gh, comments=[ask()])
-    answer(harnesses=harnesses)
+    offer_conversation(gh=gh, comments=[compose_question()])
+    script_claude_answer(harnesses=harnesses)
 
     observed = scheduler.tick(at=clock())
 
@@ -2444,8 +2510,8 @@ def test_a_missing_conversation_worktree_is_added_without_detaching_main(
 ):
     scheduler, clock, gh = conversation_scheduler
     write_conversation(state=scheduler.context.state, issue=8)
-    offer_conversation(gh=gh, comments=[ask()])
-    answer(harnesses=harnesses)
+    offer_conversation(gh=gh, comments=[compose_question()])
+    script_claude_answer(harnesses=harnesses)
     gh.replies(stdout=json.dumps({"id": 99}), to=POST_PATH)
 
     observed = scheduler.tick(at=clock())
@@ -2470,7 +2536,7 @@ def test_a_conversation_worktree_that_cannot_be_added_errors_its_round(
     conversation_scheduler,
 ):
     scheduler, clock, gh = conversation_scheduler
-    offer_conversation(gh=gh, comments=[ask()])
+    offer_conversation(gh=gh, comments=[compose_question()])
     worktree = scheduler.context.state.worktrees / compose_conversation_identifier(
         issue=8
     )
@@ -2514,17 +2580,21 @@ def test_new_conversations_start_in_listing_order(conversation_scheduler, harnes
     )
     gh.replies(
         stdout=compose_page(
-            items=[ask(identifier=2) | {"created_at": "2026-09-23T02:00:00Z"}]
+            items=[
+                compose_question(identifier=2) | {"created_at": "2026-09-23T02:00:00Z"}
+            ]
         ),
         to=f"api repos/{REPOSITORY}/issues/8/comments?per_page=100",
     )
     gh.replies(
         stdout=compose_page(
-            items=[ask(identifier=1) | {"created_at": "2026-09-23T01:00:00Z"}]
+            items=[
+                compose_question(identifier=1) | {"created_at": "2026-09-23T01:00:00Z"}
+            ]
         ),
         to=f"api repos/{REPOSITORY}/issues/9/comments?per_page=100",
     )
-    answer(harnesses=harnesses)
+    script_claude_answer(harnesses=harnesses)
 
     observed = scheduler.tick(at=clock())
 
@@ -2537,8 +2607,8 @@ def test_an_open_conversation_starts_before_a_new_one(
     conversation_scheduler, harnesses
 ):
     scheduler, clock, gh = conversation_scheduler
-    offer_conversation(gh=gh, comments=[ask()])
-    answer(harnesses=harnesses, status=2)
+    offer_conversation(gh=gh, comments=[compose_question()])
+    script_claude_answer(harnesses=harnesses, status=2)
     scheduler.tick(at=clock())
     finish(scheduler=scheduler)
     gh.replies(
@@ -2562,10 +2632,10 @@ def test_an_open_conversation_starts_before_a_new_one(
         ),
     )
     gh.replies(
-        stdout=compose_page(items=[ask(identifier=2)]),
+        stdout=compose_page(items=[compose_question(identifier=2)]),
         to=f"api repos/{REPOSITORY}/issues/9/comments?per_page=100",
     )
-    answer(harnesses=harnesses)
+    script_claude_answer(harnesses=harnesses)
 
     observed = scheduler.tick(at=clock())
 
@@ -2574,13 +2644,13 @@ def test_an_open_conversation_starts_before_a_new_one(
         "GH8-20260819-184158-conversation"
     ]
     assert observed.rows == [
-        conversation_row(
+        compose_conversation_row(
             agent_work_identifier="GH8-20260819-184158-conversation",
             ended_round=1,
             finding=IssueCommentsFinding(new_comments=1),
             started_round=StartedRound(number=2),
         ),
-        conversation_row(
+        compose_conversation_row(
             issue=9, title="Issue 9", finding=IssueCommentsFinding(new_comments=1)
         ),
     ]
@@ -2590,8 +2660,8 @@ def test_an_unrelated_comment_failure_does_not_block_an_unfinished_round(
     conversation_scheduler, harnesses
 ):
     scheduler, clock, gh = conversation_scheduler
-    offer_conversation(gh=gh, comments=[ask()])
-    answer(harnesses=harnesses, status=2)
+    offer_conversation(gh=gh, comments=[compose_question()])
+    script_claude_answer(harnesses=harnesses, status=2)
     scheduler.tick(at=clock())
     finish(scheduler=scheduler)
     gh.replies(
@@ -2618,7 +2688,7 @@ def test_an_unrelated_comment_failure_does_not_block_an_unfinished_round(
         stderr="network unavailable",
         to=f"api repos/{REPOSITORY}/issues/9/comments?per_page=100",
     )
-    answer(harnesses=harnesses, body=NO_REPLY)
+    script_claude_answer(harnesses=harnesses, body=NO_REPLY)
 
     observed = scheduler.tick(at=clock())
     finish(scheduler=scheduler)
@@ -2643,8 +2713,8 @@ def test_an_ended_conversation_is_left_alone_and_a_comment_starts_another(
         reason=AgentWorkEndReason.COMPLETED,
         at=clock(),
     )
-    offer_conversation(gh=gh, comments=[ask()])
-    answer(harnesses=harnesses)
+    offer_conversation(gh=gh, comments=[compose_question()])
+    script_claude_answer(harnesses=harnesses)
 
     launched = scheduler.tick(at=clock())
 

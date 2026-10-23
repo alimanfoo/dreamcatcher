@@ -244,7 +244,7 @@ def write_round(
     A successful round given a merged or closed pull request also completes its
     assignment, as the round's finishing step records before its ending.
     """
-    paths = _round_paths(directory=directory, number=number)
+    paths = _compose_round_paths(directory=directory, number=number)
     if round_input is not None:
         write_json(document=round_input, path=paths.round_input)
     if (
@@ -275,7 +275,7 @@ def write_feed(*, directory: Path, number: int, lines: Sequence[FeedLine]) -> No
     """Write the feed of one round of the assignment at this directory."""
     write_text(
         text="".join(line.render() for line in lines),
-        path=_round_paths(directory=directory, number=number).feed,
+        path=_compose_round_paths(directory=directory, number=number).feed,
     )
 
 
@@ -284,7 +284,9 @@ def write_tick(*, state: StateDirectory, tick: SchedulerRecord) -> None:
     write_json(document=tick, path=state.scheduler_record)
 
 
-def _round_paths(*, directory: Path, number: int) -> agent_rounds.AgentRoundPaths:
+def _compose_round_paths(
+    *, directory: Path, number: int
+) -> agent_rounds.AgentRoundPaths:
     """Where the numbered round of the assignment at this directory wrote."""
     return agent_rounds.AgentRoundPaths(
         worktree=directory,
@@ -331,7 +333,8 @@ def write_running_conversation(
 def write_final_output(*, directory: Path, number: int, text: str) -> None:
     """Write the final output that one round of the work at this directory reported."""
     write_text(
-        text=text, path=_round_paths(directory=directory, number=number).final_output
+        text=text,
+        path=_compose_round_paths(directory=directory, number=number).final_output,
     )
 
 

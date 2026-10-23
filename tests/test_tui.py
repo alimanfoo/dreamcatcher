@@ -90,7 +90,7 @@ ASSIGNMENTS = {
 }
 
 
-def pinned(
+def create_pinned_console(
     *, written_to, width: int = WIDTH, is_terminal: bool = False, term: str = "xterm"
 ) -> Console:
     """Return a console that renders the same text wherever it runs.
@@ -118,12 +118,12 @@ def pinned(
     )
 
 
-def interrupting(seconds, /):
+def interrupt_wait(seconds, /):
     """A wait the reader interrupts, which is how a view of a live assignment ends."""
     raise KeyboardInterrupt
 
 
-def refusing(seconds, /):
+def refuse_to_wait(seconds, /):
     """A wait that a view with nothing more to show must never reach.
 
     A view that reaches it has gone on looking, and a wait that let it would
@@ -141,9 +141,9 @@ def render_status_view(*, state, width: int = WIDTH) -> str:
     written_to = StringIO()
     show_status_view(
         state=state,
-        console=pinned(written_to=written_to, width=width),
+        console=create_pinned_console(written_to=written_to, width=width),
         clock=lambda: LOOKED_AT,
-        wait=refusing,
+        wait=refuse_to_wait,
         zone=DISPLAY_TIME_ZONE,
     )
     return written_to.getvalue()
@@ -274,9 +274,9 @@ def test_status_nobody_is_watching_is_drawn_once_and_returns(tmp_path):
 
     show_status_view(
         state=state,
-        console=pinned(written_to=written_to),
+        console=create_pinned_console(written_to=written_to),
         clock=lambda: LOOKED_AT,
-        wait=refusing,
+        wait=refuse_to_wait,
     )
 
     assert "running · dreamcatcher v3.0.0.beta1 · pid 4242" in written_to.getvalue()
@@ -305,7 +305,7 @@ def test_status_a_reader_watches_keeps_up_with_what_the_daemon_writes(tmp_path):
 
     show_status_view(
         state=state,
-        console=pinned(written_to=written_to, is_terminal=True),
+        console=create_pinned_console(written_to=written_to, is_terminal=True),
         clock=lambda: LOOKED_AT,
         wait=wait,
     )
@@ -329,9 +329,9 @@ def test_status_a_reader_watches_takes_the_screen_and_hands_it_back(tmp_path):
 
     show_status_view(
         state=state,
-        console=pinned(written_to=written_to, is_terminal=True),
+        console=create_pinned_console(written_to=written_to, is_terminal=True),
         clock=lambda: LOOKED_AT,
-        wait=interrupting,
+        wait=interrupt_wait,
     )
     status = written_to.getvalue()
 
@@ -351,9 +351,11 @@ def test_status_on_a_dumb_terminal_is_drawn_once_and_returns(tmp_path):
 
     show_status_view(
         state=state,
-        console=pinned(written_to=written_to, is_terminal=True, term="dumb"),
+        console=create_pinned_console(
+            written_to=written_to, is_terminal=True, term="dumb"
+        ),
         clock=lambda: LOOKED_AT,
-        wait=refusing,
+        wait=refuse_to_wait,
     )
     status = written_to.getvalue()
 
@@ -363,15 +365,15 @@ def test_status_on_a_dumb_terminal_is_drawn_once_and_returns(tmp_path):
     assert SCREEN_TAKEN not in status
 
 
-def viewed(*, state, issue: int, width: int = WIDTH) -> str:
+def render_assignment_view(*, state, issue: int, width: int = WIDTH) -> str:
     """Return the assignment view that issue renders as, on a pinned console."""
     written_to = StringIO()
     show_agent_work_view(
         state=state,
         work=read_newest_work(state=state, issue=issue, kind=AgentWorkKind.ASSIGNMENT),
-        console=pinned(written_to=written_to, width=width),
+        console=create_pinned_console(written_to=written_to, width=width),
         clock=lambda: LOOKED_AT,
-        wait=refusing,
+        wait=refuse_to_wait,
         zone=DISPLAY_TIME_ZONE,
     )
     return written_to.getvalue()
@@ -386,7 +388,9 @@ def test_an_assignment_with_no_pull_request_yet_says_so(tmp_path):
         pull_request=None,
     )
 
-    assert "pull request                none yet" in viewed(state=state, issue=13)
+    assert "pull request                none yet" in render_assignment_view(
+        state=state, issue=13
+    )
 
 
 def test_assignment_latest_output_is_indented_on_one_line(tmp_path):
@@ -406,7 +410,7 @@ def test_assignment_latest_output_is_indented_on_one_line(tmp_path):
         ],
     )
 
-    view = viewed(state=state, issue=13, width=40)
+    view = render_assignment_view(state=state, issue=13, width=40)
     output = [line for line in view.splitlines() if "agent is explaining" in line]
 
     assert len(output) == 1
@@ -436,7 +440,7 @@ def test_assignment_status_alone_is_coloured_and_latest_output_is_dim(tmp_path):
         work=read_newest_work(state=state, issue=13, kind=AgentWorkKind.ASSIGNMENT),
         console=console,
         clock=lambda: LOOKED_AT,
-        wait=refusing,
+        wait=refuse_to_wait,
         zone=DISPLAY_TIME_ZONE,
     )
     rendered = console.export_text(styles=True)
@@ -451,7 +455,7 @@ def test_an_assignment_renders_as_its_golden_view(name, tmp_path, pytestconfig):
     fabricate, issue = ASSIGNMENTS[name]
     fabricate(state=state)
 
-    view = viewed(state=state, issue=issue)
+    view = render_assignment_view(state=state, issue=issue)
 
     assert_matches_view_golden(
         rendered=view,
@@ -480,7 +484,7 @@ def test_an_assignment_view_shows_the_round_that_starts_while_it_is_open(tmp_pat
     show_agent_work_view(
         state=state,
         work=read_newest_work(state=state, issue=20, kind=AgentWorkKind.ASSIGNMENT),
-        console=pinned(written_to=written_to, is_terminal=True),
+        console=create_pinned_console(written_to=written_to, is_terminal=True),
         clock=lambda: LOOKED_AT,
         wait=wait,
         zone=DISPLAY_TIME_ZONE,
@@ -501,9 +505,9 @@ def test_an_assignment_view_of_an_ended_assignment_never_waits(tmp_path):
     show_agent_work_view(
         state=state,
         work=read_newest_work(state=state, issue=12, kind=AgentWorkKind.ASSIGNMENT),
-        console=pinned(written_to=written_to, is_terminal=True),
+        console=create_pinned_console(written_to=written_to, is_terminal=True),
         clock=lambda: LOOKED_AT,
-        wait=refusing,
+        wait=refuse_to_wait,
         zone=DISPLAY_TIME_ZONE,
     )
 
@@ -516,16 +520,16 @@ def test_an_assignment_view_in_fault_keeps_watching(tmp_path):
     written_to = StringIO()
     waits = []
 
-    def interrupting(seconds, /):
+    def record_wait_and_interrupt(seconds, /):
         waits.append(seconds)
         raise KeyboardInterrupt
 
     show_agent_work_view(
         state=state,
         work=read_newest_work(state=state, issue=9, kind=AgentWorkKind.ASSIGNMENT),
-        console=pinned(written_to=written_to, is_terminal=True),
+        console=create_pinned_console(written_to=written_to, is_terminal=True),
         clock=lambda: LOOKED_AT,
-        wait=interrupting,
+        wait=record_wait_and_interrupt,
         zone=DISPLAY_TIME_ZONE,
     )
 
@@ -543,9 +547,9 @@ def test_an_assignment_view_of_an_ended_assignment_keeps_its_last_picture(
     show_agent_work_view(
         state=state,
         work=read_newest_work(state=state, issue=12, kind=AgentWorkKind.ASSIGNMENT),
-        console=pinned(written_to=written_to, is_terminal=True),
+        console=create_pinned_console(written_to=written_to, is_terminal=True),
         clock=lambda: LOOKED_AT,
-        wait=refusing,
+        wait=refuse_to_wait,
         zone=DISPLAY_TIME_ZONE,
     )
     kept = written_to.getvalue().split(SCREEN_HANDED_BACK)[-1]
@@ -556,13 +560,13 @@ def test_an_assignment_view_of_an_ended_assignment_keeps_its_last_picture(
     assert f"GH12-{ASSIGNMENT_TIMESTAMP}-assignment" in kept
 
 
-def followed(*, state, issue: int, wait=refusing) -> str:
+def render_feed_view(*, state, issue: int, wait=refuse_to_wait) -> str:
     """Return the feed view that issue renders as, on a console being watched."""
     written_to = StringIO()
     show_feed_view(
         state=state,
         work=read_newest_work(state=state, issue=issue, kind=AgentWorkKind.ASSIGNMENT),
-        console=pinned(written_to=written_to, is_terminal=True),
+        console=create_pinned_console(written_to=written_to, is_terminal=True),
         wait=wait,
         zone=DISPLAY_TIME_ZONE,
     )
@@ -579,8 +583,8 @@ def test_a_feed_nobody_is_watching_shows_what_is_there_and_returns(tmp_path):
     show_feed_view(
         state=state,
         work=read_newest_work(state=state, issue=13, kind=AgentWorkKind.ASSIGNMENT),
-        console=pinned(written_to=written_to),
-        wait=refusing,
+        console=create_pinned_console(written_to=written_to),
+        wait=refuse_to_wait,
         zone=DISPLAY_TIME_ZONE,
     )
 
@@ -593,7 +597,7 @@ def test_a_feed_renders_as_its_golden_view(name, tmp_path, pytestconfig):
     fabricate, issue = FEEDS[name]
     fabricate(state=state)
 
-    feed = followed(state=state, issue=issue, wait=interrupting)
+    feed = render_feed_view(state=state, issue=issue, wait=interrupt_wait)
 
     assert_matches_view_golden(
         rendered=feed,
@@ -645,7 +649,7 @@ def test_a_following_view_waits_for_the_round_an_assignment_has_yet_to_run(tmp_p
         waits.append(seconds)
         raise KeyboardInterrupt
 
-    followed(state=state, issue=20, wait=wait)
+    render_feed_view(state=state, issue=20, wait=wait)
 
     # The assignment's pull request is waiting for the reader, so the round that
     # answers them is still to come and the view waits for it rather than
@@ -668,7 +672,7 @@ def test_a_following_view_looks_once_more_when_the_last_round_stops(tmp_path):
             round_input=MERGED_INPUT,
         )
 
-    followed(state=state, issue=13, wait=wait)
+    render_feed_view(state=state, issue=13, wait=wait)
 
     # The wrap-up round ended while the view was waiting, so the view looked once
     # more for whatever that round was still writing as it stopped.
@@ -698,7 +702,7 @@ def test_a_round_that_starts_while_the_view_is_going_arrives_in_it(tmp_path):
             lines=[compose_feed_line(record=current, text="[Bash] git commit")],
         )
 
-    feed = followed(state=state, issue=20, wait=wait)
+    feed = render_feed_view(state=state, issue=20, wait=wait)
 
     # The pull request was waiting for the reader when the view opened, and the
     # round that answers what they posted started while the view was going, so
@@ -712,7 +716,7 @@ def test_a_view_of_an_ended_assignment_never_waits(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
 
-    assert "round 2: merged" in followed(state=state, issue=12)
+    assert "round 2: merged" in render_feed_view(state=state, issue=12)
 
 
 def test_a_following_view_waits_for_the_next_daemon(tmp_path):
@@ -724,7 +728,7 @@ def test_a_following_view_waits_for_the_next_daemon(tmp_path):
         waits.append(seconds)
         raise KeyboardInterrupt
 
-    followed(state=state, issue=13, wait=wait)
+    render_feed_view(state=state, issue=13, wait=wait)
 
     # The daemon that was running the assignment has gone, and the next one
     # carries its round on from where it stopped, so the view waits for that
@@ -737,11 +741,13 @@ def test_a_view_of_a_faulted_assignment_keeps_watching(tmp_path):
     fabricate_everything(state=state)
     waits = []
 
-    def interrupting(seconds, /):
+    def record_wait_and_interrupt(seconds, /):
         waits.append(seconds)
         raise KeyboardInterrupt
 
-    assert "round 2: recover" in followed(state=state, issue=9, wait=interrupting)
+    assert "round 2: recover" in render_feed_view(
+        state=state, issue=9, wait=record_wait_and_interrupt
+    )
     assert waits
 
 
@@ -772,7 +778,7 @@ def test_a_following_view_reads_a_round_on_from_where_it_stopped(tmp_path):
             ],
         )
 
-    feed = followed(state=state, issue=13, wait=wait)
+    feed = render_feed_view(state=state, issue=13, wait=wait)
 
     assert "[Bash] git push" in feed
     assert "id 000000" not in feed
@@ -799,7 +805,7 @@ def test_a_write_that_never_landed_waits_for_the_look_that_shows_it_whole(tmp_pa
         else:
             raise KeyboardInterrupt
 
-    shown = followed(state=state, issue=13, wait=wait)
+    shown = render_feed_view(state=state, issue=13, wait=wait)
 
     # The line was not shown while it was half written, and the look after the
     # rest of it landed showed the whole of it once.
@@ -819,7 +825,7 @@ def test_a_line_the_view_cannot_read_reaches_the_reader_as_it_was_written(tmp_pa
         / "feed.txt",
     )
 
-    feed = followed(state=state, issue=13, wait=interrupting)
+    feed = render_feed_view(state=state, issue=13, wait=interrupt_wait)
 
     assert "the harness said something else" in feed
 
@@ -828,15 +834,17 @@ def test_a_reader_who_has_seen_enough_interrupts_the_view(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
 
-    assert "[Bash] pytest" in followed(state=state, issue=13, wait=interrupting)
+    assert "[Bash] pytest" in render_feed_view(
+        state=state, issue=13, wait=interrupt_wait
+    )
 
 
-def viewed_round(
+def render_round_view(
     *,
     state,
     issue: int,
     number: int,
-    wait=refusing,
+    wait=refuse_to_wait,
     is_terminal: bool = False,
 ) -> str:
     """Return the view of one round of that issue, on a pinned console."""
@@ -844,7 +852,7 @@ def viewed_round(
     show_feed_view(
         state=state,
         work=read_newest_work(state=state, issue=issue, kind=AgentWorkKind.ASSIGNMENT),
-        console=pinned(written_to=written_to, is_terminal=is_terminal),
+        console=create_pinned_console(written_to=written_to, is_terminal=is_terminal),
         round_number=number,
         wait=wait,
         zone=DISPLAY_TIME_ZONE,
@@ -864,19 +872,19 @@ def test_a_round_view_uses_the_number_persisted_by_the_round(tmp_path):
         lines=[compose_feed_line(record=fourth, text="[Bash] git status")],
     )
 
-    shown = viewed_round(state=state, issue=12, number=4)
+    shown = render_round_view(state=state, issue=12, number=4)
 
     assert "round 4: start" in shown
     assert "[Bash] git status" in shown
     with pytest.raises(ReportableError, match="has no round 3"):
-        viewed_round(state=state, issue=12, number=3)
+        render_round_view(state=state, issue=12, number=3)
 
 
 def test_one_round_of_an_assignment_reads_on_its_own(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
 
-    assert viewed_round(state=state, issue=13, number=2) == (
+    assert render_round_view(state=state, issue=13, number=2) == (
         "2026-08-20 03:11:58  round 2: 1 post\n2026-08-20 03:12:58  [Bash] pytest\n"
     )
 
@@ -886,7 +894,7 @@ def test_a_round_that_wrote_no_feed_shows_the_line_that_opens_it(tmp_path):
     fabricate_everything(state=state)
 
     assert (
-        viewed_round(state=state, issue=12, number=1)
+        render_round_view(state=state, issue=12, number=1)
         == "2026-08-20 02:42:58  round 1: start\n"
     )
 
@@ -897,7 +905,7 @@ def test_a_view_of_a_round_that_has_ended_never_waits(tmp_path):
 
     # Round 1 of this assignment ended, and one named round is all the view shows,
     # so it ends there rather than wait for what round 2 says next.
-    shown = viewed_round(state=state, issue=13, number=1, is_terminal=True)
+    shown = render_round_view(state=state, issue=13, number=1, is_terminal=True)
 
     assert "round 1: start" in shown
 
@@ -918,7 +926,9 @@ def test_a_view_of_a_running_round_ends_when_that_round_does(tmp_path):
             record=compose_ended_round(minute=30, number=2),
         )
 
-    shown = viewed_round(state=state, issue=13, number=2, wait=wait, is_terminal=True)
+    shown = render_round_view(
+        state=state, issue=13, number=2, wait=wait, is_terminal=True
+    )
 
     # The round ended while the view was waiting, so the view looked once more
     # for whatever that round was still writing as it stopped, and ended.
@@ -931,4 +941,4 @@ def test_a_round_the_assignment_never_ran_says_how_many_it_did(tmp_path):
     fabricate_everything(state=state)
 
     with pytest.raises(ReportableError, match="has run 2 rounds"):
-        viewed_round(state=state, issue=13, number=7)
+        render_round_view(state=state, issue=13, number=7)
