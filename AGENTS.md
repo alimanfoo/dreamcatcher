@@ -334,6 +334,10 @@ $env:PYTHONWARNDEFAULTENCODING = "1"; uv run pytest --regenerate-view-goldens
 - Keep changes lean. Add nothing a requirement or the design doesn't
   call for; prefer deleting over adding. One way to do each thing,
   always.
+- The first change that needs a new state format raises
+  `STATE_FORMAT_VERSION` in `state.py`. Every later change before the
+  next release joins that unreleased format, rather than raising it
+  again.
 - A bug is behaviour that contradicts a story in `docs/stories.md`,
   including the handling that a user error or expected fault story
   promises. Behaviour a story explicitly accepts is not a bug, and
