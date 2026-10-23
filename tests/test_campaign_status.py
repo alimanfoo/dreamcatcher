@@ -8,9 +8,12 @@ from datetime import timedelta
 import pytest
 from clocks import PINNED
 from records import (
+    MISORDERED_COMMENTS,
+    REPEATED_COMMENTS,
     compose_campaign_identifier,
     hold_daemon_lock_for_test,
     read_campaign,
+    replace_relayed_comments,
     write_assignment,
     write_campaign,
     write_daemon_run,
@@ -583,6 +586,24 @@ def test_an_unreadable_lead_round_input_fails_the_status_naming_the_file(state):
     assert campaign is not None
     round_input = campaign.compose_round_paths(number=1).round_input
     round_input.write_bytes(b"not json")
+
+    found = read_campaign_status(state=state)
+
+    with pytest.raises(ReportableError, match=re.escape(str(round_input))):
+        _ = found.round_statuses
+
+
+@pytest.mark.parametrize(
+    "comments", [MISORDERED_COMMENTS, REPEATED_COMMENTS], ids=["misordered", "repeated"]
+)
+def test_a_lead_round_input_with_comments_the_relay_never_gives_fails_the_status(
+    state, comments
+):
+    write_lead_round(state=state, number=1, ending=SUCCESSFUL)
+    campaign = read_campaign(state=state, issue=PARENT)
+    assert campaign is not None
+    round_input = campaign.compose_round_paths(number=1).round_input
+    replace_relayed_comments(path=round_input, comments=comments)
 
     found = read_campaign_status(state=state)
 

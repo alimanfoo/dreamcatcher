@@ -835,7 +835,10 @@ it relays; the input of a round that starts a new harness session also
 persists the issue title and body. A campaign's round input persists the
 parent issue, its sub-issues and the notifications about them, the
 eligible comments it relays, the cursor it reaches, the revision it was
-given and the assignment routes.
+given and the assignment routes. Both models refuse comments out of the
+order that the relay gives them, oldest first and each once, and a
+conversation's refuses an input that relays none, so every reader in
+scheduling and in status refuses such an input by the same rule.
 
 Instance records persist the repository identity and the most recent
 daemon run's start time, preferred harness, _dreamcatcher_ version,

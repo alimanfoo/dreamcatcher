@@ -22,9 +22,12 @@ from conftest import (
 )
 from fakes import Line
 from records import (
+    MISORDERED_COMMENTS,
+    REPEATED_COMMENTS,
     compose_conversation_identifier,
     read_assignments,
     read_conversation,
+    replace_relayed_comments,
     write_assignment,
     write_conversation,
     write_ending,
@@ -2040,6 +2043,42 @@ def test_a_relayed_round_whose_input_cannot_be_read_launches_nothing(
     observed = scheduler.tick(at=clock())
 
     assert observed.failures == []
+    [row] = observed.rows
+    assert isinstance(row.finding, ReadFailureFinding)
+    assert row.finding.reason.startswith(f"{round_input} is not valid")
+    assert observed.launched_agent_work_identifiers == []
+    assert harnesses["claude"].calls == []
+
+
+@pytest.mark.parametrize(
+    "comments",
+    [[], MISORDERED_COMMENTS, REPEATED_COMMENTS],
+    ids=["none", "misordered", "repeated"],
+)
+def test_a_relayed_round_with_comments_the_relay_never_gives_launches_nothing(
+    conversation_scheduler, harnesses, comments
+):
+    scheduler, clock, gh = conversation_scheduler
+    directory = write_conversation(state=scheduler.context.state, issue=8)
+    write_round(
+        directory=directory,
+        number=1,
+        record=AgentRoundRecord(
+            number=1,
+            started=clock(),
+            pid=1,
+            ending=SuccessfulAgentRoundEnding(at=clock()),
+        ),
+        round_input=ConversationRoundInput(
+            issue=8, comments=[compose_question()], revision="abc123"
+        ),
+    )
+    round_input = directory / "rounds" / "1" / "round-input.json"
+    replace_relayed_comments(path=round_input, comments=comments)
+    offer_conversation(gh=gh, comments=[compose_question(identifier=2)])
+
+    observed = scheduler.tick(at=clock())
+
     [row] = observed.rows
     assert isinstance(row.finding, ReadFailureFinding)
     assert row.finding.reason.startswith(f"{round_input} is not valid")

@@ -25,7 +25,7 @@ from dreamcatcher.github import (
     IssueComment,
     IssueState,
 )
-from dreamcatcher.relay import IssueCommentCursor
+from dreamcatcher.relay import IssueCommentCursor, OrderedIssueComments
 from dreamcatcher.state import StateDirectory
 
 
@@ -104,7 +104,7 @@ class CampaignRoundInput(WriteOnceDreamcatcherDocument):
     issue: int
     children: ReadOnlyList[CampaignChild]
     notifications: ReadOnlyList[CampaignChildNotification]
-    comments: ReadOnlyList[IssueComment]
+    comments: OrderedIssueComments
     cursor: IssueCommentCursor | None
     revision: str
     assignment_routes: ReadOnlyList[AssignmentRoute]
@@ -259,14 +259,6 @@ def prepare_campaign_round(
     )
 
 
-def read_campaign_input(*, campaign: AgentWork, number: int) -> CampaignRoundInput:
-    """Read the durable input of one campaign round."""
-    return read_json(
-        model=CampaignRoundInput,
-        path=campaign.compose_round_paths(number=number).round_input,
-    )
-
-
 def read_delivered_campaign_input(*, campaign: AgentWork) -> CampaignRoundInput | None:
     """Return the newest input delivered to the lead, if one has been.
 
@@ -276,4 +268,4 @@ def read_delivered_campaign_input(*, campaign: AgentWork) -> CampaignRoundInput 
     delivered = campaign.list_relayed_round_paths()
     if not delivered:
         return None
-    return read_campaign_input(campaign=campaign, number=delivered[0].number)
+    return read_json(model=CampaignRoundInput, path=delivered[0].round_input)

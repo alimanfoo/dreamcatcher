@@ -2,7 +2,14 @@ from datetime import timedelta
 
 import pytest
 from clocks import PINNED
-from records import read_campaign, write_campaign, write_round
+from pydantic import ValidationError
+from records import (
+    MISORDERED_COMMENTS,
+    REPEATED_COMMENTS,
+    read_campaign,
+    write_campaign,
+    write_round,
+)
 
 from dreamcatcher.agent_assignments import ObservedPullRequest
 from dreamcatcher.agent_rounds import (
@@ -75,6 +82,22 @@ def read_parent_campaign(*, state: StateDirectory) -> AgentWork:
     campaign = read_campaign(state=state, issue=PARENT)
     assert campaign is not None
     return campaign
+
+
+@pytest.mark.parametrize(
+    "comments", [MISORDERED_COMMENTS, REPEATED_COMMENTS], ids=["misordered", "repeated"]
+)
+def test_a_campaign_round_input_refuses_comments_the_relay_never_gives(comments):
+    with pytest.raises(ValidationError, match="not strictly ordered"):
+        CampaignRoundInput(
+            issue=PARENT,
+            children=[],
+            notifications=[],
+            comments=comments,
+            cursor=None,
+            revision="abc123",
+            assignment_routes=[],
+        )
 
 
 def test_a_campaign_round_starts_from_main_in_a_detached_worktree(cloned_repo):
