@@ -48,7 +48,6 @@ class WebCampaignChild:
 
     issue: int
     title: str
-    is_closed: bool
     assignment: WebAgentWorkCard | None
     requests: tuple[RequestStatus, ...]
 

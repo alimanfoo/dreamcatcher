@@ -386,9 +386,7 @@ body::after {
 .status-ended,
 .status-idle,
 .status-unknown,
-.status-blocked,
-.status-open,
-.status-closed {
+.status-blocked {
   color: var(--dim);
 }
 

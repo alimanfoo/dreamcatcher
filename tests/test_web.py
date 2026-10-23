@@ -68,6 +68,7 @@ from dreamcatcher.daemon_runs import RecordedRoute
 from dreamcatcher.documents import append_text, write_text
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import FeedLine
+from dreamcatcher.github import IssueState
 from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.scheduler.models import (
     GlobalCooldown,
@@ -329,6 +330,36 @@ def test_a_campaign_with_no_children_to_show_says_why_and_shows_no_cards(
 
     assert f"<summary>+ {summary}</summary>" in children_block
     assert "<article" not in children_block
+
+
+@pytest.mark.parametrize("issue_state", [IssueState.OPEN, IssueState.CLOSED])
+def test_a_campaign_sub_issue_with_no_assignment_or_request_shows_its_title_alone(
+    issue_state, tmp_path
+):
+    state = StateDirectory(root=tmp_path)
+    write_running_daemon(state=state)
+    campaign_row, *other_rows = fabricate_campaigns(state=state)
+    children = [
+        child.model_copy(update={"state": issue_state}) if child.issue == 66 else child
+        for child in CAMPAIGN_CHILDREN
+    ]
+    write_tick(
+        state=state,
+        tick=SchedulerRecord(
+            at=LOOKED_AT,
+            finished=LOOKED_AT,
+            rows=[campaign_row.model_copy(update={"children": children}), *other_rows],
+        ),
+    )
+
+    page = render_home(state=state)
+    prefix = "GH60-20260819-184158-campaign-"
+    sub_issue = page[page.index(f'<article id="{prefix}sub-issue-66"') :]
+    sub_issue = sub_issue[: sub_issue.index("</article>")]
+
+    assert re.sub(r"<[^>]+>", " ", sub_issue).split() == ["#66", "Issue", "66"]
+    assert f'id="{prefix}GH64-20260819-184158-assignment"' in page
+    assert f'id="{prefix}request-65-' in page
 
 
 def test_a_card_that_appears_within_a_campaign_too_has_an_identifier_for_each(
