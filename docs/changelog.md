@@ -27,6 +27,23 @@ the change.
 
 ## Unreleased
 
+### Changed
+
+- The feed shows a subagent as the agent sends it and its report when it
+  finishes, and no longer the steps in between, so subagents that run at
+  once no longer interleave their lines with each other's and the
+  agent's. The report sits with the agent's own lines, without an
+  indent. A Codex round shows a `[wait]` line as soon as the agent waits
+  on its subagents.
+  ([#729](https://github.com/alimanfoo/dreamcatcher/pull/729))
+
+### Fixed
+
+- The feed shows the report of a Claude subagent that hands its report
+  back, where it showed only a line saying the report was delivered
+  elsewhere.
+  ([#729](https://github.com/alimanfoo/dreamcatcher/pull/729))
+
 ## [v8.0.0](https://github.com/alimanfoo/dreamcatcher/releases/tag/v8.0.0) — 2026-10-23
 
 ### Breaking
