@@ -201,7 +201,6 @@ def _compose_work_live_state(
     return compose_agent_live_state(
         state=state,
         status=status,
-        worktree=work.worktree,
         zone=zone,
         heading_controls=tuple(heading_controls),
         foot_controls=tuple(foot_controls),

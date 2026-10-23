@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
 from functools import cached_property
+from pathlib import Path
 from typing import Protocol
 
 from dreamcatcher.agent_assignments import (
@@ -185,6 +186,12 @@ class AgentWorkStatus:
     def harness_session_identifier(self) -> HarnessSessionIdentifier | None:
         """The recorded harness session identifier, or else one found in output."""
         return self.work.find_harness_session_identifier()
+
+    @property
+    def worktree(self) -> Path | None:
+        """The work's worktree, unless the work has ended and its worktree is gone."""
+        work = self.work
+        return work.worktree if work.is_open or work.worktree.exists() else None
 
     @cached_property
     def hand_resume_command(self) -> list[str] | None:

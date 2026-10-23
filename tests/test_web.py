@@ -500,6 +500,34 @@ def test_assignment_tail_offers_a_hand_resume_only_while_no_round_runs(tmp_path)
     assert "claude --resume abc-123" in without_daemon.text
 
 
+def test_a_completed_assignment_whose_worktree_is_gone_offers_no_hand_resume(
+    tmp_path,
+):
+    state = StateDirectory(root=tmp_path)
+    fabricate_everything(state=state)
+    identifier = "GH12-20260819-184158-assignment"
+    worktree = state.worktrees / identifier
+    worktree.rmdir()
+
+    page = render_assignment(state=state, identifier=identifier)
+
+    assert "<summary>resume by hand</summary>" not in page
+    assert state.describe_path(path=worktree) not in page
+    assert "claude --resume" not in page
+
+
+def test_a_cancelled_assignment_offers_a_hand_resume_from_its_worktree(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    fabricate_everything(state=state)
+    identifier = "GH70-20260819-184158-assignment"
+
+    page = render_assignment(state=state, identifier=identifier)
+
+    assert "<summary>resume by hand</summary>" in page
+    assert f"cd {state.describe_path(path=state.worktrees / identifier)}" in page
+    assert "claude --resume abc-123" in page
+
+
 def test_a_stale_assignment_stop_request_is_already_done(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
