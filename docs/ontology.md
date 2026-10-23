@@ -389,6 +389,10 @@ no later assignment for it. If the pull request was closed without being
 merged, the issue remains open and may receive another assignment after
 the previous assignment has completed.
 
+Once a completed assignment's wrap-up round has ended, _dreamcatcher_
+removes its worktree and its local branch, and keeps its record and the
+branch on GitHub.
+
 ### Stopping a round
 
 The user can **stop** a running round, from the work's page or the
@@ -409,7 +413,8 @@ undone.
 _dreamcatcher_ leaves the pull request as it is, and while it is open it
 claims the issue, so no new assignment starts for the issue. If the user
 merges it, GitHub closes the issue. If the user closes it without
-merging, the issue may receive another assignment.
+merging, the issue may receive another assignment. A cancelled
+assignment keeps its worktree and branch for the user.
 
 ### Campaign composition
 
@@ -505,7 +510,9 @@ the notifications of the changes among the sub-issues since then.
 When a tick finds the issue of a conversation or campaign closed, it
 records the work's ending with the reason "issue closed" once no round
 is running. A round that is running when the issue closes finishes
-first. Only the user closes a campaign's parent issue.
+first. Only the user closes a campaign's parent issue. Once the work has
+ended and no round of it is running, _dreamcatcher_ removes its worktree
+and keeps its record.
 
 Paused work does not block new work of its kind under another label.
 Taking label A off an issue and adding label B starts fresh work under

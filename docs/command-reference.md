@@ -225,9 +225,11 @@ dreamcatcher view (GH<n> | IDENTIFIER)
 
 Show the selected agent work's status, recorded route and harness
 settings, harness session, worktree and rounds, with a hand-resume
-command when one is available. An assignment's view also shows its pull
-request and branch. A campaign's `GH<n>` is its parent issue. A paused
-conversation or campaign is idle, and its status detail says why.
+command when one is available. Ended work whose worktree _dreamcatcher_
+has removed shows the worktree as removed, and no hand-resume command.
+An assignment's view also shows its pull request and branch. A
+campaign's `GH<n>` is its parent issue. A paused conversation or
+campaign is idle, and its status detail says why.
 
 In an interactive terminal it refreshes until the work ends, as an
 assignment does after a successful wrap-up or a cancel. It stays on the

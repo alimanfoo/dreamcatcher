@@ -117,14 +117,18 @@ One scheduler tick:
    start-time questions, reads the comments of a conversation's issue,
    or asks which open issues block a campaign's parent and, when none
    does, reads the parent's comments;
-6. starts a global cooldown when the counted faults call for one, and
+6. removes the worktree, and an assignment's local branch, of each piece
+   of work that was open when the tick read it, or whose round the tick
+   has just forgotten, and that has now ended for any reason but a
+   cancel, once the daemon holds no round of it;
+7. starts a global cooldown when the counted faults call for one, and
    launches nothing while a cooldown is active;
-7. launches candidates until the daemon run's requested capacity is full
+8. launches candidates until the daemon run's requested capacity is full
    or no candidate remains, open work first in identifier order and then
    new requests in listing order, the kinds taking turns in the order
    assignment, conversation, campaign, and a kind with no candidate
    giving up its turn; and
-8. returns a `SchedulerRecord`, holding one request row per request, for
+9. returns a `SchedulerRecord`, holding one request row per request, for
    operational reporting.
 
 A candidate is open work the tick may start a round for, or a request it
@@ -163,6 +167,11 @@ and the request's row names the round and its reason, which the daemon's
 output line repeats. A launch that fails before its round is recorded,
 such as a work record that cannot be written or a harness invocation
 that cannot be built, is a scheduler failure.
+
+A worktree or branch that Git will not remove is a scheduler failure
+too. It stays where it is, and no later tick tries again, because once
+work has ended and the daemon holds no round of it, no later tick
+watches it. Work that ended before a tick watched it keeps its worktree.
 
 When the tick selects a request, it writes the work record and starts
 the first round in the same scheduling action. The record comes first,
@@ -336,8 +345,9 @@ should provide cohesive operations to:
   which each pull request signal was last relayed, whether the relay
   rule withholds, and whether a wrap-up round has been given the
   finished pull request, from recorded round inputs;
-- complete an assignment as its wrap-up round finishes; and
-- cancel an assignment.
+- complete an assignment as its wrap-up round finishes;
+- cancel an assignment; and
+- remove an ended assignment's worktree and then its local branch.
 
 `agent_work.py` owns what every kind of agent work shares: the work
 record, the agent work identifier, creating work of any kind from its
@@ -345,7 +355,8 @@ dispatch route, and the one reader through which the scheduler, status,
 the commands and the views list agent work of any kind. It also records
 the facts that change later for every kind: the harness session
 identifier, when the user retries work after resolving a fault, and when
-and why the work ended.
+and why the work ended. It removes an ended piece of work's worktree and
+keeps its records.
 
 Creating an assignment writes its work record and nothing else. The
 preparation step of a round whose assignment has no recorded pull
@@ -731,7 +742,8 @@ The on-disk layout follows ownership:
 - each round owns its prompt, raw output, rendered feed, final output
   when the harness reports one, and any input it relays; and
 - each piece of agent work's worktree lives under `worktrees/`, named by
-  the same identifier.
+  the same identifier, until the scheduler removes it after the work
+  ends. A cancelled assignment keeps its worktree.
 
 `documents.py` remains the only way _dreamcatcher_ reads and writes
 documents it owns. Every structured document has a strict model and

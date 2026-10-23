@@ -79,6 +79,10 @@ the detail completed: only a successful wrap-up releases it.
 dreamcatcher view GH123
 ```
 
+At the next update after that, _dreamcatcher_ removes the assignment's
+worktree and local branch. The branch on GitHub stays, and so does the
+assignment's record, so its page and view still show it.
+
 After a failed or interrupted wrap-up, the next round is given the
 finished pull request again.
 [Stop and recover work](stop-and-recover.md) explains what happens
