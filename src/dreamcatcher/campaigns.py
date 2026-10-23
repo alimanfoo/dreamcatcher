@@ -231,9 +231,9 @@ def prepare_campaign_round(
     *,
     state: StateDirectory,
     campaign: AgentWork,
-    children: list[CampaignChild],
-    notifications: list[CampaignChildNotification],
-    comments: list[IssueComment],
+    children: Sequence[CampaignChild],
+    notifications: Sequence[CampaignChildNotification],
+    comments: Sequence[IssueComment],
     delivered_cursor: IssueCommentCursor | None,
     assignment_routes: Sequence[AssignmentRoute],
 ) -> CampaignRoundInput:
