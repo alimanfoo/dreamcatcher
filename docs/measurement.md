@@ -5,186 +5,212 @@ This page holds the latest measurement of _dreamcatcher_ against
 replaces it before each major or minor release. Earlier measurements are
 in Git history.
 
-Measured on 2026-10-23 at `eec16efc`, for the v8.0.0 release
-preparation. The review covers the changes since v7.0.0: 12 merged pull
-requests, which let every terminal command select work of any kind with
-one argument, end a daemon's rounds on SIGTERM and SIGHUP, put the home
-page's tabs in the address, and fix the four shortfalls that the
-previous measurement recorded. The consistency review and the issue
-triage ran beside this measurement.
+Measured on 2026-10-23 at `9cae9cde`, for the v9.0.0 release
+preparation. The review covers the 23 pull requests merged since v8.0.0,
+with particular attention to the shared issue listing, ended worktree
+removal, harness feeds, round inputs and status reporting. The
+consistency review and issue triage ran beside this measurement.
 
 ## Results
 
-| Criterion                              | Measured                                                                                                             | Status  | Issue      |
-| -------------------------------------- | -------------------------------------------------------------------------------------------------------------------- | ------- | ---------- |
-| S1 Modules are cohesive                | 0 reviewed modules without one nameable responsibility                                                               | met     |            |
-| S2 Functions do one thing              | 0 reviewed functions without one nameable job                                                                        | met     |            |
-| S3 Exports are used                    | 36 names without a direct importer; 2 public with no caller outside their module, 2 package exports with no importer | not met | #713       |
-| S4 Each thing is done one way          | 1 round input read by different rules; 2 GitHub name comparisons made in more than one place                         | not met | #712, #714 |
-| S5 Nothing is suppressed               | 0 `noqa`, 0 `type: ignore`, 3 platform pragmas                                                                       | met     |            |
-| C1 One vocabulary                      | 3 disagreements corrected in this preparation; 2 remain                                                              | not met | #715, #716 |
-| C2 Enduring documents are true         | 1 incomplete architecture claim corrected in this preparation                                                        | met     |            |
-| C3 Documentation by purpose            | `view` replaces three commands in the reference and the guides; no new page                                          | met     |            |
-| C4 Formats and contracts are versioned | State format 7 and contract 1 unchanged; the command change has a Breaking entry and an upgrade section              | met     |            |
-| K1 Structural rules checked by machine | The 5 named rules remain checked                                                                                     | met     |            |
-| K2 Suite is fast and speaks plainly    | 46.45 seconds, 100% statement and branch coverage                                                                    | met     |            |
-| K3 Tracker is current                  | 20 open issues triaged against the ontology; 6 rewritten, none to close                                              | met     |            |
-| K4 Every change reviewed to standard   | All 12 PRs answer the definition of done                                                                             | met     |            |
-| E1 Rules, not cases                    | 10 ledger entries with external causes, 1 new; no unsupported new case found                                         | met     |            |
-| E2 Invariants by construction          | 66 nullable fields, none added; 2 raises defend round input states its model could refuse                            | not met | #712       |
-| E3 Concept economy                     | No concept added; the ontology changes only the definition of retry                                                  | met     |            |
-| E4 Symmetry                            | Every command but cancel takes any kind; 1 asymmetry in how a round input is read                                    | not met | #712       |
+| Criterion                              | Measured                                                                                                                   | Status  | Issue      |
+| -------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- | ------- | ---------- |
+| S1 Modules are cohesive                | 0 reviewed modules without one nameable responsibility                                                                     | met     |            |
+| S2 Functions do one thing              | 0 reviewed functions without one nameable job                                                                              | met     |            |
+| S3 Exports are used                    | 31 public definitions without a direct named importer; each is a model, protocol, entry point or part of a named interface | met     |            |
+| S4 Each thing is done one way          | Previous round-input and GitHub identity findings resolved; no new duplicate derivation established                        | met     |            |
+| S5 Nothing is suppressed               | 0 `noqa`, 0 `type: ignore`, 3 platform pragmas                                                                             | met     |            |
+| C1 One vocabulary                      | Previous vocabulary findings resolved; 2 supported symbol-contract disagreements remain                                    | not met | #757, #758 |
+| C2 Enduring documents are true         | 1 stale architecture sentence corrected; cancellation and conversation-answer promises have known counterexamples          | not met | #757, #758 |
+| C3 Documentation by purpose            | Tutorial, task guides, references and explanations remain separate; no new page                                            | met     |            |
+| C4 Formats and contracts are versioned | State format 8 requires v9.0.0; contract remains 1; breaking entry and upgrade instructions present                        | met     |            |
+| K1 Structural rules checked by machine | The 5 named rules remain checked                                                                                           | met     |            |
+| K2 Suite is fast and speaks plainly    | 57.57 seconds, 1,519 tests passed, 100% statement and branch coverage                                                      | met     |            |
+| K3 Tracker is current                  | 15 open issues triaged; 4 bodies corrected; none ready to close                                                            | met     |            |
+| K4 Every change reviewed to standard   | All 23 merged PRs answer all 7 definition-of-done questions                                                                | met     |            |
+| E1 Rules, not cases                    | 11 ledger entries with external causes; no unsupported new case found                                                      | met     |            |
+| E2 Invariants by construction          | 68 nullable class fields inspected; previous round-input defensive raises moved into model validation                      | met     |            |
+| E3 Concept economy                     | No domain concept added; existing concepts gain more precise descriptions                                                  | met     |            |
+| E4 Symmetry                            | Shared input validation and worktree removal cover all applicable kinds; cancellation retains its documented difference    | met     |            |
 
 ## Deferred work and previous findings
 
-The previous measurement recorded four shortfalls, and a fix for each
-has merged. Pull request #702 fixes #684, making `find_pause` private
-again; #703 fixes #685, deciding in `github.py` alone whether an issue
-is in the daemon's repository; #704 fixes #686, reading every kind's
-round input in `status.rounds` the same way; and #692 fixes #687 for the
-two reasons it named. Two of those fixes left new findings behind,
-recorded under S3, S4, E2 and E4.
+All five findings from the v8.0.0 measurement have fixes merged: #712
+and #713 through #745 and #746, #714 through #747, #715 through #748,
+and #716 through #749. Round-input validation now belongs to the models,
+unused readers and package exports are gone, GitHub label and login
+comparisons each have one home, the web feed uses position, and the
+fault flag is `is_in_fault` throughout the code. The campaign input
+keeps its contract's `is_fault` spelling through a serialization alias.
 
-The triage read all 20 open issues against the ontology, and this
-preparation rewrote six of them. Four named a concept by a word the
-ontology does not use: "subissue" and "child issue" became "sub-issue"
-in #693, #694 and #699, and "lead agent" became "lead" in #709. Two, #97
-and #109, named the commands that `dreamcatcher view` replaced. No
-issue's work was done or no longer applied, so none was closed.
+Two remaining disagreements, described below, already have issues. A
+wrap-up can overwrite a cancellation and allow the worktree to be
+removed (#757). A recorded Claude stream contains intermediate and empty
+result events that the adapter treats as final answers (#758). Neither
+is a quick documentation repair, and this preparation does not change
+their implementation. The release checklist permits tracked shortfalls
+while requiring every test and check to pass.
 
-Of the questions left open last time, #594 stays open. The new defaults
-in #707 settle #635, giving `dream:less` Sonnet and `gpt-5.6-terra` at
-high effort, and the startup sweep in #690 settles #61 by skipping a
-round that started before the last boot.
+The triage read all 15 open issues against the ontology and current
+code. It corrected #492's removed `Assignment` properties and earlier
+state-format reference, #594's claim that the teammate story endorses
+collaborator dispatch, #728's spelling of sub-issues, and #731's removed
+listing field. No issue's requested work is complete. In particular,
+issue #728 still asks why assignment requests first appear at different
+updates; #739 fixed only the lag of an assignment card once work starts.
+
+Other deferred work includes read-only collection fields on frozen
+dataclasses (#731), duplicated test helpers (#735), slow macOS test
+server construction (#755), failed-update reporting (#756), and unused
+recorded-feed goldens (#759). The presentation questions remain open:
+issues #733, #734, #736 and #737. Issues #32 and #594 also remain open.
+The journal proposal #492 remains a design question rather than
+completed work.
 
 ## Notes
 
-- **S1, S2.** The largest modules are `github.py` (854 lines),
-  `agent_rounds.py` (772), `status/agent_work.py` (564),
-  `scheduler/tick.py` (474), `agent_work.py` (460) and `web/app.py`
-  (455). Their responsibilities are unchanged: the GitHub boundary,
-  round execution and records, shared work-status derivation, the tick,
-  the shared work record and the web routes. `cli.py` shrank from 535 to
-  446 lines when one work argument replaced the kind selectors and the
-  three detail commands. `daemon.py` grew from 274 to 321 lines, all of
-  it the shutdown signals and the startup sweep, which belong to the
-  daemon lifecycle that the architecture lists. The long functions below
-  still each do one named job.
+- **S1, S2.** The largest modules are `github.py` (863 lines),
+  `agent_rounds.py` (772), `status/agent_work.py` (575),
+  `scheduler/tick.py` (512), `agent_work.py` (478), `web/app.py` (467)
+  and `status/report.py` (464). They retain their boundary's one
+  responsibility. The tick grows to remove ended worktrees and assemble
+  the scheduler record once, after launches. Status owns the new trigger
+  descriptions and section guidance; presentation consumes those values.
 
-  | Function                                      | Lines | Its job                                          |
-  | --------------------------------------------- | ----: | ------------------------------------------------ |
-  | `cli._build_cli_parser`                       |   187 | It defines the command-line grammar.             |
-  | `AgentRound.__init__`                         |    82 | It records and starts one round.                 |
-  | `DreamcatcherDaemon.run`                      |    80 | It follows the daemon lifecycle.                 |
-  | `Scheduler.tick`                              |    71 | It follows the scheduler's update sequence.      |
-  | `scheduler.assignments._inspect_pull_request` |    66 | It inspects an assignment's channel.             |
-  | `scheduler.campaigns._inspect_lead_input`     |    66 | It decides whether a lead round is due.          |
-  | `Scheduler._launch`                           |    58 | It creates work and starts its round.            |
-  | `commands.spawn_command`                      |    52 | It starts a child process and contains its tree. |
+  | Function                                      | Lines | Its job                                     |
+  | --------------------------------------------- | ----: | ------------------------------------------- |
+  | `cli._build_cli_parser`                       |   187 | Define the command-line grammar.            |
+  | `Scheduler.tick`                              |    84 | Follow the scheduler's update sequence.     |
+  | `DreamcatcherDaemon.run`                      |    83 | Follow the daemon lifecycle.                |
+  | `AgentRound.__init__`                         |    82 | Record and start one round.                 |
+  | `scheduler.assignments._inspect_pull_request` |    66 | Inspect an assignment's channel.            |
+  | `scheduler.campaigns._inspect_lead_input`     |    66 | Decide whether a lead round is due.         |
+  | `Scheduler._launch`                           |    58 | Create work and start its round.            |
+  | `commands.spawn_command`                      |    52 | Start a child and contain its process tree. |
 
-  `DreamcatcherDaemon.run` grew by 4 lines, for the context that turns
-  termination signals into an interrupt.
+- **S3, S4.** An AST inventory finds 31 public class or function
+  definitions without a direct named import from another source module.
+  Review also accounts for imports through module objects, package
+  exports, document and view models, callback protocols and the console
+  entry point. It establishes no unused public function. This count
+  excludes constants and aliases, and is not a measure of unused code.
+  Conversation and campaign readers now use their models' one validation
+  rule. Login and label comparisons use `is_login_of_account` and
+  `identify_label` in the scheduler and at their other callers.
+- **S5, K1.** The three coverage pragmas remain at `teardown.py:20`,
+  `teardown.py:110` and `commands.py:270`, all platform arms. The
+  architecture tests and lint rules pass, with no suppression added.
+- **C2.** The review compares the changed listing, worktree,
+  round-input, feed and status paths with all four enduring documents.
+  The architecture still said campaign cards used the assignment matched
+  by the tick; #739 instead selects the newest local assignment. This
+  preparation corrects that sentence. The two known story contradictions
+  remain tracked below rather than weakening the stories to accept them.
+- **C3, C4.** The documentation map retains pages by reader purpose.
+  State format 8 records update completion and daemon-run start times;
+  the compatibility opening already names v9.0.0 and format 8. Its
+  upgrade instructions explain the fresh start, stopped views and
+  retained older state. The agent contract remains version 1.
+- **K2.** The default suite passed twice with 1,519 tests, one
+  platform-only skip, and 100% statement and branch coverage. The first
+  run took 71.82 seconds while the repository checks also ran. A repeat
+  with those checks finished took 57.57 seconds. Its slowest test was
+  `test_a_closed_parent_ends_the_campaign_once_its_round_finishes`, at
+  21.92 seconds. The separate browser and read-only GitHub integration
+  groups passed together: 36 tests, one platform-only skip, 24.17
+  seconds. Every pre-commit check passed. Local timing does not
+  establish timing on the other platforms; CI covers their behaviour.
+- **K4.** The reviewed PRs are #725, #726, #727, #729, #730, #732, #738,
+  #739, #740, #741, #742, #743, #744, #745, #746, #747, #748, #749,
+  #750, #751, #752, #753 and #754. Each explains the change, links its
+  issue and answers all seven questions. No Dependabot PR merged in this
+  interval.
+- **E1.** The ledger now has 11 entries. It removes subagent text
+  suppression and adds Claude's handback-report fallback and Codex's
+  collaboration-item start event. These have external protocol causes.
+  Worktree removal, label identity, input order, hidden successful
+  outcomes and unrouted guidance apply the documented general rules.
+- **E2, E3, E4.** The nullable-field inventory is a prompt for review,
+  not a target count. No new defensive raise for an impossible internal
+  combination was established. Ordered comments and nonempty
+  conversation input are validated at construction. Conversation and
+  campaign inputs share that ordering rule; all kinds share
+  ended-worktree removal, and only assignments remove a branch.
+  Cancelled assignments keep their worktrees, subject to #757. No new
+  domain concept is required.
 
-- **S3.** 36 names have no direct importer from another source module.
-  The rest are document models, projections, protocols, view models,
-  entry points, and architecture and contract constants. Since #691,
-  `scheduler/__init__.py` exports `derive_agent_work_fault` and
-  `read_scheduler_record` with no importer under `src`: `status` and
-  `scheduler.tick` import both from `scheduler.faults`, and only
-  `tests/test_cli.py` uses the package export. Since #704,
-  `issue_conversations.read_conversation_input` and
-  `campaigns.read_campaign_input` have no caller outside their modules.
-  The same inventory finds 35 names at v7.0.0, against the 33 the
-  previous measurement reported, so the count depends on its method.
-- **S4.** `read_conversation_input` refuses a round input that relays no
-  comments, names another issue, or holds comments out of order. Since
-  #704, `status.rounds` reads the same file with none of those checks,
-  so for the newest relayed input the scheduler can hold a read failure
-  in the conversation's row while status counts the input's comments.
-  Two comparisons older than v7.0.0 are also made in more than one
-  place: whether a GitHub login names the signed-in account, in
-  `github._UserPostProjection.is_written_by` and
-  `scheduler.issue_work._find_pause`; and whether two label names are
-  one label, in `config`, `_find_pause` and the scheduler tick. #703
-  settled the same pattern for repositories.
-- **S5.** The three coverage pragmas remain at `teardown.py:20`,
-  `teardown.py:110` and `commands.py:270`, all platform arms. The new
-  platform choice in `daemon._TERMINATION_SIGNALS` is a conditional
-  expression, which needs no pragma, and is on the ledger.
-- **C1.** The consistency review, weighted to the changes since v7.0.0,
-  corrected three disagreements: a conversation round input naming
-  another issue gave the reason "input names GH9", which can reach the
-  web pages, and now says "issue 9", as #692 did for its siblings; the
-  triage skill's "external fault" is now the stories' "expected fault";
-  and the architecture's retry paragraph now names the `retry` command
-  beside the web interface. Two remain. The web feed calls how far a
-  page has shown a round's feed its cursor, which the ontology keeps for
-  how far the agent has read in its channel, while the terminal feed
-  calls the same idea a position. The scheduler names the fault flag
-  `is_fault`, where status names the same question `is_in_fault`.
-- **C2.** The review read the daemon, web, status, retry and
-  work-selection claims of the ontology, the architecture and the
-  stories against the changed code. #690, #691 and #698 each corrected
-  the documents they moved past. One claim was incomplete, and this
-  preparation completes it: the architecture said only that the web
-  interface requests a retry, and since #691 the `retry` command does it
-  the same way.
-- **C3, C4.** The command reference documents `view`, and the how-to
-  pages and the campaign tutorial use `view` and `feed GH123`. No page
-  was added. State format 7 and contract 1 are unchanged. The command
-  change has a Breaking entry in the changelog and an upgrade section in
-  [Compatibility and upgrades](compatibility.md).
-- **K1, K2.** All 1,482 default tests passed in 46.45 seconds, with 100%
-  statement and branch coverage, against 1,454 in 40.77 seconds at
-  v7.0.0. The macOS run skips the Windows-only containment module;
-  Windows CI exercises it. The separate browser and live GitHub
-  integration tests passed, 35 of them, in 19.78 seconds.
-  `tests/test_architecture.py` is unchanged, and the new `signal` and
-  `psutil` imports fall under no boundary rule. The new test functions
-  are named for behaviours, such as
-  `test_an_issue_with_more_than_one_piece_of_work_asks_which` and
-  `test_the_address_names_the_home_tab_so_back_and_forward_move_between_tabs`.
-- **K4.** The 12 PRs are #690, #691, #692, #698, #700, #701, #702, #703,
-  #704, #705, #707 and #708. Each says what it changes and why and
-  answers all seven questions by number. Eleven link the issue they
-  close, and #708, a change to the triage skill, names the triage it
-  follows. No Dependabot PR merged in the interval.
-- **E1.** The new branches apply rules: a round from before the last
-  boot cannot still be alive; a signal the daemon was started to ignore
-  stays ignored; cancel is for assignments, as the ontology says; an
-  issue with more than one piece of work names none; and a feed round
-  that opens in a refresh holds its own boundary. The one new platform
-  case, that Windows has no hangup signal, is on the ledger.
-- **E2.** The optional-field count is 66, as at v7.0.0 by the same
-  count; the previous page gave 65. `read_conversation_input` raises for
-  an input that relays no comments and for comments out of order, states
-  that validators on `ConversationRoundInput` could refuse.
-- **E3.** The ontology's only change rewrites the definition of retry to
-  match #691. No concept was added.
-- **E4.** `retry`, `stop`, `view` and `feed` each take work of every
-  kind through one argument, and only `cancel` refuses work that is not
-  an assignment, as the ontology says. The terminal no longer lists
-  other work beside one piece's view, which the web page never did. One
-  asymmetry remains: only a conversation's input reader checks that the
-  input names the work's issue and holds ordered comments, although
-  `CampaignRoundInput` has the same fields and the ontology names no
-  difference that calls for it.
+## Semantic Consistency Review
+
+### Scope
+
+The namespace, source stubs, changed symbol contracts, enduring and user
+documents, recorded feeds, templates and open issues were reviewed,
+weighted to changes since v8.0.0. Formatting and design preferences are
+excluded. Existing issues are reused for supported findings.
+
+### Summary
+
+The previous vocabulary disagreements are resolved. Two supported
+symbol-contract disagreements remain, both already tracked.
+
+### Vocabulary findings
+
+No supported vocabulary disagreement remains after the tracker edits.
+The campaign input's wire alias is intentional compatibility, not a
+second meaning for fault.
+
+### Symbol-contract findings
+
+#### 1. A write-once document can replace its earlier value
+
+**Claim A** — `src/dreamcatcher/documents.py` ·
+`WriteOnceDreamcatcherDocument` · docstring
+
+> Model a document that dreamcatcher writes at most once.
+
+**Claim B** — `src/dreamcatcher/documents.py` · `write_text` · body
+
+> `lock = _hold_document_lock(path=path) if is_replaceable else nullcontext()`
+>
+> `staged.replace(path)`
+
+**How they differ:** The write-once flag skips locking but does not
+prevent replacement. A later ending can replace a cancellation (#757).
+
+**Why these should agree:** `end_agent_work` constructs an
+`AgentWorkEnding`, a write-once model, and `write_json` passes its
+`is_replaceable` flag to this writer.
+
+#### 2. Claude result events need not close the round
+
+**Claim A** — `src/dreamcatcher/claude.py` · `_read_round_result` ·
+docstring
+
+> Return the usage, outcome, and final text that close the round.
+
+**Claim B** — `tests/fixtures/claude/subagents.jsonl` · first result at
+line 38 · recorded output
+
+> Both subagents are still running, so I'll wait for their reports.
+
+**How they differ:** Five result events follow the background subagents,
+including waiting messages and empty results. The adapter exposes each
+as final output, although an earlier one does not close the round
+(#758).
+
+**Why these should agree:** This is the recorded Claude event stream
+that the adapter reads, and a conversation posts the adapter's final
+output as its answer.
 
 ## Method
 
-- `tools/measure_source.py` supplies module and function line counts.
-  Review checks responsibility rather than imposing a length limit.
-- An AST inventory finds public top-level definitions without direct
-  imports from another source module, and checks each package's
-  `__all__` against imports from outside the package. Review classifies
-  each remaining name. The same inventory finds 35 names at v7.0.0.
-- A separate AST count finds class fields whose own annotation admits
-  `None`, and gives 66 at both v7.0.0 and `eec16efc`.
-- The documents were read against the stubs and the bodies of the
-  changed daemon, CLI, status, TUI and web code, and against the diff
-  since v7.0.0.
-- Default tests establish branch coverage and timing. Browser tests
-  exercise rendered interactions; integration tests read the live GitHub
-  service. Both ran at `eec16efc`. CI also validates Linux and Windows
-  behaviour.
-- PR descriptions establish K4 for the interval since v7.0.0.
+- `tools/measure_source.py` supplies physical module and function line
+  counts; review assesses responsibility rather than imposing a limit.
+- AST inventories over `src` count public definitions without direct
+  named importers and class fields whose own annotation admits `None`.
+  Package exports and module-object callers are reviewed separately.
+- The namespace and stubs guide targeted body reads and the diff from
+  v8.0.0. The docs map guides the documentation review.
+- Test results establish local coverage, timing and rendered behaviour.
+  PR descriptions establish the definition-of-done record, and current
+  issue bodies establish the tracker triage.

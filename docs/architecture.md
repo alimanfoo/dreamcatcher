@@ -612,13 +612,14 @@ them all, or observed none for a campaign request whose labels conflict
 or whose parent an open issue blocks. Status gives an active campaign
 those sub-issues and the words that count its closed sub-issues out of
 the total, or says that its sub-issues are unknown. The status report
-gives each sub-issue the status of the assignment that the tick matched
-to it, and the request statuses of its assignment labels that have no
-open work. The web home page puts an active campaign's lead card and the
-expandable block of its sub-issues side by side in one wrapper, so the
-latest output of a sub-issue's card is never read as the lead's. The
-block stays in place, holding only its count while the sub-issues are
-unknown or there are none, so a refresh keeps it open through a failed
+gives each sub-issue the status of its newest local assignment, so a new
+assignment shows before the next tick records it on the campaign, and
+the request statuses of its assignment labels that have no open work.
+The web home page puts an active campaign's lead card and the expandable
+block of its sub-issues side by side in one wrapper, so the latest
+output of a sub-issue's card is never read as the lead's. The block
+stays in place, holding only its count while the sub-issues are unknown
+or there are none, so a refresh keeps it open through a failed
 observation. Each card or request row in that block takes the campaign's
 identifier as a prefix to its HTML identifier, so it differs from the
 same card on the Assignments tab. A request row's identifier holds its

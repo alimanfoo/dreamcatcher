@@ -27,6 +27,8 @@ the change.
 
 ## Unreleased
 
+## [v9.0.0](https://github.com/alimanfoo/dreamcatcher/releases/tag/v9.0.0) — 2026-10-23
+
 ### Breaking
 
 - Saved state moves to state format 8, in `.dreamcatcher/v8/`. Saved
@@ -78,9 +80,27 @@ the change.
   the daemon routes none of that kind, and links to the documentation
   that shows how to add the route to `dreamcatcher.toml`.
   ([#751](https://github.com/alimanfoo/dreamcatcher/pull/751))
+- Round lists on the web and in the terminal omit successful outcomes,
+  so running and exceptional outcomes stand out.
+  ([#753](https://github.com/alimanfoo/dreamcatcher/pull/753))
+- The upgrade guide explains how to reclaim the disk an earlier state
+  format holds, after keeping any cancelled assignment's work you want.
+  ([#742](https://github.com/alimanfoo/dreamcatcher/pull/742))
+- The campaign guides explain when to use GitHub's merge queue, or leave
+  its up-to-date requirement off, to avoid repeated agent rounds after
+  each stage merges.
+  ([#754](https://github.com/alimanfoo/dreamcatcher/pull/754))
 
 ### Fixed
 
+- A campaign's sub-issue card shows a new assignment in the update that
+  starts it, instead of waiting one more update.
+  ([#739](https://github.com/alimanfoo/dreamcatcher/pull/739))
+- The documentation home page's headline fits a phone held sideways.
+  ([#743](https://github.com/alimanfoo/dreamcatcher/pull/743))
+- An invalid web feed position is now called a position in its error
+  message, matching the terminal feed.
+  ([#748](https://github.com/alimanfoo/dreamcatcher/pull/748))
 - Switching theme on the web keeps the page's place in the address, so
   the home page stays on the tab it showed.
   ([#744](https://github.com/alimanfoo/dreamcatcher/pull/744))
