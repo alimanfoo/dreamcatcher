@@ -10,7 +10,6 @@ from collections.abc import Callable, Iterator
 from contextlib import suppress
 from datetime import datetime
 from itertools import islice
-from pathlib import Path
 
 from pydantic import PositiveInt
 
@@ -47,7 +46,6 @@ from dreamcatcher.git import (
     is_local_branch,
     make_empty_commit,
     push_branch,
-    remove_worktree,
 )
 from dreamcatcher.github import (
     CheckResult,
@@ -190,9 +188,8 @@ def open_assignment_pull_request(
         try:
             add_worktree(root=state.root, path=assignment.worktree, branch=branch)
         except ReportableError:
-            _discard_worktree_and_branch(
-                state=state, worktree=assignment.worktree, branch=branch
-            )
+            with suppress(ReportableError):
+                remove_assignment_worktree(state=state, assignment=assignment)
             raise
     if not has_commits_since_main(worktree=assignment.worktree):
         make_empty_commit(worktree=assignment.worktree, message=f"GH{issue} [skip ci]")
@@ -260,13 +257,3 @@ def _read_relayed_inputs(*, assignment: AgentWork) -> Iterator[AssignmentRoundIn
     """Yield the inputs already relayed, newest first."""
     for paths in assignment.list_relayed_round_paths():
         yield read_json(model=AssignmentRoundInput, path=paths.round_input)
-
-
-def _discard_worktree_and_branch(
-    *, state: StateDirectory, worktree: Path, branch: str
-) -> None:
-    """Remove artifacts that a failed worktree creation may have left."""
-    with suppress(CommandError):
-        remove_worktree(root=state.root, path=worktree)
-    with suppress(CommandError):
-        delete_branch(root=state.root, branch=branch)
