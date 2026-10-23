@@ -13,6 +13,26 @@ account. If `main` requires an approving review before a merge, the lead
 cannot merge, because GitHub does not let an account approve its own
 pull request.
 
+## Keep stage pull requests from updating one another
+
+A campaign can have several stage pull requests open at once. If the
+repository requires branches to be up to date before merging, each merge
+leaves every other stage behind `main`. Each stage's agent then merges
+`main`, its checks run again, and the lead wakes for the new head. Only
+one of those stages merges next, so the rest repeat the work after the
+next merge.
+
+Use
+[GitHub's merge queue](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/configuring-pull-request-merges/managing-a-merge-queue)
+when it is available for the repository. It tests queued changes with
+the latest `main` when their turn comes, without making each agent
+update its pull request branch after every earlier merge.
+
+Otherwise, leave **Require branches to be up to date before merging**
+off for a repository that runs campaigns. A pull request that falls
+behind without a conflict still merges cleanly. One that conflicts with
+`main` still wakes its agent to bring the branch up to date.
+
 ## 1. Set up dreamcatcher
 
 Campaigns need _dreamcatcher_ 7.0.0 or later, and
