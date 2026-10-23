@@ -5,8 +5,8 @@ from io import StringIO
 import pytest
 from clocks import PINNED
 from records import read_newest_work, write_tick
-from rich.console import Console
 from status_fabrications import LOOKED_AT, fabricate_campaigns, write_running_daemon
+from terminals import create_pinned_console
 
 from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.scheduler.models import SchedulerRecord
@@ -28,14 +28,9 @@ def state(tmp_path):
     return state
 
 
-def create_plain_console() -> tuple[Console, StringIO]:
-    """Return a plain fixed-width console and the text it writes."""
-    written = StringIO()
-    return Console(file=written, width=100, color_system=None), written
-
-
 def test_status_lists_campaigns_their_requests_and_how_many_ended(state):
-    console, written = create_plain_console()
+    written = StringIO()
+    console = create_pinned_console(written_to=written)
 
     show_status_view(state=state, console=console, clock=lambda: LOOKED_AT)
 
@@ -49,7 +44,8 @@ def test_status_lists_campaigns_their_requests_and_how_many_ended(state):
 
 
 def test_campaign_detail_shows_its_parent_settings_and_rounds(state):
-    console, written = create_plain_console()
+    written = StringIO()
+    console = create_pinned_console(written_to=written)
 
     show_agent_work_view(
         state=state,
@@ -68,7 +64,8 @@ def test_campaign_detail_shows_its_parent_settings_and_rounds(state):
 
 
 def test_campaign_feed_shows_what_the_lead_said(state):
-    console, written = create_plain_console()
+    written = StringIO()
+    console = create_pinned_console(written_to=written)
 
     show_feed_view(
         state=state,
