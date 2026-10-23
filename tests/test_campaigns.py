@@ -77,8 +77,8 @@ def read_parent_campaign(*, state: StateDirectory) -> AgentWork:
     return campaign
 
 
-def test_a_campaign_round_starts_from_main_in_a_detached_worktree(cloned):
-    state = StateDirectory(root=cloned)
+def test_a_campaign_round_starts_from_main_in_a_detached_worktree(cloned_repo):
+    state = StateDirectory(root=cloned_repo)
     campaign = create_agent_work(
         state=state,
         route=CampaignRoute(

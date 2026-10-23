@@ -101,7 +101,7 @@ def state(tmp_path):
 
 
 @pytest.fixture
-def running(state):
+def held_state(state):
     """That state directory held by a daemon with this process identifier."""
     hold_daemon_lock_for_test(path=state.lock)
     return state
@@ -299,14 +299,14 @@ def test_a_live_daemon_that_has_not_named_its_run_has_no_pid(tmp_path):
     assert found.daemon.pid is None
 
 
-def test_a_live_round_reports_work_and_its_latest_output(running):
+def test_a_live_round_reports_work_and_its_latest_output(held_state):
     write_feed_lines(
-        state=running,
-        record=write_assignment_round(state=running, number=1, status=None),
+        state=held_state,
+        record=write_assignment_round(state=held_state, number=1, status=None),
         texts=["first", "[Bash] pytest"],
     )
 
-    found = read_report(state=running)
+    found = read_report(state=held_state)
     status = found.work_statuses[0]
 
     assert found.daemon.pid == os.getpid()
@@ -317,11 +317,11 @@ def test_a_live_round_reports_work_and_its_latest_output(running):
     assert status.hand_resume_command is None
 
 
-def test_a_live_round_keeps_the_pull_request_summary_the_tick_read(running):
-    write_assignment_round(state=running, number=1, status=None)
-    write_tick_rows(state=running, rows=[compose_pull_request_row()])
+def test_a_live_round_keeps_the_pull_request_summary_the_tick_read(held_state):
+    write_assignment_round(state=held_state, number=1, status=None)
+    write_tick_rows(state=held_state, rows=[compose_pull_request_row()])
 
-    assert read_only_assignment(state=running).pull_request_summary == "ready"
+    assert read_only_assignment(state=held_state).pull_request_summary == "ready"
 
 
 @pytest.mark.parametrize(
@@ -459,10 +459,10 @@ def test_status_with_no_harness_session_has_no_resume_command(tmp_path):
     assert status.hand_resume_command is None
 
 
-def test_a_live_round_that_has_said_nothing_reports_that(running):
-    write_assignment_round(state=running, number=1, status=None)
+def test_a_live_round_that_has_said_nothing_reports_that(held_state):
+    write_assignment_round(state=held_state, number=1, status=None)
 
-    status = read_only_assignment(state=running)
+    status = read_only_assignment(state=held_state)
 
     assert status.value is AgentWorkStatusValue.WORKING
     assert status.detail == "round 1, start, running 1h 59m, has said nothing yet"
@@ -535,11 +535,11 @@ def test_a_cancelled_assignment_has_ended(state):
     assert status.has_ended
 
 
-def test_a_round_still_running_after_a_cancel_is_working(running):
-    write_assignment_round(state=running, number=1, status=None)
-    cancel(state=running)
+def test_a_round_still_running_after_a_cancel_is_working(held_state):
+    write_assignment_round(state=held_state, number=1, status=None)
+    cancel(state=held_state)
 
-    status = read_only_assignment(state=running)
+    status = read_only_assignment(state=held_state)
 
     assert status.value is AgentWorkStatusValue.WORKING
     assert not status.has_ended
@@ -984,10 +984,10 @@ def test_an_elapsed_cooldown_clears_the_fault_and_the_cooldown(state):
     assert found.active_global_cooldown is None
 
 
-def test_an_active_cooldown_is_an_instance_fact_and_failures_are_listed(running):
+def test_an_active_cooldown_is_an_instance_fact_and_failures_are_listed(held_state):
     cooldown = GlobalCooldown(started=PINNED, ends=LOOKED_AT + timedelta(minutes=1))
     write_tick(
-        state=running,
+        state=held_state,
         tick=SchedulerRecord(
             at=PINNED,
             failures=["could not start assignment", "could not read comments for GH8"],
@@ -995,7 +995,7 @@ def test_an_active_cooldown_is_an_instance_fact_and_failures_are_listed(running)
         ),
     )
 
-    found = read_report(state=running)
+    found = read_report(state=held_state)
 
     assert found.latest_scheduler_tick == PINNED
     assert found.daemon.interval_seconds == DEFAULT_INTERVAL_SECONDS

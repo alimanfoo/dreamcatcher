@@ -117,10 +117,10 @@ def create_scheduler(*, root, harness: AgentHarness = AgentHarness.CLAUDE):
 
 
 @pytest.fixture
-def campaign_scheduler(cloned, gh):
+def campaign_scheduler(cloned_repo, gh):
     """Return a scheduler routing the campaign label, and stop what it leaves."""
-    configure(root=cloned, head=CAMPAIGN_CLAUDE)
-    scheduler = create_scheduler(root=cloned)
+    configure(root=cloned_repo, head=CAMPAIGN_CLAUDE)
+    scheduler = create_scheduler(root=cloned_repo)
     yield scheduler, gh
     for running in scheduler.rounds.values():
         running.interrupt()
@@ -818,9 +818,9 @@ def test_campaigns_are_inspected_after_the_assignments(campaign_scheduler):
     ]
 
 
-def test_the_three_kinds_take_turns_for_free_slots(cloned, gh, harnesses):
-    configure(root=cloned, head=CONVERSATION_CLAUDE + CAMPAIGN_CLAUDE)
-    scheduler = create_scheduler(root=cloned)
+def test_the_three_kinds_take_turns_for_free_slots(cloned_repo, gh, harnesses):
+    configure(root=cloned_repo, head=CONVERSATION_CLAUDE + CAMPAIGN_CLAUDE)
+    scheduler = create_scheduler(root=cloned_repo)
     scheduler.max_agents = 4
     for issue in (13, 14):
         write_assignment(
@@ -854,10 +854,10 @@ def test_the_three_kinds_take_turns_for_free_slots(cloned, gh, harnesses):
 
 
 def test_a_codex_lead_works_under_codexs_reviewer_without_a_final_file(
-    cloned, gh, harnesses
+    cloned_repo, gh, harnesses
 ):
-    configure(root=cloned, head=CODEX_CAMPAIGN)
-    scheduler = create_scheduler(root=cloned, harness=AgentHarness.CODEX)
+    configure(root=cloned_repo, head=CODEX_CAMPAIGN)
+    scheduler = create_scheduler(root=cloned_repo, harness=AgentHarness.CODEX)
     offer_parent(gh=gh)
     harnesses["codex"].streams(
         lines=[
@@ -1205,9 +1205,11 @@ def test_a_retry_clears_the_fault_and_the_lead_recovers(campaign_scheduler, harn
     assert call.prompt.startswith("Your previous round did not finish.")
 
 
-def test_a_codex_lead_resumes_its_session_for_a_parent_comment(cloned, gh, harnesses):
-    configure(root=cloned, head=CODEX_CAMPAIGN)
-    scheduler = create_scheduler(root=cloned, harness=AgentHarness.CODEX)
+def test_a_codex_lead_resumes_its_session_for_a_parent_comment(
+    cloned_repo, gh, harnesses
+):
+    configure(root=cloned_repo, head=CODEX_CAMPAIGN)
+    scheduler = create_scheduler(root=cloned_repo, harness=AgentHarness.CODEX)
     state = scheduler.context.state
     directory = write_campaign(
         state=state,

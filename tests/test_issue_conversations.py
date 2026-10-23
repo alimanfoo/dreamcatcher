@@ -128,8 +128,8 @@ def test_a_conversation_is_recorded_without_a_worktree(tmp_path):
     assert read_agent_work(state=state) == [created]
 
 
-def test_a_new_conversation_records_the_preferred_harness_recipe(cloned):
-    state = StateDirectory(root=cloned)
+def test_a_new_conversation_records_the_preferred_harness_recipe(cloned_repo):
+    state = StateDirectory(root=cloned_repo)
     route = ConversationRoute(
         label="dream:conversation",
         claude=compose_conversation_route().claude,
@@ -168,9 +168,9 @@ def test_a_new_conversation_records_the_preferred_harness_recipe(cloned):
     ],
 )
 def test_round_input_freezes_the_issue_comments_and_revision(
-    cloned, is_resuming, initial_issue
+    cloned_repo, is_resuming, initial_issue
 ):
-    state = StateDirectory(root=cloned)
+    state = StateDirectory(root=cloned_repo)
     conversation = create_agent_work(
         state=state,
         route=compose_conversation_route(),

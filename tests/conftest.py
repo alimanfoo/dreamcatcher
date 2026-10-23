@@ -327,7 +327,7 @@ def seeded_checkout(seeded_upstream, tmp_path_factory):
 
 
 @pytest.fixture
-def cloned(seeded_checkout, seeded_upstream, tmp_path):
+def cloned_repo(seeded_checkout, seeded_upstream, tmp_path):
     """Return a main checkout with an origin and a throwaway author identity."""
     upstream = tmp_path / "upstream.git"
     shutil.copytree(seeded_upstream, upstream)
@@ -340,7 +340,7 @@ def cloned(seeded_checkout, seeded_upstream, tmp_path):
 
 
 @pytest.fixture
-def watched(repo):
+def configured_repo(repo):
     """Return a main checkout carrying a valid dreamcatcher.toml."""
     (repo / DREAMCATCHER_CONFIG_NAME).write_text(CONFIG, encoding="utf-8")
     return repo
@@ -366,7 +366,7 @@ def fake(stand_ins, launcher, monkeypatch):
 
 
 @pytest.fixture
-def left_running(tmp_path):
+def orphan_round_process(tmp_path):
     """A process standing in for a round left without a recorded ending."""
     child = spawn_command(
         program=sys.executable,
@@ -444,16 +444,16 @@ def gh(fake):
 
 
 @pytest.fixture
-def offered(gh):
+def gh_with_free_issue(gh):
     """Return gh offering one labelled issue that is free for assignment."""
     gh.replies(stdout=compose_issue_listing(issues=[(8, FILED)]), to="issue list")
     return gh
 
 
 @pytest.fixture
-def ready_repo(cloned, offered, harnesses):
+def ready_repo(cloned_repo, gh_with_free_issue, harnesses):
     """Return a checkout that can create an assignment for a labelled issue."""
-    configure(root=cloned)
+    configure(root=cloned_repo)
     harnesses["claude"].streams(
         lines=[
             fakes.Line(
@@ -468,4 +468,4 @@ def ready_repo(cloned, offered, harnesses):
             fakes.Line(text="what the round said\n"),
         ]
     )
-    return cloned
+    return cloned_repo

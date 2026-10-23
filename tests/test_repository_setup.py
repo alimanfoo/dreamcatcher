@@ -36,9 +36,9 @@ effort = "xhigh"
 
 
 @pytest.fixture
-def checkout(cloned):
+def checkout(cloned_repo):
     """A main checkout of upstream, where Git has an identity to commit as."""
-    return cloned
+    return cloned_repo
 
 
 @pytest.fixture
@@ -54,7 +54,7 @@ def gh(fake):
 
 
 @pytest.fixture
-def installed(fake, stand_ins, monkeypatch, tmp_path):
+def signed_in_installer(fake, stand_ins, monkeypatch, tmp_path):
     """Return a factory putting these harnesses on the PATH, signed in.
 
     A harness the developer installed for their own use often sits beside git,
@@ -80,8 +80,10 @@ def installed(fake, stand_ins, monkeypatch, tmp_path):
     return install
 
 
-def test_a_fresh_checkout_is_set_up_for_both_harnesses(checkout, gh, installed, capsys):
-    harnesses = installed(programs=["claude", "codex"])
+def test_a_fresh_checkout_is_set_up_for_both_harnesses(
+    checkout, gh, signed_in_installer, capsys
+):
+    harnesses = signed_in_installer(programs=["claude", "codex"])
 
     set_up_repository(root=checkout)
 
@@ -112,9 +114,9 @@ def test_a_fresh_checkout_is_set_up_for_both_harnesses(checkout, gh, installed, 
 
 
 def test_only_the_route_labels_the_repository_lacks_are_created(
-    checkout, gh, installed, capsys
+    checkout, gh, signed_in_installer, capsys
 ):
-    installed(programs=["claude", "codex"])
+    signed_in_installer(programs=["claude", "codex"])
 
     set_up_repository(root=checkout)
 
@@ -155,9 +157,9 @@ def test_only_the_route_labels_the_repository_lacks_are_created(
 
 
 def test_a_second_setup_leaves_the_configuration_and_labels_alone(
-    checkout, gh, installed, capsys
+    checkout, gh, signed_in_installer, capsys
 ):
-    harnesses = installed(programs=["claude"])
+    harnesses = signed_in_installer(programs=["claude"])
     (checkout / DREAMCATCHER_CONFIG_NAME).write_text(SMITH_CLAUDE, encoding="utf-8")
     commit(path=checkout, message="Configure dreamcatcher")
     run_git(arguments=["push", "origin", "main"], cwd=checkout)
@@ -179,9 +181,9 @@ def test_a_second_setup_leaves_the_configuration_and_labels_alone(
 
 
 def test_a_configuration_not_yet_on_main_comes_with_the_commands_to_push_it(
-    checkout, gh, installed, capsys
+    checkout, gh, signed_in_installer, capsys
 ):
-    installed(programs=["claude"])
+    signed_in_installer(programs=["claude"])
     (checkout / DREAMCATCHER_CONFIG_NAME).write_text(SMITH_CLAUDE, encoding="utf-8")
 
     set_up_repository(root=checkout)
@@ -190,9 +192,9 @@ def test_a_configuration_not_yet_on_main_comes_with_the_commands_to_push_it(
 
 
 def test_only_the_harnesses_the_configuration_routes_are_set_up(
-    checkout, gh, installed
+    checkout, gh, signed_in_installer
 ):
-    harnesses = installed(programs=["claude", "codex"])
+    harnesses = signed_in_installer(programs=["claude", "codex"])
     (checkout / DREAMCATCHER_CONFIG_NAME).write_text(SMITH_CLAUDE, encoding="utf-8")
 
     set_up_repository(root=checkout)
@@ -202,9 +204,9 @@ def test_only_the_harnesses_the_configuration_routes_are_set_up(
 
 
 def test_a_harness_that_is_not_installed_is_left_out_of_the_configuration(
-    checkout, gh, installed, capsys
+    checkout, gh, signed_in_installer, capsys
 ):
-    installed(programs=["claude"])
+    signed_in_installer(programs=["claude"])
 
     set_up_repository(root=checkout)
 
@@ -215,9 +217,9 @@ def test_a_harness_that_is_not_installed_is_left_out_of_the_configuration(
 
 
 def test_a_configuration_routing_codex_alone_runs_on_codex(
-    checkout, gh, installed, capsys
+    checkout, gh, signed_in_installer, capsys
 ):
-    harnesses = installed(programs=["codex"])
+    harnesses = signed_in_installer(programs=["codex"])
 
     set_up_repository(root=checkout)
 
@@ -226,9 +228,9 @@ def test_a_configuration_routing_codex_alone_runs_on_codex(
 
 
 def test_a_conversation_only_configuration_explains_how_to_start_one(
-    checkout, gh, installed, capsys
+    checkout, gh, signed_in_installer, capsys
 ):
-    installed(programs=["claude"])
+    signed_in_installer(programs=["claude"])
     (checkout / DREAMCATCHER_CONFIG_NAME).write_text(
         CONVERSATION_CLAUDE, encoding="utf-8"
     )
@@ -243,9 +245,9 @@ def test_a_conversation_only_configuration_explains_how_to_start_one(
 
 
 def test_a_campaign_only_configuration_explains_how_to_start_one(
-    checkout, gh, installed, capsys
+    checkout, gh, signed_in_installer, capsys
 ):
-    installed(programs=["claude"])
+    signed_in_installer(programs=["claude"])
     (checkout / DREAMCATCHER_CONFIG_NAME).write_text(CAMPAIGN_CLAUDE, encoding="utf-8")
 
     set_up_repository(root=checkout)
@@ -269,9 +271,9 @@ def test_a_campaign_only_configuration_explains_how_to_start_one(
 
 
 def test_a_configuration_with_no_routes_explains_what_to_add(
-    checkout, gh, installed, capsys
+    checkout, gh, signed_in_installer, capsys
 ):
-    harnesses = installed(programs=["claude"])
+    harnesses = signed_in_installer(programs=["claude"])
     (checkout / DREAMCATCHER_CONFIG_NAME).write_text("", encoding="utf-8")
 
     set_up_repository(root=checkout)
@@ -285,15 +287,17 @@ def test_a_configuration_with_no_routes_explains_what_to_add(
     )
 
 
-def test_a_machine_with_no_harness_is_refused(checkout, gh, installed):
-    installed(programs=[])
+def test_a_machine_with_no_harness_is_refused(checkout, gh, signed_in_installer):
+    signed_in_installer(programs=[])
 
     with pytest.raises(ReportableError, match="Install Claude Code or Codex"):
         set_up_repository(root=checkout)
 
 
-def test_a_configuration_routing_a_missing_harness_is_refused(checkout, gh, installed):
-    harnesses = installed(programs=["claude"])
+def test_a_configuration_routing_a_missing_harness_is_refused(
+    checkout, gh, signed_in_installer
+):
+    harnesses = signed_in_installer(programs=["claude"])
     (checkout / DREAMCATCHER_CONFIG_NAME).write_text(
         SMITH_CLAUDE + SMITH_CODEX, encoding="utf-8"
     )
@@ -303,8 +307,8 @@ def test_a_configuration_routing_a_missing_harness_is_refused(checkout, gh, inst
     assert not harnesses["claude"].calls
 
 
-def test_a_harness_that_is_signed_out_is_refused(checkout, gh, installed):
-    harnesses = installed(programs=["claude", "codex"])
+def test_a_harness_that_is_signed_out_is_refused(checkout, gh, signed_in_installer):
+    harnesses = signed_in_installer(programs=["claude", "codex"])
     harnesses["codex"].fails(stderr="Not logged in", to="login status")
 
     with pytest.raises(ReportableError, match="codex login status failed"):
@@ -314,8 +318,8 @@ def test_a_harness_that_is_signed_out_is_refused(checkout, gh, installed):
     ]
 
 
-def test_an_account_that_cannot_push_is_refused(checkout, gh, installed):
-    installed(programs=["claude"])
+def test_an_account_that_cannot_push_is_refused(checkout, gh, signed_in_installer):
+    signed_in_installer(programs=["claude"])
     gh.replies(stdout=json.dumps({"viewerPermission": "READ"}), to=PERMISSION)
 
     with pytest.raises(ReportableError, match=f"{POSTED_BY} cannot push"):
@@ -323,8 +327,10 @@ def test_an_account_that_cannot_push_is_refused(checkout, gh, installed):
     assert not (checkout / DREAMCATCHER_CONFIG_NAME).exists()
 
 
-def test_a_checkout_whose_origin_cannot_be_fetched_is_refused(checkout, gh, installed):
-    installed(programs=["claude"])
+def test_a_checkout_whose_origin_cannot_be_fetched_is_refused(
+    checkout, gh, signed_in_installer
+):
+    signed_in_installer(programs=["claude"])
     run_git(
         arguments=["remote", "set-url", "origin", str(checkout.parent / "gone.git")],
         cwd=checkout,
@@ -340,9 +346,9 @@ def test_a_checkout_whose_origin_cannot_be_fetched_is_refused(checkout, gh, inst
     ids=["the push permission", "the labels"],
 )
 def test_a_github_read_that_fails_is_refused_with_what_gh_said(
-    checkout, gh, installed, read, refusal
+    checkout, gh, signed_in_installer, read, refusal
 ):
-    installed(programs=["claude"])
+    signed_in_installer(programs=["claude"])
     gh.fails(stderr="gh: could not connect to github.com", to=read)
 
     with pytest.raises(ReportableError, match=f"{refusal}.*could not connect"):
@@ -350,17 +356,17 @@ def test_a_github_read_that_fails_is_refused_with_what_gh_said(
 
 
 def test_a_checkout_where_git_has_no_identity_is_refused(
-    cloned, gh, installed, monkeypatch
+    cloned_repo, gh, signed_in_installer, monkeypatch
 ):
-    installed(programs=["claude"])
+    signed_in_installer(programs=["claude"])
     monkeypatch.setenv("GIT_CONFIG_GLOBAL", os.devnull)
     monkeypatch.setenv("GIT_CONFIG_NOSYSTEM", "1")
-    run_git(arguments=["config", "--unset", "user.name"], cwd=cloned)
-    run_git(arguments=["config", "--unset", "user.email"], cwd=cloned)
-    run_git(arguments=["config", "user.useConfigOnly", "true"], cwd=cloned)
+    run_git(arguments=["config", "--unset", "user.name"], cwd=cloned_repo)
+    run_git(arguments=["config", "--unset", "user.email"], cwd=cloned_repo)
+    run_git(arguments=["config", "user.useConfigOnly", "true"], cwd=cloned_repo)
 
     with pytest.raises(ReportableError, match="Please tell me who you are"):
-        set_up_repository(root=cloned)
+        set_up_repository(root=cloned_repo)
 
 
 def test_a_directory_that_is_not_a_main_checkout_is_refused(tmp_path):
@@ -368,8 +374,10 @@ def test_a_directory_that_is_not_a_main_checkout_is_refused(tmp_path):
         set_up_repository(root=tmp_path)
 
 
-def test_init_sets_up_the_current_directory(checkout, gh, installed, monkeypatch):
-    installed(programs=["claude"])
+def test_init_sets_up_the_current_directory(
+    checkout, gh, signed_in_installer, monkeypatch
+):
+    signed_in_installer(programs=["claude"])
     monkeypatch.chdir(checkout)
 
     assert main(argv=["init"]) == 0

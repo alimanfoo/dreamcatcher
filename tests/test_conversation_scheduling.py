@@ -144,12 +144,12 @@ def set_scheduler_config(*, scheduler: Scheduler, config) -> None:
 
 
 @pytest.fixture
-def conversation_scheduler(cloned, gh):
+def conversation_scheduler(cloned_repo, gh):
     """Return a configured scheduler and stop any round the test leaves running."""
-    configure(root=cloned, head=CONVERSATION_CONFIG)
+    configure(root=cloned_repo, head=CONVERSATION_CONFIG)
     clock = Ticking(step=300)
     scheduler = create_scheduler(
-        root=cloned,
+        root=cloned_repo,
         harness=AgentHarness.CLAUDE,
         clock=clock,
     )
@@ -159,12 +159,12 @@ def conversation_scheduler(cloned, gh):
 
 
 @pytest.fixture
-def codex_conversation_scheduler(cloned, gh):
+def codex_conversation_scheduler(cloned_repo, gh):
     """Return a scheduler that chooses Codex from both conversation recipes."""
-    configure(root=cloned, head=BOTH_CONVERSATION_CONFIG)
+    configure(root=cloned_repo, head=BOTH_CONVERSATION_CONFIG)
     clock = Ticking(step=300)
     scheduler = create_scheduler(
-        root=cloned,
+        root=cloned_repo,
         harness=AgentHarness.CODEX,
         clock=clock,
     )
@@ -1664,7 +1664,7 @@ def test_two_errored_rounds_put_a_conversation_in_fault(
 
 
 def test_a_daemon_orphan_is_given_its_comments_again_in_its_saved_session(
-    conversation_scheduler, harnesses, left_running
+    conversation_scheduler, harnesses, orphan_round_process
 ):
     scheduler, clock, gh = conversation_scheduler
     directory = write_conversation(state=scheduler.context.state, issue=8)
@@ -1689,7 +1689,7 @@ def test_a_daemon_orphan_is_given_its_comments_again_in_its_saved_session(
         record=AgentRoundRecord(
             number=1,
             started=read_current_time(),
-            pid=left_running.pid,
+            pid=orphan_round_process.pid,
         ),
         round_input=first_input,
     )
@@ -1698,7 +1698,7 @@ def test_a_daemon_orphan_is_given_its_comments_again_in_its_saved_session(
         preferred_harness=AgentHarness.CLAUDE,
     )
     daemon._sweep_orphans()
-    assert wait_for_exit(pid=left_running.pid)
+    assert wait_for_exit(pid=orphan_round_process.pid)
     offer_conversation(
         gh=gh, comments=[compose_question(), compose_question(identifier=2)]
     )
