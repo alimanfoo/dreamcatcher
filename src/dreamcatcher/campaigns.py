@@ -5,6 +5,7 @@ direct sub-issues. Every round runs in a detached worktree refreshed to fetched
 main, and the lead publishes its own messages, so a round has no finishing step.
 """
 
+from collections.abc import Sequence
 from enum import StrEnum
 
 from pydantic import PositiveInt
@@ -14,6 +15,7 @@ from dreamcatcher.agent_work import AgentWork, AgentWorkEndReason
 from dreamcatcher.config import AssignmentRoute
 from dreamcatcher.documents import (
     DreamcatcherDocument,
+    ReadOnlyList,
     WriteOnceDreamcatcherDocument,
     read_json,
 )
@@ -83,7 +85,7 @@ class CampaignChildNotification(DreamcatcherDocument):
     """Model the changes to one child since the newest input delivered to the lead."""
 
     issue: PositiveInt
-    changes: list[CampaignChildChange]
+    changes: ReadOnlyList[CampaignChildChange]
 
 
 class CampaignRoundInput(WriteOnceDreamcatcherDocument):
@@ -100,16 +102,16 @@ class CampaignRoundInput(WriteOnceDreamcatcherDocument):
     """
 
     issue: int
-    children: list[CampaignChild]
-    notifications: list[CampaignChildNotification]
-    comments: list[IssueComment]
+    children: ReadOnlyList[CampaignChild]
+    notifications: ReadOnlyList[CampaignChildNotification]
+    comments: ReadOnlyList[IssueComment]
     cursor: IssueCommentCursor | None
     revision: str
-    assignment_routes: list[AssignmentRoute]
+    assignment_routes: ReadOnlyList[AssignmentRoute]
 
 
 def compare_campaign_children(
-    *, previous: list[CampaignChild], current: list[CampaignChild]
+    *, previous: Sequence[CampaignChild], current: Sequence[CampaignChild]
 ) -> list[CampaignChildNotification]:
     """Return a notification for each child whose changes call for the lead.
 
@@ -230,11 +232,11 @@ def prepare_campaign_round(
     *,
     state: StateDirectory,
     campaign: AgentWork,
-    children: list[CampaignChild],
-    notifications: list[CampaignChildNotification],
-    comments: list[IssueComment],
+    children: Sequence[CampaignChild],
+    notifications: Sequence[CampaignChildNotification],
+    comments: Sequence[IssueComment],
     delivered_cursor: IssueCommentCursor | None,
-    assignment_routes: list[AssignmentRoute],
+    assignment_routes: Sequence[AssignmentRoute],
 ) -> CampaignRoundInput:
     """Reset the worktree to fetched main and freeze the round's input.
 

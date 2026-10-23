@@ -1,6 +1,6 @@
 import sys
 
-from conftest import gone
+from conftest import wait_for_exit
 
 from dreamcatcher.commands import spawn_command
 
@@ -27,8 +27,8 @@ def test_a_kill_reaches_what_the_child_started(tmp_path):
     child.kill()
     child.wait()
 
-    assert gone(pid=grandchild)
-    assert gone(pid=child.pid)
+    assert wait_for_exit(pid=grandchild)
+    assert wait_for_exit(pid=child.pid)
 
 
 def test_a_child_that_ends_by_itself_takes_what_it_started_with_it(tmp_path):
@@ -39,7 +39,7 @@ def test_a_child_that_ends_by_itself_takes_what_it_started_with_it(tmp_path):
 
     assert child.wait() == 0
 
-    assert gone(pid=grandchild)
+    assert wait_for_exit(pid=grandchild)
 
 
 def test_a_kill_after_the_child_ended_leaves_its_pid_alone(tmp_path):

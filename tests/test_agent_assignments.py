@@ -9,16 +9,17 @@ from conftest import (
     HEAD,
     PULL_REQUEST,
     REPOSITORY,
-    comment,
     commit,
-    git,
-    pull_requests,
+    compose_comment,
+    compose_pull_request_listing,
+    run_git,
 )
 from records import (
     read_assignments,
     write_assignment,
     write_round,
 )
+from status_fabrications import compose_ended_round, compose_running_round
 
 from dreamcatcher.agent_assignments import (
     AssignmentRoundInput,
@@ -95,10 +96,10 @@ def open_assignment(*, state, route, preferred_harness, issue, at):
 
 
 @pytest.fixture
-def checkout(cloned):
+def checkout(cloned_repo):
     """A main checkout with an origin and an assignment configuration."""
-    (cloned / DREAMCATCHER_CONFIG_NAME).write_text(CONFIG, encoding="utf-8")
-    return cloned
+    (cloned_repo / DREAMCATCHER_CONFIG_NAME).write_text(CONFIG, encoding="utf-8")
+    return cloned_repo
 
 
 @pytest.fixture
@@ -108,7 +109,7 @@ def state(checkout, gh):
 
 
 @pytest.fixture
-def fabricated(tmp_path):
+def bare_state(tmp_path):
     """A state directory holding records alone, with no checkout behind it."""
     return StateDirectory(root=tmp_path)
 
@@ -119,7 +120,7 @@ def route(checkout):
     return read_dreamcatcher_config(root=checkout).assignment[0]
 
 
-def written(*, state):
+def read_assignment_record(*, state):
     """Return the record that the assignment wrote about itself."""
     record = state.work / ASSIGNMENT_ID / "work.json"
     return AgentWorkRecord.model_validate_json(record.read_text(encoding="utf-8"))
@@ -146,11 +147,11 @@ def test_an_assignment_cuts_a_branch_of_its_own_from_origins_main_as_it_is_now(
 ):
     # Move origin's main on, then leave the checkout believing what it knew
     # before. Only a fetch of its own brings the creation the newer main.
-    known = git(arguments=["rev-parse", "origin/main"], cwd=state.root).strip()
+    known = run_git(arguments=["rev-parse", "origin/main"], cwd=state.root).strip()
     (state.root / "later.txt").write_text("main moved on\n", encoding="utf-8")
     commit(path=state.root, message="move main on")
-    git(arguments=["push", "origin", "main"], cwd=state.root)
-    git(arguments=["update-ref", "refs/remotes/origin/main", known], cwd=state.root)
+    run_git(arguments=["push", "origin", "main"], cwd=state.root)
+    run_git(arguments=["update-ref", "refs/remotes/origin/main", known], cwd=state.root)
 
     assignment = open_assignment(
         state=state,
@@ -161,9 +162,9 @@ def test_an_assignment_cuts_a_branch_of_its_own_from_origins_main_as_it_is_now(
     )
 
     assert compose_assignment_branch(identifier=assignment.identifier) == BRANCH
-    assert BRANCH in git(arguments=["branch", "--list", BRANCH], cwd=state.root)
+    assert BRANCH in run_git(arguments=["branch", "--list", BRANCH], cwd=state.root)
     assert (assignment.worktree / "later.txt").exists()
-    message = git(
+    message = run_git(
         arguments=["log", "-1", "--format=%s"], cwd=assignment.worktree
     ).strip()
     assert message == "GH12 [skip ci]"
@@ -187,7 +188,9 @@ def test_a_codex_assignment_records_its_recipes_config(state, route):
         at=PINNED,
     )
 
-    assert written(state=state).harness_config == {"model_context_window": 1000000}
+    assert read_assignment_record(state=state).harness_config == {
+        "model_context_window": 1000000
+    }
 
 
 def test_an_assignment_records_its_settled_dispatch_recipe(state, route):
@@ -199,7 +202,7 @@ def test_an_assignment_records_its_settled_dispatch_recipe(state, route):
         at=PINNED,
     )
 
-    assert written(state=state) == assignment.record
+    assert read_assignment_record(state=state) == assignment.record
     assert assignment.record.issue == 12
     assert assignment.record.title == "The issue title"
     assert assignment.record.dispatch_label == "dream:smith"
@@ -219,7 +222,7 @@ def test_an_assignment_is_recorded_before_any_git_or_github_step(state, route, g
     assert read_assignments(state=state) == [assignment]
     assert not assignment.worktree.exists()
     assert read_assignment_pull_request_number(assignment=assignment) is None
-    assert git(arguments=["branch", "--list", BRANCH], cwd=state.root) == ""
+    assert run_git(arguments=["branch", "--list", BRANCH], cwd=state.root) == ""
     assert gh.calls == []
 
 
@@ -269,7 +272,7 @@ def test_a_new_assignment_has_run_no_rounds_and_its_next_is_its_first(state, rou
     )
 
 
-def standing(*, state, rounds: Sequence[AgentRoundRecord]):
+def write_and_read_assignment(*, state, rounds: Sequence[AgentRoundRecord]):
     """Return the assignment that these rounds leave behind, read back from disk."""
     directory = write_assignment(state=state, identifier=ASSIGNMENT_ID, issue=12)
     for number, record in enumerate(rounds, start=1):
@@ -277,18 +280,18 @@ def standing(*, state, rounds: Sequence[AgentRoundRecord]):
     return read_assignments(state=state)[0]
 
 
-def test_assignments_at_one_issue_are_read_behind_the_assignment_boundary(fabricated):
+def test_assignments_at_one_issue_are_read_behind_the_assignment_boundary(bare_state):
     write_assignment(
-        state=fabricated, identifier="GH12-20260818-090000-assignment", issue=12
+        state=bare_state, identifier="GH12-20260818-090000-assignment", issue=12
     )
     write_assignment(
-        state=fabricated, identifier="GH13-20260819-090000-assignment", issue=13
+        state=bare_state, identifier="GH13-20260819-090000-assignment", issue=13
     )
     write_assignment(
-        state=fabricated, identifier="GH12-20260820-090000-assignment", issue=12
+        state=bare_state, identifier="GH12-20260820-090000-assignment", issue=12
     )
 
-    assignments = read_agent_work_at_issue(state=fabricated, issue=12)
+    assignments = read_agent_work_at_issue(state=bare_state, issue=12)
 
     assert [assignment.identifier for assignment in assignments] == [
         "GH12-20260818-090000-assignment",
@@ -296,78 +299,67 @@ def test_assignments_at_one_issue_are_read_behind_the_assignment_boundary(fabric
     ]
 
 
-def ended(*, status, minute=0, number: int = 1):
-    """Return a round that started that minute past the hour and ended."""
-    started = PINNED + timedelta(minutes=minute)
-    return AgentRoundRecord(
-        number=number,
-        started=started,
-        pid=1,
-        ending=_compose_agent_round_ending(at=started, status=status),
-    )
-
-
-def running(*, minute=0, number: int = 1):
-    """Return a round that started that minute past the hour and is still going."""
-    return AgentRoundRecord(
-        number=number,
-        started=PINNED + timedelta(minutes=minute),
-        pid=1,
-    )
-
-
-def test_a_round_an_assignment_has_run_is_found_by_the_number_it_ran_as(fabricated):
-    assignment = standing(
-        state=fabricated,
-        rounds=[ended(status=0), ended(status=0, minute=1, number=2)],
+def test_a_round_an_assignment_has_run_is_found_by_the_number_it_ran_as(bare_state):
+    assignment = write_and_read_assignment(
+        state=bare_state,
+        rounds=[
+            compose_ended_round(status=0),
+            compose_ended_round(status=0, minute=1, number=2),
+        ],
     )
 
     assert assignment.compose_round_paths(number=2) == AgentRoundPaths(
         worktree=assignment.worktree,
-        rounds_directory=fabricated.work / ASSIGNMENT_ID / "rounds",
+        rounds_directory=bare_state.work / ASSIGNMENT_ID / "rounds",
         number=2,
     )
 
 
-def test_an_assignment_is_open_until_its_ending_is_recorded(fabricated):
-    assignment = standing(state=fabricated, rounds=[ended(status=0)])
+def test_an_assignment_is_open_until_its_ending_is_recorded(bare_state):
+    assignment = write_and_read_assignment(
+        state=bare_state, rounds=[compose_ended_round(status=0)]
+    )
 
     assert assignment.is_open
 
 
-def test_completing_an_assignment_records_its_ending(fabricated):
-    assignment = standing(state=fabricated, rounds=[ended(status=0)])
+def test_completing_an_assignment_records_its_ending(bare_state):
+    assignment = write_and_read_assignment(
+        state=bare_state, rounds=[compose_ended_round(status=0)]
+    )
 
     complete_assignment(assignment=assignment, clock=lambda: PINNED, final_output=None)
 
-    completed = read_assignments(state=fabricated)[0]
+    completed = read_assignments(state=bare_state)[0]
     assert completed.ending == AgentWorkEnding(
         at=PINNED, reason=AgentWorkEndReason.COMPLETED
     )
     assert not completed.is_open
 
 
-def test_a_cancelled_assignment_records_when_and_is_no_longer_open(fabricated):
-    assignment = standing(state=fabricated, rounds=[ended(status=0)])
+def test_a_cancelled_assignment_records_when_and_is_no_longer_open(bare_state):
+    assignment = write_and_read_assignment(
+        state=bare_state, rounds=[compose_ended_round(status=0)]
+    )
 
     cancel_assignment(assignment=assignment, at=PINNED + timedelta(hours=1))
 
-    cancelled = read_assignments(state=fabricated)[0]
+    cancelled = read_assignments(state=bare_state)[0]
     assert cancelled.ending == AgentWorkEnding(
         at=PINNED + timedelta(hours=1), reason=AgentWorkEndReason.CANCELLED
     )
     assert not cancelled.is_open
 
 
-def test_recording_later_facts_leaves_the_assignment_record_as_it_was(fabricated):
+def test_recording_later_facts_leaves_the_assignment_record_as_it_was(bare_state):
     # Nothing rewrites the record, so no writer can erase another's fact.
     write_assignment(
-        state=fabricated,
+        state=bare_state,
         identifier=ASSIGNMENT_ID,
         issue=12,
         harness_session_identifier=None,
     )
-    assignment = read_assignments(state=fabricated)[0]
+    assignment = read_assignments(state=bare_state)[0]
     record = assignment.directory / "work.json"
     created = record.read_bytes()
 
@@ -376,7 +368,7 @@ def test_recording_later_facts_leaves_the_assignment_record_as_it_was(fabricated
     cancel_assignment(assignment=assignment, at=PINNED)
 
     assert record.read_bytes() == created
-    recorded = read_assignments(state=fabricated)[0]
+    recorded = read_assignments(state=bare_state)[0]
     assert recorded.retry_requested_at == PINNED
     assert recorded.ending == AgentWorkEnding(
         at=PINNED, reason=AgentWorkEndReason.CANCELLED
@@ -384,8 +376,11 @@ def test_recording_later_facts_leaves_the_assignment_record_as_it_was(fabricated
     assert recorded.harness_session_identifier == "abc-123"
 
 
-def test_cancelling_asks_a_round_with_no_ending_to_stop(fabricated):
-    assignment = standing(state=fabricated, rounds=[ended(status=0), running(number=2)])
+def test_cancelling_asks_a_round_with_no_ending_to_stop(bare_state):
+    assignment = write_and_read_assignment(
+        state=bare_state,
+        rounds=[compose_ended_round(status=0), compose_running_round(number=2)],
+    )
 
     cancel_assignment(assignment=assignment, at=PINNED)
 
@@ -393,11 +388,15 @@ def test_cancelling_asks_a_round_with_no_ending_to_stop(fabricated):
 
 
 def test_cancelling_stops_a_round_that_started_after_the_assignment_was_read(
-    fabricated,
+    bare_state,
 ):
-    assignment = standing(state=fabricated, rounds=[ended(status=0)])
+    assignment = write_and_read_assignment(
+        state=bare_state, rounds=[compose_ended_round(status=0)]
+    )
     write_round(
-        directory=assignment.directory, number=2, record=running(minute=1, number=2)
+        directory=assignment.directory,
+        number=2,
+        record=compose_running_round(minute=1, number=2),
     )
 
     cancel_assignment(assignment=assignment, at=PINNED)
@@ -405,65 +404,76 @@ def test_cancelling_stops_a_round_that_started_after_the_assignment_was_read(
     assert assignment.compose_round_paths(number=2).stop_request.is_file()
 
 
-def test_cancelling_leaves_an_ended_round_alone(fabricated):
-    assignment = standing(state=fabricated, rounds=[ended(status=0)])
+def test_cancelling_leaves_an_ended_round_alone(bare_state):
+    assignment = write_and_read_assignment(
+        state=bare_state, rounds=[compose_ended_round(status=0)]
+    )
 
     cancel_assignment(assignment=assignment, at=PINNED)
 
     assert not assignment.compose_round_paths(number=1).stop_request.exists()
 
 
-def test_an_assignment_that_has_ended_cannot_be_cancelled(fabricated):
-    assignment = standing(state=fabricated, rounds=[])
+def test_an_assignment_that_has_ended_cannot_be_cancelled(bare_state):
+    assignment = write_and_read_assignment(state=bare_state, rounds=[])
     cancel_assignment(assignment=assignment, at=PINNED)
 
     with pytest.raises(ReportableError, match=f"{ASSIGNMENT_ID} has already ended"):
         cancel_assignment(
-            assignment=read_assignments(state=fabricated)[0],
+            assignment=read_assignments(state=bare_state)[0],
             at=PINNED + timedelta(hours=1),
         )
 
-    assert read_assignments(state=fabricated)[0].ending == AgentWorkEnding(
+    assert read_assignments(state=bare_state)[0].ending == AgentWorkEnding(
         at=PINNED, reason=AgentWorkEndReason.CANCELLED
     )
 
 
-def endings(*, state):
+def read_round_endings(*, state):
     """Return how each round of the state directory's one assignment ended."""
     return [record.ending for record in read_assignments(state=state)[0].rounds]
 
 
-def test_a_second_read_does_not_open_a_round_record_it_has_already_read(fabricated):
-    directory = write_assignment(state=fabricated, identifier=ASSIGNMENT_ID, issue=12)
-    write_round(directory=directory, number=1, record=ended(status=0))
-    write_round(directory=directory, number=2, record=running(minute=1, number=2))
-    read_assignments(state=fabricated)
+def test_a_second_read_does_not_open_a_round_record_it_has_already_read(bare_state):
+    directory = write_assignment(state=bare_state, identifier=ASSIGNMENT_ID, issue=12)
+    write_round(directory=directory, number=1, record=compose_ended_round(status=0))
+    write_round(
+        directory=directory, number=2, record=compose_running_round(minute=1, number=2)
+    )
+    read_assignments(state=bare_state)
 
     # Rewriting the first round's record puts something there that only a read
     # of that file could find. A reader that has read it does not look again.
-    write_round(directory=directory, number=1, record=ended(status=2))
+    write_round(directory=directory, number=1, record=compose_ended_round(status=2))
 
-    assert endings(state=fabricated) == [ended(status=0).ending, None]
-
-
-def test_a_second_read_carries_an_ending_that_landed_since_the_first(fabricated):
-    directory = write_assignment(state=fabricated, identifier=ASSIGNMENT_ID, issue=12)
-    write_round(directory=directory, number=1, record=running())
-    read_assignments(state=fabricated)
-
-    write_round(directory=directory, number=1, record=ended(status=0))
-
-    assert endings(state=fabricated) == [ended(status=0).ending]
+    assert read_round_endings(state=bare_state) == [
+        compose_ended_round(status=0).ending,
+        None,
+    ]
 
 
-def test_a_second_read_finds_a_round_that_has_started_since_the_first(fabricated):
-    directory = write_assignment(state=fabricated, identifier=ASSIGNMENT_ID, issue=12)
-    write_round(directory=directory, number=1, record=ended(status=0))
-    read_assignments(state=fabricated)
+def test_a_second_read_carries_an_ending_that_landed_since_the_first(bare_state):
+    directory = write_assignment(state=bare_state, identifier=ASSIGNMENT_ID, issue=12)
+    write_round(directory=directory, number=1, record=compose_running_round())
+    read_assignments(state=bare_state)
 
-    write_round(directory=directory, number=2, record=running(minute=1, number=2))
+    write_round(directory=directory, number=1, record=compose_ended_round(status=0))
 
-    read = read_assignments(state=fabricated)[0]
+    assert read_round_endings(state=bare_state) == [
+        compose_ended_round(status=0).ending
+    ]
+
+
+def test_a_second_read_finds_a_round_that_has_started_since_the_first(bare_state):
+    directory = write_assignment(state=bare_state, identifier=ASSIGNMENT_ID, issue=12)
+    write_round(directory=directory, number=1, record=compose_ended_round(status=0))
+    read_assignments(state=bare_state)
+
+    write_round(
+        directory=directory, number=2, record=compose_running_round(minute=1, number=2)
+    )
+
+    read = read_assignments(state=bare_state)[0]
 
     assert [record.started for record in read.rounds] == [
         PINNED,
@@ -471,17 +481,22 @@ def test_a_second_read_finds_a_round_that_has_started_since_the_first(fabricated
     ]
 
 
-def test_a_round_that_ended_as_a_later_round_started_reads_back_ended(fabricated):
-    directory = write_assignment(state=fabricated, identifier=ASSIGNMENT_ID, issue=12)
-    write_round(directory=directory, number=1, record=running())
-    read_assignments(state=fabricated)
+def test_a_round_that_ended_as_a_later_round_started_reads_back_ended(bare_state):
+    directory = write_assignment(state=bare_state, identifier=ASSIGNMENT_ID, issue=12)
+    write_round(directory=directory, number=1, record=compose_running_round())
+    read_assignments(state=bare_state)
 
     # The first round ended, and the round that carried its work on started,
     # so the record that ended is no longer the assignment's newest.
-    write_round(directory=directory, number=1, record=ended(status=0))
-    write_round(directory=directory, number=2, record=running(minute=1, number=2))
+    write_round(directory=directory, number=1, record=compose_ended_round(status=0))
+    write_round(
+        directory=directory, number=2, record=compose_running_round(minute=1, number=2)
+    )
 
-    assert endings(state=fabricated) == [ended(status=0).ending, None]
+    assert read_round_endings(state=bare_state) == [
+        compose_ended_round(status=0).ending,
+        None,
+    ]
 
 
 def test_an_assignment_git_cannot_cut_leaves_no_branch_behind(state, route):
@@ -501,7 +516,7 @@ def test_an_assignment_git_cannot_cut_leaves_no_branch_behind(state, route):
             at=PINNED,
         )
 
-    assert git(arguments=["branch", "--list", BRANCH], cwd=state.root) == ""
+    assert run_git(arguments=["branch", "--list", BRANCH], cwd=state.root) == ""
 
 
 @pytest.mark.parametrize("checkpoint", ["worktree", "commit", "push", "pull request"])
@@ -517,14 +532,20 @@ def test_a_first_round_continues_from_what_an_earlier_attempt_left(
     if checkpoint in {"push", "pull request"}:
         push_branch(root=state.root, branch=BRANCH)
     if checkpoint == "pull request":
-        gh.replies(stdout=pull_requests(numbers=[PULL_REQUEST]), to="pr list")
+        gh.replies(
+            stdout=compose_pull_request_listing(numbers=[PULL_REQUEST]), to="pr list"
+        )
 
     open_pull_request(state=state, assignment=assignment)
 
     assert read_assignment_pull_request_number(assignment=assignment) == PULL_REQUEST
-    commits = git(arguments=["rev-list", "--count", "origin/main..HEAD"], cwd=worktree)
+    commits = run_git(
+        arguments=["rev-list", "--count", "origin/main..HEAD"], cwd=worktree
+    )
     assert commits.strip() == "1"
-    remote = git(arguments=["ls-remote", "--heads", "origin", BRANCH], cwd=state.root)
+    remote = run_git(
+        arguments=["ls-remote", "--heads", "origin", BRANCH], cwd=state.root
+    )
     assert f"refs/heads/{BRANCH}" in remote
     created = [call for call in gh.calls if call.arguments[:2] == ["pr", "create"]]
     assert len(created) == (0 if checkpoint == "pull request" else 1)
@@ -543,7 +564,7 @@ def test_a_pull_request_listing_failure_leaves_the_round_to_try_again(state, rou
 
 def test_several_pull_requests_on_the_assignments_branch_are_reported(state, route, gh):
     gh.replies(
-        stdout=pull_requests(numbers=[PULL_REQUEST, 53]),
+        stdout=compose_pull_request_listing(numbers=[PULL_REQUEST, 53]),
         to="pr list",
     )
     assignment = record_assignment(state=state, route=route)
@@ -563,7 +584,9 @@ def test_a_created_pull_request_that_cannot_be_read_is_adopted_next_time(
     ):
         open_pull_request(state=state, assignment=assignment)
 
-    gh.replies(stdout=pull_requests(numbers=[PULL_REQUEST]), to="pr list")
+    gh.replies(
+        stdout=compose_pull_request_listing(numbers=[PULL_REQUEST]), to="pr list"
+    )
     open_pull_request(state=state, assignment=assignment)
 
     assert read_assignment_pull_request_number(assignment=assignment) == PULL_REQUEST
@@ -587,9 +610,9 @@ def test_an_assignment_reads_back_with_its_settled_dispatch_recipe(state, route)
     assert read_assignments(state=state) == [created]
 
 
-def test_an_assignment_finds_a_session_reported_by_a_later_round(fabricated):
+def test_an_assignment_finds_a_session_reported_by_a_later_round(bare_state):
     directory = write_assignment(
-        state=fabricated,
+        state=bare_state,
         identifier=ASSIGNMENT_ID,
         issue=12,
         harness_session_identifier=None,
@@ -604,7 +627,7 @@ def test_an_assignment_finds_a_session_reported_by_a_later_round(fabricated):
                 pid=1,
             ),
         )
-    assignment = read_assignments(state=fabricated)[0]
+    assignment = read_assignments(state=bare_state)[0]
     assignment.compose_round_paths(number=2).raw_output.write_bytes(
         (
             json.dumps(
@@ -658,7 +681,9 @@ def test_an_assignment_reads_back_its_user_post_cursor(state, route):
             pull_request_head=HEAD,
             signals=[],
             user_posts=[
-                IssueComment.model_validate(comment(created_at="2026-09-03T22:31:51Z"))
+                IssueComment.model_validate(
+                    compose_comment(created_at="2026-09-03T22:31:51Z")
+                )
             ],
         ),
     )
@@ -681,7 +706,11 @@ def test_the_user_post_cursor_scans_past_an_input_that_relayed_no_posts(state, r
     for number, posts in (
         (
             1,
-            [IssueComment.model_validate(comment(created_at="2026-09-03T22:31:51Z"))],
+            [
+                IssueComment.model_validate(
+                    compose_comment(created_at="2026-09-03T22:31:51Z")
+                )
+            ],
         ),
         (2, []),
     ):

@@ -22,12 +22,14 @@ from pydantic import (
 )
 
 from dreamcatcher.commands import CommandError, run_command
+from dreamcatcher.documents import ReadOnlyList
 from dreamcatcher.errors import ReportableError
 
 # gh lists thirty of anything unless you tell it otherwise, and thirty issues is
-# a number a busy repository passes. Asking for five hundred keeps the tool from
-# dropping work it can see. Only the issue listing needs it: a branch has one
-# pull request, near enough.
+# a number a busy repository passes. The issue listing asks for five hundred,
+# counted over every open issue assigned to the account, labelled or not, so an
+# account assigned more than that may have work left out. Only the issue listing
+# needs a limit: a branch has one pull request, near enough.
 _ISSUE_LISTING_LIMIT = "500"
 
 # How many of a paginated list to ask GitHub for at a time. gh reads every page
@@ -58,6 +60,10 @@ class GitHubResponseProjection(BaseModel):
     GitHub owns the document, so a key we do not declare passes without
     complaint. That is the opposite of a DreamcatcherDocument, which refuses a
     key that it does not expect.
+
+    Every projection is frozen, and declares each collection field as a
+    `ReadOnlyList`, so the type checker refuses a caller that changes what
+    GitHub answered. The containers themselves are not immutable at runtime.
     """
 
     model_config = ConfigDict(frozen=True, populate_by_name=True)
@@ -136,8 +142,8 @@ class Issue(GitHubResponseProjection):
     body: str = ""
     created_at: datetime = Field(alias="createdAt")
     state: IssueState
-    assignees: list[GitHubUserAccount]
-    labels: list[GitHubLabel]
+    assignees: ReadOnlyList[GitHubUserAccount]
+    labels: ReadOnlyList[GitHubLabel]
 
 
 _ISSUE_RESPONSE_FIELDS = ",".join(
@@ -243,7 +249,7 @@ class PullRequest(GitHubResponseProjection):
     is_draft: bool = Field(alias="isDraft")
     merge_state: PullRequestMergeState = Field(alias="mergeStateStatus")
     head: str = Field(alias="headRefOid")
-    checks: list[PullRequestCheck] = Field(alias="statusCheckRollup")
+    checks: ReadOnlyList[PullRequestCheck] = Field(alias="statusCheckRollup")
 
     @property
     def check_result(self) -> CheckResult:
@@ -322,7 +328,7 @@ class IssuePullRequestContext(GitHubResponseProjection):
     """
 
     issue: int = Field(alias="number")
-    pull_requests: list[PullRequestReference] = Field(
+    pull_requests: ReadOnlyList[PullRequestReference] = Field(
         alias="closedByPullRequestsReferences"
     )
 
@@ -572,9 +578,9 @@ def create_label(*, repository: str, name: str, description: str) -> None:
 
 
 def list_issues(
-    *, repository: str, label: str, assignee: str
+    *, repository: str, assignee: str
 ) -> list[Issue] | UnknownGitHubResponse:
-    """Return the repository's open issues carrying label and assigned to assignee."""
+    """Return the repository's open issues assigned to assignee, up to the limit."""
     return _read_github_response(
         response_adapter=_GITHUB_ISSUE_LIST_RESPONSE_ADAPTER,
         arguments=[
@@ -584,8 +590,6 @@ def list_issues(
             repository,
             "--assignee",
             assignee,
-            "--label",
-            label,
             "--state",
             "open",
             "--limit",

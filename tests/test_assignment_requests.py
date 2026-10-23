@@ -15,13 +15,14 @@ from conftest import (
     POSTED_BY,
     PULL_REQUEST,
     REPOSITORY,
-    blocker,
-    listing,
-    pages,
-    pull_request,
+    compose_assignment_issues,
+    compose_blocker,
+    compose_page,
+    compose_pull_request,
+    offer_listing,
 )
 from records import read_assignments, write_assignment
-from rows import UNCLAIMED, request_row
+from rows import UNCLAIMED, compose_request_row
 
 from dreamcatcher.agent_assignments import cancel_assignment
 from dreamcatcher.clock import read_current_time
@@ -39,7 +40,7 @@ from dreamcatcher.state import StateDirectory
 SETTINGS = {"prompt": "/dream:smith GH{issue}", "model": "opus[1m]", "effort": "xhigh"}
 
 
-def config_with_routes(*, labels: Sequence[str]) -> DreamcatcherConfig:
+def compose_config(*, labels: Sequence[str]) -> DreamcatcherConfig:
     """Return a config that routes each label to the same harness recipe."""
     return DreamcatcherConfig.model_validate(
         {
@@ -52,7 +53,7 @@ def config_with_routes(*, labels: Sequence[str]) -> DreamcatcherConfig:
 def gh(fake):
     """Return gh listing one open, assigned issue that nothing claims or blocks."""
     stand_in = fake(program="gh")
-    stand_in.replies(stdout=listing(issues=[(8, FILED)]), to="issue list")
+    offer_listing(gh=stand_in, issues=compose_assignment_issues(filed=[(8, FILED)]))
     stand_in.replies(
         stdout=json.dumps(
             {
@@ -63,7 +64,7 @@ def gh(fake):
         ),
         to="issue view",
     )
-    stand_in.replies(stdout=pages(items=[]), to="api")
+    stand_in.replies(stdout=compose_page(items=[]), to="api")
     return stand_in
 
 
@@ -91,7 +92,7 @@ def list_requests(
     ).tick(at=read_current_time())
 
 
-def rows_for(*, state: StateDirectory, config: DreamcatcherConfig):
+def list_request_rows(*, state: StateDirectory, config: DreamcatcherConfig):
     """Return the request rows after asserting that the listing succeeded."""
     found = list_requests(state=state, config=config)
     assert found.failures == []
@@ -99,15 +100,21 @@ def rows_for(*, state: StateDirectory, config: DreamcatcherConfig):
 
 
 def test_an_issue_nothing_claims_or_blocks_is_a_clear_request(gh, state):
-    rows = rows_for(state=state, config=config_with_routes(labels=[ASSIGNMENT_LABEL]))
+    rows = list_request_rows(
+        state=state, config=compose_config(labels=[ASSIGNMENT_LABEL])
+    )
 
-    assert rows == [request_row(issue=8, finding=UNCLAIMED)]
+    assert rows == [compose_request_row(issue=8, finding=UNCLAIMED)]
 
 
 def test_requests_are_ordered_oldest_issue_first(gh, state):
-    gh.replies(stdout=listing(issues=[(8, LATER), (3, FILED)]), to="issue list")
+    offer_listing(
+        gh=gh, issues=compose_assignment_issues(filed=[(8, LATER), (3, FILED)])
+    )
 
-    rows = rows_for(state=state, config=config_with_routes(labels=[ASSIGNMENT_LABEL]))
+    rows = list_request_rows(
+        state=state, config=compose_config(labels=[ASSIGNMENT_LABEL])
+    )
 
     assert [row.issue for row in rows] == [3, 8]
 
@@ -115,52 +122,27 @@ def test_requests_are_ordered_oldest_issue_first(gh, state):
 def test_a_listing_failure_leaves_no_rows_and_is_a_failure(gh, state):
     gh.fails(stderr="gh: could not connect to github.com", to="issue list")
 
-    found = list_requests(
-        state=state, config=config_with_routes(labels=[ASSIGNMENT_LABEL])
-    )
+    found = list_requests(state=state, config=compose_config(labels=[ASSIGNMENT_LABEL]))
 
     assert found.rows == []
     [failure] = found.failures
     assert "could not connect" in failure
 
 
-def test_a_later_route_failure_keeps_the_rows_of_earlier_routes(gh, state):
-    gh.replies(
-        stdout=listing(issues=[(8, FILED)]),
-        to=(
-            f"issue list --repo {REPOSITORY} --assignee {POSTED_BY} "
-            f"--label {ASSIGNMENT_LABEL}"
-        ),
-    )
-    gh.fails(
-        stderr="gh: could not connect to github.com",
-        to=(
-            f"issue list --repo {REPOSITORY} --assignee {POSTED_BY} --label dream:less"
-        ),
-    )
-
-    found = list_requests(
-        state=state,
-        config=config_with_routes(labels=[ASSIGNMENT_LABEL, "dream:less"]),
-    )
-
-    [failure] = found.failures
-    assert "could not connect" in failure
-    assert [row.issue for row in found.rows] == [8]
-
-
 def test_a_request_names_the_open_issues_that_block_it(gh, state):
     gh.replies(
-        stdout=pages(
+        stdout=compose_page(
             items=[
-                blocker(number=7, state="closed"),
-                blocker(number=9, state="open"),
+                compose_blocker(number=7, state="closed"),
+                compose_blocker(number=9, state="open"),
             ]
         ),
         to="api",
     )
 
-    [row] = rows_for(state=state, config=config_with_routes(labels=[ASSIGNMENT_LABEL]))
+    [row] = list_request_rows(
+        state=state, config=compose_config(labels=[ASSIGNMENT_LABEL])
+    )
 
     assert row.finding == StartTimeFinding(
         linked_pull_requests=[], blocking_issues=[IssueReference(number=9)]
@@ -169,16 +151,20 @@ def test_a_request_names_the_open_issues_that_block_it(gh, state):
 
 def test_a_request_names_the_repository_of_a_blocker_in_another_one(gh, state):
     gh.replies(
-        stdout=pages(
+        stdout=compose_page(
             items=[
-                blocker(number=9, state="open", repository=REPOSITORY.upper()),
-                blocker(number=1016, state="open", repository="alimanfoo/dream"),
+                compose_blocker(number=9, state="open", repository=REPOSITORY.upper()),
+                compose_blocker(
+                    number=1016, state="open", repository="alimanfoo/dream"
+                ),
             ]
         ),
         to="api",
     )
 
-    [row] = rows_for(state=state, config=config_with_routes(labels=[ASSIGNMENT_LABEL]))
+    [row] = list_request_rows(
+        state=state, config=compose_config(labels=[ASSIGNMENT_LABEL])
+    )
 
     assert row.finding == StartTimeFinding(
         linked_pull_requests=[],
@@ -197,11 +183,13 @@ def test_a_request_names_the_open_pull_requests_that_claim_it(gh, state):
         to="issue view",
     )
     gh.replies(
-        stdout=pull_request(state="OPEN", number=28, is_draft=True),
+        stdout=compose_pull_request(state="OPEN", number=28, is_draft=True),
         to="pr view",
     )
 
-    [row] = rows_for(state=state, config=config_with_routes(labels=[ASSIGNMENT_LABEL]))
+    [row] = list_request_rows(
+        state=state, config=compose_config(labels=[ASSIGNMENT_LABEL])
+    )
 
     assert row.finding == StartTimeFinding(
         linked_pull_requests=[28], blocking_issues=[]
@@ -225,11 +213,13 @@ def test_a_cancelled_assignments_pull_request_claims_its_issue(gh, state):
         to="issue view",
     )
     gh.replies(
-        stdout=pull_request(state="OPEN"),
+        stdout=compose_pull_request(state="OPEN"),
         to="pr view",
     )
 
-    [row] = rows_for(state=state, config=config_with_routes(labels=[ASSIGNMENT_LABEL]))
+    [row] = list_request_rows(
+        state=state, config=compose_config(labels=[ASSIGNMENT_LABEL])
+    )
 
     assert row.finding == StartTimeFinding(
         linked_pull_requests=[PULL_REQUEST], blocking_issues=[]
@@ -237,13 +227,13 @@ def test_a_cancelled_assignments_pull_request_claims_its_issue(gh, state):
 
 
 def test_each_of_two_assignment_labels_is_a_request_with_conflicting_labels(gh, state):
-    issue = json.loads(listing(issues=[(8, FILED)]))[0]
+    [issue] = compose_assignment_issues(filed=[(8, FILED)])
     issue["labels"] = [{"name": ASSIGNMENT_LABEL}, {"name": "dream:less"}]
-    gh.replies(stdout=json.dumps([issue]), to="issue list")
+    offer_listing(gh=gh, issues=[issue])
 
-    rows = rows_for(
+    rows = list_request_rows(
         state=state,
-        config=config_with_routes(labels=[ASSIGNMENT_LABEL, "dream:less"]),
+        config=compose_config(labels=[ASSIGNMENT_LABEL, "dream:less"]),
     )
 
     conflict = ConflictingLabelsFinding(labels=["dream:less", ASSIGNMENT_LABEL])
@@ -251,14 +241,16 @@ def test_each_of_two_assignment_labels_is_a_request_with_conflicting_labels(gh, 
         ("dream:less", conflict),
         (ASSIGNMENT_LABEL, conflict),
     ]
-    assert [call.arguments[:2] for call in gh.calls] == [["issue", "list"]] * 2
+    assert [call.arguments[:2] for call in gh.calls] == [["issue", "list"]]
 
 
 @pytest.mark.parametrize("read", ["issue view", "api"])
 def test_a_failed_start_time_read_leaves_the_request_unknown(gh, state, read):
     gh.fails(stderr="gh: could not connect to github.com", to=read)
 
-    [row] = rows_for(state=state, config=config_with_routes(labels=[ASSIGNMENT_LABEL]))
+    [row] = list_request_rows(
+        state=state, config=compose_config(labels=[ASSIGNMENT_LABEL])
+    )
 
     assert isinstance(row.finding, ReadFailureFinding)
     assert "could not connect" in row.finding.reason
@@ -267,7 +259,9 @@ def test_a_failed_start_time_read_leaves_the_request_unknown(gh, state, read):
 def test_an_issue_with_an_open_assignment_has_no_request_row_of_its_own(gh, state):
     write_assignment(state=state, identifier="GH8-20260819-184158-assignment", issue=8)
 
-    rows = rows_for(state=state, config=config_with_routes(labels=[ASSIGNMENT_LABEL]))
+    rows = list_request_rows(
+        state=state, config=compose_config(labels=[ASSIGNMENT_LABEL])
+    )
 
     assert [row.agent_work_identifier for row in rows] == [
         "GH8-20260819-184158-assignment"

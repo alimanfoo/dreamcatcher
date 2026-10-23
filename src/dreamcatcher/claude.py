@@ -1,7 +1,6 @@
 """Run Claude Code, and read what it streams back."""
 
 import json
-from collections.abc import Mapping
 from pathlib import Path
 from typing import Annotated, ClassVar, Protocol
 
@@ -13,7 +12,6 @@ from dreamcatcher.harness_adapters import (
     AgentWorkKind,
     HarnessAdapter,
     HarnessConfig,
-    HarnessConfigValue,
     HarnessInvocation,
     HarnessOutput,
     HarnessSessionIdentifier,
@@ -224,7 +222,7 @@ class _ClaudeHarnessAdapter(HarnessAdapter):
         *,
         model: str,
         effort: str,
-        harness_config: Mapping[str, HarnessConfigValue],
+        harness_config: HarnessConfig,
         harness_session_identifier: HarnessSessionIdentifier,
     ) -> list[str]:
         """Return the command that resumes the harness session interactively.

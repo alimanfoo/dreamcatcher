@@ -1,5 +1,6 @@
 """Derive the status of agent work of any kind."""
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
@@ -144,7 +145,7 @@ class AgentWorkStatus:
         return relayed.value.lower()
 
     @property
-    def children(self) -> list[CampaignChild] | None:
+    def children(self) -> Sequence[CampaignChild] | None:
         """An active campaign's children as the latest tick observed them.
 
         Other work has none, and so does a campaign whose children the latest

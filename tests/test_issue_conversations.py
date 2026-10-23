@@ -51,7 +51,7 @@ PROMPT_TEMPLATE = "/dream:conversation GH" + "{issue}"
 CODEX_PROMPT_TEMPLATE = "$dream:conversation GH" + "{issue}"
 
 
-def conversation_route() -> ConversationRoute:
+def compose_conversation_route() -> ConversationRoute:
     return ConversationRoute(
         label="dream:conversation",
         claude=ClaudeRecipe(
@@ -62,7 +62,7 @@ def conversation_route() -> ConversationRoute:
     )
 
 
-def issue(*, number: int = 8) -> Issue:
+def compose_issue(*, number: int = 8) -> Issue:
     return Issue(
         number=number,
         title="Why does this happen?",
@@ -91,7 +91,7 @@ def write_conversation(*, state: StateDirectory, number: int = 8) -> AgentWork:
     )
 
 
-def comment(
+def compose_issue_comment(
     *,
     identifier: int,
     body: str,
@@ -111,7 +111,7 @@ def test_a_conversation_is_recorded_without_a_worktree(tmp_path):
 
     created = create_agent_work(
         state=state,
-        route=conversation_route(),
+        route=compose_conversation_route(),
         preferred_harness=AgentHarness.CLAUDE,
         issue=8,
         title="Why does this happen?",
@@ -128,11 +128,11 @@ def test_a_conversation_is_recorded_without_a_worktree(tmp_path):
     assert read_agent_work(state=state) == [created]
 
 
-def test_a_new_conversation_records_the_preferred_harness_recipe(cloned):
-    state = StateDirectory(root=cloned)
+def test_a_new_conversation_records_the_preferred_harness_recipe(cloned_repo):
+    state = StateDirectory(root=cloned_repo)
     route = ConversationRoute(
         label="dream:conversation",
-        claude=conversation_route().claude,
+        claude=compose_conversation_route().claude,
         codex=CodexRecipe(
             prompt=CODEX_PROMPT_TEMPLATE,
             model="gpt-5.6-sol",
@@ -168,12 +168,12 @@ def test_a_new_conversation_records_the_preferred_harness_recipe(cloned):
     ],
 )
 def test_round_input_freezes_the_issue_comments_and_revision(
-    cloned, is_resuming, initial_issue
+    cloned_repo, is_resuming, initial_issue
 ):
-    state = StateDirectory(root=cloned)
+    state = StateDirectory(root=cloned_repo)
     conversation = create_agent_work(
         state=state,
-        route=conversation_route(),
+        route=compose_conversation_route(),
         preferred_harness=AgentHarness.CLAUDE,
         issue=8,
         title="Why does this happen?",
@@ -183,8 +183,8 @@ def test_round_input_freezes_the_issue_comments_and_revision(
     frozen = prepare_conversation_round(
         state=state,
         conversation=conversation,
-        issue=issue(),
-        comments=[comment(identifier=1, body="Please explain.")],
+        issue=compose_issue(),
+        comments=[compose_issue_comment(identifier=1, body="Please explain.")],
         is_resuming=is_resuming,
     )
 
@@ -202,7 +202,7 @@ def test_a_follow_up_can_omit_the_issue_text(tmp_path):
     write_json(
         document=ConversationRoundInput(
             issue=8,
-            comments=[comment(identifier=2, body="Question")],
+            comments=[compose_issue_comment(identifier=2, body="Question")],
             revision="def456",
         ),
         path=path,
@@ -225,7 +225,7 @@ def test_a_follow_up_from_an_earlier_version_can_keep_issue_text(tmp_path):
                 title="Why does this happen?",
                 body="Explain the scheduler.",
             ),
-            comments=[comment(identifier=2, body="Question")],
+            comments=[compose_issue_comment(identifier=2, body="Question")],
             revision="def456",
         ),
         path=path,
@@ -310,7 +310,9 @@ def test_the_cursor_comes_from_the_latest_relayed_round(
                     title="Why does this happen?",
                     body="Explain the scheduler.",
                 ),
-                comments=[comment(identifier=identifier, body="Question")],
+                comments=[
+                    compose_issue_comment(identifier=identifier, body="Question")
+                ],
                 revision="abc123",
             ),
             path=paths.round_input,
@@ -343,7 +345,7 @@ def test_a_stopped_round_that_wrote_no_input_leaves_the_cursor(
     write_json(
         document=ConversationRoundInput(
             issue=8,
-            comments=[comment(identifier=3, body="Question")],
+            comments=[compose_issue_comment(identifier=3, body="Question")],
             revision="abc123",
         ),
         path=first.round_input,
@@ -418,7 +420,7 @@ def test_the_cursor_refuses_inconsistent_round_input(
                 body="Explain the scheduler.",
             ),
             comments=[
-                comment(identifier=identifier, body="Question")
+                compose_issue_comment(identifier=identifier, body="Question")
                 for identifier in comment_identifiers
             ],
             revision="abc123",

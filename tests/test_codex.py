@@ -2,7 +2,7 @@ from dataclasses import replace
 from pathlib import Path
 
 import pytest
-from conftest import streamed
+from conftest import compose_stream_line
 
 from dreamcatcher.codex import _STDIN_ARGUMENT, CODEX_ADAPTER
 from dreamcatcher.errors import ReportableError
@@ -36,8 +36,8 @@ CODEX_ROUND_SETTINGS = [
 FINAL_OUTPUT_PATH = Path("rounds") / "1" / "final.md"
 
 
-def completed(**item) -> str:
-    return streamed(type="item.completed", item=item)
+def compose_completed_line(**item) -> str:
+    return compose_stream_line(type="item.completed", item=item)
 
 
 # Each command ends in the word that has Codex read its prompt from stdin.
@@ -229,7 +229,7 @@ def test_a_person_continues_the_harness_session_with_the_work_settings():
 
 
 def test_the_first_event_names_the_harness_session():
-    line = streamed(type="thread.started", thread_id="01a0213c-9c67")
+    line = compose_stream_line(type="thread.started", thread_id="01a0213c-9c67")
 
     assert CODEX_ADAPTER.read(line=line) == [
         FeedNote(label="harness session", detail="id 01a0213c-9c67")
@@ -241,13 +241,13 @@ def test_the_first_event_names_the_harness_session():
 
 
 def test_another_event_names_no_harness_session():
-    line = streamed(type="turn.started")
+    line = compose_stream_line(type="turn.started")
 
     assert CODEX_ADAPTER.read_output(line=line).harness_session_identifier is None
 
 
 def test_a_non_text_harness_session_identifier_is_left_raw():
-    line = streamed(type="thread.started", thread_id=None)
+    line = compose_stream_line(type="thread.started", thread_id=None)
 
     output = CODEX_ADAPTER.read_output(line=line)
 
@@ -256,7 +256,9 @@ def test_a_non_text_harness_session_identifier_is_left_raw():
 
 
 def test_what_the_agent_says_comes_through_whole():
-    line = completed(type="agent_message", text="I read the file.\nIt was empty.")
+    line = compose_completed_line(
+        type="agent_message", text="I read the file.\nIt was empty."
+    )
 
     assert CODEX_ADAPTER.read(line=line) == [
         FeedProse(text="I read the file.\nIt was empty.")
@@ -264,7 +266,7 @@ def test_what_the_agent_says_comes_through_whole():
 
 
 def test_a_command_that_ran_reports_what_it_was():
-    line = completed(
+    line = compose_completed_line(
         type="command_execution",
         command="/bin/zsh -lc 'pytest'",
         aggregated_output="1 passed\n",
@@ -278,7 +280,7 @@ def test_a_command_that_ran_reports_what_it_was():
 
 
 def test_a_command_that_failed_reports_what_it_said():
-    line = completed(
+    line = compose_completed_line(
         type="command_execution",
         command="/bin/zsh -lc 'cat nope.txt'",
         aggregated_output="cat: nope.txt: No such file or directory\n",
@@ -293,7 +295,7 @@ def test_a_command_that_failed_reports_what_it_said():
 
 
 def test_a_command_the_reviewer_declined_reads_as_declined():
-    line = completed(
+    line = compose_completed_line(
         type="command_execution",
         command="/bin/zsh -lc 'rm -rf /'",
         aggregated_output="",
@@ -308,7 +310,7 @@ def test_a_command_the_reviewer_declined_reads_as_declined():
 
 
 def test_a_patch_reports_each_file_it_touched_as_what_it_did_to_it():
-    line = completed(
+    line = compose_completed_line(
         type="file_change",
         changes=[
             {"path": "/repo/gamma.txt", "kind": "add"},
@@ -324,7 +326,7 @@ def test_a_patch_reports_each_file_it_touched_as_what_it_did_to_it():
 
 
 def test_a_web_search_reports_what_it_looked_for():
-    line = completed(
+    line = compose_completed_line(
         type="web_search",
         query="latest ripgrep release",
         action={"type": "search", "query": "latest ripgrep release"},
@@ -336,7 +338,7 @@ def test_a_web_search_reports_what_it_looked_for():
 
 
 def test_an_error_the_round_survived_reads_as_an_error_not_a_failure():
-    line = completed(type="error", message="Model metadata not found.")
+    line = compose_completed_line(type="error", message="Model metadata not found.")
 
     assert CODEX_ADAPTER.read(line=line) == [
         FeedNote(label="error", detail="Model metadata not found.")
@@ -366,7 +368,7 @@ def test_a_wait_on_subagents_writes_nothing_more_as_it_ends():
 
 
 def test_another_item_writes_nothing_as_it_starts():
-    line = streamed(
+    line = compose_stream_line(
         type="item.started",
         item={"type": "command_execution", "command": "ls", "status": "in_progress"},
     )
@@ -375,7 +377,7 @@ def test_another_item_writes_nothing_as_it_starts():
 
 
 def test_a_round_that_ended_well_says_what_it_spent():
-    line = streamed(
+    line = compose_stream_line(
         type="turn.completed",
         usage={
             "input_tokens": 84921,
@@ -398,7 +400,7 @@ def test_a_round_that_ended_well_says_what_it_spent():
 
 
 def test_a_round_that_failed_closes_with_what_went_wrong():
-    line = streamed(type="turn.failed", error={"message": "no such model"})
+    line = compose_stream_line(type="turn.failed", error={"message": "no such model"})
 
     assert CODEX_ADAPTER.read(line=line) == [
         FeedNote(label="failed", detail="no such model")
@@ -406,20 +408,23 @@ def test_a_round_that_failed_closes_with_what_went_wrong():
 
 
 def test_an_event_the_feed_has_no_line_for_writes_nothing():
-    assert CODEX_ADAPTER.read(line=streamed(type="turn.started")) == []
+    assert CODEX_ADAPTER.read(line=compose_stream_line(type="turn.started")) == []
     assert (
         CODEX_ADAPTER.read(
-            line=streamed(type="error", message="said again as the ending")
+            line=compose_stream_line(type="error", message="said again as the ending")
         )
         == []
     )
     assert (
         CODEX_ADAPTER.read(
-            line=streamed(type="item.started", item={"type": "web_search"})
+            line=compose_stream_line(type="item.started", item={"type": "web_search"})
         )
         == []
     )
-    assert CODEX_ADAPTER.read(line=completed(type="todo_list", items=[])) == []
+    assert (
+        CODEX_ADAPTER.read(line=compose_completed_line(type="todo_list", items=[]))
+        == []
+    )
 
 
 def test_a_line_that_is_not_json_comes_through_unchanged():
@@ -435,13 +440,13 @@ def test_a_line_of_json_that_is_not_an_event_comes_through_unchanged():
 
 
 def test_an_event_shaped_in_a_way_the_parser_cannot_read_comes_through_unchanged():
-    line = completed(type="agent_message")
+    line = compose_completed_line(type="agent_message")
 
     assert CODEX_ADAPTER.read(line=line) == [FeedProse(text=line)]
 
 
 def test_an_item_that_is_not_a_mapping_comes_through_unchanged():
-    line = streamed(type="item.completed", item=["not", "a", "map"])
+    line = compose_stream_line(type="item.completed", item=["not", "a", "map"])
 
     assert CODEX_ADAPTER.read(line=line) == [FeedProse(text=line)]
 

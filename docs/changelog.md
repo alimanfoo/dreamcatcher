@@ -37,6 +37,12 @@ the change.
   waits on its subagents.
   ([#729](https://github.com/alimanfoo/dreamcatcher/pull/729))
 
+- Each update lists the open issues assigned to the signed-in account
+  once, whatever the number of routes, rather than once for each
+  dispatch label. A failed listing now starts no new work of any kind,
+  and shows as one scheduler failure.
+  ([#726](https://github.com/alimanfoo/dreamcatcher/pull/726))
+
 ### Fixed
 
 - The feed shows the report of a Claude subagent that hands its report

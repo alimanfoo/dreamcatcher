@@ -12,6 +12,7 @@ from dreamcatcher.codex import CodexConfig
 from dreamcatcher.commands import refuse_unquotable
 from dreamcatcher.documents import (
     DreamcatcherDocument,
+    ReadOnlyList,
     read_text,
     read_toml,
     write_text,
@@ -138,9 +139,9 @@ def _identify_routes[Route: DispatchRoute](
 class DreamcatcherConfig(DreamcatcherDocument):
     """Model a repository's agent-work configuration."""
 
-    assignment: list[AssignmentRoute] = Field(default_factory=list)
-    conversation: list[ConversationRoute] = Field(default_factory=list)
-    campaign: list[CampaignRoute] = Field(default_factory=list)
+    assignment: ReadOnlyList[AssignmentRoute] = Field(default_factory=list)
+    conversation: ReadOnlyList[ConversationRoute] = Field(default_factory=list)
+    campaign: ReadOnlyList[CampaignRoute] = Field(default_factory=list)
 
     @property
     def routes(self) -> list[DispatchRoute]:

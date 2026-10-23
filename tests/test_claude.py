@@ -2,7 +2,7 @@ from collections.abc import Sequence
 from pathlib import Path
 
 import pytest
-from conftest import streamed
+from conftest import compose_stream_line
 
 from dreamcatcher.claude import (
     _CLAUDE_ASSIGNMENT_ALLOWED_TOOLS,
@@ -38,8 +38,8 @@ CLAUDE_BASE_ARGUMENTS = [
 FINAL_OUTPUT_PATH = Path("rounds") / "1" / "final.md"
 
 
-def assistant(*, blocks: Sequence[dict], parent: str | None = None) -> str:
-    return streamed(
+def compose_assistant_line(*, blocks: Sequence[dict], parent: str | None = None) -> str:
+    return compose_stream_line(
         type="assistant",
         message={"content": list(blocks)},
         parent_tool_use_id=parent,
@@ -176,7 +176,7 @@ def test_a_person_continues_the_harness_session_where_it_ran():
 
 
 def test_the_first_event_names_the_model_and_the_harness_session():
-    line = streamed(
+    line = compose_stream_line(
         type="system", subtype="init", model="claude-opus-5", session_id="abc-123"
     )
 
@@ -191,8 +191,8 @@ def test_the_first_event_names_the_model_and_the_harness_session():
     [
         "not json",
         "[]",
-        streamed(type="assistant"),
-        streamed(type="system", subtype="api_retry"),
+        compose_stream_line(type="assistant"),
+        compose_stream_line(type="system", subtype="api_retry"),
     ],
 )
 def test_anything_but_the_first_event_names_no_harness_session(line):
@@ -200,7 +200,7 @@ def test_anything_but_the_first_event_names_no_harness_session(line):
 
 
 def test_a_non_text_harness_session_identifier_is_left_raw():
-    line = streamed(
+    line = compose_stream_line(
         type="system", subtype="init", model="claude-opus-5", session_id=None
     )
 
@@ -211,7 +211,7 @@ def test_a_non_text_harness_session_identifier_is_left_raw():
 
 
 def test_what_the_agent_says_comes_through_whole():
-    line = assistant(
+    line = compose_assistant_line(
         blocks=[{"type": "text", "text": "I read the file.\nIt was empty."}]
     )
 
@@ -221,7 +221,7 @@ def test_what_the_agent_says_comes_through_whole():
 
 
 def test_a_thinking_block_says_only_that_the_agent_thought():
-    line = assistant(
+    line = compose_assistant_line(
         blocks=[{"type": "thinking", "thinking": "", "signature": "opaque"}]
     )
 
@@ -229,7 +229,7 @@ def test_a_thinking_block_says_only_that_the_agent_thought():
 
 
 def test_a_tool_call_reports_the_input_that_says_most_about_it():
-    line = assistant(
+    line = compose_assistant_line(
         blocks=[
             {
                 "type": "tool_use",
@@ -243,7 +243,7 @@ def test_a_tool_call_reports_the_input_that_says_most_about_it():
 
 
 def test_a_tool_the_chain_does_not_name_reports_its_whole_input():
-    line = assistant(
+    line = compose_assistant_line(
         blocks=[{"type": "tool_use", "name": "Odd", "input": {"where": "here"}}]
     )
 
@@ -253,7 +253,7 @@ def test_a_tool_the_chain_does_not_name_reports_its_whole_input():
 
 
 def test_a_tool_result_that_failed_surfaces():
-    line = streamed(
+    line = compose_stream_line(
         type="user",
         message={
             "content": [
@@ -268,7 +268,7 @@ def test_a_tool_result_that_failed_surfaces():
 
 
 def test_a_failure_that_came_back_as_blocks_reads_as_the_json_it_was():
-    line = streamed(
+    line = compose_stream_line(
         type="user",
         message={
             "content": [
@@ -287,7 +287,7 @@ def test_a_failure_that_came_back_as_blocks_reads_as_the_json_it_was():
 
 
 def test_a_tool_result_that_worked_writes_nothing():
-    line = streamed(
+    line = compose_stream_line(
         type="user", message={"content": [{"type": "tool_result", "content": "ok"}]}
     )
 
@@ -297,13 +297,17 @@ def test_a_tool_result_that_worked_writes_nothing():
 @pytest.mark.parametrize(
     "line",
     [
-        assistant(blocks=[{"type": "text", "text": "counting"}], parent="toolu_1"),
-        assistant(blocks=[{"type": "thinking", "thinking": ""}], parent="toolu_1"),
-        assistant(
+        compose_assistant_line(
+            blocks=[{"type": "text", "text": "counting"}], parent="toolu_1"
+        ),
+        compose_assistant_line(
+            blocks=[{"type": "thinking", "thinking": ""}], parent="toolu_1"
+        ),
+        compose_assistant_line(
             blocks=[{"type": "tool_use", "name": "Bash", "input": {"command": "ls"}}],
             parent="toolu_1",
         ),
-        streamed(
+        compose_stream_line(
             type="user",
             message={
                 "content": [
@@ -320,7 +324,7 @@ def test_a_subagents_steps_write_nothing(line):
 
 
 def test_a_finished_subagent_reports_what_it_did_on_the_main_thread():
-    line = streamed(
+    line = compose_stream_line(
         type="system",
         subtype="task_notification",
         status="completed",
@@ -335,7 +339,7 @@ def test_a_finished_subagent_reports_what_it_did_on_the_main_thread():
 
 
 def test_a_subagent_that_handed_its_report_back_reports_its_own_words():
-    line = streamed(
+    line = compose_stream_line(
         type="system",
         subtype="task_notification",
         status="completed",
@@ -352,7 +356,7 @@ def test_a_subagent_that_handed_its_report_back_reports_its_own_words():
 
 
 def test_a_background_command_finishing_is_not_a_report():
-    line = streamed(
+    line = compose_stream_line(
         type="system",
         subtype="task_notification",
         status="completed",
@@ -363,7 +367,7 @@ def test_a_background_command_finishing_is_not_a_report():
 
 
 def test_a_round_being_retried_says_what_it_is_waiting_on():
-    line = streamed(
+    line = compose_stream_line(
         type="system",
         subtype="api_retry",
         attempt=3,
@@ -392,7 +396,7 @@ SPEND = FeedNote(
 
 
 def test_a_round_that_ended_well_says_what_it_spent_and_how_it_ended():
-    line = streamed(
+    line = compose_stream_line(
         type="result",
         subtype="success",
         is_error=False,
@@ -407,7 +411,7 @@ def test_a_round_that_ended_well_says_what_it_spent_and_how_it_ended():
 
 
 def test_a_successful_round_exposes_its_final_output_separately():
-    line = streamed(
+    line = compose_stream_line(
         type="result",
         subtype="success",
         is_error=False,
@@ -423,7 +427,7 @@ def test_a_successful_round_exposes_its_final_output_separately():
 
 
 def test_a_round_that_failed_closes_with_what_went_wrong():
-    line = streamed(
+    line = compose_stream_line(
         type="result",
         subtype="success",
         is_error=True,
@@ -440,14 +444,21 @@ def test_a_round_that_failed_closes_with_what_went_wrong():
 
 def test_an_event_the_feed_has_no_line_for_writes_nothing():
     assert (
-        CLAUDE_ADAPTER.read(line=streamed(type="rate_limit_event", rate_limit_info={}))
+        CLAUDE_ADAPTER.read(
+            line=compose_stream_line(type="rate_limit_event", rate_limit_info={})
+        )
         == []
     )
     assert (
-        CLAUDE_ADAPTER.read(line=streamed(type="system", subtype="hook_started")) == []
+        CLAUDE_ADAPTER.read(
+            line=compose_stream_line(type="system", subtype="hook_started")
+        )
+        == []
     )
     assert (
-        CLAUDE_ADAPTER.read(line=assistant(blocks=[{"type": "image", "source": {}}]))
+        CLAUDE_ADAPTER.read(
+            line=compose_assistant_line(blocks=[{"type": "image", "source": {}}])
+        )
         == []
     )
 
@@ -465,13 +476,15 @@ def test_a_line_of_json_that_is_not_an_event_comes_through_unchanged():
 
 
 def test_an_event_shaped_in_a_way_the_parser_cannot_read_comes_through_unchanged():
-    line = streamed(type="assistant", message={"content": [{"type": "text"}]})
+    line = compose_stream_line(
+        type="assistant", message={"content": [{"type": "text"}]}
+    )
 
     assert CLAUDE_ADAPTER.read(line=line) == [FeedProse(text=line)]
 
 
 def test_a_tool_input_that_is_not_a_mapping_comes_through_unchanged():
-    line = assistant(
+    line = compose_assistant_line(
         blocks=[{"type": "tool_use", "name": "Odd", "input": ["not", "a", "map"]}]
     )
 
