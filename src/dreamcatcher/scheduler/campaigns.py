@@ -71,7 +71,7 @@ def inspect_open_campaign(
     context: SchedulingContext,
     observations: AssignmentObservations,
     work: AgentWork,
-    is_fault: bool,
+    is_in_fault: bool,
 ) -> Inspection:
     """Observe an open campaign's children, then inspect its parent issue.
 
@@ -85,7 +85,7 @@ def inspect_open_campaign(
     inspection = inspect_open_issue_work(
         context=context,
         work=work,
-        is_fault=is_fault,
+        is_in_fault=is_in_fault,
         inspect_eligible=partial(
             _inspect_lead_input, context=context, work_or_route=work, children=children
         ),
@@ -192,14 +192,14 @@ def _observe_child(
             else _observe_child_assignment(
                 assignment=assignment,
                 finding=finding,
-                is_fault=inspection is not None and inspection.is_counted_fault,
+                is_in_fault=inspection is not None and inspection.is_counted_fault,
             )
         ),
     )
 
 
 def _observe_child_assignment(
-    *, assignment: AgentWork, finding: RequestFinding | None, is_fault: bool
+    *, assignment: AgentWork, finding: RequestFinding | None, is_in_fault: bool
 ) -> CampaignChildAssignment:
     """Return where the child's newest assignment stands, given what the tick found.
 
@@ -224,7 +224,7 @@ def _observe_child_assignment(
             None,
         ),
         ending=None if assignment.ending is None else assignment.ending.reason,
-        is_fault=is_fault,
+        is_in_fault=is_in_fault,
     )
 
 

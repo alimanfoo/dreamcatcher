@@ -25,3 +25,12 @@ document.body.addEventListener("htmx:afterRequest", (event) => {
   alert.textContent = `Refresh failed. Showing what the page last read. ${message.textContent}`;
   alert.hidden = false;
 });
+
+// The server never sees the fragment, so a theme link takes the page's own
+// as it is followed, and switching theme keeps the reader where they were.
+document.addEventListener("click", (event) => {
+  const link = event.target.closest("a.theme-choice");
+  if (link !== null) {
+    link.hash = location.hash;
+  }
+});

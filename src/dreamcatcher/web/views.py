@@ -1,7 +1,6 @@
 """Compose Flask-free models for dreamcatcher's web views."""
 
 from datetime import tzinfo
-from pathlib import Path
 
 from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.state import StateDirectory
@@ -31,12 +30,11 @@ from dreamcatcher.words import describe_time
 
 
 def _compose_hand_resume(
-    *,
-    state: StateDirectory,
-    worktree: Path | None,
-    command: list[str] | None,
+    *, state: StateDirectory, status: AgentWorkStatus
 ) -> WebHandResume | None:
     """Return the web values for a hand resume, when available."""
+    worktree = status.worktree
+    command = status.hand_resume_command
     if worktree is None or command is None:
         return None
     return WebHandResume(
@@ -45,7 +43,8 @@ def _compose_hand_resume(
     )
 
 
-def _compose_github_repository_url(*, repository: str | None) -> str | None:
+def compose_github_repository_url(*, repository: str | None) -> str | None:
+    """Return the address of the repository on GitHub, when it is known."""
     if repository is None:
         return None
     return f"https://github.com/{repository}"
@@ -56,7 +55,7 @@ def compose_home_view(*, report: DreamcatcherStatusReport) -> WebHomeView:
     daemon = report.daemon
     return WebHomeView(
         repository=report.repository or "repository unknown",
-        github_repository_url=_compose_github_repository_url(
+        github_repository_url=compose_github_repository_url(
             repository=report.repository
         ),
         daemon=daemon,
@@ -149,7 +148,6 @@ def compose_agent_live_state(
     *,
     state: StateDirectory,
     status: AgentWorkStatus,
-    worktree: Path | None,
     zone: tzinfo | None,
     heading_controls: tuple[WebAgentWorkControl, ...],
     foot_controls: tuple[WebAgentWorkControl, ...],
@@ -161,9 +159,7 @@ def compose_agent_live_state(
         rounds=_compose_agent_rounds(round_statuses=status.round_statuses, zone=zone),
         heading_controls=heading_controls,
         foot_controls=foot_controls,
-        hand_resume=_compose_hand_resume(
-            state=state, worktree=worktree, command=status.hand_resume_command
-        ),
+        hand_resume=_compose_hand_resume(state=state, status=status),
     )
 
 
@@ -183,7 +179,7 @@ def compose_assignment_view(
     return WebAssignmentView(
         kind=record.kind,
         repository=repository or "repository unknown",
-        github_repository_url=_compose_github_repository_url(repository=repository),
+        github_repository_url=compose_github_repository_url(repository=repository),
         daemon=daemon,
         identifier=assignment.identifier,
         issue=record.issue,
@@ -196,7 +192,7 @@ def compose_assignment_view(
         effort=record.effort,
         live=live,
         feed_rounds=feed.rounds,
-        feed_cursor=feed.feed_cursor,
+        feed_position=feed.feed_position,
     )
 
 
@@ -216,7 +212,7 @@ def compose_issue_work_view(
     return WebIssueWorkView(
         kind=record.kind,
         repository=repository or "repository unknown",
-        github_repository_url=_compose_github_repository_url(repository=repository),
+        github_repository_url=compose_github_repository_url(repository=repository),
         daemon=daemon,
         identifier=work.identifier,
         issue=record.issue,
@@ -230,7 +226,7 @@ def compose_issue_work_view(
         ),
         live=live,
         feed_rounds=feed.rounds,
-        feed_cursor=feed.feed_cursor,
+        feed_position=feed.feed_position,
     )
 
 
@@ -241,12 +237,11 @@ def _compose_agent_rounds(
     return tuple(
         WebAgentRound(
             number=round_status.record.number,
-            trigger=round_status.trigger_description,
+            trigger=round_status.trigger,
             started=describe_time(at=round_status.record.started, zone=zone),
             duration=round_status.duration_description,
             outcome=str(round_status.outcome),
             outcome_description=round_status.outcome_description,
-            revision=round_status.revision,
         )
         for round_status in round_statuses
     )

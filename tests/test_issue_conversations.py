@@ -3,7 +3,8 @@ from datetime import UTC, datetime
 
 import pytest
 from clocks import PINNED
-from records import read_conversation
+from pydantic import ValidationError
+from records import MISORDERED_COMMENTS, REPEATED_COMMENTS, read_conversation
 
 from dreamcatcher.agent_rounds import (
     AgentRoundRecord,
@@ -25,7 +26,7 @@ from dreamcatcher.config import (
     CodexRecipe,
     ConversationRoute,
 )
-from dreamcatcher.documents import write_json, write_text
+from dreamcatcher.documents import read_json, write_json, write_text
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.github import (
     GitHubLabel,
@@ -40,7 +41,6 @@ from dreamcatcher.issue_conversations import (
     InitialConversationIssue,
     post_conversation_answer,
     prepare_conversation_round,
-    read_conversation_input,
     read_issue_comment_cursor,
 )
 from dreamcatcher.prompts import AGENT_POST_MARKER
@@ -208,7 +208,7 @@ def test_a_follow_up_can_omit_the_issue_text(tmp_path):
         path=path,
     )
 
-    found = read_conversation_input(conversation=conversation, number=2)
+    found = read_json(model=ConversationRoundInput, path=path)
 
     assert found.initial_issue is None
     assert "initial_issue" not in json.loads(path.read_text(encoding="utf-8"))
@@ -231,7 +231,7 @@ def test_a_follow_up_from_an_earlier_version_can_keep_issue_text(tmp_path):
         path=path,
     )
 
-    found = read_conversation_input(conversation=conversation, number=2)
+    found = read_json(model=ConversationRoundInput, path=path)
 
     assert found.initial_issue == InitialConversationIssue(
         title="Why does this happen?",
@@ -367,80 +367,20 @@ def test_a_stopped_round_that_wrote_no_input_leaves_the_cursor(
     )
 
 
-def test_the_cursor_refuses_a_round_without_comments(tmp_path):
-    state = StateDirectory(root=tmp_path)
-    conversation = write_conversation(state=state)
-    paths = conversation.compose_round_paths(number=1)
-    write_json(
-        document=ConversationRoundInput(
-            issue=8,
-            initial_issue=InitialConversationIssue(
-                title="Why does this happen?",
-                body="Explain the scheduler.",
-            ),
-            comments=[],
-            revision="abc123",
-        ),
-        path=paths.round_input,
-    )
-    write_json(
-        document=AgentRoundRecord(
-            number=1,
-            started=PINNED,
-            pid=123,
-            ending=SuccessfulAgentRoundEnding(at=PINNED),
-        ),
-        path=paths.record,
-    )
-    reread = read_conversation(state=state, issue=8)
-    assert reread is not None
-
-    with pytest.raises(ReportableError, match="relayed no issue comments"):
-        read_issue_comment_cursor(conversation=reread)
-
-
 @pytest.mark.parametrize(
-    ("input_issue", "comment_identifiers", "message"),
+    ("comments", "message"),
     [
-        (9, [3], "input names issue 9"),
-        (8, [4, 3], "comments are not strictly ordered"),
+        ([], "at least 1 item"),
+        (MISORDERED_COMMENTS, "not strictly ordered"),
+        (REPEATED_COMMENTS, "not strictly ordered"),
     ],
+    ids=["none", "misordered", "repeated"],
 )
-def test_the_cursor_refuses_inconsistent_round_input(
-    tmp_path, input_issue, comment_identifiers, message
+def test_a_conversation_round_input_refuses_comments_the_relay_never_gives(
+    comments, message
 ):
-    state = StateDirectory(root=tmp_path)
-    conversation = write_conversation(state=state)
-    paths = conversation.compose_round_paths(number=1)
-    write_json(
-        document=ConversationRoundInput(
-            issue=input_issue,
-            initial_issue=InitialConversationIssue(
-                title="Why does this happen?",
-                body="Explain the scheduler.",
-            ),
-            comments=[
-                compose_issue_comment(identifier=identifier, body="Question")
-                for identifier in comment_identifiers
-            ],
-            revision="abc123",
-        ),
-        path=paths.round_input,
-    )
-    write_json(
-        document=AgentRoundRecord(
-            number=1,
-            started=PINNED,
-            pid=123,
-            ending=SuccessfulAgentRoundEnding(at=PINNED),
-        ),
-        path=paths.record,
-    )
-    reread = read_conversation(state=state, issue=8)
-    assert reread is not None
-
-    with pytest.raises(ReportableError, match=message):
-        read_issue_comment_cursor(conversation=reread)
+    with pytest.raises(ValidationError, match=message):
+        ConversationRoundInput(issue=8, comments=comments, revision="abc123")
 
 
 def test_an_answer_is_posted_trimmed_and_marked(fake):

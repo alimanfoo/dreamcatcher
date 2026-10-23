@@ -179,17 +179,6 @@ def test_a_round_boundary_says_what_woke_the_round(number, trigger):
     assert boundary.render() == (f"2026-08-19T18:41:58Z  round {number}: {trigger}\n")
 
 
-def test_a_round_boundary_can_name_the_rounds_detail():
-    boundary = compose_agent_round_boundary(
-        number=2,
-        trigger="1 comment",
-        at=PINNED,
-        detail="code revision abc123 -> def456",
-    )
-
-    assert boundary.text == ("round 2: 1 comment; code revision abc123 -> def456")
-
-
 def test_a_written_line_reads_back_as_what_it_says_and_when():
     assert read_feed_line(
         written_line="2026-08-19T18:41:58Z  [Bash] pytest"

@@ -26,11 +26,12 @@ from dreamcatcher.status import (
     AgentWorkStatus,
     read_agent_work_status,
     read_dreamcatcher_daemon_status,
+    read_repository,
     read_status_report,
 )
 from dreamcatcher.web.feed import (
-    InvalidFeedCursorError,
-    decode_feed_cursor,
+    InvalidFeedPositionError,
+    decode_feed_position,
     read_agent_tail,
 )
 from dreamcatcher.web.models import (
@@ -47,6 +48,7 @@ from dreamcatcher.web.server import (
 from dreamcatcher.web.views import (
     compose_agent_live_state,
     compose_assignment_view,
+    compose_github_repository_url,
     compose_home_view,
     compose_issue_work_view,
 )
@@ -201,7 +203,6 @@ def _compose_work_live_state(
     return compose_agent_live_state(
         state=state,
         status=status,
-        worktree=work.worktree,
         zone=zone,
         heading_controls=tuple(heading_controls),
         foot_controls=tuple(foot_controls),
@@ -215,7 +216,7 @@ def _show_work_tail(
     zone: tzinfo | None,
     identifier: str,
 ) -> str | tuple[str, int]:
-    """Render the work's feed output written after the requested feed cursor."""
+    """Render the work's feed output written after the requested feed position."""
     work = find_agent_work(state=state, identifier=identifier)
     if work is None:
         return _missing_work_response(identifier=identifier)
@@ -227,6 +228,9 @@ def _show_work_tail(
     )
     return _render_work_tail(
         work=work,
+        github_repository_url=compose_github_repository_url(
+            repository=read_repository(state=state)
+        ),
         live=_compose_work_live_state(state=state, work=work, status=status, zone=zone),
         should_stop_polling=not status.is_active,
         zone=zone,
@@ -322,21 +326,23 @@ def _is_same_origin_request() -> bool:
 def _render_work_tail(
     *,
     work: AgentWork,
+    github_repository_url: str | None,
     live: WebAgentLiveState,
     should_stop_polling: bool,
     zone: tzinfo | None,
 ) -> str | tuple[str, int]:
     """Render incremental feed output for a piece of agent work."""
     try:
-        feed_cursor = decode_feed_cursor(value=request.args.get("cursor", ""))
+        feed_position = decode_feed_position(value=request.args.get("position", ""))
         tail = read_agent_tail(
             work=work,
+            github_repository_url=github_repository_url,
             live=live,
-            feed_cursor=feed_cursor,
+            feed_position=feed_position,
             zone=zone,
         )
-    except InvalidFeedCursorError:
-        return _invalid_feed_cursor_response()
+    except InvalidFeedPositionError:
+        return _invalid_feed_position_response()
     response_status = (
         _HTMX_STOP_POLLING_STATUS
         if not tail.feed_rounds and should_stop_polling
@@ -359,9 +365,9 @@ def _missing_work_response(*, identifier: str) -> tuple[str, int]:
     )
 
 
-def _invalid_feed_cursor_response() -> tuple[str, int]:
-    """Render the response for a malformed or stale feed cursor."""
-    return render_template("error.html", message="The feed cursor is invalid."), 400
+def _invalid_feed_position_response() -> tuple[str, int]:
+    """Render the response for a malformed or stale feed position."""
+    return render_template("error.html", message="The feed position is invalid."), 400
 
 
 def _show_reportable_error(error: ReportableError, /) -> tuple[str, int]:

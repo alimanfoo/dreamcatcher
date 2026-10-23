@@ -27,6 +27,7 @@ from records import (
 )
 from rows import UNCLAIMED, compose_request_row
 from status_fabrications import (
+    CAMPAIGN_CHILDREN,
     LOOKED_AT,
     STATUS_REPORTS,
     compose_conversation_row,
@@ -61,6 +62,11 @@ from dreamcatcher.agent_work import (
     AgentWorkEndReason,
     find_agent_work,
     read_agent_work_at_issue,
+)
+from dreamcatcher.campaigns import (
+    CampaignChildChange,
+    CampaignChildNotification,
+    CampaignRoundInput,
 )
 from dreamcatcher.daemon_runs import RecordedRoute
 from dreamcatcher.documents import append_text, write_text
@@ -128,13 +134,15 @@ def render_conversation(*, state: StateDirectory, issue: int) -> str:
     return response.get_data(as_text=True)
 
 
-def _read_tail(*, state: StateDirectory, identifier: str, cursor: str) -> TestResponse:
+def _read_tail(
+    *, state: StateDirectory, identifier: str, position: str
+) -> TestResponse:
     application = _create_app(
         state=state, clock=lambda: LOOKED_AT, zone=DISPLAY_TIME_ZONE
     )
     return application.test_client().get(
         f"/work/{identifier}/tail",
-        query_string={"cursor": cursor},
+        query_string={"position": position},
     )
 
 
@@ -144,8 +152,8 @@ def _find_feed_path(*, state: StateDirectory, identifier: str, number: int):
     return assignment.compose_round_paths(number=number).feed
 
 
-def _read_cursor(*, response: TestResponse) -> str:
-    match = re.search(r'id="cursor"[^>]*value="([^"]+)"', response.text)
+def _read_position(*, response: TestResponse) -> str:
+    match = re.search(r'id="position"[^>]*value="([^"]+)"', response.text)
     assert match is not None
     return match[1]
 
@@ -220,6 +228,52 @@ def test_a_campaign_renders_as_its_golden_page(issue, tmp_path, pytestconfig):
     )
 
 
+def test_a_lead_rounds_trigger_links_each_sub_issue_it_names(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    fabricate_campaign_report(state=state)
+    identifier = "GH60-20260819-184158-campaign"
+    write_round(
+        directory=state.work / identifier,
+        number=2,
+        record=compose_ended_round(minute=5, number=2),
+        round_input=CampaignRoundInput(
+            issue=60,
+            children=CAMPAIGN_CHILDREN,
+            notifications=[
+                CampaignChildNotification(
+                    issue=63,
+                    changes=[
+                        CampaignChildChange.ISSUE_STATE,
+                        CampaignChildChange.ENDING,
+                    ],
+                ),
+                CampaignChildNotification(
+                    issue=68, changes=[CampaignChildChange.REMOVED]
+                ),
+            ],
+            comments=[],
+            cursor=None,
+            revision="abc123",
+            assignment_routes=[],
+        ),
+    )
+    link = (
+        '<a class="issue-number" href="https://github.com/{repository}/issues/{issue}"'
+        ' target="_blank" rel="noopener noreferrer">#{issue}</a>'
+    )
+    trigger = (
+        f"{link.format(repository=REPOSITORY, issue=63)}: closed, ended; "
+        f"{link.format(repository=REPOSITORY, issue=68)}: removed"
+    )
+
+    page = render_assignment(state=state, identifier=identifier)
+    tail = _read_tail(state=state, identifier=identifier, position="2:0")
+
+    assert f'<span class="round-trigger">{trigger}</span>' in page
+    assert f'<span class="round-trigger">{trigger}</span>' in tail.text
+    assert "round 2: #63: closed, ended; #68: removed" in page
+
+
 @pytest.mark.parametrize(
     ("identifier", "kind"),
     [
@@ -257,6 +311,7 @@ def test_a_campaign_with_no_children_to_show_says_why_and_shows_no_cards(
         state=state,
         tick=SchedulerRecord(
             at=LOOKED_AT,
+            finished=LOOKED_AT,
             rows=[campaign_row.model_copy(update={"children": children}), *other_rows],
         ),
     )
@@ -296,6 +351,7 @@ def test_requests_whose_labels_differ_only_in_spacing_have_their_own_identifiers
         state=state,
         tick=SchedulerRecord(
             at=LOOKED_AT,
+            finished=LOOKED_AT,
             rows=[
                 *fabricate_campaigns(state=state),
                 *(
@@ -471,7 +527,7 @@ def test_assignment_tail_updates_the_stop_and_cancel_controls(tmp_path):
 
     response = client.get(
         f"/work/{identifier}/tail",
-        query_string={"cursor": _read_cursor(response=page)},
+        query_string={"position": _read_position(response=page)},
     )
 
     assert response.status_code == 200
@@ -489,7 +545,7 @@ def test_assignment_tail_offers_a_hand_resume_only_while_no_round_runs(tmp_path)
     identifier = "GH13-20260819-184158-assignment"
     client = _create_app(state=state, clock=lambda: LOOKED_AT).test_client()
     page = client.get(f"/work/{identifier}")
-    query = {"cursor": _read_cursor(response=page)}
+    query = {"position": _read_position(response=page)}
 
     working = client.get(f"/work/{identifier}/tail", query_string=query)
     release_daemon_lock(path=state.lock)
@@ -498,6 +554,34 @@ def test_assignment_tail_offers_a_hand_resume_only_while_no_round_runs(tmp_path)
     assert "<summary>resume by hand</summary>" not in working.text
     assert "<summary>resume by hand</summary>" in without_daemon.text
     assert "claude --resume abc-123" in without_daemon.text
+
+
+def test_a_completed_assignment_whose_worktree_is_gone_offers_no_hand_resume(
+    tmp_path,
+):
+    state = StateDirectory(root=tmp_path)
+    fabricate_everything(state=state)
+    identifier = "GH12-20260819-184158-assignment"
+    worktree = state.worktrees / identifier
+    worktree.rmdir()
+
+    page = render_assignment(state=state, identifier=identifier)
+
+    assert "<summary>resume by hand</summary>" not in page
+    assert state.describe_path(path=worktree) not in page
+    assert "claude --resume" not in page
+
+
+def test_a_cancelled_assignment_offers_a_hand_resume_from_its_worktree(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    fabricate_everything(state=state)
+    identifier = "GH70-20260819-184158-assignment"
+
+    page = render_assignment(state=state, identifier=identifier)
+
+    assert "<summary>resume by hand</summary>" in page
+    assert f"cd {state.describe_path(path=state.worktrees / identifier)}" in page
+    assert "claude --resume abc-123" in page
 
 
 def test_a_stale_assignment_stop_request_is_already_done(tmp_path):
@@ -658,7 +742,7 @@ def test_assignment_tail_offers_the_retry_control(tmp_path):
     fabricate_everything(state=state)
     identifier = "GH9-20260819-184158-assignment"
 
-    response = _read_tail(state=state, identifier=identifier, cursor="1:0")
+    response = _read_tail(state=state, identifier=identifier, position="1:0")
 
     assert '<div id="agent-work-retry" hx-swap-oob="morph">' in response.text
     assert f'action="/work/{identifier}/retry/2"' in response.text
@@ -857,15 +941,15 @@ def test_assignment_page_polls_its_tail_from_the_last_complete_line(tmp_path):
 
     page = render_assignment(state=state, identifier=identifier)
 
-    assert f'id="cursor" name="cursor" value="2:{feed_path.stat().st_size}"' in page
+    assert f'id="position" name="position" value="2:{feed_path.stat().st_size}"' in page
     assert (
         f'id="records" class="feed-records" '
         f'hx-get="/work/{identifier}/tail" hx-trigger="every 2s" '
-        'hx-include="#cursor" hx-select=".feed-round" hx-swap="beforeend"' in page
+        'hx-include="#position" hx-select=".feed-round" hx-swap="beforeend"' in page
     )
 
 
-def test_assignment_page_before_its_first_round_starts_at_the_first_cursor(tmp_path):
+def test_assignment_page_before_its_first_round_starts_at_the_first_position(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
 
@@ -874,7 +958,7 @@ def test_assignment_page_before_its_first_round_starts_at_the_first_cursor(tmp_p
         identifier="GH44-20260819-184158-assignment",
     )
 
-    assert 'id="cursor" name="cursor" value="0:0"' in page
+    assert 'id="position" name="position" value="0:0"' in page
     assert '<p id="empty-feed" class="empty">-- no feed yet --</p>' in page
 
 
@@ -1168,7 +1252,7 @@ def test_an_unknown_assignment_tail_renders_a_404_page(tmp_path):
     response = _read_tail(
         state=state,
         identifier="GH99-20260819-184158-assignment",
-        cursor="0:0",
+        position="0:0",
     )
 
     assert response.status_code == 404
@@ -1179,7 +1263,7 @@ def test_an_unknown_assignment_tail_renders_a_404_page(tmp_path):
 
 
 @pytest.mark.parametrize(
-    "cursor",
+    "position",
     [
         "",
         "garbage",
@@ -1190,7 +1274,7 @@ def test_an_unknown_assignment_tail_renders_a_404_page(tmp_path):
         pytest.param(f"1:{'9' * 5000}", id="oversized integer"),
     ],
 )
-def test_an_invalid_tail_cursor_renders_a_400_page(tmp_path, cursor):
+def test_an_invalid_tail_position_renders_a_400_page(tmp_path, position):
     state = StateDirectory(root=tmp_path)
     state.bootstrap()
     write_assignment_with_rounds(state=state, issue=60, records=[])
@@ -1198,15 +1282,15 @@ def test_an_invalid_tail_cursor_renders_a_400_page(tmp_path, cursor):
     response = _read_tail(
         state=state,
         identifier="GH60-20260819-184158-assignment",
-        cursor=cursor,
+        position=position,
     )
 
     assert response.status_code == 400
-    assert "The feed cursor is invalid." in response.text
+    assert "The feed position is invalid." in response.text
 
 
 @pytest.mark.parametrize("position", [1, 99])
-def test_a_tail_cursor_must_follow_a_complete_line(tmp_path, position):
+def test_a_tail_position_must_follow_a_complete_line(tmp_path, position):
     state = StateDirectory(root=tmp_path)
     state.bootstrap()
     directory = write_assignment_with_rounds(
@@ -1221,11 +1305,11 @@ def test_a_tail_cursor_must_follow_a_complete_line(tmp_path, position):
     response = _read_tail(
         state=state,
         identifier="GH60-20260819-184158-assignment",
-        cursor=f"1:{position}",
+        position=f"1:{position}",
     )
 
     assert response.status_code == 400
-    assert "The feed cursor is invalid." in response.text
+    assert "The feed position is invalid." in response.text
 
 
 def test_a_tail_before_any_round_opens_the_first_round_when_it_arrives(tmp_path):
@@ -1234,7 +1318,7 @@ def test_a_tail_before_any_round_opens_the_first_round_when_it_arrives(tmp_path)
     directory = write_assignment_with_rounds(state=state, issue=60, records=[])
     identifier = "GH60-20260819-184158-assignment"
 
-    waiting = _read_tail(state=state, identifier=identifier, cursor="0:0")
+    waiting = _read_tail(state=state, identifier=identifier, position="0:0")
 
     assert waiting.status_code == 200
     assert 'value="0:0"' in waiting.text
@@ -1246,16 +1330,16 @@ def test_a_tail_before_any_round_opens_the_first_round_when_it_arrives(tmp_path)
         number=1,
         lines=[FeedLine(at=LOOKED_AT, text="the first line")],
     )
-    started = _read_tail(state=state, identifier=identifier, cursor="0:0")
+    started = _read_tail(state=state, identifier=identifier, position="0:0")
 
     assert started.status_code == 200
     assert started.text.count("round 1: start") == 1
     assert "the first line" in started.text
     assert 'id="empty-feed" hx-swap-oob="delete"' in started.text
-    assert _read_cursor(response=started).startswith("1:")
+    assert _read_position(response=started).startswith("1:")
 
 
-def test_a_tail_returns_only_complete_lines_after_its_cursor(tmp_path):
+def test_a_tail_returns_only_complete_lines_after_its_position(tmp_path):
     state = StateDirectory(root=tmp_path)
     state.bootstrap()
     directory = write_assignment_with_rounds(
@@ -1266,33 +1350,33 @@ def test_a_tail_returns_only_complete_lines_after_its_cursor(tmp_path):
     second = FeedLine(at=LOOKED_AT, text="the second line")
     write_feed(directory=directory, number=1, lines=[first])
 
-    first_read = _read_tail(state=state, identifier=identifier, cursor="1:0")
-    cursor = _read_cursor(response=first_read)
+    first_read = _read_tail(state=state, identifier=identifier, position="1:0")
+    position = _read_position(response=first_read)
     feed_path = _find_feed_path(state=state, identifier=identifier, number=1)
     append_text(text=second.render().removesuffix("\n"), path=feed_path)
     incomplete_read = _read_tail(
         state=state,
         identifier=identifier,
-        cursor=cursor,
+        position=position,
     )
 
     assert "the first line" in first_read.text
     assert "the second line" not in first_read.text
     assert 'id="empty-feed"' not in first_read.text
     assert "the second line" not in incomplete_read.text
-    assert _read_cursor(response=incomplete_read) == cursor
+    assert _read_position(response=incomplete_read) == position
 
     append_text(text="\n", path=feed_path)
     complete_read = _read_tail(
         state=state,
         identifier=identifier,
-        cursor=cursor,
+        position=position,
     )
 
     assert "the first line" not in complete_read.text
     assert "the second line" in complete_read.text
     assert '<div hx-swap-oob="beforeend:#feed-round-1">' in complete_read.text
-    assert _read_cursor(response=complete_read) != cursor
+    assert _read_position(response=complete_read) != position
 
 
 def test_an_ended_round_moves_to_the_next_round_after_an_empty_read(tmp_path):
@@ -1322,14 +1406,14 @@ def test_an_ended_round_moves_to_the_next_round_after_an_empty_read(tmp_path):
     response = _read_tail(
         state=state,
         identifier=identifier,
-        cursor=f"1:{first_feed.stat().st_size}",
+        position=f"1:{first_feed.stat().st_size}",
     )
 
     assert response.status_code == 200
     assert "already read" not in response.text
     assert response.text.count("round 2: start") == 1
     assert "new round output" in response.text
-    assert _read_cursor(response=response).startswith("2:")
+    assert _read_position(response=response).startswith("2:")
 
 
 def test_a_terminal_tail_returns_late_output_before_it_stops(tmp_path):
@@ -1342,11 +1426,11 @@ def test_a_terminal_tail_returns_late_output_before_it_stops(tmp_path):
         path=feed_path,
     )
 
-    output = _read_tail(state=state, identifier=identifier, cursor="2:0")
+    output = _read_tail(state=state, identifier=identifier, position="2:0")
     stopped = _read_tail(
         state=state,
         identifier=identifier,
-        cursor=_read_cursor(response=output),
+        position=_read_position(response=output),
     )
 
     assert output.status_code == 200
@@ -1364,7 +1448,7 @@ def test_a_faulted_tail_keeps_polling_when_it_reads_nothing_new(tmp_path):
     response = _read_tail(
         state=state,
         identifier="GH9-20260819-184158-assignment",
-        cursor=f"2:{feed.stat().st_size}",
+        position=f"2:{feed.stat().st_size}",
     )
 
     assert response.status_code == 200
@@ -1378,7 +1462,7 @@ def test_a_tail_fragment_matches_its_golden(tmp_path, pytestconfig):
     response = _read_tail(
         state=state,
         identifier=identifier,
-        cursor=f"1:{first_feed.stat().st_size}",
+        position=f"1:{first_feed.stat().st_size}",
     )
 
     assert response.status_code == 200
@@ -1400,11 +1484,11 @@ def test_a_quiet_tail_has_no_appendable_text_nodes(tmp_path):
     response = _read_tail(
         state=state,
         identifier="GH60-20260819-184158-assignment",
-        cursor="1:0",
+        position="1:0",
     )
 
     assert response.text.startswith(
-        '<input type="hidden" id="cursor" name="cursor" value="1:0" '
+        '<input type="hidden" id="position" name="position" value="1:0" '
         'hx-swap-oob="true"><span'
     )
     assert '</span><div id="agent-work-retry"' in response.text
@@ -1726,7 +1810,20 @@ def test_next_update_is_left_out_when_no_daemon_is_running(tmp_path):
 
     page = render_home(state=state)
 
-    assert "<dt>next update in</dt>" not in page
+    assert "<dt>next update</dt>" not in page
+
+
+def test_a_running_update_pulses_and_a_countdown_does_not(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    fabricate_everything(state=state)
+
+    counting_down = render_home(state=state)
+    write_tick(state=state, tick=SchedulerRecord(at=PINNED, finished=PINNED))
+    updating = render_home(state=state)
+
+    assert "in-progress" not in counting_down
+    assert '<div class="fact in-progress">' in updating
+    assert "<dd>updating</dd>" in updating
 
 
 def test_an_active_cooldown_is_a_warning_fact(tmp_path):
@@ -1736,6 +1833,7 @@ def test_an_active_cooldown_is_a_warning_fact(tmp_path):
         state=state,
         tick=SchedulerRecord(
             at=PINNED,
+            finished=PINNED,
             cooldown=GlobalCooldown(
                 started=LOOKED_AT, ends=LOOKED_AT + timedelta(minutes=15)
             ),

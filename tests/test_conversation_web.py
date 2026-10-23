@@ -97,7 +97,7 @@ def test_conversation_page_asks_once_whether_the_daemon_runs(tmp_path, monkeypat
     probe.assert_called_once_with(path=state.lock)
 
 
-def test_conversation_page_shows_settings_revision_round_and_feed(tmp_path):
+def test_conversation_page_shows_settings_round_and_feed_but_no_revision(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_conversation(state=state, harness_session_identifier=None)
     directory = find_conversation_directory(state=state, issue=8)
@@ -154,15 +154,14 @@ def test_conversation_page_shows_settings_revision_round_and_feed(tmp_path):
     assert "<dt>model · effort</dt><dd>opus[1m] · xhigh</dd>" in page
     assert "<dt>worktree</dt>" not in page
     assert "<dt>session</dt>" not in page
-    assert "abc123" in page
-    assert f"code revision abc123 -&gt; {revision}" in page
-    assert revision in page
+    assert "abc123" not in page
+    assert revision not in page
     assert "opus[1m] · xhigh" in page
     assert "1 comment" in page
     assert "I found the answer." in page
     assert 'hx-get="/work/GH8-20260819-184158-conversation/tail"' in page
     assert "<summary>resume by hand</summary>" in page
-    assert "cd .dreamcatcher/v7/worktrees/GH8-20260819-184158-conversation" in page
+    assert "cd .dreamcatcher/v8/worktrees/GH8-20260819-184158-conversation" in page
     assert "claude --resume recovered-session" in page
 
 
@@ -201,7 +200,7 @@ def test_conversation_tail_offers_a_hand_resume_only_while_no_round_runs(tmp_pat
     fabricate_everything(state=state)
     write_running_conversation(state=state, issue=8, started=PINNED)
     client = create_application(state=state).test_client()
-    query = {"cursor": "0:0"}
+    query = {"position": "0:0"}
 
     working = client.get(
         "/work/GH8-20260819-184158-conversation/tail", query_string=query
@@ -436,22 +435,22 @@ def test_conversation_before_its_first_round_has_no_feed_yet(tmp_path):
 
     page = client.get("/work/GH8-20260819-184158-conversation").text
     tail = client.get(
-        "/work/GH8-20260819-184158-conversation/tail", query_string={"cursor": "0:0"}
+        "/work/GH8-20260819-184158-conversation/tail", query_string={"position": "0:0"}
     ).text
 
-    assert 'id="cursor" name="cursor" value="0:0"' in page
+    assert 'id="position" name="position" value="0:0"' in page
     assert "-- no rounds have run --" not in page
     assert "-- no rounds have run --" not in tail
     assert "-- no feed yet --" in page
 
 
-def test_conversation_tail_returns_new_output_and_advances_its_cursor(tmp_path):
+def test_conversation_tail_returns_new_output_and_advances_its_position(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_conversation(state=state)
     conversation = read_conversation(state=state, issue=8)
     assert conversation is not None
     feed = conversation.compose_round_paths(number=1).feed
-    cursor = feed.stat().st_size
+    position = feed.stat().st_size
     append_text(
         text=FeedLine(at=LOOKED_AT, text="One more detail.").render(),
         path=feed,
@@ -462,7 +461,7 @@ def test_conversation_tail_returns_new_output_and_advances_its_cursor(tmp_path):
         .test_client()
         .get(
             "/work/GH8-20260819-184158-conversation/tail",
-            query_string={"cursor": f"1:{cursor}"},
+            query_string={"position": f"1:{position}"},
         )
     )
 
@@ -489,7 +488,7 @@ def test_an_ended_conversation_stops_empty_tail_polling(tmp_path):
         .test_client()
         .get(
             "/work/GH8-20260819-184158-conversation/tail",
-            query_string={"cursor": f"1:{feed.stat().st_size}"},
+            query_string={"position": f"1:{feed.stat().st_size}"},
         )
     )
 
@@ -505,7 +504,7 @@ def test_a_waiting_conversation_keeps_empty_tail_polling(tmp_path):
         .test_client()
         .get(
             "/work/GH8-20260819-184158-conversation/tail",
-            query_string={"cursor": "0:0"},
+            query_string={"position": "0:0"},
         )
     )
 
@@ -523,7 +522,7 @@ def test_a_faulted_conversation_keeps_empty_tail_polling(tmp_path):
         .test_client()
         .get(
             "/work/GH8-20260819-184158-conversation/tail",
-            query_string={"cursor": "2:0"},
+            query_string={"position": "2:0"},
         )
     )
 
@@ -537,6 +536,7 @@ def test_a_routing_conflict_keeps_empty_conversation_tail_polling(tmp_path):
         state=state,
         tick=SchedulerRecord(
             at=PINNED,
+            finished=PINNED,
             rows=[
                 compose_conversation_row(
                     finding=ConflictingLabelsFinding(labels=["discuss", "scout"])
@@ -553,7 +553,7 @@ def test_a_routing_conflict_keeps_empty_conversation_tail_polling(tmp_path):
         .test_client()
         .get(
             "/work/GH8-20260819-184158-conversation/tail",
-            query_string={"cursor": f"1:{feed.stat().st_size}"},
+            query_string={"position": f"1:{feed.stat().st_size}"},
         )
     )
 
@@ -604,6 +604,7 @@ def test_conversation_tail_adds_a_later_round_without_repeating_the_first(tmp_pa
         state=state,
         tick=SchedulerRecord(
             at=PINNED,
+            finished=PINNED,
             rows=[
                 compose_conversation_row(
                     finding=PausedFinding(cause=PauseCause.LABEL_REMOVED)
@@ -617,7 +618,7 @@ def test_conversation_tail_adds_a_later_round_without_repeating_the_first(tmp_pa
         .test_client()
         .get(
             "/work/GH8-20260819-184158-conversation/tail",
-            query_string={"cursor": f"1:{first_feed.stat().st_size}"},
+            query_string={"position": f"1:{first_feed.stat().st_size}"},
         )
     )
 
@@ -626,11 +627,11 @@ def test_conversation_tail_adds_a_later_round_without_repeating_the_first(tmp_pa
     assert 'id="agent-work-detail"' in response.text
     assert "paused, label removed" in response.text
     assert response.text.count("round 2: 1 comment") == 1
-    assert response.text.count("code revision abc123 -&gt; def456") == 1
+    assert "def456" not in response.text
     assert response.text.count("I found the follow-up answer.") == 1
 
 
-def test_conversation_tail_refuses_an_invalid_cursor(tmp_path):
+def test_conversation_tail_refuses_an_invalid_position(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_conversation(state=state)
 
@@ -639,12 +640,12 @@ def test_conversation_tail_refuses_an_invalid_cursor(tmp_path):
         .test_client()
         .get(
             "/work/GH8-20260819-184158-conversation/tail",
-            query_string={"cursor": "not-a-cursor"},
+            query_string={"position": "not-a-position"},
         )
     )
 
     assert response.status_code == 400
-    assert "feed cursor is invalid" in response.text
+    assert "feed position is invalid" in response.text
 
 
 def test_missing_conversation_pages_answer_not_found(tmp_path):
@@ -653,7 +654,7 @@ def test_missing_conversation_pages_answer_not_found(tmp_path):
 
     page = client.get("/work/GH8-20260819-184158-conversation")
     tail = client.get(
-        "/work/GH8-20260819-184158-conversation/tail", query_string={"cursor": "0:0"}
+        "/work/GH8-20260819-184158-conversation/tail", query_string={"position": "0:0"}
     )
 
     assert page.status_code == 404
@@ -671,6 +672,7 @@ def fabricate_unsaved_conversation(*, state: StateDirectory) -> None:
         state=state,
         tick=SchedulerRecord(
             at=PINNED,
+            finished=PINNED,
             rows=[
                 compose_request_row(
                     issue=9,
@@ -712,6 +714,7 @@ def test_home_lists_conversations_in_attention_order_before_requests(tmp_path):
         state=state,
         tick=SchedulerRecord(
             at=PINNED,
+            finished=PINNED,
             rows=[
                 compose_conversation_row(finding=IssueCommentsFinding(new_comments=0)),
                 compose_conversation_row(

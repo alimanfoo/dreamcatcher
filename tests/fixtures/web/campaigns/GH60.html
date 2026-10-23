@@ -65,7 +65,7 @@
       <span class="round-summary">
         <span class="round-trigger">start</span>
         <span class="round-outcome outcome-successful">successful</span>
-        <span class="round-timing">2026-08-20 02:42:58 · ran 4m · abc123</span>
+        <span class="round-timing">2026-08-20 02:42:58 · ran 4m</span>
       </span>
     </a>
   
@@ -75,12 +75,12 @@
           <h1 id="feed-heading">Feed</h1>
           <button class="feed-tail" type="button" aria-controls="records">TAIL ↓</button>
           <p id="feed-refresh-error" class="refresh-error" role="alert" hidden></p>
-          <input type="hidden" id="cursor" name="cursor" value="1:61">
-          <div id="records" class="feed-records" hx-get="/work/GH60-20260819-184158-campaign/tail" hx-trigger="every 2s" hx-include="#cursor" hx-select=".feed-round" hx-swap="beforeend" data-refresh-alert="feed-refresh-error">
+          <input type="hidden" id="position" name="position" value="1:61">
+          <div id="records" class="feed-records" hx-get="/work/GH60-20260819-184158-campaign/tail" hx-trigger="every 2s" hx-include="#position" hx-select=".feed-round" hx-swap="beforeend" data-refresh-alert="feed-refresh-error">
             
               <div id="feed-round-1" class="feed-round"><div class="feed-line round-boundary">
   <time>2026-08-20 02:42:58</time>
-  <span class="feed-content"><span class="feed-detail">round 1: start; code revision abc123</span></span>
+  <span class="feed-content"><span class="feed-detail">round 1: start</span></span>
 </div><div class="feed-line">
   <time>2026-08-20 02:43:58</time>
   <span class="feed-content"><span class="feed-detail">I acknowledged the plan on the parent.</span></span>
@@ -92,7 +92,7 @@
       <div id="agent-work-foot" class="agent-work-foot">
         <details class="hand-resume">
           <summary>resume by hand</summary>
-          <pre>cd .dreamcatcher/v7/worktrees/GH60-20260819-184158-campaign
+          <pre>cd .dreamcatcher/v8/worktrees/GH60-20260819-184158-campaign
 claude --resume lead-session</pre>
         </details></div>
     </div>

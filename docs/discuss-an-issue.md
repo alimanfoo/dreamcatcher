@@ -67,9 +67,10 @@ it. It keeps its original recipe even if its route is removed from
 `dreamcatcher.toml`.
 
 Closing the issue ends the conversation after any running round
-finishes, and the web home page lists it with your other ended work. If
-the issue is reopened with its label, a new conversation starts and is
-given every comment you have posted on the issue.
+finishes, and the web home page lists it with your other ended work.
+_dreamcatcher_ then removes its worktree and keeps its record. If the
+issue is reopened with its label, a new conversation starts and is given
+every comment you have posted on the issue.
 
 Taking one conversation label off and putting another on pauses the
 first conversation and starts a new one under the new label, with a

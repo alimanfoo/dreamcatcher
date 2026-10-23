@@ -52,6 +52,9 @@ their issues. When an issue belongs to a phase, the issue description
 names the phase and references the relevant specification; follow the
 status and editing rules in `specs/AGENTS.md`.
 
+A dated folder that `specs/AGENTS.md` lists is a completed phase and a
+historical record: never edit it to match the code.
+
 ## Dev setup
 
 Install the tools and the commit hooks:
@@ -108,6 +111,10 @@ uv run pre-commit run --all-files
 ```
 
 ### Browser tests and visual checks
+
+Write a browser test only for what
+[docs/testing.md](docs/testing.md#rendered-view-goldens) says needs a
+real browser.
 
 Install Chromium once, then run the browser tests that the default suite
 leaves out:
@@ -327,6 +334,10 @@ $env:PYTHONWARNDEFAULTENCODING = "1"; uv run pytest --regenerate-view-goldens
 - Keep changes lean. Add nothing a requirement or the design doesn't
   call for; prefer deleting over adding. One way to do each thing,
   always.
+- The first change that needs a new state format raises
+  `STATE_FORMAT_VERSION` in `state.py`. Every later change before the
+  next release joins that unreleased format, rather than raising it
+  again.
 - A bug is behaviour that contradicts a story in `docs/stories.md`,
   including the handling that a user error or expected fault story
   promises. Behaviour a story explicitly accepts is not a bug, and

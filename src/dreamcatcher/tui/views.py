@@ -3,7 +3,6 @@
 from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime, tzinfo
-from pathlib import Path
 from time import sleep
 
 from rich.console import Console, RenderableType
@@ -124,11 +123,7 @@ def _render_agent_work(
                 else _render_issue_work_summary(state=state, status=status)
             ),
             _render_round_statuses(round_statuses=status.round_statuses, zone=zone),
-            _render_harness_resume(
-                state=state,
-                worktree=work.worktree,
-                hand_resume_command=status.hand_resume_command,
-            ),
+            _render_harness_resume(state=state, status=status),
         ]
     )
 
@@ -145,7 +140,7 @@ def _render_issue_work_summary(
         ("agent work identifier", work.identifier),
         ("title", record.title),
         ("label", record.dispatch_label),
-        ("worktree", state.describe_path(path=work.worktree)),
+        ("worktree", _describe_worktree(state=state, status=status)),
         ("harness", record.harness),
         (
             "harness session identifier",
@@ -171,7 +166,7 @@ def _render_assignment_summary(
         ("pull request", _describe_pull_request(status=status)),
         ("label", record.dispatch_label),
         ("branch", compose_assignment_branch(identifier=assignment.identifier)),
-        ("worktree", state.describe_path(path=assignment.worktree)),
+        ("worktree", _describe_worktree(state=state, status=status)),
         ("harness", record.harness),
         (
             "harness session identifier",
@@ -199,39 +194,32 @@ def _render_round_statuses(
     """Return agent round statuses newest first."""
     if not round_statuses:
         return None
-    shows_revision = any(status.revision is not None for status in round_statuses)
-    table = create_table(columns=6 if shows_revision else 5)
+    table = create_table(columns=5)
     for round_status in reversed(round_statuses):
         record = round_status.record
-        cells = [
+        table.add_row(
             Text(str(record.number)),
-            Text(round_status.trigger_description),
-        ]
-        if shows_revision:
-            cells.append(
-                Text(
-                    "" if round_status.revision is None else round_status.revision.value
-                )
-            )
-        cells.extend(
-            [
-                Text(describe_time(at=record.started, zone=zone)),
-                Text(round_status.duration_description),
-                Text(round_status.outcome_description),
-            ]
+            Text(round_status.trigger.describe()),
+            Text(describe_time(at=record.started, zone=zone)),
+            Text(round_status.duration_description),
+            Text(round_status.outcome_description),
         )
-        table.add_row(*cells)
     return render_section(heading="rounds", body=table)
 
 
+def _describe_worktree(*, state: StateDirectory, status: AgentWorkStatus) -> str:
+    """Return where the work's worktree is, or that it has been removed."""
+    worktree = status.worktree
+    return "removed" if worktree is None else state.describe_path(path=worktree)
+
+
 def _render_harness_resume(
-    *,
-    state: StateDirectory,
-    worktree: Path,
-    hand_resume_command: list[str] | None,
+    *, state: StateDirectory, status: AgentWorkStatus
 ) -> RenderableType | None:
     """Return how to resume the harness session by hand, when one exists."""
-    if hand_resume_command is None:
+    worktree = status.worktree
+    hand_resume_command = status.hand_resume_command
+    if worktree is None or hand_resume_command is None:
         return None
     described_worktree = state.describe_path(path=worktree)
     command = " ".join(hand_resume_command)
@@ -347,13 +335,8 @@ class _FeedView:
         record = round_status.record
         round_boundary = compose_agent_round_boundary(
             number=record.number,
-            trigger=round_status.trigger_description,
+            trigger=round_status.trigger.describe(),
             at=record.started,
-            detail=(
-                None
-                if round_status.revision is None
-                else round_status.revision.description
-            ),
         )
         self.console.print(
             _render_feed_line(

@@ -171,6 +171,7 @@ def fabricate_conversation(
         state=state,
         tick=SchedulerRecord(
             at=PINNED + timedelta(minutes=5),
+            finished=PINNED + timedelta(minutes=5),
             rows=[
                 compose_conversation_row(
                     ended_round=1 if has_round else None,
@@ -261,7 +262,7 @@ def _compose_campaign_child(
                 observed_pull_request=None,
                 finished_turn=finished_turn,
                 ending=ending,
-                is_fault=False,
+                is_in_fault=False,
             )
         ),
     )
@@ -545,6 +546,7 @@ def fabricate_everything(
         state=state,
         tick=SchedulerRecord(
             at=PINNED + timedelta(hours=1, minutes=58),
+            finished=PINNED + timedelta(hours=1, minutes=58, seconds=45),
             rows=[
                 compose_request_row(issue=50, finding=UNCLAIMED),
                 compose_request_row(issue=51, finding=UNCLAIMED),
@@ -623,6 +625,7 @@ def fabricate_the_cap(*, state):
         state=state,
         tick=SchedulerRecord(
             at=PINNED + timedelta(hours=1, minutes=58),
+            finished=PINNED + timedelta(hours=1, minutes=58),
             failures=[
                 "could not list issues: gh issue list: "
                 'Post "https://api.github.com/graphql": unexpected EOF',
@@ -676,6 +679,7 @@ def fabricate_repeat_assignments(*, state):
         state=state,
         tick=SchedulerRecord(
             at=PINNED + timedelta(hours=1, minutes=58),
+            finished=PINNED + timedelta(hours=1, minutes=58),
             rows=[
                 _compose_assignment_row(
                     issue=13, ended_round=1, finding=_compose_draft_pull_request()
@@ -704,6 +708,7 @@ def fabricate_a_silent_round(*, state):
         state=state,
         tick=SchedulerRecord(
             at=PINNED + timedelta(hours=1, minutes=58),
+            finished=PINNED + timedelta(hours=1, minutes=58),
             rows=[
                 _compose_assignment_row(
                     issue=13, ended_round=1, started_round=StartedRound(number=2)
@@ -802,6 +807,7 @@ def fabricate_titles_and_pull_request_states(*, state):
         state=state,
         tick=SchedulerRecord(
             at=PINNED + timedelta(hours=1, minutes=58),
+            finished=PINNED + timedelta(hours=1, minutes=58),
             rows=[
                 compose_request_row(issue=20, finding=UNCLAIMED).model_copy(
                     update={"title": "Available issue"}
@@ -827,6 +833,7 @@ def fabricate_campaign_report(*, state):
         state=state,
         tick=SchedulerRecord(
             at=PINNED + timedelta(hours=1, minutes=58),
+            finished=PINNED + timedelta(hours=1, minutes=58),
             rows=fabricate_campaigns(state=state),
         ),
     )

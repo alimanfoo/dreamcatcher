@@ -81,8 +81,8 @@
           <h1 id="feed-heading">Feed</h1>
           <button class="feed-tail" type="button" aria-controls="records">TAIL ↓</button>
           <p id="feed-refresh-error" class="refresh-error" role="alert" hidden></p>
-          <input type="hidden" id="cursor" name="cursor" value="2:55">
-          <div id="records" class="feed-records" hx-get="/work/GH9-20260819-184158-assignment/tail" hx-trigger="every 2s" hx-include="#cursor" hx-select=".feed-round" hx-swap="beforeend" data-refresh-alert="feed-refresh-error">
+          <input type="hidden" id="position" name="position" value="2:55">
+          <div id="records" class="feed-records" hx-get="/work/GH9-20260819-184158-assignment/tail" hx-trigger="every 2s" hx-include="#position" hx-select=".feed-round" hx-swap="beforeend" data-refresh-alert="feed-refresh-error">
             
               <div id="feed-round-1" class="feed-round"><div class="feed-line round-boundary">
   <time>2026-08-20 02:42:58</time>
@@ -104,7 +104,7 @@
         <form id="cancel-form" class="agent-work-control-form" method="post" action="/work/GH9-20260819-184158-assignment/cancel" data-confirmation="Cancel this assignment? dreamcatcher will stop working on it so that you can finish its pull request by hand. This cannot be undone."><button class="agent-work-control cancel-control" type="submit">cancel assignment</button></form>
         <details class="hand-resume">
           <summary>resume by hand</summary>
-          <pre>cd .dreamcatcher/v7/worktrees/GH9-20260819-184158-assignment
+          <pre>cd .dreamcatcher/v8/worktrees/GH9-20260819-184158-assignment
 claude --resume abc-123</pre>
         </details></div>
     </div>
