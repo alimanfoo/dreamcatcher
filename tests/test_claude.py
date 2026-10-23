@@ -294,32 +294,32 @@ def test_a_tool_result_that_worked_writes_nothing():
     assert CLAUDE_ADAPTER.read(line=line) == []
 
 
-def test_a_subagents_own_words_are_left_to_its_report():
-    line = assistant(blocks=[{"type": "text", "text": "counting"}], parent="toolu_1")
-
+@pytest.mark.parametrize(
+    "line",
+    [
+        assistant(blocks=[{"type": "text", "text": "counting"}], parent="toolu_1"),
+        assistant(blocks=[{"type": "thinking", "thinking": ""}], parent="toolu_1"),
+        assistant(
+            blocks=[{"type": "tool_use", "name": "Bash", "input": {"command": "ls"}}],
+            parent="toolu_1",
+        ),
+        streamed(
+            type="user",
+            message={
+                "content": [
+                    {"type": "tool_result", "content": "no such file", "is_error": True}
+                ]
+            },
+            parent_tool_use_id="toolu_1",
+        ),
+    ],
+    ids=["words", "thinking", "tool call", "failure"],
+)
+def test_a_subagents_steps_write_nothing(line):
     assert CLAUDE_ADAPTER.read(line=line) == []
 
 
-def test_a_subagent_that_thinks_is_marked_as_one():
-    line = assistant(blocks=[{"type": "thinking", "thinking": ""}], parent="toolu_1")
-
-    assert CLAUDE_ADAPTER.read(line=line) == [
-        FeedNote(label="thinking", is_subagent=True)
-    ]
-
-
-def test_a_subagents_tool_call_is_marked_as_one():
-    line = assistant(
-        blocks=[{"type": "tool_use", "name": "Bash", "input": {"command": "ls"}}],
-        parent="toolu_1",
-    )
-
-    assert CLAUDE_ADAPTER.read(line=line) == [
-        FeedNote(label="Bash", detail="ls", is_subagent=True)
-    ]
-
-
-def test_a_finished_subagent_reports_what_it_did():
+def test_a_finished_subagent_reports_what_it_did_on_the_main_thread():
     line = streamed(
         type="system",
         subtype="task_notification",
@@ -329,8 +329,8 @@ def test_a_finished_subagent_reports_what_it_did():
     )
 
     assert CLAUDE_ADAPTER.read(line=line) == [
-        FeedNote(label="report", detail="completed", is_subagent=True),
-        FeedProse(text="Two files.", is_subagent=True),
+        FeedNote(label="report", detail="completed"),
+        FeedProse(text="Two files."),
     ]
 
 
