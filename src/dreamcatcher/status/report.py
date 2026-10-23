@@ -47,11 +47,16 @@ _EMPTY_SECTION_GUIDANCE = {
 
 @dataclass(frozen=True, kw_only=True)
 class StatusFact:
-    """Hold one labelled fact that a view shows."""
+    """Hold one labelled fact that a view shows.
+
+    A fact in progress names work that is running now, which the web page
+    marks with motion.
+    """
 
     label: str
     value: str
     is_warning: bool = False
+    is_in_progress: bool = False
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -207,7 +212,7 @@ class DreamcatcherStatusReport:
                 return StatusFact(
                     label="next update", value=f"in {describe_span(span=remaining)}"
                 )
-        return StatusFact(label="next update", value="updating")
+        return StatusFact(label="next update", value="updating", is_in_progress=True)
 
     def describe_section(self, *, kind: AgentWorkKind) -> AgentWorkStatusSection | None:
         """Describe one kind's section, shown once the kind is routed or has work.

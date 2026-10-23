@@ -39,7 +39,8 @@ the change.
 ### Changed
 
 - The status views count down to the next update from when the last
-  update finished, and show **updating** while an update runs. The
+  update finished, and show **updating** while an update runs, with a
+  pulse on the web page unless the browser asks for reduced motion. The
   countdown used to start when an update started, so it reached 0s early
   and stayed there through the next update.
   ([#740](https://github.com/alimanfoo/dreamcatcher/pull/740))

@@ -1009,7 +1009,7 @@ def test_an_active_cooldown_is_an_instance_fact_and_failures_are_listed(held_sta
     assert found.active_global_cooldown == cooldown
     assert found.instance_facts == (
         StatusFact(label="preferred harness", value="claude"),
-        StatusFact(label="next update", value="updating"),
+        StatusFact(label="next update", value="updating", is_in_progress=True),
         StatusFact(label="agent capacity", value="0 of 3 working"),
         StatusFact(label="global cooldown", value="ends in 1m", is_warning=True),
     )
@@ -1045,13 +1045,13 @@ def test_an_update_is_running_once_the_countdown_runs_out(held_state):
     )
 
     assert read_next_update(state=held_state) == StatusFact(
-        label="next update", value="updating"
+        label="next update", value="updating", is_in_progress=True
     )
 
 
 def test_an_update_is_running_before_the_daemon_runs_first_finishes(held_state):
     assert read_next_update(state=held_state) == StatusFact(
-        label="next update", value="updating"
+        label="next update", value="updating", is_in_progress=True
     )
 
 
@@ -1070,7 +1070,7 @@ def test_an_earlier_daemon_runs_update_counts_nothing_down(held_state):
     )
 
     assert read_next_update(state=held_state) == StatusFact(
-        label="next update", value="updating"
+        label="next update", value="updating", is_in_progress=True
     )
 
 

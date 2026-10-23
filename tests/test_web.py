@@ -1731,6 +1731,19 @@ def test_next_update_is_left_out_when_no_daemon_is_running(tmp_path):
     assert "<dt>next update</dt>" not in page
 
 
+def test_a_running_update_pulses_and_a_countdown_does_not(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    fabricate_everything(state=state)
+
+    counting_down = render_home(state=state)
+    write_tick(state=state, tick=SchedulerRecord(at=PINNED, finished=PINNED))
+    updating = render_home(state=state)
+
+    assert "in-progress" not in counting_down
+    assert '<div class="fact in-progress">' in updating
+    assert "<dd>updating</dd>" in updating
+
+
 def test_an_active_cooldown_is_a_warning_fact(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
