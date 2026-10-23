@@ -524,11 +524,12 @@ it:
   relayed, or **comments** without a count for a conversation round that
   has no input yet;
 - each notification that a campaign round was given, after any count of
-  comments: the sub-issue's number and the words for its changes, which
-  are **added**, **removed**, **closed**, **reopened**, **handback**,
-  **pull request**, **checks finished**, **mergeable**, **ended** and
-  **fault**, or **comments or changes** for a campaign round, other than
-  a start or a recover, that has no input yet;
+  comments: the sub-issue's number and the words for its changes. Each
+  change reads as its name, except that a change of issue state reads as
+  **closed** or **reopened**, by the state that the sub-issue entered,
+  check completion reads as **checks finished**, and ending reads as
+  **ended**. A campaign round, other than a start or a recover, that has
+  no input yet reads as **comments or changes**;
 - **main moved** or **checks failed**: the other signals an assignment
   round relayed, after any count of posts;
 - **merged** or **closed**: the state of a finished pull request, which
