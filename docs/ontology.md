@@ -663,11 +663,12 @@ Agent work of every kind has one of these summary statuses:
 - **Waiting**: a round is due but has not started. Its last round
   errored or was interrupted, including a round left without an ending
   by a daemon that has gone; no round has run yet; an assignment's pull
-  request is not yet open; or the latest tick found a signal. A
-  conversation whose last round errored or was interrupted is not
-  waiting once a tick that read it after that round ended found no
-  eligible comment past the cursor. A free agent slot, or the end of a
-  cooldown, starts it.
+  request is not yet open; an assignment's pull request is merged or
+  closed and its wrap-up round is due, which the detail calls awaiting
+  wrap-up; or the latest tick found a signal. A conversation whose last
+  round errored or was interrupted is not waiting once a tick that read
+  it after that round ended found no eligible comment past the cursor. A
+  free agent slot, or the end of a cooldown, starts it.
 - **Idle**: no round is known to be due. A round that took its turn
   after the latest tick read the work is idle until the next tick,
   unless the earlier tick found input that the round did not consume.
