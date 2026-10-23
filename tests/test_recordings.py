@@ -37,7 +37,7 @@ from pathlib import PurePosixPath
 
 import pytest
 from clocks import Ticking
-from conftest import FIXTURES
+from conftest import FIXTURES, assert_matches_view_golden
 from recordings import render_harness_recording
 
 from dreamcatcher.claude import CLAUDE_ADAPTER
@@ -62,13 +62,15 @@ RECORDINGS = ((CLAUDE_ADAPTER, "claude"), (CODEX_ADAPTER, "codex"))
         for recording in sorted((FIXTURES / directory).glob("*.jsonl"))
     ],
 )
-def test_a_recorded_stream_renders_as_its_golden_feed(adapter, recording):
+def test_a_recorded_stream_renders_as_its_golden_feed(adapter, recording, pytestconfig):
     feed = render_harness_recording(
         adapter=adapter,
         lines=recording.read_text(encoding="utf-8").splitlines(),
         renderer=FeedRenderer(worktree=RECORDED_IN, clock=Ticking()),
     )
 
-    assert feed == recording.with_suffix(".harness-feed.txt").read_text(
-        encoding="utf-8"
+    assert_matches_view_golden(
+        rendered=feed,
+        path=recording.with_suffix(".harness-feed.txt"),
+        config=pytestconfig,
     )
