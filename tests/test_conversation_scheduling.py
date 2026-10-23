@@ -1177,6 +1177,33 @@ def test_a_running_conversation_finishes_before_a_closed_issue_ends_it(
     assert count_comment_reads(gh=gh) == 1
 
 
+def test_a_conversation_whose_issue_closes_loses_its_worktree_and_keeps_its_records(
+    conversation_scheduler, harnesses
+):
+    scheduler, clock, gh = conversation_scheduler
+    offer_conversation(gh=gh, comments=[ask()])
+    answer(harnesses=harnesses)
+    scheduler.tick(at=clock())
+    finish(scheduler=scheduler)
+    show_conversation_issue(
+        gh=gh,
+        issue=conversation_issue(labels=("dream:conversation",), state="CLOSED"),
+    )
+    answered = read_conversation(state=scheduler.context.state, issue=8)
+    assert answered is not None
+    assert answered.worktree.is_dir()
+
+    observed = scheduler.tick(at=clock())
+
+    conversation = read_conversation(state=scheduler.context.state, issue=8)
+    assert conversation is not None
+    assert conversation.ending is not None
+    assert conversation.ending.reason is AgentWorkEndReason.ISSUE_CLOSED
+    assert not conversation.worktree.exists()
+    assert [record.number for record in conversation.rounds] == [1]
+    assert observed.failures == []
+
+
 def test_ready_assignment_rounds_and_conversations_alternate(
     conversation_scheduler, harnesses
 ):

@@ -5,6 +5,7 @@ from dataclasses import dataclass, field, replace
 from datetime import datetime
 from functools import partial
 
+from dreamcatcher.agent_assignments import remove_assignment_worktree
 from dreamcatcher.agent_rounds import (
     AgentRound,
     AgentRoundLaunchError,
@@ -13,9 +14,12 @@ from dreamcatcher.agent_rounds import (
 )
 from dreamcatcher.agent_work import (
     AgentWork,
+    AgentWorkEndReason,
     create_agent_work,
     read_agent_work,
     record_harness_session_identifier,
+    refresh_agent_work,
+    remove_agent_work_worktree,
     request_round_stop_if_ended,
 )
 from dreamcatcher.config import AgentHarness, DispatchRoute
@@ -55,6 +59,7 @@ from dreamcatcher.scheduler.models import (
     SchedulerRecord,
     StartedRound,
 )
+from dreamcatcher.state import StateDirectory
 
 # How the tick's first pass inspects the channel of open work, by the work's
 # kind. Campaigns are inspected in the second pass.
@@ -117,9 +122,10 @@ class Scheduler:
         issue that no other listing returns, and leaves open work inspected.
 
         A global cooldown prevents every launch but does not prevent reads, so
-        the rows remain current while the cooldown is active.
+        the rows remain current while the cooldown is active. Nor does it
+        prevent the removal of worktrees that ended work leaves.
         """
-        self._forget_ended_rounds()
+        forgotten_identifiers = self._forget_ended_rounds()
         previous_record = read_scheduler_record(state=self.context.state, at=at)
         most_recent_cooldown_ended = (
             None
@@ -128,6 +134,11 @@ class Scheduler:
         )
         all_work = read_agent_work(state=self.context.state)
         open_work = [work for work in all_work if work.is_open]
+        watched_work = [
+            work
+            for work in all_work
+            if work.is_open or work.identifier in forgotten_identifiers
+        ]
         listing = self._list_issues()
         inspect = partial(
             self._inspect,
@@ -164,7 +175,10 @@ class Scheduler:
         )
         record = SchedulerRecord(
             at=at,
-            failures=listing.failures,
+            failures=[
+                *listing.failures,
+                *self._remove_ended_worktrees(watched_work=watched_work),
+            ],
             rows=[inspection.row for inspection in inspections],
             cooldown=cooldown,
             most_recent_cooldown_ended=most_recent_cooldown_ended,
@@ -173,7 +187,8 @@ class Scheduler:
             return record
         return self._launch_candidates(record=record, inspections=inspections)
 
-    def _forget_ended_rounds(self) -> None:
+    def _forget_ended_rounds(self) -> list[str]:
+        """Forget every round that has ended, and return its work's identifier."""
         ended_identifiers = [
             identifier
             for identifier, running in self.rounds.items()
@@ -181,6 +196,30 @@ class Scheduler:
         ]
         for identifier in ended_identifiers:
             del self.rounds[identifier]
+        return ended_identifiers
+
+    def _remove_ended_worktrees(self, *, watched_work: list[AgentWork]) -> list[str]:
+        """Remove the worktree of each piece of watched work that has now ended.
+
+        Watched work was open when the tick read it, or had a round that the
+        tick has just forgotten, so work that ended before then keeps its
+        worktree. Work with a round that the daemon still holds waits for the
+        tick that forgets the round. A cancelled assignment keeps its worktree
+        and branch, because the user has taken them over. Each removal that
+        fails is returned as a failure and is not tried again.
+        """
+        failures = []
+        for work in watched_work:
+            if work.identifier in self.rounds:
+                continue
+            ending = refresh_agent_work(state=self.context.state, work=work).ending
+            if ending is None or ending.reason is AgentWorkEndReason.CANCELLED:
+                continue
+            try:
+                _remove_worktree(state=self.context.state, work=work)
+            except ReportableError as failure:
+                failures.append(str(failure))
+        return failures
 
     def _list_issues(self) -> _IssueListing:
         """List the open issues assigned to the account under every dispatch label."""
@@ -449,6 +488,14 @@ class Scheduler:
         )
         request_round_stop_if_ended(work=work, paths=paths)
         return started_round
+
+
+def _remove_worktree(*, state: StateDirectory, work: AgentWork) -> None:
+    """Remove the ended work's worktree, and an assignment's branch with it."""
+    if work.record.kind is AgentWorkKind.ASSIGNMENT:
+        remove_assignment_worktree(state=state, assignment=work)
+    else:
+        remove_agent_work_worktree(state=state, work=work)
 
 
 def _observe_assignments(

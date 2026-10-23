@@ -25,6 +25,7 @@ from dreamcatcher.agent_work import (
     AgentWork,
     AgentWorkEndReason,
     end_agent_work,
+    remove_agent_work_worktree,
 )
 from dreamcatcher.commands import CommandError
 from dreamcatcher.documents import (
@@ -146,6 +147,22 @@ def complete_assignment(
 ) -> None:
     """Record that the assignment completed, as its wrap-up round finishes."""
     end_agent_work(work=assignment, reason=AgentWorkEndReason.COMPLETED, at=clock())
+
+
+def remove_assignment_worktree(*, state: StateDirectory, assignment: AgentWork) -> None:
+    """Remove the assignment's worktree, then its local branch.
+
+    The branch on origin stays, and so do the assignment's records. A removal
+    or a deletion that Git refuses raises ReportableError.
+    """
+    remove_agent_work_worktree(state=state, work=assignment)
+    branch = compose_assignment_branch(identifier=assignment.identifier)
+    try:
+        delete_branch(root=state.root, branch=branch)
+    except CommandError as failure:
+        raise ReportableError(
+            f"could not delete the branch {branch}: {failure.reason}"
+        ) from failure
 
 
 def open_assignment_pull_request(
