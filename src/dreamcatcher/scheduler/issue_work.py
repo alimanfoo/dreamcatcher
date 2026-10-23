@@ -45,7 +45,7 @@ def inspect_open_issue_work(
     *,
     context: SchedulingContext,
     work: AgentWork,
-    is_fault: bool,
+    is_in_fault: bool,
     inspect_eligible: EligibleIssueWorkInspector,
 ) -> Inspection:
     """Read the work's issue, then inspect it further unless paused or in fault.
@@ -63,7 +63,7 @@ def inspect_open_issue_work(
             row=compose_open_work_row(
                 work=work, finding=ReadFailureFinding(reason=issue.reason)
             ),
-            is_counted_fault=is_fault,
+            is_counted_fault=is_in_fault,
         )
     if issue.state is IssueState.CLOSED:
         if not work.is_round_running:
@@ -74,7 +74,7 @@ def inspect_open_issue_work(
     pause = _find_pause(context=context, work=work, issue=issue)
     if pause is not None:
         return Inspection(row=compose_open_work_row(work=work, finding=pause))
-    if is_fault:
+    if is_in_fault:
         return Inspection(row=unread, is_counted_fault=True)
     try:
         return inspect_eligible(issue=issue, row=unread)

@@ -34,6 +34,7 @@ from dreamcatcher.config import (
     CampaignRoute,
     ClaudeRecipe,
 )
+from dreamcatcher.documents import read_json, write_json
 from dreamcatcher.github import (
     CheckResult,
     IssueComment,
@@ -498,3 +499,15 @@ def test_a_removed_child_notifies_after_the_current_children():
 )
 def test_a_child_with_nothing_new_for_the_lead_notifies_nothing(previous, current):
     assert compare_campaign_children(previous=previous, current=current) == []
+
+
+def test_a_round_input_names_the_fault_flag_as_the_contract_does(tmp_path):
+    path = tmp_path / "input.json"
+    round_input = compose_lead_input(comments=[FIRST]).model_copy(
+        update={"children": [compose_child(assignment=FAULTED)]}
+    )
+
+    write_json(document=round_input, path=path)
+
+    assert '"is_fault": true' in path.read_text(encoding="utf-8")
+    assert read_json(model=CampaignRoundInput, path=path) == round_input
