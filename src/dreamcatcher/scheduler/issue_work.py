@@ -112,9 +112,11 @@ def _find_pause(
         if identify_label(name=route.label) != label
     ]
     if others:
-        return ConflictingLabelsFinding(
-            labels=sorted([work.record.dispatch_label, *others], key=str.casefold)
+        conflicting = sorted(
+            [work.record.dispatch_label, *others],
+            key=lambda name: identify_label(name=name),
         )
+        return ConflictingLabelsFinding(labels=conflicting)
     return None
 
 
