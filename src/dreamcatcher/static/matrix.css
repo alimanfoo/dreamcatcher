@@ -503,6 +503,15 @@ body::after {
   margin: var(--space-5) 0;
 }
 
+.documentation-link {
+  color: var(--phosphor);
+  text-decoration: none;
+}
+
+.documentation-link:hover {
+  text-shadow: var(--shadow);
+}
+
 .error-page {
   padding-top: calc(var(--space-12) * 2);
 }

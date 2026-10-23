@@ -34,6 +34,11 @@ the change.
   dispatch label. A failed listing now starts no new work of any kind,
   and shows as one scheduler failure.
   ([#726](https://github.com/alimanfoo/dreamcatcher/pull/726))
+- The web home page always shows the Assignments, Conversations and
+  Campaigns tabs, and `dreamcatcher status` a section for each kind. A
+  kind that the daemon routes no label of says so, and links to the
+  documentation that says how to add its route to `dreamcatcher.toml`.
+  ([#751](https://github.com/alimanfoo/dreamcatcher/pull/751))
 
 ## [v8.0.0](https://github.com/alimanfoo/dreamcatcher/releases/tag/v8.0.0) — 2026-10-23
 

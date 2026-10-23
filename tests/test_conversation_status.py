@@ -63,6 +63,7 @@ from dreamcatcher.status import (
     read_dreamcatcher_daemon_status,
     read_status_report,
 )
+from dreamcatcher.status.report import SectionGuidance
 from dreamcatcher.status.requests import RequestStatusValue
 from dreamcatcher.status.rounds import _compose_round_revision
 
@@ -340,7 +341,7 @@ def test_a_live_round_shows_a_paused_conversation_as_working(
     assert report.running_agents == 1
     assert report.describe_section(
         kind=AgentWorkKind.CONVERSATION
-    ) == AgentWorkStatusSection(heading="conversations", empty_message=None)
+    ) == AgentWorkStatusSection(heading="conversations", guidance=None)
     assert found.value is AgentWorkStatusValue.WORKING
     assert found.detail == ("round 1, 1 comment, running 2h 0m, last output 1h 59m ago")
     assert found.latest_output == "I am reading the scheduler."
@@ -894,7 +895,7 @@ def test_the_report_lists_ended_conversations_apart_newest_first(tmp_path):
     ] == [9, 8]
     assert report.describe_section(
         kind=AgentWorkKind.CONVERSATION
-    ) == AgentWorkStatusSection(heading="conversations", empty_message=None)
+    ) == AgentWorkStatusSection(heading="conversations", guidance=None)
 
 
 def test_a_section_of_ended_conversations_alone_gives_its_guidance(
@@ -911,9 +912,12 @@ def test_a_section_of_ended_conversations_alone_gives_its_guidance(
         kind=AgentWorkKind.CONVERSATION
     ) == AgentWorkStatusSection(
         heading="conversations",
-        empty_message=(
-            "Assign an issue to yourself, label it with dream:scout and post a "
-            "comment to start a conversation."
+        guidance=SectionGuidance(
+            message=(
+                "Assign an issue to yourself, label it with dream:scout and post a "
+                "comment to start a conversation."
+            ),
+            documentation=None,
         ),
     )
 

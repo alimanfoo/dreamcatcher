@@ -63,24 +63,20 @@ def compose_home_view(*, report: DreamcatcherStatusReport) -> WebHomeView:
         instance_facts=report.instance_facts,
         scheduler_failures=report.scheduler_failures,
         sections=tuple(
-            section
-            for kind in AgentWorkKind
-            if (section := _compose_section(report=report, kind=kind)) is not None
+            _compose_section(report=report, kind=kind) for kind in AgentWorkKind
         ),
     )
 
 
 def _compose_section(
     *, report: DreamcatcherStatusReport, kind: AgentWorkKind
-) -> WebAgentWorkSection | None:
-    """Return the home page's section for one kind, when the report shows one."""
+) -> WebAgentWorkSection:
+    """Return the home page's section for one kind."""
     section = report.describe_section(kind=kind)
-    if section is None:
-        return None
     return WebAgentWorkSection(
         kind=kind,
         heading=section.heading,
-        empty_message=section.empty_message,
+        guidance=section.guidance,
         active=tuple(
             _compose_work_card(report=report, status=status)
             for status in report.list_active_work_statuses(kind=kind)

@@ -534,6 +534,14 @@ folded under a collapsed list, so the page shows only what is live. The
 terminal gives the same rows, with a count of ended work in place of the
 list.
 
+The home page always has a tab for each of the three kinds of work, and
+the terminal a section for each, even when a kind has nothing in it. A
+kind with nothing active says how to start its work, naming its labels.
+When the daemon routes no label of a kind, as after an upgrade that
+brought the kind in, its tab says so, tells the user to add the route to
+`dreamcatcher.toml` and restart the daemon, and links to the page of the
+documentation that shows how.
+
 Both show the daemon's last update, and keep showing it after the daemon
 stops, so the user can still see where things stood.
 
