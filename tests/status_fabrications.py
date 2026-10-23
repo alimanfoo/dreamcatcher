@@ -23,7 +23,12 @@ from records import (
     write_round,
     write_tick,
 )
-from rows import UNCLAIMED, compose_conversation_row, compose_request_row
+from rows import (
+    UNCLAIMED,
+    compose_campaign_row,
+    compose_conversation_row,
+    compose_request_row,
+)
 
 from dreamcatcher.agent_assignments import (
     AssignmentRoundInput,
@@ -211,19 +216,6 @@ def fabricate_conversation(
     write_final_output(directory=directory, number=1, text="The answer.")
 
 
-def compose_campaign_row(
-    *, finding: RequestFinding | None, issue: int = 60, ended_round: int | None = None
-) -> RequestRow:
-    """Return the row of the campaign that the tests write at the parent."""
-    return compose_request_row(
-        issue=issue,
-        kind=AgentWorkKind.CAMPAIGN,
-        agent_work_identifier=compose_campaign_identifier(issue=issue),
-        ended_round=ended_round,
-        finding=finding,
-    )
-
-
 def _compose_campaign_child(
     *,
     issue: int,
@@ -346,8 +338,12 @@ def fabricate_campaigns(*, state: StateDirectory) -> list[RequestRow]:
     )
     return [
         compose_campaign_row(
-            finding=CampaignFinding(new_comments=0, changed_children=0), ended_round=1
-        ).model_copy(update={"children": CAMPAIGN_CHILDREN}),
+            issue=60,
+            finding=CampaignFinding(new_comments=0, changed_children=0),
+            agent_work_identifier=compose_campaign_identifier(issue=60),
+            ended_round=1,
+            children=CAMPAIGN_CHILDREN,
+        ),
         compose_request_row(
             issue=62,
             kind=AgentWorkKind.CAMPAIGN,
