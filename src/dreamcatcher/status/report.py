@@ -206,7 +206,7 @@ class DreamcatcherStatusReport:
         if not self.daemon.is_running or run is None:
             return None
         finished = self.latest_update_finished
-        if finished is not None and finished > run.started:
+        if finished is not None and finished >= run.started:
             remaining = finished + timedelta(seconds=run.interval_seconds) - self.at
             if remaining > timedelta():
                 return StatusFact(
