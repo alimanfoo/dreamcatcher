@@ -43,6 +43,7 @@ dev = [
     "pytest>=8.0",
     "pytest-cov>=6.0",
     "pytest-playwright==0.10.0",
+    "pytest-timeout>=2.4",
     "pytest-xdist>=3.0",
     "ruff==0.17.1",
     "ty==0.0.89",
@@ -75,6 +76,11 @@ markers = [
     "integration: calls the real gh against this repository, read-only",
 ]
 filterwarnings = ["error::EncodingWarning"]
+# A test that hangs fails after two minutes, with the stack it hung in, rather
+# than holding the run until someone cancels it. The limit covers fixture
+# setup and teardown as well as the test. It bounds a hang and is no measure of
+# speed: the slowest test takes well under a minute.
+timeout = 120
 
 [tool.coverage.run]
 source = ["src"]
