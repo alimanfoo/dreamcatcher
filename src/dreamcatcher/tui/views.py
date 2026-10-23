@@ -203,7 +203,7 @@ def _render_round_statuses(
             Text(round_status.trigger.describe()),
             Text(describe_time(at=record.started, zone=zone)),
             Text(round_status.duration_description),
-            Text(round_status.outcome_description),
+            Text(round_status.listed_outcome_description),
         )
     return render_section(heading="rounds", body=table)
 

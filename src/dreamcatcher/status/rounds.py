@@ -90,6 +90,13 @@ class AgentRoundStatus:
     outcome: AgentRoundOutcome
     outcome_description: str
 
+    @property
+    def listed_outcome_description(self) -> str:
+        """Describe the outcome when a round list needs to show it."""
+        if self.outcome is AgentRoundOutcome.SUCCESSFUL:
+            return ""
+        return self.outcome_description
+
 
 def describe_running_round(
     *,

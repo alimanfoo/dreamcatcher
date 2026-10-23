@@ -129,7 +129,7 @@ def test_conversation_detail_shows_settings_session_and_round_but_no_revision(
     assert "def456" not in shown
     assert "opus[1m]" in shown
     assert "1 comment" in shown
-    assert "successful" in shown
+    assert "ran 4m" in shown
     assert "resume by hand" in shown
     assert "cd .dreamcatcher/v8/worktrees/GH8-20260819-184158-conversation" in shown
     assert "claude --resume recovered-session" in shown
