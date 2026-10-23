@@ -25,12 +25,13 @@ from records import (
     write_round,
     write_tick,
 )
-from rows import UNCLAIMED, request_row
+from rows import UNCLAIMED, compose_request_row
 from status_fabrications import (
     LOOKED_AT,
     STATUS_REPORTS,
-    conversation_row,
-    ended,
+    compose_conversation_row,
+    compose_ended_round,
+    compose_running_round,
     fabricate_a_dead_daemon,
     fabricate_a_silent_round,
     fabricate_campaign_report,
@@ -39,9 +40,8 @@ from status_fabrications import (
     fabricate_everything,
     fabricate_nothing,
     fabricate_titles_and_pull_request_states,
-    holding,
-    running,
-    written,
+    write_assignment_with_rounds,
+    write_running_daemon,
 )
 from werkzeug.serving import make_server
 from werkzeug.test import TestResponse
@@ -138,7 +138,7 @@ def _read_tail(*, state: StateDirectory, identifier: str, cursor: str) -> TestRe
     )
 
 
-def _feed_path(*, state: StateDirectory, identifier: str, number: int):
+def _find_feed_path(*, state: StateDirectory, identifier: str, number: int):
     assignment = find_agent_work(state=state, identifier=identifier)
     assert assignment is not None
     return assignment.compose_round_paths(number=number).feed
@@ -251,7 +251,7 @@ def test_a_campaign_with_no_children_to_show_says_why_and_shows_no_cards(
     children, summary, tmp_path
 ):
     state = StateDirectory(root=tmp_path)
-    holding(state=state)
+    write_running_daemon(state=state)
     campaign_row, *other_rows = fabricate_campaigns(state=state)
     write_tick(
         state=state,
@@ -291,7 +291,7 @@ def test_requests_whose_labels_differ_only_in_spacing_have_their_own_identifiers
     tmp_path,
 ):
     state = StateDirectory(root=tmp_path)
-    holding(state=state)
+    write_running_daemon(state=state)
     write_tick(
         state=state,
         tick=SchedulerRecord(
@@ -299,7 +299,7 @@ def test_requests_whose_labels_differ_only_in_spacing_have_their_own_identifiers
             rows=[
                 *fabricate_campaigns(state=state),
                 *(
-                    request_row(issue=65, label=label, finding=UNCLAIMED)
+                    compose_request_row(issue=65, label=label, finding=UNCLAIMED)
                     for label in ("test:cards one", "test:cards-one")
                 ),
             ],
@@ -448,7 +448,7 @@ def test_assignment_stop_control_needs_a_daemon_and_harness_session(tmp_path):
         issue=60,
         harness_session_identifier=None,
     )
-    write_round(directory=directory, number=1, record=running(minute=30))
+    write_round(directory=directory, number=1, record=compose_running_round(minute=30))
 
     without_session = render_assignment(state=state, identifier=identifier)
 
@@ -745,7 +745,7 @@ def test_an_unknown_assignment_cannot_receive_a_retry_request(tmp_path):
 def test_a_stopped_round_is_shown_as_stopped(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
-    written(
+    write_assignment_with_rounds(
         state=state,
         issue=61,
         records=[
@@ -766,7 +766,7 @@ def test_a_stopped_round_is_shown_as_stopped(tmp_path):
 def test_a_round_its_gone_daemon_left_unended_is_shown_as_interrupted(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_a_dead_daemon(state=state)
-    written(
+    write_assignment_with_rounds(
         state=state,
         issue=61,
         records=[AgentRoundRecord(number=1, started=PINNED, pid=1)],
@@ -800,7 +800,9 @@ def test_status_classes_do_not_depend_on_status_wording(tmp_path, monkeypatch):
     fabricate_conversation(state=state)
     fabricate_everything(
         state=state,
-        other_rows=[conversation_row(finding=IssueCommentsFinding(new_comments=0))],
+        other_rows=[
+            compose_conversation_row(finding=IssueCommentsFinding(new_comments=0))
+        ],
     )
 
     # A real rewording changes each member's string value, which patching
@@ -879,7 +881,7 @@ def test_assignment_page_polls_its_tail_from_the_last_complete_line(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
     identifier = "GH13-20260819-184158-assignment"
-    feed_path = _feed_path(state=state, identifier=identifier, number=2)
+    feed_path = _find_feed_path(state=state, identifier=identifier, number=2)
 
     page = render_assignment(state=state, identifier=identifier)
 
@@ -968,19 +970,27 @@ def test_ended_assignments_are_ordered_by_when_they_ended(tmp_path):
     state = StateDirectory(root=tmp_path)
     state.bootstrap()
     write_daemon_run(state=state, pid=DAEMON_PID)
-    written(
+    write_assignment_with_rounds(
         state=state,
         issue=10,
-        records=[ended(minute=1), ended(minute=2, number=2)],
+        records=[
+            compose_ended_round(minute=1),
+            compose_ended_round(minute=2, number=2),
+        ],
         round_inputs={2: MERGED_INPUT},
     )
-    written(
+    write_assignment_with_rounds(
         state=state,
         issue=20,
-        records=[ended(minute=1), ended(minute=20, number=2)],
+        records=[
+            compose_ended_round(minute=1),
+            compose_ended_round(minute=20, number=2),
+        ],
         round_inputs={2: MERGED_INPUT},
     )
-    written(state=state, issue=30, records=[ended(minute=1)])
+    write_assignment_with_rounds(
+        state=state, issue=30, records=[compose_ended_round(minute=1)]
+    )
     cancel_assignment(
         assignment=read_agent_work_at_issue(state=state, issue=30)[0],
         at=PINNED + timedelta(minutes=10),
@@ -1211,7 +1221,7 @@ def test_an_unknown_assignment_tail_renders_a_404_page(tmp_path):
 def test_an_invalid_tail_cursor_renders_a_400_page(tmp_path, cursor):
     state = StateDirectory(root=tmp_path)
     state.bootstrap()
-    written(state=state, issue=60, records=[])
+    write_assignment_with_rounds(state=state, issue=60, records=[])
 
     response = _read_tail(
         state=state,
@@ -1227,7 +1237,9 @@ def test_an_invalid_tail_cursor_renders_a_400_page(tmp_path, cursor):
 def test_a_tail_cursor_must_follow_a_complete_line(tmp_path, position):
     state = StateDirectory(root=tmp_path)
     state.bootstrap()
-    directory = written(state=state, issue=60, records=[running(minute=1)])
+    directory = write_assignment_with_rounds(
+        state=state, issue=60, records=[compose_running_round(minute=1)]
+    )
     write_feed(
         directory=directory,
         number=1,
@@ -1247,7 +1259,7 @@ def test_a_tail_cursor_must_follow_a_complete_line(tmp_path, position):
 def test_a_tail_before_any_round_opens_the_first_round_when_it_arrives(tmp_path):
     state = StateDirectory(root=tmp_path)
     state.bootstrap()
-    directory = written(state=state, issue=60, records=[])
+    directory = write_assignment_with_rounds(state=state, issue=60, records=[])
     identifier = "GH60-20260819-184158-assignment"
 
     waiting = _read_tail(state=state, identifier=identifier, cursor="0:0")
@@ -1256,7 +1268,7 @@ def test_a_tail_before_any_round_opens_the_first_round_when_it_arrives(tmp_path)
     assert 'value="0:0"' in waiting.text
     assert "round 1:" not in waiting.text
 
-    write_round(directory=directory, number=1, record=running(minute=1))
+    write_round(directory=directory, number=1, record=compose_running_round(minute=1))
     write_feed(
         directory=directory,
         number=1,
@@ -1274,7 +1286,9 @@ def test_a_tail_before_any_round_opens_the_first_round_when_it_arrives(tmp_path)
 def test_a_tail_returns_only_complete_lines_after_its_cursor(tmp_path):
     state = StateDirectory(root=tmp_path)
     state.bootstrap()
-    directory = written(state=state, issue=60, records=[running(minute=1)])
+    directory = write_assignment_with_rounds(
+        state=state, issue=60, records=[compose_running_round(minute=1)]
+    )
     identifier = "GH60-20260819-184158-assignment"
     first = FeedLine(at=LOOKED_AT, text="the first line")
     second = FeedLine(at=LOOKED_AT, text="the second line")
@@ -1282,7 +1296,7 @@ def test_a_tail_returns_only_complete_lines_after_its_cursor(tmp_path):
 
     first_read = _read_tail(state=state, identifier=identifier, cursor="1:0")
     cursor = _read_cursor(response=first_read)
-    feed_path = _feed_path(state=state, identifier=identifier, number=1)
+    feed_path = _find_feed_path(state=state, identifier=identifier, number=1)
     append_text(text=second.render().removesuffix("\n"), path=feed_path)
     incomplete_read = _read_tail(
         state=state,
@@ -1312,10 +1326,13 @@ def test_a_tail_returns_only_complete_lines_after_its_cursor(tmp_path):
 def test_an_ended_round_moves_to_the_next_round_after_an_empty_read(tmp_path):
     state = StateDirectory(root=tmp_path)
     state.bootstrap()
-    directory = written(
+    directory = write_assignment_with_rounds(
         state=state,
         issue=60,
-        records=[ended(minute=1), running(minute=10, number=2)],
+        records=[
+            compose_ended_round(minute=1),
+            compose_running_round(minute=10, number=2),
+        ],
     )
     identifier = "GH60-20260819-184158-assignment"
     write_feed(
@@ -1328,7 +1345,7 @@ def test_an_ended_round_moves_to_the_next_round_after_an_empty_read(tmp_path):
         number=2,
         lines=[FeedLine(at=LOOKED_AT, text="new round output")],
     )
-    first_feed = _feed_path(state=state, identifier=identifier, number=1)
+    first_feed = _find_feed_path(state=state, identifier=identifier, number=1)
 
     response = _read_tail(
         state=state,
@@ -1347,7 +1364,7 @@ def test_a_terminal_tail_returns_late_output_before_it_stops(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
     identifier = "GH12-20260819-184158-assignment"
-    feed_path = _feed_path(state=state, identifier=identifier, number=2)
+    feed_path = _find_feed_path(state=state, identifier=identifier, number=2)
     append_text(
         text=FeedLine(at=LOOKED_AT, text="late output").render(),
         path=feed_path,
@@ -1368,7 +1385,7 @@ def test_a_terminal_tail_returns_late_output_before_it_stops(tmp_path):
 def test_a_faulted_tail_keeps_polling_when_it_reads_nothing_new(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
-    feed = _feed_path(
+    feed = _find_feed_path(
         state=state, identifier="GH9-20260819-184158-assignment", number=2
     )
 
@@ -1385,7 +1402,7 @@ def test_a_tail_fragment_matches_its_golden(tmp_path, pytestconfig):
     state = StateDirectory(root=tmp_path)
     fabricate_a_silent_round(state=state)
     identifier = "GH13-20260819-184158-assignment"
-    first_feed = _feed_path(state=state, identifier=identifier, number=1)
+    first_feed = _find_feed_path(state=state, identifier=identifier, number=1)
     response = _read_tail(
         state=state,
         identifier=identifier,
@@ -1404,7 +1421,9 @@ def test_a_tail_fragment_matches_its_golden(tmp_path, pytestconfig):
 def test_a_quiet_tail_has_no_appendable_text_nodes(tmp_path):
     state = StateDirectory(root=tmp_path)
     state.bootstrap()
-    written(state=state, issue=60, records=[running(minute=1)])
+    write_assignment_with_rounds(
+        state=state, issue=60, records=[compose_running_round(minute=1)]
+    )
 
     response = _read_tail(
         state=state,
@@ -1715,7 +1734,7 @@ def test_dashboard_groups_assignment_requests_with_assignments(tmp_path):
     assert 'id="conversation-tab"' not in page
 
 
-def test_each_scheduler_failure_is_listed_apart_from_the_facts(tmp_path):
+def test_a_scheduler_failure_is_listed_apart_from_the_facts(tmp_path):
     state = StateDirectory(root=tmp_path)
     WEB_STATUS_REPORTS["at-cap"](state=state)
 
@@ -1725,9 +1744,8 @@ def test_each_scheduler_failure_is_listed_apart_from_the_facts(tmp_path):
     failures = page[page.index('<section class="scheduler-failures"') :]
     assert "<dt>agent capacity</dt>" in facts
     assert "scheduler failures" not in facts
-    assert failures.count("<li>") == 2
-    assert "<li>could not list issues for dream:smith: " in failures
-    assert "<li>could not list issues for dream:less: " in failures
+    assert failures.count("<li>") == 1
+    assert "<li>could not list issues: " in failures
 
 
 def test_next_update_is_left_out_when_no_daemon_is_running(tmp_path):

@@ -2,7 +2,7 @@ import sys
 from unittest.mock import Mock
 
 import pytest
-from conftest import gone
+from conftest import wait_for_exit
 
 from dreamcatcher import teardown
 from dreamcatcher.commands import CommandError, spawn_command
@@ -25,23 +25,23 @@ def handles(monkeypatch):
     closed: list[int] = []
     create_job_object = win32job.CreateJobObject
 
-    def creating(attributes, name, /):
+    def create_and_record_job(attributes, name, /):
         """Stand in for CreateJobObject, which teardown calls by position."""
         job = create_job_object(attributes, name)
         opened.append(int(job))
         return job
 
-    monkeypatch.setattr(win32job, "CreateJobObject", creating)
+    monkeypatch.setattr(win32job, "CreateJobObject", create_and_record_job)
     for name in ("OpenProcess", "OpenThread"):
         record_opening(monkeypatch=monkeypatch, name=name, opened=opened)
     close_handle = win32api.CloseHandle
 
-    def closing(handle, /):
+    def close_and_record_handle(handle, /):
         """Stand in for CloseHandle, which teardown calls by position."""
         closed.append(int(handle))
         close_handle(handle)
 
-    monkeypatch.setattr(win32api, "CloseHandle", closing)
+    monkeypatch.setattr(win32api, "CloseHandle", close_and_record_handle)
     return opened, closed
 
 
@@ -49,13 +49,13 @@ def record_opening(*, monkeypatch, name, opened):
     """Record each handle that the win32api function name opens."""
     open_handle = getattr(win32api, name)
 
-    def opening(access, is_inheritable, identifier, /):
+    def open_and_record_handle(access, is_inheritable, identifier, /):
         """Stand in for the function, which teardown calls by position."""
         handle = open_handle(access, is_inheritable, identifier)
         opened.append(int(handle))
         return handle
 
-    monkeypatch.setattr(win32api, name, opening)
+    monkeypatch.setattr(win32api, name, open_and_record_handle)
 
 
 @pytest.mark.parametrize(
@@ -92,7 +92,7 @@ def test_a_child_whose_containment_fails_never_runs(
             cwd=tmp_path,
         )
 
-    assert gone(pid=contained[0])
+    assert wait_for_exit(pid=contained[0])
     assert not mark.exists()
     opened, closed = handles
     assert sorted(closed) == sorted(opened)

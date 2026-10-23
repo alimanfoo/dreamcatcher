@@ -29,6 +29,11 @@ the change.
 
 ### Changed
 
+- Each update lists the open issues assigned to the signed-in account
+  once, whatever the number of routes, rather than once for each
+  dispatch label. A failed listing now starts no new work of any kind,
+  and shows as one scheduler failure.
+  ([#726](https://github.com/alimanfoo/dreamcatcher/pull/726))
 - Once an assignment completes, or a conversation or campaign ends with
   its issue, the next update removes its worktree, and an assignment's
   local branch, to free the disk. Its record stays, so the home page,

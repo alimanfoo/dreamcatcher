@@ -78,15 +78,10 @@ _REQUEST_INSPECTORS: dict[AgentWorkKind, RequestInspector] = {
 
 @dataclass(frozen=True, kw_only=True)
 class _IssueListing:
-    """Collect the listed issues, oldest first, and the listings that failed.
-
-    The assignment failure is the first of the failures that listed under an
-    assignment label.
-    """
+    """Hold the listed issues, oldest first, or why the listing failed."""
 
     issues: list[Issue]
-    failures: list[str]
-    assignment_failure: str | None
+    failure: str | None
 
 
 @dataclass(kw_only=True)
@@ -118,8 +113,8 @@ class Scheduler:
         assignments and conversations, and the second pass the campaigns. Each
         pass inspects open work first, in identifier order, then the requests
         with no open work, in listing order, and within each kind that is the
-        order in which candidates start. A failed listing starts no work for an
-        issue that no other listing returns, and leaves open work inspected.
+        order in which candidates start. A failed listing starts no new work of
+        any kind, and leaves open work inspected.
 
         A global cooldown prevents every launch but does not prevent reads, so
         the rows remain current while the cooldown is active. Nor does it
@@ -176,7 +171,7 @@ class Scheduler:
         record = SchedulerRecord(
             at=at,
             failures=[
-                *listing.failures,
+                *([] if listing.failure is None else [listing.failure]),
                 *self._remove_ended_worktrees(watched_work=watched_work),
             ],
             rows=[inspection.row for inspection in inspections],
@@ -222,30 +217,17 @@ class Scheduler:
         return failures
 
     def _list_issues(self) -> _IssueListing:
-        """List the open issues assigned to the account under every dispatch label."""
-        issues_by_number: dict[int, Issue] = {}
-        failures: list[str] = []
-        assignment_failure = None
-        for route in self.context.config.routes:
-            listed = list_issues(
-                repository=self.context.repository,
-                label=route.label,
-                assignee=self.context.account,
+        """List the open issues assigned to the account, whatever their labels."""
+        listed = list_issues(
+            repository=self.context.repository, assignee=self.context.account
+        )
+        if isinstance(listed, UnknownGitHubResponse):
+            return _IssueListing(
+                issues=[], failure=f"could not list issues: {listed.reason}"
             )
-            if isinstance(listed, UnknownGitHubResponse):
-                failure = f"could not list issues for {route.label}: {listed.reason}"
-                failures.append(failure)
-                if route.kind is AgentWorkKind.ASSIGNMENT:
-                    assignment_failure = assignment_failure or failure
-            else:
-                issues_by_number.update((issue.number, issue) for issue in listed)
         return _IssueListing(
-            issues=sorted(
-                issues_by_number.values(),
-                key=lambda issue: (issue.created_at, issue.number),
-            ),
-            failures=failures,
-            assignment_failure=assignment_failure,
+            issues=sorted(listed, key=lambda issue: (issue.created_at, issue.number)),
+            failure=None,
         )
 
     def _inspect(
@@ -517,5 +499,5 @@ def _observe_assignments(
             for inspection in inspections
             if inspection.row.kind is AgentWorkKind.ASSIGNMENT
         },
-        listing_failure=listing.assignment_failure,
+        listing_failure=listing.failure,
     )

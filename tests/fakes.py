@@ -125,7 +125,7 @@ class Fake:
                 directory=Path(taken["directory"]),
                 prompt=taken["prompt"],
             )
-            for taken in _lines(path=_taken(base=self.base))
+            for taken in _read_json_lines(path=_compose_calls_path(base=self.base))
         ]
 
     def _answer(
@@ -138,7 +138,7 @@ class Fake:
         final_output: str | None = None,
     ) -> None:
         _append(
-            path=_scripted(base=self.base),
+            path=_compose_script_path(base=self.base),
             line={
                 "when": to.split(),
                 "lines": [asdict(line) for line in lines],
@@ -149,7 +149,7 @@ class Fake:
         )
 
 
-def recorded(*, path: Path) -> list[Line]:
+def read_recorded_lines(*, path: Path) -> list[Line]:
     """Return the recording at path as the lines a harness streams to stdout."""
     return [
         Line(text=text)
@@ -197,14 +197,14 @@ def replay(*, base: Path, arguments: list[str]) -> int:
     # UTF-8 whatever the console's own code page is, since whoever wrote the
     # prompt wrote it as UTF-8.
     _append(
-        path=_taken(base=base),
+        path=_compose_calls_path(base=base),
         line={
             "arguments": arguments,
             "directory": str(Path.cwd()),
             "prompt": sys.stdin.buffer.read().decode("utf-8"),
         },
     )
-    answer = _scripted_for(base=base, arguments=arguments)
+    answer = _find_scripted_answer(base=base, arguments=arguments)
     if answer is None:
         sys.stderr.write(f"{base.name} was not scripted, and it was asked.\n")
         return UNSCRIPTED
@@ -223,12 +223,12 @@ def replay(*, base: Path, arguments: list[str]) -> int:
     return int(answer["status"])
 
 
-def _scripted(*, base: Path) -> Path:
+def _compose_script_path(*, base: Path) -> Path:
     """The file holding what the stand-in was scripted to answer, a rule a line."""
     return base.with_name(f"{base.name}.scripted.jsonl")
 
 
-def _scripted_for(*, base: Path, arguments: list[str]) -> dict | None:
+def _find_scripted_answer(*, base: Path, arguments: list[str]) -> dict | None:
     """Return the rule answering this call, or none when no rule answers it.
 
     A rule answers a call whose arguments open with the rule's own words, and
@@ -240,7 +240,7 @@ def _scripted_for(*, base: Path, arguments: list[str]) -> dict | None:
     """
     answering = [
         rule
-        for rule in reversed(_lines(path=_scripted(base=base)))
+        for rule in reversed(_read_json_lines(path=_compose_script_path(base=base)))
         if arguments[: len(rule["when"])] == rule["when"]
     ]
     if not answering:
@@ -248,7 +248,7 @@ def _scripted_for(*, base: Path, arguments: list[str]) -> dict | None:
     return max(answering, key=lambda rule: len(rule["when"]))
 
 
-def _taken(*, base: Path) -> Path:
+def _compose_calls_path(*, base: Path) -> Path:
     """The file holding the calls the stand-in took."""
     return base.with_name(f"{base.name}.taken.jsonl")
 
@@ -259,7 +259,7 @@ def _append(*, path: Path, line: dict) -> None:
         opened.write(json.dumps(line) + "\n")
 
 
-def _lines(*, path: Path) -> list[dict]:
+def _read_json_lines(*, path: Path) -> list[dict]:
     """Return the JSON lines the file at path holds, or none when it is not there."""
     if not path.exists():
         return []

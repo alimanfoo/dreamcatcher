@@ -54,9 +54,7 @@ def test_this_repository_holds_its_dispatch_labels():
 
 
 def test_gh_takes_the_whole_issue_listing_command():
-    assert isinstance(
-        list_issues(repository=REPOSITORY, label="dream:smith", assignee="@me"), list
-    )
+    assert isinstance(list_issues(repository=REPOSITORY, assignee="@me"), list)
 
 
 def test_a_merged_pull_request_is_found_on_its_branch():
