@@ -15,5 +15,5 @@ assignment
   effort                      xhigh                                                     
 
 rounds
-  2  1 post  2026-08-20 03:11:58          running   
-  1  start   2026-08-20 02:42:58  ran 4m  successful
+  2  1 post  2026-08-20 03:11:58          running
+  1  start   2026-08-20 02:42:58  ran 4m         

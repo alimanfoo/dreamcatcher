@@ -218,7 +218,7 @@ def _render_round_statuses(
             [
                 Text(describe_time(at=record.started, zone=zone)),
                 Text(round_status.duration_description),
-                Text(round_status.outcome_description),
+                Text(round_status.listed_outcome_description),
             ]
         )
         table.add_row(*cells)

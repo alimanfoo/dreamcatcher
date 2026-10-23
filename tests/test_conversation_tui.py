@@ -127,7 +127,7 @@ def test_conversation_detail_shows_settings_revision_session_and_round(tmp_path)
     assert "def456" in shown
     assert "opus[1m]" in shown
     assert "1 comment" in shown
-    assert "successful" in shown
+    assert "ran 4m" in shown
     assert "resume by hand" in shown
     assert "cd .dreamcatcher/v7/worktrees/GH8-20260819-184158-conversation" in shown
     assert "claude --resume recovered-session" in shown

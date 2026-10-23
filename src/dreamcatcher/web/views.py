@@ -245,7 +245,7 @@ def _compose_agent_rounds(
             started=describe_time(at=round_status.record.started, zone=zone),
             duration=round_status.duration_description,
             outcome=str(round_status.outcome),
-            outcome_description=round_status.outcome_description,
+            outcome_description=round_status.listed_outcome_description,
             revision=round_status.revision,
         )
         for round_status in round_statuses

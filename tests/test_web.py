@@ -1475,6 +1475,15 @@ def test_assignment_rounds_link_to_the_feed_in_ascending_order(tmp_path):
     assert 'src="/static/agent-work.js"' in page
 
 
+def test_a_successful_round_has_no_outcome_in_its_row(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    fabricate_everything(state=state)
+
+    page = render_assignment(state=state, identifier="GH13-20260819-184158-assignment")
+
+    assert 'class="round-outcome outcome-successful"' not in page
+
+
 def test_an_errored_rounds_style_uses_its_outcome_alone(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
