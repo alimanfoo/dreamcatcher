@@ -20,6 +20,7 @@ from conftest import (
     compose_pull_request,
     compose_stream_line,
     configure,
+    offer_listing,
     run_git,
 )
 from fakes import Line
@@ -150,14 +151,6 @@ def compose_parent_issue(
     }
 
 
-def list_parents(*, gh, label: str = LABEL, issues: list[dict]) -> None:
-    """Have GitHub list these issues under the label."""
-    gh.replies(
-        stdout=json.dumps(issues),
-        to=f"issue list --repo {REPOSITORY} --assignee {POSTED_BY} --label {label}",
-    )
-
-
 def show_parent(*, gh, issue: dict) -> None:
     """Have GitHub answer a read of the parent with this."""
     gh.replies(
@@ -170,9 +163,9 @@ def show_parent(*, gh, issue: dict) -> None:
 
 
 def offer_parent(*, gh, issue: dict | None = None) -> None:
-    """Have GitHub list the parent under the campaign label and show it."""
+    """Have GitHub list the parent and show it."""
     issue = compose_parent_issue() if issue is None else issue
-    list_parents(gh=gh, issues=[issue])
+    offer_listing(gh=gh, issues=[issue])
     show_parent(gh=gh, issue=issue)
 
 
@@ -560,7 +553,7 @@ def test_a_closed_parent_ends_the_campaign_once_its_round_finishes(
     script_lead_turn(harnesses=harnesses, delay=10)
     tick(scheduler=scheduler)
     closed = compose_parent_issue(state="CLOSED")
-    list_parents(gh=gh, issues=[])
+    offer_listing(gh=gh, issues=[])
     show_parent(gh=gh, issue=closed)
 
     while_running = tick(scheduler=scheduler)
@@ -654,8 +647,7 @@ def test_two_campaign_labels_on_a_parent_are_a_routing_conflict(
     )
     scheduler = create_scheduler(root=scheduler.context.state.root)
     both = compose_parent_issue(labels=(LABEL, "dream:steward"))
-    for label in (LABEL, "dream:steward"):
-        list_parents(gh=gh, label=label, issues=[both])
+    offer_listing(gh=gh, issues=[both])
 
     observed = tick(scheduler=scheduler)
 
@@ -831,7 +823,7 @@ def test_the_three_kinds_take_turns_for_free_slots(cloned_repo, gh, harnesses):
         )
     offer_parent(gh=gh)
     conversation = compose_parent_issue(labels=("dream:conversation",), number=8)
-    list_parents(gh=gh, label="dream:conversation", issues=[conversation])
+    offer_listing(gh=gh, issues=[compose_parent_issue(), conversation])
     gh.replies(
         stdout=compose_page(items=[compose_comment(id=1, body="Please explain.")]),
         to=f"api repos/{REPOSITORY}/issues/8/comments?per_page=100",
@@ -851,6 +843,52 @@ def test_the_three_kinds_take_turns_for_free_slots(cloned_repo, gh, harnesses):
         "GH14",
     ]
     assert len(observed.launched_agent_work_identifiers) == 4
+
+
+def test_one_listing_finds_the_requests_of_every_kind(cloned_repo, gh):
+    configure(root=cloned_repo, head=CONVERSATION_CLAUDE + CAMPAIGN_CLAUDE)
+    scheduler = create_scheduler(root=cloned_repo)
+    scheduler.max_agents = 0
+    offer_listing(
+        gh=gh,
+        issues=[
+            compose_parent_issue(labels=(SMITH,), number=13),
+            compose_parent_issue(labels=("dream:conversation",), number=8),
+            compose_parent_issue(),
+        ],
+    )
+
+    observed = tick(scheduler=scheduler)
+
+    assert [(row.kind, row.issue) for row in observed.rows] == [
+        (AgentWorkKind.CONVERSATION, 8),
+        (AgentWorkKind.ASSIGNMENT, 13),
+        (AgentWorkKind.CAMPAIGN, PARENT),
+    ]
+    listings = [call for call in gh.calls if call.arguments[:2] == ["issue", "list"]]
+    assert len(listings) == 1
+
+
+def test_a_failed_listing_starts_no_request_of_any_kind(cloned_repo, gh, harnesses):
+    configure(root=cloned_repo, head=CONVERSATION_CLAUDE + CAMPAIGN_CLAUDE)
+    scheduler = create_scheduler(root=cloned_repo)
+    offer_listing(
+        gh=gh,
+        issues=[
+            compose_parent_issue(labels=(SMITH,), number=13),
+            compose_parent_issue(labels=("dream:conversation",), number=8),
+            compose_parent_issue(),
+        ],
+    )
+    gh.fails(stderr="gh: could not connect to github.com", to="issue list")
+
+    observed = tick(scheduler=scheduler)
+
+    assert observed.failures == [
+        "could not list issues: gh issue list: gh: could not connect to github.com"
+    ]
+    assert observed.rows == []
+    assert harnesses["claude"].calls == []
 
 
 def test_a_codex_lead_works_under_codexs_reviewer_without_a_final_file(
@@ -1421,10 +1459,12 @@ def test_a_child_whose_assignment_may_start_has_work_due(campaign_scheduler, har
     settle_lead(state=scheduler.context.state)
     offer_parent(gh=gh)
     offer_children(gh=gh, children=[compose_sub_issue(number=FIRST_CHILD)])
-    list_parents(
+    offer_listing(
         gh=gh,
-        label=SMITH,
-        issues=[compose_parent_issue(labels=(SMITH,), number=FIRST_CHILD)],
+        issues=[
+            compose_parent_issue(),
+            compose_parent_issue(labels=(SMITH,), number=FIRST_CHILD),
+        ],
     )
     scheduler.rounds["busy-assignment"] = Mock(is_alive=True)
 
@@ -1641,13 +1681,10 @@ def fail_to_read_the_childs_pull_request(*, gh) -> None:
     gh.fails(stderr="gh: could not connect to github.com", to="pr view")
 
 
-def fail_to_list_assignment_requests(*, gh) -> None:
-    """Have the listing under the assignment label fail."""
+def fail_to_list_issues(*, gh) -> None:
+    """Have the listing of the open issues assigned to the account fail."""
     offer_children(gh=gh, children=[compose_sub_issue(number=FIRST_CHILD)])
-    gh.fails(
-        stderr="gh: could not connect to github.com",
-        to=f"issue list --repo {REPOSITORY} --assignee {POSTED_BY} --label {SMITH}",
-    )
+    gh.fails(stderr="gh: could not connect to github.com", to="issue list")
 
 
 def offer_a_foreign_child(*, gh) -> None:
@@ -1672,9 +1709,9 @@ def offer_a_foreign_child(*, gh) -> None:
             "could not observe sub-issue 21: gh pr view 52: gh: could not connect",
         ),
         (
-            fail_to_list_assignment_requests,
+            fail_to_list_issues,
             False,
-            "could not observe sub-issue 21: could not list issues for dream:smith",
+            "could not observe sub-issue 21: could not list issues: gh issue list: ",
         ),
     ],
 )

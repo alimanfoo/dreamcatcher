@@ -26,9 +26,10 @@ from dreamcatcher.documents import ReadOnlyList
 from dreamcatcher.errors import ReportableError
 
 # gh lists thirty of anything unless you tell it otherwise, and thirty issues is
-# a number a busy repository passes. Asking for five hundred keeps the tool from
-# dropping work it can see. Only the issue listing needs it: a branch has one
-# pull request, near enough.
+# a number a busy repository passes. The issue listing asks for five hundred,
+# counted over every open issue assigned to the account, labelled or not, so an
+# account assigned more than that may have work left out. Only the issue listing
+# needs a limit: a branch has one pull request, near enough.
 _ISSUE_LISTING_LIMIT = "500"
 
 # How many of a paginated list to ask GitHub for at a time. gh reads every page
@@ -577,9 +578,9 @@ def create_label(*, repository: str, name: str, description: str) -> None:
 
 
 def list_issues(
-    *, repository: str, label: str, assignee: str
+    *, repository: str, assignee: str
 ) -> list[Issue] | UnknownGitHubResponse:
-    """Return the repository's open issues carrying label and assigned to assignee."""
+    """Return the repository's open issues assigned to assignee, up to the limit."""
     return _read_github_response(
         response_adapter=_GITHUB_ISSUE_LIST_RESPONSE_ADAPTER,
         arguments=[
@@ -589,8 +590,6 @@ def list_issues(
             repository,
             "--assignee",
             assignee,
-            "--label",
-            label,
             "--state",
             "open",
             "--limit",

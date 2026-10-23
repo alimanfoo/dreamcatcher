@@ -15,10 +15,11 @@ from conftest import (
     POSTED_BY,
     PULL_REQUEST,
     REPOSITORY,
+    compose_assignment_issues,
     compose_blocker,
-    compose_issue_listing,
     compose_page,
     compose_pull_request,
+    offer_listing,
 )
 from records import read_assignments, write_assignment
 from rows import UNCLAIMED, compose_request_row
@@ -52,7 +53,7 @@ def compose_config(*, labels: Sequence[str]) -> DreamcatcherConfig:
 def gh(fake):
     """Return gh listing one open, assigned issue that nothing claims or blocks."""
     stand_in = fake(program="gh")
-    stand_in.replies(stdout=compose_issue_listing(issues=[(8, FILED)]), to="issue list")
+    offer_listing(gh=stand_in, issues=compose_assignment_issues(filed=[(8, FILED)]))
     stand_in.replies(
         stdout=json.dumps(
             {
@@ -107,8 +108,8 @@ def test_an_issue_nothing_claims_or_blocks_is_a_clear_request(gh, state):
 
 
 def test_requests_are_ordered_oldest_issue_first(gh, state):
-    gh.replies(
-        stdout=compose_issue_listing(issues=[(8, LATER), (3, FILED)]), to="issue list"
+    offer_listing(
+        gh=gh, issues=compose_assignment_issues(filed=[(8, LATER), (3, FILED)])
     )
 
     rows = list_request_rows(
@@ -126,31 +127,6 @@ def test_a_listing_failure_leaves_no_rows_and_is_a_failure(gh, state):
     assert found.rows == []
     [failure] = found.failures
     assert "could not connect" in failure
-
-
-def test_a_later_route_failure_keeps_the_rows_of_earlier_routes(gh, state):
-    gh.replies(
-        stdout=compose_issue_listing(issues=[(8, FILED)]),
-        to=(
-            f"issue list --repo {REPOSITORY} --assignee {POSTED_BY} "
-            f"--label {ASSIGNMENT_LABEL}"
-        ),
-    )
-    gh.fails(
-        stderr="gh: could not connect to github.com",
-        to=(
-            f"issue list --repo {REPOSITORY} --assignee {POSTED_BY} --label dream:less"
-        ),
-    )
-
-    found = list_requests(
-        state=state,
-        config=compose_config(labels=[ASSIGNMENT_LABEL, "dream:less"]),
-    )
-
-    [failure] = found.failures
-    assert "could not connect" in failure
-    assert [row.issue for row in found.rows] == [8]
 
 
 def test_a_request_names_the_open_issues_that_block_it(gh, state):
@@ -251,9 +227,9 @@ def test_a_cancelled_assignments_pull_request_claims_its_issue(gh, state):
 
 
 def test_each_of_two_assignment_labels_is_a_request_with_conflicting_labels(gh, state):
-    issue = json.loads(compose_issue_listing(issues=[(8, FILED)]))[0]
+    [issue] = compose_assignment_issues(filed=[(8, FILED)])
     issue["labels"] = [{"name": ASSIGNMENT_LABEL}, {"name": "dream:less"}]
-    gh.replies(stdout=json.dumps([issue]), to="issue list")
+    offer_listing(gh=gh, issues=[issue])
 
     rows = list_request_rows(
         state=state,
@@ -265,7 +241,7 @@ def test_each_of_two_assignment_labels_is_a_request_with_conflicting_labels(gh, 
         ("dream:less", conflict),
         (ASSIGNMENT_LABEL, conflict),
     ]
-    assert [call.arguments[:2] for call in gh.calls] == [["issue", "list"]] * 2
+    assert [call.arguments[:2] for call in gh.calls] == [["issue", "list"]]
 
 
 @pytest.mark.parametrize("read", ["issue view", "api"])

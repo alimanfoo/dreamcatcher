@@ -607,7 +607,7 @@ def fabricate_a_dead_daemon(*, state):
 
 
 def fabricate_the_cap(*, state):
-    """Write a daemon at its cap whose latest tick also failed to list issues twice."""
+    """Write a daemon at its cap whose latest tick also failed to list issues."""
     write_running_daemon(state=state)
     current = compose_running_round(minute=30)
     directory = write_assignment_with_rounds(state=state, issue=13, records=[current])
@@ -624,11 +624,8 @@ def fabricate_the_cap(*, state):
         tick=SchedulerRecord(
             at=PINNED + timedelta(hours=1, minutes=58),
             failures=[
-                "could not list issues for dream:smith: gh issue list: "
+                "could not list issues: gh issue list: "
                 'Post "https://api.github.com/graphql": unexpected EOF',
-                "could not list issues for dream:less: gh issue list: "
-                'Post "https://api.github.com/graphql": net/http: TLS handshake '
-                "timeout",
             ],
             rows=[
                 _compose_assignment_row(

@@ -156,7 +156,7 @@ def test_a_listing_carries_each_issue_and_when_it_was_filed(fake):
     }
     gh.replies(stdout=json.dumps([issue]))
 
-    found = list_issues(repository=REPOSITORY, label="dream:smith", assignee="@me")
+    found = list_issues(repository=REPOSITORY, assignee="@me")
 
     assert found == [
         Issue(
@@ -176,8 +176,6 @@ def test_a_listing_carries_each_issue_and_when_it_was_filed(fake):
         REPOSITORY,
         "--assignee",
         "@me",
-        "--label",
-        "dream:smith",
         "--state",
         "open",
         "--limit",
@@ -801,9 +799,7 @@ def test_a_recorded_inline_comment_carries_the_diff_it_was_written_against(
         ),
         pytest.param(_identify_github_account, id="the account"),
         pytest.param(
-            lambda: list_issues(
-                repository=REPOSITORY, label="dream:smith", assignee="@me"
-            ),
+            lambda: list_issues(repository=REPOSITORY, assignee="@me"),
             id="a listing",
         ),
         pytest.param(lambda: read_issue(repository=REPOSITORY, issue=9), id="an issue"),
@@ -848,7 +844,7 @@ def test_a_failed_read_names_its_command_without_the_options(fake):
     gh = fake(program="gh")
     gh.fails(stderr="gh: could not connect to github.com")
 
-    answered = list_issues(repository=REPOSITORY, label="dream:smith", assignee="@me")
+    answered = list_issues(repository=REPOSITORY, assignee="@me")
 
     assert answered == UnknownGitHubResponse(
         reason="gh issue list: gh: could not connect to github.com"
@@ -880,7 +876,7 @@ def test_a_read_gh_answers_strangely_is_unknown_too(fake):
     gh = fake(program="gh")
     gh.replies(stdout=json.dumps({"number": 8}))
 
-    answered = list_issues(repository=REPOSITORY, label="dream:smith", assignee="@me")
+    answered = list_issues(repository=REPOSITORY, assignee="@me")
 
     assert isinstance(answered, UnknownGitHubResponse)
     assert answered.reason.startswith(

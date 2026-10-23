@@ -15,13 +15,13 @@ from conftest import (
     POSTED_BY,
     PULL_REQUEST,
     REPOSITORY,
-    SMITH_CLAUDE,
+    compose_assignment_issues,
     compose_comment,
-    compose_issue_listing,
     compose_page,
     compose_pull_request,
     compose_pull_request_listing,
     configure,
+    offer_listing,
     run_git,
 )
 from fakes import Line
@@ -297,11 +297,11 @@ def test_a_new_assignments_round_records_what_caused_it_and_what_it_said(
 def test_a_tick_fills_free_capacity_with_available_issues(
     ready_repo, gh_with_available_issue
 ):
-    gh_with_available_issue.replies(
-        stdout=compose_issue_listing(
-            issues=[(8, FILED), (9, LATER), (10, "2026-08-21T01:00:00Z")]
+    offer_listing(
+        gh=gh_with_available_issue,
+        issues=compose_assignment_issues(
+            filed=[(8, FILED), (9, LATER), (10, "2026-08-21T01:00:00Z")]
         ),
-        to="issue list",
     )
     scheduler, clock = create_scheduler(root=ready_repo, max_agents=2)
 
@@ -338,15 +338,11 @@ def test_a_tick_fills_free_capacity_with_available_issues(
 def test_a_failed_launch_goes_on_to_the_next_candidate(
     ready_repo, gh_with_available_issue, monkeypatch
 ):
-    gh_with_available_issue.replies(
-        stdout=compose_issue_listing(
-            issues=[
-                (8, FILED),
-                (9, LATER),
-                (10, "2026-08-21T01:00:00Z"),
-            ]
+    offer_listing(
+        gh=gh_with_available_issue,
+        issues=compose_assignment_issues(
+            filed=[(8, FILED), (9, LATER), (10, "2026-08-21T01:00:00Z")]
         ),
-        to="issue list",
     )
     scheduler, clock = create_scheduler(root=ready_repo, max_agents=3)
 
@@ -500,8 +496,9 @@ def test_a_tick_at_the_cap_refreshes_the_candidates(
     harnesses["claude"].streams(
         lines=[Line(text="still working\n")], delay=STILL_RUNNING
     )
-    gh_with_available_issue.replies(
-        stdout=compose_issue_listing(issues=[(8, FILED), (9, LATER)]), to="issue list"
+    offer_listing(
+        gh=gh_with_available_issue,
+        issues=compose_assignment_issues(filed=[(8, FILED), (9, LATER)]),
     )
     scheduler, clock = create_scheduler(root=ready_repo)
 
@@ -543,7 +540,7 @@ def test_a_tick_at_the_cap_records_a_candidate_listing_failure(
 
     assert scheduler.is_at_capacity
     failure = find_sole_failure(observed=observed)
-    assert failure.startswith("could not list issues for dream:smith: ")
+    assert failure.startswith("could not list issues: ")
     assert "could not connect" in failure
     assert observed.rows == [
         compose_request_row(
@@ -785,7 +782,7 @@ def test_an_assignment_with_nothing_new_reads_only_its_pull_request_and_posts(
     assigned_checkout, gh
 ):
     write_assignment_round(root=assigned_checkout, number=1)
-    gh.replies(stdout=compose_issue_listing(issues=[(13, FILED)]), to="issue list")
+    offer_listing(gh=gh, issues=compose_assignment_issues(filed=[(13, FILED)]))
     gh.replies(stdout=compose_pull_request(state="OPEN"), to="pr view")
     scheduler, clock = create_scheduler(root=assigned_checkout)
 
@@ -1369,10 +1366,9 @@ def test_open_work_is_carried_on_before_a_new_issue_is_assigned(
     ]
 
 
-def test_a_failed_issue_listing_starts_nothing_for_its_label_alone(
+def test_a_failed_issue_listing_starts_no_new_work_but_carries_on_open_work(
     ready_repo, gh_with_available_issue
 ):
-    configure(root=ready_repo, head=SMITH_CLAUDE.replace("dream:smith", "dream:less"))
     write_assignment(
         state=StateDirectory(root=ready_repo),
         identifier=ASSIGNMENT_ID,
@@ -1380,20 +1376,16 @@ def test_a_failed_issue_listing_starts_nothing_for_its_label_alone(
     )
     write_assignment_round(root=ready_repo, number=1, status=1)
     gh_with_available_issue.fails(
-        stderr="gh: could not connect to github.com",
-        to=f"issue list --repo {REPOSITORY} --assignee {POSTED_BY} --label dream:less",
+        stderr="gh: could not connect to github.com", to="issue list"
     )
     scheduler, clock = create_scheduler(root=ready_repo, max_agents=2)
 
     observed = scheduler.tick(at=clock())
 
-    assert "could not list issues for dream:less" in find_sole_failure(
-        observed=observed
+    assert find_sole_failure(observed=observed) == (
+        "could not list issues: gh issue list: gh: could not connect to github.com"
     )
-    assert observed.launched_agent_work_identifiers == [
-        ASSIGNMENT_ID,
-        CREATED_ASSIGNMENT_ID,
-    ]
+    assert observed.launched_agent_work_identifiers == [ASSIGNMENT_ID]
     assert observed.rows == [
         compose_request_row(
             issue=13,
@@ -1401,13 +1393,7 @@ def test_a_failed_issue_listing_starts_nothing_for_its_label_alone(
             ended_round=1,
             finding=NOTHING_NEW,
             started_round=StartedRound(number=2),
-        ),
-        compose_request_row(
-            issue=8,
-            agent_work_identifier=CREATED_ASSIGNMENT_ID,
-            finding=UNCLAIMED,
-            started_round=StartedRound(number=1),
-        ),
+        )
     ]
 
 
@@ -1463,7 +1449,7 @@ def test_a_cooldown_reports_an_issue_listing_failure(
 
     failure = find_sole_failure(observed=observed)
     assert observed.cooldown is not None
-    assert "could not list issues for dream:smith" in failure
+    assert "could not list issues" in failure
     assert "could not connect" in failure
 
 

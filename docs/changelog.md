@@ -27,6 +27,14 @@ the change.
 
 ## Unreleased
 
+### Changed
+
+- Each update lists the open issues assigned to the signed-in account
+  once, whatever the number of routes, rather than once for each
+  dispatch label. A failed listing now starts no new work of any kind,
+  and shows as one scheduler failure.
+  ([#726](https://github.com/alimanfoo/dreamcatcher/pull/726))
+
 ## [v8.0.0](https://github.com/alimanfoo/dreamcatcher/releases/tag/v8.0.0) — 2026-10-23
 
 ### Breaking
