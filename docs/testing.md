@@ -50,7 +50,12 @@ Terminal and HTML views are compared as exact rendered text with files
 under `tests/fixtures/`. These goldens make intended presentation
 changes explicit and catch missing, reordered or unexpectedly escaped
 content. They do not by themselves prove browser layout or interaction.
-Separate browser tests cover layout and interaction in Chromium.
+A browser test covers only what needs a real browser to observe: script
+behaviour, a dialog, focus, scroll position, state kept across a
+refresh, or computed style and layout. Anything the page says, such as
+which rows appear, their order, their text, or what a control requests,
+is tested without a browser, in `tests/test_web.py`,
+`tests/test_conversation_web.py` or the rendered-view goldens.
 
 ## Separate test groups
 
@@ -63,6 +68,32 @@ repository. They are read-only, require `gh` authentication, and are
 deliberately outside the default suite and CI. They establish that the
 GitHub commands and response projections still match the live service,
 but only for the repository facts they read.
+
+## Hung tests
+
+Every test in every group has two minutes to finish, counting its
+fixture setup and teardown. A session-scoped fixture counts against the
+first test that uses it. The limit is there to end a run that has hung,
+not to measure speed.
+
+Ten seconds before the limit, pytest writes the stack of every thread to
+standard error. When the limit passes, `pytest-timeout` ends the test.
+
+On Linux and macOS it fails the test with the stack where the test hung.
+The fixture teardown then runs with no limit, and the run carries on
+unless the teardown hangs as well.
+
+On Windows it ends the process that runs the test. In the default run
+that process is an xdist worker, and the report says that the worker
+crashed while it ran the hung test, which the report names. The stack
+that pytest wrote ten seconds before is the only one that shows. The run
+carries on in a new worker, but the fixture teardown of the hung test
+never runs, and the coverage gate fails as well, because the
+measurements of the ended worker are lost. With `-n 0` the process is
+pytest itself, so the whole run ends there.
+
+To debug a test without the limit, pass
+`--timeout=0 -o faulthandler_timeout=0`.
 
 ## What CI runs
 

@@ -378,6 +378,17 @@ stay expanded until the user folds them. Once the campaign ends, it
 moves to the ended list with its own card alone, and the user goes to
 GitHub for the history.
 
+Several stages may have open pull requests at once. The user uses a
+merge queue when GitHub offers one for the repository, so each stage is
+tested against current main when its turn to merge comes. Otherwise,
+they leave "Require branches to be up to date before merging" off. If it
+were on, every merge would leave every other stage behind, waking each
+stage's agent to merge main, running its checks again and waking the
+lead for the new head, though only one stage can merge next. With it
+off, a stage that falls behind without conflicting still merges cleanly,
+and a stage that conflicts still wakes its agent to bring the branch up
+to date.
+
 When the user is satisfied, they close the parent, and the campaign ends
 once any round that is still running finishes. If they reopen the parent
 with its label still on, a new campaign starts.
@@ -415,7 +426,7 @@ the comment, and any others the user has posted since its last round, in
 the same harness session, so it remembers what it has already done and
 said. It answers on the parent itself. Its own replies carry the agent's
 mark, so they never wake it again. While it works the campaign shows as
-working, with the number of comments that woke it.
+working, with the number of comments and of sub-issues that woke it.
 
 If the lead heads off in the wrong direction, the user stops the round
 from the campaign's page or with `dreamcatcher stop`. The lead then
@@ -445,7 +456,7 @@ not yet be given, because it was working, paused or waiting for an agent
 slot, reaches it in its next round, and a change that reverted meanwhile
 is not news. While a round is due for such changes, the campaign shows
 as waiting with how many sub-issues changed, and the round's trigger
-counts them.
+names each one with what changed.
 
 The value to the user is that the lead takes up each stage's result as
 soon as it is ready, and never spends a round on work that is still
@@ -643,14 +654,16 @@ release notes say what to do first: let each assignment reach its
 wrap-up, or cancel it and finish its pull request by hand, and accept
 that conversations start afresh, which can mean an agent answering an
 old comment again if its label is still on. The old state stays on disk
-untouched, and everything on GitHub stays where it is. Across a change
-of state format, the user also stops every standalone view, such as
-`dreamcatcher web` or a refreshing `dreamcatcher status`, and starts
-again from the new installation any they still want. The web page that
-`dreamcatcher run` serves stops with its daemon, so it needs no extra
-step. A view reads only the records of its own state format, so one left
-running from the old installation may show stale status, and
-_dreamcatcher_ does not promise to notice.
+untouched, and everything on GitHub stays where it is. Once they have
+finished with the old state, they can reclaim its disk by hand, as
+[Reclaim disk from an earlier state format](compatibility.md#reclaim-disk-from-an-earlier-state-format)
+describes. Across a change of state format, the user also stops every
+standalone view, such as `dreamcatcher web` or a refreshing
+`dreamcatcher status`, and starts again from the new installation any
+they still want. The web page that `dreamcatcher run` serves stops with
+its daemon, so it needs no extra step. A view reads only the records of
+its own state format, so one left running from the old installation may
+show stale status, and _dreamcatcher_ does not promise to notice.
 
 The value to the user is that a minor upgrade is a restart, and a major
 one tells them in advance what it will cost.

@@ -162,9 +162,13 @@ class DreamcatcherDaemon:
         )
         with hold_daemon_lock(path=self.state.lock) as daemon_lock:
             self.state.bootstrap()
+            # The run's start is also the time of its first tick, so a status
+            # reader sees every scheduler record this run writes as its own.
+            at = self.clock()
             write_json(
                 document=DaemonRunRecord(
                     pid=os.getpid(),
+                    started=at,
                     preferred_harness=self.preferred_harness,
                     version=DREAMCATCHER_VERSION,
                     max_agents=self.max_agents,
@@ -194,7 +198,6 @@ class DreamcatcherDaemon:
             with _interrupt_on_termination_signals():
                 try:
                     with suppress(KeyboardInterrupt), companion:
-                        at = self.clock()
                         _write_output(
                             line=(
                                 f"{describe_time(at=at, zone=self.zone)}  "

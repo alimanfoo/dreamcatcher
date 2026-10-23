@@ -26,6 +26,7 @@ from dreamcatcher.status import (
     AgentWorkStatus,
     read_agent_work_status,
     read_dreamcatcher_daemon_status,
+    read_repository,
     read_status_report,
 )
 from dreamcatcher.web.feed import (
@@ -47,6 +48,7 @@ from dreamcatcher.web.server import (
 from dreamcatcher.web.views import (
     compose_agent_live_state,
     compose_assignment_view,
+    compose_github_repository_url,
     compose_home_view,
     compose_issue_work_view,
 )
@@ -227,6 +229,9 @@ def _show_work_tail(
     )
     return _render_work_tail(
         work=work,
+        github_repository_url=compose_github_repository_url(
+            repository=read_repository(state=state)
+        ),
         live=_compose_work_live_state(state=state, work=work, status=status, zone=zone),
         should_stop_polling=not status.is_active,
         zone=zone,
@@ -322,6 +327,7 @@ def _is_same_origin_request() -> bool:
 def _render_work_tail(
     *,
     work: AgentWork,
+    github_repository_url: str | None,
     live: WebAgentLiveState,
     should_stop_polling: bool,
     zone: tzinfo | None,
@@ -331,6 +337,7 @@ def _render_work_tail(
         feed_position = decode_feed_position(value=request.args.get("position", ""))
         tail = read_agent_tail(
             work=work,
+            github_repository_url=github_repository_url,
             live=live,
             feed_position=feed_position,
             zone=zone,

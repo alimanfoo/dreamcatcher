@@ -200,6 +200,16 @@ body::after {
   color: var(--amber);
 }
 
+.fact.in-progress dd {
+  animation: pulse-in-progress 1.6s ease-in-out infinite;
+}
+
+@keyframes pulse-in-progress {
+  50% {
+    opacity: 0.35;
+  }
+}
+
 .fact:last-child {
   padding-right: 0;
   margin-right: 0;
@@ -769,6 +779,7 @@ body::after {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .fact.in-progress dd,
   .latest-output.is-typing,
   .feed-line.is-typing {
     animation: none;

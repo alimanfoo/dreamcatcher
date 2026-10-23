@@ -20,7 +20,7 @@
 .md-typeset .dch-headline {
   margin: 0 0 1rem;
   font-family: var(--dc-serif);
-  font-size: 3.4rem;
+  font-size: clamp(2rem, min(6vw, 9vh), 3.4rem);
   font-weight: 400;
   letter-spacing: -0.015em;
   line-height: 1;
@@ -304,10 +304,6 @@
 @media screen and (max-width: 44em) {
   .dch {
     padding-top: 1.6rem;
-  }
-
-  .md-typeset .dch-headline {
-    font-size: 2.4rem;
   }
 
   .dch-line {
