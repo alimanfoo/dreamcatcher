@@ -60,7 +60,7 @@ HarnessConfigValue = StrictBool | StrictInt | StrictStr
 # Settings that a recipe gives its harness beyond the model and the effort. Each
 # adapter types the config it accepts, so a recipe can hold only what its
 # harness can be given.
-HarnessConfig = dict[str, HarnessConfigValue]
+HarnessConfig = Mapping[str, HarnessConfigValue]
 
 
 class AgentWorkKind(StrEnum):
@@ -83,7 +83,7 @@ class AgentRoundLaunchRequest:
     model: str
     effort: str
     prompt: str
-    harness_config: Mapping[str, HarnessConfigValue] = field(default_factory=dict)
+    harness_config: HarnessConfig = field(default_factory=dict)
     work_kind: AgentWorkKind = AgentWorkKind.ASSIGNMENT
 
 
@@ -163,7 +163,7 @@ class HarnessAdapter(ABC):
         *,
         model: str,
         effort: str,
-        harness_config: Mapping[str, HarnessConfigValue],
+        harness_config: HarnessConfig,
         harness_session_identifier: HarnessSessionIdentifier,
     ) -> list[str]:
         """Return the command that resumes the harness session interactively.
