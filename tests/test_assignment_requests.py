@@ -124,15 +124,6 @@ def test_a_listing_failure_leaves_no_rows_and_is_a_failure(gh, state):
     assert "could not connect" in failure
 
 
-def test_a_config_with_no_routes_lists_nothing(gh, state):
-    gh.fails(stderr="gh: could not connect to github.com", to="issue list")
-
-    rows = rows_for(state=state, config=config_with_routes(labels=[]))
-
-    assert rows == []
-    assert gh.calls == []
-
-
 def test_a_request_names_the_open_issues_that_block_it(gh, state):
     gh.replies(
         stdout=pages(

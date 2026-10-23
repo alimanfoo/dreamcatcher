@@ -18,6 +18,7 @@ from conftest import (
     commit,
     configure,
     git,
+    offer_listing,
     pages,
     pull_request,
     streamed,
@@ -148,11 +149,6 @@ def parent_issue(
         "assignees": [{"login": login} for login in assignees],
         "labels": [{"name": name} for name in labels],
     }
-
-
-def offer_listing(*, gh, issues: list[dict]) -> None:
-    """Have GitHub list these issues as the open issues assigned to the account."""
-    gh.replies(stdout=json.dumps(issues), to="issue list")
 
 
 def show_parent(*, gh, issue: dict) -> None:

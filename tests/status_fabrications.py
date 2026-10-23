@@ -579,7 +579,7 @@ def fabricate_a_dead_daemon(*, state):
 
 
 def fabricate_the_cap(*, state):
-    """Write a daemon at its cap whose latest tick also failed to list issues twice."""
+    """Write a daemon at its cap whose latest tick also had scheduler failures."""
     holding(state=state)
     current = running(minute=30)
     directory = written(state=state, issue=13, records=[current])

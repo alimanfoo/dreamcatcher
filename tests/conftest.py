@@ -142,6 +142,11 @@ def listing(*, issues: Sequence[tuple[int, str]]) -> str:
     )
 
 
+def offer_listing(*, gh, issues: list[dict]) -> None:
+    """Have GitHub list these issues as the open issues assigned to the account."""
+    gh.replies(stdout=json.dumps(issues), to="issue list")
+
+
 def comment(**fields: object) -> dict:
     """What gh answers one comment on the pull request's conversation with."""
     return {
