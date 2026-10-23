@@ -198,11 +198,20 @@ one that merges cleanly, however long it waited.
 
 An assignment has been working for longer than the user expected. They
 open its page on the _dreamcatcher_ web UI to see what the agent is
-doing, and the feed shows it heading the wrong way: rewriting something
-the issue never asked for, or chasing a problem that is not the one.
-Rather than let it finish and review the result, the user stops the
-round from the page, or with `dreamcatcher stop`, and it stops within a
-few seconds. Whatever the agent has pushed so far stays on the branch.
+doing. The feed shows each step the agent takes. When the agent sends
+subagents to do part of the work, several at once perhaps, the feed
+leaves out the subagents' own steps, so the agent's own path stays easy
+to follow. A Claude agent's feed shows each subagent when the agent
+sends it and its report when it finishes. A Codex agent's feed says when
+the agent starts to wait on its subagents. Either way, a long quiet
+spell after that line is the subagents at work, not a hung round.
+
+In this round, the feed shows the agent heading the wrong way: rewriting
+something the issue never asked for, or chasing a problem that is not
+the one. Rather than let it finish and review the result, the user stops
+the round from the page, or with `dreamcatcher stop`, and it stops
+within a few seconds. Whatever the agent has pushed so far stays on the
+branch.
 
 The user goes to the pull request and posts what they want changed, as
 they would for a colleague. At the next update the agent is given that

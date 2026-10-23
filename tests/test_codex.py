@@ -345,6 +345,37 @@ def test_an_error_the_round_survived_reads_as_an_error_not_a_failure():
     ]
 
 
+# Recorded from a Codex round that waited on its subagents. Codex sent the same
+# item complete when the wait ended.
+WAIT_STARTED = (
+    '{"type":"item.started","item":{"id":"item_89","type":"collab_tool_call",'
+    '"tool":"wait","sender_thread_id":"01a115ec-5729-7100-a0ff-965001aa93f8",'
+    '"receiver_thread_ids":[],"prompt":null,"agents_states":{},'
+    '"status":"in_progress"}}'
+)
+
+
+def test_a_wait_on_subagents_shows_as_it_starts():
+    assert CODEX_ADAPTER.read(line=WAIT_STARTED) == [FeedNote(label="wait")]
+
+
+def test_a_wait_on_subagents_writes_nothing_more_as_it_ends():
+    line = WAIT_STARTED.replace("item.started", "item.completed").replace(
+        "in_progress", "completed"
+    )
+
+    assert CODEX_ADAPTER.read(line=line) == []
+
+
+def test_another_item_writes_nothing_as_it_starts():
+    line = compose_stream_line(
+        type="item.started",
+        item={"type": "command_execution", "command": "ls", "status": "in_progress"},
+    )
+
+    assert CODEX_ADAPTER.read(line=line) == []
+
+
 def test_a_round_that_ended_well_says_what_it_spent():
     line = compose_stream_line(
         type="turn.completed",

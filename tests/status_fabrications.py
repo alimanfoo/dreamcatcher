@@ -132,7 +132,7 @@ SAID = (
         at=PINNED + timedelta(minutes=2),
         text="[Read] specs/2026-08-17-skeleton/plan.md",
     ),
-    FeedLine(at=PINNED + timedelta(minutes=3), text="  [Bash] ls"),
+    FeedLine(at=PINNED + timedelta(minutes=3), text="[Bash] ls"),
     FeedLine(
         at=PINNED + timedelta(minutes=3), text="[failed] no such file or directory"
     ),

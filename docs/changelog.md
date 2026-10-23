@@ -38,6 +38,13 @@ the change.
 
 ### Changed
 
+- The feed no longer shows a subagent's steps, so subagents that run at
+  once no longer interleave their lines with each other's and the
+  agent's. A Claude round still shows each subagent when the agent sends
+  it and its report when it finishes, and the report is no longer
+  indented. A Codex round shows a `[wait]` line as soon as the agent
+  waits on its subagents.
+  ([#729](https://github.com/alimanfoo/dreamcatcher/pull/729))
 - The status views count down to the next update from when the last
   update finished, and show **updating** while an update runs, with a
   pulse on the web page unless the browser asks for reduced motion. The
@@ -77,6 +84,10 @@ the change.
 - Switching theme on the web keeps the page's place in the address, so
   the home page stays on the tab it showed.
   ([#744](https://github.com/alimanfoo/dreamcatcher/pull/744))
+- The feed shows the report of a Claude subagent that hands its report
+  back, where it showed only a line saying the report was delivered
+  elsewhere.
+  ([#729](https://github.com/alimanfoo/dreamcatcher/pull/729))
 
 ## [v8.0.0](https://github.com/alimanfoo/dreamcatcher/releases/tag/v8.0.0) — 2026-10-23
 

@@ -11,6 +11,10 @@ Claude's recordings sit under `tests/fixtures/claude/`.
 - `background-command.jsonl` is a round that ran one command in the background.
   Its notification carries no token usage, which is what keeps it out of the
   feed as a subagent's report.
+- `subagents.jsonl` is a round that sent two subagents at once, one to count the
+  files and one to read a file, and waited for both. Claude 2.1.309 made it, and
+  each subagent hands its report back in `handback_report`, leaving `summary` to
+  point at it.
 - `rate-limited.jsonl` is the one Claude recording not made against Claude's own
   API. The CLI ran against a local endpoint answering every request with the 429
   an exhausted rate limit returns, since a real limit is not something a test can
@@ -37,7 +41,7 @@ from pathlib import PurePosixPath
 
 import pytest
 from clocks import Ticking
-from conftest import FIXTURES
+from conftest import FIXTURES, assert_matches_view_golden
 from recordings import render_harness_recording
 
 from dreamcatcher.claude import CLAUDE_ADAPTER
@@ -62,13 +66,15 @@ RECORDINGS = ((CLAUDE_ADAPTER, "claude"), (CODEX_ADAPTER, "codex"))
         for recording in sorted((FIXTURES / directory).glob("*.jsonl"))
     ],
 )
-def test_a_recorded_stream_renders_as_its_golden_feed(adapter, recording):
+def test_a_recorded_stream_renders_as_its_golden_feed(adapter, recording, pytestconfig):
     feed = render_harness_recording(
         adapter=adapter,
         lines=recording.read_text(encoding="utf-8").splitlines(),
         renderer=FeedRenderer(worktree=RECORDED_IN, clock=Ticking()),
     )
 
-    assert feed == recording.with_suffix(".harness-feed.txt").read_text(
-        encoding="utf-8"
+    assert_matches_view_golden(
+        rendered=feed,
+        path=recording.with_suffix(".harness-feed.txt"),
+        config=pytestconfig,
     )

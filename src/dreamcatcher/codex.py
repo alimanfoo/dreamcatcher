@@ -235,7 +235,9 @@ class _CodexHarnessAdapter(HarnessAdapter):
         An event this does not handle gets no feed line. The feed writes its own
         opening line for a round, so it does not need the event that says a turn
         started. Codex reports each item three times, as it starts, as it
-        changes and as it finishes, and only the last of those is complete.
+        changes and as it finishes, and only the last of those is complete. A
+        collaboration item is the exception: it gets its line as it starts, and
+        none as it finishes.
         """
         kind = harness_event["type"]
         if kind == "thread.started":
@@ -246,6 +248,8 @@ class _CodexHarnessAdapter(HarnessAdapter):
                 events=[FeedNote(label="harness session", detail=f"id {identifier}")],
                 harness_session_identifier=identifier,
             )
+        if kind == "item.started":
+            return HarnessOutput(events=_read_started_item(item=harness_event["item"]))
         if kind == "item.completed":
             return HarnessOutput(
                 events=_read_completed_item(item=harness_event["item"])
@@ -313,6 +317,20 @@ def _compose_config_argument(*, key: str, value: HarnessConfigValue) -> str:
     return f"{key}={toml_value}"
 
 
+def _read_started_item(*, item: dict) -> list[FeedEvent]:
+    """Return the line of a collaboration item as it starts, and none for another.
+
+    Every collaboration item gets a line labelled with Codex's name for its
+    tool. The one Codex sends today is a wait on the agent's subagents, which
+    lasts as long as they run. Its line is written as it starts, so a long
+    silence after it reads as waiting rather than as a hung round. Codex sends
+    neither the subagents waited on nor their states, so the line names neither.
+    """
+    if item["type"] == "collab_tool_call":
+        return [FeedNote(label=item["tool"])]
+    return []
+
+
 def _read_completed_item(*, item: dict) -> list[FeedEvent]:
     """Return the feed events represented by a completed Codex item.
 
@@ -321,8 +339,8 @@ def _read_completed_item(*, item: dict) -> list[FeedEvent]:
     on. An error item is different. That is Codex reporting a problem of its own
     rather than the agent doing anything, so its label says so.
 
-    An item this does not handle gets no feed line. This includes todo lists
-    and collaboration items, so subagent activity does not appear in the feed.
+    An item this does not handle gets no feed line. This includes todo lists,
+    and collaboration items, which the feed shows as they start.
     """
     kind = item["type"]
     if kind == "agent_message":

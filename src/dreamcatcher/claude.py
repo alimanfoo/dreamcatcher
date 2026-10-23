@@ -233,8 +233,15 @@ class _ClaudeHarnessAdapter(HarnessAdapter):
         return [self.program, "--resume", harness_session_identifier]
 
     def _read(self, *, harness_event: dict) -> HarnessOutput:
-        """Return what one parsed Claude event says."""
-        is_subagent = harness_event.get("parent_tool_use_id") is not None
+        """Return what one parsed Claude event says.
+
+        A subagent's own event gets no feed line. The feed shows a subagent's
+        launch, which is the agent's own tool call, and its report, which is
+        a system event. So the steps of subagents that run at once never
+        interleave with each other or with the main thread.
+        """
+        if harness_event.get("parent_tool_use_id") is not None:
+            return HarnessOutput(events=[])
         kind = harness_event["type"]
         if kind == "system":
             return _read_system_event(harness_event=harness_event)
@@ -242,14 +249,12 @@ class _ClaudeHarnessAdapter(HarnessAdapter):
             events = _read_message_blocks(
                 harness_event=harness_event,
                 read_block=_read_assistant_block,
-                is_subagent=is_subagent,
             )
             return HarnessOutput(events=events)
         if kind == "user":
             events = _read_message_blocks(
                 harness_event=harness_event,
                 read_block=_read_tool_failure,
-                is_subagent=is_subagent,
             )
             return HarnessOutput(events=events)
         if kind == "result":
@@ -295,10 +300,8 @@ def _read_system_event(*, harness_event: dict) -> HarnessOutput:
     if subtype == "task_notification" and harness_event.get("usage") is not None:
         return HarnessOutput(
             events=[
-                FeedNote(
-                    label="report", detail=harness_event["status"], is_subagent=True
-                ),
-                FeedProse(text=harness_event["summary"], is_subagent=True),
+                FeedNote(label="report", detail=harness_event["status"]),
+                FeedProse(text=_read_subagent_report(harness_event=harness_event)),
             ]
         )
     # A retried round says nothing else while it waits, and ten retries of a
@@ -320,10 +323,23 @@ def _read_system_event(*, harness_event: dict) -> HarnessOutput:
     return HarnessOutput(events=[])
 
 
+def _read_subagent_report(*, harness_event: dict) -> str:
+    """Return the words of a finished subagent's report.
+
+    A subagent that hands its report back sends it as the handback report, and
+    Claude then fills the summary with a line that only points at it. Otherwise
+    the summary is the report.
+    """
+    handback_report = harness_event.get("handback_report")
+    if handback_report is None:
+        return harness_event["summary"]
+    return handback_report["text"]
+
+
 class _ReadsClaudeBlock(Protocol):
     """Read one block from a Claude message."""
 
-    def __call__(self, *, block: dict, is_subagent: bool) -> list[FeedEvent]:
+    def __call__(self, *, block: dict) -> list[FeedEvent]:
         """Return what one block carries."""
 
 
@@ -331,46 +347,41 @@ def _read_message_blocks(
     *,
     harness_event: dict,
     read_block: _ReadsClaudeBlock,
-    is_subagent: bool,
 ) -> list[FeedEvent]:
     """Return what every block of one message carries."""
     return [
         event
         for block in harness_event["message"]["content"]
-        for event in read_block(block=block, is_subagent=is_subagent)
+        for event in read_block(block=block)
     ]
 
 
-def _read_assistant_block(*, block: dict, is_subagent: bool) -> list[FeedEvent]:
+def _read_assistant_block(*, block: dict) -> list[FeedEvent]:
     """Return what one block of an assistant message carries."""
     kind = block["type"]
     if kind == "text":
-        # A subagent's own words reach the feed as its report, so the feed does
-        # not carry them twice.
-        return [] if is_subagent else [FeedProse(text=block["text"])]
+        return [FeedProse(text=block["text"])]
     if kind == "thinking":
         # Claude streams the block without the thinking in it, so the feed says
         # the agent thought and cannot say what it thought.
-        return [FeedNote(label="thinking", is_subagent=is_subagent)]
+        return [FeedNote(label="thinking")]
     if kind == "tool_use":
         return [
             FeedNote(
                 label=block["name"],
                 detail=_describe_tool_input(tool_input=block["input"]),
-                is_subagent=is_subagent,
             )
         ]
     return []
 
 
-def _read_tool_failure(*, block: dict, is_subagent: bool) -> list[FeedEvent]:
+def _read_tool_failure(*, block: dict) -> list[FeedEvent]:
     """Return the failure one block of a user message carries, if it failed."""
     if block["type"] == "tool_result" and block.get("is_error"):
         return [
             FeedNote(
                 label="failed",
                 detail=_render_value_as_text(value=block["content"]),
-                is_subagent=is_subagent,
             )
         ]
     return []

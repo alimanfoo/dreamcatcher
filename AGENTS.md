@@ -295,8 +295,8 @@ $env:PYTHONWARNDEFAULTENCODING = "1"; uv run pytest --regenerate-view-goldens
   or a line, with `compose_`: `compose_running_round`. Name one that
   builds an object with behaviour of its own, such as a console or a
   scheduler, with `create_`: `create_scheduler`.
-- Name a boolean for the question it answers: `is_alive`, `is_subagent`,
-  not `alive` or `subagent`. `if round.is_alive:` then reads as English.
+- Name a boolean for the question it answers: `is_alive`, `is_draft`,
+  not `alive` or `draft`. `if round.is_alive:` then reads as English.
 - Name a fixture for what the test is handed, with a noun phrase:
   `cloned_repo`, `gh_with_available_issue`, not `cloned` or `offered`. A
   test's signature then says what it receives.
