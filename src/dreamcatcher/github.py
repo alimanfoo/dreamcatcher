@@ -136,8 +136,8 @@ class Issue(GitHubResponseProjection):
     body: str = ""
     created_at: datetime = Field(alias="createdAt")
     state: IssueState
-    assignees: list[GitHubUserAccount]
-    labels: list[GitHubLabel]
+    assignees: Sequence[GitHubUserAccount]
+    labels: Sequence[GitHubLabel]
 
 
 _ISSUE_RESPONSE_FIELDS = ",".join(
@@ -243,7 +243,7 @@ class PullRequest(GitHubResponseProjection):
     is_draft: bool = Field(alias="isDraft")
     merge_state: PullRequestMergeState = Field(alias="mergeStateStatus")
     head: str = Field(alias="headRefOid")
-    checks: list[PullRequestCheck] = Field(alias="statusCheckRollup")
+    checks: Sequence[PullRequestCheck] = Field(alias="statusCheckRollup")
 
     @property
     def check_result(self) -> CheckResult:
@@ -322,7 +322,7 @@ class IssuePullRequestContext(GitHubResponseProjection):
     """
 
     issue: int = Field(alias="number")
-    pull_requests: list[PullRequestReference] = Field(
+    pull_requests: Sequence[PullRequestReference] = Field(
         alias="closedByPullRequestsReferences"
     )
 
