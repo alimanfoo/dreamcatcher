@@ -78,10 +78,10 @@ Monitor the campaign on the web home page's Campaigns tab, where its
 card shows how many of the parent's sub-issues are closed. Expand the
 count to see each sub-issue with its assignment's card and the row of
 each request for an assignment on it that has no open work, or the
-sub-issue alone when it has neither. Each assignment's card stays on the
-Assignments tab too. Once the campaign ends, its card moves to the ended
-list and shows only the campaign itself. You can also monitor the
-campaign in the terminal:
+sub-issue's number and title alone when it has neither. Each
+assignment's card stays on the Assignments tab too. Once the campaign
+ends, its card moves to the ended list and shows only the campaign
+itself. You can also monitor the campaign in the terminal:
 
 ```sh
 dreamcatcher view GH123
