@@ -27,6 +27,8 @@ the change.
 
 ## Unreleased
 
+## [v8.0.0](https://github.com/alimanfoo/dreamcatcher/releases/tag/v8.0.0) — 2026-10-23
+
 ### Breaking
 
 - `dreamcatcher view` replaces `dreamcatcher assignment`,
@@ -69,6 +71,15 @@ the change.
   post its answer names no issue, so the web pages no longer show an
   issue in the terminal's `GH12` form.
   ([#692](https://github.com/alimanfoo/dreamcatcher/pull/692))
+- A conversation round input that cannot be read now fails the status
+  report with the file and what is wrong with it, as an assignment's or
+  a campaign's does. Before, the round's trigger read "comments" and its
+  revision was left out.
+  ([#704](https://github.com/alimanfoo/dreamcatcher/pull/704))
+- On a work page on the web, a round's boundary stays at the top of the
+  feed only while that round is in view, so the end of a long, wrapped
+  boundary no longer shows beneath the next round's.
+  ([#700](https://github.com/alimanfoo/dreamcatcher/pull/700))
 
 ## [v7.0.0](https://github.com/alimanfoo/dreamcatcher/releases/tag/v7.0.0) — 2026-10-22
 
