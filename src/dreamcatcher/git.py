@@ -195,6 +195,19 @@ def remove_worktree(*, root: Path, path: Path) -> None:
     )
 
 
+def is_local_branch(*, root: Path, branch: str) -> bool:
+    """Return whether the repository has a local branch of that name."""
+    try:
+        run_command(
+            program="git",
+            arguments=["show-ref", "--verify", "--quiet", f"refs/heads/{branch}"],
+            cwd=root,
+        )
+    except CommandError:
+        return False
+    return True
+
+
 def delete_branch(*, root: Path, branch: str) -> None:
     """Delete the branch, merged or not.
 

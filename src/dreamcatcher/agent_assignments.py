@@ -44,6 +44,7 @@ from dreamcatcher.git import (
     fetch_main,
     has_commits_since_main,
     is_linked_worktree,
+    is_local_branch,
     make_empty_commit,
     push_branch,
     remove_worktree,
@@ -152,11 +153,14 @@ def complete_assignment(
 def remove_assignment_worktree(*, state: StateDirectory, assignment: AgentWork) -> None:
     """Remove the assignment's worktree, then its local branch.
 
-    The branch on origin stays, and so do the assignment's records. A removal
-    or a deletion that Git refuses raises ReportableError.
+    The branch on origin stays, and so do the assignment's records. A worktree
+    or branch that is not there is already removed. A removal or a deletion
+    that Git refuses raises ReportableError.
     """
     remove_agent_work_worktree(state=state, work=assignment)
     branch = compose_assignment_branch(identifier=assignment.identifier)
+    if not is_local_branch(root=state.root, branch=branch):
+        return
     try:
         delete_branch(root=state.root, branch=branch)
     except CommandError as failure:

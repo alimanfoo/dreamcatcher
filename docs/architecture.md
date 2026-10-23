@@ -171,7 +171,10 @@ that cannot be built, is a scheduler failure.
 A worktree or branch that Git will not remove is a scheduler failure
 too. It stays where it is, and no later tick tries again, because once
 work has ended and the daemon holds no round of it, no later tick
-watches it. Work that ended before a tick watched it keeps its worktree.
+watches it. For the same reason, work keeps its worktree when no tick
+watched it end: when it ended while no daemon ran, or when its round
+ended and the daemon stopped, or the tick that forgot the round failed,
+before the removal.
 
 When the tick selects a request, it writes the work record and starts
 the first round in the same scheduling action. The record comes first,

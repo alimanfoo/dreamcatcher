@@ -932,14 +932,16 @@ starts it again. No more than that is handled, and that is accepted,
 because a disk that will not write is the user's to fix, and nothing
 _dreamcatcher_ holds is the only copy of anything.
 
-### An ended piece of work's worktree cannot be removed
+### An ended piece of work's worktree is not removed
 
 An assignment has completed, or a conversation or campaign has ended
 with its issue, and Git refuses to remove its worktree or to delete the
 assignment's local branch, perhaps because the worktree is locked or a
 file in it is held open. The daemon prints what failed with that update
 and carries on. The work stays ended, and the worktree or branch stays
-where it is. Nothing tries the removal again, and that is accepted,
+where it is. The worktree also stays when the daemon stops, or the
+update fails, after an assignment completes and before the update that
+would remove it. Nothing tries the removal again, and that is accepted,
 because the leftover takes only disk space, and the user can remove it
 with Git.
 

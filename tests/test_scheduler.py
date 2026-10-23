@@ -1321,7 +1321,9 @@ def test_a_worktree_that_will_not_go_is_reported_once_and_left(resuming, gh):
     assert completed.ending.reason is AgentWorkEndReason.COMPLETED
 
 
-def test_a_branch_that_will_not_go_is_reported(resuming, gh):
+def test_a_completed_assignment_with_no_worktree_or_branch_left_reports_nothing(
+    resuming, gh
+):
     ran(root=resuming, number=1)
     gh.replies(stdout=pull_request(state="MERGED"), to="pr view")
     scheduler, clock = create_scheduler(root=resuming)
@@ -1330,10 +1332,24 @@ def test_a_branch_that_will_not_go_is_reported(resuming, gh):
 
     observed = scheduler.tick(at=clock())
 
-    # The assignment's worktree was never checked out, so it has no branch.
+    assert observed.failures == []
+
+
+def test_a_branch_that_will_not_go_is_reported(resuming, gh):
+    # The main checkout has the branch checked out, so Git will not delete it.
+    git(arguments=["switch", "--create", ASSIGNMENT_BRANCH], cwd=resuming)
+    ran(root=resuming, number=1)
+    gh.replies(stdout=pull_request(state="MERGED"), to="pr view")
+    scheduler, clock = create_scheduler(root=resuming)
+    scheduler.tick(at=clock())
+    finish_rounds(scheduler=scheduler)
+
+    observed = scheduler.tick(at=clock())
+
     assert sole_failure(observed=observed).startswith(
         f"could not delete the branch {ASSIGNMENT_BRANCH}: "
     )
+    assert ASSIGNMENT_BRANCH in list_branches(root=resuming)
 
 
 def test_a_last_round_that_fails_leaves_its_assignment_open(resuming, gh, harnesses):
