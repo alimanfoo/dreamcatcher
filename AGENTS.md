@@ -280,6 +280,11 @@ $env:PYTHONWARNDEFAULTENCODING = "1"; uv run pytest --regenerate-view-goldens
   something that runs.
 - Name a boolean for the question it answers: `is_alive`, `is_subagent`,
   not `alive` or `subagent`. `if round.is_alive:` then reads as English.
+- Name a fixture for what the test is handed, with a noun phrase:
+  `cloned_repo`, `gh_with_free_issue`, not `cloned` or `offered`. A
+  test's signature then says what it receives. A helper in the tests is
+  a function like any other, and one that builds a value opens with
+  `compose_`, as `compose_running_round` does.
 - Name a class or a function that a module exports so that it still says
   what it is when another module imports it bare: `create_assignment`,
   not `create`; `compose_assignment_first_round_prompt`, not
