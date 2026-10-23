@@ -26,7 +26,7 @@ from dreamcatcher.feed import read_last_feed_line
 from dreamcatcher.github import PullRequestState
 from dreamcatcher.harness_adapters import AgentWorkKind, HarnessSessionIdentifier
 from dreamcatcher.issue_conversations import ConversationRoundInput
-from dreamcatcher.status.findings import describe_signal
+from dreamcatcher.status.findings import describe_changed_children, describe_signal
 from dreamcatcher.words import describe_count, describe_span
 
 # What a lead round's trigger calls each change to a sub-issue, apart from a
@@ -72,6 +72,13 @@ class AgentRoundTrigger:
         )
         return "; ".join(parts)
 
+    def summarize(self) -> str:
+        """Return what woke the round in a few words, counting the sub-issues."""
+        parts = [self.words] if self.words else []
+        if self.notifications:
+            parts.append(describe_changed_children(count=len(self.notifications)))
+        return ", ".join(parts)
+
 
 @dataclass(frozen=True, kw_only=True)
 class AgentRoundStatus:
@@ -93,7 +100,7 @@ def describe_running_round(
 ) -> tuple[str, str | None]:
     """Describe a running round and what woke it, and return its latest output."""
     detail = (
-        f"round {record.number}, {trigger.describe()}, "
+        f"round {record.number}, {trigger.summarize()}, "
         f"running {describe_span(span=at - record.started)}"
     )
     line = read_last_feed_line(path=paths.feed)

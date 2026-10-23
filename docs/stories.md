@@ -415,7 +415,7 @@ the comment, and any others the user has posted since its last round, in
 the same harness session, so it remembers what it has already done and
 said. It answers on the parent itself. Its own replies carry the agent's
 mark, so they never wake it again. While it works the campaign shows as
-working, with the number of comments that woke it.
+working, with the number of comments and of sub-issues that woke it.
 
 If the lead heads off in the wrong direction, the user stops the round
 from the campaign's page or with `dreamcatcher stop`. The lead then

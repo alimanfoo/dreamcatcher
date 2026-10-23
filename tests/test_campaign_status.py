@@ -214,6 +214,32 @@ def test_a_running_lead_is_working_on_its_start(state):
     assert status.detail.startswith("round 1, start, running ")
 
 
+def test_a_running_lead_counts_the_sub_issues_that_woke_it(state):
+    write_lead_round(state=state, number=1, ending=SUCCESSFUL)
+    write_lead_round(
+        state=state,
+        number=2,
+        ending=None,
+        comments=1,
+        children=[compose_child(issue=21, state=IssueState.CLOSED)],
+        notifications=[
+            notify(
+                issue=21,
+                changes=[CampaignChildChange.ISSUE_STATE, CampaignChildChange.ENDING],
+            ),
+            notify(issue=22, changes=[CampaignChildChange.REMOVED]),
+        ],
+    )
+    observe(state=state, finding=NOTHING_NEW, started_round=StartedRound(number=2))
+
+    status = read_campaign_status(state=state)
+
+    assert status.value is AgentWorkStatusValue.WORKING
+    assert status.detail.startswith(
+        "round 2, 1 comment, 2 sub-issues changed, running "
+    )
+
+
 @pytest.mark.parametrize(
     ("ending", "detail"),
     [
