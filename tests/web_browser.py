@@ -9,7 +9,7 @@ from clocks import DISPLAY_TIME_ZONE
 from status_fabrications import (
     ASSIGNMENT_TIMESTAMP,
     LOOKED_AT,
-    conversation_row,
+    compose_conversation_row,
     fabricate_campaigns,
     fabricate_conversation,
     fabricate_everything,
@@ -36,7 +36,7 @@ def serve_fabricated_web(*, root: Path) -> Generator[str, None, None]:
     fabricate_everything(
         state=state,
         other_rows=[
-            conversation_row(finding=IssueCommentsFinding(new_comments=0)),
+            compose_conversation_row(finding=IssueCommentsFinding(new_comments=0)),
             *fabricate_campaigns(state=state),
         ],
     )

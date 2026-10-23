@@ -120,12 +120,12 @@ def assert_matches_view_golden(
     assert rendered == path.read_text(encoding="utf-8")
 
 
-def streamed(**fields: object) -> str:
+def compose_stream_line(**fields: object) -> str:
     """Return the line a harness streams one event as."""
     return json.dumps(fields)
 
 
-def listing(*, issues: Sequence[tuple[int, str]]) -> str:
+def compose_issue_listing(*, issues: Sequence[tuple[int, str]]) -> str:
     """Return what gh answers an issue listing with."""
     return json.dumps(
         [
@@ -142,7 +142,7 @@ def listing(*, issues: Sequence[tuple[int, str]]) -> str:
     )
 
 
-def comment(**fields: object) -> dict:
+def compose_comment(**fields: object) -> dict:
     """What gh answers one comment on the pull request's conversation with."""
     return {
         "id": 1,
@@ -152,7 +152,7 @@ def comment(**fields: object) -> dict:
     } | fields
 
 
-def review(**fields: object) -> dict:
+def compose_review(**fields: object) -> dict:
     """What gh answers one review with."""
     return {
         "id": 2,
@@ -163,7 +163,7 @@ def review(**fields: object) -> dict:
     } | fields
 
 
-def inline_comment(**fields: object) -> dict:
+def compose_inline_comment(**fields: object) -> dict:
     """What gh answers one comment on a line of the diff with."""
     return {
         "id": 3,
@@ -178,12 +178,14 @@ def inline_comment(**fields: object) -> dict:
     } | fields
 
 
-def pull_requests(*, numbers: Sequence[int]) -> str:
+def compose_pull_request_listing(*, numbers: Sequence[int]) -> str:
     """Return what gh answers a pull request listing with."""
     return json.dumps([{"number": number} for number in numbers])
 
 
-def check_run(*, status: str = "COMPLETED", conclusion: str = "SUCCESS") -> dict:
+def compose_check_run(
+    *, status: str = "COMPLETED", conclusion: str = "SUCCESS"
+) -> dict:
     """Return one check run as gh reports it among a pull request's checks.
 
     A check run still going reports an empty conclusion.
@@ -200,7 +202,7 @@ def check_run(*, status: str = "COMPLETED", conclusion: str = "SUCCESS") -> dict
     }
 
 
-def status_context(*, state: str) -> dict:
+def compose_status_context(*, state: str) -> dict:
     """Return one status context as gh reports it among a pull request's checks."""
     return {
         "__typename": "StatusContext",
@@ -211,14 +213,14 @@ def status_context(*, state: str) -> dict:
     }
 
 
-def pull_request(
+def compose_pull_request(
     *,
     state: str,
     number: int = PULL_REQUEST,
     is_draft: bool = False,
     merge_state: str = "CLEAN",
     head: str = HEAD,
-    checks: Sequence[dict] = (check_run(),),
+    checks: Sequence[dict] = (compose_check_run(),),
 ) -> str:
     """Return what gh answers when reading one pull request.
 
@@ -237,12 +239,12 @@ def pull_request(
     )
 
 
-def pages(*, items: Sequence[dict]) -> str:
+def compose_page(*, items: Sequence[dict]) -> str:
     """Return what gh answers a paginated list with: one page holding these."""
     return json.dumps([list(items)])
 
 
-def blocker(*, number: int, state: str, repository: str = REPOSITORY) -> dict:
+def compose_blocker(*, number: int, state: str, repository: str = REPOSITORY) -> dict:
     """Return what GitHub lists of an issue that blocks another, in this state."""
     return {
         "number": number,
@@ -251,18 +253,18 @@ def blocker(*, number: int, state: str, repository: str = REPOSITORY) -> dict:
     }
 
 
-def recorded_posts(*, source: str) -> str:
+def read_recorded_posts(*, source: str) -> str:
     """Return what gh answered for one post list of the recorded pull request."""
     recording = FIXTURES / "github" / f"pull-request-{PULL_REQUEST}" / f"{source}.json"
     return recording.read_text(encoding="utf-8")
 
 
-def git(*, arguments: Sequence[str], cwd: Path) -> str:
+def run_git(*, arguments: Sequence[str], cwd: Path) -> str:
     """Run git in cwd and return its output, through the tool's own runner."""
     return run_command(program="git", arguments=arguments, cwd=cwd)
 
 
-def gone(*, pid: int) -> bool:
+def wait_for_exit(*, pid: int) -> bool:
     """Wait a while for the process at pid to end, and say whether it did."""
     # A process that outstays the wait is a process that is still there, which
     # is the answer, not a failure.
@@ -273,8 +275,8 @@ def gone(*, pid: int) -> bool:
 
 def commit(*, path: Path, message: str) -> None:
     """Commit everything in the checkout at path, under a throwaway identity."""
-    git(arguments=["add", "--all"], cwd=path)
-    git(
+    run_git(arguments=["add", "--all"], cwd=path)
+    run_git(
         arguments=[
             "-c",
             "user.name=A Test",
@@ -293,7 +295,7 @@ def commit(*, path: Path, message: str) -> None:
 @pytest.fixture
 def repo(tmp_path):
     """Return a main checkout of a fresh, empty git repository."""
-    git(arguments=["init"], cwd=tmp_path)
+    run_git(arguments=["init"], cwd=tmp_path)
     return tmp_path
 
 
@@ -302,16 +304,16 @@ def seeded_upstream(tmp_path_factory):
     """Build the immutable bare repository that each test copies."""
     directory = tmp_path_factory.mktemp("seeded-upstream")
     bare = directory / "upstream.git"
-    git(
+    run_git(
         arguments=["init", "--bare", "--initial-branch=main", str(bare)],
         cwd=directory,
     )
     seed = directory / "seed"
-    git(arguments=["init", "--initial-branch=main", str(seed)], cwd=directory)
+    run_git(arguments=["init", "--initial-branch=main", str(seed)], cwd=directory)
     (seed / "README.md").write_text("what the seed holds\n", encoding="utf-8")
     commit(path=seed, message="seed the upstream")
-    git(arguments=["remote", "add", "origin", str(bare)], cwd=seed)
-    git(arguments=["push", "origin", "main"], cwd=seed)
+    run_git(arguments=["remote", "add", "origin", str(bare)], cwd=seed)
+    run_git(arguments=["push", "origin", "main"], cwd=seed)
     return bare
 
 
@@ -320,25 +322,25 @@ def seeded_checkout(seeded_upstream, tmp_path_factory):
     """Build the immutable checkout that each test copies."""
     directory = tmp_path_factory.mktemp("seeded-checkout")
     checkout = directory / "checkout"
-    git(arguments=["clone", str(seeded_upstream), str(checkout)], cwd=directory)
+    run_git(arguments=["clone", str(seeded_upstream), str(checkout)], cwd=directory)
     return checkout
 
 
 @pytest.fixture
-def cloned(seeded_checkout, seeded_upstream, tmp_path):
+def cloned_repo(seeded_checkout, seeded_upstream, tmp_path):
     """Return a main checkout with an origin and a throwaway author identity."""
     upstream = tmp_path / "upstream.git"
     shutil.copytree(seeded_upstream, upstream)
     checkout = tmp_path / "checkout"
     shutil.copytree(seeded_checkout, checkout)
-    git(arguments=["remote", "set-url", "origin", str(upstream)], cwd=checkout)
-    git(arguments=["config", "user.name", "A Test"], cwd=checkout)
-    git(arguments=["config", "user.email", "test@example.com"], cwd=checkout)
+    run_git(arguments=["remote", "set-url", "origin", str(upstream)], cwd=checkout)
+    run_git(arguments=["config", "user.name", "A Test"], cwd=checkout)
+    run_git(arguments=["config", "user.email", "test@example.com"], cwd=checkout)
     return checkout
 
 
 @pytest.fixture
-def watched(repo):
+def configured_repo(repo):
     """Return a main checkout carrying a valid dreamcatcher.toml."""
     (repo / DREAMCATCHER_CONFIG_NAME).write_text(CONFIG, encoding="utf-8")
     return repo
@@ -364,7 +366,7 @@ def fake(stand_ins, launcher, monkeypatch):
 
 
 @pytest.fixture
-def left_running(tmp_path):
+def orphan_round_process(tmp_path):
     """A process standing in for a round left without a recorded ending."""
     child = spawn_command(
         program=sys.executable,
@@ -386,7 +388,7 @@ def gh_with_no_posts(fake):
     """
     stand_in = fake(program="gh")
     for path in POST_LIST_PATHS.values():
-        stand_in.replies(stdout=pages(items=[]), to=f"api {path}")
+        stand_in.replies(stdout=compose_page(items=[]), to=f"api {path}")
     return stand_in
 
 
@@ -395,7 +397,7 @@ def gh_with_recorded_posts(fake):
     """A gh answering each post list with what a real pull request answered."""
     stand_in = fake(program="gh")
     for source, path in POST_LIST_PATHS.items():
-        stand_in.replies(stdout=recorded_posts(source=source), to=f"api {path}")
+        stand_in.replies(stdout=read_recorded_posts(source=source), to=f"api {path}")
     return stand_in
 
 
@@ -434,26 +436,28 @@ def gh(fake):
         stdout=f"https://github.com/alimanfoo/dreamcatcher/pull/{PULL_REQUEST}\n",
         to="pr create",
     )
-    stand_in.replies(stdout=pull_request(state="OPEN", is_draft=True), to="pr view")
-    stand_in.replies(stdout=pages(items=[]), to="api")
+    stand_in.replies(
+        stdout=compose_pull_request(state="OPEN", is_draft=True), to="pr view"
+    )
+    stand_in.replies(stdout=compose_page(items=[]), to="api")
     return stand_in
 
 
 @pytest.fixture
-def offered(gh):
-    """Return gh offering one labelled issue that is free for assignment."""
-    gh.replies(stdout=listing(issues=[(8, FILED)]), to="issue list")
+def gh_with_available_issue(gh):
+    """Return gh offering one labelled issue that is available for assignment."""
+    gh.replies(stdout=compose_issue_listing(issues=[(8, FILED)]), to="issue list")
     return gh
 
 
 @pytest.fixture
-def ready_repo(cloned, offered, harnesses):
+def ready_repo(cloned_repo, gh_with_available_issue, harnesses):
     """Return a checkout that can create an assignment for a labelled issue."""
-    configure(root=cloned)
+    configure(root=cloned_repo)
     harnesses["claude"].streams(
         lines=[
             fakes.Line(
-                text=streamed(
+                text=compose_stream_line(
                     type="system",
                     subtype="init",
                     model="claude-opus-5",
@@ -464,4 +468,4 @@ def ready_repo(cloned, offered, harnesses):
             fakes.Line(text="what the round said\n"),
         ]
     )
-    return cloned
+    return cloned_repo

@@ -6,7 +6,7 @@ import pytest
 from clocks import PINNED
 from records import read_newest_work, write_tick
 from rich.console import Console
-from status_fabrications import LOOKED_AT, fabricate_campaigns, holding
+from status_fabrications import LOOKED_AT, fabricate_campaigns, write_running_daemon
 
 from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.scheduler.models import SchedulerRecord
@@ -18,7 +18,7 @@ from dreamcatcher.tui import show_agent_work_view, show_feed_view, show_status_v
 def state(tmp_path):
     """Return a running daemon's state holding an idle and an ended campaign."""
     state = StateDirectory(root=tmp_path)
-    holding(state=state)
+    write_running_daemon(state=state)
     write_tick(
         state=state,
         tick=SchedulerRecord(at=PINNED, rows=fabricate_campaigns(state=state)),
@@ -26,14 +26,14 @@ def state(tmp_path):
     return state
 
 
-def rendered_console() -> tuple[Console, StringIO]:
+def create_plain_console() -> tuple[Console, StringIO]:
     """Return a plain fixed-width console and the text it writes."""
     written = StringIO()
     return Console(file=written, width=100, color_system=None), written
 
 
 def test_status_lists_campaigns_their_requests_and_how_many_ended(state):
-    console, written = rendered_console()
+    console, written = create_plain_console()
 
     show_status_view(state=state, console=console, clock=lambda: LOOKED_AT)
 
@@ -47,7 +47,7 @@ def test_status_lists_campaigns_their_requests_and_how_many_ended(state):
 
 
 def test_campaign_detail_shows_its_parent_settings_and_rounds(state):
-    console, written = rendered_console()
+    console, written = create_plain_console()
 
     show_agent_work_view(
         state=state,
@@ -66,7 +66,7 @@ def test_campaign_detail_shows_its_parent_settings_and_rounds(state):
 
 
 def test_campaign_feed_shows_what_the_lead_said(state):
-    console, written = rendered_console()
+    console, written = create_plain_console()
 
     show_feed_view(
         state=state,

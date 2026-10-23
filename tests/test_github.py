@@ -8,10 +8,10 @@ from conftest import (
     POST_LIST_PATHS,
     POSTED_BY,
     PULL_REQUEST,
-    check_run,
-    pages,
-    pull_request,
-    status_context,
+    compose_check_run,
+    compose_page,
+    compose_pull_request,
+    compose_status_context,
 )
 
 from dreamcatcher.github import (
@@ -226,7 +226,7 @@ def test_an_issue_is_read_by_its_number_whatever_its_state(fake):
 def test_an_issues_ordinary_comments_are_read_from_every_page(fake):
     gh = fake(program="gh")
     gh.replies(
-        stdout=pages(
+        stdout=compose_page(
             items=[
                 COMMENT | {"body": "First"},
                 COMMENT | {"id": 2, "body": "Second"},
@@ -327,23 +327,34 @@ def test_a_branch_behind_its_base_or_in_conflict_with_it_is_out_of_date(
     ("checks", "result"),
     [
         ([], CheckResult.NONE),
-        ([check_run(), check_run(conclusion="NEUTRAL")], CheckResult.PASSING),
-        ([check_run(conclusion="SKIPPED")], CheckResult.PASSING),
-        ([check_run(), check_run(status="IN_PROGRESS")], CheckResult.RUNNING),
-        ([check_run(status="QUEUED")], CheckResult.RUNNING),
         (
-            [check_run(status="IN_PROGRESS"), check_run(conclusion="FAILURE")],
+            [compose_check_run(), compose_check_run(conclusion="NEUTRAL")],
+            CheckResult.PASSING,
+        ),
+        ([compose_check_run(conclusion="SKIPPED")], CheckResult.PASSING),
+        (
+            [compose_check_run(), compose_check_run(status="IN_PROGRESS")],
+            CheckResult.RUNNING,
+        ),
+        ([compose_check_run(status="QUEUED")], CheckResult.RUNNING),
+        (
+            [
+                compose_check_run(status="IN_PROGRESS"),
+                compose_check_run(conclusion="FAILURE"),
+            ],
             CheckResult.FAILING,
         ),
-        ([check_run(conclusion="CANCELLED")], CheckResult.FAILING),
-        ([status_context(state="SUCCESS")], CheckResult.PASSING),
-        ([status_context(state="PENDING")], CheckResult.RUNNING),
-        ([status_context(state="EXPECTED")], CheckResult.RUNNING),
-        ([status_context(state="ERROR")], CheckResult.FAILING),
+        ([compose_check_run(conclusion="CANCELLED")], CheckResult.FAILING),
+        ([compose_status_context(state="SUCCESS")], CheckResult.PASSING),
+        ([compose_status_context(state="PENDING")], CheckResult.RUNNING),
+        ([compose_status_context(state="EXPECTED")], CheckResult.RUNNING),
+        ([compose_status_context(state="ERROR")], CheckResult.FAILING),
     ],
 )
 def test_a_pull_requests_checks_add_up_to_one_result(checks, result):
-    found = PullRequest.model_validate_json(pull_request(state="OPEN", checks=checks))
+    found = PullRequest.model_validate_json(
+        compose_pull_request(state="OPEN", checks=checks)
+    )
 
     assert found.check_result is result
 
@@ -352,13 +363,21 @@ def test_a_pull_requests_checks_add_up_to_one_result(checks, result):
     ("checks", "has_running_checks"),
     [
         ([], False),
-        ([check_run(), check_run(conclusion="FAILURE")], False),
-        ([check_run(status="IN_PROGRESS"), check_run(conclusion="FAILURE")], True),
-        ([status_context(state="PENDING"), check_run()], True),
+        ([compose_check_run(), compose_check_run(conclusion="FAILURE")], False),
+        (
+            [
+                compose_check_run(status="IN_PROGRESS"),
+                compose_check_run(conclusion="FAILURE"),
+            ],
+            True,
+        ),
+        ([compose_status_context(state="PENDING"), compose_check_run()], True),
     ],
 )
 def test_a_failing_result_still_says_whether_a_check_runs(checks, has_running_checks):
-    found = PullRequest.model_validate_json(pull_request(state="OPEN", checks=checks))
+    found = PullRequest.model_validate_json(
+        compose_pull_request(state="OPEN", checks=checks)
+    )
 
     assert found.has_running_checks is has_running_checks
 
@@ -403,7 +422,9 @@ def test_a_linked_draft_pull_request_is_opened_for_the_assignment_branch(fake):
 
 def test_a_pull_request_is_read_by_its_persisted_identity(fake):
     gh = fake(program="gh")
-    gh.replies(stdout=pull_request(state="OPEN", number=28, merge_state="BEHIND"))
+    gh.replies(
+        stdout=compose_pull_request(state="OPEN", number=28, merge_state="BEHIND")
+    )
 
     found = read_pull_request(repository=REPOSITORY, pull_request=28)
 
@@ -442,7 +463,7 @@ def test_an_issue_answers_with_its_open_linked_pull_requests(fake):
         to="issue view",
     )
     gh.replies(
-        stdout=pull_request(state="OPEN", number=28, is_draft=True),
+        stdout=compose_pull_request(state="OPEN", number=28, is_draft=True),
         to="pr view",
     )
 
@@ -485,7 +506,7 @@ def test_a_finished_linked_pull_request_does_not_claim_the_issue(fake):
         to="issue view",
     )
     gh.replies(
-        stdout=pull_request(state="MERGED", number=28, merge_state="UNKNOWN"),
+        stdout=compose_pull_request(state="MERGED", number=28, merge_state="UNKNOWN"),
         to="pr view",
     )
 
@@ -534,7 +555,7 @@ def test_an_issue_nobody_has_claimed_has_no_linked_pull_request(fake):
 def test_the_blockers_of_an_issue_come_back_with_their_states(fake):
     gh = fake(program="gh")
     gh.replies(
-        stdout=pages(
+        stdout=compose_page(
             items=[
                 {
                     "number": 7,
@@ -649,7 +670,7 @@ def test_an_issue_is_in_a_repository_named_in_any_case(repository, expected):
     assert issue.is_in_repository(repository=repository) is expected
 
 
-def posted() -> list[UserPost]:
+def list_posts() -> list[UserPost]:
     """The pull request's posts, given that gh answered every one of its lists."""
     found = list_user_posts(repository=REPOSITORY, pull_request=PULL_REQUEST)
     assert not isinstance(found, UnknownGitHubResponse)
@@ -657,22 +678,23 @@ def posted() -> list[UserPost]:
 
 
 def test_a_pull_request_nobody_has_posted_on_comes_back_with_no_posts(gh_with_no_posts):
-    assert posted() == []
+    assert list_posts() == []
 
 
 def test_the_posts_of_a_pull_request_come_from_all_three_of_its_lists(gh_with_no_posts):
     gh_with_no_posts.replies(
-        stdout=pages(items=[COMMENT]), to=f"api {POST_LIST_PATHS['conversation']}"
+        stdout=compose_page(items=[COMMENT]),
+        to=f"api {POST_LIST_PATHS['conversation']}",
     )
     gh_with_no_posts.replies(
-        stdout=pages(items=[REVIEW]), to=f"api {POST_LIST_PATHS['reviews']}"
+        stdout=compose_page(items=[REVIEW]), to=f"api {POST_LIST_PATHS['reviews']}"
     )
     gh_with_no_posts.replies(
-        stdout=pages(items=[INLINE_COMMENT]),
+        stdout=compose_page(items=[INLINE_COMMENT]),
         to=f"api {POST_LIST_PATHS['inline-comments']}",
     )
 
-    assert [(type(post), post.id) for post in posted()] == [
+    assert [(type(post), post.id) for post in list_posts()] == [
         (IssueComment, 1),
         (PullRequestReview, 2),
         (InlineReviewComment, 3),
@@ -680,7 +702,7 @@ def test_the_posts_of_a_pull_request_come_from_all_three_of_its_lists(gh_with_no
 
 
 def test_each_of_the_three_lists_is_read_whole(gh_with_no_posts):
-    posted()
+    list_posts()
 
     assert [call.arguments for call in gh_with_no_posts.calls] == [
         ["api", path, "--paginate", "--slurp"] for path in POST_LIST_PATHS.values()
@@ -693,7 +715,7 @@ def test_the_pages_of_one_list_come_back_as_one_list(gh_with_no_posts):
         to=f"api {POST_LIST_PATHS['conversation']}",
     )
 
-    assert [post.id for post in posted()] == [1, 9]
+    assert [post.id for post in list_posts()] == [1, 9]
 
 
 def test_a_post_that_is_not_a_document_at_all_is_unknown(gh_with_no_posts):
@@ -708,7 +730,7 @@ def test_a_post_that_is_not_a_document_at_all_is_unknown(gh_with_no_posts):
 
 
 def test_every_post_a_real_pull_request_carries_reads_back(gh_with_recorded_posts):
-    found = posted()
+    found = list_posts()
 
     assert [type(post) for post in found] == (
         [IssueComment] * 9 + [PullRequestReview] * 4 + [InlineReviewComment] * 6
@@ -717,7 +739,7 @@ def test_every_post_a_real_pull_request_carries_reads_back(gh_with_recorded_post
 
 
 def test_a_recorded_comment_reads_back_as_the_user_wrote_it(gh_with_recorded_posts):
-    first = posted()[0]
+    first = list_posts()[0]
 
     assert first.id == 5529066022
     assert first.written_at == "2026-09-03T16:49:35Z"
@@ -727,7 +749,7 @@ def test_a_recorded_comment_reads_back_as_the_user_wrote_it(gh_with_recorded_pos
 def test_a_recorded_review_reads_back_when_it_was_submitted_and_its_verdict(
     gh_with_recorded_posts,
 ):
-    submitted = [post for post in posted() if isinstance(post, PullRequestReview)]
+    submitted = [post for post in list_posts() if isinstance(post, PullRequestReview)]
 
     assert [review.verdict for review in submitted] == [
         PullRequestReviewVerdict.COMMENTED
@@ -738,7 +760,7 @@ def test_a_recorded_review_reads_back_when_it_was_submitted_and_its_verdict(
 def test_the_reviews_github_wrapped_the_inline_comments_in_say_nothing(
     gh_with_recorded_posts,
 ):
-    submitted = [post for post in posted() if isinstance(post, PullRequestReview)]
+    submitted = [post for post in list_posts() if isinstance(post, PullRequestReview)]
 
     assert [review.is_speaking for review in submitted] == [True, False, False, False]
 
@@ -746,7 +768,7 @@ def test_the_reviews_github_wrapped_the_inline_comments_in_say_nothing(
 def test_a_recorded_inline_comment_reads_the_line_it_was_written_against(
     gh_with_recorded_posts,
 ):
-    inline = [post for post in posted() if isinstance(post, InlineReviewComment)]
+    inline = [post for post in list_posts() if isinstance(post, InlineReviewComment)]
 
     # The code four of these were written against has moved since, so GitHub
     # answers no line for them and keeps the line each was written against as
@@ -764,7 +786,7 @@ def test_a_recorded_inline_comment_reads_the_line_it_was_written_against(
 def test_a_recorded_inline_comment_carries_the_diff_it_was_written_against(
     gh_with_recorded_posts,
 ):
-    inline = [post for post in posted() if isinstance(post, InlineReviewComment)]
+    inline = [post for post in list_posts() if isinstance(post, InlineReviewComment)]
 
     assert inline[0].side == "RIGHT"
     assert inline[0].start_line is None

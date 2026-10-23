@@ -1,7 +1,7 @@
 from time import perf_counter
 
 import pytest
-from fakes import Line, Stream, recorded
+from fakes import Line, Stream, read_recorded_lines
 
 from dreamcatcher.commands import CommandError, run_command
 
@@ -14,7 +14,7 @@ STREAM = '{"type":"assistant","text":"café"}\n{"type":"result"}\n'
 def recording(tmp_path):
     path = tmp_path / "stream.jsonl"
     path.write_text(STREAM, encoding="utf-8")
-    return recorded(path=path)
+    return read_recorded_lines(path=path)
 
 
 def test_a_stand_in_harness_replays_the_recording_it_was_given(fake, recording):

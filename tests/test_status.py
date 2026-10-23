@@ -5,7 +5,7 @@ from datetime import timedelta
 
 import pytest
 from clocks import PINNED
-from conftest import ASSIGNMENT_LABEL, PULL_REQUEST, REPOSITORY, comment
+from conftest import ASSIGNMENT_LABEL, PULL_REQUEST, REPOSITORY, compose_comment
 from records import (
     HEAD,
     MERGED_INPUT,
@@ -17,7 +17,7 @@ from records import (
     write_round,
     write_tick,
 )
-from rows import UNCLAIMED, request_row
+from rows import UNCLAIMED, compose_request_row
 from status_fabrications import compose_feed_line, fabricate_everything
 
 from dreamcatcher.agent_assignments import (
@@ -101,13 +101,13 @@ def state(tmp_path):
 
 
 @pytest.fixture
-def running(state):
+def held_state(state):
     """That state directory held by a daemon with this process identifier."""
     hold_daemon_lock_for_test(path=state.lock)
     return state
 
 
-def ran(
+def write_assignment_round(
     *,
     state: StateDirectory,
     number: int,
@@ -141,7 +141,7 @@ def ran(
     return record
 
 
-def said(
+def write_feed_lines(
     *, state: StateDirectory, record: AgentRoundRecord, texts: Sequence[str]
 ) -> None:
     """Write feed lines one minute after the round began."""
@@ -152,19 +152,19 @@ def said(
     )
 
 
-def report(*, state: StateDirectory):
+def read_report(*, state: StateDirectory):
     """Read the fixture's status report at the pinned time."""
     return read_status_report(state=state, clock=lambda: LOOKED_AT)
 
 
-def only_assignment(*, state: StateDirectory):
+def read_sole_assignment_status(*, state: StateDirectory):
     """Return the only agent-assignment status in the fixture."""
-    assignments = report(state=state).work_statuses
+    assignments = read_report(state=state).work_statuses
     assert len(assignments) == 1
     return assignments[0]
 
 
-def pull_request_row(
+def compose_pull_request_row(
     *,
     new_posts: int = 0,
     state: PullRequestState = PullRequestState.OPEN,
@@ -178,7 +178,7 @@ def pull_request_row(
     The tick read the assignment once its first round had ended, unless the
     test says otherwise.
     """
-    return request_row(
+    return compose_request_row(
         issue=13,
         agent_work_identifier=ASSIGNMENT_ID,
         ended_round=ended_round,
@@ -199,7 +199,7 @@ def pull_request_row(
     )
 
 
-def tick_with(*, state: StateDirectory, rows: list[RequestRow]) -> None:
+def write_tick_rows(*, state: StateDirectory, rows: list[RequestRow]) -> None:
     """Write a tick that wrote these rows."""
     write_tick(state=state, tick=SchedulerRecord(at=LOOKED_AT, rows=rows))
 
@@ -269,7 +269,7 @@ def test_an_empty_campaign_section_says_how_to_start_a_campaign(tmp_path):
 def test_the_instance_record_names_the_repository(state):
     write_text(text=f"{REPOSITORY}\n", path=state.repository)
 
-    assert report(state=state).repository == REPOSITORY
+    assert read_report(state=state).repository == REPOSITORY
 
 
 def test_the_instance_records_name_the_harness_and_version(state):
@@ -281,7 +281,7 @@ def test_the_instance_records_name_the_harness_and_version(state):
         max_agents=3,
     )
 
-    found = report(state=state)
+    found = read_report(state=state)
 
     assert found.daemon.preferred_harness is AgentHarness.CODEX
     assert found.daemon.dreamcatcher_version == "3.0.0.beta1"
@@ -293,20 +293,20 @@ def test_a_live_daemon_that_has_not_named_its_run_has_no_pid(tmp_path):
     state = StateDirectory(root=tmp_path)
     hold_daemon_lock_for_test(path=state.lock)
 
-    found = report(state=state)
+    found = read_report(state=state)
 
     assert found.daemon.is_running
     assert found.daemon.pid is None
 
 
-def test_a_live_round_reports_work_and_its_latest_output(running):
-    said(
-        state=running,
-        record=ran(state=running, number=1, status=None),
+def test_a_live_round_reports_work_and_its_latest_output(held_state):
+    write_feed_lines(
+        state=held_state,
+        record=write_assignment_round(state=held_state, number=1, status=None),
         texts=["first", "[Bash] pytest"],
     )
 
-    found = report(state=running)
+    found = read_report(state=held_state)
     status = found.work_statuses[0]
 
     assert found.daemon.pid == os.getpid()
@@ -317,11 +317,11 @@ def test_a_live_round_reports_work_and_its_latest_output(running):
     assert status.hand_resume_command is None
 
 
-def test_a_live_round_keeps_the_pull_request_summary_the_tick_read(running):
-    ran(state=running, number=1, status=None)
-    tick_with(state=running, rows=[pull_request_row()])
+def test_a_live_round_keeps_the_pull_request_summary_the_tick_read(held_state):
+    write_assignment_round(state=held_state, number=1, status=None)
+    write_tick_rows(state=held_state, rows=[compose_pull_request_row()])
 
-    assert only_assignment(state=running).pull_request_summary == "ready"
+    assert read_sole_assignment_status(state=held_state).pull_request_summary == "ready"
 
 
 @pytest.mark.parametrize(
@@ -354,7 +354,7 @@ def test_a_terminal_round_status_describes_its_outcome_and_duration(
         ),
     )
 
-    round_status = only_assignment(state=state).round_statuses[0]
+    round_status = read_sole_assignment_status(state=state).round_statuses[0]
 
     assert round_status.outcome_description == outcome_description
     assert round_status.duration_description == duration
@@ -369,9 +369,9 @@ def test_an_unended_round_status_follows_the_daemon(
 ):
     if is_running:
         hold_daemon_lock_for_test(path=state.lock)
-    ran(state=state, number=1, status=None)
+    write_assignment_round(state=state, number=1, status=None)
 
-    round_status = only_assignment(state=state).round_statuses[0]
+    round_status = read_sole_assignment_status(state=state).round_statuses[0]
 
     assert round_status.outcome_description == outcome_description
     assert round_status.duration_description == ""
@@ -405,7 +405,7 @@ def test_status_finds_the_harness_session_and_builds_its_resume_command(tmp_path
         path=directory / "rounds" / "1" / "raw.jsonl",
     )
 
-    status = only_assignment(state=state)
+    status = read_sole_assignment_status(state=state)
 
     assert status.harness_session_identifier == "abc-123"
     assert status.hand_resume_command == ["claude", "--resume", "abc-123"]
@@ -424,7 +424,7 @@ def test_status_reads_harness_resume_details_only_when_requested(state, monkeypa
         find_harness_session_identifier,
     )
 
-    status = only_assignment(state=state)
+    status = read_sole_assignment_status(state=state)
 
     assert calls == []
     assert status.harness_session_identifier == "abc-123"
@@ -453,16 +453,16 @@ def test_status_with_no_harness_session_has_no_resume_command(tmp_path):
         ),
     )
 
-    status = only_assignment(state=state)
+    status = read_sole_assignment_status(state=state)
 
     assert status.harness_session_identifier is None
     assert status.hand_resume_command is None
 
 
-def test_a_live_round_that_has_said_nothing_reports_that(running):
-    ran(state=running, number=1, status=None)
+def test_a_live_round_that_has_said_nothing_reports_that(held_state):
+    write_assignment_round(state=held_state, number=1, status=None)
 
-    status = only_assignment(state=running)
+    status = read_sole_assignment_status(state=held_state)
 
     assert status.value is AgentWorkStatusValue.WORKING
     assert status.detail == "round 1, start, running 1h 59m, has said nothing yet"
@@ -482,7 +482,7 @@ def test_a_round_that_errored_before_its_harness_ran_says_why_without_a_status(
         ),
     )
 
-    status = only_assignment(state=state)
+    status = read_sole_assignment_status(state=state)
 
     assert status.value is AgentWorkStatusValue.WAITING
     assert status.detail == "round 1 errored: git push failed"
@@ -499,20 +499,20 @@ def test_a_round_that_errored_before_its_harness_ran_says_why_without_a_status(
 def test_an_unfinished_round_waits_to_be_given_its_input_again(
     state, round_status, detail
 ):
-    ran(state=state, number=1, status=round_status)
-    tick_with(state=state, rows=[pull_request_row()])
+    write_assignment_round(state=state, number=1, status=round_status)
+    write_tick_rows(state=state, rows=[compose_pull_request_row()])
 
-    status = only_assignment(state=state)
+    status = read_sole_assignment_status(state=state)
 
     assert status.value is AgentWorkStatusValue.WAITING
     assert status.detail == detail
 
 
 def test_a_successful_wrap_up_is_complete(state):
-    ran(state=state, number=1)
-    ran(state=state, number=2, round_input=MERGED_INPUT)
+    write_assignment_round(state=state, number=1)
+    write_assignment_round(state=state, number=2, round_input=MERGED_INPUT)
 
-    status = only_assignment(state=state)
+    status = read_sole_assignment_status(state=state)
 
     assert status.value is AgentWorkStatusValue.ENDED
     assert status.detail == "completed"
@@ -525,39 +525,39 @@ def cancel(*, state: StateDirectory) -> None:
 
 
 def test_a_cancelled_assignment_has_ended(state):
-    ran(state=state, number=1)
+    write_assignment_round(state=state, number=1)
     cancel(state=state)
 
-    status = only_assignment(state=state)
+    status = read_sole_assignment_status(state=state)
 
     assert status.value is AgentWorkStatusValue.ENDED
     assert status.detail == "cancelled"
     assert status.has_ended
 
 
-def test_a_round_still_running_after_a_cancel_is_working(running):
-    ran(state=running, number=1, status=None)
-    cancel(state=running)
+def test_a_round_still_running_after_a_cancel_is_working(held_state):
+    write_assignment_round(state=held_state, number=1, status=None)
+    cancel(state=held_state)
 
-    status = only_assignment(state=running)
+    status = read_sole_assignment_status(state=held_state)
 
     assert status.value is AgentWorkStatusValue.WORKING
     assert not status.has_ended
 
 
 def test_a_cancelled_assignment_has_ended_rather_than_being_in_fault(state):
-    ran(state=state, number=1, status=1)
-    ran(state=state, number=2, status=2)
+    write_assignment_round(state=state, number=1, status=1)
+    write_assignment_round(state=state, number=2, status=2)
     cancel(state=state)
 
-    status = only_assignment(state=state)
+    status = read_sole_assignment_status(state=state)
 
     assert status.value is AgentWorkStatusValue.ENDED
 
 
-def pull_request_row_holding(**facts: object) -> RequestRow:
+def compose_pull_request_row_with(**facts: object) -> RequestRow:
     """Return the row of the fixture's assignment, its pull request holding these."""
-    row = pull_request_row()
+    row = compose_pull_request_row()
     assert row.finding is not None
     finding = PullRequestFinding.model_validate(row.finding.model_dump() | facts)
     return row.model_copy(update={"finding": finding})
@@ -591,10 +591,10 @@ def pull_request_row_holding(**facts: object) -> RequestRow:
 def test_an_open_assignment_reports_where_the_tick_found_its_pull_request(
     state, facts, words
 ):
-    ran(state=state, number=1)
-    tick_with(state=state, rows=[pull_request_row_holding(**facts)])
+    write_assignment_round(state=state, number=1)
+    write_tick_rows(state=state, rows=[compose_pull_request_row_with(**facts)])
 
-    assert only_assignment(state=state).pull_request_summary == words
+    assert read_sole_assignment_status(state=state).pull_request_summary == words
 
 
 @pytest.mark.parametrize(
@@ -623,21 +623,21 @@ def test_an_open_assignment_reports_where_the_tick_found_its_pull_request(
 def test_a_ready_pull_request_with_nothing_new_says_where_it_has_got_to(
     state, facts, detail
 ):
-    ran(state=state, number=1)
-    tick_with(state=state, rows=[pull_request_row_holding(**facts)])
+    write_assignment_round(state=state, number=1)
+    write_tick_rows(state=state, rows=[compose_pull_request_row_with(**facts)])
 
-    status = only_assignment(state=state)
+    status = read_sole_assignment_status(state=state)
 
     assert status.value is AgentWorkStatusValue.IDLE
     assert status.detail == detail
 
 
 def test_signals_found_by_the_tick_make_the_assignment_wait(state):
-    ran(state=state, number=1)
-    tick_with(
+    write_assignment_round(state=state, number=1)
+    write_tick_rows(
         state=state,
         rows=[
-            pull_request_row_holding(
+            compose_pull_request_row_with(
                 new_posts=1,
                 new_pull_request_signals=[
                     PullRequestSignal.OUT_OF_DATE,
@@ -647,7 +647,7 @@ def test_signals_found_by_the_tick_make_the_assignment_wait(state):
         ],
     )
 
-    status = only_assignment(state=state)
+    status = read_sole_assignment_status(state=state)
 
     assert status.value is AgentWorkStatusValue.WAITING
     assert status.detail == "1 new post to answer, main moved, checks failed"
@@ -662,77 +662,81 @@ def test_signals_found_by_the_tick_make_the_assignment_wait(state):
     ],
 )
 def test_a_round_says_which_signals_woke_it(state, signals, posts, trigger):
-    ran(
+    write_assignment_round(
         state=state,
         number=1,
         round_input=AssignmentRoundInput(
             pull_request_state=PullRequestState.OPEN,
             pull_request_head=HEAD,
             signals=signals,
-            user_posts=[IssueComment.model_validate(comment())] * posts,
+            user_posts=[IssueComment.model_validate(compose_comment())] * posts,
         ),
     )
 
-    round_status = only_assignment(state=state).round_statuses[0]
+    round_status = read_sole_assignment_status(state=state).round_statuses[0]
 
     assert round_status.trigger_description == trigger
 
 
 def test_an_unreadable_round_input_fails_the_status_naming_the_file(state):
-    ran(state=state, number=1)
+    write_assignment_round(state=state, number=1)
     (assignment,) = read_assignments(state=state)
     round_input = assignment.compose_round_paths(number=1).round_input
     round_input.write_bytes(b"not json")
 
-    found = only_assignment(state=state)
+    found = read_sole_assignment_status(state=state)
 
     with pytest.raises(ReportableError, match=re.escape(str(round_input))):
         _ = found.round_statuses
 
 
 def test_a_round_with_no_input_was_the_start(state):
-    ran(state=state, number=1)
+    write_assignment_round(state=state, number=1)
 
-    round_status = only_assignment(state=state).round_statuses[0]
+    round_status = read_sole_assignment_status(state=state).round_statuses[0]
 
     assert round_status.trigger_description == "start"
 
 
 def test_an_assignment_the_tick_read_nothing_for_reports_no_pull_request_summary(state):
-    ran(state=state, number=1, status=None)
-    tick_with(
-        state=state, rows=[request_row(issue=13, agent_work_identifier=ASSIGNMENT_ID)]
+    write_assignment_round(state=state, number=1, status=None)
+    write_tick_rows(
+        state=state,
+        rows=[compose_request_row(issue=13, agent_work_identifier=ASSIGNMENT_ID)],
     )
 
-    assert only_assignment(state=state).pull_request_summary is None
+    assert read_sole_assignment_status(state=state).pull_request_summary is None
 
 
 def test_a_cancelled_assignment_stops_reporting_its_pull_request_summary(state):
-    ran(state=state, number=1)
-    tick_with(state=state, rows=[pull_request_row(is_draft=True)])
+    write_assignment_round(state=state, number=1)
+    write_tick_rows(state=state, rows=[compose_pull_request_row(is_draft=True)])
 
     cancel(state=state)
 
-    assert only_assignment(state=state).pull_request_summary is None
+    assert read_sole_assignment_status(state=state).pull_request_summary is None
 
 
 @pytest.mark.parametrize("status", [0, None])
 def test_a_wrapped_up_assignment_reports_the_state_its_last_round_was_given(
     state, status
 ):
-    ran(state=state, number=1)
-    ran(state=state, number=2, status=status, round_input=MERGED_INPUT)
-    tick_with(
-        state=state, rows=[request_row(issue=13, agent_work_identifier=ASSIGNMENT_ID)]
+    write_assignment_round(state=state, number=1)
+    write_assignment_round(
+        state=state, number=2, status=status, round_input=MERGED_INPUT
+    )
+    write_tick_rows(
+        state=state,
+        rows=[compose_request_row(issue=13, agent_work_identifier=ASSIGNMENT_ID)],
     )
 
-    assert only_assignment(state=state).pull_request_summary == "merged"
+    assert read_sole_assignment_status(state=state).pull_request_summary == "merged"
 
 
 def test_an_assignment_that_has_run_no_round_waits_for_its_first(state):
-    tick_with(state=state, rows=[])
+    write_tick_rows(state=state, rows=[])
 
-    status = only_assignment(state=state)
+    status = read_sole_assignment_status(state=state)
 
     assert status.value is AgentWorkStatusValue.WAITING
     assert status.detail == "no round has run yet"
@@ -740,10 +744,10 @@ def test_an_assignment_that_has_run_no_round_waits_for_its_first(state):
 
 
 def test_new_posts_found_by_the_tick_make_the_assignment_wait(state):
-    ran(state=state, number=1)
-    tick_with(state=state, rows=[pull_request_row(new_posts=1)])
+    write_assignment_round(state=state, number=1)
+    write_tick_rows(state=state, rows=[compose_pull_request_row(new_posts=1)])
 
-    status = only_assignment(state=state)
+    status = read_sole_assignment_status(state=state)
 
     assert status.value is AgentWorkStatusValue.WAITING
     assert status.detail == "1 new post to answer"
@@ -751,28 +755,28 @@ def test_new_posts_found_by_the_tick_make_the_assignment_wait(state):
 
 @pytest.mark.parametrize("pull_request_state", ["MERGED", "CLOSED"])
 def test_a_finished_pull_request_waits_for_its_wrap_up_round(state, pull_request_state):
-    ran(state=state, number=1)
-    tick_with(
+    write_assignment_round(state=state, number=1)
+    write_tick_rows(
         state=state,
         rows=[
-            pull_request_row(
+            compose_pull_request_row(
                 state=PullRequestState(pull_request_state), is_wrap_up_due=True
             )
         ],
     )
 
-    status = only_assignment(state=state)
+    status = read_sole_assignment_status(state=state)
 
     assert status.value is AgentWorkStatusValue.WAITING
     assert status.detail == f"the pull request is {pull_request_state.lower()}"
 
 
 def test_a_failed_read_makes_the_assignment_unknown_with_the_reason(state):
-    ran(state=state, number=1)
-    tick_with(
+    write_assignment_round(state=state, number=1)
+    write_tick_rows(
         state=state,
         rows=[
-            request_row(
+            compose_request_row(
                 issue=13,
                 agent_work_identifier=ASSIGNMENT_ID,
                 finding=ReadFailureFinding(reason="unavailable"),
@@ -780,61 +784,63 @@ def test_a_failed_read_makes_the_assignment_unknown_with_the_reason(state):
         ],
     )
 
-    status = only_assignment(state=state)
+    status = read_sole_assignment_status(state=state)
 
     assert status.value is AgentWorkStatusValue.UNKNOWN
     assert status.detail == "cannot tell: unavailable"
 
 
 def test_an_assignment_before_any_update_is_unknown(state):
-    ran(state=state, number=1)
+    write_assignment_round(state=state, number=1)
 
-    status = only_assignment(state=state)
+    status = read_sole_assignment_status(state=state)
 
     assert status.value is AgentWorkStatusValue.UNKNOWN
     assert status.detail == "not seen by the latest update"
 
 
 def test_a_round_ending_after_the_latest_tick_is_idle_until_the_next_update(state):
-    ran(state=state, number=1)
-    tick_with(
+    write_assignment_round(state=state, number=1)
+    write_tick_rows(
         state=state,
         rows=[
-            pull_request_row(
+            compose_pull_request_row(
                 new_posts=1, started_round=StartedRound(number=1), ended_round=None
             )
         ],
     )
 
-    status = only_assignment(state=state)
+    status = read_sole_assignment_status(state=state)
 
     assert status.value is AgentWorkStatusValue.IDLE
     assert status.detail == "round 1 ended, awaiting next update"
 
 
 def test_an_assignment_the_latest_update_did_not_see_is_unknown(state):
-    ran(state=state, number=1)
-    tick_with(state=state, rows=[])
+    write_assignment_round(state=state, number=1)
+    write_tick_rows(state=state, rows=[])
 
-    status = only_assignment(state=state)
+    status = read_sole_assignment_status(state=state)
 
     assert status.value is AgentWorkStatusValue.UNKNOWN
     assert status.detail == "not seen by the latest update"
 
 
 def test_a_later_update_replaces_the_read_that_predated_a_rounds_ending(state):
-    ran(state=state, number=1)
-    tick_with(state=state, rows=[pull_request_row(is_draft=True, ended_round=None)])
+    write_assignment_round(state=state, number=1)
+    write_tick_rows(
+        state=state, rows=[compose_pull_request_row(is_draft=True, ended_round=None)]
+    )
 
-    awaiting_update = only_assignment(state=state)
+    awaiting_update = read_sole_assignment_status(state=state)
 
     assert awaiting_update.value is AgentWorkStatusValue.IDLE
     assert awaiting_update.detail == "round 1 ended, awaiting next update"
     assert awaiting_update.pull_request_summary == "draft"
 
-    tick_with(state=state, rows=[pull_request_row(is_draft=True)])
+    write_tick_rows(state=state, rows=[compose_pull_request_row(is_draft=True)])
 
-    refreshed = only_assignment(state=state)
+    refreshed = read_sole_assignment_status(state=state)
 
     assert refreshed.value is AgentWorkStatusValue.IDLE
     assert refreshed.detail == "needs feedback"
@@ -854,39 +860,41 @@ def test_a_stopped_round_ending_after_the_latest_tick_is_idle_until_the_next_upd
             ending=StoppedAgentRoundEnding(at=LOOKED_AT + timedelta(minutes=1)),
         ),
     )
-    tick_with(state=state, rows=[pull_request_row(ended_round=None)])
+    write_tick_rows(state=state, rows=[compose_pull_request_row(ended_round=None)])
 
-    status = only_assignment(state=state)
+    status = read_sole_assignment_status(state=state)
 
     assert status.value is AgentWorkStatusValue.IDLE
     assert status.detail == "round 1 ended, awaiting next update"
 
 
 def test_new_posts_found_while_a_round_ran_wait_after_it_ends(state):
-    ran(state=state, number=1)
-    tick_with(state=state, rows=[pull_request_row(new_posts=1, ended_round=None)])
+    write_assignment_round(state=state, number=1)
+    write_tick_rows(
+        state=state, rows=[compose_pull_request_row(new_posts=1, ended_round=None)]
+    )
 
-    status = only_assignment(state=state)
+    status = read_sole_assignment_status(state=state)
 
     assert status.value is AgentWorkStatusValue.WAITING
     assert status.detail == "1 new post to answer"
 
 
 def test_a_ready_pull_request_with_nothing_new_is_idle_ready_for_review(state):
-    ran(state=state, number=1)
-    tick_with(state=state, rows=[pull_request_row()])
+    write_assignment_round(state=state, number=1)
+    write_tick_rows(state=state, rows=[compose_pull_request_row()])
 
-    status = only_assignment(state=state)
+    status = read_sole_assignment_status(state=state)
 
     assert status.value is AgentWorkStatusValue.IDLE
     assert status.detail == "ready for review"
 
 
 def test_a_draft_pull_request_with_nothing_new_is_idle_needing_feedback(state):
-    ran(state=state, number=1)
-    tick_with(state=state, rows=[pull_request_row(is_draft=True)])
+    write_assignment_round(state=state, number=1)
+    write_tick_rows(state=state, rows=[compose_pull_request_row(is_draft=True)])
 
-    assert only_assignment(state=state).detail == "needs feedback"
+    assert read_sole_assignment_status(state=state).detail == "needs feedback"
 
 
 def test_a_finished_pull_request_whose_wrap_up_round_took_its_turn_is_idle(state):
@@ -901,9 +909,11 @@ def test_a_finished_pull_request_whose_wrap_up_round_took_its_turn_is_idle(state
         ),
         round_input=MERGED_INPUT,
     )
-    tick_with(state=state, rows=[pull_request_row(state=PullRequestState.MERGED)])
+    write_tick_rows(
+        state=state, rows=[compose_pull_request_row(state=PullRequestState.MERGED)]
+    )
 
-    status = only_assignment(state=state)
+    status = read_sole_assignment_status(state=state)
 
     assert status.value is AgentWorkStatusValue.IDLE
     assert status.detail == "merged"
@@ -921,9 +931,9 @@ def test_a_stopped_assignment_is_idle(state):
             ending=StoppedAgentRoundEnding(at=started + timedelta(minutes=4)),
         ),
     )
-    tick_with(state=state, rows=[pull_request_row()])
+    write_tick_rows(state=state, rows=[compose_pull_request_row()])
 
-    status = only_assignment(state=state)
+    status = read_sole_assignment_status(state=state)
 
     assert status.value is AgentWorkStatusValue.IDLE
     assert status.round_statuses[0].duration_description == "ran 4m"
@@ -931,14 +941,14 @@ def test_a_stopped_assignment_is_idle(state):
 
 
 def test_two_current_errors_put_an_assignment_in_fault(state):
-    ran(state=state, number=1, status=1)
-    said(
+    write_assignment_round(state=state, number=1, status=1)
+    write_feed_lines(
         state=state,
-        record=ran(state=state, number=2, status=2),
+        record=write_assignment_round(state=state, number=2, status=2),
         texts=["[failed] You hit your spend cap."],
     )
 
-    status = only_assignment(state=state)
+    status = read_sole_assignment_status(state=state)
 
     assert status.value is AgentWorkStatusValue.FAULT
     assert status.detail == "round 2 errored (exit 2)"
@@ -947,18 +957,18 @@ def test_two_current_errors_put_an_assignment_in_fault(state):
 
 
 def test_a_fault_with_no_output_names_the_latest_round_ending(state):
-    ran(state=state, number=1, status=1)
-    ran(state=state, number=2, status=2)
+    write_assignment_round(state=state, number=1, status=1)
+    write_assignment_round(state=state, number=2, status=2)
 
-    status = only_assignment(state=state)
+    status = read_sole_assignment_status(state=state)
 
     assert status.detail == "round 2 errored (exit 2)"
     assert status.latest_output is None
 
 
 def test_an_elapsed_cooldown_clears_the_fault_and_the_cooldown(state):
-    ran(state=state, number=1, status=1)
-    ran(state=state, number=2, status=2)
+    write_assignment_round(state=state, number=1, status=1)
+    write_assignment_round(state=state, number=2, status=2)
     ended = PINNED + timedelta(minutes=15)
     write_tick(
         state=state,
@@ -968,16 +978,16 @@ def test_an_elapsed_cooldown_clears_the_fault_and_the_cooldown(state):
         ),
     )
 
-    found = report(state=state)
+    found = read_report(state=state)
 
     assert found.work_statuses[0].value is AgentWorkStatusValue.WAITING
     assert found.active_global_cooldown is None
 
 
-def test_an_active_cooldown_is_an_instance_fact_and_failures_are_listed(running):
+def test_an_active_cooldown_is_an_instance_fact_and_failures_are_listed(held_state):
     cooldown = GlobalCooldown(started=PINNED, ends=LOOKED_AT + timedelta(minutes=1))
     write_tick(
-        state=running,
+        state=held_state,
         tick=SchedulerRecord(
             at=PINNED,
             failures=["could not start assignment", "could not read comments for GH8"],
@@ -985,7 +995,7 @@ def test_an_active_cooldown_is_an_instance_fact_and_failures_are_listed(running)
         ),
     )
 
-    found = report(state=running)
+    found = read_report(state=held_state)
 
     assert found.latest_scheduler_tick == PINNED
     assert found.daemon.interval_seconds == DEFAULT_INTERVAL_SECONDS
@@ -1009,11 +1019,11 @@ def test_a_stopped_daemon_has_no_current_scheduler_failures(state):
         tick=SchedulerRecord(at=PINNED, failures=["could not start assignment"]),
     )
 
-    assert report(state=state).scheduler_failures == ()
+    assert read_report(state=state).scheduler_failures == ()
 
 
 def test_a_blocked_request_names_its_claims_and_blockers_as_numbers(state):
-    blocked = request_row(
+    blocked = compose_request_row(
         issue=20,
         finding=StartTimeFinding(
             linked_pull_requests=[28],
@@ -1028,7 +1038,7 @@ def test_a_blocked_request_names_its_claims_and_blockers_as_numbers(state):
         ),
     )
 
-    [request] = report(state=state).request_statuses
+    [request] = read_report(state=state).request_statuses
 
     assert request == RequestStatus(
         row=blocked,
@@ -1044,7 +1054,7 @@ def test_a_blocked_request_names_its_claims_and_blockers_as_numbers(state):
 
 
 def test_a_campaign_request_names_the_issues_that_block_its_parent(state):
-    blocked = request_row(
+    blocked = compose_request_row(
         issue=20,
         kind=AgentWorkKind.CAMPAIGN,
         finding=BlockingIssuesFinding(
@@ -1056,7 +1066,7 @@ def test_a_campaign_request_names_the_issues_that_block_its_parent(state):
     )
     write_tick(state=state, tick=SchedulerRecord(at=PINNED, rows=[blocked]))
 
-    [request] = report(state=state).request_statuses
+    [request] = read_report(state=state).request_statuses
 
     assert request == RequestStatus(
         row=blocked,
@@ -1079,7 +1089,7 @@ def test_a_request_that_an_open_pull_request_claims_is_blocked(state):
         tick=SchedulerRecord(
             at=PINNED,
             rows=[
-                request_row(
+                compose_request_row(
                     issue=20,
                     finding=StartTimeFinding(
                         linked_pull_requests=[28], blocking_issues=[]
@@ -1089,7 +1099,7 @@ def test_a_request_that_an_open_pull_request_claims_is_blocked(state):
         ),
     )
 
-    [request] = report(state=state).request_statuses
+    [request] = read_report(state=state).request_statuses
 
     assert request.value is RequestStatusValue.BLOCKED
     assert request.reasons == (RequestReason(words="claimed by", pull_requests=(28,)),)
@@ -1098,15 +1108,17 @@ def test_a_request_that_an_open_pull_request_claims_is_blocked(state):
 def test_an_assignment_whose_pull_request_is_not_yet_open_waits_for_it(tmp_path):
     state = StateDirectory(root=tmp_path)
     write_assignment(state=state, identifier=ASSIGNMENT_ID, issue=13, pull_request=None)
-    ran(state=state, number=1)
-    tick_with(
+    write_assignment_round(state=state, number=1)
+    write_tick_rows(
         state=state,
         rows=[
-            request_row(issue=13, agent_work_identifier=ASSIGNMENT_ID, ended_round=1)
+            compose_request_row(
+                issue=13, agent_work_identifier=ASSIGNMENT_ID, ended_round=1
+            )
         ],
     )
 
-    status = only_assignment(state=state)
+    status = read_sole_assignment_status(state=state)
 
     assert status.value is AgentWorkStatusValue.WAITING
     assert status.detail == "no pull request yet"
@@ -1116,11 +1128,11 @@ def test_a_request_nothing_claims_or_blocks_is_available(state):
     write_tick(
         state=state,
         tick=SchedulerRecord(
-            at=PINNED, rows=[request_row(issue=20, finding=UNCLAIMED)]
+            at=PINNED, rows=[compose_request_row(issue=20, finding=UNCLAIMED)]
         ),
     )
 
-    [request] = report(state=state).request_statuses
+    [request] = read_report(state=state).request_statuses
 
     assert request.value is RequestStatusValue.AVAILABLE
     assert request.reasons == (RequestReason(words="available"),)
@@ -1133,13 +1145,13 @@ def test_two_labels_of_one_kind_are_a_routing_conflict_named_in_each_row(state):
         tick=SchedulerRecord(
             at=PINNED,
             rows=[
-                request_row(issue=20, label="dream:less", finding=conflict),
-                request_row(issue=20, finding=conflict),
+                compose_request_row(issue=20, label="dream:less", finding=conflict),
+                compose_request_row(issue=20, finding=conflict),
             ],
         ),
     )
 
-    requests = report(state=state).request_statuses
+    requests = read_report(state=state).request_statuses
 
     assert [(request.row.dispatch_label, request.value) for request in requests] == [
         ("dream:less", RequestStatusValue.ROUTING_CONFLICT),
@@ -1156,12 +1168,14 @@ def test_a_request_whose_read_failed_is_unknown_with_the_reason(state):
         tick=SchedulerRecord(
             at=PINNED,
             rows=[
-                request_row(issue=20, finding=ReadFailureFinding(reason="gh: offline"))
+                compose_request_row(
+                    issue=20, finding=ReadFailureFinding(reason="gh: offline")
+                )
             ],
         ),
     )
 
-    [request] = report(state=state).request_statuses
+    [request] = read_report(state=state).request_statuses
 
     assert request.value is RequestStatusValue.UNKNOWN
     assert request.reasons == (RequestReason(words="cannot tell: gh: offline"),)
@@ -1173,14 +1187,14 @@ def test_a_request_that_led_to_open_work_is_reported_through_its_work(state):
         tick=SchedulerRecord(
             at=PINNED,
             rows=[
-                request_row(
+                compose_request_row(
                     issue=13, agent_work_identifier=ASSIGNMENT_ID, finding=UNCLAIMED
                 )
             ],
         ),
     )
 
-    assert report(state=state).request_statuses == []
+    assert read_report(state=state).request_statuses == []
 
 
 def test_requests_keep_the_order_the_tick_saw_them_in(state):
@@ -1189,13 +1203,13 @@ def test_requests_keep_the_order_the_tick_saw_them_in(state):
         tick=SchedulerRecord(
             at=PINNED,
             rows=[
-                request_row(issue=21, finding=UNCLAIMED),
-                request_row(issue=20, finding=UNCLAIMED),
+                compose_request_row(issue=21, finding=UNCLAIMED),
+                compose_request_row(issue=20, finding=UNCLAIMED),
             ],
         ),
     )
 
-    requests = report(state=state).request_statuses
+    requests = read_report(state=state).request_statuses
 
     assert [request.row.issue for request in requests] == [21, 20]
 
@@ -1213,7 +1227,7 @@ def test_assignments_are_ordered_by_issue_with_the_newest_at_an_issue_first(stat
     )
 
     identifiers = [
-        status.work.identifier for status in report(state=state).work_statuses
+        status.work.identifier for status in read_report(state=state).work_statuses
     ]
 
     assert identifiers == [
@@ -1243,7 +1257,7 @@ def test_reading_one_assignment_uses_its_exact_identifier(state):
 
 
 def test_reading_one_assignment_uses_the_daemon_status_it_is_given(state):
-    ran(state=state, number=1, status=None)
+    write_assignment_round(state=state, number=1, status=None)
 
     status = read_work_status(
         state=state,
@@ -1317,7 +1331,7 @@ def test_a_report_orders_active_assignments_by_attention_and_ended_ones_newest_f
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
 
-    found = report(state=state)
+    found = read_report(state=state)
 
     attention = [
         AGENT_WORK_STATUS_VALUES_IN_ATTENTION_ORDER.index(status.value)
@@ -1334,7 +1348,7 @@ def test_a_report_orders_active_assignments_by_attention_and_ended_ones_newest_f
 def test_an_assignment_keeps_its_section_after_its_routes_are_removed(state):
     write_daemon_run(state=state, pid=os.getpid(), routes=[])
 
-    found = report(state=state)
+    found = read_report(state=state)
 
     assert found.describe_section(
         kind=AgentWorkKind.ASSIGNMENT
