@@ -86,11 +86,6 @@ def read_conversation_input(
             f"Conversation {conversation.identifier} round {number} "
             "relayed no issue comments."
         )
-    if round_input.issue != conversation.record.issue:
-        raise ReportableError(
-            f"Conversation {conversation.identifier} round {number} "
-            f"input names issue {round_input.issue}."
-        )
     positions = [(comment.written_at, comment.id) for comment in round_input.comments]
     if positions != sorted(set(positions)):
         raise ReportableError(

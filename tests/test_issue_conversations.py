@@ -399,29 +399,20 @@ def test_the_cursor_refuses_a_round_without_comments(tmp_path):
         read_issue_comment_cursor(conversation=reread)
 
 
-@pytest.mark.parametrize(
-    ("input_issue", "comment_identifiers", "message"),
-    [
-        (9, [3], "input names issue 9"),
-        (8, [4, 3], "comments are not strictly ordered"),
-    ],
-)
-def test_the_cursor_refuses_inconsistent_round_input(
-    tmp_path, input_issue, comment_identifiers, message
-):
+def test_the_cursor_refuses_misordered_round_input(tmp_path):
     state = StateDirectory(root=tmp_path)
     conversation = write_conversation(state=state)
     paths = conversation.compose_round_paths(number=1)
     write_json(
         document=ConversationRoundInput(
-            issue=input_issue,
+            issue=8,
             initial_issue=InitialConversationIssue(
                 title="Why does this happen?",
                 body="Explain the scheduler.",
             ),
             comments=[
                 compose_issue_comment(identifier=identifier, body="Question")
-                for identifier in comment_identifiers
+                for identifier in (4, 3)
             ],
             revision="abc123",
         ),
@@ -439,7 +430,7 @@ def test_the_cursor_refuses_inconsistent_round_input(
     reread = read_conversation(state=state, issue=8)
     assert reread is not None
 
-    with pytest.raises(ReportableError, match=message):
+    with pytest.raises(ReportableError, match="comments are not strictly ordered"):
         read_issue_comment_cursor(conversation=reread)
 
 
