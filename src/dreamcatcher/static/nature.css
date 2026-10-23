@@ -393,7 +393,7 @@ body::after {
 }
 
 .agent-work-detail,
-.agent-work-meta,
+.card-foot,
 .labels {
   color: var(--dim);
 }
@@ -414,7 +414,7 @@ body::after {
   margin-right: 7px;
 }
 
-.card-heading-actions,
+.card-actions,
 .agent-work-heading-actions {
   align-items: center;
   gap: 10px;

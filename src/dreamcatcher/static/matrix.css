@@ -328,7 +328,7 @@ body::after {
 }
 
 .card-heading,
-.agent-work-meta {
+.card-foot {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
@@ -430,7 +430,7 @@ body::after {
 }
 
 .agent-work-detail,
-.agent-work-meta,
+.card-foot,
 .labels {
   color: var(--dim);
 }
@@ -467,11 +467,11 @@ body::after {
   }
 }
 
-.agent-work-meta {
+.card-foot {
   margin-top: var(--space-4);
 }
 
-.card-heading-actions {
+.card-actions {
   display: flex;
   flex: none;
   align-items: baseline;
@@ -851,7 +851,7 @@ body::after {
     padding-left: var(--space-8);
   }
 
-  .agent-work-meta,
+  .card-foot,
   .agent-work-heading-actions {
     align-items: flex-start;
   }
