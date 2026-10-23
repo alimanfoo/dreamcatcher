@@ -13,7 +13,14 @@ from conftest import (
     compose_pull_request,
     configure,
 )
-from records import HEAD, MERGED_INPUT, read_assignments, write_assignment, write_round
+from records import (
+    HEAD,
+    MERGED_INPUT,
+    read_assignments,
+    write_assignment,
+    write_assignment_round,
+    write_round,
+)
 
 from dreamcatcher.agent_assignments import (
     AssignmentRoundInput,
@@ -24,7 +31,6 @@ from dreamcatcher.agent_rounds import (
     InterruptedAgentRoundEnding,
     LaunchErroredAgentRoundEnding,
     StoppedAgentRoundEnding,
-    _compose_agent_round_ending,
 )
 from dreamcatcher.config import AgentHarness, read_dreamcatcher_config
 from dreamcatcher.github import (
@@ -85,37 +91,6 @@ def gh(gh_with_no_posts):
     """A gh answering with one open pull request that nobody has posted on."""
     gh_with_no_posts.replies(stdout=compose_pull_request(state="OPEN"), to="pr view")
     return gh_with_no_posts
-
-
-def write_assignment_round(
-    *,
-    state,
-    number: int,
-    status: int | None = 0,
-    round_input: AssignmentRoundInput | None = None,
-) -> None:
-    """Write down a round of that assignment, ended as the status says.
-
-    Each round starts a minute after the one before it, which is the order
-    they read back in.
-    """
-    started = PINNED + timedelta(minutes=number)
-    ending = (
-        InterruptedAgentRoundEnding()
-        if status is None
-        else _compose_agent_round_ending(at=started, status=status)
-    )
-    write_round(
-        directory=state.work / ASSIGNMENT_ID,
-        number=number,
-        record=AgentRoundRecord(
-            number=number,
-            started=started,
-            pid=1,
-            ending=ending,
-        ),
-        round_input=round_input,
-    )
 
 
 def create_scheduler(*, state: StateDirectory) -> Scheduler:
@@ -206,10 +181,15 @@ def test_an_assignment_in_fault_reads_nothing_and_counts_its_fault(tmp_path):
 def test_an_assignment_whose_last_round_was_interrupted_is_given_its_input_again(
     state, gh
 ):
-    write_assignment_round(
-        state=state,
+    write_round(
+        directory=state.work / ASSIGNMENT_ID,
         number=1,
-        status=None,
+        record=AgentRoundRecord(
+            number=1,
+            started=PINNED + timedelta(minutes=1),
+            pid=1,
+            ending=InterruptedAgentRoundEnding(),
+        ),
     )
 
     resume = find_next_round_input(state=state)
@@ -220,11 +200,16 @@ def test_an_assignment_whose_last_round_was_interrupted_is_given_its_input_again
 
 
 def test_an_interruption_breaks_an_error_sequence(state, gh):
-    write_assignment_round(state=state, number=1, status=2)
-    write_assignment_round(
-        state=state,
+    write_assignment_round(directory=state.work / ASSIGNMENT_ID, number=1, status=2)
+    write_round(
+        directory=state.work / ASSIGNMENT_ID,
         number=2,
-        status=None,
+        record=AgentRoundRecord(
+            number=2,
+            started=PINNED + timedelta(minutes=2),
+            pid=1,
+            ending=InterruptedAgentRoundEnding(),
+        ),
     )
 
     resume = find_next_round_input(state=state)
@@ -233,7 +218,7 @@ def test_an_interruption_breaks_an_error_sequence(state, gh):
 
 
 def test_an_assignment_whose_last_round_failed_is_carried_on_with_its_status(state, gh):
-    write_assignment_round(state=state, number=1, status=2)
+    write_assignment_round(directory=state.work / ASSIGNMENT_ID, number=1, status=2)
 
     resume = find_next_round_input(state=state)
 
@@ -242,10 +227,15 @@ def test_an_assignment_whose_last_round_failed_is_carried_on_with_its_status(sta
 
 
 def test_a_terminal_pull_request_makes_an_interrupted_round_a_wrap_up(state, gh):
-    write_assignment_round(
-        state=state,
+    write_round(
+        directory=state.work / ASSIGNMENT_ID,
         number=1,
-        status=None,
+        record=AgentRoundRecord(
+            number=1,
+            started=PINNED + timedelta(minutes=1),
+            pid=1,
+            ending=InterruptedAgentRoundEnding(),
+        ),
     )
     gh.replies(stdout=compose_pull_request(state="MERGED"), to="pr view")
     gh.replies(
@@ -262,7 +252,7 @@ def test_a_terminal_pull_request_makes_an_interrupted_round_a_wrap_up(state, gh)
     ]
 
     write_assignment_round(
-        state=state,
+        directory=state.work / ASSIGNMENT_ID,
         number=2,
         round_input=AssignmentRoundInput(
             pull_request_state=resume.pull_request_state,
@@ -276,7 +266,7 @@ def test_a_terminal_pull_request_makes_an_interrupted_round_a_wrap_up(state, gh)
 
 
 def test_an_assignment_nobody_has_posted_on_needs_nothing(state, gh):
-    write_assignment_round(state=state, number=1)
+    write_assignment_round(directory=state.work / ASSIGNMENT_ID, number=1)
 
     assert find_next_round_input(state=state) is None
     assert gh.calls[0].arguments[:3] == ["pr", "view", str(PULL_REQUEST)]
@@ -376,7 +366,7 @@ def test_a_stopped_assignment_uses_new_feedback(state, gh):
 
 
 def test_a_cancelled_assignment_is_not_inspected_for_rounds(state, gh):
-    write_assignment_round(state=state, number=1)
+    write_assignment_round(directory=state.work / ASSIGNMENT_ID, number=1)
     gh.replies(
         stdout=compose_page(items=[compose_comment()]),
         to=f"api {POST_LIST_PATHS['conversation']}",
@@ -393,7 +383,7 @@ def test_a_cancelled_assignment_is_not_inspected_for_rounds(state, gh):
 def test_a_round_started_for_an_assignment_cancelled_after_inspection_stops(
     state, gh, harnesses
 ):
-    write_assignment_round(state=state, number=1, status=2)
+    write_assignment_round(directory=state.work / ASSIGNMENT_ID, number=1, status=2)
     inspected = inspect(state=state)
     assert inspected.candidate is not None
     cancel_assignment(assignment=read_assignments(state=state)[0], at=PINNED)
@@ -407,7 +397,7 @@ def test_a_round_started_for_an_assignment_cancelled_after_inspection_stops(
 
 
 def test_an_assignment_the_user_has_posted_on_answers_what_they_said(state, gh):
-    write_assignment_round(state=state, number=1)
+    write_assignment_round(directory=state.work / ASSIGNMENT_ID, number=1)
     gh.replies(
         stdout=compose_page(items=[compose_comment()]),
         to=f"api {POST_LIST_PATHS['conversation']}",
@@ -423,7 +413,7 @@ def test_an_assignment_the_user_has_posted_on_answers_what_they_said(state, gh):
 
 
 def test_a_post_on_a_draft_pull_request_wakes_its_assignment(state, gh_with_no_posts):
-    write_assignment_round(state=state, number=1)
+    write_assignment_round(directory=state.work / ASSIGNMENT_ID, number=1)
     gh_with_no_posts.replies(
         stdout=compose_pull_request(state="OPEN", is_draft=True), to="pr view"
     )
@@ -438,7 +428,7 @@ def test_a_post_on_a_draft_pull_request_wakes_its_assignment(state, gh_with_no_p
 
 
 def test_a_batch_of_posts_says_how_many_it_holds(state, gh):
-    write_assignment_round(state=state, number=1)
+    write_assignment_round(directory=state.work / ASSIGNMENT_ID, number=1)
     gh.replies(
         stdout=compose_page(
             items=[
@@ -457,7 +447,7 @@ def test_a_batch_of_posts_says_how_many_it_holds(state, gh):
 
 def test_a_post_at_the_assignment_cursor_wakes_nothing(state, gh):
     write_assignment_round(
-        state=state,
+        directory=state.work / ASSIGNMENT_ID,
         number=1,
         round_input=AssignmentRoundInput(
             pull_request_state=PullRequestState.OPEN,
@@ -475,7 +465,7 @@ def test_a_post_at_the_assignment_cursor_wakes_nothing(state, gh):
 
 
 def test_a_posts_resume_carries_the_facts_launch_will_prepare(state, gh):
-    write_assignment_round(state=state, number=1)
+    write_assignment_round(directory=state.work / ASSIGNMENT_ID, number=1)
     gh.replies(
         stdout=compose_page(items=[compose_comment()]),
         to=f"api {POST_LIST_PATHS['conversation']}",
@@ -494,7 +484,7 @@ def test_a_posts_resume_carries_the_facts_launch_will_prepare(state, gh):
 def test_a_pull_request_that_is_finished_calls_for_one_last_round(
     state, gh, state_name
 ):
-    write_assignment_round(state=state, number=1)
+    write_assignment_round(directory=state.work / ASSIGNMENT_ID, number=1)
     gh.replies(stdout=compose_pull_request(state=state_name), to="pr view")
 
     resume = find_next_round_input(state=state)
@@ -505,7 +495,7 @@ def test_a_pull_request_that_is_finished_calls_for_one_last_round(
 
 
 def test_a_last_round_carries_what_the_user_said_before_the_merge(state, gh):
-    write_assignment_round(state=state, number=1)
+    write_assignment_round(directory=state.work / ASSIGNMENT_ID, number=1)
     gh.replies(stdout=compose_pull_request(state="MERGED"), to="pr view")
     gh.replies(
         stdout=compose_page(items=[compose_comment()]),
@@ -521,24 +511,38 @@ def test_a_last_round_carries_what_the_user_said_before_the_merge(state, gh):
 
 
 def test_an_assignment_whose_last_round_wound_it_up_needs_nothing(state, gh):
-    write_assignment_round(state=state, number=1)
-    write_assignment_round(state=state, number=2, round_input=MERGED_INPUT)
+    write_assignment_round(directory=state.work / ASSIGNMENT_ID, number=1)
+    write_assignment_round(
+        directory=state.work / ASSIGNMENT_ID, number=2, round_input=MERGED_INPUT
+    )
     gh.replies(stdout=compose_pull_request(state="MERGED"), to="pr view")
 
     assert find_next_round_input(state=state) is None
 
 
 def test_a_last_round_that_was_carried_on_is_still_the_last_round(state, gh):
-    write_assignment_round(state=state, number=1)
-    write_assignment_round(state=state, number=2, status=None, round_input=MERGED_INPUT)
-    write_assignment_round(state=state, number=3, round_input=MERGED_INPUT)
+    write_assignment_round(directory=state.work / ASSIGNMENT_ID, number=1)
+    write_round(
+        directory=state.work / ASSIGNMENT_ID,
+        number=2,
+        record=AgentRoundRecord(
+            number=2,
+            started=PINNED + timedelta(minutes=2),
+            pid=1,
+            ending=InterruptedAgentRoundEnding(),
+        ),
+        round_input=MERGED_INPUT,
+    )
+    write_assignment_round(
+        directory=state.work / ASSIGNMENT_ID, number=3, round_input=MERGED_INPUT
+    )
     gh.replies(stdout=compose_pull_request(state="MERGED"), to="pr view")
 
     assert find_next_round_input(state=state) is None
 
 
 def test_a_failed_pull_request_read_leaves_the_assignment_unknown(state, gh):
-    write_assignment_round(state=state, number=1)
+    write_assignment_round(directory=state.work / ASSIGNMENT_ID, number=1)
     gh.fails(stderr="gh: could not connect to github.com", to="pr view")
 
     waiting = find_next_round_input(state=state)
@@ -548,7 +552,7 @@ def test_a_failed_pull_request_read_leaves_the_assignment_unknown(state, gh):
 
 
 def test_a_failed_user_post_read_leaves_the_assignment_unknown(state, gh):
-    write_assignment_round(state=state, number=1)
+    write_assignment_round(directory=state.work / ASSIGNMENT_ID, number=1)
     gh.fails(
         stderr="gh: could not connect to github.com",
         to=f"api {POST_LIST_PATHS['conversation']}",
@@ -586,7 +590,7 @@ def read_pull_request_finding(*, state) -> PullRequestFinding:
 def test_a_ready_pull_request_that_main_moved_under_wakes_its_assignment(
     state, gh, merge_state
 ):
-    write_assignment_round(state=state, number=1)
+    write_assignment_round(directory=state.work / ASSIGNMENT_ID, number=1)
     gh.replies(
         stdout=compose_pull_request(state="OPEN", merge_state=merge_state), to="pr view"
     )
@@ -602,9 +606,9 @@ def test_a_ready_pull_request_that_main_moved_under_wakes_its_assignment(
 
 
 def test_an_out_of_date_pull_request_is_relayed_once_at_each_head(state, gh):
-    write_assignment_round(state=state, number=1)
+    write_assignment_round(directory=state.work / ASSIGNMENT_ID, number=1)
     write_assignment_round(
-        state=state,
+        directory=state.work / ASSIGNMENT_ID,
         number=2,
         round_input=compose_relayed_input(signals=[PullRequestSignal.OUT_OF_DATE]),
     )
@@ -616,9 +620,9 @@ def test_an_out_of_date_pull_request_is_relayed_once_at_each_head(state, gh):
 
 
 def test_main_moving_again_after_a_push_wakes_the_assignment_again(state, gh):
-    write_assignment_round(state=state, number=1)
+    write_assignment_round(directory=state.work / ASSIGNMENT_ID, number=1)
     write_assignment_round(
-        state=state,
+        directory=state.work / ASSIGNMENT_ID,
         number=2,
         round_input=compose_relayed_input(signals=[PullRequestSignal.OUT_OF_DATE]),
     )
@@ -638,14 +642,14 @@ def test_main_moving_again_after_a_push_wakes_the_assignment_again(state, gh):
     "checks", [(compose_check_run(),), (compose_check_run(status="IN_PROGRESS"),), ()]
 )
 def test_a_green_running_or_unchecked_pull_request_wakes_nothing(state, gh, checks):
-    write_assignment_round(state=state, number=1)
+    write_assignment_round(directory=state.work / ASSIGNMENT_ID, number=1)
     gh.replies(stdout=compose_pull_request(state="OPEN", checks=checks), to="pr view")
 
     assert find_next_round_input(state=state) is None
 
 
 def test_a_red_check_wakes_the_assignment(state, gh):
-    write_assignment_round(state=state, number=1)
+    write_assignment_round(directory=state.work / ASSIGNMENT_ID, number=1)
     gh.replies(stdout=compose_pull_request(state="OPEN", checks=RED), to="pr view")
 
     resume = find_next_round_input(state=state)
@@ -655,9 +659,9 @@ def test_a_red_check_wakes_the_assignment(state, gh):
 
 
 def test_a_red_check_is_relayed_once_at_each_head(state, gh):
-    write_assignment_round(state=state, number=1)
+    write_assignment_round(directory=state.work / ASSIGNMENT_ID, number=1)
     write_assignment_round(
-        state=state,
+        directory=state.work / ASSIGNMENT_ID,
         number=2,
         round_input=compose_relayed_input(signals=[PullRequestSignal.CHECK_FAILURE]),
     )
@@ -668,9 +672,9 @@ def test_a_red_check_is_relayed_once_at_each_head(state, gh):
 
 
 def test_a_red_check_after_one_attempt_wakes_the_assignment_a_second_time(state, gh):
-    write_assignment_round(state=state, number=1)
+    write_assignment_round(directory=state.work / ASSIGNMENT_ID, number=1)
     write_assignment_round(
-        state=state,
+        directory=state.work / ASSIGNMENT_ID,
         number=2,
         round_input=compose_relayed_input(signals=[PullRequestSignal.CHECK_FAILURE]),
     )
@@ -685,14 +689,14 @@ def test_a_red_check_after_one_attempt_wakes_the_assignment_a_second_time(state,
 
 
 def test_a_red_check_after_two_attempts_waits_for_the_user(state, gh):
-    write_assignment_round(state=state, number=1)
+    write_assignment_round(directory=state.work / ASSIGNMENT_ID, number=1)
     write_assignment_round(
-        state=state,
+        directory=state.work / ASSIGNMENT_ID,
         number=2,
         round_input=compose_relayed_input(signals=[PullRequestSignal.CHECK_FAILURE]),
     )
     write_assignment_round(
-        state=state,
+        directory=state.work / ASSIGNMENT_ID,
         number=3,
         round_input=compose_relayed_input(
             signals=[PullRequestSignal.CHECK_FAILURE], head=PUSHED
@@ -710,14 +714,14 @@ def test_a_red_check_after_two_attempts_waits_for_the_user(state, gh):
 
 
 def test_a_post_after_two_attempts_still_wakes_the_assignment(state, gh):
-    write_assignment_round(state=state, number=1)
+    write_assignment_round(directory=state.work / ASSIGNMENT_ID, number=1)
     write_assignment_round(
-        state=state,
+        directory=state.work / ASSIGNMENT_ID,
         number=2,
         round_input=compose_relayed_input(signals=[PullRequestSignal.CHECK_FAILURE]),
     )
     write_assignment_round(
-        state=state,
+        directory=state.work / ASSIGNMENT_ID,
         number=3,
         round_input=compose_relayed_input(
             signals=[PullRequestSignal.CHECK_FAILURE], head=PUSHED
@@ -740,14 +744,14 @@ def test_a_post_after_two_attempts_still_wakes_the_assignment(state, gh):
 
 
 def test_a_round_woken_by_a_post_breaks_a_run_of_red_checks(state, gh):
-    write_assignment_round(state=state, number=1)
+    write_assignment_round(directory=state.work / ASSIGNMENT_ID, number=1)
     write_assignment_round(
-        state=state,
+        directory=state.work / ASSIGNMENT_ID,
         number=2,
         round_input=compose_relayed_input(signals=[PullRequestSignal.CHECK_FAILURE]),
     )
     write_assignment_round(
-        state=state,
+        directory=state.work / ASSIGNMENT_ID,
         number=3,
         round_input=compose_relayed_input(signals=[], head=PUSHED, posts=1),
     )
@@ -763,14 +767,14 @@ def test_a_round_woken_by_a_post_breaks_a_run_of_red_checks(state, gh):
 
 
 def test_a_round_that_errored_does_not_count_as_an_attempt(state, gh):
-    write_assignment_round(state=state, number=1)
+    write_assignment_round(directory=state.work / ASSIGNMENT_ID, number=1)
     write_assignment_round(
-        state=state,
+        directory=state.work / ASSIGNMENT_ID,
         number=2,
         round_input=compose_relayed_input(signals=[PullRequestSignal.CHECK_FAILURE]),
     )
     write_assignment_round(
-        state=state,
+        directory=state.work / ASSIGNMENT_ID,
         number=3,
         status=1,
         round_input=compose_relayed_input(
@@ -788,7 +792,7 @@ def test_a_round_that_errored_does_not_count_as_an_attempt(state, gh):
 
 
 def test_a_draft_raises_neither_signal(state, gh):
-    write_assignment_round(state=state, number=1)
+    write_assignment_round(directory=state.work / ASSIGNMENT_ID, number=1)
     gh.replies(
         stdout=compose_pull_request(
             state="OPEN", is_draft=True, merge_state="BEHIND", checks=RED
@@ -801,7 +805,7 @@ def test_a_draft_raises_neither_signal(state, gh):
 
 
 def test_a_merged_pull_request_raises_no_signal_in_its_last_round(state, gh):
-    write_assignment_round(state=state, number=1)
+    write_assignment_round(directory=state.work / ASSIGNMENT_ID, number=1)
     gh.replies(
         stdout=compose_pull_request(state="MERGED", merge_state="UNKNOWN", checks=RED),
         to="pr view",
@@ -815,7 +819,7 @@ def test_a_merged_pull_request_raises_no_signal_in_its_last_round(state, gh):
 
 
 def test_a_round_woken_by_a_signal_is_told_of_it_before_its_input(state, gh):
-    write_assignment_round(state=state, number=1)
+    write_assignment_round(directory=state.work / ASSIGNMENT_ID, number=1)
     gh.replies(stdout=compose_pull_request(state="OPEN", checks=RED), to="pr view")
     candidate = inspect(state=state).candidate
     assert candidate is not None
@@ -827,16 +831,16 @@ def test_a_round_woken_by_a_signal_is_told_of_it_before_its_input(state, gh):
 
 
 def test_each_signal_is_relayed_against_its_own_last_head(state, gh):
-    write_assignment_round(state=state, number=1)
+    write_assignment_round(directory=state.work / ASSIGNMENT_ID, number=1)
     write_assignment_round(
-        state=state,
+        directory=state.work / ASSIGNMENT_ID,
         number=2,
         round_input=compose_relayed_input(
             signals=[PullRequestSignal.CHECK_FAILURE], head=PUSHED
         ),
     )
     write_assignment_round(
-        state=state,
+        directory=state.work / ASSIGNMENT_ID,
         number=3,
         round_input=compose_relayed_input(
             signals=[PullRequestSignal.OUT_OF_DATE], head=PUSHED_AGAIN
@@ -856,14 +860,14 @@ def test_each_signal_is_relayed_against_its_own_last_head(state, gh):
 
 
 def test_a_withheld_check_failure_leaves_an_out_of_date_signal_to_relay(state, gh):
-    write_assignment_round(state=state, number=1)
+    write_assignment_round(directory=state.work / ASSIGNMENT_ID, number=1)
     write_assignment_round(
-        state=state,
+        directory=state.work / ASSIGNMENT_ID,
         number=2,
         round_input=compose_relayed_input(signals=[PullRequestSignal.CHECK_FAILURE]),
     )
     write_assignment_round(
-        state=state,
+        directory=state.work / ASSIGNMENT_ID,
         number=3,
         round_input=compose_relayed_input(
             signals=[PullRequestSignal.CHECK_FAILURE], head=PUSHED

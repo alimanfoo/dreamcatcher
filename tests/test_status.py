@@ -12,6 +12,7 @@ from records import (
     hold_daemon_lock_for_test,
     read_assignments,
     write_assignment,
+    write_assignment_round,
     write_daemon_run,
     write_feed,
     write_round,
@@ -106,40 +107,6 @@ def held_state(state):
     """That state directory held by a daemon with this process identifier."""
     hold_daemon_lock_for_test(path=state.lock)
     return state
-
-
-def write_assignment_round(
-    *,
-    state: StateDirectory,
-    number: int,
-    status: int | None = 0,
-    round_input: AssignmentRoundInput | None = None,
-) -> AgentRoundRecord:
-    """Write one round for the fixture's assignment and return its record.
-
-    A round that ends does so four minutes after it started.
-    """
-    started = PINNED + timedelta(minutes=number)
-    ending = (
-        None
-        if status is None
-        else _compose_agent_round_ending(
-            at=started + timedelta(minutes=4), status=status
-        )
-    )
-    record = AgentRoundRecord(
-        number=number,
-        started=started,
-        pid=1,
-        ending=ending,
-    )
-    write_round(
-        directory=state.work / ASSIGNMENT_ID,
-        number=number,
-        record=record,
-        round_input=round_input,
-    )
-    return record
 
 
 def write_feed_lines(
@@ -347,7 +314,9 @@ def test_a_live_daemon_that_has_not_named_its_run_has_no_pid(tmp_path):
 def test_a_live_round_reports_work_and_its_latest_output(held_state):
     write_feed_lines(
         state=held_state,
-        record=write_assignment_round(state=held_state, number=1, status=None),
+        record=write_assignment_round(
+            directory=held_state.work / ASSIGNMENT_ID, number=1, status=None
+        ),
         texts=["first", "[Bash] pytest"],
     )
 
@@ -363,7 +332,9 @@ def test_a_live_round_reports_work_and_its_latest_output(held_state):
 
 
 def test_a_live_round_keeps_the_pull_request_summary_the_tick_read(held_state):
-    write_assignment_round(state=held_state, number=1, status=None)
+    write_assignment_round(
+        directory=held_state.work / ASSIGNMENT_ID, number=1, status=None
+    )
     write_tick_rows(state=held_state, rows=[compose_pull_request_row()])
 
     assert read_sole_assignment_status(state=held_state).pull_request_summary == "ready"
@@ -414,7 +385,7 @@ def test_an_unended_round_status_follows_the_daemon(
 ):
     if is_running:
         hold_daemon_lock_for_test(path=state.lock)
-    write_assignment_round(state=state, number=1, status=None)
+    write_assignment_round(directory=state.work / ASSIGNMENT_ID, number=1, status=None)
 
     round_status = read_sole_assignment_status(state=state).round_statuses[0]
 
@@ -505,7 +476,9 @@ def test_status_with_no_harness_session_has_no_resume_command(tmp_path):
 
 
 def test_a_live_round_that_has_said_nothing_reports_that(held_state):
-    write_assignment_round(state=held_state, number=1, status=None)
+    write_assignment_round(
+        directory=held_state.work / ASSIGNMENT_ID, number=1, status=None
+    )
 
     status = read_sole_assignment_status(state=held_state)
 
@@ -544,7 +517,9 @@ def test_a_round_that_errored_before_its_harness_ran_says_why_without_a_status(
 def test_an_unfinished_round_waits_to_be_given_its_input_again(
     state, round_status, detail
 ):
-    write_assignment_round(state=state, number=1, status=round_status)
+    write_assignment_round(
+        directory=state.work / ASSIGNMENT_ID, number=1, status=round_status
+    )
     write_tick_rows(state=state, rows=[compose_pull_request_row()])
 
     status = read_sole_assignment_status(state=state)
@@ -554,8 +529,10 @@ def test_an_unfinished_round_waits_to_be_given_its_input_again(
 
 
 def test_a_successful_wrap_up_is_complete(state):
-    write_assignment_round(state=state, number=1)
-    write_assignment_round(state=state, number=2, round_input=MERGED_INPUT)
+    write_assignment_round(directory=state.work / ASSIGNMENT_ID, number=1)
+    write_assignment_round(
+        directory=state.work / ASSIGNMENT_ID, number=2, round_input=MERGED_INPUT
+    )
 
     status = read_sole_assignment_status(state=state)
 
@@ -570,7 +547,7 @@ def cancel(*, state: StateDirectory) -> None:
 
 
 def test_a_cancelled_assignment_has_ended(state):
-    write_assignment_round(state=state, number=1)
+    write_assignment_round(directory=state.work / ASSIGNMENT_ID, number=1)
     cancel(state=state)
 
     status = read_sole_assignment_status(state=state)
@@ -581,7 +558,9 @@ def test_a_cancelled_assignment_has_ended(state):
 
 
 def test_a_round_still_running_after_a_cancel_is_working(held_state):
-    write_assignment_round(state=held_state, number=1, status=None)
+    write_assignment_round(
+        directory=held_state.work / ASSIGNMENT_ID, number=1, status=None
+    )
     cancel(state=held_state)
 
     status = read_sole_assignment_status(state=held_state)
@@ -591,8 +570,8 @@ def test_a_round_still_running_after_a_cancel_is_working(held_state):
 
 
 def test_a_cancelled_assignment_has_ended_rather_than_being_in_fault(state):
-    write_assignment_round(state=state, number=1, status=1)
-    write_assignment_round(state=state, number=2, status=2)
+    write_assignment_round(directory=state.work / ASSIGNMENT_ID, number=1, status=1)
+    write_assignment_round(directory=state.work / ASSIGNMENT_ID, number=2, status=2)
     cancel(state=state)
 
     status = read_sole_assignment_status(state=state)
@@ -636,7 +615,7 @@ def compose_pull_request_row_with(**facts: object) -> RequestRow:
 def test_an_open_assignment_reports_where_the_tick_found_its_pull_request(
     state, facts, words
 ):
-    write_assignment_round(state=state, number=1)
+    write_assignment_round(directory=state.work / ASSIGNMENT_ID, number=1)
     write_tick_rows(state=state, rows=[compose_pull_request_row_with(**facts)])
 
     assert read_sole_assignment_status(state=state).pull_request_summary == words
@@ -668,7 +647,7 @@ def test_an_open_assignment_reports_where_the_tick_found_its_pull_request(
 def test_a_ready_pull_request_with_nothing_new_says_where_it_has_got_to(
     state, facts, detail
 ):
-    write_assignment_round(state=state, number=1)
+    write_assignment_round(directory=state.work / ASSIGNMENT_ID, number=1)
     write_tick_rows(state=state, rows=[compose_pull_request_row_with(**facts)])
 
     status = read_sole_assignment_status(state=state)
@@ -678,7 +657,7 @@ def test_a_ready_pull_request_with_nothing_new_says_where_it_has_got_to(
 
 
 def test_signals_found_by_the_tick_make_the_assignment_wait(state):
-    write_assignment_round(state=state, number=1)
+    write_assignment_round(directory=state.work / ASSIGNMENT_ID, number=1)
     write_tick_rows(
         state=state,
         rows=[
@@ -708,7 +687,7 @@ def test_signals_found_by_the_tick_make_the_assignment_wait(state):
 )
 def test_a_round_says_which_signals_woke_it(state, signals, posts, trigger):
     write_assignment_round(
-        state=state,
+        directory=state.work / ASSIGNMENT_ID,
         number=1,
         round_input=AssignmentRoundInput(
             pull_request_state=PullRequestState.OPEN,
@@ -724,7 +703,7 @@ def test_a_round_says_which_signals_woke_it(state, signals, posts, trigger):
 
 
 def test_an_unreadable_round_input_fails_the_status_naming_the_file(state):
-    write_assignment_round(state=state, number=1)
+    write_assignment_round(directory=state.work / ASSIGNMENT_ID, number=1)
     (assignment,) = read_assignments(state=state)
     round_input = assignment.compose_round_paths(number=1).round_input
     round_input.write_bytes(b"not json")
@@ -736,7 +715,7 @@ def test_an_unreadable_round_input_fails_the_status_naming_the_file(state):
 
 
 def test_a_round_with_no_input_was_the_start(state):
-    write_assignment_round(state=state, number=1)
+    write_assignment_round(directory=state.work / ASSIGNMENT_ID, number=1)
 
     round_status = read_sole_assignment_status(state=state).round_statuses[0]
 
@@ -744,7 +723,7 @@ def test_a_round_with_no_input_was_the_start(state):
 
 
 def test_an_assignment_the_tick_read_nothing_for_reports_no_pull_request_summary(state):
-    write_assignment_round(state=state, number=1, status=None)
+    write_assignment_round(directory=state.work / ASSIGNMENT_ID, number=1, status=None)
     write_tick_rows(
         state=state,
         rows=[compose_request_row(issue=13, agent_work_identifier=ASSIGNMENT_ID)],
@@ -754,7 +733,7 @@ def test_an_assignment_the_tick_read_nothing_for_reports_no_pull_request_summary
 
 
 def test_a_cancelled_assignment_stops_reporting_its_pull_request_summary(state):
-    write_assignment_round(state=state, number=1)
+    write_assignment_round(directory=state.work / ASSIGNMENT_ID, number=1)
     write_tick_rows(state=state, rows=[compose_pull_request_row(is_draft=True)])
 
     cancel(state=state)
@@ -766,9 +745,12 @@ def test_a_cancelled_assignment_stops_reporting_its_pull_request_summary(state):
 def test_a_wrapped_up_assignment_reports_the_state_its_last_round_was_given(
     state, status
 ):
-    write_assignment_round(state=state, number=1)
+    write_assignment_round(directory=state.work / ASSIGNMENT_ID, number=1)
     write_assignment_round(
-        state=state, number=2, status=status, round_input=MERGED_INPUT
+        directory=state.work / ASSIGNMENT_ID,
+        number=2,
+        status=status,
+        round_input=MERGED_INPUT,
     )
     write_tick_rows(
         state=state,
@@ -789,7 +771,7 @@ def test_an_assignment_that_has_run_no_round_waits_for_its_first(state):
 
 
 def test_new_posts_found_by_the_tick_make_the_assignment_wait(state):
-    write_assignment_round(state=state, number=1)
+    write_assignment_round(directory=state.work / ASSIGNMENT_ID, number=1)
     write_tick_rows(state=state, rows=[compose_pull_request_row(new_posts=1)])
 
     status = read_sole_assignment_status(state=state)
@@ -800,7 +782,7 @@ def test_new_posts_found_by_the_tick_make_the_assignment_wait(state):
 
 @pytest.mark.parametrize("pull_request_state", ["MERGED", "CLOSED"])
 def test_a_finished_pull_request_waits_for_its_wrap_up_round(state, pull_request_state):
-    write_assignment_round(state=state, number=1)
+    write_assignment_round(directory=state.work / ASSIGNMENT_ID, number=1)
     write_tick_rows(
         state=state,
         rows=[
@@ -817,7 +799,7 @@ def test_a_finished_pull_request_waits_for_its_wrap_up_round(state, pull_request
 
 
 def test_a_failed_read_makes_the_assignment_unknown_with_the_reason(state):
-    write_assignment_round(state=state, number=1)
+    write_assignment_round(directory=state.work / ASSIGNMENT_ID, number=1)
     write_tick_rows(
         state=state,
         rows=[
@@ -836,7 +818,7 @@ def test_a_failed_read_makes_the_assignment_unknown_with_the_reason(state):
 
 
 def test_an_assignment_before_any_update_is_unknown(state):
-    write_assignment_round(state=state, number=1)
+    write_assignment_round(directory=state.work / ASSIGNMENT_ID, number=1)
 
     status = read_sole_assignment_status(state=state)
 
@@ -845,7 +827,7 @@ def test_an_assignment_before_any_update_is_unknown(state):
 
 
 def test_a_round_ending_after_the_latest_tick_is_idle_until_the_next_update(state):
-    write_assignment_round(state=state, number=1)
+    write_assignment_round(directory=state.work / ASSIGNMENT_ID, number=1)
     write_tick_rows(
         state=state,
         rows=[
@@ -862,7 +844,7 @@ def test_a_round_ending_after_the_latest_tick_is_idle_until_the_next_update(stat
 
 
 def test_an_assignment_the_latest_update_did_not_see_is_unknown(state):
-    write_assignment_round(state=state, number=1)
+    write_assignment_round(directory=state.work / ASSIGNMENT_ID, number=1)
     write_tick_rows(state=state, rows=[])
 
     status = read_sole_assignment_status(state=state)
@@ -872,7 +854,7 @@ def test_an_assignment_the_latest_update_did_not_see_is_unknown(state):
 
 
 def test_a_later_update_replaces_the_read_that_predated_a_rounds_ending(state):
-    write_assignment_round(state=state, number=1)
+    write_assignment_round(directory=state.work / ASSIGNMENT_ID, number=1)
     write_tick_rows(
         state=state, rows=[compose_pull_request_row(is_draft=True, ended_round=None)]
     )
@@ -914,7 +896,7 @@ def test_a_stopped_round_ending_after_the_latest_tick_is_idle_until_the_next_upd
 
 
 def test_new_posts_found_while_a_round_ran_wait_after_it_ends(state):
-    write_assignment_round(state=state, number=1)
+    write_assignment_round(directory=state.work / ASSIGNMENT_ID, number=1)
     write_tick_rows(
         state=state, rows=[compose_pull_request_row(new_posts=1, ended_round=None)]
     )
@@ -926,7 +908,7 @@ def test_new_posts_found_while_a_round_ran_wait_after_it_ends(state):
 
 
 def test_a_ready_pull_request_with_nothing_new_is_idle_ready_for_review(state):
-    write_assignment_round(state=state, number=1)
+    write_assignment_round(directory=state.work / ASSIGNMENT_ID, number=1)
     write_tick_rows(state=state, rows=[compose_pull_request_row()])
 
     status = read_sole_assignment_status(state=state)
@@ -936,7 +918,7 @@ def test_a_ready_pull_request_with_nothing_new_is_idle_ready_for_review(state):
 
 
 def test_a_draft_pull_request_with_nothing_new_is_idle_needing_feedback(state):
-    write_assignment_round(state=state, number=1)
+    write_assignment_round(directory=state.work / ASSIGNMENT_ID, number=1)
     write_tick_rows(state=state, rows=[compose_pull_request_row(is_draft=True)])
 
     assert read_sole_assignment_status(state=state).detail == "needs feedback"
@@ -986,10 +968,12 @@ def test_a_stopped_assignment_is_idle(state):
 
 
 def test_two_current_errors_put_an_assignment_in_fault(state):
-    write_assignment_round(state=state, number=1, status=1)
+    write_assignment_round(directory=state.work / ASSIGNMENT_ID, number=1, status=1)
     write_feed_lines(
         state=state,
-        record=write_assignment_round(state=state, number=2, status=2),
+        record=write_assignment_round(
+            directory=state.work / ASSIGNMENT_ID, number=2, status=2
+        ),
         texts=["[failed] You hit your spend cap."],
     )
 
@@ -1002,8 +986,8 @@ def test_two_current_errors_put_an_assignment_in_fault(state):
 
 
 def test_a_fault_with_no_output_names_the_latest_round_ending(state):
-    write_assignment_round(state=state, number=1, status=1)
-    write_assignment_round(state=state, number=2, status=2)
+    write_assignment_round(directory=state.work / ASSIGNMENT_ID, number=1, status=1)
+    write_assignment_round(directory=state.work / ASSIGNMENT_ID, number=2, status=2)
 
     status = read_sole_assignment_status(state=state)
 
@@ -1012,8 +996,8 @@ def test_a_fault_with_no_output_names_the_latest_round_ending(state):
 
 
 def test_an_elapsed_cooldown_clears_the_fault_and_the_cooldown(state):
-    write_assignment_round(state=state, number=1, status=1)
-    write_assignment_round(state=state, number=2, status=2)
+    write_assignment_round(directory=state.work / ASSIGNMENT_ID, number=1, status=1)
+    write_assignment_round(directory=state.work / ASSIGNMENT_ID, number=2, status=2)
     ended = PINNED + timedelta(minutes=15)
     write_tick(
         state=state,
@@ -1231,7 +1215,7 @@ def test_a_request_that_an_open_pull_request_claims_is_blocked(state):
 def test_an_assignment_whose_pull_request_is_not_yet_open_waits_for_it(tmp_path):
     state = StateDirectory(root=tmp_path)
     write_assignment(state=state, identifier=ASSIGNMENT_ID, issue=13, pull_request=None)
-    write_assignment_round(state=state, number=1)
+    write_assignment_round(directory=state.work / ASSIGNMENT_ID, number=1)
     write_tick_rows(
         state=state,
         rows=[
@@ -1386,7 +1370,7 @@ def test_reading_one_assignment_uses_its_exact_identifier(state):
 
 
 def test_reading_one_assignment_uses_the_daemon_status_it_is_given(state):
-    write_assignment_round(state=state, number=1, status=None)
+    write_assignment_round(directory=state.work / ASSIGNMENT_ID, number=1, status=None)
 
     status = read_work_status(
         state=state,
