@@ -720,7 +720,7 @@ def test_a_round_with_no_input_was_woken_by_comments(conversation_state):
 
     round_status = read_conversation_status(state=conversation_state).round_statuses[0]
 
-    assert round_status.trigger_description == "comments"
+    assert round_status.trigger.describe() == "comments"
 
 
 def test_a_posted_answer_leaves_the_conversation_idle(conversation_state):

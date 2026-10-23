@@ -337,7 +337,7 @@ def test_lead_rounds_name_their_trigger(state):
 
     rounds = read_campaign_status(state=state).round_statuses
 
-    assert [round_status.trigger_description for round_status in rounds] == [
+    assert [round_status.trigger.describe() for round_status in rounds] == [
         "start, 1 comment",
         "recover, 1 comment",
         "2 comments, 1 sub-issue changed",

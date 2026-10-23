@@ -147,7 +147,7 @@ def _compose_web_round_boundary(
 ) -> WebFeedLine:
     boundary = compose_agent_round_boundary(
         number=record.number,
-        trigger=round_.trigger,
+        trigger=round_.trigger.describe(),
         at=record.started,
     )
     return WebFeedLine(

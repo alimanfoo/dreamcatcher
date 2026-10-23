@@ -675,7 +675,7 @@ def test_a_round_says_which_signals_woke_it(state, signals, posts, trigger):
 
     round_status = read_sole_assignment_status(state=state).round_statuses[0]
 
-    assert round_status.trigger_description == trigger
+    assert round_status.trigger.describe() == trigger
 
 
 def test_an_unreadable_round_input_fails_the_status_naming_the_file(state):
@@ -695,7 +695,7 @@ def test_a_round_with_no_input_was_the_start(state):
 
     round_status = read_sole_assignment_status(state=state).round_statuses[0]
 
-    assert round_status.trigger_description == "start"
+    assert round_status.trigger.describe() == "start"
 
 
 def test_an_assignment_the_tick_read_nothing_for_reports_no_pull_request_summary(state):

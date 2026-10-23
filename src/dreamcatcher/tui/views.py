@@ -205,7 +205,7 @@ def _render_round_statuses(
         record = round_status.record
         table.add_row(
             Text(str(record.number)),
-            Text(round_status.trigger_description),
+            Text(round_status.trigger.describe()),
             Text(describe_time(at=record.started, zone=zone)),
             Text(round_status.duration_description),
             Text(round_status.outcome_description),
@@ -336,7 +336,7 @@ class _FeedView:
         record = round_status.record
         round_boundary = compose_agent_round_boundary(
             number=record.number,
-            trigger=round_status.trigger_description,
+            trigger=round_status.trigger.describe(),
             at=record.started,
         )
         self.console.print(

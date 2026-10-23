@@ -5,6 +5,7 @@ from typing import Literal
 
 from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.status import (
+    AgentRoundTrigger,
     AgentWorkStatusValue,
     DreamcatcherDaemonStatus,
     RequestStatus,
@@ -64,7 +65,7 @@ class WebAgentRound:
     """Represent one round row on an agent-work page."""
 
     number: int
-    trigger: str
+    trigger: AgentRoundTrigger
     started: str
     duration: str
     outcome: str

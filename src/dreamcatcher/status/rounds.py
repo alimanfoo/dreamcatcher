@@ -25,11 +25,22 @@ from dreamcatcher.words import describe_count, describe_span
 
 
 @dataclass(frozen=True, kw_only=True)
+class AgentRoundTrigger:
+    """Say what woke one agent round, in words that every view writes as they are."""
+
+    words: str
+
+    def describe(self) -> str:
+        """Return what woke the round as one line of plain text."""
+        return self.words
+
+
+@dataclass(frozen=True, kw_only=True)
 class AgentRoundStatus:
     """Describe one agent round for a status view."""
 
     record: AgentRoundRecord
-    trigger_description: str
+    trigger: AgentRoundTrigger
     duration_description: str
     outcome: AgentRoundOutcome
     outcome_description: str
@@ -38,13 +49,13 @@ class AgentRoundStatus:
 def describe_running_round(
     *,
     record: AgentRoundRecord,
-    trigger_description: str,
+    trigger: AgentRoundTrigger,
     paths: AgentRoundPaths,
     at: datetime,
 ) -> tuple[str, str | None]:
     """Describe a running round and what woke it, and return its latest output."""
     detail = (
-        f"round {record.number}, {trigger_description}, "
+        f"round {record.number}, {trigger.describe()}, "
         f"running {describe_span(span=at - record.started)}"
     )
     line = read_last_feed_line(path=paths.feed)
@@ -128,9 +139,7 @@ def list_round_statuses(*, work: AgentWork, is_working: bool) -> list[AgentRound
         statuses.append(
             AgentRoundStatus(
                 record=record,
-                trigger_description=describe_round_trigger(
-                    work=work, number=record.number
-                ),
+                trigger=describe_round_trigger(work=work, number=record.number),
                 duration_description=compose_round_duration_description(record=record),
                 outcome=outcome,
                 outcome_description=describe_round_outcome(
@@ -141,23 +150,39 @@ def list_round_statuses(*, work: AgentWork, is_working: bool) -> list[AgentRound
     return statuses
 
 
-def describe_round_trigger(*, work: AgentWork, number: int) -> str:
-    """Describe what woke one round of the work, from the input it was given.
-
-    An assignment round given no input opened, or tried to open, the pull
-    request. Comments wake every conversation round, so one whose input is
-    still to be written, or never was, says so without a count.
-    """
+def describe_round_trigger(*, work: AgentWork, number: int) -> AgentRoundTrigger:
+    """Describe what woke one round of the work, from the input it was given."""
     if work.record.kind is AgentWorkKind.CAMPAIGN:
         return _describe_campaign_round_trigger(work=work, number=number)
     if work.record.kind is AgentWorkKind.CONVERSATION:
-        conversation_input = read_json_if_exists(
-            model=ConversationRoundInput,
-            path=work.compose_round_paths(number=number).round_input,
+        return AgentRoundTrigger(
+            words=_describe_conversation_round_trigger(work=work, number=number)
         )
-        if conversation_input is None:
-            return "comments"
-        return describe_count(number=len(conversation_input.comments), noun="comment")
+    return AgentRoundTrigger(
+        words=_describe_assignment_round_trigger(work=work, number=number)
+    )
+
+
+def _describe_conversation_round_trigger(*, work: AgentWork, number: int) -> str:
+    """Count the comments that woke one conversation round.
+
+    Comments wake every conversation round, so one whose input is still to be
+    written, or never was, says so without a count.
+    """
+    conversation_input = read_json_if_exists(
+        model=ConversationRoundInput,
+        path=work.compose_round_paths(number=number).round_input,
+    )
+    if conversation_input is None:
+        return "comments"
+    return describe_count(number=len(conversation_input.comments), noun="comment")
+
+
+def _describe_assignment_round_trigger(*, work: AgentWork, number: int) -> str:
+    """Say what woke one assignment round.
+
+    A round given no input opened, or tried to open, the pull request.
+    """
     assignment_input = read_json_if_exists(
         model=AssignmentRoundInput,
         path=work.compose_round_paths(number=number).round_input,
@@ -174,7 +199,9 @@ def describe_round_trigger(*, work: AgentWork, number: int) -> str:
     return ", ".join(words) or "recover"
 
 
-def _describe_campaign_round_trigger(*, work: AgentWork, number: int) -> str:
+def _describe_campaign_round_trigger(
+    *, work: AgentWork, number: int
+) -> AgentRoundTrigger:
     """Describe what woke one lead round, from its place and its input.
 
     The first round starts the lead, and a round after one that did not finish
@@ -193,11 +220,11 @@ def _describe_campaign_round_trigger(*, work: AgentWork, number: int) -> str:
         path=work.compose_round_paths(number=number).round_input,
     )
     if campaign_input is None:
-        return ", ".join(words) or "comments or changes"
+        return AgentRoundTrigger(words=", ".join(words) or "comments or changes")
     if campaign_input.comments:
         words.append(
             describe_count(number=len(campaign_input.comments), noun="comment")
         )
     if campaign_input.notifications:
         words.append(describe_changed_children(count=len(campaign_input.notifications)))
-    return ", ".join(words)
+    return AgentRoundTrigger(words=", ".join(words))
