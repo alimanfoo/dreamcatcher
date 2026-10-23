@@ -780,10 +780,6 @@ body::after {
   color: var(--dim);
 }
 
-.feed-line.subagent .feed-content {
-  padding-left: 2ch;
-}
-
 .feed-label {
   color: var(--phosphor);
   text-transform: uppercase;

@@ -278,8 +278,8 @@ $env:PYTHONWARNDEFAULTENCODING = "1"; uv run pytest --regenerate-view-goldens
   `stop`, `strip_worktree_path`. A name like `rendered` or `holder`
   reads as a value, so a reader takes it for a property and not for
   something that runs.
-- Name a boolean for the question it answers: `is_alive`, `is_subagent`,
-  not `alive` or `subagent`. `if round.is_alive:` then reads as English.
+- Name a boolean for the question it answers: `is_alive`, `is_draft`,
+  not `alive` or `draft`. `if round.is_alive:` then reads as English.
 - Name a class or a function that a module exports so that it still says
   what it is when another module imports it bare: `create_assignment`,
   not `create`; `compose_assignment_first_round_prompt`, not

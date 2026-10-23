@@ -17,7 +17,6 @@ from dreamcatcher.documents import read_lines_from
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import (
     FEED_TIMESTAMP_GAP,
-    SUBAGENT_INDENT,
     FeedLine,
     compose_agent_round_boundary,
     read_feed_line,
@@ -385,8 +384,7 @@ def _render_written_feed_line(*, written_line: str, zone: tzinfo | None) -> Text
         return Text(written_line)
     content = Text(line.text)
     if line.label is not None:
-        label_start = len(SUBAGENT_INDENT) if line.is_subagent else 0
-        content.stylize("cyan", label_start, label_start + len(line.label) + 2)
+        content.stylize("cyan", 0, len(line.label) + 2)
     return _render_feed_line(line=line, content=content, zone=zone)
 
 

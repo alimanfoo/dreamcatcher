@@ -169,17 +169,6 @@ def test_prose_with_nothing_in_it_writes_nothing():
     assert create_feed_renderer().render(event=FeedProse(text="  \n\n")) == ""
 
 
-def test_a_subagents_lines_are_indented_under_the_timestamp():
-    rendered = create_feed_renderer()
-
-    assert rendered.render(
-        event=FeedNote(label="Bash", detail="ls", is_subagent=True)
-    ) == ("2026-08-19T18:41:58Z    [Bash] ls\n")
-    assert rendered.render(event=FeedProse(text="two files", is_subagent=True)) == (
-        "2026-08-19T18:41:59Z    two files\n"
-    )
-
-
 @pytest.mark.parametrize(
     ("number", "trigger"),
     [(1, "start"), (3, "2 posts"), (5, "merged"), (2, "1 comment")],
@@ -240,20 +229,6 @@ def test_prose_with_a_bracketed_prefix_but_no_gap_remains_prose():
         at=PINNED,
         text="[aside]this began as prose",
         detail="[aside]this began as prose",
-    )
-
-
-def test_a_subagents_line_reads_back_with_the_indent_that_sets_it_in():
-    written = create_feed_renderer().render(
-        event=FeedNote(label="Bash", detail="pytest", is_subagent=True)
-    )
-
-    assert read_feed_line(written_line=written.rstrip("\n")) == FeedLine(
-        at=PINNED,
-        text="  [Bash] pytest",
-        label="Bash",
-        detail="pytest",
-        is_subagent=True,
     )
 
 

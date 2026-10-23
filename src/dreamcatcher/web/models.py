@@ -88,7 +88,6 @@ class WebFeedLine:
     timestamp: str | None
     label: str | None
     detail: str
-    is_subagent: bool = False
     is_boundary: bool = False
 
 

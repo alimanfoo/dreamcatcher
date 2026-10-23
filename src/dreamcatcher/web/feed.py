@@ -220,5 +220,4 @@ def _compose_web_feed_line(*, written_line: str, zone: tzinfo | None) -> WebFeed
         timestamp=describe_time(at=line.at, zone=zone),
         label=line.label,
         detail=line.detail,
-        is_subagent=line.is_subagent,
     )

@@ -21,10 +21,6 @@ from dreamcatcher.words import UTC_TIMESTAMP_FORMAT, format_utc_timestamp
 # width that holds a command or a path.
 _FEED_LINE_WIDTH = 200
 
-# What a subagent's lines are set in from, so the main thread stays easy to
-# follow. It sits after the timestamp, which keeps the timestamps in a column.
-SUBAGENT_INDENT = "  "
-
 # What sits between a line's stamp and what the line says.
 FEED_TIMESTAMP_GAP = "  "
 
@@ -43,7 +39,6 @@ class FeedLine:
     text: str
     label: str | None = None
     detail: str = ""
-    is_subagent: bool = False
 
     def render(self) -> str:
         """Return the line as a feed holds it, the line ending included."""
@@ -80,16 +75,13 @@ def read_feed_line(*, written_line: str) -> FeedLine | None:
         at = datetime.strptime(timestamp, UTC_TIMESTAMP_FORMAT).replace(tzinfo=UTC)
     except ValueError:
         return None
-    is_subagent = text.startswith(SUBAGENT_INDENT)
-    contents = text.removeprefix(SUBAGENT_INDENT)
-    parsed_contents = contents.removesuffix("\n")
+    parsed_contents = text.removesuffix("\n")
     note = _FEED_NOTE_PATTERN.fullmatch(parsed_contents)
     return FeedLine(
         at=at,
         text=text,
         label=None if note is None else note.group(1),
         detail=parsed_contents if note is None else note.group(2) or "",
-        is_subagent=is_subagent,
     )
 
 
@@ -110,7 +102,6 @@ class FeedNote:
 
     label: str
     detail: str = ""
-    is_subagent: bool = False
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -122,7 +113,6 @@ class FeedProse:
     """
 
     text: str
-    is_subagent: bool = False
 
 
 type FeedEvent = FeedNote | FeedProse
@@ -143,11 +133,10 @@ class FeedRenderer:
         """Return the feed lines the event becomes, or nothing when it has none."""
         if isinstance(event, FeedNote):
             return self._render_timestamped_lines(
-                contents=[self._render_note(note=event)], is_subagent=event.is_subagent
+                contents=[self._render_note(note=event)]
             )
         return self._render_timestamped_lines(
-            contents=[line for line in event.text.splitlines() if line.strip()],
-            is_subagent=event.is_subagent,
+            contents=[line for line in event.text.splitlines() if line.strip()]
         )
 
     def _render_note(self, *, note: FeedNote) -> str:
@@ -188,13 +177,9 @@ class FeedRenderer:
             flags=flags,
         )
 
-    def _render_timestamped_lines(
-        self, *, contents: list[str], is_subagent: bool
-    ) -> str:
-        """Return the contents as timestamped lines, indented for a subagent."""
-        indent = SUBAGENT_INDENT if is_subagent else ""
+    def _render_timestamped_lines(self, *, contents: list[str]) -> str:
+        """Return the contents as lines stamped with the one time."""
         written_at = self.clock()
         return "".join(
-            FeedLine(at=written_at, text=f"{indent}{content}").render()
-            for content in contents
+            FeedLine(at=written_at, text=content).render() for content in contents
         )
