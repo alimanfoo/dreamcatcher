@@ -61,6 +61,9 @@ labels. Check whether the decision was already made and only dispatch
 remains; do not repeat triage just because an issue is still open. Do
 not maintain a session checkpoint.
 
+Take up only issues with no outcome label, unless the maintainer names
+one. A `blocked-externally` issue needs only the check described below.
+
 ## Labels and dispatch
 
 Keep issue type, triage outcome and dispatch separate.
@@ -75,6 +78,12 @@ the agent guide. After triage, give an open issue one current outcome:
 - `ready-to-implement`: the maintainer has agreed to implementation, and
   the scope, expected behaviour and acceptance criteria are sufficiently
   clear for an agent to proceed.
+- `blocked-externally`: the maintainer has agreed to the work, but it
+  waits on something outside this repository, such as an upstream
+  release. Leave a comment that names the event to wait for and what to
+  do when it happens. In later sessions, check only whether that event
+  has happened. Once it has, replace the label with
+  `ready-to-implement`.
 
 Replace the previous outcome when the decision changes; do not leave
 conflicting outcomes on an issue. Apply an outcome only after triage.
@@ -99,9 +108,10 @@ output as a requirement: setup is intended to be interactive.
 The same skepticism applies to an issue's facts and proposed fix. Check
 its premises against current code and data, because an issue may already
 be fixed or its evidence may come from an older harness. Test the
-proposed fix rather than inherit it: a pid start-time check once
-proposed for the startup sweep would have passed for exactly the reused
-pid it was meant to refuse.
+proposed fix, and the exceptions it leaves, rather than inherit them: a
+pid start-time check once proposed for the startup sweep would have
+passed for exactly the reused pid it was meant to refuse, and a rename
+that spared one field would have left the concept with two names.
 
 When an issue records my own request in an agent's words, confirm the
 scope with me before refining it. An agent once widened "only
@@ -123,10 +133,21 @@ the fix that makes like things uniform. A bug where `retry` reached only
 the newest work became one argument rule for every command, which
 removed a special case, unwanted behaviour and code together.
 
+When an issue is a race or a case of fault handling, ask first whether a
+change of design would remove its whole class, before refining a fix for
+the one instance.
+
 Any new concept, architectural mechanism or conditional branch warrants
 deeper inspection. Ask whether the user benefit justifies the added
 complexity and whether existing rules can do the job. Keep strong
 pressure against adding machinery.
+
+When a fix needs a special case, and that case needs another, stop. Find
+a rule that holds unconditionally, or accept the cost. Proposals to
+narrow which changes wake a campaign's lead kept breeding cases until
+the question became which class of change could go outright, and none
+could. Ask too how a change to a timer or a loop degrades when the work
+it times is slow.
 
 A clear failure can be sufficient. For rare damaged-state cases,
 reporting the problem and asking the user to repair it may be better
@@ -154,7 +175,14 @@ user; similar names or appearances do not establish duplication.
 UI information must earn its place. Available settings do not
 automatically belong on a screen. Preserve calm presentation, avoid
 repeating information within one view, and consider omission before
-adding another control or disclosure.
+adding another control or disclosure. Before improving how something is
+shown, ask whether it should be shown at all: shortening a round's
+commit hash gave way to removing it.
+
+When a user missed something, ask first whether the product could have
+told them where they were looking, before reaching for documentation. A
+hidden Campaigns tab became one that always shows and says how to route
+campaigns.
 
 Check the meaning of a proposed simplification. For example, silently
 making an absolute `cd` path relative changes the displayed command's
