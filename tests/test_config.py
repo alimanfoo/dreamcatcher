@@ -360,7 +360,7 @@ def test_a_label_one_harness_can_run_runs_on_that_one_whatever_the_run_named(tmp
         (
             "the old single conversation table",
             CONFIG + CONVERSATION.replace("[[conversation]]", "[conversation]"),
-            "conversation: Input should be a valid list",
+            "conversation: Input should be an instance of Sequence",
         ),
     ],
 )

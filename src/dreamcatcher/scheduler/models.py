@@ -1,5 +1,6 @@
 """Persistent scheduler records and shared scheduling facts."""
 
+from collections.abc import Sequence
 from datetime import UTC, datetime, timedelta
 from enum import StrEnum
 from typing import Annotated, Literal, Self
@@ -43,7 +44,7 @@ class PullRequestFinding(ObservedPullRequest):
     found: Literal["pull request"] = "pull request"
     number: PositiveInt
     new_posts: NonNegativeInt
-    new_pull_request_signals: list[PullRequestSignal]
+    new_pull_request_signals: Sequence[PullRequestSignal]
     is_check_failure_withheld: bool
     is_wrap_up_due: bool
 
@@ -70,8 +71,8 @@ class StartTimeFinding(DreamcatcherDocument):
     """Hold the open pull requests claiming an issue and the open issues blocking it."""
 
     found: Literal["start-time answers"] = "start-time answers"
-    linked_pull_requests: list[PositiveInt]
-    blocking_issues: list[IssueReference]
+    linked_pull_requests: Sequence[PositiveInt]
+    blocking_issues: Sequence[IssueReference]
 
     @property
     def is_clear(self) -> bool:
@@ -83,14 +84,14 @@ class BlockingIssuesFinding(DreamcatcherDocument):
     """Hold the open issues that block a campaign request's parent."""
 
     found: Literal["blocking issues"] = "blocking issues"
-    blocking_issues: list[IssueReference] = Field(min_length=1)
+    blocking_issues: Sequence[IssueReference] = Field(min_length=1)
 
 
 class ConflictingLabelsFinding(DreamcatcherDocument):
     """Hold the dispatch labels of one kind that an issue carries together."""
 
     found: Literal["conflicting labels"] = "conflicting labels"
-    labels: list[str] = Field(min_length=2)
+    labels: Sequence[str] = Field(min_length=2)
 
 
 class PauseCause(StrEnum):
@@ -176,7 +177,7 @@ class RequestRow(DreamcatcherDocument):
     ended_round: PositiveInt | None = None
     finding: RequestFinding | None = None
     started_round: StartedRound | None = None
-    children: list[CampaignChild] | None = None
+    children: Sequence[CampaignChild] | None = None
 
 
 class GlobalCooldown(DreamcatcherDocument):
@@ -202,8 +203,8 @@ class SchedulerRecord(DreamcatcherDocument):
     """
 
     at: _UtcDateTime
-    failures: list[str] = Field(default_factory=list)
-    rows: list[RequestRow] = Field(default_factory=list)
+    failures: Sequence[str] = Field(default_factory=list)
+    rows: Sequence[RequestRow] = Field(default_factory=list)
     cooldown: GlobalCooldown | None = None
     most_recent_cooldown_ended: _UtcDateTime | None = None
 

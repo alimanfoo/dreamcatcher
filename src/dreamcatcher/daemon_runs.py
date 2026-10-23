@@ -1,5 +1,7 @@
 """Describe the facts fixed for one daemon run."""
 
+from collections.abc import Sequence
+
 from pydantic import Field, PositiveInt
 
 from dreamcatcher.config import AgentHarness
@@ -27,7 +29,7 @@ class DaemonRunRecord(DreamcatcherDocument):
     version: str = Field(min_length=1)
     max_agents: PositiveInt
     interval_seconds: PositiveInt
-    routes: list[RecordedRoute]
+    routes: Sequence[RecordedRoute]
 
     def list_labels(self, *, kind: AgentWorkKind) -> tuple[str, ...]:
         """Return the routed labels of one kind, sorted case-insensitively."""

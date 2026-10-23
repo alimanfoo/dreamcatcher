@@ -1,6 +1,6 @@
 """Read dreamcatcher.toml, the configuration the repository agrees on."""
 
-from collections.abc import Set
+from collections.abc import Sequence, Set
 from enum import StrEnum
 from pathlib import Path
 from typing import Annotated, ClassVar, Self
@@ -138,9 +138,9 @@ def _identify_routes[Route: DispatchRoute](
 class DreamcatcherConfig(DreamcatcherDocument):
     """Model a repository's agent-work configuration."""
 
-    assignment: list[AssignmentRoute] = Field(default_factory=list)
-    conversation: list[ConversationRoute] = Field(default_factory=list)
-    campaign: list[CampaignRoute] = Field(default_factory=list)
+    assignment: Sequence[AssignmentRoute] = Field(default_factory=list)
+    conversation: Sequence[ConversationRoute] = Field(default_factory=list)
+    campaign: Sequence[CampaignRoute] = Field(default_factory=list)
 
     @property
     def routes(self) -> list[DispatchRoute]:

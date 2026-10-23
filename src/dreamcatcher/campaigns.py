@@ -5,6 +5,7 @@ direct sub-issues. Every round runs in a detached worktree refreshed to fetched
 main, and the lead publishes its own messages, so a round has no finishing step.
 """
 
+from collections.abc import Sequence
 from enum import StrEnum
 
 from pydantic import PositiveInt
@@ -83,7 +84,7 @@ class CampaignChildNotification(DreamcatcherDocument):
     """Model the changes to one child since the newest input delivered to the lead."""
 
     issue: PositiveInt
-    changes: list[CampaignChildChange]
+    changes: Sequence[CampaignChildChange]
 
 
 class CampaignRoundInput(WriteOnceDreamcatcherDocument):
@@ -100,16 +101,16 @@ class CampaignRoundInput(WriteOnceDreamcatcherDocument):
     """
 
     issue: int
-    children: list[CampaignChild]
-    notifications: list[CampaignChildNotification]
-    comments: list[IssueComment]
+    children: Sequence[CampaignChild]
+    notifications: Sequence[CampaignChildNotification]
+    comments: Sequence[IssueComment]
     cursor: IssueCommentCursor | None
     revision: str
-    assignment_routes: list[AssignmentRoute]
+    assignment_routes: Sequence[AssignmentRoute]
 
 
 def compare_campaign_children(
-    *, previous: list[CampaignChild], current: list[CampaignChild]
+    *, previous: Sequence[CampaignChild], current: Sequence[CampaignChild]
 ) -> list[CampaignChildNotification]:
     """Return a notification for each child whose changes call for the lead.
 
@@ -234,7 +235,7 @@ def prepare_campaign_round(
     notifications: list[CampaignChildNotification],
     comments: list[IssueComment],
     delivered_cursor: IssueCommentCursor | None,
-    assignment_routes: list[AssignmentRoute],
+    assignment_routes: Sequence[AssignmentRoute],
 ) -> CampaignRoundInput:
     """Reset the worktree to fetched main and freeze the round's input.
 
