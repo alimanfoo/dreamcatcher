@@ -169,7 +169,7 @@ def test_next_update_is_left_out_when_no_daemon_is_running(tmp_path):
 
     status = render_status_view(state=state)
 
-    assert "next update in" not in status
+    assert "next update" not in status
 
 
 def test_identifiers_remain_whole_when_the_assignment_table_folds(tmp_path):

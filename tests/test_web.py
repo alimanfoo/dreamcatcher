@@ -1728,7 +1728,7 @@ def test_next_update_is_left_out_when_no_daemon_is_running(tmp_path):
 
     page = render_home(state=state)
 
-    assert "<dt>next update in</dt>" not in page
+    assert "<dt>next update</dt>" not in page
 
 
 def test_an_active_cooldown_is_a_warning_fact(tmp_path):
