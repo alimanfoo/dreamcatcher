@@ -30,10 +30,10 @@ the change.
 ### Breaking
 
 - Saved state moves to state format 8, in `.dreamcatcher/v8/`. Saved
-  work from v7 and v8 does not carry across: before upgrading, let each
-  assignment reach its wrap-up or finish its pull request by hand, and
-  accept that conversations and campaigns start afresh, as
-  [the upgrade instructions](compatibility.md#upgrade-from-v8-to-v900)
+  work from v7.0.0 and v8.0.0 does not carry across: before upgrading,
+  let each assignment reach its wrap-up or finish its pull request by
+  hand, and accept that conversations and campaigns start afresh, as
+  [the upgrade instructions](compatibility.md#upgrade-from-v800-to-v900)
   describe. ([#740](https://github.com/alimanfoo/dreamcatcher/pull/740))
 
 ### Changed

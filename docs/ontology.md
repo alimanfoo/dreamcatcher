@@ -701,7 +701,7 @@ unless it is then in fault.
 
 A status report may include operational facts such as the repository
 identity, whether the daemon is running, how long until the next
-scheduler tick or that one is running, current capacity, whether a
+scheduler tick, or that a tick is running, current capacity, whether a
 global cooldown is active, and the scheduler failures. A scheduler
 failure is a failure in the latest tick that no request row holds: a
 failed issue listing, or a launch that failed before its round was

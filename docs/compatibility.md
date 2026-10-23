@@ -5,7 +5,7 @@ v6.0.0 through v6.3.0 used state format 6, v5.0.0 through v5.6.2 used
 state format 5, and v4.0.0 used state format 4. Saved work does not
 carry across from one format to the next.
 
-## Upgrade from v8 to v9.0.0
+## Upgrade from v8.0.0 to v9.0.0
 
 Before installing v9.0.0:
 
@@ -13,10 +13,10 @@ Before installing v9.0.0:
    afresh. If you still need their saved context, postpone the upgrade.
 2. Let every assignment finish its successful wrap-up and reach
    **complete**, or decide to finish its pull request yourself. v9.0.0
-   does not carry on an assignment that v8 started, and while its pull
-   request stays open and linked to the issue, it claims the issue, so
-   no new assignment starts there.
-3. Stop the v8 _dreamcatcher_ daemon and every standalone view, as
+   does not carry on an assignment that v8.0.0 started, and while its
+   pull request stays open and linked to the issue, it claims the issue,
+   so no new assignment starts there.
+3. Stop the v8.0.0 _dreamcatcher_ daemon and every standalone view, as
    [Restart views across state formats](#restart-views-across-state-formats)
    describes.
 
