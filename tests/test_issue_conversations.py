@@ -400,7 +400,7 @@ def test_the_cursor_refuses_a_round_without_comments(tmp_path):
 @pytest.mark.parametrize(
     ("input_issue", "comment_identifiers", "message"),
     [
-        (9, [3], "input names GH9"),
+        (9, [3], "input names issue 9"),
         (8, [4, 3], "comments are not strictly ordered"),
     ],
 )

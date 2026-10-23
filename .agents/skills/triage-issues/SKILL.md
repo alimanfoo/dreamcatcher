@@ -114,7 +114,7 @@ because a clock correction shifted it, and that lesson applies wherever
 process identity comes up again.
 
 A bug contradicts a user story, including the handling it promises for a
-user error or external fault. Ask whether the current response breaks a
+user error or expected fault. Ask whether the current response breaks a
 promise or whether the proposal asks for a stronger promise. Behaviour a
 story explicitly accepts is not a bug.
 

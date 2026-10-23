@@ -1,8 +1,21 @@
 # Compatibility and upgrades
 
-v7.0.0 uses state format 7. v6.0.0 through v6.3.0 used state format 6,
-v5.0.0 through v5.6.2 used state format 5, and v4.0.0 used state
-format 4. Saved work does not carry across from one format to the next.
+v8.0.0 uses state format 7, as v7.0.0 did. v6.0.0 through v6.3.0 used
+state format 6, v5.0.0 through v5.6.2 used state format 5, and v4.0.0
+used state format 4. Saved work does not carry across from one format to
+the next.
+
+## Upgrade from v7.0.0 to v8.0.0
+
+v8.0.0 keeps state format 7, so saved work carries across. Stop the v7
+daemon, install v8.0.0 and start the daemon again.
+
+`dreamcatcher view` replaces `dreamcatcher assignment`,
+`dreamcatcher conversation` and `dreamcatcher campaign`, and `stop` and
+`feed` no longer take `--assignment`, `--conversation` or `--campaign`.
+Change any script or habit that uses them to name the work by `GH<n>` or
+by its agent work identifier, as [the changelog](changelog.md)
+describes.
 
 ## Upgrade from v6 to v7.0.0
 
@@ -130,7 +143,8 @@ Before you install a release with a different state format:
 1. Stop the old daemon. This also stops the web page that
    `dreamcatcher run` serves.
 2. Stop every standalone view: `dreamcatcher web`, and any refreshing
-   `status`, `assignment`, `conversation`, `campaign` or `feed` view.
+   `status`, `view` or `feed` view, or before v8.0.0 any refreshing
+   `assignment`, `conversation` or `campaign` view.
 
 After you install it, start the daemon and any views you still want from
 the new installation. The restart depends on the state format, not the

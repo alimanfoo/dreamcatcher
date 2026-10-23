@@ -662,10 +662,11 @@ further rounds for the assignment. A round that it starts as the cancel
 lands is stopped too, because the scheduler reads the ending again once
 that round's record exists.
 
-The web interface can also request a retry for agent work that status
-derives as in fault. It writes the retry request time into the directory
-of the work. The scheduler reads the request on a later tick, so the
-daemon still decides when the work's next round starts.
+The web interface and the `retry` command can also request a retry for
+agent work that status derives as in fault. Each writes the retry
+request time into the directory of the work. The scheduler reads the
+request on a later tick, so the daemon still decides when the work's
+next round starts.
 
 ### Configuration, dispatch labels, and routes
 
