@@ -29,8 +29,8 @@ from dreamcatcher.status import (
     read_status_report,
 )
 from dreamcatcher.web.feed import (
-    InvalidFeedCursorError,
-    decode_feed_cursor,
+    InvalidFeedPositionError,
+    decode_feed_position,
     read_agent_tail,
 )
 from dreamcatcher.web.models import (
@@ -215,7 +215,7 @@ def _show_work_tail(
     zone: tzinfo | None,
     identifier: str,
 ) -> str | tuple[str, int]:
-    """Render the work's feed output written after the requested feed cursor."""
+    """Render the work's feed output written after the requested feed position."""
     work = find_agent_work(state=state, identifier=identifier)
     if work is None:
         return _missing_work_response(identifier=identifier)
@@ -328,15 +328,15 @@ def _render_work_tail(
 ) -> str | tuple[str, int]:
     """Render incremental feed output for a piece of agent work."""
     try:
-        feed_cursor = decode_feed_cursor(value=request.args.get("cursor", ""))
+        feed_position = decode_feed_position(value=request.args.get("position", ""))
         tail = read_agent_tail(
             work=work,
             live=live,
-            feed_cursor=feed_cursor,
+            feed_position=feed_position,
             zone=zone,
         )
-    except InvalidFeedCursorError:
-        return _invalid_feed_cursor_response()
+    except InvalidFeedPositionError:
+        return _invalid_feed_position_response()
     response_status = (
         _HTMX_STOP_POLLING_STATUS
         if not tail.feed_rounds and should_stop_polling
@@ -359,9 +359,9 @@ def _missing_work_response(*, identifier: str) -> tuple[str, int]:
     )
 
 
-def _invalid_feed_cursor_response() -> tuple[str, int]:
-    """Render the response for a malformed or stale feed cursor."""
-    return render_template("error.html", message="The feed cursor is invalid."), 400
+def _invalid_feed_position_response() -> tuple[str, int]:
+    """Render the response for a malformed or stale feed position."""
+    return render_template("error.html", message="The feed position is invalid."), 400
 
 
 def _show_reportable_error(error: ReportableError, /) -> tuple[str, int]:

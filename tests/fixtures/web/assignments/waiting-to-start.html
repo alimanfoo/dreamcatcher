@@ -63,8 +63,8 @@
           <h1 id="feed-heading">Feed</h1>
           <button class="feed-tail" type="button" aria-controls="records">TAIL ↓</button>
           <p id="feed-refresh-error" class="refresh-error" role="alert" hidden></p>
-          <input type="hidden" id="cursor" name="cursor" value="0:0">
-          <div id="records" class="feed-records" hx-get="/work/GH44-20260819-184158-assignment/tail" hx-trigger="every 2s" hx-include="#cursor" hx-select=".feed-round" hx-swap="beforeend" data-refresh-alert="feed-refresh-error">
+          <input type="hidden" id="position" name="position" value="0:0">
+          <div id="records" class="feed-records" hx-get="/work/GH44-20260819-184158-assignment/tail" hx-trigger="every 2s" hx-include="#position" hx-select=".feed-round" hx-swap="beforeend" data-refresh-alert="feed-refresh-error">
             
               <p id="empty-feed" class="empty">-- no feed yet --</p>
             

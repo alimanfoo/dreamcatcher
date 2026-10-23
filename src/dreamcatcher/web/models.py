@@ -102,15 +102,15 @@ class WebFeedRound:
 
 @dataclass(frozen=True, kw_only=True)
 class WebAgentFeed:
-    """Represent a complete agent feed and the feed cursor after its last line."""
+    """Represent a complete agent feed and the feed position after its last line."""
 
     rounds: tuple[WebFeedRound, ...]
-    feed_cursor: str
+    feed_position: str
 
 
 @dataclass(frozen=True, kw_only=True)
-class WebFeedCursor:
-    """Identify the next feed byte to read within an agent round."""
+class WebFeedPosition:
+    """Identify how far a page has shown a feed, as a round and the next byte in it."""
 
     round_number: int
     position: int
@@ -140,7 +140,7 @@ class WebAgentLiveState:
 class WebAgentTail:
     """Represent one incremental agent-feed response."""
 
-    feed_cursor: str
+    feed_position: str
     feed_rounds: tuple[WebFeedRound, ...]
     live: WebAgentLiveState
     has_empty_feed_placeholder: bool
@@ -165,7 +165,7 @@ class WebAssignmentView:
     effort: str
     live: WebAgentLiveState
     feed_rounds: tuple[WebFeedRound, ...]
-    feed_cursor: str
+    feed_position: str
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -185,7 +185,7 @@ class WebIssueWorkView:
     facts: tuple[StatusFact, ...]
     live: WebAgentLiveState
     feed_rounds: tuple[WebFeedRound, ...]
-    feed_cursor: str
+    feed_position: str
 
 
 @dataclass(frozen=True, kw_only=True)
