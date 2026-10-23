@@ -705,6 +705,10 @@ agent work. Given an issue's labels, the module identifies the matching
 routes. It does not silently resolve multiple labels by list order. The
 scheduler applies the routing rules to the routes it returns.
 
+GitHub matches label names in any case. `identify_label` gives each
+label name its identity, and every comparison of two label names, in the
+configuration module and in the scheduler, compares identities.
+
 ### State and documents
 
 `state.py` owns the top-level paths within `.dreamcatcher/` and the

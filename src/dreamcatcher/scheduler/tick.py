@@ -18,7 +18,7 @@ from dreamcatcher.agent_work import (
     record_harness_session_identifier,
     request_round_stop_if_ended,
 )
-from dreamcatcher.config import AgentHarness, DispatchRoute
+from dreamcatcher.config import AgentHarness, DispatchRoute, identify_label
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.github import Issue, UnknownGitHubResponse, list_issues
 from dreamcatcher.harness_adapters import AgentRoundLaunchRequest, AgentWorkKind
@@ -252,7 +252,7 @@ class Scheduler:
         one, while a conversation or a campaign answers only its own label.
         """
         answered = {
-            (work.record.issue, work.record.dispatch_label.casefold())
+            (work.record.issue, identify_label(name=work.record.dispatch_label))
             for work in open_work
         }
         assigned_issues = {
@@ -289,7 +289,7 @@ class Scheduler:
         conflicting labels and nothing is read for it.
         """
         for route in routes:
-            if (issue.number, route.label.casefold()) in answered:
+            if (issue.number, identify_label(name=route.label)) in answered:
                 continue
             row = RequestRow(
                 issue=issue.number,
