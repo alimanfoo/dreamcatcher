@@ -109,6 +109,10 @@ uv run pre-commit run --all-files
 
 ### Browser tests and visual checks
 
+Write a browser test only for what
+[docs/testing.md](docs/testing.md#rendered-view-goldens) says needs a
+real browser.
+
 Install Chromium once, then run the browser tests that the default suite
 leaves out:
 
