@@ -61,6 +61,9 @@ labels. Check whether the decision was already made and only dispatch
 remains; do not repeat triage just because an issue is still open. Do
 not maintain a session checkpoint.
 
+Take up only issues with no outcome label, unless the maintainer names
+one. A `blocked-externally` issue needs only the check described below.
+
 ## Labels and dispatch
 
 Keep issue type, triage outcome and dispatch separate.
