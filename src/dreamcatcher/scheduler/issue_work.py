@@ -9,12 +9,14 @@ comments.
 from typing import Protocol
 
 from dreamcatcher.agent_work import AgentWork, AgentWorkEndReason, end_agent_work
+from dreamcatcher.config import identify_label
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.github import (
     Issue,
     IssueComment,
     IssueState,
     UnknownGitHubResponse,
+    is_login_of_account,
     read_issue,
 )
 from dreamcatcher.relay import IssueCommentCursor, list_issue_comments_past_cursor
@@ -94,23 +96,27 @@ def _find_pause(
     The work's own label counts whether or not its route is still configured.
     """
     labels = [label.name for label in issue.labels]
-    label = work.record.dispatch_label.casefold()
-    if label not in {name.casefold() for name in labels}:
+    label = identify_label(name=work.record.dispatch_label)
+    if label not in {identify_label(name=name) for name in labels}:
         return PausedFinding(cause=PauseCause.LABEL_REMOVED)
-    account = context.account.casefold()
-    if account not in {assignee.login.casefold() for assignee in issue.assignees}:
+    if not any(
+        is_login_of_account(login=assignee.login, account=context.account)
+        for assignee in issue.assignees
+    ):
         return PausedFinding(cause=PauseCause.ISSUE_UNASSIGNED)
     others = [
         route.label
         for route in context.config.identify_routes(
             kind=work.record.kind, labels=labels
         )
-        if route.label.casefold() != label
+        if identify_label(name=route.label) != label
     ]
     if others:
-        return ConflictingLabelsFinding(
-            labels=sorted([work.record.dispatch_label, *others], key=str.casefold)
+        conflicting = sorted(
+            [work.record.dispatch_label, *others],
+            key=lambda name: identify_label(name=name),
         )
+        return ConflictingLabelsFinding(labels=conflicting)
     return None
 
 

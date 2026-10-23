@@ -2173,6 +2173,42 @@ def test_an_open_conversation_carries_on_when_its_route_is_removed(
     ]
 
 
+def test_an_open_conversation_matches_its_label_and_assignee_in_any_case(
+    conversation_scheduler,
+):
+    scheduler, clock, gh = conversation_scheduler
+    root = scheduler.context.state.root
+    configure(
+        root=root,
+        head=CONVERSATION_CONFIG.replace(
+            'label = "dream:conversation"', 'label = "Dream:Conversation"'
+        ),
+    )
+    set_scheduler_config(
+        scheduler=scheduler, config=read_dreamcatcher_config(root=root)
+    )
+    write_conversation(
+        state=scheduler.context.state, issue=8, dispatch_label="dream:CONVERSATION"
+    )
+    issue = compose_conversation_issue(
+        labels=("DREAM:CONVERSATION",), assignees=(POSTED_BY.upper(),)
+    )
+    offer_listing(gh=gh, issues=[issue])
+    show_conversation_issue(gh=gh, issue=issue)
+    gh.replies(stdout=compose_page(items=[]), to=COMMENT_PATH)
+
+    observed = scheduler.tick(at=clock())
+
+    assert observed.rows == [
+        compose_conversation_row(
+            title="Issue 8",
+            label="dream:CONVERSATION",
+            agent_work_identifier=compose_conversation_identifier(issue=8),
+            finding=IssueCommentsFinding(new_comments=0),
+        )
+    ]
+
+
 def test_a_conversation_whose_route_is_removed_still_pauses_for_a_second_label(
     conversation_scheduler, harnesses
 ):
