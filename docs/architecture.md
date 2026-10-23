@@ -529,7 +529,7 @@ Status construction may read:
 - current child-process state;
 - the instance's repository record and daemon-run record;
 - the scheduler record, with its request rows, the active global
-  cooldown, and the latest tick;
+  cooldown, and when the latest tick finished;
 - the latest rendered feed output needed for a useful summary.
 
 It may call the scheduler's pure interpretation functions, but it cannot

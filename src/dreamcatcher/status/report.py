@@ -2,7 +2,7 @@
 
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import cast
 
 from dreamcatcher.agent_work import (
@@ -26,7 +26,7 @@ from dreamcatcher.status.agent_work import (
     AgentWorkStatusReader,
 )
 from dreamcatcher.status.requests import RequestStatus, describe_request
-from dreamcatcher.words import describe_countdown, describe_span
+from dreamcatcher.words import describe_span
 
 # The guidance that an empty section of each kind gives, naming its labels.
 _EMPTY_SECTION_GUIDANCE = {
@@ -122,11 +122,6 @@ class DreamcatcherDaemonStatus:
         """The agent capacity selected for the current or latest daemon run."""
         return None if self.run is None else self.run.max_agents
 
-    @property
-    def interval_seconds(self) -> int | None:
-        """The interval selected for the current or latest daemon run."""
-        return None if self.run is None else self.run.interval_seconds
-
     def list_labels(self, *, kind: AgentWorkKind) -> tuple[str, ...]:
         """Return the labels of one kind that the current or latest run routes."""
         return () if self.run is None else self.run.list_labels(kind=kind)
@@ -156,7 +151,7 @@ class DreamcatcherStatusReport:
     at: datetime
     repository: str | None
     daemon: DreamcatcherDaemonStatus
-    latest_scheduler_tick: datetime | None
+    latest_update_finished: datetime | None
     scheduler_failures: tuple[str, ...]
     running_agents: int
     active_global_cooldown: GlobalCooldown | None
@@ -171,24 +166,13 @@ class DreamcatcherStatusReport:
         """
         daemon = self.daemon
         cooldown = self.active_global_cooldown
-        countdown = (
-            None
-            if not daemon.is_running
-            else describe_countdown(
-                at=self.at,
-                since=self.latest_scheduler_tick,
-                span_seconds=daemon.interval_seconds,
-            )
-        )
         facts = (
             None
             if daemon.preferred_harness is None
             else StatusFact(
                 label="preferred harness", value=str(daemon.preferred_harness)
             ),
-            None
-            if countdown is None
-            else StatusFact(label="next update in", value=countdown),
+            self._describe_next_update(),
             None
             if daemon.max_agents is None
             else StatusFact(
@@ -204,6 +188,26 @@ class DreamcatcherStatusReport:
             ),
         )
         return tuple(fact for fact in facts if fact is not None)
+
+    def _describe_next_update(self) -> StatusFact | None:
+        """Count down to the next update, or say that one is running.
+
+        The daemon waits its interval after each update finishes, so the next
+        update is running once that wait is over, and before this daemon run's
+        first update finishes. A record of an earlier daemon run's update
+        finished before this run started.
+        """
+        run = self.daemon.run
+        if not self.daemon.is_running or run is None:
+            return None
+        finished = self.latest_update_finished
+        if finished is not None and finished > run.started:
+            remaining = finished + timedelta(seconds=run.interval_seconds) - self.at
+            if remaining > timedelta():
+                return StatusFact(
+                    label="next update", value=f"in {describe_span(span=remaining)}"
+                )
+        return StatusFact(label="next update", value="updating")
 
     def describe_section(self, *, kind: AgentWorkKind) -> AgentWorkStatusSection | None:
         """Describe one kind's section, shown once the kind is routed or has work.
@@ -322,8 +326,8 @@ def read_status_report(
         at=reader.at,
         repository=read_repository(state=state),
         daemon=daemon,
-        latest_scheduler_tick=(
-            None if scheduler_record is None else scheduler_record.at
+        latest_update_finished=(
+            None if scheduler_record is None else scheduler_record.finished
         ),
         scheduler_failures=(
             ()

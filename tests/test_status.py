@@ -217,8 +217,7 @@ def test_an_empty_instance_reports_unknown_capacity_and_no_work(tmp_path):
     assert found.daemon.pid is None
     assert found.daemon.preferred_harness is None
     assert found.daemon.dreamcatcher_version is None
-    assert found.latest_scheduler_tick is None
-    assert found.daemon.interval_seconds is None
+    assert found.latest_update_finished is None
     assert found.scheduler_failures == ()
     assert found.daemon.max_agents is None
     assert found.running_agents == 0
@@ -1001,8 +1000,7 @@ def test_an_active_cooldown_is_an_instance_fact_and_failures_are_listed(held_sta
 
     found = read_report(state=held_state)
 
-    assert found.latest_scheduler_tick == PINNED
-    assert found.daemon.interval_seconds == DEFAULT_INTERVAL_SECONDS
+    assert found.latest_update_finished == PINNED
     assert found.scheduler_failures == (
         "could not start assignment",
         "could not read comments for GH8",
@@ -1011,10 +1009,81 @@ def test_an_active_cooldown_is_an_instance_fact_and_failures_are_listed(held_sta
     assert found.active_global_cooldown == cooldown
     assert found.instance_facts == (
         StatusFact(label="preferred harness", value="claude"),
-        StatusFact(label="next update in", value="0s"),
+        StatusFact(label="next update", value="updating"),
         StatusFact(label="agent capacity", value="0 of 3 working"),
         StatusFact(label="global cooldown", value="ends in 1m", is_warning=True),
     )
+
+
+def read_next_update(*, state: StateDirectory) -> StatusFact | None:
+    """Return the next-update fact of the fixture's status report, if it has one."""
+    facts = read_report(state=state).instance_facts
+    return next((fact for fact in facts if fact.label == "next update"), None)
+
+
+def test_the_countdown_runs_from_when_the_last_update_finished(held_state):
+    write_tick(
+        state=held_state,
+        tick=SchedulerRecord(
+            at=LOOKED_AT - timedelta(seconds=200),
+            finished=LOOKED_AT - timedelta(seconds=80),
+        ),
+    )
+
+    assert read_next_update(state=held_state) == StatusFact(
+        label="next update", value="in 40s"
+    )
+
+
+def test_an_update_is_running_once_the_countdown_runs_out(held_state):
+    write_tick(
+        state=held_state,
+        tick=SchedulerRecord(
+            at=LOOKED_AT - timedelta(seconds=130),
+            finished=LOOKED_AT - timedelta(seconds=DEFAULT_INTERVAL_SECONDS),
+        ),
+    )
+
+    assert read_next_update(state=held_state) == StatusFact(
+        label="next update", value="updating"
+    )
+
+
+def test_an_update_is_running_before_the_daemon_runs_first_finishes(held_state):
+    assert read_next_update(state=held_state) == StatusFact(
+        label="next update", value="updating"
+    )
+
+
+def test_an_earlier_daemon_runs_update_counts_nothing_down(held_state):
+    write_tick(
+        state=held_state,
+        tick=SchedulerRecord(
+            at=LOOKED_AT - timedelta(seconds=20),
+            finished=LOOKED_AT - timedelta(seconds=10),
+        ),
+    )
+    write_daemon_run(
+        state=held_state,
+        pid=os.getpid(),
+        started=LOOKED_AT - timedelta(seconds=5),
+    )
+
+    assert read_next_update(state=held_state) == StatusFact(
+        label="next update", value="updating"
+    )
+
+
+def test_a_stopped_daemon_has_no_next_update(state):
+    write_tick(
+        state=state,
+        tick=SchedulerRecord(
+            at=LOOKED_AT - timedelta(seconds=20),
+            finished=LOOKED_AT - timedelta(seconds=10),
+        ),
+    )
+
+    assert read_next_update(state=state) is None
 
 
 def test_a_stopped_daemon_has_no_current_scheduler_failures(state):

@@ -30,7 +30,7 @@ the change.
 ### Breaking
 
 - Saved state moves to state format 8, in `.dreamcatcher/v8/`. Saved
-  work from v8 does not carry across: before upgrading, let each
+  work from v7 and v8 does not carry across: before upgrading, let each
   assignment reach its wrap-up or finish its pull request by hand, and
   accept that conversations and campaigns start afresh, as
   [the upgrade instructions](compatibility.md#upgrade-from-v8-to-v900)
@@ -38,6 +38,11 @@ the change.
 
 ### Changed
 
+- The status views count down to the next update from when the last
+  update finished, and show **updating** while an update runs. The
+  countdown used to start when an update started, so it reached 0s early
+  and stayed there through the next update.
+  ([#740](https://github.com/alimanfoo/dreamcatcher/pull/740))
 - Each update lists the open issues assigned to the signed-in account
   once, whatever the number of routes, rather than once for each
   dispatch label. A failed listing now starts no new work of any kind,

@@ -546,7 +546,7 @@ def fabricate_everything(
         state=state,
         tick=SchedulerRecord(
             at=PINNED + timedelta(hours=1, minutes=58),
-            finished=PINNED + timedelta(hours=1, minutes=58),
+            finished=PINNED + timedelta(hours=1, minutes=58, seconds=45),
             rows=[
                 compose_request_row(issue=50, finding=UNCLAIMED),
                 compose_request_row(issue=51, finding=UNCLAIMED),
