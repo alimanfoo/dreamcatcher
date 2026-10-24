@@ -141,15 +141,15 @@ Alternation advances when a kind is selected, including when its start
 fails, and begins afresh after a daemon restart.
 
 The daemon persists the returned `SchedulerRecord` and reports it in its
-output. A scheduler tick that fails before returning one is reported in
-daemon output and leaves the last complete scheduler record in place. A
-local record that cannot be read, or a write that fails while open work
-is inspected, fails the tick this way whichever work it belongs to. A
-round input that a conversation or campaign reads while it is inspected
-is the exception, and the work's row holds the failure. An invalid
-scheduler record ends the daemon because retrying cannot repair the
-document, and so does a scheduler record that cannot be written, because
-the daemon then has no way to report anything.
+output. A scheduler tick that fails before returning one ends the daemon
+run through the shutdown that an interrupt takes, so the daemon ends its
+rounds and its web server, `cli.main` prints the failure, and the last
+complete scheduler record stays in place. A local record that cannot be
+read, or a write that fails while open work is inspected, fails the tick
+this way whichever work it belongs to, and so does a scheduler record
+that cannot be read or written. A round input that a conversation or
+campaign reads while it is inspected is the exception, and the work's
+row holds the failure.
 
 If a GitHub read for a request fails, the tick holds the reason in that
 request's row and prevents only the launches that depend on what it
@@ -178,8 +178,7 @@ later tick sees that work end once it forgets the round. No other tick
 sees the work end, so a worktree or branch that Git will not remove is a
 scheduler failure that no later tick tries again. For the same reason,
 work that ended while no daemon ran keeps its worktree, and so does an
-assignment whose wrap-up round ended just before the daemon stopped or
-the next tick failed.
+assignment whose wrap-up round ended just before the daemon stopped.
 
 When the tick selects a request, it writes the work record and starts
 the first round in the same scheduling action. The record comes first,

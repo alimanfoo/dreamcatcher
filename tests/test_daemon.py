@@ -41,7 +41,7 @@ from dreamcatcher.clock import read_boot_time, read_current_time
 from dreamcatcher.config import DREAMCATCHER_CONFIG_NAME, AgentHarness
 from dreamcatcher.daemon import DreamcatcherDaemon
 from dreamcatcher.daemon_runs import DaemonRunRecord, RecordedRoute
-from dreamcatcher.documents import read_json, write_json, write_text
+from dreamcatcher.documents import read_json, write_text
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.lock import _HeldDaemonLock, hold_daemon_lock, is_daemon_lock_held
@@ -871,25 +871,56 @@ def test_a_run_that_cannot_read_an_assignment_refuses_to_start(ready_repo):
         daemon.run()
 
 
-def test_a_failed_tick_preserves_the_last_scheduler_record(ready_repo, capsys):
-    # The startup sweep read this assignment, so only a tick meets it broken.
-    daemon, _, _ = create_idle_daemon(root=ready_repo)
-    previous = SchedulerRecord(
-        at=PINNED,
-        finished=PINNED,
-        cooldown=GlobalCooldown(started=PINNED, ends=PINNED + timedelta(minutes=15)),
+def test_a_tick_that_cannot_read_a_record_ends_the_run_and_its_rounds(
+    ready_repo, harnesses
+):
+    harnesses["claude"].streams(
+        lines=[Line(text="still working\n")], delay=STILL_RUNNING
     )
-    write_json(document=previous, path=daemon.state.scheduler_record)
-    directory = write_assignment(state=daemon.state, identifier=ASSIGNMENT_ID, issue=13)
-    (directory / "work.json").write_text("{}", encoding="utf-8")
+    daemon, waiting, _ = create_idle_daemon(root=ready_repo, ticks=3)
+    last_complete_records = []
+    readable_work_records = []
 
-    scheduler = create_scheduler(daemon=daemon)
-    daemon.run_scheduler_tick(scheduler=scheduler, at=daemon.clock())
+    def damage_the_assignment_record():
+        last_complete_records.append(daemon.state.scheduler_record.read_bytes())
+        assignment = find_agent_work(
+            state=daemon.state, identifier=CREATED_ASSIGNMENT_ID
+        )
+        assert assignment is not None
+        work_record = assignment.directory / "work.json"
+        readable_work_records.append((work_record, work_record.read_bytes()))
+        work_record.write_bytes(b"{}\n")
 
-    assert read_tick_record(daemon=daemon) == previous
-    output = capsys.readouterr().out
-    assert "update failed:" in output
-    assert "work.json is not valid" in output
+    waiting.settle = damage_the_assignment_record
+    events = []
+
+    @contextmanager
+    def record_companion_lifetime():
+        events.append("started")
+        try:
+            yield
+        finally:
+            events.append("stopped")
+
+    with pytest.raises(ReportableError, match=r"work\.json is not valid"):
+        daemon.run(companion=record_companion_lifetime())
+
+    assert waiting.waited == [300]
+    assert daemon.state.scheduler_record.read_bytes() == last_complete_records[0]
+    assert events == ["started", "stopped"]
+    assert not is_daemon_lock_held(path=daemon.state.lock)
+    agent_round = daemon.rounds[CREATED_ASSIGNMENT_ID]
+    assert agent_round.record.outcome is AgentRoundOutcome.INTERRUPTED
+    assert wait_for_exit(pid=agent_round.harness_process.pid)
+
+    [(work_record, readable_work_record)] = readable_work_records
+    work_record.write_bytes(readable_work_record)
+    restarted, _, _ = create_idle_daemon(root=ready_repo, ticks=1)
+    restarted.run()
+
+    [row] = read_tick_record(daemon=restarted).rows
+    assert row.agent_work_identifier == CREATED_ASSIGNMENT_ID
+    assert row.started_round == StartedRound(number=2)
 
 
 @pytest.mark.parametrize("record", ["{}", "null"])

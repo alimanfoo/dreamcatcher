@@ -105,8 +105,7 @@ class Scheduler:
         """Inspect every request and fill every free agent slot.
 
         A round that has ended is forgotten first, so the cap counts what is
-        running now. A failure reaches the daemon, which reports it before the
-        next tick tries again.
+        running now. A failure reaches the daemon, which stops with it.
 
         The requests come from the open agent work on disk and from the
         dispatch labels on the listed issues. The first pass inspects the
