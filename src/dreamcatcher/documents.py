@@ -304,10 +304,37 @@ def append_text(*, text: str, path: Path) -> None:
 def write_json(*, document: DreamcatcherDocument, path: Path) -> None:
     """Write the document to path as JSON."""
     write_text(
-        text=document.model_dump_json(indent=2) + "\n",
+        text=_compose_json_text(document=document),
         path=path,
         is_replaceable=document.is_replaceable,
     )
+
+
+def write_json_if_absent(
+    *, document: WriteOnceDreamcatcherDocument, path: Path
+) -> bool:
+    """Write the document to path as JSON unless a document is already there.
+
+    Return whether this write landed. The read of what is there and the move of
+    the staged write into place hold one lock, so of writes that race each
+    other, in any thread or process, the first to take the lock lands and
+    nothing replaces it.
+
+    Raise ReportableError when the document that is there does not fit the
+    model, or when the read, the lock or the write fails.
+    """
+    with (
+        _stage_write(text=_compose_json_text(document=document), path=path) as staged,
+        _hold_document_lock(path=path),
+    ):
+        if read_json_if_exists(model=type(document), path=path) is not None:
+            return False
+        staged.replace(path)
+        return True
+
+
+def _compose_json_text(*, document: DreamcatcherDocument) -> str:
+    return document.model_dump_json(indent=2) + "\n"
 
 
 def remove_file(*, path: Path) -> None:
@@ -322,8 +349,8 @@ def remove_file(*, path: Path) -> None:
 def _stage_write(*, text: str, path: Path) -> Generator[Path, None, None]:
     """Stage the text in a file of its own beside path, for the caller to move.
 
-    Raise ReportableError when the staging or what the caller does with it
-    fails, and remove the staged file then.
+    Whatever the caller leaves staged is removed. Raise ReportableError when the
+    staging, or what the caller does with it, fails.
     """
     staged = path.with_name(f"{path.name}.{uuid4().hex}{_STAGED_WRITE_SUFFIX}")
     try:
@@ -332,9 +359,10 @@ def _stage_write(*, text: str, path: Path) -> Generator[Path, None, None]:
             opened.write(text)
         yield staged
     except (OSError, Timeout) as error:
+        raise ReportableError(f"cannot write {path}: {error}.") from error
+    finally:
         with suppress(OSError):
             staged.unlink(missing_ok=True)
-        raise ReportableError(f"cannot write {path}: {error}.") from error
 
 
 @contextmanager
