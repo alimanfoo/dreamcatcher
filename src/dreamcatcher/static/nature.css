@@ -445,6 +445,10 @@ body::after {
   background: transparent;
 }
 
+.pr-chip-ready {
+  color: var(--bright);
+}
+
 .agent-work-open {
   display: inline-flex;
   align-items: center;

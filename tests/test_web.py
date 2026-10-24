@@ -1749,6 +1749,18 @@ def test_assignment_reporting_remains_without_a_repository_record(tmp_path):
     assert '<span class="pr-chip">PR #52 draft</span>' in page
 
 
+def test_an_assignment_page_marks_a_pull_request_that_is_ready_for_review(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    fabricate_titles_and_pull_request_states(state=state)
+
+    page = render_assignment(state=state, identifier="GH11-20260819-184158-assignment")
+
+    assert (
+        f'<a class="pr-chip pr-chip-ready" href="https://github.com/{REPOSITORY}/pull/52"'
+        in page
+    )
+
+
 def test_an_assignment_page_reports_a_repository_record_that_will_not_read(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
@@ -1951,15 +1963,18 @@ def test_pull_request_summary_remains_without_a_repository_record(tmp_path):
 
     page = render_home(state=state)
 
-    for pull_request_summary in (
-        "draft",
-        "ready",
-        "merged",
-        "closed",
-        "ready, behind main, checks running",
-        "ready, checks failing",
+    for pull_request_summary, chip_class in (
+        ("draft", "pr-chip"),
+        ("ready", "pr-chip pr-chip-ready"),
+        ("merged", "pr-chip"),
+        ("closed", "pr-chip"),
+        ("ready, behind main, checks running", "pr-chip pr-chip-ready"),
+        ("ready, checks failing", "pr-chip pr-chip-ready"),
+        ("ready, conflicts with main", "pr-chip pr-chip-ready"),
     ):
-        assert f'<span class="pr-chip">PR #52 {pull_request_summary}</span>' in page
+        assert (
+            f'<span class="{chip_class}">PR #52 {pull_request_summary}</span>' in page
+        )
 
 
 def test_a_record_that_will_not_read_renders_an_error_page(tmp_path):

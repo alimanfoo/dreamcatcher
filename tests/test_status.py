@@ -722,23 +722,28 @@ def test_a_round_with_no_input_was_the_start(state):
     assert round_status.trigger.describe() == "start"
 
 
-def test_an_assignment_the_tick_read_nothing_for_reports_no_pull_request_summary(state):
+def test_an_assignment_the_tick_read_nothing_for_reports_no_pull_request_state(state):
     write_assignment_round(directory=state.work / ASSIGNMENT_ID, number=1, status=None)
     write_tick_rows(
         state=state,
         rows=[compose_request_row(issue=13, agent_work_identifier=ASSIGNMENT_ID)],
     )
 
-    assert read_sole_assignment_status(state=state).pull_request_summary is None
+    status = read_sole_assignment_status(state=state)
+
+    assert status.pull_request_summary is None
+    assert not status.is_pull_request_ready_for_review
 
 
-def test_a_cancelled_assignment_stops_reporting_its_pull_request_summary(state):
+def test_a_cancelled_assignment_stops_reporting_its_pull_request_state(state):
     write_assignment_round(directory=state.work / ASSIGNMENT_ID, number=1)
-    write_tick_rows(state=state, rows=[compose_pull_request_row(is_draft=True)])
+    write_tick_rows(state=state, rows=[compose_pull_request_row()])
 
     cancel(state=state)
 
-    assert read_sole_assignment_status(state=state).pull_request_summary is None
+    status = read_sole_assignment_status(state=state)
+    assert status.pull_request_summary is None
+    assert not status.is_pull_request_ready_for_review
 
 
 @pytest.mark.parametrize("status", [0, None])

@@ -16,7 +16,7 @@
           <div class="agent-work-heading-actions">
             {% include "partials/agent-work-retry.html" %}
             {% include "partials/agent-work-status.html" %}
-            {{ pull_request_chip(view.pull_request, view.pull_request_summary) }}
+            {{ pull_request_chip(view.pull_request, view.pull_request_summary, view.is_pull_request_ready_for_review) }}
           </div>
         </div>
         {% include "partials/agent-work-detail.html" %}

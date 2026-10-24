@@ -37,6 +37,7 @@ class WebAgentWorkCard:
     effort: str
     pull_request: int | None
     pull_request_summary: str | None
+    is_pull_request_ready_for_review: bool
     child_overview: "WebCampaignChildOverview | None"
     latest_output: str | None
 
@@ -161,6 +162,7 @@ class WebAssignmentView:
     title: str
     pull_request: int | None
     pull_request_summary: str | None
+    is_pull_request_ready_for_review: bool
     dispatch_label: str
     harness: str
     model: str

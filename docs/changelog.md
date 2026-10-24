@@ -53,6 +53,10 @@ the change.
   "cancelled" once, where it said "ended", and every ended card's title
   is quieter.
   ([#779](https://github.com/alimanfoo/dreamcatcher/pull/779))
+- A pull request that is ready for review now shows in brighter text
+  than a draft, on an assignment's card and on its page. In the matrix
+  theme, every other pull request now shows in the subdued text.
+  ([#780](https://github.com/alimanfoo/dreamcatcher/pull/780))
 
 ### Fixed
 
