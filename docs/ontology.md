@@ -654,7 +654,10 @@ Agent work of every kind has one of these summary statuses:
   assignment whose round is still stopping is working until the round
   ends.
 - **Ended**: the work's ending is recorded, and its reason, completed,
-  cancelled or issue closed, is the detail.
+  cancelled or issue closed, is the detail. An ended assignment's card
+  on the web home page shows the reason, completed or cancelled, in
+  place of the status and has no detail, because either reason reads as
+  a status of its own. The status is still ended.
 - **Fault**: two consecutive rounds have errored, so no further round
   starts on its own.
 - **Unknown**: the latest tick could not read what it needed for the
