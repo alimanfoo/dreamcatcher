@@ -524,9 +524,12 @@ def test_a_write_if_absent_over_an_invalid_document_says_so_and_keeps_it(tmp_pat
     written = tmp_path / "ended.json"
     written.write_bytes(b'{"name": 3}\n')
 
-    with pytest.raises(ReportableError, match=f"{written} is not valid"):
+    with pytest.raises(ReportableError) as error:
         write_json_if_absent(document=WriteOnceSample(name="first"), path=written)
 
+    assert str(error.value) == (
+        f"{written} is not valid:\n  name: Input should be a valid string"
+    )
     assert written.read_bytes() == b'{"name": 3}\n'
     assert next(tmp_path.glob(f"*{_STAGED_WRITE_SUFFIX}"), None) is None
 
