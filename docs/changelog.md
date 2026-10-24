@@ -29,6 +29,10 @@ the change.
 
 ### Changed
 
+- A lead round's trigger says that a sub-issue **handed back** and that
+  its **pull request changed**, where it said **handback** and **pull
+  request**.
+  ([#777](https://github.com/alimanfoo/dreamcatcher/pull/777))
 - The daemon stops when an update cannot complete, for example because a
   record under `.dreamcatcher/` is damaged or a write fails. It prints
   the file and what is wrong with it, ends its rounds and its web page
@@ -52,6 +56,10 @@ the change.
 
 ### Fixed
 
+- On the web page, a lead round that names its sub-issues lists its
+  trigger and timing beside its number, on separate lines, as every
+  other round does.
+  ([#777](https://github.com/alimanfoo/dreamcatcher/pull/777))
 - A wrap-up round that finishes as the user cancels its assignment
   leaves the assignment cancelled, so its worktree, branch and
   uncommitted work stay the user's. A cancel that comes after the

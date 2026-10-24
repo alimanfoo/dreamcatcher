@@ -8,15 +8,20 @@ from typing import Literal
 
 import pytest
 from playwright.sync_api import Locator, Page, expect
-from records import write_ending, write_tick
-from status_fabrications import CAMPAIGN_CHILDREN, LOOKED_AT
+from records import write_ending, write_round, write_tick
+from status_fabrications import CAMPAIGN_CHILDREN, LOOKED_AT, compose_ended_round
 from web_browser import (
     BROWSER_ASSIGNMENT_IDENTIFIER,
     serve_fabricated_web,
 )
 
 from dreamcatcher.agent_work import AgentWorkEndReason, find_agent_work
-from dreamcatcher.campaigns import CampaignChild
+from dreamcatcher.campaigns import (
+    CampaignChild,
+    CampaignChildChange,
+    CampaignChildNotification,
+    CampaignRoundInput,
+)
 from dreamcatcher.documents import append_text, read_json
 from dreamcatcher.feed import FeedLine
 from dreamcatcher.scheduler.models import SchedulerRecord
@@ -247,6 +252,68 @@ def test_a_child_assignment_shows_its_new_output_in_both_tabs(
     expect(page.locator(f"#{CHILD_ASSIGNMENT_IDENTIFIER} .latest-output")).to_have_text(
         "agent [Bash] git push"
     )
+
+
+@pytest.mark.parametrize("theme", ["matrix", "nature"])
+def test_a_round_that_names_sub_issues_keeps_its_summary_beside_its_number(
+    page: Page, live_web: str, tmp_path: Path, theme: str
+) -> None:
+    write_round(
+        directory=StateDirectory(root=tmp_path).work / CAMPAIGN_IDENTIFIER,
+        number=2,
+        record=compose_ended_round(minute=10, number=2),
+        round_input=CampaignRoundInput(
+            issue=60,
+            children=CAMPAIGN_CHILDREN,
+            notifications=[
+                CampaignChildNotification(
+                    issue=63,
+                    changes=[
+                        CampaignChildChange.HANDBACK,
+                        CampaignChildChange.PULL_REQUEST,
+                    ],
+                ),
+                CampaignChildNotification(
+                    issue=64, changes=[CampaignChildChange.ADDED]
+                ),
+            ],
+            comments=[],
+            cursor=None,
+            revision="abc123",
+            assignment_routes=[],
+        ),
+    )
+    page.goto(f"{live_web}/work/{CAMPAIGN_IDENTIFIER}?theme={theme}")
+    expect(page.get_by_role("link", name=re.compile(r"^02 #63: "))).to_be_visible()
+
+    layout = page.locator(".round").last.evaluate(
+        """round => {
+          const box = (element) => element.getBoundingClientRect();
+          const centre = (element) => {
+            const { x, y, width, height } = box(element);
+            return document.elementFromPoint(x + width / 2, y + height / 2);
+          };
+          const number = box(round.querySelector(".round-number"));
+          const trigger = box(round.querySelector(".round-trigger"));
+          const timing = round.querySelector(".round-timing");
+          const subIssue = round.querySelector(".round-trigger a");
+          return {
+            number: [number.right, number.bottom],
+            trigger: [trigger.left, trigger.top, trigger.bottom],
+            timing_top: box(timing).top,
+            timing_target: centre(timing).className,
+            sub_issue_target: centre(subIssue) === subIssue,
+          };
+        }"""
+    )
+
+    number_right, number_bottom = layout["number"]
+    trigger_left, trigger_top, trigger_bottom = layout["trigger"]
+    assert number_right <= trigger_left
+    assert trigger_top < number_bottom
+    assert layout["timing_top"] >= trigger_bottom
+    assert layout["timing_target"] == "round-link"
+    assert layout["sub_issue_target"]
 
 
 def test_home_tabs_switch_by_pointer_and_keyboard_and_survive_refresh(

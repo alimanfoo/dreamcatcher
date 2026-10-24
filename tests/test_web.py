@@ -1646,7 +1646,7 @@ def test_assignment_rounds_link_to_the_feed_in_ascending_order(tmp_path):
     page = render_assignment(state=state, identifier="GH13-20260819-184158-assignment")
     round_links = re.findall(
         r'class="round-link" href="#feed-round-(\d+)"[^>]*>\s*'
-        r'<span class="round-number">(\d+)</span>',
+        r'<span class="round-number"[^>]*>(\d+)</span>',
         page,
     )
 
