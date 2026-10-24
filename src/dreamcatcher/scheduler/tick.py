@@ -105,8 +105,7 @@ class Scheduler:
         """Inspect every request and fill every free agent slot.
 
         A round that has ended is forgotten first, so the cap counts what is
-        running now. A failure reaches the daemon, which reports it before the
-        next tick tries again.
+        running now. A failure reaches the daemon, which stops with it.
 
         The requests come from the open agent work on disk and from the
         dispatch labels on the listed issues. The first pass inspects the
@@ -174,9 +173,7 @@ class Scheduler:
             *self._remove_ended_worktrees(watched_work=watched_work),
         ]
         if cooldown is None:
-            self._launch_candidates(
-                rows=rows, failures=failures, inspections=inspections, at=at
-            )
+            self._launch_candidates(rows=rows, inspections=inspections, at=at)
         return SchedulerRecord(
             at=at,
             finished=self.context.clock(),
@@ -356,18 +353,16 @@ class Scheduler:
         self,
         *,
         rows: list[RequestRow],
-        failures: list[str],
         inspections: list[Inspection],
         at: datetime,
     ) -> None:
         """Fill free capacity in candidate order, the work kinds taking turns.
 
         The rows are the inspections' rows, in the same order, and this updates
-        them and the failures in place. A launch that fails takes no slot, and
-        the next candidate is tried. The row of each request names the round
-        started for it, and why that round errored if it did so during its
-        preparation or startup. A launch that fails before any round exists is
-        a scheduler failure.
+        them in place. The row of each request names the round started for it,
+        and why that round errored if it did so during its preparation or
+        startup. Such a round takes no slot, and the next candidate is tried. A
+        launch that fails before its round is recorded fails the tick.
         """
         ready = [
             (position, candidate)
@@ -387,12 +382,8 @@ class Scheduler:
                     number=failure.round_number,
                     launch_failure=failure.reason,
                 )
-            except ReportableError as failure:
-                failures.append(str(failure))
-                continue
             else:
                 identifier = launched.agent_work_identifier
-                self.rounds[identifier] = launched
                 started_round = StartedRound(number=launched.record.number)
             rows[position] = row.model_copy(
                 update={
@@ -426,8 +417,10 @@ class Scheduler:
     ) -> AgentRound:
         """Create the candidate's work if it is a request, then start its next round.
 
-        The round resumes the work's harness session when there is one. A
-        round whose work has ended by the time it starts is asked to stop.
+        The round resumes the work's harness session when there is one. The
+        daemon holds the round as soon as it starts, so a failure after that
+        still ends it with the daemon. A round whose work has ended by the time
+        it starts is asked to stop.
         """
         work = (
             candidate.work_or_route
@@ -477,6 +470,7 @@ class Scheduler:
             ),
             clock=self.context.clock,
         )
+        self.rounds[work.identifier] = started_round
         request_round_stop_if_ended(work=work, paths=paths)
         return started_round
 

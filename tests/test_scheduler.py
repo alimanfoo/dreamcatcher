@@ -36,7 +36,7 @@ from records import (
 )
 from rows import UNCLAIMED, compose_request_row
 
-import dreamcatcher.scheduler.tick as tick_module
+import dreamcatcher.scheduler.assignments as assignment_scheduling
 from dreamcatcher.agent_assignments import (
     cancel_assignment,
     read_assignment_pull_request_number,
@@ -56,7 +56,6 @@ from dreamcatcher.agent_rounds import (
 from dreamcatcher.agent_work import (
     _HARNESS_SESSION_RECORD_NAME,
     AgentWorkEndReason,
-    create_agent_work,
     request_agent_work_retry,
 )
 from dreamcatcher.config import AgentHarness, read_dreamcatcher_config
@@ -310,34 +309,6 @@ def test_a_tick_fills_free_capacity_with_available_issues(
     assert not (
         scheduler.context.state.worktrees / "GH10-20260819-184158-assignment"
     ).exists()
-
-
-def test_a_failed_launch_goes_on_to_the_next_candidate(
-    ready_repo, gh_with_available_issue, monkeypatch
-):
-    offer_listing(
-        gh=gh_with_available_issue,
-        issues=compose_assignment_issues(
-            filed=[(8, FILED), (9, LATER), (10, "2026-08-21T01:00:00Z")]
-        ),
-    )
-    scheduler, clock = create_scheduler(root=ready_repo, max_agents=3)
-
-    def fail_second_creation(**arguments):
-        if arguments["issue"] == 9:
-            raise ReportableError("could not create an assignment for GH9")
-        return create_agent_work(**arguments)
-
-    monkeypatch.setattr(tick_module, "create_agent_work", fail_second_creation)
-
-    observed = scheduler.tick(at=clock())
-
-    assert observed.launched_agent_work_identifiers == [
-        CREATED_ASSIGNMENT_ID,
-        "GH10-20260819-184158-assignment",
-    ]
-    assert observed.failures == ["could not create an assignment for GH9"]
-    assert observed.rows[1] == compose_request_row(issue=9, finding=UNCLAIMED)
 
 
 def test_a_round_that_cannot_open_its_pull_request_is_named_in_its_row(
@@ -858,9 +829,9 @@ def test_a_dispatch_whose_round_will_not_start_keeps_the_assignment_for_next_tim
     occupied.write_text("something else is here\n", encoding="utf-8")
     scheduler, clock = create_scheduler(root=ready_repo)
 
-    observed = scheduler.tick(at=clock())
+    with pytest.raises(ReportableError, match="cannot write"):
+        scheduler.tick(at=clock())
 
-    assert "cannot write" in find_sole_failure(observed=observed)
     [assignment] = read_assignments(state=scheduler.context.state)
     assert assignment.identifier == CREATED_ASSIGNMENT_ID
     assert assignment.rounds == []
@@ -1281,10 +1252,10 @@ def test_a_batch_no_round_ever_launched_is_read_again_next_tick(
     occupied.write_text("something else is here\n", encoding="utf-8")
     scheduler, clock = create_scheduler(root=assigned_checkout)
 
-    observed = scheduler.tick(at=clock())
-    observed = scheduler.tick(at=clock())
+    for _ in range(2):
+        with pytest.raises(ReportableError, match="cannot write"):
+            scheduler.tick(at=clock())
 
-    assert "cannot write" in find_sole_failure(observed=observed)
     relay_reads = [
         call for call in gh.calls if call.arguments[:2] == ["api", CONVERSATION]
     ]
@@ -1379,6 +1350,45 @@ def test_a_cancelled_assignment_keeps_its_worktree_and_branch(
 
     assert observed.failures == []
     assert worktree.is_dir()
+    assert ASSIGNMENT_BRANCH in list_branches(root=assigned_checkout)
+    [cancelled] = read_assignments(state=scheduler.context.state)
+    assert cancelled.ending is not None
+    assert cancelled.ending.reason is AgentWorkEndReason.CANCELLED
+
+
+def test_a_wrap_up_round_that_finishes_after_a_cancel_leaves_the_worktree_alone(
+    assigned_checkout, gh, monkeypatch
+):
+    # The user cancels after the tick read the assignment, and the wrap-up
+    # round's harness has already exited, so the round still finishes.
+    worktree = check_out_assignment(root=assigned_checkout)
+    (worktree / "by-hand.txt").write_bytes(b"what the user has not committed\n")
+    write_assignment_round(
+        directory=StateDirectory(root=assigned_checkout).work / ASSIGNMENT_ID, number=1
+    )
+    gh.replies(stdout=compose_pull_request(state="MERGED"), to="pr view")
+    scheduler, clock = create_scheduler(root=assigned_checkout)
+    complete_assignment = assignment_scheduling.complete_assignment
+
+    def cancel_then_complete(*, assignment, clock, final_output):
+        [read_now] = read_assignments(state=scheduler.context.state)
+        cancel_assignment(assignment=read_now, at=clock())
+        complete_assignment(
+            assignment=assignment, clock=clock, final_output=final_output
+        )
+
+    monkeypatch.setattr(
+        assignment_scheduling, "complete_assignment", cancel_then_complete
+    )
+    scheduler.tick(at=clock())
+    finish_rounds(scheduler=scheduler)
+
+    observed = scheduler.tick(at=clock())
+
+    assert observed.failures == []
+    assert (worktree / "by-hand.txt").read_bytes() == (
+        b"what the user has not committed\n"
+    )
     assert ASSIGNMENT_BRANCH in list_branches(root=assigned_checkout)
     [cancelled] = read_assignments(state=scheduler.context.state)
     assert cancelled.ending is not None

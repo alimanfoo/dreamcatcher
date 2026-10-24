@@ -34,8 +34,8 @@ from dreamcatcher.words import describe_count, describe_span
 _CHILD_CHANGE_WORDS = {
     CampaignChildChange.ADDED: "added",
     CampaignChildChange.REMOVED: "removed",
-    CampaignChildChange.HANDBACK: "handback",
-    CampaignChildChange.PULL_REQUEST: "pull request",
+    CampaignChildChange.HANDBACK: "handed back",
+    CampaignChildChange.PULL_REQUEST: "pull request changed",
     CampaignChildChange.CHECK_COMPLETION: "checks finished",
     CampaignChildChange.MERGEABLE: "mergeable",
     CampaignChildChange.ENDING: "ended",

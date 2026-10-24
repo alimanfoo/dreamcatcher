@@ -20,7 +20,8 @@ class WebAgentWorkCard:
     """Represent the values rendered in one card for agent work of any kind.
 
     Only an assignment has a pull request. Only an active campaign has a child
-    overview.
+    overview. An ended assignment's status words are the reason it ended, and it
+    has no detail; other work shows its status as the status words.
     """
 
     identifier: str
@@ -28,7 +29,8 @@ class WebAgentWorkCard:
     issue: int
     title: str
     status: AgentWorkStatusValue
-    detail: str
+    status_words: str
+    detail: str | None
     dispatch_label: str
     harness: str
     model: str

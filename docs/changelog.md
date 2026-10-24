@@ -29,13 +29,47 @@ the change.
 
 ### Changed
 
+- A lead round's trigger says that a sub-issue **handed back** and that
+  its **pull request changed**, where it said **handback** and **pull
+  request**.
+  ([#777](https://github.com/alimanfoo/dreamcatcher/pull/777))
+- The daemon stops when an update cannot complete, for example because a
+  record under `.dreamcatcher/` is damaged or a write fails. It prints
+  the file and what is wrong with it, ends its rounds and its web page
+  as Ctrl-C does, and leaves the record of the last complete update in
+  place. Fix the cause and start the daemon again, and the interrupted
+  work carries on. The daemon used to report the failure and try again
+  at every update, and a conversation or campaign whose own records
+  could not be read showed the failure on its row.
+  ([#773](https://github.com/alimanfoo/dreamcatcher/pull/773))
+- An open page whose refresh gets no answer from the server, as when the
+  daemon has stopped, keeps what it shows and warns "Refresh failed.
+  Check the terminal running dreamcatcher." It used to show no warning.
+  ([#773](https://github.com/alimanfoo/dreamcatcher/pull/773))
 - Each card and request row on the web home page keeps GitHub's
   information at its top and _dreamcatcher_'s at its bottom.
   ([#770](https://github.com/alimanfoo/dreamcatcher/pull/770))
+- An ended assignment's card on the web home page says "completed" or
+  "cancelled" once, where it said "ended", and every ended card's title
+  is quieter.
+  ([#779](https://github.com/alimanfoo/dreamcatcher/pull/779))
 - A pull request that is ready for review now shows in brighter text
   than a draft, on an assignment's card and on its page. In the matrix
   theme, every other pull request now shows in the subdued text.
   ([#780](https://github.com/alimanfoo/dreamcatcher/pull/780))
+
+### Fixed
+
+- On the web page, a lead round that names its sub-issues lists its
+  trigger and timing beside its number, on separate lines, as every
+  other round does.
+  ([#777](https://github.com/alimanfoo/dreamcatcher/pull/777))
+- A wrap-up round that finishes as the user cancels its assignment
+  leaves the assignment cancelled, so its worktree, branch and
+  uncommitted work stay the user's. A cancel that comes after the
+  wrap-up round changes nothing, and `dreamcatcher cancel` says that the
+  assignment has already ended.
+  ([#774](https://github.com/alimanfoo/dreamcatcher/pull/774))
 
 ## [v9.0.0](https://github.com/alimanfoo/dreamcatcher/releases/tag/v9.0.0) — 2026-10-23
 

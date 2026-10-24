@@ -51,6 +51,7 @@ import dreamcatcher.web.app as web_app_module
 import dreamcatcher.web.server as web_server_module
 from dreamcatcher.agent_assignments import (
     cancel_assignment,
+    complete_assignment,
 )
 from dreamcatcher.agent_work import (
     AgentWorkEnding,
@@ -129,6 +130,12 @@ def render_conversation(*, state: StateDirectory, issue: int) -> str:
     )
     assert response.status_code == 200
     return response.get_data(as_text=True)
+
+
+def extract_article(*, page: str, identifier: str) -> str:
+    """Return the article with this element identifier, up to its closing tag."""
+    start = page.index(f'<article id="{identifier}"')
+    return page[start : page.index("</article>", start)]
 
 
 def _read_tail(
@@ -354,8 +361,7 @@ def test_a_campaign_sub_issue_with_no_assignment_or_request_shows_its_title_alon
 
     page = render_home(state=state)
     prefix = "GH60-20260819-184158-campaign-"
-    sub_issue = page[page.index(f'<article id="{prefix}sub-issue-66"') :]
-    sub_issue = sub_issue[: sub_issue.index("</article>")]
+    sub_issue = extract_article(page=page, identifier=f"{prefix}sub-issue-66")
 
     assert re.sub(r"<[^>]+>", " ", sub_issue).split() == ["#66", "Issue", "66"]
     assert f'id="{prefix}GH64-20260819-184158-assignment"' in page
@@ -735,6 +741,40 @@ def test_a_stale_assignment_cancel_changes_nothing(tmp_path):
     )
 
 
+def test_an_assignment_cancel_that_a_completion_beats_changes_nothing(
+    tmp_path, monkeypatch
+):
+    # The wrap-up round records its completion after the page read the
+    # assignment as open, and before the cancel records its ending.
+    state = StateDirectory(root=tmp_path)
+    fabricate_everything(state=state)
+    identifier = "GH13-20260819-184158-assignment"
+    client = _create_app(state=state, clock=lambda: LOOKED_AT).test_client()
+    find_work = web_app_module.find_agent_work
+
+    def find_then_complete(*, state, identifier):
+        work = find_work(state=state, identifier=identifier)
+        assert work is not None
+        complete_assignment(assignment=work, clock=lambda: PINNED, final_output=None)
+        return work
+
+    monkeypatch.setattr(web_app_module, "find_agent_work", find_then_complete)
+
+    response = client.post(
+        f"/work/{identifier}/cancel",
+        headers={"Origin": "http://localhost"},
+    )
+
+    assert response.status_code == 303
+    assert response.location == f"/work/{identifier}"
+    assignment = find_agent_work(state=state, identifier=identifier)
+    assert assignment is not None
+    assert assignment.ending == AgentWorkEnding(
+        at=PINNED, reason=AgentWorkEndReason.COMPLETED
+    )
+    assert not assignment.compose_round_paths(number=2).stop_request.exists()
+
+
 def test_an_unknown_assignment_cannot_be_cancelled(tmp_path):
     state = StateDirectory(root=tmp_path)
     client = _create_app(state=state, clock=lambda: LOOKED_AT).test_client()
@@ -846,8 +886,7 @@ def test_a_home_card_links_to_its_exact_assignment(tmp_path):
     )
     assert assignment_link in page
     assert page.count('href="/work/GH13-20260819-184158-assignment"') == 1
-    card_start = page.index('<article id="GH13-20260819-184158-assignment"')
-    card = page[card_start : page.index("</article>", card_start)]
+    card = extract_article(page=page, identifier="GH13-20260819-184158-assignment")
     assert card.index('class="pr-chip"') < card.index('class="agent-work-detail"')
     assert card.index(assignment_link) > card.index('class="agent-work-detail"')
 
@@ -885,7 +924,11 @@ def test_status_classes_do_not_depend_on_status_wording(tmp_path, monkeypatch):
                 replace(
                     section,
                     active=tuple(
-                        replace(card, status=reworded[card.status.name])
+                        replace(
+                            card,
+                            status=reworded[card.status.name],
+                            status_words=str(reworded[card.status.name]),
+                        )
                         for card in section.active
                     ),
                 )
@@ -907,12 +950,10 @@ def test_status_classes_do_not_depend_on_status_wording(tmp_path, monkeypatch):
         state=state, identifier="GH20-20260819-184158-assignment"
     )
     conversation_page = render_conversation(state=state, issue=8)
-    card_start = home.index('<article id="GH20-20260819-184158-assignment"')
-    card = home[card_start : home.index("</article>", card_start)]
-    conversation_start = home.index('<article id="GH8-20260819-184158-conversation"')
-    conversation_card = home[
-        conversation_start : home.index("</article>", conversation_start)
-    ]
+    card = extract_article(page=home, identifier="GH20-20260819-184158-assignment")
+    conversation_card = extract_article(
+        page=home, identifier="GH8-20260819-184158-conversation"
+    )
 
     assert '<span class="chip status-idle">reworded idle</span>' in card
     assert '<span class="chip status-idle">reworded idle</span>' in conversation_card
@@ -1018,7 +1059,7 @@ def test_ended_assignment_cards_are_separated_by_rules(tmp_path):
     )
 
     ended = page[page.index('<details class="ended-work">') :]
-    assert 'class="agent-work-card"' in ended
+    assert 'class="agent-work-card is-ended"' in ended
     assert re.search(
         r"\.agent-work-card,[^{]*\{[^}]*border-bottom: var\(--line\) solid",
         stylesheet,
@@ -1064,6 +1105,58 @@ def test_ended_assignments_are_ordered_by_when_they_ended(tmp_path):
     )
     assert "+ 3 ended</summary>" in page
     assert page.index('id="GH20-') < page.index('id="GH30-') < page.index('id="GH10-')
+
+
+@pytest.mark.parametrize(
+    ("identifier", "reason"),
+    [
+        ("GH12-20260819-184158-assignment", "completed"),
+        ("GH70-20260819-184158-assignment", "cancelled"),
+    ],
+)
+def test_an_ended_assignment_card_shows_why_it_ended_once_as_its_status(
+    tmp_path, identifier, reason
+):
+    state = StateDirectory(root=tmp_path)
+    fabricate_everything(state=state)
+
+    page = render_home(state=state)
+    ended = page[page.index('<details class="ended-work">') :]
+    card = extract_article(page=ended, identifier=identifier)
+
+    assert f'<span class="chip status-ended">{reason}</span>' in card
+    assert 'class="agent-work-detail"' not in card
+
+
+def test_a_cancelled_assignment_card_shows_working_while_its_round_stops(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    fabricate_everything(state=state)
+    identifier = "GH13-20260819-184158-assignment"
+    assignment = find_agent_work(state=state, identifier=identifier)
+    assert assignment is not None
+    cancel_assignment(assignment=assignment, at=LOOKED_AT)
+
+    page = render_home(state=state)
+    card = extract_article(page=page, identifier=identifier)
+
+    assert 'class="agent-work-card"' in card
+    assert '<span class="chip status-working">working</span>' in card
+    assert '<p class="agent-work-detail">round 2, 1 post, running' in card
+    assert page.index(card) < page.index('<details class="ended-work">')
+
+
+def test_an_ended_assignment_card_within_a_campaign_shows_why_it_ended(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    fabricate_everything(state=state, other_rows=fabricate_campaigns(state=state))
+
+    page = render_home(state=state)
+    card = extract_article(
+        page=page,
+        identifier="GH60-20260819-184158-campaign-GH63-20260819-184158-assignment",
+    )
+
+    assert '<span class="chip status-ended">completed</span>' in card
+    assert 'class="agent-work-detail"' not in card
 
 
 def test_home_page_types_replaced_assignment_output(tmp_path):
@@ -1553,7 +1646,7 @@ def test_assignment_rounds_link_to_the_feed_in_ascending_order(tmp_path):
     page = render_assignment(state=state, identifier="GH13-20260819-184158-assignment")
     round_links = re.findall(
         r'class="round-link" href="#feed-round-(\d+)"[^>]*>\s*'
-        r'<span class="round-number">(\d+)</span>',
+        r'<span class="round-number"[^>]*>(\d+)</span>',
         page,
     )
 
