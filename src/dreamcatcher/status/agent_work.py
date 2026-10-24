@@ -539,7 +539,12 @@ def _compose_waiting(
 
 
 def _describe_what_is_new(*, finding: RequestFinding | None) -> str | None:
-    """Describe what the latest tick found new in the work's channel, if anything."""
+    """Describe why the latest tick's finding makes a round due, if it does.
+
+    A merged or closed pull request awaits its wrap-up round, whatever else
+    the tick found new; otherwise the words say what is new in the work's
+    channel.
+    """
     if isinstance(finding, CampaignFinding):
         words = []
         if finding.new_comments:

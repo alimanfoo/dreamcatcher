@@ -175,9 +175,10 @@ claims the issue as work outside _dreamcatcher_. The worktree and branch
 stay in place, so you can carry on in the assignment's worktree. An
 assignment cancelled before any round opened a pull request has none to
 finish; any worktree or branch that a round made also stays in place.
-The cancelled assignment shows as **ended** with the detail cancelled on
-the web home page and in `dreamcatcher view`, and `dreamcatcher status`
-counts it among the ended assignments.
+The cancelled assignment's card on the web home page shows
+**cancelled**, `dreamcatcher view` shows it as **ended** with the detail
+cancelled, and `dreamcatcher status` counts it among the ended
+assignments.
 
 The selected work must be an assignment that has not ended. If the
 assignment's wrap-up round records its completion first, even as the
