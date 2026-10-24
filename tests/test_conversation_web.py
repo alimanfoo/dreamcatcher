@@ -8,6 +8,7 @@ from unittest.mock import MagicMock
 from clocks import DISPLAY_TIME_ZONE, PINNED
 from conftest import REPOSITORY
 from records import (
+    compose_conversation_identifier,
     find_conversation_directory,
     hold_daemon_lock_for_test,
     read_conversation,
@@ -18,9 +19,8 @@ from records import (
     write_running_conversation,
     write_tick,
 )
-from rows import compose_request_row
+from rows import compose_conversation_row, compose_request_row
 from status_fabrications import (
-    compose_conversation_row,
     fabricate_conversation,
     fabricate_everything,
 )
@@ -539,7 +539,8 @@ def test_a_routing_conflict_keeps_empty_conversation_tail_polling(tmp_path):
             finished=PINNED,
             rows=[
                 compose_conversation_row(
-                    finding=ConflictingLabelsFinding(labels=["discuss", "scout"])
+                    finding=ConflictingLabelsFinding(labels=["discuss", "scout"]),
+                    agent_work_identifier=compose_conversation_identifier(issue=8),
                 )
             ],
         ),
@@ -607,7 +608,8 @@ def test_conversation_tail_adds_a_later_round_without_repeating_the_first(tmp_pa
             finished=PINNED,
             rows=[
                 compose_conversation_row(
-                    finding=PausedFinding(cause=PauseCause.LABEL_REMOVED)
+                    finding=PausedFinding(cause=PauseCause.LABEL_REMOVED),
+                    agent_work_identifier=compose_conversation_identifier(issue=8),
                 )
             ],
         ),
@@ -716,9 +718,14 @@ def test_home_lists_conversations_in_attention_order_before_requests(tmp_path):
             at=PINNED,
             finished=PINNED,
             rows=[
-                compose_conversation_row(finding=IssueCommentsFinding(new_comments=0)),
                 compose_conversation_row(
-                    issue=11, finding=IssueCommentsFinding(new_comments=0)
+                    finding=IssueCommentsFinding(new_comments=0),
+                    agent_work_identifier=compose_conversation_identifier(issue=8),
+                ),
+                compose_conversation_row(
+                    issue=11,
+                    finding=IssueCommentsFinding(new_comments=0),
+                    agent_work_identifier=compose_conversation_identifier(issue=11),
                 ),
                 compose_request_row(
                     issue=9,

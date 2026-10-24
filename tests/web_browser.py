@@ -6,15 +6,15 @@ from datetime import timedelta
 from pathlib import Path
 
 from clocks import DISPLAY_TIME_ZONE
+from records import compose_conversation_identifier
+from rows import compose_conversation_row
 from status_fabrications import (
     ASSIGNMENT_TIMESTAMP,
     LOOKED_AT,
-    compose_conversation_row,
     fabricate_campaigns,
     fabricate_conversation,
     fabricate_everything,
 )
-from werkzeug.serving import make_server
 
 from dreamcatcher.agent_work import find_agent_work
 from dreamcatcher.documents import append_text
@@ -22,7 +22,11 @@ from dreamcatcher.feed import FeedLine
 from dreamcatcher.scheduler.models import IssueCommentsFinding
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.web.app import _create_app
-from dreamcatcher.web.server import WEB_HOST, run_web_server_in_background
+from dreamcatcher.web.server import (
+    WEB_HOST,
+    create_web_server,
+    run_web_server_in_background,
+)
 
 BROWSER_ASSIGNMENT_IDENTIFIER = f"GH13-{ASSIGNMENT_TIMESTAMP}-assignment"
 FEED_LINE_COUNT_PER_ROUND = 40
@@ -36,7 +40,10 @@ def serve_fabricated_web(*, root: Path) -> Generator[str, None, None]:
     fabricate_everything(
         state=state,
         other_rows=[
-            compose_conversation_row(finding=IssueCommentsFinding(new_comments=0)),
+            compose_conversation_row(
+                finding=IssueCommentsFinding(new_comments=0),
+                agent_work_identifier=compose_conversation_identifier(issue=8),
+            ),
             *fabricate_campaigns(state=state),
         ],
     )
@@ -63,6 +70,6 @@ def serve_fabricated_web(*, root: Path) -> Generator[str, None, None]:
         clock=lambda: LOOKED_AT,
         zone=DISPLAY_TIME_ZONE,
     )
-    server = make_server(WEB_HOST, 0, application)
+    server = create_web_server(state=state, port=0, application=application)
     with run_web_server_in_background(server=server):
         yield f"http://{WEB_HOST}:{server.server_port}"

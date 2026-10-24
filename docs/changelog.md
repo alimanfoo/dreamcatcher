@@ -27,6 +27,12 @@ the change.
 
 ## Unreleased
 
+### Changed
+
+- Each card and request row on the web home page keeps GitHub's
+  information at its top and _dreamcatcher_'s at its bottom.
+  ([#770](https://github.com/alimanfoo/dreamcatcher/pull/770))
+
 ### Fixed
 
 - A wrap-up round that finishes as the user cancels its assignment

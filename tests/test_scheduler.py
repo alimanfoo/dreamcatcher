@@ -27,13 +27,18 @@ from conftest import (
 )
 from fakes import Line
 from pydantic import ValidationError
-from records import MERGED_INPUT, read_assignments, write_assignment, write_round
+from records import (
+    MERGED_INPUT,
+    read_assignments,
+    write_assignment,
+    write_assignment_round,
+    write_round,
+)
 from rows import UNCLAIMED, compose_request_row
 
 import dreamcatcher.scheduler.assignments as assignment_scheduling
 import dreamcatcher.scheduler.tick as tick_module
 from dreamcatcher.agent_assignments import (
-    AssignmentRoundInput,
     cancel_assignment,
     read_assignment_pull_request_number,
     read_user_post_cursor,
@@ -184,37 +189,6 @@ def assigned_checkout(cloned_repo, gh, harnesses):
         harness_session_identifier=HARNESS_SESSION_IDENTIFIER,
     )
     return cloned_repo
-
-
-def write_assignment_round(
-    *,
-    root,
-    number: int,
-    status: int | None = 0,
-    round_input: AssignmentRoundInput | None = None,
-) -> None:
-    """Write down a round of the assignment on disk, ended as the status says.
-
-    Every one of them runs the hour before the pinned clock reads unless the
-    test needs an explicit ending time.
-    """
-    started = PINNED.replace(hour=17, minute=number)
-    ending = (
-        None
-        if status is None
-        else _compose_agent_round_ending(at=started, status=status)
-    )
-    write_round(
-        directory=StateDirectory(root=root).work / ASSIGNMENT_ID,
-        number=number,
-        record=AgentRoundRecord(
-            number=number,
-            started=started,
-            pid=1,
-            ending=ending,
-        ),
-        round_input=round_input,
-    )
 
 
 def write_faulted_assignment(*, root, identifier: str, issue: int) -> None:
@@ -445,7 +419,7 @@ def test_a_tick_at_the_cap_holds_an_assignment_that_needs_a_round(
         issue=13,
     )
     write_assignment_round(
-        root=ready_repo,
+        directory=StateDirectory(root=ready_repo).work / ASSIGNMENT_ID,
         number=1,
         status=1,
     )
@@ -479,7 +453,11 @@ def test_a_tick_at_the_cap_leaves_a_wound_up_assignment_waiting_on_nothing(
         identifier=ASSIGNMENT_ID,
         issue=13,
     )
-    write_assignment_round(root=ready_repo, number=1, round_input=MERGED_INPUT)
+    write_assignment_round(
+        directory=StateDirectory(root=ready_repo).work / ASSIGNMENT_ID,
+        number=1,
+        round_input=MERGED_INPUT,
+    )
     scheduler, clock = create_scheduler(root=ready_repo)
 
     observed = scheduler.tick(at=clock())
@@ -532,7 +510,7 @@ def test_a_tick_at_the_cap_records_a_candidate_listing_failure(
         issue=13,
     )
     write_assignment_round(
-        root=ready_repo,
+        directory=StateDirectory(root=ready_repo).work / ASSIGNMENT_ID,
         number=1,
     )
     scheduler, clock = create_scheduler(root=ready_repo)
@@ -598,7 +576,11 @@ def test_one_errored_round_is_given_its_input_again(ready_repo):
         identifier=ASSIGNMENT_ID,
         issue=13,
     )
-    write_assignment_round(root=ready_repo, number=1, status=1)
+    write_assignment_round(
+        directory=StateDirectory(root=ready_repo).work / ASSIGNMENT_ID,
+        number=1,
+        status=1,
+    )
     scheduler, clock = create_scheduler(root=ready_repo)
 
     observed = scheduler.tick(at=clock())
@@ -614,8 +596,16 @@ def test_one_faulted_assignment_does_not_block_unrelated_work(ready_repo):
         identifier=ASSIGNMENT_ID,
         issue=13,
     )
-    write_assignment_round(root=ready_repo, number=1, status=1)
-    write_assignment_round(root=ready_repo, number=2, status=1)
+    write_assignment_round(
+        directory=StateDirectory(root=ready_repo).work / ASSIGNMENT_ID,
+        number=1,
+        status=1,
+    )
+    write_assignment_round(
+        directory=StateDirectory(root=ready_repo).work / ASSIGNMENT_ID,
+        number=2,
+        status=1,
+    )
     scheduler, clock = create_scheduler(root=ready_repo)
 
     observed = scheduler.tick(at=clock())
@@ -637,7 +627,9 @@ def test_one_faulted_assignment_does_not_block_unrelated_work(ready_repo):
 def test_a_deleted_assignment_worktree_errors_twice_while_other_work_runs(
     assigned_checkout, gh, gh_with_available_issue
 ):
-    write_assignment_round(root=assigned_checkout, number=1)
+    write_assignment_round(
+        directory=StateDirectory(root=assigned_checkout).work / ASSIGNMENT_ID, number=1
+    )
     missing_worktree = StateDirectory(root=assigned_checkout).worktrees / ASSIGNMENT_ID
     missing_worktree.rmdir()
     gh.replies(stdout=compose_pull_request(state="OPEN"), to="pr view")
@@ -702,9 +694,19 @@ def test_a_successful_round_breaks_the_error_sequence(ready_repo):
         identifier=ASSIGNMENT_ID,
         issue=13,
     )
-    write_assignment_round(root=ready_repo, number=1, status=1)
-    write_assignment_round(root=ready_repo, number=2)
-    write_assignment_round(root=ready_repo, number=3, status=1)
+    write_assignment_round(
+        directory=StateDirectory(root=ready_repo).work / ASSIGNMENT_ID,
+        number=1,
+        status=1,
+    )
+    write_assignment_round(
+        directory=StateDirectory(root=ready_repo).work / ASSIGNMENT_ID, number=2
+    )
+    write_assignment_round(
+        directory=StateDirectory(root=ready_repo).work / ASSIGNMENT_ID,
+        number=3,
+        status=1,
+    )
     scheduler, clock = create_scheduler(root=ready_repo)
 
     observed = scheduler.tick(at=clock())
@@ -750,7 +752,9 @@ def test_a_running_assignment_is_observed_without_starting_another_round(
 
 
 def test_an_ended_round_is_inspected_while_its_runner_finishes(assigned_checkout):
-    write_assignment_round(root=assigned_checkout, number=1)
+    write_assignment_round(
+        directory=StateDirectory(root=assigned_checkout).work / ASSIGNMENT_ID, number=1
+    )
     scheduler, clock = create_scheduler(root=assigned_checkout)
     scheduler.rounds[ASSIGNMENT_ID] = Mock(is_alive=True)
 
@@ -767,7 +771,9 @@ def test_an_ended_round_is_inspected_while_its_runner_finishes(assigned_checkout
 
 
 def test_a_round_that_replaces_a_finishing_runner_is_reported(assigned_checkout, gh):
-    write_assignment_round(root=assigned_checkout, number=1)
+    write_assignment_round(
+        directory=StateDirectory(root=assigned_checkout).work / ASSIGNMENT_ID, number=1
+    )
     gh.replies(stdout=compose_pull_request(state="OPEN"), to="pr view")
     gh.replies(
         stdout=compose_page(items=[compose_comment()]),
@@ -785,7 +791,9 @@ def test_a_round_that_replaces_a_finishing_runner_is_reported(assigned_checkout,
 def test_an_assignment_with_nothing_new_reads_only_its_pull_request_and_posts(
     assigned_checkout, gh
 ):
-    write_assignment_round(root=assigned_checkout, number=1)
+    write_assignment_round(
+        directory=StateDirectory(root=assigned_checkout).work / ASSIGNMENT_ID, number=1
+    )
     offer_listing(gh=gh, issues=compose_assignment_issues(filed=[(13, FILED)]))
     gh.replies(stdout=compose_pull_request(state="OPEN"), to="pr view")
     scheduler, clock = create_scheduler(root=assigned_checkout)
@@ -966,7 +974,11 @@ def test_an_assignment_with_a_round_that_has_no_ending_starts_nothing(
 def test_a_resume_finds_the_harness_session_in_the_first_rounds_raw_stream(
     assigned_checkout, harnesses
 ):
-    write_assignment_round(root=assigned_checkout, number=1, status=1)
+    write_assignment_round(
+        directory=StateDirectory(root=assigned_checkout).work / ASSIGNMENT_ID,
+        number=1,
+        status=1,
+    )
     forget_harness_session_identifier(root=assigned_checkout)
     raw = (
         StateDirectory(root=assigned_checkout).work
@@ -1034,7 +1046,11 @@ def test_a_codex_assignment_round_passes_its_recorded_harness_config(
 def test_an_unfinished_round_without_a_harness_session_starts_a_new_session(
     assigned_checkout, harnesses
 ):
-    write_assignment_round(root=assigned_checkout, number=1, status=1)
+    write_assignment_round(
+        directory=StateDirectory(root=assigned_checkout).work / ASSIGNMENT_ID,
+        number=1,
+        status=1,
+    )
     forget_harness_session_identifier(root=assigned_checkout)
     harnesses["claude"].streams(lines=[], status=1)
     scheduler, clock = create_scheduler(root=assigned_checkout)
@@ -1058,7 +1074,9 @@ def test_an_unfinished_round_without_a_harness_session_starts_a_new_session(
 def test_a_follow_up_without_a_harness_session_starts_a_new_one_with_its_input(
     assigned_checkout, gh, harnesses
 ):
-    write_assignment_round(root=assigned_checkout, number=1)
+    write_assignment_round(
+        directory=StateDirectory(root=assigned_checkout).work / ASSIGNMENT_ID, number=1
+    )
     forget_harness_session_identifier(root=assigned_checkout)
     gh.replies(stdout=compose_pull_request(state="OPEN"), to="pr view")
     gh.replies(
@@ -1080,7 +1098,11 @@ def test_a_follow_up_without_a_harness_session_starts_a_new_one_with_its_input(
 def test_a_terminal_round_after_an_error_without_a_session_receives_wrap_up_input(
     assigned_checkout, gh, harnesses
 ):
-    write_assignment_round(root=assigned_checkout, number=1, status=1)
+    write_assignment_round(
+        directory=StateDirectory(root=assigned_checkout).work / ASSIGNMENT_ID,
+        number=1,
+        status=1,
+    )
     forget_harness_session_identifier(root=assigned_checkout)
     gh.replies(stdout=compose_pull_request(state="MERGED"), to="pr view")
     gh.replies(
@@ -1108,7 +1130,11 @@ def test_a_terminal_round_after_an_error_without_a_session_receives_wrap_up_inpu
 def test_a_round_after_an_errored_one_is_given_its_posts_again(
     assigned_checkout, gh, harnesses
 ):
-    write_assignment_round(root=assigned_checkout, number=1, status=1)
+    write_assignment_round(
+        directory=StateDirectory(root=assigned_checkout).work / ASSIGNMENT_ID,
+        number=1,
+        status=1,
+    )
     forget_harness_session_identifier(root=assigned_checkout)
     gh.replies(stdout=compose_pull_request(state="MERGED"), to="pr view")
     gh.replies(
@@ -1168,7 +1194,9 @@ def test_a_round_after_an_interrupted_one_is_given_the_input_again(assigned_chec
 def test_an_assignment_the_user_has_posted_on_is_told_what_they_said(
     assigned_checkout, gh
 ):
-    write_assignment_round(root=assigned_checkout, number=1)
+    write_assignment_round(
+        directory=StateDirectory(root=assigned_checkout).work / ASSIGNMENT_ID, number=1
+    )
     gh.replies(stdout=compose_pull_request(state="OPEN"), to="pr view")
     gh.replies(
         stdout=compose_page(items=[compose_comment()]),
@@ -1216,7 +1244,9 @@ def test_an_assignment_the_user_has_posted_on_is_told_what_they_said(
 
 
 def test_an_assignment_receives_a_batch_only_once(assigned_checkout, gh):
-    write_assignment_round(root=assigned_checkout, number=1)
+    write_assignment_round(
+        directory=StateDirectory(root=assigned_checkout).work / ASSIGNMENT_ID, number=1
+    )
     gh.replies(stdout=compose_pull_request(state="OPEN"), to="pr view")
     gh.replies(
         stdout=compose_page(items=[compose_comment()]),
@@ -1236,7 +1266,9 @@ def test_an_assignment_receives_a_batch_only_once(assigned_checkout, gh):
 def test_a_batch_no_round_ever_launched_is_read_again_next_tick(
     assigned_checkout, gh, harnesses
 ):
-    write_assignment_round(root=assigned_checkout, number=1)
+    write_assignment_round(
+        directory=StateDirectory(root=assigned_checkout).work / ASSIGNMENT_ID, number=1
+    )
     gh.replies(stdout=compose_pull_request(state="OPEN"), to="pr view")
     gh.replies(
         stdout=compose_page(items=[compose_comment()]),
@@ -1265,7 +1297,9 @@ def test_a_batch_no_round_ever_launched_is_read_again_next_tick(
 def test_a_pull_request_that_is_finished_gets_one_last_round(
     assigned_checkout, gh, state_name
 ):
-    write_assignment_round(root=assigned_checkout, number=1)
+    write_assignment_round(
+        directory=StateDirectory(root=assigned_checkout).work / ASSIGNMENT_ID, number=1
+    )
     gh.replies(stdout=compose_pull_request(state=state_name), to="pr view")
     scheduler, clock = create_scheduler(root=assigned_checkout)
 
@@ -1304,7 +1338,9 @@ def test_a_completed_assignment_loses_its_worktree_and_branch_at_the_next_tick(
     assigned_checkout, gh
 ):
     worktree = check_out_assignment(root=assigned_checkout)
-    write_assignment_round(root=assigned_checkout, number=1)
+    write_assignment_round(
+        directory=StateDirectory(root=assigned_checkout).work / ASSIGNMENT_ID, number=1
+    )
     gh.replies(stdout=compose_pull_request(state="MERGED"), to="pr view")
     scheduler, clock = create_scheduler(root=assigned_checkout)
     scheduler.tick(at=clock())
@@ -1327,7 +1363,9 @@ def test_a_cancelled_assignment_keeps_its_worktree_and_branch(
     assigned_checkout, gh, harnesses
 ):
     worktree = check_out_assignment(root=assigned_checkout)
-    write_assignment_round(root=assigned_checkout, number=1)
+    write_assignment_round(
+        directory=StateDirectory(root=assigned_checkout).work / ASSIGNMENT_ID, number=1
+    )
     gh.replies(stdout=compose_pull_request(state="MERGED"), to="pr view")
     harnesses["claude"].streams(
         lines=[Line(text="still working\n")], delay=STILL_RUNNING
@@ -1355,7 +1393,9 @@ def test_a_wrap_up_round_that_finishes_after_a_cancel_leaves_the_worktree_alone(
     # round's harness has already exited, so the round still finishes.
     worktree = check_out_assignment(root=assigned_checkout)
     (worktree / "by-hand.txt").write_bytes(b"what the user has not committed\n")
-    write_assignment_round(root=assigned_checkout, number=1)
+    write_assignment_round(
+        directory=StateDirectory(root=assigned_checkout).work / ASSIGNMENT_ID, number=1
+    )
     gh.replies(stdout=compose_pull_request(state="MERGED"), to="pr view")
     scheduler, clock = create_scheduler(root=assigned_checkout)
     complete_assignment = assignment_scheduling.complete_assignment
@@ -1388,7 +1428,9 @@ def test_a_wrap_up_round_that_finishes_after_a_cancel_leaves_the_worktree_alone(
 def test_a_worktree_that_will_not_go_is_reported_once_and_left(assigned_checkout, gh):
     worktree = check_out_assignment(root=assigned_checkout)
     run_git(arguments=["worktree", "lock", str(worktree)], cwd=assigned_checkout)
-    write_assignment_round(root=assigned_checkout, number=1)
+    write_assignment_round(
+        directory=StateDirectory(root=assigned_checkout).work / ASSIGNMENT_ID, number=1
+    )
     gh.replies(stdout=compose_pull_request(state="MERGED"), to="pr view")
     scheduler, clock = create_scheduler(root=assigned_checkout)
     scheduler.tick(at=clock())
@@ -1411,7 +1453,9 @@ def test_a_worktree_that_will_not_go_is_reported_once_and_left(assigned_checkout
 def test_a_completed_assignment_with_no_worktree_or_branch_left_reports_nothing(
     assigned_checkout, gh
 ):
-    write_assignment_round(root=assigned_checkout, number=1)
+    write_assignment_round(
+        directory=StateDirectory(root=assigned_checkout).work / ASSIGNMENT_ID, number=1
+    )
     gh.replies(stdout=compose_pull_request(state="MERGED"), to="pr view")
     scheduler, clock = create_scheduler(root=assigned_checkout)
     scheduler.tick(at=clock())
@@ -1425,7 +1469,9 @@ def test_a_completed_assignment_with_no_worktree_or_branch_left_reports_nothing(
 def test_a_branch_that_will_not_go_is_reported(assigned_checkout, gh):
     # The main checkout has the branch checked out, so Git will not delete it.
     run_git(arguments=["switch", "--create", ASSIGNMENT_BRANCH], cwd=assigned_checkout)
-    write_assignment_round(root=assigned_checkout, number=1)
+    write_assignment_round(
+        directory=StateDirectory(root=assigned_checkout).work / ASSIGNMENT_ID, number=1
+    )
     gh.replies(stdout=compose_pull_request(state="MERGED"), to="pr view")
     scheduler, clock = create_scheduler(root=assigned_checkout)
     scheduler.tick(at=clock())
@@ -1442,7 +1488,9 @@ def test_a_branch_that_will_not_go_is_reported(assigned_checkout, gh):
 def test_a_last_round_that_fails_leaves_its_assignment_open(
     assigned_checkout, gh, harnesses
 ):
-    write_assignment_round(root=assigned_checkout, number=1)
+    write_assignment_round(
+        directory=StateDirectory(root=assigned_checkout).work / ASSIGNMENT_ID, number=1
+    )
     gh.replies(stdout=compose_pull_request(state="MERGED"), to="pr view")
     harnesses["claude"].streams(lines=[], status=1)
     scheduler, clock = create_scheduler(root=assigned_checkout)
@@ -1455,8 +1503,14 @@ def test_a_last_round_that_fails_leaves_its_assignment_open(
 
 
 def test_an_assignment_that_has_had_its_last_round_gets_no_other(assigned_checkout, gh):
-    write_assignment_round(root=assigned_checkout, number=1)
-    write_assignment_round(root=assigned_checkout, number=2, round_input=MERGED_INPUT)
+    write_assignment_round(
+        directory=StateDirectory(root=assigned_checkout).work / ASSIGNMENT_ID, number=1
+    )
+    write_assignment_round(
+        directory=StateDirectory(root=assigned_checkout).work / ASSIGNMENT_ID,
+        number=2,
+        round_input=MERGED_INPUT,
+    )
     gh.replies(stdout=compose_pull_request(state="MERGED"), to="pr view")
     scheduler, clock = create_scheduler(root=assigned_checkout)
 
@@ -1469,13 +1523,15 @@ def test_an_assignment_that_has_had_its_last_round_gets_no_other(assigned_checko
 def test_a_last_round_that_was_interrupted_is_carried_on_as_the_last_round(
     assigned_checkout, gh
 ):
-    write_assignment_round(root=assigned_checkout, number=1)
+    write_assignment_round(
+        directory=StateDirectory(root=assigned_checkout).work / ASSIGNMENT_ID, number=1
+    )
     write_round(
         directory=StateDirectory(root=assigned_checkout).work / ASSIGNMENT_ID,
         number=2,
         record=AgentRoundRecord(
             number=2,
-            started=PINNED.replace(hour=17, minute=2),
+            started=PINNED + timedelta(minutes=2),
             pid=1,
             ending=InterruptedAgentRoundEnding(),
         ),
@@ -1531,7 +1587,11 @@ def test_a_failed_issue_listing_starts_no_new_work_but_carries_on_open_work(
         identifier=ASSIGNMENT_ID,
         issue=13,
     )
-    write_assignment_round(root=ready_repo, number=1, status=1)
+    write_assignment_round(
+        directory=StateDirectory(root=ready_repo).work / ASSIGNMENT_ID,
+        number=1,
+        status=1,
+    )
     gh_with_available_issue.fails(
         stderr="gh: could not connect to github.com", to="issue list"
     )

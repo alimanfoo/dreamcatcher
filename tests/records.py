@@ -278,6 +278,37 @@ def write_round(
     return record
 
 
+def write_assignment_round(
+    *,
+    directory: Path,
+    number: int,
+    status: int | None = 0,
+    round_input: agent_assignments.AssignmentRoundInput | None = None,
+) -> agent_rounds.AgentRoundRecord:
+    """Write one round of the assignment at this directory, and return its record.
+
+    The round starts as many minutes after the pinned clock as its number, so
+    rounds read back in the order of their numbers. It ends as it starts, as the
+    harness's exit status says, and has no recorded ending when it has no status.
+    """
+    started = PINNED + timedelta(minutes=number)
+    return write_round(
+        directory=directory,
+        number=number,
+        record=agent_rounds.AgentRoundRecord(
+            number=number,
+            started=started,
+            pid=1,
+            ending=(
+                None
+                if status is None
+                else agent_rounds._compose_agent_round_ending(at=started, status=status)
+            ),
+        ),
+        round_input=round_input,
+    )
+
+
 def write_ending(
     *, directory: Path, reason: agent_work.AgentWorkEndReason, at: datetime
 ) -> None:
