@@ -33,6 +33,9 @@ the change.
   its **pull request changed**, where it said **handback** and **pull
   request**.
   ([#777](https://github.com/alimanfoo/dreamcatcher/pull/777))
+- Each card and request row on the web home page keeps GitHub's
+  information at its top and _dreamcatcher_'s at its bottom.
+  ([#770](https://github.com/alimanfoo/dreamcatcher/pull/770))
 
 ### Fixed
 

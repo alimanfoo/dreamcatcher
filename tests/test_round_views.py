@@ -5,7 +5,6 @@ from io import StringIO
 import pytest
 from clocks import DISPLAY_TIME_ZONE, PINNED
 from records import read_newest_work
-from rich.console import Console
 from status_fabrications import (
     LOOKED_AT,
     compose_ended_round,
@@ -13,6 +12,7 @@ from status_fabrications import (
     fabricate_everything,
     write_assignment_with_rounds,
 )
+from terminals import create_pinned_console, refuse_to_wait
 
 from dreamcatcher.agent_rounds import AgentRoundRecord, StoppedAgentRoundEnding
 from dreamcatcher.harness_adapters import AgentWorkKind
@@ -34,21 +34,13 @@ def render_assignment_page(*, state: StateDirectory, identifier: str) -> str:
 def render_assignment_terminal(*, state: StateDirectory, issue: int) -> str:
     """Render one assignment as plain terminal text."""
     written_to = StringIO()
-    console = Console(
-        file=written_to,
-        width=100,
-        height=40,
-        force_terminal=False,
-        color_system=None,
-        legacy_windows=False,
-        _environ={"TERM": "xterm"},
-    )
+    console = create_pinned_console(written_to=written_to)
     show_agent_work_view(
         state=state,
         work=read_newest_work(state=state, issue=issue, kind=AgentWorkKind.ASSIGNMENT),
         console=console,
         clock=lambda: LOOKED_AT,
-        wait=lambda _seconds: pytest.fail("a plain terminal view must not wait"),
+        wait=refuse_to_wait,
         zone=DISPLAY_TIME_ZONE,
     )
     return written_to.getvalue()

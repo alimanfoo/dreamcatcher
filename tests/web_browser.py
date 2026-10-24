@@ -6,10 +6,11 @@ from datetime import timedelta
 from pathlib import Path
 
 from clocks import DISPLAY_TIME_ZONE
+from records import compose_conversation_identifier
+from rows import compose_conversation_row
 from status_fabrications import (
     ASSIGNMENT_TIMESTAMP,
     LOOKED_AT,
-    compose_conversation_row,
     fabricate_campaigns,
     fabricate_conversation,
     fabricate_everything,
@@ -39,7 +40,10 @@ def serve_fabricated_web(*, root: Path) -> Generator[str, None, None]:
     fabricate_everything(
         state=state,
         other_rows=[
-            compose_conversation_row(finding=IssueCommentsFinding(new_comments=0)),
+            compose_conversation_row(
+                finding=IssueCommentsFinding(new_comments=0),
+                agent_work_identifier=compose_conversation_identifier(issue=8),
+            ),
             *fabricate_campaigns(state=state),
         ],
     )

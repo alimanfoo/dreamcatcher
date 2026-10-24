@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "partials/references.html" import pull_request_chip with context %}
 {% block content %}
   <main class="agent-work-page">
     {% include "partials/site-header.html" %}
@@ -15,7 +16,7 @@
           <div class="agent-work-heading-actions">
             {% include "partials/agent-work-retry.html" %}
             {% include "partials/agent-work-status.html" %}
-            {% if view.pull_request is none %}<span class="pr-chip">no pull request yet</span>{% elif view.github_repository_url %}<a class="pr-chip" href="{{ view.github_repository_url }}/pull/{{ view.pull_request }}" target="_blank" rel="noopener noreferrer">PR #{{ view.pull_request }}{% if view.pull_request_summary %} {{ view.pull_request_summary }}{% endif %}</a>{% else %}<span class="pr-chip">PR #{{ view.pull_request }}{% if view.pull_request_summary %} {{ view.pull_request_summary }}{% endif %}</span>{% endif %}
+            {{ pull_request_chip(view.pull_request, view.pull_request_summary) }}
           </div>
         </div>
         {% include "partials/agent-work-detail.html" %}

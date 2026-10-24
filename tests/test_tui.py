@@ -9,6 +9,7 @@ same text.
 """
 
 from io import StringIO
+from unittest.mock import Mock
 
 import pytest
 from clocks import DISPLAY_TIME_ZONE, PINNED
@@ -43,6 +44,7 @@ from status_fabrications import (
     write_assignment_with_rounds,
     write_running_daemon,
 )
+from terminals import WIDTH, create_pinned_console, refuse_to_wait
 
 from dreamcatcher.agent_assignments import (
     cancel_assignment,
@@ -56,14 +58,6 @@ from dreamcatcher.state import StateDirectory
 from dreamcatcher.tui import show_agent_work_view, show_feed_view, show_status_view
 from dreamcatcher.tui.shared import _VIEW_REFRESH_INTERVAL
 from dreamcatcher.tui.views import _render_feed_line, _render_written_feed_line
-
-# How wide the console is, so a line wraps in the same place every run.
-WIDTH = 100
-
-# How tall the console is, so a picture is cut in the same place every run. A
-# view on the alternate screen fills the screen and cuts what does not fit, and
-# no picture a test here draws is this tall.
-HEIGHT = 40
 
 # What a view writes to take the terminal's alternate screen, and what it
 # writes to hand it back. Rich owns both codes, so they are read from rich
@@ -88,48 +82,6 @@ ASSIGNMENTS = {
     "fault": (fabricate_everything, 9),
     "waiting-to-start": (fabricate_everything, 44),
 }
-
-
-def create_pinned_console(
-    *, written_to, width: int = WIDTH, is_terminal: bool = False, term: str = "xterm"
-) -> Console:
-    """Return a console that renders the same text wherever it runs.
-
-    Every setting rich would otherwise take from the shell or the platform is
-    named here. An environment of its own is what pins the shell's share of
-    them, since a shell exporting FORCE_COLOR would make it write escape
-    codes, one exporting LINES would say how tall the screen a view fills is,
-    and one exporting TERM as dumb would stop it writing a control code at
-    all. A legacy Windows console would take a column off its width, and
-    saying it has no colour system pins the colour, so a console that says it
-    is a terminal, which is what makes a view follow, still writes plain text.
-
-    Naming the terminal is how a test asks for the dumb one, which is a
-    terminal a reader watches and rich can draw no picture into.
-    """
-    return Console(
-        file=written_to,
-        width=width,
-        height=HEIGHT,
-        force_terminal=is_terminal,
-        color_system=None,
-        legacy_windows=False,
-        _environ={"TERM": term},
-    )
-
-
-def interrupt_wait(seconds, /):
-    """A wait the reader interrupts, which is how a view of a live assignment ends."""
-    raise KeyboardInterrupt
-
-
-def refuse_to_wait(seconds, /):
-    """A wait that a view with nothing more to show must never reach.
-
-    A view that reaches it has gone on looking, and a wait that let it would
-    let it look for ever, so the test would hang rather than fail.
-    """
-    raise AssertionError("the view waited for something that was not coming")
 
 
 def render_status_view(*, state, width: int = WIDTH) -> str:
@@ -339,7 +291,7 @@ def test_status_a_reader_watches_takes_the_screen_and_hands_it_back(tmp_path):
         state=state,
         console=create_pinned_console(written_to=written_to, is_terminal=True),
         clock=lambda: LOOKED_AT,
-        wait=interrupt_wait,
+        wait=Mock(side_effect=KeyboardInterrupt),
     )
     status = written_to.getvalue()
 
@@ -432,16 +384,7 @@ def test_assignment_status_alone_is_coloured_and_latest_output_is_dim(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
     written_to = StringIO()
-    console = Console(
-        file=written_to,
-        width=WIDTH,
-        height=HEIGHT,
-        force_terminal=False,
-        color_system="standard",
-        legacy_windows=False,
-        _environ={"TERM": "xterm"},
-        record=True,
-    )
+    console = create_pinned_console(written_to=written_to, color_system="standard")
 
     show_agent_work_view(
         state=state,
@@ -451,7 +394,7 @@ def test_assignment_status_alone_is_coloured_and_latest_output_is_dim(tmp_path):
         wait=refuse_to_wait,
         zone=DISPLAY_TIME_ZONE,
     )
-    rendered = console.export_text(styles=True)
+    rendered = written_to.getvalue()
 
     assert "\x1b[32mworking\x1b[0m  round 2, 1 post, running" in rendered
     assert "\x1b[2m[Bash] pytest\x1b[0m" in rendered
@@ -554,22 +497,18 @@ def test_an_assignment_view_in_fault_keeps_watching(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
     written_to = StringIO()
-    waits = []
-
-    def record_wait_and_interrupt(seconds, /):
-        waits.append(seconds)
-        raise KeyboardInterrupt
+    wait = Mock(side_effect=KeyboardInterrupt)
 
     show_agent_work_view(
         state=state,
         work=read_newest_work(state=state, issue=9, kind=AgentWorkKind.ASSIGNMENT),
         console=create_pinned_console(written_to=written_to, is_terminal=True),
         clock=lambda: LOOKED_AT,
-        wait=record_wait_and_interrupt,
+        wait=wait,
         zone=DISPLAY_TIME_ZONE,
     )
 
-    assert waits
+    wait.assert_called()
 
 
 def test_an_assignment_view_of_an_ended_assignment_keeps_its_last_picture(
@@ -633,7 +572,9 @@ def test_a_feed_renders_as_its_golden_view(name, tmp_path, pytestconfig):
     fabricate, issue = FEEDS[name]
     fabricate(state=state)
 
-    feed = render_feed_view(state=state, issue=issue, wait=interrupt_wait)
+    feed = render_feed_view(
+        state=state, issue=issue, wait=Mock(side_effect=KeyboardInterrupt)
+    )
 
     assert_matches_view_golden(
         rendered=feed,
@@ -679,18 +620,14 @@ def test_a_worktree_marker_reads_literally_in_the_terminal():
 def test_a_following_view_waits_for_the_round_an_assignment_has_yet_to_run(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
-    waits = []
-
-    def wait(seconds, /):
-        waits.append(seconds)
-        raise KeyboardInterrupt
+    wait = Mock(side_effect=KeyboardInterrupt)
 
     render_feed_view(state=state, issue=20, wait=wait)
 
     # The assignment's pull request is waiting for the reader, so the round that
     # answers them is still to come and the view waits for it rather than
     # ending between the rounds.
-    assert waits == [_VIEW_REFRESH_INTERVAL]
+    wait.assert_called_once_with(_VIEW_REFRESH_INTERVAL)
 
 
 def test_a_following_view_looks_once_more_when_the_last_round_stops(tmp_path):
@@ -758,33 +695,23 @@ def test_a_view_of_an_ended_assignment_never_waits(tmp_path):
 def test_a_following_view_waits_for_the_next_daemon(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_a_dead_daemon(state=state)
-    waits = []
-
-    def wait(seconds, /):
-        waits.append(seconds)
-        raise KeyboardInterrupt
+    wait = Mock(side_effect=KeyboardInterrupt)
 
     render_feed_view(state=state, issue=13, wait=wait)
 
     # The daemon that was running the assignment has gone, and the next one
     # carries its round on from where it stopped, so the view waits for that
     # round rather than end with the daemon.
-    assert waits == [_VIEW_REFRESH_INTERVAL]
+    wait.assert_called_once_with(_VIEW_REFRESH_INTERVAL)
 
 
 def test_a_view_of_a_faulted_assignment_keeps_watching(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
-    waits = []
+    wait = Mock(side_effect=KeyboardInterrupt)
 
-    def record_wait_and_interrupt(seconds, /):
-        waits.append(seconds)
-        raise KeyboardInterrupt
-
-    assert "round 2: recover" in render_feed_view(
-        state=state, issue=9, wait=record_wait_and_interrupt
-    )
-    assert waits
+    assert "round 2: recover" in render_feed_view(state=state, issue=9, wait=wait)
+    wait.assert_called()
 
 
 def test_a_following_view_reads_a_round_on_from_where_it_stopped(tmp_path):
@@ -861,7 +788,9 @@ def test_a_line_the_view_cannot_read_reaches_the_reader_as_it_was_written(tmp_pa
         / "feed.txt",
     )
 
-    feed = render_feed_view(state=state, issue=13, wait=interrupt_wait)
+    feed = render_feed_view(
+        state=state, issue=13, wait=Mock(side_effect=KeyboardInterrupt)
+    )
 
     assert "the harness said something else" in feed
 
@@ -871,7 +800,7 @@ def test_a_reader_who_has_seen_enough_interrupts_the_view(tmp_path):
     fabricate_everything(state=state)
 
     assert "[Bash] pytest" in render_feed_view(
-        state=state, issue=13, wait=interrupt_wait
+        state=state, issue=13, wait=Mock(side_effect=KeyboardInterrupt)
     )
 
 
