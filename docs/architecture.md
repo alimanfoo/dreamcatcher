@@ -681,10 +681,12 @@ process tree, and records its stopped ending.
 The web interface and the `cancel` command can cancel an assignment. A
 cancel goes through the agent-assignment boundary, which records the
 assignment's ending, with the reason "cancelled", and then writes a stop
-request for any round that has no ending. The scheduler starts no
-further rounds for the assignment. A round that it starts as the cancel
-lands is stopped too, because the scheduler reads the ending again once
-that round's record exists.
+request for any round that has no ending. A cancel of an assignment
+whose ending is already recorded changes nothing, and the `cancel`
+command says that the assignment has already ended. The scheduler starts
+no further rounds for the assignment. A round that it starts as the
+cancel lands is stopped too, because the scheduler reads the ending
+again once that round's record exists.
 
 The web interface and the `retry` command can also request a retry for
 agent work that status derives as in fault. Each writes the retry
@@ -770,10 +772,13 @@ the replacement step of its write hold a persistent `<document>.lock`
 sidecar, so readers close the document before a writer replaces it
 across threads and processes. A writer stages and closes a file that no
 other write shares before it takes the lock, so writes that race each
-other each land whole. Static TOML and append-only streams need no
-document lock. These short document locks are distinct from the daemon
-lock held for a daemon run. A one-value process file may remain simple
-text where a model would add no meaning.
+other each land whole. A work's ending checks for an ending and moves
+its staged write into place under that same lock, so when endings race,
+the first to take the lock lands and the others change nothing. Static
+TOML and append-only streams need no document lock. These short document
+locks are distinct from the daemon lock held for a daemon run. A
+one-value process file may remain simple text where a model would add no
+meaning.
 
 State-directory objects provide paths and document access. They do not
 answer domain questions such as whether an assignment has ended or a

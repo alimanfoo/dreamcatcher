@@ -21,6 +21,7 @@ from dreamcatcher.documents import (
     read_toml,
     remove_file,
     write_json,
+    write_json_if_absent,
     write_text,
 )
 from dreamcatcher.errors import ReportableError
@@ -469,6 +470,96 @@ def test_a_write_gives_its_file_the_mode_any_new_file_gets(tmp_path):
     write_text(text="what it holds\n", path=written)
 
     assert written.stat().st_mode == plain.stat().st_mode
+
+
+def test_a_write_if_absent_lands_where_no_document_is(tmp_path):
+    written = tmp_path / "ended.json"
+
+    assert write_json_if_absent(document=WriteOnceSample(name="first"), path=written)
+
+    assert read_json(model=WriteOnceSample, path=written).name == "first"
+    assert sorted(found.name for found in tmp_path.iterdir()) == [
+        "ended.json",
+        "ended.json.lock",
+    ]
+
+
+def test_a_write_if_absent_leaves_the_document_that_is_there(tmp_path):
+    written = tmp_path / "ended.json"
+    write_json_if_absent(document=WriteOnceSample(name="first"), path=written)
+    first = written.read_bytes()
+
+    assert not write_json_if_absent(
+        document=WriteOnceSample(name="second"), path=written
+    )
+
+    assert written.read_bytes() == first
+    assert sorted(found.name for found in tmp_path.iterdir()) == [
+        "ended.json",
+        "ended.json.lock",
+    ]
+
+
+def test_a_write_if_absent_reads_what_landed_while_it_was_staged(tmp_path, monkeypatch):
+    # The other write lands between this write's staging and its lock, as a
+    # write from another process or thread can.
+    written = tmp_path / "ended.json"
+    acquire = BaseFileLock.acquire
+
+    def land_another_write_first(lock, /):
+        """Let another write land after staging and before acquiring the lock."""
+        monkeypatch.setattr(BaseFileLock, "acquire", acquire)
+        write_json_if_absent(document=WriteOnceSample(name="other"), path=written)
+        return acquire(lock)
+
+    monkeypatch.setattr(BaseFileLock, "acquire", land_another_write_first)
+
+    assert not write_json_if_absent(document=WriteOnceSample(name="this"), path=written)
+
+    assert read_json(model=WriteOnceSample, path=written).name == "other"
+    assert next(tmp_path.glob(f"*{_STAGED_WRITE_SUFFIX}"), None) is None
+
+
+def test_a_write_if_absent_over_an_invalid_document_says_so_and_keeps_it(tmp_path):
+    written = tmp_path / "ended.json"
+    written.write_bytes(b'{"name": 3}\n')
+
+    with pytest.raises(ReportableError) as error:
+        write_json_if_absent(document=WriteOnceSample(name="first"), path=written)
+
+    assert str(error.value) == (
+        f"{written} is not valid:\n  name: Input should be a valid string"
+    )
+    assert written.read_bytes() == b'{"name": 3}\n'
+    assert next(tmp_path.glob(f"*{_STAGED_WRITE_SUFFIX}"), None) is None
+
+
+def test_a_write_if_absent_that_cannot_read_what_is_there_says_so(tmp_path):
+    written = tmp_path / "ended.json"
+    written.mkdir()
+
+    with pytest.raises(ReportableError, match="cannot read"):
+        write_json_if_absent(document=WriteOnceSample(name="first"), path=written)
+
+    assert written.is_dir()
+    assert next(tmp_path.glob(f"*{_STAGED_WRITE_SUFFIX}"), None) is None
+
+
+def test_a_write_if_absent_that_cannot_take_its_lock_writes_nothing(
+    tmp_path, monkeypatch
+):
+    written = tmp_path / "ended.json"
+
+    def refuse_lock(self, /):
+        raise Timeout(self.lock_file)
+
+    monkeypatch.setattr(BaseFileLock, "acquire", refuse_lock)
+
+    with pytest.raises(ReportableError, match="cannot write"):
+        write_json_if_absent(document=WriteOnceSample(name="first"), path=written)
+
+    assert not written.exists()
+    assert next(tmp_path.glob(f"*{_STAGED_WRITE_SUFFIX}"), None) is None
 
 
 def test_a_failed_write_cleans_its_staged_file_and_keeps_its_lock(tmp_path):

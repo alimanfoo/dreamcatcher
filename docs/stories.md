@@ -235,8 +235,12 @@ _dreamcatcher_ never removes them. The assignment's page shows where the
 worktree is and the command that picks up the agent's session by hand,
 should they want to carry on the conversation themselves. The assignment
 shows as ended, cancelled, and while the pull request stays open no new
-assignment starts for the issue. The user finishes the branch and merges
-it, or closes it, as they would their own.
+assignment starts for the issue. A cancel that lands as the wrap-up
+round finishes still keeps the worktree and branch the user's, and a
+cancel that comes after the wrap-up round changes nothing, so
+`dreamcatcher cancel` says that the assignment has already ended. The
+user finishes the branch and merges it, or closes it, as they would
+their own.
 
 The value to the user is that taking over is one click and nothing is
 lost: the agent's commits are theirs to build on.

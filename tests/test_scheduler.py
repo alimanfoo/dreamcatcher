@@ -36,6 +36,7 @@ from records import (
 )
 from rows import UNCLAIMED, compose_request_row
 
+import dreamcatcher.scheduler.assignments as assignment_scheduling
 from dreamcatcher.agent_assignments import (
     cancel_assignment,
     read_assignment_pull_request_number,
@@ -1349,6 +1350,45 @@ def test_a_cancelled_assignment_keeps_its_worktree_and_branch(
 
     assert observed.failures == []
     assert worktree.is_dir()
+    assert ASSIGNMENT_BRANCH in list_branches(root=assigned_checkout)
+    [cancelled] = read_assignments(state=scheduler.context.state)
+    assert cancelled.ending is not None
+    assert cancelled.ending.reason is AgentWorkEndReason.CANCELLED
+
+
+def test_a_wrap_up_round_that_finishes_after_a_cancel_leaves_the_worktree_alone(
+    assigned_checkout, gh, monkeypatch
+):
+    # The user cancels after the tick read the assignment, and the wrap-up
+    # round's harness has already exited, so the round still finishes.
+    worktree = check_out_assignment(root=assigned_checkout)
+    (worktree / "by-hand.txt").write_bytes(b"what the user has not committed\n")
+    write_assignment_round(
+        directory=StateDirectory(root=assigned_checkout).work / ASSIGNMENT_ID, number=1
+    )
+    gh.replies(stdout=compose_pull_request(state="MERGED"), to="pr view")
+    scheduler, clock = create_scheduler(root=assigned_checkout)
+    complete_assignment = assignment_scheduling.complete_assignment
+
+    def cancel_then_complete(*, assignment, clock, final_output):
+        [read_now] = read_assignments(state=scheduler.context.state)
+        cancel_assignment(assignment=read_now, at=clock())
+        complete_assignment(
+            assignment=assignment, clock=clock, final_output=final_output
+        )
+
+    monkeypatch.setattr(
+        assignment_scheduling, "complete_assignment", cancel_then_complete
+    )
+    scheduler.tick(at=clock())
+    finish_rounds(scheduler=scheduler)
+
+    observed = scheduler.tick(at=clock())
+
+    assert observed.failures == []
+    assert (worktree / "by-hand.txt").read_bytes() == (
+        b"what the user has not committed\n"
+    )
     assert ASSIGNMENT_BRANCH in list_branches(root=assigned_checkout)
     [cancelled] = read_assignments(state=scheduler.context.state)
     assert cancelled.ending is not None
