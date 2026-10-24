@@ -304,9 +304,11 @@ Agent work has no agent rounds until work begins and one or more
 afterwards.
 
 Agent work is open until its ending is recorded, with the time and the
-reason, and then it has **ended**. An assignment ends when it is
-complete or cancelled. A conversation ends when its issue closes, and a
-campaign when its parent issue closes.
+reason, and then it has **ended**. The first ending recorded is the
+work's ending for good, and an ending that comes after it changes
+nothing. An assignment ends when it is complete or cancelled. A
+conversation ends when its issue closes, and a campaign when its parent
+issue closes.
 
 Agent work keeps the harness, route and recipe settings that its work
 record holds, even after its route is removed from the configuration.

@@ -56,6 +56,12 @@ the change.
   trigger and timing beside its number, on separate lines, as every
   other round does.
   ([#777](https://github.com/alimanfoo/dreamcatcher/pull/777))
+- A wrap-up round that finishes as the user cancels its assignment
+  leaves the assignment cancelled, so its worktree, branch and
+  uncommitted work stay the user's. A cancel that comes after the
+  wrap-up round changes nothing, and `dreamcatcher cancel` says that the
+  assignment has already ended.
+  ([#774](https://github.com/alimanfoo/dreamcatcher/pull/774))
 
 ## [v9.0.0](https://github.com/alimanfoo/dreamcatcher/releases/tag/v9.0.0) — 2026-10-23
 

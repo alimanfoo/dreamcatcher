@@ -31,6 +31,7 @@ from dreamcatcher.documents import (
     read_json,
     read_json_if_exists,
     write_json,
+    write_json_if_absent,
 )
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.git import is_linked_worktree, remove_worktree
@@ -448,9 +449,14 @@ def request_round_stop_if_ended(*, work: AgentWork, paths: AgentRoundPaths) -> N
 
 def end_agent_work(
     *, work: AgentWork, reason: AgentWorkEndReason, at: datetime
-) -> None:
-    """Record that the agent work ended, and why."""
-    write_json(
+) -> bool:
+    """Record that the agent work ended, and why, unless an ending is recorded.
+
+    Return whether this ending is the one recorded. The first ending recorded
+    is the work's ending for good, whichever process records it, and an ending
+    that comes after it changes nothing.
+    """
+    return write_json_if_absent(
         document=AgentWorkEnding(at=at, reason=reason),
         path=work.directory / _ENDING_RECORD_NAME,
     )
