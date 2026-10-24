@@ -513,7 +513,7 @@ body::after {
   gap: 16px;
 }
 
-.round-link {
+.round {
   grid-template-columns: 32px minmax(0, 1fr);
   gap: 12px;
   padding: 10px 0;

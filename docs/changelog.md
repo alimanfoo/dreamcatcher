@@ -27,6 +27,15 @@ the change.
 
 ## Unreleased
 
+### Fixed
+
+- On the web page, a lead round that names its sub-issues lists its
+  trigger and timing beside its number, on separate lines, as every
+  other round does. Each sub-issue's link had cut the round's own link
+  short, so the text fell below the number and the timing ran on after
+  the trigger.
+  ([#777](https://github.com/alimanfoo/dreamcatcher/pull/777))
+
 ## [v9.0.0](https://github.com/alimanfoo/dreamcatcher/releases/tag/v9.0.0) — 2026-10-23
 
 ### Breaking

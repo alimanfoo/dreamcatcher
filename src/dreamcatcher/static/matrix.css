@@ -644,13 +644,30 @@ body::after {
   gap: var(--space-7);
 }
 
-.round-link {
+.round {
+  position: relative;
   display: grid;
   grid-template-columns: 3ch minmax(0, 1fr);
   gap: var(--space-5);
   padding: var(--space-4) 0;
+}
+
+.round-link {
+  align-self: start;
+  justify-self: start;
   color: inherit;
   text-decoration: none;
+}
+
+/* The round's link stretches over the whole round, beneath its sub-issue links. */
+.round-link::after {
+  position: absolute;
+  inset: 0;
+  content: "";
+}
+
+.round-summary a {
+  position: relative;
 }
 
 .round-number,
@@ -659,8 +676,6 @@ body::after {
 }
 
 .round-number {
-  align-self: start;
-  justify-self: start;
   padding: 0 var(--space-1);
 }
 
