@@ -387,8 +387,7 @@ failed one finds what the earlier attempt made and never makes a second
 branch or pull request.
 
 A wrap-up round records the assignment's ending with the reason
-"completed" in its finishing step, after its harness exits successfully,
-unless a cancel has already recorded the assignment's ending.
+"completed" in its finishing step, after its harness exits successfully.
 
 `agent_assignments.py` also models what a tick observed of an
 assignment's pull request. The scheduler's pull request finding extends
@@ -687,11 +686,10 @@ cancel goes through the agent-assignment boundary, which records the
 assignment's ending, with the reason "cancelled", and then writes a stop
 request for any round that has no ending. A cancel of an assignment
 whose ending is already recorded changes nothing, and the `cancel`
-command says that the assignment has already ended. A wrap-up round that
-finishes after the cancel leaves the cancel's ending in place. The
-scheduler starts no further rounds for the assignment. A round that it
-starts as the cancel lands is stopped too, because the scheduler reads
-the ending again once that round's record exists.
+command says that the assignment has already ended. The scheduler starts
+no further rounds for the assignment. A round that it starts as the
+cancel lands is stopped too, because the scheduler reads the ending
+again once that round's record exists.
 
 The web interface and the `retry` command can also request a retry for
 agent work that status derives as in fault. Each writes the retry
@@ -777,14 +775,13 @@ the replacement step of its write hold a persistent `<document>.lock`
 sidecar, so readers close the document before a writer replaces it
 across threads and processes. A writer stages and closes a file that no
 other write shares before it takes the lock, so writes that race each
-other each land whole. A write-once document that must keep its first
-write, such as a work's ending, reads what is there and moves its staged
-write into place under that same lock, and leaves a document that is
-already there alone, so of writes that race each other the first to take
-the lock lands. Static TOML and append-only streams need no document
-lock. These short document locks are distinct from the daemon lock held
-for a daemon run. A one-value process file may remain simple text where
-a model would add no meaning.
+other each land whole. A work's ending checks for an ending and moves
+its staged write into place under that same lock, so when endings race,
+the first to take the lock lands and the others change nothing. Static
+TOML and append-only streams need no document lock. These short document
+locks are distinct from the daemon lock held for a daemon run. A
+one-value process file may remain simple text where a model would add no
+meaning.
 
 State-directory objects provide paths and document access. They do not
 answer domain questions such as whether an assignment has ended or a
@@ -838,8 +835,7 @@ same moment without erasing another's. These files persist:
   so, that pull request's number, written once;
 - the harness session identifier, once known;
 - the time of the user's latest retry request, when one has been made;
-- the time and the reason the work ended, once it has ended, written by
-  the first ending recorded and never replaced.
+- the time and the reason the work ended, once it has ended.
 
 A round record persists:
 

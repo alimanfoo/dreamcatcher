@@ -315,10 +315,10 @@ def write_json_if_absent(
 ) -> bool:
     """Write the document to path as JSON unless a document is already there.
 
-    Return whether this write landed. The read of what is there and the move of
-    the staged write into place hold one lock, so of writes that race each
-    other, in any thread or process, the first to take the lock lands and
-    nothing replaces it.
+    Return whether this write landed. The check for a document and the move of
+    the staged write into place hold one lock, so when writes race, in any
+    thread or process, the first to take the lock lands and the others change
+    nothing.
 
     Raise ReportableError when the document that is there does not fit the
     model, or when the read, the lock or the write fails.
