@@ -36,6 +36,9 @@ the change.
   "cancelled" once, where its status was, in place of "ended" with the
   reason repeated beneath its title.
   ([#779](https://github.com/alimanfoo/dreamcatcher/pull/779))
+- An ended card on the web home page shows its title more quietly than
+  live work, in both themes, and keeps its links as clear as before.
+  ([#779](https://github.com/alimanfoo/dreamcatcher/pull/779))
 
 ## [v9.0.0](https://github.com/alimanfoo/dreamcatcher/releases/tag/v9.0.0) — 2026-10-23
 

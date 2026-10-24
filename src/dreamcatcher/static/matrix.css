@@ -374,6 +374,13 @@ body::after {
   text-wrap: pretty;
 }
 
+/* An ended card's title steps back in every theme, and its links keep
+   their colours. */
+
+.agent-work-card.is-ended .title {
+  color: var(--dim);
+}
+
 .chip {
   padding: 0 var(--space-3);
   color: var(--phosphor);

@@ -1024,7 +1024,7 @@ def test_ended_assignment_cards_are_separated_by_rules(tmp_path):
     )
 
     ended = page[page.index('<details class="ended-work">') :]
-    assert 'class="agent-work-card"' in ended
+    assert 'class="agent-work-card is-ended"' in ended
     assert re.search(
         r"\.agent-work-card,[^{]*\{[^}]*border-bottom: var\(--line\) solid",
         stylesheet,
@@ -1132,6 +1132,31 @@ def test_an_ended_campaign_card_says_it_ended_and_why(tmp_path):
 
     assert '<span class="chip status-ended">ended</span>' in card
     assert '<p class="agent-work-detail">issue closed</p>' in card
+
+
+def test_a_card_is_marked_ended_exactly_when_its_work_has_ended(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    fabricate_conversation(state=state)
+    fabricate_everything(
+        state=state,
+        other_rows=[
+            compose_conversation_row(
+                finding=IssueCommentsFinding(new_comments=0),
+                agent_work_identifier=compose_conversation_identifier(issue=8),
+            ),
+            *fabricate_campaigns(state=state),
+        ],
+    )
+
+    page = render_home(state=state)
+    cards = re.findall(
+        r'<article [^>]*class="agent-work-card[^"]*".*?</article>', page, re.DOTALL
+    )
+
+    assert {
+        ('class="agent-work-card is-ended"' in card, "chip status-ended" in card)
+        for card in cards
+    } == {(True, True), (False, False)}
 
 
 def test_home_page_types_replaced_assignment_output(tmp_path):

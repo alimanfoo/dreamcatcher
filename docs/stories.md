@@ -576,8 +576,11 @@ label, with the harness, model and effort that run the work, and then
 the work's status and the link to its page. An assignment that has ended
 says nothing beneath its top line, and its bottom line gives the reason
 it ended, completed or cancelled, in place of its status, so the row
-says once that it has ended and why. A request's row gives its issue at
-the top and its dispatch label and request status beneath.
+says once that it has ended and why. Every piece of work that has ended
+shows its title more quietly than live work does, here and within a
+campaign, so it draws less attention, and its links stay as clear as
+they are on any other row. A request's row gives its issue at the top
+and its dispatch label and request status beneath.
 
 The home page always has a tab for each of the three kinds of work, and
 the terminal a section for each, even when a kind has nothing in it. A
