@@ -13,11 +13,15 @@ import psutil
 import pytest
 from clocks import DISPLAY_TIME_ZONE, PINNED, Ticking
 from conftest import (
+    FILED,
+    LATER,
     POST_LIST_PATHS,
     POSTED_BY,
     REPOSITORY,
     SMITH_CLAUDE,
+    compose_assignment_issues,
     configure,
+    offer_listing,
     wait_for_exit,
 )
 from fakes import Line
@@ -871,25 +875,102 @@ def test_a_run_that_cannot_read_an_assignment_refuses_to_start(ready_repo):
         daemon.run()
 
 
-def test_a_failed_tick_preserves_the_last_scheduler_record(ready_repo, capsys):
-    # The startup sweep read this assignment, so only a tick meets it broken.
-    daemon, _, _ = create_idle_daemon(root=ready_repo)
-    previous = SchedulerRecord(
-        at=PINNED,
-        finished=PINNED,
-        cooldown=GlobalCooldown(started=PINNED, ends=PINNED + timedelta(minutes=15)),
+def test_a_tick_that_cannot_read_a_record_ends_the_run_and_its_rounds(
+    ready_repo, harnesses
+):
+    harnesses["claude"].streams(
+        lines=[Line(text="still working\n")], delay=STILL_RUNNING
     )
-    write_json(document=previous, path=daemon.state.scheduler_record)
-    directory = write_assignment(state=daemon.state, identifier=ASSIGNMENT_ID, issue=13)
-    (directory / "work.json").write_text("{}", encoding="utf-8")
+    daemon, waiting, _ = create_idle_daemon(root=ready_repo, ticks=3)
+    last_complete_records = []
+    readable_work_records = []
 
-    scheduler = create_scheduler(daemon=daemon)
-    daemon.run_scheduler_tick(scheduler=scheduler, at=daemon.clock())
+    def damage_the_assignment_record():
+        last_complete_records.append(daemon.state.scheduler_record.read_bytes())
+        assignment = find_agent_work(
+            state=daemon.state, identifier=CREATED_ASSIGNMENT_ID
+        )
+        assert assignment is not None
+        work_record = assignment.directory / "work.json"
+        readable_work_records.append((work_record, work_record.read_bytes()))
+        work_record.write_bytes(b"{}\n")
 
-    assert read_tick_record(daemon=daemon) == previous
-    output = capsys.readouterr().out
-    assert "update failed:" in output
-    assert "work.json is not valid" in output
+    waiting.settle = damage_the_assignment_record
+    events = []
+
+    @contextmanager
+    def record_companion_lifetime():
+        events.append("started")
+        try:
+            yield
+        finally:
+            events.append("stopped")
+
+    with pytest.raises(ReportableError, match=r"work\.json is not valid"):
+        daemon.run(companion=record_companion_lifetime())
+
+    assert waiting.waited == [300]
+    assert daemon.state.scheduler_record.read_bytes() == last_complete_records[0]
+    assert events == ["started", "stopped"]
+    assert not is_daemon_lock_held(path=daemon.state.lock)
+    agent_round = daemon.rounds[CREATED_ASSIGNMENT_ID]
+    assert agent_round.record.outcome is AgentRoundOutcome.INTERRUPTED
+    assert wait_for_exit(pid=agent_round.harness_process.pid)
+
+    [(work_record, readable_work_record)] = readable_work_records
+    work_record.write_bytes(readable_work_record)
+    restarted, _, _ = create_idle_daemon(root=ready_repo, ticks=1)
+    restarted.run()
+
+    [row] = read_tick_record(daemon=restarted).rows
+    assert row.agent_work_identifier == CREATED_ASSIGNMENT_ID
+    assert row.started_round == StartedRound(number=2)
+
+
+def test_a_tick_that_cannot_write_a_work_record_ends_the_run_and_its_rounds(
+    ready_repo, gh_with_available_issue, harnesses
+):
+    harnesses["claude"].streams(
+        lines=[Line(text="still working\n")], delay=STILL_RUNNING
+    )
+    offer_listing(
+        gh=gh_with_available_issue,
+        issues=compose_assignment_issues(filed=[(8, FILED), (9, LATER)]),
+    )
+    daemon, _, _ = create_idle_daemon(root=ready_repo, ticks=1, max_agents=2)
+    last_complete_record = SchedulerRecord(at=PINNED, finished=PINNED)
+    write_json(document=last_complete_record, path=daemon.state.scheduler_record)
+    # A file where the second assignment's directory goes, so its record
+    # cannot be written.
+    write_text(text="", path=daemon.state.work / "GH9-20260819-184158-assignment")
+
+    with pytest.raises(ReportableError, match=r"cannot write .*GH9"):
+        daemon.run()
+
+    assert read_tick_record(daemon=daemon) == last_complete_record
+    agent_round = daemon.rounds[CREATED_ASSIGNMENT_ID]
+    assert agent_round.record.outcome is AgentRoundOutcome.INTERRUPTED
+    assert wait_for_exit(pid=agent_round.harness_process.pid)
+
+
+def test_a_tick_that_fails_after_starting_a_round_ends_that_round(
+    ready_repo, harnesses, monkeypatch
+):
+    harnesses["claude"].streams(
+        lines=[Line(text="still working\n")], delay=STILL_RUNNING
+    )
+    monkeypatch.setattr(
+        "dreamcatcher.scheduler.tick.request_round_stop_if_ended",
+        Mock(side_effect=ReportableError("cannot read the work's ending")),
+    )
+    daemon, _, _ = create_idle_daemon(root=ready_repo, ticks=1)
+
+    with pytest.raises(ReportableError, match="cannot read the work's ending"):
+        daemon.run()
+
+    agent_round = daemon.rounds[CREATED_ASSIGNMENT_ID]
+    assert agent_round.record.outcome is AgentRoundOutcome.INTERRUPTED
+    assert wait_for_exit(pid=agent_round.harness_process.pid)
 
 
 @pytest.mark.parametrize("record", ["{}", "null"])

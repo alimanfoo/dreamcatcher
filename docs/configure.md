@@ -19,7 +19,8 @@ skills.
 ## Start with distinct labels
 
 Choose labels that say what kind of work they invite. The following file
-gives Claude one assignment route and one conversation route:
+gives Claude one assignment route, one conversation route and one
+campaign route:
 
 ```toml
 [[assignment]]
@@ -35,6 +36,14 @@ label = "discuss"
 
 [conversation.claude]
 prompt = "Investigate the question on GH{issue} and return a concise answer."
+model = "opus[1m]"
+effort = "high"
+
+[[campaign]]
+label = "dream:lead"
+
+[campaign.claude]
+prompt = "/dream:lead GH{issue}"
 model = "opus[1m]"
 effort = "high"
 ```

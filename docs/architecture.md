@@ -141,15 +141,13 @@ Alternation advances when a kind is selected, including when its start
 fails, and begins afresh after a daemon restart.
 
 The daemon persists the returned `SchedulerRecord` and reports it in its
-output. A scheduler tick that fails before returning one is reported in
-daemon output and leaves the last complete scheduler record in place. A
-local record that cannot be read, or a write that fails while open work
-is inspected, fails the tick this way whichever work it belongs to. A
-round input that a conversation or campaign reads while it is inspected
-is the exception, and the work's row holds the failure. An invalid
-scheduler record ends the daemon because retrying cannot repair the
-document, and so does a scheduler record that cannot be written, because
-the daemon then has no way to report anything.
+output. A scheduler tick that fails before returning one ends the daemon
+run through the shutdown that an interrupt takes, so the daemon ends its
+rounds and its web server, `cli.main` prints the failure, and the last
+complete scheduler record stays in place. A local record that cannot be
+read, or a write that fails while open work is inspected, fails the tick
+this way whichever work it belongs to, and so does a scheduler record
+that cannot be read or written.
 
 If a GitHub read for a request fails, the tick holds the reason in that
 request's row and prevents only the launches that depend on what it
@@ -163,13 +161,13 @@ assigned to the signed-in account, whether or not a dispatch label is on
 it. An account assigned more than 500 open issues may therefore have a
 labelled issue left out of a tick.
 
-A launch that fails takes no agent slot. The tick keeps every round that
-it already started and goes on to the next candidate. A round that
-errored during its preparation or startup is recorded on its agent work,
-and the request's row names the round and its reason, which the daemon's
-output line repeats. A launch that fails before its round is recorded,
-such as a work record that cannot be written or a harness invocation
-that cannot be built, is a scheduler failure.
+A round that errors during its preparation or startup takes no agent
+slot, and the tick goes on to the next candidate. The round is recorded
+on its agent work, and the request's row names the round and its reason,
+which the daemon's output line repeats. A launch that fails before its
+round is recorded, such as a work record that cannot be written or a
+harness invocation that cannot be built, fails the tick and so ends the
+daemon.
 
 A tick sees work end when the work was open when the tick read it, or
 when the daemon held a round of it that the tick has just forgotten. It
@@ -178,8 +176,7 @@ later tick sees that work end once it forgets the round. No other tick
 sees the work end, so a worktree or branch that Git will not remove is a
 scheduler failure that no later tick tries again. For the same reason,
 work that ended while no daemon ran keeps its worktree, and so does an
-assignment whose wrap-up round ended just before the daemon stopped or
-the next tick failed.
+assignment whose wrap-up round ended just before the daemon stopped.
 
 When the tick selects a request, it writes the work record and starts
 the first round in the same scheduling action. The record comes first,
@@ -402,7 +399,7 @@ work should run.
 `agent_rounds.py` owns agent-round records and the supervised lifetime
 of a round process for every kind of agent work. Before anything is
 recorded, it asks a harness adapter to build the round's invocation, so
-a failure there is a scheduler failure. It should then provide
+a failure there fails the scheduler tick. It should then provide
 operations to:
 
 - record the round, with the next number that its work allocated, before

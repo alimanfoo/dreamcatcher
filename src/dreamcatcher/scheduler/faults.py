@@ -9,7 +9,6 @@ from dreamcatcher.agent_rounds import (
     interpret_agent_round_outcome,
 )
 from dreamcatcher.documents import read_json
-from dreamcatcher.errors import ReportableError
 from dreamcatcher.scheduler.models import (
     GLOBAL_COOLDOWN_DURATION,
     GlobalCooldown,
@@ -64,10 +63,7 @@ def read_scheduler_record(
     """Read the scheduler record advanced to the current time."""
     if not state.scheduler_record.exists():
         return None
-    try:
-        record = read_json(model=SchedulerRecord, path=state.scheduler_record)
-    except ReportableError as failure:
-        raise InvalidSchedulerRecordError(str(failure)) from failure
+    record = read_json(model=SchedulerRecord, path=state.scheduler_record)
     cooldown = record.cooldown
     if cooldown is not None and at >= cooldown.ends:
         return record.model_copy(
@@ -77,10 +73,6 @@ def read_scheduler_record(
             }
         )
     return record
-
-
-class InvalidSchedulerRecordError(ReportableError):
-    """Report a scheduler record that retrying cannot safely replace."""
 
 
 def start_cooldown_if_required(
