@@ -35,7 +35,7 @@ from records import (
     write_ending,
     write_round,
 )
-from rows import compose_request_row
+from rows import compose_campaign_row
 
 from dreamcatcher.agent_assignments import ObservedPullRequest
 from dreamcatcher.agent_rounds import (
@@ -77,7 +77,6 @@ from dreamcatcher.scheduler.models import (
     PauseCause,
     PausedFinding,
     ReadFailureFinding,
-    RequestFinding,
     RequestRow,
     StartedRound,
 )
@@ -208,32 +207,6 @@ def script_lead_turn(*, harnesses, status: int = 0, delay: float = 0) -> None:
     )
 
 
-def compose_campaign_row(
-    *,
-    finding: RequestFinding | None,
-    label: str = LABEL,
-    agent_work_identifier: str | None = None,
-    ended_round: int | None = None,
-    started_round: StartedRound | None = None,
-    children: Sequence[CampaignChild] | None = (),
-) -> RequestRow:
-    """Return the row of a campaign request at the parent, by default childless."""
-    return compose_request_row(
-        issue=PARENT,
-        kind=AgentWorkKind.CAMPAIGN,
-        label=label,
-        agent_work_identifier=agent_work_identifier,
-        ended_round=ended_round,
-        finding=finding,
-        started_round=started_round,
-    ).model_copy(
-        update={
-            "title": f"Parent {PARENT}",
-            "children": None if children is None else list(children),
-        }
-    )
-
-
 def finish(*, scheduler: Scheduler) -> None:
     """Wait for every round the scheduler started."""
     for running in scheduler.rounds.values():
@@ -332,9 +305,11 @@ def test_a_labelled_parent_starts_a_lead_that_reads_its_input_and_posts_nothing(
     assert launched.launched_agent_work_identifiers == [identifier]
     assert launched.rows == [
         compose_campaign_row(
+            issue=PARENT,
             finding=CampaignFinding(new_comments=0, changed_children=0),
             agent_work_identifier=identifier,
             started_round=StartedRound(number=1),
+            children=(),
         )
     ]
     campaign = read_campaign(state=scheduler.context.state, issue=PARENT)
@@ -397,9 +372,11 @@ def test_a_lead_given_its_input_has_no_round_due(campaign_scheduler, harnesses, 
 
     assert observed.rows == [
         compose_campaign_row(
+            issue=PARENT,
             finding=CampaignFinding(new_comments=0, changed_children=0),
             agent_work_identifier=compose_campaign_identifier(issue=PARENT),
             ended_round=1,
+            children=(),
         )
     ]
     assert harnesses["claude"].calls == []
@@ -465,9 +442,11 @@ def test_two_errored_rounds_put_a_campaign_in_fault(campaign_scheduler, harnesse
     assert observed.launched_agent_work_identifiers == []
     assert observed.rows == [
         compose_campaign_row(
+            issue=PARENT,
             finding=None,
             agent_work_identifier=compose_campaign_identifier(issue=PARENT),
             ended_round=2,
+            children=(),
         )
     ]
     assert harnesses["claude"].calls == []
@@ -522,9 +501,11 @@ def test_a_paused_campaign_recovers_nothing_and_its_fault_does_not_count(
     observed = tick(scheduler=scheduler)
 
     assert observed.rows[0] == compose_campaign_row(
+        issue=PARENT,
         finding=pause,
         agent_work_identifier=compose_campaign_identifier(issue=PARENT),
         ended_round=2,
+        children=(),
     )
     assert observed.cooldown is None
     assert harnesses["claude"].calls == []
@@ -657,8 +638,10 @@ def test_two_campaign_labels_on_a_parent_are_a_routing_conflict(
 
     conflict = ConflictingLabelsFinding(labels=[LABEL, "dream:steward"])
     assert observed.rows == [
-        compose_campaign_row(finding=conflict, children=None),
-        compose_campaign_row(label="dream:steward", finding=conflict, children=None),
+        compose_campaign_row(issue=PARENT, finding=conflict, children=None),
+        compose_campaign_row(
+            issue=PARENT, label="dream:steward", finding=conflict, children=None
+        ),
     ]
     assert read_campaign(state=scheduler.context.state, issue=PARENT) is None
     assert harnesses["claude"].calls == []
@@ -702,6 +685,7 @@ def test_an_open_blocker_queues_the_campaign_with_no_lead(
 
     assert observed.rows == [
         compose_campaign_row(
+            issue=PARENT,
             finding=BlockingIssuesFinding(
                 blocking_issues=[
                     IssueReference(number=18),
@@ -785,7 +769,9 @@ def test_a_campaign_waits_for_shared_capacity(campaign_scheduler, harnesses):
 
     assert observed.rows == [
         compose_campaign_row(
-            finding=CampaignFinding(new_comments=0, changed_children=0)
+            issue=PARENT,
+            finding=CampaignFinding(new_comments=0, changed_children=0),
+            children=(),
         )
     ]
     assert read_campaign(state=scheduler.context.state, issue=PARENT) is None
@@ -1461,6 +1447,7 @@ def test_a_paused_lead_still_observes_every_child_in_githubs_order(
 
     assert observed.rows == [
         compose_campaign_row(
+            issue=PARENT,
             finding=PausedFinding(cause=PauseCause.LABEL_REMOVED),
             agent_work_identifier=compose_campaign_identifier(issue=PARENT),
             ended_round=1,
@@ -1773,6 +1760,7 @@ def test_a_new_campaign_waits_for_a_complete_picture_of_its_children(
 
     assert observed.rows == [
         compose_campaign_row(
+            issue=PARENT,
             finding=ReadFailureFinding(
                 reason=f"gh {CHILDREN_PATH}: gh: could not connect to github.com"
             ),

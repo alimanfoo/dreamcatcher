@@ -34,7 +34,7 @@ from records import (
     write_round,
     write_tick,
 )
-from rows import compose_request_row
+from rows import compose_conversation_row
 
 from dreamcatcher import agent_rounds
 from dreamcatcher.agent_rounds import (
@@ -76,8 +76,6 @@ from dreamcatcher.scheduler.models import (
     PauseCause,
     PausedFinding,
     ReadFailureFinding,
-    RequestFinding,
-    RequestRow,
     SchedulerRecord,
     StartedRound,
 )
@@ -122,6 +120,10 @@ effort = "high"
 COMMENT_PATH = f"api repos/{REPOSITORY}/issues/8/comments?per_page=100"
 POST_PATH = f"api repos/{REPOSITORY}/issues/8/comments --method POST"
 ASKED = "2026-09-23T01:00:00Z"
+
+# The title of the conversation issue that the tests offer, unless a test gives
+# another.
+OFFERED_TITLE = "Why does this happen?"
 
 
 # What the tick records for a conversation whose label came off its issue.
@@ -182,7 +184,7 @@ def compose_conversation_issue(
     *,
     labels: tuple[str, ...],
     number: int = 8,
-    title: str = "Why does this happen?",
+    title: str = OFFERED_TITLE,
     body: str = "Explain the scheduler.",
     state: str = "OPEN",
     assignees: tuple[str, ...] = (POSTED_BY,),
@@ -215,7 +217,7 @@ def offer_conversation(
     gh,
     comments: list[dict],
     label: str = "dream:conversation",
-    title: str = "Why does this happen?",
+    title: str = OFFERED_TITLE,
     body: str = "Explain the scheduler.",
 ) -> None:
     """Have GitHub offer one assigned conversation issue and its comments."""
@@ -226,28 +228,6 @@ def offer_conversation(
         stdout=compose_page(items=comments),
         to=f"api repos/{REPOSITORY}/issues/8/comments?per_page=100",
     )
-
-
-def compose_conversation_row(
-    *,
-    finding: RequestFinding | None,
-    issue: int = 8,
-    title: str = "Why does this happen?",
-    label: str | None = None,
-    agent_work_identifier: str | None = None,
-    ended_round: int | None = None,
-    started_round: StartedRound | None = None,
-) -> RequestRow:
-    """Return the row of a conversation request at the issue the tests offer."""
-    return compose_request_row(
-        issue=issue,
-        kind=AgentWorkKind.CONVERSATION,
-        label=label,
-        agent_work_identifier=agent_work_identifier,
-        ended_round=ended_round,
-        finding=finding,
-        started_round=started_round,
-    ).model_copy(update={"title": title})
 
 
 def script_claude_answer(
@@ -428,6 +408,7 @@ def test_an_initial_conversation_freezes_input_runs_claude_and_publishes_once(
             agent_work_identifier=compose_conversation_identifier(issue=8),
             finding=IssueCommentsFinding(new_comments=1),
             started_round=StartedRound(number=1),
+            title=OFFERED_TITLE,
         )
     ]
     assert after.failures == []
@@ -438,7 +419,7 @@ def test_an_initial_conversation_freezes_input_runs_claude_and_publishes_once(
     paths = conversation.compose_round_paths(number=1)
     frozen = read_json(model=ConversationRoundInput, path=paths.round_input)
     assert frozen.initial_issue == InitialConversationIssue(
-        title="Why does this happen?",
+        title=OFFERED_TITLE,
         body="Explain the scheduler.",
     )
     assert [item.body for item in frozen.comments] == ["Please explain."]
@@ -506,8 +487,10 @@ def test_an_issue_with_two_conversation_labels_has_a_routing_conflict(
     assert observed.launched_agent_work_identifiers == []
     conflict = ConflictingLabelsFinding(labels=["dream:conversation", "dream:scout"])
     assert observed.rows == [
-        compose_conversation_row(finding=conflict),
-        compose_conversation_row(label="dream:scout", finding=conflict),
+        compose_conversation_row(finding=conflict, title=OFFERED_TITLE),
+        compose_conversation_row(
+            label="dream:scout", finding=conflict, title=OFFERED_TITLE
+        ),
     ]
     assert count_comment_reads(gh=gh) == 0
     assert read_conversation(state=scheduler.context.state, issue=8) is None
@@ -535,13 +518,13 @@ def test_a_saved_conversation_whose_issue_gains_a_second_label_starts_nothing(
 
     assert observed.rows == [
         compose_conversation_row(
-            title="Issue 8",
             agent_work_identifier=compose_conversation_identifier(issue=8),
             finding=ConflictingLabelsFinding(labels=list(labels)),
         ),
         compose_conversation_row(
             label="dream:scout",
             finding=ConflictingLabelsFinding(labels=list(labels)),
+            title=OFFERED_TITLE,
         ),
     ]
     assert count_comment_reads(gh=gh) == 0
@@ -571,14 +554,13 @@ def test_a_new_label_starts_a_fresh_conversation_while_the_old_one_stays_paused(
     [fresh] = observed.launched_agent_work_identifiers
     assert fresh != paused
     assert observed.rows == [
-        compose_conversation_row(
-            title="Issue 8", agent_work_identifier=paused, finding=PAUSED
-        ),
+        compose_conversation_row(agent_work_identifier=paused, finding=PAUSED),
         compose_conversation_row(
             label="dream:scout",
             agent_work_identifier=fresh,
             finding=IssueCommentsFinding(new_comments=1),
             started_round=StartedRound(number=1),
+            title=OFFERED_TITLE,
         ),
     ]
     conversations = read_agent_work_at_issue(state=scheduler.context.state, issue=8)
@@ -946,7 +928,7 @@ def test_a_failed_conversation_refresh_is_an_errored_round(
     assert observed.failures == []
     assert observed.rows == [
         compose_conversation_row(
-            title="Why does this happen?",
+            title=OFFERED_TITLE,
             agent_work_identifier="GH8-20260819-184158-conversation",
             ended_round=1,
             finding=IssueCommentsFinding(new_comments=1),
@@ -1101,6 +1083,7 @@ def test_a_running_conversation_is_observed_without_starting_another_round(
         compose_conversation_row(
             agent_work_identifier=compose_conversation_identifier(issue=8),
             finding=IssueCommentsFinding(new_comments=1),
+            title=OFFERED_TITLE,
         )
     ]
     conversation = read_conversation(state=scheduler.context.state, issue=8)
@@ -1132,6 +1115,7 @@ def test_a_running_conversation_finishes_before_a_closed_issue_ends_it(
         compose_conversation_row(
             agent_work_identifier=compose_conversation_identifier(issue=8),
             finding=None,
+            title=OFFERED_TITLE,
         )
     ]
     assert count_comment_reads(gh=gh) == 1
@@ -1301,7 +1285,9 @@ def test_an_issue_without_an_eligible_comment_does_not_start(
 
     assert observed.launched_agent_work_identifiers == []
     assert observed.rows == [
-        compose_conversation_row(finding=IssueCommentsFinding(new_comments=0))
+        compose_conversation_row(
+            finding=IssueCommentsFinding(new_comments=0), title=OFFERED_TITLE
+        )
     ]
     assert harnesses["claude"].calls == []
     assert read_conversation(state=scheduler.context.state, issue=8) is None
@@ -1316,7 +1302,9 @@ def test_a_conversation_waits_for_shared_capacity(conversation_scheduler, harnes
 
     assert scheduler.is_at_capacity
     assert observed.rows == [
-        compose_conversation_row(finding=IssueCommentsFinding(new_comments=1))
+        compose_conversation_row(
+            finding=IssueCommentsFinding(new_comments=1), title=OFFERED_TITLE
+        )
     ]
     assert harnesses["claude"].calls == []
 
@@ -1341,7 +1329,9 @@ def test_a_conversation_waits_for_the_active_global_cooldown(
     assert observed.cooldown is not None
     assert observed.failures == []
     assert observed.rows == [
-        compose_conversation_row(finding=IssueCommentsFinding(new_comments=1))
+        compose_conversation_row(
+            finding=IssueCommentsFinding(new_comments=1), title=OFFERED_TITLE
+        )
     ]
     assert harnesses["claude"].calls == []
 
@@ -1632,7 +1622,7 @@ def test_a_daemon_orphan_is_given_its_comments_again_in_its_saved_session(
     first_input = ConversationRoundInput(
         issue=8,
         initial_issue=InitialConversationIssue(
-            title="Why does this happen?",
+            title=OFFERED_TITLE,
             body="Explain the scheduler.",
         ),
         comments=[compose_question()],
@@ -1697,7 +1687,7 @@ def test_an_interrupted_round_from_v6_1_is_withdrawn_once_an_update_finds_nothin
         document=ConversationRoundInput(
             issue=8,
             initial_issue=InitialConversationIssue(
-                title="Why does this happen?",
+                title=OFFERED_TITLE,
                 body="Explain the scheduler.",
             ),
             comments=[compose_question()],
@@ -1716,6 +1706,7 @@ def test_an_interrupted_round_from_v6_1_is_withdrawn_once_an_update_finds_nothin
                 compose_conversation_row(
                     agent_work_identifier=conversation.identifier,
                     finding=IssueCommentsFinding(new_comments=0),
+                    title=OFFERED_TITLE,
                 )
             ],
         ),
@@ -1870,7 +1861,6 @@ def test_a_failed_listing_leaves_open_conversations_inspected(
     assert failure.startswith("could not list issues")
     assert observed.rows == [
         compose_conversation_row(
-            title="Issue 8",
             agent_work_identifier=compose_conversation_identifier(issue=8),
             finding=IssueCommentsFinding(new_comments=0),
         )
@@ -1912,7 +1902,6 @@ def test_open_conversation_faults_start_the_cooldown_whatever_the_listing(
     assert observed.rows == [
         compose_conversation_row(
             issue=issue,
-            title=f"Issue {issue}",
             agent_work_identifier=compose_conversation_identifier(issue=issue),
             ended_round=2,
             finding=None,
@@ -1943,7 +1932,6 @@ def test_a_paused_conversation_says_why_and_its_comments_are_not_read(
 
     assert observed.rows == [
         compose_conversation_row(
-            title="Issue 8",
             agent_work_identifier=compose_conversation_identifier(issue=8),
             finding=PausedFinding(cause=cause),
         )
@@ -1971,7 +1959,6 @@ def test_a_conversation_whose_issue_closes_ends_without_its_comments_read(
     assert conversation.ending.reason is AgentWorkEndReason.ISSUE_CLOSED
     assert observed.rows == [
         compose_conversation_row(
-            title="Issue 8",
             agent_work_identifier=compose_conversation_identifier(issue=8),
             finding=None,
         )
@@ -2014,7 +2001,6 @@ def test_a_paused_conversation_does_not_retry_its_errored_round(
 
     assert observed.rows == [
         compose_conversation_row(
-            title="Issue 8",
             agent_work_identifier=compose_conversation_identifier(issue=8),
             ended_round=1,
             finding=PAUSED,
@@ -2048,7 +2034,6 @@ def test_paused_conversation_faults_do_not_start_the_global_cooldown(
     assert observed.rows == [
         compose_conversation_row(
             issue=issue,
-            title=f"Issue {issue}",
             agent_work_identifier=compose_conversation_identifier(issue=issue),
             ended_round=2,
             finding=PAUSED,
@@ -2147,6 +2132,7 @@ def test_a_resumed_conversation_is_given_comments_posted_while_it_was_paused(
             agent_work_identifier=compose_conversation_identifier(issue=8),
             ended_round=1,
             finding=PausedFinding(cause=cause),
+            title=OFFERED_TITLE,
         )
     ]
     assert count_comment_reads(gh=gh) == comment_reads_before
@@ -2196,7 +2182,6 @@ def test_an_open_conversation_carries_on_when_its_route_is_removed(
 
     assert observed.rows == [
         compose_conversation_row(
-            title="Issue 8",
             agent_work_identifier=compose_conversation_identifier(issue=8),
             finding=IssueCommentsFinding(new_comments=0),
         )
@@ -2231,7 +2216,6 @@ def test_an_open_conversation_matches_its_label_and_assignee_in_any_case(
 
     assert observed.rows == [
         compose_conversation_row(
-            title="Issue 8",
             label="dream:CONVERSATION",
             agent_work_identifier=compose_conversation_identifier(issue=8),
             finding=IssueCommentsFinding(new_comments=0),
@@ -2258,7 +2242,6 @@ def test_a_conversation_whose_route_is_removed_still_pauses_for_a_second_label(
     finish(scheduler=scheduler)
 
     assert observed.rows[0] == compose_conversation_row(
-        title="Issue 8",
         agent_work_identifier=compose_conversation_identifier(issue=8),
         finding=ConflictingLabelsFinding(labels=list(labels)),
     )
@@ -2295,7 +2278,7 @@ def test_a_failed_comment_read_records_its_reason_and_starts_nothing(
     assert isinstance(row.finding, ReadFailureFinding)
     assert "issues/8/comments" in row.finding.reason
     assert row.finding.reason.endswith("network unavailable")
-    assert row == compose_conversation_row(finding=row.finding)
+    assert row == compose_conversation_row(finding=row.finding, title=OFFERED_TITLE)
 
 
 @pytest.mark.parametrize("is_valid", [True, False], ids=["stale", "malformed"])
@@ -2317,7 +2300,7 @@ def test_an_unrecorded_round_input_is_replaced_by_the_next_batch(
             document=ConversationRoundInput(
                 issue=8,
                 initial_issue=InitialConversationIssue(
-                    title="Why does this happen?",
+                    title=OFFERED_TITLE,
                     body="Explain the scheduler.",
                 ),
                 comments=[compose_question(body="stale saved input")],
@@ -2560,10 +2543,9 @@ def test_an_open_conversation_starts_before_a_new_one(
             ended_round=1,
             finding=IssueCommentsFinding(new_comments=1),
             started_round=StartedRound(number=2),
+            title=OFFERED_TITLE,
         ),
-        compose_conversation_row(
-            issue=9, title="Issue 9", finding=IssueCommentsFinding(new_comments=1)
-        ),
+        compose_conversation_row(issue=9, finding=IssueCommentsFinding(new_comments=1)),
     ]
 
 

@@ -585,7 +585,7 @@ def test_nature_shows_exactly_one_of_sun_and_moon_at_each_boundary(
 
 @pytest.mark.parametrize("theme", ["matrix", "nature"])
 @pytest.mark.parametrize("width", [390, 1280])
-def test_a_card_heading_keeps_its_title_and_status_within_the_row(
+def test_a_card_row_keeps_its_items_within_the_row(
     page: Page,
     live_web: str,
     theme: str,
@@ -595,22 +595,25 @@ def test_a_card_heading_keeps_its_title_and_status_within_the_row(
     page.goto(f"{live_web}/?theme={theme}")
     expect(page.get_by_label("Issue #53 dream:less")).to_be_visible()
 
-    headings = page.locator(".card-heading").filter(visible=True)
-    for heading in headings.evaluate_all(
-        """headings => headings.map(heading => {
-          const row = heading.getBoundingClientRect();
-          const title = heading.firstElementChild.getBoundingClientRect();
-          const status = heading.lastElementChild.getBoundingClientRect();
+    rows = page.locator(".card-heading, .card-foot").filter(visible=True)
+    for row in rows.evaluate_all(
+        """rows => rows.map(row => {
+          const bounds = row.getBoundingClientRect();
+          const left = row.firstElementChild.getBoundingClientRect();
+          const right = row.childElementCount > 1
+            ? row.lastElementChild.getBoundingClientRect()
+            : null;
           return {
-            text: heading.textContent,
-            row: [row.left, row.right],
-            title_width: title.width,
-            status: [status.left, status.right],
+            text: row.textContent,
+            row: [bounds.left, bounds.right],
+            left_width: left.width,
+            right: right && [right.left, right.right],
           };
         })"""
     ):
-        row_left, row_right = heading["row"]
-        status_left, status_right = heading["status"]
-        assert heading["title_width"] >= (row_right - row_left) / 2, heading["text"]
-        assert row_left <= status_left, heading["text"]
-        assert status_right <= row_right, heading["text"]
+        row_left, row_right = row["row"]
+        assert row["left_width"] >= (row_right - row_left) / 2, row["text"]
+        if row["right"] is not None:
+            right_left, right_right = row["right"]
+            assert row_left <= right_left, row["text"]
+            assert right_right <= row_right, row["text"]

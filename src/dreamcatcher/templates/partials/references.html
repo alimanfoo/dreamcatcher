@@ -13,3 +13,14 @@
     {{ github_reference(issue.number, "issues") }}
   {%- endif %}
 {%- endmacro %}
+{#- An assignment's pull request, with where it stands when that is known. -#}
+{% macro pull_request_chip(number, summary) -%}
+  {% set text %}PR #{{ number }}{% if summary %} {{ summary }}{% endif %}{% endset -%}
+  {% if number is none -%}
+    <span class="pr-chip">no pull request yet</span>
+  {%- elif view.github_repository_url -%}
+    <a class="pr-chip" href="{{ view.github_repository_url }}/pull/{{ number }}" target="_blank" rel="noopener noreferrer">{{ text }}</a>
+  {%- else -%}
+    <span class="pr-chip">{{ text }}</span>
+  {%- endif %}
+{%- endmacro %}

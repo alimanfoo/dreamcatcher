@@ -42,6 +42,9 @@ the change.
   daemon has stopped, keeps what it shows and warns "Refresh failed.
   Check the terminal running dreamcatcher." It used to show no warning.
   ([#773](https://github.com/alimanfoo/dreamcatcher/pull/773))
+- Each card and request row on the web home page keeps GitHub's
+  information at its top and _dreamcatcher_'s at its bottom.
+  ([#770](https://github.com/alimanfoo/dreamcatcher/pull/770))
 
 ## [v9.0.0](https://github.com/alimanfoo/dreamcatcher/releases/tag/v9.0.0) — 2026-10-23
 

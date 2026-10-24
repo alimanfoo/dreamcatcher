@@ -18,6 +18,7 @@ from records import (
     MERGED_INPUT,
     SCOUT_ROUTES,
     SMITH_ROUTES,
+    compose_conversation_identifier,
     release_daemon_lock,
     write_assignment,
     write_daemon_run,
@@ -25,12 +26,11 @@ from records import (
     write_round,
     write_tick,
 )
-from rows import UNCLAIMED, compose_request_row
+from rows import UNCLAIMED, compose_conversation_row, compose_request_row
 from status_fabrications import (
     CAMPAIGN_CHILDREN,
     LOOKED_AT,
     STATUS_REPORTS,
-    compose_conversation_row,
     compose_ended_round,
     compose_running_round,
     fabricate_a_dead_daemon,
@@ -44,7 +44,6 @@ from status_fabrications import (
     write_assignment_with_rounds,
     write_running_daemon,
 )
-from werkzeug.serving import make_server
 from werkzeug.test import TestResponse
 
 import dreamcatcher.status.report as report_module
@@ -82,6 +81,7 @@ from dreamcatcher.web.app import _create_app
 from dreamcatcher.web.server import (
     _WEB_BASE_PORT,
     WEB_HOST,
+    create_web_server,
     run_web_server_in_background,
 )
 
@@ -848,8 +848,8 @@ def test_a_home_card_links_to_its_exact_assignment(tmp_path):
     assert page.count('href="/work/GH13-20260819-184158-assignment"') == 1
     card_start = page.index('<article id="GH13-20260819-184158-assignment"')
     card = page[card_start : page.index("</article>", card_start)]
-    assert card.index(assignment_link) < card.index('class="agent-work-detail"')
-    assert card.index('class="pr-chip"') > card.index('class="agent-work-detail"')
+    assert card.index('class="pr-chip"') < card.index('class="agent-work-detail"')
+    assert card.index(assignment_link) > card.index('class="agent-work-detail"')
 
 
 def test_status_classes_do_not_depend_on_status_wording(tmp_path, monkeypatch):
@@ -858,7 +858,10 @@ def test_status_classes_do_not_depend_on_status_wording(tmp_path, monkeypatch):
     fabricate_everything(
         state=state,
         other_rows=[
-            compose_conversation_row(finding=IssueCommentsFinding(new_comments=0))
+            compose_conversation_row(
+                finding=IssueCommentsFinding(new_comments=0),
+                agent_work_identifier=compose_conversation_identifier(issue=8),
+            )
         ],
     )
 
@@ -2223,9 +2226,13 @@ def test_a_background_server_that_returns_is_a_failure(monkeypatch):
     server.server_close.assert_called_once_with()
 
 
-def test_a_background_server_that_already_ended_stops_at_once(monkeypatch):
+def test_a_background_server_that_already_ended_stops_at_once(monkeypatch, tmp_path):
     notified = Event()
-    server = make_server(web_server_module.WEB_HOST, 0, lambda environ, start: [])
+    server = create_web_server(
+        state=StateDirectory(root=tmp_path),
+        port=0,
+        application=lambda environ, start: [],
+    )
     monkeypatch.setattr(web_server_module, "interrupt_main", notified.set)
 
     def end_serving():
