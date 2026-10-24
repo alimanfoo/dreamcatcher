@@ -27,6 +27,13 @@ the change.
 
 ## Unreleased
 
+### Changed
+
+- A lead round's trigger says that a sub-issue **handed back** and that
+  its **pull request changed**, where it said **handback** and **pull
+  request**.
+  ([#777](https://github.com/alimanfoo/dreamcatcher/pull/777))
+
 ### Fixed
 
 - On the web page, a lead round that names its sub-issues lists its

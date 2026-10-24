@@ -535,9 +535,10 @@ it:
   comments: the sub-issue's number and the words for its changes. Each
   change reads as its name, except that a change of issue state reads as
   **closed** or **reopened**, by the state that the sub-issue entered,
-  check completion reads as **checks finished**, and ending reads as
-  **ended**. A campaign round, other than a start or a recover, that has
-  no input yet reads as **comments or changes**;
+  handback reads as **handed back**, pull request reads as **pull
+  request changed**, check completion reads as **checks finished**, and
+  ending reads as **ended**. A campaign round, other than a start or a
+  recover, that has no input yet reads as **comments or changes**;
 - **main moved** or **checks failed**: the other signals an assignment
   round relayed, after any count of posts;
 - **merged** or **closed**: the state of a finished pull request, which
