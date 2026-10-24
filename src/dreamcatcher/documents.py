@@ -279,18 +279,9 @@ def write_text(*, text: str, path: Path, is_replaceable: bool = True) -> None:
     directory is not a bug in the tool, and the user can act on either, so it
     reads as a message.
     """
-    staged = path.with_name(f"{path.name}.{uuid4().hex}{_STAGED_WRITE_SUFFIX}")
-    try:
-        path.parent.mkdir(parents=True, exist_ok=True)
-        with staged.open("x", encoding="utf-8", newline="") as opened:
-            opened.write(text)
-        lock = _hold_document_lock(path=path) if is_replaceable else nullcontext()
-        with lock:
-            staged.replace(path)
-    except (OSError, Timeout) as error:
-        with suppress(OSError):
-            staged.unlink(missing_ok=True)
-        raise ReportableError(f"cannot write {path}: {error}.") from error
+    lock = _hold_document_lock(path=path) if is_replaceable else nullcontext()
+    with _stage_write(text=text, path=path) as staged, lock:
+        staged.replace(path)
 
 
 def append_text(*, text: str, path: Path) -> None:
@@ -325,6 +316,25 @@ def remove_file(*, path: Path) -> None:
         path.unlink(missing_ok=True)
     except OSError as error:
         raise ReportableError(f"cannot remove {path}: {error}.") from error
+
+
+@contextmanager
+def _stage_write(*, text: str, path: Path) -> Generator[Path, None, None]:
+    """Stage the text in a file of its own beside path, for the caller to move.
+
+    Raise ReportableError when the staging or what the caller does with it
+    fails, and remove the staged file then.
+    """
+    staged = path.with_name(f"{path.name}.{uuid4().hex}{_STAGED_WRITE_SUFFIX}")
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with staged.open("x", encoding="utf-8", newline="") as opened:
+            opened.write(text)
+        yield staged
+    except (OSError, Timeout) as error:
+        with suppress(OSError):
+            staged.unlink(missing_ok=True)
+        raise ReportableError(f"cannot write {path}: {error}.") from error
 
 
 @contextmanager
