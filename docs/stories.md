@@ -236,8 +236,11 @@ worktree is and the command that picks up the agent's session by hand,
 should they want to carry on the conversation themselves. Once its round
 has stopped, the assignment's card on the home page shows it as
 cancelled, and while the pull request stays open no new assignment
-starts for the issue. The user finishes the branch and merges it, or
-closes it, as they would their own.
+starts for the issue. A cancel that lands as the wrap-up round finishes
+still keeps the worktree and branch the user's, and a cancel that comes
+after the wrap-up round changes nothing, so `dreamcatcher cancel` says
+that the assignment has already ended. The user finishes the branch and
+merges it, or closes it, as they would their own.
 
 The value to the user is that taking over is one click and nothing is
 lost: the agent's commits are theirs to build on.
@@ -866,10 +869,10 @@ earlier comments again.
 
 The user edits `scheduler.json` under `.dreamcatcher/`, and leaves it so
 that it no longer reads back. The daemon stops at its next update and
-prints what is wrong with the file, because an update cannot repair a
-record it cannot read. The user needs to delete the file and start the
-daemon again. The next update writes a fresh one, since the file holds
-only what the last update found.
+prints what is wrong with the file, as it does for any damaged record.
+The user needs to delete the file and start the daemon again. The next
+update writes a fresh one, since the file holds only what the last
+update found.
 
 ### Adding a sub-issue from another repository
 
@@ -972,17 +975,16 @@ update gives it the same comments again.
 
 The disk is full or a folder is unwritable. A write that fails once a
 round is recorded, while it is prepared or its harness starts, errors
-the round with the reason. One that fails before the round is recorded
-shows among the scheduler failures instead, without counting towards a
-fault. A write that fails while the daemon looks over existing work,
-such as recording that a conversation has ended, fails the whole update,
-as a damaged record does in the next story. In each case the work is
-tried again at the next update. If the daemon cannot write its own
-record of the update, it stops and says so, ending its rounds, because
-it has no way left to report anything; the user frees the disk and
-starts it again. No more than that is handled, and that is accepted,
-because a disk that will not write is the user's to fix, and nothing
-_dreamcatcher_ holds is the only copy of anything.
+the round with the reason, and the next update gives the work its input
+again. A write that fails anywhere else in an update, such as recording
+new work, recording that a conversation has ended or writing the
+daemon's own record of the update, stops the daemon. It prints what
+failed, ends its running rounds as Ctrl-C does, and leaves the record of
+the last complete update in place. The user frees the disk or fixes the
+folder and starts the daemon again, and each interrupted round's work
+carries on as it does after any stop. No more than that is handled, and
+that is accepted, because a disk that will not write is the user's to
+fix, and nothing _dreamcatcher_ holds is the only copy of anything.
 
 ### An ended piece of work's worktree is not removed
 
@@ -991,38 +993,34 @@ with its issue, and Git refuses to remove its worktree or to delete the
 assignment's local branch, perhaps because the worktree is locked or a
 file in it is held open. The daemon prints what failed with that update
 and carries on. The work stays ended, and the worktree or branch stays
-where it is. The worktree also stays when the daemon stops, or the
-update fails, after an assignment completes and before the update that
-would remove it. Nothing tries the removal again, and that is accepted,
-because the leftover takes only disk space, and the user can remove it
-with Git.
+where it is. The worktree also stays when the daemon stops after an
+assignment completes and before the update that would remove it. Nothing
+tries the removal again, and that is accepted, because the leftover
+takes only disk space, and the user can remove it with Git.
 
 ### A local record cannot be read
 
 A file under `.dreamcatcher/` that an update cannot do without, such as
-a work record or a round record, is damaged and no longer reads back. At
-its next update the daemon prints that the update failed, with the file
-and what is wrong with it. That update starts no rounds and leaves the
-record of the last complete update in place. Rounds already running
-carry on. Each later update tries again and fails the same way until the
-user repairs the file or restores it. A damaged record found while the
-daemon starts stops it starting, with the same message, and the user
-repairs or restores the file before starting it again.
+a work record, a round record or the daemon's own record of the last
+update, is damaged and no longer reads back. At its next update the
+daemon stops. It prints the file and what is wrong with it, ends its
+running rounds as Ctrl-C does, and leaves the record of the last
+complete update in place. The user repairs or restores the file and
+starts the daemon again, and each interrupted round's work carries on as
+it does after any stop. A damaged record found while the daemon starts
+stops it starting, with the same message.
 
 The status report can fail the same way. When a record or feed it needs
 will not read, `dreamcatcher status` and a freshly opened page that
 needs it show only the file and what is wrong with it. A page that is
 already open keeps what it last showed, as the next story tells.
 
-This is accepted. One damaged file holds up every piece of work, not
-just its own, and nothing sets it aside so that the rest can go on or
-the rest of the status can show. Such damage should be rare, and a clear
+This is accepted. One damaged file stops every piece of work, not just
+its own, and nothing sets it aside so that the rest can go on or the
+rest of the status can show. Such damage should be rare, and a clear
 report the user acts on is simpler than machinery that works around it.
-Some failures still belong to one piece of work and show on its row, as
-when a read from GitHub fails, or when a conversation cannot read its
-cursor. The daemon's own record of the last update fares worse. When it
-cannot be read or written, the daemon stops, because every update builds
-on that record.
+A read from GitHub that fails still belongs to one piece of work, and
+shows on its row.
 
 ### A page cannot read what it shows
 
@@ -1037,3 +1035,13 @@ may affect the daemon too. The page keeps trying, and once a refresh
 succeeds the warning goes and any new output shows once. Nothing repairs
 the record, and that is accepted, because the cause is outside
 _dreamcatcher_ and the terminal reports the same reason.
+
+A page can also lose its server. The web server that `dreamcatcher run`
+starts stops with the daemon, whether the user stopped it or an update
+could not complete, and a page that is already open then reaches
+nothing. It keeps the content and status it last showed, and a warning
+on it says "Refresh failed. Check the terminal running dreamcatcher."
+The page cannot tell why no answer came, so the warning says nothing of
+what the daemon or the agents are doing; the terminal says why the
+daemon stopped. The page keeps trying, and once a refresh succeeds the
+warning goes.

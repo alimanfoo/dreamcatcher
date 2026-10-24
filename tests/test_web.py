@@ -51,6 +51,7 @@ import dreamcatcher.web.app as web_app_module
 import dreamcatcher.web.server as web_server_module
 from dreamcatcher.agent_assignments import (
     cancel_assignment,
+    complete_assignment,
 )
 from dreamcatcher.agent_work import (
     AgentWorkEnding,
@@ -738,6 +739,40 @@ def test_a_stale_assignment_cancel_changes_nothing(tmp_path):
     assert assignment.ending == AgentWorkEnding(
         at=PINNED + timedelta(minutes=10), reason=AgentWorkEndReason.CANCELLED
     )
+
+
+def test_an_assignment_cancel_that_a_completion_beats_changes_nothing(
+    tmp_path, monkeypatch
+):
+    # The wrap-up round records its completion after the page read the
+    # assignment as open, and before the cancel records its ending.
+    state = StateDirectory(root=tmp_path)
+    fabricate_everything(state=state)
+    identifier = "GH13-20260819-184158-assignment"
+    client = _create_app(state=state, clock=lambda: LOOKED_AT).test_client()
+    find_work = web_app_module.find_agent_work
+
+    def find_then_complete(*, state, identifier):
+        work = find_work(state=state, identifier=identifier)
+        assert work is not None
+        complete_assignment(assignment=work, clock=lambda: PINNED, final_output=None)
+        return work
+
+    monkeypatch.setattr(web_app_module, "find_agent_work", find_then_complete)
+
+    response = client.post(
+        f"/work/{identifier}/cancel",
+        headers={"Origin": "http://localhost"},
+    )
+
+    assert response.status_code == 303
+    assert response.location == f"/work/{identifier}"
+    assignment = find_agent_work(state=state, identifier=identifier)
+    assert assignment is not None
+    assert assignment.ending == AgentWorkEnding(
+        at=PINNED, reason=AgentWorkEndReason.COMPLETED
+    )
+    assert not assignment.compose_round_paths(number=2).stop_request.exists()
 
 
 def test_an_unknown_assignment_cannot_be_cancelled(tmp_path):

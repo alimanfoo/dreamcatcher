@@ -418,6 +418,35 @@ def test_a_failed_home_refresh_keeps_the_dashboard_and_reports_why(
     expect(alert).to_be_hidden()
 
 
+@pytest.mark.parametrize(
+    ("path", "kept"),
+    [
+        ("", "#home [role=tab]"),
+        (f"/work/{BROWSER_ASSIGNMENT_IDENTIFIER}", ".feed-line"),
+    ],
+    ids=["home", "work"],
+)
+def test_a_refresh_that_reaches_no_server_keeps_the_page_and_points_to_the_terminal(
+    page: Page, live_web: str, path: str, kept: str
+) -> None:
+    page.goto(f"{live_web}{path}")
+    kept_content = page.locator(kept)
+    expect(kept_content.first).to_be_visible()
+    kept_count = kept_content.count()
+    every_address = f"{live_web}/**"
+    page.route(every_address, lambda route: route.abort())
+
+    alert = page.get_by_role("alert")
+    expect(alert).to_have_text(
+        "Refresh failed. Check the terminal running dreamcatcher.", timeout=5_000
+    )
+    expect(kept_content).to_have_count(kept_count)
+
+    page.unroute(every_address)
+
+    expect(alert).to_be_hidden(timeout=5_000)
+
+
 @pytest.mark.parametrize("theme", ["matrix", "nature"])
 @pytest.mark.parametrize(
     "identifier",

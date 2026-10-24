@@ -179,9 +179,11 @@ The cancelled assignment shows as **ended** with the detail cancelled on
 the web home page and in `dreamcatcher view`, and `dreamcatcher status`
 counts it among the ended assignments.
 
-The selected work must be an assignment that has not ended. A cancel
-cannot be undone. The command writes only local state, does not contact
-GitHub, and works whether or not the daemon is running.
+The selected work must be an assignment that has not ended. If the
+assignment's wrap-up round records its completion first, even as the
+command runs, the command says that the assignment has already ended. A
+cancel cannot be undone. The command writes only local state, does not
+contact GitHub, and works whether or not the daemon is running.
 
 ## `web`
 
