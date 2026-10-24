@@ -556,7 +556,7 @@ def test_nature_shows_exactly_one_of_sun_and_moon_at_each_boundary(
 
 @pytest.mark.parametrize("theme", ["matrix", "nature"])
 @pytest.mark.parametrize("width", [390, 1280])
-def test_each_card_row_keeps_its_left_half_and_right_item_within_the_row(
+def test_a_card_row_keeps_its_items_within_the_row(
     page: Page,
     live_web: str,
     theme: str,
@@ -565,12 +565,6 @@ def test_each_card_row_keeps_its_left_half_and_right_item_within_the_row(
     page.set_viewport_size({"width": width, "height": 800})
     page.goto(f"{live_web}/?theme={theme}")
     expect(page.get_by_label("Issue #53 dream:less")).to_be_visible()
-    # No fabricated pull request has the longest state that a status can give.
-    page.locator(".card-heading > .pr-chip").first.evaluate(
-        """chip => {
-          chip.textContent = "PR #52 draft, conflicts with main, checks failing";
-        }"""
-    )
 
     rows = page.locator(".card-heading, .card-foot").filter(visible=True)
     for row in rows.evaluate_all(

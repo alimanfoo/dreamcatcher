@@ -30,11 +30,7 @@ the change.
 ### Changed
 
 - Each card and request row on the web home page keeps GitHub's
-  information at its top and _dreamcatcher_'s at its bottom. An
-  assignment's pull request and its state move to the top right, beside
-  the issue, and the status and the link to the work's page move to the
-  bottom right, beside the dispatch label. A request's status moves
-  beside its dispatch label.
+  information at its top and _dreamcatcher_'s at its bottom.
   ([#770](https://github.com/alimanfoo/dreamcatcher/pull/770))
 
 ## [v9.0.0](https://github.com/alimanfoo/dreamcatcher/releases/tag/v9.0.0) — 2026-10-23

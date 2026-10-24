@@ -583,7 +583,14 @@ def fabricate_everything(
                     issue=20, finding=_compose_draft_pull_request()
                 ),
                 _compose_assignment_row(
-                    issue=35, ended_round=1, finding=_compose_draft_pull_request()
+                    issue=35,
+                    ended_round=1,
+                    finding=_compose_draft_pull_request().model_copy(
+                        update={
+                            "merge_state": PullRequestMergeState.DIRTY,
+                            "check_result": CheckResult.FAILING,
+                        }
+                    ),
                 ),
                 _compose_assignment_row(issue=9, ended_round=2),
                 _compose_assignment_row(issue=44),
