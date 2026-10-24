@@ -1491,7 +1491,7 @@ def test_a_last_round_that_was_interrupted_is_carried_on_as_the_last_round(
         number=2,
         record=AgentRoundRecord(
             number=2,
-            started=PINNED.replace(hour=17, minute=2),
+            started=PINNED + timedelta(minutes=2),
             pid=1,
             ending=InterruptedAgentRoundEnding(),
         ),

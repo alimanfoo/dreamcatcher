@@ -84,11 +84,6 @@ ASSIGNMENTS = {
 }
 
 
-def interrupt_wait(seconds, /):
-    """A wait the reader interrupts, which is how a view of a live assignment ends."""
-    raise KeyboardInterrupt
-
-
 def render_status_view(*, state, width: int = WIDTH) -> str:
     """Return the status report that the state renders on a pinned console.
 
@@ -296,7 +291,7 @@ def test_status_a_reader_watches_takes_the_screen_and_hands_it_back(tmp_path):
         state=state,
         console=create_pinned_console(written_to=written_to, is_terminal=True),
         clock=lambda: LOOKED_AT,
-        wait=interrupt_wait,
+        wait=Mock(side_effect=KeyboardInterrupt),
     )
     status = written_to.getvalue()
 
@@ -577,7 +572,9 @@ def test_a_feed_renders_as_its_golden_view(name, tmp_path, pytestconfig):
     fabricate, issue = FEEDS[name]
     fabricate(state=state)
 
-    feed = render_feed_view(state=state, issue=issue, wait=interrupt_wait)
+    feed = render_feed_view(
+        state=state, issue=issue, wait=Mock(side_effect=KeyboardInterrupt)
+    )
 
     assert_matches_view_golden(
         rendered=feed,
@@ -791,7 +788,9 @@ def test_a_line_the_view_cannot_read_reaches_the_reader_as_it_was_written(tmp_pa
         / "feed.txt",
     )
 
-    feed = render_feed_view(state=state, issue=13, wait=interrupt_wait)
+    feed = render_feed_view(
+        state=state, issue=13, wait=Mock(side_effect=KeyboardInterrupt)
+    )
 
     assert "the harness said something else" in feed
 
@@ -801,7 +800,7 @@ def test_a_reader_who_has_seen_enough_interrupts_the_view(tmp_path):
     fabricate_everything(state=state)
 
     assert "[Bash] pytest" in render_feed_view(
-        state=state, issue=13, wait=interrupt_wait
+        state=state, issue=13, wait=Mock(side_effect=KeyboardInterrupt)
     )
 
 
