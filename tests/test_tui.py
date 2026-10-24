@@ -43,7 +43,7 @@ from status_fabrications import (
     write_assignment_with_rounds,
     write_running_daemon,
 )
-from terminals import HEIGHT, WIDTH, create_pinned_console
+from terminals import HEIGHT, WIDTH, create_pinned_console, refuse_to_wait
 
 from dreamcatcher.agent_assignments import (
     cancel_assignment,
@@ -86,15 +86,6 @@ ASSIGNMENTS = {
 def interrupt_wait(seconds, /):
     """A wait the reader interrupts, which is how a view of a live assignment ends."""
     raise KeyboardInterrupt
-
-
-def refuse_to_wait(seconds, /):
-    """A wait that a view with nothing more to show must never reach.
-
-    A view that reaches it has gone on looking, and a wait that let it would
-    let it look for ever, so the test would hang rather than fail.
-    """
-    raise AssertionError("the view waited for something that was not coming")
 
 
 def render_status_view(*, state, width: int = WIDTH) -> str:

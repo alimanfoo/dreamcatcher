@@ -1,4 +1,4 @@
-"""Pin the terminal that a test shows a view in, so every run renders the same text."""
+"""Pin the terminal that a test shows a view in, and what its waits do."""
 
 from rich.console import Console
 
@@ -37,3 +37,12 @@ def create_pinned_console(
         legacy_windows=False,
         _environ={"TERM": term},
     )
+
+
+def refuse_to_wait(seconds, /):
+    """A wait that a view with nothing more to show must never reach.
+
+    A view that reaches it has gone on looking, and a wait that let it would
+    let it look for ever, so the test would hang rather than fail.
+    """
+    raise AssertionError("the view waited for something that was not coming")
