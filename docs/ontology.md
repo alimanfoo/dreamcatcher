@@ -304,9 +304,11 @@ Agent work has no agent rounds until work begins and one or more
 afterwards.
 
 Agent work is open until its ending is recorded, with the time and the
-reason, and then it has **ended**. An assignment ends when it is
-complete or cancelled. A conversation ends when its issue closes, and a
-campaign when its parent issue closes.
+reason, and then it has **ended**. The first ending recorded is the
+work's ending for good, and an ending that comes after it changes
+nothing. An assignment ends when it is complete or cancelled. A
+conversation ends when its issue closes, and a campaign when its parent
+issue closes.
 
 Agent work keeps the harness, route and recipe settings that its work
 record holds, even after its route is removed from the configuration.
@@ -409,7 +411,9 @@ no further rounds for it and relays no further user posts from its pull
 request. A round that is running when the user cancels is asked to stop,
 and the assignment is working until that round ends. A cancel records
 the assignment's ending, with the reason "cancelled", and cannot be
-undone.
+undone. A wrap-up round that finishes after the cancel leaves it
+cancelled. A cancel that comes after the assignment completed says that
+the assignment has already ended, and cancels nothing.
 
 _dreamcatcher_ leaves the pull request as it is, and while it is open it
 claims the issue, so no new assignment starts for the issue. If the user

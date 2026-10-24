@@ -1,6 +1,10 @@
 import json
+import subprocess
+import sys
+import time
 from collections.abc import Sequence
 from datetime import timedelta
+from pathlib import Path
 
 import pytest
 from clocks import PINNED
@@ -58,6 +62,49 @@ from dreamcatcher.state import StateDirectory
 ASSIGNMENT_ID = "GH12-20260819-184158-assignment"
 
 BRANCH = f"dreamcatcher-{ASSIGNMENT_ID}"
+
+_WAIT_SECONDS = 5
+
+# Cancel or complete the assignment, as the web interface or the daemon does in
+# a process of its own. Given a pause file, the process holds the ending's lock
+# once it has found no ending, and waits for the release file before it records
+# its own.
+_END_ASSIGNMENT = """
+import sys, time
+from datetime import UTC, datetime
+from pathlib import Path
+from unittest.mock import patch
+
+from dreamcatcher.agent_assignments import cancel_assignment, complete_assignment
+from dreamcatcher.agent_work import find_agent_work
+from dreamcatcher.errors import ReportableError
+from dreamcatcher.state import StateDirectory
+
+root, identifier, reason, paused, release = sys.argv[1:]
+replace = Path.replace
+
+def replace_when_released(staged, target):
+    if paused:
+        Path(paused).touch()
+        while not Path(release).exists():
+            time.sleep(0.01)
+    return replace(staged, target)
+
+state = StateDirectory(root=Path(root))
+assignment = find_agent_work(state=state, identifier=identifier)
+with patch.object(Path, "replace", replace_when_released):
+    try:
+        if reason == "cancelled":
+            cancel_assignment(assignment=assignment, at=datetime.now(UTC))
+        else:
+            complete_assignment(
+                assignment=assignment,
+                clock=lambda: datetime.now(UTC),
+                final_output=None,
+            )
+    except ReportableError as error:
+        print(error)
+"""
 
 
 def record_assignment(*, state, route, preferred_harness=AgentHarness.CLAUDE):
@@ -427,6 +474,128 @@ def test_an_assignment_that_has_ended_cannot_be_cancelled(bare_state):
     assert read_assignments(state=bare_state)[0].ending == AgentWorkEnding(
         at=PINNED, reason=AgentWorkEndReason.CANCELLED
     )
+
+
+def test_a_cancel_after_a_completion_it_did_not_see_says_the_assignment_ended(
+    bare_state,
+):
+    assignment = write_and_read_assignment(
+        state=bare_state, rounds=[compose_running_round(number=1)]
+    )
+    complete_assignment(assignment=assignment, clock=lambda: PINNED, final_output=None)
+
+    with pytest.raises(ReportableError, match=f"{ASSIGNMENT_ID} has already ended"):
+        cancel_assignment(assignment=assignment, at=PINNED + timedelta(hours=1))
+
+    assert read_assignments(state=bare_state)[0].ending == AgentWorkEnding(
+        at=PINNED, reason=AgentWorkEndReason.COMPLETED
+    )
+    assert not assignment.compose_round_paths(number=1).stop_request.exists()
+
+
+def test_a_completion_after_a_cancel_it_did_not_see_leaves_the_cancel(bare_state):
+    assignment = write_and_read_assignment(
+        state=bare_state, rounds=[compose_ended_round(status=0)]
+    )
+    cancel_assignment(assignment=assignment, at=PINNED)
+
+    complete_assignment(
+        assignment=assignment,
+        clock=lambda: PINNED + timedelta(hours=1),
+        final_output=None,
+    )
+
+    assert read_assignments(state=bare_state)[0].ending == AgentWorkEnding(
+        at=PINNED, reason=AgentWorkEndReason.CANCELLED
+    )
+
+
+def start_ending(*, state, reason, paused="", release=""):
+    """Start a process that ends the assignment for this reason."""
+    return subprocess.Popen(
+        [
+            sys.executable,
+            "-c",
+            _END_ASSIGNMENT,
+            str(state.root),
+            ASSIGNMENT_ID,
+            reason,
+            paused,
+            release,
+        ],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        encoding="utf-8",
+    )
+
+
+def wait_for_path(*, path: Path) -> None:
+    """Wait until the path exists, or fail the test."""
+    deadline = time.monotonic() + _WAIT_SECONDS
+    while not path.exists():
+        if time.monotonic() >= deadline:
+            raise AssertionError(f"{path} did not appear")
+        time.sleep(0.01)
+
+
+def wait_for_staged_writes(*, document: Path, count: int) -> None:
+    """Wait until this many writes are staged beside the document, or fail."""
+    deadline = time.monotonic() + _WAIT_SECONDS
+    while len(list(document.parent.glob(f"{document.name}.*.writing"))) < count:
+        if time.monotonic() >= deadline:
+            raise AssertionError(f"{count} writes were not staged beside {document}")
+        time.sleep(0.01)
+
+
+@pytest.mark.parametrize(
+    ("first", "second", "second_says"),
+    [
+        pytest.param(
+            AgentWorkEndReason.CANCELLED,
+            AgentWorkEndReason.COMPLETED,
+            "",
+            id="cancel-first",
+        ),
+        pytest.param(
+            AgentWorkEndReason.COMPLETED,
+            AgentWorkEndReason.CANCELLED,
+            f"{ASSIGNMENT_ID} has already ended.\n",
+            id="completion-first",
+        ),
+    ],
+)
+def test_of_endings_that_race_between_processes_the_first_is_recorded_for_good(
+    bare_state, tmp_path, first, second, second_says
+):
+    write_and_read_assignment(state=bare_state, rounds=[compose_ended_round(status=0)])
+    ending = bare_state.work / ASSIGNMENT_ID / "ended.json"
+    paused = tmp_path / "paused"
+    release = tmp_path / "release"
+
+    with start_ending(
+        state=bare_state, reason=first, paused=str(paused), release=str(release)
+    ) as first_ender:
+        try:
+            wait_for_path(path=paused)
+            with start_ending(state=bare_state, reason=second) as second_ender:
+                try:
+                    wait_for_staged_writes(document=ending, count=2)
+                finally:
+                    release.write_bytes(b"")
+                second_said, second_error = second_ender.communicate(
+                    timeout=_WAIT_SECONDS
+                )
+        finally:
+            release.write_bytes(b"")
+        first_said, first_error = first_ender.communicate(timeout=_WAIT_SECONDS)
+
+    assert first_ender.returncode == 0, first_error
+    assert second_ender.returncode == 0, second_error
+    assert first_said == ""
+    assert second_said == second_says
+    [ended] = read_assignments(state=bare_state)
+    assert ended.ending is not None
+    assert ended.ending.reason is first
 
 
 def read_round_endings(*, state):

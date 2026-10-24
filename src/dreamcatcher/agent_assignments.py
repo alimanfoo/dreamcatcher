@@ -123,11 +123,10 @@ def cancel_assignment(*, assignment: AgentWork, at: datetime) -> None:
     The ending is written before the running round is asked to stop, so a round
     that starts at the same moment either receives the stop request here or sees
     the ending itself. An assignment that has already ended raises
-    ReportableError.
+    ReportableError, even when its ending lands after the caller read it.
     """
-    if not assignment.is_open:
+    if not end_agent_work(work=assignment, reason=AgentWorkEndReason.CANCELLED, at=at):
         raise ReportableError(f"{assignment.identifier} has already ended.")
-    end_agent_work(work=assignment, reason=AgentWorkEndReason.CANCELLED, at=at)
     rounds = read_agent_round_records(
         cache=DocumentCache(),
         directory=assignment.rounds_directory,
@@ -144,7 +143,11 @@ def complete_assignment(
     clock: Callable[[], datetime],
     final_output: str | None,
 ) -> None:
-    """Record that the assignment completed, as its wrap-up round finishes."""
+    """Record that the assignment completed, as its wrap-up round finishes.
+
+    An assignment that has already ended keeps its ending, so a cancel that
+    lands while the wrap-up round runs still leaves the worktree to the user.
+    """
     end_agent_work(work=assignment, reason=AgentWorkEndReason.COMPLETED, at=clock())
 
 
