@@ -27,6 +27,12 @@ the change.
 
 ## Unreleased
 
+### Changed
+
+- Each card and request row on the web home page keeps GitHub's
+  information at its top and _dreamcatcher_'s at its bottom.
+  ([#770](https://github.com/alimanfoo/dreamcatcher/pull/770))
+
 ## [v9.0.0](https://github.com/alimanfoo/dreamcatcher/releases/tag/v9.0.0) — 2026-10-23
 
 ### Breaking
