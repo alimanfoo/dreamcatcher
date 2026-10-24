@@ -27,7 +27,6 @@ from dreamcatcher.harnesses import require_harnesses_on_path
 from dreamcatcher.lock import hold_daemon_lock
 from dreamcatcher.scheduler import (
     DEFAULT_MAX_AGENTS,
-    InvalidSchedulerRecordError,
     Scheduler,
     SchedulingContext,
 )
@@ -140,11 +139,10 @@ class DreamcatcherDaemon:
         harness CLIs, the state directory, the repository's name, the account
         gh is signed in as, the lock, and the agent work the sweep reads. A daemon
         run refuses when any of those will not answer, rather than starting a loop
-        that could never dispatch. Once the loop is going, a tick that fails
-        reports the failure and the next tick tries again. An invalid scheduler
-        record ends the daemon run because retrying cannot change the document it reads.
-        A lost daemon lock ends it too, because another daemon may then hold the
-        checkout.
+        that could never dispatch. Once the loop is going, a tick that fails ends
+        the daemon run with the failure, and the user repairs the cause and starts
+        the daemon again. A lost daemon lock ends it too, because another daemon
+        may then hold the checkout.
 
         The repository and signed-in account are fixed for the daemon run. The account
         identifies user posts before the marker excludes the agent's own posts.
@@ -220,24 +218,10 @@ class DreamcatcherDaemon:
     def run_scheduler_tick(self, *, scheduler: Scheduler, at: datetime) -> None:
         """Run one scheduler tick, then persist and report its result.
 
-        A failed tick reports the error and leaves the last complete scheduler
-        record in place so that the next tick can try again.
-
-        Writing that evidence down is the exception. A daemon that cannot write
-        `scheduler.json` has no way left to say anything at all, so that
-        failure ends the run with a message the user can act on, and the rounds
-        it was holding end with it.
+        A tick that fails writes no scheduler record, so the last complete one
+        stays in place.
         """
-        try:
-            scheduler_record = scheduler.tick(at=at)
-        except InvalidSchedulerRecordError:
-            raise
-        except ReportableError as failure:
-            reason = " ".join(str(failure).split())
-            _write_output(
-                line=f"{describe_time(at=at, zone=self.zone)}  update failed: {reason}"
-            )
-            return
+        scheduler_record = scheduler.tick(at=at)
         write_json(document=scheduler_record, path=self.state.scheduler_record)
         outcome = _describe_tick_outcome(
             record=scheduler_record,
