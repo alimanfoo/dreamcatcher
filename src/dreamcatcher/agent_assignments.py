@@ -79,6 +79,11 @@ class ObservedPullRequest(DreamcatcherDocument):
     check_result: CheckResult
     has_running_checks: bool
 
+    @property
+    def is_ready_for_review(self) -> bool:
+        """Whether the pull request is open and not a draft."""
+        return self.state is PullRequestState.OPEN and not self.is_draft
+
 
 class AssignmentRoundInput(WriteOnceDreamcatcherDocument):
     """Model where an assignment's pull request stood and what a round relayed.

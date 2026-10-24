@@ -57,7 +57,7 @@ def describe_pull_request(*, finding: PullRequestFinding) -> str:
     """
     if finding.state is not PullRequestState.OPEN:
         return finding.state.lower()
-    words = ["draft" if finding.is_draft else "ready"]
+    words = ["ready" if finding.is_ready_for_review else "draft"]
     if finding.merge_state is PullRequestMergeState.BEHIND:
         words.append("behind main")
     elif finding.merge_state is PullRequestMergeState.DIRTY:
@@ -76,7 +76,7 @@ def describe_idle_pull_request(*, finding: PullRequestFinding) -> str:
     """
     if finding.state is not PullRequestState.OPEN:
         return finding.state.lower()
-    if finding.is_draft:
+    if not finding.is_ready_for_review:
         return "needs feedback"
     if finding.is_check_failure_withheld:
         return "checks failing after two attempts"
