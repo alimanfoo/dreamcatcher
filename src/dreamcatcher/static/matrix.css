@@ -492,6 +492,10 @@ body::after {
   background: var(--tint);
 }
 
+.pr-chip-ready {
+  color: var(--bright);
+}
+
 .agent-work-open {
   font-weight: 700;
 }

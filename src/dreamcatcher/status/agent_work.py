@@ -137,13 +137,29 @@ class AgentWorkStatus:
         """
         if self.pull_request is None:
             return None
-        finding = None if self.row is None else self.row.finding
-        if self.work.is_open and isinstance(finding, PullRequestFinding):
+        finding = self._pull_request_finding
+        if finding is not None:
             return describe_pull_request(finding=finding)
         relayed = read_relayed_pull_request_state(assignment=self.work)
         if relayed is None or relayed is PullRequestState.OPEN:
             return None
         return relayed.value.lower()
+
+    @property
+    def is_pull_request_ready_for_review(self) -> bool:
+        """Whether the latest tick read an open assignment's pull request as ready.
+
+        A pull request that no tick has read, or whose read failed, is not.
+        """
+        finding = self._pull_request_finding
+        return finding is not None and finding.is_ready_for_review
+
+    @property
+    def _pull_request_finding(self) -> PullRequestFinding | None:
+        finding = None if self.row is None else self.row.finding
+        if self.work.is_open and isinstance(finding, PullRequestFinding):
+            return finding
+        return None
 
     @property
     def children(self) -> Sequence[CampaignChild] | None:

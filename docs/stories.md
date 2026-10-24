@@ -567,13 +567,19 @@ list.
 On the home page, each row keeps what GitHub holds at its top and what
 _dreamcatcher_ holds at its bottom. The top line gives the issue's
 number and title, and for an assignment its pull request and where that
-stands, such as a draft that conflicts with main. A conversation or a
-campaign has no pull request, so its top line holds the issue alone.
-Beneath that, a piece of work says what it is doing, with the agent's
-latest output while a round runs. The bottom line gives the dispatch
-label, with the harness, model and effort that run the work, and then
-the work's status and the link to its page. A request's row gives its
-issue at the top and its dispatch label and request status beneath.
+stands, such as a draft that conflicts with main. A draft's text is
+subdued. A pull request that is ready for review shows in the theme's
+brighter text, so it stands out from a draft, and it keeps that text
+when it conflicts with main or its checks fail. A merged or closed pull
+request never shows as ready. The words "draft" and "ready" stay, so the
+user can tell them apart without the colour. The assignment's page shows
+its pull request the same way. A conversation or a campaign has no pull
+request, so its top line holds the issue alone. Beneath that, a piece of
+work says what it is doing, with the agent's latest output while a round
+runs. The bottom line gives the dispatch label, with the harness, model
+and effort that run the work, and then the work's status and the link to
+its page. A request's row gives its issue at the top and its dispatch
+label and request status beneath.
 
 The home page always has a tab for each of the three kinds of work, and
 the terminal a section for each, even when a kind has nothing in it. A

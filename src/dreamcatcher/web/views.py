@@ -108,6 +108,7 @@ def _compose_work_card(
         effort=record.effort,
         pull_request=status.pull_request,
         pull_request_summary=status.pull_request_summary,
+        is_pull_request_ready_for_review=status.is_pull_request_ready_for_review,
         child_overview=_compose_child_overview(report=report, campaign=status),
         latest_output=status.latest_output,
     )
@@ -182,6 +183,7 @@ def compose_assignment_view(
         title=record.title,
         pull_request=status.pull_request,
         pull_request_summary=status.pull_request_summary,
+        is_pull_request_ready_for_review=status.is_pull_request_ready_for_review,
         dispatch_label=record.dispatch_label,
         harness=str(record.harness),
         model=record.model,

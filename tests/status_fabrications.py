@@ -561,7 +561,9 @@ def fabricate_everything(
                 _compose_assignment_row(
                     issue=31,
                     ended_round=1,
-                    finding=_compose_draft_pull_request(new_posts=1),
+                    finding=_compose_draft_pull_request(new_posts=1).model_copy(
+                        update={"is_draft": False}
+                    ),
                 ),
                 _compose_assignment_row(
                     issue=20, finding=_compose_draft_pull_request()
@@ -761,6 +763,14 @@ def fabricate_titles_and_pull_request_states(*, state):
             False,
             PullRequestMergeState.BLOCKED,
             CheckResult.FAILING,
+        ),
+        (
+            17,
+            "Conflicting assignment",
+            PullRequestState.OPEN,
+            False,
+            PullRequestMergeState.DIRTY,
+            CheckResult.PASSING,
         ),
     ):
         write_assignment(
