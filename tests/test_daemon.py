@@ -953,6 +953,26 @@ def test_a_tick_that_cannot_write_a_work_record_ends_the_run_and_its_rounds(
     assert wait_for_exit(pid=agent_round.harness_process.pid)
 
 
+def test_a_tick_that_fails_after_starting_a_round_ends_that_round(
+    ready_repo, harnesses, monkeypatch
+):
+    harnesses["claude"].streams(
+        lines=[Line(text="still working\n")], delay=STILL_RUNNING
+    )
+    monkeypatch.setattr(
+        "dreamcatcher.scheduler.tick.request_round_stop_if_ended",
+        Mock(side_effect=ReportableError("cannot read the work's ending")),
+    )
+    daemon, _, _ = create_idle_daemon(root=ready_repo, ticks=1)
+
+    with pytest.raises(ReportableError, match="cannot read the work's ending"):
+        daemon.run()
+
+    agent_round = daemon.rounds[CREATED_ASSIGNMENT_ID]
+    assert agent_round.record.outcome is AgentRoundOutcome.INTERRUPTED
+    assert wait_for_exit(pid=agent_round.harness_process.pid)
+
+
 @pytest.mark.parametrize("record", ["{}", "null"])
 def test_an_invalid_scheduler_record_ends_the_run(
     configured_repo, harnesses, gh, record

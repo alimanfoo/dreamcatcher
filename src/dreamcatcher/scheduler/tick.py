@@ -384,7 +384,6 @@ class Scheduler:
                 )
             else:
                 identifier = launched.agent_work_identifier
-                self.rounds[identifier] = launched
                 started_round = StartedRound(number=launched.record.number)
             rows[position] = row.model_copy(
                 update={
@@ -418,8 +417,10 @@ class Scheduler:
     ) -> AgentRound:
         """Create the candidate's work if it is a request, then start its next round.
 
-        The round resumes the work's harness session when there is one. A
-        round whose work has ended by the time it starts is asked to stop.
+        The round resumes the work's harness session when there is one. The
+        daemon holds the round as soon as it starts, so a failure after that
+        still ends it with the daemon. A round whose work has ended by the time
+        it starts is asked to stop.
         """
         work = (
             candidate.work_or_route
@@ -469,6 +470,7 @@ class Scheduler:
             ),
             clock=self.context.clock,
         )
+        self.rounds[work.identifier] = started_round
         request_round_stop_if_ended(work=work, paths=paths)
         return started_round
 
