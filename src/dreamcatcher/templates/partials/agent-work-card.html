@@ -1,7 +1,7 @@
-{% from "partials/status-class.html" import status_class %}{% from "partials/references.html" import github_reference with context %}<article id="{{ id_prefix }}{{ card.identifier }}" class="agent-work-card" aria-label="{{ card.kind|capitalize }} #{{ card.issue }} {{ card.identifier }}">
+{% from "partials/status-class.html" import status_class %}{% from "partials/references.html" import github_reference, pull_request_chip with context %}<article id="{{ id_prefix }}{{ card.identifier }}" class="agent-work-card" aria-label="{{ card.kind|capitalize }} #{{ card.issue }} {{ card.identifier }}">
   <div class="card-heading">
     <div>{{ github_reference(card.issue, "issues") }} <span class="title">{{ card.title }}</span></div>
-    {% if card.kind == "assignment" %}{% if card.pull_request is none %}<span class="pr-chip">no pull request yet</span>{% elif view.github_repository_url %}<a class="pr-chip" href="{{ view.github_repository_url }}/pull/{{ card.pull_request }}" target="_blank" rel="noopener noreferrer">PR #{{ card.pull_request }}{% if card.pull_request_summary %} {{ card.pull_request_summary }}{% endif %}</a>{% else %}<span class="pr-chip">PR #{{ card.pull_request }}{% if card.pull_request_summary %} {{ card.pull_request_summary }}{% endif %}</span>{% endif %}{% endif %}
+    {% if card.kind == "assignment" %}{{ pull_request_chip(card.pull_request, card.pull_request_summary) }}{% endif %}
   </div>
   <p class="agent-work-detail">{{ card.detail }}</p>
   {% if card.latest_output %}<p class="latest-output"><span>agent</span> {{ card.latest_output }}</p>{% endif %}
