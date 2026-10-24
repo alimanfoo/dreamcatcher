@@ -1000,9 +1000,8 @@ This is accepted. One damaged file stops every piece of work, not just
 its own, and nothing sets it aside so that the rest can go on or the
 rest of the status can show. Such damage should be rare, and a clear
 report the user acts on is simpler than machinery that works around it.
-Some failures still belong to one piece of work and show on its row, as
-when a read from GitHub fails, or when a conversation cannot read its
-cursor.
+A read from GitHub that fails still belongs to one piece of work, and
+shows on its row.
 
 ### A page cannot read what it shows
 

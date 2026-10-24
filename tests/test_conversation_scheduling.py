@@ -2050,7 +2050,7 @@ def test_paused_conversation_faults_do_not_start_the_global_cooldown(
     assert count_comment_reads(gh=gh) == 0
 
 
-def test_a_relayed_round_whose_input_cannot_be_read_launches_nothing(
+def test_a_relayed_round_whose_input_cannot_be_read_fails_the_update(
     conversation_scheduler, harnesses
 ):
     scheduler, clock, gh = conversation_scheduler
@@ -2069,13 +2069,9 @@ def test_a_relayed_round_whose_input_cannot_be_read_launches_nothing(
     round_input.write_bytes(b"not json\n")
     offer_conversation(gh=gh, comments=[compose_question()])
 
-    observed = scheduler.tick(at=clock())
+    with pytest.raises(ReportableError, match=r"round-input\.json is not valid"):
+        scheduler.tick(at=clock())
 
-    assert observed.failures == []
-    [row] = observed.rows
-    assert isinstance(row.finding, ReadFailureFinding)
-    assert row.finding.reason.startswith(f"{round_input} is not valid")
-    assert observed.launched_agent_work_identifiers == []
     assert harnesses["claude"].calls == []
 
 
@@ -2084,7 +2080,7 @@ def test_a_relayed_round_whose_input_cannot_be_read_launches_nothing(
     [[], MISORDERED_COMMENTS, REPEATED_COMMENTS],
     ids=["none", "misordered", "repeated"],
 )
-def test_a_relayed_round_with_comments_the_relay_never_gives_launches_nothing(
+def test_a_relayed_round_with_comments_the_relay_never_gives_fails_the_update(
     conversation_scheduler, harnesses, comments
 ):
     scheduler, clock, gh = conversation_scheduler
@@ -2106,12 +2102,9 @@ def test_a_relayed_round_with_comments_the_relay_never_gives_launches_nothing(
     replace_relayed_comments(path=round_input, comments=comments)
     offer_conversation(gh=gh, comments=[compose_question(identifier=2)])
 
-    observed = scheduler.tick(at=clock())
+    with pytest.raises(ReportableError, match=r"round-input\.json is not valid"):
+        scheduler.tick(at=clock())
 
-    [row] = observed.rows
-    assert isinstance(row.finding, ReadFailureFinding)
-    assert row.finding.reason.startswith(f"{round_input} is not valid")
-    assert observed.launched_agent_work_identifiers == []
     assert harnesses["claude"].calls == []
 
 
@@ -2295,30 +2288,6 @@ def test_a_failed_comment_read_records_its_reason_and_starts_nothing(
     assert "issues/8/comments" in row.finding.reason
     assert row.finding.reason.endswith("network unavailable")
     assert row == compose_conversation_row(finding=row.finding)
-
-
-def test_a_failed_cursor_read_is_recorded_in_its_row(
-    conversation_scheduler, monkeypatch
-):
-    scheduler, clock, gh = conversation_scheduler
-    write_conversation(state=scheduler.context.state, issue=8)
-    offer_conversation(gh=gh, comments=[])
-    monkeypatch.setattr(
-        "dreamcatcher.scheduler.conversations.read_issue_comment_cursor",
-        Mock(side_effect=ReportableError("could not read the round input")),
-    )
-
-    observed = scheduler.tick(at=clock())
-
-    assert observed.failures == []
-    [row] = observed.rows
-    assert isinstance(row.finding, ReadFailureFinding)
-    assert row.finding.reason == "could not read the round input"
-    assert row == compose_conversation_row(
-        title="Issue 8",
-        agent_work_identifier=compose_conversation_identifier(issue=8),
-        finding=row.finding,
-    )
 
 
 @pytest.mark.parametrize("is_valid", [True, False], ids=["stale", "malformed"])

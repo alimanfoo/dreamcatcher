@@ -147,9 +147,7 @@ rounds and its web server, `cli.main` prints the failure, and the last
 complete scheduler record stays in place. A local record that cannot be
 read, or a write that fails while open work is inspected, fails the tick
 this way whichever work it belongs to, and so does a scheduler record
-that cannot be read or written. A round input that a conversation or
-campaign reads while it is inspected is the exception, and the work's
-row holds the failure.
+that cannot be read or written.
 
 If a GitHub read for a request fails, the tick holds the reason in that
 request's row and prevents only the launches that depend on what it
