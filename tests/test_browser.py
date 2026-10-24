@@ -565,23 +565,32 @@ def test_each_card_row_keeps_its_left_half_and_right_item_within_the_row(
     page.set_viewport_size({"width": width, "height": 800})
     page.goto(f"{live_web}/?theme={theme}")
     expect(page.get_by_label("Issue #53 dream:less")).to_be_visible()
+    # No fabricated pull request has the longest state that a status can give.
+    page.locator(".card-heading > .pr-chip").first.evaluate(
+        """chip => {
+          chip.textContent = "PR #52 draft, conflicts with main, checks failing";
+        }"""
+    )
 
     rows = page.locator(".card-heading, .card-foot").filter(visible=True)
     for row in rows.evaluate_all(
         """rows => rows.map(row => {
           const bounds = row.getBoundingClientRect();
           const left = row.firstElementChild.getBoundingClientRect();
-          const right = row.lastElementChild.getBoundingClientRect();
+          const right = row.childElementCount > 1
+            ? row.lastElementChild.getBoundingClientRect()
+            : null;
           return {
             text: row.textContent,
             row: [bounds.left, bounds.right],
             left_width: left.width,
-            right: [right.left, right.right],
+            right: right && [right.left, right.right],
           };
         })"""
     ):
         row_left, row_right = row["row"]
-        right_left, right_right = row["right"]
         assert row["left_width"] >= (row_right - row_left) / 2, row["text"]
-        assert row_left <= right_left, row["text"]
-        assert right_right <= row_right, row["text"]
+        if row["right"] is not None:
+            right_left, right_right = row["right"]
+            assert row_left <= right_left, row["text"]
+            assert right_right <= row_right, row["text"]
