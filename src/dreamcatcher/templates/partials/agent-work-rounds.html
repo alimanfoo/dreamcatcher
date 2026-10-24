@@ -3,7 +3,7 @@
   {% for round in view.live.rounds %}
     {# A sub-issue's link cannot sit inside the round's link, so the round's link holds only the number and stretches over the whole round. #}
     <div class="round">
-      <a class="round-link" href="#feed-round-{{ round.number }}" aria-controls="feed-round-{{ round.number }}" aria-describedby="round-summary-{{ round.number }}"><span class="round-number">{{ "%02d"|format(round.number) }}</span></a>
+      <a class="round-link" href="#feed-round-{{ round.number }}" aria-controls="feed-round-{{ round.number }}" aria-labelledby="round-number-{{ round.number }} round-summary-{{ round.number }}"><span class="round-number" id="round-number-{{ round.number }}">{{ "%02d"|format(round.number) }}</span></a>
       <span class="round-summary" id="round-summary-{{ round.number }}">
         <span class="round-trigger">{{ round.trigger.words }}{% for notification in round.trigger.notifications %}{% if round.trigger.words or not loop.first %}; {% endif %}{{ github_reference(notification.issue, "issues") }}: {{ notification.changes }}{% endfor %}</span>
         {% if round.outcome_description %}<span class="round-outcome outcome-{{ round.outcome }}">{{ round.outcome_description }}</span>{% endif %}

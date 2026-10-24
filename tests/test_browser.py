@@ -69,11 +69,11 @@ def test_a_round_link_brings_its_round_into_view_from_the_tail(
     second_round = locate_first_line_of_round(page=page, number=2)
     expect(second_round).not_to_be_in_viewport()
 
-    page.get_by_role("link", name="02").click()
+    page.get_by_role("link", name="02 1 post").click()
     assert tail.is_visible()
     expect(second_round).to_be_in_viewport()
 
-    page.get_by_role("link", name="01").click()
+    page.get_by_role("link", name="01 start").click()
     expect(locate_first_line_of_round(page=page, number=1)).to_be_in_viewport()
 
 
@@ -84,7 +84,7 @@ def test_a_round_boundary_leaves_the_top_when_its_round_does(
     page.goto(f"{live_web}/work/{BROWSER_ASSIGNMENT_IDENTIFIER}")
     page.wait_for_function(FEED_IS_AT_END)
 
-    page.get_by_role("link", name="02").click()
+    page.get_by_role("link", name="02 1 post").click()
 
     page.wait_for_function(
         """() => {
@@ -253,9 +253,7 @@ def test_a_round_that_names_sub_issues_keeps_its_summary_beside_its_number(
         ),
     )
     page.goto(f"{live_web}/work/{CAMPAIGN_IDENTIFIER}?theme={theme}")
-    expect(page.get_by_role("link", name="02")).to_have_accessible_description(
-        re.compile(r"^#63: .+; #64: added ")
-    )
+    expect(page.get_by_role("link", name=re.compile(r"^02 #63: "))).to_be_visible()
 
     layout = page.locator(".round").last.evaluate(
         """round => {
