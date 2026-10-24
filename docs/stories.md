@@ -561,6 +561,18 @@ folded under a collapsed list, so the page shows only what is live. The
 terminal gives the same rows, with a count of ended work in place of the
 list.
 
+On the home page, each row keeps what GitHub holds at its top and what
+_dreamcatcher_ holds at its bottom. The top line gives the issue's
+number and title, and for an assignment its pull request and where that
+stands, as a draft or ready for review. A conversation or a campaign has
+no pull request, so its top line holds the issue alone. Beneath that, a
+piece of work says what it is doing, with the agent's latest output
+while a round runs. The bottom line gives the dispatch label, with the
+harness, model and effort that run the work, and then the work's status
+and the link to its page. A request's row gives its issue at the top and
+its dispatch label and request status beneath. A long title, pull
+request state or request status wraps within its row.
+
 The home page always has a tab for each of the three kinds of work, and
 the terminal a section for each, even when a kind has nothing in it. A
 kind with nothing active says how to start its work, naming its labels.

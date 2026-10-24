@@ -817,8 +817,8 @@ def test_a_home_card_links_to_its_exact_assignment(tmp_path):
     assert page.count('href="/work/GH13-20260819-184158-assignment"') == 1
     card_start = page.index('<article id="GH13-20260819-184158-assignment"')
     card = page[card_start : page.index("</article>", card_start)]
-    assert card.index(assignment_link) < card.index('class="agent-work-detail"')
-    assert card.index('class="pr-chip"') > card.index('class="agent-work-detail"')
+    assert card.index('class="pr-chip"') < card.index('class="agent-work-detail"')
+    assert card.index(assignment_link) > card.index('class="agent-work-detail"')
 
 
 def test_status_classes_do_not_depend_on_status_wording(tmp_path, monkeypatch):

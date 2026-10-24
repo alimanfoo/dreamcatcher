@@ -327,25 +327,28 @@ body::after {
   border-bottom: 0;
 }
 
+/* A card's top row is about GitHub and its bottom row about dreamcatcher.
+   In each, the left item keeps at least half the row. A wider right item
+   wraps below it and shrinks to the row, so its own text wraps. */
+
 .card-heading,
 .card-foot {
   display: flex;
+  flex-wrap: wrap;
   align-items: baseline;
   justify-content: space-between;
   gap: var(--space-4);
 }
 
-.card-heading {
-  flex-wrap: wrap;
-}
-
-/* The title keeps at least half the row. A wider status wraps below it
-   and shrinks to the row, so its own text wraps. */
-
-.card-heading > :first-child {
+.card-heading > :first-child,
+.card-foot > :first-child {
   flex: 1 1 50%;
   min-width: 0;
   overflow-wrap: anywhere;
+}
+
+.card-heading > .pr-chip {
+  flex-shrink: 1;
 }
 
 .issue-number {
@@ -424,14 +427,12 @@ body::after {
 
 .agent-work-detail,
 .latest-output,
-.labels,
 .error-message {
   margin: var(--space-3) 0 0;
 }
 
 .agent-work-detail,
-.card-foot,
-.labels {
+.card-foot {
   color: var(--dim);
 }
 

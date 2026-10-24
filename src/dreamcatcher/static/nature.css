@@ -393,8 +393,7 @@ body::after {
 }
 
 .agent-work-detail,
-.card-foot,
-.labels {
+.card-foot {
   color: var(--dim);
 }
 
