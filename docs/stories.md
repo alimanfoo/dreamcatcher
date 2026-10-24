@@ -955,17 +955,15 @@ update gives it the same comments again.
 The disk is full or a folder is unwritable. A write that fails once a
 round is recorded, while it is prepared or its harness starts, errors
 the round with the reason, and the next update gives the work its input
-again. One that fails before the round is recorded shows among the
-scheduler failures instead, without counting towards a fault, and the
-next update tries again. A write that fails anywhere else in an update,
-such as recording that a conversation has ended or writing the daemon's
-own record of the update, stops the daemon. It prints what failed, ends
-its running rounds as Ctrl-C does, and leaves the record of the last
-complete update in place. The user frees the disk or fixes the folder
-and starts the daemon again, and each interrupted round's work carries
-on as it does after any stop. No more than that is handled, and that is
-accepted, because a disk that will not write is the user's to fix, and
-nothing _dreamcatcher_ holds is the only copy of anything.
+again. A write that fails anywhere else in an update, such as recording
+new work, recording that a conversation has ended or writing the
+daemon's own record of the update, stops the daemon. It prints what
+failed, ends its running rounds as Ctrl-C does, and leaves the record of
+the last complete update in place. The user frees the disk or fixes the
+folder and starts the daemon again, and each interrupted round's work
+carries on as it does after any stop. No more than that is handled, and
+that is accepted, because a disk that will not write is the user's to
+fix, and nothing _dreamcatcher_ holds is the only copy of anything.
 
 ### An ended piece of work's worktree is not removed
 

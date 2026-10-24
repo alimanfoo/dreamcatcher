@@ -13,11 +13,15 @@ import psutil
 import pytest
 from clocks import DISPLAY_TIME_ZONE, PINNED, Ticking
 from conftest import (
+    FILED,
+    LATER,
     POST_LIST_PATHS,
     POSTED_BY,
     REPOSITORY,
     SMITH_CLAUDE,
+    compose_assignment_issues,
     configure,
+    offer_listing,
     wait_for_exit,
 )
 from fakes import Line
@@ -41,7 +45,7 @@ from dreamcatcher.clock import read_boot_time, read_current_time
 from dreamcatcher.config import DREAMCATCHER_CONFIG_NAME, AgentHarness
 from dreamcatcher.daemon import DreamcatcherDaemon
 from dreamcatcher.daemon_runs import DaemonRunRecord, RecordedRoute
-from dreamcatcher.documents import read_json, write_text
+from dreamcatcher.documents import read_json, write_json, write_text
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.lock import _HeldDaemonLock, hold_daemon_lock, is_daemon_lock_held
@@ -921,6 +925,32 @@ def test_a_tick_that_cannot_read_a_record_ends_the_run_and_its_rounds(
     [row] = read_tick_record(daemon=restarted).rows
     assert row.agent_work_identifier == CREATED_ASSIGNMENT_ID
     assert row.started_round == StartedRound(number=2)
+
+
+def test_a_tick_that_cannot_write_a_work_record_ends_the_run_and_its_rounds(
+    ready_repo, gh_with_available_issue, harnesses
+):
+    harnesses["claude"].streams(
+        lines=[Line(text="still working\n")], delay=STILL_RUNNING
+    )
+    offer_listing(
+        gh=gh_with_available_issue,
+        issues=compose_assignment_issues(filed=[(8, FILED), (9, LATER)]),
+    )
+    daemon, _, _ = create_idle_daemon(root=ready_repo, ticks=1, max_agents=2)
+    last_complete_record = SchedulerRecord(at=PINNED, finished=PINNED)
+    write_json(document=last_complete_record, path=daemon.state.scheduler_record)
+    # A file where the second assignment's directory goes, so its record
+    # cannot be written.
+    write_text(text="", path=daemon.state.work / "GH9-20260819-184158-assignment")
+
+    with pytest.raises(ReportableError, match=r"cannot write .*GH9"):
+        daemon.run()
+
+    assert read_tick_record(daemon=daemon) == last_complete_record
+    agent_round = daemon.rounds[CREATED_ASSIGNMENT_ID]
+    assert agent_round.record.outcome is AgentRoundOutcome.INTERRUPTED
+    assert wait_for_exit(pid=agent_round.harness_process.pid)
 
 
 @pytest.mark.parametrize("record", ["{}", "null"])

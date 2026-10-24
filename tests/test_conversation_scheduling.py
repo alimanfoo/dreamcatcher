@@ -38,6 +38,7 @@ from rows import compose_request_row
 
 from dreamcatcher import agent_rounds
 from dreamcatcher.agent_rounds import (
+    AgentRoundLaunchError,
     AgentRoundOutcome,
     AgentRoundRecord,
     FinishingErroredAgentRoundEnding,
@@ -1261,14 +1262,21 @@ def test_a_failed_assignment_candidate_does_not_block_a_ready_conversation(
 
     def fail_assignments(self, *, row, candidate, at):
         if row.kind is AgentWorkKind.ASSIGNMENT:
-            raise ReportableError("could not start assignment")
+            raise AgentRoundLaunchError(
+                agent_work_identifier="GH13-20260923-010000-assignment",
+                round_number=1,
+                reason="could not start assignment",
+            )
         return launch(self, row=row, candidate=candidate, at=at)
 
     monkeypatch.setattr(Scheduler, "_launch", fail_assignments)
 
     observed = scheduler.tick(at=clock())
 
-    assert observed.failures == ["could not start assignment"]
+    assert observed.failures == []
+    assert observed.rows[0].started_round == StartedRound(
+        number=1, launch_failure="could not start assignment"
+    )
     assert observed.launched_agent_work_identifiers == [
         "GH8-20260819-184158-conversation"
     ]

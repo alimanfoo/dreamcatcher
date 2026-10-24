@@ -161,13 +161,13 @@ assigned to the signed-in account, whether or not a dispatch label is on
 it. An account assigned more than 500 open issues may therefore have a
 labelled issue left out of a tick.
 
-A launch that fails takes no agent slot. The tick keeps every round that
-it already started and goes on to the next candidate. A round that
-errored during its preparation or startup is recorded on its agent work,
-and the request's row names the round and its reason, which the daemon's
-output line repeats. A launch that fails before its round is recorded,
-such as a work record that cannot be written or a harness invocation
-that cannot be built, is a scheduler failure.
+A round that errors during its preparation or startup takes no agent
+slot, and the tick goes on to the next candidate. The round is recorded
+on its agent work, and the request's row names the round and its reason,
+which the daemon's output line repeats. A launch that fails before its
+round is recorded, such as a work record that cannot be written or a
+harness invocation that cannot be built, fails the tick and so ends the
+daemon.
 
 A tick sees work end when the work was open when the tick read it, or
 when the daemon held a round of it that the tick has just forgotten. It
@@ -399,7 +399,7 @@ work should run.
 `agent_rounds.py` owns agent-round records and the supervised lifetime
 of a round process for every kind of agent work. Before anything is
 recorded, it asks a harness adapter to build the round's invocation, so
-a failure there is a scheduler failure. It should then provide
+a failure there fails the scheduler tick. It should then provide
 operations to:
 
 - record the round, with the next number that its work allocated, before

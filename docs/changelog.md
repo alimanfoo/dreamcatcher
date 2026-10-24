@@ -27,6 +27,18 @@ the change.
 
 ## Unreleased
 
+### Changed
+
+- The daemon stops when an update cannot complete, for example because a
+  record under `.dreamcatcher/` is damaged or a write fails. It prints
+  the file and what is wrong with it, ends its rounds and its web page
+  as Ctrl-C does, and leaves the record of the last complete update in
+  place. Fix the cause and start the daemon again, and the interrupted
+  work carries on. The daemon used to report the failure and try again
+  at every update, and a conversation or campaign whose own records
+  could not be read showed the failure on its row.
+  ([#773](https://github.com/alimanfoo/dreamcatcher/pull/773))
+
 ## [v9.0.0](https://github.com/alimanfoo/dreamcatcher/releases/tag/v9.0.0) — 2026-10-23
 
 ### Breaking
