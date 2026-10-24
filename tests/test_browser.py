@@ -4,6 +4,7 @@ import re
 from collections.abc import Iterator
 from datetime import datetime, timedelta
 from pathlib import Path
+from typing import Literal
 
 import pytest
 from playwright.sync_api import Locator, Page, expect
@@ -104,6 +105,36 @@ def test_a_refresh_leaves_an_opened_section_open(page: Page, live_web: str) -> N
     wait_for_refresh(page=page)
 
     expect(ended).to_have_attribute("open", "")
+
+
+def read_colour(*, locator: Locator) -> str:
+    """Read the computed text colour of the one element the locator finds."""
+    return locator.evaluate("element => getComputedStyle(element).color")
+
+
+@pytest.mark.parametrize("color_scheme", ["light", "dark"])
+@pytest.mark.parametrize("theme", ["matrix", "nature"])
+def test_an_ended_card_has_a_quieter_title_and_the_same_links(
+    page: Page,
+    live_web: str,
+    theme: str,
+    color_scheme: Literal["light", "dark"],
+) -> None:
+    page.emulate_media(color_scheme=color_scheme)
+    page.goto(f"{live_web}/?theme={theme}")
+    page.locator("#assignment-panel details.ended-work summary").click()
+    ended = page.locator("#GH12-20260819-184158-assignment")
+    live = page.locator(f"#{BROWSER_ASSIGNMENT_IDENTIFIER}")
+    expect(ended).to_be_visible()
+
+    ended_title = read_colour(locator=ended.locator(".title"))
+
+    assert ended_title != read_colour(locator=live.locator(".title"))
+    assert ended_title == read_colour(locator=ended.locator(".card-foot"))
+    for link in (".issue-number", ".pr-chip", ".agent-work-open"):
+        assert read_colour(locator=ended.locator(link)) == read_colour(
+            locator=live.locator(link)
+        ), link
 
 
 CAMPAIGN_IDENTIFIER = "GH60-20260819-184158-campaign"

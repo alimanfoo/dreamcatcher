@@ -45,6 +45,10 @@ the change.
 - Each card and request row on the web home page keeps GitHub's
   information at its top and _dreamcatcher_'s at its bottom.
   ([#770](https://github.com/alimanfoo/dreamcatcher/pull/770))
+- An ended assignment's card on the web home page says "completed" or
+  "cancelled" once, where it said "ended", and every ended card's title
+  is quieter.
+  ([#779](https://github.com/alimanfoo/dreamcatcher/pull/779))
 
 ### Fixed
 

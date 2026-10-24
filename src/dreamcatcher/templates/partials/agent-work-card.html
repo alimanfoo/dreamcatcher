@@ -1,14 +1,14 @@
-{% from "partials/status-class.html" import status_class %}{% from "partials/references.html" import github_reference, pull_request_chip with context %}<article id="{{ id_prefix }}{{ card.identifier }}" class="agent-work-card" aria-label="{{ card.kind|capitalize }} #{{ card.issue }} {{ card.identifier }}">
+{% from "partials/status-class.html" import status_class %}{% from "partials/references.html" import github_reference, pull_request_chip with context %}<article id="{{ id_prefix }}{{ card.identifier }}" class="agent-work-card{% if card.status.name == "ENDED" %} is-ended{% endif %}" aria-label="{{ card.kind|capitalize }} #{{ card.issue }} {{ card.identifier }}">
   <div class="card-heading">
     <div>{{ github_reference(card.issue, "issues") }} <span class="title">{{ card.title }}</span></div>
     {% if card.kind == "assignment" %}{{ pull_request_chip(card.pull_request, card.pull_request_summary) }}{% endif %}
   </div>
-  <p class="agent-work-detail">{{ card.detail }}</p>
+  {% if card.detail is not none %}<p class="agent-work-detail">{{ card.detail }}</p>{% endif %}
   {% if card.latest_output %}<p class="latest-output"><span>agent</span> {{ card.latest_output }}</p>{% endif %}
   <div class="card-foot">
     <span>{{ card.dispatch_label }} · {{ card.harness }} · {{ card.model }} · {{ card.effort }}</span>
     <span class="card-actions">
-      <span class="chip {{ status_class(card.status) }}">{{ card.status }}</span>
+      <span class="chip {{ status_class(card.status) }}">{{ card.status_words }}</span>
       <a class="agent-work-open" href="{{ url_for('show_work', identifier=card.identifier) }}" aria-label="Open {{ card.kind }} {{ card.identifier }}">&gt;</a>
     </span>
   </div>
