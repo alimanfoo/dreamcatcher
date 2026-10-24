@@ -44,7 +44,7 @@ from status_fabrications import (
     write_assignment_with_rounds,
     write_running_daemon,
 )
-from terminals import HEIGHT, WIDTH, create_pinned_console, refuse_to_wait
+from terminals import WIDTH, create_pinned_console, refuse_to_wait
 
 from dreamcatcher.agent_assignments import (
     cancel_assignment,
@@ -389,16 +389,7 @@ def test_assignment_status_alone_is_coloured_and_latest_output_is_dim(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
     written_to = StringIO()
-    console = Console(
-        file=written_to,
-        width=WIDTH,
-        height=HEIGHT,
-        force_terminal=False,
-        color_system="standard",
-        legacy_windows=False,
-        _environ={"TERM": "xterm"},
-        record=True,
-    )
+    console = create_pinned_console(written_to=written_to, color_system="standard")
 
     show_agent_work_view(
         state=state,
@@ -408,7 +399,7 @@ def test_assignment_status_alone_is_coloured_and_latest_output_is_dim(tmp_path):
         wait=refuse_to_wait,
         zone=DISPLAY_TIME_ZONE,
     )
-    rendered = console.export_text(styles=True)
+    rendered = written_to.getvalue()
 
     assert "\x1b[32mworking\x1b[0m  round 2, 1 post, running" in rendered
     assert "\x1b[2m[Bash] pytest\x1b[0m" in rendered
