@@ -38,6 +38,10 @@ the change.
   at every update, and a conversation or campaign whose own records
   could not be read showed the failure on its row.
   ([#773](https://github.com/alimanfoo/dreamcatcher/pull/773))
+- An open page whose refresh gets no answer from the server, as when the
+  daemon has stopped, keeps what it shows and warns "Refresh failed.
+  Check the terminal running dreamcatcher." It used to show no warning.
+  ([#773](https://github.com/alimanfoo/dreamcatcher/pull/773))
 
 ## [v9.0.0](https://github.com/alimanfoo/dreamcatcher/releases/tag/v9.0.0) — 2026-10-23
 

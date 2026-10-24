@@ -1014,3 +1014,13 @@ may affect the daemon too. The page keeps trying, and once a refresh
 succeeds the warning goes and any new output shows once. Nothing repairs
 the record, and that is accepted, because the cause is outside
 _dreamcatcher_ and the terminal reports the same reason.
+
+A page can also lose its server. The web server that `dreamcatcher run`
+starts stops with the daemon, whether the user stopped it or an update
+could not complete, and a page that is already open then reaches
+nothing. It keeps the content and status it last showed, and a warning
+on it says "Refresh failed. Check the terminal running dreamcatcher."
+The page cannot tell why no answer came, so the warning says nothing of
+what the daemon or the agents are doing; the terminal says why the
+daemon stopped. The page keeps trying, and once a refresh succeeds the
+warning goes.
