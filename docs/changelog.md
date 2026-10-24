@@ -32,6 +32,10 @@ the change.
 - Each card and request row on the web home page keeps GitHub's
   information at its top and _dreamcatcher_'s at its bottom.
   ([#770](https://github.com/alimanfoo/dreamcatcher/pull/770))
+- A pull request that is ready for review now shows in brighter text
+  than a draft, on an assignment's card and on its page. In the matrix
+  theme, every other pull request now shows in the subdued text.
+  ([#780](https://github.com/alimanfoo/dreamcatcher/pull/780))
 
 ## [v9.0.0](https://github.com/alimanfoo/dreamcatcher/releases/tag/v9.0.0) — 2026-10-23
 
