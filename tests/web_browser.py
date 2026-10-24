@@ -14,7 +14,6 @@ from status_fabrications import (
     fabricate_conversation,
     fabricate_everything,
 )
-from werkzeug.serving import make_server
 
 from dreamcatcher.agent_work import find_agent_work
 from dreamcatcher.documents import append_text
@@ -22,7 +21,11 @@ from dreamcatcher.feed import FeedLine
 from dreamcatcher.scheduler.models import IssueCommentsFinding
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.web.app import _create_app
-from dreamcatcher.web.server import WEB_HOST, run_web_server_in_background
+from dreamcatcher.web.server import (
+    WEB_HOST,
+    create_web_server,
+    run_web_server_in_background,
+)
 
 BROWSER_ASSIGNMENT_IDENTIFIER = f"GH13-{ASSIGNMENT_TIMESTAMP}-assignment"
 FEED_LINE_COUNT_PER_ROUND = 40
@@ -63,6 +66,6 @@ def serve_fabricated_web(*, root: Path) -> Generator[str, None, None]:
         clock=lambda: LOOKED_AT,
         zone=DISPLAY_TIME_ZONE,
     )
-    server = make_server(WEB_HOST, 0, application)
+    server = create_web_server(state=state, port=0, application=application)
     with run_web_server_in_background(server=server):
         yield f"http://{WEB_HOST}:{server.server_port}"

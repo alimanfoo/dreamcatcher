@@ -44,7 +44,6 @@ from status_fabrications import (
     write_assignment_with_rounds,
     write_running_daemon,
 )
-from werkzeug.serving import make_server
 from werkzeug.test import TestResponse
 
 import dreamcatcher.status.report as report_module
@@ -82,6 +81,7 @@ from dreamcatcher.web.app import _create_app
 from dreamcatcher.web.server import (
     _WEB_BASE_PORT,
     WEB_HOST,
+    create_web_server,
     run_web_server_in_background,
 )
 
@@ -2223,9 +2223,13 @@ def test_a_background_server_that_returns_is_a_failure(monkeypatch):
     server.server_close.assert_called_once_with()
 
 
-def test_a_background_server_that_already_ended_stops_at_once(monkeypatch):
+def test_a_background_server_that_already_ended_stops_at_once(monkeypatch, tmp_path):
     notified = Event()
-    server = make_server(web_server_module.WEB_HOST, 0, lambda environ, start: [])
+    server = create_web_server(
+        state=StateDirectory(root=tmp_path),
+        port=0,
+        application=lambda environ, start: [],
+    )
     monkeypatch.setattr(web_server_module, "interrupt_main", notified.set)
 
     def end_serving():
