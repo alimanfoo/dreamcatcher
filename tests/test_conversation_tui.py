@@ -3,6 +3,7 @@
 import shutil
 from datetime import timedelta
 from io import StringIO
+from unittest.mock import Mock
 
 import pytest
 from clocks import PINNED
@@ -481,11 +482,7 @@ def test_a_conversation_view_with_a_routing_conflict_keeps_watching(tmp_path):
 
 def assert_conversation_views_keep_watching(*, state: StateDirectory) -> None:
     """Assert that the conversation detail and feed views both keep watching."""
-    waits = []
-
-    def record_wait_and_interrupt(seconds, /):
-        waits.append(seconds)
-        raise KeyboardInterrupt
+    wait = Mock(side_effect=KeyboardInterrupt)
 
     console = create_pinned_console(written_to=StringIO(), is_terminal=True)
     show_agent_work_view(
@@ -493,17 +490,17 @@ def assert_conversation_views_keep_watching(*, state: StateDirectory) -> None:
         work=read_newest_work(state=state, issue=8, kind=AgentWorkKind.CONVERSATION),
         console=console,
         clock=lambda: PINNED,
-        wait=record_wait_and_interrupt,
+        wait=wait,
     )
     console = create_pinned_console(written_to=StringIO(), is_terminal=True)
     show_feed_view(
         state=state,
         work=read_newest_work(state=state, issue=8, kind=AgentWorkKind.CONVERSATION),
         console=console,
-        wait=record_wait_and_interrupt,
+        wait=wait,
     )
 
-    assert len(waits) == 2
+    assert wait.call_count == 2
 
 
 def end_conversation(*, state: StateDirectory) -> None:

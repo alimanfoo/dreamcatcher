@@ -9,6 +9,7 @@ same text.
 """
 
 from io import StringIO
+from unittest.mock import Mock
 
 import pytest
 from clocks import DISPLAY_TIME_ZONE, PINNED
@@ -510,22 +511,18 @@ def test_an_assignment_view_in_fault_keeps_watching(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
     written_to = StringIO()
-    waits = []
-
-    def record_wait_and_interrupt(seconds, /):
-        waits.append(seconds)
-        raise KeyboardInterrupt
+    wait = Mock(side_effect=KeyboardInterrupt)
 
     show_agent_work_view(
         state=state,
         work=read_newest_work(state=state, issue=9, kind=AgentWorkKind.ASSIGNMENT),
         console=create_pinned_console(written_to=written_to, is_terminal=True),
         clock=lambda: LOOKED_AT,
-        wait=record_wait_and_interrupt,
+        wait=wait,
         zone=DISPLAY_TIME_ZONE,
     )
 
-    assert waits
+    wait.assert_called()
 
 
 def test_an_assignment_view_of_an_ended_assignment_keeps_its_last_picture(
@@ -635,18 +632,14 @@ def test_a_worktree_marker_reads_literally_in_the_terminal():
 def test_a_following_view_waits_for_the_round_an_assignment_has_yet_to_run(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
-    waits = []
-
-    def wait(seconds, /):
-        waits.append(seconds)
-        raise KeyboardInterrupt
+    wait = Mock(side_effect=KeyboardInterrupt)
 
     render_feed_view(state=state, issue=20, wait=wait)
 
     # The assignment's pull request is waiting for the reader, so the round that
     # answers them is still to come and the view waits for it rather than
     # ending between the rounds.
-    assert waits == [_VIEW_REFRESH_INTERVAL]
+    wait.assert_called_once_with(_VIEW_REFRESH_INTERVAL)
 
 
 def test_a_following_view_looks_once_more_when_the_last_round_stops(tmp_path):
@@ -714,33 +707,23 @@ def test_a_view_of_an_ended_assignment_never_waits(tmp_path):
 def test_a_following_view_waits_for_the_next_daemon(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_a_dead_daemon(state=state)
-    waits = []
-
-    def wait(seconds, /):
-        waits.append(seconds)
-        raise KeyboardInterrupt
+    wait = Mock(side_effect=KeyboardInterrupt)
 
     render_feed_view(state=state, issue=13, wait=wait)
 
     # The daemon that was running the assignment has gone, and the next one
     # carries its round on from where it stopped, so the view waits for that
     # round rather than end with the daemon.
-    assert waits == [_VIEW_REFRESH_INTERVAL]
+    wait.assert_called_once_with(_VIEW_REFRESH_INTERVAL)
 
 
 def test_a_view_of_a_faulted_assignment_keeps_watching(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
-    waits = []
+    wait = Mock(side_effect=KeyboardInterrupt)
 
-    def record_wait_and_interrupt(seconds, /):
-        waits.append(seconds)
-        raise KeyboardInterrupt
-
-    assert "round 2: recover" in render_feed_view(
-        state=state, issue=9, wait=record_wait_and_interrupt
-    )
-    assert waits
+    assert "round 2: recover" in render_feed_view(state=state, issue=9, wait=wait)
+    wait.assert_called()
 
 
 def test_a_following_view_reads_a_round_on_from_where_it_stopped(tmp_path):
