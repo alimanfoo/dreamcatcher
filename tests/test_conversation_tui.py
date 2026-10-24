@@ -19,7 +19,6 @@ from records import (
     write_running_conversation,
     write_tick,
 )
-from rich.console import Console
 from rows import compose_conversation_row, compose_request_row
 from status_fabrications import fabricate_conversation
 from terminals import create_pinned_console, refuse_to_wait
@@ -216,12 +215,7 @@ def test_conversation_feed_follows_a_later_round_without_repeating_the_first(
     state = StateDirectory(root=tmp_path)
     fabricate_conversation(state=state, is_paused=False)
     written = StringIO()
-    console = Console(
-        file=written,
-        width=100,
-        color_system=None,
-        force_terminal=True,
-    )
+    console = create_pinned_console(written_to=written, is_terminal=True)
 
     def wait(seconds, /):
         assert seconds > 0

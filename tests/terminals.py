@@ -1,5 +1,7 @@
 """Pin the terminal that a test shows a view in, and what its waits do."""
 
+from typing import TextIO
+
 from rich.console import Console
 
 # How wide the console is, so a line wraps in the same place every run.
@@ -12,7 +14,11 @@ HEIGHT = 40
 
 
 def create_pinned_console(
-    *, written_to, width: int = WIDTH, is_terminal: bool = False, term: str = "xterm"
+    *,
+    written_to: TextIO,
+    width: int = WIDTH,
+    is_terminal: bool = False,
+    term: str = "xterm",
 ) -> Console:
     """Return a console that renders the same text wherever it runs.
 
@@ -39,8 +45,8 @@ def create_pinned_console(
     )
 
 
-def refuse_to_wait(seconds, /):
-    """A wait that a view with nothing more to show must never reach.
+def refuse_to_wait(seconds: float, /):
+    """Fail the test, since a view with nothing more to show must never wait.
 
     A view that reaches it has gone on looking, and a wait that let it would
     let it look for ever, so the test would hang rather than fail.
