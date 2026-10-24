@@ -131,6 +131,12 @@ def render_conversation(*, state: StateDirectory, issue: int) -> str:
     return response.get_data(as_text=True)
 
 
+def extract_article(*, page: str, identifier: str) -> str:
+    """Return the article with this element identifier, up to its closing tag."""
+    start = page.index(f'<article id="{identifier}"')
+    return page[start : page.index("</article>", start)]
+
+
 def _read_tail(
     *, state: StateDirectory, identifier: str, position: str
 ) -> TestResponse:
@@ -354,8 +360,7 @@ def test_a_campaign_sub_issue_with_no_assignment_or_request_shows_its_title_alon
 
     page = render_home(state=state)
     prefix = "GH60-20260819-184158-campaign-"
-    sub_issue = page[page.index(f'<article id="{prefix}sub-issue-66"') :]
-    sub_issue = sub_issue[: sub_issue.index("</article>")]
+    sub_issue = extract_article(page=page, identifier=f"{prefix}sub-issue-66")
 
     assert re.sub(r"<[^>]+>", " ", sub_issue).split() == ["#66", "Issue", "66"]
     assert f'id="{prefix}GH64-20260819-184158-assignment"' in page
@@ -846,8 +851,7 @@ def test_a_home_card_links_to_its_exact_assignment(tmp_path):
     )
     assert assignment_link in page
     assert page.count('href="/work/GH13-20260819-184158-assignment"') == 1
-    card_start = page.index('<article id="GH13-20260819-184158-assignment"')
-    card = page[card_start : page.index("</article>", card_start)]
+    card = extract_article(page=page, identifier="GH13-20260819-184158-assignment")
     assert card.index('class="pr-chip"') < card.index('class="agent-work-detail"')
     assert card.index(assignment_link) > card.index('class="agent-work-detail"')
 
@@ -885,7 +889,11 @@ def test_status_classes_do_not_depend_on_status_wording(tmp_path, monkeypatch):
                 replace(
                     section,
                     active=tuple(
-                        replace(card, status=reworded[card.status.name])
+                        replace(
+                            card,
+                            status=reworded[card.status.name],
+                            status_words=str(reworded[card.status.name]),
+                        )
                         for card in section.active
                     ),
                 )
@@ -907,12 +915,10 @@ def test_status_classes_do_not_depend_on_status_wording(tmp_path, monkeypatch):
         state=state, identifier="GH20-20260819-184158-assignment"
     )
     conversation_page = render_conversation(state=state, issue=8)
-    card_start = home.index('<article id="GH20-20260819-184158-assignment"')
-    card = home[card_start : home.index("</article>", card_start)]
-    conversation_start = home.index('<article id="GH8-20260819-184158-conversation"')
-    conversation_card = home[
-        conversation_start : home.index("</article>", conversation_start)
-    ]
+    card = extract_article(page=home, identifier="GH20-20260819-184158-assignment")
+    conversation_card = extract_article(
+        page=home, identifier="GH8-20260819-184158-conversation"
+    )
 
     assert '<span class="chip status-idle">reworded idle</span>' in card
     assert '<span class="chip status-idle">reworded idle</span>' in conversation_card
@@ -1064,6 +1070,68 @@ def test_ended_assignments_are_ordered_by_when_they_ended(tmp_path):
     )
     assert "+ 3 ended</summary>" in page
     assert page.index('id="GH20-') < page.index('id="GH30-') < page.index('id="GH10-')
+
+
+@pytest.mark.parametrize(
+    ("identifier", "reason"),
+    [
+        ("GH12-20260819-184158-assignment", "completed"),
+        ("GH70-20260819-184158-assignment", "cancelled"),
+    ],
+)
+def test_an_ended_assignment_card_shows_why_it_ended_once_as_its_status(
+    tmp_path, identifier, reason
+):
+    state = StateDirectory(root=tmp_path)
+    fabricate_everything(state=state)
+
+    page = render_home(state=state)
+    ended = page[page.index('<details class="ended-work">') :]
+    card = extract_article(page=ended, identifier=identifier)
+
+    assert f'<span class="chip status-ended">{reason}</span>' in card
+    assert 'class="agent-work-detail"' not in card
+
+
+def test_a_cancelled_assignment_card_shows_working_while_its_round_stops(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    fabricate_everything(state=state)
+    identifier = "GH13-20260819-184158-assignment"
+    assignment = find_agent_work(state=state, identifier=identifier)
+    assert assignment is not None
+    cancel_assignment(assignment=assignment, at=LOOKED_AT)
+
+    page = render_home(state=state)
+    card = extract_article(page=page, identifier=identifier)
+
+    assert '<span class="chip status-working">working</span>' in card
+    assert '<p class="agent-work-detail">round 2, 1 post, running' in card
+    assert page.index(card) < page.index('<details class="ended-work">')
+
+
+def test_an_ended_assignment_card_within_a_campaign_shows_why_it_ended(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    fabricate_everything(state=state, other_rows=fabricate_campaigns(state=state))
+
+    page = render_home(state=state)
+    card = extract_article(
+        page=page,
+        identifier="GH60-20260819-184158-campaign-GH63-20260819-184158-assignment",
+    )
+
+    assert '<span class="chip status-ended">completed</span>' in card
+    assert 'class="agent-work-detail"' not in card
+
+
+def test_an_ended_campaign_card_says_it_ended_and_why(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    fabricate_everything(state=state, other_rows=fabricate_campaigns(state=state))
+
+    page = render_home(state=state)
+    card = extract_article(page=page, identifier="GH61-20260819-184158-campaign")
+
+    assert '<span class="chip status-ended">ended</span>' in card
+    assert '<p class="agent-work-detail">issue closed</p>' in card
 
 
 def test_home_page_types_replaced_assignment_output(tmp_path):

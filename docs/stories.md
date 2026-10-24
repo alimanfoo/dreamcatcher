@@ -233,10 +233,11 @@ round stops, no further round runs, and the pull request, branch and
 worktree are the user's to work on outside of _dreamcatcher_, and
 _dreamcatcher_ never removes them. The assignment's page shows where the
 worktree is and the command that picks up the agent's session by hand,
-should they want to carry on the conversation themselves. The assignment
-shows as ended, cancelled, and while the pull request stays open no new
-assignment starts for the issue. The user finishes the branch and merges
-it, or closes it, as they would their own.
+should they want to carry on the conversation themselves. Once its round
+has stopped, the assignment shows as cancelled, and while the pull
+request stays open no new assignment starts for the issue. The user
+finishes the branch and merges it, or closes it, as they would their
+own.
 
 The value to the user is that taking over is one click and nothing is
 lost: the agent's commits are theirs to build on.
@@ -572,8 +573,11 @@ campaign has no pull request, so its top line holds the issue alone.
 Beneath that, a piece of work says what it is doing, with the agent's
 latest output while a round runs. The bottom line gives the dispatch
 label, with the harness, model and effort that run the work, and then
-the work's status and the link to its page. A request's row gives its
-issue at the top and its dispatch label and request status beneath.
+the work's status and the link to its page. An assignment that has ended
+says nothing beneath its top line, and its bottom line gives the reason
+it ended, completed or cancelled, in place of its status, so the row
+says once that it has ended and why. A request's row gives its issue at
+the top and its dispatch label and request status beneath.
 
 The home page always has a tab for each of the three kinds of work, and
 the terminal a section for each, even when a kind has nothing in it. A
