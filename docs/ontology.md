@@ -412,8 +412,8 @@ request. A round that is running when the user cancels is asked to stop,
 and the assignment is working until that round ends. A cancel records
 the assignment's ending, with the reason "cancelled", and cannot be
 undone. A wrap-up round that finishes after the cancel leaves it
-cancelled. A cancel that comes after the assignment completed says that
-the assignment has already ended, and cancels nothing.
+cancelled. A cancel that comes after the assignment completed cancels
+nothing.
 
 _dreamcatcher_ leaves the pull request as it is, and while it is open it
 claims the issue, so no new assignment starts for the issue. If the user

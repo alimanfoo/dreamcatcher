@@ -239,8 +239,10 @@ assignment starts for the issue. If the wrap-up round finishes as the
 user cancels, the first ending recorded stands. A wrap-up round that
 finishes after the cancel leaves the assignment cancelled, with its
 worktree and branch the user's. A cancel that comes after the wrap-up
-round says that the assignment has already ended. The user finishes the
-branch and merges it, or closes it, as they would their own.
+round changes nothing: `dreamcatcher cancel` says that the assignment
+has already ended, and its page shows it as ended, completed. The user
+finishes the branch and merges it, or closes it, as they would their
+own.
 
 The value to the user is that taking over is one click and nothing is
 lost: the agent's commits are theirs to build on.

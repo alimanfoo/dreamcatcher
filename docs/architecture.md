@@ -387,7 +387,8 @@ failed one finds what the earlier attempt made and never makes a second
 branch or pull request.
 
 A wrap-up round records the assignment's ending with the reason
-"completed" in its finishing step, after its harness exits successfully.
+"completed" in its finishing step, after its harness exits successfully,
+unless a cancel has already recorded the assignment's ending.
 
 `agent_assignments.py` also models what a tick observed of an
 assignment's pull request. The scheduler's pull request finding extends
@@ -684,12 +685,13 @@ process tree, and records its stopped ending.
 The web interface and the `cancel` command can cancel an assignment. A
 cancel goes through the agent-assignment boundary, which records the
 assignment's ending, with the reason "cancelled", and then writes a stop
-request for any round that has no ending. An ending that is already
-recorded refuses the cancel, and a wrap-up round that finishes after the
-cancel leaves the cancel's ending in place. The scheduler starts no
-further rounds for the assignment. A round that it starts as the cancel
-lands is stopped too, because the scheduler reads the ending again once
-that round's record exists.
+request for any round that has no ending. A cancel of an assignment
+whose ending is already recorded changes nothing, and the `cancel`
+command says that the assignment has already ended. A wrap-up round that
+finishes after the cancel leaves the cancel's ending in place. The
+scheduler starts no further rounds for the assignment. A round that it
+starts as the cancel lands is stopped too, because the scheduler reads
+the ending again once that round's record exists.
 
 The web interface and the `retry` command can also request a retry for
 agent work that status derives as in fault. Each writes the retry

@@ -345,7 +345,8 @@ def _cancel_assignment(*, arguments: argparse.Namespace) -> None:
     work = _select_agent_work(state=state, arguments=arguments)
     if work.record.kind is not AgentWorkKind.ASSIGNMENT:
         raise ReportableError(f"{work.identifier} is not an assignment.")
-    cancel_assignment(assignment=work, at=read_current_time())
+    if not cancel_assignment(assignment=work, at=read_current_time()):
+        raise ReportableError(f"{work.identifier} has already ended.")
     print(f"{work.identifier} is cancelled.")
 
 

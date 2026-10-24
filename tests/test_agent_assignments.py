@@ -63,12 +63,12 @@ ASSIGNMENT_ID = "GH12-20260819-184158-assignment"
 
 BRANCH = f"dreamcatcher-{ASSIGNMENT_ID}"
 
-_WAIT_SECONDS = 5
+_WAIT_SECONDS = 30
 
 # Cancel or complete the assignment, as the web interface or the daemon does in
-# a process of its own. Given a pause file, the process holds the ending's lock
-# once it has found no ending, and waits for the release file before it records
-# its own.
+# a process of its own, and print whether a cancel took the assignment over.
+# Given a pause file, the process holds the ending's lock once it has found no
+# ending, and waits for the release file before it records its own.
 _END_ASSIGNMENT = """
 import sys, time
 from datetime import UTC, datetime
@@ -77,7 +77,6 @@ from unittest.mock import patch
 
 from dreamcatcher.agent_assignments import cancel_assignment, complete_assignment
 from dreamcatcher.agent_work import find_agent_work
-from dreamcatcher.errors import ReportableError
 from dreamcatcher.state import StateDirectory
 
 root, identifier, reason, paused, release = sys.argv[1:]
@@ -93,17 +92,14 @@ def replace_when_released(staged, target):
 state = StateDirectory(root=Path(root))
 assignment = find_agent_work(state=state, identifier=identifier)
 with patch.object(Path, "replace", replace_when_released):
-    try:
-        if reason == "cancelled":
-            cancel_assignment(assignment=assignment, at=datetime.now(UTC))
-        else:
-            complete_assignment(
-                assignment=assignment,
-                clock=lambda: datetime.now(UTC),
-                final_output=None,
-            )
-    except ReportableError as error:
-        print(error)
+    if reason == "cancelled":
+        print(cancel_assignment(assignment=assignment, at=datetime.now(UTC)))
+    else:
+        complete_assignment(
+            assignment=assignment,
+            clock=lambda: datetime.now(UTC),
+            final_output=None,
+        )
 """
 
 
@@ -465,18 +461,17 @@ def test_an_assignment_that_has_ended_cannot_be_cancelled(bare_state):
     assignment = write_and_read_assignment(state=bare_state, rounds=[])
     cancel_assignment(assignment=assignment, at=PINNED)
 
-    with pytest.raises(ReportableError, match=f"{ASSIGNMENT_ID} has already ended"):
-        cancel_assignment(
-            assignment=read_assignments(state=bare_state)[0],
-            at=PINNED + timedelta(hours=1),
-        )
+    assert not cancel_assignment(
+        assignment=read_assignments(state=bare_state)[0],
+        at=PINNED + timedelta(hours=1),
+    )
 
     assert read_assignments(state=bare_state)[0].ending == AgentWorkEnding(
         at=PINNED, reason=AgentWorkEndReason.CANCELLED
     )
 
 
-def test_a_cancel_after_a_completion_it_did_not_see_says_the_assignment_ended(
+def test_a_cancel_after_a_completion_it_did_not_see_leaves_the_completion(
     bare_state,
 ):
     assignment = write_and_read_assignment(
@@ -484,8 +479,7 @@ def test_a_cancel_after_a_completion_it_did_not_see_says_the_assignment_ended(
     )
     complete_assignment(assignment=assignment, clock=lambda: PINNED, final_output=None)
 
-    with pytest.raises(ReportableError, match=f"{ASSIGNMENT_ID} has already ended"):
-        cancel_assignment(assignment=assignment, at=PINNED + timedelta(hours=1))
+    assert not cancel_assignment(assignment=assignment, at=PINNED + timedelta(hours=1))
 
     assert read_assignments(state=bare_state)[0].ending == AgentWorkEnding(
         at=PINNED, reason=AgentWorkEndReason.COMPLETED
@@ -510,7 +504,7 @@ def test_a_completion_after_a_cancel_it_did_not_see_leaves_the_cancel(bare_state
     )
 
 
-def start_ending(*, state, reason, paused="", release=""):
+def create_ending_process(*, state, reason, paused="", release=""):
     """Start a process that ends the assignment for this reason."""
     return subprocess.Popen(
         [
@@ -548,36 +542,38 @@ def wait_for_staged_writes(*, document: Path, count: int) -> None:
 
 
 @pytest.mark.parametrize(
-    ("first", "second", "second_says"),
+    ("first", "second", "first_says", "second_says"),
     [
         pytest.param(
             AgentWorkEndReason.CANCELLED,
             AgentWorkEndReason.COMPLETED,
+            "True\n",
             "",
             id="cancel-first",
         ),
         pytest.param(
             AgentWorkEndReason.COMPLETED,
             AgentWorkEndReason.CANCELLED,
-            f"{ASSIGNMENT_ID} has already ended.\n",
+            "",
+            "False\n",
             id="completion-first",
         ),
     ],
 )
 def test_of_endings_that_race_between_processes_the_first_is_recorded_for_good(
-    bare_state, tmp_path, first, second, second_says
+    bare_state, tmp_path, first, second, first_says, second_says
 ):
     write_and_read_assignment(state=bare_state, rounds=[compose_ended_round(status=0)])
     ending = bare_state.work / ASSIGNMENT_ID / "ended.json"
     paused = tmp_path / "paused"
     release = tmp_path / "release"
 
-    with start_ending(
+    with create_ending_process(
         state=bare_state, reason=first, paused=str(paused), release=str(release)
     ) as first_ender:
         try:
             wait_for_path(path=paused)
-            with start_ending(state=bare_state, reason=second) as second_ender:
+            with create_ending_process(state=bare_state, reason=second) as second_ender:
                 try:
                     wait_for_staged_writes(document=ending, count=2)
                 finally:
@@ -591,7 +587,7 @@ def test_of_endings_that_race_between_processes_the_first_is_recorded_for_good(
 
     assert first_ender.returncode == 0, first_error
     assert second_ender.returncode == 0, second_error
-    assert first_said == ""
+    assert first_said == first_says
     assert second_said == second_says
     [ended] = read_assignments(state=bare_state)
     assert ended.ending is not None

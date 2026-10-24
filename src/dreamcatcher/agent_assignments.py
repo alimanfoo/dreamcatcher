@@ -117,16 +117,19 @@ def read_assignment_pull_request_number(*, assignment: AgentWork) -> int | None:
     return None if record is None else record.number
 
 
-def cancel_assignment(*, assignment: AgentWork, at: datetime) -> None:
+def cancel_assignment(*, assignment: AgentWork, at: datetime) -> bool:
     """Record that the user has taken an open assignment over.
+
+    Return whether the cancel is the assignment's ending. An assignment that
+    has already ended keeps its ending, even one that lands after the caller
+    read the assignment, and no round is asked to stop.
 
     The ending is written before the running round is asked to stop, so a round
     that starts at the same moment either receives the stop request here or sees
-    the ending itself. An assignment that has already ended raises
-    ReportableError, even when its ending lands after the caller read it.
+    the ending itself.
     """
     if not end_agent_work(work=assignment, reason=AgentWorkEndReason.CANCELLED, at=at):
-        raise ReportableError(f"{assignment.identifier} has already ended.")
+        return False
     rounds = read_agent_round_records(
         cache=DocumentCache(),
         directory=assignment.rounds_directory,
@@ -135,6 +138,7 @@ def cancel_assignment(*, assignment: AgentWork, at: datetime) -> None:
         request_agent_round_stop(
             paths=assignment.compose_round_paths(number=rounds[-1].number)
         )
+    return True
 
 
 def complete_assignment(
