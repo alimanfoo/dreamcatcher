@@ -97,12 +97,14 @@ def _compose_assignment_row(
     )
 
 
-def _compose_draft_pull_request(*, new_posts: int = 0) -> PullRequestFinding:
-    """Return what the tick reads of the draft that the fabrications open."""
+def _compose_open_pull_request(
+    *, new_posts: int = 0, is_draft: bool = True
+) -> PullRequestFinding:
+    """Return what the tick reads of the pull request that the fabrications open."""
     return PullRequestFinding(
         number=52,
         state=PullRequestState.OPEN,
-        is_draft=True,
+        is_draft=is_draft,
         merge_state=PullRequestMergeState.CLEAN,
         head=HEAD,
         check_result=CheckResult.PASSING,
@@ -561,17 +563,13 @@ def fabricate_everything(
                 _compose_assignment_row(
                     issue=31,
                     ended_round=1,
-                    finding=_compose_draft_pull_request(new_posts=1).model_copy(
-                        update={"is_draft": False}
-                    ),
+                    finding=_compose_open_pull_request(new_posts=1, is_draft=False),
                 ),
-                _compose_assignment_row(
-                    issue=20, finding=_compose_draft_pull_request()
-                ),
+                _compose_assignment_row(issue=20, finding=_compose_open_pull_request()),
                 _compose_assignment_row(
                     issue=35,
                     ended_round=1,
-                    finding=_compose_draft_pull_request().model_copy(
+                    finding=_compose_open_pull_request().model_copy(
                         update={
                             "merge_state": PullRequestMergeState.DIRTY,
                             "check_result": CheckResult.FAILING,
@@ -627,7 +625,7 @@ def fabricate_the_cap(*, state):
                 _compose_assignment_row(
                     issue=20,
                     ended_round=1,
-                    finding=_compose_draft_pull_request(new_posts=1),
+                    finding=_compose_open_pull_request(new_posts=1),
                 )
             ],
         ),
@@ -675,7 +673,7 @@ def fabricate_repeat_assignments(*, state):
             finished=PINNED + timedelta(hours=1, minutes=58),
             rows=[
                 _compose_assignment_row(
-                    issue=13, ended_round=1, finding=_compose_draft_pull_request()
+                    issue=13, ended_round=1, finding=_compose_open_pull_request()
                 )
             ],
         ),

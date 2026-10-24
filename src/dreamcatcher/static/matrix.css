@@ -481,9 +481,12 @@ body::after {
 .agent-work-open {
   flex: none;
   padding: var(--space-1) var(--space-5);
-  color: var(--phosphor);
   border: var(--line) solid var(--rule);
   text-decoration: none;
+}
+
+.pr-chip {
+  color: var(--dim);
 }
 
 .pr-chip:hover,
@@ -497,6 +500,7 @@ body::after {
 }
 
 .agent-work-open {
+  color: var(--phosphor);
   font-weight: 700;
 }
 
