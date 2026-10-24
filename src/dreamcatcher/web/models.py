@@ -40,11 +40,6 @@ class WebAgentWorkCard:
     child_overview: "WebCampaignChildOverview | None"
     latest_output: str | None
 
-    @property
-    def has_ended(self) -> bool:
-        """Whether the work has ended, so its card draws less attention."""
-        return self.status is AgentWorkStatusValue.ENDED
-
 
 @dataclass(frozen=True, kw_only=True)
 class WebCampaignChild:

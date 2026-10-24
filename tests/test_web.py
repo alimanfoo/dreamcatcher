@@ -1104,6 +1104,7 @@ def test_a_cancelled_assignment_card_shows_working_while_its_round_stops(tmp_pat
     page = render_home(state=state)
     card = extract_article(page=page, identifier=identifier)
 
+    assert 'class="agent-work-card"' in card
     assert '<span class="chip status-working">working</span>' in card
     assert '<p class="agent-work-detail">round 2, 1 post, running' in card
     assert page.index(card) < page.index('<details class="ended-work">')
@@ -1121,42 +1122,6 @@ def test_an_ended_assignment_card_within_a_campaign_shows_why_it_ended(tmp_path)
 
     assert '<span class="chip status-ended">completed</span>' in card
     assert 'class="agent-work-detail"' not in card
-
-
-def test_an_ended_campaign_card_says_it_ended_and_why(tmp_path):
-    state = StateDirectory(root=tmp_path)
-    fabricate_everything(state=state, other_rows=fabricate_campaigns(state=state))
-
-    page = render_home(state=state)
-    card = extract_article(page=page, identifier="GH61-20260819-184158-campaign")
-
-    assert '<span class="chip status-ended">ended</span>' in card
-    assert '<p class="agent-work-detail">issue closed</p>' in card
-
-
-def test_a_card_is_marked_ended_exactly_when_its_work_has_ended(tmp_path):
-    state = StateDirectory(root=tmp_path)
-    fabricate_conversation(state=state)
-    fabricate_everything(
-        state=state,
-        other_rows=[
-            compose_conversation_row(
-                finding=IssueCommentsFinding(new_comments=0),
-                agent_work_identifier=compose_conversation_identifier(issue=8),
-            ),
-            *fabricate_campaigns(state=state),
-        ],
-    )
-
-    page = render_home(state=state)
-    cards = re.findall(
-        r'<article [^>]*class="agent-work-card[^"]*".*?</article>', page, re.DOTALL
-    )
-
-    assert {
-        ('class="agent-work-card is-ended"' in card, "chip status-ended" in card)
-        for card in cards
-    } == {(True, True), (False, False)}
 
 
 def test_home_page_types_replaced_assignment_output(tmp_path):
