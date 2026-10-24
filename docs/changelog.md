@@ -33,6 +33,19 @@ the change.
   its **pull request changed**, where it said **handback** and **pull
   request**.
   ([#777](https://github.com/alimanfoo/dreamcatcher/pull/777))
+- The daemon stops when an update cannot complete, for example because a
+  record under `.dreamcatcher/` is damaged or a write fails. It prints
+  the file and what is wrong with it, ends its rounds and its web page
+  as Ctrl-C does, and leaves the record of the last complete update in
+  place. Fix the cause and start the daemon again, and the interrupted
+  work carries on. The daemon used to report the failure and try again
+  at every update, and a conversation or campaign whose own records
+  could not be read showed the failure on its row.
+  ([#773](https://github.com/alimanfoo/dreamcatcher/pull/773))
+- An open page whose refresh gets no answer from the server, as when the
+  daemon has stopped, keeps what it shows and warns "Refresh failed.
+  Check the terminal running dreamcatcher." It used to show no warning.
+  ([#773](https://github.com/alimanfoo/dreamcatcher/pull/773))
 - Each card and request row on the web home page keeps GitHub's
   information at its top and _dreamcatcher_'s at its bottom.
   ([#770](https://github.com/alimanfoo/dreamcatcher/pull/770))

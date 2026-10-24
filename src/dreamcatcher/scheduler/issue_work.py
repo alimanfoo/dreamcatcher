@@ -10,7 +10,6 @@ from typing import Protocol
 
 from dreamcatcher.agent_work import AgentWork, AgentWorkEndReason, end_agent_work
 from dreamcatcher.config import identify_label
-from dreamcatcher.errors import ReportableError
 from dreamcatcher.github import (
     Issue,
     IssueComment,
@@ -53,8 +52,7 @@ def inspect_open_issue_work(
     A closed issue ends the work once its running round finishes. Paused work's
     fault does not count, since it starts no round however its rounds ended. An
     issue that cannot be read leaves whether the work is paused unknown, so its
-    fault counts. A round input that the further inspection cannot read is the
-    row's read failure.
+    fault counts.
     """
     unread = compose_open_work_row(work=work, finding=None)
     issue = read_issue(repository=context.repository, issue=work.record.issue)
@@ -76,14 +74,7 @@ def inspect_open_issue_work(
         return Inspection(row=compose_open_work_row(work=work, finding=pause))
     if is_in_fault:
         return Inspection(row=unread, is_counted_fault=True)
-    try:
-        return inspect_eligible(issue=issue, row=unread)
-    except ReportableError as failure:
-        return Inspection(
-            row=compose_open_work_row(
-                work=work, finding=ReadFailureFinding(reason=str(failure))
-            )
-        )
+    return inspect_eligible(issue=issue, row=unread)
 
 
 def _find_pause(

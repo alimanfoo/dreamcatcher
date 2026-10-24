@@ -56,6 +56,7 @@ from dreamcatcher.campaigns import (
 )
 from dreamcatcher.config import AgentHarness, read_dreamcatcher_config
 from dreamcatcher.documents import read_json
+from dreamcatcher.errors import ReportableError
 from dreamcatcher.git import _read_worktree_revision
 from dreamcatcher.github import (
     CheckResult,
@@ -1171,7 +1172,7 @@ def test_parent_comments_that_cannot_be_read_start_no_round(
     assert harnesses["claude"].calls == []
 
 
-def test_a_delivered_input_that_cannot_be_read_starts_no_round(
+def test_a_delivered_input_that_cannot_be_read_fails_the_update(
     campaign_scheduler, harnesses
 ):
     scheduler, gh = campaign_scheduler
@@ -1183,12 +1184,9 @@ def test_a_delivered_input_that_cannot_be_read_starts_no_round(
     offer_parent(gh=gh)
     offer_comments(gh=gh, comments=[compose_parent_comment(identifier=1)])
 
-    observed = tick(scheduler=scheduler)
+    with pytest.raises(ReportableError, match=r"round-input\.json is not valid"):
+        tick(scheduler=scheduler)
 
-    [row] = observed.rows
-    assert isinstance(row.finding, ReadFailureFinding)
-    assert round_input.name in row.finding.reason
-    assert observed.launched_agent_work_identifiers == []
     assert count_comment_reads(gh=gh) == 0
     assert harnesses["claude"].calls == []
 
@@ -1196,7 +1194,7 @@ def test_a_delivered_input_that_cannot_be_read_starts_no_round(
 @pytest.mark.parametrize(
     "comments", [MISORDERED_COMMENTS, REPEATED_COMMENTS], ids=["misordered", "repeated"]
 )
-def test_a_delivered_input_with_comments_the_relay_never_gives_starts_no_round(
+def test_a_delivered_input_with_comments_the_relay_never_gives_fails_the_update(
     campaign_scheduler, harnesses, comments
 ):
     scheduler, gh = campaign_scheduler
@@ -1208,12 +1206,9 @@ def test_a_delivered_input_with_comments_the_relay_never_gives_starts_no_round(
     offer_parent(gh=gh)
     offer_comments(gh=gh, comments=[compose_parent_comment(identifier=3)])
 
-    observed = tick(scheduler=scheduler)
+    with pytest.raises(ReportableError, match=r"round-input\.json is not valid"):
+        tick(scheduler=scheduler)
 
-    [row] = observed.rows
-    assert isinstance(row.finding, ReadFailureFinding)
-    assert round_input.name in row.finding.reason
-    assert observed.launched_agent_work_identifiers == []
     assert harnesses["claude"].calls == []
 
 

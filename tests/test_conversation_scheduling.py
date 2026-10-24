@@ -38,6 +38,7 @@ from rows import compose_conversation_row
 
 from dreamcatcher import agent_rounds
 from dreamcatcher.agent_rounds import (
+    AgentRoundLaunchError,
     AgentRoundOutcome,
     AgentRoundRecord,
     FinishingErroredAgentRoundEnding,
@@ -1245,14 +1246,21 @@ def test_a_failed_assignment_candidate_does_not_block_a_ready_conversation(
 
     def fail_assignments(self, *, row, candidate, at):
         if row.kind is AgentWorkKind.ASSIGNMENT:
-            raise ReportableError("could not start assignment")
+            raise AgentRoundLaunchError(
+                agent_work_identifier="GH13-20260923-010000-assignment",
+                round_number=1,
+                reason="could not start assignment",
+            )
         return launch(self, row=row, candidate=candidate, at=at)
 
     monkeypatch.setattr(Scheduler, "_launch", fail_assignments)
 
     observed = scheduler.tick(at=clock())
 
-    assert observed.failures == ["could not start assignment"]
+    assert observed.failures == []
+    assert observed.rows[0].started_round == StartedRound(
+        number=1, launch_failure="could not start assignment"
+    )
     assert observed.launched_agent_work_identifiers == [
         "GH8-20260819-184158-conversation"
     ]
@@ -2035,7 +2043,7 @@ def test_paused_conversation_faults_do_not_start_the_global_cooldown(
     assert count_comment_reads(gh=gh) == 0
 
 
-def test_a_relayed_round_whose_input_cannot_be_read_launches_nothing(
+def test_a_relayed_round_whose_input_cannot_be_read_fails_the_update(
     conversation_scheduler, harnesses
 ):
     scheduler, clock, gh = conversation_scheduler
@@ -2054,13 +2062,9 @@ def test_a_relayed_round_whose_input_cannot_be_read_launches_nothing(
     round_input.write_bytes(b"not json\n")
     offer_conversation(gh=gh, comments=[compose_question()])
 
-    observed = scheduler.tick(at=clock())
+    with pytest.raises(ReportableError, match=r"round-input\.json is not valid"):
+        scheduler.tick(at=clock())
 
-    assert observed.failures == []
-    [row] = observed.rows
-    assert isinstance(row.finding, ReadFailureFinding)
-    assert row.finding.reason.startswith(f"{round_input} is not valid")
-    assert observed.launched_agent_work_identifiers == []
     assert harnesses["claude"].calls == []
 
 
@@ -2069,7 +2073,7 @@ def test_a_relayed_round_whose_input_cannot_be_read_launches_nothing(
     [[], MISORDERED_COMMENTS, REPEATED_COMMENTS],
     ids=["none", "misordered", "repeated"],
 )
-def test_a_relayed_round_with_comments_the_relay_never_gives_launches_nothing(
+def test_a_relayed_round_with_comments_the_relay_never_gives_fails_the_update(
     conversation_scheduler, harnesses, comments
 ):
     scheduler, clock, gh = conversation_scheduler
@@ -2091,12 +2095,9 @@ def test_a_relayed_round_with_comments_the_relay_never_gives_launches_nothing(
     replace_relayed_comments(path=round_input, comments=comments)
     offer_conversation(gh=gh, comments=[compose_question(identifier=2)])
 
-    observed = scheduler.tick(at=clock())
+    with pytest.raises(ReportableError, match=r"round-input\.json is not valid"):
+        scheduler.tick(at=clock())
 
-    [row] = observed.rows
-    assert isinstance(row.finding, ReadFailureFinding)
-    assert row.finding.reason.startswith(f"{round_input} is not valid")
-    assert observed.launched_agent_work_identifiers == []
     assert harnesses["claude"].calls == []
 
 
@@ -2278,29 +2279,6 @@ def test_a_failed_comment_read_records_its_reason_and_starts_nothing(
     assert "issues/8/comments" in row.finding.reason
     assert row.finding.reason.endswith("network unavailable")
     assert row == compose_conversation_row(finding=row.finding, title=OFFERED_TITLE)
-
-
-def test_a_failed_cursor_read_is_recorded_in_its_row(
-    conversation_scheduler, monkeypatch
-):
-    scheduler, clock, gh = conversation_scheduler
-    write_conversation(state=scheduler.context.state, issue=8)
-    offer_conversation(gh=gh, comments=[])
-    monkeypatch.setattr(
-        "dreamcatcher.scheduler.conversations.read_issue_comment_cursor",
-        Mock(side_effect=ReportableError("could not read the round input")),
-    )
-
-    observed = scheduler.tick(at=clock())
-
-    assert observed.failures == []
-    [row] = observed.rows
-    assert isinstance(row.finding, ReadFailureFinding)
-    assert row.finding.reason == "could not read the round input"
-    assert row == compose_conversation_row(
-        agent_work_identifier=compose_conversation_identifier(issue=8),
-        finding=row.finding,
-    )
 
 
 @pytest.mark.parametrize("is_valid", [True, False], ids=["stale", "malformed"])

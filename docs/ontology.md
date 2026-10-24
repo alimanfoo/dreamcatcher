@@ -612,13 +612,13 @@ cooldown. Within each kind, open work takes precedence over new work.
 Open work starts in the order of its identifiers, and new work in the
 order of its requests. The kinds take turns for each free agent slot, in
 the order assignment, conversation, campaign, and a kind with no
-candidate gives up its turn to the next. A launch that fails takes no
-slot.
+candidate gives up its turn to the next. A round that errors during its
+preparation or startup takes no slot.
 
 A failed read from GitHub prevents only the launches that depend on it.
 A failed issue listing starts no new work of any kind, but open work
 reads its own channel, so the listing does not affect it. A local record
-that cannot be read can instead fail the whole tick, as
+that cannot be read instead stops the daemon, as
 [the story about an unreadable local record](stories.md#a-local-record-cannot-be-read)
 describes.
 
@@ -716,11 +716,11 @@ identity, whether the daemon is running, how long until the next
 scheduler tick, or that a tick is running, current capacity, whether a
 global cooldown is active, and the scheduler failures. A scheduler
 failure is a failure in the latest tick that no request row holds: a
-failed issue listing, or a launch that failed before its round was
-recorded. A failed read for a request is held in its request row, and so
-is a round that errored during its preparation or startup. Its request
-statuses and agent work statuses are projections derived for a person to
-read.
+failed issue listing, or a worktree or branch of ended work that Git
+would not remove. A failed read for a request is held in its request
+row, and so is a round that errored during its preparation or startup.
+Its request statuses and agent work statuses are projections derived for
+a person to read.
 
 The status report never schedules work and is never an input to
 scheduling. Scheduling and reporting must nevertheless interpret the
