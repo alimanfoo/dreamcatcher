@@ -27,6 +27,8 @@ the change.
 
 ## Unreleased
 
+## [v9.1.0](https://github.com/alimanfoo/dreamcatcher/releases/tag/v9.1.0) — 2026-10-24
+
 ### Changed
 
 - A lead round's trigger says that a sub-issue **handed back** and that
@@ -57,6 +59,17 @@ the change.
   than a draft, on an assignment's card and on its page. In the matrix
   theme, every other pull request now shows in the subdued text.
   ([#780](https://github.com/alimanfoo/dreamcatcher/pull/780))
+- An assignment whose pull request is merged or closed, and whose
+  wrap-up round has yet to start, is waiting "awaiting wrap-up", where
+  it said that the pull request is merged or closed.
+  ([#766](https://github.com/alimanfoo/dreamcatcher/pull/766))
+- A campaign's sub-issue with no assignment and no request shows only
+  its number and title on the web page, without the "no assignment" line
+  and the open or closed badge.
+  ([#764](https://github.com/alimanfoo/dreamcatcher/pull/764))
+- The first example in the configuration guide includes a campaign
+  route, so it shows each kind of route the guide describes.
+  ([#775](https://github.com/alimanfoo/dreamcatcher/pull/775))
 
 ### Fixed
 

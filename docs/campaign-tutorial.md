@@ -146,7 +146,7 @@ the lead reviews again.
 When the stage is done and its checks pass, the lead merges the pull
 request. The merge closes issue 124, and the card shows
 `+ 1 of 2 sub-issues closed`. The first stage's assignment takes one
-last wrap-up round, then shows as **ended**.
+last wrap-up round, then shows as **completed**.
 
 ## 6. Watch the handoff
 

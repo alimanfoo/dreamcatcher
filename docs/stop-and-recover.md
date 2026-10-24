@@ -74,9 +74,9 @@ instead open the assignment in the web page that `run` opened, select
 
 _dreamcatcher_ asks a running round to stop, runs no further rounds for
 the assignment, and stops relaying your comments and reviews on its pull
-request. The assignment shows as **ended** with the detail cancelled on
-the web home page and in `dreamcatcher view`, and `dreamcatcher status`
-counts it among the ended assignments.
+request. The assignment's card on the web home page shows **cancelled**,
+`dreamcatcher view` shows it as **ended** with the detail cancelled, and
+`dreamcatcher status` counts it among the ended assignments.
 
 Carry on in the assignment's worktree, which still has the branch
 checked out. Once no round is running, and when _dreamcatcher_ has
