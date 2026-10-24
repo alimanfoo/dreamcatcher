@@ -1,7 +1,7 @@
 {% from "partials/references.html" import github_reference with context %}<aside id="agent-work-rounds" class="panel" aria-labelledby="rounds-heading"{% if is_tail|default(false) %} hx-swap-oob="morph"{% endif %}>
   <h1 id="rounds-heading">Rounds</h1>
+  {#- A sub-issue's link cannot sit inside the round's link, so the round's link holds only the number and stretches over the whole round. #}
   {% for round in view.live.rounds %}
-    {# A sub-issue's link cannot sit inside the round's link, so the round's link holds only the number and stretches over the whole round. #}
     <div class="round">
       <a class="round-link" href="#feed-round-{{ round.number }}" aria-controls="feed-round-{{ round.number }}" aria-labelledby="round-number-{{ round.number }} round-summary-{{ round.number }}"><span class="round-number" id="round-number-{{ round.number }}">{{ "%02d"|format(round.number) }}</span></a>
       <span class="round-summary" id="round-summary-{{ round.number }}">
