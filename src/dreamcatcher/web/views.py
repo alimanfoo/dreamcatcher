@@ -1,5 +1,6 @@
 """Compose Flask-free models for dreamcatcher's web views."""
 
+from collections.abc import Sequence
 from datetime import tzinfo
 
 from dreamcatcher.harness_adapters import AgentWorkKind
@@ -144,8 +145,8 @@ def compose_agent_live_state(
     state: StateDirectory,
     status: AgentWorkStatus,
     zone: tzinfo | None,
-    heading_controls: tuple[WebAgentWorkControl, ...],
-    foot_controls: tuple[WebAgentWorkControl, ...],
+    heading_controls: Sequence[WebAgentWorkControl],
+    foot_controls: Sequence[WebAgentWorkControl],
 ) -> WebAgentLiveState:
     """Return the values of an agent-work page that its tail refreshes."""
     return WebAgentLiveState(

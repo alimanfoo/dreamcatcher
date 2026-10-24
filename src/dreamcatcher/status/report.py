@@ -1,6 +1,6 @@
 """Read status reports for a dreamcatcher instance."""
 
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import cast
@@ -130,7 +130,7 @@ class CampaignChildStatus:
 
     child: CampaignChild
     assignment: AgentWorkStatus | None
-    requests: list[RequestStatus]
+    requests: Sequence[RequestStatus]
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -190,11 +190,11 @@ class DreamcatcherStatusReport:
     repository: str | None
     daemon: DreamcatcherDaemonStatus
     latest_update_finished: datetime | None
-    scheduler_failures: tuple[str, ...]
+    scheduler_failures: Sequence[str]
     running_agents: int
     active_global_cooldown: GlobalCooldown | None
-    request_statuses: list[RequestStatus]
-    work_statuses: list[AgentWorkStatus]
+    request_statuses: Sequence[RequestStatus]
+    work_statuses: Sequence[AgentWorkStatus]
 
     @property
     def instance_facts(self) -> tuple[StatusFact, ...]:

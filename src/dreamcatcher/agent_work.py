@@ -9,7 +9,7 @@ writers in different processes or threads never erase each other's facts.
 """
 
 import re
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import StrEnum
@@ -119,7 +119,7 @@ class AgentWork:
     harness_session_identifier: HarnessSessionIdentifier | None = None
     retry_requested_at: datetime | None = None
     ending: AgentWorkEnding | None = None
-    rounds: list[AgentRoundRecord] = field(default_factory=list)
+    rounds: Sequence[AgentRoundRecord] = field(default_factory=list)
 
     @property
     def identifier(self) -> str:

@@ -80,7 +80,7 @@ _REQUEST_INSPECTORS: dict[AgentWorkKind, RequestInspector] = {
 class _IssueListing:
     """Hold the listed issues, oldest first, or why the listing failed."""
 
-    issues: list[Issue]
+    issues: Sequence[Issue]
     failure: str | None
 
 
@@ -238,7 +238,7 @@ class Scheduler:
         self,
         *,
         open_work: list[AgentWork],
-        issues: list[Issue],
+        issues: Sequence[Issue],
         most_recent_cooldown_ended: datetime | None,
         open_work_inspectors: Mapping[AgentWorkKind, OpenWorkInspector],
         request_inspectors: Mapping[AgentWorkKind, RequestInspector],
@@ -286,7 +286,7 @@ class Scheduler:
     def _inspect_requests(
         self,
         *,
-        issues: list[Issue],
+        issues: Sequence[Issue],
         open_work: list[AgentWork],
         inspectors: Mapping[AgentWorkKind, RequestInspector],
     ) -> Iterator[Inspection]:

@@ -1,6 +1,7 @@
 """Read and compose web feed snapshots and tails."""
 
 import re
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import tzinfo
 from pathlib import Path
@@ -107,7 +108,7 @@ def _read_tail_round(
     number: int,
     position: int,
     is_opening_round: bool,
-    rounds: tuple[WebAgentRound, ...],
+    rounds: Sequence[WebAgentRound],
     zone: tzinfo | None,
 ) -> tuple[WebFeedRound | None, int, bool]:
     record = round_feed.record
@@ -174,7 +175,7 @@ def read_agent_feed(
     *,
     work: AgentWork,
     zone: tzinfo | None,
-    rounds: tuple[WebAgentRound, ...],
+    rounds: Sequence[WebAgentRound],
 ) -> WebAgentFeed:
     """Read the complete saved feed for any agent work."""
     feed_rounds = []
@@ -204,7 +205,7 @@ def read_agent_feed(
     )
 
 
-def _find_web_round(*, rounds: tuple[WebAgentRound, ...], number: int) -> WebAgentRound:
+def _find_web_round(*, rounds: Sequence[WebAgentRound], number: int) -> WebAgentRound:
     """Return the round row with this number.
 
     The rows and the feeds are read from the same agent work, so every round

@@ -229,12 +229,18 @@ $env:PYTHONWARNDEFAULTENCODING = "1"; uv run pytest --regenerate-view-goldens
   pass, because GitHub owns that document and adds to it as it pleases.
   A `DreamcatcherDocument` refuses a key that it doesn't expect, which
   is right only for a document the tool owns itself.
-- Declare each list field of a document or a projection as a
-  `ReadOnlyList` from `documents.py`, and each mapping field as a
-  `Mapping` from `collections.abc`. The type checker then refuses code
-  that changes what a document holds, while pydantic still validates the
-  field as a list or a dict. Keep `list` and `dict` for code that builds
-  a collection before it constructs the document.
+- Declare each collection field of a document, a projection or a frozen
+  dataclass with a read-only type, so the type checker refuses code that
+  changes what the value holds. A document or a projection declares each
+  list field as a `ReadOnlyList` from `documents.py`, which pydantic
+  still validates as a list. A frozen dataclass declares each list or
+  tuple field as a `Sequence` from `collections.abc`, which takes
+  either. Both declare each mapping field as a `Mapping` from
+  `collections.abc`. Keep a fixed-position tuple, such as
+  `tuple[str, int]`, because its positions describe a structure. Keep
+  `list` and `dict` for code that builds a collection before it
+  constructs the value, and for a field that the code changes on
+  purpose.
 
 ### Module and process boundaries
 

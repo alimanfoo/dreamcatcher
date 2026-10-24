@@ -1,5 +1,6 @@
 """Flask-free models for dreamcatcher's web views."""
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Literal
 
@@ -49,7 +50,7 @@ class WebCampaignChild:
     issue: int
     title: str
     assignment: WebAgentWorkCard | None
-    requests: tuple[RequestStatus, ...]
+    requests: Sequence[RequestStatus]
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -57,7 +58,7 @@ class WebCampaignChildOverview:
     """Represent an active campaign's children, with the words that count them."""
 
     summary: str
-    children: tuple[WebCampaignChild, ...]
+    children: Sequence[WebCampaignChild]
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -95,14 +96,14 @@ class WebFeedRound:
     """Represent one round's boundary and stored feed lines."""
 
     number: int
-    lines: tuple[WebFeedLine, ...]
+    lines: Sequence[WebFeedLine]
 
 
 @dataclass(frozen=True, kw_only=True)
 class WebAgentFeed:
     """Represent a complete agent feed and the feed position after its last line."""
 
-    rounds: tuple[WebFeedRound, ...]
+    rounds: Sequence[WebFeedRound]
     feed_position: str
 
 
@@ -128,9 +129,9 @@ class WebAgentLiveState:
 
     status: AgentWorkStatusValue
     detail: str
-    rounds: tuple[WebAgentRound, ...]
-    heading_controls: tuple[WebAgentWorkControl, ...]
-    foot_controls: tuple[WebAgentWorkControl, ...]
+    rounds: Sequence[WebAgentRound]
+    heading_controls: Sequence[WebAgentWorkControl]
+    foot_controls: Sequence[WebAgentWorkControl]
     hand_resume: WebHandResume | None
 
 
@@ -140,7 +141,7 @@ class WebAgentTail:
 
     github_repository_url: str | None
     feed_position: str
-    feed_rounds: tuple[WebFeedRound, ...]
+    feed_rounds: Sequence[WebFeedRound]
     live: WebAgentLiveState
     has_empty_feed_placeholder: bool
 
@@ -163,7 +164,7 @@ class WebAssignmentView:
     model: str
     effort: str
     live: WebAgentLiveState
-    feed_rounds: tuple[WebFeedRound, ...]
+    feed_rounds: Sequence[WebFeedRound]
     feed_position: str
 
 
@@ -181,9 +182,9 @@ class WebIssueWorkView:
     identifier: str
     issue: int
     title: str
-    facts: tuple[StatusFact, ...]
+    facts: Sequence[StatusFact]
     live: WebAgentLiveState
-    feed_rounds: tuple[WebFeedRound, ...]
+    feed_rounds: Sequence[WebFeedRound]
     feed_position: str
 
 
@@ -198,9 +199,9 @@ class WebAgentWorkSection:
     kind: AgentWorkKind
     heading: str
     guidance: SectionGuidance | None
-    active: tuple[WebAgentWorkCard, ...]
-    requests: tuple[RequestStatus, ...]
-    ended: tuple[WebAgentWorkCard, ...]
+    active: Sequence[WebAgentWorkCard]
+    requests: Sequence[RequestStatus]
+    ended: Sequence[WebAgentWorkCard]
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -210,6 +211,6 @@ class WebHomeView:
     repository: str
     github_repository_url: str | None
     daemon: DreamcatcherDaemonStatus
-    instance_facts: tuple[StatusFact, ...]
-    scheduler_failures: tuple[str, ...]
-    sections: tuple[WebAgentWorkSection, ...]
+    instance_facts: Sequence[StatusFact]
+    scheduler_failures: Sequence[str]
+    sections: Sequence[WebAgentWorkSection]

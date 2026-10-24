@@ -1,5 +1,6 @@
 """Derive unfinished rounds and agent-work faults, and manage the global cooldown."""
 
+from collections.abc import Sequence
 from datetime import datetime
 
 from dreamcatcher.agent_rounds import (
@@ -18,7 +19,7 @@ from dreamcatcher.state import StateDirectory
 
 
 def is_last_round_unfinished(
-    *, rounds: list[AgentRoundRecord], is_daemon_running: bool
+    *, rounds: Sequence[AgentRoundRecord], is_daemon_running: bool
 ) -> bool:
     """Return whether the latest round errored or was interrupted."""
     if not rounds:
@@ -30,7 +31,7 @@ def is_last_round_unfinished(
 
 def derive_agent_work_fault(
     *,
-    rounds: list[AgentRoundRecord],
+    rounds: Sequence[AgentRoundRecord],
     retry_requested_at: datetime | None,
     most_recent_cooldown_ended: datetime | None,
 ) -> bool:
