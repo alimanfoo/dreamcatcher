@@ -57,12 +57,22 @@ historical record: never edit it to match the code.
 
 ## Dev setup
 
-Install the tools and the commit hooks:
+Install the tools:
 
 ```sh
 uv sync
+```
+
+Install the commit hooks once, from the main checkout, and never from a
+worktree:
+
+```sh
 uv run pre-commit install
 ```
+
+Every worktree shares the main checkout's hooks, and the hook names the
+interpreter of the checkout that installed it. A hook installed from a
+worktree breaks for every checkout once that worktree is removed.
 
 `.python-version` names the development interpreter, which local work
 and the CI checks use. The CI tests run on every released Python from
