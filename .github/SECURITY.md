@@ -1,7 +1,7 @@
 # Security policy
 
-_dreamcatcher_ runs the `gh`, `claude` and `codex` commands that you
-have signed in, so a vulnerability in it can act with your accounts.
+_dreamcatcher_ runs `gh`, `claude` and `codex` signed in as you, so a
+vulnerability in it can act as you.
 
 ## Report a vulnerability
 
