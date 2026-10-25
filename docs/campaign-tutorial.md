@@ -1,45 +1,29 @@
 # From parent issue to merged pull requests
 
-This tutorial gives a small plan to a campaign. The plan is a parent
-issue with two sub-issues, and the second sub-issue needs what the first
-one adds. The lead, an agent running the `dream:lead` skill, starts each
-sub-issue as an assignment, reviews and merges its pull request, and
-hands over to the next sub-issue. At the end, both pull requests are
-merged and you close the parent.
+Some work spans several issues, each needing its own pull request. They
+may be steps towards one feature, some waiting on others, or unrelated
+fixes that could all go at once. With assignments alone, you'd shepherd
+each one yourself: start it, review its pull request, merge it, and
+start whatever was waiting on it.
 
-Use a repository that has a `README.md`, and where you are comfortable
-letting agents push branches and merge pull requests under your GitHub
-account. If `main` requires an approving review before a merge, the lead
-cannot merge, because GitHub does not let an account approve its own
-pull request.
+A campaign hands that shepherding to an agent, called the lead. You
+gather the issues as sub-issues of one parent issue, and label the
+parent. The lead sets up an assignment for each sub-issue, and
+_dreamcatcher_ starts each one once nothing blocks it. The lead reviews
+each pull request against what its sub-issue says done looks like,
+merges it, and asks you on the parent when a decision is needed.
 
-## Keep sub-issue pull requests from updating one another
+The lead merges pull requests without waiting for your review. Use a
+repository that has a `README.md`, and where you are happy for the lead
+to merge under your GitHub account. If `main` requires an approving
+review before a merge, the lead cannot merge, because GitHub does not
+let an account approve its own pull request.
 
-A campaign can have several sub-issue pull requests open at once. If the
-repository requires branches to be up to date before merging, each merge
-leaves every other sub-issue behind `main`. Each sub-issue's agent then
-merges `main`, its checks run again, and the lead wakes for the new
-head. Only one of those pull requests merges next, so the rest repeat
-the work after the next merge.
-
-Use
-[GitHub's merge queue](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/configuring-pull-request-merges/managing-a-merge-queue)
-when it is available for the repository. It tests queued changes with
-the latest `main` when their turn comes, without making each agent
-update its pull request branch after every earlier merge.
-
-Otherwise, leave **Require branches to be up to date before merging**
-off for a repository that runs campaigns. A pull request that falls
-behind without a conflict still merges cleanly. One that conflicts with
-`main` still wakes its agent to bring the branch up to date.
+This tutorial creates a parent issue with two sub-issues. The second is
+blocked by the first, so the lead carries their pull requests to `main`
+in order. At the end, you close the parent.
 
 ## 1. Set up dreamcatcher
-
-Campaigns need _dreamcatcher_ 7.0.0 or later, and
-`dreamcatcher --version` prints the version you have. If you have an
-earlier version, read
-[Upgrade from v6 to v7.0.0](compatibility.md#upgrade-from-v6-to-v700)
-before you upgrade it.
 
 Follow steps 1 to 4 of [From issue to pull request](tutorial.md), and
 stop once you have pushed `dreamcatcher.toml` at the end of

@@ -60,7 +60,7 @@ nobody until it conflicts with main or you post. If you want such a pull
 request brought up to date, ask the agent on the pull request.
 
 If the repository runs campaigns, read
-[Keep sub-issue pull requests from updating one another](campaign-tutorial.md#keep-sub-issue-pull-requests-from-updating-one-another)
+[Keep sub-issue pull requests from updating one another](start-a-campaign.md#keep-sub-issue-pull-requests-from-updating-one-another)
 before you turn on the up-to-date requirement.
 
 If the checks fail after two attempts in a row, _dreamcatcher_ stops

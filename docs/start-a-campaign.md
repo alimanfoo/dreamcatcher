@@ -1,9 +1,10 @@
 # Start a campaign
 
-A campaign hands a planned body of work to an agent, the lead. The
-campaign's parent issue holds the goal, and the parent's sub-issues hold
-the work that the lead coordinates. The lead works through GitHub, as
-its prompt directs.
+A campaign hands an agent, the lead, the work of shepherding several
+issues. The campaign's parent issue holds the goal, and its sub-issues
+hold the work. The lead starts their assignments, reviews and merges
+their pull requests, and asks you on the parent when it needs a
+decision.
 
 _dreamcatcher_ gives the lead a round when the campaign starts, another
 for each comment you post on the parent, and another when a sub-issue
@@ -89,6 +90,26 @@ itself. You can also monitor the campaign in the terminal:
 dreamcatcher view GH123
 dreamcatcher feed GH123
 ```
+
+## Keep sub-issue pull requests from updating one another
+
+A campaign can have several sub-issue pull requests open at once. If the
+repository requires branches to be up to date before merging, each merge
+leaves every other sub-issue behind `main`. Each sub-issue's agent then
+merges `main`, its checks run again, and the lead wakes for the new
+head. Only one of those pull requests merges next, so the rest repeat
+the work after the next merge.
+
+Use
+[GitHub's merge queue](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/configuring-pull-request-merges/managing-a-merge-queue)
+when it is available for the repository. It tests queued changes with
+the latest `main` when their turn comes, without making each agent
+update its pull request branch after every earlier merge.
+
+Otherwise, leave **Require branches to be up to date before merging**
+off for a repository that runs campaigns. A pull request that falls
+behind without a conflict still merges cleanly. One that conflicts with
+`main` still wakes its agent to bring the branch up to date.
 
 ## Queue campaigns
 
