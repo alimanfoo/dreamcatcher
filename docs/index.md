@@ -53,10 +53,9 @@ issue. Post another question, and the conversation carries on.
 A **campaign** gives a parent issue and its sub-issues to an agent
 called the lead. Its configured prompt tells it what to do. The default
 `dream:lead` route shepherds sub-issues that each need a pull request;
-some may depend on others, and some can run together. The lead starts
-their assignments, reviews and merges their pull requests, and asks you
-on the parent when it needs a decision. Close the parent to end the
-campaign.
+some may depend on others, and some can run together. The lead reviews
+and merges their pull requests, and asks you on the parent when it needs
+a decision. Close the parent to end the campaign.
 
 Several agents can work at once, up to a number that you set. Follow
 them all on a local web page, or in the terminal.
