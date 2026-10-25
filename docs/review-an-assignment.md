@@ -39,8 +39,8 @@ dreamcatcher feed GH123
 If another decision is needed after the agent responds, add a new
 pull-request comment or review for the next exchange.
 
-When the assignment is a stage of a campaign, the lead also comments on
-the pull request and merges it, as
+When the assignment is part of a campaign, the lead also comments on the
+pull request and merges it, as
 [Talk to the lead](start-a-campaign.md#talk-to-the-lead) explains.
 
 ## Out-of-date branches and failing checks
@@ -60,7 +60,7 @@ nobody until it conflicts with main or you post. If you want such a pull
 request brought up to date, ask the agent on the pull request.
 
 If the repository runs campaigns, read
-[Keep stage pull requests from updating one another](campaign-tutorial.md#keep-stage-pull-requests-from-updating-one-another)
+[Keep sub-issue pull requests from updating one another](campaign-tutorial.md#keep-sub-issue-pull-requests-from-updating-one-another)
 before you turn on the up-to-date requirement.
 
 If the checks fail after two attempts in a row, _dreamcatcher_ stops

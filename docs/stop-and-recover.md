@@ -45,9 +45,9 @@ round's comments are not given again.
 
 After a campaign round is stopped, the lead waits. Comment on the parent
 issue with fresh direction to resume it. A sub-issue that changes in a
-way the lead needs to hear of also wakes it, for example when a stage's
-pull request is ready for review. Either way, the next round tells the
-lead that you stopped its previous round.
+way the lead needs to hear of also wakes it, for example when a
+sub-issue's pull request is ready for review. Either way, the next round
+tells the lead that you stopped its previous round.
 
 Removing an assignment label does not stop an active assignment. To
 pause or end a conversation or a campaign, follow
@@ -118,8 +118,8 @@ Unless the work is paused, the interrupted work carries on in a later
 round, normally in the same harness session, so you do not need to use
 the hand-resume command. That round also takes up any comments or
 reviews you posted meanwhile, and a lead sees the current state of its
-stages and what changed among them. You don't need to repeat anything
-that happened while the work was interrupted.
+sub-issues and what changed among them. You don't need to repeat
+anything that happened while the work was interrupted.
 
 ## Recover from errors and faults
 

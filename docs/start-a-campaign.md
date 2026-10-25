@@ -1,8 +1,9 @@
 # Start a campaign
 
 A campaign hands a planned body of work to an agent, the lead. The
-campaign's parent issue holds the goal, and the parent's sub-issues are
-the stages. The lead works through GitHub, as its prompt directs.
+campaign's parent issue holds the goal, and the parent's sub-issues hold
+the work that the lead coordinates. The lead works through GitHub, as
+its prompt directs.
 
 _dreamcatcher_ gives the lead a round when the campaign starts, another
 for each comment you post on the parent, and another when a sub-issue
@@ -11,17 +12,18 @@ when you close the parent.
 
 You need a configured campaign route and a running daemon. For a first
 campaign, follow the worked example in
-[From parent issue to merged stages](campaign-tutorial.md).
+[From parent issue to merged pull requests](campaign-tutorial.md).
 
 ## Configure a campaign route
 
 The `dreamcatcher.toml` that `dreamcatcher init` writes routes the
 `dream:lead` label to campaigns. Its recipes run the
 [`dream:lead`](https://github.com/alimanfoo/dream/blob/main/plugins/dream/skills/lead/SKILL.md)
-skill from the dream plugin. The skill starts each stage on an
-assignment route, reviews the stage's pull request and checks its proof,
-gives the stage's agent feedback, and merges the pull request once the
-stage is done. It asks you on the parent before it changes the plan.
+skill from the dream plugin. The skill starts each sub-issue on an
+assignment route, reviews the sub-issue's pull request and checks its
+proof, gives the sub-issue's agent feedback, and merges the pull request
+once the sub-issue is done. It asks you on the parent before it changes
+the plan.
 
 `init` never changes an existing `dreamcatcher.toml`, so a file written
 before the route existed has none. Copy the `[[campaign]]` route from

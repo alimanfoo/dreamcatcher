@@ -127,7 +127,8 @@ the issue number, so issue 123 starts Claude with `/dream:smith GH123`.
 it thoroughly. `dream:less` implements smaller tasks with lighter
 review. `dream:scout` answers your questions on an issue, and writes no
 code. `dream:lead` leads a campaign through a parent issue's sub-issues,
-as [From parent issue to merged stages](campaign-tutorial.md) shows.
+as [From parent issue to merged pull requests](campaign-tutorial.md)
+shows.
 
 Until `origin/main` holds the file, `init` ends by printing the commands
 that commit and push it. Run them, so the assignment worktree contains
