@@ -400,8 +400,9 @@ work should run.
 `agent_rounds.py` owns agent-round records and the supervised lifetime
 of a round process for every kind of agent work. Before anything is
 recorded, it asks a harness adapter to build the round's invocation.
-Every value in the invocation is either a name that dreamcatcher chose
-or a setting that was checked when the configuration file was read, so
+Every value in the invocation is a name that dreamcatcher chose, a
+setting that was checked when the configuration file was read, or a
+harness session identifier that was checked when it was recorded, so
 building it cannot fail. It should then provide operations to:
 
 - record the round, with the next number that its work allocated, before

@@ -267,12 +267,14 @@ $env:PYTHONWARNDEFAULTENCODING = "1"; uv run pytest --regenerate-view-goldens
   anything. On Windows cmd.exe acts on a percent sign or a line ending
   in a command line rather than passing it to the harness, and quoting
   carries neither.
-- Pass any other text the tool puts on a harness's own command line
-  through `commands.refuse_unquotable` first, for that same reason.
-  `config.QuotableText` does this for the model and the effort a
-  dispatch holds, where pydantic turns the `ValueError` into a named
-  error. Anywhere else, catch the `ValueError` and raise a
-  `ReportableError`, or the user reads a traceback.
+- Pass any other text from outside _dreamcatcher_ that the tool puts on
+  a harness's own command line through `commands.refuse_unquotable`
+  first, for that same reason. `config.QuotableText` does this for the
+  model and the effort a dispatch holds, where pydantic turns the
+  `ValueError` into a named error. Anywhere else, catch the `ValueError`
+  and raise a `ReportableError`, or the user reads a traceback. A name
+  that _dreamcatcher_ chose itself, such as a work identifier or a path
+  inside the state directory, needs no check.
 
 ### API design
 

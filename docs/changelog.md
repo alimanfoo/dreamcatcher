@@ -27,6 +27,12 @@ the change.
 
 ## Unreleased
 
+### Fixed
+
+- A Codex conversation runs in a checkout whose path holds a percent
+  sign or a line ending, instead of stopping the daemon.
+  ([#795](https://github.com/alimanfoo/dreamcatcher/pull/795))
+
 ## [v9.1.1](https://github.com/alimanfoo/dreamcatcher/releases/tag/v9.1.1) — 2026-10-25
 
 ### Added
