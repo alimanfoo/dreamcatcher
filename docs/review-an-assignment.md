@@ -76,8 +76,8 @@ instead.
 
 Either action asks the agent for one final **wrap-up** round. That round
 receives the merged or closed state and any feedback not relayed
-earlier. Keep the daemon running until the assignment has **ended** with
-the detail completed: only a successful wrap-up releases it.
+earlier. Keep the daemon running until the assignment shows
+**completed**: only a successful wrap-up releases it.
 
 ```sh
 dreamcatcher view GH123

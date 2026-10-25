@@ -27,6 +27,15 @@ the change.
 
 ## Unreleased
 
+### Changed
+
+- Ended work of every kind shows the state it ended in once, in place of
+  "ended", on its card on the web home page, on its page and in
+  `dreamcatcher view`: "completed" or "cancelled" for an assignment, and
+  "closed" for a conversation or campaign. Nothing about the ending
+  shows beneath the status.
+  ([#796](https://github.com/alimanfoo/dreamcatcher/pull/796))
+
 ## [v9.1.1](https://github.com/alimanfoo/dreamcatcher/releases/tag/v9.1.1) — 2026-10-25
 
 ### Added

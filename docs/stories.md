@@ -234,13 +234,14 @@ worktree are the user's to work on outside of _dreamcatcher_, and
 _dreamcatcher_ never removes them. The assignment's page shows where the
 worktree is and the command that picks up the agent's session by hand,
 should they want to carry on the conversation themselves. Once its round
-has stopped, the assignment's card on the home page shows it as
-cancelled, and while the pull request stays open no new assignment
-starts for the issue. A cancel that lands as the wrap-up round finishes
-still keeps the worktree and branch the user's, and a cancel that comes
-after the wrap-up round changes nothing, so `dreamcatcher cancel` says
-that the assignment has already ended. The user finishes the branch and
-merges it, or closes it, as they would their own.
+has stopped, the assignment's card on the home page, its page and
+`dreamcatcher view` show it as cancelled, and while the pull request
+stays open no new assignment starts for the issue. A cancel that lands
+as the wrap-up round finishes still keeps the worktree and branch the
+user's, and a cancel that comes after the wrap-up round changes nothing,
+so `dreamcatcher cancel` says that the assignment has already ended. The
+user finishes the branch and merges it, or closes it, as they would
+their own.
 
 The value to the user is that taking over is one click and nothing is
 lost: the agent's commits are theirs to build on.
@@ -581,14 +582,17 @@ a campaign has no pull request, so its top line holds the issue alone.
 Beneath that, a piece of work says what it is doing, with the agent's
 latest output while a round runs. The bottom line gives the dispatch
 label, with the harness, model and effort that run the work, and then
-the work's status and the link to its page. An assignment that has ended
-says nothing beneath its top line, and its bottom line gives the reason
-it ended, completed or cancelled, in place of its status, so the row
-says once that it has ended and why. Every piece of work that has ended
-shows its title more quietly than live work does, here and within a
-campaign, so it draws less attention, and its links stay as clear as
-they are on any other row. A request's row gives its issue at the top
-and its dispatch label and request status beneath.
+the work's status and the link to its page. A piece of work that has
+ended says nothing beneath its top line, and its bottom line gives the
+state it ended in, in place of its status, so the row says once that it
+has ended and why. An assignment ends completed or cancelled, and a
+conversation or a campaign ends closed. The work's page and
+`dreamcatcher view` show the same word in place of the status, with
+nothing beneath it. Every piece of work that has ended shows its title
+more quietly than live work does, here and within a campaign, so it
+draws less attention, and its links stay as clear as they are on any
+other row. A request's row gives its issue at the top and its dispatch
+label and request status beneath.
 
 The home page always has a tab for each of the three kinds of work, and
 the terminal a section for each, even when a kind has nothing in it. A
