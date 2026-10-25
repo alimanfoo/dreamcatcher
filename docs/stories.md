@@ -20,7 +20,7 @@ home page and the terminal are a window on what the daemon is doing,
 with the few controls GitHub has no place for: stop, cancel and retry.
 The agent hears only the user: a post or a comment from anyone else is
 never relayed to it as feedback. A campaign's lead works under the
-user's account, so the agent of a stage hears the lead's feedback as it
+user's account, so an assignment's agent hears the lead's feedback as it
 hears the user's.
 
 Each story is told from the user's seat, in the order things happen,
@@ -371,14 +371,14 @@ wanted, and forgets nothing in between.
 
 #### The user starts a campaign on a parent issue
 
-The user has planned a body of work as a parent issue, with a sub-issue
-for each stage, and wants an agent to take the plan up. The
-configuration has a campaign route whose prompt tells the lead what to
-do with the parent and with their comments on it. The `dream:lead` route
-that `init` writes is one, and it carries the stages through their
-assignments to merge. They assign the parent to themselves and put the
-campaign label on it. No comment is needed. As soon as _dreamcatcher_
-has available agent capacity, it checks out main in a worktree of the
+The user has planned a body of work as a parent issue, with its work in
+sub-issues, and wants an agent to take the plan up. The configuration
+has a campaign route whose prompt tells the lead what to do with the
+parent and with their comments on it. The `dream:lead` route that `init`
+writes is one, and it carries the sub-issues through their assignments
+to merge. They assign the parent to themselves and put the campaign
+label on it. No comment is needed. As soon as _dreamcatcher_ has
+available agent capacity, it checks out main in a worktree of the
 campaign's own and starts the lead in a new harness session.
 
 The lead is given the current picture of the parent's sub-issues, with
@@ -401,16 +401,16 @@ updating, and the sub-issues stay expanded until the user folds them.
 Once the campaign ends, it moves to the ended list with its own card
 alone, and the user goes to GitHub for the history.
 
-Several stages may have open pull requests at once. The user uses a
-merge queue when GitHub offers one for the repository, so each stage is
-tested against current main when its turn to merge comes. Otherwise,
+Several sub-issues may have open pull requests at once. The user uses a
+merge queue when GitHub offers one for the repository, so each sub-issue
+is tested against current main when its turn to merge comes. Otherwise,
 they leave "Require branches to be up to date before merging" off. If it
-were on, every merge would leave every other stage behind, waking each
-stage's agent to merge main, running its checks again and waking the
-lead for the new head, though only one stage can merge next. With it
-off, a stage that falls behind without conflicting still merges cleanly,
-and a stage that conflicts still wakes its agent to bring the branch up
-to date.
+were on, every merge would leave every other sub-issue behind, waking
+each assignment's agent to merge main, running its checks again and
+waking the lead for the new head, though only one pull request can merge
+next. With it off, a sub-issue that falls behind without conflicting
+still merges cleanly, and a sub-issue that conflicts still wakes the
+assignment's agent to bring the branch up to date.
 
 When the user is satisfied, they close the parent, and the campaign ends
 once any round that is still running finishes. Its worktree is then
@@ -463,41 +463,41 @@ read its plan, and the lead never loses the thread.
 
 #### The lead hears when a sub-issue needs it
 
-A sub-issue's assignment works through its stage while the lead waits.
-When the assignment finishes its turn and no further round of it is due,
-the next update wakes the lead. So does a sub-issue added to or removed
-from the parent, closed or reopened, a pull request that changes its
-head, state or draft flag, checks that finish, a pull request that
-becomes mergeable, and an assignment that ends or falls into fault.
-Every change but a sub-issue added or removed waits until the
-sub-issue's assignment has no round running or due, so the lead is not
-woken while an assignment is still working, starting work wakes nothing,
-and neither do checks still running or changes on main. Several changes
-reach the lead together in one round, beside any comments that the user
-has posted, and its input names each sub-issue that changed and what
-changed, with the whole current picture. A change that the lead could
-not yet be given, because it was working, paused or waiting for an agent
-slot, reaches it in its next round, and a change that reverted meanwhile
-is not news. While a round is due for such changes, the campaign shows
-as waiting with how many sub-issues changed, and the round's trigger
-names each one with what changed.
+A sub-issue's assignment works while the lead waits. When the assignment
+finishes its turn and no further round of it is due, the next update
+wakes the lead. So does a sub-issue added to or removed from the parent,
+closed or reopened, a pull request that changes its head, state or draft
+flag, checks that finish, a pull request that becomes mergeable, and an
+assignment that ends or falls into fault. Every change but a sub-issue
+added or removed waits until the sub-issue's assignment has no round
+running or due, so the lead is not woken while an assignment is still
+working, starting work wakes nothing, and neither do checks still
+running or changes on main. Several changes reach the lead together in
+one round, beside any comments that the user has posted, and its input
+names each sub-issue that changed and what changed, with the whole
+current picture. A change that the lead could not yet be given, because
+it was working, paused or waiting for an agent slot, reaches it in its
+next round, and a change that reverted meanwhile is not news. While a
+round is due for such changes, the campaign shows as waiting with how
+many sub-issues changed, and the round's trigger names each one with
+what changed.
 
-The value to the user is that the lead takes up each stage's result as
-soon as it is ready, and never spends a round on work that is still
+The value to the user is that the lead takes up each sub-issue's result
+as soon as it is ready, and never spends a round on work that is still
 going on.
 
-#### The lead gives a stage's agent feedback
+#### The lead gives an assignment's agent feedback
 
-The lead reviews a sub-issue's pull request and finds something to
-correct, or the stage's agent has asked a question there. The lead
-comments on the pull request without the agent's mark, and at the next
-update the assignment's agent is given the comment as it would be given
-the user's, in its own harness session, and answers on the pull request.
-The user can comment on the same pull request, and the agent is given
-both. When the agent has answered and has no round running or due, the
-lead hears of it and reads the answer on GitHub.
+The lead reviews the pull request for a sub-issue's assignment and finds
+something to correct, or the assignment's agent has asked a question
+there. The lead comments on the pull request without the agent's mark,
+and at the next update the assignment's agent is given the comment as it
+would be given the user's, in its own harness session, and answers on
+the pull request. The user can comment on the same pull request, and the
+agent is given both. When the agent has answered and has no round
+running or due, the lead hears of it and reads the answer on GitHub.
 
-The value to the user is that the lead and each stage's agent work
+The value to the user is that the lead and each assignment's agent work
 through the pull request, as the user would, so the user can read the
 whole exchange and join it.
 

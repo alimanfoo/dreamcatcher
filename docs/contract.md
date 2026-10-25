@@ -277,8 +277,8 @@ stopped.
 ## Campaign skill contract
 
 A campaign skill guides the lead, the agent of a campaign, to carry a
-parent issue's planned stages through GitHub. It must accept the parent
-issue's number in the same `GH123` form as an assignment skill.
+parent issue's planned sub-issues through GitHub. It must accept the
+parent issue's number in the same `GH123` form as an assignment skill.
 _dreamcatcher_ adds the input and operational instructions around the
 configured prompt, so the prompt does not need to repeat them and must
 not contradict them.

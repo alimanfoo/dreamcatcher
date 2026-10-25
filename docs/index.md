@@ -8,8 +8,7 @@ headline:
   - Run coding agents on your machine.
   - Steer them from GitHub.
 lede:
-  Label an issue, and an agent carries it to a pull request by itself,
-  asking you on GitHub when it needs a decision or feedback.
+  Dispatch agents to implement, investigate and coordinate your issues.
 points:
   - title: Your own setup.
     text:
@@ -30,29 +29,21 @@ repository's main checkout. It watches the repository through `gh`, and
 starts each agent in Claude Code or Codex. The label on an issue says
 which kind of work to start.
 
-An **assignment** carries an issue to a pull request:
+An **assignment** implements one issue in its own worktree and pull
+request. Review it as you would any pull request: leave review comments
+or line comments, or request a change. The agent addresses your feedback
+in its next round. Keep iterating, then merge when you are satisfied, or
+close it if the work should not land.
 
-1. You label an issue and assign it to yourself.
-2. _dreamcatcher_ opens a draft pull request for the issue, and starts
-   an agent on it in a worktree of its own.
-3. The agent works in rounds. When it needs a decision, it asks on the
-   pull request, and _dreamcatcher_ passes your reply to its next round.
-4. When the work is done, the agent marks the pull request ready for
-   review. Review it as you would any pull request. _dreamcatcher_
-   passes each review and comment to another round, in which the agent
-   addresses your feedback.
-5. Keep iterating until you're happy, then merge the pull request. If
-   the work should not land, close it.
-6. The agent then takes one last round to wrap up.
+A **conversation** investigates one issue without changing code. Ask a
+question in an issue comment, and the agent answers on the issue. Each
+later question carries on the same conversation.
 
-A **conversation** answers your questions on an issue, and writes no
-code. Label an issue for a conversation, assign it to yourself, and post
-a question as a comment. The agent reads the code and answers on the
-issue. Post another question, and the conversation carries on.
-
-A **campaign** gives a planned body of work to an agent called the lead.
-Label a parent issue for a campaign and assign it to yourself, and the
-lead takes up the plan on GitHub. Close the parent to end the campaign.
+A **campaign** gives an agent called the lead several issues to
+shepherd. Gather them as sub-issues of one parent; some can run together
+and some can wait on others. The lead sets up assignments, reviews and
+merges their pull requests, and asks you on the parent when a decision
+is needed.
 
 Several agents can work at once, up to a number that you set. Follow
 them all on a local web page, or in the terminal.
@@ -72,8 +63,8 @@ uv tool install dreamcatcher
 
 Then follow [From issue to pull request](tutorial.md) for the complete
 setup and a first assignment. To try a campaign, follow
-[From parent issue to merged stages](campaign-tutorial.md), which uses
-the same setup.
+[From parent issue to merged pull requests](campaign-tutorial.md), which
+uses the same setup.
 
 ## Guides
 

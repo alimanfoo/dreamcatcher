@@ -1,8 +1,10 @@
 # Start a campaign
 
-A campaign hands a planned body of work to an agent, the lead. The
-campaign's parent issue holds the goal, and the parent's sub-issues are
-the stages. The lead works through GitHub, as its prompt directs.
+A campaign hands a parent issue and its sub-issues to an agent, the
+lead. The configured prompt tells the lead what to do with them. The
+default `dream:lead` route shepherds each sub-issue through an
+assignment and merged pull request, and asks you on the parent when it
+needs a decision.
 
 _dreamcatcher_ gives the lead a round when the campaign starts, another
 for each comment you post on the parent, and another when a sub-issue
@@ -11,17 +13,18 @@ when you close the parent.
 
 You need a configured campaign route and a running daemon. For a first
 campaign, follow the worked example in
-[From parent issue to merged stages](campaign-tutorial.md).
+[From parent issue to merged pull requests](campaign-tutorial.md).
 
 ## Configure a campaign route
 
 The `dreamcatcher.toml` that `dreamcatcher init` writes routes the
 `dream:lead` label to campaigns. Its recipes run the
 [`dream:lead`](https://github.com/alimanfoo/dream/blob/main/plugins/dream/skills/lead/SKILL.md)
-skill from the dream plugin. The skill starts each stage on an
-assignment route, reviews the stage's pull request and checks its proof,
-gives the stage's agent feedback, and merges the pull request once the
-stage is done. It asks you on the parent before it changes the plan.
+skill from the dream plugin. The skill sets up an assignment for each
+sub-issue on an assignment route, reviews the assignment's pull request
+and checks its proof, gives the assignment's agent feedback, and merges
+the pull request once the sub-issue is done. It asks you on the parent
+before it changes the plan.
 
 `init` never changes an existing `dreamcatcher.toml`, so a file written
 before the route existed has none. Copy the `[[campaign]]` route from
@@ -53,6 +56,26 @@ Run [`dreamcatcher init`](command-reference.md#init) to create the label
 on GitHub, then restart the daemon so that it reads the new route. The
 [campaign skill contract](contract.md#campaign-skill-contract) says what
 _dreamcatcher_ gives the lead and what the lead must leave to you.
+
+## Keep sub-issue pull requests from updating one another
+
+A campaign can have several sub-issue pull requests open at once. If the
+repository requires branches to be up to date before merging, each merge
+leaves every other sub-issue behind `main`. Each remaining assignment's
+agent then merges `main`, its checks run again, and the lead wakes for
+the new head. Only one of those pull requests merges next, so the rest
+repeat the work after the next merge.
+
+Use
+[GitHub's merge queue](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/configuring-pull-request-merges/managing-a-merge-queue)
+when it is available for the repository. It tests queued changes with
+the latest `main` when their turn comes, without making each agent
+update its pull request branch after every earlier merge.
+
+Otherwise, leave **Require branches to be up to date before merging**
+off for a repository that runs campaigns. A pull request that falls
+behind without a conflict still merges cleanly. One that conflicts with
+`main` still wakes its agent to bring the branch up to date.
 
 ## Start the campaign
 

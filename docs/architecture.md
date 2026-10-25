@@ -334,9 +334,9 @@ on every GitHub post that the lead makes, except feedback that it gives
 a sub-issue's assignment on that assignment's pull request.
 `compose_round_prompt` in `prompts.py` chooses those words by the kind
 of work. The ordinary assignment relay then gives the unmarked feedback
-to the assignment's agent as a user post, so the lead reaches a stage's
-agent through the same channel as the user, and no campaign code relays
-it.
+to the assignment's agent as a user post, so the lead reaches a
+assignment's agent through the same channel as the user, and no campaign
+code relays it.
 
 ### Agent assignments
 
