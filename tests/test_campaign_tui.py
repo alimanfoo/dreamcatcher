@@ -63,6 +63,20 @@ def test_campaign_detail_shows_its_parent_settings_and_rounds(state):
     assert "claude --resume lead-session" in shown
 
 
+def test_a_closed_campaign_view_shows_closed_once_as_its_status(state):
+    written = StringIO()
+    console = create_pinned_console(written_to=written)
+
+    show_agent_work_view(
+        state=state,
+        work=read_newest_work(state=state, issue=61, kind=AgentWorkKind.CAMPAIGN),
+        console=console,
+        clock=lambda: LOOKED_AT,
+    )
+
+    assert written.getvalue().splitlines()[1] == "closed"
+
+
 def test_campaign_feed_shows_what_the_lead_said(state):
     written = StringIO()
     console = create_pinned_console(written_to=written)

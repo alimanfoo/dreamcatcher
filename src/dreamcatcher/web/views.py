@@ -95,17 +95,14 @@ def _compose_work_card(
     """Return the values shown for one piece of agent work on the home page."""
     work = status.work
     record = work.record
-    # An ended status's detail is the reason the work ended, which for an
-    # assignment reads as a status of its own, so the card shows it once.
-    is_ended_assignment = status.has_ended and record.kind is AgentWorkKind.ASSIGNMENT
     return WebAgentWorkCard(
         identifier=work.identifier,
         kind=record.kind,
         issue=record.issue,
         title=record.title,
         status=status.value,
-        status_words=status.detail if is_ended_assignment else str(status.value),
-        detail=None if is_ended_assignment else status.detail,
+        status_words=status.words,
+        detail=status.detail,
         dispatch_label=record.dispatch_label,
         harness=str(record.harness),
         model=record.model,
@@ -156,6 +153,7 @@ def compose_agent_live_state(
     """Return the values of an agent-work page that its tail refreshes."""
     return WebAgentLiveState(
         status=status.value,
+        status_words=status.words,
         detail=status.detail,
         rounds=_compose_agent_rounds(round_statuses=status.round_statuses, zone=zone),
         heading_controls=heading_controls,

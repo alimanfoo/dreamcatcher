@@ -1535,6 +1535,7 @@ def test_deleting_an_errored_rounds_comments_withdraws_them_until_a_new_one(
     found = read_status(state=state)
     assert withdrawn.launched_agent_work_identifiers == []
     assert found.value is AgentWorkStatusValue.IDLE
+    assert found.detail is not None
     assert found.detail.startswith("round 1, errored (exit 2), ran ")
 
     offer_conversation(

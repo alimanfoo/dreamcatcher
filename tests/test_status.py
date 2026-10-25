@@ -537,7 +537,8 @@ def test_a_successful_wrap_up_is_complete(state):
     status = read_sole_assignment_status(state=state)
 
     assert status.value is AgentWorkStatusValue.ENDED
-    assert status.detail == "completed"
+    assert status.words == "completed"
+    assert status.detail is None
     assert status.has_ended
 
 
@@ -553,7 +554,8 @@ def test_a_cancelled_assignment_has_ended(state):
     status = read_sole_assignment_status(state=state)
 
     assert status.value is AgentWorkStatusValue.ENDED
-    assert status.detail == "cancelled"
+    assert status.words == "cancelled"
+    assert status.detail is None
     assert status.has_ended
 
 
@@ -566,6 +568,7 @@ def test_a_round_still_running_after_a_cancel_is_working(held_state):
     status = read_sole_assignment_status(state=held_state)
 
     assert status.value is AgentWorkStatusValue.WORKING
+    assert status.words == "working"
     assert not status.has_ended
 
 

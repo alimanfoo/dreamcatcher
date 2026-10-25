@@ -20,8 +20,7 @@ class WebAgentWorkCard:
     """Represent the values rendered in one card for agent work of any kind.
 
     Only an assignment has a pull request. Only an active campaign has a child
-    overview. An ended assignment's status words are the reason it ended, and it
-    has no detail; other work shows its status as the status words.
+    overview. Ended work has no detail.
     """
 
     identifier: str
@@ -128,10 +127,14 @@ class WebAgentWorkControl:
 
 @dataclass(frozen=True, kw_only=True)
 class WebAgentLiveState:
-    """Represent the values of an agent-work page that its tail refreshes."""
+    """Represent the values of an agent-work page that its tail refreshes.
+
+    Ended work has no detail.
+    """
 
     status: AgentWorkStatusValue
-    detail: str
+    status_words: str
+    detail: str | None
     rounds: Sequence[WebAgentRound]
     heading_controls: Sequence[WebAgentWorkControl]
     foot_controls: Sequence[WebAgentWorkControl]

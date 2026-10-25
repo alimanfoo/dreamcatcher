@@ -498,10 +498,10 @@ def assert_conversation_views_keep_watching(*, state: StateDirectory) -> None:
 
 
 def end_conversation(*, state: StateDirectory) -> None:
-    """Record that the conversation at issue 8 ended."""
+    """Record that the conversation at issue 8 ended when its issue closed."""
     write_ending(
         directory=find_conversation_directory(state=state, issue=8),
-        reason=AgentWorkEndReason.COMPLETED,
+        reason=AgentWorkEndReason.ISSUE_CLOSED,
         at=PINNED + timedelta(minutes=10),
     )
 
@@ -520,7 +520,7 @@ def test_status_counts_an_ended_conversation(tmp_path):
     assert "answered" not in shown
 
 
-def test_a_view_of_an_ended_conversation_never_waits(tmp_path):
+def test_a_view_of_a_closed_conversation_shows_closed_and_never_waits(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_conversation(state=state)
     end_conversation(state=state)
@@ -535,7 +535,7 @@ def test_a_view_of_an_ended_conversation_never_waits(tmp_path):
         wait=refuse_to_wait,
     )
 
-    assert "ended  completed" in written.getvalue()
+    assert written.getvalue().splitlines()[1].rstrip() == "closed"
 
 
 def write_newer_conversation(*, state: StateDirectory) -> str:

@@ -938,7 +938,8 @@ def test_status_classes_do_not_depend_on_status_wording(tmp_path, monkeypatch):
 
     def reword_agent_live_state(**kwargs):
         live = compose_agent_live_state(**kwargs)
-        return replace(live, status=reworded[live.status.name])
+        status = reworded[live.status.name]
+        return replace(live, status=status, status_words=str(status))
 
     monkeypatch.setattr(web_app_module, "compose_home_view", reword_home_view)
     monkeypatch.setattr(
@@ -1107,25 +1108,61 @@ def test_ended_assignments_are_ordered_by_when_they_ended(tmp_path):
     assert page.index('id="GH20-') < page.index('id="GH30-') < page.index('id="GH10-')
 
 
-@pytest.mark.parametrize(
-    ("identifier", "reason"),
-    [
-        ("GH12-20260819-184158-assignment", "completed"),
-        ("GH70-20260819-184158-assignment", "cancelled"),
-    ],
-)
-def test_an_ended_assignment_card_shows_why_it_ended_once_as_its_status(
-    tmp_path, identifier, reason
+# Ended work of each kind that a fabrication writes, with the words its status
+# shows.
+ENDED_WORK = [
+    (fabricate_everything, "GH12-20260819-184158-assignment", "completed"),
+    (fabricate_everything, "GH70-20260819-184158-assignment", "cancelled"),
+    (fabricate_campaign_report, "GH61-20260819-184158-campaign", "closed"),
+]
+
+
+@pytest.mark.parametrize(("fabricate", "identifier", "words"), ENDED_WORK)
+def test_an_ended_work_card_shows_how_it_ended_once_as_its_status(
+    tmp_path, fabricate, identifier, words
 ):
     state = StateDirectory(root=tmp_path)
-    fabricate_everything(state=state)
+    fabricate(state=state)
 
     page = render_home(state=state)
     ended = page[page.index('<details class="ended-work">') :]
     card = extract_article(page=ended, identifier=identifier)
 
-    assert f'<span class="chip status-ended">{reason}</span>' in card
+    assert f'<span class="chip status-ended">{words}</span>' in card
     assert 'class="agent-work-detail"' not in card
+
+
+@pytest.mark.parametrize(("fabricate", "identifier", "words"), ENDED_WORK)
+def test_an_ended_work_page_shows_how_it_ended_once_as_its_status(
+    tmp_path, fabricate, identifier, words
+):
+    state = StateDirectory(root=tmp_path)
+    fabricate(state=state)
+
+    page = render_assignment(state=state, identifier=identifier)
+
+    assert (
+        f'<span id="agent-work-status" class="chip status-ended">{words}</span>'
+    ) in page
+    assert ('<p id="agent-work-detail" class="agent-work-detail" hidden></p>') in page
+
+
+def test_an_ended_assignment_tail_hides_the_detail(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    fabricate_everything(state=state)
+    identifier = "GH70-20260819-184158-assignment"
+    application = _create_app(state=state, clock=lambda: LOOKED_AT)
+    page = application.test_client().get(f"/work/{identifier}")
+
+    tail = _read_tail(
+        state=state, identifier=identifier, position=_read_position(response=page)
+    )
+
+    assert (
+        '<p id="agent-work-detail" class="agent-work-detail" hx-swap-oob="morph"'
+        " hidden></p>"
+    ) in tail.text
+    assert 'class="chip status-ended" hx-swap-oob="morph">cancelled</span>' in tail.text
 
 
 def test_a_cancelled_assignment_card_shows_working_while_its_round_stops(tmp_path):

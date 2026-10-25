@@ -339,6 +339,18 @@ def render_assignment_view(*, state, issue: int, width: int = WIDTH) -> str:
     return written_to.getvalue()
 
 
+@pytest.mark.parametrize(("issue", "words"), [(12, "completed"), (70, "cancelled")])
+def test_an_ended_assignment_view_shows_how_it_ended_once_as_its_status(
+    tmp_path, issue, words
+):
+    state = StateDirectory(root=tmp_path)
+    fabricate_everything(state=state)
+
+    view = render_assignment_view(state=state, issue=issue)
+
+    assert view.splitlines()[1] == words
+
+
 def test_an_assignment_with_no_pull_request_yet_says_so(tmp_path):
     state = StateDirectory(root=tmp_path)
     write_assignment(

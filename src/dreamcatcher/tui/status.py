@@ -149,7 +149,7 @@ def _render_work_rows(*, statuses: Sequence[AgentWorkStatus]) -> list[Renderable
     if not statuses:
         return []
     identifier_width = max(len(status.work.identifier) for status in statuses)
-    status_width = max(len(status.value) for status in statuses)
+    status_width = max(len(status.words) for status in statuses)
     rows: list[RenderableType] = []
     for status in statuses:
         table = create_table(columns=3)
@@ -157,8 +157,8 @@ def _render_work_rows(*, statuses: Sequence[AgentWorkStatus]) -> list[Renderable
         table.columns[1].width = status_width
         table.add_row(
             Text(status.work.identifier),
-            Text(str(status.value), style=AGENT_WORK_STATUS_STYLES[status.value]),
-            Text(status.detail),
+            Text(status.words, style=AGENT_WORK_STATUS_STYLES[status.value]),
+            Text(status.detail or ""),
         )
         rows.append(table)
         latest_output = render_latest_output(latest_output=status.latest_output)

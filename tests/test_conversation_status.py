@@ -829,7 +829,7 @@ def end_conversation(*, state: StateDirectory, minutes: int = 10) -> None:
     )
 
 
-def test_an_ended_conversation_reads_as_ended_with_its_reason(conversation_state):
+def test_a_conversation_whose_issue_closed_shows_as_closed(conversation_state):
     write_conversation_round(state=conversation_state)
     end_conversation(state=conversation_state)
     observe(state=conversation_state, finding=PAUSED)
@@ -837,7 +837,8 @@ def test_an_ended_conversation_reads_as_ended_with_its_reason(conversation_state
     found = read_conversation_status(state=conversation_state)
 
     assert found.value is AgentWorkStatusValue.ENDED
-    assert found.detail == "issue closed"
+    assert found.words == "closed"
+    assert found.detail is None
     assert found.has_ended
     assert not found.is_active
 

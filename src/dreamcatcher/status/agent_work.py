@@ -18,7 +18,7 @@ from dreamcatcher.agent_rounds import (
     AgentRoundRecord,
     interpret_agent_round_outcome,
 )
-from dreamcatcher.agent_work import AgentWork
+from dreamcatcher.agent_work import AgentWork, AgentWorkEndReason
 from dreamcatcher.campaigns import CampaignChild
 from dreamcatcher.documents import read_text
 from dreamcatcher.github import PullRequestState
@@ -90,16 +90,35 @@ AGENT_WORK_STATUS_VALUES_IN_ATTENTION_ORDER = (
     AgentWorkStatusValue.ENDED,
 )
 
+# What ended work shows as its status. Each word says the state the work ended
+# in, so the saved reason "issue closed", which names a cause, shows as closed.
+_ENDING_WORDS = {
+    AgentWorkEndReason.COMPLETED: "completed",
+    AgentWorkEndReason.CANCELLED: "cancelled",
+    AgentWorkEndReason.ISSUE_CLOSED: "closed",
+}
+
 
 @dataclass(frozen=True, kw_only=True)
 class AgentWorkStatus:
-    """Describe the derived summary status of one piece of agent work."""
+    """Describe the derived summary status of one piece of agent work.
+
+    Ended work has no detail, because its status words already say how it ended.
+    """
 
     work: AgentWork
     row: RequestRow | None
     value: AgentWorkStatusValue
-    detail: str
+    detail: str | None
     latest_output: str | None
+
+    @property
+    def words(self) -> str:
+        """The status in words: the state ended work ended in, else the value."""
+        ending = self.work.ending
+        if not self.has_ended or ending is None:
+            return str(self.value)
+        return _ENDING_WORDS[ending.reason]
 
     @property
     def has_ended(self) -> bool:
@@ -332,7 +351,7 @@ class AgentWorkStatusReader:
             work=work,
             row=row,
             value=AgentWorkStatusValue.ENDED,
-            detail=str(work.ending.reason),
+            detail=None,
             latest_output=None,
         )
 
