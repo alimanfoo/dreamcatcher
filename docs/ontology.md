@@ -657,9 +657,8 @@ Agent work of every kind has one of these summary statuses:
   assignment whose round is still stopping is working until the round
   ends.
 - **Ended**: the work's ending is recorded. Ended work shows the state
-  it ended in, in place of the status and with no detail: completed or
-  cancelled for an assignment, and closed for a conversation or
-  campaign, whose ending's reason is issue closed.
+  it ended in, with no detail: completed or cancelled for an assignment,
+  and closed for a conversation or campaign.
 - **Fault**: two consecutive rounds have errored, so no further round
   starts on its own.
 - **Unknown**: the latest tick could not read what it needed for the

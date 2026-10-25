@@ -6,7 +6,7 @@ from datetime import datetime
 from enum import StrEnum
 from functools import cached_property
 from pathlib import Path
-from typing import Protocol
+from typing import Protocol, cast
 
 from dreamcatcher.agent_assignments import (
     read_assignment_pull_request_number,
@@ -18,7 +18,7 @@ from dreamcatcher.agent_rounds import (
     AgentRoundRecord,
     interpret_agent_round_outcome,
 )
-from dreamcatcher.agent_work import AgentWork, AgentWorkEndReason
+from dreamcatcher.agent_work import AgentWork, AgentWorkEnding, AgentWorkEndReason
 from dreamcatcher.campaigns import CampaignChild
 from dreamcatcher.documents import read_text
 from dreamcatcher.github import PullRequestState
@@ -115,10 +115,9 @@ class AgentWorkStatus:
     @property
     def words(self) -> str:
         """The status in words: the state ended work ended in, else the value."""
-        ending = self.work.ending
-        if not self.has_ended or ending is None:
+        if not self.has_ended:
             return str(self.value)
-        return _ENDING_WORDS[ending.reason]
+        return _ENDING_WORDS[cast("AgentWorkEnding", self.work.ending).reason]
 
     @property
     def has_ended(self) -> bool:
