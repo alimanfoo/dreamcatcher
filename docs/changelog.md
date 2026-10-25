@@ -27,8 +27,19 @@ the change.
 
 ## Unreleased
 
+## [v9.2.0](https://github.com/alimanfoo/dreamcatcher/releases/tag/v9.2.0) — 2026-10-25
+
 ### Changed
 
+- The documentation home page says in one short paragraph each what an
+  assignment, a conversation and a campaign are for. The campaign
+  tutorial, now
+  [From parent issue to merged pull requests](campaign-tutorial.md),
+  opens by explaining why you would use a campaign, and the
+  documentation calls the issues that a campaign carries sub-issues, not
+  stages. Advice on merge queues for parallel pull requests moves to
+  [Start a campaign](start-a-campaign.md).
+  ([#799](https://github.com/alimanfoo/dreamcatcher/pull/799))
 - A kind of work that the daemon routes no label for tells the user to
   add the route and restart the daemon to enable it, in place of first
   saying that the daemon routes none, on the home page and in

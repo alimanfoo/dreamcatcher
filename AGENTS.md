@@ -283,8 +283,10 @@ $env:PYTHONWARNDEFAULTENCODING = "1"; uv run pytest --regenerate-view-goldens
   model and the effort a dispatch holds, where pydantic turns the
   `ValueError` into a named error. Anywhere else, catch the `ValueError`
   and raise a `ReportableError`, or the user reads a traceback. A name
-  that _dreamcatcher_ chose itself, such as a work identifier or a path
-  inside the state directory, needs no check.
+  that _dreamcatcher_ chose itself, such as a work identifier, needs no
+  check, and neither does a path made only of such names, as a round's
+  files are from its worktree. An absolute path inside the state
+  directory still carries the checkout's own path, which the user chose.
 
 ### API design
 
