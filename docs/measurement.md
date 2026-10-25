@@ -5,86 +5,81 @@ This page holds the latest measurement of _dreamcatcher_ against
 replaces it before each major or minor release. Earlier measurements are
 in Git history.
 
-Measured on 2026-10-24 at `4f985431`, for the v9.1.0 release
-preparation. The review covers the 14 pull requests merged since v9.0.0,
-with particular attention to the first-ending rule, the daemon stopping
-when an update cannot complete, read-only collection fields, the home
-card layout, ended assignment cards and pull request readiness. The
-consistency review and issue triage ran beside this measurement.
+Measured on 2026-10-25 at `e659f0af`, for the v9.2.0 release
+preparation. The review covers the 12 pull requests merged since v9.1.0,
+with particular attention to a Claude round's final output, the Codex
+final-output path, the words ended work shows, the feed position parser,
+the campaign documentation and the supply-chain checks. The consistency
+review and issue triage ran beside this measurement.
 
 ## Results
 
-| Criterion                              | Measured                                                                                                                                           | Status  | Issue      |
-| -------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- | ------- | ---------- |
-| S1 Modules are cohesive                | 0 reviewed modules without one nameable responsibility                                                                                             | met     |            |
-| S2 Functions do one thing              | 0 reviewed functions without one nameable job                                                                                                      | met     |            |
-| S3 Exports are used                    | 31 public definitions without a direct named importer, the same set as v9.0.0; each is a model, protocol, entry point or part of a named interface | met     |            |
-| S4 Each thing is done one way          | Readiness and the pull request finding each gain one home; an ended assignment's card and its page and terminal view word its ending differently   | not met | #782       |
-| S5 Nothing is suppressed               | 0 `noqa`, 0 `type: ignore`, 3 platform pragmas                                                                                                     | met     |            |
-| C1 One vocabulary                      | 2 disagreements found, both corrected in this preparation                                                                                          | met     |            |
-| C2 Enduring documents are true         | The stories and the architecture disagree on a harness that cannot be started; the conversation-answer promise has a known counterexample          | not met | #758, #781 |
-| C3 Documentation by purpose            | Tutorials, task guides, references and explanations remain separate; no new page                                                                   | met     |            |
-| C4 Formats and contracts are versioned | State format 8 unchanged since v9.0.0; contract remains 1; no breaking change                                                                      | met     |            |
-| K1 Structural rules checked by machine | The 5 named rules remain checked                                                                                                                   | met     |            |
-| K2 Suite is fast and speaks plainly    | 47.01 seconds, 1,538 tests passed, 100% statement and branch coverage                                                                              | met     |            |
-| K3 Tracker is current                  | 10 open issues triaged; 5 bodies corrected; none ready to close                                                                                    | met     |            |
-| K4 Every change reviewed to standard   | All 14 merged PRs answer all 7 definition-of-done questions                                                                                        | met     |            |
-| E1 Rules, not cases                    | 11 ledger entries, unchanged; each new conditional applies a stated rule                                                                           | met     |            |
-| E2 Invariants by construction          | 70 nullable class fields inspected, one added; a cancel's ended check moved into the conditional write                                             | met     |            |
-| E3 Concept economy                     | No domain concept added; the ontology gains the first-ending rule and two trigger words                                                            | met     |            |
-| E4 Symmetry                            | Every kind's ending follows the first-ending rule; cancellation keeps its documented difference                                                    | met     |            |
+| Criterion                              | Measured                                                                                                                                           | Status | Issue |
+| -------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- | ------ | ----- |
+| S1 Modules are cohesive                | 0 reviewed modules without one nameable responsibility                                                                                             | met    |       |
+| S2 Functions do one thing              | 0 reviewed functions without one nameable job                                                                                                      | met    |       |
+| S3 Exports are used                    | 31 public definitions without a direct named importer, the same set as v9.1.0; each is a model, protocol, entry point or part of a named interface | met    |       |
+| S4 Each thing is done one way          | The words ended work shows have one home in `status`; the card, the page and the terminal view read them                                           | met    |       |
+| S5 Nothing is suppressed               | 0 `noqa`, 0 `type: ignore`, 3 platform pragmas                                                                                                     | met    |       |
+| C1 One vocabulary                      | 5 disagreements found, 4 corrected in this preparation and 1 accepted as a landing-page simplification                                             | met    |       |
+| C2 Enduring documents are true         | The two disagreements v9.1.0 left open are resolved; one overstated timing claim corrected in this preparation                                     | met    |       |
+| C3 Documentation by purpose            | Tutorials, task guides, references and explanations remain separate; no new page                                                                   | met    |       |
+| C4 Formats and contracts are versioned | State format 8 unchanged since v9.0.0; contract remains 1; no breaking change                                                                      | met    |       |
+| K1 Structural rules checked by machine | The 5 named rules remain checked; zizmor now checks the workflows                                                                                  | met    |       |
+| K2 Suite is fast and speaks plainly    | 52.16 seconds, 1,553 tests passed, 100% statement and branch coverage                                                                              | met    |       |
+| K3 Tracker is current                  | 6 open issues triaged; 1 body corrected; none ready to close                                                                                       | met    |       |
+| K4 Every change reviewed to standard   | All 11 merged PRs answer all 7 definition-of-done questions; 1 Dependabot PR                                                                       | met    |       |
+| E1 Rules, not cases                    | 11 ledger entries, unchanged; each new conditional applies a stated rule                                                                           | met    |       |
+| E2 Invariants by construction          | 72 nullable class fields inspected, two added; one defended failure removed                                                                        | met    |       |
+| E3 Concept economy                     | No domain concept added; "stage" leaves the documents as a second name for a sub-issue                                                             | met    |       |
+| E4 Symmetry                            | Ended work of every kind shows its state the same way; Claude and Codex both take the last answer once the stream ends                             | met    |       |
 
 ## Deferred work and previous findings
 
-Both disagreements left open by the v9.0.0 measurement have moved. A
-wrap-up can no longer overwrite a cancellation (#757): #774 records the
-first ending for good under the document lock, so a cancelled assignment
-keeps its worktree. The recorded Claude stream whose interim and empty
-result events the adapter treats as final answers (#758) remains open,
-and the conversation story's promise of one answer still has that
-counterexample.
+Both disagreements left open by the v9.1.0 measurement are resolved. A
+Claude round's final output is now the last result event with text, read
+once the stream ends (#758, through #793), so the conversation story's
+promise of one answer holds for a round that waits on background
+subagents. Codex is given its final-output path relative to the
+worktree, so building a harness invocation can no longer fail and the
+stories and the architecture agree again (#781, through #795).
 
-The deferred work the v9.0.0 measurement listed is done, apart from the
-unused recorded-feed goldens (#759). Frozen dataclass collection fields
-are read-only (#731, through #765), duplicated test helpers have one
-home (#735, through #767), the slow macOS test server is built as the
-product builds it (#755, through #772), and a failed update stops the
-daemon (#756, through #773). The presentation questions are settled too:
-ended cards (#733, through #779), the wrap-up wait (#734, through #766),
-the card layout (#736, through #770) and pull request readiness (#737,
-through #780). A bare campaign sub-issue shows its title alone (#728,
-through #764).
+The follow-ups the v9.1.0 measurement filed are done or declined. Ended
+work of every kind shows how it ended once, in place of "ended", on its
+card, its page and in `dreamcatcher view`, from one rule in `status`
+(#782, through #796). The unused recorded-feed goldens are gone (#759,
+through #794). #778, on the scheduling tests' fabricated round times,
+was declined in triage: no test depends on it, and the mistake it guards
+against would fail loudly.
 
-The changes since v9.0.0 leave three follow-ups, each filed. An ended
-assignment's page still shows "ended" with its reason beneath, where its
-card now shows the reason once (#782). A harness invocation that cannot
-be built now stops the daemon, because it fails before the round is
-recorded (#781). Scheduling tests fabricate rounds after the scheduler's
-clock since the round writer has one home (#778).
+Since v9.1.0 the repository also checks its workflows with zizmor, pins
+its build backend, and holds the release engineering decisions of #785
+(#787, #800). Feed positions are parsed without a regular expression,
+which closes CodeQL's recurring false positive (#786, through #797). The
+agent guide installs the commit hooks from the main checkout only (#789,
+through #801), and the hint for an unrouted kind of work is plainer
+(#784, through #802). The campaign documentation explains what a
+campaign is for and calls its issues sub-issues (#761, through #799).
 
-The triage read all 10 open issues against the ontology and the code. It
-corrected five bodies: #781 says scheduler tick and errored rounds where
-it said update and a round-error lifecycle, #782 no longer calls the
-page's two status words signals, #762 says agent posts, #594 says usage
-allowance where it said tokens, and #492's example record drops a
-purpose field that nothing records. #782 also gained a comment that the
-terminal's view shows the same pair as the page. No issue's work is
-done, so none was closed. #761 carries `documentation` rather than one
-of the three type labels.
+The triage read all 6 open issues against the ontology and the code. It
+corrected one body: #762 now speaks of the pull request of a sub-issue's
+assignment where it spoke of a stage's pull request. No issue's work is
+done, so none was closed. #803, filed during this interval, asks that an
+ended campaign keep its sub-issues under its card.
 
-Issues #32, #492, #594, #761 and #762 also remain open.
+Issues #32, #492, #594, #762 and #803 remain open.
 
 ## Notes
 
 - **S1, S2.** The largest modules are `github.py` (863 lines),
-  `agent_rounds.py` (772), `status/agent_work.py` (591),
+  `agent_rounds.py` (785), `status/agent_work.py` (614),
   `scheduler/tick.py` (506), `agent_work.py` (484), `web/app.py` (467)
   and `status/report.py` (464). They retain their boundary's one
-  responsibility. `status/agent_work.py` grows by the readiness flag and
-  the open pull request finding that the summary and the flag share.
-  `documents.py` (443) grows by the write-once write that endings use,
-  which shares its staging with every other write. The tick shrinks as
-  launch failures leave it.
+  responsibility. `agent_rounds.py` grows by the round's final-output
+  path from its worktree, and loses the flag that settled the final
+  output at the first result event. `status/agent_work.py` grows by the
+  table of words that ended work shows. The longest functions are those
+  of v9.1.0, with the same jobs.
 
   | Function                                      | Lines | Its job                                     |
   | --------------------------------------------- | ----: | ------------------------------------------- |
@@ -99,129 +94,159 @@ Issues #32, #492, #594, #761 and #762 also remain open.
 
 - **S3, S4.** An AST inventory finds 31 public class or function
   definitions without a direct named import from another source module,
-  the same set as at v9.0.0. Review also accounts for imports through
+  the same set as at v9.1.0. Review also accounts for imports through
   module objects, package exports, document and view models, callback
   protocols and the console entry point. It establishes no unused public
-  function. `InvalidSchedulerRecordError` and
-  `WebCampaignChild.is_closed` are gone with what used them.
-  `ObservedPullRequest.is_ready_for_review` is now the one home of "open
-  and not a draft", which the status words and the chip both read, and
-  `_pull_request_finding` replaces the status's inline lookup. The card
-  rule that #779 added in `web.views._compose_work_card` words an ended
-  assignment's ending as "completed" or "cancelled", where the
-  assignment's web page and the terminal's view of it still show "ended"
-  with the reason beneath. #782 asks whether the page should follow the
-  card; the terminal's view stands with the page.
+  function. The card rule that v9.1.0 found in
+  `web.views._compose_work_card` is gone: `AgentWorkStatus.words` is the
+  one home of the words ended work shows, and the card, the page's live
+  state and both terminal renderers read it.
 - **S5, K1.** The three coverage pragmas remain at `teardown.py:20`,
   `teardown.py:110` and `commands.py:270`, all platform arms. The
   architecture tests and lint rules pass, with no suppression added.
-- **C2.** The review compares the changed ending, daemon, scheduler,
-  status and web paths with all four enduring documents. #773 and #774
-  corrected the stories, ontology and architecture in the same changes,
-  and the review finds no stale sentence among them. The architecture
-  still says that a harness invocation that cannot be built fails the
-  tick, which is true and which #781 would change; the stories' "The
-  harness refuses or breaks" says instead that a harness that cannot be
-  started errors its round, so the two documents disagree until #781
-  lands. The conversation story's one-answer promise remains
-  contradicted by #758, which this preparation does not change.
+  zizmor now runs as a frozen commit hook over the workflows, beside
+  actionlint.
+- **C1.** The consistency review below found five disagreements. Four
+  are corrected here; the home page's account of what a campaign's lead
+  does is accepted as written.
+- **C2.** The review compares the changed final-output, harness, status,
+  web and documentation paths with all four enduring documents. #793,
+  #795, #796 and #799 corrected the stories, ontology and architecture
+  in the same changes. The architecture said that the round reads
+  Claude's answer once the stream ends, which holds unless a process the
+  harness left behind keeps the stream open; it now says so.
 - **C3, C4.** The documentation map retains pages by reader purpose. The
-  configuration guide's first example gains a campaign route, and the
-  stop-and-recover guide says when the daemon stops by itself; neither
-  links to a developer document. State format 8 is unchanged. The new
-  `ended.json.lock` sidecar sits beside a document that both v9.0.0 and
-  v9.1.0 read, so saved work carries across, and the compatibility
-  opening says so. The agent contract remains version 1.
-- **K2.** The default suite passed with 1,538 tests, one platform-only
-  skip, and 100% statement and branch coverage, in 47.01 seconds while
-  the consistency review and triage also ran. Its slowest test was
+  campaign tutorial is renamed, and its section on parallel pull
+  requests moves to the campaign task guide, where a campaign with
+  several sub-issues open at once needs it. State format 8 and the agent
+  contract's version 1 are unchanged; the contract's campaign section
+  changes only its wording, from stages to sub-issues.
+- **K2.** The default suite passed with 1,553 tests, one platform-only
+  skip, and 100% statement and branch coverage, in 52.16 seconds. Its
+  slowest test was
   `test_a_closed_parent_ends_the_campaign_once_its_round_finishes`, at
-  21.01 seconds. The separate browser and read-only GitHub integration
-  groups passed together: 44 tests, one platform-only skip, 21.31
-  seconds. Every pre-commit check passed. The 30 tests added since
-  v9.0.0 are named for behaviour; the six `a_write_if_absent` tests name
-  a document write, in the style of their module's other write tests.
-  Local timing does not establish timing on the other platforms; CI
-  covers their behaviour.
-- **K4.** The reviewed PRs are #719, #764, #765, #766, #767, #770, #772,
-  #773, #774, #775, #776, #777, #779 and #780. Each explains the change,
-  links its issue and answers all seven questions; #775 answers two of
-  them as not applicable. No Dependabot PR merged in this interval, and
-  no commit reached main outside a pull request.
+  21.43 seconds. The separate browser and read-only GitHub integration
+  groups passed together: 45 tests, one platform-only skip, 26.49
+  seconds. Every pre-commit check passed. The 14 tests added since
+  v9.1.0 are named for behaviour. Local timing does not establish timing
+  on the other platforms; CI covers their behaviour.
+- **K4.** The reviewed PRs are #787, #790, #793, #794, #795, #796, #797,
+  #799, #800, #801 and #802. Each explains the change, links its issue
+  and answers all seven questions. Dependabot's #791 bumped virtualenv
+  in the uv security group. Branch protection now applies to
+  administrators too, so no commit reaches main outside a pull request,
+  and none did in this interval.
 - **E1.** The ledger keeps its 11 entries, none added or removed. The
-  new conditionals apply stated rules: the first-ending rule in
-  `write_json_if_absent`, `cancel_assignment` and the `cancel` command;
-  readiness in the pull request chip; the stories' rule that an ended
-  assignment's card gives its reason once; and the page's fallback
-  warning when a refresh reaches no server.
+  new conditionals apply stated rules: a Claude result event with blank
+  text gives no final output, because the answer is the last result
+  event with text; ended work's words come from one table of end
+  reasons; and a feed position accepts ASCII digits alone.
 - **E2, E3, E4.** The nullable-field inventory is a prompt for review,
-  not a target count. It adds `WebAgentWorkCard.detail`, absent exactly
-  when the card's status words carry an ended assignment's reason; one
-  composer sets both and no branch defends their agreement. The removed
-  `is_open` check in `cancel_assignment` gives way to the conditional
-  write, which cannot race. No new defensive raise was established. No
-  domain concept is added: "awaiting wrap-up" is a detail of waiting,
-  and "handed back" and "pull request changed" are the words for
-  existing changes. Every kind's ending goes through `end_agent_work`
-  and its first-ending rule; only assignments can be cancelled, as the
-  ontology says. The ended card's reason wording applies to assignments,
-  whose ending has two reasons, while conversations and campaigns end
-  only when their issue closes.
+  not a target count. It adds `AgentWorkStatus.detail` and
+  `WebAgentLiveState.detail`, absent exactly when the work has ended,
+  because its status words then say how it ended.
+  `AgentWorkStatus.words` reads the work's ending through a cast that
+  relies on an ended status having a recorded ending, as the ended
+  list's sort in `status/report.py` already did; no branch or raise
+  defends it. Building a harness invocation no longer raises, because
+  the path it carries cannot hold a character that `cmd.exe` acts on. No
+  domain concept is added, and "stage" leaves the documents, where it
+  was a second name for a sub-issue. Ended work of every kind now shows
+  its state the same way, and Claude and Codex both give the last answer
+  of a round.
 
 ## Semantic Consistency Review
 
 ### Scope
 
-The namespace, source stubs, changed symbol contracts, enduring and user
-documents, templates and open issues were reviewed, weighted to changes
-since v9.0.0. Mechanical sweeps found every identifier and path the
-enduring documents name, every boolean named as a question, and no
-collection field that breaks the read-only rule. Formatting and design
-preferences are excluded. Existing issues are reused for supported
-findings.
+The namespace, the whole diff from v9.1.0, the source, templates,
+enduring and user documents, the agent guide, the packaging and the
+workflows were reviewed. Each change was checked against the other
+claims about its concept: the absence of "stage", the words ended work
+shows, the unrouted-kind hint, the final output of both harnesses, the
+feed position, the harness recordings, the CI packaging check, the
+security policy and the hook installation. Formatting and design
+preferences are excluded.
 
 ### Summary
 
-Two new disagreements were found and corrected in this preparation. The
-one disagreement between enduring documents, on a harness that cannot be
-started, is tracked by #781.
+Five disagreements were found. Four were corrected in this preparation,
+and one is accepted.
 
 ### Vocabulary findings
 
-#### 1. The user guides said a cancelled assignment shows as ended on the home page
+#### 1. Which paths need no quoting check
 
-**Claim A** — `docs/command-reference.md` and `docs/stop-and-recover.md`
+**Claim A** — `AGENTS.md` · "Module and process boundaries"
 
-> The cancelled assignment shows as **ended** with the detail cancelled
-> on the web home page and in `dreamcatcher view`
+> A name that _dreamcatcher_ chose itself, such as a work identifier or
+> a path inside the state directory, needs no check.
 
-**Claim B** — `src/dreamcatcher/web/views.py` · `_compose_work_card` ·
-body
+**Claim B** — `src/dreamcatcher/agent_rounds.py` ·
+`AgentRoundPaths.final_output_from_worktree` · docstring
 
-> `status_words=status.detail if is_ended_assignment else str(status.value),`
+> Every name in it is one that dreamcatcher chose, never the checkout's
+> own path, so a harness's command line can carry it on every platform.
 
-**How they differ:** Since #779 an ended assignment's card says
-"cancelled" or "completed" once. The campaign tutorial said the same of
-a completed stage's card. The three guides now name the card's word and
-keep "ended" for `dreamcatcher view`.
+**How they differ:** The state directory lies inside the checkout, so an
+absolute path in it carries the checkout's own path, which can hold a
+percent sign. The guide now exempts a path made only of _dreamcatcher_'s
+names, such as a round's files from its worktree.
+
+#### 2. What a campaign's lead does
+
+**Claim A** — `docs/index.md` · "How it works"
+
+> The lead sets up assignments, reviews and merges their pull requests,
+> and asks you on the parent when a decision is needed.
+
+**Claim B** — `docs/start-a-campaign.md` · opening
+
+> The configured prompt tells the lead what to do with them. The default
+> `dream:lead` route shepherds each sub-issue through an assignment and
+> merged pull request
+
+**How they differ:** The home page describes the default route's lead as
+every campaign's. This is accepted: the home page introduces the product
+to a newcomer, and the task guide gives the qualification.
+
+#### 3. The changelog's rule and its Unreleased section
+
+**Claim A** — `docs/changelog.md` · preamble
+
+> A change that users would notice gets an entry here: a change to a
+> command, a setting, a message, a view, the documentation, the state
+> format or the agent contract.
+
+**Claim B** — `docs/changelog.md` · Unreleased, which held no entry for
+the pull request that rewrote the home page and the campaign tutorial.
+
+**How they differ:** That change is one a user notices, so the v9.2.0
+section now has an entry for it, citing its pull request.
 
 ### Symbol-contract findings
 
-#### 2. The words for a due wrap-up were described as something new
+#### 4. When the round reads Claude's final output
 
-**Claim A** — `src/dreamcatcher/status/agent_work.py` ·
-`_describe_what_is_new` · docstring
+**Claim A** — `docs/architecture.md` · "Issue conversations"
 
-> Describe what the latest tick found new in the work's channel, if
-> anything.
+> Claude supplies the answer in the last result event that has text,
+> which the round reads once Claude's output stream ends.
 
-**Claim B** — the same function · body
+**Claim B** — `src/dreamcatcher/agent_rounds.py` ·
+`AgentRound._read_final_output` · body
 
-> `if finding.is_wrap_up_due: return "awaiting wrap-up"`
+> `self._stdout_reader.join(_FINAL_OUTPUT_CAPTURE_TIMEOUT_SECONDS)`
 
-**How they differ:** Since #766 the function names a due wrap-up round,
-which is not something new in the channel. The docstring now says the
-words explain why the finding makes a round due.
+**How they differ:** The round waits for the stream to end for at most
+five seconds, for a process the harness left behind that keeps the pipe
+open. The architecture now says so.
+
+#### 5. An article before "assignment's agent"
+
+`docs/architecture.md` · "Campaigns" read "the lead reaches a
+assignment's agent", a slip left by the change from "stage". It now
+reads "an assignment's agent".
 
 ## Method
 
@@ -230,9 +255,9 @@ words explain why the finding makes a round due.
 - AST inventories over `src` count public definitions without direct
   named importers and class fields whose own annotation admits `None`.
   Package exports and module-object callers are reviewed separately. The
-  same inventories over v9.0.0 give the changes since then.
+  same inventories over v9.1.0 give the changes since then.
 - The namespace and stubs guide targeted body reads and the diff from
-  v9.0.0. The docs map guides the documentation review.
+  v9.1.0. The docs map guides the documentation review.
 - Test results establish local coverage, timing and rendered behaviour.
   PR descriptions establish the definition-of-done record, and current
   issue bodies establish the tracker triage.

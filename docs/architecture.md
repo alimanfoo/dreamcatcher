@@ -249,12 +249,13 @@ its reason, and the feed notes it too.
 
 Harness adapters expose final output separately from their progress
 streams. Claude supplies the answer in the last result event that has
-text, which the round reads once Claude's output stream ends. For a
-Codex conversation, the adapter gives `codex exec` the round's
-`final.md` path as its last-message output file on first and resumed
-invocations. The path is relative to the worktree that Codex runs in.
-The worktree and the work's directory both sit in the state directory,
-so the command line never carries the checkout's own path.
+text, which the round reads once Claude's output stream ends, or after a
+short bound when a process the harness left behind holds the stream
+open. For a Codex conversation, the adapter gives `codex exec` the
+round's `final.md` path as its last-message output file on first and
+resumed invocations. The path is relative to the worktree that Codex
+runs in. The worktree and the work's directory both sit in the state
+directory, so the command line never carries the checkout's own path.
 
 ### Campaigns
 
@@ -334,7 +335,7 @@ on every GitHub post that the lead makes, except feedback that it gives
 a sub-issue's assignment on that assignment's pull request.
 `compose_round_prompt` in `prompts.py` chooses those words by the kind
 of work. The ordinary assignment relay then gives the unmarked feedback
-to the assignment's agent as a user post, so the lead reaches a
+to the assignment's agent as a user post, so the lead reaches an
 assignment's agent through the same channel as the user, and no campaign
 code relays it.
 
