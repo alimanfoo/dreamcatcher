@@ -611,8 +611,12 @@ def test_codex_first_and_resumed_rounds_capture_and_publish_final_messages(
     assert len(conversation.rounds) == 2
     calls = harnesses["codex"].calls
     assert len(calls) == 2
-    first_output = str(conversation.compose_round_paths(number=1).final_output)
-    second_output = str(conversation.compose_round_paths(number=2).final_output)
+    first_output = str(
+        conversation.compose_round_paths(number=1).final_output_from_worktree
+    )
+    second_output = str(
+        conversation.compose_round_paths(number=2).final_output_from_worktree
+    )
     assert calls[0].arguments[-3:] == [
         "--output-last-message",
         first_output,

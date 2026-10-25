@@ -112,6 +112,15 @@ class AgentRoundPaths:
         """The file holding the final output that the harness reports, if any."""
         return self.directory / "final.md"
 
+    @property
+    def final_output_from_worktree(self) -> Path:
+        """The final output file's path from the worktree, where the round runs.
+
+        Every name in it is one that dreamcatcher chose, never the checkout's
+        own path, so a harness's command line can carry it on every platform.
+        """
+        return self.final_output.relative_to(self.worktree, walk_up=True)
+
 
 class HarnessSessionIdentifierRecorder(Protocol):
     """Record the harness session identifier that an agent round observes."""
@@ -411,13 +420,13 @@ def start_agent_round(
     if request.harness_session_identifier is None:
         invocation = harness_adapter.build_new_session_round(
             request=request.launch_request,
-            final_output_path=request.paths.final_output,
+            final_output_path=request.paths.final_output_from_worktree,
         )
     else:
         invocation = harness_adapter.build_resumed_round(
             request=request.launch_request,
             harness_session_identifier=request.harness_session_identifier,
-            final_output_path=request.paths.final_output,
+            final_output_path=request.paths.final_output_from_worktree,
         )
     return AgentRound(
         agent_work_identifier=request.launch_request.agent_work_identifier,

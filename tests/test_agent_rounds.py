@@ -330,6 +330,53 @@ def test_a_resumed_round_builds_its_harness_invocation(fake, worktree, directory
     assert call.directory == worktree.resolve()
 
 
+@pytest.mark.parametrize("harness_session_identifier", [None, "01a0213c-9c67"])
+def test_a_codex_conversation_writes_its_final_output_by_a_path_from_its_worktree(
+    fake, tmp_path, harness_session_identifier
+):
+    # A command line on Windows cannot carry a percent sign, so the checkout's
+    # own path must not reach the harness.
+    state = tmp_path / "100%checkout" / ".dreamcatcher"
+    worktree = state / "worktrees" / "GH9-20260819-184158-conversation"
+    worktree.mkdir(parents=True)
+    harness = fake(program="codex")
+    harness.replies(stdout="")
+
+    start_agent_round(
+        request=AgentRoundStartRequest(
+            harness=AgentHarness.CODEX,
+            launch_request=AgentRoundLaunchRequest(
+                agent_work_identifier="GH9-20260819-184158-conversation",
+                model="gpt-5.6-sol",
+                effort="xhigh",
+                prompt=PROMPT,
+                work_kind=AgentWorkKind.CONVERSATION,
+            ),
+            harness_session_identifier=harness_session_identifier,
+            record_harness_session_identifier=ignore_harness_session_identifier,
+            finish_round=None,
+            paths=AgentRoundPaths(
+                worktree=worktree,
+                rounds_directory=(
+                    state / "work" / "GH9-20260819-184158-conversation" / "rounds"
+                ),
+                number=3,
+            ),
+            prepare_round=relay_nothing,
+        ),
+        clock=lambda: PINNED,
+    ).wait()
+
+    arguments = harness.calls[0].arguments
+    output_path = arguments[arguments.index("--output-last-message") + 1]
+    assert output_path == str(
+        Path("..", "..", "work", "GH9-20260819-184158-conversation")
+        / "rounds"
+        / "3"
+        / "final.md"
+    )
+
+
 def test_a_round_writes_the_pull_request_state_and_user_posts_it_was_given(
     fake, worktree, directory
 ):
