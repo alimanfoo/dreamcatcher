@@ -748,7 +748,8 @@ class AgentRound:
         """Return the harness's final output, once its stdout has been read.
 
         A harness can report a final output more than once in a round, as Claude
-        does at the end of each turn, so the last one it reports is the answer.
+        does each time it wakes the agent, so the last one it reports is the
+        answer.
         """
         self._stdout_reader.join(_FINAL_OUTPUT_CAPTURE_TIMEOUT_SECONDS)
         path = self.paths.final_output
