@@ -11,8 +11,7 @@ license = "MIT"
 requires-python = ">=3.12"
 authors = [{ name = "Alistair Miles" }]
 classifiers = [
-    "Development Status :: 2 - Pre-Alpha",
-    "License :: OSI Approved :: MIT License",
+    "Development Status :: 4 - Beta",
     "Programming Language :: Python :: 3",
 ]
 dependencies = [
