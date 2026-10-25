@@ -27,6 +27,13 @@ the change.
 
 ## Unreleased
 
+### Fixed
+
+- A Claude conversation whose agent waits on background subagents posts
+  the agent's last answer, instead of a message saying that it is still
+  waiting or an error that the harness returned no final output.
+  ([#793](https://github.com/alimanfoo/dreamcatcher/pull/793))
+
 ## [v9.1.1](https://github.com/alimanfoo/dreamcatcher/releases/tag/v9.1.1) — 2026-10-25
 
 ### Added
