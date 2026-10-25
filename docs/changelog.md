@@ -27,6 +27,11 @@ the change.
 
 ## Unreleased
 
+### Added
+
+- A security policy says how to report a vulnerability in private.
+  ([#787](https://github.com/alimanfoo/dreamcatcher/pull/787))
+
 ## [v9.1.0](https://github.com/alimanfoo/dreamcatcher/releases/tag/v9.1.0) — 2026-10-24
 
 ### Changed

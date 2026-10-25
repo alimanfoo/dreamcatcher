@@ -11,8 +11,7 @@ license = "MIT"
 requires-python = ">=3.12"
 authors = [{ name = "Alistair Miles" }]
 classifiers = [
-    "Development Status :: 2 - Pre-Alpha",
-    "License :: OSI Approved :: MIT License",
+    "Development Status :: 4 - Beta",
     "Programming Language :: Python :: 3",
 ]
 dependencies = [
@@ -40,7 +39,7 @@ dev = [
     "mkdocs-material==9.7.7",
     "playwright==1.64.0",
     "pre-commit>=4.0",
-    "pytest>=8.0",
+    "pytest>=9.0",
     "pytest-cov>=6.0",
     "pytest-playwright==0.10.0",
     "pytest-timeout>=2.4",
@@ -54,12 +53,21 @@ dev = [
 [project.scripts]
 dreamcatcher = "dreamcatcher.cli:main"
 
+# Only collaborators can open an issue, so PyPI links no issue tracker.
 [project.urls]
-Homepage = "https://github.com/alimanfoo/dreamcatcher"
+Homepage = "https://alimanfoo.github.io/dreamcatcher/"
 Repository = "https://github.com/alimanfoo/dreamcatcher"
+Changelog = "https://alimanfoo.github.io/dreamcatcher/changelog/"
+Discussions = "https://github.com/alimanfoo/dreamcatcher/discussions"
 
 [tool.hatch.version]
 source = "vcs"
+
+# The sdist carries the package alone, beside the files that hatchling reads
+# itself, such as README.md and LICENSE. The tests, specs and agent skills stay
+# in the repository, as no downstream packager is supported.
+[tool.hatch.build.targets.sdist]
+only-include = ["src"]
 
 [tool.uncoded]
 source-roots = ["src", "tests", "tools"]
@@ -76,6 +84,10 @@ markers = [
     "integration: calls the real gh against this repository, read-only",
 ]
 filterwarnings = ["error::EncodingWarning"]
+# Fails the run on an unknown setting or marker, an xfail test that passes, or
+# two parametrized cases with one ID. A misspelled marker would otherwise put a
+# test that calls the real gh into the default run.
+strict = true
 # docs/testing.md says what happens when a test hangs, and how to lift the
 # limit. Keep the stack dump below the timeout.
 timeout = 120
@@ -90,7 +102,6 @@ show_missing = true
 fail_under = 100
 
 [tool.ruff]
-src = ["src"]
 line-length = 88
 extend-exclude = [".uncoded"]
 

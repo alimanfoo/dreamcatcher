@@ -10,6 +10,11 @@ Every pull request is reviewed against it. Every release remeasures
 against it. Where the code falls short, the shortfall is an issue with a
 number, not a matter of taste.
 
+The standard governs the code and its documentation. The repository's
+infrastructure, such as its workflows, its dependency updates and its
+packaging, is held in place by its own checks, and each check is
+explained where it is configured.
+
 ## The aim
 
 _dreamcatcher_ aims to be as simple, clear, consistent and elegant as
