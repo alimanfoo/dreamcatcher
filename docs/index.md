@@ -8,7 +8,7 @@ headline:
   - Run coding agents on your machine.
   - Steer them from GitHub.
 lede:
-  Dispatch agents to investigate, implement and coordinate your issues.
+  Dispatch agents to implement, investigate and coordinate your issues.
 points:
   - title: Your own setup.
     text:
@@ -30,9 +30,10 @@ starts each agent in Claude Code or Codex. The label on an issue says
 which kind of work to start.
 
 An **assignment** implements one issue in its own worktree and pull
-request. The agent asks on the pull request when it needs a decision,
-then marks the pull request ready for your review. You merge when you
-are satisfied.
+request. Review it as you would any pull request: leave review comments
+or line comments, or request a change. The agent addresses your feedback
+in its next round. Keep iterating, then merge when you are satisfied, or
+close it if the work should not land.
 
 A **conversation** investigates one issue without changing code. Ask a
 question in an issue comment, and the agent answers on the issue. Each
