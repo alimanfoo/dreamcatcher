@@ -10,8 +10,6 @@ on:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 # A newer push supersedes a deployment still waiting to run, but never cancels
 # one already under way.
@@ -33,9 +31,15 @@ jobs:
         with:
           path: site
 
+  # Only the deploy job publishes, so only it may write to Pages and ask for the
+  # token that proves where the site came from. The build job runs third-party
+  # code and holds neither.
   deploy:
     needs: build
     runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
