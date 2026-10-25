@@ -388,9 +388,14 @@ def _read_tool_failure(*, block: dict) -> list[FeedEvent]:
 
 
 def _read_round_result(*, harness_event: dict) -> HarnessOutput:
-    """Return the usage, outcome, and final text that close the round.
+    """Return the usage, outcome, and final text that close one turn.
 
-    The subtype reads "success" even on a round that failed, so the event's own
+    A round has a turn for each time Claude wakes the agent, such as when a
+    background subagent reports, and every turn closes with a result event. A
+    turn that Claude closes without calling the model has blank text, which
+    gives no final output, so it cannot replace an earlier turn's answer.
+
+    The subtype reads "success" even on a turn that failed, so the event's own
     error flag is what the feed reports.
     """
     usage_note = _compose_usage_note(
@@ -409,7 +414,7 @@ def _read_round_result(*, harness_event: dict) -> HarnessOutput:
     result = harness_event.get("result")
     return HarnessOutput(
         events=[usage_note, FeedNote(label="result", detail=harness_event["subtype"])],
-        final_output=result if isinstance(result, str) else None,
+        final_output=result if isinstance(result, str) and result.strip() else None,
     )
 
 
