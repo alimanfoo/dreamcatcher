@@ -5,7 +5,6 @@ import pytest
 from conftest import compose_stream_line
 
 from dreamcatcher.codex import _STDIN_ARGUMENT, CODEX_ADAPTER
-from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import FeedNote, FeedProse
 from dreamcatcher.harness_adapters import (
     AgentRoundLaunchRequest,
@@ -44,7 +43,7 @@ def compose_completed_line(**item) -> str:
 def test_a_new_session_round_runs_where_it_is_launched_under_codexs_own_reviewer():
     assert CODEX_ADAPTER.build_new_session_round(
         request=ROUND_LAUNCH_REQUEST,
-        final_output_path=FINAL_OUTPUT_PATH,
+        final_output_from_worktree=FINAL_OUTPUT_PATH,
     ) == HarnessInvocation(
         program="codex",
         arguments=[
@@ -64,7 +63,7 @@ def test_a_resume_replays_the_settings_and_the_permissions_codex_forgets():
     assert CODEX_ADAPTER.build_resumed_round(
         request=ROUND_LAUNCH_REQUEST,
         harness_session_identifier="01a0213c-9c67",
-        final_output_path=FINAL_OUTPUT_PATH,
+        final_output_from_worktree=FINAL_OUTPUT_PATH,
     ) == HarnessInvocation(
         program="codex",
         arguments=[
@@ -92,7 +91,7 @@ def test_a_resume_replays_the_settings_and_the_permissions_codex_forgets():
     [
         pytest.param(
             lambda request: CODEX_ADAPTER.build_new_session_round(
-                request=request, final_output_path=FINAL_OUTPUT_PATH
+                request=request, final_output_from_worktree=FINAL_OUTPUT_PATH
             ),
             id="new session",
         ),
@@ -100,7 +99,7 @@ def test_a_resume_replays_the_settings_and_the_permissions_codex_forgets():
             lambda request: CODEX_ADAPTER.build_resumed_round(
                 request=request,
                 harness_session_identifier="01a0213c-9c67",
-                final_output_path=FINAL_OUTPUT_PATH,
+                final_output_from_worktree=FINAL_OUTPUT_PATH,
             ),
             id="resumed",
         ),
@@ -139,22 +138,22 @@ def test_a_campaign_round_works_under_codexs_own_reviewer_without_a_final_file()
 
     assert (
         CODEX_ADAPTER.build_new_session_round(
-            request=request, final_output_path=FINAL_OUTPUT_PATH
+            request=request, final_output_from_worktree=FINAL_OUTPUT_PATH
         ).arguments
         == CODEX_ADAPTER.build_new_session_round(
-            request=ROUND_LAUNCH_REQUEST, final_output_path=FINAL_OUTPUT_PATH
+            request=ROUND_LAUNCH_REQUEST, final_output_from_worktree=FINAL_OUTPUT_PATH
         ).arguments
     )
     assert (
         CODEX_ADAPTER.build_resumed_round(
             request=request,
             harness_session_identifier="01a0213c-9c67",
-            final_output_path=FINAL_OUTPUT_PATH,
+            final_output_from_worktree=FINAL_OUTPUT_PATH,
         ).arguments
         == CODEX_ADAPTER.build_resumed_round(
             request=ROUND_LAUNCH_REQUEST,
             harness_session_identifier="01a0213c-9c67",
-            final_output_path=FINAL_OUTPUT_PATH,
+            final_output_from_worktree=FINAL_OUTPUT_PATH,
         ).arguments
     )
 
@@ -162,7 +161,7 @@ def test_a_campaign_round_works_under_codexs_own_reviewer_without_a_final_file()
 def test_a_first_conversation_round_can_write_with_network_without_approval():
     assert CODEX_ADAPTER.build_new_session_round(
         request=CONVERSATION_LAUNCH_REQUEST,
-        final_output_path=FINAL_OUTPUT_PATH,
+        final_output_from_worktree=FINAL_OUTPUT_PATH,
     ) == HarnessInvocation(
         program="codex",
         arguments=[
@@ -187,7 +186,7 @@ def test_a_resumed_conversation_can_write_with_network_without_approval():
     assert CODEX_ADAPTER.build_resumed_round(
         request=CONVERSATION_LAUNCH_REQUEST,
         harness_session_identifier="01a0213c-9c67",
-        final_output_path=FINAL_OUTPUT_PATH,
+        final_output_from_worktree=FINAL_OUTPUT_PATH,
     ) == HarnessInvocation(
         program="codex",
         arguments=[
@@ -208,14 +207,6 @@ def test_a_resumed_conversation_can_write_with_network_without_approval():
         ],
         prompt="Answer GH9.",
     )
-
-
-def test_a_conversation_refuses_a_final_output_path_windows_cannot_carry():
-    with pytest.raises(ReportableError, match="percent sign"):
-        CODEX_ADAPTER.build_new_session_round(
-            request=CONVERSATION_LAUNCH_REQUEST,
-            final_output_path=Path("rounds") / "%TEMP%" / "final.md",
-        )
 
 
 def test_a_person_continues_the_harness_session_with_the_work_settings():

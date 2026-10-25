@@ -133,7 +133,7 @@ class HarnessAdapter(ABC):
 
     @abstractmethod
     def build_new_session_round(
-        self, *, request: AgentRoundLaunchRequest, final_output_path: Path
+        self, *, request: AgentRoundLaunchRequest, final_output_from_worktree: Path
     ) -> HarnessInvocation:
         """Return how to run a round that starts a new harness session.
 
@@ -148,7 +148,7 @@ class HarnessAdapter(ABC):
         *,
         request: AgentRoundLaunchRequest,
         harness_session_identifier: HarnessSessionIdentifier,
-        final_output_path: Path,
+        final_output_from_worktree: Path,
     ) -> HarnessInvocation:
         """Return how to resume the harness session with request's prompt.
 

@@ -149,7 +149,7 @@ class Unrenderable(HarnessAdapter):
         return []
 
     def build_new_session_round(
-        self, *, request: AgentRoundLaunchRequest, final_output_path: Path
+        self, *, request: AgentRoundLaunchRequest, final_output_from_worktree: Path
     ) -> HarnessInvocation:
         return HarnessInvocation(
             program=self.program, arguments=[], prompt=request.prompt
@@ -160,7 +160,7 @@ class Unrenderable(HarnessAdapter):
         *,
         request: AgentRoundLaunchRequest,
         harness_session_identifier: str,
-        final_output_path: Path,
+        final_output_from_worktree: Path,
     ) -> HarnessInvocation:
         return HarnessInvocation(
             program=self.program, arguments=[], prompt=request.prompt
@@ -328,6 +328,54 @@ def test_a_resumed_round_builds_its_harness_invocation(fake, worktree, directory
     assert "xhigh" not in call.arguments
     assert call.prompt == PROMPT
     assert call.directory == worktree.resolve()
+
+
+@pytest.mark.parametrize("harness_session_identifier", [None, "01a0213c-9c67"])
+def test_a_codex_conversation_writes_its_final_output_by_a_path_from_its_worktree(
+    fake, tmp_path, harness_session_identifier
+):
+    # A command line on Windows cannot carry a percent sign, so the checkout's
+    # own path must not reach the harness.
+    state = tmp_path / "100%checkout" / ".dreamcatcher"
+    worktree = state / "worktrees" / "GH9-20260819-184158-conversation"
+    worktree.mkdir(parents=True)
+    harness = fake(program="codex")
+    harness.replies(stdout="")
+
+    start_agent_round(
+        request=AgentRoundStartRequest(
+            harness=AgentHarness.CODEX,
+            launch_request=AgentRoundLaunchRequest(
+                agent_work_identifier="GH9-20260819-184158-conversation",
+                model="gpt-5.6-sol",
+                effort="xhigh",
+                prompt=PROMPT,
+                work_kind=AgentWorkKind.CONVERSATION,
+            ),
+            harness_session_identifier=harness_session_identifier,
+            record_harness_session_identifier=ignore_harness_session_identifier,
+            finish_round=None,
+            paths=AgentRoundPaths(
+                worktree=worktree,
+                rounds_directory=(
+                    state / "work" / "GH9-20260819-184158-conversation" / "rounds"
+                ),
+                number=3,
+            ),
+            prepare_round=relay_nothing,
+        ),
+        clock=lambda: PINNED,
+    ).wait()
+
+    call = harness.calls[0]
+    assert call.directory == worktree.resolve()
+    output_path = call.arguments[call.arguments.index("--output-last-message") + 1]
+    assert output_path == str(
+        Path("..", "..", "work", "GH9-20260819-184158-conversation")
+        / "rounds"
+        / "3"
+        / "final.md"
+    )
 
 
 def test_a_round_writes_the_pull_request_state_and_user_posts_it_was_given(
