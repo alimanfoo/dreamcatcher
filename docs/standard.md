@@ -6,6 +6,11 @@ words, [the architecture](architecture.md), which fixes the boundaries,
 and [the user stories](stories.md), which fix what the user does and
 sees. This document says how good the result has to be, and how we tell.
 
+The standard governs the code and its documentation. The repository's
+infrastructure, such as its workflows, its dependency updates and its
+packaging, is held in place by its own checks, and each check is
+explained where it is configured.
+
 Every pull request is reviewed against it. Every release remeasures
 against it. Where the code falls short, the shortfall is an issue with a
 number, not a matter of taste.
