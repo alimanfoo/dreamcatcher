@@ -63,6 +63,12 @@ Discussions = "https://github.com/alimanfoo/dreamcatcher/discussions"
 [tool.hatch.version]
 source = "vcs"
 
+# The sdist carries the package alone, beside the files that hatchling reads
+# itself, such as README.md and LICENSE. The tests, specs and agent skills stay
+# in the repository, as no downstream packager is supported.
+[tool.hatch.build.targets.sdist]
+only-include = ["src"]
+
 [tool.uncoded]
 source-roots = ["src", "tests", "tools"]
 doc-roots = ["README.md", "AGENTS.md", "docs"]
