@@ -675,12 +675,14 @@ class AgentRound:
         """Read one output stream and interrupt the round if persistence fails.
 
         Stopping a stream reader would eventually fill the pipe and block the
-        harness, so a write failure must end the round.
+        harness, so a write failure must end the round. The reader does not wait
+        for the round to end, because a round that finishes waits for its stdout
+        reader first.
         """
         try:
             read_stream()
         except ReportableError:
-            self.interrupt()
+            self._end_process_tree(ending=InterruptedAgentRoundEnding())
 
     def _read_stdout(self) -> None:
         for line in self.harness_process.out:
