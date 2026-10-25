@@ -102,17 +102,18 @@ def test_an_argument_a_second_reader_would_act_on_still_arrives_whole(fake):
     probe = fake(program="probe")
     probe.replies(stdout="")
 
-    run_command(
-        program="probe",
-        arguments=["--prompt", 'say "done" & wait', "-c", "effort=high&low"],
-    )
-
-    assert probe.calls[0].arguments == [
+    arguments = [
         "--prompt",
         'say "done" & wait',
         "-c",
         "effort=high&low",
+        "C:\\work\\",
+        'a\\"b',
     ]
+
+    run_command(program="probe", arguments=arguments)
+
+    assert probe.calls[0].arguments == arguments
 
 
 def test_a_spawned_command_runs_where_it_is_told_and_streams_as_it_goes(fake, tmp_path):
