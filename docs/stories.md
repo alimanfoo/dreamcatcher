@@ -20,7 +20,7 @@ home page and the terminal are a window on what the daemon is doing,
 with the few controls GitHub has no place for: stop, cancel and retry.
 The agent hears only the user: a post or a comment from anyone else is
 never relayed to it as feedback. A campaign's lead works under the
-user's account, so a sub-issue's agent hears the lead's feedback as it
+user's account, so an assignment's agent hears the lead's feedback as it
 hears the user's.
 
 Each story is told from the user's seat, in the order things happen,
@@ -405,11 +405,11 @@ merge queue when GitHub offers one for the repository, so each sub-issue
 is tested against current main when its turn to merge comes. Otherwise,
 they leave "Require branches to be up to date before merging" off. If it
 were on, every merge would leave every other sub-issue behind, waking
-each sub-issue's agent to merge main, running its checks again and
+each assignment's agent to merge main, running its checks again and
 waking the lead for the new head, though only one pull request can merge
 next. With it off, a sub-issue that falls behind without conflicting
-still merges cleanly, and a sub-issue that conflicts still wakes its
-agent to bring the branch up to date.
+still merges cleanly, and a sub-issue that conflicts still wakes the
+assignment's agent to bring the branch up to date.
 
 When the user is satisfied, they close the parent, and the campaign ends
 once any round that is still running finishes. Its worktree is then
@@ -485,18 +485,18 @@ The value to the user is that the lead takes up each sub-issue's result
 as soon as it is ready, and never spends a round on work that is still
 going on.
 
-#### The lead gives a sub-issue's agent feedback
+#### The lead gives an assignment's agent feedback
 
-The lead reviews a sub-issue's pull request and finds something to
-correct, or the sub-issue's agent has asked a question there. The lead
-comments on the pull request without the agent's mark, and at the next
-update the assignment's agent is given the comment as it would be given
-the user's, in its own harness session, and answers on the pull request.
-The user can comment on the same pull request, and the agent is given
-both. When the agent has answered and has no round running or due, the
-lead hears of it and reads the answer on GitHub.
+The lead reviews the pull request for a sub-issue's assignment and finds
+something to correct, or the assignment's agent has asked a question
+there. The lead comments on the pull request without the agent's mark,
+and at the next update the assignment's agent is given the comment as it
+would be given the user's, in its own harness session, and answers on
+the pull request. The user can comment on the same pull request, and the
+agent is given both. When the agent has answered and has no round
+running or due, the lead hears of it and reads the answer on GitHub.
 
-The value to the user is that the lead and each sub-issue's agent work
+The value to the user is that the lead and each assignment's agent work
 through the pull request, as the user would, so the user can read the
 whole exchange and join it.
 

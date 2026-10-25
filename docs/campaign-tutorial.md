@@ -82,7 +82,7 @@ dreamcatcher run --harness claude --interval 30 --max-agents 2
 
 Keep this terminal open. _dreamcatcher_ looks for work, waits 30 seconds
 after each look, and runs at most two agent rounds at once, so the lead
-and a sub-issue's agent can work at the same time. Your browser opens
+and an assignment's agent can work at the same time. Your browser opens
 the web home page.
 
 ## 4. Start the campaign
@@ -98,17 +98,17 @@ page, open the **Campaigns** tab. The campaign's card shows the parent,
 the lead's status and `+ 0 of 2 sub-issues closed`. Select the count to
 show the sub-issues.
 
-In its first round, the lead reads the plan and starts the sub-issues.
-It assigns each sub-issue to you and adds an assignment label, such as
-`dream:smith`. Then it ends its turn, and the campaign shows as
-**idle**. Under the card:
+In its first round, the lead reads the plan and sets up an assignment
+for each sub-issue. It assigns each sub-issue to you and adds an
+assignment label, such as `dream:smith`. Then it ends its turn, and the
+campaign shows as **idle**. Under the card:
 
 - issue 124 gets an assignment, which opens a draft pull request and
   starts work; and
 - issue 125 shows as **blocked by #124**.
 
-The lead does not post on the parent to say what it started. Follow it
-in its feed instead, on the campaign's page or in a second terminal:
+The lead does not post on the parent to say what it set up. Follow it in
+its feed instead, on the campaign's page or in a second terminal:
 
 ```sh
 dreamcatcher feed GH123
@@ -116,15 +116,15 @@ dreamcatcher feed GH123
 
 ## 5. Watch the first sub-issue
 
-The first sub-issue's agent implements the sub-issue on its pull
-request, and marks the pull request ready for review when it is done.
-You don't need to review it yourself, but you can comment on it as you
-would on any pull request.
+The first assignment's agent implements what the sub-issue asks for, and
+marks the pull request ready for review when it is done. You don't need
+to review it yourself, but you can comment on it as you would on any
+pull request.
 
-Once the sub-issue's agent has finished its turn, _dreamcatcher_ wakes
+Once the assignment's agent has finished its turn, _dreamcatcher_ wakes
 the lead, and the lead reviews the pull request. It checks the
 sub-issue's "Done when" at the pull request's head. If something is
-missing, it comments on the pull request, the sub-issue's agent answers
+missing, it comments on the pull request, the assignment's agent answers
 in its next round, and the lead reviews again.
 
 When the sub-issue is done and its checks pass, the lead merges the pull
@@ -138,19 +138,19 @@ Issue 124 is closed, so issue 125 is no longer blocked. At the next
 update, _dreamcatcher_ starts the second sub-issue's assignment from
 `main`, which now holds `GLOSSARY.md`. If the second sub-issue needs to
 know something from the first, the lead comments on issue 125 before it
-merges the first pull request, and the second sub-issue's agent reads
+merges the first pull request, and the second assignment's agent reads
 that comment when it starts.
 
-The second sub-issue then goes the same way as the first: its agent
+The second assignment then goes the same way as the first: its agent
 works, the lead reviews and merges, and the card shows
 `+ 2 of 2 sub-issues closed`.
 
 ## 7. Answer the lead when it asks
 
-The lead asks you on the parent when a decision is yours, for example:
+The lead asks you on the parent when a decision is needed, for example:
 
 - no assignment route clearly fits a sub-issue;
-- a sub-issue's agent asks something that the plan does not settle;
+- an assignment's agent asks something that the plan does not settle;
 - a sub-issue falls into fault, or its pull request is closed without a
   merge; or
 - the plan itself would need to change.
@@ -179,7 +179,7 @@ gh issue close 123
 
 The campaign ends once any running round finishes, and its card moves to
 the ended list. If you want more work instead, add another sub-issue to
-the parent, and the lead starts it.
+the parent, and the lead sets up its assignment.
 
 When you have no more work for _dreamcatcher_, press Ctrl-C in the
 terminal where it runs to stop it.

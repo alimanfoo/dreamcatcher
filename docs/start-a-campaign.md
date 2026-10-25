@@ -20,11 +20,11 @@ campaign, follow the worked example in
 The `dreamcatcher.toml` that `dreamcatcher init` writes routes the
 `dream:lead` label to campaigns. Its recipes run the
 [`dream:lead`](https://github.com/alimanfoo/dream/blob/main/plugins/dream/skills/lead/SKILL.md)
-skill from the dream plugin. The skill starts each sub-issue on an
-assignment route, reviews the sub-issue's pull request and checks its
-proof, gives the sub-issue's agent feedback, and merges the pull request
-once the sub-issue is done. It asks you on the parent before it changes
-the plan.
+skill from the dream plugin. The skill sets up an assignment for each
+sub-issue on an assignment route, reviews the assignment's pull request
+and checks its proof, gives the assignment's agent feedback, and merges
+the pull request once the sub-issue is done. It asks you on the parent
+before it changes the plan.
 
 `init` never changes an existing `dreamcatcher.toml`, so a file written
 before the route existed has none. Copy the `[[campaign]]` route from
@@ -61,10 +61,10 @@ _dreamcatcher_ gives the lead and what the lead must leave to you.
 
 A campaign can have several sub-issue pull requests open at once. If the
 repository requires branches to be up to date before merging, each merge
-leaves every other sub-issue behind `main`. Each sub-issue's agent then
-merges `main`, its checks run again, and the lead wakes for the new
-head. Only one of those pull requests merges next, so the rest repeat
-the work after the next merge.
+leaves every other sub-issue behind `main`. Each remaining assignment's
+agent then merges `main`, its checks run again, and the lead wakes for
+the new head. Only one of those pull requests merges next, so the rest
+repeat the work after the next merge.
 
 Use
 [GitHub's merge queue](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/configuring-pull-request-merges/managing-a-merge-queue)
