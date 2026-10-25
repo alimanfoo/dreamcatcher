@@ -10,12 +10,10 @@ assignments
   GH13-20260819-184158-assignment  working  round 2, 1 post, running 1h 30m, has said nothing yet
 
 conversations
-  The daemon routes no conversations. Add a [[conversation]] route to dreamcatcher.toml and restart 
-  the daemon.                                                                                       
-  Configure labels and harnesses: https://alimanfoo.github.io/dreamcatcher/configure/               
+  Add a [[conversation]] route to dreamcatcher.toml and restart the daemon to enable conversations.
+  Configure labels and harnesses: https://alimanfoo.github.io/dreamcatcher/configure/              
 
 campaigns
-  The daemon routes no campaigns. Add a [[campaign]] route to dreamcatcher.toml and restart the     
-  daemon.                                                                                           
+  Add a [[campaign]] route to dreamcatcher.toml and restart the daemon to enable campaigns.         
   Configure a campaign route:                                                                       
   https://alimanfoo.github.io/dreamcatcher/start-a-campaign/#configure-a-campaign-route             

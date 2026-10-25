@@ -29,6 +29,11 @@ the change.
 
 ### Changed
 
+- A kind of work that the daemon routes no label for tells the user to
+  add the route and restart the daemon to enable it, in place of first
+  saying that the daemon routes none, on the home page and in
+  `dreamcatcher view`.
+  ([#802](https://github.com/alimanfoo/dreamcatcher/pull/802))
 - Ended work of every kind shows the state it ended in, such as
   "completed" or "closed", once in place of "ended", on its card, its
   page and in `dreamcatcher view`.

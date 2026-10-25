@@ -212,8 +212,8 @@ def test_an_empty_home_says_how_to_route_an_unrouted_kind(tmp_path):
     assert 'id="conversation-tab"' in page
     assert 'id="campaign-tab"' in page
     assert (
-        "The daemon routes no campaigns. Add a [[campaign]] route to "
-        "dreamcatcher.toml and restart the daemon. "
+        "Add a [[campaign]] route to dreamcatcher.toml and restart the daemon "
+        "to enable campaigns. "
         '<a class="guidance-link" '
         'href="https://alimanfoo.github.io/dreamcatcher/start-a-campaign/'
         '#configure-a-campaign-route" target="_blank" '

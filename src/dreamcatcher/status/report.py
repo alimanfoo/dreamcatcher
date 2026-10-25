@@ -343,8 +343,8 @@ def _compose_section_guidance(
     if not labels:
         return SectionGuidance(
             message=(
-                f"The daemon routes no {kind}s. Add a [[{kind}]] route to "
-                "dreamcatcher.toml and restart the daemon."
+                f"Add a [[{kind}]] route to dreamcatcher.toml and restart "
+                f"the daemon to enable {kind}s."
             ),
             documentation=_ROUTE_DOCUMENTATION[kind],
         )
