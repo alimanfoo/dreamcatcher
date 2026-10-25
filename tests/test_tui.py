@@ -214,8 +214,8 @@ def test_status_says_how_to_route_an_unrouted_kind(tmp_path):
     assert "assignments" in rendered
     assert "campaigns" in rendered
     assert (
-        "The daemon routes no campaigns. Add a [[campaign]] route to "
-        "dreamcatcher.toml and restart the daemon." in rendered
+        "Add a [[campaign]] route to dreamcatcher.toml and restart the daemon "
+        "to enable campaigns." in rendered
     )
     assert (
         "Configure a campaign route: https://alimanfoo.github.io/dreamcatcher/"

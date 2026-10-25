@@ -264,8 +264,8 @@ def test_a_kind_the_daemon_does_not_route_says_how_to_route_it(tmp_path):
         heading="campaigns",
         guidance=SectionGuidance(
             message=(
-                "The daemon routes no campaigns. Add a [[campaign]] route to "
-                "dreamcatcher.toml and restart the daemon."
+                "Add a [[campaign]] route to dreamcatcher.toml and restart the "
+                "daemon to enable campaigns."
             ),
             documentation=DocumentationLink(
                 title="Configure a campaign route",
