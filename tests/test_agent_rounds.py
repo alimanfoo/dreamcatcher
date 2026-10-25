@@ -607,6 +607,23 @@ def test_a_round_is_finished_with_its_final_output_before_it_ends(
     assert read_round_record(path=paths.record).outcome is AgentRoundOutcome.SUCCESSFUL
 
 
+def test_a_round_that_waited_on_subagents_is_finished_with_its_last_answer(
+    fake, worktree, directory
+):
+    fake(program="claude").streams(
+        lines=read_recorded_lines(path=FIXTURES / "claude" / "subagents.jsonl")
+    )
+    paths = compose_round_paths(worktree=worktree, directory=directory)
+    finish_round = Mock()
+
+    start_conversation_round(paths=paths, finish_round=finish_round).wait()
+
+    finish_round.assert_called_once_with(
+        final_output="The directory has 2 files (alpha.txt and beta.txt), and "
+        'alpha.txt contains just the word "alpha".'
+    )
+
+
 def test_a_round_whose_harness_reported_no_final_output_is_finished_without_one(
     fake, worktree, directory
 ):

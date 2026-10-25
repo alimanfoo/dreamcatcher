@@ -48,8 +48,9 @@ from dreamcatcher.harness_adapters import (
 from dreamcatcher.harnesses import HARNESS_ADAPTERS
 
 # How long a successful harness process may take to expose its final output
-# after it exits. A reader normally settles immediately on the result event or
-# pipe EOF. This bound is for an escaped descendant that keeps the pipe open.
+# after it exits. The stdout reader normally finishes as soon as the harness
+# exits and closes the pipe. This bound is for an escaped descendant that keeps
+# the pipe open.
 _FINAL_OUTPUT_CAPTURE_TIMEOUT_SECONDS = 5
 
 # How often a live round checks whether the user asked it to stop.
@@ -522,7 +523,6 @@ class AgentRound:
         self.forced_ending: _AgentRoundEnding | None = None
         self._round_ended = Flag()
         self._wait_for_round_end = wait_for_round_end or self._round_ended.wait
-        self._final_output_settled = Flag()
         self._feed_write_lock = Lock()
         self._termination_lock = Lock()
         self.record = AgentRoundRecord(number=paths.number, started=self.started_at)
@@ -540,12 +540,13 @@ class AgentRound:
                 round_number=paths.number,
                 reason=str(failure),
             ) from failure
+        self._stdout_reader = Thread(
+            target=self._read_stream_until_finished,
+            kwargs={"read_stream": self._read_stdout},
+            daemon=True,
+        )
         self._stream_readers = [
-            Thread(
-                target=self._read_stream_until_finished,
-                kwargs={"read_stream": self._read_stdout},
-                daemon=True,
-            ),
+            self._stdout_reader,
             Thread(
                 target=self._read_stream_until_finished,
                 kwargs={"read_stream": self._read_stderr},
@@ -682,16 +683,12 @@ class AgentRound:
             self.interrupt()
 
     def _read_stdout(self) -> None:
-        try:
-            for line in self.harness_process.out:
-                append_text(text=line, path=self.paths.raw_output)
-                output = self.harness.read_output(line=line)
-                if output.final_output is not None:
-                    write_text(text=output.final_output, path=self.paths.final_output)
-                    self._final_output_settled.set()
-                self._append_feed_events(line=line, events=output.events)
-        finally:
-            self._final_output_settled.set()
+        for line in self.harness_process.out:
+            append_text(text=line, path=self.paths.raw_output)
+            output = self.harness.read_output(line=line)
+            if output.final_output is not None:
+                write_text(text=output.final_output, path=self.paths.final_output)
+            self._append_feed_events(line=line, events=output.events)
 
     def _read_stderr(self) -> None:
         for line in self.harness_process.err:
@@ -746,8 +743,12 @@ class AgentRound:
         return _compose_agent_round_ending(at=self.clock(), status=status)
 
     def _read_final_output(self) -> str | None:
-        """Return the harness's final output, once it has had time to land."""
-        self._final_output_settled.wait(_FINAL_OUTPUT_CAPTURE_TIMEOUT_SECONDS)
+        """Return the harness's final output, once its stdout has been read.
+
+        A harness can report a final output more than once in a round, as Claude
+        does at the end of each turn, so the last one it reports is the answer.
+        """
+        self._stdout_reader.join(_FINAL_OUTPUT_CAPTURE_TIMEOUT_SECONDS)
         path = self.paths.final_output
         return read_text(path=path) if path.is_file() else None
 
