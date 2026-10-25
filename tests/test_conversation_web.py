@@ -763,13 +763,13 @@ def test_home_lists_conversations_in_attention_order_before_requests(tmp_path):
     assert '<p class="latest-output"><span>agent</span> Still working.</p>' in page
 
 
-def test_home_collapses_an_ended_conversation(tmp_path):
+def test_home_collapses_a_closed_conversation_and_shows_it_closed_once(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
     fabricate_conversation(state=state)
     write_ending(
         directory=find_conversation_directory(state=state, issue=8),
-        reason=AgentWorkEndReason.COMPLETED,
+        reason=AgentWorkEndReason.ISSUE_CLOSED,
         at=PINNED + timedelta(minutes=10),
     )
 
@@ -779,4 +779,29 @@ def test_home_collapses_an_ended_conversation(tmp_path):
     ended = conversations[conversations.index('<details class="ended-work">') :]
     assert "<summary>+ 1 ended</summary>" in ended
     assert 'id="GH8-20260819-184158-conversation"' in ended
-    assert '<span class="chip status-ended">ended</span>' in ended
+    card = ended[: ended.index("</article>")]
+    assert '<span class="chip status-ended">closed</span>' in card
+    assert 'class="agent-work-detail"' not in card
+
+
+def test_a_closed_conversation_page_shows_closed_once_as_its_status(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    fabricate_everything(state=state)
+    fabricate_conversation(state=state)
+    write_ending(
+        directory=find_conversation_directory(state=state, issue=8),
+        reason=AgentWorkEndReason.ISSUE_CLOSED,
+        at=PINNED + timedelta(minutes=10),
+    )
+
+    page = (
+        create_application(state=state)
+        .test_client()
+        .get("/work/GH8-20260819-184158-conversation")
+        .text
+    )
+
+    assert (
+        '<span id="agent-work-status" class="chip status-ended">closed</span>'
+    ) in page
+    assert '<p id="agent-work-detail" class="agent-work-detail" hidden></p>' in page

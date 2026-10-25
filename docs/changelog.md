@@ -27,6 +27,13 @@ the change.
 
 ## Unreleased
 
+### Changed
+
+- Ended work of every kind shows the state it ended in, such as
+  "completed" or "closed", once in place of "ended", on its card, its
+  page and in `dreamcatcher view`.
+  ([#796](https://github.com/alimanfoo/dreamcatcher/pull/796))
+
 ### Fixed
 
 - A Claude conversation whose agent waits on background subagents posts

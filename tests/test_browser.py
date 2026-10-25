@@ -590,8 +590,26 @@ def test_cancelling_an_assignment_asks_first(page: Page, live_web: str) -> None:
 
     page.once("dialog", lambda dialog: dialog.accept())
     cancel.click()
-    expect(page.locator("#agent-work-status")).to_have_text("ended")
+    expect(page.locator("#agent-work-status")).to_have_text("cancelled")
     expect(cancel).to_have_count(0)
+
+
+def test_a_tail_refresh_hides_the_detail_once_the_work_ends(
+    page: Page, live_web: str, tmp_path: Path
+) -> None:
+    identifier = "GH44-20260819-184158-assignment"
+    page.goto(f"{live_web}/work/{identifier}")
+    detail = page.locator("#agent-work-detail")
+    expect(detail).to_be_visible()
+
+    write_ending(
+        directory=StateDirectory(root=tmp_path).work / identifier,
+        reason=AgentWorkEndReason.CANCELLED,
+        at=LOOKED_AT,
+    )
+
+    expect(page.locator("#agent-work-status")).to_have_text("cancelled")
+    expect(detail).to_be_hidden()
 
 
 def test_dark_nature_uses_the_dusk_palette_and_follows_the_night(

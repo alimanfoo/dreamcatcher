@@ -656,8 +656,9 @@ Agent work of every kind has one of these summary statuses:
 - **Working**: a round is running under the daemon. A cancelled
   assignment whose round is still stopping is working until the round
   ends.
-- **Ended**: the work's ending is recorded, and its reason, completed,
-  cancelled or issue closed, is the detail.
+- **Ended**: the work's ending is recorded. Ended work shows the state
+  it ended in, with no detail: completed or cancelled for an assignment,
+  and closed for a conversation or campaign.
 - **Fault**: two consecutive rounds have errored, so no further round
   starts on its own.
 - **Unknown**: the latest tick could not read what it needed for the

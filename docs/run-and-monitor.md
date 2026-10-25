@@ -114,9 +114,11 @@ Every kind of agent work shares these statuses:
 - **unknown**: _dreamcatcher_ could not read what it needed, or the
   latest update has not seen the work; the accompanying detail says
   which; and
-- **ended**: the work is over, and the detail says why: an assignment
-  completed after a successful wrap-up or you cancelled it, or the issue
-  of a conversation or campaign was closed.
+- **ended**: the work is over. In place of the status, the work shows
+  the state it ended in, with no detail: **completed** for an assignment
+  after a successful wrap-up, **cancelled** for an assignment that you
+  cancelled, and **closed** for a conversation or campaign whose issue
+  was closed.
 
 The [command reference](command-reference.md) gives the complete syntax
 and explains when each view ends. For interruption and failures,

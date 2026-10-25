@@ -216,6 +216,7 @@ def test_a_running_lead_is_working_on_its_start(state):
     status = read_campaign_status(state=state)
 
     assert status.value is AgentWorkStatusValue.WORKING
+    assert status.detail is not None
     assert status.detail.startswith("round 1, start, running ")
 
 
@@ -240,6 +241,7 @@ def test_a_running_lead_counts_the_sub_issues_that_woke_it(state):
     status = read_campaign_status(state=state)
 
     assert status.value is AgentWorkStatusValue.WORKING
+    assert status.detail is not None
     assert status.detail.startswith(
         "round 2, 1 comment, 2 sub-issues changed, running "
     )
@@ -342,7 +344,7 @@ def test_two_errored_lead_rounds_are_a_fault(state):
     assert status.faulted_round_number == 2
 
 
-def test_a_campaign_whose_parent_closed_has_ended(state):
+def test_a_campaign_whose_parent_closed_shows_as_closed(state):
     write_lead_round(state=state, number=1, ending=SUCCESSFUL)
     write_ending(
         directory=state.work / compose_campaign_identifier(issue=PARENT),
@@ -353,7 +355,8 @@ def test_a_campaign_whose_parent_closed_has_ended(state):
     status = read_campaign_status(state=state)
 
     assert status.value is AgentWorkStatusValue.ENDED
-    assert status.detail == "issue closed"
+    assert status.words == "closed"
+    assert status.detail is None
 
 
 def test_lead_rounds_name_their_trigger(state):

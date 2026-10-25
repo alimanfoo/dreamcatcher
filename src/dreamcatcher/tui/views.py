@@ -99,11 +99,10 @@ def _render_agent_work(
 ) -> RenderableType:
     """Render the work's status, settings, rounds and hand-resume command."""
     work = status.work
-    status_value = str(status.value)
-    rendered_status = Text(f"{status_value}  {status.detail}")
-    rendered_status.stylize(
-        AGENT_WORK_STATUS_STYLES[status.value], 0, len(status_value)
-    )
+    rendered_status = Text()
+    rendered_status.append(status.words, style=AGENT_WORK_STATUS_STYLES[status.value])
+    if status.detail is not None:
+        rendered_status.append(f"  {status.detail}")
     latest_output = render_latest_output(latest_output=status.latest_output)
     if latest_output is not None:
         latest_output = Padding(
