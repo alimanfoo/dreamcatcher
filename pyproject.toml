@@ -53,9 +53,12 @@ dev = [
 [project.scripts]
 dreamcatcher = "dreamcatcher.cli:main"
 
+# Only collaborators can open an issue, so PyPI links no issue tracker.
 [project.urls]
-Homepage = "https://github.com/alimanfoo/dreamcatcher"
+Homepage = "https://alimanfoo.github.io/dreamcatcher/"
 Repository = "https://github.com/alimanfoo/dreamcatcher"
+Changelog = "https://alimanfoo.github.io/dreamcatcher/changelog/"
+Discussions = "https://github.com/alimanfoo/dreamcatcher/discussions"
 
 [tool.hatch.version]
 source = "vcs"
