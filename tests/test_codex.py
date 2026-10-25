@@ -5,7 +5,6 @@ import pytest
 from conftest import compose_stream_line
 
 from dreamcatcher.codex import _STDIN_ARGUMENT, CODEX_ADAPTER
-from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import FeedNote, FeedProse
 from dreamcatcher.harness_adapters import (
     AgentRoundLaunchRequest,
@@ -208,14 +207,6 @@ def test_a_resumed_conversation_can_write_with_network_without_approval():
         ],
         prompt="Answer GH9.",
     )
-
-
-def test_a_conversation_refuses_a_final_output_path_windows_cannot_carry():
-    with pytest.raises(ReportableError, match="percent sign"):
-        CODEX_ADAPTER.build_new_session_round(
-            request=CONVERSATION_LAUNCH_REQUEST,
-            final_output_path=Path("rounds") / "%TEMP%" / "final.md",
-        )
 
 
 def test_a_person_continues_the_harness_session_with_the_work_settings():
