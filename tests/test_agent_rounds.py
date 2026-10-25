@@ -367,8 +367,9 @@ def test_a_codex_conversation_writes_its_final_output_by_a_path_from_its_worktre
         clock=lambda: PINNED,
     ).wait()
 
-    arguments = harness.calls[0].arguments
-    output_path = arguments[arguments.index("--output-last-message") + 1]
+    call = harness.calls[0]
+    assert call.directory == worktree.resolve()
+    output_path = call.arguments[call.arguments.index("--output-last-message") + 1]
     assert output_path == str(
         Path("..", "..", "work", "GH9-20260819-184158-conversation")
         / "rounds"
