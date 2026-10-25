@@ -83,10 +83,12 @@ jobs:
           SKIP: uncoded
 
   # Builds and runs the package in an environment of its own, which proves the
-  # wheel builds, the console script is there, and every runtime dependency
-  # resolves outside the one uv sync makes. It builds from this checkout, not
-  # from PyPI, which holds only released versions. hatch-vcs reads the version
-  # from the full history.
+  # sdist and the wheel build, the console script is there, and every runtime
+  # dependency resolves outside the one uv sync makes. uv build makes the sdist
+  # and then builds the wheel from it, so the wheel holds only what the sdist
+  # carries, as it would for anyone who installs from the sdist. It builds from
+  # this checkout, not from PyPI, which holds only released versions. hatch-vcs
+  # reads the version from the full history.
   package:
     needs: checks
     runs-on: ${{ matrix.os }}
@@ -100,4 +102,6 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
-      - run: uvx --from . dreamcatcher --version
+      - run: uv build
+      - run: uvx --from dist/*.whl dreamcatcher --version
+        shell: bash
