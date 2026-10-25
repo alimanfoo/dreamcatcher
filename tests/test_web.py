@@ -1368,6 +1368,8 @@ def test_an_unknown_assignment_tail_renders_a_404_page(tmp_path):
         "01:0",
         "-1:0",
         "99:0",
+        "1:2:3",
+        pytest.param("\u0661:\u0660", id="non-ASCII digits"),
         pytest.param(f"1:{'9' * 5000}", id="oversized integer"),
     ],
 )

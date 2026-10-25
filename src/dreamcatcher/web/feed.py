@@ -1,6 +1,5 @@
 """Read and compose web feed snapshots and tails."""
 
-import re
 from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import tzinfo
@@ -21,8 +20,6 @@ from dreamcatcher.web.models import (
 )
 from dreamcatcher.words import describe_time
 
-_FEED_POSITION_PATTERN = re.compile(r"(?P<round>0|[1-9]\d*):(?P<position>\d+)")
-
 
 @dataclass(frozen=True, kw_only=True)
 class _WebRoundFeed:
@@ -40,18 +37,28 @@ def _encode_feed_position(*, feed_position: WebFeedPosition) -> str:
     return f"{feed_position.round_number}:{feed_position.position}"
 
 
+def _is_ascii_digits(*, text: str) -> bool:
+    return text.isascii() and text.isdigit()
+
+
 def decode_feed_position(*, value: str) -> WebFeedPosition:
     """Decode a feed position from its encoded text form.
 
     Raise InvalidFeedPositionError when the value names no valid position.
     """
-    match = _FEED_POSITION_PATTERN.fullmatch(value)
-    if match is None:
+    round_text, separator, position_text = value.partition(":")
+    has_leading_zero = round_text.startswith("0") and round_text != "0"
+    if (
+        not separator
+        or has_leading_zero
+        or not _is_ascii_digits(text=round_text)
+        or not _is_ascii_digits(text=position_text)
+    ):
         raise InvalidFeedPositionError
     try:
         feed_position = WebFeedPosition(
-            round_number=int(match["round"]),
-            position=int(match["position"]),
+            round_number=int(round_text),
+            position=int(position_text),
         )
     except ValueError:
         raise InvalidFeedPositionError from None
