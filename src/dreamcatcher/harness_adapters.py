@@ -133,13 +133,13 @@ class HarnessAdapter(ABC):
 
     @abstractmethod
     def build_new_session_round(
-        self, *, request: AgentRoundLaunchRequest, final_output_path: Path
+        self, *, request: AgentRoundLaunchRequest, final_output_from_worktree: Path
     ) -> HarnessInvocation:
         """Return how to run a round that starts a new harness session.
 
         A harness that writes its final output to a file uses the round-owned
-        path supplied here, which is relative to the worktree that the round
-        runs in. A harness whose stream reports the final output ignores it.
+        path supplied here. A harness whose stream reports the final output
+        ignores it.
         """
 
     @abstractmethod
@@ -148,13 +148,13 @@ class HarnessAdapter(ABC):
         *,
         request: AgentRoundLaunchRequest,
         harness_session_identifier: HarnessSessionIdentifier,
-        final_output_path: Path,
+        final_output_from_worktree: Path,
     ) -> HarnessInvocation:
         """Return how to resume the harness session with request's prompt.
 
         A harness that writes its final output to a file uses the round-owned
-        path supplied here, which is relative to the worktree that the round
-        runs in. A harness whose stream reports the final output ignores it.
+        path supplied here. A harness whose stream reports the final output
+        ignores it.
         """
 
     @abstractmethod

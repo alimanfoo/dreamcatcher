@@ -124,7 +124,7 @@ class _CodexHarnessAdapter(HarnessAdapter):
         ]
 
     def build_new_session_round(
-        self, *, request: AgentRoundLaunchRequest, final_output_path: Path
+        self, *, request: AgentRoundLaunchRequest, final_output_from_worktree: Path
     ) -> HarnessInvocation:
         """Return how to run a round that starts a new harness session.
 
@@ -158,7 +158,8 @@ class _CodexHarnessAdapter(HarnessAdapter):
                 "--json",
                 *round_arguments,
                 *_build_final_output_arguments(
-                    request=request, final_output_path=final_output_path
+                    request=request,
+                    final_output_from_worktree=final_output_from_worktree,
                 ),
                 _STDIN_ARGUMENT,
             ],
@@ -170,7 +171,7 @@ class _CodexHarnessAdapter(HarnessAdapter):
         *,
         request: AgentRoundLaunchRequest,
         harness_session_identifier: HarnessSessionIdentifier,
-        final_output_path: Path,
+        final_output_from_worktree: Path,
     ) -> HarnessInvocation:
         """Return how to resume the identified harness session.
 
@@ -196,7 +197,8 @@ class _CodexHarnessAdapter(HarnessAdapter):
                 ),
                 *_build_config_arguments(settings=permission_settings),
                 *_build_final_output_arguments(
-                    request=request, final_output_path=final_output_path
+                    request=request,
+                    final_output_from_worktree=final_output_from_worktree,
                 ),
                 harness_session_identifier,
                 _STDIN_ARGUMENT,
@@ -270,12 +272,12 @@ class _CodexHarnessAdapter(HarnessAdapter):
 
 
 def _build_final_output_arguments(
-    *, request: AgentRoundLaunchRequest, final_output_path: Path
+    *, request: AgentRoundLaunchRequest, final_output_from_worktree: Path
 ) -> list[str]:
     """Return Codex's final-message file arguments for a conversation."""
     if request.work_kind is not AgentWorkKind.CONVERSATION:
         return []
-    return ["--output-last-message", str(final_output_path)]
+    return ["--output-last-message", str(final_output_from_worktree)]
 
 
 CODEX_ADAPTER = _CodexHarnessAdapter()

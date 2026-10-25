@@ -149,7 +149,7 @@ class Unrenderable(HarnessAdapter):
         return []
 
     def build_new_session_round(
-        self, *, request: AgentRoundLaunchRequest, final_output_path: Path
+        self, *, request: AgentRoundLaunchRequest, final_output_from_worktree: Path
     ) -> HarnessInvocation:
         return HarnessInvocation(
             program=self.program, arguments=[], prompt=request.prompt
@@ -160,7 +160,7 @@ class Unrenderable(HarnessAdapter):
         *,
         request: AgentRoundLaunchRequest,
         harness_session_identifier: str,
-        final_output_path: Path,
+        final_output_from_worktree: Path,
     ) -> HarnessInvocation:
         return HarnessInvocation(
             program=self.program, arguments=[], prompt=request.prompt

@@ -420,13 +420,13 @@ def start_agent_round(
     if request.harness_session_identifier is None:
         invocation = harness_adapter.build_new_session_round(
             request=request.launch_request,
-            final_output_path=request.paths.final_output_from_worktree,
+            final_output_from_worktree=request.paths.final_output_from_worktree,
         )
     else:
         invocation = harness_adapter.build_resumed_round(
             request=request.launch_request,
             harness_session_identifier=request.harness_session_identifier,
-            final_output_path=request.paths.final_output_from_worktree,
+            final_output_from_worktree=request.paths.final_output_from_worktree,
         )
     return AgentRound(
         agent_work_identifier=request.launch_request.agent_work_identifier,
