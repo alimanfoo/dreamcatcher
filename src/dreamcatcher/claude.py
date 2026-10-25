@@ -176,7 +176,7 @@ class _ClaudeHarnessAdapter(HarnessAdapter):
         ]
 
     def build_new_session_round(
-        self, *, request: AgentRoundLaunchRequest, final_output_path: Path
+        self, *, request: AgentRoundLaunchRequest, final_output_from_worktree: Path
     ) -> HarnessInvocation:
         """Return how to run a round that starts a new harness session.
 
@@ -200,7 +200,7 @@ class _ClaudeHarnessAdapter(HarnessAdapter):
         *,
         request: AgentRoundLaunchRequest,
         harness_session_identifier: HarnessSessionIdentifier,
-        final_output_path: Path,
+        final_output_from_worktree: Path,
     ) -> HarnessInvocation:
         """Return how to resume the identified harness session.
 
@@ -388,10 +388,16 @@ def _read_tool_failure(*, block: dict) -> list[FeedEvent]:
 
 
 def _read_round_result(*, harness_event: dict) -> HarnessOutput:
-    """Return the usage, outcome, and final text that close the round.
+    """Return the usage, outcome, and final text of one result event.
 
-    The subtype reads "success" even on a round that failed, so the event's own
-    error flag is what the feed reports.
+    Claude streams a result event each time the agent stops, so a round can
+    stream several, as when Claude wakes the agent each time a background
+    subagent reports. A result event with blank text, which Claude streams when
+    it wakes the agent and stops it again without calling the model, gives no
+    final output, so it cannot replace an earlier result event's answer.
+
+    The subtype reads "success" even on a result event that reports a failure,
+    so the event's own error flag is what the feed reports.
     """
     usage_note = _compose_usage_note(
         cost=harness_event["total_cost_usd"], counts=harness_event["usage"]
@@ -409,7 +415,7 @@ def _read_round_result(*, harness_event: dict) -> HarnessOutput:
     result = harness_event.get("result")
     return HarnessOutput(
         events=[usage_note, FeedNote(label="result", detail=harness_event["subtype"])],
-        final_output=result if isinstance(result, str) else None,
+        final_output=result if isinstance(result, str) and result.strip() else None,
     )
 
 

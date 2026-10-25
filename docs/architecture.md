@@ -165,9 +165,8 @@ A round that errors during its preparation or startup takes no agent
 slot, and the tick goes on to the next candidate. The round is recorded
 on its agent work, and the request's row names the round and its reason,
 which the daemon's output line repeats. A launch that fails before its
-round is recorded, such as a work record that cannot be written or a
-harness invocation that cannot be built, fails the tick and so ends the
-daemon.
+round is recorded, such as a work record that cannot be written, fails
+the tick and so ends the daemon.
 
 A tick sees work end when the work was open when the tick read it, or
 when the daemon held a round of it that the tick has just forgotten. It
@@ -249,10 +248,13 @@ ending keeps the harness's clean exit status and gives the failure as
 its reason, and the feed notes it too.
 
 Harness adapters expose final output separately from their progress
-streams. Claude supplies the answer in its successful result event. For
-a Codex conversation, the adapter gives `codex exec` the round's
+streams. Claude supplies the answer in the last result event that has
+text, which the round reads once Claude's output stream ends. For a
+Codex conversation, the adapter gives `codex exec` the round's
 `final.md` path as its last-message output file on first and resumed
-invocations.
+invocations. The path is relative to the worktree that Codex runs in.
+The worktree and the work's directory both sit in the state directory,
+so the command line never carries the checkout's own path.
 
 ### Campaigns
 
@@ -398,9 +400,11 @@ work should run.
 
 `agent_rounds.py` owns agent-round records and the supervised lifetime
 of a round process for every kind of agent work. Before anything is
-recorded, it asks a harness adapter to build the round's invocation, so
-a failure there fails the scheduler tick. It should then provide
-operations to:
+recorded, it asks a harness adapter to build the round's invocation.
+Every value in the invocation is a name that dreamcatcher chose, a
+setting that was checked when the configuration file was read, or a
+harness session identifier that was checked when it was recorded, so
+building it cannot fail. It should then provide operations to:
 
 - record the round, with the next number that its work allocated, before
   anything else happens;

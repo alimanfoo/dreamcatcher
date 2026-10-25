@@ -48,7 +48,7 @@ def compose_assistant_line(*, blocks: Sequence[dict], parent: str | None = None)
 
 def test_an_assignment_round_may_read_the_output_of_its_checks():
     allowed = CLAUDE_ADAPTER.build_new_session_round(
-        request=ROUND_LAUNCH_REQUEST, final_output_path=FINAL_OUTPUT_PATH
+        request=ROUND_LAUNCH_REQUEST, final_output_from_worktree=FINAL_OUTPUT_PATH
     ).arguments[CLAUDE_BASE_ARGUMENTS.index("--allowedTools") + 1]
 
     assert "Bash(gh pr checks:*)" in allowed
@@ -59,7 +59,7 @@ def test_an_assignment_round_may_read_the_output_of_its_checks():
 def test_a_new_session_round_names_its_configured_model_and_effort():
     assert CLAUDE_ADAPTER.build_new_session_round(
         request=ROUND_LAUNCH_REQUEST,
-        final_output_path=FINAL_OUTPUT_PATH,
+        final_output_from_worktree=FINAL_OUTPUT_PATH,
     ) == HarnessInvocation(
         program="claude",
         arguments=[*CLAUDE_BASE_ARGUMENTS, "--model", "opus[1m]", "--effort", "xhigh"],
@@ -71,7 +71,7 @@ def test_a_resume_continues_the_harness_session_and_replays_no_settings():
     assert CLAUDE_ADAPTER.build_resumed_round(
         request=ROUND_LAUNCH_REQUEST,
         harness_session_identifier="abc-123",
-        final_output_path=FINAL_OUTPUT_PATH,
+        final_output_from_worktree=FINAL_OUTPUT_PATH,
     ) == HarnessInvocation(
         program="claude",
         arguments=[*CLAUDE_BASE_ARGUMENTS, "--resume", "abc-123"],
@@ -90,12 +90,12 @@ def test_a_conversation_round_allows_issue_tools_and_denies_implementation_tools
 
     invocations = [
         CLAUDE_ADAPTER.build_new_session_round(
-            request=request, final_output_path=FINAL_OUTPUT_PATH
+            request=request, final_output_from_worktree=FINAL_OUTPUT_PATH
         ),
         CLAUDE_ADAPTER.build_resumed_round(
             request=request,
             harness_session_identifier="abc-123",
-            final_output_path=FINAL_OUTPUT_PATH,
+            final_output_from_worktree=FINAL_OUTPUT_PATH,
         ),
     ]
 
@@ -133,12 +133,12 @@ def test_a_campaign_round_may_coordinate_and_verify_but_not_implement():
 
     invocations = [
         CLAUDE_ADAPTER.build_new_session_round(
-            request=request, final_output_path=FINAL_OUTPUT_PATH
+            request=request, final_output_from_worktree=FINAL_OUTPUT_PATH
         ),
         CLAUDE_ADAPTER.build_resumed_round(
             request=request,
             harness_session_identifier="abc-123",
-            final_output_path=FINAL_OUTPUT_PATH,
+            final_output_from_worktree=FINAL_OUTPUT_PATH,
         ),
     ]
 
@@ -423,6 +423,22 @@ def test_a_successful_round_exposes_its_final_output_separately():
     assert CLAUDE_ADAPTER.read_output(line=line) == HarnessOutput(
         events=[SPEND, FeedNote(label="result", detail="success")],
         final_output="The answer.",
+    )
+
+
+@pytest.mark.parametrize("result", ["", "\n"])
+def test_a_blank_result_gives_no_final_output(result):
+    line = compose_stream_line(
+        type="result",
+        subtype="success",
+        is_error=False,
+        result=result,
+        total_cost_usd=0.0825951,
+        usage=SPENT,
+    )
+
+    assert CLAUDE_ADAPTER.read_output(line=line) == HarnessOutput(
+        events=[SPEND, FeedNote(label="result", detail="success")]
     )
 
 
