@@ -2,12 +2,16 @@ version: 2
 
 # Each ecosystem opens one pull request for its version updates and one for
 # its security updates, majors included, because a group applies to one kind.
+# A version update waits until its release is a week old, so a compromised
+# release has time to be found and pulled first. Security updates do not wait.
 
 updates:
   - package-ecosystem: "uv"
     directory: "/"
     schedule:
       interval: "weekly"
+    cooldown:
+      default-days: 7
     groups:
       uv:
         patterns: ["*"]
@@ -19,6 +23,8 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    cooldown:
+      default-days: 7
     groups:
       pre-commit:
         patterns: ["*"]
@@ -30,6 +36,8 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    cooldown:
+      default-days: 7
     groups:
       github-actions:
         patterns: ["*"]
