@@ -1,10 +1,10 @@
 # Compatibility and upgrades
 
-v9.1.0 uses state format 8, as v9.0.0 did. Saved work from v9.0.0
-continues after the upgrade. v7.0.0 and v8.0.0 used state format 7,
-v6.0.0 through v6.3.0 used state format 6, v5.0.0 through v5.6.2 used
-state format 5, and v4.0.0 used state format 4. Saved work does not
-carry across from one format to the next.
+v9.1.1 uses state format 8, as v9.0.0 and v9.1.0 did. Saved work from
+v9.0.0 or v9.1.0 continues after the upgrade. v7.0.0 and v8.0.0 used
+state format 7, v6.0.0 through v6.3.0 used state format 6, v5.0.0
+through v5.6.2 used state format 5, and v4.0.0 used state format 4.
+Saved work does not carry across from one format to the next.
 
 ## Upgrade from v8.0.0 to v9.0.0
 
