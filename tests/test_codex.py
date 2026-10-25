@@ -90,13 +90,19 @@ def test_a_resume_replays_the_settings_and_the_permissions_codex_forgets():
 @pytest.mark.parametrize(
     "build_round",
     [
-        lambda request: CODEX_ADAPTER.build_new_session_round(
-            request=request, final_output_path=FINAL_OUTPUT_PATH
+        pytest.param(
+            lambda request: CODEX_ADAPTER.build_new_session_round(
+                request=request, final_output_path=FINAL_OUTPUT_PATH
+            ),
+            id="new session",
         ),
-        lambda request: CODEX_ADAPTER.build_resumed_round(
-            request=request,
-            harness_session_identifier="01a0213c-9c67",
-            final_output_path=FINAL_OUTPUT_PATH,
+        pytest.param(
+            lambda request: CODEX_ADAPTER.build_resumed_round(
+                request=request,
+                harness_session_identifier="01a0213c-9c67",
+                final_output_path=FINAL_OUTPUT_PATH,
+            ),
+            id="resumed",
         ),
     ],
 )

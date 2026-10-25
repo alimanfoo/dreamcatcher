@@ -39,7 +39,7 @@ dev = [
     "mkdocs-material==9.7.7",
     "playwright==1.64.0",
     "pre-commit>=4.0",
-    "pytest>=8.0",
+    "pytest>=9.0",
     "pytest-cov>=6.0",
     "pytest-playwright==0.10.0",
     "pytest-timeout>=2.4",
@@ -84,6 +84,10 @@ markers = [
     "integration: calls the real gh against this repository, read-only",
 ]
 filterwarnings = ["error::EncodingWarning"]
+# Fails the run on an unknown setting or marker, an xfail test that passes, or
+# two parametrized cases with one ID. A misspelled marker would otherwise put a
+# test that calls the real gh into the default run.
+strict = true
 # docs/testing.md says what happens when a test hangs, and how to lift the
 # limit. Keep the stack dump below the timeout.
 timeout = 120
