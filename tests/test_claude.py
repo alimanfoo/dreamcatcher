@@ -426,6 +426,22 @@ def test_a_successful_round_exposes_its_final_output_separately():
     )
 
 
+@pytest.mark.parametrize("result", ["", "\n"])
+def test_a_blank_result_gives_no_final_output(result):
+    line = compose_stream_line(
+        type="result",
+        subtype="success",
+        is_error=False,
+        result=result,
+        total_cost_usd=0.0825951,
+        usage=SPENT,
+    )
+
+    assert CLAUDE_ADAPTER.read_output(line=line) == HarnessOutput(
+        events=[SPEND, FeedNote(label="result", detail="success")]
+    )
+
+
 def test_a_round_that_failed_closes_with_what_went_wrong():
     line = compose_stream_line(
         type="result",

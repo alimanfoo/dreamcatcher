@@ -248,8 +248,9 @@ ending keeps the harness's clean exit status and gives the failure as
 its reason, and the feed notes it too.
 
 Harness adapters expose final output separately from their progress
-streams. Claude supplies the answer in its successful result event. For
-a Codex conversation, the adapter gives `codex exec` the round's
+streams. Claude supplies the answer in the last result event that has
+text, which the round reads once Claude's output stream ends. For a
+Codex conversation, the adapter gives `codex exec` the round's
 `final.md` path as its last-message output file on first and resumed
 invocations. The path is relative to the worktree that Codex runs in.
 The worktree and the work's directory both sit in the state directory,
