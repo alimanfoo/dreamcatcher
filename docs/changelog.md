@@ -27,6 +27,15 @@ the change.
 
 ## Unreleased
 
+### Changed
+
+- Work starts, and a paused conversation or campaign resumes, only on a
+  dispatch label that the signed-in user applied themselves. A label
+  that a colleague, a bot or a deleted account applied starts nothing,
+  and the request shows as held, naming who applied the label and saying
+  that the user can remove and re-add it.
+  ([#809](https://github.com/alimanfoo/dreamcatcher/pull/809))
+
 ## [v9.2.0](https://github.com/alimanfoo/dreamcatcher/releases/tag/v9.2.0) — 2026-10-25
 
 ### Changed

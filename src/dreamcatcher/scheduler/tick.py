@@ -52,6 +52,7 @@ from dreamcatcher.scheduler.inspection import (
     RequestInspector,
     SchedulingContext,
 )
+from dreamcatcher.scheduler.labelling import find_label_applied_by_other
 from dreamcatcher.scheduler.models import (
     DEFAULT_MAX_AGENTS,
     ConflictingLabelsFinding,
@@ -328,7 +329,9 @@ class Scheduler:
 
         The routes are every route of the kind that the issue's labels select.
         Two labels of one kind start nothing, so each is a request with
-        conflicting labels and nothing is read for it.
+        conflicting labels and nothing is read for it. A label that someone
+        other than the user applied holds its request, and nothing more is
+        read for it either.
         """
         for route in routes:
             if (issue.number, identify_label(name=route.label)) in answered:
@@ -343,11 +346,16 @@ class Scheduler:
                 finding = ConflictingLabelsFinding(
                     labels=[conflicting.label for conflicting in routes]
                 )
-                yield Inspection(row=row.model_copy(update={"finding": finding}))
             else:
+                finding = find_label_applied_by_other(
+                    context=self.context, issue=issue.number, label=route.label
+                )
+            if finding is None:
                 yield inspect_request(
                     context=self.context, issue=issue, route=route, row=row
                 )
+            else:
+                yield Inspection(row=row.model_copy(update={"finding": finding}))
 
     def _launch_candidates(
         self,

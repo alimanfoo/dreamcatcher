@@ -13,9 +13,13 @@ from conftest import (
     REPOSITORY,
     commit,
     compose_comment,
+    compose_labelling_event,
     compose_page,
     compose_stream_line,
     configure,
+    count_event_reads,
+    offer_labelling_events,
+    offer_labels_applied_by_user,
     offer_listing,
     run_git,
     wait_for_exit,
@@ -34,7 +38,7 @@ from records import (
     write_round,
     write_tick,
 )
-from rows import compose_conversation_row
+from rows import CONVERSATION_LABEL, compose_conversation_row
 
 from dreamcatcher import agent_rounds
 from dreamcatcher.agent_rounds import (
@@ -73,6 +77,7 @@ from dreamcatcher.scheduler.models import (
     ConflictingLabelsFinding,
     GlobalCooldown,
     IssueCommentsFinding,
+    LabelAppliedByOtherFinding,
     PauseCause,
     PausedFinding,
     ReadFailureFinding,
@@ -202,7 +207,7 @@ def compose_conversation_issue(
 
 
 def show_conversation_issue(*, gh, issue: dict) -> None:
-    """Have GitHub answer a read of that issue with this."""
+    """Have GitHub answer a read of that issue with this, labelled by the user."""
     gh.replies(
         stdout=json.dumps(issue),
         to=(
@@ -210,6 +215,7 @@ def show_conversation_issue(*, gh, issue: dict) -> None:
             "--json number,title,body,createdAt,state,assignees,labels"
         ),
     )
+    offer_labels_applied_by_user(gh=gh, issue=issue)
 
 
 def offer_conversation(
@@ -2614,3 +2620,147 @@ def test_an_ended_conversation_is_left_alone_and_a_comment_starts_another(
     [identifier] = launched.launched_agent_work_identifiers
     assert identifier != ended.name
     assert not (ended / "rounds").exists()
+
+
+def test_a_label_that_someone_else_put_back_leaves_a_conversation_paused(
+    conversation_scheduler, harnesses
+):
+    scheduler, clock, gh = conversation_scheduler
+    offer_conversation(gh=gh, comments=[compose_question()])
+    script_claude_answer(harnesses=harnesses, body="The first answer.")
+    gh.replies(stdout=json.dumps({"id": 99}), to=POST_PATH)
+    scheduler.tick(at=clock())
+    finish(scheduler=scheduler)
+    offer_labelling_events(
+        gh=gh,
+        issue=8,
+        events=[
+            compose_labelling_event(label=CONVERSATION_LABEL),
+            compose_labelling_event(label=CONVERSATION_LABEL, applier="colleague"),
+        ],
+    )
+    comment_reads_before = count_comment_reads(gh=gh)
+
+    held = scheduler.tick(at=clock())
+
+    assert held.rows == [
+        compose_conversation_row(
+            agent_work_identifier=compose_conversation_identifier(issue=8),
+            ended_round=1,
+            finding=LabelAppliedByOtherFinding(applier="colleague"),
+            title=OFFERED_TITLE,
+        )
+    ]
+    assert count_comment_reads(gh=gh) == comment_reads_before
+    offer_conversation(
+        gh=gh, comments=[compose_question(), compose_question(identifier=2)]
+    )
+    script_claude_answer(harnesses=harnesses, body="The later answer.")
+
+    resumed = scheduler.tick(at=clock())
+    finish(scheduler=scheduler)
+
+    assert resumed.launched_agent_work_identifiers == [
+        compose_conversation_identifier(issue=8)
+    ]
+
+
+def test_a_conversation_request_whose_label_someone_else_applied_is_held_at_once(
+    conversation_scheduler,
+):
+    scheduler, clock, gh = conversation_scheduler
+    offer_conversation(gh=gh, comments=[])
+    offer_labelling_events(
+        gh=gh,
+        issue=8,
+        events=[compose_labelling_event(label=CONVERSATION_LABEL, applier="colleague")],
+    )
+
+    observed = scheduler.tick(at=clock())
+
+    assert observed.rows == [
+        compose_conversation_row(
+            finding=LabelAppliedByOtherFinding(applier="colleague"),
+            title=OFFERED_TITLE,
+        )
+    ]
+    assert count_comment_reads(gh=gh) == 0
+
+
+def test_a_running_conversation_reads_no_events(conversation_scheduler, harnesses):
+    scheduler, clock, gh = conversation_scheduler
+    scheduler.max_agents = 2
+    offer_conversation(gh=gh, comments=[compose_question()])
+    script_claude_answer(harnesses=harnesses, delay=10)
+    scheduler.tick(at=clock())
+    offer_conversation(
+        gh=gh, comments=[compose_question(), compose_question(identifier=2)]
+    )
+    reads_before = count_event_reads(gh=gh)
+
+    scheduler.tick(at=clock())
+
+    assert count_event_reads(gh=gh) == reads_before
+
+
+def test_faults_of_conversations_whose_label_someone_else_applied_do_not_count(
+    conversation_scheduler,
+):
+    scheduler, clock, gh = conversation_scheduler
+    fault_started = clock()
+    for issue in (8, 9):
+        write_faulted_conversation(
+            state=scheduler.context.state, issue=issue, at=fault_started
+        )
+        show_conversation_issue(
+            gh=gh,
+            issue=compose_conversation_issue(
+                labels=(CONVERSATION_LABEL,), number=issue
+            ),
+        )
+        offer_labelling_events(
+            gh=gh,
+            issue=issue,
+            events=[
+                compose_labelling_event(label=CONVERSATION_LABEL, applier="colleague")
+            ],
+        )
+
+    observed = scheduler.tick(at=clock())
+
+    assert observed.cooldown is None
+    assert observed.rows == [
+        compose_conversation_row(
+            issue=issue,
+            agent_work_identifier=compose_conversation_identifier(issue=issue),
+            ended_round=2,
+            finding=LabelAppliedByOtherFinding(applier="colleague"),
+        )
+        for issue in (8, 9)
+    ]
+
+
+def test_faults_count_when_who_applied_the_label_cannot_be_read(
+    conversation_scheduler,
+):
+    scheduler, clock, gh = conversation_scheduler
+    fault_started = clock()
+    for issue in (8, 9):
+        write_faulted_conversation(
+            state=scheduler.context.state, issue=issue, at=fault_started
+        )
+        show_conversation_issue(
+            gh=gh,
+            issue=compose_conversation_issue(
+                labels=(CONVERSATION_LABEL,), number=issue
+            ),
+        )
+        gh.fails(
+            stderr="network unavailable",
+            to=f"api repos/{REPOSITORY}/issues/{issue}/events?per_page=100",
+        )
+
+    observed = scheduler.tick(at=clock())
+
+    assert observed.cooldown is not None
+    assert all(isinstance(row.finding, ReadFailureFinding) for row in observed.rows)

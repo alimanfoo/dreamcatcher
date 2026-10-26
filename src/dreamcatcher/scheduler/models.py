@@ -112,6 +112,19 @@ class PausedFinding(DreamcatcherDocument):
     cause: PauseCause
 
 
+class LabelAppliedByOtherFinding(DreamcatcherDocument):
+    """Name who applied a request's dispatch label, when it was not the user.
+
+    An empty applier is an account that GitHub no longer names, or none at all
+    when no event records the label being applied.
+    """
+
+    found: Literal["label applied by another account"] = (
+        "label applied by another account"
+    )
+    applier: str
+
+
 class CampaignFinding(DreamcatcherDocument):
     """Hold what the tick found new for the lead.
 
@@ -141,6 +154,7 @@ type RequestFinding = Annotated[
     | BlockingIssuesFinding
     | ConflictingLabelsFinding
     | PausedFinding
+    | LabelAppliedByOtherFinding
     | CampaignFinding
     | ReadFailureFinding,
     Field(discriminator="found"),

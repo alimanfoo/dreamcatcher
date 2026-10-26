@@ -104,7 +104,8 @@ two-harness example and every accepted setting.
 An issue is available for a new assignment when it:
 
 - is open and assigned to the account authenticated through `gh`;
-- carries exactly one configured assignment label;
+- carries exactly one configured assignment label, which you applied
+  yourself;
 - has no open assignment already managed by this checkout;
 - has no other open pull request linked to it; and
 - has no open issue recorded by GitHub as blocking it.
@@ -132,6 +133,13 @@ how.
 
 Labels of different kinds may coexist on an issue because they select
 different kinds of work.
+
+Apply a dispatch label yourself, once the issue is assigned to you. Work
+starts, and paused work resumes, only on a label that the authenticated
+account applied. A label that a colleague puts on an issue assigned to
+you starts nothing, and the status report shows its request as held,
+naming who applied it. Remove the label and add it again yourself to
+start the work.
 
 ## Apply and check the configuration
 

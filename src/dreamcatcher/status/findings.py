@@ -39,6 +39,17 @@ def describe_pause(*, cause: str) -> str:
     return f"paused, {cause}"
 
 
+def describe_label_applier(*, applier: str) -> str:
+    """Say who applied a dispatch label that the user did not, and how to take it on.
+
+    An empty applier is an account that GitHub does not name.
+    """
+    return (
+        f"label applied by {applier or 'an unknown account'}: "
+        "remove and re-add it yourself"
+    )
+
+
 def describe_read_failure(*, reason: str) -> str:
     """Say why the tick could not tell what it needed."""
     return f"cannot tell: {reason}"

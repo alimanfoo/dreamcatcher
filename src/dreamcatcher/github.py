@@ -318,6 +318,19 @@ class PullRequestReference(GitHubResponseProjection):
     number: int
 
 
+class IssueEvent(GitHubResponseProjection):
+    """Model one event in an issue's history, as far as labelling it goes.
+
+    The account is the one that acted. An event that labels the issue names the
+    label it applied. An event whose actor GitHub no longer knows, one from a
+    deleted account, is nobody's.
+    """
+
+    event: str
+    account: str = Field(default="", validation_alias=AliasPath("actor", "login"))
+    label_name: str = Field(default="", validation_alias=AliasPath("label", "name"))
+
+
 class IssuePullRequestContext(GitHubResponseProjection):
     """Model the pull requests linked to an issue.
 
@@ -464,6 +477,7 @@ _GITHUB_PULL_REQUEST_REFERENCE_RESPONSE_ADAPTER = TypeAdapter(PullRequestReferen
 _GITHUB_PULL_REQUEST_RESPONSE_ADAPTER = TypeAdapter(PullRequest)
 _GITHUB_BLOCKING_ISSUE_LIST_RESPONSE_ADAPTER = TypeAdapter(list[list[BlockingIssue]])
 _GITHUB_SUB_ISSUE_PAGES_ADAPTER = TypeAdapter(list[list[SubIssue]])
+_GITHUB_ISSUE_EVENT_PAGES_ADAPTER = TypeAdapter(list[list[IssueEvent]])
 _GITHUB_ISSUE_PULL_REQUEST_CONTEXT_RESPONSE_ADAPTER = TypeAdapter(
     IssuePullRequestContext
 )
@@ -745,6 +759,19 @@ def list_blocking_issues(
         response_adapter=_GITHUB_BLOCKING_ISSUE_LIST_RESPONSE_ADAPTER,
         endpoint=f"repos/{repository}/issues/{issue}/dependencies/blocked_by",
     )
+
+
+def list_labelling_events(
+    *, repository: str, issue: int
+) -> list[IssueEvent] | UnknownGitHubResponse:
+    """Return each event that applied a label to the issue, oldest first."""
+    events = _read_github_pages(
+        response_adapter=_GITHUB_ISSUE_EVENT_PAGES_ADAPTER,
+        endpoint=f"repos/{repository}/issues/{issue}/events",
+    )
+    if isinstance(events, UnknownGitHubResponse):
+        return events
+    return [event for event in events if event.event == "labeled"]
 
 
 def list_sub_issues(

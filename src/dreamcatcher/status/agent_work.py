@@ -33,6 +33,7 @@ from dreamcatcher.scheduler.models import (
     CampaignFinding,
     ConflictingLabelsFinding,
     IssueCommentsFinding,
+    LabelAppliedByOtherFinding,
     PausedFinding,
     PullRequestFinding,
     ReadFailureFinding,
@@ -46,6 +47,7 @@ from dreamcatcher.status.findings import (
     describe_comments_to_answer,
     describe_conflicting_labels,
     describe_idle_pull_request,
+    describe_label_applier,
     describe_pause,
     describe_pull_request,
     describe_read_failure,
@@ -394,11 +396,14 @@ class AgentWorkStatusReader:
         """Derive the idle status of paused work, which waits for nothing.
 
         A second label of the work's kind on its issue pauses it as a routing
-        conflict.
+        conflict, and its label pauses it when someone other than the user
+        applied it.
         """
         finding = None if row is None else row.finding
         if isinstance(finding, PausedFinding):
             cause = str(finding.cause)
+        elif isinstance(finding, LabelAppliedByOtherFinding):
+            cause = describe_label_applier(applier=finding.applier)
         elif isinstance(finding, ConflictingLabelsFinding):
             cause = describe_conflicting_labels(
                 kind=work.record.kind, labels=finding.labels

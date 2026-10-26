@@ -12,6 +12,7 @@ from dreamcatcher.scheduler.models import (
     ConflictingLabelsFinding,
     IssueCommentsFinding,
     IssueReference,
+    LabelAppliedByOtherFinding,
     ReadFailureFinding,
     RequestRow,
     StartTimeFinding,
@@ -19,6 +20,7 @@ from dreamcatcher.scheduler.models import (
 from dreamcatcher.status.findings import (
     describe_comments_to_answer,
     describe_conflicting_labels,
+    describe_label_applier,
     describe_read_failure,
 )
 
@@ -30,6 +32,7 @@ type _StartFinding = (
     | IssueCommentsFinding
     | CampaignFinding
     | ConflictingLabelsFinding
+    | LabelAppliedByOtherFinding
     | ReadFailureFinding
 )
 
@@ -39,13 +42,16 @@ class RequestStatusValue(StrEnum):
 
     Available means that work starts once an agent slot is free. Blocked means
     that an open pull request claims an assignment's issue, or that an open
-    issue blocks an assignment's issue or a campaign's parent. Idle
-    means that a conversation waits for the user's first comment. Routing
-    conflict means that the user must remove all but one label of the kind.
+    issue blocks an assignment's issue or a campaign's parent. Held means that
+    someone other than the user applied the label, so the user must remove and
+    re-add it. Idle means that a conversation waits for the user's first
+    comment. Routing conflict means that the user must remove all but one label
+    of the kind.
     """
 
     AVAILABLE = "available"
     BLOCKED = "blocked"
+    HELD = "held"
     IDLE = "idle"
     ROUTING_CONFLICT = "routing conflict"
     UNKNOWN = "unknown"
@@ -99,15 +105,23 @@ def _describe_finding(
         return _describe_available()
     if isinstance(finding, IssueCommentsFinding):
         return _describe_comments(finding=finding)
+    value, words = _describe_single_reason(finding=finding, kind=kind)
+    return value, (RequestReason(words=words),)
+
+
+def _describe_single_reason(
+    *,
+    finding: ConflictingLabelsFinding | LabelAppliedByOtherFinding | ReadFailureFinding,
+    kind: AgentWorkKind,
+) -> tuple[RequestStatusValue, str]:
+    """Return the status of a request whose finding gives one reason, and its words."""
+    if isinstance(finding, LabelAppliedByOtherFinding):
+        return RequestStatusValue.HELD, describe_label_applier(applier=finding.applier)
     if isinstance(finding, ConflictingLabelsFinding):
-        return RequestStatusValue.ROUTING_CONFLICT, (
-            RequestReason(
-                words=describe_conflicting_labels(kind=kind, labels=finding.labels)
-            ),
+        return RequestStatusValue.ROUTING_CONFLICT, describe_conflicting_labels(
+            kind=kind, labels=finding.labels
         )
-    return RequestStatusValue.UNKNOWN, (
-        RequestReason(words=describe_read_failure(reason=finding.reason)),
-    )
+    return RequestStatusValue.UNKNOWN, describe_read_failure(reason=finding.reason)
 
 
 def _describe_start_time_answers(

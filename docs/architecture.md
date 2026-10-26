@@ -92,10 +92,13 @@ closed issue ends the work once no round of it runs and the issue's
 labels and assignee decide whether it is paused, and the read of the
 eligible comments past the work's cursor. `blockers.py` holds the read
 of the open issues that block an issue, which assignment and campaign
-requests share. `inspection.py` holds the shapes they share: the
-scheduling context, the candidate, the round plan and the inspection of
-one request. `models.py` holds the scheduler record and its request
-rows, and `faults.py` the fault and cooldown rules.
+requests share. `labelling.py` holds the rule that work starts or
+resumes only on a dispatch label that the signed-in account applied,
+which every kind's requests and open conversations and campaigns share.
+`inspection.py` holds the shapes they share: the scheduling context, the
+candidate, the round plan and the inspection of one request. `models.py`
+holds the scheduler record and its request rows, and `faults.py` the
+fault and cooldown rules.
 
 One scheduler tick:
 
@@ -111,13 +114,15 @@ One scheduler tick:
    assignment's pull request and user posts, a conversation's issue and
    then its comments, or a campaign's parent issue and then its
    comments, ending a conversation or campaign if its issue is closed
-   and no round of it is running;
+   and no round of it is running, and otherwise asking who applied its
+   label before it reads the comments, unless a round of it is running
+   or something else pauses it;
 5. then, for each request of the pass's kinds with no open work, skips
    an assignment label whose issue already has an open assignment,
-   checks for a routing conflict, then asks an assignment request the
-   start-time questions, reads the comments of a conversation's issue,
-   or asks which open issues block a campaign's parent and, when none
-   does, reads the parent's comments;
+   checks for a routing conflict, asks who applied the label, then asks
+   an assignment request the start-time questions, reads the comments of
+   a conversation's issue, or asks which open issues block a campaign's
+   parent and, when none does, reads the parent's comments;
 6. removes the worktree, and an assignment's local branch, of each piece
    of work that it sees end, unless the user cancelled it;
 7. starts a global cooldown when the counted faults call for one, and
@@ -460,6 +465,8 @@ constructs GitHub commands. It owns projections and operations for:
 - repository and account identity, and whether the account can push;
 - the repository's labels, and creating a label;
 - issue title, state, assignees, labels, and dependencies;
+- the events that applied a label to an issue, with the account that
+  applied it;
 - a parent issue's direct sub-issues, with their titles and states;
 - linked pull requests;
 - pull-request identity, draft state, readiness, terminal state, merge

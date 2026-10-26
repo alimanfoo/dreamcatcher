@@ -49,6 +49,7 @@ from dreamcatcher.issue_conversations import (
 from dreamcatcher.scheduler.models import (
     ConflictingLabelsFinding,
     IssueCommentsFinding,
+    LabelAppliedByOtherFinding,
     PauseCause,
     PausedFinding,
     ReadFailureFinding,
@@ -679,6 +680,27 @@ def test_a_conversation_with_two_conversation_labels_is_paused_saying_so(
 
     assert found.value is AgentWorkStatusValue.IDLE
     assert found.detail == "paused, multiple conversation labels: discuss, scout"
+
+
+@pytest.mark.parametrize(
+    ("applier", "words"),
+    [("colleague", "colleague"), ("", "an unknown account")],
+)
+def test_a_conversation_whose_label_someone_else_put_back_is_paused_naming_them(
+    conversation_state, applier, words
+):
+    write_conversation_round(state=conversation_state)
+    observe(
+        state=conversation_state,
+        finding=LabelAppliedByOtherFinding(applier=applier),
+    )
+
+    found = read_conversation_status(state=conversation_state)
+
+    assert found.value is AgentWorkStatusValue.IDLE
+    assert found.detail == (
+        f"paused, label applied by {words}: remove and re-add it yourself"
+    )
 
 
 def test_an_errored_round_of_a_paused_conversation_does_not_wait(

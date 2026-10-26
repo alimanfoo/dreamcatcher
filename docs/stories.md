@@ -689,13 +689,16 @@ their own usage allowance. Each agent posts as the user it runs for and
 hears only that user, so a teammate's review of the user's pull request
 is read by the user, never by the agent.
 
-An instance does not check who assigned or labelled an issue. Today,
-anyone who can assign and label issues in the repository can start work
-on a teammate's instance, under the teammate's account and on their
-usage allowance. That behaviour is under discussion, not an endorsed way
-to hand work to a teammate. How the user running the daemon authorizes
-the work it starts remains an open question, discussed in
-[#594](https://github.com/alimanfoo/dreamcatcher/issues/594).
+The person who will run the work applies the dispatch label themselves,
+once the issue is assigned to them, whether a teammate assigned it or
+they assigned it to themselves. Assigning an issue to a teammate is
+fine, but labelling it for them is not how _dreamcatcher_ is meant to be
+used. An instance starts work only on a label that its own user applied,
+and resumes a paused conversation or campaign the same way, so a label
+that a teammate applies by mistake starts nothing on the user's machine,
+as
+[the user error about labelling for a colleague](#labelling-an-issue-for-a-colleague)
+tells.
 
 The value to the user is that a team shares one configuration and one
 set of labels, and each user's agents run on their own machine and hear
@@ -774,6 +777,27 @@ _dreamcatcher_ only looks at issues assigned to the user. The user needs
 to assign the issue to themselves on GitHub, and at the next update it
 appears and work starts.
 
+### Labelling an issue for a colleague
+
+A colleague assigns an issue to the user and puts a dispatch label on it
+too, by mistake or because they expect that to hand the work over.
+Nothing starts on the user's machine, so no agent runs under the user's
+account or on their usage allowance before the user has seen the issue.
+The colleague sees the label on the issue and nothing else. The user
+sees the issue's request row on the home page and in
+`dreamcatcher status`, held, naming who applied the label and saying
+that the user can remove and re-add it themselves. The same goes for a
+bot, and for an account that has since been deleted, which the row
+cannot name. A colleague who puts back the label of a paused
+conversation or campaign leaves it paused, and its row says so in the
+same words.
+
+If the user wants the work, they need to take the label off and put it
+back on themselves, and it starts at the next update. They then need to
+ask their colleague to leave the label to them, so that it does not
+happen again. If they do not want the work, they need to take the label
+off.
+
 ### A label on an issue someone else is already working on
 
 The user labels an issue that already has an open pull request linked to
@@ -836,9 +860,7 @@ answer from the agent.
 
 This is deliberate. Only the user's own posts reach the agent as
 feedback, so a colleague's comment cannot steer work that runs under the
-user's account. It does not settle who else may start that work, which
-[the teammate story](#the-users-teammate-runs-dreamcatcher-on-the-same-repository)
-leaves open.
+user's account.
 
 ### Editing the configuration while the daemon runs
 
