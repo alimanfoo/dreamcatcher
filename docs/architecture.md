@@ -121,10 +121,10 @@ One scheduler tick:
    start-time questions, reads the comments of a conversation's issue,
    or asks which open issues block a campaign's parent and, when none
    does, reads the parent's comments;
-6. holds each request and each open conversation or campaign that it
-   found may take a round, unless the signed-in account applied its
-   dispatch label, so the tick reads an issue's events only for work
-   that would otherwise start;
+6. asks who applied the dispatch label of each request and each open
+   conversation or campaign that it found may take a round, or whose
+   fault counts, and starts nothing for it unless the signed-in account
+   did;
 7. removes the worktree, and an assignment's local branch, of each piece
    of work that it sees end, unless the user cancelled it;
 8. starts a global cooldown when the counted faults call for one, and

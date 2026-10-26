@@ -52,7 +52,7 @@ from dreamcatcher.scheduler.inspection import (
     RequestInspector,
     SchedulingContext,
 )
-from dreamcatcher.scheduler.labelling import hold_unless_user_applied_label
+from dreamcatcher.scheduler.labelling import require_label_applied_by_user
 from dreamcatcher.scheduler.models import (
     DEFAULT_MAX_AGENTS,
     ConflictingLabelsFinding,
@@ -284,7 +284,7 @@ class Scheduler:
             return replace(inspection, candidate=None)
         if work.record.kind is AgentWorkKind.ASSIGNMENT:
             return inspection
-        return hold_unless_user_applied_label(
+        return require_label_applied_by_user(
             context=self.context, inspection=inspection
         )
 
@@ -354,7 +354,7 @@ class Scheduler:
                 )
                 yield Inspection(row=row.model_copy(update={"finding": finding}))
             else:
-                yield hold_unless_user_applied_label(
+                yield require_label_applied_by_user(
                     context=self.context,
                     inspection=inspect_request(
                         context=self.context, issue=issue, route=route, row=row

@@ -19,6 +19,7 @@ from conftest import (
     configure,
     count_event_reads,
     offer_labelling_events,
+    offer_labels_applied_by_user,
     offer_listing,
     run_git,
     wait_for_exit,
@@ -206,7 +207,7 @@ def compose_conversation_issue(
 
 
 def show_conversation_issue(*, gh, issue: dict) -> None:
-    """Have GitHub answer a read of that issue with this."""
+    """Have GitHub answer a read of that issue with this, labelled by the user."""
     gh.replies(
         stdout=json.dumps(issue),
         to=(
@@ -214,6 +215,7 @@ def show_conversation_issue(*, gh, issue: dict) -> None:
             "--json number,title,body,createdAt,state,assignees,labels"
         ),
     )
+    offer_labels_applied_by_user(gh=gh, issue=issue)
 
 
 def offer_conversation(
@@ -2679,3 +2681,66 @@ def test_a_running_conversation_reads_no_events(conversation_scheduler, harnesse
     scheduler.tick(at=clock())
 
     assert count_event_reads(gh=gh) == reads_before
+
+
+def test_faults_of_conversations_whose_label_someone_else_applied_do_not_count(
+    conversation_scheduler,
+):
+    scheduler, clock, gh = conversation_scheduler
+    fault_started = clock()
+    for issue in (8, 9):
+        write_faulted_conversation(
+            state=scheduler.context.state, issue=issue, at=fault_started
+        )
+        show_conversation_issue(
+            gh=gh,
+            issue=compose_conversation_issue(
+                labels=(CONVERSATION_LABEL,), number=issue
+            ),
+        )
+        offer_labelling_events(
+            gh=gh,
+            issue=issue,
+            events=[
+                compose_labelling_event(label=CONVERSATION_LABEL, applier="colleague")
+            ],
+        )
+
+    observed = scheduler.tick(at=clock())
+
+    assert observed.cooldown is None
+    assert observed.rows == [
+        compose_conversation_row(
+            issue=issue,
+            agent_work_identifier=compose_conversation_identifier(issue=issue),
+            ended_round=2,
+            finding=LabelAppliedByOtherFinding(applier="colleague"),
+        )
+        for issue in (8, 9)
+    ]
+
+
+def test_faults_count_when_who_applied_the_label_cannot_be_read(
+    conversation_scheduler,
+):
+    scheduler, clock, gh = conversation_scheduler
+    fault_started = clock()
+    for issue in (8, 9):
+        write_faulted_conversation(
+            state=scheduler.context.state, issue=issue, at=fault_started
+        )
+        show_conversation_issue(
+            gh=gh,
+            issue=compose_conversation_issue(
+                labels=(CONVERSATION_LABEL,), number=issue
+            ),
+        )
+        gh.fails(
+            stderr="network unavailable",
+            to=f"api repos/{REPOSITORY}/issues/{issue}/events?per_page=100",
+        )
+
+    observed = scheduler.tick(at=clock())
+
+    assert observed.cooldown is not None
+    assert all(isinstance(row.finding, ReadFailureFinding) for row in observed.rows)

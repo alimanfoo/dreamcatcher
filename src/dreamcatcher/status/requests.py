@@ -105,19 +105,16 @@ def _describe_finding(
         return _describe_available()
     if isinstance(finding, IssueCommentsFinding):
         return _describe_comments(finding=finding)
-    value, words = _describe_holding_finding(finding=finding, kind=kind)
+    value, words = _describe_single_reason(finding=finding, kind=kind)
     return value, (RequestReason(words=words),)
 
 
-def _describe_holding_finding(
+def _describe_single_reason(
     *,
     finding: ConflictingLabelsFinding | LabelAppliedByOtherFinding | ReadFailureFinding,
     kind: AgentWorkKind,
 ) -> tuple[RequestStatusValue, str]:
-    """Return the status and the one reason's words of a request held from starting.
-
-    The user's labels hold such a request, or a read that failed does.
-    """
+    """Return the status of a request whose finding gives one reason, and its words."""
     if isinstance(finding, LabelAppliedByOtherFinding):
         return RequestStatusValue.HELD, describe_label_applier(applier=finding.applier)
     if isinstance(finding, ConflictingLabelsFinding):

@@ -150,14 +150,18 @@ def offer_listing(*, gh, issues: list[dict]) -> None:
     """
     gh.replies(stdout=json.dumps(issues), to="issue list")
     for issue in issues:
-        offer_labelling_events(
-            gh=gh,
-            issue=issue["number"],
-            events=[
-                compose_labelling_event(label=label["name"])
-                for label in issue["labels"]
-            ],
-        )
+        offer_labels_applied_by_user(gh=gh, issue=issue)
+
+
+def offer_labels_applied_by_user(*, gh, issue: dict) -> None:
+    """Have GitHub answer that the user applied every label on the issue."""
+    offer_labelling_events(
+        gh=gh,
+        issue=issue["number"],
+        events=[
+            compose_labelling_event(label=label["name"]) for label in issue["labels"]
+        ],
+    )
 
 
 def compose_labelling_event(*, label: str, applier: str | None = POSTED_BY) -> dict:

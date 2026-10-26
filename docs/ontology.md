@@ -504,20 +504,15 @@ round is given no notification.
 ### Pausing and ending a conversation or campaign
 
 An open conversation or campaign is **paused** while its own dispatch
-label is off its issue, the issue is not assigned to the signed-in
-account, or the issue carries another configured label of its kind.
-Paused is derived each tick from the issue, not recorded. Paused work
-starts no round, its issue's comments are not read, and the fault of
-paused work does not count towards a global cooldown. Removing the cause
-resumes the work in the same harness session, and the work is then given
-every comment posted since its last finished round. A lead is also given
-the notifications of the changes among the sub-issues since then.
-
-An open conversation or campaign whose round may otherwise start is also
-paused when an account other than the signed-in one applied its label,
-so a label that someone else puts back resumes nothing. Its issue's
-comments are read before that, because only work whose round may start
-asks who applied its label.
+label is off its issue, an account other than the signed-in one applied
+that label, the issue is not assigned to the signed-in account, or the
+issue carries another configured label of its kind. Paused is derived
+each tick from the issue, not recorded. Paused work starts no round, and
+the fault of paused work does not count towards a global cooldown.
+Removing the cause resumes the work in the same harness session, and the
+work is then given every comment posted since its last finished round. A
+lead is also given the notifications of the changes among the sub-issues
+since then.
 
 When a tick finds the issue of a conversation or campaign closed, it
 records the work's ending with the reason "issue closed" once no round
@@ -584,8 +579,7 @@ the parent, and only when none does reads the parent's comments to give
 them to its first round. A request whose issue carries more than one
 label of its kind has a routing conflict, and nothing of that kind
 starts while it lasts. A request whose work may otherwise start is
-**held** unless the signed-in account applied its label, and the tick
-asks who applied it only then.
+**held** unless the signed-in account applied its label.
 
 A request with no open work has one of these request statuses:
 

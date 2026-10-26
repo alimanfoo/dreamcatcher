@@ -22,6 +22,7 @@ from conftest import (
     compose_stream_line,
     configure,
     offer_labelling_events,
+    offer_labels_applied_by_user,
     offer_listing,
     run_git,
 )
@@ -158,7 +159,7 @@ def compose_parent_issue(
 
 
 def show_parent(*, gh, issue: dict) -> None:
-    """Have GitHub answer a read of the parent with this."""
+    """Have GitHub answer a read of the parent with this, labelled by the user."""
     gh.replies(
         stdout=json.dumps(issue),
         to=(
@@ -166,6 +167,7 @@ def show_parent(*, gh, issue: dict) -> None:
             "--json number,title,body,createdAt,state,assignees,labels"
         ),
     )
+    offer_labels_applied_by_user(gh=gh, issue=issue)
 
 
 def offer_parent(*, gh, issue: dict | None = None) -> None:
