@@ -404,6 +404,7 @@ body::after {
 }
 
 .status-routing-conflict,
+.status-held,
 .status-available {
   color: var(--background);
   background: var(--phosphor);

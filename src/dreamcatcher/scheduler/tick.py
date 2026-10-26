@@ -52,6 +52,7 @@ from dreamcatcher.scheduler.inspection import (
     RequestInspector,
     SchedulingContext,
 )
+from dreamcatcher.scheduler.labelling import hold_unless_user_applied_label
 from dreamcatcher.scheduler.models import (
     DEFAULT_MAX_AGENTS,
     ConflictingLabelsFinding,
@@ -266,7 +267,10 @@ class Scheduler:
         """Inspect one piece of open work through its kind's channel.
 
         A running round prevents another round from starting, but its channel
-        is still read so that the request row stays current.
+        is still read so that the request row stays current. An open
+        assignment's rounds answer its pull request whatever its label, while a
+        conversation or a campaign takes a round only on a label that the user
+        applied, since a label that someone else put back resumes nothing.
         """
         is_in_fault = derive_agent_work_fault(
             rounds=work.rounds,
@@ -276,9 +280,13 @@ class Scheduler:
         inspection = inspect_work(
             context=self.context, work=work, is_in_fault=is_in_fault
         )
-        if not work.is_round_running:
+        if work.is_round_running:
+            return replace(inspection, candidate=None)
+        if work.record.kind is AgentWorkKind.ASSIGNMENT:
             return inspection
-        return replace(inspection, candidate=None)
+        return hold_unless_user_applied_label(
+            context=self.context, inspection=inspection
+        )
 
     def _inspect_requests(
         self,
@@ -328,7 +336,8 @@ class Scheduler:
 
         The routes are every route of the kind that the issue's labels select.
         Two labels of one kind start nothing, so each is a request with
-        conflicting labels and nothing is read for it.
+        conflicting labels and nothing is read for it. Work starts only on a
+        label that the user applied.
         """
         for route in routes:
             if (issue.number, identify_label(name=route.label)) in answered:
@@ -345,8 +354,11 @@ class Scheduler:
                 )
                 yield Inspection(row=row.model_copy(update={"finding": finding}))
             else:
-                yield inspect_request(
-                    context=self.context, issue=issue, route=route, row=row
+                yield hold_unless_user_applied_label(
+                    context=self.context,
+                    inspection=inspect_request(
+                        context=self.context, issue=issue, route=route, row=row
+                    ),
                 )
 
     def _launch_candidates(

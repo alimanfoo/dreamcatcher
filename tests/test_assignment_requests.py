@@ -17,8 +17,11 @@ from conftest import (
     REPOSITORY,
     compose_assignment_issues,
     compose_blocker,
+    compose_labelling_event,
     compose_page,
     compose_pull_request,
+    count_event_reads,
+    offer_labelling_events,
     offer_listing,
 )
 from records import read_assignments, write_assignment
@@ -31,6 +34,7 @@ from dreamcatcher.scheduler import Scheduler, SchedulingContext
 from dreamcatcher.scheduler.models import (
     ConflictingLabelsFinding,
     IssueReference,
+    LabelAppliedByOtherFinding,
     ReadFailureFinding,
     SchedulerRecord,
     StartTimeFinding,
@@ -267,3 +271,99 @@ def test_an_issue_with_an_open_assignment_has_no_request_row_of_its_own(gh, stat
         "GH8-20260819-184158-assignment"
     ]
     assert ["issue", "view"] not in [call.arguments[:2] for call in gh.calls]
+
+
+@pytest.mark.parametrize(
+    ("appliers", "finding"),
+    [
+        (["colleague"], LabelAppliedByOtherFinding(applier="colleague")),
+        ([POSTED_BY, "colleague"], LabelAppliedByOtherFinding(applier="colleague")),
+        (["colleague", POSTED_BY.upper()], UNCLAIMED),
+        ([None], LabelAppliedByOtherFinding(applier="")),
+    ],
+)
+def test_the_latest_account_to_apply_the_label_decides_whether_work_may_start(
+    gh, state, appliers, finding
+):
+    offer_labelling_events(
+        gh=gh,
+        issue=8,
+        events=[
+            compose_labelling_event(label=ASSIGNMENT_LABEL.upper(), applier=applier)
+            for applier in appliers
+        ],
+    )
+
+    rows = list_request_rows(
+        state=state, config=compose_config(labels=[ASSIGNMENT_LABEL])
+    )
+
+    assert rows == [compose_request_row(issue=8, finding=finding)]
+
+
+def test_only_events_that_apply_the_requests_label_decide(gh, state):
+    offer_labelling_events(
+        gh=gh,
+        issue=8,
+        events=[
+            compose_labelling_event(label=ASSIGNMENT_LABEL),
+            compose_labelling_event(label="bug", applier="colleague"),
+            {
+                "event": "unlabeled",
+                "actor": {"login": "colleague"},
+                "label": {"name": ASSIGNMENT_LABEL},
+            },
+            {"event": "assigned", "actor": {"login": "colleague"}},
+        ],
+    )
+
+    rows = list_request_rows(
+        state=state, config=compose_config(labels=[ASSIGNMENT_LABEL])
+    )
+
+    assert rows == [compose_request_row(issue=8, finding=UNCLAIMED)]
+
+
+def test_a_label_that_no_event_applied_holds_the_request(gh, state):
+    offer_labelling_events(gh=gh, issue=8, events=[])
+
+    rows = list_request_rows(
+        state=state, config=compose_config(labels=[ASSIGNMENT_LABEL])
+    )
+
+    assert rows == [
+        compose_request_row(issue=8, finding=LabelAppliedByOtherFinding(applier=""))
+    ]
+
+
+def test_a_failed_read_of_the_issues_events_leaves_the_request_unknown(gh, state):
+    gh.fails(
+        stderr="gh: could not connect to github.com",
+        to=f"api repos/{REPOSITORY}/issues/8/events?per_page=100",
+    )
+
+    [row] = list_request_rows(
+        state=state, config=compose_config(labels=[ASSIGNMENT_LABEL])
+    )
+
+    assert isinstance(row.finding, ReadFailureFinding)
+    assert "could not connect" in row.finding.reason
+
+
+def test_a_request_that_may_not_start_reads_no_events(gh, state):
+    gh.replies(
+        stdout=compose_page(items=[compose_blocker(number=9, state="open")]),
+        to=f"api repos/{REPOSITORY}/issues/8/dependencies/blocked_by?per_page=100",
+    )
+
+    list_request_rows(state=state, config=compose_config(labels=[ASSIGNMENT_LABEL]))
+
+    assert count_event_reads(gh=gh) == 0
+
+
+def test_an_open_assignment_reads_no_events(gh, state):
+    write_assignment(state=state, identifier="GH8-20260819-184158-assignment", issue=8)
+
+    list_request_rows(state=state, config=compose_config(labels=[ASSIGNMENT_LABEL]))
+
+    assert count_event_reads(gh=gh) == 0

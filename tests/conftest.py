@@ -144,8 +144,49 @@ def compose_assignment_issues(*, filed: Sequence[tuple[int, str]]) -> list[dict]
 
 
 def offer_listing(*, gh, issues: list[dict]) -> None:
-    """Have GitHub list these issues as the open issues assigned to the account."""
+    """Have GitHub list these issues as the open issues assigned to the account.
+
+    The user applied every label on each of them.
+    """
     gh.replies(stdout=json.dumps(issues), to="issue list")
+    for issue in issues:
+        offer_labelling_events(
+            gh=gh,
+            issue=issue["number"],
+            events=[
+                compose_labelling_event(label=label["name"])
+                for label in issue["labels"]
+            ],
+        )
+
+
+def compose_labelling_event(*, label: str, applier: str | None = POSTED_BY) -> dict:
+    """Return what GitHub lists of the event in which an account applied a label.
+
+    An applier of None is an account that GitHub no longer names.
+    """
+    return {
+        "event": "labeled",
+        "actor": None if applier is None else {"login": applier},
+        "label": {"name": label},
+    }
+
+
+def offer_labelling_events(*, gh, issue: int, events: Sequence[dict]) -> None:
+    """Have GitHub answer a read of the issue's events with these, oldest first."""
+    gh.replies(
+        stdout=compose_page(items=events),
+        to=f"api repos/{REPOSITORY}/issues/{issue}/events?per_page=100",
+    )
+
+
+def count_event_reads(*, gh) -> int:
+    """Return how often GitHub was asked for any issue's events."""
+    return sum(
+        call.arguments[0] == "api"
+        and call.arguments[1].endswith("/events?per_page=100")
+        for call in gh.calls
+    )
 
 
 def compose_comment(**fields: object) -> dict:

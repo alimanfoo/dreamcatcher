@@ -51,6 +51,7 @@ from dreamcatcher.scheduler.models import (
     ConflictingLabelsFinding,
     GlobalCooldown,
     IssueReference,
+    LabelAppliedByOtherFinding,
     PullRequestFinding,
     ReadFailureFinding,
     RequestRow,
@@ -1277,6 +1278,30 @@ def test_two_labels_of_one_kind_are_a_routing_conflict_named_in_each_row(state):
     ]
     assert requests[0].reasons == (
         RequestReason(words="multiple assignment labels: dream:less, dream:smith"),
+    )
+
+
+def test_a_request_whose_label_someone_else_applied_is_held_naming_them(state):
+    write_tick(
+        state=state,
+        tick=SchedulerRecord(
+            at=PINNED,
+            finished=PINNED,
+            rows=[
+                compose_request_row(
+                    issue=20, finding=LabelAppliedByOtherFinding(applier="colleague")
+                )
+            ],
+        ),
+    )
+
+    [request] = read_report(state=state).request_statuses
+
+    assert request.value is RequestStatusValue.HELD
+    assert request.reasons == (
+        RequestReason(
+            words="label applied by colleague: remove and re-add it yourself"
+        ),
     )
 
 

@@ -368,11 +368,13 @@ body::after {
 /* Only the states that need the user take a fill. */
 
 .status-routing-conflict,
+.status-held,
 .status-fault {
   padding-inline: 12px;
 }
 
-.status-routing-conflict {
+.status-routing-conflict,
+.status-held {
   color: var(--feedback-ink);
   background: var(--feedback-surface);
 }

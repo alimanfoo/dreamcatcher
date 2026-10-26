@@ -16,10 +16,12 @@ from conftest import (
     compose_blocker,
     compose_check_run,
     compose_comment,
+    compose_labelling_event,
     compose_page,
     compose_pull_request,
     compose_stream_line,
     configure,
+    offer_labelling_events,
     offer_listing,
     run_git,
 )
@@ -74,6 +76,7 @@ from dreamcatcher.scheduler.models import (
     CampaignFinding,
     ConflictingLabelsFinding,
     IssueReference,
+    LabelAppliedByOtherFinding,
     PauseCause,
     PausedFinding,
     ReadFailureFinding,
@@ -2250,3 +2253,27 @@ def test_a_cancelled_child_wakes_the_lead_once_its_round_stops(
                 changes=[CampaignChildChange.HANDBACK, CampaignChildChange.ENDING],
             )
         ]
+
+
+def test_a_campaign_label_that_someone_else_applied_starts_no_lead(
+    campaign_scheduler, harnesses
+):
+    scheduler, gh = campaign_scheduler
+    offer_parent(gh=gh)
+    offer_labelling_events(
+        gh=gh,
+        issue=PARENT,
+        events=[compose_labelling_event(label=LABEL, applier="colleague")],
+    )
+
+    held = tick(scheduler=scheduler)
+
+    assert held.rows == [
+        compose_campaign_row(
+            issue=PARENT,
+            finding=LabelAppliedByOtherFinding(applier="colleague"),
+            children=(),
+        )
+    ]
+    assert read_campaign(state=scheduler.context.state, issue=PARENT) is None
+    assert harnesses["claude"].calls == []

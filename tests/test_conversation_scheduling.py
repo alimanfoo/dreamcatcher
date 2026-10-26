@@ -13,9 +13,12 @@ from conftest import (
     REPOSITORY,
     commit,
     compose_comment,
+    compose_labelling_event,
     compose_page,
     compose_stream_line,
     configure,
+    count_event_reads,
+    offer_labelling_events,
     offer_listing,
     run_git,
     wait_for_exit,
@@ -34,7 +37,7 @@ from records import (
     write_round,
     write_tick,
 )
-from rows import compose_conversation_row
+from rows import CONVERSATION_LABEL, compose_conversation_row
 
 from dreamcatcher import agent_rounds
 from dreamcatcher.agent_rounds import (
@@ -73,6 +76,7 @@ from dreamcatcher.scheduler.models import (
     ConflictingLabelsFinding,
     GlobalCooldown,
     IssueCommentsFinding,
+    LabelAppliedByOtherFinding,
     PauseCause,
     PausedFinding,
     ReadFailureFinding,
@@ -2614,3 +2618,64 @@ def test_an_ended_conversation_is_left_alone_and_a_comment_starts_another(
     [identifier] = launched.launched_agent_work_identifiers
     assert identifier != ended.name
     assert not (ended / "rounds").exists()
+
+
+def test_a_label_that_someone_else_put_back_leaves_a_conversation_paused(
+    conversation_scheduler, harnesses
+):
+    scheduler, clock, gh = conversation_scheduler
+    offer_conversation(gh=gh, comments=[compose_question()])
+    script_claude_answer(harnesses=harnesses, body="The first answer.")
+    gh.replies(stdout=json.dumps({"id": 99}), to=POST_PATH)
+    scheduler.tick(at=clock())
+    finish(scheduler=scheduler)
+    offer_conversation(
+        gh=gh, comments=[compose_question(), compose_question(identifier=2)]
+    )
+    offer_labelling_events(
+        gh=gh,
+        issue=8,
+        events=[
+            compose_labelling_event(label=CONVERSATION_LABEL),
+            compose_labelling_event(label=CONVERSATION_LABEL, applier="colleague"),
+        ],
+    )
+
+    held = scheduler.tick(at=clock())
+
+    assert held.rows == [
+        compose_conversation_row(
+            agent_work_identifier=compose_conversation_identifier(issue=8),
+            ended_round=1,
+            finding=LabelAppliedByOtherFinding(applier="colleague"),
+            title=OFFERED_TITLE,
+        )
+    ]
+    assert held.launched_agent_work_identifiers == []
+    offer_labelling_events(
+        gh=gh, issue=8, events=[compose_labelling_event(label=CONVERSATION_LABEL)]
+    )
+    script_claude_answer(harnesses=harnesses, body="The later answer.")
+
+    resumed = scheduler.tick(at=clock())
+    finish(scheduler=scheduler)
+
+    assert resumed.launched_agent_work_identifiers == [
+        compose_conversation_identifier(issue=8)
+    ]
+
+
+def test_a_running_conversation_reads_no_events(conversation_scheduler, harnesses):
+    scheduler, clock, gh = conversation_scheduler
+    scheduler.max_agents = 2
+    offer_conversation(gh=gh, comments=[compose_question()])
+    script_claude_answer(harnesses=harnesses, delay=10)
+    scheduler.tick(at=clock())
+    offer_conversation(
+        gh=gh, comments=[compose_question(), compose_question(identifier=2)]
+    )
+    reads_before = count_event_reads(gh=gh)
+
+    scheduler.tick(at=clock())
+
+    assert count_event_reads(gh=gh) == reads_before
