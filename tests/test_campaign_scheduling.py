@@ -2274,7 +2274,6 @@ def test_a_campaign_label_that_someone_else_applied_starts_no_lead(
         compose_campaign_row(
             issue=PARENT,
             finding=LabelAppliedByOtherFinding(applier="colleague"),
-            children=(),
         )
     ]
     assert read_campaign(state=scheduler.context.state, issue=PARENT) is None

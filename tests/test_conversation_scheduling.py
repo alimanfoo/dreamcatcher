@@ -2631,9 +2631,6 @@ def test_a_label_that_someone_else_put_back_leaves_a_conversation_paused(
     gh.replies(stdout=json.dumps({"id": 99}), to=POST_PATH)
     scheduler.tick(at=clock())
     finish(scheduler=scheduler)
-    offer_conversation(
-        gh=gh, comments=[compose_question(), compose_question(identifier=2)]
-    )
     offer_labelling_events(
         gh=gh,
         issue=8,
@@ -2642,6 +2639,7 @@ def test_a_label_that_someone_else_put_back_leaves_a_conversation_paused(
             compose_labelling_event(label=CONVERSATION_LABEL, applier="colleague"),
         ],
     )
+    comment_reads_before = count_comment_reads(gh=gh)
 
     held = scheduler.tick(at=clock())
 
@@ -2653,9 +2651,9 @@ def test_a_label_that_someone_else_put_back_leaves_a_conversation_paused(
             title=OFFERED_TITLE,
         )
     ]
-    assert held.launched_agent_work_identifiers == []
-    offer_labelling_events(
-        gh=gh, issue=8, events=[compose_labelling_event(label=CONVERSATION_LABEL)]
+    assert count_comment_reads(gh=gh) == comment_reads_before
+    offer_conversation(
+        gh=gh, comments=[compose_question(), compose_question(identifier=2)]
     )
     script_claude_answer(harnesses=harnesses, body="The later answer.")
 
@@ -2665,6 +2663,28 @@ def test_a_label_that_someone_else_put_back_leaves_a_conversation_paused(
     assert resumed.launched_agent_work_identifiers == [
         compose_conversation_identifier(issue=8)
     ]
+
+
+def test_a_conversation_request_whose_label_someone_else_applied_is_held_at_once(
+    conversation_scheduler,
+):
+    scheduler, clock, gh = conversation_scheduler
+    offer_conversation(gh=gh, comments=[])
+    offer_labelling_events(
+        gh=gh,
+        issue=8,
+        events=[compose_labelling_event(label=CONVERSATION_LABEL, applier="colleague")],
+    )
+
+    observed = scheduler.tick(at=clock())
+
+    assert observed.rows == [
+        compose_conversation_row(
+            finding=LabelAppliedByOtherFinding(applier="colleague"),
+            title=OFFERED_TITLE,
+        )
+    ]
+    assert count_comment_reads(gh=gh) == 0
 
 
 def test_a_running_conversation_reads_no_events(conversation_scheduler, harnesses):

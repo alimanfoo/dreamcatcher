@@ -350,15 +350,19 @@ def test_a_failed_read_of_the_issues_events_leaves_the_request_unknown(gh, state
     assert "could not connect" in row.finding.reason
 
 
-def test_a_request_that_may_not_start_reads_no_events(gh, state):
-    gh.replies(
-        stdout=compose_page(items=[compose_blocker(number=9, state="open")]),
-        to=f"api repos/{REPOSITORY}/issues/8/dependencies/blocked_by?per_page=100",
+def test_a_held_request_asks_no_start_time_questions(gh, state):
+    offer_labelling_events(
+        gh=gh,
+        issue=8,
+        events=[compose_labelling_event(label=ASSIGNMENT_LABEL, applier="colleague")],
     )
 
     list_request_rows(state=state, config=compose_config(labels=[ASSIGNMENT_LABEL]))
 
-    assert count_event_reads(gh=gh) == 0
+    assert [call.arguments[:2] for call in gh.calls] == [
+        ["issue", "list"],
+        ["api", f"repos/{REPOSITORY}/issues/8/events?per_page=100"],
+    ]
 
 
 def test_an_open_assignment_reads_no_events(gh, state):

@@ -24,6 +24,7 @@ from dreamcatcher.scheduler.inspection import (
     SchedulingContext,
     compose_open_work_row,
 )
+from dreamcatcher.scheduler.labelling import find_label_applied_by_other
 from dreamcatcher.scheduler.models import (
     ConflictingLabelsFinding,
     PauseCause,
@@ -50,9 +51,10 @@ def inspect_open_issue_work(
     """Read the work's issue, then inspect it further unless paused or in fault.
 
     A closed issue ends the work once its running round finishes. Paused work's
-    fault does not count, since it starts no round however its rounds ended. An
-    issue that cannot be read leaves whether the work is paused unknown, so its
-    fault counts.
+    fault does not count, since it starts no round however its rounds ended.
+    Unless a round is running, who applied the work's label is read once
+    nothing else pauses it. A read that fails leaves whether the work is paused
+    unknown, so its fault counts.
     """
     unread = compose_open_work_row(work=work, finding=None)
     issue = read_issue(repository=context.repository, issue=work.record.issue)
@@ -70,8 +72,15 @@ def inspect_open_issue_work(
             )
         return Inspection(row=unread)
     pause = _find_pause(context=context, work=work, issue=issue)
+    if pause is None and not work.is_round_running:
+        pause = find_label_applied_by_other(
+            context=context, issue=issue.number, label=work.record.dispatch_label
+        )
     if pause is not None:
-        return Inspection(row=compose_open_work_row(work=work, finding=pause))
+        return Inspection(
+            row=compose_open_work_row(work=work, finding=pause),
+            is_counted_fault=is_in_fault and isinstance(pause, ReadFailureFinding),
+        )
     if is_in_fault:
         return Inspection(row=unread, is_counted_fault=True)
     return inspect_eligible(issue=issue, row=unread)
