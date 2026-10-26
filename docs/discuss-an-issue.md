@@ -61,10 +61,10 @@ removing the authenticated account as assignee pauses the conversation:
 no new round starts, including one that would retry an errored round. A
 round already running may finish and publish its answer.
 
-Undo the change to resume the conversation. It continues in the same
-harness session, and comments posted while it was paused are given to
-it. It keeps its original recipe even if its route is removed from
-`dreamcatcher.toml`.
+Undo the change to resume the conversation. Only a label that you put
+back yourself resumes it. It continues in the same harness session, and
+comments posted while it was paused are given to it. It keeps its
+original recipe even if its route is removed from `dreamcatcher.toml`.
 
 Closing the issue ends the conversation after any running round
 finishes, and the web home page lists it with your other ended work.

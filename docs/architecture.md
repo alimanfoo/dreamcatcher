@@ -92,10 +92,13 @@ closed issue ends the work once no round of it runs and the issue's
 labels and assignee decide whether it is paused, and the read of the
 eligible comments past the work's cursor. `blockers.py` holds the read
 of the open issues that block an issue, which assignment and campaign
-requests share. `inspection.py` holds the shapes they share: the
-scheduling context, the candidate, the round plan and the inspection of
-one request. `models.py` holds the scheduler record and its request
-rows, and `faults.py` the fault and cooldown rules.
+requests share. `labelling.py` holds the rule that work starts or
+resumes only on a dispatch label that the signed-in account applied,
+which every kind's requests and open conversations and campaigns share.
+`inspection.py` holds the shapes they share: the scheduling context, the
+candidate, the round plan and the inspection of one request. `models.py`
+holds the scheduler record and its request rows, and `faults.py` the
+fault and cooldown rules.
 
 One scheduler tick:
 
@@ -118,17 +121,21 @@ One scheduler tick:
    start-time questions, reads the comments of a conversation's issue,
    or asks which open issues block a campaign's parent and, when none
    does, reads the parent's comments;
-6. removes the worktree, and an assignment's local branch, of each piece
+6. holds each request and each open conversation or campaign that it
+   found may take a round, unless the signed-in account applied its
+   dispatch label, so the tick reads an issue's events only for work
+   that would otherwise start;
+7. removes the worktree, and an assignment's local branch, of each piece
    of work that it sees end, unless the user cancelled it;
-7. starts a global cooldown when the counted faults call for one, and
+8. starts a global cooldown when the counted faults call for one, and
    launches nothing while a cooldown is active;
-8. launches candidates until the daemon run's requested capacity is full
+9. launches candidates until the daemon run's requested capacity is full
    or no candidate remains, open work first in identifier order and then
    new requests in listing order, the kinds taking turns in the order
    assignment, conversation, campaign, and a kind with no candidate
    giving up its turn; and
-9. returns a `SchedulerRecord`, holding one request row per request, for
-   operational reporting.
+10. returns a `SchedulerRecord`, holding one request row per request,
+    for operational reporting.
 
 A candidate is open work the tick may start a round for, or a request it
 may start work for. It carries a composer that builds the round's plan
@@ -460,6 +467,8 @@ constructs GitHub commands. It owns projections and operations for:
 - repository and account identity, and whether the account can push;
 - the repository's labels, and creating a label;
 - issue title, state, assignees, labels, and dependencies;
+- the events that applied a label to an issue, with the account that
+  applied it;
 - a parent issue's direct sub-issues, with their titles and states;
 - linked pull requests;
 - pull-request identity, draft state, readiness, terminal state, merge

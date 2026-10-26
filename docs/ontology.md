@@ -143,7 +143,9 @@ may instead give the agent its instructions directly.
 ### Dispatch label
 
 A **dispatch label** is a GitHub issue label configured to mark issues
-for handling by _dreamcatcher_.
+for handling by _dreamcatcher_. The account that **applied** a dispatch
+label to an issue is the one that GitHub names in the latest event that
+put that label on the issue.
 
 ### Dispatch, assignment, conversation and campaign routes
 
@@ -510,6 +512,12 @@ resumes the work in the same harness session, and the work is then given
 every comment posted since its last finished round. A lead is also given
 the notifications of the changes among the sub-issues since then.
 
+An open conversation or campaign whose round may otherwise start is also
+paused when an account other than the signed-in one applied its label,
+so a label that someone else puts back resumes nothing. Its issue's
+comments are read before that, because only work whose round may start
+asks who applied its label.
+
 When a tick finds the issue of a conversation or campaign closed, it
 records the work's ending with the reason "issue closed" once no round
 is running. A round that is running when the issue closes finishes
@@ -574,7 +582,9 @@ first round. A campaign request asks which open issue dependencies block
 the parent, and only when none does reads the parent's comments to give
 them to its first round. A request whose issue carries more than one
 label of its kind has a routing conflict, and nothing of that kind
-starts while it lasts.
+starts while it lasts. A request whose work may otherwise start is
+**held** unless the signed-in account applied its label, and the tick
+asks who applied it only then.
 
 A request with no open work has one of these request statuses:
 
@@ -582,6 +592,8 @@ A request with no open work has one of these request statuses:
 - **Blocked**: an open pull request claims an assignment request's
   issue, or an open issue blocks the issue of an assignment or campaign
   request.
+- **Held**: someone other than the user applied the request's label, and
+  the user must remove and re-add it themselves.
 - **Idle**: a conversation request waits for the user's first comment.
 - **Routing conflict**: the issue carries more than one label of the
   request's kind.
