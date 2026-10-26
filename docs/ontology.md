@@ -281,9 +281,10 @@ as typed values rather than sentences. It names the open agent work the
 request led to, if any, and the round the tick started for it. Its
 **finding** is what the tick read for the request, such as the pull
 request's state and the user posts past the cursor, the open pull
-requests that claim the issue and the open issues that block it, or the
-conflicting labels. When a read fails, the finding holds the reason in
-place of what the read would have found.
+requests that claim the issue and the open issues that block it, the
+conflicting labels, or the account that applied the label when it was
+not the user. When a read fails, the finding holds the reason in place
+of what the read would have found.
 
 An **agent work status** is one piece of agent work's single summary
 status in a status report, derived the same way for every kind from the
