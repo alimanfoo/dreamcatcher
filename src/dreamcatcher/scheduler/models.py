@@ -98,7 +98,9 @@ class PauseCause(StrEnum):
 
     The tick checks them in this order. A second label of the paused work's
     kind is the third cause, which the tick checks after them and holds as the
-    conflicting labels.
+    conflicting labels. A label that someone other than the user applied is the
+    fourth, which the tick reads last, never while a round runs, and holds as the
+    account that applied it.
     """
 
     LABEL_REMOVED = "label removed"

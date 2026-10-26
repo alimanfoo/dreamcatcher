@@ -119,17 +119,18 @@ when you need to intervene.
 
 A conversation starts on an open issue that is assigned to the
 authenticated account and carries exactly one configured conversation
-label, once you post a comment. Unassigning the issue, removing the
-conversation's label or adding a second conversation label pauses the
+label, which you applied yourself, once you post a comment. Unassigning
+the issue, removing the conversation's label, adding a second
+conversation label or another account applying its label pauses the
 conversation, and closing the issue ends it.
 [Discuss an issue](discuss-an-issue.md#pause-resume-or-end-a-conversation)
 explains both.
 
 A campaign starts on an open parent issue that is assigned to the
-authenticated account, carries exactly one configured campaign label and
-has no open issue recorded by GitHub as blocking it. It pauses and ends
-as a conversation does. [Start a campaign](start-a-campaign.md) explains
-how.
+authenticated account, carries exactly one configured campaign label,
+which you applied yourself, and has no open issue recorded by GitHub as
+blocking it. It pauses and ends as a conversation does.
+[Start a campaign](start-a-campaign.md) explains how.
 
 Labels of different kinds may coexist on an issue because they select
 different kinds of work.

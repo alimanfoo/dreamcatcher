@@ -1,9 +1,9 @@
 """Inspect the lifetime and the comments of work whose channel is its issue.
 
 A conversation and a campaign each belong to the label that started them. Their
-issue's state, labels and assignee decide whether they have ended, are paused or
-may take another round, and the user talks to their agent in the issue's
-comments.
+issue's state, labels and assignee, and who applied their label, decide whether
+they have ended, are paused or may take another round, and the user talks to
+their agent in the issue's comments.
 """
 
 from typing import Protocol

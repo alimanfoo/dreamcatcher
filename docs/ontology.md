@@ -447,20 +447,22 @@ Its final output stays in the feed.
 
 ### Starting an issue conversation
 
-A conversation request starts a conversation only when its issue carries
-no other configured conversation label and has at least one eligible
-comment. The issue's title and body alone start nothing. An open
-assignment at the issue, a linked pull request, a dependency and an
-assignment routing conflict have no bearing on conversations.
+A conversation request starts a conversation only when the signed-in
+account applied its label, its issue carries no other configured
+conversation label, and it has at least one eligible comment. The
+issue's title and body alone start nothing. An open assignment at the
+issue, a linked pull request, a dependency and an assignment routing
+conflict have no bearing on conversations.
 
 ### Starting a campaign
 
-A campaign request starts a campaign when its issue carries no other
-configured campaign label and no open issue dependency blocks it. The
-label on an open issue assigned to the signed-in account is the whole
-request, so it needs no comment. An open assignment or conversation at
-the issue and a linked pull request have no bearing on campaigns. Once a
-campaign exists, its parent's dependencies no longer decide its rounds.
+A campaign request starts a campaign when the signed-in account applied
+its label, its issue carries no other configured campaign label, and no
+open issue dependency blocks it. The label on an open issue assigned to
+the signed-in account is the whole request, so it needs no comment. An
+open assignment or conversation at the issue and a linked pull request
+have no bearing on campaigns. Once a campaign exists, its parent's
+dependencies no longer decide its rounds.
 
 A campaign's first round is due as soon as the campaign starts, and its
 input holds every eligible comment already on the parent. After that,

@@ -89,16 +89,16 @@ channel of open work, how it decides whether a request with no open work
 may start, and how it composes a round's plan. `issue_work.py` holds
 what conversations and campaigns share: the lifetime rules, by which a
 closed issue ends the work once no round of it runs and the issue's
-labels and assignee decide whether it is paused, and the read of the
-eligible comments past the work's cursor. `blockers.py` holds the read
-of the open issues that block an issue, which assignment and campaign
-requests share. `labelling.py` holds the rule that work starts or
-resumes only on a dispatch label that the signed-in account applied,
-which every kind's requests and open conversations and campaigns share.
-`inspection.py` holds the shapes they share: the scheduling context, the
-candidate, the round plan and the inspection of one request. `models.py`
-holds the scheduler record and its request rows, and `faults.py` the
-fault and cooldown rules.
+labels and assignee, and then who applied its label, decide whether it
+is paused, and the read of the eligible comments past the work's cursor.
+`blockers.py` holds the read of the open issues that block an issue,
+which assignment and campaign requests share. `labelling.py` holds the
+rule that work starts or resumes only on a dispatch label that the
+signed-in account applied, which every kind's requests and open
+conversations and campaigns share. `inspection.py` holds the shapes they
+share: the scheduling context, the candidate, the round plan and the
+inspection of one request. `models.py` holds the scheduler record and
+its request rows, and `faults.py` the fault and cooldown rules.
 
 One scheduler tick:
 
@@ -222,6 +222,9 @@ Each tick reads an open conversation's issue before its comments, so
 open conversations do not depend on the listing. The tick keeps reading
 the issue while a round runs, decides from it whether the conversation
 is paused or has ended, and reads its comments only while it is neither.
+While no round runs, a conversation that nothing else pauses is also
+paused when an account other than the signed-in one applied its label,
+which the tick reads from the issue's events.
 
 The relay selects the eligible comments past the cursor. Each durable
 round input records the comments it relays, so the newest comment in the
@@ -306,22 +309,23 @@ sub-issue has no open assignment. A failed observation holds no partial
 picture.
 
 The tick then reads an open campaign's parent issue, as it reads a
-conversation's issue, and decides from it whether the campaign is paused
-or has ended. An unpaused campaign that is not in fault then reads its
-newest delivered input and the parent's eligible comments past that
-input's cursor, unless its sub-issues could not be observed, which
-starts no round and records the failure. `compare_campaign_children` in
-`campaigns.py` then compares the observed sub-issues with those of the
-newest delivered input, and returns a `CampaignChildNotification` for
-each sub-issue whose changes call for the lead. It is a pure function,
-which reads no file and calls neither GitHub nor a harness, so the
-scheduler decides what to launch and the comparison only says what
-changed. A round is due when a comment waits, when a notification does,
-when no round has run yet, or when the last round errored or was
-interrupted. A stopped round took its turn, so after one the lead waits
-for new input. Nothing keeps the notifications between ticks: each tick
-compares afresh, and only a round that starts records them, in its
-input. The lead's next round resumes its harness session.
+conversation's issue, and decides from it, and from who applied its
+label, whether the campaign is paused or has ended. An unpaused campaign
+that is not in fault then reads its newest delivered input and the
+parent's eligible comments past that input's cursor, unless its
+sub-issues could not be observed, which starts no round and records the
+failure. `compare_campaign_children` in `campaigns.py` then compares the
+observed sub-issues with those of the newest delivered input, and
+returns a `CampaignChildNotification` for each sub-issue whose changes
+call for the lead. It is a pure function, which reads no file and calls
+neither GitHub nor a harness, so the scheduler decides what to launch
+and the comparison only says what changed. A round is due when a comment
+waits, when a notification does, when no round has run yet, or when the
+last round errored or was interrupted. A stopped round took its turn, so
+after one the lead waits for new input. Nothing keeps the notifications
+between ticks: each tick compares afresh, and only a round that starts
+records them, in its input. The lead's next round resumes its harness
+session.
 
 The lead publishes its own messages, so a campaign's round plan has no
 finishing step, and its final output stays in the feed. Claude's
@@ -597,6 +601,8 @@ tick found as a typed finding:
   blocking issues in the same form;
 - for a request or an open conversation or campaign whose issue carries
   two labels of its kind, those labels;
+- for a request, or an open conversation or campaign, whose label an
+  account other than the signed-in one applied, that account;
 - for a conversation or campaign paused for any other reason, the cause;
 - for a read that failed, the reason, in place of what it would have
   found.
