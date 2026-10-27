@@ -69,16 +69,21 @@ A campaign prompt normally invokes a campaign skill such as
 ## Match the recipe to how hard the work is
 
 Give work of one kind more than one route when it varies in how much
-capability it needs. The file that `init` writes has two assignment
-routes. `agent-assignment` runs `dream:smith`, which plans a change and
-reviews it thoroughly, on a strong model. `agent-assignment-easy` runs
-`dream:less`, which does less planning and review, on a smaller model.
+capability it needs. Each route's recipe sets that capability through
+its `model` and `effort`. The file that `init` writes has two assignment
+routes:
+
+- `agent-assignment` runs `dream:smith`, which plans a change and
+  reviews it thoroughly, with the model `opus[1m]` for Claude.
+- `agent-assignment-easy` runs `dream:less`, which plans and reviews
+  less, with the smaller model `sonnet` for Claude.
+
 Put `agent-assignment-easy` on an issue only when the work is easy to
 get right, such as a typo or a renamed setting. A small change can still
 be hard, and then it needs `agent-assignment`.
 
-For the hardest work, you can add a route with a stronger recipe under a
-label of its own, such as `agent-assignment-hard`:
+For the hardest work, you can add a route under a label of its own, such
+as `agent-assignment-hard`, whose recipe raises the `effort`:
 
 ```toml
 [[assignment]]

@@ -116,24 +116,26 @@ so its skills are available in the Git worktree where an assignment
 runs. The plugin provides `dream:smith`, the assignment skill this
 tutorial uses.
 
-The `dreamcatcher.toml` that `init` writes routes the `agent-assignment`
-label to `dream:smith` assignments, the `agent-assignment-easy` label to
-`dream:less` assignments, the `agent-conversation` label to
-`dream:scout` issue conversations, and the `agent-campaign` label to
-`dream:lead` campaigns. If Codex is not installed, the file keeps the
-Codex recipes as comments. The label connects a GitHub issue to its
-route, and `{issue}` in a prompt becomes the issue number, so issue 123
-with the `agent-assignment` label starts Claude with
-`/dream:smith GH123`.
+The `dreamcatcher.toml` that `init` writes routes each of these labels
+to a skill from the `dream` plugin:
 
-`dream:smith` plans a change, builds it a commit at a time, and reviews
-it thoroughly. `dream:less` makes an easy change with lighter review and
-a smaller model, so put `agent-assignment-easy` on an issue only when
-the work is easy to get right. A small change can still be hard, and
-then it needs `agent-assignment`. `dream:scout` answers your questions
-on an issue, and writes no code. `dream:lead` leads a campaign through a
-parent issue's sub-issues, as
-[From parent issue to merged pull requests](campaign-tutorial.md) shows.
+- `agent-assignment` to `dream:smith`, which plans a change, builds it a
+  commit at a time, and reviews it thoroughly;
+- `agent-assignment-easy` to `dream:less`, which makes an easy change
+  with lighter review;
+- `agent-conversation` to `dream:scout`, which answers your questions on
+  an issue and writes no code; and
+- `agent-campaign` to `dream:lead`, which leads a campaign through a
+  parent issue's sub-issues, as
+  [From parent issue to merged pull requests](campaign-tutorial.md)
+  shows.
+
+[Configure labels and harnesses](configure.md#match-the-recipe-to-how-hard-the-work-is)
+says when to choose `agent-assignment-easy`. If Codex is not installed,
+the file keeps the Codex recipes as comments. The label connects a
+GitHub issue to its route, and `{issue}` in a prompt becomes the issue
+number, so issue 123 with the `agent-assignment` label starts Claude
+with `/dream:smith GH123`.
 
 Until `origin/main` holds the file, `init` ends by printing the commands
 that commit and push it. Run them, so the assignment worktree contains
