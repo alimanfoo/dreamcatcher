@@ -11,12 +11,12 @@ The quickest way to start is with the skills from
 Claude Code and Codex. [`dreamcatcher init`](command-reference.md#init)
 installs it and sets up a label for each skill:
 
-| Skill         | On its own | Under _dreamcatcher_ |
-| ------------- | ---------- | -------------------- |
-| `dream:smith` | Yes        | An assignment        |
-| `dream:less`  | Yes        | An assignment        |
-| `dream:scout` | No         | A conversation       |
-| `dream:lead`  | No         | A campaign           |
+| Skill         | Label                   | On its own | Under _dreamcatcher_ |
+| ------------- | ----------------------- | ---------- | -------------------- |
+| `dream:smith` | `agent-assignment`      | Yes        | An assignment        |
+| `dream:less`  | `agent-assignment-easy` | Yes        | An assignment        |
+| `dream:scout` | `agent-conversation`    | No         | A conversation       |
+| `dream:lead`  | `agent-campaign`        | No         | A campaign           |
 
 `dream:smith` plans a change, builds it a commit at a time, and reviews
 it thoroughly. `dream:less` implements smaller tasks with lighter

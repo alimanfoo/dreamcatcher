@@ -2,7 +2,7 @@
 
 A campaign hands a parent issue and its sub-issues to an agent, the
 lead. The configured prompt tells the lead what to do with them. The
-default `dream:lead` route shepherds each sub-issue through an
+default `agent-campaign` route shepherds each sub-issue through an
 assignment and merged pull request, and asks you on the parent when it
 needs a decision.
 
@@ -18,7 +18,7 @@ campaign, follow the worked example in
 ## Configure a campaign route
 
 The `dreamcatcher.toml` that `dreamcatcher init` writes routes the
-`dream:lead` label to campaigns. Its recipes run the
+`agent-campaign` label to campaigns. Its recipes run the
 [`dream:lead`](https://github.com/alimanfoo/dream/blob/main/plugins/dream/skills/lead/SKILL.md)
 skill from the dream plugin. The skill sets up an assignment for each
 sub-issue on an assignment route, reviews the assignment's pull request
@@ -37,10 +37,10 @@ then, update it with the plugin commands of each harness that runs the
 route.
 
 To give the lead other instructions, add a campaign route of your own
-beside `dream:lead`, under a label of its own. Its prompt tells the lead
-what to do with the parent and with your comments on it. For example,
-this prompt makes a lead that summarises the plan and then talks with
-you:
+beside `agent-campaign`, under a label of its own. Its prompt tells the
+lead what to do with the parent and with your comments on it. For
+example, this prompt makes a lead that summarises the plan and then
+talks with you:
 
 ```toml
 [[campaign]]
@@ -83,7 +83,7 @@ On GitHub:
 
 1. Keep the parent issue open.
 2. Assign it to the account authenticated through `gh`.
-3. Add exactly one configured campaign label, such as `dream:lead`.
+3. Add exactly one configured campaign label, such as `agent-campaign`.
 
 If open issues block the parent on GitHub, the campaign waits until
 every one of them is closed.

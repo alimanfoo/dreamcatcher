@@ -8,7 +8,7 @@ possible change might fit.
 
 You need a configured conversation route and a running daemon. The
 `dreamcatcher.toml` that `dreamcatcher init` writes routes the
-`dream:scout` label to the `dream:scout` skill from
+`agent-conversation` label to the `dream:scout` skill from
 [dream](https://alimanfoo.github.io/dream/). That skill checks each
 claim against the code, and cites the code it relies on.
 [Configure labels and harnesses](configure.md) shows how to write a
@@ -20,7 +20,8 @@ On GitHub:
 
 1. Keep the issue open.
 2. Assign it to the account authenticated through `gh`.
-3. Add exactly one configured conversation label, such as `dream:scout`.
+3. Add exactly one configured conversation label, such as
+   `agent-conversation`.
 4. Post the question as an issue comment from that same account.
 
 The title and issue body provide context, but they do not start a

@@ -374,11 +374,11 @@ wanted, and forgets nothing in between.
 The user has planned a body of work as a parent issue, with its work in
 sub-issues, and wants an agent to take the plan up. The configuration
 has a campaign route whose prompt tells the lead what to do with the
-parent and with their comments on it. The `dream:lead` route that `init`
-writes is one, and it carries the sub-issues through their assignments
-to merge. They assign the parent to themselves and put the campaign
-label on it. No comment is needed. As soon as _dreamcatcher_ has
-available agent capacity, it checks out main in a worktree of the
+parent and with their comments on it. The `agent-campaign` route that
+`init` writes is one, and it carries the sub-issues through their
+assignments to merge. They assign the parent to themselves and put the
+campaign label on it. No comment is needed. As soon as _dreamcatcher_
+has available agent capacity, it checks out main in a worktree of the
 campaign's own and starts the lead in a new harness session.
 
 The lead is given the current picture of the parent's sub-issues, with
@@ -538,8 +538,8 @@ only what is on main.
 
 Then they start the daemon from the same checkout with
 `dreamcatcher run`, and the home page comes up with nothing on it yet.
-They assign an issue to themselves, put the `dream:smith` label on it,
-and from here
+They assign an issue to themselves, put the `agent-assignment` label on
+it, and from here
 [the implementation story](#the-user-asks-for-an-issue-to-be-implemented)
 takes over.
 

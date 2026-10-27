@@ -24,7 +24,7 @@ campaign route:
 
 ```toml
 [[assignment]]
-label = "dream:smith"
+label = "agent-assignment"
 
 [assignment.claude]
 prompt = "/dream:smith GH{issue}"
@@ -40,7 +40,7 @@ model = "opus[1m]"
 effort = "high"
 
 [[campaign]]
-label = "dream:lead"
+label = "agent-campaign"
 
 [campaign.claude]
 prompt = "/dream:lead GH{issue}"

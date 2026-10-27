@@ -116,12 +116,15 @@ so its skills are available in the Git worktree where an assignment
 runs. The plugin provides `dream:smith`, the assignment skill this
 tutorial uses.
 
-The `dreamcatcher.toml` that `init` writes routes the `dream:smith` and
-`dream:less` labels to assignments, the `dream:scout` label to issue
-conversations, and the `dream:lead` label to campaigns. If Codex is not
-installed, the file keeps the Codex recipes as comments. The label
-connects a GitHub issue to its route, and `{issue}` in a prompt becomes
-the issue number, so issue 123 starts Claude with `/dream:smith GH123`.
+The `dreamcatcher.toml` that `init` writes routes the `agent-assignment`
+label to `dream:smith` assignments, the `agent-assignment-easy` label to
+`dream:less` assignments, the `agent-conversation` label to
+`dream:scout` issue conversations, and the `agent-campaign` label to
+`dream:lead` campaigns. If Codex is not installed, the file keeps the
+Codex recipes as comments. The label connects a GitHub issue to its
+route, and `{issue}` in a prompt becomes the issue number, so issue 123
+with the `agent-assignment` label starts Claude with
+`/dream:smith GH123`.
 
 `dream:smith` plans a change, builds it a commit at a time, and reviews
 it thoroughly. `dream:less` implements smaller tasks with lighter
@@ -152,7 +155,7 @@ In GitHub:
 1. Open one small, self-contained issue. State the expected result and
    how to check it.
 2. Assign it to the account shown by `gh auth status`.
-3. Add the `dream:smith` label.
+3. Add the `agent-assignment` label.
 
 Choose work that can finish in one pull request. Avoid an issue with an
 open blocking issue or an existing open pull request linked to it;
