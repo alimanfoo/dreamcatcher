@@ -319,7 +319,7 @@ def test_only_events_that_apply_the_requests_label_decide(gh, state):
     assert rows == [compose_request_row(issue=8, finding=UNCLAIMED)]
 
 
-def test_a_label_that_no_event_applied_holds_the_request(gh, state):
+def test_a_label_that_no_event_applied_yet_leaves_the_request_unknown(gh, state):
     offer_labelling_events(gh=gh, issue=8, events=[])
 
     rows = list_request_rows(
@@ -327,7 +327,12 @@ def test_a_label_that_no_event_applied_holds_the_request(gh, state):
     )
 
     assert rows == [
-        compose_request_row(issue=8, finding=LabelAppliedByOtherFinding(applier=""))
+        compose_request_row(
+            issue=8,
+            finding=ReadFailureFinding(
+                reason="GitHub has not yet recorded who applied the label"
+            ),
+        )
     ]
 
 

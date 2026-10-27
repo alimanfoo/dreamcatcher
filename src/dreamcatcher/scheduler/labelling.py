@@ -17,11 +17,12 @@ from dreamcatcher.scheduler.models import LabelAppliedByOtherFinding, ReadFailur
 def find_label_applied_by_other(
     *, context: SchedulingContext, issue: int, label: str
 ) -> LabelAppliedByOtherFinding | ReadFailureFinding | None:
-    """Return who applied the label to the issue when it was not the user.
+    """Return who applied the label on the issue when it was not the user.
 
     The account that applied it is the one that the latest event applying it
-    names. None means that the user applied it, and a read that fails answers
-    why.
+    names. None means that the user applied it. GitHub records the event a few
+    seconds after the label appears, so a label with no event yet cannot tell
+    who applied it, just as a read that fails cannot.
     """
     events = list_labelling_events(repository=context.repository, issue=issue)
     if isinstance(events, UnknownGitHubResponse):
@@ -33,8 +34,12 @@ def find_label_applied_by_other(
             for event in reversed(events)
             if identify_label(name=event.label_name) == identity
         ),
-        "",
+        None,
     )
+    if applier is None:
+        return ReadFailureFinding(
+            reason="GitHub has not yet recorded who applied the label"
+        )
     if is_login_of_account(login=applier, account=context.account):
         return None
     return LabelAppliedByOtherFinding(applier=applier)

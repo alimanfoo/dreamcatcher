@@ -32,7 +32,9 @@ the change.
 - A dispatch label that the user applied still counts as theirs after
   the label is renamed on GitHub. Before, every issue that carried the
   label when it was renamed showed its request as held, with the label
-  applied by an unknown account.
+  applied by an unknown account. A label that GitHub shows before it
+  records who applied it now shows as unknown until the next update,
+  where before it showed as applied by an unknown account.
   ([#819](https://github.com/alimanfoo/dreamcatcher/pull/819))
 
 ## [v9.3.0](https://github.com/alimanfoo/dreamcatcher/releases/tag/v9.3.0) — 2026-10-26

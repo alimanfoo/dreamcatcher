@@ -944,6 +944,11 @@ otherwise the lead keeps its status. The next update tries again. Work
 whose round is already running carries on, and its pushes and posts fail
 or succeed as GitHub allows.
 
+GitHub also records who applied a label a few seconds after the label
+appears on the issue. An update that reads in between cannot tell who
+applied it, so it starts nothing for that label, and the row says that
+it cannot tell. The next update reads it again.
+
 ### The harness refuses or breaks
 
 The agent's harness hits a usage limit, is overloaded, or crashes
