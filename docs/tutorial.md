@@ -127,11 +127,13 @@ with the `agent-assignment` label starts Claude with
 `/dream:smith GH123`.
 
 `dream:smith` plans a change, builds it a commit at a time, and reviews
-it thoroughly. `dream:less` implements smaller tasks with lighter
-review. `dream:scout` answers your questions on an issue, and writes no
-code. `dream:lead` leads a campaign through a parent issue's sub-issues,
-as [From parent issue to merged pull requests](campaign-tutorial.md)
-shows.
+it thoroughly. `dream:less` makes an easy change with lighter review and
+a smaller model, so put `agent-assignment-easy` on an issue only when
+the work is easy to get right. A small change can still be hard, and
+then it needs `agent-assignment`. `dream:scout` answers your questions
+on an issue, and writes no code. `dream:lead` leads a campaign through a
+parent issue's sub-issues, as
+[From parent issue to merged pull requests](campaign-tutorial.md) shows.
 
 Until `origin/main` holds the file, `init` ends by printing the commands
 that commit and push it. Run them, so the assignment worktree contains

@@ -19,10 +19,10 @@ installs it and sets up a label for each skill:
 | `dream:lead`  | `agent-campaign`        | No         | A campaign           |
 
 `dream:smith` plans a change, builds it a commit at a time, and reviews
-it thoroughly. `dream:less` implements smaller tasks with lighter
-review. `dream:scout` looks into an issue and answers your questions
-about it. `dream:lead` leads a campaign, carrying a parent issue's
-sub-issues through their assignments to merge.
+it thoroughly. `dream:less` makes an easy change with lighter review.
+`dream:scout` looks into an issue and answers your questions about it.
+`dream:lead` leads a campaign, carrying a parent issue's sub-issues
+through their assignments to merge.
 
 ## Write your own
 
