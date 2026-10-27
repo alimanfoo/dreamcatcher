@@ -70,12 +70,13 @@ A campaign prompt normally invokes a campaign skill such as
 
 Give work of one kind more than one route when it varies in how much
 capability it needs. Each route's recipe sets that capability through
-its `model` and `effort`. The file that `init` writes has two assignment
-routes, and [Customise skills](customise-skills.md) says what the skill
-of each one does. `agent-assignment-easy` runs a lighter skill on a
-smaller model than `agent-assignment` does. Put `agent-assignment-easy`
-on an issue only when the work is easy to get right, such as a typo or a
-renamed setting. A small change can still be hard, and then it needs
+the skill that its prompt runs, its `model` and its `effort`. The file
+that `init` writes has two assignment routes, and
+[Customise skills](customise-skills.md) says what the skill of each one
+does. `agent-assignment-easy` runs a lighter skill on a smaller model
+than `agent-assignment` does. Put `agent-assignment-easy` on an issue
+only when the work is easy to get right, such as a typo or a renamed
+setting. A small change can still be hard, and then it needs
 `agent-assignment`.
 
 To give the hardest work a stronger recipe, add an assignment route
