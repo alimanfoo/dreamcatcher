@@ -116,20 +116,11 @@ so its skills are available in the Git worktree where an assignment
 runs. The plugin provides `dream:smith`, the assignment skill this
 tutorial uses.
 
-The `dreamcatcher.toml` that `init` writes routes each of these labels
-to a skill from the `dream` plugin:
-
-- `agent-assignment` to `dream:smith`, which plans a change, builds it a
-  commit at a time, and reviews it thoroughly;
-- `agent-assignment-easy` to `dream:less`, which makes an easy change
-  with lighter review;
-- `agent-conversation` to `dream:scout`, which answers your questions on
-  an issue and writes no code; and
-- `agent-campaign` to `dream:lead`, which leads a campaign through a
-  parent issue's sub-issues, as
-  [From parent issue to merged pull requests](campaign-tutorial.md)
-  shows.
-
+The `dreamcatcher.toml` that `init` writes routes the labels
+`agent-assignment`, `agent-assignment-easy`, `agent-conversation` and
+`agent-campaign` to skills from the `dream` plugin.
+[Customise skills](customise-skills.md) says which skill each label
+runs, and
 [Configure labels and harnesses](configure.md#match-the-recipe-to-how-hard-the-work-is)
 says when to choose `agent-assignment-easy`. If Codex is not installed,
 the file keeps the Codex recipes as comments. The label connects a
