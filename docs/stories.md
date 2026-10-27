@@ -676,6 +676,28 @@ match, or removes its route, and existing work carries on regardless.
 The value to the user is that trying a different model is an edit and a
 restart, and the choice is made issue by issue with a label.
 
+#### The user renames a dispatch label
+
+The user wants a dispatch label to have a new name, perhaps one that
+says better what kind of work it asks for. They rename the label on
+GitHub, and every issue that carries it keeps it under the new name.
+Then they rename the route's label in `dreamcatcher.toml` to match,
+commit and push the file, and stop the daemon and start it again. A
+label that the user applied still counts as theirs under its new name,
+so each request at those issues stays as it was, and so does each open
+assignment.
+
+An open conversation or campaign is different, because it knows its
+label by the name that the label had when the work started. After the
+rename, the conversation or campaign reads its label as removed and
+pauses, and the label under its new name is a new request, which can
+start a second conversation or campaign at the issue. So the user
+renames a conversation or campaign label only when none of its
+conversations or campaigns is open.
+
+The value to the user is that a label can take a better name without
+losing the requests and assignments that carry it.
+
 #### The user's teammate runs dreamcatcher on the same repository
 
 The user is not the only developer on the repository, and a teammate
