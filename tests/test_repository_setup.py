@@ -48,7 +48,7 @@ def gh(fake):
     stand_in.replies(stdout=json.dumps({"nameWithOwner": REPOSITORY}), to="repo view")
     stand_in.replies(stdout=json.dumps({"viewerPermission": "WRITE"}), to=PERMISSION)
     stand_in.replies(stdout=json.dumps({"login": POSTED_BY}), to="api user")
-    stand_in.replies(stdout=json.dumps([[{"name": "DREAM:SMITH"}]]), to=LABELS)
+    stand_in.replies(stdout=json.dumps([[{"name": "AGENT-ASSIGNMENT"}]]), to=LABELS)
     stand_in.replies(stdout="", to="label create")
     return stand_in
 
@@ -108,7 +108,7 @@ def test_a_fresh_checkout_is_set_up_for_both_harnesses(
         f"  git add {DREAMCATCHER_CONFIG_NAME}\n"
         '  git commit -m "Configure dreamcatcher"\n'
         "  git push origin main\n"
-        f"  Assign an issue to {POSTED_BY}, and label it dream:smith.\n"
+        f"  Assign an issue to {POSTED_BY}, and label it agent-assignment.\n"
         "  dreamcatcher run --harness claude\n"
     )
 
@@ -125,7 +125,7 @@ def test_only_the_route_labels_the_repository_lacks_are_created(
         [
             "label",
             "create",
-            "dream:less",
+            "agent-assignment-easy",
             "--repo",
             REPOSITORY,
             "--description",
@@ -134,7 +134,7 @@ def test_only_the_route_labels_the_repository_lacks_are_created(
         [
             "label",
             "create",
-            "dream:scout",
+            "agent-conversation",
             "--repo",
             REPOSITORY,
             "--description",
@@ -143,7 +143,7 @@ def test_only_the_route_labels_the_repository_lacks_are_created(
         [
             "label",
             "create",
-            "dream:lead",
+            "agent-campaign",
             "--repo",
             REPOSITORY,
             "--description",
@@ -151,7 +151,7 @@ def test_only_the_route_labels_the_repository_lacks_are_created(
         ],
     ]
     assert (
-        "Created the labels dream:less, dream:scout, dream:lead."
+        "Created the labels agent-assignment-easy, agent-conversation, agent-campaign."
         in capsys.readouterr().out
     )
 

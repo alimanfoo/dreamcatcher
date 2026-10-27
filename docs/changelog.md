@@ -27,6 +27,25 @@ the change.
 
 ## Unreleased
 
+### Changed
+
+- The `dreamcatcher.toml` that `dreamcatcher init` writes names each
+  dispatch label after the kind of work that it asks for, not after the
+  skill that its route runs: `agent-conversation` in place of
+  `dream:scout`, `agent-assignment` in place of `dream:smith`,
+  `agent-assignment-easy` in place of `dream:less` and `agent-campaign`
+  in place of `dream:lead`. Each route's prompt still invokes the same
+  skill. `init` leaves an existing `dreamcatcher.toml` alone, so a
+  repository that already has one keeps its labels. To switch such a
+  repository to the new names, rename each label on GitHub, where an
+  issue keeps its label through the rename. Then rename the route's
+  `label` in `dreamcatcher.toml` to match, commit and push the file, and
+  restart the daemon. Rename a conversation or campaign label only when
+  none of its conversations or campaigns is open, because an open one
+  pauses when its label is renamed. An open assignment is unaffected, as
+  [the user renames a dispatch label](stories.md#the-user-renames-a-dispatch-label)
+  tells. ([#820](https://github.com/alimanfoo/dreamcatcher/pull/820))
+
 ### Fixed
 
 - A dispatch label that the user applied still counts as theirs after
