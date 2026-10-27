@@ -94,7 +94,7 @@ to implement. Close an issue when triage decides against the work, and
 record why; link the existing issue when it is a duplicate.
 
 Readiness does not dispatch work. When dispatch is authorized, assign
-the issue to the maintainer and apply the chosen `dream:*` label. Ask
+the issue to the maintainer and apply the chosen dispatch label. Ask
 which skill only when it has not already been chosen; do not ask again
 for an action the maintainer has authorized. Preserve existing dispatch
 labels unless the maintainer requests a change.
