@@ -14,10 +14,11 @@ from conftest import (
     commit,
     compose_comment,
     compose_labelling_event,
+    compose_labelling_event_read,
     compose_page,
     compose_stream_line,
     configure,
-    count_event_reads,
+    count_labelling_event_reads,
     offer_labelling_events,
     offer_labels_applied_by_user,
     offer_listing,
@@ -2696,11 +2697,11 @@ def test_a_running_conversation_reads_no_events(conversation_scheduler, harnesse
     offer_conversation(
         gh=gh, comments=[compose_question(), compose_question(identifier=2)]
     )
-    reads_before = count_event_reads(gh=gh)
+    reads_before = count_labelling_event_reads(gh=gh, issue=8)
 
     scheduler.tick(at=clock())
 
-    assert count_event_reads(gh=gh) == reads_before
+    assert count_labelling_event_reads(gh=gh, issue=8) == reads_before
 
 
 def test_faults_of_conversations_whose_label_someone_else_applied_do_not_count(
@@ -2757,7 +2758,7 @@ def test_faults_count_when_who_applied_the_label_cannot_be_read(
         )
         gh.fails(
             stderr="network unavailable",
-            to=f"api repos/{REPOSITORY}/issues/{issue}/events?per_page=100",
+            to=compose_labelling_event_read(issue=issue),
         )
 
     observed = scheduler.tick(at=clock())

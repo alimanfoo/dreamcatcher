@@ -170,27 +170,38 @@ def compose_labelling_event(*, label: str, applier: str | None = POSTED_BY) -> d
     An applier of None is an account that GitHub no longer names.
     """
     return {
-        "event": "labeled",
         "actor": None if applier is None else {"login": applier},
         "label": {"name": label},
     }
 
 
 def offer_labelling_events(*, gh, issue: int, events: Sequence[dict]) -> None:
-    """Have GitHub answer a read of the issue's events with these, oldest first."""
+    """Have GitHub answer a read of the issue's labelling events with these."""
     gh.replies(
-        stdout=compose_page(items=events),
-        to=f"api repos/{REPOSITORY}/issues/{issue}/events?per_page=100",
+        stdout=compose_labelling_event_page(events=events),
+        to=compose_labelling_event_read(issue=issue),
     )
 
 
-def count_event_reads(*, gh) -> int:
-    """Return how often GitHub was asked for any issue's events."""
-    return sum(
-        call.arguments[0] == "api"
-        and call.arguments[1].endswith("/events?per_page=100")
-        for call in gh.calls
-    )
+def compose_labelling_event_page(*, events: Sequence[dict]) -> str:
+    """Return what gh answers a read of labelling events with: one page of these.
+
+    The events are oldest first.
+    """
+    page = {"data": {"repository": {"issue": {"timelineItems": {"nodes": events}}}}}
+    return json.dumps([page])
+
+
+def compose_labelling_event_read(*, issue: int) -> str:
+    """Return the words that open gh's read of the events that labelled the issue."""
+    owner, name = REPOSITORY.split("/")
+    return f"api graphql -f owner={owner} -f name={name} -F number={issue}"
+
+
+def count_labelling_event_reads(*, gh, issue: int) -> int:
+    """Return how often GitHub was asked for the events that labelled the issue."""
+    read = compose_labelling_event_read(issue=issue).split()
+    return sum(call.arguments[: len(read)] == read for call in gh.calls)
 
 
 def compose_comment(**fields: object) -> dict:
@@ -491,6 +502,7 @@ def gh(fake):
         stdout=compose_pull_request(state="OPEN", is_draft=True), to="pr view"
     )
     stand_in.replies(stdout=compose_page(items=[]), to="api")
+    stand_in.replies(stdout=compose_labelling_event_page(events=[]), to="api graphql")
     return stand_in
 
 
