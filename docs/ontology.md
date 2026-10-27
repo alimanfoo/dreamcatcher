@@ -595,9 +595,10 @@ A request with no open work has one of these request statuses:
 - **Idle**: a conversation request waits for the user's first comment.
 - **Routing conflict**: the issue carries more than one label of the
   request's kind.
-- **Unknown**: a read that decides whether work may start failed. A
-  failure to read external state can delay work, but must never cause
-  _dreamcatcher_ to create duplicate or improperly routed work.
+- **Unknown**: a read that decides whether work may start failed, or
+  GitHub could not yet tell. A failure to read external state can delay
+  work, but must never cause _dreamcatcher_ to create duplicate or
+  improperly routed work.
 
 There is no durable issue queue. Requests keep the order in which the
 scheduler listed their issues, oldest first, which is the order in which
