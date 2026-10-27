@@ -180,17 +180,19 @@ def offer_labelling_events(*, gh, issue: int, events: Sequence[dict]) -> None:
     """Have GitHub answer a read of the issue's events with these, oldest first."""
     gh.replies(
         stdout=compose_page(items=events),
-        to=f"api repos/{REPOSITORY}/issues/{issue}/events?per_page=100",
+        to=compose_labelling_event_read(issue=issue),
     )
 
 
-def count_event_reads(*, gh) -> int:
-    """Return how often GitHub was asked for any issue's events."""
-    return sum(
-        call.arguments[0] == "api"
-        and call.arguments[1].endswith("/events?per_page=100")
-        for call in gh.calls
-    )
+def compose_labelling_event_read(*, issue: int) -> str:
+    """Return the words that open gh's read of the events that labelled the issue."""
+    return f"api repos/{REPOSITORY}/issues/{issue}/events?per_page=100"
+
+
+def count_labelling_event_reads(*, gh, issue: int) -> int:
+    """Return how often GitHub was asked for the events that labelled the issue."""
+    read = compose_labelling_event_read(issue=issue).split()
+    return sum(call.arguments[: len(read)] == read for call in gh.calls)
 
 
 def compose_comment(**fields: object) -> dict:

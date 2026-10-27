@@ -18,9 +18,10 @@ from conftest import (
     compose_assignment_issues,
     compose_blocker,
     compose_labelling_event,
+    compose_labelling_event_read,
     compose_page,
     compose_pull_request,
-    count_event_reads,
+    count_labelling_event_reads,
     offer_labelling_events,
     offer_listing,
 )
@@ -339,7 +340,7 @@ def test_a_label_that_no_event_applied_holds_the_request(gh, state):
 def test_a_failed_read_of_the_issues_events_leaves_the_request_unknown(gh, state):
     gh.fails(
         stderr="gh: could not connect to github.com",
-        to=f"api repos/{REPOSITORY}/issues/8/events?per_page=100",
+        to=compose_labelling_event_read(issue=8),
     )
 
     [row] = list_request_rows(
@@ -359,10 +360,9 @@ def test_a_held_request_asks_no_start_time_questions(gh, state):
 
     list_request_rows(state=state, config=compose_config(labels=[ASSIGNMENT_LABEL]))
 
-    assert [call.arguments[:2] for call in gh.calls] == [
-        ["issue", "list"],
-        ["api", f"repos/{REPOSITORY}/issues/8/events?per_page=100"],
-    ]
+    listing, _ = gh.calls
+    assert listing.arguments[:2] == ["issue", "list"]
+    assert count_labelling_event_reads(gh=gh, issue=8) == 1
 
 
 def test_an_open_assignment_reads_no_events(gh, state):
@@ -370,4 +370,4 @@ def test_an_open_assignment_reads_no_events(gh, state):
 
     list_request_rows(state=state, config=compose_config(labels=[ASSIGNMENT_LABEL]))
 
-    assert count_event_reads(gh=gh) == 0
+    assert count_labelling_event_reads(gh=gh, issue=8) == 0
