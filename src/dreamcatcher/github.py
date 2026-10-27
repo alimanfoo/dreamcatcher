@@ -789,11 +789,7 @@ def list_blocking_issues(
 def list_labelling_events(
     *, repository: str, issue: int
 ) -> list[LabellingEvent] | UnknownGitHubResponse:
-    """Return each event that applied a label to the issue, oldest first.
-
-    Each event names its label as it is called now, so a label renamed since it
-    was applied still matches its event.
-    """
+    """Return each event that applied a label to the issue, oldest first."""
     owner, name = repository.split("/")
     pages = _read_github_response(
         response_adapter=_GITHUB_LABELLING_EVENT_PAGES_ADAPTER,
