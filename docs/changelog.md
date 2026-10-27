@@ -27,6 +27,8 @@ the change.
 
 ## Unreleased
 
+## [v9.4.0](https://github.com/alimanfoo/dreamcatcher/releases/tag/v9.4.0) — 2026-10-27
+
 ### Changed
 
 - The `dreamcatcher.toml` that `dreamcatcher init` writes names each

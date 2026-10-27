@@ -117,8 +117,7 @@ class PausedFinding(DreamcatcherDocument):
 class LabelAppliedByOtherFinding(DreamcatcherDocument):
     """Name who applied a request's dispatch label, when it was not the user.
 
-    An empty applier is an account that GitHub no longer names, or none at all
-    when no event records the label being applied.
+    An empty applier is an account that GitHub no longer names.
     """
 
     found: Literal["label applied by another account"] = (
@@ -143,7 +142,7 @@ class CampaignFinding(DreamcatcherDocument):
 
 
 class ReadFailureFinding(DreamcatcherDocument):
-    """Hold why a read failed, in place of what it would have found."""
+    """Hold why a read failed or could not yet tell, in place of its answer."""
 
     found: Literal["read failed"] = "read failed"
     reason: str
