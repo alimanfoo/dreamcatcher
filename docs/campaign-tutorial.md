@@ -29,13 +29,13 @@ Follow steps 1 to 4 of [From issue to pull request](tutorial.md), and
 stop once you have pushed `dreamcatcher.toml` at the end of
 [step 4](tutorial.md#4-run-dreamcatcher-init). Don't prepare an issue or
 start _dreamcatcher_ yet. Those steps install the tools, sign you in and
-write a `dreamcatcher.toml` that routes the `dream:lead` label to
+write a `dreamcatcher.toml` that routes the `agent-campaign` label to
 campaigns.
 
 If you already run _dreamcatcher_ on the repository, check that your
 tools meet [step 1](tutorial.md#1-install-the-tools) of that tutorial.
-Its `dreamcatcher.toml` needs the `dream:lead` campaign route and at
-least one assignment route for the lead to give the sub-issues.
+Its `dreamcatcher.toml` needs a campaign route that runs `dream:lead`
+and at least one assignment route for the lead to give the sub-issues.
 [Configure a campaign route](start-a-campaign.md#configure-a-campaign-route)
 says how to add the route and update the `dream` plugin.
 
@@ -87,10 +87,10 @@ the web home page.
 
 ## 4. Start the campaign
 
-Add the `dream:lead` label to the parent:
+Add the `agent-campaign` label to the parent:
 
 ```sh
-gh issue edit 123 --add-label dream:lead
+gh issue edit 123 --add-label agent-campaign
 ```
 
 At its next update, _dreamcatcher_ starts the lead. On the web home
@@ -100,8 +100,8 @@ show the sub-issues.
 
 In its first round, the lead reads the plan and sets up an assignment
 for each sub-issue. It assigns each sub-issue to you and adds an
-assignment label, such as `dream:smith`. Then it ends its turn, and the
-campaign shows as **idle**. Under the card:
+assignment label, such as `agent-assignment`. Then it ends its turn, and
+the campaign shows as **idle**. Under the card:
 
 - issue 124 gets an assignment, which opens a draft pull request and
   starts work; and

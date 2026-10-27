@@ -455,9 +455,12 @@ def test_the_default_config_routes_every_label_to_the_installed_harnesses(
 
     config = read_dreamcatcher_config(root=tmp_path)
     assert config.routed_harnesses == harnesses
-    assert [route.label for route in config.conversation] == ["dream:scout"]
-    assert [route.label for route in config.assignment] == ["dream:smith", "dream:less"]
-    assert [route.label for route in config.campaign] == ["dream:lead"]
+    assert [route.label for route in config.conversation] == ["agent-conversation"]
+    assert [route.label for route in config.assignment] == [
+        "agent-assignment",
+        "agent-assignment-easy",
+    ]
+    assert [route.label for route in config.campaign] == ["agent-campaign"]
     less_recipes = {
         harness: (recipe.model, recipe.effort)
         for harness, recipe in config.assignment[1].recipes.items()

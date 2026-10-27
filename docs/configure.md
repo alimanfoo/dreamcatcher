@@ -24,7 +24,7 @@ campaign route:
 
 ```toml
 [[assignment]]
-label = "dream:smith"
+label = "agent-assignment"
 
 [assignment.claude]
 prompt = "/dream:smith GH{issue}"
@@ -40,7 +40,7 @@ model = "opus[1m]"
 effort = "high"
 
 [[campaign]]
-label = "dream:lead"
+label = "agent-campaign"
 
 [campaign.claude]
 prompt = "/dream:lead GH{issue}"
@@ -65,6 +65,22 @@ skill's requirements in the
 A campaign prompt normally invokes a campaign skill such as
 `dream:lead`, whose requirements are in the
 [campaign skill contract](contract.md#campaign-skill-contract).
+
+## Match the recipe to how hard the work is
+
+Give work of one kind more than one route when it varies in how much
+capability it needs. Each route's recipe sets that capability through
+the skill that its prompt runs, its `model` and its `effort`. The file
+that `init` writes has two assignment routes, and
+[Customise skills](customise-skills.md) says what the skill of each one
+does. `agent-assignment-easy` runs a lighter skill on a smaller model
+than `agent-assignment` does. Put `agent-assignment-easy` on an issue
+only when the work is easy to get right, such as a typo or a renamed
+setting. A small change can still be hard, and then it needs
+`agent-assignment`.
+
+To give the hardest work a stronger recipe, add an assignment route
+under a label of its own, such as `agent-assignment-hard`.
 
 ## Decide which harness runs a route
 
