@@ -12,6 +12,7 @@ from dreamcatcher.github import (
     can_push_to_repository,
     list_blocking_issues,
     list_issues,
+    list_labelling_events,
     list_labels,
     list_pull_requests,
     list_sub_issues,
@@ -32,6 +33,8 @@ BLOCKING = 8
 # The campaign issue, whose first stage is one of its children.
 PARENT = 593
 FIRST_STAGE = 654
+# An issue labelled `accepted`, a label since renamed `ready-to-implement`.
+RENAMED_LABEL_ISSUE = 638
 
 
 def test_this_checkout_is_this_repository():
@@ -94,3 +97,10 @@ def test_a_parent_names_its_children():
     assert (FIRST_STAGE, REPOSITORY) in [
         (child.number, child.repository) for child in found
     ]
+
+
+def test_a_labelling_event_names_a_renamed_label_as_it_is_called_now():
+    found = list_labelling_events(repository=REPOSITORY, issue=RENAMED_LABEL_ISSUE)
+
+    assert isinstance(found, list)
+    assert "ready-to-implement" in [event.label_name for event in found]

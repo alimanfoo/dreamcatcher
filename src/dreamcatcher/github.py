@@ -37,6 +37,21 @@ _ISSUE_LISTING_LIMIT = "500"
 # the same answer.
 _GITHUB_PAGE_SIZE = "100"
 
+# The GraphQL query for one page of the events that applied a label to an issue.
+# The REST API names the label in each event as it was called when it was
+# applied, but GraphQL names it as it is called now, so only GraphQL matches an
+# event to a label that has since been renamed. gh reads every page through the
+# end cursor and the page info that the query names. The query is one line,
+# because Windows passes the arguments of a batch file through cmd.exe, which
+# would end the argument at a newline.
+_LABELLING_EVENTS_QUERY = (
+    "query($owner: String!, $name: String!, $number: Int!, $first: Int!,"
+    " $endCursor: String) { repository(owner: $owner, name: $name) {"
+    " issue(number: $number) { timelineItems(first: $first, after: $endCursor,"
+    " itemTypes: [LABELED_EVENT]) { nodes { ... on LabeledEvent {"
+    " actor { login } label { name } } } pageInfo { hasNextPage endCursor } } } } }"
+)
+
 # The repository permissions that let an account push a branch.
 _PUSH_PERMISSIONS = {"ADMIN", "MAINTAIN", "WRITE"}
 
@@ -318,17 +333,27 @@ class PullRequestReference(GitHubResponseProjection):
     number: int
 
 
-class IssueEvent(GitHubResponseProjection):
-    """Model one event in an issue's history, as far as labelling it goes.
+class LabellingEvent(GitHubResponseProjection):
+    """Model one event that applied a label to an issue.
 
-    The account is the one that acted. An event that labels the issue names the
-    label it applied. An event whose actor GitHub no longer knows, one from a
-    deleted account, is nobody's.
+    The account is the one that applied it. The label is named as it is called
+    now, so an event from before a rename names the label by its new name. An
+    event whose actor GitHub no longer knows, one from a deleted account, is
+    nobody's.
     """
 
-    event: str
     account: str = Field(default="", validation_alias=AliasPath("actor", "login"))
-    label_name: str = Field(default="", validation_alias=AliasPath("label", "name"))
+    label_name: str = Field(validation_alias=AliasPath("label", "name"))
+
+
+class _LabellingEventPage(GitHubResponseProjection):
+    """Model one page of the events that applied a label to an issue."""
+
+    events: ReadOnlyList[LabellingEvent] = Field(
+        validation_alias=AliasPath(
+            "data", "repository", "issue", "timelineItems", "nodes"
+        )
+    )
 
 
 class IssuePullRequestContext(GitHubResponseProjection):
@@ -477,7 +502,7 @@ _GITHUB_PULL_REQUEST_REFERENCE_RESPONSE_ADAPTER = TypeAdapter(PullRequestReferen
 _GITHUB_PULL_REQUEST_RESPONSE_ADAPTER = TypeAdapter(PullRequest)
 _GITHUB_BLOCKING_ISSUE_LIST_RESPONSE_ADAPTER = TypeAdapter(list[list[BlockingIssue]])
 _GITHUB_SUB_ISSUE_PAGES_ADAPTER = TypeAdapter(list[list[SubIssue]])
-_GITHUB_ISSUE_EVENT_PAGES_ADAPTER = TypeAdapter(list[list[IssueEvent]])
+_GITHUB_LABELLING_EVENT_PAGES_ADAPTER = TypeAdapter(list[_LabellingEventPage])
 _GITHUB_ISSUE_PULL_REQUEST_CONTEXT_RESPONSE_ADAPTER = TypeAdapter(
     IssuePullRequestContext
 )
@@ -763,15 +788,35 @@ def list_blocking_issues(
 
 def list_labelling_events(
     *, repository: str, issue: int
-) -> list[IssueEvent] | UnknownGitHubResponse:
-    """Return each event that applied a label to the issue, oldest first."""
-    events = _read_github_pages(
-        response_adapter=_GITHUB_ISSUE_EVENT_PAGES_ADAPTER,
-        endpoint=f"repos/{repository}/issues/{issue}/events",
+) -> list[LabellingEvent] | UnknownGitHubResponse:
+    """Return each event that applied a label to the issue, oldest first.
+
+    Each event names its label as it is called now, so a label renamed since it
+    was applied still matches its event.
+    """
+    owner, name = repository.split("/")
+    pages = _read_github_response(
+        response_adapter=_GITHUB_LABELLING_EVENT_PAGES_ADAPTER,
+        arguments=[
+            "api",
+            "graphql",
+            "-f",
+            f"owner={owner}",
+            "-f",
+            f"name={name}",
+            "-F",
+            f"number={issue}",
+            "-F",
+            f"first={_GITHUB_PAGE_SIZE}",
+            "-f",
+            f"query={_LABELLING_EVENTS_QUERY}",
+            "--paginate",
+            "--slurp",
+        ],
     )
-    if isinstance(events, UnknownGitHubResponse):
-        return events
-    return [event for event in events if event.event == "labeled"]
+    if isinstance(pages, UnknownGitHubResponse):
+        return pages
+    return [event for page in pages for event in page.events]
 
 
 def list_sub_issues(

@@ -309,12 +309,6 @@ def test_only_events_that_apply_the_requests_label_decide(gh, state):
         events=[
             compose_labelling_event(label=ASSIGNMENT_LABEL),
             compose_labelling_event(label="bug", applier="colleague"),
-            {
-                "event": "unlabeled",
-                "actor": {"login": "colleague"},
-                "label": {"name": ASSIGNMENT_LABEL},
-            },
-            {"event": "assigned", "actor": {"login": "colleague"}},
         ],
     )
 

@@ -470,7 +470,9 @@ constructs GitHub commands. It owns projections and operations for:
 - the repository's labels, and creating a label;
 - issue title, state, assignees, labels, and dependencies;
 - the events that applied a label to an issue, with the account that
-  applied it;
+  applied it, read through GraphQL because it names each label as it is
+  called now, where the REST API keeps the name that the label had when
+  it was applied;
 - a parent issue's direct sub-issues, with their titles and states;
 - linked pull requests;
 - pull-request identity, draft state, readiness, terminal state, merge
