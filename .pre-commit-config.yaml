@@ -102,6 +102,13 @@ repos:
         language: system
         pass_filenames: false
         files: ^(src/.*\.py|pyproject\.toml)$
+      # Presentation shows what status derives. These operations and record
+      # types would let it rediscover those facts for itself.
+      - id: presentation-does-not-rediscover-status
+        name: presentation does not rediscover what status derives
+        entry: ErroredAgentRoundEnding|HARNESS_ADAPTERS|InterruptedAgentRoundEnding|find_harness_session_identifier
+        language: pygrep
+        files: ^src/dreamcatcher/(tui|web)/
       # .remarkrc.json loads the plugin and names the repository.
       - id: remark-validate-links
         name: validate markdown links

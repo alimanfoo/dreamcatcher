@@ -183,8 +183,8 @@ machine.**
   fails more than once.
 - Check: ruff's subprocess rule, the import-linter contracts in
   `pyproject.toml` for the first-party, Rich and Flask dependency
-  direction, and one test module that keeps presentation from naming
-  what status derives.
+  direction, and a commit hook that keeps presentation from naming what
+  status derives.
 
 **K2. The suite is fast and speaks the user's language.**
 
