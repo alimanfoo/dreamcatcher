@@ -94,6 +94,14 @@ repos:
         language: system
         pass_filenames: false
         exclude: *verbatim-paths
+      # The contracts in pyproject.toml hold the architecture's import rules.
+      # The check takes about a second, so it keeps no cache to ignore.
+      - id: lint-imports
+        name: check the architecture's import contracts
+        entry: uv run lint-imports --no-cache --no-logo
+        language: system
+        pass_filenames: false
+        files: ^(src/.*\.py|pyproject\.toml)$
       # .remarkrc.json loads the plugin and names the repository.
       - id: remark-validate-links
         name: validate markdown links

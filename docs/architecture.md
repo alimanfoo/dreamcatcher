@@ -935,10 +935,11 @@ These rules keep the scheduling loop imperative and straightforward
 without turning every possible action into an abstract command
 hierarchy.
 
-`tests/test_architecture.py` checks each rule here that keeps one module
-from reaching another through its imports, directly or through another
-module. It checks the status rule on the scheduler modules that status
-imports directly.
+An import-linter contract in `pyproject.toml` checks each rule here that
+keeps one module from reaching another through its imports, directly or
+through another module. The status rule's contract checks the scheduler
+modules that status imports directly. The `lint-imports` commit hook
+runs every contract.
 
 ## Agent-facing contract
 

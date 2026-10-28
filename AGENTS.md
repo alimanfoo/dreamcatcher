@@ -265,8 +265,8 @@ $env:PYTHONWARNDEFAULTENCODING = "1"; uv run pytest --regenerate-view-goldens
   `subprocess` fails the check.
 - Render with Rich in the TUI modules alone, so everything the daemon
   writes stays plain text and a colour code can never reach a file. The
-  architecture import check enforces the Rich and Flask presentation
-  boundaries.
+  import-linter contracts in `pyproject.toml` enforce the Rich and Flask
+  presentation boundaries.
 - Write HTML markup in the templates under `src/dreamcatcher/templates/`
   alone, and render those templates in the web interface alone. The web
   modules own presentation and must not become another home for status,
