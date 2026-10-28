@@ -147,6 +147,7 @@ def test_a_feed_scrolled_away_from_its_end_stays_put_until_the_tail_button(
     feed.hover()
     page.mouse.wheel(0, -100_000)
     page.wait_for_function('document.querySelector(".feed-records").scrollTop === 0')
+    feed.evaluate('feed => feed.scrollTo({ top: 200, behavior: "instant" })')
     tail = page.get_by_role("button", name="TAIL ↓")
     expect(tail).to_be_visible()
     lines = page.locator(".feed-line")
@@ -155,7 +156,7 @@ def test_a_feed_scrolled_away_from_its_end_stays_put_until_the_tail_button(
     append_feed_lines(root=tmp_path, count=5)
 
     expect(lines).to_have_count(line_count + 5)
-    assert feed.evaluate("feed => feed.scrollTop") == 0
+    assert feed.evaluate("feed => feed.scrollTop") == 200
     expect(tail).to_be_visible()
 
     tail.click()
