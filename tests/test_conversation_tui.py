@@ -520,7 +520,7 @@ def test_status_counts_an_ended_conversation(tmp_path):
     assert "answered" not in shown
 
 
-def test_a_view_of_a_closed_conversation_shows_closed_and_never_waits(tmp_path):
+def test_a_view_of_a_closed_conversation_shows_ended_and_never_waits(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_conversation(state=state)
     end_conversation(state=state)
@@ -535,7 +535,7 @@ def test_a_view_of_a_closed_conversation_shows_closed_and_never_waits(tmp_path):
         wait=refuse_to_wait,
     )
 
-    assert written.getvalue().splitlines()[1].rstrip() == "closed"
+    assert written.getvalue().splitlines()[1].rstrip() == "ended"
 
 
 def write_newer_conversation(*, state: StateDirectory) -> str:

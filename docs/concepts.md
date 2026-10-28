@@ -309,7 +309,9 @@ request's state and the user posts past the cursor, the open pull
 requests that claim the issue and the open issues that block it, the
 conflicting labels, or the account that applied the label when it was
 not the user. When a read fails, the finding holds the reason in place
-of what the read would have found.
+of what the read would have found. The row also holds the issue's state
+when the tick read the issue, as it does for every request it lists and
+for every open conversation or campaign.
 
 An **agent work status** is one piece of agent work's single summary
 status in a status report, derived the same way for every kind from the
@@ -699,9 +701,10 @@ Agent work of every kind has one of these summary statuses:
 - **Working**: a round is running under the daemon. A cancelled
   assignment whose round is still stopping is working until the round
   ends.
-- **Ended**: the work's ending is recorded. Ended work shows the state
-  it ended in, with no detail: completed or cancelled for an assignment,
-  and closed for a conversation or campaign.
+- **Ended**: the work's ending is recorded. Ended work shows how
+  _dreamcatcher_'s work ended, with no detail: completed or cancelled
+  for an assignment, and ended for a conversation or campaign, whose
+  issue shows as closed.
 - **Fault**: two consecutive rounds have errored, so no further round
   starts on its own.
 - **Unknown**: the latest tick could not read what it needed for the
@@ -756,7 +759,8 @@ progress. The conversation or campaign is paused after that round ends,
 unless it is then in fault.
 
 Replaces: "running", for the status working; "needs attention", for
-fault; and "needs user feedback" and "needs you", for idle.
+fault; "needs user feedback" and "needs you", for idle; and "closed",
+for how a conversation or campaign ended.
 
 ### Status reports do not control work
 

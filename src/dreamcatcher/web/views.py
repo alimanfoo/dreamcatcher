@@ -110,6 +110,7 @@ def _compose_work_card(
         pull_request=status.pull_request,
         pull_request_summary=status.pull_request_summary,
         is_pull_request_ready_for_review=status.is_pull_request_ready_for_review,
+        issue_state=status.issue_state,
         child_overview=_compose_child_overview(report=report, campaign=status),
         latest_output=status.latest_output,
     )

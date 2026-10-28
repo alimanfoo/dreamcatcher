@@ -344,7 +344,7 @@ def test_two_errored_lead_rounds_are_a_fault(state):
     assert status.faulted_round_number == 2
 
 
-def test_a_campaign_whose_parent_closed_shows_as_closed(state):
+def test_a_campaign_whose_parent_closed_shows_as_ended_with_its_parent_closed(state):
     write_lead_round(state=state, number=1, ending=SUCCESSFUL)
     write_ending(
         directory=state.work / compose_campaign_identifier(issue=PARENT),
@@ -355,7 +355,7 @@ def test_a_campaign_whose_parent_closed_shows_as_closed(state):
     status = read_campaign_status(state=state)
 
     assert status.value is AgentWorkStatusValue.ENDED
-    assert status.words == "closed"
+    assert (status.words, status.issue_state) == ("ended", "closed")
     assert status.detail is None
 
 

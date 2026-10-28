@@ -21,7 +21,7 @@ from dreamcatcher.agent_rounds import (
 from dreamcatcher.agent_work import AgentWork, AgentWorkEnding, AgentWorkEndReason
 from dreamcatcher.campaigns import CampaignChild
 from dreamcatcher.documents import read_text
-from dreamcatcher.github import PullRequestState
+from dreamcatcher.github import IssueState, PullRequestState
 from dreamcatcher.harness_adapters import AgentWorkKind, HarnessSessionIdentifier
 from dreamcatcher.harnesses import HARNESS_ADAPTERS
 from dreamcatcher.issue_conversations import is_no_reply
@@ -47,6 +47,7 @@ from dreamcatcher.status.findings import (
     describe_comments_to_answer,
     describe_hold,
     describe_idle_pull_request,
+    describe_issue_state,
     describe_pause,
     describe_pull_request,
     describe_signal,
@@ -90,12 +91,13 @@ AGENT_WORK_STATUS_VALUES_IN_ATTENTION_ORDER = (
     AgentWorkStatusValue.ENDED,
 )
 
-# What ended work shows as its status. Each word says the state the work ended
-# in, so the saved reason "issue closed", which names a cause, shows as closed.
+# What ended work shows as its status: how _dreamcatcher_'s work ended. The
+# saved reason "issue closed" names GitHub's cause, which the issue's state
+# already shows, so the work shows as ended.
 _ENDING_WORDS = {
     AgentWorkEndReason.COMPLETED: "completed",
     AgentWorkEndReason.CANCELLED: "cancelled",
-    AgentWorkEndReason.ISSUE_CLOSED: "closed",
+    AgentWorkEndReason.ISSUE_CLOSED: "ended",
 }
 
 
@@ -118,6 +120,22 @@ class AgentWorkStatus:
         if not self.has_ended:
             return str(self.value)
         return _ENDING_WORDS[cast("AgentWorkEnding", self.work.ending).reason]
+
+    @property
+    def issue_state(self) -> str | None:
+        """The state of the issue that a conversation or a campaign stands for.
+
+        Ended work's issue is closed, since only that ends a conversation or a
+        campaign. Open work's is the state that the latest tick read, and it
+        has none when that read failed or the tick did not see the work. An
+        assignment has none, because its pull request stands for it.
+        """
+        if self.work.record.kind is AgentWorkKind.ASSIGNMENT:
+            return None
+        if self.has_ended:
+            return describe_issue_state(state=IssueState.CLOSED)
+        state = None if self.row is None else self.row.issue_state
+        return None if state is None else describe_issue_state(state=state)
 
     @property
     def has_ended(self) -> bool:

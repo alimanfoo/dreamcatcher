@@ -61,6 +61,11 @@ the change.
   quietly as ended work's. Before, a closed sub-issue looked like work
   still to do.
   ([#843](https://github.com/alimanfoo/dreamcatcher/pull/843))
+- A conversation or a campaign card gives its issue's state, open or
+  closed, at the right of its first line. A conversation or a campaign
+  that has ended shows "ended", where it showed "closed", and its card
+  says that the issue is closed.
+  ([#849](https://github.com/alimanfoo/dreamcatcher/pull/849))
 
 ### Fixed
 

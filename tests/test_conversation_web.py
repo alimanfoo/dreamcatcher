@@ -759,7 +759,7 @@ def test_home_lists_conversations_in_attention_order_before_requests(tmp_path):
     assert '<p class="latest-output"><span>agent</span> Still working.</p>' in page
 
 
-def test_home_collapses_a_closed_conversation_and_shows_it_closed_once(tmp_path):
+def test_home_collapses_a_closed_conversation_and_shows_it_ended_once(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
     fabricate_conversation(state=state)
@@ -776,11 +776,12 @@ def test_home_collapses_a_closed_conversation_and_shows_it_closed_once(tmp_path)
     assert "<summary>+ 1 ended</summary>" in ended
     assert 'id="GH8-20260819-184158-conversation"' in ended
     card = ended[: ended.index("</article>")]
-    assert '<span class="chip status-ended">closed</span>' in card
+    assert '<span class="issue-state">closed</span>' in card
+    assert '<span class="chip status-ended">ended</span>' in card
     assert 'class="card-detail"' not in card
 
 
-def test_a_closed_conversation_page_shows_closed_once_as_its_status(tmp_path):
+def test_a_closed_conversation_page_shows_ended_once_as_its_status(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
     fabricate_conversation(state=state)
@@ -798,6 +799,6 @@ def test_a_closed_conversation_page_shows_closed_once_as_its_status(tmp_path):
     )
 
     assert (
-        '<span id="agent-work-status" class="chip status-ended">closed</span>'
+        '<span id="agent-work-status" class="chip status-ended">ended</span>'
     ) in page
     assert '<p id="agent-work-detail" class="agent-work-detail" hidden></p>' in page

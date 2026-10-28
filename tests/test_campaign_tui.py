@@ -63,7 +63,7 @@ def test_campaign_detail_shows_its_parent_settings_and_rounds(state):
     assert "claude --resume lead-session" in shown
 
 
-def test_a_closed_campaign_view_shows_closed_once_as_its_status(state):
+def test_a_closed_campaign_view_shows_ended_once_as_its_status(state):
     written = StringIO()
     console = create_pinned_console(written_to=written)
 
@@ -74,7 +74,7 @@ def test_a_closed_campaign_view_shows_closed_once_as_its_status(state):
         clock=lambda: LOOKED_AT,
     )
 
-    assert written.getvalue().splitlines()[1] == "closed"
+    assert written.getvalue().splitlines()[1] == "ended"
 
 
 def test_campaign_feed_shows_what_the_lead_said(state):

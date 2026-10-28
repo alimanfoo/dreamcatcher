@@ -1118,7 +1118,7 @@ def test_ended_assignments_are_ordered_by_when_they_ended(tmp_path):
 ENDED_WORK = [
     (fabricate_everything, "GH12-20260819-184158-assignment", "completed"),
     (fabricate_everything, "GH70-20260819-184158-assignment", "cancelled"),
-    (fabricate_campaign_report, "GH61-20260819-184158-campaign", "closed"),
+    (fabricate_campaign_report, "GH61-20260819-184158-campaign", "ended"),
 ]
 
 

@@ -584,8 +584,10 @@ of those choices themselves.
 The scheduler record holds one `RequestRow` for each request the tick
 saw. A row names the issue, its title, the dispatch label, the kind, and
 the identifier of the open agent work, if any, with that work's latest
-round when it had ended as the tick read the work. It holds what the
-tick found as a typed finding:
+round when it had ended as the tick read the work, and the issue's state
+when the tick read the issue: the listing reads it for every request,
+and the tick reads it again for an open conversation or campaign. It
+holds what the tick found as a typed finding:
 
 - for an assignment whose pull request the tick read, the pull request's
   number, state, draft flag, merge state, head and check result, whether
