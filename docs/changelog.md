@@ -29,14 +29,9 @@ the change.
 
 ### Changed
 
-- The web header puts the issues and pulls links on a line under the
-  repository name, so the header wraps on fewer narrow windows.
-  ([#859](https://github.com/alimanfoo/dreamcatcher/pull/859))
-- The web header no longer says "daemon running": the daemon's process
-  ID shows that it runs. A daemon that is not running reads "daemon not
-  running" in place of the process ID. The nature theme drops the
-  coloured dot before the daemon's status.
-  ([#859](https://github.com/alimanfoo/dreamcatcher/pull/859))
+- The web header is narrower: the issues and pulls links sit under the
+  repository name, and the daemon's process identifier replaces "daemon
+  running". ([#859](https://github.com/alimanfoo/dreamcatcher/pull/859))
 - The page that names the things _dreamcatcher_ deals with and says what
   the words mean is now called Concepts, at `docs/concepts.md`, and its
   opening paragraph says it is a glossary with rules. It was called the
