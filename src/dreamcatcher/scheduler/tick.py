@@ -22,7 +22,7 @@ from dreamcatcher.agent_work import (
     remove_agent_work_worktree,
     request_round_stop_if_ended,
 )
-from dreamcatcher.config import AgentHarness, DispatchRoute, identify_label
+from dreamcatcher.config import AgentHarness, DispatchRoute
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.github import Issue, UnknownGitHubResponse, list_issues
 from dreamcatcher.harness_adapters import AgentRoundLaunchRequest, AgentWorkKind
@@ -288,32 +288,16 @@ class Scheduler:
         open_work: list[AgentWork],
         inspectors: Mapping[AgentWorkKind, RequestInspector],
     ) -> Iterator[Inspection]:
-        """Inspect each label of the inspectors' kinds that no open work answers.
-
-        Open work answers the request it came from. An open assignment also
-        answers every assignment label on its issue, since an issue has at most
-        one, while a conversation or a campaign answers only its own label.
-        """
-        answered = {
-            (work.record.issue, identify_label(name=work.record.dispatch_label))
-            for work in open_work
-        }
-        assigned_issues = {
-            work.record.issue
-            for work in open_work
-            if work.record.kind is AgentWorkKind.ASSIGNMENT
-        }
+        """Inspect each label of the inspectors' kinds that no open work answers."""
         for issue in issues:
             labels = [label.name for label in issue.labels]
             for kind, inspect_request in inspectors.items():
-                if kind is AgentWorkKind.ASSIGNMENT and issue.number in assigned_issues:
-                    continue
                 yield from self._inspect_requests_of_kind(
                     issue=issue,
                     routes=self.context.config.identify_routes(
                         kind=kind, labels=labels
                     ),
-                    answered=answered,
+                    open_work=open_work,
                     inspect_request=inspect_request,
                 )
 
@@ -322,7 +306,7 @@ class Scheduler:
         *,
         issue: Issue,
         routes: Sequence[DispatchRoute],
-        answered: set[tuple[int, str]],
+        open_work: list[AgentWork],
         inspect_request: RequestInspector,
     ) -> Iterator[Inspection]:
         """Inspect each label of one kind on the issue that no open work answers.
@@ -334,7 +318,12 @@ class Scheduler:
         read for it either.
         """
         for route in routes:
-            if (issue.number, identify_label(name=route.label)) in answered:
+            if any(
+                work.answers_request(
+                    issue=issue.number, kind=route.kind, label=route.label
+                )
+                for work in open_work
+            ):
                 continue
             row = RequestRow(
                 issue=issue.number,

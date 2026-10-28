@@ -18,7 +18,7 @@ from dreamcatcher.documents import read_json_if_exists, read_text
 from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.lock import is_daemon_lock_held
 from dreamcatcher.scheduler.faults import read_scheduler_record
-from dreamcatcher.scheduler.models import GlobalCooldown, SchedulerRecord
+from dreamcatcher.scheduler.models import GlobalCooldown, RequestRow, SchedulerRecord
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.status.agent_work import (
     AGENT_WORK_STATUS_VALUES_IN_ATTENTION_ORDER,
@@ -369,19 +369,10 @@ def read_status_report(
     daemon = read_dreamcatcher_daemon_status(state=state)
     reader = _create_status_reader(state=state, daemon=daemon, clock=clock)
     scheduler_record = reader.scheduler_record
+    all_work = read_agent_work(state=state)
     work_statuses = [
-        reader.derive(work=work)
-        for work in _sort_by_issue_newest_first(work=read_agent_work(state=state))
+        reader.derive(work=work) for work in _sort_by_issue_newest_first(work=all_work)
     ]
-    request_statuses = (
-        []
-        if scheduler_record is None
-        else [
-            describe_request(row=row)
-            for row in scheduler_record.rows
-            if row.agent_work_identifier is None
-        ]
-    )
     return DreamcatcherStatusReport(
         at=reader.at,
         repository=read_repository(state=state),
@@ -398,9 +389,37 @@ def read_status_report(
         active_global_cooldown=(
             None if scheduler_record is None else scheduler_record.cooldown
         ),
-        request_statuses=request_statuses,
+        request_statuses=(
+            []
+            if scheduler_record is None
+            else _describe_requests_without_open_work(
+                rows=scheduler_record.rows, work=all_work
+            )
+        ),
         work_statuses=work_statuses,
     )
+
+
+def _describe_requests_without_open_work(
+    *, rows: Sequence[RequestRow], work: Sequence[AgentWork]
+) -> list[RequestStatus]:
+    """Describe each request that the tick found no work for and no work answers.
+
+    The tick writes its record as it finishes, after it has started work, so
+    for that moment the work records already show work that answers a request
+    the previous tick's record still lists.
+    """
+    return [
+        describe_request(row=row)
+        for row in rows
+        if row.agent_work_identifier is None
+        and not any(
+            item.answers_request(
+                issue=row.issue, kind=row.kind, label=row.dispatch_label
+            )
+            for item in work
+        )
+    ]
 
 
 def _read_status_facts(

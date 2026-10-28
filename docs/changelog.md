@@ -44,6 +44,11 @@ the change.
   the feed and the feed fell behind the agent. A card's latest output on
   the home page now changes in place, without being typed.
   ([#828](https://github.com/alimanfoo/dreamcatcher/pull/828))
+- The home page and `dreamcatcher status` no longer show a dispatch
+  label's row beside the work that just started for it. For a few
+  seconds after an update started work, until the update finished, the
+  issue showed twice.
+  ([#830](https://github.com/alimanfoo/dreamcatcher/pull/830))
 
 ## [v9.4.0](https://github.com/alimanfoo/dreamcatcher/releases/tag/v9.4.0) — 2026-10-27
 

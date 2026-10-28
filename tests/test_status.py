@@ -1342,6 +1342,40 @@ def test_a_request_that_led_to_open_work_is_reported_through_its_work(state):
     assert read_report(state=state).request_statuses == []
 
 
+def test_a_request_that_open_work_answers_before_the_tick_ends_is_hidden(state):
+    write_tick(
+        state=state,
+        tick=SchedulerRecord(
+            at=PINNED,
+            finished=PINNED,
+            rows=[compose_request_row(issue=13, finding=UNCLAIMED)],
+        ),
+    )
+
+    report = read_report(state=state)
+
+    assert report.request_statuses == []
+    assert [status.work.identifier for status in report.work_statuses] == [
+        ASSIGNMENT_ID
+    ]
+
+
+def test_a_request_at_an_issue_whose_work_ended_still_shows(state):
+    cancel_assignment(assignment=read_assignments(state=state)[0], at=PINNED)
+    write_tick(
+        state=state,
+        tick=SchedulerRecord(
+            at=PINNED,
+            finished=PINNED,
+            rows=[compose_request_row(issue=13, finding=UNCLAIMED)],
+        ),
+    )
+
+    [request] = read_report(state=state).request_statuses
+
+    assert request.row.issue == 13
+
+
 def test_requests_keep_the_order_the_tick_saw_them_in(state):
     write_tick(
         state=state,

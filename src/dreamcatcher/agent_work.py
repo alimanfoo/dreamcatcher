@@ -24,7 +24,12 @@ from dreamcatcher.agent_rounds import (
     request_agent_round_stop,
 )
 from dreamcatcher.commands import CommandError
-from dreamcatcher.config import AgentHarness, DispatchRoute, QuotableText
+from dreamcatcher.config import (
+    AgentHarness,
+    DispatchRoute,
+    QuotableText,
+    identify_label,
+)
 from dreamcatcher.documents import (
     DreamcatcherDocument,
     WriteOnceDreamcatcherDocument,
@@ -131,6 +136,25 @@ class AgentWork:
     def is_open(self) -> bool:
         """Whether the work has not ended."""
         return self.ending is None
+
+    def answers_request(self, *, issue: int, kind: AgentWorkKind, label: str) -> bool:
+        """Return whether this work answers the request of a label at an issue.
+
+        Open work answers the request it came from. An open assignment also
+        answers every assignment label on its issue, since an issue has at most
+        one, while a conversation or a campaign answers only its own label.
+        Ended work answers nothing.
+        """
+        if not self.is_open or issue != self.record.issue:
+            return False
+        if (
+            kind is AgentWorkKind.ASSIGNMENT
+            and self.record.kind is AgentWorkKind.ASSIGNMENT
+        ):
+            return True
+        return identify_label(name=label) == identify_label(
+            name=self.record.dispatch_label
+        )
 
     @property
     def is_round_running(self) -> bool:

@@ -549,7 +549,11 @@ part of this interface.
 Status reporting owns the read-only status model and constructs a
 `DreamcatcherStatusReport` containing the repository identity, instance
 and daemon facts, an `AgentWorkStatus` for every piece of agent work,
-and a `RequestStatus` for every request with no open work.
+and a `RequestStatus` for every request with no open work. The scheduler
+record names the open work for each request that the tick saw, but the
+tick writes that record only as it finishes, after it has started work.
+So status also asks each work record whether it answers a request,
+through `AgentWork.answers_request`, which the tick uses too.
 
 Status construction may read:
 
