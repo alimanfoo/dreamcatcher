@@ -133,7 +133,11 @@ class WebAgentWorkControl:
 
 @dataclass(frozen=True, kw_only=True)
 class WebAgentLiveState:
-    """Represent the values of an agent-work page that its tail refreshes."""
+    """Represent the values of an agent-work page that its tail refreshes.
+
+    The page shows its card's rows without the latest output, which the feed
+    beneath them already shows.
+    """
 
     card: WebAgentWorkCard
     rounds: Sequence[WebAgentRound]

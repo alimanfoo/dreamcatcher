@@ -1,11 +1,9 @@
-{% from "partials/status-class.html" import status_class %}{% from "partials/references.html" import github_reference, issue_state, pull_request_chip with context %}{% from "partials/agent-work-control.html" import agent_work_control %}
+{% from "partials/status-class.html" import status_class %}{% from "partials/references.html" import card_heading, issue_state, pull_request_chip with context %}{% from "partials/agent-work-control.html" import agent_work_control %}
 {#- A work card's rows: the issue and GitHub's state of what the card stands for, then the route and dreamcatcher's status, then any detail. A work page opens with them as its heading, with its controls beside the status, and the home page gives them a link to the work's page. -#}
 {% macro work_card_rows(card, is_page=false, controls=()) -%}
-  {% set heading = "h1" if is_page else "div" -%}
-  <div class="card-heading">
-    <{{ heading }}{% if is_page %} id="agent-work-heading"{% endif %}>{{ github_reference(card.issue, "issues") }} <span class="title">{{ card.title }}</span></{{ heading }}>
+  {% call card_heading(card.issue, card.title, "h1" if is_page else "div", "agent-work-heading" if is_page else none) -%}
     {{ pull_request_chip(card.pull_request, card.pull_request_summary, card.is_pull_request_ready_for_review) }}{{ issue_state(card.issue_state, card.issue_facts) }}
-  </div>
+  {%- endcall %}
   <div class="card-route">
     <span>{{ card.dispatch_label }} · {{ card.harness }} · {{ card.model }} · {{ card.effort }}</span>
     <span class="card-actions">
