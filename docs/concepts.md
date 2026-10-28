@@ -15,9 +15,15 @@ a sentence. The documentation sets it in italics in running text, and
 writes it plainly in headings, bold terms, code and the tool's own
 output.
 
+A section ends with the words that its concepts replace, where they
+replace any. A replaced word is not used for its concept in code,
+documents, skills or issues.
+
 The dated specifications record the design of particular phases. Where
 their terminology conflicts with this document, this document is
 authoritative.
+
+This page replaces "ontology", the name it was first written under.
 
 ## Definitions
 
@@ -48,6 +54,9 @@ harness, version, capacity, interval and the dispatch routes it loaded,
 each as a dispatch label and its kind of agent work. Status reports take
 the labels they name from that record.
 
+Replaces: "installation", for a _dreamcatcher_ instance, and "run" on
+its own, for a daemon run.
+
 ### Issue and issue identifier
 
 An **issue** is a GitHub issue that _dreamcatcher_ may handle. Its
@@ -67,6 +76,9 @@ agent assignment, as in `GH123-20260912-192458-assignment`. It is
 distinct from the issue identifier because an issue can receive more
 than one assignment over its lifetime.
 
+Replaces: "session" on its own, which names only a harness session, and
+"attempt".
+
 ### Pull request
 
 The assignment's **pull request** is both the proposed change and the
@@ -77,6 +89,8 @@ primary communication channel between the agent and the user.
 An **issue conversation** is _dreamcatcher_'s durable commission to an
 agent to answer the user on an issue without implementing a change.
 
+Replaces: "investigation".
+
 ### Campaign, lead and parent issue
 
 A **campaign** is _dreamcatcher_'s durable commission to an agent, its
@@ -84,6 +98,8 @@ A **campaign** is _dreamcatcher_'s durable commission to an agent, its
 **parent issue** holds the goal, and the parent's direct sub-issues hold
 the work. The code, and the `children` field of a campaign round's
 input, call each sub-issue a **child** of the parent.
+
+Replaces: "stage", for a sub-issue.
 
 ### Agent work and agent work identifier
 
@@ -116,6 +132,8 @@ An **assignment skill** is an agent skill which follows _dreamcatcher_'s
 assignment skill contract and guides an agent through an agent
 assignment. It may be invoked by a dispatch recipe.
 
+Replaces: "dispatchable skill".
+
 ### Conversation skill
 
 A **conversation skill** is an agent skill which follows
@@ -139,6 +157,9 @@ decides which harness config it takes. An assignment recipe normally
 invokes an assignment skill; a conversation recipe normally invokes a
 conversation skill, and a campaign recipe a campaign skill, but either
 may instead give the agent its instructions directly.
+
+Replaces: "agent recipe", "harness recipe", "harness block" and "recipe
+table".
 
 ### Dispatch label
 
@@ -198,6 +219,8 @@ A conversation round is successful only once its answer is posted on the
 issue, or the agent has answered that no reply is needed. A round whose
 answer is missing or cannot be posted is errored.
 
+Replaces: "failed", for an errored round.
+
 ### User post and feedback
 
 A **user post** is a contribution to an assignment's pull request by the
@@ -235,6 +258,8 @@ stores it on its own: it is read back from the inputs of the rounds that
 took their turn or are still running, so the input of a round that
 errored or was interrupted is given again. Anything in the channel past
 the cursor is new, and something new calls for a round.
+
+Replaces: "delivery position" and "delivery cursor", for the cursor.
 
 ### Signal
 
@@ -292,6 +317,8 @@ work's record, its rounds, the daemon process and its request row.
 
 A **request status** is the single summary status of a request with no
 open agent work. It says why no work has started for it.
+
+Replaces: "board".
 
 ### Global cooldown
 
@@ -556,6 +583,9 @@ it:
   follows one that did not finish. A campaign's start or recover comes
   before the count of comments and the notifications it was given.
 
+Replaces: "purpose", for a trigger; "carry on", for the recover trigger;
+and "wind up", for wrap-up.
+
 ### Requests
 
 A scheduler tick finds requests in two places: each dispatch label on
@@ -603,6 +633,8 @@ A request with no open work has one of these request statuses:
 There is no durable issue queue. Requests keep the order in which the
 scheduler listed their issues, oldest first, which is the order in which
 it starts new work.
+
+Replaces: "queued" and "waiting", for an available request.
 
 ### Scheduling work
 
@@ -722,6 +754,9 @@ A running round remains working when its issue gains a second label of
 its kind, because a routing conflict does not cancel work already in
 progress. The conversation or campaign is paused after that round ends,
 unless it is then in fault.
+
+Replaces: "running", for the status working; "needs attention", for
+fault; and "needs user feedback" and "needs you", for idle.
 
 ### Status reports do not control work
 
