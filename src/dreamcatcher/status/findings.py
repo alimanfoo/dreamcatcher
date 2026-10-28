@@ -55,7 +55,7 @@ def describe_hold(
     finding: HoldFinding,
     kind: AgentWorkKind,
 ) -> tuple[IssueFact, str]:
-    """Say what GitHub holds that holds work of a kind back, then what to do.
+    """Say why the issue keeps work of a kind from going on, then what to do.
 
     An empty applier is an account that GitHub does not name.
     """

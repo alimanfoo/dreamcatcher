@@ -100,7 +100,7 @@ of it.
 Monitor the campaign on the web home page's Campaigns tab, where its
 card shows how many of the parent's sub-issues are closed, then counts
 the assignments and requests under it by their status, as in
-`32 of 35 sub-issues closed · 6 working, 3 waiting, 5 completed, 1 held`.
+`32 of 35 sub-issues closed · 6 working, 3 waiting, 1 held, 5 completed`.
 Expand the count to see each sub-issue with its assignment's card and
 the row of each request for an assignment on it that has no open work,
 or the sub-issue's number and title alone when it has neither. Each

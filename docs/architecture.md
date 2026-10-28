@@ -637,12 +637,12 @@ assignment shows before the next tick records it on the campaign, the
 request statuses of its assignment labels that have no open work, and
 whether its issue is open or closed, as the tick observed it. The status
 report also summarises the sub-issues on one line: the count of closed
-sub-issues, then a count of each word that the chips of the nested
-assignment cards show, in attention order and then the ending words,
-then a count of each word that the chips of the nested request rows
-show. The web home page puts an active campaign's lead card and the
-expandable block of its sub-issues side by side in one wrapper, so the
-latest output of a sub-issue's card is never read as the lead's. The
+sub-issues, then one count for each word that the chips of the nested
+assignment cards and request rows show: the statuses of open work in
+attention order, then the ending words, then the words that only a
+request shows. The web home page puts an active campaign's lead card and
+the expandable block of its sub-issues side by side in one wrapper, so
+the latest output of a sub-issue's card is never read as the lead's. The
 block stays in place, holding only its count while the sub-issues are
 unknown or there are none, so a refresh keeps it open through a failed
 observation. Each card or request row in that block takes the campaign's

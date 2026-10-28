@@ -69,6 +69,29 @@ def test_status_lists_the_conversation(tmp_path):
     assert "round 1, answered, ran 4m" in shown
 
 
+def test_status_and_view_say_why_a_paused_conversation_is_held(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    fabricate_conversation(state=state)
+    status = StringIO()
+    view = StringIO()
+
+    show_status_view(
+        state=state,
+        console=create_pinned_console(written_to=status),
+        clock=lambda: PINNED,
+    )
+    show_agent_work_view(
+        state=state,
+        work=read_newest_work(state=state, issue=8, kind=AgentWorkKind.CONVERSATION),
+        console=create_pinned_console(written_to=view),
+        clock=lambda: PINNED,
+    )
+
+    for shown in (status.getvalue(), view.getvalue()):
+        assert "held" in shown
+        assert "label removed; put the label back to resume" in shown
+
+
 def test_conversation_detail_shows_settings_session_and_round_but_no_revision(
     tmp_path,
 ):

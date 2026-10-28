@@ -39,16 +39,21 @@ from dreamcatcher.words import describe_span
 # The address of the documentation site, which the views link to.
 DOCUMENTATION_URL = "https://alimanfoo.github.io/dreamcatcher/"
 
-# What the chip of an assignment under a campaign can say, in the order that
-# the campaign's summary counts them: how open assignments stand, in attention
-# order, then how ended ones ended.
-_ASSIGNMENT_WORDS_IN_SUMMARY_ORDER = (
-    *(
-        str(value)
-        for value in AGENT_WORK_STATUS_VALUES_IN_ATTENTION_ORDER
-        if value is not AgentWorkStatusValue.ENDED
-    ),
-    *AGENT_WORK_ENDING_WORDS.values(),
+# The words that the chips under a campaign can show, in the order that its
+# summary counts them: how open assignments stand, in attention order, then how
+# ended ones ended, then the words that only requests show.
+_CHILD_WORDS_IN_SUMMARY_ORDER = tuple(
+    dict.fromkeys(
+        [
+            *(
+                str(value)
+                for value in AGENT_WORK_STATUS_VALUES_IN_ATTENTION_ORDER
+                if value is not AgentWorkStatusValue.ENDED
+            ),
+            *AGENT_WORK_ENDING_WORDS.values(),
+            *(str(value) for value in RequestStatusValue),
+        ]
+    )
 )
 
 # The guidance that an empty section of each kind gives, naming its labels.
@@ -359,41 +364,37 @@ class DreamcatcherStatusReport:
     def summarise_campaign_children(self, *, campaign: AgentWorkStatus) -> str | None:
         """Summarise an active campaign's children on one line.
 
-        GitHub's count of the closed children comes first. Then come counts of
-        the words that the chips of the nested assignments show, then counts
-        of those of the nested requests. Other work has no summary.
+        GitHub's count of the closed children comes first, then one count for
+        each word that the chips of the nested assignments and requests show.
+        Other work has no summary.
         """
         summary = campaign.closed_children_summary
         if summary is None:
             return None
         child_statuses = self.list_campaign_child_statuses(campaign=campaign)
-        assignments = Counter(
-            child_status.assignment.words
+        counts = Counter(
+            word
             for child_status in child_statuses
-            if child_status.assignment is not None
+            for word in (
+                *(
+                    []
+                    if child_status.assignment is None
+                    else [child_status.assignment.words]
+                ),
+                *(str(request.value) for request in child_status.requests),
+            )
         )
-        requests = Counter(
-            str(request.value)
-            for child_status in child_statuses
-            for request in child_status.requests
-        )
-        counts = [
-            *_describe_counts(
-                counts=assignments, words=_ASSIGNMENT_WORDS_IN_SUMMARY_ORDER
-            ),
-            *_describe_counts(counts=requests, words=list(RequestStatusValue)),
+        words = [
+            f"{counts[word]} {word}"
+            for word in _CHILD_WORDS_IN_SUMMARY_ORDER
+            if counts[word]
         ]
-        return f"{summary} · {', '.join(counts)}" if counts else summary
+        return f"{summary} · {', '.join(words)}" if words else summary
 
     def _list_work_statuses(self, *, kind: AgentWorkKind) -> list[AgentWorkStatus]:
         return [
             status for status in self.work_statuses if status.work.record.kind is kind
         ]
-
-
-def _describe_counts(*, counts: Counter[str], words: Sequence[str]) -> list[str]:
-    """Return the count of each word that counts, in the words' order."""
-    return [f"{counts[word]} {word}" for word in words if counts[word]]
 
 
 def _compose_section_guidance(

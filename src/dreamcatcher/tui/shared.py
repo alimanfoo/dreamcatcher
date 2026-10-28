@@ -11,7 +11,11 @@ from rich.table import Table
 from rich.text import Text
 
 from dreamcatcher.clock import WaitForSeconds
-from dreamcatcher.status import AGENT_WORK_STATUS_VALUES_IN_ATTENTION_ORDER
+from dreamcatcher.status import (
+    AGENT_WORK_STATUS_VALUES_IN_ATTENTION_ORDER,
+    AgentWorkStatus,
+    IssueFact,
+)
 
 AGENT_WORK_STATUS_STYLES = dict(
     zip(
@@ -23,6 +27,31 @@ AGENT_WORK_STATUS_STYLES = dict(
 
 _VIEW_REFRESH_INTERVAL = 1.0
 SECTION_PADDING = (0, 0, 0, 2)
+
+
+def render_issue_fact(*, fact: IssueFact) -> str:
+    """Return one fact's words followed by the issues and pull requests it names."""
+    references = [
+        *(
+            f"{issue.repository}#{issue.number}"
+            if issue.repository
+            else f"GH{issue.number}"
+            for issue in fact.issues
+        ),
+        *(f"PR #{number}" for number in fact.pull_requests),
+    ]
+    if not references:
+        return fact.words
+    return f"{fact.words} {', '.join(references)}"
+
+
+def describe_work_detail(*, status: AgentWorkStatus) -> str | None:
+    """Return what GitHub says that holds the work back, then the work's detail.
+
+    A request row gives its issue's facts and detail in the same form.
+    """
+    facts = ", ".join(render_issue_fact(fact=fact) for fact in status.issue_facts)
+    return "; ".join(part for part in (facts, status.detail) if part) or None
 
 
 def open_tui_console() -> Console:

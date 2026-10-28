@@ -74,8 +74,8 @@ the change.
   work. ([#849](https://github.com/alimanfoo/dreamcatcher/pull/849))
 - A campaign's line of sub-issues counts, after how many are closed, the
   assignments and requests under the campaign by the status that each
-  shows, as in "32 of 35 sub-issues closed · 6 working, 3 waiting, 5
-  completed, 1 held". The "+" before the line is gone.
+  shows, as in "32 of 35 sub-issues closed · 6 working, 3 waiting, 1
+  held, 5 completed". The "+" before the line is gone.
   ([#849](https://github.com/alimanfoo/dreamcatcher/pull/849))
 
 ### Fixed

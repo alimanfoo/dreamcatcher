@@ -233,7 +233,7 @@ has removed shows the worktree as removed, and no hand-resume command.
 An assignment's view also shows its pull request and branch. A
 campaign's `GH<n>` is its parent issue. A conversation or campaign that
 the scheduler holds back, as when you pause it, is held, and its status
-detail says what brings it back.
+detail says why and what brings it back.
 
 In an interactive terminal it refreshes until the work ends, as an
 assignment does after a successful wrap-up or a cancel. It stays on the
