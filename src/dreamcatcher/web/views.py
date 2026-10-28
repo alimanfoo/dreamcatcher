@@ -10,7 +10,6 @@ from dreamcatcher.status import (
     AgentWorkStatus,
     DreamcatcherDaemonStatus,
     DreamcatcherStatusReport,
-    StatusFact,
     read_repository,
 )
 from dreamcatcher.web.feed import read_agent_feed
@@ -20,12 +19,11 @@ from dreamcatcher.web.models import (
     WebAgentWorkCard,
     WebAgentWorkControl,
     WebAgentWorkSection,
-    WebAssignmentView,
+    WebAgentWorkView,
     WebCampaignChild,
     WebCampaignChildOverview,
     WebHandResume,
     WebHomeView,
-    WebIssueWorkView,
 )
 from dreamcatcher.words import describe_time
 
@@ -78,21 +76,24 @@ def _compose_section(
         heading=section.heading,
         guidance=section.guidance,
         active=tuple(
-            _compose_work_card(report=report, status=status)
+            _compose_work_card(
+                status=status,
+                child_overview=_compose_child_overview(report=report, campaign=status),
+            )
             for status in report.list_active_work_statuses(kind=kind)
         ),
         requests=tuple(report.list_request_statuses(kind=kind)),
         ended=tuple(
-            _compose_work_card(report=report, status=status)
+            _compose_work_card(status=status, child_overview=None)
             for status in report.list_ended_work_statuses(kind=kind)
         ),
     )
 
 
 def _compose_work_card(
-    *, report: DreamcatcherStatusReport, status: AgentWorkStatus
+    *, status: AgentWorkStatus, child_overview: WebCampaignChildOverview | None
 ) -> WebAgentWorkCard:
-    """Return the values shown for one piece of agent work on the home page."""
+    """Return the values shown in one piece of agent work's card."""
     work = status.work
     record = work.record
     return WebAgentWorkCard(
@@ -112,7 +113,7 @@ def _compose_work_card(
         is_pull_request_ready_for_review=status.is_pull_request_ready_for_review,
         issue_state=status.issue_state,
         issue_facts=status.issue_facts,
-        child_overview=_compose_child_overview(report=report, campaign=status),
+        child_overview=child_overview,
         latest_output=status.latest_output,
     )
 
@@ -136,7 +137,7 @@ def _compose_child_overview(
                     None
                     if child_status.assignment is None
                     else _compose_work_card(
-                        report=report, status=child_status.assignment
+                        status=child_status.assignment, child_overview=None
                     )
                 ),
                 requests=tuple(child_status.requests),
@@ -151,83 +152,34 @@ def compose_agent_live_state(
     state: StateDirectory,
     status: AgentWorkStatus,
     zone: tzinfo | None,
-    heading_controls: Sequence[WebAgentWorkControl],
+    card_controls: Sequence[WebAgentWorkControl],
     foot_controls: Sequence[WebAgentWorkControl],
 ) -> WebAgentLiveState:
     """Return the values of an agent-work page that its tail refreshes."""
     return WebAgentLiveState(
-        status=status.value,
-        status_words=status.words,
-        detail=status.detail,
+        card=_compose_work_card(status=status, child_overview=None),
         rounds=_compose_agent_rounds(round_statuses=status.round_statuses, zone=zone),
-        heading_controls=heading_controls,
+        card_controls=card_controls,
         foot_controls=foot_controls,
         hand_resume=_compose_hand_resume(state=state, status=status),
     )
 
 
-def compose_assignment_view(
+def compose_agent_work_view(
     *,
     state: StateDirectory,
     status: AgentWorkStatus,
     daemon: DreamcatcherDaemonStatus,
     live: WebAgentLiveState,
     zone: tzinfo | None,
-) -> WebAssignmentView:
-    """Return the values shown on one assignment page."""
-    assignment = status.work
-    record = assignment.record
+) -> WebAgentWorkView:
+    """Return the values shown on the page of one piece of agent work."""
     repository = read_repository(state=state)
-    feed = read_agent_feed(work=assignment, zone=zone, rounds=live.rounds)
-    return WebAssignmentView(
-        kind=record.kind,
+    feed = read_agent_feed(work=status.work, zone=zone, rounds=live.rounds)
+    return WebAgentWorkView(
         repository=repository or "repository unknown",
         github_repository_url=compose_github_repository_url(repository=repository),
         daemon=daemon,
-        identifier=assignment.identifier,
-        issue=record.issue,
-        title=record.title,
-        pull_request=status.pull_request,
-        pull_request_summary=status.pull_request_summary,
-        is_pull_request_ready_for_review=status.is_pull_request_ready_for_review,
-        dispatch_label=record.dispatch_label,
-        harness=str(record.harness),
-        model=record.model,
-        effort=record.effort,
-        live=live,
-        feed_rounds=feed.rounds,
-        feed_position=feed.feed_position,
-    )
-
-
-def compose_issue_work_view(
-    *,
-    state: StateDirectory,
-    status: AgentWorkStatus,
-    daemon: DreamcatcherDaemonStatus,
-    live: WebAgentLiveState,
-    zone: tzinfo | None,
-) -> WebIssueWorkView:
-    """Return the values shown on the page of work whose channel is its issue."""
-    work = status.work
-    record = work.record
-    repository = read_repository(state=state)
-    feed = read_agent_feed(work=work, zone=zone, rounds=live.rounds)
-    return WebIssueWorkView(
-        kind=record.kind,
-        repository=repository or "repository unknown",
-        github_repository_url=compose_github_repository_url(repository=repository),
-        daemon=daemon,
-        identifier=work.identifier,
-        issue=record.issue,
-        title=record.title,
-        facts=(
-            StatusFact(label="label", value=record.dispatch_label),
-            StatusFact(label="harness", value=str(record.harness)),
-            StatusFact(
-                label="model · effort", value=f"{record.model} · {record.effort}"
-            ),
-        ),
         live=live,
         feed_rounds=feed.rounds,
         feed_position=feed.feed_position,

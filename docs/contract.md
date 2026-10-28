@@ -261,14 +261,14 @@ failed post makes the round errored.
 ### Rounds that did not finish and stopped rounds
 
 Issue conversations run through Claude or Codex and keep the harness
-chosen at creation. While the conversation is not paused, the round
-after an interrupted or errored one is given that round's comments
-again, less any the user has deleted and with any that arrived since,
-against a refreshed worktree. Its prompt opens by saying that the
-previous round did not finish. It resumes the recorded harness session,
-or starts a new session with the configured prompt and the issue's title
-and body when no session identifier was recorded. The configured
-conversation prompt needs no special instructions for this.
+chosen at creation. While the conversation is not held, the round after
+an interrupted or errored one is given that round's comments again, less
+any the user has deleted and with any that arrived since, against a
+refreshed worktree. Its prompt opens by saying that the previous round
+did not finish. It resumes the recorded harness session, or starts a new
+session with the configured prompt and the issue's title and body when
+no session identifier was recorded. The configured conversation prompt
+needs no special instructions for this.
 
 A conversation round that the user stopped waits for a new eligible
 comment. The next round begins by saying that the earlier round was
@@ -391,9 +391,9 @@ followed by the prompt that names the input. Each later eligible comment
 on the parent, and each update that finds a notification, wakes the lead
 for another round, which resumes the recorded harness session with the
 prompt that names the new input. One round takes every comment and
-notification that waits. A campaign that is paused takes no round, and
-its first round after it resumes is given every comment posted while it
-was paused, and the notifications of what changed among the sub-issues
+notification that waits. A campaign that is held takes no round, and its
+first round after the hold ends is given every comment posted while it
+was held, and the notifications of what changed among the sub-issues
 since its last delivered input.
 
 A round that errored or was interrupted did not take its turn, so the

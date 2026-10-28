@@ -77,6 +77,34 @@ the change.
   shows, as in "32 of 35 sub-issues closed · 6 working, 3 waiting, 1
   held, 5 completed". The "+" before the line is gone.
   ([#849](https://github.com/alimanfoo/dreamcatcher/pull/849))
+- [Concepts](concepts.md) names the card: what _dreamcatcher_ shows for
+  one piece of work, one request or one sub-issue, as a work card, a
+  request card or a sub-issue card. The documentation calls each of them
+  a card where it called some of them rows, and "request row" now means
+  only what the scheduler found for a request.
+  ([#853](https://github.com/alimanfoo/dreamcatcher/pull/853))
+- A work's page opens with its work card, as the home page shows it: the
+  issue and the state of its pull request or issue first, then the
+  label, harness, model and effort, with the status, then the detail. A
+  conversation or a campaign page now says whether its issue is open or
+  closed, and who applied the label that holds it. The issue's number
+  links to GitHub, as on the home page, where the whole heading did, and
+  the strip of labelled facts is gone.
+  ([#853](https://github.com/alimanfoo/dreamcatcher/pull/853))
+- Each row of work in `dreamcatcher status` gives GitHub's state after
+  the status, as a request's row does: an assignment's pull request and
+  where it stands, or a conversation's or a campaign's issue state, then
+  a semicolon and the detail, as in
+  `PR #52 ready; 1 new post to answer`.
+  ([#853](https://github.com/alimanfoo/dreamcatcher/pull/853))
+- `dreamcatcher view` gives a conversation's or a campaign's issue state
+  on an `issue` line, such as `open, labelled by octocat`, or `closed`
+  once the work has ended. Its status line gives the status and the
+  detail, where a held conversation's also said what GitHub holds.
+  ([#853](https://github.com/alimanfoo/dreamcatcher/pull/853))
+- The documentation says "held" where the scheduler holds work back, and
+  keeps "paused" for the user's own act of removing a label or an
+  assignee. ([#853](https://github.com/alimanfoo/dreamcatcher/pull/853))
 
 ### Fixed
 

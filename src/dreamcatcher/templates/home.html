@@ -17,7 +17,7 @@
               {% if card.child_overview is none %}{% include "partials/agent-work-card.html" %}{% else %}{% include "partials/campaign.html" %}{% endif %}
             {% endfor %}
             {% for request in section.requests %}
-              {% include "partials/request-row.html" %}
+              {% include "partials/request-card.html" %}
             {% endfor %}
             {% if section.guidance %}<p class="empty">{{ section.guidance.message }}{% if section.guidance.documentation %} <a class="guidance-link" href="{{ section.guidance.documentation.url }}" target="_blank" rel="noopener noreferrer">{{ section.guidance.documentation.title }}</a>{% endif %}</p>{% endif %}
             {% if section.ended %}

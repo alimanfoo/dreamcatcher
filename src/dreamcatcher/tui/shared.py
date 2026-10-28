@@ -29,7 +29,7 @@ _VIEW_REFRESH_INTERVAL = 1.0
 SECTION_PADDING = (0, 0, 0, 2)
 
 
-def render_issue_fact(*, fact: IssueFact) -> str:
+def _render_issue_fact(*, fact: IssueFact) -> str:
     """Return one fact's words followed by the issues and pull requests it names."""
     references = [
         *(
@@ -45,13 +45,32 @@ def render_issue_fact(*, fact: IssueFact) -> str:
     return f"{fact.words} {', '.join(references)}"
 
 
-def describe_work_detail(*, status: AgentWorkStatus) -> str | None:
-    """Return what GitHub says that holds the work back, then the work's detail.
+def render_issue_state(*, state: str | None, facts: Sequence[IssueFact]) -> str | None:
+    """Return the issue's state, then each fact that GitHub holds about it.
 
-    A request row gives its issue's facts and detail in the same form.
+    An issue whose state is unknown gives its facts alone.
     """
-    facts = ", ".join(render_issue_fact(fact=fact) for fact in status.issue_facts)
-    return "; ".join(part for part in (facts, status.detail) if part) or None
+    return (
+        ", ".join(
+            [
+                *([] if state is None else [state]),
+                *(_render_issue_fact(fact=fact) for fact in facts),
+            ]
+        )
+        or None
+    )
+
+
+def render_pull_request(*, status: AgentWorkStatus) -> str | None:
+    """Return the assignment's pull request and where it stands, when known.
+
+    Work whose pull request no round has opened has none.
+    """
+    if status.pull_request is None:
+        return None
+    if status.pull_request_summary is None:
+        return f"#{status.pull_request}"
+    return f"#{status.pull_request} {status.pull_request_summary}"
 
 
 def open_tui_console() -> Console:

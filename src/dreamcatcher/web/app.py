@@ -48,10 +48,9 @@ from dreamcatcher.web.server import (
 )
 from dreamcatcher.web.views import (
     compose_agent_live_state,
-    compose_assignment_view,
+    compose_agent_work_view,
     compose_github_repository_url,
     compose_home_view,
-    compose_issue_work_view,
 )
 
 _HTMX_STOP_POLLING_STATUS = 286
@@ -148,21 +147,10 @@ def _show_work(
     daemon = read_dreamcatcher_daemon_status(state=state)
     status = read_agent_work_status(state=state, work=work, daemon=daemon, clock=clock)
     live = _compose_work_live_state(state=state, work=work, status=status, zone=zone)
-    if work.record.kind is AgentWorkKind.ASSIGNMENT:
-        return render_template(
-            "assignment.html",
-            view=compose_assignment_view(
-                state=state, status=status, daemon=daemon, live=live, zone=zone
-            ),
-        )
     return render_template(
-        "issue-work.html",
-        view=compose_issue_work_view(
-            state=state,
-            status=status,
-            daemon=daemon,
-            live=live,
-            zone=zone,
+        "agent-work.html",
+        view=compose_agent_work_view(
+            state=state, status=status, daemon=daemon, live=live, zone=zone
         ),
     )
 
@@ -175,7 +163,7 @@ def _compose_work_live_state(
     zone: tzinfo | None,
 ) -> WebAgentLiveState:
     identifier = work.identifier
-    heading_controls = []
+    card_controls = []
     foot_controls = []
     paths = status.stoppable_round_paths
     if paths is not None:
@@ -189,7 +177,7 @@ def _compose_work_live_state(
         )
     number = status.faulted_round_number
     if number is not None:
-        heading_controls.append(
+        card_controls.append(
             WebAgentWorkControl(
                 action="retry",
                 url=url_for("request_work_retry", identifier=identifier, number=number),
@@ -206,7 +194,7 @@ def _compose_work_live_state(
         state=state,
         status=status,
         zone=zone,
-        heading_controls=tuple(heading_controls),
+        card_controls=tuple(card_controls),
         foot_controls=tuple(foot_controls),
     )
 

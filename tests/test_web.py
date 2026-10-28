@@ -13,7 +13,13 @@ from unittest.mock import MagicMock
 
 import pytest
 from clocks import DISPLAY_TIME_ZONE, PINNED
-from conftest import DAEMON_PID, FIXTURES, REPOSITORY, assert_matches_view_golden
+from conftest import (
+    DAEMON_PID,
+    FIXTURES,
+    REPOSITORY,
+    assert_matches_view_golden,
+    extract_page_card,
+)
 from records import (
     MERGED_INPUT,
     SCOUT_ROUTES,
@@ -367,7 +373,7 @@ def test_a_campaign_sub_issue_with_no_assignment_or_request_shows_its_state_alon
     sub_issue = extract_article(page=page, identifier=f"{prefix}sub-issue-66")
 
     assert re.sub(r"<[^>]+>", " ", sub_issue).split() == ["#66", "Issue", "66", words]
-    assert ('class="campaign-child is-closed"' in sub_issue) is is_closed
+    assert ('class="sub-issue-card is-closed"' in sub_issue) is is_closed
     assert f'id="{prefix}GH64-20260819-184158-assignment"' in page
     assert f'id="{prefix}request-65-' in page
 
@@ -434,18 +440,29 @@ def test_an_assignment_renders_as_its_golden_page(name, tmp_path, pytestconfig):
     )
 
 
-def test_assignment_page_shows_the_common_agent_work_facts(tmp_path):
+def test_a_work_page_opens_with_its_work_card_without_a_link_to_itself(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
+    identifier = "GH13-20260819-184158-assignment"
 
-    page = render_assignment(state=state, identifier="GH13-20260819-184158-assignment")
+    card = extract_article(page=render_home(state=state), identifier=identifier)
+    page = render_assignment(state=state, identifier=identifier)
+    page_card = extract_page_card(page=page)
 
-    assert page.count("<dt>") == 3
-    assert "<dt>label</dt><dd>dream:smith</dd>" in page
-    assert "<dt>harness</dt><dd>claude</dd>" in page
-    assert "<dt>model · effort</dt><dd>opus[1m] · xhigh</dd>" in page
-    assert "<dt>assignment</dt>" not in page
-    assert "<dt>session</dt>" not in page
+    for fragment in (
+        '<span class="title">Issue 13</span>',
+        ">PR #52</a>",
+        "<span>dream:smith · claude · opus[1m] · xhigh</span>",
+        '<span class="chip status-working">working</span>',
+        '<p class="card-detail">round 2, 1 post, running 1h 30m, last output '
+        "1h 29m ago</p>",
+    ):
+        assert fragment in card
+        assert fragment in page_card
+    assert '<h1 id="agent-work-heading">' in page_card
+    assert "agent-work-open" not in page_card
+    assert "latest-output" not in page_card
+    assert "<dt>" not in page
 
 
 def test_an_assignment_with_no_pull_request_yet_shows_none_on_its_card_or_page(
@@ -824,8 +841,10 @@ def test_assignment_tail_offers_the_retry_control(tmp_path):
 
     response = _read_tail(state=state, identifier=identifier, position="1:0")
 
-    assert '<div id="agent-work-retry" hx-swap-oob="morph">' in response.text
-    assert f'action="/work/{identifier}/retry/2"' in response.text
+    card = extract_page_card(page=response.text)
+
+    assert 'class="agent-work-page-card" hx-swap-oob="morph">' in card
+    assert f'action="/work/{identifier}/retry/2"' in card
 
 
 @pytest.mark.parametrize(
@@ -945,8 +964,10 @@ def test_status_classes_do_not_depend_on_status_wording(tmp_path, monkeypatch):
 
     def reword_agent_live_state(**kwargs):
         live = compose_agent_live_state(**kwargs)
-        status = reworded[live.status.name]
-        return replace(live, status=status, status_words=str(status))
+        status = reworded[live.card.status.name]
+        return replace(
+            live, card=replace(live.card, status=status, status_words=str(status))
+        )
 
     monkeypatch.setattr(web_app_module, "compose_home_view", reword_home_view)
     monkeypatch.setattr(
@@ -965,12 +986,12 @@ def test_status_classes_do_not_depend_on_status_wording(tmp_path, monkeypatch):
 
     assert '<span class="chip status-idle">reworded idle</span>' in card
     assert '<span class="chip status-idle">reworded idle</span>' in conversation_card
-    assert (
-        '<span id="agent-work-status" class="chip status-idle">reworded idle</span>'
-    ) in assignment_page
-    assert (
-        '<span id="agent-work-status" class="chip status-idle">reworded idle</span>'
-    ) in conversation_page
+    assert '<span class="chip status-idle">reworded idle</span>' in (
+        extract_page_card(page=assignment_page)
+    )
+    assert '<span class="chip status-idle">reworded idle</span>' in (
+        extract_page_card(page=conversation_page)
+    )
 
 
 def test_an_idle_assignment_status_uses_the_status_wording(tmp_path):
@@ -982,7 +1003,9 @@ def test_an_idle_assignment_status_uses_the_status_wording(tmp_path):
         identifier="GH20-20260819-184158-assignment",
     )
 
-    assert ('<span id="agent-work-status" class="chip status-idle">idle</span>') in page
+    card = extract_page_card(page=page)
+
+    assert '<span class="chip status-idle">idle</span>' in card
     assert "[IDLE]" not in page
 
 
@@ -1142,12 +1165,10 @@ def test_an_ended_work_page_shows_how_it_ended_once_as_its_status(
     state = StateDirectory(root=tmp_path)
     fabricate(state=state)
 
-    page = render_assignment(state=state, identifier=identifier)
+    card = extract_page_card(page=render_assignment(state=state, identifier=identifier))
 
-    assert (
-        f'<span id="agent-work-status" class="chip status-ended">{words}</span>'
-    ) in page
-    assert ('<p id="agent-work-detail" class="agent-work-detail" hidden></p>') in page
+    assert f'<span class="chip status-ended">{words}</span>' in card
+    assert 'class="card-detail"' not in card
 
 
 def test_an_ended_assignment_tail_hides_the_detail(tmp_path):
@@ -1161,11 +1182,11 @@ def test_an_ended_assignment_tail_hides_the_detail(tmp_path):
         state=state, identifier=identifier, position=_read_position(response=page)
     )
 
-    assert (
-        '<p id="agent-work-detail" class="agent-work-detail" hx-swap-oob="morph"'
-        " hidden></p>"
-    ) in tail.text
-    assert 'class="chip status-ended" hx-swap-oob="morph">cancelled</span>' in tail.text
+    card = extract_page_card(page=tail.text)
+
+    assert 'class="agent-work-page-card" hx-swap-oob="morph">' in card
+    assert '<span class="chip status-ended">cancelled</span>' in card
+    assert 'class="card-detail"' not in card
 
 
 def test_a_cancelled_assignment_card_shows_working_while_its_round_stops(tmp_path):
@@ -1582,7 +1603,7 @@ def test_a_tail_fragment_matches_its_golden(tmp_path, pytestconfig):
         path=FIXTURES / "web" / "tail.html",
         config=pytestconfig,
     )
-    assert 'id="agent-work-detail"' in response.text
+    assert 'id="agent-work-card"' in response.text
 
 
 def test_a_quiet_tail_has_no_appendable_text_nodes(tmp_path):
@@ -1600,11 +1621,9 @@ def test_a_quiet_tail_has_no_appendable_text_nodes(tmp_path):
 
     assert response.text.startswith(
         '<input type="hidden" id="position" name="position" value="1:0" '
-        'hx-swap-oob="true"><span'
+        'hx-swap-oob="true"><div id="agent-work-card"'
     )
-    assert '</span><div id="agent-work-retry"' in response.text
-    assert '</div><p id="agent-work-detail"' in response.text
-    assert "</p><aside" in response.text
+    assert "</div><aside" in response.text
     assert '</aside><div id="agent-work-foot"' in response.text
     assert response.text.endswith("</div>")
 
@@ -1617,39 +1636,12 @@ def test_an_assignment_page_links_its_title_and_pull_request(tmp_path):
 
     assert (
         f'href="https://github.com/{REPOSITORY}/issues/10" target="_blank" '
-        'rel="noopener noreferrer">#10 '
-        "<span>Draft assignment</span></a>" in page
+        'rel="noopener noreferrer">#10</a> '
+        '<span class="title">Draft assignment</span></h1>' in page
     )
     assert (
         f'href="https://github.com/{REPOSITORY}/pull/52" target="_blank" '
         'rel="noopener noreferrer">PR #52 draft</a>' in page
-    )
-
-
-def test_assignment_heading_keeps_its_chips_in_the_top_right(tmp_path):
-    application = _create_app(
-        state=StateDirectory(root=tmp_path),
-        clock=lambda: LOOKED_AT,
-        zone=DISPLAY_TIME_ZONE,
-    )
-    stylesheet = (
-        application.test_client().get("/static/matrix.css").get_data(as_text=True)
-    )
-
-    assert re.search(
-        r"\.agent-work-heading \{[^}]*display: grid;"
-        r"[^}]*grid-template-columns: minmax\(0, 1fr\) max-content;"
-        r"[^}]*align-items: start;",
-        stylesheet,
-        re.DOTALL,
-    )
-    assert re.search(
-        r"\.agent-work-heading h1 \{[^}]*min-width: 0;", stylesheet, re.DOTALL
-    )
-    assert re.search(
-        r"\.agent-work-heading-actions \{[^}]*flex-wrap: nowrap;",
-        stylesheet,
-        re.DOTALL,
     )
 
 
@@ -1759,7 +1751,7 @@ def test_assignment_reporting_remains_without_a_repository_record(tmp_path):
 
     page = render_assignment(state=state, identifier="GH10-20260819-184158-assignment")
 
-    assert '<strong class="agent-work-issue">#10' in page
+    assert '<strong class="issue-number">#10</strong>' in page
     assert '<span class="pr-chip">PR #52 draft</span>' in page
 
 

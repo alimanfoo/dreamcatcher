@@ -104,7 +104,7 @@ def test_a_round_link_brings_its_round_into_view_from_the_tail(
     live_web: str,
 ) -> None:
     page.goto(f"{live_web}/work/{BROWSER_ASSIGNMENT_IDENTIFIER}")
-    expect(page.locator("#agent-work-status")).to_have_text("working")
+    expect(page.locator("#agent-work-card .chip")).to_have_text("working")
     expect(page.get_by_text("daemon not running", exact=True)).to_have_count(0)
     expect(page.get_by_text("resume by hand", exact=True)).to_have_count(0)
     page.wait_for_function(FEED_IS_AT_END)
@@ -311,7 +311,7 @@ def test_a_refresh_leaves_an_expanded_campaign_open(page: Page, live_web: str) -
     page.goto(live_web)
     children = expand_campaign(page=page)
     expect(
-        children.locator(".agent-work-card, .request-row, .campaign-child")
+        children.locator(".agent-work-card, .request-card, .sub-issue-card")
     ).to_have_count(5)
 
     wait_for_refresh(page=page)
@@ -346,7 +346,7 @@ def test_an_expanded_campaign_stays_open_while_its_children_are_unknown(
     state = StateDirectory(root=tmp_path)
     page.goto(live_web)
     children = expand_campaign(page=page)
-    entries = children.locator(".agent-work-card, .request-row, .campaign-child")
+    entries = children.locator(".agent-work-card, .request-card, .sub-issue-card")
     expect(entries).to_have_count(5)
 
     observe_campaign_children(state=state, children=None)
@@ -738,11 +738,11 @@ def test_cancelling_an_assignment_asks_first(page: Page, live_web: str) -> None:
 
     page.once("dialog", lambda dialog: dialog.dismiss())
     cancel.click()
-    expect(page.locator("#agent-work-status")).to_have_text("waiting")
+    expect(page.locator("#agent-work-card .chip")).to_have_text("waiting")
 
     page.once("dialog", lambda dialog: dialog.accept())
     cancel.click()
-    expect(page.locator("#agent-work-status")).to_have_text("cancelled")
+    expect(page.locator("#agent-work-card .chip")).to_have_text("cancelled")
     expect(cancel).to_have_count(0)
 
 
@@ -751,7 +751,7 @@ def test_a_tail_refresh_hides_the_detail_once_the_work_ends(
 ) -> None:
     identifier = "GH44-20260819-184158-assignment"
     page.goto(f"{live_web}/work/{identifier}")
-    detail = page.locator("#agent-work-detail")
+    detail = page.locator("#agent-work-card .card-detail")
     expect(detail).to_be_visible()
 
     write_ending(
@@ -760,7 +760,7 @@ def test_a_tail_refresh_hides_the_detail_once_the_work_ends(
         at=LOOKED_AT,
     )
 
-    expect(page.locator("#agent-work-status")).to_have_text("cancelled")
+    expect(page.locator("#agent-work-card .chip")).to_have_text("cancelled")
     expect(detail).to_be_hidden()
 
 

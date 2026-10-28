@@ -6,14 +6,15 @@ instance
   agent capacity     0 of 2 working
 
 assignments
-  GH9-20260819-184158-assignment   fault    round 2 errored (exit 2)                                
+  GH9-20260819-184158-assignment   fault    PR #52; round 2 errored (exit 2)                        
   [failed] You hit your spend cap.                                                                  
-  GH13-20260819-184158-assignment  waiting  round 2 interrupted                                     
-  GH31-20260819-184158-assignment  waiting  1 new post to answer                                    
-  GH35-20260819-184158-assignment  waiting  round 1 errored (exit 2)                                
-  GH44-20260819-184158-assignment  waiting  no round has run yet                                    
-  GH20-20260819-184158-assignment  idle     round 1 ended, awaiting next update                     
-  GH40-20260819-184158-assignment  unknown  not seen by the latest update                           
+  GH13-20260819-184158-assignment  waiting  PR #52; round 2 interrupted                             
+  GH31-20260819-184158-assignment  waiting  PR #52 ready; 1 new post to answer                      
+  GH35-20260819-184158-assignment  waiting  PR #52 draft, conflicts with main, checks failing; round
+                                            1 errored (exit 2)                                      
+  GH44-20260819-184158-assignment  waiting  PR #52; no round has run yet                            
+  GH20-20260819-184158-assignment  idle     PR #52 draft; round 1 ended, awaiting next update       
+  GH40-20260819-184158-assignment  unknown  PR #52; not seen by the latest update                   
   GH50  dream:smith  available  open                                                                
   GH51  dream:smith  available  open                                                                
   GH52  dream:smith  held       open, blocked by GH50                                               

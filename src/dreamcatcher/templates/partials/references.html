@@ -29,3 +29,10 @@
     {%- endif %}
   {%- endif %}
 {%- endmacro %}
+{#- A card's first row: its issue and title, then what the caller gives, which is GitHub's state of what the card stands for. A work page gives its heading's tag and identifier. -#}
+{% macro card_heading(number, title, heading="div", heading_id=none) -%}
+  <div class="card-heading">
+    <{{ heading }}{% if heading_id %} id="{{ heading_id }}"{% endif %}>{{ github_reference(number, "issues") }} <span class="title">{{ title }}</span></{{ heading }}>
+    {{ caller() }}
+  </div>
+{%- endmacro %}
