@@ -234,17 +234,8 @@
 .dch-state > * {
   display: inline-flex;
   align-items: center;
-  gap: 0.5em;
   justify-self: end;
   padding: 0.15em 0;
-}
-
-.dch-state > ::before {
-  width: 0.5em;
-  height: 0.5em;
-  border-radius: 50%;
-  background: currentcolor;
-  content: "";
 }
 
 .dch-open {
