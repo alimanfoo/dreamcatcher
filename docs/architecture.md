@@ -1,15 +1,14 @@
 # Architecture
 
 This document says where each thing lives in the code and how the parts
-pass things to each other, while [the ontology](ontology.md) says what
-the words mean, [the user stories](stories.md) say what the user does
-and sees, and [the standard](standard.md) says how good the work has to
-be.
+pass things to each other, while [the concepts page](concepts.md) says
+what the words mean, [the user stories](stories.md) say what the user
+does and sees, and [the standard](standard.md) says how good the work
+has to be.
 
 It describes the enduring target architecture for _dreamcatcher_. It
-maps the ontology's concepts to code boundaries and states the
-responsibilities, interfaces, and encapsulation those boundaries should
-provide.
+maps the concepts to code boundaries and states the responsibilities,
+interfaces, and encapsulation those boundaries should provide.
 
 The dated specifications record the design of particular phases. Where
 an older design conflicts with this target, this document is
@@ -641,10 +640,10 @@ same card on the Assignments tab. A request row's identifier holds its
 label percent-encoded, so two distinct labels on one issue never share
 one.
 
-`AgentWorkStatus` is one summary status from the ontology, derived in
-one chain for every kind of agent work. `RequestStatus` gives a request
-with no open work its request status and its reasons, each as words with
-the issues or pull requests it names.
+`AgentWorkStatus` is one summary status from the concepts page, derived
+in one chain for every kind of agent work. `RequestStatus` gives a
+request with no open work its request status and its reasons, each as
+words with the issues or pull requests it names.
 
 Status tells whether the scheduler record read the work after its latest
 round ended from the round that the work's row names as ended, not from

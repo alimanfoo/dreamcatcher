@@ -2,7 +2,7 @@
 
 This roadmap describes how to move the working Dreamcatcher
 implementation to the domain model in
-[the ontology](../../docs/ontology.md) and the boundaries in
+[the ontology](../../docs/concepts.md) and the boundaries in
 [the target architecture](../../docs/architecture.md). Read both
 documents in full before implementing any stage of this roadmap.
 

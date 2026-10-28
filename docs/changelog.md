@@ -27,6 +27,15 @@ the change.
 
 ## Unreleased
 
+### Changed
+
+- The page that names the things _dreamcatcher_ deals with and says what
+  the words mean is now called Concepts, at `docs/concepts.md`, and its
+  opening paragraph says it is a glossary with rules. It was called the
+  ontology. The old address,
+  `https://alimanfoo.github.io/dreamcatcher/ontology/`, no longer
+  resolves.
+
 ## [v9.4.0](https://github.com/alimanfoo/dreamcatcher/releases/tag/v9.4.0) — 2026-10-27
 
 ### Changed

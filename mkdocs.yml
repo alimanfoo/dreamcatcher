@@ -88,7 +88,7 @@ nav:
       - changelog.md
   - Development:
       - stories.md
-      - ontology.md
+      - concepts.md
       - architecture.md
       - testing.md
       - releasing.md
