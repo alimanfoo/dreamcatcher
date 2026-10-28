@@ -1039,9 +1039,7 @@ def test_agent_work_script_follows_only_when_the_feed_was_at_its_end(tmp_path):
         r"- feed\.clientHeight <= 1;",
         script,
     )
-    assert (
-        "if (shouldFollowFeed && nextFeedLineRevealAt <= performance.now())" in script
-    )
+    assert "if (shouldFollowFeed) {" in script
     assert 'agentWorkSidebar.addEventListener("click"' in script
     assert 'currentRoundLink?.setAttribute("aria-current", "true")' in script
     assert "focusedRoundLink?.focus({ preventScroll: true })" in script

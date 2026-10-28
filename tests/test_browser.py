@@ -120,6 +120,24 @@ def test_a_round_boundary_leaves_the_top_when_its_round_does(
     )
 
 
+def test_a_burst_of_feed_lines_shows_at_once_and_the_feed_follows_it(
+    page: Page, live_web: str, tmp_path: Path
+) -> None:
+    page.goto(f"{live_web}/work/{BROWSER_ASSIGNMENT_IDENTIFIER}")
+    page.wait_for_function(FEED_IS_AT_END)
+    lines = page.locator(".feed-line")
+    line_count = lines.count()
+
+    append_feed_lines(root=tmp_path, count=30)
+
+    expect(lines).to_have_count(line_count + 30)
+    assert page.evaluate(
+        """() => [...document.querySelectorAll(".feed-line")]
+          .every((line) => line.getAnimations().length === 0)"""
+    )
+    page.wait_for_function(FEED_IS_AT_END, timeout=2_000)
+
+
 def test_a_feed_scrolled_away_from_its_end_stays_put_until_the_tail_button(
     page: Page, live_web: str, tmp_path: Path
 ) -> None:

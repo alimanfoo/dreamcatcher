@@ -459,8 +459,7 @@ body::after {
   visibility: hidden;
 }
 
-.latest-output.is-typing,
-.feed-line.is-typing {
+.latest-output.is-typing {
   animation: type-output var(--output-typing-duration) steps(32, end);
 }
 
@@ -812,15 +811,9 @@ body::after {
   gap: var(--space-6);
 }
 
-.feed-line.is-typing {
-  animation-delay: var(--feed-line-reveal-delay);
-  animation-fill-mode: backwards;
-}
-
 @media (prefers-reduced-motion: reduce) {
   .fact.in-progress dd,
-  .latest-output.is-typing,
-  .feed-line.is-typing {
+  .latest-output.is-typing {
     animation: none;
   }
 }

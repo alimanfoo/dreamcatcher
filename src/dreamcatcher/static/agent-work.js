@@ -3,53 +3,12 @@
 const feed = document.querySelector(".feed-records");
 const feedTail = document.querySelector(".feed-tail");
 const agentWorkSidebar = document.querySelector(".agent-work-sidebar");
-const outputTypingDuration = Number.parseFloat(
-  getComputedStyle(document.documentElement).getPropertyValue(
-    "--output-typing-duration",
-  ),
-);
 let shouldFollowFeed = false;
-let feedLineCountBeforeSwap = 0;
-let nextFeedLineRevealAt = 0;
 let currentRoundHash = null;
 let focusedRoundHash = null;
 
 function updateFeedTailVisibility() {
   feedTail?.toggleAttribute("hidden", shouldFollowFeed);
-}
-
-function typeNewFeedLines() {
-  const newFeedLines = [...feed.querySelectorAll(".feed-line")].slice(
-    feedLineCountBeforeSwap,
-  );
-  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-    nextFeedLineRevealAt = performance.now();
-    return;
-  }
-  if (newFeedLines.length === 0) {
-    return;
-  }
-  const now = performance.now();
-  const firstRevealAt = Math.max(now, nextFeedLineRevealAt);
-  for (const [index, line] of newFeedLines.entries()) {
-    const delay = firstRevealAt - now + index * outputTypingDuration;
-    line.style.setProperty("--feed-line-reveal-delay", `${delay}ms`);
-    line.classList.add("is-typing");
-    line.addEventListener(
-      "animationstart",
-      () => {
-        if (!shouldFollowFeed) {
-          return;
-        }
-        const feedBottom = feed.getBoundingClientRect().bottom;
-        const lineBottom = line.getBoundingClientRect().bottom;
-        feed.scrollTop += Math.max(0, lineBottom - feedBottom);
-      },
-      { once: true },
-    );
-  }
-  nextFeedLineRevealAt =
-    firstRevealAt + newFeedLines.length * outputTypingDuration;
 }
 
 if (feed !== null) {
@@ -86,12 +45,9 @@ if (feed !== null) {
     if (event.detail.target !== feed) {
       return;
     }
-    if (nextFeedLineRevealAt <= performance.now()) {
-      shouldFollowFeed ||=
-        feed.scrollHeight - feed.scrollTop - feed.clientHeight <= 1;
-      updateFeedTailVisibility();
-    }
-    feedLineCountBeforeSwap = feed.querySelectorAll(".feed-line").length;
+    shouldFollowFeed ||=
+      feed.scrollHeight - feed.scrollTop - feed.clientHeight <= 1;
+    updateFeedTailVisibility();
     const currentRoundLink = agentWorkSidebar?.querySelector(
       '.round-link[aria-current="true"]',
     );
@@ -105,8 +61,7 @@ if (feed !== null) {
     if (event.detail.target !== feed) {
       return;
     }
-    typeNewFeedLines();
-    if (shouldFollowFeed && nextFeedLineRevealAt <= performance.now()) {
+    if (shouldFollowFeed) {
       feed.scrollTop = feed.scrollHeight;
     }
     const currentRoundLink = agentWorkSidebar?.querySelector(
