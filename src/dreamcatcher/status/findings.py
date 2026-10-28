@@ -1,9 +1,8 @@
 """Word what a scheduler tick found, once for every status that shows it."""
 
-from collections.abc import Sequence
-
 from dreamcatcher.github import (
     CheckResult,
+    IssueState,
     PullRequestMergeState,
     PullRequestSignal,
     PullRequestState,
@@ -11,6 +10,9 @@ from dreamcatcher.github import (
 from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.scheduler.models import PullRequestFinding
 from dreamcatcher.words import describe_count
+
+# What the user does to take on a dispatch label that someone else applied.
+REAPPLY_LABEL_ADVICE = "remove and re-add the label yourself"
 
 # What each signal says, wherever a status names what woke or will wake a round.
 _SIGNAL_WORDS = {
@@ -29,9 +31,9 @@ def describe_changed_children(*, count: int) -> str:
     return f"{describe_count(number=count, noun='sub-issue')} changed"
 
 
-def describe_conflicting_labels(*, kind: AgentWorkKind, labels: Sequence[str]) -> str:
-    """Name the labels of one kind that an issue carries together."""
-    return f"multiple {kind} labels: " + ", ".join(labels)
+def describe_conflicting_labels(*, kind: AgentWorkKind) -> str:
+    """Say that an issue carries more than one label of one kind."""
+    return f"multiple {kind} labels"
 
 
 def describe_pause(*, cause: str) -> str:
@@ -40,19 +42,16 @@ def describe_pause(*, cause: str) -> str:
 
 
 def describe_label_applier(*, applier: str) -> str:
-    """Say who applied a dispatch label that the user did not, and how to take it on.
+    """Say who applied a dispatch label that the user did not.
 
     An empty applier is an account that GitHub does not name.
     """
-    return (
-        f"label applied by {applier or 'an unknown account'}: "
-        "remove and re-add it yourself"
-    )
+    return f"labelled by {applier or 'an unknown account'}"
 
 
-def describe_read_failure(*, reason: str) -> str:
-    """Say why the tick could not tell what it needed."""
-    return f"cannot tell: {reason}"
+def describe_issue_state(*, state: IssueState) -> str:
+    """Say whether an issue is open or closed."""
+    return state.lower()
 
 
 def describe_signal(*, signal: PullRequestSignal) -> str:

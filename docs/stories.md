@@ -122,8 +122,8 @@ then assign and label both. Work starts on the first straight away.
 
 If the user wants to reassure themselves that _dreamcatcher_ is handling
 the dependencies correctly, they can open the home page or run
-`dreamcatcher status`. Either will show the second issue as blocked,
-naming the issue it waits for.
+`dreamcatcher status`. Either will show the second issue's request as
+held, with the issue open and blocked by the issue it waits for.
 
 When the first pull request merges, GitHub closes its issue, and at the
 next _dreamcatcher_ update the second issue is no longer blocked. Work
@@ -395,11 +395,13 @@ shows as idle with how its round ended and how many of the parent's
 sub-issues are closed out of the total, and its page shows the feed. The
 user expands the count to see every sub-issue, each with its
 assignment's card as the Assignments tab shows it and the row of each
-request for an assignment on it that has no open work, or the
-sub-issue's number and title alone when it has neither. The cards keep
-updating, and the sub-issues stay expanded until the user folds them.
-Once the campaign ends, it moves to the ended list with its own card
-alone, and the user goes to GitHub for the history.
+request for an assignment on it that has no open work, or, when it has
+neither, the sub-issue's number and title and whether it is open or
+closed. A closed sub-issue's title shows as quietly as ended work's, so
+it never looks like work still to do. The cards keep updating, and the
+sub-issues stay expanded until the user folds them. Once the campaign
+ends, it moves to the ended list with its own card alone, and the user
+goes to GitHub for the history.
 
 Several sub-issues may have open pull requests at once. The user uses a
 merge queue when GitHub offers one for the repository, so each sub-issue
@@ -428,8 +430,9 @@ They mark the second parent as blocked by the first on GitHub, as they
 would for any pair of issues, then assign both parents to themselves and
 put a campaign label on each. The first campaign starts as soon as there
 is agent capacity. The second waits with no lead, and the home page and
-`dreamcatcher status` show its request as blocked, naming the parent it
-waits for, with its repository when that is another one.
+`dreamcatcher status` show its request as held, with the parent open and
+blocked by the parent it waits for, with its repository when that is
+another one.
 
 Closing every sub-issue of the first parent does not close that parent,
 so the second campaign keeps waiting while the user checks the first
@@ -569,30 +572,35 @@ folded under a collapsed list, so the page shows only what is live. The
 terminal gives the same rows, with a count of ended work in place of the
 list.
 
-On the home page, each row keeps what GitHub holds at its top and what
-_dreamcatcher_ holds at its bottom. The top line gives the issue's
-number and title, and for an assignment its pull request and where that
-stands, such as a draft that conflicts with main. A draft's text is
-subdued. A pull request that is ready for review shows in the theme's
-brighter text, so it stands out from a draft, and it keeps that text
-when it conflicts with main or its checks fail. The words "draft" and
-"ready" stay, so the user can tell them apart without the colour. The
-assignment's page shows its pull request the same way. A conversation or
-a campaign has no pull request, so its top line holds the issue alone.
-Beneath that, a piece of work says what it is doing, with the agent's
-latest output while a round runs. The bottom line gives the dispatch
-label, with the harness, model and effort that run the work, and then
-the work's status and the link to its page. A piece of work that has
-ended says nothing beneath its top line, and its bottom line gives the
-state it ended in, in place of its status, so the row says once that it
-has ended and why. An assignment ends completed or cancelled, and a
-conversation or a campaign ends closed. The work's page and
-`dreamcatcher view` show the same word in place of the status, with
-nothing beneath it. Every piece of work that has ended shows its title
-more quietly than live work does, here and within a campaign, so it
-draws less attention, and its links stay as clear as they are on any
-other row. A request's row gives its issue at the top and its dispatch
-label and request status beneath.
+On the home page, every row lays out its lines in the same order,
+whatever its state, so nothing moves as lines come and go. Its first
+line is what GitHub holds: the issue's number and title, and for an
+assignment its pull request and where that stands, such as a draft that
+conflicts with main. An assignment shows nothing there before it opens
+its pull request. A draft's text is subdued. A pull request that is
+ready for review shows in the theme's brighter text, so it stands out
+from a draft, and it keeps that text when it conflicts with main or its
+checks fail. The words "draft" and "ready" stay, so the user can tell
+them apart without the colour. The assignment's page shows its pull
+request the same way. A conversation or a campaign has no pull request,
+so its first line holds the issue alone. The second line is what
+_dreamcatcher_ holds: the dispatch label, with the harness, model and
+effort that run the work, and then the work's status and the link to its
+page. Beneath that, a piece of work says what it is doing or what it
+waits for, and while a round runs or after a fault, the agent's latest
+output comes last. A piece of work that has ended says nothing beneath
+its second line, which gives the state it ended in, in place of its
+status, so the row says once that it has ended and why. An assignment
+ends completed or cancelled, and a conversation or a campaign ends
+closed. The work's page and `dreamcatcher view` show the same word in
+place of the status, with nothing beneath it. Every piece of work that
+has ended shows its title more quietly than live work does, here and
+within a campaign, so it draws less attention, and its links stay as
+clear as they are on any other row. A request's row gives its issue at
+the top, with the issue's state and what GitHub says that holds the
+request back, such as an issue that blocks it. Beneath that come its
+dispatch label and request status, and then, when there is any, what
+_dreamcatcher_ found or what the user has to do.
 
 The home page always has a tab for each of the three kinds of work, and
 the terminal a section for each, even when a kind has nothing in it. A
@@ -768,8 +776,9 @@ checkout.
 The user puts two assignment labels on an issue, or two conversation
 labels, or two campaign labels, perhaps to try both recipes. That is a
 routing conflict. Until work exists to answer a label, its row stands
-for that label, so the two labels show as two request rows. Each says
-there is a conflict and names both labels, and nothing of that kind
+for that label, so the two labels show as two request rows. Each is
+held, says that the issue has more than one label of the kind, and tells
+the user to remove all but one, naming both labels. Nothing of that kind
 starts while both are there. The user needs to take one of the two
 labels off the issue, and the one that stays decides the recipe.
 
@@ -807,12 +816,12 @@ Nothing starts on the user's machine, so no agent runs under the user's
 account or on their usage allowance before the user has seen the issue.
 The colleague sees the label on the issue and nothing else. The user
 sees the issue's request row on the home page and in
-`dreamcatcher status`, held, naming who applied the label and saying
-that the user can remove and re-add it themselves. The same goes for a
-bot, and for an account that has since been deleted, which the row
-cannot name. A colleague who puts back the label of a paused
-conversation or campaign leaves it paused, and its row says so in the
-same words.
+`dreamcatcher status`, held, saying that the issue is labelled by that
+colleague and telling the user to remove and re-add the label
+themselves. The same goes for a bot, and for an account that has since
+been deleted, which the row cannot name. A colleague who puts back the
+label of a paused conversation or campaign leaves it paused, and its row
+says so in the same words.
 
 If the user wants the work, they need to take the label off and put it
 back on themselves, and it starts at the next update. They then need to
@@ -823,12 +832,12 @@ off.
 ### A label on an issue someone else is already working on
 
 The user labels an issue that already has an open pull request linked to
-it, one whose description says it closes the issue. The request row says
-the issue is claimed by that pull request, and nothing starts while it
-is open. If the user wants the agent to take over, they need to close
-the other pull request, and work starts at the next update. If they
-would rather let it finish, they need do nothing: once it merges, GitHub
-closes the issue, and the label is moot.
+it, one whose description says it closes the issue. The request row is
+held and says that the issue is linked to that pull request, and nothing
+starts while it is open. If the user wants the agent to take over, they
+need to close the other pull request, and work starts at the next
+update. If they would rather let it finish, they need do nothing: once
+it merges, GitHub closes the issue, and the label is moot.
 
 ### Closing a pull request and leaving the assignment label on the issue
 
@@ -968,8 +977,9 @@ or succeed as GitHub allows.
 
 GitHub also records who applied a label a few seconds after the label
 appears on the issue. An update that reads in between cannot tell who
-applied it, so it starts nothing for that label, and the row says that
-it cannot tell. The next update reads it again.
+applied it, so it starts nothing for that label, and the row shows as
+unknown, saying that GitHub has not yet recorded who applied the label.
+The next update reads it again.
 
 ### The harness refuses or breaks
 

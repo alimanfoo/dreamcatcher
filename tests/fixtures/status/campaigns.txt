@@ -9,7 +9,7 @@ instance
 assignments
   GH64-20260819-184158-assignment  working  round 2, start, running 1h 20m, last output 1h 19m ago
   [Bash] pytest -q                                                                                
-  GH65  dream:smith  available                                                                    
+  GH65  dream:smith  available  open                                                              
   1 ended assignment                                                                              
 
 conversations
@@ -17,7 +17,7 @@ conversations
   Configure labels and harnesses: https://alimanfoo.github.io/dreamcatcher/configure/              
 
 campaigns
-  GH60-20260819-184158-campaign  idle  round 1, successful, ran 4m
-  GH62  dream:lead  available                                     
-  GH67  dream:lead  blocked by GH62, alimanfoo/dream#1016         
-  1 ended campaign                                                
+  GH60-20260819-184158-campaign  idle  round 1, successful, ran 4m        
+  GH62  dream:lead  available  open                                       
+  GH67  dream:lead  held       open, blocked by GH62, alimanfoo/dream#1016
+  1 ended campaign                                                        

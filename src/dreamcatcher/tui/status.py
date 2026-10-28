@@ -13,7 +13,7 @@ from dreamcatcher.state import StateDirectory
 from dreamcatcher.status import (
     AgentWorkStatus,
     DreamcatcherStatusReport,
-    RequestReason,
+    IssueFact,
     RequestStatus,
     read_status_report,
 )
@@ -111,37 +111,44 @@ def _render_agent_work(
 
 
 def _render_request_rows(*, requests: Sequence[RequestStatus]) -> list[RenderableType]:
-    """Render the requests with no open work as one table, reasons inline per row."""
+    """Render the requests with no open work as one table.
+
+    Each row gives its status, then where its issue stands on GitHub and any
+    detail, as a piece of work's row gives its status and then its detail.
+    """
     if not requests:
         return []
-    table = create_table(columns=3)
+    table = create_table(columns=4)
     for request in requests:
+        issue = ", ".join(
+            [
+                request.issue_state,
+                *(_render_issue_fact(fact=fact) for fact in request.issue_facts),
+            ]
+        )
         table.add_row(
             Text(f"GH{request.row.issue}"),
             Text(request.row.dispatch_label),
-            Text(
-                "; ".join(
-                    _render_request_reason(reason=reason) for reason in request.reasons
-                )
-            ),
+            Text(str(request.value)),
+            Text(issue if request.detail is None else f"{issue}; {request.detail}"),
         )
     return [table]
 
 
-def _render_request_reason(*, reason: RequestReason) -> str:
-    """Return one reason's words followed by the issues and pull requests it names."""
+def _render_issue_fact(*, fact: IssueFact) -> str:
+    """Return one fact's words followed by the issues and pull requests it names."""
     references = [
         *(
             f"{issue.repository}#{issue.number}"
             if issue.repository
             else f"GH{issue.number}"
-            for issue in reason.issues
+            for issue in fact.issues
         ),
-        *(f"#{number}" for number in reason.pull_requests),
+        *(f"PR #{number}" for number in fact.pull_requests),
     ]
     if not references:
-        return reason.words
-    return f"{reason.words} {', '.join(references)}"
+        return fact.words
+    return f"{fact.words} {', '.join(references)}"
 
 
 def _render_work_rows(*, statuses: Sequence[AgentWorkStatus]) -> list[RenderableType]:

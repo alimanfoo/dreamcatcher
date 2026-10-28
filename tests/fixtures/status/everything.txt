@@ -16,12 +16,14 @@ assignments
   GH44-20260819-184158-assignment  waiting  no round has run yet                                    
   GH20-20260819-184158-assignment  idle     round 1 ended, awaiting next update                     
   GH40-20260819-184158-assignment  unknown  not seen by the latest update                           
-  GH50  dream:smith  available                                                                      
-  GH51  dream:smith  available                                                                      
-  GH52  dream:smith  blocked by GH50                                                                
-  GH53  dream:less   multiple assignment labels: dream:less, dream:smith                            
-  GH53  dream:smith  multiple assignment labels: dream:less, dream:smith                            
-  GH55  dream:smith  claimed by #61; blocked by GH50, alimanfoo/dream#1016                          
+  GH50  dream:smith  available  open                                                                
+  GH51  dream:smith  available  open                                                                
+  GH52  dream:smith  held       open, blocked by GH50                                               
+  GH53  dream:less   held       open, multiple assignment labels; remove all but one: dream:less,   
+                                dream:smith                                                         
+  GH53  dream:smith  held       open, multiple assignment labels; remove all but one: dream:less,   
+                                dream:smith                                                         
+  GH55  dream:smith  held       open, blocked by GH50, alimanfoo/dream#1016, linked to PR #61       
   2 ended assignments                                                                               
 
 conversations

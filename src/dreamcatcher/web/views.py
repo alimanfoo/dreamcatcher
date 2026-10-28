@@ -128,6 +128,8 @@ def _compose_child_overview(
             WebCampaignChild(
                 issue=child_status.child.issue,
                 title=child_status.child.title,
+                issue_state=child_status.issue_state,
+                is_closed=child_status.child.is_closed,
                 assignment=(
                     None
                     if child_status.assignment is None

@@ -339,9 +339,12 @@ def test_a_campaign_with_no_children_to_show_says_why_and_shows_no_cards(
     assert "<article" not in children_block
 
 
-@pytest.mark.parametrize("issue_state", [IssueState.OPEN, IssueState.CLOSED])
-def test_a_campaign_sub_issue_with_no_assignment_or_request_shows_its_title_alone(
-    issue_state, tmp_path
+@pytest.mark.parametrize(
+    ("issue_state", "words", "is_closed"),
+    [(IssueState.OPEN, "open", False), (IssueState.CLOSED, "closed", True)],
+)
+def test_a_campaign_sub_issue_with_no_assignment_or_request_shows_its_state_alone(
+    issue_state, words, is_closed, tmp_path
 ):
     state = StateDirectory(root=tmp_path)
     write_running_daemon(state=state)
@@ -363,7 +366,8 @@ def test_a_campaign_sub_issue_with_no_assignment_or_request_shows_its_title_alon
     prefix = "GH60-20260819-184158-campaign-"
     sub_issue = extract_article(page=page, identifier=f"{prefix}sub-issue-66")
 
-    assert re.sub(r"<[^>]+>", " ", sub_issue).split() == ["#66", "Issue", "66"]
+    assert re.sub(r"<[^>]+>", " ", sub_issue).split() == ["#66", "Issue", "66", words]
+    assert ('class="campaign-child is-closed"' in sub_issue) is is_closed
     assert f'id="{prefix}GH64-20260819-184158-assignment"' in page
     assert f'id="{prefix}request-65-' in page
 
@@ -444,7 +448,7 @@ def test_assignment_page_shows_the_common_agent_work_facts(tmp_path):
     assert "<dt>session</dt>" not in page
 
 
-def test_an_assignment_with_no_pull_request_yet_says_so_on_its_card_and_page(
+def test_an_assignment_with_no_pull_request_yet_shows_none_on_its_card_or_page(
     tmp_path,
 ):
     state = StateDirectory(root=tmp_path)
@@ -456,8 +460,8 @@ def test_an_assignment_with_no_pull_request_yet_says_so_on_its_card_and_page(
     home = render_home(state=state)
     page = render_assignment(state=state, identifier=identifier)
 
-    assert '<span class="pr-chip">no pull request yet</span>' in home
-    assert '<span class="pr-chip">no pull request yet</span>' in page
+    assert 'class="pr-chip"' not in home
+    assert 'class="pr-chip"' not in page
     assert "/pull/" not in page
 
 
@@ -887,8 +891,11 @@ def test_a_home_card_links_to_its_exact_assignment(tmp_path):
     assert assignment_link in page
     assert page.count('href="/work/GH13-20260819-184158-assignment"') == 1
     card = extract_article(page=page, identifier="GH13-20260819-184158-assignment")
-    assert card.index('class="pr-chip"') < card.index('class="agent-work-detail"')
-    assert card.index(assignment_link) > card.index('class="agent-work-detail"')
+    assert (
+        card.index('class="pr-chip"')
+        < card.index(assignment_link)
+        < card.index('class="card-detail"')
+    )
 
 
 def test_status_classes_do_not_depend_on_status_wording(tmp_path, monkeypatch):
@@ -1127,7 +1134,7 @@ def test_an_ended_work_card_shows_how_it_ended_once_as_its_status(
     card = extract_article(page=ended, identifier=identifier)
 
     assert f'<span class="chip status-ended">{words}</span>' in card
-    assert 'class="agent-work-detail"' not in card
+    assert 'class="card-detail"' not in card
 
 
 @pytest.mark.parametrize(("fabricate", "identifier", "words"), ENDED_WORK)
@@ -1176,7 +1183,7 @@ def test_a_cancelled_assignment_card_shows_working_while_its_round_stops(tmp_pat
 
     assert 'class="agent-work-card"' in card
     assert '<span class="chip status-working">working</span>' in card
-    assert '<p class="agent-work-detail">round 2, 1 post, running' in card
+    assert '<p class="card-detail">round 2, 1 post, running' in card
     assert page.index(card) < page.index('<details class="ended-work">')
 
 
@@ -1191,7 +1198,7 @@ def test_an_ended_assignment_card_within_a_campaign_shows_why_it_ended(tmp_path)
     )
 
     assert '<span class="chip status-ended">completed</span>' in card
-    assert 'class="agent-work-detail"' not in card
+    assert 'class="card-detail"' not in card
 
 
 def test_assignment_page_shares_the_home_page_top_bar(tmp_path):
@@ -1852,24 +1859,21 @@ def test_issue_and_pull_request_numbers_link_to_github_with_hash_notation(tmp_pa
     pull_request_url = f"https://github.com/{REPOSITORY}/pull/61"
     github_attributes = 'target="_blank" rel="noopener noreferrer"'
     assert f'href="{issue_url}" {github_attributes}>#50</a>' in page
-    assert (
-        '<span class="chip status-blocked"><span>blocked by '
-        f'<a class="issue-number" href="{issue_url}" '
-        f"{github_attributes}>#50</a></span></span>" in page
+    issue_link = (
+        f'<a class="issue-number" href="{issue_url}" {github_attributes}>#50</a>'
     )
+    assert f'<span class="issue-state">open, blocked by {issue_link}</span>' in page
     assert (
-        '<span class="chip status-blocked"><span>claimed by '
-        f'<a class="issue-number" href="{pull_request_url}" '
-        f"{github_attributes}>#61</a>; blocked by" in page
-    )
-    assert (
-        f'{github_attributes}>#50</a>, <a class="issue-number" '
+        f'<span class="issue-state">open, blocked by {issue_link}, '
+        '<a class="issue-number" '
         'href="https://github.com/alimanfoo/dream/issues/1016" '
-        f"{github_attributes}>alimanfoo/dream#1016</a></span></span>" in page
+        f"{github_attributes}>alimanfoo/dream#1016</a>, linked to PR "
+        f'<a class="issue-number" href="{pull_request_url}" '
+        f"{github_attributes}>#61</a></span>" in page
     )
+    assert '<span class="issue-state">open, multiple assignment labels</span>' in page
     assert (
-        '<span class="chip status-routing-conflict"><span>multiple assignment '
-        "labels: dream:less, dream:smith</span></span>" in page
+        '<p class="card-detail">remove all but one: dream:less, dream:smith</p>' in page
     )
 
 

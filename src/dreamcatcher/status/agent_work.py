@@ -43,6 +43,7 @@ from dreamcatcher.scheduler.models import (
 )
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.status.findings import (
+    REAPPLY_LABEL_ADVICE,
     describe_changed_children,
     describe_comments_to_answer,
     describe_conflicting_labels,
@@ -50,7 +51,6 @@ from dreamcatcher.status.findings import (
     describe_label_applier,
     describe_pause,
     describe_pull_request,
-    describe_read_failure,
     describe_signal,
 )
 from dreamcatcher.status.rounds import (
@@ -386,9 +386,7 @@ class AgentWorkStatusReader:
     ) -> AgentWorkStatus | None:
         if row is None or not isinstance(row.finding, ReadFailureFinding):
             return None
-        return _compose_unknown(
-            work=work, row=row, detail=describe_read_failure(reason=row.finding.reason)
-        )
+        return _compose_unknown(work=work, row=row, detail=row.finding.reason)
 
     def _derive_paused(
         self, *, work: AgentWork, row: RequestRow | None
@@ -403,11 +401,11 @@ class AgentWorkStatusReader:
         if isinstance(finding, PausedFinding):
             cause = str(finding.cause)
         elif isinstance(finding, LabelAppliedByOtherFinding):
-            cause = describe_label_applier(applier=finding.applier)
+            applier = describe_label_applier(applier=finding.applier)
+            cause = f"{applier}: {REAPPLY_LABEL_ADVICE}"
         elif isinstance(finding, ConflictingLabelsFinding):
-            cause = describe_conflicting_labels(
-                kind=work.record.kind, labels=finding.labels
-            )
+            conflict = describe_conflicting_labels(kind=work.record.kind)
+            cause = f"{conflict}: {', '.join(finding.labels)}"
         else:
             return None
         return AgentWorkStatus(

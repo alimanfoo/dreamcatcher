@@ -40,6 +40,27 @@ the change.
   `dreamcatcher status` now says "requests with no open work", where it
   said "labels waiting for work".
   ([#838](https://github.com/alimanfoo/dreamcatcher/pull/838))
+- A row whose status is unknown gives the read that failed, without the
+  words "cannot tell:" before it, because its status already says
+  unknown. ([#843](https://github.com/alimanfoo/dreamcatcher/pull/843))
+- A request that the scheduler holds back has one status, held, where it
+  was blocked, held or routing conflict. Its row says what GitHub says
+  of its issue, such as "open, blocked by #810", and beneath its status
+  what the user has to do, when they have to act.
+  ([#843](https://github.com/alimanfoo/dreamcatcher/pull/843))
+- Every card and request row on the home page gives the issue first,
+  then the label and status, then the detail, then the agent's latest
+  output. An assignment with no pull request yet shows nothing where it
+  said "no pull request yet".
+  ([#843](https://github.com/alimanfoo/dreamcatcher/pull/843))
+- In the Nature theme, a status and the `agent` label of the latest
+  output no longer have a dot before them.
+  ([#843](https://github.com/alimanfoo/dreamcatcher/pull/843))
+- A campaign's sub-issue that has no assignment and no request says
+  whether it is open or closed, and a closed one's title shows as
+  quietly as ended work's. Before, a closed sub-issue looked like work
+  still to do.
+  ([#843](https://github.com/alimanfoo/dreamcatcher/pull/843))
 
 ### Fixed
 

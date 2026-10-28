@@ -155,8 +155,8 @@ Apply a dispatch label yourself, once the issue is assigned to you. Work
 starts, and paused work resumes, only on a label that the authenticated
 account applied. A label that a colleague puts on an issue assigned to
 you starts nothing, and the status report shows its request as held,
-naming who applied it. Remove the label and add it again yourself to
-start the work.
+naming who labelled the issue. Remove the label and add it again
+yourself to start the work.
 
 ## Apply and check the configuration
 

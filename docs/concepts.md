@@ -610,21 +610,20 @@ first round. A campaign request asks which open issue dependencies block
 the parent, and only when none does reads the parent's comments to give
 them to its first round. A request whose issue carries more than one
 label of its kind has a routing conflict, and nothing of that kind
-starts while it lasts. Any other request is **held** while an account
-other than the signed-in one applied its label, and nothing else is
-asked of it then.
+starts while it lasts. While an account other than the signed-in one
+applied a request's label, nothing else is asked of the request.
 
 A request with no open work has one of these request statuses:
 
 - **Available**: work starts once an agent slot is free.
-- **Blocked**: an open pull request claims an assignment request's
-  issue, or an open issue blocks the issue of an assignment or campaign
-  request.
-- **Held**: someone other than the user applied the request's label, and
-  the user must remove and re-add it themselves.
+- **Held**: the scheduler holds the request back for what GitHub says of
+  its issue. An open issue blocks the issue of an assignment or campaign
+  request, an open pull request linked to an assignment request's issue
+  claims it, someone other than the user applied the request's label, or
+  the issue has a routing conflict. Work starts by itself once a blocker
+  closes or a claiming pull request goes. A label that someone else
+  applied, and a routing conflict, need the user to act.
 - **Idle**: a conversation request waits for the user's first comment.
-- **Routing conflict**: the issue carries more than one label of the
-  request's kind.
 - **Unknown**: a read that decides whether work may start failed, or
   GitHub could not yet tell. A failure to read external state can delay
   work, but must never cause _dreamcatcher_ to create duplicate or
@@ -634,7 +633,8 @@ There is no durable issue queue. Requests keep the order in which the
 scheduler listed their issues, oldest first, which is the order in which
 it starts new work.
 
-Replaces: "queued" and "waiting", for an available request.
+Replaces: "queued" and "waiting", for an available request; and
+"blocked", for a request status.
 
 ### Scheduling work
 

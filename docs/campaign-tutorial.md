@@ -105,7 +105,7 @@ the campaign shows as **idle**. Under the card:
 
 - issue 124 gets an assignment, which opens a draft pull request and
   starts work; and
-- issue 125 shows as **blocked by #124**.
+- issue 125 shows as **held**, open and **blocked by #124**.
 
 The lead does not post on the parent to say what it set up. Follow it in
 its feed instead, on the campaign's page or in a second terminal:

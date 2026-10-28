@@ -696,10 +696,8 @@ def test_home_lists_a_conversation_request_before_its_conversation_is_saved(
 
     assert 'id="request-9-dream%3Aconversation"' in page
     assert "Open conversation #9" not in page
-    assert (
-        '<span class="chip status-available"><span>1 comment to answer</span></span>'
-        in page
-    )
+    assert '<span class="chip status-available">available</span>' in page
+    assert '<p class="card-detail">1 comment to answer</p>' in page
 
 
 def test_home_lists_conversations_in_attention_order_before_requests(tmp_path):
@@ -756,10 +754,8 @@ def test_home_lists_conversations_in_attention_order_before_requests(tmp_path):
         < page.index('id="request-12-dream%3Aconversation"')
     )
     assert "status-working" in page
-    assert (
-        '<span class="chip status-unknown"><span>cannot tell: gh: offline</span></span>'
-        in page
-    )
+    assert '<span class="chip status-unknown">unknown</span>' in page
+    assert '<p class="card-detail">gh: offline</p>' in page
     assert '<p class="latest-output"><span>agent</span> Still working.</p>' in page
 
 
@@ -781,7 +777,7 @@ def test_home_collapses_a_closed_conversation_and_shows_it_closed_once(tmp_path)
     assert 'id="GH8-20260819-184158-conversation"' in ended
     card = ended[: ended.index("</article>")]
     assert '<span class="chip status-ended">closed</span>' in card
-    assert 'class="agent-work-detail"' not in card
+    assert 'class="card-detail"' not in card
 
 
 def test_a_closed_conversation_page_shows_closed_once_as_its_status(tmp_path):

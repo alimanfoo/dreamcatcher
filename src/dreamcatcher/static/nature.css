@@ -64,8 +64,6 @@
   --action-surface: rgba(86, 112, 75, 0.1);
   --action-hover-surface: rgba(86, 112, 75, 0.18);
   --working: #5f7052;
-  --feedback-ink: var(--bright);
-  --feedback-surface: rgba(201, 162, 74, 0.9);
   --fault-surface: rgba(166, 90, 60, 0.85);
   --control-hover-strong-surface: rgba(59, 52, 46, 0.12);
   --round-current-surface: rgba(59, 52, 46, 0.78);
@@ -328,7 +326,6 @@ body::after {
 .chip {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
   padding: 3px 0;
   color: var(--dim);
   background: transparent;
@@ -339,8 +336,6 @@ body::after {
   text-transform: none;
 }
 
-.chip::before,
-.latest-output > span::before,
 .round-outcome::before {
   display: inline-block;
   flex: none;
@@ -351,7 +346,9 @@ body::after {
   content: "";
 }
 
+.chip::before,
 .chip::after,
+.latest-output > span::before,
 .latest-output > span::after,
 .feed-label::before,
 .feed-label::after,
@@ -365,21 +362,11 @@ body::after {
   text-shadow: none;
 }
 
-/* Only the states that need the user take a fill. */
+/* Only a fault takes a fill. A request that needs the user says so in its
+   detail. */
 
-.status-routing-conflict,
-.status-held,
 .status-fault {
   padding-inline: 12px;
-}
-
-.status-routing-conflict,
-.status-held {
-  color: var(--feedback-ink);
-  background: var(--feedback-surface);
-}
-
-.status-fault {
   color: var(--status-on-color);
   background: var(--fault-surface);
 }
@@ -388,12 +375,13 @@ body::after {
 .status-ended,
 .status-idle,
 .status-unknown,
-.status-blocked {
+.status-held {
   color: var(--dim);
 }
 
 .agent-work-detail,
-.card-foot {
+.card-detail,
+.card-route {
   color: var(--dim);
 }
 
@@ -407,10 +395,6 @@ body::after {
   color: var(--working);
   font-weight: 500;
   text-transform: lowercase;
-}
-
-.latest-output > span::before {
-  margin-right: 7px;
 }
 
 .card-actions,
@@ -435,7 +419,8 @@ body::after {
   background: var(--action-hover-surface);
 }
 
-.pr-chip {
+.pr-chip,
+.issue-state {
   padding: 0;
   color: var(--dim);
   border: 0;
@@ -723,8 +708,6 @@ body::after {
     --action-surface: rgba(179, 203, 166, 0.1);
     --action-hover-surface: rgba(179, 203, 166, 0.18);
     --working: #b3cba6;
-    --feedback-ink: var(--status-on-color);
-    --feedback-surface: rgba(233, 192, 110, 0.92);
     --fault-surface: rgba(231, 151, 127, 0.9);
     --control-hover-strong-surface: rgba(236, 230, 220, 0.12);
     --round-current-surface: rgba(233, 177, 131, 0.9);

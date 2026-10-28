@@ -57,7 +57,6 @@ from dreamcatcher.state import StateDirectory
 from dreamcatcher.status import (
     AgentWorkStatus,
     AgentWorkStatusValue,
-    RequestReason,
     read_agent_work_status,
     read_dreamcatcher_daemon_status,
     read_status_report,
@@ -197,7 +196,8 @@ def test_a_labelled_parent_with_no_campaign_yet_is_available(tmp_path):
     ).list_request_statuses(kind=AgentWorkKind.CAMPAIGN)
 
     assert request.value is RequestStatusValue.AVAILABLE
-    assert request.reasons == (RequestReason(words="available"),)
+    assert request.issue_facts == ()
+    assert request.detail is None
 
 
 def test_a_campaign_whose_lead_has_not_run_is_waiting(state):

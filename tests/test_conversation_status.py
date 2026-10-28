@@ -62,7 +62,6 @@ from dreamcatcher.state import StateDirectory
 from dreamcatcher.status import (
     AgentWorkStatusSection,
     AgentWorkStatusValue,
-    RequestReason,
     read_agent_work_status,
     read_dreamcatcher_daemon_status,
     read_status_report,
@@ -255,9 +254,7 @@ def test_a_conversation_whose_comments_cannot_be_read_is_unknown(
     found = read_conversation_status(state=conversation_state)
 
     assert found.value is AgentWorkStatusValue.UNKNOWN
-    assert found.detail == (
-        "cannot tell: could not read comments for GH8: network unavailable"
-    )
+    assert found.detail == "could not read comments for GH8: network unavailable"
 
 
 def test_a_conversation_no_tick_has_observed_is_unknown(conversation_state):
@@ -319,7 +316,7 @@ def test_an_unrecorded_round_input_shows_what_the_scheduler_reported(
     found = read_conversation_status(state=conversation_state)
 
     assert found.value is AgentWorkStatusValue.UNKNOWN
-    assert found.detail == f"cannot tell: {failure}"
+    assert found.detail == failure
 
 
 def test_a_live_round_shows_a_paused_conversation_as_working(
@@ -699,7 +696,7 @@ def test_a_conversation_whose_label_someone_else_put_back_is_paused_naming_them(
 
     assert found.value is AgentWorkStatusValue.IDLE
     assert found.detail == (
-        f"paused, label applied by {words}: remove and re-add it yourself"
+        f"paused, labelled by {words}: remove and re-add the label yourself"
     )
 
 
@@ -818,7 +815,7 @@ def test_an_issue_with_a_comment_waiting_is_a_request_until_its_conversation_sta
     )
 
     assert request.value is RequestStatusValue.AVAILABLE
-    assert request.reasons == (RequestReason(words="1 comment to answer"),)
+    assert request.detail == "1 comment to answer"
     assert read_conversation(state=state, issue=9) is None
 
 
@@ -835,7 +832,7 @@ def test_an_issue_nobody_has_commented_on_waits_for_a_comment(tmp_path):
     )
 
     assert request.value is RequestStatusValue.IDLE
-    assert request.reasons == (RequestReason(words="waiting for a comment"),)
+    assert request.detail == "waiting for a comment"
 
 
 def test_an_unobserved_issue_with_no_record_has_no_conversation(conversation_state):

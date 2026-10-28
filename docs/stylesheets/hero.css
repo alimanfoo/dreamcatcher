@@ -194,16 +194,16 @@
   margin-top: 1.8em;
 }
 
-/* One issue, laid out as the web page lays out a row: its title, state and
-   open button, then its round, then its settings and pull request. */
+/* One issue, laid out as the web page lays out a row: its title and pull
+   request, then its settings, state and open button, then its round. */
 
 .md-typeset .dch-ui__lists li.dch-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto auto;
   grid-template-areas:
-    "heading state open"
-    "detail detail detail"
-    "meta pr pr";
+    "heading pr pr"
+    "meta state open"
+    "detail detail detail";
   align-items: center;
   gap: 0.25em 0.7em;
   padding: 0.9em 0;
@@ -234,17 +234,8 @@
 .dch-state > * {
   display: inline-flex;
   align-items: center;
-  gap: 0.5em;
   justify-self: end;
   padding: 0.15em 0;
-}
-
-.dch-state > ::before {
-  width: 0.5em;
-  height: 0.5em;
-  border-radius: 50%;
-  background: currentcolor;
-  content: "";
 }
 
 .dch-open {
@@ -323,10 +314,10 @@
   .md-typeset .dch-ui__lists li.dch-row {
     grid-template-columns: minmax(0, 1fr) auto;
     grid-template-areas:
-      "heading open"
-      "state state"
-      "detail detail"
-      "meta pr";
+      "heading pr"
+      "meta meta"
+      "state open"
+      "detail detail";
   }
 
   .dch-state,

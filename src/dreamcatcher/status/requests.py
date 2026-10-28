@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 from typing import cast
 
-from dreamcatcher.harness_adapters import AgentWorkKind
+from dreamcatcher.github import IssueState
 from dreamcatcher.scheduler.models import (
     BlockingIssuesFinding,
     CampaignFinding,
@@ -18,10 +18,11 @@ from dreamcatcher.scheduler.models import (
     StartTimeFinding,
 )
 from dreamcatcher.status.findings import (
+    REAPPLY_LABEL_ADVICE,
     describe_comments_to_answer,
     describe_conflicting_labels,
+    describe_issue_state,
     describe_label_applier,
-    describe_read_failure,
 )
 
 # What the tick finds for a request with no open work: what decides whether work
@@ -40,28 +41,26 @@ type _StartFinding = (
 class RequestStatusValue(StrEnum):
     """List the summary statuses of a request that has no open agent work.
 
-    Available means that work starts once an agent slot is free. Blocked means
-    that an open pull request claims an assignment's issue, or that an open
-    issue blocks an assignment's issue or a campaign's parent. Held means that
-    someone other than the user applied the label, so the user must remove and
-    re-add it. Idle means that a conversation waits for the user's first
-    comment. Routing conflict means that the user must remove all but one label
-    of the kind.
+    Available means that work starts once an agent slot is free. Held means
+    that the scheduler holds the request back for what GitHub says of its
+    issue: an open issue blocks it, a linked open pull request claims it,
+    someone other than the user applied its label, or it carries a second
+    label of its kind. Idle means that a conversation waits for the user's first
+    comment. Unknown means that a read that decides whether work may start
+    failed.
     """
 
     AVAILABLE = "available"
-    BLOCKED = "blocked"
     HELD = "held"
     IDLE = "idle"
-    ROUTING_CONFLICT = "routing conflict"
     UNKNOWN = "unknown"
 
 
 @dataclass(frozen=True, kw_only=True)
-class RequestReason:
-    """Say one thing about why no work has started for a request.
+class IssueFact:
+    """Say one thing that GitHub holds about a request's issue.
 
-    A reason names the pull requests it refers to as numbers, and the issues
+    A fact names the pull requests it refers to as numbers, and the issues
     by references that name another repository where one holds the issue.
     """
 
@@ -74,95 +73,97 @@ class RequestReason:
 class RequestStatus:
     """Describe a request that has no open agent work, from the tick's row.
 
-    Every request status has at least one reason, which a view shows as its
-    words.
+    The issue's facts are what GitHub says that qualifies the issue's state,
+    and the detail is what _dreamcatcher_ found or what the user has to do.
     """
 
     row: RequestRow
     value: RequestStatusValue
-    reasons: Sequence[RequestReason]
+    issue_facts: Sequence[IssueFact]
+    detail: str | None
+
+    @property
+    def issue_state(self) -> str:
+        """The state of the request's issue in words.
+
+        The tick finds requests only on the open issues that it lists.
+        """
+        return describe_issue_state(state=IssueState.OPEN)
 
 
 def describe_request(*, row: RequestRow) -> RequestStatus:
     """Return the status of a request that the tick found no open work for."""
-    value, reasons = _describe_finding(
-        finding=cast("_StartFinding", row.finding), kind=row.kind
-    )
-    return RequestStatus(row=row, value=value, reasons=reasons)
-
-
-def _describe_finding(
-    *, finding: _StartFinding, kind: AgentWorkKind
-) -> tuple[RequestStatusValue, tuple[RequestReason, ...]]:
-    """Return the status and reasons that what the tick found gives a request."""
-    if isinstance(finding, StartTimeFinding):
-        return _describe_start_time_answers(finding=finding)
-    if isinstance(finding, BlockingIssuesFinding):
-        return RequestStatusValue.BLOCKED, (
-            _describe_blockers(issues=finding.blocking_issues),
+    finding = cast("_StartFinding", row.finding)
+    if isinstance(finding, ReadFailureFinding):
+        return RequestStatus(
+            row=row,
+            value=RequestStatusValue.UNKNOWN,
+            issue_facts=(),
+            detail=finding.reason,
         )
-    if isinstance(finding, CampaignFinding):
-        return _describe_available()
     if isinstance(finding, IssueCommentsFinding):
-        return _describe_comments(finding=finding)
-    value, words = _describe_single_reason(finding=finding, kind=kind)
-    return value, (RequestReason(words=words),)
-
-
-def _describe_single_reason(
-    *,
-    finding: ConflictingLabelsFinding | LabelAppliedByOtherFinding | ReadFailureFinding,
-    kind: AgentWorkKind,
-) -> tuple[RequestStatusValue, str]:
-    """Return the status of a request whose finding gives one reason, and its words."""
+        return _describe_comments(row=row, finding=finding)
     if isinstance(finding, LabelAppliedByOtherFinding):
-        return RequestStatusValue.HELD, describe_label_applier(applier=finding.applier)
-    if isinstance(finding, ConflictingLabelsFinding):
-        return RequestStatusValue.ROUTING_CONFLICT, describe_conflicting_labels(
-            kind=kind, labels=finding.labels
+        return RequestStatus(
+            row=row,
+            value=RequestStatusValue.HELD,
+            issue_facts=(
+                IssueFact(words=describe_label_applier(applier=finding.applier)),
+            ),
+            detail=REAPPLY_LABEL_ADVICE,
         )
-    return RequestStatusValue.UNKNOWN, describe_read_failure(reason=finding.reason)
+    if isinstance(finding, ConflictingLabelsFinding):
+        return RequestStatus(
+            row=row,
+            value=RequestStatusValue.HELD,
+            issue_facts=(IssueFact(words=describe_conflicting_labels(kind=row.kind)),),
+            detail="remove all but one: " + ", ".join(finding.labels),
+        )
+    facts = _list_holding_facts(finding=finding)
+    return RequestStatus(
+        row=row,
+        value=RequestStatusValue.HELD if facts else RequestStatusValue.AVAILABLE,
+        issue_facts=facts,
+        detail=None,
+    )
 
 
-def _describe_start_time_answers(
-    *, finding: StartTimeFinding
-) -> tuple[RequestStatusValue, tuple[RequestReason, ...]]:
-    """Return what claims or blocks an issue, or that nothing does."""
-    if finding.is_clear:
-        return _describe_available()
-    reasons = []
-    if finding.linked_pull_requests:
-        reasons.append(
-            RequestReason(
-                words="claimed by",
-                pull_requests=tuple(finding.linked_pull_requests),
+def _list_holding_facts(
+    *, finding: StartTimeFinding | BlockingIssuesFinding | CampaignFinding
+) -> tuple[IssueFact, ...]:
+    """Return the open issues that block a request's issue, then the pull requests.
+
+    The pull requests are the open ones that claim an assignment request's
+    issue.
+    """
+    facts = []
+    if not isinstance(finding, CampaignFinding) and finding.blocking_issues:
+        facts.append(
+            IssueFact(words="blocked by", issues=tuple(finding.blocking_issues))
+        )
+    if isinstance(finding, StartTimeFinding) and finding.linked_pull_requests:
+        facts.append(
+            IssueFact(
+                words="linked to", pull_requests=tuple(finding.linked_pull_requests)
             )
         )
-    if finding.blocking_issues:
-        reasons.append(_describe_blockers(issues=finding.blocking_issues))
-    return RequestStatusValue.BLOCKED, tuple(reasons)
+    return tuple(facts)
 
 
 def _describe_comments(
-    *, finding: IssueCommentsFinding
-) -> tuple[RequestStatusValue, tuple[RequestReason, ...]]:
+    *, row: RequestRow, finding: IssueCommentsFinding
+) -> RequestStatus:
     """Return what a conversation request has to answer, or that it waits for it."""
     if finding.new_comments:
-        return RequestStatusValue.AVAILABLE, (
-            RequestReason(
-                words=describe_comments_to_answer(count=finding.new_comments)
-            ),
+        return RequestStatus(
+            row=row,
+            value=RequestStatusValue.AVAILABLE,
+            issue_facts=(),
+            detail=describe_comments_to_answer(count=finding.new_comments),
         )
-    return RequestStatusValue.IDLE, (RequestReason(words="waiting for a comment"),)
-
-
-def _describe_blockers(*, issues: Sequence[IssueReference]) -> RequestReason:
-    """Return the reason that names the open issues blocking a request's issue."""
-    return RequestReason(words="blocked by", issues=tuple(issues))
-
-
-def _describe_available() -> tuple[RequestStatusValue, tuple[RequestReason, ...]]:
-    """Return the status of a request whose work starts once a slot is free."""
-    return RequestStatusValue.AVAILABLE, (
-        RequestReason(words=str(RequestStatusValue.AVAILABLE)),
+    return RequestStatus(
+        row=row,
+        value=RequestStatusValue.IDLE,
+        issue_facts=(),
+        detail="waiting for a comment",
     )

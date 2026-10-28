@@ -66,7 +66,7 @@ from dreamcatcher.status import (
     AgentWorkStatusValue,
     DaemonStatusFact,
     DreamcatcherDaemonStatus,
-    RequestReason,
+    IssueFact,
     RequestStatus,
     StatusFact,
     read_agent_work_status,
@@ -823,7 +823,7 @@ def test_a_failed_read_makes_the_assignment_unknown_with_the_reason(state):
     status = read_sole_assignment_status(state=state)
 
     assert status.value is AgentWorkStatusValue.UNKNOWN
-    assert status.detail == "cannot tell: unavailable"
+    assert status.detail == "unavailable"
 
 
 def test_an_assignment_before_any_update_is_unknown(state):
@@ -1134,7 +1134,7 @@ def test_a_stopped_daemon_has_no_current_scheduler_failures(state):
     assert read_report(state=state).scheduler_failures == ()
 
 
-def test_a_blocked_request_names_its_claims_and_blockers_as_numbers(state):
+def test_a_blocked_and_claimed_request_is_held_naming_its_blockers_first(state):
     blocked = compose_request_row(
         issue=20,
         finding=StartTimeFinding(
@@ -1155,15 +1155,17 @@ def test_a_blocked_request_names_its_claims_and_blockers_as_numbers(state):
 
     assert request == RequestStatus(
         row=blocked,
-        value=RequestStatusValue.BLOCKED,
-        reasons=(
-            RequestReason(words="claimed by", pull_requests=(28,)),
-            RequestReason(
+        value=RequestStatusValue.HELD,
+        issue_facts=(
+            IssueFact(
                 words="blocked by",
                 issues=(IssueReference(number=10), IssueReference(number=11)),
             ),
+            IssueFact(words="linked to", pull_requests=(28,)),
         ),
+        detail=None,
     )
+    assert request.issue_state == "open"
 
 
 def test_a_campaign_request_names_the_issues_that_block_its_parent(state):
@@ -1185,9 +1187,9 @@ def test_a_campaign_request_names_the_issues_that_block_its_parent(state):
 
     assert request == RequestStatus(
         row=blocked,
-        value=RequestStatusValue.BLOCKED,
-        reasons=(
-            RequestReason(
+        value=RequestStatusValue.HELD,
+        issue_facts=(
+            IssueFact(
                 words="blocked by",
                 issues=(
                     IssueReference(number=10),
@@ -1195,10 +1197,11 @@ def test_a_campaign_request_names_the_issues_that_block_its_parent(state):
                 ),
             ),
         ),
+        detail=None,
     )
 
 
-def test_a_request_that_an_open_pull_request_claims_is_blocked(state):
+def test_a_request_that_an_open_pull_request_claims_is_held(state):
     write_tick(
         state=state,
         tick=SchedulerRecord(
@@ -1217,8 +1220,9 @@ def test_a_request_that_an_open_pull_request_claims_is_blocked(state):
 
     [request] = read_report(state=state).request_statuses
 
-    assert request.value is RequestStatusValue.BLOCKED
-    assert request.reasons == (RequestReason(words="claimed by", pull_requests=(28,)),)
+    assert request.value is RequestStatusValue.HELD
+    assert request.issue_facts == (IssueFact(words="linked to", pull_requests=(28,)),)
+    assert request.detail is None
 
 
 def test_an_assignment_whose_pull_request_is_not_yet_open_waits_for_it(tmp_path):
@@ -1253,10 +1257,11 @@ def test_a_request_nothing_claims_or_blocks_is_available(state):
     [request] = read_report(state=state).request_statuses
 
     assert request.value is RequestStatusValue.AVAILABLE
-    assert request.reasons == (RequestReason(words="available"),)
+    assert request.issue_facts == ()
+    assert request.detail is None
 
 
-def test_two_labels_of_one_kind_are_a_routing_conflict_named_in_each_row(state):
+def test_two_labels_of_one_kind_hold_each_row_naming_both_labels(state):
     conflict = ConflictingLabelsFinding(labels=["dream:less", ASSIGNMENT_LABEL])
     write_tick(
         state=state,
@@ -1273,12 +1278,11 @@ def test_two_labels_of_one_kind_are_a_routing_conflict_named_in_each_row(state):
     requests = read_report(state=state).request_statuses
 
     assert [(request.row.dispatch_label, request.value) for request in requests] == [
-        ("dream:less", RequestStatusValue.ROUTING_CONFLICT),
-        (ASSIGNMENT_LABEL, RequestStatusValue.ROUTING_CONFLICT),
+        ("dream:less", RequestStatusValue.HELD),
+        (ASSIGNMENT_LABEL, RequestStatusValue.HELD),
     ]
-    assert requests[0].reasons == (
-        RequestReason(words="multiple assignment labels: dream:less, dream:smith"),
-    )
+    assert requests[0].issue_facts == (IssueFact(words="multiple assignment labels"),)
+    assert requests[0].detail == "remove all but one: dream:less, dream:smith"
 
 
 def test_a_request_whose_label_someone_else_applied_is_held_naming_them(state):
@@ -1298,11 +1302,8 @@ def test_a_request_whose_label_someone_else_applied_is_held_naming_them(state):
     [request] = read_report(state=state).request_statuses
 
     assert request.value is RequestStatusValue.HELD
-    assert request.reasons == (
-        RequestReason(
-            words="label applied by colleague: remove and re-add it yourself"
-        ),
-    )
+    assert request.issue_facts == (IssueFact(words="labelled by colleague"),)
+    assert request.detail == "remove and re-add the label yourself"
 
 
 def test_a_request_whose_read_failed_is_unknown_with_the_reason(state):
@@ -1322,7 +1323,8 @@ def test_a_request_whose_read_failed_is_unknown_with_the_reason(state):
     [request] = read_report(state=state).request_statuses
 
     assert request.value is RequestStatusValue.UNKNOWN
-    assert request.reasons == (RequestReason(words="cannot tell: gh: offline"),)
+    assert request.issue_facts == ()
+    assert request.detail == "gh: offline"
 
 
 def test_a_request_that_led_to_open_work_is_reported_through_its_work(state):
