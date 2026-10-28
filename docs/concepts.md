@@ -1,16 +1,14 @@
 # Concepts
 
 This page is a glossary with rules. It names the things _dreamcatcher_
-deals with and says what the words mean, so it defines terms and does
-not explain how each thing works, which
-[the architecture](architecture.md) does in terms of where each thing
-lives in the code. [The user stories](stories.md) say what the user does
-and sees, and [the standard](standard.md) says how good the work has to
-be.
+deals with and says what the words mean, while
+[the architecture](architecture.md) says where each thing lives in the
+code, [the user stories](stories.md) say what the user does and sees,
+and [the standard](standard.md) says how good the work has to be.
 
-The concepts are an enduring part of the project: changes to the code,
-user interface, specifications, and agent contract should preserve these
-meanings or update this document deliberately.
+This page is an enduring part of the project: changes to the code, user
+interface, specifications, and agent contract should preserve these
+meanings or update this page deliberately.
 
 The product's name is _dreamcatcher_, in lower case even at the start of
 a sentence. The documentation sets it in italics in running text, and
