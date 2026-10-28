@@ -67,6 +67,7 @@ from dreamcatcher.status import (
     read_dreamcatcher_daemon_status,
     read_status_report,
 )
+from dreamcatcher.status.findings import IssueFact
 from dreamcatcher.status.report import SectionGuidance
 from dreamcatcher.status.requests import RequestStatusValue
 
@@ -268,9 +269,19 @@ def test_a_conversation_no_tick_has_observed_is_unknown(conversation_state):
     assert found.detail == "not seen by the latest update"
 
 
-@pytest.mark.parametrize("cause", list(PauseCause))
-def test_a_paused_conversation_is_idle_with_its_cause_and_stays_on_the_report(
-    conversation_state, cause
+@pytest.mark.parametrize(
+    ("cause", "fact", "advice"),
+    [
+        (PauseCause.LABEL_REMOVED, "label removed", "put the label back to resume"),
+        (
+            PauseCause.ISSUE_UNASSIGNED,
+            "unassigned",
+            "assign the issue to yourself to resume",
+        ),
+    ],
+)
+def test_a_paused_conversation_is_held_with_its_cause_and_stays_on_the_report(
+    conversation_state, cause, fact, advice
 ):
     write_conversation_round(state=conversation_state)
     observe(state=conversation_state, finding=PausedFinding(cause=cause))
@@ -278,8 +289,9 @@ def test_a_paused_conversation_is_idle_with_its_cause_and_stays_on_the_report(
     found = read_conversation_status(state=conversation_state)
     report = read_status_report(state=conversation_state, clock=lambda: LOOKED_AT)
 
-    assert found.value is AgentWorkStatusValue.IDLE
-    assert found.detail == f"paused, {cause}"
+    assert found.value is AgentWorkStatusValue.HELD
+    assert (found.issue_state, found.issue_facts) == ("open", (IssueFact(words=fact),))
+    assert found.detail == advice
     assert report.list_active_work_statuses(kind=AgentWorkKind.CONVERSATION) == [found]
 
 
@@ -463,8 +475,8 @@ def test_a_retry_clears_a_conversation_fault(conversation_state):
 
     found = read_conversation_status(state=conversation_state)
 
-    assert found.value is AgentWorkStatusValue.IDLE
-    assert found.detail == "paused, label removed"
+    assert found.value is AgentWorkStatusValue.HELD
+    assert found.detail == "put the label back to resume"
 
 
 @pytest.mark.parametrize(
@@ -665,7 +677,7 @@ def test_new_comments_found_while_a_round_ran_wait_after_it_ends(
     assert found.detail == "1 comment to answer"
 
 
-def test_a_conversation_with_two_conversation_labels_is_paused_saying_so(
+def test_a_conversation_with_two_conversation_labels_is_held_saying_so(
     conversation_state,
 ):
     write_conversation_round(state=conversation_state)
@@ -676,15 +688,16 @@ def test_a_conversation_with_two_conversation_labels_is_paused_saying_so(
 
     found = read_conversation_status(state=conversation_state)
 
-    assert found.value is AgentWorkStatusValue.IDLE
-    assert found.detail == "paused, multiple conversation labels: discuss, scout"
+    assert found.value is AgentWorkStatusValue.HELD
+    assert found.issue_facts == (IssueFact(words="multiple conversation labels"),)
+    assert found.detail == "remove all but one: discuss, scout"
 
 
 @pytest.mark.parametrize(
     ("applier", "words"),
     [("colleague", "colleague"), ("", "an unknown account")],
 )
-def test_a_conversation_whose_label_someone_else_put_back_is_paused_naming_them(
+def test_a_conversation_whose_label_someone_else_put_back_is_held_naming_them(
     conversation_state, applier, words
 ):
     write_conversation_round(state=conversation_state)
@@ -695,10 +708,9 @@ def test_a_conversation_whose_label_someone_else_put_back_is_paused_naming_them(
 
     found = read_conversation_status(state=conversation_state)
 
-    assert found.value is AgentWorkStatusValue.IDLE
-    assert found.detail == (
-        f"paused, labelled by {words}: remove and re-add the label yourself"
-    )
+    assert found.value is AgentWorkStatusValue.HELD
+    assert found.issue_facts == (IssueFact(words=f"labelled by {words}"),)
+    assert found.detail == ("remove and re-add the label yourself")
 
 
 def test_an_errored_round_of_a_paused_conversation_does_not_wait(
@@ -709,8 +721,8 @@ def test_an_errored_round_of_a_paused_conversation_does_not_wait(
 
     found = read_conversation_status(state=conversation_state)
 
-    assert found.value is AgentWorkStatusValue.IDLE
-    assert found.detail == "paused, label removed"
+    assert found.value is AgentWorkStatusValue.HELD
+    assert found.detail == "put the label back to resume"
 
 
 def test_a_round_that_needed_no_reply_says_so(conversation_state):

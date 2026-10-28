@@ -66,6 +66,12 @@ the change.
   that has ended shows "ended", where it showed "closed", and its card
   says that the issue is closed.
   ([#849](https://github.com/alimanfoo/dreamcatcher/pull/849))
+- A conversation or a campaign that the scheduler holds back shows as
+  held, where it showed as idle with "paused, …". Its card says why
+  beside the issue, such as "open, label removed" or "open, labelled by
+  octocat", and says beneath what brings it back, such as "put the label
+  back to resume". Held work comes after idle work and before unknown
+  work. ([#849](https://github.com/alimanfoo/dreamcatcher/pull/849))
 
 ### Fixed
 

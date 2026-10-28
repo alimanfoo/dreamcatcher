@@ -319,7 +319,7 @@ def test_a_lead_whose_round_did_not_finish_waits_to_recover(state):
     assert status.detail == "round 1 interrupted"
 
 
-def test_a_paused_campaign_is_idle_and_says_why(state):
+def test_a_paused_campaign_is_held_and_says_why(state):
     write_lead_round(state=state, number=1, ending=InterruptedAgentRoundEnding())
     observe(
         state=state,
@@ -329,8 +329,8 @@ def test_a_paused_campaign_is_idle_and_says_why(state):
 
     status = read_campaign_status(state=state)
 
-    assert status.value is AgentWorkStatusValue.IDLE
-    assert status.detail == "paused, label removed"
+    assert status.value is AgentWorkStatusValue.HELD
+    assert status.detail == "put the label back to resume"
 
 
 def test_two_errored_lead_rounds_are_a_fault(state):

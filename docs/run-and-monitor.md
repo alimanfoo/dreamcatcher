@@ -110,8 +110,10 @@ Every kind of agent work shares these statuses:
   awaits the next update, for an assignment whether its pull request is
   ready for review, still a draft and needing your feedback, failing its
   checks after two attempts, or merged or closed after its wrap-up
-  round, and for a conversation or campaign how its latest round ended,
-  or why it is paused;
+  round, and for a conversation or campaign how its latest round ended;
+- **held**: the scheduler takes no round of a conversation or campaign
+  until something changes on GitHub, as when you pause it; beside the
+  issue, the work says why, and the detail says what brings it back;
 - **fault**: repeated errors need attention;
 - **unknown**: _dreamcatcher_ could not read what it needed, or the
   latest update has not seen the work; the accompanying detail says

@@ -15,9 +15,20 @@ from dreamcatcher.scheduler.models import (
     ConflictingLabelsFinding,
     IssueReference,
     LabelAppliedByOtherFinding,
+    PauseCause,
+    PausedFinding,
     PullRequestFinding,
 )
 from dreamcatcher.words import describe_count
+
+# What GitHub says of an issue whose work the user paused, and what resumes it.
+_PAUSE_WORDS = {
+    PauseCause.LABEL_REMOVED: ("label removed", "put the label back to resume"),
+    PauseCause.ISSUE_UNASSIGNED: (
+        "unassigned",
+        "assign the issue to yourself to resume",
+    ),
+}
 
 # What each signal says, wherever a status names what woke or will wake a round.
 _SIGNAL_WORDS = {
@@ -41,13 +52,16 @@ class IssueFact:
 
 def describe_hold(
     *,
-    finding: LabelAppliedByOtherFinding | ConflictingLabelsFinding,
+    finding: PausedFinding | LabelAppliedByOtherFinding | ConflictingLabelsFinding,
     kind: AgentWorkKind,
 ) -> tuple[IssueFact, str]:
     """Say what GitHub holds that holds work of a kind back, then what to do.
 
     An empty applier is an account that GitHub does not name.
     """
+    if isinstance(finding, PausedFinding):
+        words, advice = _PAUSE_WORDS[finding.cause]
+        return IssueFact(words=words), advice
     if isinstance(finding, LabelAppliedByOtherFinding):
         applier = finding.applier or "an unknown account"
         return (
@@ -68,11 +82,6 @@ def describe_comments_to_answer(*, count: int) -> str:
 def describe_changed_children(*, count: int) -> str:
     """Say how many of a campaign's children changed in ways the lead hears of."""
     return f"{describe_count(number=count, noun='sub-issue')} changed"
-
-
-def describe_pause(*, cause: str) -> str:
-    """Say why work at an issue is paused until the cause is removed."""
-    return f"paused, {cause}"
 
 
 def describe_issue_state(*, state: IssueState) -> str:

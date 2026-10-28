@@ -43,12 +43,12 @@ from dreamcatcher.scheduler.models import (
 )
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.status.findings import (
+    IssueFact,
     describe_changed_children,
     describe_comments_to_answer,
     describe_hold,
     describe_idle_pull_request,
     describe_issue_state,
-    describe_pause,
     describe_pull_request,
     describe_signal,
 )
@@ -71,7 +71,8 @@ class AgentWorkStatusValue(StrEnum):
     Working means that a round is running. Waiting means that a round is due
     but has not started. Fault takes two consecutive errored rounds. Unknown
     means that the latest tick could not tell. Idle means that no round is known
-    to be due. Ended means that the work's ending is recorded.
+    to be due. Held means that the scheduler takes no round of the work until
+    something on GitHub changes. Ended means that the work's ending is recorded.
     """
 
     WORKING = "working"
@@ -79,6 +80,7 @@ class AgentWorkStatusValue(StrEnum):
     FAULT = "fault"
     UNKNOWN = "unknown"
     IDLE = "idle"
+    HELD = "held"
     ENDED = "ended"
 
 
@@ -87,6 +89,7 @@ AGENT_WORK_STATUS_VALUES_IN_ATTENTION_ORDER = (
     AgentWorkStatusValue.WORKING,
     AgentWorkStatusValue.WAITING,
     AgentWorkStatusValue.IDLE,
+    AgentWorkStatusValue.HELD,
     AgentWorkStatusValue.UNKNOWN,
     AgentWorkStatusValue.ENDED,
 )
@@ -106,6 +109,7 @@ class AgentWorkStatus:
     """Describe the derived summary status of one piece of agent work.
 
     Ended work has no detail, because its status words already say how it ended.
+    The issue's facts are what GitHub says that holds the work back.
     """
 
     work: AgentWork
@@ -113,6 +117,7 @@ class AgentWorkStatus:
     value: AgentWorkStatusValue
     detail: str | None
     latest_output: str | None
+    issue_facts: Sequence[IssueFact] = ()
 
     @property
     def words(self) -> str:
@@ -318,17 +323,17 @@ class AgentWorkStatusReader:
     def derive(self, *, work: AgentWork) -> AgentWorkStatus:
         """Derive one piece of work's status from its records and the latest tick.
 
-        The first that applies of working, ended, fault, unknown, idle for
-        paused work, idle while awaiting an update, and waiting is the
-        status. Otherwise the work is idle, or unknown when the latest tick has
-        no row for it or read nothing for it.
+        The first that applies of working, ended, fault, unknown, held, idle
+        while awaiting an update, and waiting is the status. Otherwise the
+        work is idle, or unknown when the latest tick has no row for it or
+        read nothing for it.
         """
         steps: tuple[_StatusStep, ...] = (
             self._derive_working,
             self._derive_ended,
             self._derive_fault,
             self._derive_unknown,
-            self._derive_paused,
+            self._derive_held,
             self._derive_awaiting_update,
             self._derive_waiting,
         )
@@ -404,32 +409,28 @@ class AgentWorkStatusReader:
             return None
         return _compose_unknown(work=work, row=row, detail=row.finding.reason)
 
-    def _derive_paused(
+    def _derive_held(
         self, *, work: AgentWork, row: RequestRow | None
     ) -> AgentWorkStatus | None:
-        """Derive the idle status of paused work, which waits for nothing.
+        """Derive the status of work that the scheduler holds back for its issue.
 
-        A second label of the work's kind on its issue pauses it as a routing
-        conflict, and its label pauses it when someone other than the user
-        applied it.
+        The user paused it, its issue carries a second label of its kind, or
+        someone other than the user applied its label.
         """
         finding = None if row is None else row.finding
-        if isinstance(finding, PausedFinding):
-            cause = str(finding.cause)
-        elif isinstance(finding, LabelAppliedByOtherFinding):
-            fact, advice = describe_hold(finding=finding, kind=work.record.kind)
-            cause = f"{fact.words}: {advice}"
-        elif isinstance(finding, ConflictingLabelsFinding):
-            fact, _ = describe_hold(finding=finding, kind=work.record.kind)
-            cause = f"{fact.words}: {', '.join(finding.labels)}"
-        else:
+        if not isinstance(
+            finding,
+            PausedFinding | LabelAppliedByOtherFinding | ConflictingLabelsFinding,
+        ):
             return None
+        fact, advice = describe_hold(finding=finding, kind=work.record.kind)
         return AgentWorkStatus(
             work=work,
             row=row,
-            value=AgentWorkStatusValue.IDLE,
-            detail=describe_pause(cause=cause),
+            value=AgentWorkStatusValue.HELD,
+            detail=advice,
             latest_output=None,
+            issue_facts=(fact,),
         )
 
     def _derive_awaiting_update(

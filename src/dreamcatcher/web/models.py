@@ -9,6 +9,7 @@ from dreamcatcher.status import (
     AgentRoundTrigger,
     AgentWorkStatusValue,
     DreamcatcherDaemonStatus,
+    IssueFact,
     RequestStatus,
     SectionGuidance,
     StatusFact,
@@ -39,6 +40,7 @@ class WebAgentWorkCard:
     pull_request_summary: str | None
     is_pull_request_ready_for_review: bool
     issue_state: str | None
+    issue_facts: Sequence[IssueFact]
     child_overview: "WebCampaignChildOverview | None"
     latest_output: str | None
 

@@ -155,12 +155,13 @@ take a round, reach it in one round.
 
 Remove the campaign's label from the parent, or unassign the parent from
 yourself, to pause the campaign. A round that is already running
-finishes. Comments you post while the campaign is paused wake nothing.
+finishes. The home page shows the campaign as held, and says what brings
+it back. Comments you post while the campaign is paused wake nothing.
 Restore the label and the assignee to resume the same campaign. Only a
 label that you put back yourself resumes it, and the lead is given every
 comment you posted while it was paused, and what changed among the
 sub-issues meanwhile. A second campaign label on the parent is a routing
-conflict, and pauses the campaign in the same way until one of the
+conflict, and holds the campaign back in the same way until one of the
 labels comes off.
 
 Close the parent to end the campaign. It ends once any running round

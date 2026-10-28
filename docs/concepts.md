@@ -388,7 +388,7 @@ Each issue conversation has exactly one:
 It has no branch or pull request, so the issue is its communication
 channel. A conversation belongs to the dispatch label that started it. A
 _dreamcatcher_ instance has at most one open issue conversation for each
-conversation label on an issue, and it keeps a paused conversation until
+conversation label on an issue, and it keeps a held conversation until
 the issue closes.
 
 Each conversation round input records the comment batch and the main
@@ -462,8 +462,8 @@ Each campaign has exactly one:
 It has no branch or pull request, so the parent issue is its
 communication channel. A campaign belongs to the dispatch label that
 started it. A _dreamcatcher_ instance has at most one open campaign for
-each campaign label on an issue, and it keeps a paused campaign until
-the parent issue closes.
+each campaign label on an issue, and it keeps a held campaign until the
+parent issue closes.
 
 Each campaign round input records the parent issue, the parent's
 sub-issues and where each one's newest assignment stands, the
@@ -532,18 +532,21 @@ change that reverts before the lead is given it is no change. Until an
 input has been delivered there is nothing to compare with, so a first
 round is given no notification.
 
-### Pausing and ending a conversation or campaign
+### Holding and ending a conversation or campaign
 
-An open conversation or campaign is **paused** while its own dispatch
-label is off its issue, an account other than the signed-in one applied
-that label, the issue is not assigned to the signed-in account, or the
-issue carries another configured label of its kind. Paused is derived
-each tick from the issue, not recorded. Paused work starts no round, its
-issue's comments are not read, and the fault of paused work does not
-count towards a global cooldown. Removing the cause resumes the work in
-the same harness session, and the work is then given every comment
-posted since its last finished round. A lead is also given the
-notifications of the changes among the sub-issues since then.
+The user **pauses** an open conversation or campaign by taking its own
+dispatch label off its issue, or by unassigning the issue from the
+signed-in account. Pausing is one reason that the scheduler holds the
+work back. It also holds the work back while an account other than the
+signed-in one applied that label, or the issue carries another
+configured label of its kind, and neither of those is a pause. Whether
+the work is held back is derived each tick from the issue, not recorded.
+Work that is held back starts no round, its issue's comments are not
+read, and its fault does not count towards a global cooldown. Removing
+the cause resumes the work in the same harness session, and the work is
+then given every comment posted since its last finished round. A lead is
+also given the notifications of the changes among the sub-issues since
+then.
 
 When a tick finds the issue of a conversation or campaign closed, it
 records the work's ending with the reason "issue closed" once no round
@@ -619,12 +622,14 @@ A request with no open work has one of these request statuses:
 
 - **Available**: work starts once an agent slot is free.
 - **Held**: the scheduler holds the request back for what GitHub says of
-  its issue. An open issue blocks the issue of an assignment or campaign
-  request, an open pull request linked to an assignment request's issue
-  claims it, someone other than the user applied the request's label, or
-  the issue has a routing conflict. Work starts by itself once a blocker
-  closes or a claiming pull request goes. A label that someone else
-  applied, and a routing conflict, need the user to act.
+  its issue, until that changes. An open issue blocks the issue of an
+  assignment or campaign request, an open pull request linked to an
+  assignment request's issue claims it, someone other than the user
+  applied the request's label, or the issue has a routing conflict. Work
+  starts by itself once a blocker closes or a claiming pull request
+  goes. A label that someone else applied, and a routing conflict, need
+  the user to act. Open work is held in the same way, as its agent work
+  status says.
 - **Idle**: a conversation request waits for the user's first comment.
 - **Unknown**: a read that decides whether work may start failed, or
   GitHub could not yet tell. A failure to read external state can delay
@@ -680,12 +685,12 @@ cooldown clears the fault.
 
 No single error is taken as a sign of a global problem. Each tick counts
 every assignment in fault, and every conversation or campaign in fault
-unless it is paused. A conversation or campaign whose issue could not be
-read counts, because whether it is paused is unknown. Two counted
-faults, of any kinds, are evidence of a shared problem and start a
-global cooldown. When the cooldown ends, the errors before it no longer
-count, so the faults it saw are cleared. This simple policy keeps one
-piece of work's failure from blocking all other work.
+unless it is held. A conversation or campaign whose issue could not be
+read counts, because whether it is held is unknown. Two counted faults,
+of any kinds, are evidence of a shared problem and start a global
+cooldown. When the cooldown ends, the errors before it no longer count,
+so the faults it saw are cleared. This simple policy keeps one piece of
+work's failure from blocking all other work.
 
 A **retry** clears the current fault of the work it names, and erases
 none of its errored rounds. A retry from the command line clears the
@@ -727,19 +732,23 @@ Agent work of every kind has one of these summary statuses:
   still a draft and so needing feedback, merged or closed after its
   wrap-up round, or failing its checks after two attempts under the
   relay rule; a conversation's latest round answered, needed no reply,
-  was stopped, errored or was interrupted; a campaign's latest round
-  ended; or a conversation or campaign is paused, and the detail is the
-  cause.
+  was stopped, errored or was interrupted; or a campaign's latest round
+  ended. Idle work has nothing to do, and never waits for the user to
+  change something on GitHub.
+- **Held**: the scheduler takes no round of a conversation or campaign
+  until something on GitHub changes, as for a held request: the user
+  paused it, the issue has a routing conflict, or someone other than the
+  user applied its label. The issue's state says why, and the detail
+  says what brings the work back.
 
 The statuses are decided in an order. Working comes first, then ended,
 then fault, so the user can see a fault and retry whatever else is true.
-A failed read comes next, as unknown. A paused conversation or campaign
-is idle before it can be waiting, because no round will start however
-its last round ended. The awaiting-update idle case comes before waiting
-when the latest tick found no new input, or started the round that then
-took its turn. Then come waiting and idle, and work that the latest tick
-has no row for, or read nothing for, is unknown when nothing else
-applies.
+A failed read comes next, as unknown. Held comes before waiting, because
+no round will start however its last round ended. The awaiting-update
+idle case comes before waiting when the latest tick found no new input,
+or started the round that then took its turn. Then come waiting and
+idle, and work that the latest tick has no row for, or read nothing for,
+is unknown when nothing else applies.
 
 These statuses summarize what matters now; they are not a persisted
 lifecycle or a substitute for the underlying facts. In particular,
@@ -748,14 +757,14 @@ required, and the work's health remain separate concepts even though
 they contribute to the summary.
 
 A status report lists the open work of each kind in attention order,
-fault, working, waiting, idle and then unknown, followed by the requests
-of that kind with no open work. Ended work of every kind is counted
-apart from active work, in a collapsed list of ended work on the web
-home page and in a count of ended work in the terminal.
+fault, working, waiting, idle, held and then unknown, followed by the
+requests of that kind with no open work. Ended work of every kind is
+counted apart from active work, in a collapsed list of ended work on the
+web home page and in a count of ended work in the terminal.
 
 A running round remains working when its issue gains a second label of
 its kind, because a routing conflict does not cancel work already in
-progress. The conversation or campaign is paused after that round ends,
+progress. The conversation or campaign is held after that round ends,
 unless it is then in fault.
 
 Replaces: "running", for the status working; "needs attention", for

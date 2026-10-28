@@ -356,7 +356,9 @@ meantime they don't want the agent chiming in on every comment, because
 the discussion that follows is between people. So they take the
 conversation label off the issue, and that is all it takes. The
 conversation pauses, and the user can comment on the issue without the
-agent answering.
+agent answering. The home page shows the conversation as held, with
+"label removed" beside the issue and "put the label back to resume"
+beneath, so it is clear that nothing happens until they act.
 
 Later, something comes up that they want the agent's view on again. They
 put the label back, and the same conversation picks up where it left
@@ -510,11 +512,13 @@ The user wants the lead to leave the parent alone for a while. They take
 the campaign label off the parent, or unassign it from themselves, and
 the campaign pauses. A round that is already running finishes, and no
 other round starts, not even one to recover a round that did not finish.
-Comments the user posts on the parent meanwhile wake nothing, but the
-Campaigns tab keeps counting the closed sub-issues. When they put the
-label back, the same campaign carries on in its saved harness session,
-and the lead is given every comment posted while it was paused, and what
-changed among the sub-issues meanwhile.
+The Campaigns tab shows the campaign as held, says beside the parent
+why, and says beneath what brings it back. Comments the user posts on
+the parent meanwhile wake nothing, but the Campaigns tab keeps counting
+the closed sub-issues. When they put the label back, the same campaign
+carries on in its saved harness session, and the lead is given every
+comment posted while it was paused, and what changed among the
+sub-issues meanwhile.
 
 The value to the user is that the lead is on the parent only when
 wanted.
@@ -562,15 +566,15 @@ label that no work answers yet, and that row stands for the label until
 work starts for it. Each kind of work has a section, and within each the
 rows come in the order that deserves attention: anything in fault first,
 then what is working, then what is waiting for its turn, then what is
-idle, then anything the last update could not read, and after all of
-those the labels where nothing has started yet. Each row says why it is
-where it is. This pull request is ready for review. That one is still a
-draft, so the agent has probably asked something. This issue has not
-started because another pull request already claims it. The pull
-requests the user needs to read are a click away, and ended work is
-folded under a collapsed list, so the page shows only what is live. The
-terminal gives the same rows, with a count of ended work in place of the
-list.
+idle, then what is held until something changes on GitHub, then anything
+the last update could not read, and after all of those the labels where
+nothing has started yet. Each row says why it is where it is. This pull
+request is ready for review. That one is still a draft, so the agent has
+probably asked something. This issue has not started because another
+pull request already claims it. The pull requests the user needs to read
+are a click away, and ended work is folded under a collapsed list, so
+the page shows only what is live. The terminal gives the same rows, with
+a count of ended work in place of the list.
 
 On the home page, every row lays out its lines in the same order,
 whatever its state, so nothing moves as lines come and go. Its first
@@ -795,8 +799,10 @@ A conversation answers only its own label. With two conversation labels,
 the user may see two request rows, a conversation and a request row, or
 two conversations, depending on which labels already have one. The
 conflict stops new rounds. A conversation with a round running finishes
-that round, and then pauses until the other label comes off. A campaign
-answers only its own label in the same way.
+that round, and is then held until the other label comes off, with its
+card saying that the issue has more than one label of the kind and
+telling the user to remove all but one. A campaign answers only its own
+label in the same way.
 
 Labels of different kinds on the same issue are not a conflict, and each
 can start its own work.
@@ -821,7 +827,7 @@ sees the issue's request row on the home page and in
 colleague and telling the user to remove and re-add the label
 themselves. The same goes for a bot, and for an account that has since
 been deleted, which the row cannot name. A colleague who puts back the
-label of a paused conversation or campaign leaves it paused, and its row
+label of a paused conversation or campaign leaves it held, and its card
 says so in the same words.
 
 If the user wants the work, they need to take the label off and put it
@@ -971,7 +977,7 @@ failed read for one piece of work or one request shows on its row. When
 a campaign's sub-issues, or their assignments, cannot all be read, its
 card shows its sub-issues as unknown in place of the closed count, and
 its lead starts no round from the partial picture. A lead that is not
-working, paused or in fault shows as unknown too, with the failed read;
+working, held or in fault shows as unknown too, with the failed read;
 otherwise the lead keeps its status. The next update tries again. Work
 whose round is already running carries on, and its pushes and posts fail
 or succeed as GitHub allows.

@@ -81,6 +81,20 @@ def test_home_lists_a_conversation_and_links_to_its_page(tmp_path):
     assert "round 1, answered, ran 4m" in page
 
 
+def test_home_shows_a_paused_conversation_held_with_its_cause_and_advice(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    fabricate_everything(state=state)
+    fabricate_conversation(state=state)
+
+    page = create_application(state=state).test_client().get("/").text
+
+    card = page[page.index('id="GH8-20260819-184158-conversation"') :]
+    card = card[: card.index("</article>")]
+    assert '<span class="issue-state">open, label removed</span>' in card
+    assert '<span class="chip status-held">held</span>' in card
+    assert '<p class="card-detail">put the label back to resume</p>' in card
+
+
 def test_conversation_page_asks_once_whether_the_daemon_runs(tmp_path, monkeypatch):
     state = StateDirectory(root=tmp_path)
     fabricate_conversation(state=state)
@@ -627,7 +641,7 @@ def test_conversation_tail_adds_a_later_round_without_repeating_the_first(tmp_pa
     assert response.status_code == 200
     assert "I found the answer." not in response.text
     assert 'id="agent-work-detail"' in response.text
-    assert "paused, label removed" in response.text
+    assert "put the label back to resume" in response.text
     assert response.text.count("round 2: 1 comment") == 1
     assert "def456" not in response.text
     assert response.text.count("I found the follow-up answer.") == 1
