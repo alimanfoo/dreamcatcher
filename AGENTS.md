@@ -40,9 +40,10 @@ before judging any finding.
 A change that moves the code past one of them corrects that document in
 the same pull request, and says so. Give every pull request description
 a section headed "Definition of done" that answers each of the
-standard's questions by number. Where this guide's conventions and the
-standard's criteria cover the same ground, the standard sets the bar and
-the conventions say how to meet it.
+standard's questions by title: the title in bold, then the evidence.
+Where this guide's conventions and the standard's criteria cover the
+same ground, the standard sets the bar and the conventions say how to
+meet it.
 
 ## Specs
 
