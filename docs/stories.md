@@ -570,33 +570,35 @@ folded under a collapsed list, so the page shows only what is live. The
 terminal gives the same rows, with a count of ended work in place of the
 list.
 
-On the home page, each row keeps what GitHub holds at its top and what
-_dreamcatcher_ holds at its bottom. The top line gives the issue's
-number and title, and for an assignment its pull request and where that
-stands, such as a draft that conflicts with main. A draft's text is
-subdued. A pull request that is ready for review shows in the theme's
-brighter text, so it stands out from a draft, and it keeps that text
-when it conflicts with main or its checks fail. The words "draft" and
-"ready" stay, so the user can tell them apart without the colour. The
-assignment's page shows its pull request the same way. A conversation or
-a campaign has no pull request, so its top line holds the issue alone.
-Beneath that, a piece of work says what it is doing, with the agent's
-latest output while a round runs. The bottom line gives the dispatch
-label, with the harness, model and effort that run the work, and then
-the work's status and the link to its page. A piece of work that has
-ended says nothing beneath its top line, and its bottom line gives the
-state it ended in, in place of its status, so the row says once that it
-has ended and why. An assignment ends completed or cancelled, and a
-conversation or a campaign ends closed. The work's page and
-`dreamcatcher view` show the same word in place of the status, with
-nothing beneath it. Every piece of work that has ended shows its title
-more quietly than live work does, here and within a campaign, so it
-draws less attention, and its links stay as clear as they are on any
-other row. A request's row gives its issue at the top, with the issue's
-state and what GitHub says that holds the request back, such as an issue
-that blocks it. Beneath that come its dispatch label and request status,
-and then, when there is any, what _dreamcatcher_ found or what the user
-has to do.
+On the home page, every row lays out its lines in the same order,
+whatever its state, so nothing moves as lines come and go. Its first
+line is what GitHub holds: the issue's number and title, and for an
+assignment its pull request and where that stands, such as a draft that
+conflicts with main. An assignment shows nothing there before it opens
+its pull request. A draft's text is subdued. A pull request that is
+ready for review shows in the theme's brighter text, so it stands out
+from a draft, and it keeps that text when it conflicts with main or its
+checks fail. The words "draft" and "ready" stay, so the user can tell
+them apart without the colour. The assignment's page shows its pull
+request the same way. A conversation or a campaign has no pull request,
+so its first line holds the issue alone. The second line is what
+_dreamcatcher_ holds: the dispatch label, with the harness, model and
+effort that run the work, and then the work's status and the link to its
+page. Beneath that, a piece of work says what it is doing or what it
+waits for, and while a round runs or after a fault, the agent's latest
+output comes last. A piece of work that has ended says nothing beneath
+its second line, which gives the state it ended in, in place of its
+status, so the row says once that it has ended and why. An assignment
+ends completed or cancelled, and a conversation or a campaign ends
+closed. The work's page and `dreamcatcher view` show the same word in
+place of the status, with nothing beneath it. Every piece of work that
+has ended shows its title more quietly than live work does, here and
+within a campaign, so it draws less attention, and its links stay as
+clear as they are on any other row. A request's row gives its issue at
+the top, with the issue's state and what GitHub says that holds the
+request back, such as an issue that blocks it. Beneath that come its
+dispatch label and request status, and then, when there is any, what
+_dreamcatcher_ found or what the user has to do.
 
 The home page always has a tab for each of the three kinds of work, and
 the terminal a section for each, even when a kind has nothing in it. A

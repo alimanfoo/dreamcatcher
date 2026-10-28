@@ -326,12 +326,12 @@ body::after {
   border-bottom: 0;
 }
 
-/* A card's top row is about GitHub and its bottom row about dreamcatcher.
+/* A card's first row is about GitHub and its second about dreamcatcher.
    In each, the left item keeps at least half the row. A wider right item
    wraps below it and shrinks to the row, so its own text wraps. */
 
 .card-heading,
-.card-foot {
+.card-route {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
@@ -340,7 +340,7 @@ body::after {
 }
 
 .card-heading > :first-child,
-.card-foot > :first-child {
+.card-route > :first-child {
   flex: 1 1 50%;
   min-width: 0;
   overflow-wrap: anywhere;
@@ -434,7 +434,7 @@ body::after {
 
 .agent-work-detail,
 .card-detail,
-.card-foot,
+.card-route,
 .issue-state {
   color: var(--dim);
 }
@@ -452,8 +452,8 @@ body::after {
   text-transform: uppercase;
 }
 
-.card-foot {
-  margin-top: var(--space-4);
+.card-route {
+  margin-top: var(--space-3);
 }
 
 .card-actions {
@@ -852,7 +852,7 @@ body::after {
     padding-left: var(--space-8);
   }
 
-  .card-foot,
+  .card-route,
   .agent-work-heading-actions {
     align-items: flex-start;
   }

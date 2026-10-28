@@ -777,7 +777,7 @@ def test_home_collapses_a_closed_conversation_and_shows_it_closed_once(tmp_path)
     assert 'id="GH8-20260819-184158-conversation"' in ended
     card = ended[: ended.index("</article>")]
     assert '<span class="chip status-ended">closed</span>' in card
-    assert 'class="agent-work-detail"' not in card
+    assert 'class="card-detail"' not in card
 
 
 def test_a_closed_conversation_page_shows_closed_once_as_its_status(tmp_path):

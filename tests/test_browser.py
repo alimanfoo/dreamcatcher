@@ -199,7 +199,7 @@ def test_an_ended_card_has_a_quieter_title_and_the_same_links(
     ended_title = read_colour(locator=ended.locator(".title"))
 
     assert ended_title != read_colour(locator=live.locator(".title"))
-    assert ended_title == read_colour(locator=ended.locator(".card-foot"))
+    assert ended_title == read_colour(locator=ended.locator(".card-route"))
     for link in (".issue-number", ".pr-chip", ".agent-work-open"):
         assert read_colour(locator=ended.locator(link)) == read_colour(
             locator=live.locator(link)
@@ -775,7 +775,7 @@ def test_a_card_row_keeps_its_items_within_the_row(
     page.goto(f"{live_web}/?theme={theme}")
     expect(page.get_by_label("Issue #53 dream:less")).to_be_visible()
 
-    rows = page.locator(".card-heading, .card-foot").filter(visible=True)
+    rows = page.locator(".card-heading, .card-route").filter(visible=True)
     for row in rows.evaluate_all(
         """rows => rows.map(row => {
           const bounds = row.getBoundingClientRect();

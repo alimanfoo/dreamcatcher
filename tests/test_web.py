@@ -444,7 +444,7 @@ def test_assignment_page_shows_the_common_agent_work_facts(tmp_path):
     assert "<dt>session</dt>" not in page
 
 
-def test_an_assignment_with_no_pull_request_yet_says_so_on_its_card_and_page(
+def test_an_assignment_with_no_pull_request_yet_shows_none_on_its_card_or_page(
     tmp_path,
 ):
     state = StateDirectory(root=tmp_path)
@@ -456,8 +456,8 @@ def test_an_assignment_with_no_pull_request_yet_says_so_on_its_card_and_page(
     home = render_home(state=state)
     page = render_assignment(state=state, identifier=identifier)
 
-    assert '<span class="pr-chip">no pull request yet</span>' in home
-    assert '<span class="pr-chip">no pull request yet</span>' in page
+    assert 'class="pr-chip"' not in home
+    assert 'class="pr-chip"' not in page
     assert "/pull/" not in page
 
 
@@ -887,8 +887,11 @@ def test_a_home_card_links_to_its_exact_assignment(tmp_path):
     assert assignment_link in page
     assert page.count('href="/work/GH13-20260819-184158-assignment"') == 1
     card = extract_article(page=page, identifier="GH13-20260819-184158-assignment")
-    assert card.index('class="pr-chip"') < card.index('class="agent-work-detail"')
-    assert card.index(assignment_link) > card.index('class="agent-work-detail"')
+    assert (
+        card.index('class="pr-chip"')
+        < card.index(assignment_link)
+        < card.index('class="card-detail"')
+    )
 
 
 def test_status_classes_do_not_depend_on_status_wording(tmp_path, monkeypatch):
@@ -1127,7 +1130,7 @@ def test_an_ended_work_card_shows_how_it_ended_once_as_its_status(
     card = extract_article(page=ended, identifier=identifier)
 
     assert f'<span class="chip status-ended">{words}</span>' in card
-    assert 'class="agent-work-detail"' not in card
+    assert 'class="card-detail"' not in card
 
 
 @pytest.mark.parametrize(("fabricate", "identifier", "words"), ENDED_WORK)
@@ -1176,7 +1179,7 @@ def test_a_cancelled_assignment_card_shows_working_while_its_round_stops(tmp_pat
 
     assert 'class="agent-work-card"' in card
     assert '<span class="chip status-working">working</span>' in card
-    assert '<p class="agent-work-detail">round 2, 1 post, running' in card
+    assert '<p class="card-detail">round 2, 1 post, running' in card
     assert page.index(card) < page.index('<details class="ended-work">')
 
 
@@ -1191,7 +1194,7 @@ def test_an_ended_assignment_card_within_a_campaign_shows_why_it_ended(tmp_path)
     )
 
     assert '<span class="chip status-ended">completed</span>' in card
-    assert 'class="agent-work-detail"' not in card
+    assert 'class="card-detail"' not in card
 
 
 def test_assignment_page_shares_the_home_page_top_bar(tmp_path):

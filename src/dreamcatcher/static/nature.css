@@ -382,7 +382,7 @@ body::after {
 
 .agent-work-detail,
 .card-detail,
-.card-foot,
+.card-route,
 .issue-state {
   color: var(--dim);
 }

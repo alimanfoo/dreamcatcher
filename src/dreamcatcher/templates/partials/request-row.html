@@ -4,7 +4,7 @@
     <div>{{ github_reference(request.row.issue, "issues") }} <span class="title">{{ request.row.title }}</span></div>
     <span class="issue-state">{{ request.issue_state }}{% for fact in request.issue_facts %}, {{ fact.words }}{% for issue in fact.issues %}{% if loop.first %} {% else %}, {% endif %}{{ issue_reference(issue) }}{% endfor %}{% for number in fact.pull_requests %}{% if loop.first %} {% else %}, {% endif %}PR {{ github_reference(number, "pull") }}{% endfor %}{% endfor %}</span>
   </div>
-  <div class="card-foot">
+  <div class="card-route">
     <span>{{ request.row.dispatch_label }}</span>
     <span class="chip {{ status_class(request.value) }}">{{ request.value }}</span>
   </div>

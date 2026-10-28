@@ -53,6 +53,14 @@ the change.
   applied says "labelled by" in the same way. Every held status looks
   the same, without the fill that held and routing conflict had.
   ([#843](https://github.com/alimanfoo/dreamcatcher/pull/843))
+- Every card on the home page, and every request row, lays out its lines
+  in one order, whatever its state: the issue and, for an assignment,
+  its pull request; then the dispatch label, the status and the link to
+  the work's page; then the detail; then the agent's latest output.
+  Before, the label and status came last, so they moved as the other
+  lines came and went. An assignment that has no pull request yet shows
+  nothing in its place, where it said "no pull request yet".
+  ([#843](https://github.com/alimanfoo/dreamcatcher/pull/843))
 
 ### Fixed
 
