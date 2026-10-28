@@ -48,7 +48,6 @@
   --focus: #526348;
   --header-rule: rgba(59, 52, 46, 0.1);
   --mark-shadow: rgba(255, 250, 240, 0.9);
-  --daemon-running: #8a9a78;
   --control-surface: rgba(59, 52, 46, 0.05);
   --control-hover-surface: rgba(251, 247, 239, 0.45);
   --control-current-surface: rgba(251, 247, 239, 0.9);
@@ -148,20 +147,6 @@ body::after {
 .daemon-running,
 .daemon-not-running {
   color: var(--dim);
-}
-
-.daemon::before {
-  display: inline-block;
-  width: 8px;
-  height: 8px;
-  margin-right: 8px;
-  background: var(--daemon-running);
-  border-radius: 50%;
-  content: "";
-}
-
-.daemon-not-running::before {
-  background: var(--amber);
 }
 
 .theme-switch {
@@ -849,7 +834,6 @@ body::after {
     --focus: #f3c9a3;
     --header-rule: rgba(236, 230, 220, 0.07);
     --mark-shadow: rgba(250, 236, 214, 0.3);
-    --daemon-running: #a9c7a3;
     --control-surface: rgba(236, 230, 220, 0.06);
     --control-hover-surface: rgba(236, 230, 220, 0.1);
     --control-current-surface: rgba(236, 230, 220, 0.14);

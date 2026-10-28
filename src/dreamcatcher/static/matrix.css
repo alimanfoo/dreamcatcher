@@ -28,7 +28,7 @@
   --space-11: 24px;
   --space-12: 28px;
   --page-width: 1120px;
-  --site-header-height: 60px;
+  --site-header-height: 64px;
   --letter-label: 0.14em;
   --letter-chip: 0.06em;
 }
@@ -121,7 +121,11 @@ body::after {
 
 .repository-links {
   display: flex;
-  align-items: center;
+  flex-direction: column;
+}
+
+.repository-lists {
+  display: flex;
   gap: var(--space-3);
 }
 

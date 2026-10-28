@@ -81,7 +81,6 @@
 
 .md-typeset .dch-ui {
   --dch-sky: var(--sky-background);
-  --dch-daemon: var(--daemon-running);
 
   display: block;
   width: auto;
@@ -115,19 +114,14 @@
   gap: 1em;
 }
 
+.dch-ui__repository-links {
+  display: inline-flex;
+  flex-direction: column;
+}
+
 .md-typeset .dch-ui__mark {
   width: 2.4em;
   opacity: 0.85;
-}
-
-.dch-ui__daemon::before {
-  display: inline-block;
-  width: 0.5em;
-  height: 0.5em;
-  margin-right: 0.55em;
-  border-radius: 50%;
-  background: var(--dch-daemon);
-  content: "";
 }
 
 .md-typeset .dch-ui__facts {
