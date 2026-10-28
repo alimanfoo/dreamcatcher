@@ -330,6 +330,7 @@ class Scheduler:
                 title=issue.title,
                 dispatch_label=route.label,
                 kind=route.kind,
+                issue_state=issue.state,
             )
             if len(routes) > 1:
                 finding = ConflictingLabelsFinding(

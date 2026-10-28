@@ -21,7 +21,7 @@ from dreamcatcher.agent_rounds import (
 from dreamcatcher.agent_work import AgentWork, AgentWorkEnding, AgentWorkEndReason
 from dreamcatcher.campaigns import CampaignChild
 from dreamcatcher.documents import read_text
-from dreamcatcher.github import PullRequestState
+from dreamcatcher.github import IssueState, PullRequestState
 from dreamcatcher.harness_adapters import AgentWorkKind, HarnessSessionIdentifier
 from dreamcatcher.harnesses import HARNESS_ADAPTERS
 from dreamcatcher.issue_conversations import is_no_reply
@@ -31,10 +31,8 @@ from dreamcatcher.scheduler.faults import (
 )
 from dreamcatcher.scheduler.models import (
     CampaignFinding,
-    ConflictingLabelsFinding,
+    HoldFinding,
     IssueCommentsFinding,
-    LabelAppliedByOtherFinding,
-    PausedFinding,
     PullRequestFinding,
     ReadFailureFinding,
     RequestFinding,
@@ -43,13 +41,12 @@ from dreamcatcher.scheduler.models import (
 )
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.status.findings import (
-    REAPPLY_LABEL_ADVICE,
+    IssueFact,
     describe_changed_children,
     describe_comments_to_answer,
-    describe_conflicting_labels,
+    describe_hold,
     describe_idle_pull_request,
-    describe_label_applier,
-    describe_pause,
+    describe_issue_state,
     describe_pull_request,
     describe_signal,
 )
@@ -72,7 +69,8 @@ class AgentWorkStatusValue(StrEnum):
     Working means that a round is running. Waiting means that a round is due
     but has not started. Fault takes two consecutive errored rounds. Unknown
     means that the latest tick could not tell. Idle means that no round is known
-    to be due. Ended means that the work's ending is recorded.
+    to be due. Held means that the scheduler takes no round of the work until
+    something on GitHub changes. Ended means that the work's ending is recorded.
     """
 
     WORKING = "working"
@@ -80,6 +78,7 @@ class AgentWorkStatusValue(StrEnum):
     FAULT = "fault"
     UNKNOWN = "unknown"
     IDLE = "idle"
+    HELD = "held"
     ENDED = "ended"
 
 
@@ -88,16 +87,18 @@ AGENT_WORK_STATUS_VALUES_IN_ATTENTION_ORDER = (
     AgentWorkStatusValue.WORKING,
     AgentWorkStatusValue.WAITING,
     AgentWorkStatusValue.IDLE,
+    AgentWorkStatusValue.HELD,
     AgentWorkStatusValue.UNKNOWN,
     AgentWorkStatusValue.ENDED,
 )
 
-# What ended work shows as its status. Each word says the state the work ended
-# in, so the saved reason "issue closed", which names a cause, shows as closed.
-_ENDING_WORDS = {
+# What ended work shows as its status: how _dreamcatcher_'s work ended. The
+# saved reason "issue closed" names GitHub's cause, which the issue's state
+# already shows, so the work shows as ended.
+AGENT_WORK_ENDING_WORDS = {
     AgentWorkEndReason.COMPLETED: "completed",
     AgentWorkEndReason.CANCELLED: "cancelled",
-    AgentWorkEndReason.ISSUE_CLOSED: "closed",
+    AgentWorkEndReason.ISSUE_CLOSED: "ended",
 }
 
 
@@ -106,6 +107,7 @@ class AgentWorkStatus:
     """Describe the derived summary status of one piece of agent work.
 
     Ended work has no detail, because its status words already say how it ended.
+    The issue's facts are what GitHub says that holds the work back.
     """
 
     work: AgentWork
@@ -113,13 +115,30 @@ class AgentWorkStatus:
     value: AgentWorkStatusValue
     detail: str | None
     latest_output: str | None
+    issue_facts: Sequence[IssueFact] = ()
 
     @property
     def words(self) -> str:
         """The status in words: the state ended work ended in, else the value."""
         if not self.has_ended:
             return str(self.value)
-        return _ENDING_WORDS[cast("AgentWorkEnding", self.work.ending).reason]
+        return AGENT_WORK_ENDING_WORDS[cast("AgentWorkEnding", self.work.ending).reason]
+
+    @property
+    def issue_state(self) -> str | None:
+        """The state of the issue that a conversation or a campaign stands for.
+
+        Ended work's issue is closed, since only that ends a conversation or a
+        campaign. Open work's is the state that the latest tick read, and it
+        has none when that read failed or the tick did not see the work. An
+        assignment has none, because its pull request stands for it.
+        """
+        if self.work.record.kind is AgentWorkKind.ASSIGNMENT:
+            return None
+        if self.has_ended:
+            return describe_issue_state(state=IssueState.CLOSED)
+        state = None if self.row is None else self.row.issue_state
+        return None if state is None else describe_issue_state(state=state)
 
     @property
     def has_ended(self) -> bool:
@@ -193,8 +212,8 @@ class AgentWorkStatus:
         return None if self.row is None else self.row.children
 
     @property
-    def children_summary(self) -> str | None:
-        """How many of an active campaign's children are closed, of how many.
+    def closed_children_summary(self) -> str | None:
+        """How many of an active campaign's children GitHub holds closed, of how many.
 
         Other work has no summary.
         """
@@ -302,17 +321,17 @@ class AgentWorkStatusReader:
     def derive(self, *, work: AgentWork) -> AgentWorkStatus:
         """Derive one piece of work's status from its records and the latest tick.
 
-        The first that applies of working, ended, fault, unknown, idle for
-        paused work, idle while awaiting an update, and waiting is the
-        status. Otherwise the work is idle, or unknown when the latest tick has
-        no row for it or read nothing for it.
+        The first that applies of working, ended, fault, unknown, held, idle
+        while awaiting an update, and waiting is the status. Otherwise the
+        work is idle, or unknown when the latest tick has no row for it or
+        read nothing for it.
         """
         steps: tuple[_StatusStep, ...] = (
             self._derive_working,
             self._derive_ended,
             self._derive_fault,
             self._derive_unknown,
-            self._derive_paused,
+            self._derive_held,
             self._derive_awaiting_update,
             self._derive_waiting,
         )
@@ -388,32 +407,25 @@ class AgentWorkStatusReader:
             return None
         return _compose_unknown(work=work, row=row, detail=row.finding.reason)
 
-    def _derive_paused(
+    def _derive_held(
         self, *, work: AgentWork, row: RequestRow | None
     ) -> AgentWorkStatus | None:
-        """Derive the idle status of paused work, which waits for nothing.
+        """Derive the status of work that the scheduler holds back for its issue.
 
-        A second label of the work's kind on its issue pauses it as a routing
-        conflict, and its label pauses it when someone other than the user
-        applied it.
+        The user paused it, its issue carries a second label of its kind, or
+        someone other than the user applied its label.
         """
         finding = None if row is None else row.finding
-        if isinstance(finding, PausedFinding):
-            cause = str(finding.cause)
-        elif isinstance(finding, LabelAppliedByOtherFinding):
-            applier = describe_label_applier(applier=finding.applier)
-            cause = f"{applier}: {REAPPLY_LABEL_ADVICE}"
-        elif isinstance(finding, ConflictingLabelsFinding):
-            conflict = describe_conflicting_labels(kind=work.record.kind)
-            cause = f"{conflict}: {', '.join(finding.labels)}"
-        else:
+        if not isinstance(finding, HoldFinding):
             return None
+        fact, advice = describe_hold(finding=finding, kind=work.record.kind)
         return AgentWorkStatus(
             work=work,
             row=row,
-            value=AgentWorkStatusValue.IDLE,
-            detail=describe_pause(cause=cause),
+            value=AgentWorkStatusValue.HELD,
+            detail=advice,
             latest_output=None,
+            issue_facts=(fact,),
         )
 
     def _derive_awaiting_update(

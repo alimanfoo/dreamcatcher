@@ -95,7 +95,7 @@ gh issue edit 123 --add-label agent-campaign
 
 At its next update, _dreamcatcher_ starts the lead. On the web home
 page, open the **Campaigns** tab. The campaign's card shows the parent,
-the lead's status and `+ 0 of 2 sub-issues closed`. Select the count to
+the lead's status and `0 of 2 sub-issues closed`. Select the count to
 show the sub-issues.
 
 In its first round, the lead reads the plan and sets up an assignment
@@ -106,6 +106,10 @@ the campaign shows as **idle**. Under the card:
 - issue 124 gets an assignment, which opens a draft pull request and
   starts work; and
 - issue 125 shows as **held**, open and **blocked by #124**.
+
+The count then reads `0 of 2 sub-issues closed · 1 working, 1 held`:
+after GitHub's count of the closed sub-issues, it counts the cards and
+rows under the campaign by the status that each shows.
 
 The lead does not post on the parent to say what it set up. Follow it in
 its feed instead, on the campaign's page or in a second terminal:
@@ -128,8 +132,8 @@ missing, it comments on the pull request, the assignment's agent answers
 in its next round, and the lead reviews again.
 
 When the sub-issue is done and its checks pass, the lead merges the pull
-request. The merge closes issue 124, and the card shows
-`+ 1 of 2 sub-issues closed`. The first sub-issue's assignment takes one
+request. The merge closes issue 124, and the card's count begins
+`1 of 2 sub-issues closed`. The first sub-issue's assignment takes one
 last wrap-up round, then shows as **completed**.
 
 ## 6. Watch the handoff
@@ -143,7 +147,7 @@ that comment when it starts.
 
 The second assignment then goes the same way as the first: its agent
 works, the lead reviews and merges, and the card shows
-`+ 2 of 2 sub-issues closed`.
+`2 of 2 sub-issues closed · 2 completed`.
 
 ## 7. Answer the lead when it asks
 

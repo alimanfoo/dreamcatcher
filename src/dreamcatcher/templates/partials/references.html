@@ -13,6 +13,10 @@
     {{ github_reference(issue.number, "issues") }}
   {%- endif %}
 {%- endmacro %}
+{#- An issue's state, then each fact that GitHub holds about it with the issues and pull requests that the fact names. An issue whose state is unknown shows nothing. -#}
+{% macro issue_state(state, facts) -%}
+  {% if state is not none %}<span class="issue-state">{{ state }}{% for fact in facts %}, {{ fact.words }}{% for issue in fact.issues %}{% if loop.first %} {% else %}, {% endif %}{{ issue_reference(issue) }}{% endfor %}{% for number in fact.pull_requests %}{% if loop.first %} {% else %}, {% endif %}PR {{ github_reference(number, "pull") }}{% endfor %}{% endfor %}</span>{% endif %}
+{%- endmacro %}
 {#- An assignment's pull request, with where it stands when that is known. An assignment with no pull request shows nothing. One that is ready for review stands out from a draft. -#}
 {% macro pull_request_chip(number, summary, is_ready_for_review) -%}
   {% set text %}PR #{{ number }}{% if summary %} {{ summary }}{% endif %}{% endset -%}

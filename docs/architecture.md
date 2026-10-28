@@ -89,11 +89,11 @@ may start, and how it composes a round's plan. `issue_work.py` holds
 what conversations and campaigns share: the lifetime rules, by which a
 closed issue ends the work once no round of it runs and the issue's
 labels and assignee, and then who applied its label, decide whether it
-is paused, and the read of the eligible comments past the work's cursor.
-`blockers.py` holds the read of the open issues that block an issue,
-which assignment and campaign requests share. `labelling.py` holds the
-rule that work starts or resumes only on a dispatch label that the
-signed-in account applied, which every kind's requests and open
+is held back, and the read of the eligible comments past the work's
+cursor. `blockers.py` holds the read of the open issues that block an
+issue, which assignment and campaign requests share. `labelling.py`
+holds the rule that work starts or resumes only on a dispatch label that
+the signed-in account applied, which every kind's requests and open
 conversations and campaigns share. `inspection.py` holds the shapes they
 share: the scheduling context, the candidate, the round plan and the
 inspection of one request. `models.py` holds the scheduler record and
@@ -115,7 +115,7 @@ One scheduler tick:
    comments, ending a conversation or campaign if its issue is closed
    and no round of it is running, and otherwise asking who applied its
    label before it reads the comments, unless a round of it is running
-   or something else pauses it;
+   or something else holds it back;
 5. then, for each request of the pass's kinds with no open work, skips
    an assignment label whose issue already has an open assignment,
    checks for a routing conflict, asks who applied the label, then asks
@@ -220,10 +220,10 @@ acquires an implementation branch or a pull request.
 Each tick reads an open conversation's issue before its comments, so
 open conversations do not depend on the listing. The tick keeps reading
 the issue while a round runs, decides from it whether the conversation
-is paused or has ended, and reads its comments only while it is neither.
-While no round runs, a conversation that nothing else pauses is also
-paused when an account other than the signed-in one applied its label,
-which the tick reads from the issue's events.
+is held back or has ended, and reads its comments only while it is
+neither. While no round runs, a conversation that nothing else holds
+back is also held back when an account other than the signed-in one
+applied its label, which the tick reads from the issue's events.
 
 The relay selects the eligible comments past the cursor. Each durable
 round input records the comments it relays, so the newest comment in the
@@ -309,22 +309,22 @@ picture.
 
 The tick then reads an open campaign's parent issue, as it reads a
 conversation's issue, and decides from it, and from who applied its
-label, whether the campaign is paused or has ended. An unpaused campaign
-that is not in fault then reads its newest delivered input and the
-parent's eligible comments past that input's cursor, unless its
-sub-issues could not be observed, which starts no round and records the
-failure. `compare_campaign_children` in `campaigns.py` then compares the
-observed sub-issues with those of the newest delivered input, and
-returns a `CampaignChildNotification` for each sub-issue whose changes
-call for the lead. It is a pure function, which reads no file and calls
-neither GitHub nor a harness, so the scheduler decides what to launch
-and the comparison only says what changed. A round is due when a comment
-waits, when a notification does, when no round has run yet, or when the
-last round errored or was interrupted. A stopped round took its turn, so
-after one the lead waits for new input. Nothing keeps the notifications
-between ticks: each tick compares afresh, and only a round that starts
-records them, in its input. The lead's next round resumes its harness
-session.
+label, whether the campaign is held back or has ended. A campaign that
+nothing holds back and that is not in fault then reads its newest
+delivered input and the parent's eligible comments past that input's
+cursor, unless its sub-issues could not be observed, which starts no
+round and records the failure. `compare_campaign_children` in
+`campaigns.py` then compares the observed sub-issues with those of the
+newest delivered input, and returns a `CampaignChildNotification` for
+each sub-issue whose changes call for the lead. It is a pure function,
+which reads no file and calls neither GitHub nor a harness, so the
+scheduler decides what to launch and the comparison only says what
+changed. A round is due when a comment waits, when a notification does,
+when no round has run yet, or when the last round errored or was
+interrupted. A stopped round took its turn, so after one the lead waits
+for new input. Nothing keeps the notifications between ticks: each tick
+compares afresh, and only a round that starts records them, in its
+input. The lead's next round resumes its harness session.
 
 The lead publishes its own messages, so a campaign's round plan has no
 finishing step, and its final output stays in the feed. Claude's
@@ -584,8 +584,10 @@ of those choices themselves.
 The scheduler record holds one `RequestRow` for each request the tick
 saw. A row names the issue, its title, the dispatch label, the kind, and
 the identifier of the open agent work, if any, with that work's latest
-round when it had ended as the tick read the work. It holds what the
-tick found as a typed finding:
+round when it had ended as the tick read the work, and the issue's state
+when the tick read the issue: the listing reads it for every request,
+and the tick reads it again for an open conversation or campaign. It
+holds what the tick found as a typed finding:
 
 - for an assignment whose pull request the tick read, the pull request's
   number, state, draft flag, merge state, head and check result, whether
@@ -606,26 +608,26 @@ tick found as a typed finding:
   two labels of its kind, those labels;
 - for a request, or an open conversation or campaign, whose label an
   account other than the signed-in one applied, that account;
-- for a conversation or campaign paused for any other reason, the cause;
+- for a conversation or campaign that the user paused, the cause;
 - for a read that failed, the reason, in place of what it would have
   found.
 
 A row has no finding when the tick found nothing to record for it, as
-for an assignment in fault, an unpaused conversation or campaign in
-fault, a conversation or campaign whose issue it found closed, or an
-assignment whose pull request no round has opened yet. A running round
-does not prevent the tick from recording a finding, but it prevents the
-finding from making the work a candidate for another round. A row also
-names the round the tick started for it and, when that round errored
-during its preparation or startup, the reason. Apart from those reasons
-for a failure, no row holds a sentence meant for a person. Status
-composes the words from these values once, and keeps the issue and pull
-request numbers as numbers, so both presentations link them and neither
-parses text.
+for an assignment in fault, a conversation or campaign in fault that
+nothing holds back, a conversation or campaign whose issue it found
+closed, or an assignment whose pull request no round has opened yet. A
+running round does not prevent the tick from recording a finding, but it
+prevents the finding from making the work a candidate for another round.
+A row also names the round the tick started for it and, when that round
+errored during its preparation or startup, the reason. Apart from those
+reasons for a failure, no row holds a sentence meant for a person.
+Status composes the words from these values once, and keeps the issue
+and pull request numbers as numbers, so both presentations link them and
+neither parses text.
 
 A campaign's row also holds the parent's sub-issues as the tick observed
-them, beside its finding, so they stay current while the lead is paused
-or in fault. The row holds no sub-issues when the tick could not observe
+them, beside its finding, so they stay current while the lead is held or
+in fault. The row holds no sub-issues when the tick could not observe
 them all, or observed none for a campaign request whose labels conflict
 or whose parent an open issue blocks. Status gives an active campaign
 those sub-issues and the words that count its closed sub-issues out of
@@ -633,16 +635,21 @@ the total, or says that its sub-issues are unknown. The status report
 gives each sub-issue the status of its newest local assignment, so a new
 assignment shows before the next tick records it on the campaign, the
 request statuses of its assignment labels that have no open work, and
-whether its issue is open or closed, as the tick observed it. The web
-home page puts an active campaign's lead card and the expandable block
-of its sub-issues side by side in one wrapper, so the latest output of a
-sub-issue's card is never read as the lead's. The block stays in place,
-holding only its count while the sub-issues are unknown or there are
-none, so a refresh keeps it open through a failed observation. Each card
-or request row in that block takes the campaign's identifier as a prefix
-to its HTML identifier, so it differs from the same card on the
-Assignments tab. A request row's identifier holds its label
-percent-encoded, so two distinct labels on one issue never share one.
+whether its issue is open or closed, as the tick observed it. The status
+report also summarises the sub-issues on one line: the count of closed
+sub-issues, then one count for each word that the chips of the nested
+assignment cards and request rows show: the statuses of open work in
+attention order, then the ending words, then the words that only a
+request shows. The web home page puts an active campaign's lead card and
+the expandable block of its sub-issues side by side in one wrapper, so
+the latest output of a sub-issue's card is never read as the lead's. The
+block stays in place, holding only its count while the sub-issues are
+unknown or there are none, so a refresh keeps it open through a failed
+observation. Each card or request row in that block takes the campaign's
+identifier as a prefix to its HTML identifier, so it differs from the
+same card on the Assignments tab. A request row's identifier holds its
+label percent-encoded, so two distinct labels on one issue never share
+one.
 
 `AgentWorkStatus` is one summary status from the concepts page, derived
 in one chain for every kind of agent work. `RequestStatus` gives a

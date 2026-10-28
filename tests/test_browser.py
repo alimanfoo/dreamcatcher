@@ -351,7 +351,7 @@ def test_an_expanded_campaign_stays_open_while_its_children_are_unknown(
 
     observe_campaign_children(state=state, children=None)
 
-    expect(children.locator("summary")).to_have_text("+ sub-issues unknown")
+    expect(children.locator("summary")).to_have_text("sub-issues unknown")
     expect(entries).to_have_count(0)
     expect(children).to_have_attribute("open", "")
 

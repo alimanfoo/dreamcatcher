@@ -201,7 +201,7 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto auto;
   grid-template-areas:
-    "heading pr pr"
+    "heading github github"
     "meta state open"
     "detail detail detail";
   align-items: center;
@@ -261,8 +261,8 @@
   color: var(--dim);
 }
 
-.dch-pr {
-  grid-area: pr;
+.dch-github {
+  grid-area: github;
   justify-self: end;
   text-align: right;
   color: var(--dim);
@@ -314,7 +314,7 @@
   .md-typeset .dch-ui__lists li.dch-row {
     grid-template-columns: minmax(0, 1fr) auto;
     grid-template-areas:
-      "heading pr"
+      "heading github"
       "meta meta"
       "state open"
       "detail detail";

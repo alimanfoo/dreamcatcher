@@ -476,7 +476,7 @@ def test_two_faulted_campaigns_start_the_global_cooldown(campaign_scheduler):
 
 
 @pytest.mark.parametrize(
-    ("issue", "pause"),
+    ("issue", "hold"),
     [
         (
             compose_parent_issue(labels=()),
@@ -492,8 +492,8 @@ def test_two_faulted_campaigns_start_the_global_cooldown(campaign_scheduler):
         ),
     ],
 )
-def test_a_paused_campaign_recovers_nothing_and_its_fault_does_not_count(
-    campaign_scheduler, harnesses, issue, pause
+def test_a_held_campaign_recovers_nothing_and_its_fault_does_not_count(
+    campaign_scheduler, harnesses, issue, hold
 ):
     scheduler, gh = campaign_scheduler
     configure(
@@ -507,7 +507,7 @@ def test_a_paused_campaign_recovers_nothing_and_its_fault_does_not_count(
 
     assert observed.rows[0] == compose_campaign_row(
         issue=PARENT,
-        finding=pause,
+        finding=hold,
         agent_work_identifier=compose_campaign_identifier(issue=PARENT),
         ended_round=2,
         children=(),

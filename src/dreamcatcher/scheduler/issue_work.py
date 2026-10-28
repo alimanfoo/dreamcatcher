@@ -2,7 +2,7 @@
 
 A conversation and a campaign each belong to the label that started them. Their
 issue's state, labels and assignee, and who applied their label, decide whether
-they have ended, are paused or may take another round, and the user talks to
+they have ended, are held back or may take another round, and the user talks to
 their agent in the issue's comments.
 """
 
@@ -48,15 +48,14 @@ def inspect_open_issue_work(
     is_in_fault: bool,
     inspect_eligible: EligibleIssueWorkInspector,
 ) -> Inspection:
-    """Read the work's issue, then inspect it further unless paused or in fault.
+    """Read the work's issue, then inspect it further unless held or in fault.
 
-    A closed issue ends the work once its running round finishes. Paused work's
+    A closed issue ends the work once its running round finishes. Held work's
     fault does not count, since it starts no round however its rounds ended.
     Unless a round is running, who applied the work's label is read once
-    nothing else pauses it. A read that fails leaves whether the work is paused
-    unknown, so its fault counts.
+    nothing else holds the work back. A read that fails leaves whether the
+    work is held unknown, so its fault counts.
     """
-    unread = compose_open_work_row(work=work, finding=None)
     issue = read_issue(repository=context.repository, issue=work.record.issue)
     if isinstance(issue, UnknownGitHubResponse):
         return Inspection(
@@ -65,32 +64,34 @@ def inspect_open_issue_work(
             ),
             is_counted_fault=is_in_fault,
         )
+    unread = compose_open_work_row(work=work, finding=None, issue_state=issue.state)
     if issue.state is IssueState.CLOSED:
         if not work.is_round_running:
             end_agent_work(
                 work=work, reason=AgentWorkEndReason.ISSUE_CLOSED, at=context.clock()
             )
         return Inspection(row=unread)
-    pause = _find_pause(context=context, work=work, issue=issue)
-    if pause is None and not work.is_round_running:
-        pause = find_label_applied_by_other(
+    hold = _find_hold(context=context, work=work, issue=issue)
+    if hold is None and not work.is_round_running:
+        hold = find_label_applied_by_other(
             context=context, issue=issue.number, label=work.record.dispatch_label
         )
-    if pause is not None:
+    if hold is not None:
         return Inspection(
-            row=compose_open_work_row(work=work, finding=pause),
-            is_counted_fault=is_in_fault and isinstance(pause, ReadFailureFinding),
+            row=unread.model_copy(update={"finding": hold}),
+            is_counted_fault=is_in_fault and isinstance(hold, ReadFailureFinding),
         )
     if is_in_fault:
         return Inspection(row=unread, is_counted_fault=True)
     return inspect_eligible(issue=issue, row=unread)
 
 
-def _find_pause(
+def _find_hold(
     *, context: SchedulingContext, work: AgentWork, issue: Issue
 ) -> PausedFinding | ConflictingLabelsFinding | None:
-    """Return why the open work at this open issue is paused, if it is.
+    """Return what the issue's labels and assignee hold the open work back for.
 
+    The user pauses the work by taking its label off or unassigning the issue.
     Work whose channel is its issue belongs to its own label. Another configured
     label of its kind on the issue is a routing conflict, held as the labels.
     The work's own label counts whether or not its route is still configured.

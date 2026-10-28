@@ -34,6 +34,7 @@ from dreamcatcher.tui.shared import (
     ViewSnapshot,
     combine_renderable_parts,
     create_table,
+    describe_work_detail,
     refresh_live_view,
     refresh_until_view_ends,
     render_latest_output,
@@ -101,8 +102,9 @@ def _render_agent_work(
     work = status.work
     rendered_status = Text()
     rendered_status.append(status.words, style=AGENT_WORK_STATUS_STYLES[status.value])
-    if status.detail is not None:
-        rendered_status.append(f"  {status.detail}")
+    detail = describe_work_detail(status=status)
+    if detail is not None:
+        rendered_status.append(f"  {detail}")
     latest_output = render_latest_output(latest_output=status.latest_output)
     if latest_output is not None:
         latest_output = Padding(

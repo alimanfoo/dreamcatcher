@@ -98,10 +98,12 @@ _dreamcatcher_ keeps the lead's final output in the feed and posts none
 of it.
 
 Monitor the campaign on the web home page's Campaigns tab, where its
-card shows how many of the parent's sub-issues are closed. Expand the
-count to see each sub-issue with its assignment's card and the row of
-each request for an assignment on it that has no open work, or the
-sub-issue's number and title alone when it has neither. Each
+card shows how many of the parent's sub-issues are closed, then counts
+the assignments and requests under it by their status, as in
+`32 of 35 sub-issues closed · 6 working, 3 waiting, 1 held, 5 completed`.
+Expand the count to see each sub-issue with its assignment's card and
+the row of each request for an assignment on it that has no open work,
+or the sub-issue's number and title alone when it has neither. Each
 assignment's card stays on the Assignments tab too. Once the campaign
 ends, its card moves to the ended list and shows only the campaign
 itself. You can also monitor the campaign in the terminal:
@@ -155,12 +157,13 @@ take a round, reach it in one round.
 
 Remove the campaign's label from the parent, or unassign the parent from
 yourself, to pause the campaign. A round that is already running
-finishes. Comments you post while the campaign is paused wake nothing.
+finishes. The home page shows the campaign as held, and says what brings
+it back. Comments you post while the campaign is paused wake nothing.
 Restore the label and the assignee to resume the same campaign. Only a
 label that you put back yourself resumes it, and the lead is given every
 comment you posted while it was paused, and what changed among the
 sub-issues meanwhile. A second campaign label on the parent is a routing
-conflict, and pauses the campaign in the same way until one of the
+conflict, and holds the campaign back in the same way until one of the
 labels comes off.
 
 Close the parent to end the campaign. It ends once any running round

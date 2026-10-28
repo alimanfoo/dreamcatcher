@@ -110,6 +110,8 @@ def _compose_work_card(
         pull_request=status.pull_request,
         pull_request_summary=status.pull_request_summary,
         is_pull_request_ready_for_review=status.is_pull_request_ready_for_review,
+        issue_state=status.issue_state,
+        issue_facts=status.issue_facts,
         child_overview=_compose_child_overview(report=report, campaign=status),
         latest_output=status.latest_output,
     )
@@ -119,7 +121,7 @@ def _compose_child_overview(
     *, report: DreamcatcherStatusReport, campaign: AgentWorkStatus
 ) -> WebCampaignChildOverview | None:
     """Return an active campaign's child overview; other work has none."""
-    summary = campaign.children_summary
+    summary = report.summarise_campaign_children(campaign=campaign)
     if summary is None:
         return None
     return WebCampaignChildOverview(

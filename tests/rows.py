@@ -4,6 +4,7 @@ from collections.abc import Sequence
 
 from conftest import ASSIGNMENT_LABEL
 
+from dreamcatcher.github import IssueState
 from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.scheduler.models import (
     CampaignChild,
@@ -39,7 +40,7 @@ def compose_request_row(
     """Return the row of the request that a label of that kind makes on the issue.
 
     The title is `Issue <n>`, and the label is the kind's usual one unless the
-    test gives it.
+    test gives it. The row holds the issue as open, as the tick read it.
     """
     return RequestRow(
         issue=issue,
@@ -50,7 +51,26 @@ def compose_request_row(
         ended_round=ended_round,
         finding=finding,
         started_round=started_round,
+        issue_state=IssueState.OPEN,
     )
+
+
+def compose_open_assignment_row(
+    *,
+    issue: int,
+    agent_work_identifier: str,
+    ended_round: int | None = None,
+    finding: RequestFinding | None = None,
+    started_round: StartedRound | None = None,
+) -> RequestRow:
+    """Return the row of an open assignment, whose issue the tick does not read."""
+    return compose_request_row(
+        issue=issue,
+        agent_work_identifier=agent_work_identifier,
+        ended_round=ended_round,
+        finding=finding,
+        started_round=started_round,
+    ).model_copy(update={"issue_state": None})
 
 
 def compose_conversation_row(

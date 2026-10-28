@@ -57,10 +57,13 @@ prepare an assignment instead.
 
 Each conversation belongs to the label that started it. _dreamcatcher_
 checks its issue at every update, including while a round is running.
-Removing that label, adding a second configured conversation label, or
-removing the authenticated account as assignee pauses the conversation:
-no new round starts, including one that would retry an errored round. A
-round already running may finish and publish its answer.
+Removing that label, or removing the authenticated account as assignee,
+pauses the conversation, and a second configured conversation label
+holds it back in the same way: no new round starts, including one that
+would retry an errored round. A round already running may finish and
+publish its answer. The home page shows the conversation as held, says
+why beside the issue, and says what brings it back, such as "put the
+label back to resume".
 
 Undo the change to resume the conversation. Only a label that you put
 back yourself resumes it. It continues in the same harness session, and

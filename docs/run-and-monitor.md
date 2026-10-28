@@ -110,17 +110,19 @@ Every kind of agent work shares these statuses:
   awaits the next update, for an assignment whether its pull request is
   ready for review, still a draft and needing your feedback, failing its
   checks after two attempts, or merged or closed after its wrap-up
-  round, and for a conversation or campaign how its latest round ended,
-  or why it is paused;
+  round, and for a conversation or campaign how its latest round ended;
+- **held**: the scheduler takes no round of a conversation or campaign
+  until something changes on GitHub, as when you pause it; beside the
+  issue, the work says why, and the detail says what brings it back;
 - **fault**: repeated errors need attention;
 - **unknown**: _dreamcatcher_ could not read what it needed, or the
   latest update has not seen the work; the accompanying detail says
   which; and
 - **ended**: the work is over. In place of the status, the work shows
-  the state it ended in, with no detail: **completed** for an assignment
-  after a successful wrap-up, **cancelled** for an assignment that you
-  cancelled, and **closed** for a conversation or campaign whose issue
-  was closed.
+  how it ended, with no detail: **completed** for an assignment after a
+  successful wrap-up, **cancelled** for an assignment that you
+  cancelled, and **ended** for a conversation or campaign, whose issue
+  shows as closed.
 
 The [command reference](command-reference.md) gives the complete syntax
 and explains when each view ends. For interruption and failures,

@@ -335,7 +335,7 @@ def test_a_campaign_with_no_children_to_show_says_why_and_shows_no_cards(
     ]
     children_block = children_block[: children_block.index("</details>")]
 
-    assert f"<summary>+ {summary}</summary>" in children_block
+    assert f"<summary>{summary}</summary>" in children_block
     assert "<article" not in children_block
 
 
@@ -1116,7 +1116,7 @@ def test_ended_assignments_are_ordered_by_when_they_ended(tmp_path):
 ENDED_WORK = [
     (fabricate_everything, "GH12-20260819-184158-assignment", "completed"),
     (fabricate_everything, "GH70-20260819-184158-assignment", "cancelled"),
-    (fabricate_campaign_report, "GH61-20260819-184158-campaign", "closed"),
+    (fabricate_campaign_report, "GH61-20260819-184158-campaign", "ended"),
 ]
 
 

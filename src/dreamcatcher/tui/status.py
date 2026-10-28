@@ -13,7 +13,6 @@ from dreamcatcher.state import StateDirectory
 from dreamcatcher.status import (
     AgentWorkStatus,
     DreamcatcherStatusReport,
-    IssueFact,
     RequestStatus,
     read_status_report,
 )
@@ -22,7 +21,9 @@ from dreamcatcher.tui.shared import (
     ViewSnapshot,
     combine_renderable_parts,
     create_table,
+    describe_work_detail,
     refresh_live_view,
+    render_issue_fact,
     render_latest_output,
     render_section,
 )
@@ -122,8 +123,8 @@ def _render_request_rows(*, requests: Sequence[RequestStatus]) -> list[Renderabl
     for request in requests:
         issue = ", ".join(
             [
-                request.issue_state,
-                *(_render_issue_fact(fact=fact) for fact in request.issue_facts),
+                *([] if request.issue_state is None else [request.issue_state]),
+                *(render_issue_fact(fact=fact) for fact in request.issue_facts),
             ]
         )
         table.add_row(
@@ -133,22 +134,6 @@ def _render_request_rows(*, requests: Sequence[RequestStatus]) -> list[Renderabl
             Text(issue if request.detail is None else f"{issue}; {request.detail}"),
         )
     return [table]
-
-
-def _render_issue_fact(*, fact: IssueFact) -> str:
-    """Return one fact's words followed by the issues and pull requests it names."""
-    references = [
-        *(
-            f"{issue.repository}#{issue.number}"
-            if issue.repository
-            else f"GH{issue.number}"
-            for issue in fact.issues
-        ),
-        *(f"PR #{number}" for number in fact.pull_requests),
-    ]
-    if not references:
-        return fact.words
-    return f"{fact.words} {', '.join(references)}"
 
 
 def _render_work_rows(*, statuses: Sequence[AgentWorkStatus]) -> list[RenderableType]:
@@ -165,7 +150,7 @@ def _render_work_rows(*, statuses: Sequence[AgentWorkStatus]) -> list[Renderable
         table.add_row(
             Text(status.work.identifier),
             Text(status.words, style=AGENT_WORK_STATUS_STYLES[status.value]),
-            Text(status.detail or ""),
+            Text(describe_work_detail(status=status) or ""),
         )
         rows.append(table)
         latest_output = render_latest_output(latest_output=status.latest_output)

@@ -1,5 +1,8 @@
 """Word what a scheduler tick found, once for every status that shows it."""
 
+from collections.abc import Sequence
+from dataclasses import dataclass
+
 from dreamcatcher.github import (
     CheckResult,
     IssueState,
@@ -8,17 +11,67 @@ from dreamcatcher.github import (
     PullRequestState,
 )
 from dreamcatcher.harness_adapters import AgentWorkKind
-from dreamcatcher.scheduler.models import PullRequestFinding
+from dreamcatcher.scheduler.models import (
+    HoldFinding,
+    IssueReference,
+    LabelAppliedByOtherFinding,
+    PauseCause,
+    PausedFinding,
+    PullRequestFinding,
+)
 from dreamcatcher.words import describe_count
 
-# What the user does to take on a dispatch label that someone else applied.
-REAPPLY_LABEL_ADVICE = "remove and re-add the label yourself"
+# What GitHub says of an issue whose work the user paused, and what resumes it.
+_PAUSE_WORDS = {
+    PauseCause.LABEL_REMOVED: ("label removed", "put the label back to resume"),
+    PauseCause.ISSUE_UNASSIGNED: (
+        "unassigned",
+        "assign the issue to yourself to resume",
+    ),
+}
 
 # What each signal says, wherever a status names what woke or will wake a round.
 _SIGNAL_WORDS = {
     PullRequestSignal.OUT_OF_DATE: "main moved",
     PullRequestSignal.CHECK_FAILURE: "checks failed",
 }
+
+
+@dataclass(frozen=True, kw_only=True)
+class IssueFact:
+    """Say one thing that GitHub holds about an issue that _dreamcatcher_ acts on.
+
+    A fact names the pull requests it refers to as numbers, and the issues
+    by references that name another repository where one holds the issue.
+    """
+
+    words: str
+    issues: Sequence[IssueReference] = ()
+    pull_requests: Sequence[int] = ()
+
+
+def describe_hold(
+    *,
+    finding: HoldFinding,
+    kind: AgentWorkKind,
+) -> tuple[IssueFact, str]:
+    """Say why the issue keeps work of a kind from going on, then what to do.
+
+    An empty applier is an account that GitHub does not name.
+    """
+    if isinstance(finding, PausedFinding):
+        words, advice = _PAUSE_WORDS[finding.cause]
+        return IssueFact(words=words), advice
+    if isinstance(finding, LabelAppliedByOtherFinding):
+        applier = finding.applier or "an unknown account"
+        return (
+            IssueFact(words=f"labelled by {applier}"),
+            "remove and re-add the label yourself",
+        )
+    return (
+        IssueFact(words=f"multiple {kind} labels"),
+        "remove all but one: " + ", ".join(finding.labels),
+    )
 
 
 def describe_comments_to_answer(*, count: int) -> str:
@@ -29,24 +82,6 @@ def describe_comments_to_answer(*, count: int) -> str:
 def describe_changed_children(*, count: int) -> str:
     """Say how many of a campaign's children changed in ways the lead hears of."""
     return f"{describe_count(number=count, noun='sub-issue')} changed"
-
-
-def describe_conflicting_labels(*, kind: AgentWorkKind) -> str:
-    """Say that an issue carries more than one label of one kind."""
-    return f"multiple {kind} labels"
-
-
-def describe_pause(*, cause: str) -> str:
-    """Say why work at an issue is paused until the cause is removed."""
-    return f"paused, {cause}"
-
-
-def describe_label_applier(*, applier: str) -> str:
-    """Say who applied a dispatch label that the user did not.
-
-    An empty applier is an account that GitHub does not name.
-    """
-    return f"labelled by {applier or 'an unknown account'}"
 
 
 def describe_issue_state(*, state: IssueState) -> str:

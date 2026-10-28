@@ -1,5 +1,6 @@
 """Read status reports for a dreamcatcher instance."""
 
+from collections import Counter
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from datetime import datetime, timedelta
@@ -21,16 +22,39 @@ from dreamcatcher.scheduler.faults import read_scheduler_record
 from dreamcatcher.scheduler.models import GlobalCooldown, RequestRow, SchedulerRecord
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.status.agent_work import (
+    AGENT_WORK_ENDING_WORDS,
     AGENT_WORK_STATUS_VALUES_IN_ATTENTION_ORDER,
     AgentWorkStatus,
     AgentWorkStatusReader,
+    AgentWorkStatusValue,
 )
 from dreamcatcher.status.findings import describe_issue_state
-from dreamcatcher.status.requests import RequestStatus, describe_request
+from dreamcatcher.status.requests import (
+    RequestStatus,
+    RequestStatusValue,
+    describe_request,
+)
 from dreamcatcher.words import describe_span
 
 # The address of the documentation site, which the views link to.
 DOCUMENTATION_URL = "https://alimanfoo.github.io/dreamcatcher/"
+
+# The words that the chips under a campaign can show, in the order that its
+# summary counts them: how open assignments stand, in attention order, then how
+# ended ones ended, then the words that only requests show.
+_CHILD_WORDS_IN_SUMMARY_ORDER = tuple(
+    dict.fromkeys(
+        [
+            *(
+                str(value)
+                for value in AGENT_WORK_STATUS_VALUES_IN_ATTENTION_ORDER
+                if value is not AgentWorkStatusValue.ENDED
+            ),
+            *AGENT_WORK_ENDING_WORDS.values(),
+            *(str(value) for value in RequestStatusValue),
+        ]
+    )
+)
 
 # The guidance that an empty section of each kind gives, naming its labels.
 _EMPTY_SECTION_GUIDANCE = {
@@ -336,6 +360,36 @@ class DreamcatcherStatusReport:
             )
             for child in campaign.children or ()
         ]
+
+    def summarise_campaign_children(self, *, campaign: AgentWorkStatus) -> str | None:
+        """Summarise an active campaign's children on one line.
+
+        GitHub's count of the closed children comes first, then one count for
+        each word that the chips of the nested assignments and requests show.
+        Other work has no summary.
+        """
+        summary = campaign.closed_children_summary
+        if summary is None:
+            return None
+        child_statuses = self.list_campaign_child_statuses(campaign=campaign)
+        counts = Counter(
+            word
+            for child_status in child_statuses
+            for word in (
+                *(
+                    []
+                    if child_status.assignment is None
+                    else [child_status.assignment.words]
+                ),
+                *(str(request.value) for request in child_status.requests),
+            )
+        )
+        words = [
+            f"{counts[word]} {word}"
+            for word in _CHILD_WORDS_IN_SUMMARY_ORDER
+            if counts[word]
+        ]
+        return f"{summary} · {', '.join(words)}" if words else summary
 
     def _list_work_statuses(self, *, kind: AgentWorkKind) -> list[AgentWorkStatus]:
         return [

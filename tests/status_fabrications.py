@@ -27,6 +27,7 @@ from rows import (
     UNCLAIMED,
     compose_campaign_row,
     compose_conversation_row,
+    compose_open_assignment_row,
     compose_request_row,
 )
 
@@ -88,7 +89,7 @@ def _compose_assignment_row(
     started_round: StartedRound | None = None,
 ) -> RequestRow:
     """Return the row of the assignment that the fabrications write at the issue."""
-    return compose_request_row(
+    return compose_open_assignment_row(
         issue=issue,
         agent_work_identifier=f"GH{issue}-{ASSIGNMENT_TIMESTAMP}-assignment",
         ended_round=ended_round,

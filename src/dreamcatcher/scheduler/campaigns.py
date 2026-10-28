@@ -76,7 +76,7 @@ def inspect_open_campaign(
     """Observe an open campaign's children, then inspect its parent issue.
 
     The children are observed whether or not the campaign may take a round, so
-    the row shows them while the lead is paused or in fault. The parent's
+    the row shows them while the lead is held or in fault. The parent's
     comments are read unless the campaign may not run.
     """
     children = _observe_children(

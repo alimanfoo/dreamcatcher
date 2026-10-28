@@ -16,9 +16,7 @@ from pydantic import (
 from dreamcatcher.agent_assignments import ObservedPullRequest
 from dreamcatcher.campaigns import CampaignChild
 from dreamcatcher.documents import DreamcatcherDocument, ReadOnlyList
-from dreamcatcher.github import (
-    PullRequestSignal,
-)
+from dreamcatcher.github import IssueState, PullRequestSignal
 from dreamcatcher.harness_adapters import AgentWorkKind
 
 GLOBAL_COOLDOWN_DURATION = timedelta(minutes=15)
@@ -94,12 +92,12 @@ class ConflictingLabelsFinding(DreamcatcherDocument):
 
 
 class PauseCause(StrEnum):
-    """The causes of a pause that the issue's labels and assignee give alone.
+    """The ways that the user pauses a conversation or a campaign.
 
-    The tick checks them in this order. A second label of the paused work's
-    kind is the third cause, which the tick checks after them and holds as the
-    conflicting labels. A label that someone other than the user applied is the
-    fourth, which the tick reads last, never while a round runs, and holds as the
+    The tick checks them in this order. Two other causes hold the work back
+    without pausing it, and the tick checks them after these: a second label of
+    the work's kind, held as the conflicting labels, and then, never while a
+    round runs, a label that someone other than the user applied, held as the
     account that applied it.
     """
 
@@ -108,7 +106,7 @@ class PauseCause(StrEnum):
 
 
 class PausedFinding(DreamcatcherDocument):
-    """Say which of the causes that the issue gives alone pauses work at it."""
+    """Say how the user paused the work at the issue."""
 
     found: Literal["paused"] = "paused"
     cause: PauseCause
@@ -124,6 +122,11 @@ class LabelAppliedByOtherFinding(DreamcatcherDocument):
         "label applied by another account"
     )
     applier: str
+
+
+# What a tick finds that holds open work or a request back until the issue
+# changes on GitHub.
+HoldFinding = PausedFinding | LabelAppliedByOtherFinding | ConflictingLabelsFinding
 
 
 class CampaignFinding(DreamcatcherDocument):
@@ -180,7 +183,10 @@ class RequestRow(DreamcatcherDocument):
     ended as the tick read the work. A row has no finding when the tick found
     nothing to record for it. A campaign's row holds the children of its parent
     as the tick observed them, whether or not the campaign may take a round,
-    and holds none when the tick could not observe them all.
+    and holds none when the tick could not observe them all. A row holds its
+    issue's state when the tick read the issue: the listing reads the issue of
+    every request, and the tick reads the issue of open conversations and
+    campaigns again.
     """
 
     issue: PositiveInt
@@ -192,6 +198,7 @@ class RequestRow(DreamcatcherDocument):
     finding: RequestFinding | None = None
     started_round: StartedRound | None = None
     children: ReadOnlyList[CampaignChild] | None = None
+    issue_state: IssueState | None = None
 
 
 class GlobalCooldown(DreamcatcherDocument):

@@ -9,7 +9,7 @@ from dreamcatcher.agent_rounds import AgentRoundFinisher
 from dreamcatcher.agent_work import AgentWork
 from dreamcatcher.config import DispatchRoute, DreamcatcherConfig
 from dreamcatcher.documents import DreamcatcherDocument
-from dreamcatcher.github import Issue
+from dreamcatcher.github import Issue, IssueState
 from dreamcatcher.scheduler.models import RequestFinding, RequestRow
 from dreamcatcher.state import StateDirectory
 
@@ -95,9 +95,15 @@ class RequestInspector(Protocol):
 
 
 def compose_open_work_row(
-    *, work: AgentWork, finding: RequestFinding | None
+    *,
+    work: AgentWork,
+    finding: RequestFinding | None,
+    issue_state: IssueState | None = None,
 ) -> RequestRow:
-    """Return the row of the request that led to open work, with what the tick found."""
+    """Return the row of the request that led to open work, with what the tick found.
+
+    The issue's state is the one that the tick read, when it read the issue.
+    """
     record = work.record
     return RequestRow(
         issue=record.issue,
@@ -111,4 +117,5 @@ def compose_open_work_row(
             else None
         ),
         finding=finding,
+        issue_state=issue_state,
     )

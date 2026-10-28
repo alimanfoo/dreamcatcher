@@ -356,7 +356,9 @@ meantime they don't want the agent chiming in on every comment, because
 the discussion that follows is between people. So they take the
 conversation label off the issue, and that is all it takes. The
 conversation pauses, and the user can comment on the issue without the
-agent answering.
+agent answering. The home page shows the conversation as held, with
+"label removed" beside the issue and "put the label back to resume"
+beneath, so it is clear that nothing happens until they act.
 
 Later, something comes up that they want the agent's view on again. They
 put the label back, and the same conversation picks up where it left
@@ -392,8 +394,12 @@ lead chose to say there. At later updates the lead is left alone until
 the user comments on the parent or a sub-issue changes in a way that it
 needs to hear of. The home page has a Campaigns tab, where the campaign
 shows as idle with how its round ended and how many of the parent's
-sub-issues are closed out of the total, and its page shows the feed. The
-user expands the count to see every sub-issue, each with its
+sub-issues are closed out of the total, and its page shows the feed.
+After that count, the same line counts the cards and rows under the
+campaign by the status that each shows, such as 6 working, 3 waiting and
+1 held, so the user sees the whole picture of the sub-issues without
+opening it. Every count comes from the latest update and the work's own
+records. The user expands the line to see every sub-issue, each with its
 assignment's card as the Assignments tab shows it and the row of each
 request for an assignment on it that has no open work, or, when it has
 neither, the sub-issue's number and title and whether it is open or
@@ -510,11 +516,13 @@ The user wants the lead to leave the parent alone for a while. They take
 the campaign label off the parent, or unassign it from themselves, and
 the campaign pauses. A round that is already running finishes, and no
 other round starts, not even one to recover a round that did not finish.
-Comments the user posts on the parent meanwhile wake nothing, but the
-Campaigns tab keeps counting the closed sub-issues. When they put the
-label back, the same campaign carries on in its saved harness session,
-and the lead is given every comment posted while it was paused, and what
-changed among the sub-issues meanwhile.
+The Campaigns tab shows the campaign as held, says beside the parent
+why, and says beneath what brings it back. Comments the user posts on
+the parent meanwhile wake nothing, but the Campaigns tab keeps counting
+the closed sub-issues. When they put the label back, the same campaign
+carries on in its saved harness session, and the lead is given every
+comment posted while it was paused, and what changed among the
+sub-issues meanwhile.
 
 The value to the user is that the lead is on the parent only when
 wanted.
@@ -562,15 +570,15 @@ label that no work answers yet, and that row stands for the label until
 work starts for it. Each kind of work has a section, and within each the
 rows come in the order that deserves attention: anything in fault first,
 then what is working, then what is waiting for its turn, then what is
-idle, then anything the last update could not read, and after all of
-those the labels where nothing has started yet. Each row says why it is
-where it is. This pull request is ready for review. That one is still a
-draft, so the agent has probably asked something. This issue has not
-started because another pull request already claims it. The pull
-requests the user needs to read are a click away, and ended work is
-folded under a collapsed list, so the page shows only what is live. The
-terminal gives the same rows, with a count of ended work in place of the
-list.
+idle, then what is held until something changes on GitHub, then anything
+the last update could not read, and after all of those the labels where
+nothing has started yet. Each row says why it is where it is. This pull
+request is ready for review. That one is still a draft, so the agent has
+probably asked something. This issue has not started because another
+pull request already claims it. The pull requests the user needs to read
+are a click away, and ended work is folded under a collapsed list, so
+the page shows only what is live. The terminal gives the same rows, with
+a count of ended work in place of the list.
 
 On the home page, every row lays out its lines in the same order,
 whatever its state, so nothing moves as lines come and go. Its first
@@ -583,24 +591,25 @@ from a draft, and it keeps that text when it conflicts with main or its
 checks fail. The words "draft" and "ready" stay, so the user can tell
 them apart without the colour. The assignment's page shows its pull
 request the same way. A conversation or a campaign has no pull request,
-so its first line holds the issue alone. The second line is what
-_dreamcatcher_ holds: the dispatch label, with the harness, model and
-effort that run the work, and then the work's status and the link to its
-page. Beneath that, a piece of work says what it is doing or what it
-waits for, and while a round runs or after a fault, the agent's latest
-output comes last. A piece of work that has ended says nothing beneath
-its second line, which gives the state it ended in, in place of its
-status, so the row says once that it has ended and why. An assignment
-ends completed or cancelled, and a conversation or a campaign ends
-closed. The work's page and `dreamcatcher view` show the same word in
-place of the status, with nothing beneath it. Every piece of work that
-has ended shows its title more quietly than live work does, here and
-within a campaign, so it draws less attention, and its links stay as
-clear as they are on any other row. A request's row gives its issue at
-the top, with the issue's state and what GitHub says that holds the
-request back, such as an issue that blocks it. Beneath that come its
-dispatch label and request status, and then, when there is any, what
-_dreamcatcher_ found or what the user has to do.
+so its first line holds the issue and whether it is open or closed. The
+second line is what _dreamcatcher_ holds: the dispatch label, with the
+harness, model and effort that run the work, and then the work's status
+and the link to its page. Beneath that, a piece of work says what it is
+doing or what it waits for, and while a round runs or after a fault, the
+agent's latest output comes last. A piece of work that has ended says
+nothing beneath its second line, which gives how it ended in place of
+its status, so the row says once that it has ended and how. An
+assignment ends completed or cancelled, and a conversation or a campaign
+shows ended, with its issue closed on its first line. The work's page
+and `dreamcatcher view` show the same word in place of the status, with
+nothing beneath it. Every piece of work that has ended shows its title
+more quietly than live work does, here and within a campaign, so it
+draws less attention, and its links stay as clear as they are on any
+other row. A request's row gives its issue at the top, with the issue's
+state and what GitHub says that holds the request back, such as an issue
+that blocks it. Beneath that come its dispatch label and request status,
+and then, when there is any, what _dreamcatcher_ found or what the user
+has to do.
 
 The home page always has a tab for each of the three kinds of work, and
 the terminal a section for each, even when a kind has nothing in it. A
@@ -794,8 +803,10 @@ A conversation answers only its own label. With two conversation labels,
 the user may see two request rows, a conversation and a request row, or
 two conversations, depending on which labels already have one. The
 conflict stops new rounds. A conversation with a round running finishes
-that round, and then pauses until the other label comes off. A campaign
-answers only its own label in the same way.
+that round, and is then held until the other label comes off, with its
+card saying that the issue has more than one label of the kind and
+telling the user to remove all but one. A campaign answers only its own
+label in the same way.
 
 Labels of different kinds on the same issue are not a conflict, and each
 can start its own work.
@@ -820,7 +831,7 @@ sees the issue's request row on the home page and in
 colleague and telling the user to remove and re-add the label
 themselves. The same goes for a bot, and for an account that has since
 been deleted, which the row cannot name. A colleague who puts back the
-label of a paused conversation or campaign leaves it paused, and its row
+label of a paused conversation or campaign leaves it held, and its card
 says so in the same words.
 
 If the user wants the work, they need to take the label off and put it
@@ -970,7 +981,7 @@ failed read for one piece of work or one request shows on its row. When
 a campaign's sub-issues, or their assignments, cannot all be read, its
 card shows its sub-issues as unknown in place of the closed count, and
 its lead starts no round from the partial picture. A lead that is not
-working, paused or in fault shows as unknown too, with the failed read;
+working, held or in fault shows as unknown too, with the failed read;
 otherwise the lead keeps its status. The next update tries again. Work
 whose round is already running carries on, and its pushes and posts fail
 or succeed as GitHub allows.
