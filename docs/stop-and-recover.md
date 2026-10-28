@@ -150,7 +150,7 @@ available. Then clear the fault so that the work can run again:
 dreamcatcher retry GH123
 ```
 
-`retry` preserves the failed rounds for diagnosis. It clears the fault
+`retry` preserves the errored rounds for diagnosis. It clears the fault
 of the one piece of agent work that it selects, as `stop` selects it,
 and reports work that is not in fault. It does not start an agent
 itself; on a later scheduler update the daemon may start the work's next

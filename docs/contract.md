@@ -232,7 +232,7 @@ only eligible comments after the newest comment given to a round that
 finished its turn. The agent should use its existing transcript when a
 new question refers to an earlier answer. Before every round,
 _dreamcatcher_ resets the worktree to fetched main, deleting every local
-commit and file left by the earlier investigation.
+commit and file left by the earlier round.
 
 ### Investigation scope
 

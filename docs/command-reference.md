@@ -137,7 +137,7 @@ dreamcatcher retry (GH<n> | IDENTIFIER)
 ```
 
 Record a retry request for the selected agent work, which clears its
-fault. It preserves the failed round records.
+fault. It preserves the errored round records.
 
 The work must currently be in fault. Otherwise the command reports that
 it is not in fault; ended work is never in fault. A successful request

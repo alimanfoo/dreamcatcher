@@ -233,7 +233,7 @@ class DreamcatcherStatusReport:
         The daemon waits its interval after each update finishes, so the next
         update is running once that wait is over, and before this daemon run's
         first update finishes. A record of an earlier daemon run's update
-        finished before this run started.
+        finished before this daemon run started.
         """
         run = self.daemon.run
         if not self.daemon.is_running or run is None:
@@ -252,8 +252,8 @@ class DreamcatcherStatusReport:
 
         The guidance shows only while nothing of the kind is active and a daemon
         run is recorded, because the routes are those of the current or latest
-        run. It names the labels of the kind that the run routes, or says how to
-        route the kind when the run routes none.
+        daemon run. It names the labels of the kind that the daemon run routes,
+        or says how to route the kind when it routes none.
         """
         run = self.daemon.run
         is_active = bool(
