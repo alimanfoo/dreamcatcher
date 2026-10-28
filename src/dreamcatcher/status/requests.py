@@ -44,9 +44,9 @@ class RequestStatusValue(StrEnum):
 
     Available means that work starts once an agent slot is free. Held means
     that the scheduler holds the request back for what GitHub says of its
-    issue: an open issue blocks it, an open pull request claims it, someone
-    other than the user applied its label, or it carries a second label of
-    its kind. Idle means that a conversation waits for the user's first
+    issue: an open issue blocks it, a linked open pull request claims it,
+    someone other than the user applied its label, or it carries a second
+    label of its kind. Idle means that a conversation waits for the user's first
     comment. Unknown means that a read that decides whether work may start
     failed.
     """

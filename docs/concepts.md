@@ -618,11 +618,11 @@ A request with no open work has one of these request statuses:
 - **Available**: work starts once an agent slot is free.
 - **Held**: the scheduler holds the request back for what GitHub says of
   its issue. An open issue blocks the issue of an assignment or campaign
-  request, an open pull request claims an assignment request's issue,
-  someone other than the user applied the request's label, or the issue
-  has a routing conflict. Work starts by itself once a blocker closes or
-  a claiming pull request goes. A label that someone else applied, and a
-  routing conflict, need the user to act.
+  request, an open pull request linked to an assignment request's issue
+  claims it, someone other than the user applied the request's label, or
+  the issue has a routing conflict. Work starts by itself once a blocker
+  closes or a claiming pull request goes. A label that someone else
+  applied, and a routing conflict, need the user to act.
 - **Idle**: a conversation request waits for the user's first comment.
 - **Unknown**: a read that decides whether work may start failed, or
   GitHub could not yet tell. A failure to read external state can delay
