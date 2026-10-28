@@ -1322,6 +1322,17 @@ def test_working_motifs_beyond_the_places_share_them_out_of_phase(tmp_path):
     ]
 
 
+def test_every_rain_column_falls_in_its_own_glyphs(tmp_path):
+    template = _create_app(state=StateDirectory(root=tmp_path)).jinja_env.from_string(
+        '{% import "partials/motifs.html" as motifs %}'
+        '{{ motifs.working_motifs(theme="matrix", count=6) }}'
+    )
+
+    columns = re.findall(r'class="rain-column"[^>]*>([^<]+)<', template.render())
+
+    assert len(set(columns)) == 6
+
+
 @pytest.mark.parametrize(
     ("fabricate", "empty_tabs"), [(fabricate_nothing, 3), (fabricate_everything, 2)]
 )

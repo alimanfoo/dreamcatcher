@@ -30,7 +30,8 @@
 <div class="working-motifs" aria-hidden="true">
 {%- if theme == "matrix" %}
 {%- for index in range(count) %}
-  <div class="rain-column" style="{{ place_motif(places=rain_places, index=index, count=count) }}">{{ (rain_glyphs[index * 7:] ~ rain_glyphs[:index * 7])[:22]|join("\n") }}</div>
+  {%- set shift = index * 7 % rain_glyphs|length %}
+  <div class="rain-column" style="{{ place_motif(places=rain_places, index=index, count=count) }}">{{ (rain_glyphs[shift:] ~ rain_glyphs[:shift])[:22]|join("\n") }}</div>
 {%- endfor %}
 {%- else %}
 {%- for index in range(count) %}

@@ -856,17 +856,24 @@ body::after {
   }
 }
 
-.rain-column {
+/* A rain column falls from above its region until it has passed below it. */
+
+.rain-column,
+.empty-rain-column {
   position: absolute;
   top: 0;
   color: var(--phosphor);
-  font-size: 15px;
   line-height: 1.15;
   white-space: pre;
+  animation: rain-fall linear infinite;
+}
+
+.rain-column {
+  --rain-end: 100vh;
+  font-size: 15px;
   text-shadow: 0 0 6px rgba(51, 255, 102, 0.7);
   opacity: 0.55;
   mask-image: linear-gradient(to bottom, transparent, black 85%);
-  animation: rain-fall linear infinite;
 }
 
 @keyframes rain-fall {
@@ -875,7 +882,7 @@ body::after {
   }
 
   to {
-    transform: translateY(100vh);
+    transform: translateY(var(--rain-end));
   }
 }
 
@@ -897,26 +904,11 @@ body::after {
 }
 
 .empty-rain-column {
-  position: absolute;
-  top: 0;
-  color: var(--phosphor);
+  --rain-end: var(--empty-field-height);
   font-size: 14px;
-  line-height: 1.15;
-  white-space: pre;
   text-shadow: 0 0 6px rgba(51, 255, 102, 0.6);
   opacity: 0.18;
   mask-image: linear-gradient(to bottom, transparent, black 80%);
-  animation: empty-rain-fall linear infinite;
-}
-
-@keyframes empty-rain-fall {
-  from {
-    transform: translateY(-100%);
-  }
-
-  to {
-    transform: translateY(var(--empty-field-height));
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {
