@@ -320,7 +320,17 @@ work's record, its rounds, the daemon process and its request row.
 A **request status** is the single summary status of a request with no
 open agent work. It says why no work has started for it.
 
-Replaces: "board".
+A **card** is what _dreamcatcher_ shows for one piece of agent work, one
+request, or one sub-issue under a campaign. Its first row gives the
+issue and GitHub's state of what the card stands for; its second, the
+route and _dreamcatcher_'s status; then any detail or advice; then,
+while the agent works or after a fault, its latest output. A **work
+card**, a **request card** and a **sub-issue card** are the three kinds.
+A work page opens with its work card. The terminal's status table shows
+each card as one row, with its parts in the same order.
+
+Replaces: "board"; and "request row", for what the user sees of a
+request, which is its request card.
 
 ### Global cooldown
 

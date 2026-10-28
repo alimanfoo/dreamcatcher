@@ -9,10 +9,10 @@
         {% with card = child.assignment %}{% include "partials/agent-work-card.html" %}{% endwith %}
       {%- endif %}
       {%- for request in child.requests %}
-        {% include "partials/request-row.html" %}
+        {% include "partials/request-card.html" %}
       {%- endfor %}
       {%- if child.assignment is none and not child.requests %}
-        <article id="{{ id_prefix }}sub-issue-{{ child.issue }}" class="campaign-child{% if child.is_closed %} is-closed{% endif %}" aria-label="Sub-issue #{{ child.issue }}">
+        <article id="{{ id_prefix }}sub-issue-{{ child.issue }}" class="sub-issue-card{% if child.is_closed %} is-closed{% endif %}" aria-label="Sub-issue #{{ child.issue }}">
           <div class="card-heading">
             <div>{{ github_reference(child.issue, "issues") }} <span class="title">{{ child.title }}</span></div>
             {{ issue_state(child.issue_state, ()) }}

@@ -49,7 +49,7 @@ class WebAgentWorkCard:
 class WebCampaignChild:
     """Represent one child in its campaign's overview.
 
-    The child shows its assignment's card and its requests' rows, or its issue
+    The child shows its assignment's card and its requests' cards, or its issue
     and the issue's state alone when it has neither.
     """
 

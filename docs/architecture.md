@@ -638,18 +638,17 @@ request statuses of its assignment labels that have no open work, and
 whether its issue is open or closed, as the tick observed it. The status
 report also summarises the sub-issues on one line: the count of closed
 sub-issues, then one count for each word that the chips of the nested
-assignment cards and request rows show: the statuses of open work in
+assignment cards and request cards show: the statuses of open work in
 attention order, then the ending words, then the words that only a
 request shows. The web home page puts an active campaign's lead card and
 the expandable block of its sub-issues side by side in one wrapper, so
 the latest output of a sub-issue's card is never read as the lead's. The
 block stays in place, holding only its count while the sub-issues are
 unknown or there are none, so a refresh keeps it open through a failed
-observation. Each card or request row in that block takes the campaign's
-identifier as a prefix to its HTML identifier, so it differs from the
-same card on the Assignments tab. A request row's identifier holds its
-label percent-encoded, so two distinct labels on one issue never share
-one.
+observation. Each card in that block takes the campaign's identifier as
+a prefix to its HTML identifier, so it differs from the same card on the
+Assignments tab. A request card's identifier holds its label
+percent-encoded, so two distinct labels on one issue never share one.
 
 `AgentWorkStatus` is one summary status from the concepts page, derived
 in one chain for every kind of agent work. `RequestStatus` gives a

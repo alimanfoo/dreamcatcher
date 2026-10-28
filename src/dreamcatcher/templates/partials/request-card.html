@@ -1,5 +1,5 @@
 {#- Percent-encoding keeps every distinct label distinct in the identifier. -#}
-{% from "partials/status-class.html" import status_class %}{% from "partials/references.html" import github_reference, issue_state with context %}<article id="{{ id_prefix }}request-{{ request.row.issue }}-{{ request.row.dispatch_label|urlencode }}" class="request-row" aria-label="Issue #{{ request.row.issue }} {{ request.row.dispatch_label }}">
+{% from "partials/status-class.html" import status_class %}{% from "partials/references.html" import github_reference, issue_state with context %}<article id="{{ id_prefix }}request-{{ request.row.issue }}-{{ request.row.dispatch_label|urlencode }}" class="request-card" aria-label="Issue #{{ request.row.issue }} {{ request.row.dispatch_label }}">
   <div class="card-heading">
     <div>{{ github_reference(request.row.issue, "issues") }} <span class="title">{{ request.row.title }}</span></div>
     {{ issue_state(request.issue_state, request.issue_facts) }}

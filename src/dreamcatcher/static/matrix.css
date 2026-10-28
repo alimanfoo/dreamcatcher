@@ -299,8 +299,8 @@ body::after {
 }
 
 .agent-work-card,
-.request-row,
-.campaign-child {
+.request-card,
+.sub-issue-card {
   min-width: 0;
   padding: var(--space-6) 0;
   border-bottom: var(--line) solid var(--rule-inner);
@@ -378,7 +378,7 @@ body::after {
    theme, and its links keep their colours. */
 
 .agent-work-card.is-ended .title,
-.campaign-child.is-closed .title {
+.sub-issue-card.is-closed .title {
   color: var(--dim);
 }
 

@@ -77,6 +77,12 @@ the change.
   shows, as in "32 of 35 sub-issues closed · 6 working, 3 waiting, 1
   held, 5 completed". The "+" before the line is gone.
   ([#849](https://github.com/alimanfoo/dreamcatcher/pull/849))
+- [Concepts](concepts.md) names the card: what _dreamcatcher_ shows for
+  one piece of work, one request or one sub-issue, as a work card, a
+  request card or a sub-issue card. The documentation calls each of them
+  a card where it called some of them rows, and "request row" now means
+  only what the scheduler found for a request.
+  ([#853](https://github.com/alimanfoo/dreamcatcher/pull/853))
 
 ### Fixed
 

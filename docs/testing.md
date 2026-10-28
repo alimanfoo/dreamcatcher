@@ -53,7 +53,7 @@ content. They do not by themselves prove browser layout or interaction.
 A browser test covers only what needs a real browser to observe: script
 behaviour, a dialog, focus, scroll position, state kept across a
 refresh, or computed style and layout. Anything the page says, such as
-which rows appear, their order, their text, or what a control requests,
+which cards appear, their order, their text, or what a control requests,
 is tested without a browser, in `tests/test_web.py`,
 `tests/test_conversation_web.py` or the rendered-view goldens.
 

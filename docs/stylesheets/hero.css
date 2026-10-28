@@ -194,10 +194,10 @@
   margin-top: 1.8em;
 }
 
-/* One issue, laid out as the web page lays out a row: its title and pull
+/* One issue, laid out as the web page lays out a card: its title and pull
    request, then its settings, state and open button, then its round. */
 
-.md-typeset .dch-ui__lists li.dch-row {
+.md-typeset .dch-ui__lists li.dch-card {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto auto;
   grid-template-areas:
@@ -311,7 +311,7 @@
     padding-inline: 1em;
   }
 
-  .md-typeset .dch-ui__lists li.dch-row {
+  .md-typeset .dch-ui__lists li.dch-card {
     grid-template-columns: minmax(0, 1fr) auto;
     grid-template-areas:
       "heading github"

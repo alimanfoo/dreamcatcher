@@ -367,7 +367,7 @@ def test_a_campaign_sub_issue_with_no_assignment_or_request_shows_its_state_alon
     sub_issue = extract_article(page=page, identifier=f"{prefix}sub-issue-66")
 
     assert re.sub(r"<[^>]+>", " ", sub_issue).split() == ["#66", "Issue", "66", words]
-    assert ('class="campaign-child is-closed"' in sub_issue) is is_closed
+    assert ('class="sub-issue-card is-closed"' in sub_issue) is is_closed
     assert f'id="{prefix}GH64-20260819-184158-assignment"' in page
     assert f'id="{prefix}request-65-' in page
 

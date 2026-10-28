@@ -290,8 +290,8 @@ body::after {
 }
 
 .agent-work-card,
-.request-row,
-.campaign-child {
+.request-card,
+.sub-issue-card {
   padding: 16px 0;
 }
 

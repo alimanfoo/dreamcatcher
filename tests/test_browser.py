@@ -311,7 +311,7 @@ def test_a_refresh_leaves_an_expanded_campaign_open(page: Page, live_web: str) -
     page.goto(live_web)
     children = expand_campaign(page=page)
     expect(
-        children.locator(".agent-work-card, .request-row, .campaign-child")
+        children.locator(".agent-work-card, .request-card, .sub-issue-card")
     ).to_have_count(5)
 
     wait_for_refresh(page=page)
@@ -346,7 +346,7 @@ def test_an_expanded_campaign_stays_open_while_its_children_are_unknown(
     state = StateDirectory(root=tmp_path)
     page.goto(live_web)
     children = expand_campaign(page=page)
-    entries = children.locator(".agent-work-card, .request-row, .campaign-child")
+    entries = children.locator(".agent-work-card, .request-card, .sub-issue-card")
     expect(entries).to_have_count(5)
 
     observe_campaign_children(state=state, children=None)

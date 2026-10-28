@@ -542,7 +542,7 @@ def test_each_child_of_an_active_campaign_has_its_assignment_and_requests(state)
     ] == [[], [22], []]
 
 
-def test_a_campaign_summary_counts_its_nested_rows_by_the_words_they_show(state):
+def test_a_campaign_summary_counts_its_nested_cards_by_the_words_they_show(state):
     write_assignment(
         state=state, identifier="GH21-20260819-184158-assignment", issue=21
     )
@@ -576,7 +576,7 @@ def test_a_campaign_summary_counts_its_nested_rows_by_the_words_they_show(state)
     )
 
 
-def test_a_campaign_summary_without_nested_rows_gives_githubs_count_alone(state):
+def test_a_campaign_summary_without_nested_cards_gives_githubs_count_alone(state):
     write_lead_round(state=state, number=1, ending=SUCCESSFUL)
     observe(
         state=state,
