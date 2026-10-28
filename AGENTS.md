@@ -30,7 +30,7 @@ before judging any finding.
   faults. Behaviour that contradicts any story is a bug, including the
   handling promised for a user error or expected fault. Behaviour a
   story explicitly accepts is not.
-- [docs/ontology.md](docs/ontology.md) says what the words mean. Use its
+- [docs/concepts.md](docs/concepts.md) says what the words mean. Use its
   words and no others.
 - [docs/architecture.md](docs/architecture.md) says where each thing
   lives in the code and how the parts pass things to each other.

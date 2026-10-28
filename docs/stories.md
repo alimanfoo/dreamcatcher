@@ -1,10 +1,10 @@
 # User stories
 
 This document says what the user does with _dreamcatcher_, why, and what
-they see, while [the ontology](ontology.md) says what the words mean,
-[the architecture](architecture.md) says where each thing lives in the
-code and [the standard](standard.md) says how good the work has to be.
-It is an enduring part of the project.
+they see, while [the concepts page](concepts.md) says what the words
+mean, [the architecture](architecture.md) says where each thing lives in
+the code and [the standard](standard.md) says how good the work has to
+be. It is an enduring part of the project.
 
 The theory of use is short. One developer runs _dreamcatcher_ on their
 own machine, under their own GitHub account, against a repository they
@@ -24,11 +24,11 @@ user's account, so an assignment's agent hears the lead's feedback as it
 hears the user's.
 
 Each story is told from the user's seat, in the order things happen,
-using the ontology's words without defining them and citing no rule and
-no mechanism. The happy paths come first, grouped as assignments,
-conversations, campaigns and running _dreamcatcher_, and each says what
-the user gained. Then come the user errors, each saying what the user
-needs to do, and then the expected faults.
+using the words in the concepts page without defining them and citing no
+rule and no mechanism. The happy paths come first, grouped as
+assignments, conversations, campaigns and running _dreamcatcher_, and
+each says what the user gained. Then come the user errors, each saying
+what the user needs to do, and then the expected faults.
 
 Agents should read the stories before judging a finding in the code. A
 bug is behaviour that contradicts a story, whether a happy path or the
