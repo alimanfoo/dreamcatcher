@@ -572,7 +572,7 @@ def test_a_campaign_summary_counts_its_nested_rows_by_the_words_they_show(state)
     [campaign] = report.list_active_work_statuses(kind=AgentWorkKind.CAMPAIGN)
 
     assert report.summarise_campaign_children(campaign=campaign) == (
-        "0 of 5 sub-issues closed · 1 waiting, 1 held, 1 available, 1 unknown"
+        "0 of 5 sub-issues closed · 1 waiting, 1 available, 1 held, 1 unknown"
     )
 
 

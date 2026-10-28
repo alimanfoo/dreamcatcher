@@ -5,7 +5,6 @@ from dataclasses import dataclass
 from enum import StrEnum
 from typing import cast
 
-from dreamcatcher.github import IssueState
 from dreamcatcher.scheduler.models import (
     BlockingIssuesFinding,
     CampaignFinding,
@@ -68,12 +67,13 @@ class RequestStatus:
     detail: str | None
 
     @property
-    def issue_state(self) -> str:
-        """The state of the request's issue in words.
+    def issue_state(self) -> str | None:
+        """The state of the request's issue in words, as the listing read it.
 
-        The tick finds requests only on the open issues that it lists.
+        A row that a tick wrote before rows held the issue's state has none.
         """
-        return describe_issue_state(state=IssueState.OPEN)
+        state = self.row.issue_state
+        return None if state is None else describe_issue_state(state=state)
 
 
 def describe_request(*, row: RequestRow) -> RequestStatus:

@@ -122,7 +122,7 @@ def _render_request_rows(*, requests: Sequence[RequestStatus]) -> list[Renderabl
     for request in requests:
         issue = ", ".join(
             [
-                request.issue_state,
+                *([] if request.issue_state is None else [request.issue_state]),
                 *(_render_issue_fact(fact=fact) for fact in request.issue_facts),
             ]
         )

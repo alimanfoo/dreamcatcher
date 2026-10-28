@@ -39,25 +39,16 @@ from dreamcatcher.words import describe_span
 # The address of the documentation site, which the views link to.
 DOCUMENTATION_URL = "https://alimanfoo.github.io/dreamcatcher/"
 
-# The words that count the assignment cards and request rows under a campaign,
-# in the order that its summary gives them: how open assignments stand, in
-# attention order, then how ended ones ended, then how requests stand. Held and
-# unknown, which both can show, are each counted once, with the requests.
-_CHILD_WORDS_IN_SUMMARY_ORDER = (
+# What the chip of an assignment under a campaign can say, in the order that
+# the campaign's summary counts them: how open assignments stand, in attention
+# order, then how ended ones ended.
+_ASSIGNMENT_WORDS_IN_SUMMARY_ORDER = (
     *(
         str(value)
         for value in AGENT_WORK_STATUS_VALUES_IN_ATTENTION_ORDER
-        if value
-        not in {
-            AgentWorkStatusValue.HELD,
-            AgentWorkStatusValue.UNKNOWN,
-            AgentWorkStatusValue.ENDED,
-        }
+        if value is not AgentWorkStatusValue.ENDED
     ),
     *AGENT_WORK_ENDING_WORDS.values(),
-    RequestStatusValue.HELD,
-    RequestStatusValue.AVAILABLE,
-    RequestStatusValue.UNKNOWN,
 )
 
 # The guidance that an empty section of each kind gives, naming its labels.
@@ -165,12 +156,6 @@ class CampaignChildStatus:
     def issue_state(self) -> str:
         """Whether the child's issue is open or closed, in words."""
         return describe_issue_state(state=self.child.state)
-
-    @property
-    def chip_words(self) -> list[str]:
-        """The words that the chips of the child's assignment and requests show."""
-        assignment = [] if self.assignment is None else [self.assignment.words]
-        return [*assignment, *(str(request.value) for request in self.requests)]
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -374,31 +359,41 @@ class DreamcatcherStatusReport:
     def summarise_campaign_children(self, *, campaign: AgentWorkStatus) -> str | None:
         """Summarise an active campaign's children on one line.
 
-        GitHub's count of the closed children comes first, then one count for
-        each word that the chips nested under the campaign show. Other work has
-        no summary.
+        GitHub's count of the closed children comes first. Then come counts of
+        the words that the chips of the nested assignments show, then counts
+        of those of the nested requests. Other work has no summary.
         """
         summary = campaign.closed_children_summary
         if summary is None:
             return None
-        counts = Counter(
-            word
-            for child_status in self.list_campaign_child_statuses(campaign=campaign)
-            for word in child_status.chip_words
+        child_statuses = self.list_campaign_child_statuses(campaign=campaign)
+        assignments = Counter(
+            child_status.assignment.words
+            for child_status in child_statuses
+            if child_status.assignment is not None
         )
-        if not counts:
-            return summary
-        words = (
-            f"{counts[word]} {word}"
-            for word in _CHILD_WORDS_IN_SUMMARY_ORDER
-            if word in counts
+        requests = Counter(
+            str(request.value)
+            for child_status in child_statuses
+            for request in child_status.requests
         )
-        return f"{summary} · {', '.join(words)}"
+        counts = [
+            *_describe_counts(
+                counts=assignments, words=_ASSIGNMENT_WORDS_IN_SUMMARY_ORDER
+            ),
+            *_describe_counts(counts=requests, words=list(RequestStatusValue)),
+        ]
+        return f"{summary} · {', '.join(counts)}" if counts else summary
 
     def _list_work_statuses(self, *, kind: AgentWorkKind) -> list[AgentWorkStatus]:
         return [
             status for status in self.work_statuses if status.work.record.kind is kind
         ]
+
+
+def _describe_counts(*, counts: Counter[str], words: Sequence[str]) -> list[str]:
+    """Return the count of each word that counts, in the words' order."""
+    return [f"{counts[word]} {word}" for word in words if counts[word]]
 
 
 def _compose_section_guidance(
