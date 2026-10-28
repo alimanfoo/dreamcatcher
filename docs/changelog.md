@@ -36,6 +36,15 @@ the change.
   `https://alimanfoo.github.io/dreamcatcher/ontology/`, no longer
   resolves. ([#829](https://github.com/alimanfoo/dreamcatcher/pull/829))
 
+### Fixed
+
+- On the web page, every new line of a feed shows as soon as it arrives,
+  and a feed that is following stays at its end. Before, the page typed
+  each line in one after another, so a busy agent left blank lines in
+  the feed and the feed fell behind the agent. A card's latest output on
+  the home page now changes in place, without being typed.
+  ([#828](https://github.com/alimanfoo/dreamcatcher/pull/828))
+
 ## [v9.4.0](https://github.com/alimanfoo/dreamcatcher/releases/tag/v9.4.0) — 2026-10-27
 
 ### Changed
