@@ -36,8 +36,7 @@ the change.
   `https://alimanfoo.github.io/dreamcatcher/ontology/`, no longer
   resolves. ([#829](https://github.com/alimanfoo/dreamcatcher/pull/829))
 - Each section of [Concepts](concepts.md) ends with the words that its
-  concepts replace, such as "stage" for a sub-issue, so that nobody
-  reaches for one of them again.
+  concepts replace, such as "stage" for a sub-issue.
   ([#838](https://github.com/alimanfoo/dreamcatcher/pull/838))
 
 ### Fixed
