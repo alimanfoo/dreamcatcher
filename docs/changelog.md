@@ -38,6 +38,12 @@ the change.
 
 ### Fixed
 
+- On the web page, every new line of a feed shows as soon as it arrives,
+  and a feed that is following stays at its end. Before, the page typed
+  each line in one after another, so a busy agent left blank lines in
+  the feed and the feed fell behind the agent. A card's latest output on
+  the home page now changes in place, without being typed.
+  ([#828](https://github.com/alimanfoo/dreamcatcher/pull/828))
 - The home page and `dreamcatcher status` no longer show a dispatch
   label's row beside the work that just started for it. For a few
   seconds after an update started work, until the update finished, the
