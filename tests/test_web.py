@@ -1194,34 +1194,6 @@ def test_an_ended_assignment_card_within_a_campaign_shows_why_it_ended(tmp_path)
     assert 'class="agent-work-detail"' not in card
 
 
-def test_home_page_types_replaced_assignment_output(tmp_path):
-    state = StateDirectory(root=tmp_path)
-    state.bootstrap()
-    application = _create_app(
-        state=state, clock=lambda: LOOKED_AT, zone=DISPLAY_TIME_ZONE
-    )
-    client = application.test_client()
-
-    home_response = client.get("/")
-    script_response = client.get("/static/home.js")
-    stylesheet_response = client.get("/static/matrix.css")
-    home = home_response.get_data(as_text=True)
-    script = script_response.get_data(as_text=True)
-    stylesheet = stylesheet_response.get_data(as_text=True)
-
-    assert home_response.status_code == 200
-    assert script_response.status_code == 200
-    assert stylesheet_response.status_code == 200
-    assert 'src="/static/home.js"' in home
-    assert 'addEventListener("htmx:beforeSwap"' in script
-    assert 'querySelector(".latest-output")' in script
-    assert '"(prefers-reduced-motion: reduce)"' in script
-    assert (
-        "animation: type-output var(--output-typing-duration) steps(32, end);"
-        in stylesheet
-    )
-
-
 def test_assignment_page_shares_the_home_page_top_bar(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)

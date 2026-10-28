@@ -30,7 +30,6 @@
   --page-width: 1320px;
   --letter-label: 0.14em;
   --letter-chip: 0.06em;
-  --output-typing-duration: 420ms;
 }
 
 * {
@@ -455,24 +454,6 @@ body::after {
   text-transform: uppercase;
 }
 
-.latest-output.is-replacing {
-  visibility: hidden;
-}
-
-.latest-output.is-typing {
-  animation: type-output var(--output-typing-duration) steps(32, end);
-}
-
-@keyframes type-output {
-  from {
-    clip-path: inset(0 100% 0 0);
-  }
-
-  to {
-    clip-path: inset(0);
-  }
-}
-
 .card-foot {
   margin-top: var(--space-4);
 }
@@ -812,8 +793,7 @@ body::after {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .fact.in-progress dd,
-  .latest-output.is-typing {
+  .fact.in-progress dd {
     animation: none;
   }
 }
