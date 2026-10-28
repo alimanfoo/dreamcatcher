@@ -121,7 +121,7 @@ def _compose_child_overview(
     *, report: DreamcatcherStatusReport, campaign: AgentWorkStatus
 ) -> WebCampaignChildOverview | None:
     """Return an active campaign's child overview; other work has none."""
-    summary = campaign.children_summary
+    summary = report.summarise_campaign_children(campaign=campaign)
     if summary is None:
         return None
     return WebCampaignChildOverview(

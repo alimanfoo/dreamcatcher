@@ -1,5 +1,6 @@
 """Read status reports for a dreamcatcher instance."""
 
+from collections import Counter
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from datetime import datetime, timedelta
@@ -21,16 +22,43 @@ from dreamcatcher.scheduler.faults import read_scheduler_record
 from dreamcatcher.scheduler.models import GlobalCooldown, RequestRow, SchedulerRecord
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.status.agent_work import (
+    AGENT_WORK_ENDING_WORDS,
     AGENT_WORK_STATUS_VALUES_IN_ATTENTION_ORDER,
     AgentWorkStatus,
     AgentWorkStatusReader,
+    AgentWorkStatusValue,
 )
 from dreamcatcher.status.findings import describe_issue_state
-from dreamcatcher.status.requests import RequestStatus, describe_request
+from dreamcatcher.status.requests import (
+    RequestStatus,
+    RequestStatusValue,
+    describe_request,
+)
 from dreamcatcher.words import describe_span
 
 # The address of the documentation site, which the views link to.
 DOCUMENTATION_URL = "https://alimanfoo.github.io/dreamcatcher/"
+
+# The words that count the assignment cards and request rows under a campaign,
+# in the order that its summary gives them: how open assignments stand, in
+# attention order, then how ended ones ended, then how requests stand. Held and
+# unknown, which both can show, are each counted once, with the requests.
+_CHILD_WORDS_IN_SUMMARY_ORDER = (
+    *(
+        str(value)
+        for value in AGENT_WORK_STATUS_VALUES_IN_ATTENTION_ORDER
+        if value
+        not in {
+            AgentWorkStatusValue.HELD,
+            AgentWorkStatusValue.UNKNOWN,
+            AgentWorkStatusValue.ENDED,
+        }
+    ),
+    *AGENT_WORK_ENDING_WORDS.values(),
+    RequestStatusValue.HELD,
+    RequestStatusValue.AVAILABLE,
+    RequestStatusValue.UNKNOWN,
+)
 
 # The guidance that an empty section of each kind gives, naming its labels.
 _EMPTY_SECTION_GUIDANCE = {
@@ -137,6 +165,12 @@ class CampaignChildStatus:
     def issue_state(self) -> str:
         """Whether the child's issue is open or closed, in words."""
         return describe_issue_state(state=self.child.state)
+
+    @property
+    def chip_words(self) -> list[str]:
+        """The words that the chips of the child's assignment and requests show."""
+        assignment = [] if self.assignment is None else [self.assignment.words]
+        return [*assignment, *(str(request.value) for request in self.requests)]
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -336,6 +370,30 @@ class DreamcatcherStatusReport:
             )
             for child in campaign.children or ()
         ]
+
+    def summarise_campaign_children(self, *, campaign: AgentWorkStatus) -> str | None:
+        """Summarise an active campaign's children on one line.
+
+        GitHub's count of the closed children comes first, then one count for
+        each word that the chips nested under the campaign show. Other work has
+        no summary.
+        """
+        summary = campaign.closed_children_summary
+        if summary is None:
+            return None
+        counts = Counter(
+            word
+            for child_status in self.list_campaign_child_statuses(campaign=campaign)
+            for word in child_status.chip_words
+        )
+        if not counts:
+            return summary
+        words = (
+            f"{counts[word]} {word}"
+            for word in _CHILD_WORDS_IN_SUMMARY_ORDER
+            if word in counts
+        )
+        return f"{summary} · {', '.join(words)}"
 
     def _list_work_statuses(self, *, kind: AgentWorkKind) -> list[AgentWorkStatus]:
         return [

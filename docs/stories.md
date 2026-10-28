@@ -394,8 +394,12 @@ lead chose to say there. At later updates the lead is left alone until
 the user comments on the parent or a sub-issue changes in a way that it
 needs to hear of. The home page has a Campaigns tab, where the campaign
 shows as idle with how its round ended and how many of the parent's
-sub-issues are closed out of the total, and its page shows the feed. The
-user expands the count to see every sub-issue, each with its
+sub-issues are closed out of the total, and its page shows the feed.
+After that count, the same line counts the cards and rows under the
+campaign by the status that each shows, such as 6 working, 3 waiting and
+1 held, so the user sees the whole picture of the sub-issues without
+opening it. Every count comes from the latest update and the work's own
+records. The user expands the line to see every sub-issue, each with its
 assignment's card as the Assignments tab shows it and the row of each
 request for an assignment on it that has no open work, or, when it has
 neither, the sub-issue's number and title and whether it is open or

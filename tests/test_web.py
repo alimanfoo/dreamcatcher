@@ -335,7 +335,7 @@ def test_a_campaign_with_no_children_to_show_says_why_and_shows_no_cards(
     ]
     children_block = children_block[: children_block.index("</details>")]
 
-    assert f"<summary>+ {summary}</summary>" in children_block
+    assert f"<summary>{summary}</summary>" in children_block
     assert "<article" not in children_block
 
 

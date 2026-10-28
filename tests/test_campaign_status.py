@@ -46,12 +46,15 @@ from dreamcatcher.relay import IssueCommentCursor
 from dreamcatcher.scheduler.models import (
     CampaignFinding,
     IssueCommentsFinding,
+    IssueReference,
     PauseCause,
     PausedFinding,
+    ReadFailureFinding,
     RequestFinding,
     RequestRow,
     SchedulerRecord,
     StartedRound,
+    StartTimeFinding,
 )
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.status import (
@@ -468,7 +471,7 @@ def test_an_active_campaign_counts_its_closed_children(state, children, summary)
     status = read_campaign_status(state=state)
 
     assert status.children == children
-    assert status.children_summary == summary
+    assert status.closed_children_summary == summary
 
 
 def test_an_ended_campaign_shows_no_children(state):
@@ -487,7 +490,7 @@ def test_an_ended_campaign_shows_no_children(state):
 
     status = read_campaign_status(state=state)
 
-    assert (status.children, status.children_summary) == (None, None)
+    assert (status.children, status.closed_children_summary) == (None, None)
 
 
 def test_each_child_of_an_active_campaign_has_its_assignment_and_requests(state):
@@ -537,6 +540,57 @@ def test_each_child_of_an_active_campaign_has_its_assignment_and_requests(state)
     assert [
         [request.row.issue for request in status.requests] for status in child_statuses
     ] == [[], [22], []]
+
+
+def test_a_campaign_summary_counts_its_nested_rows_by_the_words_they_show(state):
+    write_assignment(
+        state=state, identifier="GH21-20260819-184158-assignment", issue=21
+    )
+    write_lead_round(state=state, number=1, ending=SUCCESSFUL)
+    observe(
+        state=state,
+        finding=NOTHING_NEW,
+        ended_round=1,
+        children=[
+            compose_child(issue=issue, state=IssueState.OPEN)
+            for issue in (21, 22, 23, 24, 25)
+        ],
+        other_rows=[
+            compose_request_row(issue=22, finding=UNCLAIMED),
+            compose_request_row(
+                issue=23,
+                finding=StartTimeFinding(
+                    linked_pull_requests=[], blocking_issues=[IssueReference(number=9)]
+                ),
+            ),
+            compose_request_row(
+                issue=24, finding=ReadFailureFinding(reason="gh: down")
+            ),
+        ],
+    )
+    report = read_status_report(state=state, clock=lambda: LOOKED_AT)
+    [campaign] = report.list_active_work_statuses(kind=AgentWorkKind.CAMPAIGN)
+
+    assert report.summarise_campaign_children(campaign=campaign) == (
+        "0 of 5 sub-issues closed · 1 waiting, 1 held, 1 available, 1 unknown"
+    )
+
+
+def test_a_campaign_summary_without_nested_rows_gives_githubs_count_alone(state):
+    write_lead_round(state=state, number=1, ending=SUCCESSFUL)
+    observe(
+        state=state,
+        finding=NOTHING_NEW,
+        ended_round=1,
+        children=[compose_child(issue=21, state=IssueState.CLOSED)],
+    )
+    report = read_status_report(state=state, clock=lambda: LOOKED_AT)
+    [campaign] = report.list_active_work_statuses(kind=AgentWorkKind.CAMPAIGN)
+
+    assert (
+        report.summarise_campaign_children(campaign=campaign)
+        == "1 of 1 sub-issue closed"
+    )
 
 
 @pytest.mark.parametrize(

@@ -98,10 +98,12 @@ _dreamcatcher_ keeps the lead's final output in the feed and posts none
 of it.
 
 Monitor the campaign on the web home page's Campaigns tab, where its
-card shows how many of the parent's sub-issues are closed. Expand the
-count to see each sub-issue with its assignment's card and the row of
-each request for an assignment on it that has no open work, or the
-sub-issue's number and title alone when it has neither. Each
+card shows how many of the parent's sub-issues are closed, then counts
+the assignments and requests under it by their status, as in
+`32 of 35 sub-issues closed · 6 working, 3 waiting, 5 completed, 1 held`.
+Expand the count to see each sub-issue with its assignment's card and
+the row of each request for an assignment on it that has no open work,
+or the sub-issue's number and title alone when it has neither. Each
 assignment's card stays on the Assignments tab too. Once the campaign
 ends, its card moves to the ended list and shows only the campaign
 itself. You can also monitor the campaign in the terminal:

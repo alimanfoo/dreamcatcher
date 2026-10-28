@@ -97,7 +97,7 @@ AGENT_WORK_STATUS_VALUES_IN_ATTENTION_ORDER = (
 # What ended work shows as its status: how _dreamcatcher_'s work ended. The
 # saved reason "issue closed" names GitHub's cause, which the issue's state
 # already shows, so the work shows as ended.
-_ENDING_WORDS = {
+AGENT_WORK_ENDING_WORDS = {
     AgentWorkEndReason.COMPLETED: "completed",
     AgentWorkEndReason.CANCELLED: "cancelled",
     AgentWorkEndReason.ISSUE_CLOSED: "ended",
@@ -124,7 +124,7 @@ class AgentWorkStatus:
         """The status in words: the state ended work ended in, else the value."""
         if not self.has_ended:
             return str(self.value)
-        return _ENDING_WORDS[cast("AgentWorkEnding", self.work.ending).reason]
+        return AGENT_WORK_ENDING_WORDS[cast("AgentWorkEnding", self.work.ending).reason]
 
     @property
     def issue_state(self) -> str | None:
@@ -214,8 +214,8 @@ class AgentWorkStatus:
         return None if self.row is None else self.row.children
 
     @property
-    def children_summary(self) -> str | None:
-        """How many of an active campaign's children are closed, of how many.
+    def closed_children_summary(self) -> str | None:
+        """How many of an active campaign's children GitHub holds closed, of how many.
 
         Other work has no summary.
         """

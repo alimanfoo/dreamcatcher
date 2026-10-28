@@ -2,7 +2,7 @@
   {% include "partials/agent-work-card.html" %}
   {#- The block stays while the sub-issues are unknown or none, so a refresh keeps it open. #}
   <details id="{{ campaign.identifier }}-children" class="campaign-children">
-    <summary>+ {{ overview.summary }}</summary>
+    <summary>{{ overview.summary }}</summary>
     {%- with id_prefix = campaign.identifier ~ "-" %}
     {%- for child in overview.children %}
       {%- if child.assignment is not none %}
