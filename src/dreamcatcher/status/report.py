@@ -401,7 +401,7 @@ def read_status_report(
 
 
 def _describe_requests_without_open_work(
-    *, rows: Sequence[RequestRow], work: list[AgentWork]
+    *, rows: Sequence[RequestRow], work: Sequence[AgentWork]
 ) -> list[RequestStatus]:
     """Describe each request that the tick found no work for and no work answers.
 
