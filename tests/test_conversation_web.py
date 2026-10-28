@@ -6,7 +6,7 @@ from datetime import timedelta
 from unittest.mock import MagicMock
 
 from clocks import DISPLAY_TIME_ZONE, PINNED
-from conftest import REPOSITORY
+from conftest import REPOSITORY, extract_page_card
 from records import (
     compose_conversation_identifier,
     find_conversation_directory,
@@ -120,8 +120,7 @@ def test_a_conversation_page_says_who_applied_the_label_that_holds_it(tmp_path):
         .text
     )
 
-    card = page[page.index('<div id="agent-work-card"') :]
-    card = card[: card.index("\n</div>")]
+    card = extract_page_card(page=page)
     assert '<span class="issue-state">open, labelled by octocat</span>' in card
     assert "<span>dream:conversation · claude · opus[1m] · xhigh</span>" in card
     assert '<span class="chip status-held">held</span>' in card
@@ -840,8 +839,7 @@ def test_a_closed_conversation_page_shows_ended_once_as_its_status(tmp_path):
         .text
     )
 
-    card = page[page.index('<div id="agent-work-card"') :]
-    card = card[: card.index("\n</div>")]
+    card = extract_page_card(page=page)
     assert '<span class="issue-state">closed</span>' in card
     assert '<span class="chip status-ended">ended</span>' in card
     assert 'class="card-detail"' not in card

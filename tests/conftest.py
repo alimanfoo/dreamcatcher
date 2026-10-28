@@ -120,6 +120,15 @@ def assert_matches_view_golden(
     assert rendered == path.read_text(encoding="utf-8")
 
 
+def extract_page_card(*, page: str) -> str:
+    """Return the work card that opens a work page or its tail.
+
+    Only the card's own closing tag starts a line, since its rows are indented.
+    """
+    start = page.index('<div id="agent-work-card"')
+    return page[start : page.index("\n</div>", start)]
+
+
 def compose_stream_line(**fields: object) -> str:
     """Return the line a harness streams one event as."""
     return json.dumps(fields)

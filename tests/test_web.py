@@ -13,7 +13,13 @@ from unittest.mock import MagicMock
 
 import pytest
 from clocks import DISPLAY_TIME_ZONE, PINNED
-from conftest import DAEMON_PID, FIXTURES, REPOSITORY, assert_matches_view_golden
+from conftest import (
+    DAEMON_PID,
+    FIXTURES,
+    REPOSITORY,
+    assert_matches_view_golden,
+    extract_page_card,
+)
 from records import (
     MERGED_INPUT,
     SCOUT_ROUTES,
@@ -136,15 +142,6 @@ def extract_article(*, page: str, identifier: str) -> str:
     """Return the article with this element identifier, up to its closing tag."""
     start = page.index(f'<article id="{identifier}"')
     return page[start : page.index("</article>", start)]
-
-
-def extract_page_card(*, page: str) -> str:
-    """Return the work card that opens a work page or its tail.
-
-    Only the card's own closing tag starts a line, since its rows are indented.
-    """
-    start = page.index('<div id="agent-work-card"')
-    return page[start : page.index("\n</div>", start)]
 
 
 def _read_tail(
@@ -452,7 +449,7 @@ def test_a_work_page_opens_with_its_work_card_without_a_link_to_itself(tmp_path)
     page = render_assignment(state=state, identifier=identifier)
     page_card = extract_page_card(page=page)
 
-    for row in (
+    for fragment in (
         '<span class="title">Issue 13</span>',
         ">PR #52</a>",
         "<span>dream:smith · claude · opus[1m] · xhigh</span>",
@@ -460,8 +457,8 @@ def test_a_work_page_opens_with_its_work_card_without_a_link_to_itself(tmp_path)
         '<p class="card-detail">round 2, 1 post, running 1h 30m, last output '
         "1h 29m ago</p>",
     ):
-        assert row in card
-        assert row in page_card
+        assert fragment in card
+        assert fragment in page_card
     assert '<h1 id="agent-work-heading">' in page_card
     assert "agent-work-open" not in page_card
     assert "latest-output" not in page_card

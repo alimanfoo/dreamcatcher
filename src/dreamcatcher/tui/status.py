@@ -122,7 +122,7 @@ def _render_request_rows(*, requests: Sequence[RequestStatus]) -> list[Renderabl
             Text(request.row.dispatch_label),
             Text(str(request.value)),
             Text(
-                _describe_card(
+                _join_state_and_detail(
                     github_state=render_issue_state(
                         state=request.issue_state, facts=request.issue_facts
                     ),
@@ -151,7 +151,7 @@ def _render_work_rows(*, statuses: Sequence[AgentWorkStatus]) -> list[Renderable
             Text(status.work.identifier),
             Text(status.words, style=AGENT_WORK_STATUS_STYLES[status.value]),
             Text(
-                _describe_card(
+                _join_state_and_detail(
                     github_state=_describe_github_state(status=status),
                     detail=status.detail,
                 )
@@ -176,7 +176,7 @@ def _describe_github_state(*, status: AgentWorkStatus) -> str | None:
     return render_issue_state(state=status.issue_state, facts=status.issue_facts)
 
 
-def _describe_card(*, github_state: str | None, detail: str | None) -> str:
+def _join_state_and_detail(*, github_state: str | None, detail: str | None) -> str:
     """Return a card's GitHub state, then its detail after a semicolon.
 
     A part with nothing to say is left out with its separator.
