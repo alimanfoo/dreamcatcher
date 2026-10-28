@@ -22,10 +22,10 @@ Do this before a major or minor release. A patch release skips it.
    over the source, the enduring documents, the user documentation and
    the output a user sees. Fix what is quick to fix, and file an issue
    for each other finding.
-2. Triage the open issues against [the ontology](ontology.md). Rewrite
-   each one that names a concept by a word the ontology does not use for
-   it. Close each one whose work is done or no longer applies, and say
-   why.
+2. Triage the open issues against [the concepts page](concepts.md).
+   Rewrite each one that names a concept by a word the concepts page
+   does not use for it. Close each one whose work is done or no longer
+   applies, and say why.
 3. Measure every criterion in [the standard](standard.md), reading the
    three enduring documents against the code. `tools/measure_source.py`
    reports the module and function line counts. Replace

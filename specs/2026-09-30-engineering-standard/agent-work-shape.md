@@ -22,39 +22,39 @@ gap, so each line now has its citation.
 ### Same
 
 1. Both are agent work with an agent work identifier.
-   ([Agent work and agent work identifier](../../docs/ontology.md#agent-work-and-agent-work-identifier))
+   ([Agent work and agent work identifier](../../docs/concepts.md#agent-work-and-agent-work-identifier))
 2. Both run numbered rounds, each with a purpose, a recovery flag and an
-   outcome. ([Agent round](../../docs/ontology.md#agent-round),
-   [Describing an agent round](../../docs/ontology.md#describing-an-agent-round))
+   outcome. ([Agent round](../../docs/concepts.md#agent-round),
+   [Describing an agent round](../../docs/concepts.md#describing-an-agent-round))
 3. Both normally share one harness session across rounds, and recovery
    without a recorded harness session identifier starts a new one.
-   ([Agent harness and harness session](../../docs/ontology.md#agent-harness-and-harness-session),
-   [Agent work composition](../../docs/ontology.md#agent-work-composition))
+   ([Agent harness and harness session](../../docs/concepts.md#agent-harness-and-harness-session),
+   [Agent work composition](../../docs/concepts.md#agent-work-composition))
 4. Both recover an errored or interrupted round automatically, and two
    consecutive errors put the work in fault.
-   ([Recovery round](../../docs/ontology.md),
-   [Handling errors and global cooldown](../../docs/ontology.md))
+   ([Recovery round](../../docs/concepts.md),
+   [Handling errors and global cooldown](../../docs/concepts.md))
 5. Both share the daemon's capacity and the global cooldown, and a user
    retry clears a fault the same way for each.
-   ([Starting an issue conversation](../../docs/ontology.md#starting-an-issue-conversation),
-   [Handling errors and global cooldown](../../docs/ontology.md))
+   ([Starting an issue conversation](../../docs/concepts.md#starting-an-issue-conversation),
+   [Handling errors and global cooldown](../../docs/concepts.md))
 6. Both have a summary status with shared meanings for working, waiting,
    fault and unknown, and each has a resting status that is the other's
-   counterpart. ([Agent assignment status](../../docs/ontology.md),
-   [Issue conversation status](../../docs/ontology.md))
+   counterpart. ([Agent assignment status](../../docs/concepts.md),
+   [Issue conversation status](../../docs/concepts.md))
 7. Both are selected through one dispatch label, which belongs to one
    route, which supplies one recipe.
-   ([Dispatch labels and routes](../../docs/ontology.md#dispatch-labels-and-routes))
+   ([Dispatch labels and routes](../../docs/concepts.md#dispatch-labels-and-routes))
 8. Both have a stop rule with the same shape: a stopped round is not
    recovered, and the next ordinary round's prompt says the user stopped
    the last one.
-   ([Scheduling rounds in response to events](../../docs/ontology.md),
-   [Starting an issue conversation](../../docs/ontology.md#starting-an-issue-conversation))
+   ([Scheduling rounds in response to events](../../docs/concepts.md),
+   [Starting an issue conversation](../../docs/concepts.md#starting-an-issue-conversation))
 9. A round's input is a frozen batch of user input from the work's
    communication channel: posts on the pull request for an assignment,
    comments on the issue for a conversation.
-   ([Agent assignment composition](../../docs/ontology.md#agent-assignment-composition),
-   [Issue conversation composition](../../docs/ontology.md#issue-conversation-composition))
+   ([Agent assignment composition](../../docs/concepts.md#agent-assignment-composition),
+   [Issue conversation composition](../../docs/concepts.md#issue-conversation-composition))
 
 ### Differ
 
@@ -62,58 +62,58 @@ gap, so each line now has its citation.
    request is its communication channel with the user. A conversation
    owns a detached worktree and nothing else, so the issue is its
    communication channel with the user.
-   ([Pull request](../../docs/ontology.md#pull-request),
-   [Agent assignment composition](../../docs/ontology.md#agent-assignment-composition),
-   [Issue conversation composition](../../docs/ontology.md#issue-conversation-composition))
+   ([Pull request](../../docs/concepts.md#pull-request),
+   [Agent assignment composition](../../docs/concepts.md#agent-assignment-composition),
+   [Issue conversation composition](../../docs/concepts.md#issue-conversation-composition))
 2. An assignment is created by a scheduling action from an available
    issue. A conversation starts from an eligible comment batch, and a
    bare labelled issue starts nothing.
-   ([Creating an agent assignment](../../docs/ontology.md),
-   [Starting an issue conversation](../../docs/ontology.md#starting-an-issue-conversation))
+   ([Creating an agent assignment](../../docs/concepts.md),
+   [Starting an issue conversation](../../docs/concepts.md#starting-an-issue-conversation))
 3. An assignment round's purpose comes from pull request state. A
    conversation round is always a discussion.
-   ([Round purpose](../../docs/ontology.md))
+   ([Round purpose](../../docs/concepts.md))
 4. Beside the batch, an assignment round's input carries the pull
    request state, which a wrap-up round acts on. A conversation round's
    input carries the main revision it investigates, and the first one
    also carries the issue title and body.
-   ([Agent assignment composition](../../docs/ontology.md#agent-assignment-composition),
-   [Issue conversation composition](../../docs/ontology.md#issue-conversation-composition))
+   ([Agent assignment composition](../../docs/concepts.md#agent-assignment-composition),
+   [Issue conversation composition](../../docs/concepts.md#issue-conversation-composition))
 5. A conversation round must post its answer before it ends
    successfully. An assignment round ends when the harness exits.
-   ([Starting an issue conversation](../../docs/ontology.md#starting-an-issue-conversation))
+   ([Starting an issue conversation](../../docs/concepts.md#starting-an-issue-conversation))
 6. An assignment can complete. A conversation never does, and is kept
    after the issue stops being eligible.
-   ([Completing an assignment](../../docs/ontology.md#completing-an-assignment),
-   [Issue conversation composition](../../docs/ontology.md#issue-conversation-composition),
-   [Issue conversation status](../../docs/ontology.md))
+   ([Completing an assignment](../../docs/concepts.md#completing-an-assignment),
+   [Issue conversation composition](../../docs/concepts.md#issue-conversation-composition),
+   [Issue conversation status](../../docs/concepts.md))
 7. The tick observes every labelled issue of either kind before any work
    exists. For an assignment the observation says whether the issue is
    available, so it is a place in the queue. For a conversation it says
    whether comments wait, so it is a status, idle until the user
    comments.
-   ([Issue observations and availability](../../docs/ontology.md),
-   [Issue conversation status](../../docs/ontology.md))
+   ([Issue observations and availability](../../docs/concepts.md),
+   [Issue conversation status](../../docs/concepts.md))
 8. Availability for an assignment reads claimed here, claimed elsewhere,
    blocked and routing conflict. Conversation eligibility reads none of
    those, only its own routing conflict and whether comments wait.
-   ([Issue observations and availability](../../docs/ontology.md),
-   [Starting an issue conversation](../../docs/ontology.md#starting-an-issue-conversation))
+   ([Issue observations and availability](../../docs/concepts.md),
+   [Starting an issue conversation](../../docs/concepts.md#starting-an-issue-conversation))
 9. Assignment ranking is recovery, wrap up, new posts, then oldest
    available issue. Conversation ranking is recovery, then oldest
    waiting comment.
-   ([Scheduling work](../../docs/ontology.md#scheduling-work))
+   ([Scheduling work](../../docs/concepts.md#scheduling-work))
 10. A conversation in fault counts towards the cooldown only when its
     issue has no known routing conflict. An assignment in fault always
     counts.
-    ([Handling errors and global cooldown](../../docs/ontology.md))
+    ([Handling errors and global cooldown](../../docs/concepts.md))
 11. Each kind lives by its channel. An assignment recovers and takes new
     work only while its pull request is open, and reads nothing else
     about its issue once created. A conversation does so only while its
     issue stays eligible: open, assigned, with exactly one conversation
     label.
-    ([Scheduling rounds in response to events](../../docs/ontology.md),
-    [Starting an issue conversation](../../docs/ontology.md#starting-an-issue-conversation))
+    ([Scheduling rounds in response to events](../../docs/concepts.md),
+    [Starting an issue conversation](../../docs/concepts.md#starting-an-issue-conversation))
 
 Differences 8, 10 and 11 are one difference seen three times. A
 conversation's eligibility plays the part an assignment's open pull

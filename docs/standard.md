@@ -1,10 +1,11 @@
 # Engineering standard
 
 This document says what _dreamcatcher_ holds itself to. It is the fourth
-enduring document, beside [the ontology](ontology.md), which fixes the
-words, [the architecture](architecture.md), which fixes the boundaries,
-and [the user stories](stories.md), which fix what the user does and
-sees. This document says how good the result has to be, and how we tell.
+enduring document, beside [the concepts page](concepts.md), which fixes
+the words, [the architecture](architecture.md), which fixes the
+boundaries, and [the user stories](stories.md), which fix what the user
+does and sees. This document says how good the result has to be, and how
+we tell.
 
 Every pull request is reviewed against it. Every release remeasures
 against it. Where the code falls short, the shortfall is an issue with a
@@ -94,8 +95,8 @@ progress towards the standard. Meeting the criteria is.
   read longest first.
 - Bar: zero. A function is split where a clean seam gives each part a
   job of its own, never to meet a line count. A long function that reads
-  as the steps the architecture or ontology lists, such as the scheduler
-  tick, stays whole.
+  as the steps the architecture or the concepts page lists, such as the
+  scheduler tick, stays whole.
 - Check: review, ordered by the line counts the release measurement
   reports and focused on any function a change grows.
 
@@ -136,8 +137,8 @@ progress towards the standard. Meeting the criteria is.
 
 **C2. The enduring documents are true.**
 
-- Measure: statements in the ontology, architecture, stories and this
-  document that the code contradicts.
+- Measure: statements in the concepts page, architecture, stories and
+  this document that the code contradicts.
 - Bar: zero. A pull request that moves the code past one of them
   corrects it in the same change and says so.
 - Check: review, plus the dependency test under K1 for the
@@ -194,8 +195,8 @@ machine.**
 
 **K3. The tracker is current.**
 
-- Measure: open issues that name a concept by a word the ontology does
-  not use for it, or that ask for work already done.
+- Measure: open issues that name a concept by a word the concepts page
+  does not use for it, or that ask for work already done.
 - Bar: zero.
 - Check: triage before each release.
 
@@ -236,8 +237,8 @@ Elegance is not a word for "I would have done it differently".
 
 **E3. Concept economy.**
 
-- Measure: the change to the ontology in each pull request, against the
-  case its spec makes.
+- Measure: the change to the concepts page in each pull request, against
+  the case its spec makes.
 - Bar: a feature adds a concept only when the spec shows that the
   existing concepts cannot compose to it. Removing a concept needs no
   case.
@@ -246,12 +247,12 @@ Elegance is not a word for "I would have done it differently".
 
 **E4. Symmetry.**
 
-- Measure: for concepts the ontology treats as parallel, such as the two
-  kinds of agent work, the operations that exist for one kind and not
-  the other, or exist twice.
+- Measure: for concepts the concepts page treats as parallel, such as
+  the two kinds of agent work, the operations that exist for one kind
+  and not the other, or exist twice.
 - Bar: parallel concepts have parallel operations with parallel names,
-  and share code where the ontology says they are the same. An asymmetry
-  stands only where the ontology names the difference.
+  and share code where the concepts page says they are the same. An
+  asymmetry stands only where the concepts page names the difference.
 - Check: review, reading the namespace map.
 
 ## Definition of done
@@ -265,9 +266,9 @@ A pull request is done when its author can say yes to each of these.
    checks locally and rely on CI for the test suite.
 3. Everything it adds meets S1 and S2, and nothing it exports is without
    a caller.
-4. Every word it introduces is in the ontology, or the ontology grew in
-   the same change. A concept it adds to the ontology comes with a spec
-   that shows the existing concepts cannot compose to it.
+4. Every word it introduces is in the concepts page, or the page grew in
+   the same change. A concept it adds to the concepts page comes with a
+   spec that shows the existing concepts cannot compose to it.
 5. Any enduring document it makes false, it corrects.
 6. It removes what it replaces.
 7. Every conditional it adds applies a rule, or is on the ledger with
