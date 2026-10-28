@@ -25,6 +25,7 @@ from records import (
     SCOUT_ROUTES,
     SMITH_ROUTES,
     compose_conversation_identifier,
+    hold_daemon_lock_for_test,
     release_daemon_lock,
     write_assignment,
     write_daemon_run,
@@ -1249,6 +1250,41 @@ def test_the_daemon_version_links_to_the_documentation(tmp_path):
         "v3.0.0.beta1</a>" in page
     )
     assert ">Docs</a>" not in page
+
+
+def _read_daemon_status(*, page: str) -> str:
+    match = re.search(r'<div class="daemon-[a-z-]+">(.*?)</div>', page)
+    assert match is not None
+    return match[1]
+
+
+def test_a_running_daemon_shows_its_process_id_without_saying_it_runs(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    fabricate_everything(state=state)
+
+    status = _read_daemon_status(page=render_home(state=state))
+
+    assert status.endswith(f"</a> · pid {DAEMON_PID}")
+    assert "running" not in status
+
+
+def test_a_stopped_daemon_says_it_is_not_running(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    fabricate_a_dead_daemon(state=state)
+
+    status = _read_daemon_status(page=render_home(state=state))
+
+    assert status == "daemon not running"
+
+
+def test_a_running_daemon_with_no_daemon_run_record_says_it_runs(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    state.bootstrap()
+    hold_daemon_lock_for_test(path=state.lock)
+
+    status = _read_daemon_status(page=render_home(state=state))
+
+    assert status == "daemon running"
 
 
 def test_a_stopped_daemon_does_not_link_its_status_to_the_documentation(tmp_path):
