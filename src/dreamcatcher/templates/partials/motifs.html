@@ -1,0 +1,24 @@
+{#- Each theme's living motif. The stylesheets give each motif its look, and these macros give each one its place and timing. -#}
+{% set rain_glyphs = "ﾊﾐﾋｰｳｼﾅﾓﾆ7ｻﾜﾂｵﾘ0ｱﾎﾃﾏｹﾒｴ4ｶｷﾑﾕﾗｾ" %}
+{#- A place stands a working agent's motif at a distance from one side of the window, with its own period and phase. -#}
+{% set rain_places = [
+  {"side": "left", "at": 70, "duration": 9, "delay": 0},
+  {"side": "right", "at": 90, "duration": 11, "delay": -4},
+  {"side": "left", "at": 120, "duration": 13, "delay": -7},
+] %}
+{#- The motif at an index takes the place that the index cycles to. Every motif that shares a place runs out of phase with the others there, so each one still shows. -#}
+{% macro place_motif(places, index, count) -%}
+  {% set place = places[index % places|length] -%}
+  {% set laps = (count + places|length - 1) // places|length -%}
+  {{ place.side }}: {{ place.at }}px; animation-duration: {{ place.duration }}s; animation-delay: {{ (place.delay - (index // places|length) * place.duration / laps)|round(2) }}s
+{%- endmacro %}
+{#- One motif for each working agent, in the window's side margins. -#}
+{% macro working_motifs(theme, count) -%}
+<div class="working-motifs" aria-hidden="true">
+{%- if theme == "matrix" %}
+{%- for index in range(count) %}
+  <div class="rain-column" style="{{ place_motif(places=rain_places, index=index, count=count) }}">{{ (rain_glyphs[index * 7:] ~ rain_glyphs[:index * 7])[:22]|join("\n") }}</div>
+{%- endfor %}
+{%- endif -%}
+</div>
+{%- endmacro %}

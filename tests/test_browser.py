@@ -53,6 +53,44 @@ RECORD_TAIL_HIDDEN_PER_FRAME = """() => {
   requestAnimationFrame(record);
 }"""
 
+# Step every animation of each shown working-agent motif through its cycle,
+# in every combination, and give the widest reach of each motif with the
+# header's bottom, the motif layer's top and the content column's sides.
+MEASURE_WORKING_MOTIFS = """() => {
+  const layer = document.querySelector(".working-motifs");
+  const content = document.querySelector(".home-content").getBoundingClientRect();
+  const motifs = [...layer.children].filter(
+    motif => getComputedStyle(motif).display !== "none",
+  );
+  const reaches = motifs.map(motif => {
+    const animations = motif.getAnimations({ subtree: true });
+    animations.forEach(animation => animation.pause());
+    const steps = [0, 0.125, 0.25, 0.375, 0.5, 0.625, 0.75, 0.875, 1];
+    let [left, right] = [Infinity, -Infinity];
+    const measure = depth => {
+      if (depth === animations.length) {
+        const bounds = motif.getBoundingClientRect();
+        left = Math.min(left, bounds.left);
+        right = Math.max(right, bounds.right);
+        return;
+      }
+      const duration = animations[depth].effect.getComputedTiming().duration;
+      for (const step of steps) {
+        animations[depth].currentTime = step * duration;
+        measure(depth + 1);
+      }
+    };
+    measure(0);
+    return [left, right];
+  });
+  return {
+    header: document.querySelector(".site-header").getBoundingClientRect().bottom,
+    layer: layer.getBoundingClientRect().top,
+    content: [content.left, content.right],
+    reaches,
+  };
+}"""
+
 FEED_IS_AT_END = """() => {
   const feed = document.querySelector(".feed-records");
   return feed.scrollHeight - feed.scrollTop - feed.clientHeight <= 1;
@@ -64,6 +102,14 @@ def live_web(tmp_path) -> Iterator[str]:
     """Serve the fabricated web app for one browser test."""
     with serve_fabricated_web(root=tmp_path) as address:
         yield address
+
+
+def read_working_agents(*, page: Page) -> int:
+    """Read how many agents the home page's agent capacity fact counts working."""
+    capacity = page.locator(".fact", has_text="agent capacity").locator("dd")
+    match = re.fullmatch(r"(\d+) of \d+ working", capacity.inner_text())
+    assert match is not None
+    return int(match[1])
 
 
 def wait_for_refresh(*, page: Page) -> None:
@@ -848,6 +894,54 @@ def test_nature_shows_exactly_one_of_sun_and_moon_at_each_boundary(
             body.evaluate('element => getComputedStyle(element, "::before").opacity')
             == sun_opacity
         )
+
+
+@pytest.mark.parametrize("theme", ["matrix"])
+def test_working_motifs_stay_in_the_margins_beneath_the_header(
+    page: Page, live_web: str, theme: str
+) -> None:
+    page.set_viewport_size({"width": 1680, "height": 900})
+    page.goto(f"{live_web}/?theme={theme}")
+
+    geometry = page.evaluate(MEASURE_WORKING_MOTIFS)
+
+    assert len(geometry["reaches"]) == read_working_agents(page=page)
+    assert geometry["layer"] >= geometry["header"]
+    content_left, content_right = geometry["content"]
+    for left, right in geometry["reaches"]:
+        assert right <= content_left or left >= content_right
+
+
+@pytest.mark.parametrize("theme", ["matrix"])
+def test_working_motifs_hide_where_the_margins_cannot_hold_them(
+    page: Page, live_web: str, theme: str
+) -> None:
+    page.set_viewport_size({"width": 1679, "height": 900})
+    page.goto(f"{live_web}/?theme={theme}")
+
+    expect(page.locator(".working-motifs")).to_be_hidden()
+
+
+@pytest.mark.parametrize("theme", ["matrix"])
+def test_working_motifs_keep_still_and_out_of_sight_under_reduced_motion(
+    page: Page, live_web: str, theme: str
+) -> None:
+    page.emulate_media(reduced_motion="reduce")
+    page.set_viewport_size({"width": 1680, "height": 900})
+    page.goto(f"{live_web}/?theme={theme}")
+
+    motifs = page.locator(".working-motifs > *")
+    expect(motifs).to_have_count(read_working_agents(page=page))
+    assert (
+        motifs.evaluate_all(
+            """motifs => motifs.flatMap(motif => [
+          ...motif.getAnimations({ subtree: true }),
+          ...(getComputedStyle(motif).display === "none"
+            || getComputedStyle(motif).opacity === "0" ? [] : [motif]),
+        ])"""
+        )
+        == []
+    )
 
 
 @pytest.mark.parametrize("theme", ["matrix", "nature"])
