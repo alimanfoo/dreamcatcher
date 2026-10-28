@@ -11,12 +11,18 @@ function isFeedAtEnd() {
   return feed.scrollHeight - feed.scrollTop - feed.clientHeight <= 1;
 }
 
+// The feed animates scrolls, and each frame of one fires a scroll event short
+// of the end, so the page's own scrolls to the end are instant.
+function scrollFeedToEnd() {
+  feed.scrollTo({ top: feed.scrollHeight, behavior: "instant" });
+}
+
 function updateFeedTailVisibility() {
   feedTail?.toggleAttribute("hidden", shouldFollowFeed);
 }
 
 if (feed !== null) {
-  feed.scrollTop = feed.scrollHeight;
+  scrollFeedToEnd();
   shouldFollowFeed = true;
   updateFeedTailVisibility();
   feed.addEventListener(
@@ -39,10 +45,7 @@ if (feed !== null) {
     feedTail.addEventListener("click", () => {
       shouldFollowFeed = true;
       updateFeedTailVisibility();
-      feed.scrollTo({
-        top: feed.scrollHeight,
-        behavior: "instant",
-      });
+      scrollFeedToEnd();
     });
   }
   feed.addEventListener("htmx:beforeSwap", (event) => {
@@ -63,7 +66,7 @@ if (feed !== null) {
       return;
     }
     if (shouldFollowFeed) {
-      feed.scrollTop = feed.scrollHeight;
+      scrollFeedToEnd();
     }
     const currentRoundLink = agentWorkSidebar?.querySelector(
       `.round-link[href="${currentRoundHash}"]`,
