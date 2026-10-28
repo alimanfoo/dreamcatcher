@@ -31,10 +31,8 @@ from dreamcatcher.scheduler.faults import (
 )
 from dreamcatcher.scheduler.models import (
     CampaignFinding,
-    ConflictingLabelsFinding,
+    HoldFinding,
     IssueCommentsFinding,
-    LabelAppliedByOtherFinding,
-    PausedFinding,
     PullRequestFinding,
     ReadFailureFinding,
     RequestFinding,
@@ -418,10 +416,7 @@ class AgentWorkStatusReader:
         someone other than the user applied its label.
         """
         finding = None if row is None else row.finding
-        if not isinstance(
-            finding,
-            PausedFinding | LabelAppliedByOtherFinding | ConflictingLabelsFinding,
-        ):
+        if not isinstance(finding, HoldFinding):
             return None
         fact, advice = describe_hold(finding=finding, kind=work.record.kind)
         return AgentWorkStatus(

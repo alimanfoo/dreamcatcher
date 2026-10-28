@@ -9,6 +9,7 @@ from dreamcatcher.scheduler.models import (
     BlockingIssuesFinding,
     CampaignFinding,
     ConflictingLabelsFinding,
+    HoldFinding,
     IssueCommentsFinding,
     LabelAppliedByOtherFinding,
     ReadFailureFinding,
@@ -88,7 +89,7 @@ def describe_request(*, row: RequestRow) -> RequestStatus:
         )
     if isinstance(finding, IssueCommentsFinding):
         return _describe_comments(row=row, finding=finding)
-    if isinstance(finding, LabelAppliedByOtherFinding | ConflictingLabelsFinding):
+    if isinstance(finding, HoldFinding):
         fact, advice = describe_hold(finding=finding, kind=row.kind)
         return RequestStatus(
             row=row,

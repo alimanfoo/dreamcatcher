@@ -12,7 +12,7 @@ from dreamcatcher.github import (
 )
 from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.scheduler.models import (
-    ConflictingLabelsFinding,
+    HoldFinding,
     IssueReference,
     LabelAppliedByOtherFinding,
     PauseCause,
@@ -52,7 +52,7 @@ class IssueFact:
 
 def describe_hold(
     *,
-    finding: PausedFinding | LabelAppliedByOtherFinding | ConflictingLabelsFinding,
+    finding: HoldFinding,
     kind: AgentWorkKind,
 ) -> tuple[IssueFact, str]:
     """Say what GitHub holds that holds work of a kind back, then what to do.

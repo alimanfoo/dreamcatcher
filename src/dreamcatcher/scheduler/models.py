@@ -124,6 +124,11 @@ class LabelAppliedByOtherFinding(DreamcatcherDocument):
     applier: str
 
 
+# What a tick finds that holds open work or a request back until the issue
+# changes on GitHub.
+HoldFinding = PausedFinding | LabelAppliedByOtherFinding | ConflictingLabelsFinding
+
+
 class CampaignFinding(DreamcatcherDocument):
     """Hold what the tick found new for the lead.
 
