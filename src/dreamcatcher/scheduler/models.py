@@ -92,12 +92,12 @@ class ConflictingLabelsFinding(DreamcatcherDocument):
 
 
 class PauseCause(StrEnum):
-    """The causes of a pause that the issue's labels and assignee give alone.
+    """The ways that the user pauses a conversation or a campaign.
 
-    The tick checks them in this order. A second label of the paused work's
-    kind is the third cause, which the tick checks after them and holds as the
-    conflicting labels. A label that someone other than the user applied is the
-    fourth, which the tick reads last, never while a round runs, and holds as the
+    The tick checks them in this order. Two other causes hold the work back
+    without pausing it, and the tick checks them after these: a second label of
+    the work's kind, held as the conflicting labels, and then, never while a
+    round runs, a label that someone other than the user applied, held as the
     account that applied it.
     """
 
@@ -106,7 +106,7 @@ class PauseCause(StrEnum):
 
 
 class PausedFinding(DreamcatcherDocument):
-    """Say which of the causes that the issue gives alone pauses work at it."""
+    """Say how the user paused the work at the issue."""
 
     found: Literal["paused"] = "paused"
     cause: PauseCause

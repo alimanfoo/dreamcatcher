@@ -2237,7 +2237,7 @@ def test_an_open_conversation_matches_its_label_and_assignee_in_any_case(
     ]
 
 
-def test_a_conversation_whose_route_is_removed_still_pauses_for_a_second_label(
+def test_a_conversation_whose_route_is_removed_is_still_held_for_a_second_label(
     conversation_scheduler, harnesses
 ):
     scheduler, _, gh = conversation_scheduler
@@ -2625,7 +2625,7 @@ def test_an_ended_conversation_is_left_alone_and_a_comment_starts_another(
     assert not (ended / "rounds").exists()
 
 
-def test_a_label_that_someone_else_put_back_leaves_a_conversation_paused(
+def test_a_label_that_someone_else_put_back_leaves_a_conversation_held(
     conversation_scheduler, harnesses
 ):
     scheduler, clock, gh = conversation_scheduler
