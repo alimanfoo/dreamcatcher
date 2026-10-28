@@ -1,7 +1,5 @@
 """Word what a scheduler tick found, once for every status that shows it."""
 
-from collections.abc import Sequence
-
 from dreamcatcher.github import (
     CheckResult,
     IssueState,
@@ -36,11 +34,6 @@ def describe_changed_children(*, count: int) -> str:
 def describe_conflicting_labels(*, kind: AgentWorkKind) -> str:
     """Say that an issue carries more than one label of one kind."""
     return f"multiple {kind} labels"
-
-
-def describe_conflicting_label_advice(*, labels: Sequence[str]) -> str:
-    """Tell the user to take all but one of the labels of one kind off an issue."""
-    return "remove all but one: " + ", ".join(labels)
 
 
 def describe_pause(*, cause: str) -> str:

@@ -340,11 +340,11 @@ def test_a_campaign_with_no_children_to_show_says_why_and_shows_no_cards(
 
 
 @pytest.mark.parametrize(
-    ("issue_state", "words", "is_closed"),
-    [(IssueState.OPEN, "open", False), (IssueState.CLOSED, "closed", True)],
+    ("issue_state", "words"),
+    [(IssueState.OPEN, "open"), (IssueState.CLOSED, "closed")],
 )
 def test_a_campaign_sub_issue_with_no_assignment_or_request_shows_its_state_alone(
-    issue_state, words, is_closed, tmp_path
+    issue_state, words, tmp_path
 ):
     state = StateDirectory(root=tmp_path)
     write_running_daemon(state=state)
@@ -367,7 +367,7 @@ def test_a_campaign_sub_issue_with_no_assignment_or_request_shows_its_state_alon
     sub_issue = extract_article(page=page, identifier=f"{prefix}sub-issue-66")
 
     assert re.sub(r"<[^>]+>", " ", sub_issue).split() == ["#66", "Issue", "66", words]
-    assert ('class="campaign-child is-closed"' in sub_issue) is is_closed
+    assert f'class="campaign-child is-{words}"' in sub_issue
     assert f'id="{prefix}GH64-20260819-184158-assignment"' in page
     assert f'id="{prefix}request-65-' in page
 

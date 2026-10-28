@@ -381,13 +381,8 @@ body::after {
 
 .agent-work-detail,
 .card-detail,
-.card-route,
-.issue-state {
+.card-route {
   color: var(--dim);
-}
-
-.issue-state {
-  font-weight: 500;
 }
 
 .latest-output {
@@ -424,7 +419,8 @@ body::after {
   background: var(--action-hover-surface);
 }
 
-.pr-chip {
+.pr-chip,
+.issue-state {
   padding: 0;
   color: var(--dim);
   border: 0;

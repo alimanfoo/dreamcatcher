@@ -52,7 +52,6 @@ class WebCampaignChild:
     issue: int
     title: str
     issue_state: str
-    is_closed: bool
     assignment: WebAgentWorkCard | None
     requests: Sequence[RequestStatus]
 

@@ -20,7 +20,6 @@ from dreamcatcher.scheduler.models import (
 from dreamcatcher.status.findings import (
     REAPPLY_LABEL_ADVICE,
     describe_comments_to_answer,
-    describe_conflicting_label_advice,
     describe_conflicting_labels,
     describe_issue_state,
     describe_label_applier,
@@ -118,7 +117,7 @@ def describe_request(*, row: RequestRow) -> RequestStatus:
             row=row,
             value=RequestStatusValue.HELD,
             issue_facts=(IssueFact(words=describe_conflicting_labels(kind=row.kind)),),
-            detail=describe_conflicting_label_advice(labels=finding.labels),
+            detail="remove all but one: " + ", ".join(finding.labels),
         )
     facts = _list_holding_facts(finding=finding)
     return RequestStatus(
