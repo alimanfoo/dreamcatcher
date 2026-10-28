@@ -95,13 +95,14 @@ repos:
         pass_filenames: false
         exclude: *verbatim-paths
       # The contracts in pyproject.toml hold the architecture's import rules.
-      # The check takes about a second, so it keeps no cache to ignore.
+      # Without --no-cache, lint-imports writes a cache into the checkout.
       - id: lint-imports
         name: check the architecture's import contracts
         entry: uv run lint-imports --no-cache --no-logo
         language: system
         pass_filenames: false
         files: ^(src/.*\.py|pyproject\.toml)$
+        exclude: *verbatim-paths
       # Presentation shows what status derives. These operations and record
       # types would let it rediscover those facts for itself.
       - id: presentation-does-not-rediscover-status
@@ -109,6 +110,7 @@ repos:
         entry: ErroredAgentRoundEnding|HARNESS_ADAPTERS|InterruptedAgentRoundEnding|find_harness_session_identifier
         language: pygrep
         files: ^src/dreamcatcher/(tui|web)/
+        exclude: *verbatim-paths
       # .remarkrc.json loads the plugin and names the repository.
       - id: remark-validate-links
         name: validate markdown links

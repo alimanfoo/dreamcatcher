@@ -252,8 +252,8 @@ type = "forbidden"
 source_modules = ["dreamcatcher.documents", "dreamcatcher.errors", "dreamcatcher.state"]
 forbidden_modules = ["dreamcatcher.*"]
 ignore_imports = [
-    "dreamcatcher.documents -> dreamcatcher.errors",
-    "dreamcatcher.state -> dreamcatcher.documents",
+    "dreamcatcher.* -> dreamcatcher.documents",
+    "dreamcatcher.* -> dreamcatcher.errors",
 ]
 
 # Presentation shows what status and the feed derive. Both presentations reach
@@ -301,7 +301,7 @@ allowed_importers = ["dreamcatcher.web"]
 name = "Status reads only the scheduler's records and derivations"
 type = "forbidden"
 source_modules = ["dreamcatcher.status"]
-forbidden_modules = ["dreamcatcher.scheduler.*"]
+forbidden_modules = ["dreamcatcher.scheduler"]
 ignore_imports = [
     "dreamcatcher.status.** -> dreamcatcher.scheduler.faults",
     "dreamcatcher.status.** -> dreamcatcher.scheduler.models",
