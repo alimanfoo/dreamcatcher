@@ -114,7 +114,7 @@ those are options for each daemon run, not saved configuration. On
 startup _dreamcatcher_ also detects rounds orphaned by an earlier daemon
 and records them as interrupted.
 
-Unless the work is paused, the interrupted work carries on in a later
+Unless the work is held, the interrupted work carries on in a later
 round, normally in the same harness session, so you do not need to use
 the hand-resume command. That round also takes up any comments or
 reviews you posted meanwhile, and a lead sees the current state of its

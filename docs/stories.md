@@ -485,7 +485,7 @@ running or changes on main. Several changes reach the lead together in
 one round, beside any comments that the user has posted, and its input
 names each sub-issue that changed and what changed, with the whole
 current picture. A change that the lead could not yet be given, because
-it was working, paused or waiting for an agent slot, reaches it in its
+it was working, held or waiting for an agent slot, reaches it in its
 next round, and a change that reverted meanwhile is not news. While a
 round is due for such changes, the campaign shows as waiting with how
 many sub-issues changed, and the round's trigger names each one with

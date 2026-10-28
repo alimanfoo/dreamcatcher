@@ -83,6 +83,9 @@ the change.
   a card where it called some of them rows, and "request row" now means
   only what the scheduler found for a request.
   ([#853](https://github.com/alimanfoo/dreamcatcher/pull/853))
+- The documentation says "held" where the scheduler holds work back, and
+  keeps "paused" for the user's own act of removing a label or an
+  assignee. ([#853](https://github.com/alimanfoo/dreamcatcher/pull/853))
 
 ### Fixed
 

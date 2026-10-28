@@ -638,8 +638,8 @@ A request with no open work has one of these request statuses:
   applied the request's label, or the issue has a routing conflict. Work
   starts by itself once a blocker closes or a claiming pull request
   goes. A label that someone else applied, and a routing conflict, need
-  the user to act. Open work is held in the same way, as its agent work
-  status says.
+  the user to act. An open conversation or campaign is held in the same
+  way, as its agent work status says.
 - **Idle**: a conversation request waits for the user's first comment.
 - **Unknown**: a read that decides whether work may start failed, or
   GitHub could not yet tell. A failure to read external state can delay
@@ -651,7 +651,7 @@ scheduler listed their issues, oldest first, which is the order in which
 it starts new work.
 
 Replaces: "queued" and "waiting", for an available request; and
-"blocked", for a request status.
+"blocked" and "routing conflict", for a request status.
 
 ### Scheduling work
 

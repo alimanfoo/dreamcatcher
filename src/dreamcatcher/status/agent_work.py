@@ -119,7 +119,7 @@ class AgentWorkStatus:
 
     @property
     def words(self) -> str:
-        """The status in words: the state ended work ended in, else the value."""
+        """The status in words: how ended work ended, else the value."""
         if not self.has_ended:
             return str(self.value)
         return AGENT_WORK_ENDING_WORDS[cast("AgentWorkEnding", self.work.ending).reason]
