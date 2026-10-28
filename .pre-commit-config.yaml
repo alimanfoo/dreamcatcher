@@ -101,7 +101,6 @@ repos:
         entry: uv run lint-imports --no-cache --no-logo
         language: system
         pass_filenames: false
-        files: ^(src/.*\.py|pyproject\.toml)$
         exclude: *verbatim-paths
       # Presentation shows what status derives. These operations and record
       # types would let it rediscover those facts for itself.

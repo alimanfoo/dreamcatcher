@@ -164,8 +164,9 @@ max-args = 7
 [tool.ruff.lint.pydocstyle]
 convention = "pep257"
 
-# Every import names its module from the top of the package, so a search for
-# a module's dotted name finds every module that imports it.
+# Every import names its module from the top of the package, so each import
+# has one spelling, as AGENTS.md asks of every way to do a thing. A search for
+# a module's dotted name then finds every module that imports it.
 [tool.ruff.lint.flake8-tidy-imports]
 ban-relative-imports = "all"
 
