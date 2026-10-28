@@ -113,29 +113,24 @@ def _render_agent_work(
 def _render_request_rows(*, requests: Sequence[RequestStatus]) -> list[RenderableType]:
     """Render the requests with no open work as one table.
 
-    Each row gives its status, then where its issue stands on GitHub, then any
-    detail.
+    Each row gives its status, then where its issue stands on GitHub and any
+    detail, as a piece of work's row gives its status and then its detail.
     """
     if not requests:
         return []
-    table = create_table(columns=5)
+    table = create_table(columns=4)
     for request in requests:
+        issue = ", ".join(
+            [
+                request.issue_state,
+                *(_render_issue_fact(fact=fact) for fact in request.issue_facts),
+            ]
+        )
         table.add_row(
             Text(f"GH{request.row.issue}"),
             Text(request.row.dispatch_label),
             Text(str(request.value)),
-            Text(
-                ", ".join(
-                    [
-                        request.issue_state,
-                        *(
-                            _render_issue_fact(fact=fact)
-                            for fact in request.issue_facts
-                        ),
-                    ]
-                )
-            ),
-            Text(request.detail or ""),
+            Text(issue if request.detail is None else f"{issue}; {request.detail}"),
         )
     return [table]
 

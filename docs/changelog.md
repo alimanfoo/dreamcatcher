@@ -44,22 +44,14 @@ the change.
   words "cannot tell:" before it, because its status already says
   unknown. ([#843](https://github.com/alimanfoo/dreamcatcher/pull/843))
 - A request that the scheduler holds back has one status, held, where it
-  was blocked, held or routing conflict. Its row says that its issue is
-  open, followed by what GitHub says that holds it back, such as
-  "blocked by #810", "linked to PR #123", "labelled by octocat" or
-  "multiple assignment labels". Beneath its status it says what the user
-  has to do, when they have to act, such as "remove and re-add the label
-  yourself". A paused conversation or campaign whose label someone else
-  applied says "labelled by" in the same way. Every held status looks
-  the same, without the fill that held and routing conflict had.
+  was blocked, held or routing conflict. Its row says what GitHub says
+  of its issue, such as "open, blocked by #810", and beneath its status
+  what the user has to do, when they have to act.
   ([#843](https://github.com/alimanfoo/dreamcatcher/pull/843))
-- Every card on the home page, and every request row, lays out its lines
-  in one order, whatever its state: the issue and, for an assignment,
-  its pull request; then the dispatch label, the status and the link to
-  the work's page; then the detail; then the agent's latest output.
-  Before, the label and status came last, so they moved as the other
-  lines came and went. An assignment that has no pull request yet shows
-  nothing in its place, where it said "no pull request yet".
+- Every card and request row on the home page gives the issue first,
+  then the label and status, then the detail, then the agent's latest
+  output. An assignment with no pull request yet shows nothing where it
+  said "no pull request yet".
   ([#843](https://github.com/alimanfoo/dreamcatcher/pull/843))
 - In the Nature theme, a status and the `agent` label of the latest
   output no longer have a dot before them.

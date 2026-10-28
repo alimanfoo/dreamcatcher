@@ -19,13 +19,11 @@ assignments
   GH50  dream:smith  available  open                                                                
   GH51  dream:smith  available  open                                                                
   GH52  dream:smith  held       open, blocked by GH50                                               
-  GH53  dream:less   held       open, multiple assignment labels  remove all but one: dream:less,   
-                                                                  dream:smith                       
-  GH53  dream:smith  held       open, multiple assignment labels  remove all but one: dream:less,   
-                                                                  dream:smith                       
-  GH55  dream:smith  held       open, blocked by GH50,                                              
-                                alimanfoo/dream#1016, linked to                                     
-                                PR #61                                                              
+  GH53  dream:less   held       open, multiple assignment labels; remove all but one: dream:less,   
+                                dream:smith                                                         
+  GH53  dream:smith  held       open, multiple assignment labels; remove all but one: dream:less,   
+                                dream:smith                                                         
+  GH55  dream:smith  held       open, blocked by GH50, alimanfoo/dream#1016, linked to PR #61       
   2 ended assignments                                                                               
 
 conversations
