@@ -38,6 +38,7 @@ from dreamcatcher.tui.shared import (
     refresh_until_view_ends,
     render_issue_state,
     render_latest_output,
+    render_pull_request,
     render_section,
 )
 from dreamcatcher.words import describe_count, describe_time
@@ -175,7 +176,7 @@ def _render_assignment_summary(
     for name, value in (
         ("issue identifier", f"GH{record.issue}"),
         ("agent work identifier", assignment.identifier),
-        ("pull request", _describe_pull_request(status=status)),
+        ("pull request", render_pull_request(status=status) or "none yet"),
         ("label", record.dispatch_label),
         ("branch", compose_assignment_branch(identifier=assignment.identifier)),
         ("worktree", _describe_worktree(state=state, status=status)),
@@ -189,15 +190,6 @@ def _render_assignment_summary(
     ):
         table.add_row(Text(name), Text(str(value)))
     return render_section(heading="assignment", body=table)
-
-
-def _describe_pull_request(*, status: AgentWorkStatus) -> str:
-    """Return the pull request's number and where it stands, when that is known."""
-    if status.pull_request is None:
-        return "none yet"
-    if status.pull_request_summary is None:
-        return f"#{status.pull_request}"
-    return f"#{status.pull_request} {status.pull_request_summary}"
 
 
 def _render_round_statuses(

@@ -21,10 +21,10 @@ from dreamcatcher.tui.shared import (
     ViewSnapshot,
     combine_renderable_parts,
     create_table,
-    describe_work_detail,
     refresh_live_view,
-    render_issue_fact,
+    render_issue_state,
     render_latest_output,
+    render_pull_request,
     render_section,
 )
 from dreamcatcher.words import describe_count
@@ -112,32 +112,32 @@ def _render_agent_work(
 
 
 def _render_request_rows(*, requests: Sequence[RequestStatus]) -> list[RenderableType]:
-    """Render the requests with no open work as one table.
-
-    Each row gives its status, then where its issue stands on GitHub and any
-    detail, as a piece of work's row gives its status and then its detail.
-    """
+    """Render the requests with no open work as one table, a row for each card."""
     if not requests:
         return []
     table = create_table(columns=4)
     for request in requests:
-        issue = ", ".join(
-            [
-                *([] if request.issue_state is None else [request.issue_state]),
-                *(render_issue_fact(fact=fact) for fact in request.issue_facts),
-            ]
-        )
         table.add_row(
             Text(f"GH{request.row.issue}"),
             Text(request.row.dispatch_label),
             Text(str(request.value)),
-            Text(issue if request.detail is None else f"{issue}; {request.detail}"),
+            Text(
+                _describe_card(
+                    github_state=render_issue_state(
+                        state=request.issue_state, facts=request.issue_facts
+                    ),
+                    detail=request.detail,
+                )
+            ),
         )
     return [table]
 
 
 def _render_work_rows(*, statuses: Sequence[AgentWorkStatus]) -> list[RenderableType]:
-    """Render the detailed rows for work that has not ended."""
+    """Render the work that has not ended, a row for each card.
+
+    The agent's latest output follows its card's row on a line of its own.
+    """
     if not statuses:
         return []
     identifier_width = max(len(status.work.identifier) for status in statuses)
@@ -150,10 +150,35 @@ def _render_work_rows(*, statuses: Sequence[AgentWorkStatus]) -> list[Renderable
         table.add_row(
             Text(status.work.identifier),
             Text(status.words, style=AGENT_WORK_STATUS_STYLES[status.value]),
-            Text(describe_work_detail(status=status) or ""),
+            Text(
+                _describe_card(
+                    github_state=_describe_github_state(status=status),
+                    detail=status.detail,
+                )
+            ),
         )
         rows.append(table)
         latest_output = render_latest_output(latest_output=status.latest_output)
         if latest_output is not None:
             rows.append(latest_output)
     return rows
+
+
+def _describe_github_state(*, status: AgentWorkStatus) -> str | None:
+    """Return GitHub's state of what the work's card stands for.
+
+    An assignment's pull request stands for it, and a conversation's or a
+    campaign's issue for it.
+    """
+    pull_request = render_pull_request(status=status)
+    if pull_request is not None:
+        return f"PR {pull_request}"
+    return render_issue_state(state=status.issue_state, facts=status.issue_facts)
+
+
+def _describe_card(*, github_state: str | None, detail: str | None) -> str:
+    """Return a card's GitHub state, then its detail after a semicolon.
+
+    A part with nothing to say is left out with its separator.
+    """
+    return "; ".join(part for part in (github_state, detail) if part)

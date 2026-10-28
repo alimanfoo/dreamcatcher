@@ -214,7 +214,13 @@ dreamcatcher status
 
 Show the repository and daemon facts, assignments, issue conversations
 and campaigns, and each dispatch label that no open work answers, in
-dispatch order, with why no work has started.
+dispatch order, with why no work has started. Each row gives a card's
+parts in the card's order: the work or the issue, then the status, then
+GitHub's state of what the card stands for, and then a semicolon and the
+detail, as in `PR #52 ready; 1 new post to answer` or
+`open, labelled by octocat; remove and re-add the label yourself`. A
+part with nothing to say is left out with its separator. The agent's
+latest output follows on a line of its own.
 
 In an interactive terminal the view refreshes and occupies the terminal
 until interrupted. When output is piped, redirected or captured, it

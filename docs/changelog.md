@@ -91,6 +91,12 @@ the change.
   links to GitHub, as on the home page, where the whole heading did, and
   the strip of labelled facts is gone.
   ([#853](https://github.com/alimanfoo/dreamcatcher/pull/853))
+- Each row of work in `dreamcatcher status` gives GitHub's state after
+  the status, as a request's row does: an assignment's pull request and
+  where it stands, or a conversation's or a campaign's issue state, then
+  a semicolon and the detail, as in
+  `PR #52 ready; 1 new post to answer`.
+  ([#853](https://github.com/alimanfoo/dreamcatcher/pull/853))
 - `dreamcatcher view` gives a conversation's or a campaign's issue state
   on an `issue` line, such as `open, labelled by octocat`, or `closed`
   once the work has ended. Its status line gives the status and the

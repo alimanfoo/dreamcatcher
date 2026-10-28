@@ -40,6 +40,9 @@ from dreamcatcher.issue_conversations import (
 from dreamcatcher.scheduler.models import (
     ConflictingLabelsFinding,
     IssueCommentsFinding,
+    LabelAppliedByOtherFinding,
+    PauseCause,
+    PausedFinding,
     ReadFailureFinding,
     SchedulerRecord,
 )
@@ -82,19 +85,46 @@ def render_conversation_view(*, state: StateDirectory) -> str:
     return written.getvalue()
 
 
-def test_status_says_why_a_paused_conversation_is_held(tmp_path):
+@pytest.mark.parametrize(
+    ("finding", "words"),
+    [
+        (
+            PausedFinding(cause=PauseCause.LABEL_REMOVED),
+            "open, label removed; put the label back to resume",
+        ),
+        (
+            LabelAppliedByOtherFinding(applier="octocat"),
+            "open, labelled by octocat; remove and re-add the label yourself",
+        ),
+    ],
+)
+def test_a_held_conversations_status_row_gives_its_issue_then_its_advice(
+    tmp_path, finding, words
+):
     state = StateDirectory(root=tmp_path)
     fabricate_conversation(state=state)
+    write_tick(
+        state=state,
+        tick=SchedulerRecord(
+            at=PINNED,
+            finished=PINNED,
+            rows=[
+                compose_conversation_row(
+                    finding=finding,
+                    agent_work_identifier=compose_conversation_identifier(issue=8),
+                )
+            ],
+        ),
+    )
     written = StringIO()
 
     show_status_view(
         state=state,
-        console=create_pinned_console(written_to=written),
+        console=create_pinned_console(written_to=written, width=160),
         clock=lambda: PINNED,
     )
 
-    assert "held" in written.getvalue()
-    assert "label removed; put the label back to resume" in written.getvalue()
+    assert f"GH8-20260819-184158-conversation  held  {words}" in written.getvalue()
 
 
 def test_a_view_says_once_why_a_paused_conversation_is_held(tmp_path):
