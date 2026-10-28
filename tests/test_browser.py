@@ -56,6 +56,25 @@ def locate_first_line_of_round(*, page: Page, number: int) -> Locator:
     return page.locator(f"#feed-round-{number} > .round-boundary + .feed-line")
 
 
+def append_feed_lines(*, root: Path, count: int) -> None:
+    """Append lines to the browser assignment's last round feed in one write."""
+    assignment = find_agent_work(
+        state=StateDirectory(root=root), identifier=BROWSER_ASSIGNMENT_IDENTIFIER
+    )
+    assert assignment is not None
+    last_round = assignment.rounds[-1]
+    append_text(
+        text="".join(
+            FeedLine(
+                at=last_round.started + timedelta(minutes=10, seconds=line_number),
+                text=f"[Agent] appended line {line_number:02d}",
+            ).render()
+            for line_number in range(1, count + 1)
+        ),
+        path=assignment.compose_round_paths(number=last_round.number).feed,
+    )
+
+
 def test_a_round_link_brings_its_round_into_view_from_the_tail(
     page: Page,
     live_web: str,
@@ -99,6 +118,32 @@ def test_a_round_boundary_leaves_the_top_when_its_round_does(
               <= second.getBoundingClientRect().top;
         }"""
     )
+
+
+def test_a_feed_scrolled_away_from_its_end_stays_put_until_the_tail_button(
+    page: Page, live_web: str, tmp_path: Path
+) -> None:
+    page.goto(f"{live_web}/work/{BROWSER_ASSIGNMENT_IDENTIFIER}")
+    page.wait_for_function(FEED_IS_AT_END)
+    feed = page.locator(".feed-records")
+    feed.hover()
+    page.mouse.wheel(0, -100_000)
+    page.wait_for_function('document.querySelector(".feed-records").scrollTop === 0')
+    tail = page.get_by_role("button", name="TAIL ↓")
+    expect(tail).to_be_visible()
+    lines = page.locator(".feed-line")
+    line_count = lines.count()
+
+    append_feed_lines(root=tmp_path, count=5)
+
+    expect(lines).to_have_count(line_count + 5)
+    assert feed.evaluate("feed => feed.scrollTop") == 0
+    expect(tail).to_be_visible()
+
+    tail.click()
+
+    page.wait_for_function(FEED_IS_AT_END)
+    expect(tail).to_be_hidden()
 
 
 def test_a_refresh_leaves_an_opened_section_open(page: Page, live_web: str) -> None:
