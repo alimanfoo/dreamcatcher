@@ -163,7 +163,7 @@ def _compose_work_live_state(
     zone: tzinfo | None,
 ) -> WebAgentLiveState:
     identifier = work.identifier
-    heading_controls = []
+    card_controls = []
     foot_controls = []
     paths = status.stoppable_round_paths
     if paths is not None:
@@ -177,7 +177,7 @@ def _compose_work_live_state(
         )
     number = status.faulted_round_number
     if number is not None:
-        heading_controls.append(
+        card_controls.append(
             WebAgentWorkControl(
                 action="retry",
                 url=url_for("request_work_retry", identifier=identifier, number=number),
@@ -194,7 +194,7 @@ def _compose_work_live_state(
         state=state,
         status=status,
         zone=zone,
-        heading_controls=tuple(heading_controls),
+        card_controls=tuple(card_controls),
         foot_controls=tuple(foot_controls),
     )
 

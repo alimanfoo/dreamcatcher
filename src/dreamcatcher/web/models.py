@@ -18,11 +18,11 @@ from dreamcatcher.status import (
 
 @dataclass(frozen=True, kw_only=True)
 class WebAgentWorkCard:
-    """Represent the values rendered in one card for agent work of any kind.
+    """Represent the values rendered in the work card of agent work of any kind.
 
     Only an assignment has a pull request, and only a conversation or a
-    campaign has an issue state. Only an active campaign has a child overview.
-    Ended work has no detail.
+    campaign has an issue state. Only an active campaign's card on the home
+    page has a child overview. Ended work has no detail.
     """
 
     identifier: str
@@ -133,16 +133,11 @@ class WebAgentWorkControl:
 
 @dataclass(frozen=True, kw_only=True)
 class WebAgentLiveState:
-    """Represent the values of an agent-work page that its tail refreshes.
+    """Represent the values of an agent-work page that its tail refreshes."""
 
-    Ended work has no detail.
-    """
-
-    status: AgentWorkStatusValue
-    status_words: str
-    detail: str | None
+    card: WebAgentWorkCard
     rounds: Sequence[WebAgentRound]
-    heading_controls: Sequence[WebAgentWorkControl]
+    card_controls: Sequence[WebAgentWorkControl]
     foot_controls: Sequence[WebAgentWorkControl]
     hand_resume: WebHandResume | None
 
@@ -162,23 +157,12 @@ class WebAgentTail:
 class WebAgentWorkView:
     """Represent every value that the page of one piece of agent work lays out.
 
-    Only an assignment has a pull request.
+    The page opens with the work card that its live state holds.
     """
 
-    kind: AgentWorkKind
     repository: str
     github_repository_url: str | None
     daemon: DreamcatcherDaemonStatus
-    identifier: str
-    issue: int
-    title: str
-    pull_request: int | None
-    pull_request_summary: str | None
-    is_pull_request_ready_for_review: bool
-    dispatch_label: str
-    harness: str
-    model: str
-    effort: str
     live: WebAgentLiveState
     feed_rounds: Sequence[WebFeedRound]
     feed_position: str

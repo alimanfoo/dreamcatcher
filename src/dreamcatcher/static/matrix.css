@@ -356,14 +356,12 @@ body::after {
   font-weight: 700;
 }
 
-.agent-work-navigation,
-.agent-work-issue {
+.agent-work-navigation {
   color: inherit;
   text-decoration: none;
 }
 
-.agent-work-navigation:hover,
-.agent-work-issue:hover {
+.agent-work-navigation:hover {
   color: var(--phosphor);
   text-shadow: var(--shadow);
 }
@@ -426,14 +424,12 @@ body::after {
   text-shadow: var(--shadow);
 }
 
-.agent-work-detail,
 .card-detail,
 .latest-output,
 .error-message {
   margin: var(--space-3) 0 0;
 }
 
-.agent-work-detail,
 .card-detail,
 .card-route,
 .issue-state {
@@ -538,24 +534,12 @@ body::after {
   margin: 0;
 }
 
-.agent-work-heading {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) max-content;
-  align-items: start;
-  gap: var(--space-6);
-}
+/* A work page opens with its work card, whose first row is the page's
+   heading. */
 
-.agent-work-heading h1 {
-  min-width: 0;
+.agent-work-page-card .card-heading > h1 {
   margin: 0;
   font-size: calc(var(--font-size) * 1.45);
-}
-
-.agent-work-heading-actions {
-  display: flex;
-  flex-wrap: nowrap;
-  align-items: baseline;
-  gap: var(--space-5);
 }
 
 .agent-work-control-form {
@@ -582,48 +566,6 @@ body::after {
 .hand-resume summary:hover,
 .hand-resume summary:focus-visible {
   color: var(--bright);
-}
-
-.agent-work-issue {
-  color: var(--phosphor);
-  font-weight: 700;
-}
-
-.agent-work-issue span {
-  color: var(--bright);
-  font-weight: 600;
-}
-
-.agent-work-facts {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-4) 0;
-  margin: 0;
-}
-
-.agent-work-facts > div {
-  display: flex;
-  gap: var(--space-3);
-  min-width: 0;
-  padding-right: var(--space-6);
-  margin-right: var(--space-6);
-  border-right: var(--line) solid var(--rule);
-}
-
-.agent-work-facts > div:last-child {
-  padding-right: 0;
-  margin-right: 0;
-  border-right: 0;
-}
-
-.agent-work-facts dt {
-  color: var(--phosphor);
-  font-weight: 400;
-}
-
-.agent-work-facts dd {
-  overflow-wrap: anywhere;
-  margin: 0;
 }
 
 .agent-work-workspace {
@@ -853,8 +795,7 @@ body::after {
     padding-left: var(--space-8);
   }
 
-  .card-route,
-  .agent-work-heading-actions {
+  .card-route {
     align-items: flex-start;
   }
 

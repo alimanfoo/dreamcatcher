@@ -692,9 +692,12 @@ control.
 
 Every piece of agent work, of any kind, has its page at
 `/work/<identifier>`, and its feed tail and controls below that address.
-A conversation and a campaign share one page layout, because the issue
-is the channel of each. A conversation the tick has found but not yet
-saved has no page.
+Every kind of work shares one page layout, which opens with the work's
+card. One macro renders a card's rows both there and on the home page,
+from the same view model, so the two cannot drift apart. The page's tail
+renders the card again, so the card keeps the pull request's state, the
+issue's state, the status and the detail current. A conversation the
+tick has found but not yet saved has no page.
 
 The home page shows each kind of work on a tab of its own. The address's
 fragment names the selected tab, as in `/#campaign`, so the browser's

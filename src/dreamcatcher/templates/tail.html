@@ -4,9 +4,7 @@
 {%- if tail.has_empty_feed_placeholder and tail.feed_rounds -%}<p id="empty-feed" hx-swap-oob="delete"></p>{%- endif -%}
 <input type="hidden" id="position" name="position" value="{{ tail.feed_position }}" hx-swap-oob="true">
 {%- with view=tail, is_tail=true -%}
-  {%- include "partials/agent-work-status.html" -%}
-  {%- include "partials/agent-work-retry.html" -%}
-  {%- include "partials/agent-work-detail.html" -%}
+  {%- include "partials/agent-work-page-card.html" -%}
   {%- include "partials/agent-work-rounds.html" -%}
   {%- include "partials/agent-work-foot.html" -%}
 {%- endwith %}

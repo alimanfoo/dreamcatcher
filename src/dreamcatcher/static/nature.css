@@ -213,14 +213,12 @@ body::after {
   font-weight: 400;
 }
 
-.facts,
-.agent-work-facts {
+.facts {
   row-gap: 6px;
   color: var(--dim);
 }
 
-.fact,
-.agent-work-facts > div {
+.fact {
   align-items: baseline;
   gap: 8px;
   padding-right: 16px;
@@ -230,7 +228,6 @@ body::after {
 }
 
 .fact dt,
-.agent-work-facts dt,
 .agent-work-kind,
 .scheduler-failures h1 {
   color: var(--dim);
@@ -239,8 +236,7 @@ body::after {
   text-transform: uppercase;
 }
 
-.fact dd,
-.agent-work-facts dd {
+.fact dd {
   color: var(--bright);
   font-weight: 500;
 }
@@ -312,8 +308,7 @@ body::after {
 }
 
 .issue-number:hover,
-.agent-work-navigation:hover,
-.agent-work-issue:hover {
+.agent-work-navigation:hover {
   color: var(--link-hover);
   text-shadow: none;
 }
@@ -379,7 +374,6 @@ body::after {
   color: var(--dim);
 }
 
-.agent-work-detail,
 .card-detail,
 .card-route {
   color: var(--dim);
@@ -397,8 +391,7 @@ body::after {
   text-transform: lowercase;
 }
 
-.card-actions,
-.agent-work-heading-actions {
+.card-actions {
   align-items: center;
   gap: 10px;
 }
@@ -477,22 +470,10 @@ body::after {
   gap: 14px;
 }
 
-.agent-work-heading h1 {
-  color: var(--bright);
-  font-family: Georgia, "Times New Roman", serif;
+.agent-work-page-card .card-heading > h1 {
   font-size: 36px;
   font-weight: 400;
   line-height: 1.2;
-}
-
-.agent-work-issue,
-.agent-work-issue span {
-  color: inherit;
-  font-weight: inherit;
-}
-
-.agent-work-issue {
-  color: var(--link);
 }
 
 .agent-work-workspace {

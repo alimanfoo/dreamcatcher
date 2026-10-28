@@ -1,0 +1,3 @@
+{% from "partials/work-card.html" import work_card_rows with context %}<div id="agent-work-card" class="agent-work-page-card"{% if is_tail|default(false) %} hx-swap-oob="morph"{% endif %}>
+  {{ work_card_rows(view.live.card, is_page=true, controls=view.live.card_controls) }}
+</div>
