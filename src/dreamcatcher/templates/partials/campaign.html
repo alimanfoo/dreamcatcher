@@ -1,4 +1,4 @@
-{% from "partials/references.html" import github_reference with context %}{% set campaign = card %}{% set overview = card.child_overview %}<div id="{{ campaign.identifier }}-overview" class="campaign">
+{% from "partials/references.html" import github_reference, issue_state with context %}{% set campaign = card %}{% set overview = card.child_overview %}<div id="{{ campaign.identifier }}-overview" class="campaign">
   {% include "partials/agent-work-card.html" %}
   {#- The block stays while the sub-issues are unknown or none, so a refresh keeps it open. #}
   <details id="{{ campaign.identifier }}-children" class="campaign-children">
@@ -15,7 +15,7 @@
         <article id="{{ id_prefix }}sub-issue-{{ child.issue }}" class="campaign-child{% if child.is_closed %} is-closed{% endif %}" aria-label="Sub-issue #{{ child.issue }}">
           <div class="card-heading">
             <div>{{ github_reference(child.issue, "issues") }} <span class="title">{{ child.title }}</span></div>
-            <span class="issue-state">{{ child.issue_state }}</span>
+            {{ issue_state(child.issue_state, ()) }}
           </div>
         </article>
       {%- endif %}
