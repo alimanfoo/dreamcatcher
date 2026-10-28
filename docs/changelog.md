@@ -38,6 +38,10 @@ the change.
 
 ### Changed
 
+- Every web page keeps its content to a column 1120px wide, where it was
+  1320px, so that a laptop's window leaves side margins for the motifs.
+  ([#855](https://github.com/alimanfoo/dreamcatcher/pull/855))
+
 - The page that names the things _dreamcatcher_ deals with and says what
   the words mean is now called Concepts, at `docs/concepts.md`, and its
   opening paragraph says it is a glossary with rules. It was called the
