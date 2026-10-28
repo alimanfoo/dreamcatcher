@@ -17,9 +17,8 @@ output.
 
 A section ends with the words that its concepts replace, where they
 replace any, in a line that begins "Replaces:". A replaced word is not
-used for its concept in code, documents, skills or issues. Where the
-line names the concept it was replaced for, the word may still be used
-in another sense, as "running" still describes a round.
+used for its concept in code, documents, skills or issues. It may still
+be used in another sense, as "running" still describes a round.
 
 The dated specifications record the design of particular phases. Where
 their terminology conflicts with this document, this document is
@@ -78,7 +77,7 @@ agent assignment, as in `GH123-20260912-192458-assignment`. It is
 distinct from the issue identifier because an issue can receive more
 than one assignment over its lifetime.
 
-Replaces: "session" on its own. A session is a harness session.
+Replaces: "session" on its own, for an agent assignment.
 
 ### Pull request
 

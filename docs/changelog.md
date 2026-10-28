@@ -36,7 +36,9 @@ the change.
   `https://alimanfoo.github.io/dreamcatcher/ontology/`, no longer
   resolves. ([#829](https://github.com/alimanfoo/dreamcatcher/pull/829))
 - Each section of [Concepts](concepts.md) ends with the words that its
-  concepts replace, such as "stage" for a sub-issue.
+  concepts replace, such as "stage" for a sub-issue. The help of
+  `dreamcatcher status` now says "requests with no open work", where it
+  said "labels waiting for work".
   ([#838](https://github.com/alimanfoo/dreamcatcher/pull/838))
 
 ### Fixed

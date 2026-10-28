@@ -185,7 +185,7 @@ def _build_cli_parser() -> argparse.ArgumentParser:
     web_parser.set_defaults(act=_show_web)
     status_parser = subcommands.add_parser(
         "status",
-        help="show the instance, its agent work, and the labels waiting for work",
+        help="show the instance, its agent work, and the requests with no open work",
         description=(
             "Show instance and daemon facts, each assignment, conversation and "
             "campaign, and each dispatch label that no open work answers, in "
