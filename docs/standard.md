@@ -141,7 +141,7 @@ progress towards the standard. Meeting the criteria is.
   this document that the code contradicts.
 - Bar: zero. A pull request that moves the code past one of them
   corrects it in the same change and says so.
-- Check: review, plus the dependency test under K1 for the
+- Check: review, plus the import contracts under K1 for the
   architecture's structural claims.
 
 **C3. Documentation is organised by purpose.**
@@ -181,9 +181,10 @@ machine.**
   must not use to rediscover what status derives, are the five checked
   today. Review checks every other rule in the architecture until it
   fails more than once.
-- Check: ruff's subprocess rule, and one test module that asserts the
-  first-party, Rich and Flask dependency direction over the import graph
-  and keeps presentation from naming what status derives.
+- Check: ruff's subprocess rule, the import-linter contracts in
+  `pyproject.toml` for the first-party, Rich and Flask dependency
+  direction, and a commit hook that keeps presentation from naming what
+  status derives.
 
 **K2. The suite is fast and speaks the user's language.**
 
@@ -277,10 +278,9 @@ A pull request is done when its author can say yes to each of these.
 ## Exceptions
 
 A criterion may be waived for one place, never in general. The waiver is
-written where the check will read it: a per-file rule in
-`pyproject.toml` for K1, a pragma with its reason for S5, an entry on
-the ledger for E1. A waiver with no reason a reader can find is a
-violation.
+written where the check will read it: in the check's own configuration
+for K1, a pragma with its reason for S5, an entry on the ledger for E1.
+A waiver with no reason a reader can find is a violation.
 
 ## Measurement
 

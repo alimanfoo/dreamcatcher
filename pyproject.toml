@@ -37,6 +37,7 @@ dependencies = [
 # `[build-system]` pins it, since uv ignores build constraints.
 dev = [
     "complexipy==8.0.1",
+    "import-linter==2.15",
     "mkdocs==1.6.1",
     "mkdocs-material==9.7.7",
     "playwright==1.64.0",
@@ -163,8 +164,7 @@ max-args = 7
 [tool.ruff.lint.pydocstyle]
 convention = "pep257"
 
-# tests/test_architecture.py reads every import as one from the top of the
-# package.
+# Every import is absolute, as PEP 8 recommends.
 [tool.ruff.lint.flake8-tidy-imports]
 ban-relative-imports = "all"
 
@@ -190,3 +190,119 @@ ban-relative-imports = "all"
 ]
 [tool.complexipy]
 max-complexity-allowed = 15
+
+# Each contract states one dependency rule of the architecture. The
+# lint-imports commit hook checks them.
+[tool.importlinter]
+root_package = "dreamcatcher"
+include_external_packages = true
+
+[[tool.importlinter.contracts]]
+name = "The scheduler never reaches the daemon or status"
+type = "forbidden"
+source_modules = ["dreamcatcher.scheduler"]
+forbidden_modules = ["dreamcatcher.daemon", "dreamcatcher.status"]
+
+[[tool.importlinter.contracts]]
+name = "Agent work never reaches scheduling"
+type = "forbidden"
+source_modules = [
+    "dreamcatcher.agent_assignment_pull_requests",
+    "dreamcatcher.agent_assignments",
+    "dreamcatcher.agent_rounds",
+    "dreamcatcher.agent_work",
+    "dreamcatcher.campaigns",
+    "dreamcatcher.issue_conversations",
+]
+forbidden_modules = ["dreamcatcher.scheduler"]
+
+[[tool.importlinter.contracts]]
+name = "Adapters never reach presentation or scheduling"
+type = "forbidden"
+source_modules = [
+    "dreamcatcher.claude",
+    "dreamcatcher.codex",
+    "dreamcatcher.github",
+    "dreamcatcher.harness_adapters",
+    "dreamcatcher.harnesses",
+]
+forbidden_modules = ["dreamcatcher.scheduler", "dreamcatcher.tui", "dreamcatcher.web"]
+
+[[tool.importlinter.contracts]]
+name = "Setup never reaches presentation, scheduling or the daemon"
+type = "forbidden"
+source_modules = ["dreamcatcher.repository_setup"]
+forbidden_modules = [
+    "dreamcatcher.daemon",
+    "dreamcatcher.scheduler",
+    "dreamcatcher.tui",
+    "dreamcatcher.web",
+]
+
+[[tool.importlinter.contracts]]
+name = "Status and the feed never reach presentation"
+type = "forbidden"
+source_modules = ["dreamcatcher.feed", "dreamcatcher.status"]
+forbidden_modules = ["dreamcatcher.tui", "dreamcatcher.web"]
+
+[[tool.importlinter.contracts]]
+name = "Storage reaches only documents and errors"
+type = "forbidden"
+source_modules = ["dreamcatcher.documents", "dreamcatcher.errors", "dreamcatcher.state"]
+forbidden_modules = ["dreamcatcher.*"]
+ignore_imports = [
+    "dreamcatcher.* -> dreamcatcher.documents",
+    "dreamcatcher.* -> dreamcatcher.errors",
+]
+
+# Presentation shows what status and the feed derive. Both presentations reach
+# the scheduler and GitHub through status, so these two contracts check direct
+# imports alone.
+[[tool.importlinter.contracts]]
+name = "The TUI imports no policy module and not the web"
+type = "forbidden"
+source_modules = ["dreamcatcher.tui"]
+forbidden_modules = [
+    "dreamcatcher.daemon",
+    "dreamcatcher.github",
+    "dreamcatcher.scheduler",
+    "dreamcatcher.web",
+]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "The web imports no policy module and not the TUI"
+type = "forbidden"
+source_modules = ["dreamcatcher.web"]
+forbidden_modules = [
+    "dreamcatcher.daemon",
+    "dreamcatcher.github",
+    "dreamcatcher.scheduler",
+    "dreamcatcher.tui",
+]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "Only the TUI imports Rich"
+type = "protected"
+protected_modules = ["rich"]
+allowed_importers = ["dreamcatcher.tui"]
+
+[[tool.importlinter.contracts]]
+name = "Only the web imports Flask"
+type = "protected"
+protected_modules = ["flask"]
+allowed_importers = ["dreamcatcher.web"]
+
+# Status reads the scheduler's records and derivations, which faults and models
+# hold, and never the modules that choose or start work.
+[[tool.importlinter.contracts]]
+name = "Status reads only the scheduler's records and derivations"
+type = "forbidden"
+source_modules = ["dreamcatcher.status"]
+forbidden_modules = ["dreamcatcher.scheduler"]
+ignore_imports = [
+    "dreamcatcher.status.** -> dreamcatcher.scheduler.faults",
+    "dreamcatcher.status.** -> dreamcatcher.scheduler.models",
+]
+allow_indirect_imports = true
