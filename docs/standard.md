@@ -278,9 +278,9 @@ A pull request is done when its author can say yes to each of these.
 ## Exceptions
 
 A criterion may be waived for one place, never in general. The waiver is
-written where the check will read it: a rule in `pyproject.toml` for K1,
-a pragma with its reason for S5, an entry on the ledger for E1. A waiver
-with no reason a reader can find is a violation.
+written where the check will read it: in the check's own configuration
+for K1, a pragma with its reason for S5, an entry on the ledger for E1.
+A waiver with no reason a reader can find is a violation.
 
 ## Measurement
 

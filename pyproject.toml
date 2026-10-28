@@ -164,9 +164,7 @@ max-args = 7
 [tool.ruff.lint.pydocstyle]
 convention = "pep257"
 
-# Every import names its module from the top of the package, so each import
-# has one spelling, as AGENTS.md asks of every way to do a thing. A search for
-# a module's dotted name then finds every module that imports it.
+# Every import is absolute, as PEP 8 recommends.
 [tool.ruff.lint.flake8-tidy-imports]
 ban-relative-imports = "all"
 
@@ -193,8 +191,8 @@ ban-relative-imports = "all"
 [tool.complexipy]
 max-complexity-allowed = 15
 
-# Each contract states one dependency rule of the architecture, which
-# docs/architecture.md describes. The lint-imports commit hook checks them.
+# Each contract states one dependency rule of the architecture. The
+# lint-imports commit hook checks them.
 [tool.importlinter]
 root_package = "dreamcatcher"
 include_external_packages = true
