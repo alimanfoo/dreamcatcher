@@ -1,4 +1,4 @@
-"""Measure Dreamcatcher source size to guide S1 and S2 review."""
+"""Measure source size for module and function review."""
 
 from __future__ import annotations
 
