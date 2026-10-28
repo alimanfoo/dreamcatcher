@@ -34,7 +34,7 @@ the change.
   opening paragraph says it is a glossary with rules. It was called the
   ontology. The old address,
   `https://alimanfoo.github.io/dreamcatcher/ontology/`, no longer
-  resolves.
+  resolves. ([#829](https://github.com/alimanfoo/dreamcatcher/pull/829))
 
 ## [v9.4.0](https://github.com/alimanfoo/dreamcatcher/releases/tag/v9.4.0) — 2026-10-27
 
