@@ -141,8 +141,8 @@ progress towards the standard. Meeting the criteria is.
   this document that the code contradicts.
 - Bar: zero. A pull request that moves the code past one of them
   corrects it in the same change and says so.
-- Check: review, plus the import contracts under Machine-checked rules
-  for the architecture's structural claims.
+- Check: review, plus the import contracts under the Machine-checked
+  rules criterion for the architecture's structural claims.
 
 **Docs by purpose.** Documentation is organised by purpose.
 
@@ -244,8 +244,8 @@ Elegance is not a word for "I would have done it differently".
 - Bar: a feature adds a concept only when the spec shows that the
   existing concepts cannot compose to it. Removing a concept needs no
   case.
-- Check: review, through the definition of done's Concepts' words
-  question. A spec arrives in a pull request like any other change.
+- Check: review, through the Concepts' words question of the definition
+  of done. A spec arrives in a pull request like any other change.
 
 **Symmetry.**
 
@@ -266,8 +266,9 @@ A pull request is done when its author can say yes to each of these.
 - **Checks pass.** The tests and every required check pass, and none is
   suppressed or bypassed. Documentation-only changes run the relevant
   documentation checks locally and rely on CI for the test suite.
-- **Small and used.** Everything it adds meets Cohesive modules and
-  Focused functions, and nothing it exports is without a caller.
+- **Small and used.** Everything it adds meets the Cohesive modules and
+  Focused functions criteria, and nothing it exports is without a
+  caller.
 - **Concepts' words.** Every word it introduces is in the concepts page,
   or the page grew in the same change. A concept it adds to the concepts
   page comes with a spec that shows the existing concepts cannot compose
@@ -282,9 +283,10 @@ A pull request is done when its author can say yes to each of these.
 
 A criterion may be waived for one place, never in general. The waiver is
 written where the check will read it: in the check's own configuration
-for Machine-checked rules, a pragma with its reason for No suppressions,
-an entry on the ledger for Rules not cases. A waiver with no reason a
-reader can find is a violation.
+for the Machine-checked rules criterion, a pragma with its reason for
+the No suppressions criterion, and an entry on the ledger for the Rules
+not cases criterion. A waiver with no reason a reader can find is a
+violation.
 
 ## Measurement
 

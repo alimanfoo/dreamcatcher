@@ -1,4 +1,4 @@
-"""Measure source size to guide review for Cohesive modules and Focused functions."""
+"""Measure source size for the Cohesive modules and Focused functions criteria."""
 
 from __future__ import annotations
 
