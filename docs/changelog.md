@@ -91,6 +91,11 @@ the change.
   links to GitHub, as on the home page, where the whole heading did, and
   the strip of labelled facts is gone.
   ([#853](https://github.com/alimanfoo/dreamcatcher/pull/853))
+- `dreamcatcher view` gives a conversation's or a campaign's issue state
+  on an `issue` line, such as `open, labelled by octocat`, or `closed`
+  once the work has ended. Its status line gives the status and the
+  detail, where a held conversation's also said what GitHub holds.
+  ([#853](https://github.com/alimanfoo/dreamcatcher/pull/853))
 - The documentation says "held" where the scheduler holds work back, and
   keeps "paused" for the user's own act of removing a label or an
   assignee. ([#853](https://github.com/alimanfoo/dreamcatcher/pull/853))

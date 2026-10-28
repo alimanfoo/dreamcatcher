@@ -1,5 +1,6 @@
 """Render issue conversations in terminal views."""
 
+import re
 import shutil
 from datetime import timedelta
 from io import StringIO
@@ -69,27 +70,62 @@ def test_status_lists_the_conversation(tmp_path):
     assert "round 1, answered, ran 4m" in shown
 
 
-def test_status_and_view_say_why_a_paused_conversation_is_held(tmp_path):
-    state = StateDirectory(root=tmp_path)
-    fabricate_conversation(state=state)
-    status = StringIO()
-    view = StringIO()
-
-    show_status_view(
-        state=state,
-        console=create_pinned_console(written_to=status),
-        clock=lambda: PINNED,
-    )
+def render_conversation_view(*, state: StateDirectory) -> str:
+    """Return the view of the conversation at issue 8, rendered once."""
+    written = StringIO()
     show_agent_work_view(
         state=state,
         work=read_newest_work(state=state, issue=8, kind=AgentWorkKind.CONVERSATION),
-        console=create_pinned_console(written_to=view),
+        console=create_pinned_console(written_to=written),
+        clock=lambda: PINNED,
+    )
+    return written.getvalue()
+
+
+def test_status_says_why_a_paused_conversation_is_held(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    fabricate_conversation(state=state)
+    written = StringIO()
+
+    show_status_view(
+        state=state,
+        console=create_pinned_console(written_to=written),
         clock=lambda: PINNED,
     )
 
-    for shown in (status.getvalue(), view.getvalue()):
-        assert "held" in shown
-        assert "label removed; put the label back to resume" in shown
+    assert "held" in written.getvalue()
+    assert "label removed; put the label back to resume" in written.getvalue()
+
+
+def test_a_view_says_once_why_a_paused_conversation_is_held(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    fabricate_conversation(state=state)
+
+    shown = render_conversation_view(state=state)
+
+    assert shown.splitlines()[1].rstrip() == "held  put the label back to resume"
+    assert re.search(r"\n  issue +open, label removed +\n", shown)
+    assert shown.count("label removed") == 1
+
+
+def test_a_view_says_that_an_ended_conversations_issue_is_closed(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    fabricate_conversation(state=state)
+    end_conversation(state=state)
+
+    shown = render_conversation_view(state=state)
+
+    assert re.search(r"\n  issue +closed +\n", shown)
+
+
+def test_a_view_says_the_issue_is_unknown_when_no_update_read_it(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    fabricate_conversation(state=state)
+    write_tick(state=state, tick=SchedulerRecord(at=PINNED, finished=PINNED, rows=[]))
+
+    shown = render_conversation_view(state=state)
+
+    assert re.search(r"\n  issue +unknown +\n", shown)
 
 
 def test_conversation_detail_shows_settings_session_and_round_but_no_revision(

@@ -34,9 +34,9 @@ from dreamcatcher.tui.shared import (
     ViewSnapshot,
     combine_renderable_parts,
     create_table,
-    describe_work_detail,
     refresh_live_view,
     refresh_until_view_ends,
+    render_issue_state,
     render_latest_output,
     render_section,
 )
@@ -98,13 +98,16 @@ def _render_agent_work(
     status: AgentWorkStatus,
     zone: tzinfo | None,
 ) -> RenderableType:
-    """Render the work's status, settings, rounds and hand-resume command."""
+    """Render the work's status, settings, rounds and hand-resume command.
+
+    The status line gives the status and the detail, and the summary beneath
+    gives what GitHub holds.
+    """
     work = status.work
     rendered_status = Text()
     rendered_status.append(status.words, style=AGENT_WORK_STATUS_STYLES[status.value])
-    detail = describe_work_detail(status=status)
-    if detail is not None:
-        rendered_status.append(f"  {detail}")
+    if status.detail is not None:
+        rendered_status.append(f"  {status.detail}")
     latest_output = render_latest_output(latest_output=status.latest_output)
     if latest_output is not None:
         latest_output = Padding(
@@ -132,7 +135,10 @@ def _render_agent_work(
 def _render_issue_work_summary(
     *, state: StateDirectory, status: AgentWorkStatus
 ) -> RenderableType:
-    """Return the section that names a conversation or a campaign and its settings."""
+    """Return the section that names a conversation or a campaign and its settings.
+
+    The issue's state is unknown when the latest update did not read it.
+    """
     work = status.work
     record = work.record
     table = create_table(columns=2)
@@ -140,6 +146,11 @@ def _render_issue_work_summary(
         ("issue identifier", f"GH{record.issue}"),
         ("agent work identifier", work.identifier),
         ("title", record.title),
+        (
+            "issue",
+            render_issue_state(state=status.issue_state, facts=status.issue_facts)
+            or "unknown",
+        ),
         ("label", record.dispatch_label),
         ("worktree", _describe_worktree(state=state, status=status)),
         ("harness", record.harness),

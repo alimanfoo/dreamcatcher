@@ -45,6 +45,22 @@ def render_issue_fact(*, fact: IssueFact) -> str:
     return f"{fact.words} {', '.join(references)}"
 
 
+def render_issue_state(*, state: str | None, facts: Sequence[IssueFact]) -> str | None:
+    """Return the issue's state, then each fact that GitHub holds about it.
+
+    An issue whose state is unknown gives its facts alone.
+    """
+    return (
+        ", ".join(
+            [
+                *([] if state is None else [state]),
+                *(render_issue_fact(fact=fact) for fact in facts),
+            ]
+        )
+        or None
+    )
+
+
 def describe_work_detail(*, status: AgentWorkStatus) -> str | None:
     """Return what GitHub says that holds the work back, then the work's detail.
 

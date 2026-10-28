@@ -601,14 +601,17 @@ ended in place of its status, so the card says once that it has ended
 and how. An assignment ends completed or cancelled, and a conversation
 or a campaign shows ended, with its issue closed on its first row.
 `dreamcatcher view` shows the same word in place of the status, with
-nothing beneath it. Every piece of work that has ended shows its title
-more quietly than live work does, here and within a campaign, so it
-draws less attention, and its links stay as clear as they are on any
-other card. A request card gives its issue at the top, with the issue's
-state and what GitHub says that holds the request back, such as an issue
-that blocks it. Beneath that come its dispatch label and request status,
-and then, when there is any, what _dreamcatcher_ found or what the user
-has to do.
+nothing beneath it, and its summary gives what GitHub holds, as the
+card's first row does: an assignment's pull request and where it stands,
+or a conversation's or a campaign's issue and whether it is open or
+closed, with what holds the work back. Every piece of work that has
+ended shows its title more quietly than live work does, here and within
+a campaign, so it draws less attention, and its links stay as clear as
+they are on any other card. A request card gives its issue at the top,
+with the issue's state and what GitHub says that holds the request back,
+such as an issue that blocks it. Beneath that come its dispatch label
+and request status, and then, when there is any, what _dreamcatcher_
+found or what the user has to do.
 
 A work's page opens with its work card, larger and in the same words, so
 the user who opens a conversation held because a colleague applied its
