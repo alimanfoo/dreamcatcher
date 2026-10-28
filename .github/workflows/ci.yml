@@ -105,3 +105,18 @@ jobs:
       - run: uv build
       - run: uvx --from dist/*.whl dreamcatcher --version
         shell: bash
+
+  # This job gives branch protection one check for the whole workflow, so its
+  # name stays fixed while the jobs above change. Add every new job to `needs`.
+  # The job runs even when a needed job fails. GitHub would otherwise skip it,
+  # and GitHub counts a skipped required check as passing.
+  required-checks-pass:
+    name: Required checks pass
+    if: always()
+    needs: [test, browser, checks, package]
+    runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+      - env:
+          NEEDS: ${{ toJSON(needs) }}
+        run: jq --exit-status 'map_values(.result) | ., all(.[]; . == "success")' <<< "$NEEDS"
