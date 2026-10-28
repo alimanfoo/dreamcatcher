@@ -833,22 +833,21 @@ def test_nature_shows_exactly_one_of_sun_and_moon_at_each_boundary(
     page.goto(live_web)
 
     root = page.locator("html")
+    body = page.locator("body")
     steps = (
-        (None, "0", "1"),
-        ("00:01:00", "1", "0"),
-        ("11:59:00", "1", "0"),
-        ("00:01:00", "0", "1"),
+        (None, "night", "0"),
+        ("00:01:00", "day", "1"),
+        ("11:59:00", "day", "1"),
+        ("00:01:00", "night", "0"),
     )
-    for advance, sun_opacity, moon_opacity in steps:
+    for advance, sky, sun_opacity in steps:
         if advance is not None:
             page.clock.fast_forward(advance)
-        opacities = root.evaluate(
-            """element => [
-              element.style.getPropertyValue("--sun-opacity"),
-              element.style.getPropertyValue("--moon-opacity"),
-            ]"""
+        expect(root).to_have_attribute("data-sky", sky)
+        assert (
+            body.evaluate('element => getComputedStyle(element, "::before").opacity')
+            == sun_opacity
         )
-        assert opacities == [sun_opacity, moon_opacity]
 
 
 @pytest.mark.parametrize("theme", ["matrix", "nature"])

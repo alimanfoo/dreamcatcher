@@ -6,6 +6,8 @@ const minutesPerDay = 24 * 60;
 const startPosition = 6;
 const endPosition = 94;
 
+// The root's data-sky says whether the sun or the moon is up, and the
+// stylesheet shows each, and the motifs that follow them, from it.
 function updateCelestialPositions() {
   const now = new Date();
   const minutes = now.getHours() * 60 + now.getMinutes();
@@ -20,17 +22,9 @@ function updateCelestialPositions() {
   const nightProgress = nightMinutes / nightDuration;
   const moonPosition =
     startPosition + (endPosition - startPosition) * nightProgress;
-  const isNight = minutes < sunrise || minutes >= sunset;
 
-  document.documentElement.style.setProperty(
-    "--sun-opacity",
-    isDaylight ? "1" : "0",
-  );
+  document.documentElement.dataset.sky = isDaylight ? "day" : "night";
   document.documentElement.style.setProperty("--sun-x", `${sunPosition}%`);
-  document.documentElement.style.setProperty(
-    "--moon-opacity",
-    isNight ? "1" : "0",
-  );
   document.documentElement.style.setProperty("--moon-x", `${moonPosition}%`);
 }
 

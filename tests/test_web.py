@@ -1287,7 +1287,7 @@ def test_an_unknown_theme_uses_nature_without_being_remembered(tmp_path):
     assert 'data-web-theme="nature"' in response.text
     assert "Set-Cookie" not in response.headers
     assert "circle at var(--sun-x) 6%" in stylesheet
-    assert "opacity: var(--sun-opacity);" in stylesheet
+    assert 'html[data-sky="night"] body::before' in stylesheet
     assert ".status-unknown," in stylesheet
 
 

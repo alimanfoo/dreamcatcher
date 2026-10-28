@@ -72,7 +72,6 @@
   --font: "Alegreya Sans", Avenir, "Segoe UI", sans-serif;
   --font-size: 15px;
   --line-height: 1.5;
-  --sun-opacity: 1;
   --sun-x: 50%;
 }
 
@@ -95,7 +94,12 @@ body::before {
   pointer-events: none;
   background: var(--sun-background);
   content: "";
-  opacity: var(--sun-opacity);
+}
+
+/* nature.js says whether the sun or the moon is up. */
+
+html[data-sky="night"] body::before {
+  opacity: 0;
 }
 
 body::after {
@@ -713,13 +717,16 @@ body::after {
     --round-current-surface: rgba(233, 177, 131, 0.9);
     --interrupted: #e9cb93;
     --code-surface: rgba(236, 230, 220, 0.055);
-    --moon-opacity: 0;
     --moon-x: 50%;
   }
 
   html[data-web-theme="nature"] body::before {
     background: var(--moon-background);
-    opacity: var(--moon-opacity);
+    opacity: 0;
+  }
+
+  html[data-web-theme="nature"][data-sky="night"] body::before {
+    opacity: 1;
   }
 
   html[data-web-theme="nature"] body::after {
