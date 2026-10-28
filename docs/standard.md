@@ -80,7 +80,7 @@ progress towards the standard. Meeting the criteria is.
 
 ### Simplicity
 
-**S1. Modules are cohesive.**
+**Cohesive modules.** Modules are cohesive.
 
 - Measure: modules for which review cannot name the one responsibility
   they own, read largest first.
@@ -89,7 +89,7 @@ progress towards the standard. Meeting the criteria is.
 - Check: review, ordered by the line counts the release measurement
   reports and focused on any module a change grows.
 
-**S2. Functions do one thing.**
+**Focused functions.** Functions do one thing.
 
 - Measure: functions for which review cannot name the one job they do,
   read longest first.
@@ -100,7 +100,7 @@ progress towards the standard. Meeting the criteria is.
 - Check: review, ordered by the line counts the release measurement
   reports and focused on any function a change grows.
 
-**S3. Exports are used.**
+**No unused exports.** Exports are used.
 
 - Measure: top-level names without a leading underscore that no other
   module under `src` imports.
@@ -109,14 +109,14 @@ progress towards the standard. Meeting the criteria is.
   public because a test wanted it.
 - Check: review.
 
-**S4. Each thing is done one way.**
+**One way.** Each thing is done one way.
 
 - Measure: places where two functions derive the same fact.
 - Bar: one. A fact derived in `status` is not derived again in `tui` or
   `web`, and a word chosen in one presentation is the word in the other.
 - Check: review, guided by the consistency review skill.
 
-**S5. Nothing is suppressed.**
+**No suppressions.** Nothing is suppressed.
 
 - Measure: `noqa`, `type: ignore` and `pragma: no cover` markers under
   `src`.
@@ -126,7 +126,7 @@ progress towards the standard. Meeting the criteria is.
 
 ### Clarity
 
-**C1. One vocabulary.**
+**One vocabulary.**
 
 - Measure: disagreements the consistency review reports between two
   claims about one concept, in code, output, documents and the issue
@@ -135,16 +135,16 @@ progress towards the standard. Meeting the criteria is.
 - Check: the consistency review, run before each release and on any pull
   request that names a concept.
 
-**C2. The enduring documents are true.**
+**True documents.** The enduring documents are true.
 
 - Measure: statements in the concepts page, architecture, stories and
   this document that the code contradicts.
 - Bar: zero. A pull request that moves the code past one of them
   corrects it in the same change and says so.
-- Check: review, plus the import contracts under K1 for the
-  architecture's structural claims.
+- Check: review, plus the import contracts under Machine-checked rules
+  for the architecture's structural claims.
 
-**C3. Documentation is organised by purpose.**
+**Docs by purpose.** Documentation is organised by purpose.
 
 - Measure: whether a reader can install, configure, run and consult a
   command reference without reading how the scheduler thinks.
@@ -156,7 +156,7 @@ progress towards the standard. Meeting the criteria is.
   design documents.
 - Check: review of the documentation map that `uncoded` maintains.
 
-**C4. Formats and contracts are versioned.**
+**Versioned contract.** Formats and contracts are versioned.
 
 - Measure: whether the state format and the agent-facing contract each
   carry a version and a [compatibility statement](compatibility.md).
@@ -170,8 +170,8 @@ progress towards the standard. Meeting the criteria is.
 
 ### Consistency
 
-**K1. A structural rule that review keeps missing is checked by a
-machine.**
+**Machine-checked rules.** A structural rule that review keeps missing
+is checked by a machine.
 
 - Measure: rules in the architecture that have failed review more than
   once, that a small and exact check could enforce, and that no machine
@@ -186,7 +186,8 @@ machine.**
   direction, and a commit hook that keeps presentation from naming what
   status derives.
 
-**K2. The suite is fast and speaks the user's language.**
+**Fast readable tests.** The suite is fast and speaks the user's
+language.
 
 - Measure: wall-clock time of the default run, and test names.
 - Bar: under 60 seconds on a laptop, at full branch coverage. Every test
@@ -194,14 +195,14 @@ machine.**
   calls.
 - Check: CI reports the time; review reads the names.
 
-**K3. The tracker is current.**
+**Current tracker.** The tracker is current.
 
 - Measure: open issues that name a concept by a word the concepts page
   does not use for it, or that ask for work already done.
 - Bar: zero.
 - Check: triage before each release.
 
-**K4. Every change is reviewed against this standard.**
+**Reviewed changes.** Every change is reviewed against this standard.
 
 - Measure: pull requests merged since the previous major or minor
   release that explain what they change and why, link any relevant issue
@@ -216,7 +217,7 @@ These criteria rest more on review than the others, and an objection
 under them must name the question that fails and show the evidence.
 Elegance is not a word for "I would have done it differently".
 
-**E1. Rules, not cases.**
+**Rules not cases.**
 
 - Measure: conditionals whose condition names a particular situation
   rather than applies a general rule, and the ledger in
@@ -227,7 +228,7 @@ Elegance is not a word for "I would have done it differently".
 - Check: review, asking of each new branch whether it would go if a rule
   were stated more generally.
 
-**E2. Invariants held by construction.**
+**Invariants by construction.**
 
 - Measure: branches, raises and asserts that defend against a state the
   types could have made unrepresentable, such as two optional fields
@@ -236,7 +237,7 @@ Elegance is not a word for "I would have done it differently".
   round ending classes carry outcome, time and exit status together.
 - Check: review, and a count that each release measurement records.
 
-**E3. Concept economy.**
+**Few concepts.**
 
 - Measure: the change to the concepts page in each pull request, against
   the case its spec makes.
@@ -246,7 +247,7 @@ Elegance is not a word for "I would have done it differently".
 - Check: review, through question 4 of the definition of done. A spec
   arrives in a pull request like any other change.
 
-**E4. Symmetry.**
+**Symmetry.**
 
 - Measure: for concepts the concepts page treats as parallel, such as
   the two kinds of agent work, the operations that exist for one kind
@@ -265,8 +266,8 @@ A pull request is done when its author can say yes to each of these.
 2. The tests and every required check pass, and none is suppressed or
    bypassed. Documentation-only changes run the relevant documentation
    checks locally and rely on CI for the test suite.
-3. Everything it adds meets S1 and S2, and nothing it exports is without
-   a caller.
+3. Everything it adds meets Cohesive modules and Focused functions, and
+   nothing it exports is without a caller.
 4. Every word it introduces is in the concepts page, or the page grew in
    the same change. A concept it adds to the concepts page comes with a
    spec that shows the existing concepts cannot compose to it.
@@ -279,8 +280,9 @@ A pull request is done when its author can say yes to each of these.
 
 A criterion may be waived for one place, never in general. The waiver is
 written where the check will read it: in the check's own configuration
-for K1, a pragma with its reason for S5, an entry on the ledger for E1.
-A waiver with no reason a reader can find is a violation.
+for Machine-checked rules, a pragma with its reason for No suppressions,
+an entry on the ledger for Rules not cases. A waiver with no reason a
+reader can find is a violation.
 
 ## Measurement
 
