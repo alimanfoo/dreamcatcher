@@ -633,8 +633,10 @@ works. A tab with nothing active holds a calm field of the same motif
 beneath its hint, where the seeds rise rather than fall, so the field
 cannot be taken for work. No motif covers what the page says: in a
 window too narrow to leave room in the margins, the working motifs do
-not show. Nothing moves when the user's system asks for reduced motion,
-though Nature's fireflies may stay as still points of light.
+not show. Nothing moves when the user's system asks for reduced motion:
+the working motifs hide, and so do the rain and the seeds beneath an
+empty tab's hint, while the fireflies there stay as still points of
+light.
 
 The value to the user is that they never have to hunt through GitHub to
 find out what is waiting on them.

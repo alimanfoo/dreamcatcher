@@ -54,6 +54,9 @@ RECORD_TAIL_HIDDEN_PER_FRAME = """() => {
   requestAnimationFrame(record);
 }"""
 
+# The narrowest window whose side margins hold the working-agent motifs.
+MOTIF_WINDOW_WIDTH = 1680
+
 # Step every animation of each shown working-agent motif through its cycle,
 # in every combination, and give the widest reach of each motif with the
 # header's bottom, the motif layer's top and the content column's sides.
@@ -909,7 +912,7 @@ def test_working_motifs_stay_in_the_margins_beneath_the_header(
     page: Page, live_web: str, theme: str, hour: int
 ) -> None:
     page.clock.install(time=datetime(2026, 10, 11, hour, 0))
-    page.set_viewport_size({"width": 1680, "height": 900})
+    page.set_viewport_size({"width": MOTIF_WINDOW_WIDTH, "height": 900})
     page.goto(f"{live_web}/?theme={theme}")
 
     geometry = page.evaluate(MEASURE_WORKING_MOTIFS)
@@ -925,7 +928,7 @@ def test_working_motifs_stay_in_the_margins_beneath_the_header(
 def test_working_motifs_hide_where_the_margins_cannot_hold_them(
     page: Page, live_web: str, theme: str
 ) -> None:
-    page.set_viewport_size({"width": 1679, "height": 900})
+    page.set_viewport_size({"width": MOTIF_WINDOW_WIDTH - 1, "height": 900})
     page.goto(f"{live_web}/?theme={theme}")
 
     expect(page.locator(".working-motifs")).to_be_hidden()
@@ -936,7 +939,7 @@ def test_working_motifs_keep_still_and_out_of_sight_under_reduced_motion(
     page: Page, live_web: str, theme: str
 ) -> None:
     page.emulate_media(reduced_motion="reduce")
-    page.set_viewport_size({"width": 1680, "height": 900})
+    page.set_viewport_size({"width": MOTIF_WINDOW_WIDTH, "height": 900})
     page.goto(f"{live_web}/?theme={theme}")
 
     motifs = page.locator(".working-motifs > *")
@@ -954,7 +957,7 @@ def test_nature_drops_a_seed_by_day_and_lights_a_firefly_by_night(
     page: Page, live_web: str
 ) -> None:
     page.clock.install(time=datetime(2026, 10, 11, 17, 59))
-    page.set_viewport_size({"width": 1680, "height": 900})
+    page.set_viewport_size({"width": MOTIF_WINDOW_WIDTH, "height": 900})
     page.goto(live_web)
     working_agents = read_working_agents(page=page)
     seeds = page.locator(".falling-seed").filter(visible=True)
