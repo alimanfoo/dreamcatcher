@@ -50,11 +50,6 @@ def describe_label_applier(*, applier: str) -> str:
     )
 
 
-def describe_read_failure(*, reason: str) -> str:
-    """Say why the tick could not tell what it needed."""
-    return f"cannot tell: {reason}"
-
-
 def describe_signal(*, signal: PullRequestSignal) -> str:
     """Say what a status calls a pull request signal that woke or will wake a round."""
     return _SIGNAL_WORDS[signal]

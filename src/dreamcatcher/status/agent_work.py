@@ -50,7 +50,6 @@ from dreamcatcher.status.findings import (
     describe_label_applier,
     describe_pause,
     describe_pull_request,
-    describe_read_failure,
     describe_signal,
 )
 from dreamcatcher.status.rounds import (
@@ -386,9 +385,7 @@ class AgentWorkStatusReader:
     ) -> AgentWorkStatus | None:
         if row is None or not isinstance(row.finding, ReadFailureFinding):
             return None
-        return _compose_unknown(
-            work=work, row=row, detail=describe_read_failure(reason=row.finding.reason)
-        )
+        return _compose_unknown(work=work, row=row, detail=row.finding.reason)
 
     def _derive_paused(
         self, *, work: AgentWork, row: RequestRow | None

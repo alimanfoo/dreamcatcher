@@ -403,7 +403,7 @@ def test_conversations_are_listed_in_attention_order_before_requests(tmp_path):
     )
     assert "working" in shown
     assert "waiting for a comment" in shown
-    assert "cannot tell: gh: offline" in shown
+    assert "gh: offline" in shown
 
 
 @pytest.mark.parametrize("status", [0, 2], ids=["answered", "errored"])

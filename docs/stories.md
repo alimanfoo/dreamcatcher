@@ -968,8 +968,9 @@ or succeed as GitHub allows.
 
 GitHub also records who applied a label a few seconds after the label
 appears on the issue. An update that reads in between cannot tell who
-applied it, so it starts nothing for that label, and the row says that
-it cannot tell. The next update reads it again.
+applied it, so it starts nothing for that label, and the row shows as
+unknown, saying that GitHub has not yet recorded who applied the label.
+The next update reads it again.
 
 ### The harness refuses or breaks
 

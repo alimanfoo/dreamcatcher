@@ -823,7 +823,7 @@ def test_a_failed_read_makes_the_assignment_unknown_with_the_reason(state):
     status = read_sole_assignment_status(state=state)
 
     assert status.value is AgentWorkStatusValue.UNKNOWN
-    assert status.detail == "cannot tell: unavailable"
+    assert status.detail == "unavailable"
 
 
 def test_an_assignment_before_any_update_is_unknown(state):
@@ -1322,7 +1322,7 @@ def test_a_request_whose_read_failed_is_unknown_with_the_reason(state):
     [request] = read_report(state=state).request_statuses
 
     assert request.value is RequestStatusValue.UNKNOWN
-    assert request.reasons == (RequestReason(words="cannot tell: gh: offline"),)
+    assert request.reasons == (RequestReason(words="gh: offline"),)
 
 
 def test_a_request_that_led_to_open_work_is_reported_through_its_work(state):

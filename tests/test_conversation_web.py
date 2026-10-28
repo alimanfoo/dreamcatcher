@@ -756,10 +756,7 @@ def test_home_lists_conversations_in_attention_order_before_requests(tmp_path):
         < page.index('id="request-12-dream%3Aconversation"')
     )
     assert "status-working" in page
-    assert (
-        '<span class="chip status-unknown"><span>cannot tell: gh: offline</span></span>'
-        in page
-    )
+    assert '<span class="chip status-unknown"><span>gh: offline</span></span>' in page
     assert '<p class="latest-output"><span>agent</span> Still working.</p>' in page
 
 

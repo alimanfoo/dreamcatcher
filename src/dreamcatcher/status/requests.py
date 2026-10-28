@@ -21,7 +21,6 @@ from dreamcatcher.status.findings import (
     describe_comments_to_answer,
     describe_conflicting_labels,
     describe_label_applier,
-    describe_read_failure,
 )
 
 # What the tick finds for a request with no open work: what decides whether work
@@ -121,7 +120,7 @@ def _describe_single_reason(
         return RequestStatusValue.ROUTING_CONFLICT, describe_conflicting_labels(
             kind=kind, labels=finding.labels
         )
-    return RequestStatusValue.UNKNOWN, describe_read_failure(reason=finding.reason)
+    return RequestStatusValue.UNKNOWN, finding.reason
 
 
 def _describe_start_time_answers(

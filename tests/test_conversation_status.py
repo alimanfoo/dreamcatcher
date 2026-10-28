@@ -255,9 +255,7 @@ def test_a_conversation_whose_comments_cannot_be_read_is_unknown(
     found = read_conversation_status(state=conversation_state)
 
     assert found.value is AgentWorkStatusValue.UNKNOWN
-    assert found.detail == (
-        "cannot tell: could not read comments for GH8: network unavailable"
-    )
+    assert found.detail == "could not read comments for GH8: network unavailable"
 
 
 def test_a_conversation_no_tick_has_observed_is_unknown(conversation_state):
@@ -319,7 +317,7 @@ def test_an_unrecorded_round_input_shows_what_the_scheduler_reported(
     found = read_conversation_status(state=conversation_state)
 
     assert found.value is AgentWorkStatusValue.UNKNOWN
-    assert found.detail == f"cannot tell: {failure}"
+    assert found.detail == failure
 
 
 def test_a_live_round_shows_a_paused_conversation_as_working(

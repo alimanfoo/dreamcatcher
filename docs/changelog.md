@@ -40,6 +40,9 @@ the change.
   `dreamcatcher status` now says "requests with no open work", where it
   said "labels waiting for work".
   ([#838](https://github.com/alimanfoo/dreamcatcher/pull/838))
+- A row whose status is unknown gives the read that failed, without the
+  words "cannot tell:" before it, because its status already says
+  unknown. ([#843](https://github.com/alimanfoo/dreamcatcher/pull/843))
 
 ### Fixed
 
