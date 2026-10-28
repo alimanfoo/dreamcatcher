@@ -58,10 +58,17 @@ repos:
 
   - repo: local
     hooks:
+      # Agents emit invisible characters by accident, and no reviewer spots
+      # them in a diff. pygrep matches bytes, so the pattern spells out the
+      # UTF-8 encoding of U+00A0 NO-BREAK SPACE, U+061C ARABIC LETTER MARK,
+      # U+200B to U+200F (the zero-width space, joiners and directional marks),
+      # U+202A to U+202E (the directional embeddings and overrides), U+2060
+      # WORD JOINER, U+2066 to U+2069 (the directional isolates), and U+FEFF
+      # ZERO WIDTH NO-BREAK SPACE.
       - id: forbid-invisible-characters
         name: forbid invisible characters
-        entry: uv run python tools/forbid_invisible_characters.py
-        language: system
+        entry: '\xc2\xa0|\xd8\x9c|\xe2\x80[\x8b-\x8f\xaa-\xae]|\xe2\x81[\xa0\xa6-\xa9]|\xef\xbb\xbf'
+        language: pygrep
         types: [text]
         exclude: *verbatim-paths
       - id: require-keyword-parameters
