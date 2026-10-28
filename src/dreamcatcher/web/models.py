@@ -159,8 +159,11 @@ class WebAgentTail:
 
 
 @dataclass(frozen=True, kw_only=True)
-class WebAssignmentView:
-    """Represent every value that the assignment template lays out."""
+class WebAgentWorkView:
+    """Represent every value that the page of one piece of agent work lays out.
+
+    Only an assignment has a pull request.
+    """
 
     kind: AgentWorkKind
     repository: str
@@ -176,26 +179,6 @@ class WebAssignmentView:
     harness: str
     model: str
     effort: str
-    live: WebAgentLiveState
-    feed_rounds: Sequence[WebFeedRound]
-    feed_position: str
-
-
-@dataclass(frozen=True, kw_only=True)
-class WebIssueWorkView:
-    """Represent every value that the page of work whose channel is its issue shows.
-
-    A conversation and a campaign each talk to the user on their issue.
-    """
-
-    kind: AgentWorkKind
-    repository: str
-    github_repository_url: str | None
-    daemon: DreamcatcherDaemonStatus
-    identifier: str
-    issue: int
-    title: str
-    facts: Sequence[StatusFact]
     live: WebAgentLiveState
     feed_rounds: Sequence[WebFeedRound]
     feed_position: str

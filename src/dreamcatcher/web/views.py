@@ -10,7 +10,6 @@ from dreamcatcher.status import (
     AgentWorkStatus,
     DreamcatcherDaemonStatus,
     DreamcatcherStatusReport,
-    StatusFact,
     read_repository,
 )
 from dreamcatcher.web.feed import read_agent_feed
@@ -20,12 +19,11 @@ from dreamcatcher.web.models import (
     WebAgentWorkCard,
     WebAgentWorkControl,
     WebAgentWorkSection,
-    WebAssignmentView,
+    WebAgentWorkView,
     WebCampaignChild,
     WebCampaignChildOverview,
     WebHandResume,
     WebHomeView,
-    WebIssueWorkView,
 )
 from dreamcatcher.words import describe_time
 
@@ -166,25 +164,25 @@ def compose_agent_live_state(
     )
 
 
-def compose_assignment_view(
+def compose_agent_work_view(
     *,
     state: StateDirectory,
     status: AgentWorkStatus,
     daemon: DreamcatcherDaemonStatus,
     live: WebAgentLiveState,
     zone: tzinfo | None,
-) -> WebAssignmentView:
-    """Return the values shown on one assignment page."""
-    assignment = status.work
-    record = assignment.record
+) -> WebAgentWorkView:
+    """Return the values shown on the page of one piece of agent work."""
+    work = status.work
+    record = work.record
     repository = read_repository(state=state)
-    feed = read_agent_feed(work=assignment, zone=zone, rounds=live.rounds)
-    return WebAssignmentView(
+    feed = read_agent_feed(work=work, zone=zone, rounds=live.rounds)
+    return WebAgentWorkView(
         kind=record.kind,
         repository=repository or "repository unknown",
         github_repository_url=compose_github_repository_url(repository=repository),
         daemon=daemon,
-        identifier=assignment.identifier,
+        identifier=work.identifier,
         issue=record.issue,
         title=record.title,
         pull_request=status.pull_request,
@@ -194,40 +192,6 @@ def compose_assignment_view(
         harness=str(record.harness),
         model=record.model,
         effort=record.effort,
-        live=live,
-        feed_rounds=feed.rounds,
-        feed_position=feed.feed_position,
-    )
-
-
-def compose_issue_work_view(
-    *,
-    state: StateDirectory,
-    status: AgentWorkStatus,
-    daemon: DreamcatcherDaemonStatus,
-    live: WebAgentLiveState,
-    zone: tzinfo | None,
-) -> WebIssueWorkView:
-    """Return the values shown on the page of work whose channel is its issue."""
-    work = status.work
-    record = work.record
-    repository = read_repository(state=state)
-    feed = read_agent_feed(work=work, zone=zone, rounds=live.rounds)
-    return WebIssueWorkView(
-        kind=record.kind,
-        repository=repository or "repository unknown",
-        github_repository_url=compose_github_repository_url(repository=repository),
-        daemon=daemon,
-        identifier=work.identifier,
-        issue=record.issue,
-        title=record.title,
-        facts=(
-            StatusFact(label="label", value=record.dispatch_label),
-            StatusFact(label="harness", value=str(record.harness)),
-            StatusFact(
-                label="model · effort", value=f"{record.model} · {record.effort}"
-            ),
-        ),
         live=live,
         feed_rounds=feed.rounds,
         feed_position=feed.feed_position,
