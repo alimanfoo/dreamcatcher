@@ -14,6 +14,7 @@ from status_fabrications import (
     fabricate_campaigns,
     fabricate_conversation,
     fabricate_everything,
+    fabricate_nothing,
 )
 
 from dreamcatcher.agent_work import find_agent_work
@@ -65,6 +66,21 @@ def serve_fabricated_web(*, root: Path) -> Generator[str, None, None]:
             ),
             path=assignment.compose_round_paths(number=round_record.number).feed,
         )
+    with _serve_state(state=state) as address:
+        yield address
+
+
+@contextmanager
+def serve_empty_web(*, root: Path) -> Generator[str, None, None]:
+    """Serve a daemon run with no work, so every home tab is empty."""
+    state = StateDirectory(root=root)
+    fabricate_nothing(state=state)
+    with _serve_state(state=state) as address:
+        yield address
+
+
+@contextmanager
+def _serve_state(*, state: StateDirectory) -> Generator[str, None, None]:
     application = _create_app(
         state=state,
         clock=lambda: LOOKED_AT,

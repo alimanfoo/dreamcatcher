@@ -27,7 +27,20 @@ the change.
 
 ## Unreleased
 
+### Added
+
+- The home page shows each working agent as a small moving motif in the
+  window's side margins: a falling column of glyphs in Matrix, and in
+  Nature a falling dandelion seed on a light page and a firefly on a
+  dark one. A tab with nothing active holds a calm field of the same
+  motif beneath its hint. Nothing moves when the system asks for reduced
+  motion. ([#855](https://github.com/alimanfoo/dreamcatcher/pull/855))
+
 ### Changed
+
+- Every web page keeps its content to a column 1120px wide, where it was
+  1320px, so that a laptop's window leaves side margins for the motifs.
+  ([#855](https://github.com/alimanfoo/dreamcatcher/pull/855))
 
 - The page that names the things _dreamcatcher_ deals with and says what
   the words mean is now called Concepts, at `docs/concepts.md`, and its

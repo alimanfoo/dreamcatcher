@@ -72,6 +72,7 @@
   --font: "Alegreya Sans", Avenir, "Segoe UI", sans-serif;
   --font-size: 15px;
   --line-height: 1.5;
+  --site-header-height: 87px;
   --sun-opacity: 1;
   --sun-x: 50%;
 }
@@ -621,6 +622,180 @@ body::after {
   font-weight: 700;
 }
 
+/* A dandelion seed falls for each working agent on the light page, and a
+   firefly drifts for each on the dark page. Beneath an empty tab's hint,
+   smaller seeds rise in their place, and fainter fireflies drift. */
+
+.falling-seed,
+.rising-seed {
+  position: absolute;
+  top: 0;
+}
+
+.falling-seed {
+  animation: seed-fall linear infinite;
+}
+
+.rising-seed {
+  animation: seed-rise linear infinite;
+}
+
+.seed-body {
+  --seed-sway: calc(var(--margin-unit) * 22);
+  animation: seed-sway ease-in-out infinite;
+}
+
+.rising-seed .seed-body {
+  --seed-sway: 18px;
+}
+
+.seed-body svg {
+  display: block;
+  width: 30px;
+  height: 38px;
+  stroke: #7a6e63;
+  stroke-width: 0.8;
+}
+
+.rising-seed svg {
+  width: 18px;
+  height: 22px;
+  stroke: #8a7d70;
+  stroke-width: 0.9;
+}
+
+.firefly {
+  position: absolute;
+  display: none;
+  animation: firefly-drift ease-in-out infinite;
+}
+
+.firefly-glow {
+  --pulse-low: 0.25;
+  --pulse-settle: 0.9;
+  width: 6px;
+  height: 6px;
+  background: #f4f0a8;
+  border-radius: 50%;
+  box-shadow:
+    0 0 10px 4px rgba(244, 240, 168, 0.55),
+    0 0 26px 10px rgba(214, 230, 120, 0.18);
+  animation: firefly-pulse ease-in-out infinite;
+}
+
+.empty-field {
+  --empty-field-height: 400px;
+  mask-image: linear-gradient(
+    to bottom,
+    transparent,
+    black 25%,
+    black 75%,
+    transparent
+  );
+}
+
+.empty-field .firefly {
+  opacity: 0.55;
+}
+
+.empty-field .firefly-glow {
+  --pulse-low: 0.15;
+  --pulse-settle: 0.85;
+  box-shadow:
+    0 0 8px 3px rgba(244, 240, 168, 0.5),
+    0 0 22px 8px rgba(214, 230, 120, 0.15);
+}
+
+@keyframes seed-fall {
+  0% {
+    transform: translate(0, -60px) rotate(-8deg);
+    opacity: 0;
+  }
+
+  10%,
+  90% {
+    opacity: 1;
+  }
+
+  100% {
+    transform: translate(-30px, calc(100vh + 40px)) rotate(14deg);
+    opacity: 0;
+  }
+}
+
+@keyframes seed-sway {
+  0%,
+  100% {
+    margin-left: 0;
+  }
+
+  50% {
+    margin-left: var(--seed-sway);
+  }
+}
+
+@keyframes seed-rise {
+  0% {
+    transform: translate(0, 0) rotate(0deg);
+    opacity: 0;
+  }
+
+  15%,
+  85% {
+    opacity: 1;
+  }
+
+  100% {
+    transform: translate(60px, -360px) rotate(40deg);
+    opacity: 0;
+  }
+}
+
+@keyframes firefly-drift {
+  0%,
+  100% {
+    transform: translate(0, 0);
+  }
+
+  25% {
+    transform: translate(26px, -38px);
+  }
+
+  50% {
+    transform: translate(-14px, -70px);
+  }
+
+  75% {
+    transform: translate(-30px, -24px);
+  }
+}
+
+@keyframes firefly-pulse {
+  0%,
+  100% {
+    opacity: var(--pulse-low);
+  }
+
+  45% {
+    opacity: 1;
+  }
+
+  60% {
+    opacity: var(--pulse-settle);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rising-seed {
+    display: none;
+  }
+
+  .empty-field .firefly,
+  .empty-field .firefly-glow {
+    animation: none;
+  }
+}
+
 @media (max-width: 700px) {
   .site-header,
   .home-content,
@@ -701,6 +876,15 @@ body::after {
   html[data-web-theme="nature"] body::before {
     background: var(--moon-background);
     opacity: var(--moon-opacity);
+  }
+
+  html[data-web-theme="nature"] .falling-seed,
+  html[data-web-theme="nature"] .rising-seed {
+    display: none;
+  }
+
+  html[data-web-theme="nature"] .firefly {
+    display: block;
   }
 
   html[data-web-theme="nature"] body::after {
