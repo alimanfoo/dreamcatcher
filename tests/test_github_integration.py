@@ -53,7 +53,7 @@ def test_this_repository_holds_its_dispatch_labels():
     labels = list_labels(repository=REPOSITORY)
 
     assert isinstance(labels, list)
-    assert "dream:smith" in [label.name for label in labels]
+    assert "agent-assignment" in [label.name for label in labels]
 
 
 def test_gh_takes_the_whole_issue_listing_command():
