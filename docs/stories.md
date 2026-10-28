@@ -623,6 +623,19 @@ run, the tabs give no such guidance, because no routes are known yet.
 Both show the daemon's last update, and keep showing it after the daemon
 stops, so the user can still see where things stood.
 
+The home page also shows that agents are at work without asking the user
+to read anything. Each theme has a small moving motif of its own: in
+Matrix a falling column of glyphs, and in Nature a falling dandelion
+seed while the sun is up and a firefly while the moon is up. One motif
+moves in the page's side margins for each working agent, the same count
+that the agent capacity gives, and nothing moves there when no agent
+works. A tab with nothing active holds a calm field of the same motif
+beneath its hint, where the seeds rise rather than fall, so the field
+cannot be taken for work. No motif covers what the page says: in a
+window too narrow to leave room in the margins, the working motifs do
+not show. Nothing moves when the user's system asks for reduced motion,
+though Nature's fireflies may stay as still points of light.
+
 The value to the user is that they never have to hunt through GitHub to
 find out what is waiting on them.
 
