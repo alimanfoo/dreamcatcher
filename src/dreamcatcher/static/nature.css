@@ -73,7 +73,7 @@
   --font-size: 15px;
   --line-height: 1.5;
   --site-header-height: 87px;
-  --resting-seed: #8a7d70;
+  --sun-opacity: 1;
   --sun-x: 50%;
 }
 
@@ -96,12 +96,7 @@ body::before {
   pointer-events: none;
   background: var(--sun-background);
   content: "";
-}
-
-/* nature.js says whether the sun or the moon is up. */
-
-html[data-sky="night"] body::before {
-  opacity: 0;
+  opacity: var(--sun-opacity);
 }
 
 body::after {
@@ -646,9 +641,9 @@ body::after {
   font-weight: 700;
 }
 
-/* A dandelion seed falls for each working agent while the sun is up, and
-   a firefly drifts for each while the moon is up. Beneath an empty tab's
-   hint, smaller seeds rise in their place, and fainter fireflies drift. */
+/* A dandelion seed falls for each working agent on the light page, and a
+   firefly drifts for each on the dark page. Beneath an empty tab's hint,
+   smaller seeds rise in their place, and fainter fireflies drift. */
 
 .falling-seed,
 .rising-seed {
@@ -677,14 +672,14 @@ body::after {
   display: block;
   width: 30px;
   height: 38px;
-  stroke: var(--dim);
+  stroke: #7a6e63;
   stroke-width: 0.8;
 }
 
 .rising-seed svg {
   width: 18px;
   height: 22px;
-  stroke: var(--resting-seed);
+  stroke: #8a7d70;
   stroke-width: 0.9;
 }
 
@@ -728,15 +723,6 @@ body::after {
   box-shadow:
     0 0 8px 3px rgba(244, 240, 168, 0.5),
     0 0 22px 8px rgba(214, 230, 120, 0.15);
-}
-
-html[data-sky="night"] .falling-seed,
-html[data-sky="night"] .rising-seed {
-  display: none;
-}
-
-html[data-sky="night"] .firefly {
-  display: block;
 }
 
 @keyframes seed-fall {
@@ -902,17 +888,22 @@ html[data-sky="night"] .firefly {
     --round-current-surface: rgba(233, 177, 131, 0.9);
     --interrupted: #e9cb93;
     --code-surface: rgba(236, 230, 220, 0.055);
-    --resting-seed: var(--faint);
+    --moon-opacity: 0;
     --moon-x: 50%;
   }
 
   html[data-web-theme="nature"] body::before {
     background: var(--moon-background);
-    opacity: 0;
+    opacity: var(--moon-opacity);
   }
 
-  html[data-web-theme="nature"][data-sky="night"] body::before {
-    opacity: 1;
+  html[data-web-theme="nature"] .falling-seed,
+  html[data-web-theme="nature"] .rising-seed {
+    display: none;
+  }
+
+  html[data-web-theme="nature"] .firefly {
+    display: block;
   }
 
   html[data-web-theme="nature"] body::after {

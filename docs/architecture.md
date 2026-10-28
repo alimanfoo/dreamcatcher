@@ -707,9 +707,9 @@ The home page gives each theme a motif, drawn by the macros in
 running agents, the macros give each motif its place and timing, and
 each theme's stylesheet gives it its look. The home page's refresh
 redraws the motifs with the page, so the count stays true without a
-script of their own. Nature's script marks the root element with whether
-the sun or the moon is up, and Nature's stylesheet shows the sun or the
-moon, and the motifs that follow each, from that mark.
+script of their own. Nature draws both a seed and a firefly for each
+motif, and its stylesheet shows the seeds on a light page and the
+fireflies on a dark one, so the motif always suits the sky behind it.
 
 The web interface can ask a running round to stop. It writes a
 same-origin stop request through the agent-round boundary, into that

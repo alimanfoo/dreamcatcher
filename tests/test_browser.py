@@ -888,30 +888,31 @@ def test_nature_shows_exactly_one_of_sun_and_moon_at_each_boundary(
     page.goto(live_web)
 
     root = page.locator("html")
-    body = page.locator("body")
     steps = (
-        (None, "night", "0"),
-        ("00:01:00", "day", "1"),
-        ("11:59:00", "day", "1"),
-        ("00:01:00", "night", "0"),
+        (None, "0", "1"),
+        ("00:01:00", "1", "0"),
+        ("11:59:00", "1", "0"),
+        ("00:01:00", "0", "1"),
     )
-    for advance, sky, sun_opacity in steps:
+    for advance, sun_opacity, moon_opacity in steps:
         if advance is not None:
             page.clock.fast_forward(advance)
-        expect(root).to_have_attribute("data-sky", sky)
-        assert (
-            body.evaluate('element => getComputedStyle(element, "::before").opacity')
-            == sun_opacity
+        opacities = root.evaluate(
+            """element => [
+              element.style.getPropertyValue("--sun-opacity"),
+              element.style.getPropertyValue("--moon-opacity"),
+            ]"""
         )
+        assert opacities == [sun_opacity, moon_opacity]
 
 
 @pytest.mark.parametrize(
-    ("theme", "hour"), [("matrix", 12), ("nature", 12), ("nature", 21)]
+    ("theme", "scheme"), [("matrix", "dark"), ("nature", "light"), ("nature", "dark")]
 )
 def test_working_motifs_stay_in_the_margins_beneath_the_header(
-    page: Page, live_web: str, theme: str, hour: int
+    page: Page, live_web: str, theme: str, scheme: Literal["light", "dark"]
 ) -> None:
-    page.clock.install(time=datetime(2026, 10, 11, hour, 0))
+    page.emulate_media(color_scheme=scheme)
     page.set_viewport_size({"width": MOTIF_WINDOW_WIDTH, "height": 900})
     page.goto(f"{live_web}/?theme={theme}")
 
@@ -953,10 +954,10 @@ def test_working_motifs_keep_still_and_out_of_sight_under_reduced_motion(
     assert shown_or_moving == 0
 
 
-def test_nature_drops_a_seed_by_day_and_lights_a_firefly_by_night(
+def test_nature_drops_a_seed_on_a_light_page_and_lights_a_firefly_on_a_dark_one(
     page: Page, live_web: str
 ) -> None:
-    page.clock.install(time=datetime(2026, 10, 11, 17, 59))
+    page.emulate_media(color_scheme="light")
     page.set_viewport_size({"width": MOTIF_WINDOW_WIDTH, "height": 900})
     page.goto(live_web)
     working_agents = read_working_agents(page=page)
@@ -966,24 +967,28 @@ def test_nature_drops_a_seed_by_day_and_lights_a_firefly_by_night(
     expect(seeds).to_have_count(working_agents)
     expect(fireflies).to_have_count(0)
 
-    page.clock.fast_forward("00:01:00")
+    page.emulate_media(color_scheme="dark")
 
     expect(seeds).to_have_count(0)
     expect(fireflies).to_have_count(working_agents)
 
 
 @pytest.mark.parametrize(
-    ("theme", "hour", "motif"),
+    ("theme", "scheme", "motif"),
     [
-        ("matrix", 12, "empty-rain-column"),
-        ("nature", 12, "rising-seed"),
-        ("nature", 21, "firefly"),
+        ("matrix", "dark", "empty-rain-column"),
+        ("nature", "light", "rising-seed"),
+        ("nature", "dark", "firefly"),
     ],
 )
 def test_an_empty_tab_holds_its_motif_field_beneath_its_hint(
-    page: Page, empty_web: str, theme: str, hour: int, motif: str
+    page: Page,
+    empty_web: str,
+    theme: str,
+    scheme: Literal["light", "dark"],
+    motif: str,
 ) -> None:
-    page.clock.install(time=datetime(2026, 10, 11, hour, 0))
+    page.emulate_media(color_scheme=scheme)
     page.goto(f"{empty_web}/?theme={theme}")
     panel = page.locator("#assignment-panel")
     hint = panel.locator(".empty")
@@ -1002,13 +1007,12 @@ def test_an_empty_tab_holds_its_motif_field_beneath_its_hint(
 
 
 @pytest.mark.parametrize(
-    ("theme", "hour"), [("matrix", 12), ("nature", 12), ("nature", 21)]
+    ("theme", "scheme"), [("matrix", "dark"), ("nature", "light"), ("nature", "dark")]
 )
 def test_an_empty_tab_motif_field_keeps_still_under_reduced_motion(
-    page: Page, empty_web: str, theme: str, hour: int
+    page: Page, empty_web: str, theme: str, scheme: Literal["light", "dark"]
 ) -> None:
-    page.emulate_media(reduced_motion="reduce")
-    page.clock.install(time=datetime(2026, 10, 11, hour, 0))
+    page.emulate_media(reduced_motion="reduce", color_scheme=scheme)
     page.goto(f"{empty_web}/?theme={theme}")
 
     field = page.locator("#assignment-panel .empty-field")

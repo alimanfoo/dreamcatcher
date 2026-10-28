@@ -31,11 +31,10 @@ the change.
 
 - The home page shows each working agent as a small moving motif in the
   window's side margins: a falling column of glyphs in Matrix, and in
-  Nature a falling dandelion seed while the sun is up and a firefly
-  while the moon is up. A tab with nothing active holds a calm field of
-  the same motif beneath its hint. Nothing moves when the system asks
-  for reduced motion.
-  ([#855](https://github.com/alimanfoo/dreamcatcher/pull/855))
+  Nature a falling dandelion seed on a light page and a firefly on a
+  dark one. A tab with nothing active holds a calm field of the same
+  motif beneath its hint. Nothing moves when the system asks for reduced
+  motion. ([#855](https://github.com/alimanfoo/dreamcatcher/pull/855))
 
 ### Changed
 
