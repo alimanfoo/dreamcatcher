@@ -7,6 +7,10 @@ let shouldFollowFeed = false;
 let currentRoundHash = null;
 let focusedRoundHash = null;
 
+function isFeedAtEnd() {
+  return feed.scrollHeight - feed.scrollTop - feed.clientHeight <= 1;
+}
+
 function updateFeedTailVisibility() {
   feedTail?.toggleAttribute("hidden", shouldFollowFeed);
 }
@@ -24,9 +28,9 @@ if (feed !== null) {
     { passive: true },
   );
   feed.addEventListener(
-    "wheel",
+    "scroll",
     () => {
-      shouldFollowFeed = false;
+      shouldFollowFeed = isFeedAtEnd();
       updateFeedTailVisibility();
     },
     { passive: true },
@@ -45,9 +49,6 @@ if (feed !== null) {
     if (event.detail.target !== feed) {
       return;
     }
-    shouldFollowFeed ||=
-      feed.scrollHeight - feed.scrollTop - feed.clientHeight <= 1;
-    updateFeedTailVisibility();
     const currentRoundLink = agentWorkSidebar?.querySelector(
       '.round-link[aria-current="true"]',
     );

@@ -29,6 +29,19 @@ from dreamcatcher.state import StateDirectory
 
 pytestmark = pytest.mark.browser
 
+# Keyboard scrolling animates, so wait for two frames to agree on the position.
+SETTLED_SCROLL_TOP = """async feed => {
+  let top = feed.scrollTop;
+  for (;;) {
+    await new Promise(requestAnimationFrame);
+    await new Promise(requestAnimationFrame);
+    if (feed.scrollTop === top) {
+      return top;
+    }
+    top = feed.scrollTop;
+  }
+}"""
+
 FEED_IS_AT_END = """() => {
   const feed = document.querySelector(".feed-records");
   return feed.scrollHeight - feed.scrollTop - feed.clientHeight <= 1;
@@ -163,6 +176,35 @@ def test_a_feed_scrolled_away_from_its_end_stays_put_until_the_tail_button(
 
     page.wait_for_function(FEED_IS_AT_END)
     expect(tail).to_be_hidden()
+
+
+def test_a_feed_scrolled_by_keyboard_stops_following_until_it_is_back_at_its_end(
+    page: Page, live_web: str, tmp_path: Path
+) -> None:
+    page.goto(f"{live_web}/work/{BROWSER_ASSIGNMENT_IDENTIFIER}")
+    page.wait_for_function(FEED_IS_AT_END)
+    feed = page.locator(".feed-records")
+    feed.evaluate("feed => feed.focus()")
+    tail = page.get_by_role("button", name="TAIL ↓")
+    lines = page.locator(".feed-line")
+
+    page.keyboard.press("PageUp")
+
+    expect(tail).to_be_visible()
+    scroll_top = feed.evaluate(SETTLED_SCROLL_TOP)
+    line_count = lines.count()
+    append_feed_lines(root=tmp_path, count=5)
+    expect(lines).to_have_count(line_count + 5)
+    assert feed.evaluate("feed => feed.scrollTop") == scroll_top
+
+    page.keyboard.press("End")
+
+    page.wait_for_function(FEED_IS_AT_END)
+    expect(tail).to_be_hidden()
+    line_count = lines.count()
+    append_feed_lines(root=tmp_path, count=5)
+    expect(lines).to_have_count(line_count + 5)
+    page.wait_for_function(FEED_IS_AT_END)
 
 
 def test_a_refresh_leaves_an_opened_section_open(page: Page, live_web: str) -> None:

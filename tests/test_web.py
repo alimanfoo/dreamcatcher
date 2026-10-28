@@ -1034,11 +1034,12 @@ def test_agent_work_script_follows_only_when_the_feed_was_at_its_end(tmp_path):
     assert response.status_code == 200
     assert 'feed.addEventListener("htmx:beforeSwap"' in script
     assert 'feed.addEventListener("htmx:afterSwap"' in script
+    assert 'feed.addEventListener(\n    "scroll"' in script
     assert re.search(
-        r"shouldFollowFeed \|\|=\s+feed\.scrollHeight - feed\.scrollTop "
-        r"- feed\.clientHeight <= 1;",
+        r"shouldFollowFeed = isFeedAtEnd\(\);",
         script,
     )
+    assert "wheel" not in script
     assert "if (shouldFollowFeed) {" in script
     assert 'agentWorkSidebar.addEventListener("click"' in script
     assert 'currentRoundLink?.setAttribute("aria-current", "true")' in script
