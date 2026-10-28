@@ -1041,11 +1041,9 @@ def test_agent_work_script_follows_only_when_the_feed_was_at_its_end(tmp_path):
     assert response.status_code == 200
     assert 'feed.addEventListener("htmx:beforeSwap"' in script
     assert 'feed.addEventListener("htmx:afterSwap"' in script
-    assert re.search(
-        r"shouldFollowFeed \|\|=\s+feed\.scrollHeight - feed\.scrollTop "
-        r"- feed\.clientHeight <= 1;",
-        script,
-    )
+    assert re.search(r'feed\.addEventListener\(\s+"scroll"', script)
+    assert "shouldFollowFeed = isFeedAtEnd();" in script
+    assert "wheel" not in script
     assert "if (shouldFollowFeed) {" in script
     assert 'agentWorkSidebar.addEventListener("click"' in script
     assert 'currentRoundLink?.setAttribute("aria-current", "true")' in script
@@ -1707,9 +1705,9 @@ def test_assignment_page_offers_a_control_that_jumps_to_the_feed_tail(tmp_path):
         "TAIL ↓</button>" in page
     )
     assert response.status_code == 200
-    assert "feed.scrollTop = feed.scrollHeight" in script
+    assert "function scrollFeedToEnd() {" in script
     assert 'feedTail?.toggleAttribute("hidden", shouldFollowFeed)' in script
-    assert "top: feed.scrollHeight" in script
+    assert 'top: feed.scrollHeight, behavior: "instant"' in script
 
 
 def test_assignment_feed_fits_in_the_initial_viewport(tmp_path):

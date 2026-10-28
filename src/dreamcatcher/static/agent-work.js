@@ -7,12 +7,22 @@ let shouldFollowFeed = false;
 let currentRoundHash = null;
 let focusedRoundHash = null;
 
+function isFeedAtEnd() {
+  return feed.scrollHeight - feed.scrollTop - feed.clientHeight <= 1;
+}
+
+// The feed animates scrolls, and each frame of one fires a scroll event short
+// of the end, so the page's own scrolls to the end are instant.
+function scrollFeedToEnd() {
+  feed.scrollTo({ top: feed.scrollHeight, behavior: "instant" });
+}
+
 function updateFeedTailVisibility() {
   feedTail?.toggleAttribute("hidden", shouldFollowFeed);
 }
 
 if (feed !== null) {
-  feed.scrollTop = feed.scrollHeight;
+  scrollFeedToEnd();
   shouldFollowFeed = true;
   updateFeedTailVisibility();
   feed.addEventListener(
@@ -24,9 +34,9 @@ if (feed !== null) {
     { passive: true },
   );
   feed.addEventListener(
-    "wheel",
+    "scroll",
     () => {
-      shouldFollowFeed = false;
+      shouldFollowFeed = isFeedAtEnd();
       updateFeedTailVisibility();
     },
     { passive: true },
@@ -35,19 +45,13 @@ if (feed !== null) {
     feedTail.addEventListener("click", () => {
       shouldFollowFeed = true;
       updateFeedTailVisibility();
-      feed.scrollTo({
-        top: feed.scrollHeight,
-        behavior: "instant",
-      });
+      scrollFeedToEnd();
     });
   }
   feed.addEventListener("htmx:beforeSwap", (event) => {
     if (event.detail.target !== feed) {
       return;
     }
-    shouldFollowFeed ||=
-      feed.scrollHeight - feed.scrollTop - feed.clientHeight <= 1;
-    updateFeedTailVisibility();
     const currentRoundLink = agentWorkSidebar?.querySelector(
       '.round-link[aria-current="true"]',
     );
@@ -62,7 +66,7 @@ if (feed !== null) {
       return;
     }
     if (shouldFollowFeed) {
-      feed.scrollTop = feed.scrollHeight;
+      scrollFeedToEnd();
     }
     const currentRoundLink = agentWorkSidebar?.querySelector(
       `.round-link[href="${currentRoundHash}"]`,

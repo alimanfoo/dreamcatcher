@@ -64,6 +64,12 @@ the change.
 
 ### Fixed
 
+- On the web page, a feed stops following when you scroll it away from
+  its end by any means, including the keyboard, and follows again when
+  you scroll back to its end. Before, only a pointer press, the mouse
+  wheel or a click on a round link stopped it, so Page Up left the feed
+  jumping back to its end on the next refresh.
+  ([#846](https://github.com/alimanfoo/dreamcatcher/pull/846))
 - On the web page, every new line of a feed shows as soon as it arrives,
   and a feed that is following stays at its end. Before, the page typed
   each line in one after another, so a busy agent left blank lines in
