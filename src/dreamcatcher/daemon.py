@@ -160,8 +160,9 @@ class DreamcatcherDaemon:
         )
         with hold_daemon_lock(path=self.state.lock) as daemon_lock:
             self.state.bootstrap()
-            # The run's start is also the time of its first tick, so a status
-            # reader sees every scheduler record this run writes as its own.
+            # The daemon run's start is also the time of its first tick, so a
+            # status reader sees every scheduler record that this daemon run
+            # writes as its own.
             at = self.clock()
             write_json(
                 document=DaemonRunRecord(

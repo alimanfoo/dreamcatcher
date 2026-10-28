@@ -192,7 +192,7 @@ A conversation skill must guide the agent to investigate and answer the
 user's questions without implementing a change. It must accept the issue
 number in the same `GH123` form as an assignment skill. _dreamcatcher_
 adds the input, publication and operational instructions around the
-configured prompt. These instructions set the investigation scope and
+configured prompt. These instructions set the conversation's scope and
 output form, so the skill does not need to repeat them and must not
 contradict them.
 
@@ -232,18 +232,18 @@ only eligible comments after the newest comment given to a round that
 finished its turn. The agent should use its existing transcript when a
 new question refers to an earlier answer. Before every round,
 _dreamcatcher_ resets the worktree to fetched main, deleting every local
-commit and file left by the earlier investigation.
+commit and file left by the earlier round.
 
-### Investigation scope
+### Scope of an issue conversation
 
-An issue conversation is investigation work. Its instructions may tell
-the agent to read source and Git history, run code, reproduce a
-suspected bug, and make issue changes on GitHub when the user asks, such
-as filing or linking a sub-issue. Before making a GitHub change, the
-agent must inspect GitHub and must not repeat an action that an earlier
-attempt completed. It must not close the conversation issue or change
-its assignees or labels, because closing the issue ends the conversation
-and removing its label or assignee pauses it. It must not fetch issue
+An issue conversation investigates. Its instructions may tell the agent
+to read source and Git history, run code, reproduce a suspected bug, and
+make issue changes on GitHub when the user asks, such as filing or
+linking a sub-issue. Before making a GitHub change, the agent must
+inspect GitHub and must not repeat an action that an earlier attempt
+completed. It must not close the conversation issue or change its
+assignees or labels, because closing the issue ends the conversation and
+removing its label or assignee pauses it. It must not fetch issue
 comments itself: the saved input is the comment set it must answer.
 
 Its instructions must not tell the agent to implement a change, edit

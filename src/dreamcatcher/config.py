@@ -216,8 +216,9 @@ def write_default_dreamcatcher_config_if_absent(
 ) -> bool:
     """Write the default configuration at root, and return whether this wrote it.
 
-    Every recipe table of a harness outside harnesses is commented out, since a
-    run refuses to start while a route names a harness that is not installed.
+    Every dispatch recipe for a harness outside harnesses is commented out, since
+    the daemon refuses to start while a route names a harness that is not
+    installed.
     """
     path = root / DREAMCATCHER_CONFIG_NAME
     if path.exists():

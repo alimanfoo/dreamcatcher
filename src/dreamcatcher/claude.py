@@ -448,7 +448,7 @@ def _describe_tool_input(*, tool_input: dict) -> str:
 def _render_value_as_text(*, value: object) -> str:
     """Return a value out of the stream as feed text, as JSON unless it is text.
 
-    A tool result's content, and a failed round's message, each arrive sometimes
-    as a string and sometimes as a list of blocks.
+    A tool result's content, and the message of a result event that reports a
+    failure, each arrive sometimes as a string and sometimes as a list of blocks.
     """
     return value if isinstance(value, str) else json.dumps(value)

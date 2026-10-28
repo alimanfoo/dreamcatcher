@@ -20,7 +20,7 @@ class DaemonRunRecord(DreamcatcherDocument):
     The routes are the ones the daemon loaded at startup, so a reader learns
     which labels start work without opening a configuration that may have
     changed since. The start time tells a scheduler record that this daemon
-    run wrote from one that an earlier run left.
+    run wrote from one that an earlier daemon run left.
     """
 
     pid: PositiveInt
