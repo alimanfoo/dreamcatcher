@@ -46,11 +46,13 @@ class WebCampaignChild:
     """Represent one child in its campaign's overview.
 
     The child shows its assignment's card and its requests' rows, or its issue
-    alone when it has neither.
+    and the issue's state alone when it has neither.
     """
 
     issue: int
     title: str
+    issue_state: str
+    is_closed: bool
     assignment: WebAgentWorkCard | None
     requests: Sequence[RequestStatus]
 

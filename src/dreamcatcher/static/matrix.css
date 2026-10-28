@@ -374,10 +374,11 @@ body::after {
   text-wrap: pretty;
 }
 
-/* An ended card's title steps back in every theme, and its links keep
-   their colours. */
+/* An ended card's title, and a closed sub-issue's, steps back in every
+   theme, and its links keep their colours. */
 
-.agent-work-card.is-ended .title {
+.agent-work-card.is-ended .title,
+.campaign-child.is-closed .title {
   color: var(--dim);
 }
 

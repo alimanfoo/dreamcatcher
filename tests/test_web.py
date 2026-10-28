@@ -339,9 +339,12 @@ def test_a_campaign_with_no_children_to_show_says_why_and_shows_no_cards(
     assert "<article" not in children_block
 
 
-@pytest.mark.parametrize("issue_state", [IssueState.OPEN, IssueState.CLOSED])
-def test_a_campaign_sub_issue_with_no_assignment_or_request_shows_its_title_alone(
-    issue_state, tmp_path
+@pytest.mark.parametrize(
+    ("issue_state", "words", "is_closed"),
+    [(IssueState.OPEN, "open", False), (IssueState.CLOSED, "closed", True)],
+)
+def test_a_campaign_sub_issue_with_no_assignment_or_request_shows_its_state_alone(
+    issue_state, words, is_closed, tmp_path
 ):
     state = StateDirectory(root=tmp_path)
     write_running_daemon(state=state)
@@ -363,7 +366,8 @@ def test_a_campaign_sub_issue_with_no_assignment_or_request_shows_its_title_alon
     prefix = "GH60-20260819-184158-campaign-"
     sub_issue = extract_article(page=page, identifier=f"{prefix}sub-issue-66")
 
-    assert re.sub(r"<[^>]+>", " ", sub_issue).split() == ["#66", "Issue", "66"]
+    assert re.sub(r"<[^>]+>", " ", sub_issue).split() == ["#66", "Issue", "66", words]
+    assert ('class="campaign-child is-closed"' in sub_issue) is is_closed
     assert f'id="{prefix}GH64-20260819-184158-assignment"' in page
     assert f'id="{prefix}request-65-' in page
 

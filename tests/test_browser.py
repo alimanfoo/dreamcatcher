@@ -219,12 +219,30 @@ def expand_campaign(*, page: Page) -> Locator:
     return children
 
 
+@pytest.mark.parametrize("theme", ["matrix", "nature"])
+def test_a_closed_sub_issue_has_the_quieter_title_of_an_ended_card(
+    page: Page, live_web: str, theme: str
+) -> None:
+    page.goto(f"{live_web}/?theme={theme}")
+    children = expand_campaign(page=page)
+    prefix = f"#{CAMPAIGN_IDENTIFIER}-sub-issue-"
+
+    closed_title = read_colour(locator=children.locator(f"{prefix}69 .title"))
+
+    assert closed_title != read_colour(locator=children.locator(f"{prefix}66 .title"))
+    assert closed_title == read_colour(
+        locator=children.locator(
+            f"#{CAMPAIGN_IDENTIFIER}-GH63-20260819-184158-assignment .title"
+        )
+    )
+
+
 def test_a_refresh_leaves_an_expanded_campaign_open(page: Page, live_web: str) -> None:
     page.goto(live_web)
     children = expand_campaign(page=page)
     expect(
         children.locator(".agent-work-card, .request-row, .campaign-child")
-    ).to_have_count(4)
+    ).to_have_count(5)
 
     wait_for_refresh(page=page)
 
@@ -259,7 +277,7 @@ def test_an_expanded_campaign_stays_open_while_its_children_are_unknown(
     page.goto(live_web)
     children = expand_campaign(page=page)
     entries = children.locator(".agent-work-card, .request-row, .campaign-child")
-    expect(entries).to_have_count(4)
+    expect(entries).to_have_count(5)
 
     observe_campaign_children(state=state, children=None)
 
@@ -269,7 +287,7 @@ def test_an_expanded_campaign_stays_open_while_its_children_are_unknown(
 
     observe_campaign_children(state=state, children=CAMPAIGN_CHILDREN)
 
-    expect(entries).to_have_count(4)
+    expect(entries).to_have_count(5)
     expect(children).to_have_attribute("open", "")
 
 

@@ -64,6 +64,11 @@ the change.
 - In the Nature theme, a status and the `agent` label of the latest
   output no longer have a dot before them.
   ([#843](https://github.com/alimanfoo/dreamcatcher/pull/843))
+- A campaign's sub-issue that has no assignment and no request says
+  whether it is open or closed, and a closed one's title shows as
+  quietly as ended work's. Before, a closed sub-issue looked like work
+  still to do.
+  ([#843](https://github.com/alimanfoo/dreamcatcher/pull/843))
 
 ### Fixed
 

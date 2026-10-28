@@ -25,6 +25,7 @@ from dreamcatcher.status.agent_work import (
     AgentWorkStatus,
     AgentWorkStatusReader,
 )
+from dreamcatcher.status.findings import describe_issue_state
 from dreamcatcher.status.requests import RequestStatus, describe_request
 from dreamcatcher.words import describe_span
 
@@ -131,6 +132,11 @@ class CampaignChildStatus:
     child: CampaignChild
     assignment: AgentWorkStatus | None
     requests: Sequence[RequestStatus]
+
+    @property
+    def issue_state(self) -> str:
+        """Whether the child's issue is open or closed, in words."""
+        return describe_issue_state(state=self.child.state)
 
 
 @dataclass(frozen=True, kw_only=True)

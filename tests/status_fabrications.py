@@ -266,6 +266,7 @@ CAMPAIGN_CHILDREN = [
     ),
     _compose_campaign_child(issue=65, state=IssueState.OPEN, is_settled=False),
     _compose_campaign_child(issue=66, state=IssueState.OPEN, is_settled=True),
+    _compose_campaign_child(issue=69, state=IssueState.CLOSED, is_settled=True),
 ]
 
 
