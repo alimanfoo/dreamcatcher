@@ -27,7 +27,8 @@
   --space-10: 22px;
   --space-11: 24px;
   --space-12: 28px;
-  --page-width: 1320px;
+  --page-width: 1120px;
+  --site-header-height: 60px;
   --letter-label: 0.14em;
   --letter-chip: 0.06em;
 }
@@ -76,6 +77,7 @@ body::after {
   align-items: center;
   justify-content: space-between;
   gap: var(--space-6);
+  min-height: var(--site-header-height);
   padding: var(--space-6) var(--space-12);
   color: var(--dim);
   border-bottom: var(--line) solid var(--rule);
@@ -778,6 +780,94 @@ body::after {
   background: var(--background);
   border-bottom: var(--line) solid var(--rule);
   font-weight: 700;
+}
+
+/* The working-agent motifs move beneath the site header, in the side
+   margins, while the reader allows motion. The mockups place them in a
+   160px margin, so --margin-unit is the length that one of its pixels
+   stands for in the margin there is, and each motif's distance from the
+   window's edge, and a seed's sway, scale with it. They show only where
+   each margin is at least 120px, the 1120px column's 1360px window,
+   since in a narrower one a falling seed's drift brings it within 12px
+   of the content's text. */
+
+.working-motifs {
+  display: none;
+}
+
+@media (min-width: 1360px) and (prefers-reduced-motion: no-preference) {
+  .working-motifs {
+    --margin-unit: calc((100cqw - var(--page-width)) / 2 / 160);
+    position: fixed;
+    z-index: 0;
+    inset: var(--site-header-height) 0 0;
+    display: block;
+    overflow: hidden;
+    container-type: inline-size;
+    pointer-events: none;
+  }
+}
+
+/* A rain column falls from above its region until it has passed below it. */
+
+.rain-column,
+.empty-rain-column {
+  position: absolute;
+  top: 0;
+  color: var(--phosphor);
+  line-height: 1.15;
+  white-space: pre;
+  animation: rain-fall linear infinite;
+}
+
+.rain-column {
+  --rain-end: 100vh;
+  font-size: 15px;
+  text-shadow: 0 0 6px rgba(51, 255, 102, 0.7);
+  opacity: 0.55;
+  mask-image: linear-gradient(to bottom, transparent, black 85%);
+}
+
+@keyframes rain-fall {
+  from {
+    transform: translateY(-100%);
+  }
+
+  to {
+    transform: translateY(var(--rain-end));
+  }
+}
+
+/* Faint rain falls beneath an empty tab's hint, fading in at the top of
+   its field and out at the bottom. */
+
+.empty-field {
+  --empty-field-height: 420px;
+  position: relative;
+  height: var(--empty-field-height);
+  overflow: hidden;
+  mask-image: linear-gradient(
+    to bottom,
+    transparent,
+    black 30%,
+    black 75%,
+    transparent
+  );
+}
+
+.empty-rain-column {
+  --rain-end: var(--empty-field-height);
+  font-size: 14px;
+  text-shadow: 0 0 6px rgba(51, 255, 102, 0.6);
+  opacity: 0.18;
+  mask-image: linear-gradient(to bottom, transparent, black 80%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .empty-rain-column {
+    animation: none;
+    opacity: 0;
+  }
 }
 
 @media (max-width: 900px) {

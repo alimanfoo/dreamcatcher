@@ -197,4 +197,5 @@ class WebHomeView:
     daemon: DreamcatcherDaemonStatus
     instance_facts: Sequence[StatusFact]
     scheduler_failures: Sequence[str]
+    running_agents: int
     sections: Sequence[WebAgentWorkSection]

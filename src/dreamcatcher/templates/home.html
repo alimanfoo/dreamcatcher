@@ -1,7 +1,9 @@
 {% extends "base.html" %}
+{% import "partials/motifs.html" as motifs %}
 {% block content %}
   <main id="home" hx-get="{{ url_for('show_home') }}" hx-trigger="every 2s" hx-select="#home" hx-swap="morph" data-refresh-alert="home-refresh-error">
     {% include "partials/site-header.html" %}
+    {{ motifs.working_motifs(theme=theme, count=view.running_agents) }}
     <div class="home-content">
       <p id="home-refresh-error" class="refresh-error" role="alert" hidden></p>
       {% include "partials/instance.html" %}
@@ -28,6 +30,7 @@
                 {%- endfor %}
               </details>
             {% endif %}
+            {% if section.guidance %}{{ motifs.empty_field(theme=theme) }}{% endif %}
           </section>
         {% endfor %}
       </div>

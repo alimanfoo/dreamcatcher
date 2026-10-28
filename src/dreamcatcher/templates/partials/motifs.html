@@ -1,0 +1,63 @@
+{#- Each theme's living motif. The stylesheets give each motif its look, and these macros give each one its place and timing. -#}
+{% set rain_glyphs = "ﾊﾐﾋｰｳｼﾅﾓﾆ7ｻﾜﾂｵﾘ0ｱﾎﾃﾏｹﾒｴ4ｶｷﾑﾕﾗｾ" %}
+{#- A place stands a working agent's motif at a distance from one side of the window, in the mockups' pixels, with its own period and phase. -#}
+{% set rain_places = [
+  {"side": "left", "at": 70, "duration": 9, "delay": 0},
+  {"side": "right", "at": 90, "duration": 11, "delay": -4},
+  {"side": "left", "at": 120, "duration": 13, "delay": -7},
+] %}
+{% set seed_places = [
+  {"side": "left", "at": 64, "duration": 22, "delay": -3, "sway": 5},
+  {"side": "right", "at": 84, "duration": 26, "delay": -14, "sway": 6},
+  {"side": "left", "at": 116, "duration": 30, "delay": -22, "sway": 4.5},
+] %}
+{% set firefly_places = [
+  {"side": "left", "at": 70, "duration": 11, "delay": 0, "top": 520, "pulse": 2.6},
+  {"side": "right", "at": 96, "duration": 14, "delay": 0, "top": 380, "pulse": 3.4},
+  {"side": "left", "at": 110, "duration": 17, "delay": 0, "top": 300, "pulse": 2.9},
+] %}
+{% macro dandelion_seed() -%}
+<svg viewBox="0 0 18 22" fill="none" stroke-linecap="round"><path d="M9 21 L9 9"/><path d="M9 9 L9 1"/><path d="M9 9 L2 3"/><path d="M9 9 L16 3"/><path d="M9 9 L1 8"/><path d="M9 9 L17 8"/><path d="M9 9 L4 1.5"/><path d="M9 9 L14 1.5"/></svg>
+{%- endmacro %}
+{#- The motif at an index takes the place that the index cycles to. Every motif that shares a place runs out of phase with the others there, so each one still shows. -#}
+{% macro place_motif(places, index, count) -%}
+  {% set place = places[index % places|length] -%}
+  {% set laps = (count + places|length - 1) // places|length -%}
+  {{ place.side }}: calc(var(--margin-unit) * {{ place.at }}); animation-duration: {{ place.duration }}s; animation-delay: {{ (place.delay - (index // places|length) * place.duration / laps)|round(2) }}s
+{%- endmacro %}
+{#- One motif for each working agent, in the window's side margins. Nature gives each agent a seed and a firefly, and shows the seed on a light page and the firefly on a dark one. -#}
+{% macro working_motifs(theme, count) -%}
+<div class="working-motifs" aria-hidden="true">
+{%- if theme == "matrix" %}
+{%- for index in range(count) %}
+  {%- set shift = index * 7 % rain_glyphs|length %}
+  <div class="rain-column" style="{{ place_motif(places=rain_places, index=index, count=count) }}">{{ (rain_glyphs[shift:] ~ rain_glyphs[:shift])[:22]|join("\n") }}</div>
+{%- endfor %}
+{%- else %}
+{%- for index in range(count) %}
+  {%- set seed = seed_places[index % seed_places|length] %}
+  {%- set firefly = firefly_places[index % firefly_places|length] %}
+  <div class="falling-seed" style="{{ place_motif(places=seed_places, index=index, count=count) }}"><div class="seed-body" style="animation-duration: {{ seed.sway }}s">{{ dandelion_seed() }}</div></div>
+  <div class="firefly" style="{{ place_motif(places=firefly_places, index=index, count=count) }}; top: {{ firefly.top }}px"><div class="firefly-glow" style="animation-duration: {{ firefly.pulse }}s"></div></div>
+{%- endfor %}
+{%- endif -%}
+</div>
+{%- endmacro %}
+{#- A calm field of the theme's motif, beneath an empty tab's hint. Each motif's spread sets its place, timing and length, so that no two move in step. Nature gives each place a rising seed and a firefly, and shows the seeds on a light page and the fireflies on a dark one. -#}
+{% macro empty_field(theme) -%}
+{%- set density = 14 %}
+<div class="empty-field" aria-hidden="true">
+{%- for index in range(density) %}
+  {%- set at = ((index + 0.5) / density * 100)|round(2) %}
+  {%- set spread = index * 7919 % 97 %}
+  {%- if theme == "matrix" %}
+  <div class="empty-rain-column" style="left: calc({{ at }}% + {{ spread % 23 - 11 }}px); animation-duration: {{ 7 + spread % 9 }}s; animation-delay: -{{ spread * 13 % 17 }}s">{{ (rain_glyphs[spread % 20:] ~ rain_glyphs)[:10 + spread % 12]|join("\n") }}</div>
+  {%- else %}
+  {%- set glow_spread = index * 6151 % 101 %}
+  {%- set glow_size = 3 + glow_spread % 3 %}
+  <div class="rising-seed" style="left: calc({{ at }}% + {{ spread % 31 - 15 }}px); top: {{ 360 + spread % 30 }}px; animation-duration: {{ 16 + spread % 14 }}s; animation-delay: -{{ spread * 11 % 24 }}s"><div class="seed-body" style="animation-duration: {{ 4 + spread % 4 }}s">{{ dandelion_seed() }}</div></div>
+  <div class="firefly" style="left: calc({{ at }}% + {{ glow_spread % 29 - 14 }}px); top: {{ 120 + index * 53 % 220 }}px; animation-duration: {{ 12 + glow_spread % 9 }}s; animation-delay: -{{ glow_spread % 11 }}s"><div class="firefly-glow" style="width: {{ glow_size }}px; height: {{ glow_size }}px; animation-duration: {{ 2.4 + glow_spread % 4 * 0.5 }}s; animation-delay: -{{ glow_spread % 5 }}s"></div></div>
+  {%- endif %}
+{%- endfor %}
+</div>
+{%- endmacro %}

@@ -1348,6 +1348,70 @@ def test_an_unknown_theme_uses_nature_without_being_remembered(tmp_path):
     assert ".status-unknown," in stylesheet
 
 
+def test_matrix_rains_one_column_for_each_working_agent(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    fabricate_everything(state=state)
+    client = _create_app(
+        state=state, clock=lambda: LOOKED_AT, zone=DISPLAY_TIME_ZONE
+    ).test_client()
+
+    page = client.get("/?theme=matrix").text
+
+    working = re.search(r"<dd>(\d+) of \d+ working</dd>", page)
+    assert working is not None
+    assert int(working[1]) > 0
+    assert page.count('class="rain-column"') == int(working[1])
+
+
+def test_working_motifs_beyond_the_places_share_them_out_of_phase(tmp_path):
+    template = _create_app(state=StateDirectory(root=tmp_path)).jinja_env.from_string(
+        '{% import "partials/motifs.html" as motifs %}'
+        '{{ motifs.working_motifs(theme="matrix", count=4) }}'
+    )
+
+    page = template.render()
+
+    assert re.findall(r'style="([^"]+)"', page) == [
+        "left: calc(var(--margin-unit) * 70); "
+        "animation-duration: 9s; animation-delay: 0.0s",
+        "right: calc(var(--margin-unit) * 90); "
+        "animation-duration: 11s; animation-delay: -4.0s",
+        "left: calc(var(--margin-unit) * 120); "
+        "animation-duration: 13s; animation-delay: -7.0s",
+        "left: calc(var(--margin-unit) * 70); "
+        "animation-duration: 9s; animation-delay: -4.5s",
+    ]
+
+
+def test_every_rain_column_falls_in_its_own_glyphs(tmp_path):
+    template = _create_app(state=StateDirectory(root=tmp_path)).jinja_env.from_string(
+        '{% import "partials/motifs.html" as motifs %}'
+        '{{ motifs.working_motifs(theme="matrix", count=6) }}'
+    )
+
+    columns = re.findall(r'class="rain-column"[^>]*>([^<]+)<', template.render())
+
+    assert len(set(columns)) == 6
+
+
+@pytest.mark.parametrize(
+    ("fabricate", "empty_tabs"), [(fabricate_nothing, 3), (fabricate_everything, 2)]
+)
+def test_only_a_tab_with_nothing_active_holds_a_motif_field(
+    fabricate, empty_tabs, tmp_path
+):
+    state = StateDirectory(root=tmp_path)
+    fabricate(state=state)
+    client = _create_app(
+        state=state, clock=lambda: LOOKED_AT, zone=DISPLAY_TIME_ZONE
+    ).test_client()
+
+    page = client.get("/?theme=matrix").text
+
+    assert page.count('<p class="empty">') == empty_tabs
+    assert page.count('class="empty-field"') == empty_tabs
+
+
 def test_github_links_open_in_a_new_tab(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
