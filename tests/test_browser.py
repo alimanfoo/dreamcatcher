@@ -690,7 +690,7 @@ def test_dark_nature_uses_the_dusk_palette_and_follows_the_night(
         "color",
         "rgb(179, 203, 166)",
     )
-    expect(page.locator(".status-routing-conflict").first).to_have_css(
+    expect(page.locator(".status-fault").first).to_have_css(
         "color",
         "rgb(22, 21, 42)",
     )

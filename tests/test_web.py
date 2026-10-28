@@ -1852,24 +1852,21 @@ def test_issue_and_pull_request_numbers_link_to_github_with_hash_notation(tmp_pa
     pull_request_url = f"https://github.com/{REPOSITORY}/pull/61"
     github_attributes = 'target="_blank" rel="noopener noreferrer"'
     assert f'href="{issue_url}" {github_attributes}>#50</a>' in page
-    assert (
-        '<span class="chip status-blocked"><span>blocked by '
-        f'<a class="issue-number" href="{issue_url}" '
-        f"{github_attributes}>#50</a></span></span>" in page
+    issue_link = (
+        f'<a class="issue-number" href="{issue_url}" {github_attributes}>#50</a>'
     )
+    assert f'<span class="issue-state">open, blocked by {issue_link}</span>' in page
     assert (
-        '<span class="chip status-blocked"><span>claimed by '
-        f'<a class="issue-number" href="{pull_request_url}" '
-        f"{github_attributes}>#61</a>; blocked by" in page
-    )
-    assert (
-        f'{github_attributes}>#50</a>, <a class="issue-number" '
+        f'<span class="issue-state">open, blocked by {issue_link}, '
+        '<a class="issue-number" '
         'href="https://github.com/alimanfoo/dream/issues/1016" '
-        f"{github_attributes}>alimanfoo/dream#1016</a></span></span>" in page
+        f"{github_attributes}>alimanfoo/dream#1016</a>, linked to PR "
+        f'<a class="issue-number" href="{pull_request_url}" '
+        f"{github_attributes}>#61</a></span>" in page
     )
+    assert '<span class="issue-state">open, multiple assignment labels</span>' in page
     assert (
-        '<span class="chip status-routing-conflict"><span>multiple assignment '
-        "labels: dream:less, dream:smith</span></span>" in page
+        '<p class="card-detail">remove all but one: dream:less, dream:smith</p>' in page
     )
 
 

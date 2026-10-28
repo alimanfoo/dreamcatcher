@@ -43,6 +43,7 @@ from dreamcatcher.scheduler.models import (
 )
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.status.findings import (
+    REAPPLY_LABEL_ADVICE,
     describe_changed_children,
     describe_comments_to_answer,
     describe_conflicting_labels,
@@ -400,11 +401,11 @@ class AgentWorkStatusReader:
         if isinstance(finding, PausedFinding):
             cause = str(finding.cause)
         elif isinstance(finding, LabelAppliedByOtherFinding):
-            cause = describe_label_applier(applier=finding.applier)
+            applier = describe_label_applier(applier=finding.applier)
+            cause = f"{applier}: {REAPPLY_LABEL_ADVICE}"
         elif isinstance(finding, ConflictingLabelsFinding):
-            cause = describe_conflicting_labels(
-                kind=work.record.kind, labels=finding.labels
-            )
+            conflict = describe_conflicting_labels(kind=work.record.kind)
+            cause = f"{conflict}: {', '.join(finding.labels)}"
         else:
             return None
         return AgentWorkStatus(

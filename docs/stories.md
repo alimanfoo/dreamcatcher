@@ -122,8 +122,8 @@ then assign and label both. Work starts on the first straight away.
 
 If the user wants to reassure themselves that _dreamcatcher_ is handling
 the dependencies correctly, they can open the home page or run
-`dreamcatcher status`. Either will show the second issue as blocked,
-naming the issue it waits for.
+`dreamcatcher status`. Either will show the second issue's request as
+held, with the issue open and blocked by the issue it waits for.
 
 When the first pull request merges, GitHub closes its issue, and at the
 next _dreamcatcher_ update the second issue is no longer blocked. Work
@@ -428,8 +428,9 @@ They mark the second parent as blocked by the first on GitHub, as they
 would for any pair of issues, then assign both parents to themselves and
 put a campaign label on each. The first campaign starts as soon as there
 is agent capacity. The second waits with no lead, and the home page and
-`dreamcatcher status` show its request as blocked, naming the parent it
-waits for, with its repository when that is another one.
+`dreamcatcher status` show its request as held, with the parent open and
+blocked by the parent it waits for, with its repository when that is
+another one.
 
 Closing every sub-issue of the first parent does not close that parent,
 so the second campaign keeps waiting while the user checks the first
@@ -591,8 +592,11 @@ conversation or a campaign ends closed. The work's page and
 nothing beneath it. Every piece of work that has ended shows its title
 more quietly than live work does, here and within a campaign, so it
 draws less attention, and its links stay as clear as they are on any
-other row. A request's row gives its issue at the top and its dispatch
-label and request status beneath.
+other row. A request's row gives its issue at the top, with the issue's
+state and what GitHub says that holds the request back, such as an issue
+that blocks it. Beneath that come its dispatch label and request status,
+and then, when there is any, what _dreamcatcher_ found or what the user
+has to do.
 
 The home page always has a tab for each of the three kinds of work, and
 the terminal a section for each, even when a kind has nothing in it. A
@@ -768,8 +772,9 @@ checkout.
 The user puts two assignment labels on an issue, or two conversation
 labels, or two campaign labels, perhaps to try both recipes. That is a
 routing conflict. Until work exists to answer a label, its row stands
-for that label, so the two labels show as two request rows. Each says
-there is a conflict and names both labels, and nothing of that kind
+for that label, so the two labels show as two request rows. Each is
+held, says that the issue has more than one label of the kind, and tells
+the user to remove all but one, naming both labels. Nothing of that kind
 starts while both are there. The user needs to take one of the two
 labels off the issue, and the one that stays decides the recipe.
 
@@ -807,12 +812,12 @@ Nothing starts on the user's machine, so no agent runs under the user's
 account or on their usage allowance before the user has seen the issue.
 The colleague sees the label on the issue and nothing else. The user
 sees the issue's request row on the home page and in
-`dreamcatcher status`, held, naming who applied the label and saying
-that the user can remove and re-add it themselves. The same goes for a
-bot, and for an account that has since been deleted, which the row
-cannot name. A colleague who puts back the label of a paused
-conversation or campaign leaves it paused, and its row says so in the
-same words.
+`dreamcatcher status`, held, saying that the issue is labelled by that
+colleague and telling the user to remove and re-add the label
+themselves. The same goes for a bot, and for an account that has since
+been deleted, which the row cannot name. A colleague who puts back the
+label of a paused conversation or campaign leaves it paused, and its row
+says so in the same words.
 
 If the user wants the work, they need to take the label off and put it
 back on themselves, and it starts at the next update. They then need to
@@ -823,12 +828,12 @@ off.
 ### A label on an issue someone else is already working on
 
 The user labels an issue that already has an open pull request linked to
-it, one whose description says it closes the issue. The request row says
-the issue is claimed by that pull request, and nothing starts while it
-is open. If the user wants the agent to take over, they need to close
-the other pull request, and work starts at the next update. If they
-would rather let it finish, they need do nothing: once it merges, GitHub
-closes the issue, and the label is moot.
+it, one whose description says it closes the issue. The request row is
+held and says that the issue is linked to that pull request, and nothing
+starts while it is open. If the user wants the agent to take over, they
+need to close the other pull request, and work starts at the next
+update. If they would rather let it finish, they need do nothing: once
+it merges, GitHub closes the issue, and the label is moot.
 
 ### Closing a pull request and leaving the assignment label on the issue
 

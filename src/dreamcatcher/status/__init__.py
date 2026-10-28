@@ -18,7 +18,7 @@ from dreamcatcher.status.report import (
     read_repository,
     read_status_report,
 )
-from dreamcatcher.status.requests import RequestReason, RequestStatus
+from dreamcatcher.status.requests import IssueFact, RequestStatus
 from dreamcatcher.status.rounds import AgentRoundStatus, AgentRoundTrigger
 
 __all__ = [
@@ -32,7 +32,7 @@ __all__ = [
     "DaemonStatusFact",
     "DreamcatcherDaemonStatus",
     "DreamcatcherStatusReport",
-    "RequestReason",
+    "IssueFact",
     "RequestStatus",
     "SectionGuidance",
     "StatusFact",

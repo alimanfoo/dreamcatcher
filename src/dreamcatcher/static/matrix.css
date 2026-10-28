@@ -346,7 +346,8 @@ body::after {
   overflow-wrap: anywhere;
 }
 
-.card-heading > .pr-chip {
+.card-heading > .pr-chip,
+.card-heading > .issue-state {
   flex-shrink: 1;
 }
 
@@ -402,8 +403,6 @@ body::after {
   content: "]";
 }
 
-.status-routing-conflict,
-.status-held,
 .status-available {
   color: var(--background);
   background: var(--phosphor);
@@ -418,7 +417,7 @@ body::after {
 .status-unknown,
 .status-ended,
 .status-idle,
-.status-blocked {
+.status-held {
   color: var(--dim);
 }
 
@@ -426,18 +425,17 @@ body::after {
   text-shadow: var(--shadow);
 }
 
-.status-routing-conflict .issue-number {
-  color: var(--background);
-}
-
 .agent-work-detail,
+.card-detail,
 .latest-output,
 .error-message {
   margin: var(--space-3) 0 0;
 }
 
 .agent-work-detail,
-.card-foot {
+.card-detail,
+.card-foot,
+.issue-state {
   color: var(--dim);
 }
 

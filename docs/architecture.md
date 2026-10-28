@@ -646,8 +646,10 @@ one.
 
 `AgentWorkStatus` is one summary status from the concepts page, derived
 in one chain for every kind of agent work. `RequestStatus` gives a
-request with no open work its request status and its reasons, each as
-words with the issues or pull requests it names.
+request with no open work its request status, the facts that GitHub
+holds about its issue, each as words with the issues or pull requests it
+names, and any detail: what _dreamcatcher_ found, or what the user has
+to do.
 
 Status tells whether the scheduler record read the work after its latest
 round ended from the round that the work's row names as ended, not from

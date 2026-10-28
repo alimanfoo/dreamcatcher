@@ -43,6 +43,16 @@ the change.
 - A row whose status is unknown gives the read that failed, without the
   words "cannot tell:" before it, because its status already says
   unknown. ([#843](https://github.com/alimanfoo/dreamcatcher/pull/843))
+- A request that the scheduler holds back has one status, held, where it
+  was blocked, held or routing conflict. Its row says that its issue is
+  open, followed by what GitHub says that holds it back, such as
+  "blocked by #810", "linked to PR #123", "labelled by octocat" or
+  "multiple assignment labels". Beneath its status it says what the user
+  has to do, when they have to act, such as "remove and re-add the label
+  yourself". A paused conversation or campaign whose label someone else
+  applied says "labelled by" in the same way. Every held status looks
+  the same, without the fill that held and routing conflict had.
+  ([#843](https://github.com/alimanfoo/dreamcatcher/pull/843))
 
 ### Fixed
 
