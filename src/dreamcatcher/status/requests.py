@@ -11,18 +11,16 @@ from dreamcatcher.scheduler.models import (
     CampaignFinding,
     ConflictingLabelsFinding,
     IssueCommentsFinding,
-    IssueReference,
     LabelAppliedByOtherFinding,
     ReadFailureFinding,
     RequestRow,
     StartTimeFinding,
 )
 from dreamcatcher.status.findings import (
-    REAPPLY_LABEL_ADVICE,
+    IssueFact,
     describe_comments_to_answer,
-    describe_conflicting_labels,
+    describe_hold,
     describe_issue_state,
-    describe_label_applier,
 )
 
 # What the tick finds for a request with no open work: what decides whether work
@@ -54,19 +52,6 @@ class RequestStatusValue(StrEnum):
     HELD = "held"
     IDLE = "idle"
     UNKNOWN = "unknown"
-
-
-@dataclass(frozen=True, kw_only=True)
-class IssueFact:
-    """Say one thing that GitHub holds about a request's issue.
-
-    A fact names the pull requests it refers to as numbers, and the issues
-    by references that name another repository where one holds the issue.
-    """
-
-    words: str
-    issues: Sequence[IssueReference] = ()
-    pull_requests: Sequence[int] = ()
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -103,21 +88,13 @@ def describe_request(*, row: RequestRow) -> RequestStatus:
         )
     if isinstance(finding, IssueCommentsFinding):
         return _describe_comments(row=row, finding=finding)
-    if isinstance(finding, LabelAppliedByOtherFinding):
+    if isinstance(finding, LabelAppliedByOtherFinding | ConflictingLabelsFinding):
+        fact, advice = describe_hold(finding=finding, kind=row.kind)
         return RequestStatus(
             row=row,
             value=RequestStatusValue.HELD,
-            issue_facts=(
-                IssueFact(words=describe_label_applier(applier=finding.applier)),
-            ),
-            detail=REAPPLY_LABEL_ADVICE,
-        )
-    if isinstance(finding, ConflictingLabelsFinding):
-        return RequestStatus(
-            row=row,
-            value=RequestStatusValue.HELD,
-            issue_facts=(IssueFact(words=describe_conflicting_labels(kind=row.kind)),),
-            detail="remove all but one: " + ", ".join(finding.labels),
+            issue_facts=(fact,),
+            detail=advice,
         )
     facts = _list_holding_facts(finding=finding)
     return RequestStatus(
