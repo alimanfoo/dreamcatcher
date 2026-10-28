@@ -36,21 +36,27 @@
 {%- for index in range(count) %}
   {%- set seed = seed_places[index % seed_places|length] %}
   {%- set firefly = firefly_places[index % firefly_places|length] %}
-  <div class="falling-seed" style="{{ place_motif(places=seed_places, index=index, count=count) }}"><div class="falling-seed-body" style="animation-duration: {{ seed.sway }}s">{{ dandelion_seed() }}</div></div>
+  <div class="falling-seed" style="{{ place_motif(places=seed_places, index=index, count=count) }}"><div class="seed-body" style="animation-duration: {{ seed.sway }}s">{{ dandelion_seed() }}</div></div>
   <div class="firefly" style="{{ place_motif(places=firefly_places, index=index, count=count) }}; top: {{ firefly.top }}px"><div class="firefly-glow" style="animation-duration: {{ firefly.pulse }}s"></div></div>
 {%- endfor %}
 {%- endif -%}
 </div>
 {%- endmacro %}
-{#- A calm field of the theme's motif, beneath an empty tab's hint. Each column's spread sets its place, timing and length, so that no two move in step. -#}
+{#- A calm field of the theme's motif, beneath an empty tab's hint. Each motif's spread sets its place, timing and length, so that no two move in step. Nature gives each place a rising seed and a firefly, and shows the seeds while the sun is up and the fireflies while the moon is. -#}
 {% macro empty_field(theme) -%}
 {%- set density = 14 %}
-{%- if theme == "matrix" %}
 <div class="empty-field" aria-hidden="true">
 {%- for index in range(density) %}
+  {%- set at = ((index + 0.5) / density * 100)|round(2) %}
   {%- set spread = index * 7919 % 97 %}
-  <div class="empty-rain-column" style="left: calc({{ ((index + 0.5) / density * 100)|round(2) }}% + {{ spread % 23 - 11 }}px); animation-duration: {{ 7 + spread % 9 }}s; animation-delay: -{{ spread * 13 % 17 }}s">{{ (rain_glyphs[spread % 20:] ~ rain_glyphs)[:10 + spread % 12]|join("\n") }}</div>
+  {%- if theme == "matrix" %}
+  <div class="empty-rain-column" style="left: calc({{ at }}% + {{ spread % 23 - 11 }}px); animation-duration: {{ 7 + spread % 9 }}s; animation-delay: -{{ spread * 13 % 17 }}s">{{ (rain_glyphs[spread % 20:] ~ rain_glyphs)[:10 + spread % 12]|join("\n") }}</div>
+  {%- else %}
+  {%- set glow_spread = index * 6151 % 101 %}
+  {%- set glow_size = 3 + glow_spread % 3 %}
+  <div class="rising-seed" style="left: calc({{ at }}% + {{ spread % 31 - 15 }}px); top: {{ 360 + spread % 30 }}px; animation-duration: {{ 16 + spread % 14 }}s; animation-delay: -{{ spread * 11 % 24 }}s"><div class="seed-body" style="animation-duration: {{ 4 + spread % 4 }}s">{{ dandelion_seed() }}</div></div>
+  <div class="firefly" style="left: calc({{ at }}% + {{ glow_spread % 29 - 14 }}px); top: {{ 120 + index * 53 % 220 }}px; animation-duration: {{ 12 + glow_spread % 9 }}s; animation-delay: -{{ glow_spread % 11 }}s"><div class="firefly-glow" style="width: {{ glow_size }}px; height: {{ glow_size }}px; animation-duration: {{ 2.4 + glow_spread % 4 * 0.5 }}s; animation-delay: -{{ glow_spread % 5 }}s"></div></div>
+  {%- endif %}
 {%- endfor %}
 </div>
-{%- endif %}
 {%- endmacro %}

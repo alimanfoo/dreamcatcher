@@ -73,6 +73,7 @@
   --font-size: 15px;
   --line-height: 1.5;
   --site-header-height: 87px;
+  --resting-seed: #8a7d70;
   --sun-x: 50%;
 }
 
@@ -646,24 +647,45 @@ body::after {
 }
 
 /* A dandelion seed falls for each working agent while the sun is up, and
-   a firefly drifts for each while the moon is up. */
+   a firefly drifts for each while the moon is up. Beneath an empty tab's
+   hint, smaller seeds rise in their place, and fainter fireflies drift. */
 
-.falling-seed {
+.falling-seed,
+.rising-seed {
   position: absolute;
   top: 0;
+}
+
+.falling-seed {
   animation: seed-fall linear infinite;
 }
 
-.falling-seed-body {
+.rising-seed {
+  animation: seed-rise linear infinite;
+}
+
+.seed-body {
+  --seed-sway: 22px;
   animation: seed-sway ease-in-out infinite;
 }
 
-.falling-seed svg {
+.rising-seed .seed-body {
+  --seed-sway: 18px;
+}
+
+.seed-body svg {
   display: block;
   width: 30px;
   height: 38px;
   stroke: var(--dim);
   stroke-width: 0.8;
+}
+
+.rising-seed svg {
+  width: 18px;
+  height: 22px;
+  stroke: var(--resting-seed);
+  stroke-width: 0.9;
 }
 
 .firefly {
@@ -673,6 +695,8 @@ body::after {
 }
 
 .firefly-glow {
+  --pulse-low: 0.25;
+  --pulse-settle: 0.9;
   width: 6px;
   height: 6px;
   background: #f4f0a8;
@@ -683,7 +707,31 @@ body::after {
   animation: firefly-pulse ease-in-out infinite;
 }
 
-html[data-sky="night"] .falling-seed {
+.empty-field {
+  --empty-field-height: 400px;
+  mask-image: linear-gradient(
+    to bottom,
+    transparent,
+    black 25%,
+    black 75%,
+    transparent
+  );
+}
+
+.empty-field .firefly {
+  opacity: 0.55;
+}
+
+.empty-field .firefly-glow {
+  --pulse-low: 0.15;
+  --pulse-settle: 0.85;
+  box-shadow:
+    0 0 8px 3px rgba(244, 240, 168, 0.5),
+    0 0 22px 8px rgba(214, 230, 120, 0.15);
+}
+
+html[data-sky="night"] .falling-seed,
+html[data-sky="night"] .rising-seed {
   display: none;
 }
 
@@ -715,7 +763,24 @@ html[data-sky="night"] .firefly {
   }
 
   50% {
-    margin-left: 22px;
+    margin-left: var(--seed-sway);
+  }
+}
+
+@keyframes seed-rise {
+  0% {
+    transform: translate(0, 0) rotate(0deg);
+    opacity: 0;
+  }
+
+  15%,
+  85% {
+    opacity: 1;
+  }
+
+  100% {
+    transform: translate(60px, -360px) rotate(40deg);
+    opacity: 0;
   }
 }
 
@@ -741,7 +806,7 @@ html[data-sky="night"] .firefly {
 @keyframes firefly-pulse {
   0%,
   100% {
-    opacity: 0.25;
+    opacity: var(--pulse-low);
   }
 
   45% {
@@ -749,7 +814,18 @@ html[data-sky="night"] .firefly {
   }
 
   60% {
-    opacity: 0.9;
+    opacity: var(--pulse-settle);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rising-seed {
+    display: none;
+  }
+
+  .empty-field .firefly,
+  .empty-field .firefly-glow {
+    animation: none;
   }
 }
 
@@ -826,6 +902,7 @@ html[data-sky="night"] .firefly {
     --round-current-surface: rgba(233, 177, 131, 0.9);
     --interrupted: #e9cb93;
     --code-surface: rgba(236, 230, 220, 0.055);
+    --resting-seed: var(--faint);
     --moon-x: 50%;
   }
 

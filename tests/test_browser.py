@@ -969,37 +969,48 @@ def test_nature_drops_a_seed_by_day_and_lights_a_firefly_by_night(
     expect(fireflies).to_have_count(working_agents)
 
 
-@pytest.mark.parametrize("theme", ["matrix"])
+@pytest.mark.parametrize(
+    ("theme", "hour", "motif"),
+    [
+        ("matrix", 12, "empty-rain-column"),
+        ("nature", 12, "rising-seed"),
+        ("nature", 21, "firefly"),
+    ],
+)
 def test_an_empty_tab_holds_its_motif_field_beneath_its_hint(
-    page: Page, empty_web: str, theme: str
+    page: Page, empty_web: str, theme: str, hour: int, motif: str
 ) -> None:
+    page.clock.install(time=datetime(2026, 10, 11, hour, 0))
     page.goto(f"{empty_web}/?theme={theme}")
     panel = page.locator("#assignment-panel")
     hint = panel.locator(".empty")
     field = panel.locator(".empty-field")
 
     expect(field).to_be_visible()
+    shown_motifs = field.evaluate(
+        """field => [...new Set([...field.children]
+          .filter(motif => motif.checkVisibility())
+          .map(motif => motif.className))]"""
+    )
+    assert shown_motifs == [motif]
     hint_bottom = hint.evaluate("hint => hint.getBoundingClientRect().bottom")
     field_top = field.evaluate("field => field.getBoundingClientRect().top")
     assert field_top >= hint_bottom
 
 
-@pytest.mark.parametrize("theme", ["matrix"])
+@pytest.mark.parametrize(
+    ("theme", "hour"), [("matrix", 12), ("nature", 12), ("nature", 21)]
+)
 def test_an_empty_tab_motif_field_keeps_still_under_reduced_motion(
-    page: Page, empty_web: str, theme: str
+    page: Page, empty_web: str, theme: str, hour: int
 ) -> None:
     page.emulate_media(reduced_motion="reduce")
+    page.clock.install(time=datetime(2026, 10, 11, hour, 0))
     page.goto(f"{empty_web}/?theme={theme}")
 
-    columns = page.locator("#assignment-panel .empty-field > *")
-    expect(columns).not_to_have_count(0)
-    shown_or_moving = columns.evaluate_all(
-        """columns => columns.filter(column =>
-          column.checkVisibility({ opacityProperty: true })
-          || column.getAnimations().length > 0
-        ).length"""
-    )
-    assert shown_or_moving == 0
+    field = page.locator("#assignment-panel .empty-field")
+    expect(field).to_be_visible()
+    assert field.evaluate("field => field.getAnimations({ subtree: true }).length") == 0
 
 
 @pytest.mark.parametrize("theme", ["matrix", "nature"])
