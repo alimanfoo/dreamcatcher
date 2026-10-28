@@ -1,6 +1,6 @@
 {#- Each theme's living motif. The stylesheets give each motif its look, and these macros give each one its place and timing. -#}
 {% set rain_glyphs = "ﾊﾐﾋｰｳｼﾅﾓﾆ7ｻﾜﾂｵﾘ0ｱﾎﾃﾏｹﾒｴ4ｶｷﾑﾕﾗｾ" %}
-{#- A place stands a working agent's motif at a distance from one side of the window, with its own period and phase. -#}
+{#- A place stands a working agent's motif at a distance from one side of the window, in the mockups' pixels, with its own period and phase. -#}
 {% set rain_places = [
   {"side": "left", "at": 70, "duration": 9, "delay": 0},
   {"side": "right", "at": 90, "duration": 11, "delay": -4},
@@ -23,7 +23,7 @@
 {% macro place_motif(places, index, count) -%}
   {% set place = places[index % places|length] -%}
   {% set laps = (count + places|length - 1) // places|length -%}
-  {{ place.side }}: {{ place.at }}px; animation-duration: {{ place.duration }}s; animation-delay: {{ (place.delay - (index // places|length) * place.duration / laps)|round(2) }}s
+  {{ place.side }}: calc(var(--margin-unit) * {{ place.at }}); animation-duration: {{ place.duration }}s; animation-delay: {{ (place.delay - (index // places|length) * place.duration / laps)|round(2) }}s
 {%- endmacro %}
 {#- One motif for each working agent, in the window's side margins. Nature gives each agent a seed and a firefly, and shows the seed on a light page and the firefly on a dark one. -#}
 {% macro working_motifs(theme, count) -%}

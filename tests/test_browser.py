@@ -55,14 +55,14 @@ RECORD_TAIL_HIDDEN_PER_FRAME = """() => {
 }"""
 
 # The narrowest window whose side margins hold the working-agent motifs.
-MOTIF_WINDOW_WIDTH = 1680
+MOTIF_WINDOW_WIDTH = 1360
 
 # Step every animation of each shown working-agent motif through its cycle,
 # in every combination, and give the widest reach of each motif with the
-# header's bottom, the motif layer's top and the content column's sides.
+# header's bottom, the motif layer's top and the sides of the content's text.
 MEASURE_WORKING_MOTIFS = """() => {
   const layer = document.querySelector(".working-motifs");
-  const content = document.querySelector(".home-content").getBoundingClientRect();
+  const content = document.querySelector(".dashboard").getBoundingClientRect();
   const motifs = [...layer.children].filter(motif => motif.checkVisibility());
   const reaches = motifs.map(motif => {
     const animations = motif.getAnimations({ subtree: true });
@@ -906,14 +906,19 @@ def test_nature_shows_exactly_one_of_sun_and_moon_at_each_boundary(
         assert opacities == [sun_opacity, moon_opacity]
 
 
+@pytest.mark.parametrize("width", [MOTIF_WINDOW_WIDTH, 1440, 1920])
 @pytest.mark.parametrize(
     ("theme", "scheme"), [("matrix", "dark"), ("nature", "light"), ("nature", "dark")]
 )
 def test_working_motifs_stay_in_the_margins_beneath_the_header(
-    page: Page, live_web: str, theme: str, scheme: Literal["light", "dark"]
+    page: Page,
+    live_web: str,
+    theme: str,
+    scheme: Literal["light", "dark"],
+    width: int,
 ) -> None:
     page.emulate_media(color_scheme=scheme)
-    page.set_viewport_size({"width": MOTIF_WINDOW_WIDTH, "height": 900})
+    page.set_viewport_size({"width": width, "height": 900})
     page.goto(f"{live_web}/?theme={theme}")
 
     geometry = page.evaluate(MEASURE_WORKING_MOTIFS)

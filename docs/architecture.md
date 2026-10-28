@@ -705,11 +705,14 @@ the tab of its kind.
 The home page gives each theme a motif, drawn by the macros in
 `templates/partials/motifs.html`. The home view carries the count of
 running agents, the macros give each motif its place and timing, and
-each theme's stylesheet gives it its look. The home page's refresh
-redraws the motifs with the page, so the count stays true without a
-script of their own. Nature draws both a seed and a firefly for each
-motif, and its stylesheet shows the seeds on a light page and the
-fireflies on a dark one, so the motif always suits the sky behind it.
+each theme's stylesheet gives it its look. A working motif's place is a
+distance from the window's edge in the mockups' 160px margin, and the
+stylesheet scales it to the margin that the window leaves. The home
+page's refresh redraws the motifs with the page, so the count stays true
+without a script of their own. Nature draws both a seed and a firefly
+for each motif, and its stylesheet shows the seeds on a light page and
+the fireflies on a dark one, so the motif always suits the sky behind
+it.
 
 The web interface can ask a running round to stop. It writes a
 same-origin stop request through the agent-round boundary, into that

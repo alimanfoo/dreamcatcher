@@ -837,21 +837,27 @@ body::after {
 }
 
 /* The working-agent motifs move beneath the site header, in the side
-   margins. They show only where each margin holds the widest of them,
-   which reaches 170px from the window's edge, beside the content column,
-   and only while the reader allows motion. */
+   margins, while the reader allows motion. The mockups place them in a
+   160px margin, so --margin-unit is the length that one of its pixels
+   stands for in the margin there is, and each motif's distance from the
+   window's edge, and a seed's sway, scale with it. They show only where
+   each margin is at least 120px, the 1120px column's 1360px window,
+   since in a narrower one a falling seed's drift brings it within 12px
+   of the content's text. */
 
 .working-motifs {
   display: none;
 }
 
-@media (min-width: 1680px) and (prefers-reduced-motion: no-preference) {
+@media (min-width: 1360px) and (prefers-reduced-motion: no-preference) {
   .working-motifs {
+    --margin-unit: calc((100cqw - var(--page-width)) / 2 / 160);
     position: fixed;
     z-index: 0;
     inset: var(--site-header-height) 0 0;
     display: block;
     overflow: hidden;
+    container-type: inline-size;
     pointer-events: none;
   }
 }

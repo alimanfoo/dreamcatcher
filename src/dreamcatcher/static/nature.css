@@ -660,7 +660,7 @@ body::after {
 }
 
 .seed-body {
-  --seed-sway: 22px;
+  --seed-sway: calc(var(--margin-unit) * 22);
   animation: seed-sway ease-in-out infinite;
 }
 
