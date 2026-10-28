@@ -61,6 +61,9 @@ the change.
   lines came and went. An assignment that has no pull request yet shows
   nothing in its place, where it said "no pull request yet".
   ([#843](https://github.com/alimanfoo/dreamcatcher/pull/843))
+- In the Nature theme, a status and the `agent` label of the latest
+  output no longer have a dot before them.
+  ([#843](https://github.com/alimanfoo/dreamcatcher/pull/843))
 
 ### Fixed
 
