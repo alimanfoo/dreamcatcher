@@ -12,6 +12,7 @@ from records import write_ending, write_round, write_tick
 from status_fabrications import CAMPAIGN_CHILDREN, LOOKED_AT, compose_ended_round
 from web_browser import (
     BROWSER_ASSIGNMENT_IDENTIFIER,
+    serve_empty_web,
     serve_fabricated_web,
 )
 
@@ -99,6 +100,13 @@ FEED_IS_AT_END = """() => {
 def live_web(tmp_path) -> Iterator[str]:
     """Serve the fabricated web app for one browser test."""
     with serve_fabricated_web(root=tmp_path) as address:
+        yield address
+
+
+@pytest.fixture
+def empty_web(tmp_path) -> Iterator[str]:
+    """Serve a daemon run with no work, so every home tab is empty."""
+    with serve_empty_web(root=tmp_path) as address:
         yield address
 
 
@@ -959,6 +967,39 @@ def test_nature_drops_a_seed_by_day_and_lights_a_firefly_by_night(
 
     expect(seeds).to_have_count(0)
     expect(fireflies).to_have_count(working_agents)
+
+
+@pytest.mark.parametrize("theme", ["matrix"])
+def test_an_empty_tab_holds_its_motif_field_beneath_its_hint(
+    page: Page, empty_web: str, theme: str
+) -> None:
+    page.goto(f"{empty_web}/?theme={theme}")
+    panel = page.locator("#assignment-panel")
+    hint = panel.locator(".empty")
+    field = panel.locator(".empty-field")
+
+    expect(field).to_be_visible()
+    hint_bottom = hint.evaluate("hint => hint.getBoundingClientRect().bottom")
+    field_top = field.evaluate("field => field.getBoundingClientRect().top")
+    assert field_top >= hint_bottom
+
+
+@pytest.mark.parametrize("theme", ["matrix"])
+def test_an_empty_tab_motif_field_keeps_still_under_reduced_motion(
+    page: Page, empty_web: str, theme: str
+) -> None:
+    page.emulate_media(reduced_motion="reduce")
+    page.goto(f"{empty_web}/?theme={theme}")
+
+    columns = page.locator("#assignment-panel .empty-field > *")
+    expect(columns).not_to_have_count(0)
+    shown_or_moving = columns.evaluate_all(
+        """columns => columns.filter(column =>
+          column.checkVisibility({ opacityProperty: true })
+          || column.getAnimations().length > 0
+        ).length"""
+    )
+    assert shown_or_moving == 0
 
 
 @pytest.mark.parametrize("theme", ["matrix", "nature"])

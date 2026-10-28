@@ -30,6 +30,7 @@
                 {%- endfor %}
               </details>
             {% endif %}
+            {% if section.guidance %}{{ motifs.empty_field(theme=theme) }}{% endif %}
           </section>
         {% endfor %}
       </div>

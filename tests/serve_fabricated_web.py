@@ -7,6 +7,7 @@ from threading import Event
 
 from web_browser import (
     BROWSER_ASSIGNMENT_IDENTIFIER,
+    serve_empty_web,
     serve_fabricated_web,
 )
 
@@ -26,10 +27,13 @@ def main() -> None:
     """Serve fabricated pages and print their addresses until interrupted."""
     with (
         TemporaryDirectory(prefix="dreamcatcher-web-") as directory,
+        TemporaryDirectory(prefix="dreamcatcher-web-empty-") as empty_directory,
         serve_fabricated_web(root=Path(directory)) as address,
+        serve_empty_web(root=Path(empty_directory)) as empty_address,
     ):
         for label, path in PAGES:
             print(f"{label}: {address}{path}", flush=True)
+        print(f"Empty home: {empty_address}/", flush=True)
         with suppress(KeyboardInterrupt):
             Event().wait()
 

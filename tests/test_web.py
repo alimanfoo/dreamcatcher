@@ -1322,6 +1322,24 @@ def test_working_motifs_beyond_the_places_share_them_out_of_phase(tmp_path):
     ]
 
 
+@pytest.mark.parametrize(
+    ("fabricate", "empty_tabs"), [(fabricate_nothing, 3), (fabricate_everything, 2)]
+)
+def test_only_a_tab_with_nothing_active_holds_a_motif_field(
+    fabricate, empty_tabs, tmp_path
+):
+    state = StateDirectory(root=tmp_path)
+    fabricate(state=state)
+    client = _create_app(
+        state=state, clock=lambda: LOOKED_AT, zone=DISPLAY_TIME_ZONE
+    ).test_client()
+
+    page = client.get("/?theme=matrix").text
+
+    assert page.count('<p class="empty">') == empty_tabs
+    assert page.count('class="empty-field"') == empty_tabs
+
+
 def test_github_links_open_in_a_new_tab(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)

@@ -885,6 +885,53 @@ body::after {
   }
 }
 
+/* Faint rain falls beneath an empty tab's hint, fading in at the top of
+   its field and out at the bottom. */
+
+.empty-field {
+  --empty-field-height: 420px;
+  position: relative;
+  height: var(--empty-field-height);
+  overflow: hidden;
+  mask-image: linear-gradient(
+    to bottom,
+    transparent,
+    black 30%,
+    black 75%,
+    transparent
+  );
+}
+
+.empty-rain-column {
+  position: absolute;
+  top: 0;
+  color: var(--phosphor);
+  font-size: 14px;
+  line-height: 1.15;
+  white-space: pre;
+  text-shadow: 0 0 6px rgba(51, 255, 102, 0.6);
+  opacity: 0.18;
+  mask-image: linear-gradient(to bottom, transparent, black 80%);
+  animation: empty-rain-fall linear infinite;
+}
+
+@keyframes empty-rain-fall {
+  from {
+    transform: translateY(-100%);
+  }
+
+  to {
+    transform: translateY(var(--empty-field-height));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .empty-rain-column {
+    animation: none;
+    opacity: 0;
+  }
+}
+
 @media (max-width: 900px) {
   .agent-work-workspace {
     grid-template-columns: minmax(0, 1fr);
