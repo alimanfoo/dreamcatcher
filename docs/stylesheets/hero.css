@@ -115,6 +115,11 @@
   gap: 1em;
 }
 
+.dch-ui__repository-links {
+  display: inline-flex;
+  flex-direction: column;
+}
+
 .md-typeset .dch-ui__mark {
   width: 2.4em;
   opacity: 0.85;

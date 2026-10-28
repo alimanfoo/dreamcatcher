@@ -1338,7 +1338,7 @@ def test_links_to_dreamcatcher_pages_stay_in_the_same_tab(tmp_path):
     assert not any("target=" in link for link in links)
 
 
-def test_repository_links_are_separated(tmp_path):
+def test_the_issues_and_pulls_links_sit_apart_from_the_repository_link(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
 
@@ -1348,14 +1348,13 @@ def test_repository_links_are_separated(tmp_path):
         '<span class="repository-links"><a class="repository-link" '
         'href="https://github.com/alimanfoo/dreamcatcher" '
         'target="_blank" rel="noopener noreferrer">alimanfoo/dreamcatcher</a>'
-        '<span aria-hidden="true">·</span>'
-        '<a class="repository-link" '
+        '<span class="repository-lists"><a class="repository-link" '
         'href="https://github.com/alimanfoo/dreamcatcher/issues" '
         'target="_blank" rel="noopener noreferrer">issues</a>'
         '<span aria-hidden="true">·</span>'
         '<a class="repository-link" '
         'href="https://github.com/alimanfoo/dreamcatcher/pulls" '
-        'target="_blank" rel="noopener noreferrer">pulls</a></span>'
+        'target="_blank" rel="noopener noreferrer">pulls</a></span></span>'
     ) in page
 
 
