@@ -645,6 +645,114 @@ body::after {
   font-weight: 700;
 }
 
+/* A dandelion seed falls for each working agent while the sun is up, and
+   a firefly drifts for each while the moon is up. */
+
+.falling-seed {
+  position: absolute;
+  top: 0;
+  animation: seed-fall linear infinite;
+}
+
+.falling-seed-body {
+  animation: seed-sway ease-in-out infinite;
+}
+
+.falling-seed svg {
+  display: block;
+  width: 30px;
+  height: 38px;
+  stroke: var(--dim);
+  stroke-width: 0.8;
+}
+
+.firefly {
+  position: absolute;
+  display: none;
+  animation: firefly-drift ease-in-out infinite;
+}
+
+.firefly-glow {
+  width: 6px;
+  height: 6px;
+  background: #f4f0a8;
+  border-radius: 50%;
+  box-shadow:
+    0 0 10px 4px rgba(244, 240, 168, 0.55),
+    0 0 26px 10px rgba(214, 230, 120, 0.18);
+  animation: firefly-pulse ease-in-out infinite;
+}
+
+html[data-sky="night"] .falling-seed {
+  display: none;
+}
+
+html[data-sky="night"] .firefly {
+  display: block;
+}
+
+@keyframes seed-fall {
+  0% {
+    transform: translate(0, -60px) rotate(-8deg);
+    opacity: 0;
+  }
+
+  10%,
+  90% {
+    opacity: 1;
+  }
+
+  100% {
+    transform: translate(-30px, calc(100vh + 40px)) rotate(14deg);
+    opacity: 0;
+  }
+}
+
+@keyframes seed-sway {
+  0%,
+  100% {
+    margin-left: 0;
+  }
+
+  50% {
+    margin-left: 22px;
+  }
+}
+
+@keyframes firefly-drift {
+  0%,
+  100% {
+    transform: translate(0, 0);
+  }
+
+  25% {
+    transform: translate(26px, -38px);
+  }
+
+  50% {
+    transform: translate(-14px, -70px);
+  }
+
+  75% {
+    transform: translate(-30px, -24px);
+  }
+}
+
+@keyframes firefly-pulse {
+  0%,
+  100% {
+    opacity: 0.25;
+  }
+
+  45% {
+    opacity: 1;
+  }
+
+  60% {
+    opacity: 0.9;
+  }
+}
+
 @media (max-width: 700px) {
   .site-header,
   .home-content,

@@ -59,9 +59,7 @@ RECORD_TAIL_HIDDEN_PER_FRAME = """() => {
 MEASURE_WORKING_MOTIFS = """() => {
   const layer = document.querySelector(".working-motifs");
   const content = document.querySelector(".home-content").getBoundingClientRect();
-  const motifs = [...layer.children].filter(
-    motif => getComputedStyle(motif).display !== "none",
-  );
+  const motifs = [...layer.children].filter(motif => motif.checkVisibility());
   const reaches = motifs.map(motif => {
     const animations = motif.getAnimations({ subtree: true });
     animations.forEach(animation => animation.pause());
@@ -896,10 +894,13 @@ def test_nature_shows_exactly_one_of_sun_and_moon_at_each_boundary(
         )
 
 
-@pytest.mark.parametrize("theme", ["matrix"])
+@pytest.mark.parametrize(
+    ("theme", "hour"), [("matrix", 12), ("nature", 12), ("nature", 21)]
+)
 def test_working_motifs_stay_in_the_margins_beneath_the_header(
-    page: Page, live_web: str, theme: str
+    page: Page, live_web: str, theme: str, hour: int
 ) -> None:
+    page.clock.install(time=datetime(2026, 10, 11, hour, 0))
     page.set_viewport_size({"width": 1680, "height": 900})
     page.goto(f"{live_web}/?theme={theme}")
 
@@ -912,7 +913,7 @@ def test_working_motifs_stay_in_the_margins_beneath_the_header(
         assert right <= content_left or left >= content_right
 
 
-@pytest.mark.parametrize("theme", ["matrix"])
+@pytest.mark.parametrize("theme", ["matrix", "nature"])
 def test_working_motifs_hide_where_the_margins_cannot_hold_them(
     page: Page, live_web: str, theme: str
 ) -> None:
@@ -922,7 +923,7 @@ def test_working_motifs_hide_where_the_margins_cannot_hold_them(
     expect(page.locator(".working-motifs")).to_be_hidden()
 
 
-@pytest.mark.parametrize("theme", ["matrix"])
+@pytest.mark.parametrize("theme", ["matrix", "nature"])
 def test_working_motifs_keep_still_and_out_of_sight_under_reduced_motion(
     page: Page, live_web: str, theme: str
 ) -> None:
@@ -931,17 +932,33 @@ def test_working_motifs_keep_still_and_out_of_sight_under_reduced_motion(
     page.goto(f"{live_web}/?theme={theme}")
 
     motifs = page.locator(".working-motifs > *")
-    expect(motifs).to_have_count(read_working_agents(page=page))
-    assert (
-        motifs.evaluate_all(
-            """motifs => motifs.flatMap(motif => [
-          ...motif.getAnimations({ subtree: true }),
-          ...(getComputedStyle(motif).display === "none"
-            || getComputedStyle(motif).opacity === "0" ? [] : [motif]),
-        ])"""
-        )
-        == []
+    expect(motifs).not_to_have_count(0)
+    shown_or_moving = motifs.evaluate_all(
+        """motifs => motifs.filter(motif =>
+          motif.checkVisibility({ opacityProperty: true })
+          || motif.getAnimations({ subtree: true }).length > 0
+        ).length"""
     )
+    assert shown_or_moving == 0
+
+
+def test_nature_drops_a_seed_by_day_and_lights_a_firefly_by_night(
+    page: Page, live_web: str
+) -> None:
+    page.clock.install(time=datetime(2026, 10, 11, 17, 59))
+    page.set_viewport_size({"width": 1680, "height": 900})
+    page.goto(live_web)
+    working_agents = read_working_agents(page=page)
+    seeds = page.locator(".falling-seed").filter(visible=True)
+    fireflies = page.locator(".firefly").filter(visible=True)
+
+    expect(seeds).to_have_count(working_agents)
+    expect(fireflies).to_have_count(0)
+
+    page.clock.fast_forward("00:01:00")
+
+    expect(seeds).to_have_count(0)
+    expect(fireflies).to_have_count(working_agents)
 
 
 @pytest.mark.parametrize("theme", ["matrix", "nature"])

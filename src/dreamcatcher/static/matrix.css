@@ -836,9 +836,10 @@ body::after {
   font-weight: 700;
 }
 
-/* The working-agent motifs fall beneath the site header, in the side
+/* The working-agent motifs move beneath the site header, in the side
    margins. They show only where each margin holds the widest of them,
-   which reaches 170px from the window's edge, beside the content column. */
+   which reaches 170px from the window's edge, beside the content column,
+   and only while the reader allows motion. */
 
 .working-motifs {
   display: none;
@@ -852,6 +853,12 @@ body::after {
     display: block;
     overflow: hidden;
     pointer-events: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .working-motifs {
+    display: none;
   }
 }
 
@@ -875,13 +882,6 @@ body::after {
 
   to {
     transform: translateY(100vh);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .rain-column {
-    animation: none;
-    opacity: 0;
   }
 }
 

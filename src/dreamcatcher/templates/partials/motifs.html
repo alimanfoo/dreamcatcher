@@ -6,18 +6,38 @@
   {"side": "right", "at": 90, "duration": 11, "delay": -4},
   {"side": "left", "at": 120, "duration": 13, "delay": -7},
 ] %}
+{% set seed_places = [
+  {"side": "left", "at": 64, "duration": 22, "delay": -3, "sway": 5},
+  {"side": "right", "at": 84, "duration": 26, "delay": -14, "sway": 6},
+  {"side": "left", "at": 116, "duration": 30, "delay": -22, "sway": 4.5},
+] %}
+{% set firefly_places = [
+  {"side": "left", "at": 70, "duration": 11, "delay": 0, "top": 520, "pulse": 2.6},
+  {"side": "right", "at": 96, "duration": 14, "delay": 0, "top": 380, "pulse": 3.4},
+  {"side": "left", "at": 110, "duration": 17, "delay": 0, "top": 300, "pulse": 2.9},
+] %}
+{% macro dandelion_seed() -%}
+<svg viewBox="0 0 18 22" fill="none" stroke-linecap="round"><path d="M9 21 L9 9"/><path d="M9 9 L9 1"/><path d="M9 9 L2 3"/><path d="M9 9 L16 3"/><path d="M9 9 L1 8"/><path d="M9 9 L17 8"/><path d="M9 9 L4 1.5"/><path d="M9 9 L14 1.5"/></svg>
+{%- endmacro %}
 {#- The motif at an index takes the place that the index cycles to. Every motif that shares a place runs out of phase with the others there, so each one still shows. -#}
 {% macro place_motif(places, index, count) -%}
   {% set place = places[index % places|length] -%}
   {% set laps = (count + places|length - 1) // places|length -%}
   {{ place.side }}: {{ place.at }}px; animation-duration: {{ place.duration }}s; animation-delay: {{ (place.delay - (index // places|length) * place.duration / laps)|round(2) }}s
 {%- endmacro %}
-{#- One motif for each working agent, in the window's side margins. -#}
+{#- One motif for each working agent, in the window's side margins. Nature gives each agent a seed and a firefly, and shows the seed while the sun is up and the firefly while the moon is. -#}
 {% macro working_motifs(theme, count) -%}
 <div class="working-motifs" aria-hidden="true">
 {%- if theme == "matrix" %}
 {%- for index in range(count) %}
   <div class="rain-column" style="{{ place_motif(places=rain_places, index=index, count=count) }}">{{ (rain_glyphs[index * 7:] ~ rain_glyphs[:index * 7])[:22]|join("\n") }}</div>
+{%- endfor %}
+{%- else %}
+{%- for index in range(count) %}
+  {%- set seed = seed_places[index % seed_places|length] %}
+  {%- set firefly = firefly_places[index % firefly_places|length] %}
+  <div class="falling-seed" style="{{ place_motif(places=seed_places, index=index, count=count) }}"><div class="falling-seed-body" style="animation-duration: {{ seed.sway }}s">{{ dandelion_seed() }}</div></div>
+  <div class="firefly" style="{{ place_motif(places=firefly_places, index=index, count=count) }}; top: {{ firefly.top }}px"><div class="firefly-glow" style="animation-duration: {{ firefly.pulse }}s"></div></div>
 {%- endfor %}
 {%- endif -%}
 </div>
