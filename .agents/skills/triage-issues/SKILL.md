@@ -179,6 +179,12 @@ adding another control or disclosure. Before improving how something is
 shown, ask whether it should be shown at all: shortening a round's
 commit hash gave way to removing it.
 
+The web view never shows what may no longer hold. A row or card says
+what is true now, or says that it cannot tell. A held request that read
+as available while every agent slot was full, a feed line typed in long
+after it arrived, and an ended campaign's sub-issues as the lead last
+saw them were each rejected on that ground.
+
 When a user missed something, ask first whether the product could have
 told them where they were looking, before reaching for documentation. A
 hidden Campaigns tab became one that always shows and says how to route
