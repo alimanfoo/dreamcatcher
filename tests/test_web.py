@@ -13,12 +13,19 @@ from unittest.mock import MagicMock
 
 import pytest
 from clocks import DISPLAY_TIME_ZONE, PINNED
-from conftest import DAEMON_PID, FIXTURES, REPOSITORY, assert_matches_view_golden
+from conftest import (
+    DAEMON_PID,
+    FIXTURES,
+    REPOSITORY,
+    assert_matches_view_golden,
+    extract_page_card,
+)
 from records import (
     MERGED_INPUT,
     SCOUT_ROUTES,
     SMITH_ROUTES,
     compose_conversation_identifier,
+    hold_daemon_lock_for_test,
     release_daemon_lock,
     write_assignment,
     write_daemon_run,
@@ -367,7 +374,7 @@ def test_a_campaign_sub_issue_with_no_assignment_or_request_shows_its_state_alon
     sub_issue = extract_article(page=page, identifier=f"{prefix}sub-issue-66")
 
     assert re.sub(r"<[^>]+>", " ", sub_issue).split() == ["#66", "Issue", "66", words]
-    assert ('class="campaign-child is-closed"' in sub_issue) is is_closed
+    assert ('class="sub-issue-card is-closed"' in sub_issue) is is_closed
     assert f'id="{prefix}GH64-20260819-184158-assignment"' in page
     assert f'id="{prefix}request-65-' in page
 
@@ -434,18 +441,29 @@ def test_an_assignment_renders_as_its_golden_page(name, tmp_path, pytestconfig):
     )
 
 
-def test_assignment_page_shows_the_common_agent_work_facts(tmp_path):
+def test_a_work_page_opens_with_its_work_card_without_a_link_to_itself(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
+    identifier = "GH13-20260819-184158-assignment"
 
-    page = render_assignment(state=state, identifier="GH13-20260819-184158-assignment")
+    card = extract_article(page=render_home(state=state), identifier=identifier)
+    page = render_assignment(state=state, identifier=identifier)
+    page_card = extract_page_card(page=page)
 
-    assert page.count("<dt>") == 3
-    assert "<dt>label</dt><dd>dream:smith</dd>" in page
-    assert "<dt>harness</dt><dd>claude</dd>" in page
-    assert "<dt>model · effort</dt><dd>opus[1m] · xhigh</dd>" in page
-    assert "<dt>assignment</dt>" not in page
-    assert "<dt>session</dt>" not in page
+    for fragment in (
+        '<span class="title">Issue 13</span>',
+        ">PR #52</a>",
+        "<span>dream:smith · claude · opus[1m] · xhigh</span>",
+        '<span class="chip status-working">working</span>',
+        '<p class="card-detail">round 2, 1 post, running 1h 30m, last output '
+        "1h 29m ago</p>",
+    ):
+        assert fragment in card
+        assert fragment in page_card
+    assert '<h1 id="agent-work-heading">' in page_card
+    assert "agent-work-open" not in page_card
+    assert "latest-output" not in page_card
+    assert "<dt>" not in page
 
 
 def test_an_assignment_with_no_pull_request_yet_shows_none_on_its_card_or_page(
@@ -824,8 +842,10 @@ def test_assignment_tail_offers_the_retry_control(tmp_path):
 
     response = _read_tail(state=state, identifier=identifier, position="1:0")
 
-    assert '<div id="agent-work-retry" hx-swap-oob="morph">' in response.text
-    assert f'action="/work/{identifier}/retry/2"' in response.text
+    card = extract_page_card(page=response.text)
+
+    assert 'class="agent-work-page-card" hx-swap-oob="morph">' in card
+    assert f'action="/work/{identifier}/retry/2"' in card
 
 
 @pytest.mark.parametrize(
@@ -945,8 +965,10 @@ def test_status_classes_do_not_depend_on_status_wording(tmp_path, monkeypatch):
 
     def reword_agent_live_state(**kwargs):
         live = compose_agent_live_state(**kwargs)
-        status = reworded[live.status.name]
-        return replace(live, status=status, status_words=str(status))
+        status = reworded[live.card.status.name]
+        return replace(
+            live, card=replace(live.card, status=status, status_words=str(status))
+        )
 
     monkeypatch.setattr(web_app_module, "compose_home_view", reword_home_view)
     monkeypatch.setattr(
@@ -965,12 +987,12 @@ def test_status_classes_do_not_depend_on_status_wording(tmp_path, monkeypatch):
 
     assert '<span class="chip status-idle">reworded idle</span>' in card
     assert '<span class="chip status-idle">reworded idle</span>' in conversation_card
-    assert (
-        '<span id="agent-work-status" class="chip status-idle">reworded idle</span>'
-    ) in assignment_page
-    assert (
-        '<span id="agent-work-status" class="chip status-idle">reworded idle</span>'
-    ) in conversation_page
+    assert '<span class="chip status-idle">reworded idle</span>' in (
+        extract_page_card(page=assignment_page)
+    )
+    assert '<span class="chip status-idle">reworded idle</span>' in (
+        extract_page_card(page=conversation_page)
+    )
 
 
 def test_an_idle_assignment_status_uses_the_status_wording(tmp_path):
@@ -982,7 +1004,9 @@ def test_an_idle_assignment_status_uses_the_status_wording(tmp_path):
         identifier="GH20-20260819-184158-assignment",
     )
 
-    assert ('<span id="agent-work-status" class="chip status-idle">idle</span>') in page
+    card = extract_page_card(page=page)
+
+    assert '<span class="chip status-idle">idle</span>' in card
     assert "[IDLE]" not in page
 
 
@@ -1142,12 +1166,10 @@ def test_an_ended_work_page_shows_how_it_ended_once_as_its_status(
     state = StateDirectory(root=tmp_path)
     fabricate(state=state)
 
-    page = render_assignment(state=state, identifier=identifier)
+    card = extract_page_card(page=render_assignment(state=state, identifier=identifier))
 
-    assert (
-        f'<span id="agent-work-status" class="chip status-ended">{words}</span>'
-    ) in page
-    assert ('<p id="agent-work-detail" class="agent-work-detail" hidden></p>') in page
+    assert f'<span class="chip status-ended">{words}</span>' in card
+    assert 'class="card-detail"' not in card
 
 
 def test_an_ended_assignment_tail_hides_the_detail(tmp_path):
@@ -1161,11 +1183,11 @@ def test_an_ended_assignment_tail_hides_the_detail(tmp_path):
         state=state, identifier=identifier, position=_read_position(response=page)
     )
 
-    assert (
-        '<p id="agent-work-detail" class="agent-work-detail" hx-swap-oob="morph"'
-        " hidden></p>"
-    ) in tail.text
-    assert 'class="chip status-ended" hx-swap-oob="morph">cancelled</span>' in tail.text
+    card = extract_page_card(page=tail.text)
+
+    assert 'class="agent-work-page-card" hx-swap-oob="morph">' in card
+    assert '<span class="chip status-ended">cancelled</span>' in card
+    assert 'class="card-detail"' not in card
 
 
 def test_a_cancelled_assignment_card_shows_working_while_its_round_stops(tmp_path):
@@ -1230,6 +1252,41 @@ def test_the_daemon_version_links_to_the_documentation(tmp_path):
     assert ">Docs</a>" not in page
 
 
+def _read_daemon_status(*, page: str) -> str:
+    match = re.search(r'<div class="daemon-[a-z-]+">(.*?)</div>', page)
+    assert match is not None
+    return match[1]
+
+
+def test_a_running_daemon_shows_its_process_id_without_saying_it_runs(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    fabricate_everything(state=state)
+
+    status = _read_daemon_status(page=render_home(state=state))
+
+    assert status.endswith(f"</a> · pid {DAEMON_PID}")
+    assert "running" not in status
+
+
+def test_a_stopped_daemon_says_it_is_not_running(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    fabricate_a_dead_daemon(state=state)
+
+    status = _read_daemon_status(page=render_home(state=state))
+
+    assert status == "daemon not running"
+
+
+def test_a_running_daemon_with_no_daemon_run_record_says_it_runs(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    state.bootstrap()
+    hold_daemon_lock_for_test(path=state.lock)
+
+    status = _read_daemon_status(page=render_home(state=state))
+
+    assert status == "daemon running"
+
+
 def test_a_stopped_daemon_does_not_link_its_status_to_the_documentation(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_a_dead_daemon(state=state)
@@ -1291,6 +1348,70 @@ def test_an_unknown_theme_uses_nature_without_being_remembered(tmp_path):
     assert ".status-unknown," in stylesheet
 
 
+def test_matrix_rains_one_column_for_each_working_agent(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    fabricate_everything(state=state)
+    client = _create_app(
+        state=state, clock=lambda: LOOKED_AT, zone=DISPLAY_TIME_ZONE
+    ).test_client()
+
+    page = client.get("/?theme=matrix").text
+
+    working = re.search(r"<dd>(\d+) of \d+ working</dd>", page)
+    assert working is not None
+    assert int(working[1]) > 0
+    assert page.count('class="rain-column"') == int(working[1])
+
+
+def test_working_motifs_beyond_the_places_share_them_out_of_phase(tmp_path):
+    template = _create_app(state=StateDirectory(root=tmp_path)).jinja_env.from_string(
+        '{% import "partials/motifs.html" as motifs %}'
+        '{{ motifs.working_motifs(theme="matrix", count=4) }}'
+    )
+
+    page = template.render()
+
+    assert re.findall(r'style="([^"]+)"', page) == [
+        "left: calc(var(--margin-unit) * 70); "
+        "animation-duration: 9s; animation-delay: 0.0s",
+        "right: calc(var(--margin-unit) * 90); "
+        "animation-duration: 11s; animation-delay: -4.0s",
+        "left: calc(var(--margin-unit) * 120); "
+        "animation-duration: 13s; animation-delay: -7.0s",
+        "left: calc(var(--margin-unit) * 70); "
+        "animation-duration: 9s; animation-delay: -4.5s",
+    ]
+
+
+def test_every_rain_column_falls_in_its_own_glyphs(tmp_path):
+    template = _create_app(state=StateDirectory(root=tmp_path)).jinja_env.from_string(
+        '{% import "partials/motifs.html" as motifs %}'
+        '{{ motifs.working_motifs(theme="matrix", count=6) }}'
+    )
+
+    columns = re.findall(r'class="rain-column"[^>]*>([^<]+)<', template.render())
+
+    assert len(set(columns)) == 6
+
+
+@pytest.mark.parametrize(
+    ("fabricate", "empty_tabs"), [(fabricate_nothing, 3), (fabricate_everything, 2)]
+)
+def test_only_a_tab_with_nothing_active_holds_a_motif_field(
+    fabricate, empty_tabs, tmp_path
+):
+    state = StateDirectory(root=tmp_path)
+    fabricate(state=state)
+    client = _create_app(
+        state=state, clock=lambda: LOOKED_AT, zone=DISPLAY_TIME_ZONE
+    ).test_client()
+
+    page = client.get("/?theme=matrix").text
+
+    assert page.count('<p class="empty">') == empty_tabs
+    assert page.count('class="empty-field"') == empty_tabs
+
+
 def test_github_links_open_in_a_new_tab(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
@@ -1317,7 +1438,7 @@ def test_links_to_dreamcatcher_pages_stay_in_the_same_tab(tmp_path):
     assert not any("target=" in link for link in links)
 
 
-def test_repository_links_are_separated(tmp_path):
+def test_the_issues_and_pulls_links_sit_apart_from_the_repository_link(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)
 
@@ -1327,14 +1448,13 @@ def test_repository_links_are_separated(tmp_path):
         '<span class="repository-links"><a class="repository-link" '
         'href="https://github.com/alimanfoo/dreamcatcher" '
         'target="_blank" rel="noopener noreferrer">alimanfoo/dreamcatcher</a>'
-        '<span aria-hidden="true">·</span>'
-        '<a class="repository-link" '
+        '<span class="repository-lists"><a class="repository-link" '
         'href="https://github.com/alimanfoo/dreamcatcher/issues" '
         'target="_blank" rel="noopener noreferrer">issues</a>'
         '<span aria-hidden="true">·</span>'
         '<a class="repository-link" '
         'href="https://github.com/alimanfoo/dreamcatcher/pulls" '
-        'target="_blank" rel="noopener noreferrer">pulls</a></span>'
+        'target="_blank" rel="noopener noreferrer">pulls</a></span></span>'
     ) in page
 
 
@@ -1582,7 +1702,7 @@ def test_a_tail_fragment_matches_its_golden(tmp_path, pytestconfig):
         path=FIXTURES / "web" / "tail.html",
         config=pytestconfig,
     )
-    assert 'id="agent-work-detail"' in response.text
+    assert 'id="agent-work-card"' in response.text
 
 
 def test_a_quiet_tail_has_no_appendable_text_nodes(tmp_path):
@@ -1600,11 +1720,9 @@ def test_a_quiet_tail_has_no_appendable_text_nodes(tmp_path):
 
     assert response.text.startswith(
         '<input type="hidden" id="position" name="position" value="1:0" '
-        'hx-swap-oob="true"><span'
+        'hx-swap-oob="true"><div id="agent-work-card"'
     )
-    assert '</span><div id="agent-work-retry"' in response.text
-    assert '</div><p id="agent-work-detail"' in response.text
-    assert "</p><aside" in response.text
+    assert "</div><aside" in response.text
     assert '</aside><div id="agent-work-foot"' in response.text
     assert response.text.endswith("</div>")
 
@@ -1617,39 +1735,12 @@ def test_an_assignment_page_links_its_title_and_pull_request(tmp_path):
 
     assert (
         f'href="https://github.com/{REPOSITORY}/issues/10" target="_blank" '
-        'rel="noopener noreferrer">#10 '
-        "<span>Draft assignment</span></a>" in page
+        'rel="noopener noreferrer">#10</a> '
+        '<span class="title">Draft assignment</span></h1>' in page
     )
     assert (
         f'href="https://github.com/{REPOSITORY}/pull/52" target="_blank" '
         'rel="noopener noreferrer">PR #52 draft</a>' in page
-    )
-
-
-def test_assignment_heading_keeps_its_chips_in_the_top_right(tmp_path):
-    application = _create_app(
-        state=StateDirectory(root=tmp_path),
-        clock=lambda: LOOKED_AT,
-        zone=DISPLAY_TIME_ZONE,
-    )
-    stylesheet = (
-        application.test_client().get("/static/matrix.css").get_data(as_text=True)
-    )
-
-    assert re.search(
-        r"\.agent-work-heading \{[^}]*display: grid;"
-        r"[^}]*grid-template-columns: minmax\(0, 1fr\) max-content;"
-        r"[^}]*align-items: start;",
-        stylesheet,
-        re.DOTALL,
-    )
-    assert re.search(
-        r"\.agent-work-heading h1 \{[^}]*min-width: 0;", stylesheet, re.DOTALL
-    )
-    assert re.search(
-        r"\.agent-work-heading-actions \{[^}]*flex-wrap: nowrap;",
-        stylesheet,
-        re.DOTALL,
     )
 
 
@@ -1759,7 +1850,7 @@ def test_assignment_reporting_remains_without_a_repository_record(tmp_path):
 
     page = render_assignment(state=state, identifier="GH10-20260819-184158-assignment")
 
-    assert '<strong class="agent-work-issue">#10' in page
+    assert '<strong class="issue-number">#10</strong>' in page
     assert '<span class="pr-chip">PR #52 draft</span>' in page
 
 

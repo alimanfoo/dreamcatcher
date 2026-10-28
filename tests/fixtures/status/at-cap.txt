@@ -9,9 +9,10 @@ instance
                          "https://api.github.com/graphql": unexpected EOF                           
 
 assignments
-  GH13-20260819-184158-assignment  working  round 1, start, running 1h 30m, last output 1h 29m ago
-  [Bash] pytest                                                                                   
-  GH20-20260819-184158-assignment  waiting  1 new post to answer                                  
+  GH13-20260819-184158-assignment  working  PR #52; round 1, start, running 1h 30m, last output 1h  
+                                            29m ago                                                 
+  [Bash] pytest                                                                                     
+  GH20-20260819-184158-assignment  waiting  PR #52 draft; 1 new post to answer                      
 
 conversations
   Add a [[conversation]] route to dreamcatcher.toml and restart the daemon to enable conversations.

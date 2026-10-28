@@ -6,7 +6,7 @@ from datetime import timedelta
 from unittest.mock import MagicMock
 
 from clocks import DISPLAY_TIME_ZONE, PINNED
-from conftest import REPOSITORY
+from conftest import REPOSITORY, extract_page_card
 from records import (
     compose_conversation_identifier,
     find_conversation_directory,
@@ -41,6 +41,7 @@ from dreamcatcher.issue_conversations import (
 from dreamcatcher.scheduler.models import (
     ConflictingLabelsFinding,
     IssueCommentsFinding,
+    LabelAppliedByOtherFinding,
     PauseCause,
     PausedFinding,
     ReadFailureFinding,
@@ -93,6 +94,37 @@ def test_home_shows_a_paused_conversation_held_with_its_cause_and_advice(tmp_pat
     assert '<span class="issue-state">open, label removed</span>' in card
     assert '<span class="chip status-held">held</span>' in card
     assert '<p class="card-detail">put the label back to resume</p>' in card
+
+
+def test_a_conversation_page_says_who_applied_the_label_that_holds_it(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    fabricate_conversation(state=state)
+    write_tick(
+        state=state,
+        tick=SchedulerRecord(
+            at=PINNED,
+            finished=PINNED,
+            rows=[
+                compose_conversation_row(
+                    finding=LabelAppliedByOtherFinding(applier="octocat"),
+                    agent_work_identifier=compose_conversation_identifier(issue=8),
+                )
+            ],
+        ),
+    )
+
+    page = (
+        create_application(state=state)
+        .test_client()
+        .get("/work/GH8-20260819-184158-conversation")
+        .text
+    )
+
+    card = extract_page_card(page=page)
+    assert '<span class="issue-state">open, labelled by octocat</span>' in card
+    assert "<span>dream:conversation · claude · opus[1m] · xhigh</span>" in card
+    assert '<span class="chip status-held">held</span>' in card
+    assert '<p class="card-detail">remove and re-add the label yourself</p>' in card
 
 
 def test_conversation_page_asks_once_whether_the_daemon_runs(tmp_path, monkeypatch):
@@ -162,12 +194,7 @@ def test_conversation_page_shows_settings_round_and_feed_but_no_revision(tmp_pat
     page = response.text
     assert "Why does this happen?" not in page
     assert "Issue 8" in page
-    assert page.count("<dt>") == 3
-    assert "<dt>label</dt><dd>dream:conversation</dd>" in page
-    assert "<dt>harness</dt><dd>claude</dd>" in page
-    assert "<dt>model · effort</dt><dd>opus[1m] · xhigh</dd>" in page
-    assert "<dt>worktree</dt>" not in page
-    assert "<dt>session</dt>" not in page
+    assert "<span>dream:conversation · claude · opus[1m] · xhigh</span>" in page
     assert "abc123" not in page
     assert revision not in page
     assert "opus[1m] · xhigh" in page
@@ -482,7 +509,7 @@ def test_conversation_tail_returns_new_output_and_advances_its_position(tmp_path
     assert response.status_code == 200
     assert "One more detail." in response.text
     assert f'value="1:{feed.stat().st_size}"' in response.text
-    assert 'id="agent-work-status"' in response.text
+    assert 'id="agent-work-card"' in response.text
 
 
 def test_an_ended_conversation_stops_empty_tail_polling(tmp_path):
@@ -640,7 +667,7 @@ def test_conversation_tail_adds_a_later_round_without_repeating_the_first(tmp_pa
 
     assert response.status_code == 200
     assert "I found the answer." not in response.text
-    assert 'id="agent-work-detail"' in response.text
+    assert 'id="agent-work-card"' in response.text
     assert "put the label back to resume" in response.text
     assert response.text.count("round 2: 1 comment") == 1
     assert "def456" not in response.text
@@ -812,7 +839,7 @@ def test_a_closed_conversation_page_shows_ended_once_as_its_status(tmp_path):
         .text
     )
 
-    assert (
-        '<span id="agent-work-status" class="chip status-ended">ended</span>'
-    ) in page
-    assert '<p id="agent-work-detail" class="agent-work-detail" hidden></p>' in page
+    card = extract_page_card(page=page)
+    assert '<span class="issue-state">closed</span>' in card
+    assert '<span class="chip status-ended">ended</span>' in card
+    assert 'class="card-detail"' not in card

@@ -18,11 +18,11 @@ from dreamcatcher.status import (
 
 @dataclass(frozen=True, kw_only=True)
 class WebAgentWorkCard:
-    """Represent the values rendered in one card for agent work of any kind.
+    """Represent the values rendered in the work card of agent work of any kind.
 
     Only an assignment has a pull request, and only a conversation or a
-    campaign has an issue state. Only an active campaign has a child overview.
-    Ended work has no detail.
+    campaign has an issue state. Only an active campaign's card on the home
+    page has a child overview. Ended work has no detail.
     """
 
     identifier: str
@@ -49,7 +49,7 @@ class WebAgentWorkCard:
 class WebCampaignChild:
     """Represent one child in its campaign's overview.
 
-    The child shows its assignment's card and its requests' rows, or its issue
+    The child shows its assignment's card and its requests' cards, or its issue
     and the issue's state alone when it has neither.
     """
 
@@ -135,14 +135,13 @@ class WebAgentWorkControl:
 class WebAgentLiveState:
     """Represent the values of an agent-work page that its tail refreshes.
 
-    Ended work has no detail.
+    The page shows its card's rows without the latest output, which the feed
+    beneath them already shows.
     """
 
-    status: AgentWorkStatusValue
-    status_words: str
-    detail: str | None
+    card: WebAgentWorkCard
     rounds: Sequence[WebAgentRound]
-    heading_controls: Sequence[WebAgentWorkControl]
+    card_controls: Sequence[WebAgentWorkControl]
     foot_controls: Sequence[WebAgentWorkControl]
     hand_resume: WebHandResume | None
 
@@ -159,43 +158,15 @@ class WebAgentTail:
 
 
 @dataclass(frozen=True, kw_only=True)
-class WebAssignmentView:
-    """Represent every value that the assignment template lays out."""
+class WebAgentWorkView:
+    """Represent every value that the page of one piece of agent work lays out.
 
-    kind: AgentWorkKind
-    repository: str
-    github_repository_url: str | None
-    daemon: DreamcatcherDaemonStatus
-    identifier: str
-    issue: int
-    title: str
-    pull_request: int | None
-    pull_request_summary: str | None
-    is_pull_request_ready_for_review: bool
-    dispatch_label: str
-    harness: str
-    model: str
-    effort: str
-    live: WebAgentLiveState
-    feed_rounds: Sequence[WebFeedRound]
-    feed_position: str
-
-
-@dataclass(frozen=True, kw_only=True)
-class WebIssueWorkView:
-    """Represent every value that the page of work whose channel is its issue shows.
-
-    A conversation and a campaign each talk to the user on their issue.
+    The page opens with the work card that its live state holds.
     """
 
-    kind: AgentWorkKind
     repository: str
     github_repository_url: str | None
     daemon: DreamcatcherDaemonStatus
-    identifier: str
-    issue: int
-    title: str
-    facts: Sequence[StatusFact]
     live: WebAgentLiveState
     feed_rounds: Sequence[WebFeedRound]
     feed_position: str
@@ -226,4 +197,5 @@ class WebHomeView:
     daemon: DreamcatcherDaemonStatus
     instance_facts: Sequence[StatusFact]
     scheduler_failures: Sequence[str]
+    running_agents: int
     sections: Sequence[WebAgentWorkSection]

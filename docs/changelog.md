@@ -27,8 +27,23 @@ the change.
 
 ## Unreleased
 
+### Added
+
+- The home page shows each working agent as a small moving motif in the
+  window's side margins: a falling column of glyphs in Matrix, and in
+  Nature a falling dandelion seed on a light page and a firefly on a
+  dark one. A tab with nothing active holds a calm field of the same
+  motif beneath its hint. Nothing moves when the system asks for reduced
+  motion. ([#855](https://github.com/alimanfoo/dreamcatcher/pull/855))
+
 ### Changed
 
+- Every web page keeps its content to a column 1120px wide, where it was
+  1320px, so that a laptop's window leaves side margins for the motifs.
+  ([#855](https://github.com/alimanfoo/dreamcatcher/pull/855))
+- The web header is narrower: the issues and pulls links sit under the
+  repository name, and the daemon's process identifier replaces "daemon
+  running". ([#859](https://github.com/alimanfoo/dreamcatcher/pull/859))
 - The page that names the things _dreamcatcher_ deals with and says what
   the words mean is now called Concepts, at `docs/concepts.md`, and its
   opening paragraph says it is a glossary with rules. It was called the
@@ -77,6 +92,34 @@ the change.
   shows, as in "32 of 35 sub-issues closed · 6 working, 3 waiting, 1
   held, 5 completed". The "+" before the line is gone.
   ([#849](https://github.com/alimanfoo/dreamcatcher/pull/849))
+- [Concepts](concepts.md) names the card: what _dreamcatcher_ shows for
+  one piece of work, one request or one sub-issue, as a work card, a
+  request card or a sub-issue card. The documentation calls each of them
+  a card where it called some of them rows, and "request row" now means
+  only what the scheduler found for a request.
+  ([#853](https://github.com/alimanfoo/dreamcatcher/pull/853))
+- A work's page opens with its work card, as the home page shows it: the
+  issue and the state of its pull request or issue first, then the
+  label, harness, model and effort, with the status, then the detail. A
+  conversation or a campaign page now says whether its issue is open or
+  closed, and who applied the label that holds it. The issue's number
+  links to GitHub, as on the home page, where the whole heading did, and
+  the strip of labelled facts is gone.
+  ([#853](https://github.com/alimanfoo/dreamcatcher/pull/853))
+- Each row of work in `dreamcatcher status` gives GitHub's state after
+  the status, as a request's row does: an assignment's pull request and
+  where it stands, or a conversation's or a campaign's issue state, then
+  a semicolon and the detail, as in
+  `PR #52 ready; 1 new post to answer`.
+  ([#853](https://github.com/alimanfoo/dreamcatcher/pull/853))
+- `dreamcatcher view` gives a conversation's or a campaign's issue state
+  on an `issue` line, such as `open, labelled by octocat`, or `closed`
+  once the work has ended. Its status line gives the status and the
+  detail, where a held conversation's also said what GitHub holds.
+  ([#853](https://github.com/alimanfoo/dreamcatcher/pull/853))
+- The documentation says "held" where the scheduler holds work back, and
+  keeps "paused" for the user's own act of removing a label or an
+  assignee. ([#853](https://github.com/alimanfoo/dreamcatcher/pull/853))
 
 ### Fixed
 

@@ -214,7 +214,13 @@ dreamcatcher status
 
 Show the repository and daemon facts, assignments, issue conversations
 and campaigns, and each dispatch label that no open work answers, in
-dispatch order, with why no work has started.
+dispatch order, with why no work has started. Each row gives one card:
+the work or the issue, then the status, then GitHub's state of what the
+card stands for, and then a semicolon and the detail, as in
+`PR #52 ready; 1 new post to answer` or
+`open, labelled by octocat; remove and re-add the label yourself`. A
+part with nothing to say is left out with its separator. The agent's
+latest output follows on a line of its own.
 
 In an interactive terminal the view refreshes and occupies the terminal
 until interrupted. When output is piped, redirected or captured, it
@@ -230,10 +236,13 @@ Show the selected agent work's status, recorded route and harness
 settings, harness session, worktree and rounds, with a hand-resume
 command when one is available. Ended work whose worktree _dreamcatcher_
 has removed shows the worktree as removed, and no hand-resume command.
-An assignment's view also shows its pull request and branch. A
-campaign's `GH<n>` is its parent issue. A conversation or campaign that
-the scheduler holds back, as when you pause it, is held, and its status
-detail says why and what brings it back.
+An assignment's view also shows its pull request and where it stands,
+and its branch. A conversation's or a campaign's view shows its issue's
+state, such as `open, labelled by octocat`, or `closed` once the work
+has ended. A campaign's `GH<n>` is its parent issue. A conversation or
+campaign that the scheduler holds back, as when you pause it, is held:
+its issue's state says why, and its status detail says what brings it
+back.
 
 In an interactive terminal it refreshes until the work ends, as an
 assignment does after a successful wrap-up or a cancel. It stays on the

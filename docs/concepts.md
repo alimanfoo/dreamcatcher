@@ -320,7 +320,18 @@ work's record, its rounds, the daemon process and its request row.
 A **request status** is the single summary status of a request with no
 open agent work. It says why no work has started for it.
 
-Replaces: "board".
+A **card** is what _dreamcatcher_ shows for one piece of agent work, one
+request, or one sub-issue under a campaign. Its first row gives the
+issue and GitHub's state of what the card stands for; its second, the
+route and _dreamcatcher_'s status; then any detail or advice; then,
+while the agent works or after a fault, its latest output. A **work
+card**, a **request card** and a **sub-issue card** are the three kinds.
+A work page opens with its work card. The terminal's status table shows
+each card as one row: the work or the issue, its status, GitHub's state,
+then the detail.
+
+Replaces: "board"; and "request row", for what the user sees of a
+request, which is its request card.
 
 ### Global cooldown
 
@@ -628,8 +639,8 @@ A request with no open work has one of these request statuses:
   applied the request's label, or the issue has a routing conflict. Work
   starts by itself once a blocker closes or a claiming pull request
   goes. A label that someone else applied, and a routing conflict, need
-  the user to act. Open work is held in the same way, as its agent work
-  status says.
+  the user to act. An open conversation or campaign is held in the same
+  way, as its agent work status says.
 - **Idle**: a conversation request waits for the user's first comment.
 - **Unknown**: a read that decides whether work may start failed, or
   GitHub could not yet tell. A failure to read external state can delay
@@ -641,7 +652,7 @@ scheduler listed their issues, oldest first, which is the order in which
 it starts new work.
 
 Replaces: "queued" and "waiting", for an available request; and
-"blocked", for a request status.
+"blocked" and "routing conflict", for a request status.
 
 ### Scheduling work
 

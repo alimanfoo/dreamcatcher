@@ -7,7 +7,8 @@ instance
   agent capacity     1 of 1 working                                
 
 assignments
-  GH13-20260819-184158-assignment  working  round 2, 1 post, running 1h 30m, has said nothing yet
+  GH13-20260819-184158-assignment  working  PR #52; round 2, 1 post, running 1h 30m, has said       
+                                            nothing yet                                             
 
 conversations
   Add a [[conversation]] route to dreamcatcher.toml and restart the daemon to enable conversations.

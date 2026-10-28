@@ -1,0 +1,20 @@
+{% from "partials/status-class.html" import status_class %}{% from "partials/references.html" import card_heading, issue_state, pull_request_chip with context %}{% from "partials/agent-work-control.html" import agent_work_control %}
+{#- A work card's rows: the issue and GitHub's state of what the card stands for, then the route and dreamcatcher's status, then any detail. A work page opens with them as its heading, with its controls beside the status, and the home page gives them a link to the work's page. -#}
+{% macro work_card_rows(card, is_page=false, controls=()) -%}
+  {% call card_heading(card.issue, card.title, "h1" if is_page else "div", "agent-work-heading" if is_page else none) -%}
+    {{ pull_request_chip(card.pull_request, card.pull_request_summary, card.is_pull_request_ready_for_review) }}{{ issue_state(card.issue_state, card.issue_facts) }}
+  {%- endcall %}
+  <div class="card-route">
+    <span>{{ card.dispatch_label }} · {{ card.harness }} · {{ card.model }} · {{ card.effort }}</span>
+    <span class="card-actions">
+      {%- for control in controls %}
+      {{ agent_work_control(control) }}
+      {%- endfor %}
+      <span class="chip {{ status_class(card.status) }}">{{ card.status_words }}</span>
+      {%- if not is_page %}
+      <a class="agent-work-open" href="{{ url_for('show_work', identifier=card.identifier) }}" aria-label="Open {{ card.kind }} {{ card.identifier }}">&gt;</a>
+      {%- endif %}
+    </span>
+  </div>
+  {% if card.detail is not none %}<p class="card-detail">{{ card.detail }}</p>{% endif %}
+{%- endmacro %}

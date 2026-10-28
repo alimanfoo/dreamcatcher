@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block content %}
+  <main class="agent-work-page">
+    {% include "partials/site-header.html" %}
+    <div class="agent-work-content">
+      <a class="agent-work-navigation" href="{{ url_for('show_home', _anchor=view.live.card.kind) }}">&lt; home</a>
+      <section class="agent-work-overview" aria-labelledby="agent-work-heading">
+        <p class="agent-work-kind">{{ view.live.card.kind }}</p>
+        {% include "partials/agent-work-page-card.html" %}
+      </section>
+      <div class="agent-work-workspace">
+        <div class="agent-work-sidebar">
+          {% include "partials/agent-work-rounds.html" %}
+        </div>
+        <section class="panel agent-work-feed" aria-labelledby="feed-heading">
+          <h1 id="feed-heading">Feed</h1>
+          <button class="feed-tail" type="button" aria-controls="records">TAIL ↓</button>
+          <p id="feed-refresh-error" class="refresh-error" role="alert" hidden></p>
+          <input type="hidden" id="position" name="position" value="{{ view.feed_position }}">
+          <div id="records" class="feed-records" hx-get="{{ url_for('show_work_tail', identifier=view.live.card.identifier) }}" hx-trigger="every 2s" hx-include="#position" hx-select=".feed-round" hx-swap="beforeend" data-refresh-alert="feed-refresh-error">
+            {% for feed_round in view.feed_rounds %}
+              {% include "partials/feed-round.html" %}
+            {% else %}
+              <p id="empty-feed" class="empty">-- no feed yet --</p>
+            {% endfor %}
+          </div>
+        </section>
+      </div>
+      {% include "partials/agent-work-foot.html" %}
+    </div>
+  </main>
+  <script src="{{ url_for('static', filename='agent-work.js') }}"></script>
+{% endblock %}

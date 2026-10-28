@@ -361,10 +361,9 @@ Follow `compose_home_view` and `_compose_section` in
 [`templates/home.html`](../../src/dreamcatcher/templates/home.html).
 Each kind, campaigns included, has a tab, with active work cards,
 unstarted request rows and collapsed ended work. A conversation's or a
-campaign's page uses
-[`issue-work.html`](../../src/dreamcatcher/templates/issue-work.html),
-composed by `compose_issue_work_view`. `_compose_work_card` gives an
-active campaign's card a `WebCampaignChildOverview` through
+campaign's page uses `issue-work.html`, composed by
+`compose_issue_work_view`. `_compose_work_card` gives an active
+campaign's card a `WebCampaignChildOverview` through
 `_compose_child_overview`: the count, and a `WebCampaignChild` for each
 sub-issue holding its assignment's card, composed by the same
 `_compose_work_card`, and its request statuses. Every other card has no
@@ -378,13 +377,12 @@ It puts the lead's
 and a `details` block of the sub-issues side by side in one wrapper, so
 the lead's card never contains a sub-issue's latest output. Inside the
 block, each sub-issue shows its assignment's card and the
-[`request-row.html`](../../src/dreamcatcher/templates/partials/request-row.html)
-of each of its requests, or a row of its own when it has neither. The
-block sets `id_prefix` to the campaign's identifier, and both partials
-put that prefix before their HTML identifier, so a card inside a
-campaign never shares an identifier with the same card on its own tab. A
-request row's identifier also holds its label percent-encoded, so two
-distinct labels on one issue never share one.
+`request-row.html` of each of its requests, or a row of its own when it
+has neither. The block sets `id_prefix` to the campaign's identifier,
+and both partials put that prefix before their HTML identifier, so a
+card inside a campaign never shares an identifier with the same card on
+its own tab. A request row's identifier also holds its label
+percent-encoded, so two distinct labels on one issue never share one.
 
 The home view refreshes every two seconds.
 [`static/home.js`](../../src/dreamcatcher/static/home.js) restores the

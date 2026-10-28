@@ -48,7 +48,6 @@
   --focus: #526348;
   --header-rule: rgba(59, 52, 46, 0.1);
   --mark-shadow: rgba(255, 250, 240, 0.9);
-  --daemon-running: #8a9a78;
   --control-surface: rgba(59, 52, 46, 0.05);
   --control-hover-surface: rgba(251, 247, 239, 0.45);
   --control-current-surface: rgba(251, 247, 239, 0.9);
@@ -72,6 +71,7 @@
   --font: "Alegreya Sans", Avenir, "Segoe UI", sans-serif;
   --font-size: 15px;
   --line-height: 1.5;
+  --site-header-height: 87px;
   --sun-opacity: 1;
   --sun-x: 50%;
 }
@@ -149,20 +149,6 @@ body::after {
   color: var(--dim);
 }
 
-.daemon::before {
-  display: inline-block;
-  width: 8px;
-  height: 8px;
-  margin-right: 8px;
-  background: var(--daemon-running);
-  border-radius: 50%;
-  content: "";
-}
-
-.daemon-not-running::before {
-  background: var(--amber);
-}
-
 .theme-switch {
   gap: 2px;
   padding: 2px;
@@ -213,14 +199,12 @@ body::after {
   font-weight: 400;
 }
 
-.facts,
-.agent-work-facts {
+.facts {
   row-gap: 6px;
   color: var(--dim);
 }
 
-.fact,
-.agent-work-facts > div {
+.fact {
   align-items: baseline;
   gap: 8px;
   padding-right: 16px;
@@ -230,7 +214,6 @@ body::after {
 }
 
 .fact dt,
-.agent-work-facts dt,
 .agent-work-kind,
 .scheduler-failures h1 {
   color: var(--dim);
@@ -239,8 +222,7 @@ body::after {
   text-transform: uppercase;
 }
 
-.fact dd,
-.agent-work-facts dd {
+.fact dd {
   color: var(--bright);
   font-weight: 500;
 }
@@ -290,8 +272,8 @@ body::after {
 }
 
 .agent-work-card,
-.request-row,
-.campaign-child {
+.request-card,
+.sub-issue-card {
   padding: 16px 0;
 }
 
@@ -312,8 +294,7 @@ body::after {
 }
 
 .issue-number:hover,
-.agent-work-navigation:hover,
-.agent-work-issue:hover {
+.agent-work-navigation:hover {
   color: var(--link-hover);
   text-shadow: none;
 }
@@ -379,7 +360,6 @@ body::after {
   color: var(--dim);
 }
 
-.agent-work-detail,
 .card-detail,
 .card-route {
   color: var(--dim);
@@ -397,8 +377,7 @@ body::after {
   text-transform: lowercase;
 }
 
-.card-actions,
-.agent-work-heading-actions {
+.card-actions {
   align-items: center;
   gap: 10px;
 }
@@ -477,22 +456,10 @@ body::after {
   gap: 14px;
 }
 
-.agent-work-heading h1 {
-  color: var(--bright);
-  font-family: Georgia, "Times New Roman", serif;
+.agent-work-page-card .card-heading > h1 {
   font-size: 36px;
   font-weight: 400;
   line-height: 1.2;
-}
-
-.agent-work-issue,
-.agent-work-issue span {
-  color: inherit;
-  font-weight: inherit;
-}
-
-.agent-work-issue {
-  color: var(--link);
 }
 
 .agent-work-workspace {
@@ -640,6 +607,180 @@ body::after {
   font-weight: 700;
 }
 
+/* A dandelion seed falls for each working agent on the light page, and a
+   firefly drifts for each on the dark page. Beneath an empty tab's hint,
+   smaller seeds rise in their place, and fainter fireflies drift. */
+
+.falling-seed,
+.rising-seed {
+  position: absolute;
+  top: 0;
+}
+
+.falling-seed {
+  animation: seed-fall linear infinite;
+}
+
+.rising-seed {
+  animation: seed-rise linear infinite;
+}
+
+.seed-body {
+  --seed-sway: calc(var(--margin-unit) * 22);
+  animation: seed-sway ease-in-out infinite;
+}
+
+.rising-seed .seed-body {
+  --seed-sway: 18px;
+}
+
+.seed-body svg {
+  display: block;
+  width: 30px;
+  height: 38px;
+  stroke: #7a6e63;
+  stroke-width: 0.8;
+}
+
+.rising-seed svg {
+  width: 18px;
+  height: 22px;
+  stroke: #8a7d70;
+  stroke-width: 0.9;
+}
+
+.firefly {
+  position: absolute;
+  display: none;
+  animation: firefly-drift ease-in-out infinite;
+}
+
+.firefly-glow {
+  --pulse-low: 0.25;
+  --pulse-settle: 0.9;
+  width: 6px;
+  height: 6px;
+  background: #f4f0a8;
+  border-radius: 50%;
+  box-shadow:
+    0 0 10px 4px rgba(244, 240, 168, 0.55),
+    0 0 26px 10px rgba(214, 230, 120, 0.18);
+  animation: firefly-pulse ease-in-out infinite;
+}
+
+.empty-field {
+  --empty-field-height: 400px;
+  mask-image: linear-gradient(
+    to bottom,
+    transparent,
+    black 25%,
+    black 75%,
+    transparent
+  );
+}
+
+.empty-field .firefly {
+  opacity: 0.55;
+}
+
+.empty-field .firefly-glow {
+  --pulse-low: 0.15;
+  --pulse-settle: 0.85;
+  box-shadow:
+    0 0 8px 3px rgba(244, 240, 168, 0.5),
+    0 0 22px 8px rgba(214, 230, 120, 0.15);
+}
+
+@keyframes seed-fall {
+  0% {
+    transform: translate(0, -60px) rotate(-8deg);
+    opacity: 0;
+  }
+
+  10%,
+  90% {
+    opacity: 1;
+  }
+
+  100% {
+    transform: translate(-30px, calc(100vh + 40px)) rotate(14deg);
+    opacity: 0;
+  }
+}
+
+@keyframes seed-sway {
+  0%,
+  100% {
+    margin-left: 0;
+  }
+
+  50% {
+    margin-left: var(--seed-sway);
+  }
+}
+
+@keyframes seed-rise {
+  0% {
+    transform: translate(0, 0) rotate(0deg);
+    opacity: 0;
+  }
+
+  15%,
+  85% {
+    opacity: 1;
+  }
+
+  100% {
+    transform: translate(60px, -360px) rotate(40deg);
+    opacity: 0;
+  }
+}
+
+@keyframes firefly-drift {
+  0%,
+  100% {
+    transform: translate(0, 0);
+  }
+
+  25% {
+    transform: translate(26px, -38px);
+  }
+
+  50% {
+    transform: translate(-14px, -70px);
+  }
+
+  75% {
+    transform: translate(-30px, -24px);
+  }
+}
+
+@keyframes firefly-pulse {
+  0%,
+  100% {
+    opacity: var(--pulse-low);
+  }
+
+  45% {
+    opacity: 1;
+  }
+
+  60% {
+    opacity: var(--pulse-settle);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rising-seed {
+    display: none;
+  }
+
+  .empty-field .firefly,
+  .empty-field .firefly-glow {
+    animation: none;
+  }
+}
+
 @media (max-width: 700px) {
   .site-header,
   .home-content,
@@ -693,7 +834,6 @@ body::after {
     --focus: #f3c9a3;
     --header-rule: rgba(236, 230, 220, 0.07);
     --mark-shadow: rgba(250, 236, 214, 0.3);
-    --daemon-running: #a9c7a3;
     --control-surface: rgba(236, 230, 220, 0.06);
     --control-hover-surface: rgba(236, 230, 220, 0.1);
     --control-current-surface: rgba(236, 230, 220, 0.14);
@@ -720,6 +860,15 @@ body::after {
   html[data-web-theme="nature"] body::before {
     background: var(--moon-background);
     opacity: var(--moon-opacity);
+  }
+
+  html[data-web-theme="nature"] .falling-seed,
+  html[data-web-theme="nature"] .rising-seed {
+    display: none;
+  }
+
+  html[data-web-theme="nature"] .firefly {
+    display: block;
   }
 
   html[data-web-theme="nature"] body::after {

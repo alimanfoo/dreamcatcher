@@ -81,7 +81,6 @@
 
 .md-typeset .dch-ui {
   --dch-sky: var(--sky-background);
-  --dch-daemon: var(--daemon-running);
 
   display: block;
   width: auto;
@@ -115,19 +114,14 @@
   gap: 1em;
 }
 
+.dch-ui__repository-links {
+  display: inline-flex;
+  flex-direction: column;
+}
+
 .md-typeset .dch-ui__mark {
   width: 2.4em;
   opacity: 0.85;
-}
-
-.dch-ui__daemon::before {
-  display: inline-block;
-  width: 0.5em;
-  height: 0.5em;
-  margin-right: 0.55em;
-  border-radius: 50%;
-  background: var(--dch-daemon);
-  content: "";
 }
 
 .md-typeset .dch-ui__facts {
@@ -194,10 +188,10 @@
   margin-top: 1.8em;
 }
 
-/* One issue, laid out as the web page lays out a row: its title and pull
+/* One issue, laid out as the web page lays out a card: its title and pull
    request, then its settings, state and open button, then its round. */
 
-.md-typeset .dch-ui__lists li.dch-row {
+.md-typeset .dch-ui__lists li.dch-card {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto auto;
   grid-template-areas:
@@ -311,7 +305,7 @@
     padding-inline: 1em;
   }
 
-  .md-typeset .dch-ui__lists li.dch-row {
+  .md-typeset .dch-ui__lists li.dch-card {
     grid-template-columns: minmax(0, 1fr) auto;
     grid-template-areas:
       "heading github"

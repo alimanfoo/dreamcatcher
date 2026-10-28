@@ -108,8 +108,8 @@ the campaign shows as **idle**. Under the card:
 - issue 125 shows as **held**, open and **blocked by #124**.
 
 The count then reads `0 of 2 sub-issues closed · 1 working, 1 held`:
-after GitHub's count of the closed sub-issues, it counts the cards and
-rows under the campaign by the status that each shows.
+after GitHub's count of the closed sub-issues, it counts the cards under
+the campaign by the status that each shows.
 
 The lead does not post on the parent to say what it set up. Follow it in
 its feed instead, on the campaign's page or in a second terminal:

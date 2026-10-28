@@ -12,6 +12,7 @@ from records import write_ending, write_round, write_tick
 from status_fabrications import CAMPAIGN_CHILDREN, LOOKED_AT, compose_ended_round
 from web_browser import (
     BROWSER_ASSIGNMENT_IDENTIFIER,
+    serve_empty_web,
     serve_fabricated_web,
 )
 
@@ -53,6 +54,45 @@ RECORD_TAIL_HIDDEN_PER_FRAME = """() => {
   requestAnimationFrame(record);
 }"""
 
+# The narrowest window whose side margins hold the working-agent motifs.
+MOTIF_WINDOW_WIDTH = 1360
+
+# Step every animation of each shown working-agent motif through its cycle,
+# in every combination, and give the widest reach of each motif with the
+# header's bottom, the motif layer's top and the sides of the content's text.
+MEASURE_WORKING_MOTIFS = """() => {
+  const layer = document.querySelector(".working-motifs");
+  const content = document.querySelector(".dashboard").getBoundingClientRect();
+  const motifs = [...layer.children].filter(motif => motif.checkVisibility());
+  const reaches = motifs.map(motif => {
+    const animations = motif.getAnimations({ subtree: true });
+    animations.forEach(animation => animation.pause());
+    const steps = [0, 0.125, 0.25, 0.375, 0.5, 0.625, 0.75, 0.875, 1];
+    let [left, right] = [Infinity, -Infinity];
+    const measure = depth => {
+      if (depth === animations.length) {
+        const bounds = motif.getBoundingClientRect();
+        left = Math.min(left, bounds.left);
+        right = Math.max(right, bounds.right);
+        return;
+      }
+      const duration = animations[depth].effect.getComputedTiming().duration;
+      for (const step of steps) {
+        animations[depth].currentTime = step * duration;
+        measure(depth + 1);
+      }
+    };
+    measure(0);
+    return [left, right];
+  });
+  return {
+    header: document.querySelector(".site-header").getBoundingClientRect().bottom,
+    layer: layer.getBoundingClientRect().top,
+    content: [content.left, content.right],
+    reaches,
+  };
+}"""
+
 FEED_IS_AT_END = """() => {
   const feed = document.querySelector(".feed-records");
   return feed.scrollHeight - feed.scrollTop - feed.clientHeight <= 1;
@@ -64,6 +104,21 @@ def live_web(tmp_path) -> Iterator[str]:
     """Serve the fabricated web app for one browser test."""
     with serve_fabricated_web(root=tmp_path) as address:
         yield address
+
+
+@pytest.fixture
+def empty_web(tmp_path) -> Iterator[str]:
+    """Serve a daemon run with no work, so every home tab is empty."""
+    with serve_empty_web(root=tmp_path) as address:
+        yield address
+
+
+def read_working_agents(*, page: Page) -> int:
+    """Read how many agents the home page's agent capacity fact counts working."""
+    capacity = page.locator(".fact", has_text="agent capacity").locator("dd")
+    match = re.fullmatch(r"(\d+) of \d+ working", capacity.inner_text())
+    assert match is not None
+    return int(match[1])
 
 
 def wait_for_refresh(*, page: Page) -> None:
@@ -104,7 +159,7 @@ def test_a_round_link_brings_its_round_into_view_from_the_tail(
     live_web: str,
 ) -> None:
     page.goto(f"{live_web}/work/{BROWSER_ASSIGNMENT_IDENTIFIER}")
-    expect(page.locator("#agent-work-status")).to_have_text("working")
+    expect(page.locator("#agent-work-card .chip")).to_have_text("working")
     expect(page.get_by_text("daemon not running", exact=True)).to_have_count(0)
     expect(page.get_by_text("resume by hand", exact=True)).to_have_count(0)
     page.wait_for_function(FEED_IS_AT_END)
@@ -311,7 +366,7 @@ def test_a_refresh_leaves_an_expanded_campaign_open(page: Page, live_web: str) -
     page.goto(live_web)
     children = expand_campaign(page=page)
     expect(
-        children.locator(".agent-work-card, .request-row, .campaign-child")
+        children.locator(".agent-work-card, .request-card, .sub-issue-card")
     ).to_have_count(5)
 
     wait_for_refresh(page=page)
@@ -346,7 +401,7 @@ def test_an_expanded_campaign_stays_open_while_its_children_are_unknown(
     state = StateDirectory(root=tmp_path)
     page.goto(live_web)
     children = expand_campaign(page=page)
-    entries = children.locator(".agent-work-card, .request-row, .campaign-child")
+    entries = children.locator(".agent-work-card, .request-card, .sub-issue-card")
     expect(entries).to_have_count(5)
 
     observe_campaign_children(state=state, children=None)
@@ -738,11 +793,11 @@ def test_cancelling_an_assignment_asks_first(page: Page, live_web: str) -> None:
 
     page.once("dialog", lambda dialog: dialog.dismiss())
     cancel.click()
-    expect(page.locator("#agent-work-status")).to_have_text("waiting")
+    expect(page.locator("#agent-work-card .chip")).to_have_text("waiting")
 
     page.once("dialog", lambda dialog: dialog.accept())
     cancel.click()
-    expect(page.locator("#agent-work-status")).to_have_text("cancelled")
+    expect(page.locator("#agent-work-card .chip")).to_have_text("cancelled")
     expect(cancel).to_have_count(0)
 
 
@@ -751,7 +806,7 @@ def test_a_tail_refresh_hides_the_detail_once_the_work_ends(
 ) -> None:
     identifier = "GH44-20260819-184158-assignment"
     page.goto(f"{live_web}/work/{identifier}")
-    detail = page.locator("#agent-work-detail")
+    detail = page.locator("#agent-work-card .card-detail")
     expect(detail).to_be_visible()
 
     write_ending(
@@ -760,7 +815,7 @@ def test_a_tail_refresh_hides_the_detail_once_the_work_ends(
         at=LOOKED_AT,
     )
 
-    expect(page.locator("#agent-work-status")).to_have_text("cancelled")
+    expect(page.locator("#agent-work-card .chip")).to_have_text("cancelled")
     expect(detail).to_be_hidden()
 
 
@@ -849,6 +904,125 @@ def test_nature_shows_exactly_one_of_sun_and_moon_at_each_boundary(
             ]"""
         )
         assert opacities == [sun_opacity, moon_opacity]
+
+
+@pytest.mark.parametrize("width", [MOTIF_WINDOW_WIDTH, 1440, 1920])
+@pytest.mark.parametrize(
+    ("theme", "scheme"), [("matrix", "dark"), ("nature", "light"), ("nature", "dark")]
+)
+def test_working_motifs_stay_in_the_margins_beneath_the_header(
+    page: Page,
+    live_web: str,
+    theme: str,
+    scheme: Literal["light", "dark"],
+    width: int,
+) -> None:
+    page.emulate_media(color_scheme=scheme)
+    page.set_viewport_size({"width": width, "height": 900})
+    page.goto(f"{live_web}/?theme={theme}")
+
+    geometry = page.evaluate(MEASURE_WORKING_MOTIFS)
+
+    assert len(geometry["reaches"]) == read_working_agents(page=page)
+    assert geometry["layer"] >= geometry["header"]
+    content_left, content_right = geometry["content"]
+    for left, right in geometry["reaches"]:
+        assert right <= content_left or left >= content_right
+
+
+@pytest.mark.parametrize("theme", ["matrix", "nature"])
+def test_working_motifs_hide_where_the_margins_cannot_hold_them(
+    page: Page, live_web: str, theme: str
+) -> None:
+    page.set_viewport_size({"width": MOTIF_WINDOW_WIDTH - 1, "height": 900})
+    page.goto(f"{live_web}/?theme={theme}")
+
+    expect(page.locator(".working-motifs")).to_be_hidden()
+
+
+@pytest.mark.parametrize("theme", ["matrix", "nature"])
+def test_working_motifs_keep_still_and_out_of_sight_under_reduced_motion(
+    page: Page, live_web: str, theme: str
+) -> None:
+    page.emulate_media(reduced_motion="reduce")
+    page.set_viewport_size({"width": MOTIF_WINDOW_WIDTH, "height": 900})
+    page.goto(f"{live_web}/?theme={theme}")
+
+    motifs = page.locator(".working-motifs > *")
+    expect(motifs).not_to_have_count(0)
+    shown_or_moving = motifs.evaluate_all(
+        """motifs => motifs.filter(motif =>
+          motif.checkVisibility({ opacityProperty: true })
+          || motif.getAnimations({ subtree: true }).length > 0
+        ).length"""
+    )
+    assert shown_or_moving == 0
+
+
+def test_nature_drops_a_seed_on_a_light_page_and_lights_a_firefly_on_a_dark_one(
+    page: Page, live_web: str
+) -> None:
+    page.emulate_media(color_scheme="light")
+    page.set_viewport_size({"width": MOTIF_WINDOW_WIDTH, "height": 900})
+    page.goto(live_web)
+    working_agents = read_working_agents(page=page)
+    seeds = page.locator(".falling-seed").filter(visible=True)
+    fireflies = page.locator(".firefly").filter(visible=True)
+
+    expect(seeds).to_have_count(working_agents)
+    expect(fireflies).to_have_count(0)
+
+    page.emulate_media(color_scheme="dark")
+
+    expect(seeds).to_have_count(0)
+    expect(fireflies).to_have_count(working_agents)
+
+
+@pytest.mark.parametrize(
+    ("theme", "scheme", "motif"),
+    [
+        ("matrix", "dark", "empty-rain-column"),
+        ("nature", "light", "rising-seed"),
+        ("nature", "dark", "firefly"),
+    ],
+)
+def test_an_empty_tab_holds_its_motif_field_beneath_its_hint(
+    page: Page,
+    empty_web: str,
+    theme: str,
+    scheme: Literal["light", "dark"],
+    motif: str,
+) -> None:
+    page.emulate_media(color_scheme=scheme)
+    page.goto(f"{empty_web}/?theme={theme}")
+    panel = page.locator("#assignment-panel")
+    hint = panel.locator(".empty")
+    field = panel.locator(".empty-field")
+
+    expect(field).to_be_visible()
+    shown_motifs = field.evaluate(
+        """field => [...new Set([...field.children]
+          .filter(motif => motif.checkVisibility())
+          .map(motif => motif.className))]"""
+    )
+    assert shown_motifs == [motif]
+    hint_bottom = hint.evaluate("hint => hint.getBoundingClientRect().bottom")
+    field_top = field.evaluate("field => field.getBoundingClientRect().top")
+    assert field_top >= hint_bottom
+
+
+@pytest.mark.parametrize(
+    ("theme", "scheme"), [("matrix", "dark"), ("nature", "light"), ("nature", "dark")]
+)
+def test_an_empty_tab_motif_field_keeps_still_under_reduced_motion(
+    page: Page, empty_web: str, theme: str, scheme: Literal["light", "dark"]
+) -> None:
+    page.emulate_media(reduced_motion="reduce", color_scheme=scheme)
+    page.goto(f"{empty_web}/?theme={theme}")
+
+    field = page.locator("#assignment-panel .empty-field")
+    expect(field).to_be_visible()
+    assert field.evaluate("field => field.getAnimations({ subtree: true }).length") == 0
 
 
 @pytest.mark.parametrize("theme", ["matrix", "nature"])

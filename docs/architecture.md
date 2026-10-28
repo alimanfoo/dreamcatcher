@@ -638,18 +638,17 @@ request statuses of its assignment labels that have no open work, and
 whether its issue is open or closed, as the tick observed it. The status
 report also summarises the sub-issues on one line: the count of closed
 sub-issues, then one count for each word that the chips of the nested
-assignment cards and request rows show: the statuses of open work in
+assignment cards and request cards show: the statuses of open work in
 attention order, then the ending words, then the words that only a
 request shows. The web home page puts an active campaign's lead card and
 the expandable block of its sub-issues side by side in one wrapper, so
 the latest output of a sub-issue's card is never read as the lead's. The
 block stays in place, holding only its count while the sub-issues are
 unknown or there are none, so a refresh keeps it open through a failed
-observation. Each card or request row in that block takes the campaign's
-identifier as a prefix to its HTML identifier, so it differs from the
-same card on the Assignments tab. A request row's identifier holds its
-label percent-encoded, so two distinct labels on one issue never share
-one.
+observation. Each card in that block takes the campaign's identifier as
+a prefix to its HTML identifier, so it differs from the same card on the
+Assignments tab. A request card's identifier holds its label
+percent-encoded, so two distinct labels on one issue never share one.
 
 `AgentWorkStatus` is one summary status from the concepts page, derived
 in one chain for every kind of agent work. `RequestStatus` gives a
@@ -693,14 +692,29 @@ control.
 
 Every piece of agent work, of any kind, has its page at
 `/work/<identifier>`, and its feed tail and controls below that address.
-A conversation and a campaign share one page layout, because the issue
-is the channel of each. A conversation the tick has found but not yet
-saved has no page.
+Every kind of work shares one page layout, which opens with the work's
+card. One macro renders a card's rows both there and on the home page,
+from the same view model, so the two cannot drift apart. The page's tail
+renders the card again, so the card keeps the pull request's state, the
+issue's state, the status and the detail current. A conversation the
+tick has found but not yet saved has no page.
 
 The home page shows each kind of work on a tab of its own. The address's
 fragment names the selected tab, as in `/#campaign`, so the browser's
 back and forward buttons move between tabs. A work page links home to
 the tab of its kind.
+
+The home page gives each theme a motif, drawn by the macros in
+`templates/partials/motifs.html`. The home view carries the count of
+running agents, the macros give each motif its place and timing, and
+each theme's stylesheet gives it its look. A working motif's place is a
+distance from the window's edge in the mockups' 160px margin, and the
+stylesheet scales it to the margin that the window leaves. The home
+page's refresh redraws the motifs with the page, so the count stays true
+without a script of their own. Nature draws both a seed and a firefly
+for each motif, and its stylesheet shows the seeds on a light page and
+the fireflies on a dark one, so the motif always suits the sky behind
+it.
 
 The web interface can ask a running round to stop. It writes a
 same-origin stop request through the agent-round boundary, into that

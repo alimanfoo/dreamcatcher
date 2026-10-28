@@ -1,1 +1,0 @@
-{% from "partials/status-class.html" import status_class %}<span id="agent-work-status" class="chip {{ status_class(view.live.status) }}"{% if is_tail|default(false) %} hx-swap-oob="morph"{% endif %}>{{ view.live.status_words }}</span>
