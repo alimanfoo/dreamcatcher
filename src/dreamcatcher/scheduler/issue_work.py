@@ -56,7 +56,6 @@ def inspect_open_issue_work(
     nothing else pauses it. A read that fails leaves whether the work is paused
     unknown, so its fault counts.
     """
-    unread = compose_open_work_row(work=work, finding=None)
     issue = read_issue(repository=context.repository, issue=work.record.issue)
     if isinstance(issue, UnknownGitHubResponse):
         return Inspection(
@@ -65,6 +64,7 @@ def inspect_open_issue_work(
             ),
             is_counted_fault=is_in_fault,
         )
+    unread = compose_open_work_row(work=work, finding=None, issue_state=issue.state)
     if issue.state is IssueState.CLOSED:
         if not work.is_round_running:
             end_agent_work(
@@ -78,7 +78,7 @@ def inspect_open_issue_work(
         )
     if pause is not None:
         return Inspection(
-            row=compose_open_work_row(work=work, finding=pause),
+            row=unread.model_copy(update={"finding": pause}),
             is_counted_fault=is_in_fault and isinstance(pause, ReadFailureFinding),
         )
     if is_in_fault:

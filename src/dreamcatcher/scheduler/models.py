@@ -16,9 +16,7 @@ from pydantic import (
 from dreamcatcher.agent_assignments import ObservedPullRequest
 from dreamcatcher.campaigns import CampaignChild
 from dreamcatcher.documents import DreamcatcherDocument, ReadOnlyList
-from dreamcatcher.github import (
-    PullRequestSignal,
-)
+from dreamcatcher.github import IssueState, PullRequestSignal
 from dreamcatcher.harness_adapters import AgentWorkKind
 
 GLOBAL_COOLDOWN_DURATION = timedelta(minutes=15)
@@ -180,7 +178,10 @@ class RequestRow(DreamcatcherDocument):
     ended as the tick read the work. A row has no finding when the tick found
     nothing to record for it. A campaign's row holds the children of its parent
     as the tick observed them, whether or not the campaign may take a round,
-    and holds none when the tick could not observe them all.
+    and holds none when the tick could not observe them all. A row holds its
+    issue's state when the tick read the issue: the listing reads the issue of
+    every request, and the tick reads the issue of open conversations and
+    campaigns again.
     """
 
     issue: PositiveInt
@@ -192,6 +193,7 @@ class RequestRow(DreamcatcherDocument):
     finding: RequestFinding | None = None
     started_round: StartedRound | None = None
     children: ReadOnlyList[CampaignChild] | None = None
+    issue_state: IssueState | None = None
 
 
 class GlobalCooldown(DreamcatcherDocument):
