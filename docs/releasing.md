@@ -22,9 +22,8 @@ Do this before a major or minor release. A patch release skips it.
    over the source, the enduring documents, the user documentation and
    the output a user sees. Search the same places, and the repository's
    own skills, for each word that a "Replaces:" line on
-   [the concepts page](concepts.md) names, and count each use of one for
-   the concept that the line names as a finding. Fix what is quick to
-   fix, and file an issue for each other finding.
+   [the concepts page](concepts.md) names. Fix what is quick to fix, and
+   file an issue for each other finding.
 2. Triage the open issues against the concepts page. Search them for
    each word that a "Replaces:" line names. Rewrite each issue that
    names a concept by a replaced word or by any other word that the

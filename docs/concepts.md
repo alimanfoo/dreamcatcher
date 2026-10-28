@@ -25,7 +25,7 @@ The dated specifications record the design of particular phases. Where
 their terminology conflicts with this document, this document is
 authoritative.
 
-This page replaces "ontology", the name it was first written under.
+Replaces: "ontology", the name that this page was first written under.
 
 ## Definitions
 
