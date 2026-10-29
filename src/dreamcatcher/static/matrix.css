@@ -28,8 +28,9 @@
   --space-11: 24px;
   --space-12: 28px;
   --page-width: 1120px;
-  --page-side-padding: var(--space-12);
-  --motif-scale-divisor: 150;
+  --page-side-padding-pixels: 28;
+  --page-side-padding: calc(var(--page-side-padding-pixels) * 1px);
+  --motif-scale-divisor: calc(122 + var(--page-side-padding-pixels));
   --site-header-height: 64px;
   --letter-label: 0.14em;
   --letter-chip: 0.06em;

@@ -71,8 +71,7 @@
   --font: "Alegreya Sans", Avenir, "Segoe UI", sans-serif;
   --font-size: 15px;
   --line-height: 1.5;
-  --page-side-padding: 32px;
-  --motif-scale-divisor: 154;
+  --page-side-padding-pixels: 32;
   --site-header-height: 87px;
   --sun-opacity: 1;
   --sun-x: 50%;
