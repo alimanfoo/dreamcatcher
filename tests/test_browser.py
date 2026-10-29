@@ -940,6 +940,31 @@ def test_working_motifs_stay_in_the_gutter_beneath_the_header(
         assert right <= content_left or left >= content_right
 
 
+def test_working_motifs_follow_a_site_header_that_grows_after_refresh(
+    page: Page, live_web: str
+) -> None:
+    page.set_viewport_size({"width": 1440, "height": 900})
+    page.goto(live_web)
+    initial_geometry = page.evaluate(MEASURE_WORKING_MOTIFS)
+
+    wait_for_refresh(page=page)
+    page.locator(".site-header").evaluate(
+        "(header) => { header.style.fontSize = '32px'; }"
+    )
+    page.wait_for_function(
+        """() => {
+          const header = document.querySelector(".site-header");
+          const layer = document.querySelector(".working-motifs");
+          return layer.getBoundingClientRect().top >=
+            header.getBoundingClientRect().bottom;
+        }"""
+    )
+    grown_geometry = page.evaluate(MEASURE_WORKING_MOTIFS)
+
+    assert grown_geometry["header"] > initial_geometry["header"]
+    assert grown_geometry["layer"] >= grown_geometry["header"]
+
+
 @pytest.mark.parametrize("theme", ["matrix", "nature"])
 def test_working_motifs_hide_where_the_margins_cannot_hold_them(
     page: Page, live_web: str, theme: str
