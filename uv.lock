@@ -1,5 +1,5 @@
 version = 1
-revision = 5
+revision = 3
 requires-python = ">=3.12"
 
 [[package]]
@@ -440,7 +440,7 @@ dev = [
     { name = "ruff", specifier = "==0.17.1" },
     { name = "ty", specifier = "==0.0.90" },
     { name = "types-pywin32", marker = "sys_platform == 'win32'", specifier = "==312.0.0.20261006" },
-    { name = "uncoded", specifier = "==3.0.1" },
+    { name = "uncoded", specifier = "==6.0.0" },
 ]
 
 [[package]]
@@ -1457,14 +1457,15 @@ wheels = [
 
 [[package]]
 name = "uncoded"
-version = "3.0.1"
+version = "6.0.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
+    { name = "markdown-it-py" },
     { name = "pyyaml" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/f5/c8/e244c990f771b91851d0b9ed7fc8af3a51ecdff9445c9ccfaa3049decf99/uncoded-3.0.1.tar.gz", hash = "sha256:810e0b479edb496ae1c8d07e895f2b64bad6a41251d6ef5772698e135d525b41", size = 131073, upload-time = "2026-10-09T17:48:59.205Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/71/50/c7281493d2f5e17b1bb15c1734af43a6434d1ca6465cdf235c02e1c52630/uncoded-6.0.0.tar.gz", hash = "sha256:050a218fdb7cc9b9221d0199066dc0a087d7fa0f99e8bce39ec82b79893527b3", size = 31274, upload-time = "2026-10-29T13:40:58.401Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/b6/45/5ec9b841ba3e21a514ceca3d9bf0bf127e853d36d8159f6a096cb6e3ce38/uncoded-3.0.1-py3-none-any.whl", hash = "sha256:6390d9935a04663bc9f12dedd71a3d963b806d247a421632ea697fa9f819fbb2", size = 33421, upload-time = "2026-10-09T17:48:57.893Z" },
+    { url = "https://files.pythonhosted.org/packages/ee/39/7c80149c086d44a30e5c85f7e1ae265e81a237289baf519e3e07c316ff3b/uncoded-6.0.0-py3-none-any.whl", hash = "sha256:89f701c7c34028c080d89a14d2ff4ac906ede24b90733e9b3467b2cbb4d1df8d", size = 36343, upload-time = "2026-10-29T13:40:57.139Z" },
 ]
 
 [[package]]
