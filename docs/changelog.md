@@ -27,6 +27,8 @@ the change.
 
 ## Unreleased
 
+## [v9.5.0](https://github.com/alimanfoo/dreamcatcher/releases/tag/v9.5.0) — 2026-10-28
+
 ### Added
 
 - The home page shows each working agent as a small moving motif in the
@@ -55,18 +57,18 @@ the change.
   `dreamcatcher status` now says "requests with no open work", where it
   said "labels waiting for work".
   ([#838](https://github.com/alimanfoo/dreamcatcher/pull/838))
-- A row whose status is unknown gives the read that failed, without the
+- A card whose status is unknown gives the read that failed, without the
   words "cannot tell:" before it, because its status already says
   unknown. ([#843](https://github.com/alimanfoo/dreamcatcher/pull/843))
 - A request that the scheduler holds back has one status, held, where it
-  was blocked, held or routing conflict. Its row says what GitHub says
+  was blocked, held or routing conflict. Its card says what GitHub says
   of its issue, such as "open, blocked by #810", and beneath its status
   what the user has to do, when they have to act.
   ([#843](https://github.com/alimanfoo/dreamcatcher/pull/843))
-- Every card and request row on the home page gives the issue first,
-  then the label and status, then the detail, then the agent's latest
-  output. An assignment with no pull request yet shows nothing where it
-  said "no pull request yet".
+- Every card on the home page, for work or for a request, gives the
+  issue first, then the label and status, then the detail, then the
+  agent's latest output. An assignment with no pull request yet shows
+  nothing where it said "no pull request yet".
   ([#843](https://github.com/alimanfoo/dreamcatcher/pull/843))
 - In the Nature theme, a status and the `agent` label of the latest
   output no longer have a dot before them.
@@ -136,9 +138,9 @@ the change.
   the home page now changes in place, without being typed.
   ([#828](https://github.com/alimanfoo/dreamcatcher/pull/828))
 - The home page and `dreamcatcher status` no longer show a dispatch
-  label's row beside the work that just started for it. For a few
-  seconds after an update started work, until the update finished, the
-  issue showed twice.
+  label's request card beside the work that just started for it. For a
+  few seconds after an update started work, until the update finished,
+  the issue showed twice.
   ([#830](https://github.com/alimanfoo/dreamcatcher/pull/830))
 
 ## [v9.4.0](https://github.com/alimanfoo/dreamcatcher/releases/tag/v9.4.0) — 2026-10-27

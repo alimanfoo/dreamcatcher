@@ -579,9 +579,10 @@ because another pull request already claims it. The pull requests the
 user needs to read are a click away, and ended work is folded under a
 collapsed list, so the page shows only what is live. The terminal gives
 each card as one row, with a count of ended work in place of the list. A
-row gives the work, its status, what GitHub holds, such as the pull
-request ready for review or the colleague who applied a label, and then
-what _dreamcatcher_ found or what the user has to do.
+row gives the work, or the issue and its label, its status, what GitHub
+holds, such as the pull request ready for review or the colleague who
+applied a label, and then what _dreamcatcher_ found or what the user has
+to do.
 
 On the home page, every card lays out its rows in the same order,
 whatever its state, so nothing moves as rows come and go. Its first row

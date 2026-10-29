@@ -326,9 +326,10 @@ issue and GitHub's state of what the card stands for; its second, the
 route and _dreamcatcher_'s status; then any detail or advice; then,
 while the agent works or after a fault, its latest output. A **work
 card**, a **request card** and a **sub-issue card** are the three kinds.
-A work page opens with its work card. The terminal's status table shows
-each card as one row: the work or the issue, its status, GitHub's state,
-then the detail.
+A work page opens with its work card, less the latest output, which its
+feed shows. The terminal's status table shows each card as one row: the
+work, or the issue and its label, then its status, GitHub's state, then
+the detail.
 
 Replaces: "board"; and "request row", for what the user sees of a
 request, which is its request card.
