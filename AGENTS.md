@@ -45,6 +45,40 @@ Where this guide's conventions and the standard's criteria cover the
 same ground, the standard sets the bar and the conventions say how to
 meet it.
 
+## How we decide
+
+When triaging work, use `dream:sift` and apply these project-specific
+judgments beside its coherent coding guide and the enduring documents.
+
+- Setup is intended to be interactive. Redirected `init` output is not a
+  requirement.
+- Treat process identity as a lock problem, not a clock problem. A
+  process start-time comparison was replaced by a file lock in #401
+  because a clock correction shifted it; apply that lesson whenever
+  process identity comes up.
+- Look at real output before deciding whether a formatting issue is
+  useful or hypothetical.
+- Explain the exact UI text and what it claims. Do not confuse the
+  agent's activity with the freshness of the GitHub information.
+- Establish what each item represents before changing its grouping or
+  treating it as a duplicate.
+- UI information must earn its place. Keep a view calm, avoid
+  repetition, consider omission first, and ask whether a thing should be
+  shown at all. A round's commit hash was better removed than shortened.
+- The web view never shows what may no longer hold. A card says what is
+  true now, or says that it cannot tell. This rules out a held request
+  that reads as available, a feed line typed in after it arrived, and an
+  ended campaign's sub-issues as the lead last saw them.
+- When a user missed something, ask first whether the product could have
+  told them where they were looking. The Campaigns tab should stay
+  visible and say how to route campaigns.
+- Check the meaning of a proposed simplification. Silently making an
+  absolute `cd` path relative changes the displayed command's meaning.
+- For Windows behaviour, read the platform documentation and propose a
+  focused test that CI can exercise rather than speculate. Use no custom
+  Windows bindings or hand-written retry machinery for ordinary file
+  access.
+
 ## Specs
 
 Larger development efforts are organised as phases, with a dated
