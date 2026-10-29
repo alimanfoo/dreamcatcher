@@ -1,14 +1,14 @@
 # Work with dreamcatcher
 
-You are an agent working for the developer outside _dreamcatcher_. Use
+You are the user's agent, working outside _dreamcatcher_. Use
 _dreamcatcher_ to hand self-contained work to other agents, then leave
-that work alone until it needs the developer.
+that work alone until it needs the user.
 
 This directory has no `dreamcatcher.toml`. The routes below are the packaged defaults, not configuration for this directory. No dreamcatcher daemon is running here.
 
 ## Set up and check
 
-Setup belongs to the developer. Ask them to run `dreamcatcher init`
+Setup belongs to the user. Ask them to run `dreamcatcher init`
 interactively and to run the long-lived `dreamcatcher run` daemon. Do
 not script either command.
 
@@ -29,12 +29,12 @@ editing it or commenting on it.
 - "agent-conversation" starts conversation work. claude starts with "/dream:scout GH{issue}", using "opus" at "high" effort; codex starts with "$dream:scout GH{issue}", using "gpt-5.6-sol" at "high" effort.
 - "agent-campaign" starts campaign work. claude starts with "/dream:big GH{issue}", using "opus[1m]" at "high" effort; codex starts with "$dream:big GH{issue}", using "gpt-5.6-sol" at "high" effort.
 
-To dispatch work, assign the issue to the developer, then apply exactly
-one of the route labels above through the developer's GitHub account.
-Work starts at a later update when an agent slot is free. An assignment
-or campaign request that an open issue blocks stays held; use GitHub's
-blocked-by relationships to set their order. A dependency does not delay
-a conversation.
+To dispatch work, assign the issue to the user, then apply exactly one
+of the route labels above through the user's GitHub account. Work starts
+at a later update when an agent slot is free. An assignment or campaign
+request that an open issue blocks stays held; use GitHub's blocked-by
+relationships to set their order. A dependency does not delay a
+conversation.
 
 ## Follow an assignment
 
@@ -46,11 +46,11 @@ review. A draft can hold a question that needs an answer.
 watching the pull request more closely.
 
 Once the pull request exists, put every instruction and answer there as
-a review or comment. The agent receives the developer's posts since its
-last turn at its next turn. Posts made while it works wait for the turn
+a review or comment. The agent receives the user's posts since its last
+turn at its next turn. Posts made while it works wait for the turn
 after. It does not receive issue edits, issue comments, or another
-person's review. Restate another person's feedback through the
-developer's account when the agent should act on it.
+person's review. Restate another person's feedback through the user's
+account when the agent should act on it.
 
 The assignment repairs red checks twice before it waits for a post that
 explains what it is missing. It also merges main when the branch
@@ -58,9 +58,9 @@ conflicts, or when it falls behind in a repository that requires
 branches to be up to date. Do not push to its branch.
 
 The pull request comes back for review. Review and merge it only when
-the developer has allowed you to; otherwise leave it for the developer.
-After a merge, the assignment takes a wrap-up turn and may file issues
-for work that it left out.
+the user has allowed you to; otherwise leave it for the user. After a
+merge, the assignment takes a wrap-up turn and may file issues for work
+that it left out.
 
 ## Run a campaign
 
@@ -85,8 +85,8 @@ and checks. A conflict still wakes an assignment to update its branch.
 
 A conversation answers questions in comments on its issue. Put the
 initial question in a comment: the issue's title and body alone start no
-conversation. Give guidance and reply on that issue through the
-developer's account.
+conversation. Give guidance and reply on that issue through the user's
+account.
 
 ## Intervene
 
@@ -95,4 +95,4 @@ Use GitHub as the main interface. `dreamcatcher view` and
 fix the cause of a fault, `dreamcatcher retry` lets the work run again.
 `dreamcatcher stop` stops one running round so that you can redirect the
 agent on GitHub. `dreamcatcher cancel` hands an assignment's pull
-request to the developer to finish by hand.
+request to the user to finish by hand.

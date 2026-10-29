@@ -39,9 +39,9 @@ A **user** is the person whose account `gh` is signed in to. A
 _dreamcatcher_ instance manages agent work on the user's behalf, and the
 user provides decisions and reviews work through GitHub.
 
-### Developer's agent
+### User's agent
 
-A **developer's agent** is an agent that helps the user plan issues and
+A **user's agent** is an agent that helps the user plan issues and
 dispatch agent work outside _dreamcatcher_. It acts through the user's
 GitHub account when the user permits it, but it is not agent work and
 _dreamcatcher_ does not run it.

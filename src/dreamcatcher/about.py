@@ -70,6 +70,6 @@ def _compose_routes(*, config: DreamcatcherConfig) -> str:
         for route in config.routes
     )
     return routes or (
-        "No dispatch routes are configured. Ask the developer to configure one "
+        "No dispatch routes are configured. Ask the user to configure one "
         "and restart the daemon before you dispatch work."
     )

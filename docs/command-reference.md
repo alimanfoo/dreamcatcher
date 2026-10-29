@@ -47,7 +47,7 @@ assignment.
 
 | Command  | Purpose                                             |
 | -------- | --------------------------------------------------- |
-| `about`  | Brief an agent that works with the developer.       |
+| `about`  | Brief the user's agent.                             |
 | `init`   | Prepare this repository's main checkout.            |
 | `run`    | Run the daemon for this repository.                 |
 | `retry`  | Allow one piece of faulted work to run again.       |
@@ -64,11 +64,11 @@ assignment.
 dreamcatcher about
 ```
 
-Print a plain Markdown briefing for an agent that helps the developer
-triage issues and dispatch work outside _dreamcatcher_. The briefing
-explains how to prepare and label an issue, what each kind of agent work
-does, where to give guidance, when work needs help and what the outside
-agent can leave to _dreamcatcher_.
+Print a plain Markdown briefing for the user's agent, which helps the
+user triage issues and dispatch work outside _dreamcatcher_. The
+briefing explains how to prepare and label an issue, what each kind of
+agent work does, where to give guidance, when work needs help and what
+the outside agent can leave to _dreamcatcher_.
 
 In a directory with `dreamcatcher.toml`, the briefing names every
 configured route's label, kind, opening instructions, harnesses, models

@@ -532,18 +532,18 @@ wanted.
 #### The user asks their agent to dispatch work
 
 The user has an agent helping them triage issues and plan work outside
-_dreamcatcher_. The developer's agent has never used _dreamcatcher_, so
-the user asks it to run `dreamcatcher about`. The command prints a
-Markdown briefing on standard output. In a checkout with
-`dreamcatcher.toml`, the briefing names its real dispatch labels, the
-kind, opening instructions and harness settings of each route, and
-whether a daemon runs for the checkout. Elsewhere it names the packaged
-default routes and says that they are defaults.
+_dreamcatcher_. The user's agent has never used _dreamcatcher_, so the
+user asks it to run `dreamcatcher about`. The command prints a Markdown
+briefing on standard output. In a checkout with `dreamcatcher.toml`, the
+briefing names its real dispatch labels, the kind, opening instructions
+and harness settings of each route, and whether a daemon runs for the
+checkout. Elsewhere it names the packaged default routes and says that
+they are defaults.
 
-The briefing tells the developer's agent to leave interactive setup and
-the long-running daemon to the user. Once the user has set up the
-repository, the developer's agent captures `dreamcatcher status` before
-it acts, so it sees work already in progress and requests that have not
+The briefing tells the user's agent to leave interactive setup and the
+long-running daemon to the user. Once the user has set up the
+repository, the user's agent captures `dreamcatcher status` before it
+acts, so it sees work already in progress and requests that have not
 started. It writes the whole brief in the issue before it assigns the
 issue to the user and applies one of the repository's labels through the
 user's account. An open issue may hold an assignment or campaign request
@@ -551,31 +551,30 @@ back, and blocked-by relationships give that work its order; a
 dependency does not delay a conversation. The request starts at a later
 update when capacity is free.
 
-For an assignment, the developer's agent checks `dreamcatcher status` to
+For an assignment, the user's agent checks `dreamcatcher status` to
 distinguish a draft that may need an answer from a pull request that is
 ready for review. It gives later guidance on the pull request, where the
 assignment's agent receives the user's posts in batches, and never
 pushes to the assignment's branch. It knows that the assignment repairs
 two red builds on its own, updates a conflicting or required-current
 branch from main, and may file issues in its wrap-up turn after merge.
-The developer's agent reviews and merges only when the user has allowed
-it to; otherwise it leaves the review and merge to the user.
+The user's agent reviews and merges only when the user has allowed it
+to; otherwise it leaves the review and merge to the user.
 
-For a campaign, the developer's agent makes the plan real sub-issues of
-one parent, uses blocked-by relationships to order them and labels only
-the parent. The lead follows its route's opening instruction. Under the
-packaged default route, the developer's agent leaves the lead to label
-the sub-issues, review and merge their pull requests, and raises
-guidance or answers on the parent. It uses a merge queue when the
-repository offers one; otherwise it leaves "Require branches to be up to
-date before merging" off. The user closes the parent to end the
-campaign.
+For a campaign, the user's agent makes the plan real sub-issues of one
+parent, uses blocked-by relationships to order them and labels only the
+parent. The lead follows its route's opening instruction. Under the
+packaged default route, the user's agent leaves the lead to label the
+sub-issues, review and merge their pull requests, and raises guidance or
+answers on the parent. It uses a merge queue when the repository offers
+one; otherwise it leaves "Require branches to be up to date before
+merging" off. The user closes the parent to end the campaign.
 
-For a conversation, the developer's agent puts the first question in an
-issue comment, because the title and body alone start no conversation,
-then asks and answers on the issue. For every kind of agent work, only
-posts through the user's account reach the agent. The developer's agent
-uses `status`, `view` and `feed` to inspect work, `retry` after fixing a
+For a conversation, the user's agent puts the first question in an issue
+comment, because the title and body alone start no conversation, then
+asks and answers on the issue. For every kind of agent work, only posts
+through the user's account reach the agent. The user's agent uses
+`status`, `view` and `feed` to inspect work, `retry` after fixing a
 fault, `stop` to redirect a round, and `cancel` to hand an assignment
 back to the user.
 
