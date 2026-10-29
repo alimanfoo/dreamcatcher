@@ -43,7 +43,7 @@ effort = "high"
 label = "agent-campaign"
 
 [campaign.claude]
-prompt = "/dream:lead GH{issue}"
+prompt = "/dream:big GH{issue}"
 model = "opus[1m]"
 effort = "high"
 ```
@@ -62,8 +62,8 @@ plain instructions, as above, because _dreamcatcher_ adds the input and
 publication instructions itself. Authors can find the conversation
 skill's requirements in the
 [conversation skill contract](contract.md#conversation-skill-contract).
-A campaign prompt normally invokes a campaign skill such as
-`dream:lead`, whose requirements are in the
+A campaign prompt normally invokes a campaign skill such as `dream:big`,
+whose requirements are in the
 [campaign skill contract](contract.md#campaign-skill-contract).
 
 ## Match the recipe to how hard the work is

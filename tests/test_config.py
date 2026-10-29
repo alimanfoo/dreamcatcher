@@ -100,7 +100,7 @@ def test_a_campaign_is_configured_separately(tmp_path):
 
     assert config.campaign == [
         CampaignRoute(
-            label="dream:lead",
+            label="dream:big",
             claude=ClaudeRecipe(
                 prompt="Acknowledge GH{issue} with a comment on it.",
                 model="opus[1m]",
@@ -109,7 +109,7 @@ def test_a_campaign_is_configured_separately(tmp_path):
         )
     ]
     assert config.identify_routes(
-        kind=AgentWorkKind.CAMPAIGN, labels=["DREAM:LEAD", "dream:smith"]
+        kind=AgentWorkKind.CAMPAIGN, labels=["DREAM:BIG", "dream:smith"]
     ) == [config.campaign[0]]
     assert [route.kind for route in config.routes] == [
         AgentWorkKind.ASSIGNMENT,
@@ -331,13 +331,13 @@ def test_a_label_one_harness_can_run_runs_on_that_one_whatever_the_run_named(tmp
         (
             "one campaign label routed twice",
             CONFIG + CAMPAIGN_CLAUDE + CAMPAIGN_CLAUDE,
-            "Value error, more than one campaign entry uses the label dream:lead",
+            "Value error, more than one campaign entry uses the label dream:big",
         ),
         (
             "one label routes a conversation and a campaign",
             CONFIG
             + CONVERSATION
-            + CAMPAIGN_CLAUDE.replace("dream:lead", "dream:conversation"),
+            + CAMPAIGN_CLAUDE.replace("dream:big", "dream:conversation"),
             "Value error, conversation and campaign entries use the same label: "
             "dream:conversation",
         ),
@@ -345,7 +345,7 @@ def test_a_label_one_harness_can_run_runs_on_that_one_whatever_the_run_named(tmp
             "two labels each routing two kinds of work",
             CONFIG
             + CONVERSATION.replace("dream:conversation", "DREAM:SMITH")
-            + CAMPAIGN_CLAUDE.replace("dream:lead", "dream:conversation")
+            + CAMPAIGN_CLAUDE.replace("dream:big", "dream:conversation")
             + CONVERSATION,
             "Value error, conversation and campaign entries use the same label: "
             "dream:conversation; assignment and conversation entries use the same "
@@ -461,6 +461,16 @@ def test_the_default_config_routes_every_label_to_the_installed_harnesses(
         "agent-assignment-easy",
     ]
     assert [route.label for route in config.campaign] == ["agent-campaign"]
+    campaign_prompts = {
+        harness: recipe.prompt for harness, recipe in config.campaign[0].recipes.items()
+    }
+    expected_campaign_prompts = {
+        AgentHarness.CLAUDE: "/dream:big GH{issue}",
+        AgentHarness.CODEX: "$dream:big GH{issue}",
+    }
+    assert campaign_prompts == {
+        harness: expected_campaign_prompts[harness] for harness in harnesses
+    }
     less_recipes = {
         harness: (recipe.model, recipe.effort)
         for harness, recipe in config.assignment[1].recipes.items()

@@ -16,12 +16,12 @@ installs it and sets up a label for each skill:
 | `dream:smith` | `agent-assignment`      | Yes        | An assignment        |
 | `dream:less`  | `agent-assignment-easy` | Yes        | An assignment        |
 | `dream:scout` | `agent-conversation`    | No         | A conversation       |
-| `dream:lead`  | `agent-campaign`        | No         | A campaign           |
+| `dream:big`   | `agent-campaign`        | No         | A campaign           |
 
 `dream:smith` plans a change, builds it a commit at a time, and reviews
 it thoroughly. `dream:less` makes an easy change with lighter review.
 `dream:scout` looks into an issue and answers your questions about it.
-`dream:lead` leads a campaign, carrying a parent issue's sub-issues
+`dream:big` leads a campaign, carrying a parent issue's sub-issues
 through their assignments to merge.
 
 ## Write your own

@@ -23,7 +23,7 @@ CONVERSATION_LABEL = "dream:conversation"
 _USUAL_LABELS = {
     AgentWorkKind.ASSIGNMENT: ASSIGNMENT_LABEL,
     AgentWorkKind.CONVERSATION: CONVERSATION_LABEL,
-    AgentWorkKind.CAMPAIGN: "dream:lead",
+    AgentWorkKind.CAMPAIGN: "dream:big",
 }
 
 

@@ -222,7 +222,7 @@ def test_an_empty_campaign_section_says_how_to_start_a_campaign(tmp_path):
     write_daemon_run(
         state=state,
         pid=os.getpid(),
-        routes=[RecordedRoute(label="dream:lead", kind=AgentWorkKind.CAMPAIGN)],
+        routes=[RecordedRoute(label="dream:big", kind=AgentWorkKind.CAMPAIGN)],
     )
 
     found = read_status_report(state=state, clock=lambda: LOOKED_AT)
@@ -233,7 +233,7 @@ def test_an_empty_campaign_section_says_how_to_start_a_campaign(tmp_path):
         heading="campaigns",
         guidance=SectionGuidance(
             message=(
-                "Assign a parent issue to yourself and label it with dream:lead "
+                "Assign a parent issue to yourself and label it with dream:big "
                 "to start a campaign."
             ),
             documentation=None,

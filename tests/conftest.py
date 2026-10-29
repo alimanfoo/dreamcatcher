@@ -78,7 +78,7 @@ effort = "xhigh"
 CONFIG = SMITH_CLAUDE + SMITH_CODEX
 
 CAMPAIGN_CLAUDE = """[[campaign]]
-label = "dream:lead"
+label = "dream:big"
 [campaign.claude]
 prompt = "Acknowledge GH{issue} with a comment on it."
 model = "opus[1m]"

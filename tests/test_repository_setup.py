@@ -257,7 +257,7 @@ def test_a_campaign_only_configuration_explains_how_to_start_one(
         [
             "label",
             "create",
-            "dream:lead",
+            "dream:big",
             "--repo",
             REPOSITORY,
             "--description",
@@ -265,7 +265,7 @@ def test_a_campaign_only_configuration_explains_how_to_start_one(
         ]
     ]
     assert capsys.readouterr().out.endswith(
-        f"  Assign a parent issue to {POSTED_BY}, and label it dream:lead.\n"
+        f"  Assign a parent issue to {POSTED_BY}, and label it dream:big.\n"
         "  dreamcatcher run --harness claude\n"
     )
 

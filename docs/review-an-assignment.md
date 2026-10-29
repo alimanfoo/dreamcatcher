@@ -39,8 +39,8 @@ dreamcatcher feed GH123
 If another decision is needed after the agent responds, add a new
 pull-request comment or review for the next exchange.
 
-In a campaign that the `dream:lead` skill leads, the lead comments on
-and merges a sub-issue's pull request, as
+In a campaign that the `dream:big` skill leads, the lead comments on and
+merges a sub-issue's pull request, as
 [Talk to the lead](start-a-campaign.md#talk-to-the-lead) explains.
 
 ## Out-of-date branches and failing checks

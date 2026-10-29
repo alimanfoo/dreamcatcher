@@ -27,6 +27,16 @@ the change.
 
 ## Unreleased
 
+### Changed
+
+- The default `agent-campaign` route now runs the dream plugin's
+  `dream:big` campaign skill, which dream 44.0.0 renamed from
+  `dream:lead`. Existing `dreamcatcher.toml` files must change their
+  campaign prompts to `/dream:big GH{issue}` for Claude and
+  `$dream:big GH{issue}` for Codex by hand, because `dreamcatcher init`
+  leaves an existing file unchanged.
+  ([#875](https://github.com/alimanfoo/dreamcatcher/pull/875))
+
 ## [v9.6.0](https://github.com/alimanfoo/dreamcatcher/releases/tag/v9.6.0) — 2026-10-29
 
 ### Changed
