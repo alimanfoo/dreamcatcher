@@ -1,11 +1,11 @@
 """Serve and render dreamcatcher's local web interface."""
 
 import logging
-import re
 from collections.abc import Callable, Generator
 from contextlib import contextmanager, suppress
 from datetime import datetime, tzinfo
 from functools import partial
+from urllib.parse import quote
 from webbrowser import open as open_browser
 
 from flask import Flask, Response, redirect, render_template, request, url_for
@@ -377,7 +377,7 @@ def _configure_web_theme(*, app: Flask, state: StateDirectory) -> None:
         repository = None
     cookie_name = "theme"
     if repository:
-        repository_key = re.sub(r"[^A-Za-z0-9._-]", "-", repository)
+        repository_key = quote(repository, safe="")
         cookie_name = f"theme-{repository_key}"
 
     @app.context_processor

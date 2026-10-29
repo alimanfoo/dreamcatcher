@@ -1335,8 +1335,8 @@ def test_two_repositories_remember_different_theme_choices(tmp_path):
     first_state = StateDirectory(root=tmp_path / "first")
     second_state = StateDirectory(root=tmp_path / "second")
     for state, repository in (
-        (first_state, "alimanfoo/first"),
-        (second_state, "alimanfoo/second"),
+        (first_state, "foo/bar-baz"),
+        (second_state, "foo-bar/baz"),
     ):
         state.bootstrap()
         write_text(text=f"{repository}\n", path=state.repository)
@@ -1359,8 +1359,8 @@ def test_two_repositories_remember_different_theme_choices(tmp_path):
         "/", headers={"Cookie": browser_cookies}
     )
 
-    assert "theme-alimanfoo-first=nature;" in first_choice.headers["Set-Cookie"]
-    assert "theme-alimanfoo-second=matrix;" in second_choice.headers["Set-Cookie"]
+    assert "theme-foo%2Fbar-baz=nature;" in first_choice.headers["Set-Cookie"]
+    assert "theme-foo-bar%2Fbaz=matrix;" in second_choice.headers["Set-Cookie"]
     assert 'data-web-theme="nature"' in first_remembered.text
     assert 'data-web-theme="matrix"' in second_remembered.text
 
