@@ -638,8 +638,8 @@ Both show the daemon's last update, and keep showing it after the daemon
 stops, so the user can still see where things stood.
 
 The user can choose a theme for each repository's web pages. Their
-browser remembers one choice for each repository, so pages for different
-repositories can keep different themes.
+browser remembers one choice for each repository, once its daemon has
+run, so pages for different repositories can keep different themes.
 
 The home page also shows that agents are at work without asking the user
 to read anything. Each theme has a small moving motif of its own: in
