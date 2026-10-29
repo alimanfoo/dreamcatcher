@@ -200,7 +200,7 @@ language.
 - Measure: open issues that name a concept by a word the concepts page
   does not use for it, or that ask for work already done.
 - Bar: zero.
-- Check: triage before each release.
+- Check: bring the open issues up to date before each release.
 
 **Reviewed changes.** Every change is reviewed against this standard.
 
@@ -292,7 +292,8 @@ waiver with no reason a reader can find is a violation.
 
 Before each major or minor release,
 [the release checklist](releasing.md) runs the consistency review,
-triages the open issues and measures every criterion, reading the four
-enduring documents against the code. [The measurement](measurement.md)
-holds the latest results, and a phase plans its work from them. Each
-shortfall is an issue, and none holds a release back.
+brings the open issues up to date and measures every criterion, reading
+the four enduring documents against the code.
+[The measurement](measurement.md) holds the latest results, and a phase
+plans its work from them. Each shortfall is an issue, and none holds a
+release back.

@@ -24,8 +24,8 @@ Do this before a major or minor release. A patch release skips it.
    own skills, for each word that a "Replaces:" line on
    [the concepts page](concepts.md) names. Fix what is quick to fix, and
    file an issue for each other finding.
-2. Triage the open issues against the concepts page. Search them for
-   each word that a "Replaces:" line names. Rewrite each issue that
+2. Bring the open issues up to date with the concepts page. Search them
+   for each word that a "Replaces:" line names. Rewrite each issue that
    names a concept by a replaced word or by any other word that the
    concepts page does not use for it. Close each one whose work is done
    or no longer applies, and say why.
