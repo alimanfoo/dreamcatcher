@@ -651,14 +651,9 @@ body::after {
 }
 
 .firefly {
-  --firefly-horizontal-unit: 1px;
   position: absolute;
   display: none;
   animation: firefly-drift ease-in-out infinite;
-}
-
-.working-motifs .firefly {
-  --firefly-horizontal-unit: var(--gutter-unit);
 }
 
 .firefly-glow {
@@ -753,15 +748,15 @@ body::after {
   }
 
   25% {
-    transform: translate(calc(var(--firefly-horizontal-unit) * 26), -38px);
+    transform: translate(calc(var(--gutter-unit, 1px) * 26), -38px);
   }
 
   50% {
-    transform: translate(calc(var(--firefly-horizontal-unit) * -14), -70px);
+    transform: translate(calc(var(--gutter-unit, 1px) * -14), -70px);
   }
 
   75% {
-    transform: translate(calc(var(--firefly-horizontal-unit) * -30), -24px);
+    transform: translate(calc(var(--gutter-unit, 1px) * -30), -24px);
   }
 }
 

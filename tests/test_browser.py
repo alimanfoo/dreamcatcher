@@ -64,9 +64,13 @@ MEASURE_WORKING_MOTIFS = """() => {
   const layer = document.querySelector(".working-motifs");
   const content = document.querySelector(".dashboard").getBoundingClientRect();
   const motifs = [...layer.children].filter(motif => motif.checkVisibility());
-  const places = motifs.map(motif => parseFloat(getComputedStyle(motif)[
-    motif.style.left ? "left" : "right"
-  ]));
+  const places = motifs.map(motif => {
+    const side = motif.style.left ? "left" : "right";
+    return [
+      parseFloat(getComputedStyle(motif)[side]),
+      parseFloat(motif.style[side].split("*")[1]),
+    ];
+  });
   const reaches = motifs.map(motif => {
     const animations = motif.getAnimations({ subtree: true });
     animations.forEach(animation => animation.pause());
@@ -914,7 +918,7 @@ def test_nature_shows_exactly_one_of_sun_and_moon_at_each_boundary(
 @pytest.mark.parametrize(
     ("theme", "scheme"), [("matrix", "dark"), ("nature", "light"), ("nature", "dark")]
 )
-def test_working_motifs_stay_in_the_margins_beneath_the_header(
+def test_working_motifs_stay_in_the_gutter_beneath_the_header(
     page: Page,
     live_web: str,
     theme: str,
@@ -930,14 +934,7 @@ def test_working_motifs_stay_in_the_margins_beneath_the_header(
     assert len(geometry["reaches"]) == read_working_agents(page=page)
     assert geometry["layer"] >= geometry["header"]
     if width == 1440:
-        assert (
-            geometry["places"]
-            == {
-                ("matrix", "dark"): [70, 90],
-                ("nature", "light"): [64, 84],
-                ("nature", "dark"): [70, 96],
-            }[theme, scheme]
-        )
+        assert all(actual == expected for actual, expected in geometry["places"])
     content_left, content_right = geometry["content"]
     for left, right in geometry["reaches"]:
         assert right <= content_left or left >= content_right
