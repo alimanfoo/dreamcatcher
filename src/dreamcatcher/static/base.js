@@ -4,21 +4,6 @@
 Idiomorph.defaults.callbacks.beforeAttributeUpdated = (attribute, element) =>
   !(attribute === "open" && element.matches("details"));
 
-// The fixed working-motif layer begins where the site header actually ends.
-// The home-page refresh morphs the header in place, so this observer continues
-// to follow changes from wrapping, fonts and refreshed content.
-const siteHeader = document.querySelector(".site-header");
-if (siteHeader !== null) {
-  const setSiteHeaderHeight = () => {
-    document.documentElement.style.setProperty(
-      "--site-header-height",
-      `${siteHeader.getBoundingClientRect().height}px`,
-    );
-  };
-  setSiteHeaderHeight();
-  new ResizeObserver(setSiteHeaderHeight).observe(siteHeader);
-}
-
 // A refresh names its alert in data-refresh-alert. A failed refresh keeps
 // what the page shows and gives the server's reason, or points to the
 // terminal when no reason came back, as when the server has stopped. A

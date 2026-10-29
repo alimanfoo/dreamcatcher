@@ -718,7 +718,7 @@ for each motif, and its stylesheet shows the seeds on a light page and
 the fireflies on a dark one, so the motif always suits the sky behind
 it.
 
-`base.js` observes the site header's rendered height and writes it to
+`home.js` observes the site header's rendered height and writes it to
 the shared stylesheet variable, so the fixed working-motif layer begins
 beneath the header without a height duplicated in each theme. The home
 page's refresh morphs the header in place, so the observer stays with

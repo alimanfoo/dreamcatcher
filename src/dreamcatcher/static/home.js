@@ -1,5 +1,18 @@
 "use strict";
 
+// The fixed working-motif layer begins where the site header actually ends.
+// The home-page refresh morphs the header in place, so this observer continues
+// to follow changes from wrapping, fonts and refreshed content.
+const siteHeader = document.querySelector(".site-header");
+const setSiteHeaderHeight = () => {
+  document.documentElement.style.setProperty(
+    "--site-header-height",
+    `${siteHeader.getBoundingClientRect().height}px`,
+  );
+};
+setSiteHeaderHeight();
+new ResizeObserver(setSiteHeaderHeight).observe(siteHeader);
+
 let shouldRestoreTabFocus = false;
 
 function activateWorkTab(tab, shouldFocus = false) {
