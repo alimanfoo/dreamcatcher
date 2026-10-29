@@ -1,4 +1,0 @@
-interface:
-  display_name: "Triage dreamcatcher issues"
-  short_description: "Investigate and triage issues one decision at a time"
-  default_prompt: "Use $triage-issues to resume dreamcatcher issue triage from the current GitHub state, investigating each issue before recommending a decision."
