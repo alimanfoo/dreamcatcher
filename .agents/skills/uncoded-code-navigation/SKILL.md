@@ -8,44 +8,46 @@ description: Load once per session, before the first search, read, or edit of Py
 # Code Navigation
 
 This codebase uses [uncoded](https://github.com/alimanfoo/uncoded) to maintain a
-symbol index over its source code, with two associated CLI tools: `uncoded body`
-for reading a symbol's body and `uncoded refs` for finding references.
+code index over its source code, with two associated CLI tools: `uncoded body`
+for reading a symbol's definition and `uncoded refs` for finding references.
 
 ## The dispatch rule
 
-**If your search term is the name of a Python symbol, use the index. Python
-symbols are classes, functions, methods, attributes, and module-level constants.
-If it's a pattern, regex, or free-text phrase, use grep.**
+**If your search term is the name of a Python symbol, use the code index. Python
+symbols are classes, functions, methods, properties, `type` statements, and
+assignments in a module or class body. If it's a pattern, regex, or free-text
+phrase, use grep.**
 
 This dispatch rule applies to every tool call where you find code, not just the
 first in the session. The pretrained reflex for "find X" is grep, and that
 reflex is wrong here. Reaching for `grep -rn 'def parse_config'` to read a
-function's body is a case for `uncoded body`. Reaching for
+function's definition is a case for `uncoded body`. Reaching for
 `grep -rn 'validate_input'` to check callers before a refactor is a case for
-`uncoded refs`. Reaching for `grep` then `Edit` to delete dead code is a case
-for `uncoded refs` to confirm the code is dead, then `Edit`. The grep version of
+`uncoded refs`. Reaching for `grep` then `Edit` to delete a symbol is a case for
+`uncoded refs` to confirm the symbol is unused, then `Edit`. The grep version of
 any of these is noisier and less reliable. Grep matches comments, strings, and
-unrelated attributes. Grep misses re-exports, so caller and delete checks come
-back incomplete. Grep forces offset arithmetic to slice a body. The indexed
-tools don't.
+unrelated member access. Grep misses re-exports, so caller and delete checks
+come back incomplete. Grep forces offset arithmetic to slice a definition. The
+indexed tools don't.
 
 ## How to execute the rule
 
-The index has two parts: a namespace map and per-file stubs. Start with the map
-and add detail only when the task needs it.
+The code index has two parts: a namespace map and per-file stubs. Start with the
+map and add detail only when the task needs it.
 
-**Step 1: Orient. Read the namespace map first.** If the map is missing, run the
-repository's configured `uncoded sync` command. Then, before answering the user,
-before any other tool call:
+**Step 1: Orient. Sync, then read the namespace map.** Run
+`uv run uncoded sync`, so that the map is current. Then, before answering the
+user and before any other tool call:
 
 ```text
 Read .uncoded/namespace.yaml
 ```
 
-This lists every symbol in the codebase: directories, files, classes, methods,
-functions. Without it loaded, "find X" answers come from pretrained guesses.
-They reflect what a project like this probably contains, not what is actually
-here. Read it once, in full, at session start.
+This lists every symbol under the source roots: classes, functions, methods,
+properties, `type` statements and assignments, beneath the directories and files
+that hold them. Without it loaded, "find X" answers come from pretrained
+guesses. They reflect what a project like this probably contains, not what is
+actually here. Read it once, in full, at session start.
 
 **Step 2: Understand. Read the `.pyi` stub before any `.py` source.** Stub paths
 mirror source paths under `.uncoded/stubs/`:
@@ -55,45 +57,57 @@ src/foo/bar.py      →  .uncoded/stubs/src/foo/bar.pyi
 tests/test_foo.py   →  .uncoded/stubs/tests/test_foo.pyi
 ```
 
-The stub contains imports, parameter names and annotations, return types,
-module-level assignments, and class attributes. It omits parameter defaults,
+The stub contains imports, parameter names and annotations, return types, and
+the assignments in module and class bodies. It omits parameter defaults,
 decorators, docstrings, and function bodies. Read source when the task depends
 on an omitted detail or needs exact code. If no stub exists at the expected
 path, the file has no symbols indexed. In that narrow case, read source
 directly.
 
-**Step 3: Act.** Use `uncoded body` to read a symbol's body. Use `uncoded refs`
-to find every reference to a symbol. Use `Edit` (with `uncoded body`'s output as
-`old_string`) to change a symbol. Use the exact `relative_path` and `name_path`
-from the map. Use `ClassName/method` for a method and `function_name` for a
-top-level function. Per task:
+**Step 3: Act.** Use `uncoded body` to read a symbol's definition. Use
+`uncoded refs` to find every reference to a symbol. Use `Edit` (with
+`uncoded body`'s output as `old_string`) to change a symbol. Run both from the
+project directory, the directory that holds the uncoded configuration file. The
+map's paths are relative to that directory, so you can pass them to `--in`
+unchanged. Use the exact `relative_path` and `name_path` from the map. Use
+`ClassName/method` for a method and `function_name` for a top-level function.
+Per task:
 
-- **Read a symbol's body.** `uvx uncoded body <name_path> --in <relative_path>`
-  prints the symbol's source text to stdout, byte-identical to disk. Returns
-  exactly the symbol. No offset arithmetic, no risk of reading too much. Its
-  output has every byte `Edit` needs as `old_string`. You need no extra `Read`
-  for partial edits. Stay on stubs for a wider sweep.
+- **Read a symbol's definition.**
+  `uv run uncoded body <name_path> --in <relative_path>` prints the symbol's
+  source text to stdout, exactly as it is in the file. Returns exactly the
+  symbol. No offset arithmetic, no risk of reading too much. Its output is the
+  exact text `Edit` needs as `old_string`. You need no extra `Read` for partial
+  edits. Stay on stubs for a wider sweep.
 
 - **Find every reference to a symbol.**
-  `uvx uncoded refs <name_path> --in <relative_path>`. Prints one reference per
+  `uv run uncoded refs <name_path> --in <relative_path>`. Prints the symbol's
+  definition, each import of it, and each use of it. Prints one reference per
   line as `<path>:<line>:<col>`, sorted by path, then line, then column. Each
   path is relative to the current working directory when possible and otherwise
   absolute. Grep on the name misses re-exports and adds false positives from
-  comments, strings, and attribute lookups on other types. If the next move
-  depends on the answer being complete, grep cannot give you that.
+  comments, strings, and member lookups on other types. If the next move depends
+  on the answer being complete, grep cannot give you that.
 
-- **Edit a symbol.** `uvx uncoded body <name_path> --in <relative_path>` gives
-  the exact `old_string`; then `Edit` to apply the change.
+- **Edit a symbol.** `uv run uncoded body <name_path> --in <relative_path>`
+  gives the exact `old_string`; then `Edit` to apply the change.
 
-- **Rename.** `uvx uncoded refs <name_path> --in <relative_path>` enumerates
+- **Rename.** `uv run uncoded refs <name_path> --in <relative_path>` enumerates
   every site; then `Edit` at each.
 
-- **Safely delete.** `uvx uncoded refs <name_path> --in <relative_path>` must
-  return empty; then `Edit` to remove.
+- **Safely delete.** `uv run uncoded refs <name_path> --in <relative_path>`
+  lists every reference. Read the source at each reference's line to see which
+  definition it lies in. A definition runs from its first decorator to the end
+  of its body. The symbol is unused when every reference lies within its own
+  definition, within a definition that it redefines, such as an `@overload`
+  definition, or, for a property, within its setter or deleter. If the symbol is
+  unused, `Edit` to remove it.
 
-**Step 4: Refresh.** After every modification to indexed Python source, run the
-repository's configured `uncoded sync` command before the next code-navigation
-operation. The modification can change the namespace map and stubs.
+**Step 4: Refresh.** After every modification to indexed Python source, run
+`uv run uncoded sync` before the next code-navigation operation. The
+modification can change the namespace map and stubs. Run it too whenever you
+notice that something else has changed files, such as a pull, a checkout, or
+another agent working in the same project.
 
 ## Where Read, Edit, and grep are still the right tools
 
@@ -105,9 +119,9 @@ and grep stay correct:
 - Pattern search across signatures (regex over type annotations, decorator
   usage, alias declarations). These are not symbol-name lookups, even though
   they sit inside source.
-- Partial-line edits inside a symbol body, once you have retrieved it via
+- Partial-line edits inside a definition, once you have retrieved it via
   `uncoded body`.
 - The rare stub-less Python file that needs exploratory reading.
 
-The dispatch rule turns on the search term. A symbol name goes to the index. A
-regex or free-text phrase goes to grep.
+The dispatch rule turns on the search term. A symbol name goes to the code
+index. A regex or free-text phrase goes to grep.
