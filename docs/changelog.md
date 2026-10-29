@@ -29,9 +29,7 @@ the change.
 
 ### Changed
 
-- The home page shows its working-agent motifs from a 1184px-wide
-  window, where the narrower theme's gutter beside the text is 60px,
-  instead of waiting for a 1360px-wide window.
+- The home page shows its working-agent motifs on narrower windows.
   ([#867](https://github.com/alimanfoo/dreamcatcher/pull/867))
 
 ## [v9.5.0](https://github.com/alimanfoo/dreamcatcher/releases/tag/v9.5.0) — 2026-10-28
