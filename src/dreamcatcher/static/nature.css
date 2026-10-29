@@ -71,6 +71,7 @@
   --font: "Alegreya Sans", Avenir, "Segoe UI", sans-serif;
   --font-size: 15px;
   --line-height: 1.5;
+  --page-side-padding-pixels: 32;
   --site-header-height: 87px;
   --sun-opacity: 1;
   --sun-x: 50%;
@@ -180,7 +181,7 @@ body::after {
 .error-page {
   position: relative;
   z-index: 1;
-  padding: 28px 32px 64px;
+  padding: 28px var(--page-side-padding) 64px;
 }
 
 .instance {
@@ -626,7 +627,7 @@ body::after {
 }
 
 .seed-body {
-  --seed-sway: calc(var(--margin-unit) * 22);
+  --seed-sway: calc(var(--gutter-unit) * 22);
   animation: seed-sway ease-in-out infinite;
 }
 
@@ -703,7 +704,11 @@ body::after {
   }
 
   100% {
-    transform: translate(-30px, calc(100vh + 40px)) rotate(14deg);
+    transform: translate(
+        calc(var(--gutter-unit) * -30),
+        calc(100vh + 40px)
+      )
+      rotate(14deg);
     opacity: 0;
   }
 }
@@ -743,15 +748,15 @@ body::after {
   }
 
   25% {
-    transform: translate(26px, -38px);
+    transform: translate(calc(var(--gutter-unit, 1px) * 26), -38px);
   }
 
   50% {
-    transform: translate(-14px, -70px);
+    transform: translate(calc(var(--gutter-unit, 1px) * -14), -70px);
   }
 
   75% {
-    transform: translate(-30px, -24px);
+    transform: translate(calc(var(--gutter-unit, 1px) * -30), -24px);
   }
 }
 

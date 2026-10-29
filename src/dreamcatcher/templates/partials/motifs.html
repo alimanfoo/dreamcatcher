@@ -23,9 +23,9 @@
 {% macro place_motif(places, index, count) -%}
   {% set place = places[index % places|length] -%}
   {% set laps = (count + places|length - 1) // places|length -%}
-  {{ place.side }}: calc(var(--margin-unit) * {{ place.at }}); animation-duration: {{ place.duration }}s; animation-delay: {{ (place.delay - (index // places|length) * place.duration / laps)|round(2) }}s
+  {{ place.side }}: calc(var(--gutter-unit) * {{ place.at }}); animation-duration: {{ place.duration }}s; animation-delay: {{ (place.delay - (index // places|length) * place.duration / laps)|round(2) }}s
 {%- endmacro %}
-{#- One motif for each working agent, in the window's side margins. Nature gives each agent a seed and a firefly, and shows the seed on a light page and the firefly on a dark one. -#}
+{#- One motif for each working agent. Nature gives each agent a seed and a firefly, and shows the seed on a light page and the firefly on a dark one. -#}
 {% macro working_motifs(theme, count) -%}
 <div class="working-motifs" aria-hidden="true">
 {%- if theme == "matrix" %}

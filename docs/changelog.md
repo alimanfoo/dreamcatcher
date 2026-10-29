@@ -27,6 +27,11 @@ the change.
 
 ## Unreleased
 
+### Changed
+
+- The home page shows its working-agent motifs on narrower windows.
+  ([#867](https://github.com/alimanfoo/dreamcatcher/pull/867))
+
 ## [v9.5.0](https://github.com/alimanfoo/dreamcatcher/releases/tag/v9.5.0) — 2026-10-28
 
 ### Added

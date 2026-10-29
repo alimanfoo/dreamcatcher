@@ -28,6 +28,9 @@
   --space-11: 24px;
   --space-12: 28px;
   --page-width: 1120px;
+  --page-side-padding-pixels: 28;
+  --page-side-padding: calc(var(--page-side-padding-pixels) * 1px);
+  --motif-scale-divisor: calc(122 + var(--page-side-padding-pixels));
   --site-header-height: 64px;
   --letter-label: 0.14em;
   --letter-chip: 0.06em;
@@ -160,7 +163,7 @@ body::after {
 .error-page {
   width: min(100%, var(--page-width));
   margin: 0 auto;
-  padding: var(--space-10) var(--space-12) calc(var(--space-12) * 2);
+  padding: var(--space-10) var(--page-side-padding) calc(var(--space-12) * 2);
 }
 
 .instance {
@@ -788,22 +791,27 @@ body::after {
   font-weight: 700;
 }
 
-/* The working-agent motifs move beneath the site header, in the side
-   margins, while the reader allows motion. The mockups place them in a
-   160px margin, so --margin-unit is the length that one of its pixels
-   stands for in the margin there is, and each motif's distance from the
-   window's edge, and a seed's sway, scale with it. They show only where
-   each margin is at least 120px, the 1120px column's 1360px window,
-   since in a narrower one a falling seed's drift brings it within 12px
-   of the content's text. */
+/* The working-agent motifs move beneath the site header, in the gutter
+   between the window and the content's text, while the reader allows motion.
+   The mockups give that gutter 188px in Matrix and 192px in Nature once the
+   real page's side padding is included. The seed's 38px fixed reach stays its
+   mockup size; --gutter-unit scales every horizontal place and movement into
+   the rest. The motifs show once even the narrower Matrix gutter is 60px: the
+   1120px column's 1184px window, including its 28px side padding. */
 
 .working-motifs {
   display: none;
 }
 
-@media (min-width: 1360px) and (prefers-reduced-motion: no-preference) {
+@media (min-width: 1184px) and (prefers-reduced-motion: no-preference) {
   .working-motifs {
-    --margin-unit: calc((100cqw - var(--page-width)) / 2 / 160);
+    --gutter-unit: calc(
+      (
+          (100cqw - var(--page-width)) / 2 + var(--page-side-padding) -
+            38px
+        ) /
+        var(--motif-scale-divisor)
+    );
     position: fixed;
     z-index: 0;
     inset: var(--site-header-height) 0 0;

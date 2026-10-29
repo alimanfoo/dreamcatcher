@@ -54,8 +54,8 @@ RECORD_TAIL_HIDDEN_PER_FRAME = """() => {
   requestAnimationFrame(record);
 }"""
 
-# The narrowest window whose side margins hold the working-agent motifs.
-MOTIF_WINDOW_WIDTH = 1360
+# The narrowest window whose gutter beside the text holds the working motifs.
+MOTIF_WINDOW_WIDTH = 1184
 
 # Step every animation of each shown working-agent motif through its cycle,
 # in every combination, and give the widest reach of each motif with the
@@ -64,6 +64,13 @@ MEASURE_WORKING_MOTIFS = """() => {
   const layer = document.querySelector(".working-motifs");
   const content = document.querySelector(".dashboard").getBoundingClientRect();
   const motifs = [...layer.children].filter(motif => motif.checkVisibility());
+  const places = motifs.map(motif => {
+    const side = motif.style.left ? "left" : "right";
+    return [
+      parseFloat(getComputedStyle(motif)[side]),
+      parseFloat(motif.style[side].split("*")[1]),
+    ];
+  });
   const reaches = motifs.map(motif => {
     const animations = motif.getAnimations({ subtree: true });
     animations.forEach(animation => animation.pause());
@@ -89,6 +96,7 @@ MEASURE_WORKING_MOTIFS = """() => {
     header: document.querySelector(".site-header").getBoundingClientRect().bottom,
     layer: layer.getBoundingClientRect().top,
     content: [content.left, content.right],
+    places,
     reaches,
   };
 }"""
@@ -906,11 +914,11 @@ def test_nature_shows_exactly_one_of_sun_and_moon_at_each_boundary(
         assert opacities == [sun_opacity, moon_opacity]
 
 
-@pytest.mark.parametrize("width", [MOTIF_WINDOW_WIDTH, 1440, 1920])
+@pytest.mark.parametrize("width", [MOTIF_WINDOW_WIDTH, 1250, 1440, 1920])
 @pytest.mark.parametrize(
     ("theme", "scheme"), [("matrix", "dark"), ("nature", "light"), ("nature", "dark")]
 )
-def test_working_motifs_stay_in_the_margins_beneath_the_header(
+def test_working_motifs_stay_in_the_gutter_beneath_the_header(
     page: Page,
     live_web: str,
     theme: str,
@@ -925,6 +933,8 @@ def test_working_motifs_stay_in_the_margins_beneath_the_header(
 
     assert len(geometry["reaches"]) == read_working_agents(page=page)
     assert geometry["layer"] >= geometry["header"]
+    if width == 1440:
+        assert all(actual == expected for actual, expected in geometry["places"])
     content_left, content_right = geometry["content"]
     for left, right in geometry["reaches"]:
         assert right <= content_left or left >= content_right
