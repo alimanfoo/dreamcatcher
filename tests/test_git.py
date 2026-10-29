@@ -260,15 +260,13 @@ def test_an_empty_commit_moves_the_assignment_branch_beyond_main(cloned_repo):
 
     assert not has_commits_since_main(worktree=path)
 
-    make_empty_commit(worktree=path, message="GH8 [skip ci]")
+    make_empty_commit(worktree=path, message="GH8")
 
     assert has_commits_since_main(worktree=path)
     assert run_git(arguments=["log", "-1", "--format=%an <%ae>"], cwd=path).strip() == (
         "A User <a.user@example.com>"
     )
-    assert run_git(arguments=["log", "-1", "--format=%s"], cwd=path).strip() == (
-        "GH8 [skip ci]"
-    )
+    assert run_git(arguments=["log", "-1", "--format=%s"], cwd=path).strip() == ("GH8")
 
 
 def test_an_empty_commit_skips_repository_hooks(tmp_path, monkeypatch):
