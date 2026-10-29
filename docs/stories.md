@@ -532,8 +532,8 @@ wanted.
 
 The user works with an agent outside _dreamcatcher_ that helps them
 triage issues and plan work, and they want it to dispatch work through
-_dreamcatcher_ for them. The user's agent has never used _dreamcatcher_,
-and the user would rather not explain it, so they ask the agent to run
+_dreamcatcher_ for them. The agent has never used _dreamcatcher_, and
+the user would rather not explain it, so they ask the agent to run
 `dreamcatcher about`.
 
 The command prints an explanation of what _dreamcatcher_ can do and how
@@ -546,11 +546,11 @@ The text is the same wherever the command runs, so the user can also
 pass it to an agent that works elsewhere. The command contacts no
 service and writes no file.
 
-From that the user's agent learns that a label or post from the user's
-account counts as the user's, so it can ask for work and give feedback
-for the user when the user allows it. It also learns which work it can
-leave alone: an assignment carries its pull request to ready for review
-and looks after it while it waits, and a campaign's lead carries the
+From that the agent learns that a label or post from the user's account
+counts as the user's, so it can ask for work and give feedback for the
+user when the user allows it. It also learns which work it can leave
+alone: an assignment carries its pull request to ready for review and
+looks after it while it waits, and a campaign's lead carries the
 sub-issues through to merge and raises any decision on the parent.
 
 The value to the user is that an agent which already helps them can

@@ -27,6 +27,24 @@ the change.
 
 ## Unreleased
 
+## [v9.7.0](https://github.com/alimanfoo/dreamcatcher/releases/tag/v9.7.0) — 2026-10-29
+
+### Added
+
+- `dreamcatcher about` prints an explanation of what _dreamcatcher_ can
+  do and how it works, for you or for an agent that helps you outside
+  _dreamcatcher_, such as one that triages issues and dispatches work
+  for you. ([#884](https://github.com/alimanfoo/dreamcatcher/pull/884),
+  [#885](https://github.com/alimanfoo/dreamcatcher/pull/885))
+
+### Changed
+
+- The documentation keeps "turn" to its harness meaning. A round is one
+  bounded run of a piece of agent work's harness session, a successful
+  or stopped round has consumed its input, and the concepts page notes
+  that Claude Code and Codex use "turn" differently.
+  ([#885](https://github.com/alimanfoo/dreamcatcher/pull/885))
+
 ## [v9.6.1](https://github.com/alimanfoo/dreamcatcher/releases/tag/v9.6.1) — 2026-10-29
 
 ### Fixed

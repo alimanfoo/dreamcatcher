@@ -34,10 +34,10 @@ class CampaignChildAssignment(DreamcatcherDocument):
 
     The pull request is the one that a round of the assignment opened, and the
     observed pull request is what the tick read of it. An assignment that has
-    ended or is in fault has its pull request read by no tick. The finished
-    turn is the newest round that consumed its input, as a successful or a
-    stopped round does. The round input names the fault flag `is_fault`, as the agent
-    contract does.
+    ended or is in fault has its pull request read by no tick.
+    `finished_turn` is the number of the newest round that consumed its input,
+    as a successful or a stopped round does. The round input names the fault
+    flag `is_fault`, as the agent contract does.
     """
 
     model_config = ConfigDict(validate_by_name=True, serialize_by_alias=True)
