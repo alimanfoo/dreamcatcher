@@ -60,21 +60,16 @@ No dreamcatcher daemon is running here.
 
 ## Asking for work
 
-Each **dispatch route** in the configuration ties one **dispatch label**
-to one kind of agent work, and says how each agent harness should start
-it: the prompt, usually a dream skill, and the model and effort.
-This directory has no `dreamcatcher.toml`. The routes below are the packaged defaults, not configuration for this directory.
+Each **dispatch route** in `dreamcatcher.toml` ties one **dispatch
+label** to one kind of agent work, and says how each agent harness
+should start it: the prompt, usually a dream skill, and the model and
+effort. This directory has no `dreamcatcher.toml`, so it has no routes yet.
 
-- "agent-assignment": assignment route. claude starts it with the prompt "/dream:smith GH{issue}", the model "opus[1m]" and the effort "high"; codex starts it with the prompt "$dream:smith GH{issue}", the model "gpt-5.6-sol" and the effort "high".
-- "agent-assignment-easy": assignment route. claude starts it with the prompt "/dream:less GH{issue}", the model "sonnet" and the effort "high"; codex starts it with the prompt "$dream:less GH{issue}", the model "gpt-5.6-terra" and the effort "high".
-- "agent-conversation": conversation route. claude starts it with the prompt "/dream:scout GH{issue}", the model "opus" and the effort "high"; codex starts it with the prompt "$dream:scout GH{issue}", the model "gpt-5.6-sol" and the effort "high".
-- "agent-campaign": campaign route. claude starts it with the prompt "/dream:big GH{issue}", the model "opus[1m]" and the effort "high"; codex starts it with the prompt "$dream:big GH{issue}", the model "gpt-5.6-sol" and the effort "high".
-
-To ask for work, you can assign the issue to yourself and put one of
-these labels on it. dreamcatcher will only look at open issues assigned
-to you. Each dispatch label on such an issue is a **request**, and
-dreamcatcher will start its work at the next update with a free agent
-slot.
+To ask for work, you can assign the issue to yourself and put one of the
+dispatch labels on it. dreamcatcher will only look at open issues
+assigned to you. Each dispatch label on such an issue is a **request**,
+and dreamcatcher will start its work at the next update with a free
+agent slot.
 
 A request can also be **held**, and then won't start until whatever
 holds it changes:

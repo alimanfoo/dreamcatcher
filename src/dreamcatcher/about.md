@@ -60,18 +60,16 @@ $daemon
 
 ## Asking for work
 
-Each **dispatch route** in the configuration ties one **dispatch label**
-to one kind of agent work, and says how each agent harness should start
-it: the prompt, usually a dream skill, and the model and effort.
-$configuration
+Each **dispatch route** in `dreamcatcher.toml` ties one **dispatch
+label** to one kind of agent work, and says how each agent harness
+should start it: the prompt, usually a dream skill, and the model and
+effort. $configuration
 
-$routes
-
-To ask for work, you can assign the issue to yourself and put one of
-these labels on it. dreamcatcher will only look at open issues assigned
-to you. Each dispatch label on such an issue is a **request**, and
-dreamcatcher will start its work at the next update with a free agent
-slot.
+To ask for work, you can assign the issue to yourself and put one of the
+dispatch labels on it. dreamcatcher will only look at open issues
+assigned to you. Each dispatch label on such an issue is a **request**,
+and dreamcatcher will start its work at the next update with a free
+agent slot.
 
 A request can also be **held**, and then won't start until whatever
 holds it changes:

@@ -211,11 +211,6 @@ def read_dreamcatcher_config(*, root: Path) -> DreamcatcherConfig:
     return read_toml(model=DreamcatcherConfig, path=root / DREAMCATCHER_CONFIG_NAME)
 
 
-def read_default_dreamcatcher_config() -> DreamcatcherConfig:
-    """Return the complete packaged default configuration."""
-    return read_toml(model=DreamcatcherConfig, path=_DEFAULT_CONFIG_PATH)
-
-
 def write_default_dreamcatcher_config_if_absent(
     *, root: Path, harnesses: Set[AgentHarness]
 ) -> bool:

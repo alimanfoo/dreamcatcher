@@ -1,4 +1,4 @@
-"""Check the briefing for the user's agent."""
+"""Check the briefing that explains dreamcatcher to the user's agent."""
 
 from conftest import FIXTURES, assert_matches_view_golden
 from records import hold_daemon_lock_for_test
@@ -9,44 +9,11 @@ from dreamcatcher.cli import main
 from dreamcatcher.config import DREAMCATCHER_CONFIG_NAME
 from dreamcatcher.state import StateDirectory
 
-CONFIG = """[[conversation]]
-label = "ask-`agent"
-[conversation.claude]
-prompt = "/dream:scout GH{issue}"
-model = "op`us"
-effort = "hi`gh"
 
-[[assignment]]
-label = "build-carefully"
-[assignment.codex]
-prompt = "$dream:smith GH{issue}"
-model = "gpt-5.6-sol"
-effort = "high"
-
-[[assignment]]
-label = "build-quickly"
-[assignment.claude]
-prompt = "/dream:less GH{issue}"
-model = "sonnet"
-effort = "medium"
-[assignment.codex]
-prompt = "$dream:less GH{issue}"
-model = "gpt-5.6-terra"
-effort = "medium"
-
-[[campaign]]
-label = "lead-program"
-[campaign.claude]
-prompt = "/dream:big GH{issue}"
-model = "opus[1m]"
-effort = "high"
-"""
-
-
-def test_an_initialised_checkout_briefs_from_its_routes_and_running_daemon(
+def test_a_configured_checkout_points_to_its_routes_and_running_daemon(
     tmp_path, pytestconfig
 ):
-    (tmp_path / DREAMCATCHER_CONFIG_NAME).write_text(CONFIG, encoding="utf-8")
+    (tmp_path / DREAMCATCHER_CONFIG_NAME).write_bytes(b"")
     state = StateDirectory(root=tmp_path)
     hold_daemon_lock_for_test(path=state.lock)
 
@@ -57,7 +24,7 @@ def test_an_initialised_checkout_briefs_from_its_routes_and_running_daemon(
     )
 
 
-def test_about_elsewhere_briefs_from_the_defaults_and_says_no_daemon_runs(
+def test_about_elsewhere_says_there_is_no_configuration_or_daemon(
     monkeypatch, tmp_path, capsys, pytestconfig
 ):
     monkeypatch.chdir(tmp_path)
@@ -68,14 +35,6 @@ def test_about_elsewhere_briefs_from_the_defaults_and_says_no_daemon_runs(
         path=FIXTURES / "about-defaults.md",
         config=pytestconfig,
     )
-
-
-def test_a_checkout_with_no_routes_says_that_none_are_configured(tmp_path):
-    (tmp_path / DREAMCATCHER_CONFIG_NAME).write_bytes(b"")
-
-    briefing = compose_agent_briefing(root=tmp_path)
-
-    assert "No dispatch routes are configured, so no agent work starts." in briefing
 
 
 def test_a_briefing_uses_lf_when_windows_checked_out_its_template_with_crlf(
