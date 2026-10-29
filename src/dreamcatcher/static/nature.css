@@ -71,6 +71,8 @@
   --font: "Alegreya Sans", Avenir, "Segoe UI", sans-serif;
   --font-size: 15px;
   --line-height: 1.5;
+  --page-side-padding: 32px;
+  --motif-scale-divisor: 154;
   --site-header-height: 87px;
   --sun-opacity: 1;
   --sun-x: 50%;
@@ -180,7 +182,7 @@ body::after {
 .error-page {
   position: relative;
   z-index: 1;
-  padding: 28px 32px 64px;
+  padding: 28px var(--page-side-padding) 64px;
 }
 
 .instance {
@@ -626,7 +628,7 @@ body::after {
 }
 
 .seed-body {
-  --seed-sway: calc(var(--margin-unit) * 22);
+  --seed-sway: calc(var(--gutter-unit) * 22);
   animation: seed-sway ease-in-out infinite;
 }
 
@@ -650,9 +652,14 @@ body::after {
 }
 
 .firefly {
+  --firefly-horizontal-unit: 1px;
   position: absolute;
   display: none;
   animation: firefly-drift ease-in-out infinite;
+}
+
+.working-motifs .firefly {
+  --firefly-horizontal-unit: var(--gutter-unit);
 }
 
 .firefly-glow {
@@ -703,7 +710,11 @@ body::after {
   }
 
   100% {
-    transform: translate(-30px, calc(100vh + 40px)) rotate(14deg);
+    transform: translate(
+        calc(var(--gutter-unit) * -30),
+        calc(100vh + 40px)
+      )
+      rotate(14deg);
     opacity: 0;
   }
 }
@@ -743,15 +754,15 @@ body::after {
   }
 
   25% {
-    transform: translate(26px, -38px);
+    transform: translate(calc(var(--firefly-horizontal-unit) * 26), -38px);
   }
 
   50% {
-    transform: translate(-14px, -70px);
+    transform: translate(calc(var(--firefly-horizontal-unit) * -14), -70px);
   }
 
   75% {
-    transform: translate(-30px, -24px);
+    transform: translate(calc(var(--firefly-horizontal-unit) * -30), -24px);
   }
 }
 

@@ -54,8 +54,8 @@ RECORD_TAIL_HIDDEN_PER_FRAME = """() => {
   requestAnimationFrame(record);
 }"""
 
-# The narrowest window whose side margins hold the working-agent motifs.
-MOTIF_WINDOW_WIDTH = 1360
+# The narrowest window whose gutter beside the text holds the working motifs.
+MOTIF_WINDOW_WIDTH = 1184
 
 # Step every animation of each shown working-agent motif through its cycle,
 # in every combination, and give the widest reach of each motif with the
@@ -906,7 +906,7 @@ def test_nature_shows_exactly_one_of_sun_and_moon_at_each_boundary(
         assert opacities == [sun_opacity, moon_opacity]
 
 
-@pytest.mark.parametrize("width", [MOTIF_WINDOW_WIDTH, 1440, 1920])
+@pytest.mark.parametrize("width", [MOTIF_WINDOW_WIDTH, 1250, 1920])
 @pytest.mark.parametrize(
     ("theme", "scheme"), [("matrix", "dark"), ("nature", "light"), ("nature", "dark")]
 )

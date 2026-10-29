@@ -1372,13 +1372,13 @@ def test_working_motifs_beyond_the_places_share_them_out_of_phase(tmp_path):
     page = template.render()
 
     assert re.findall(r'style="([^"]+)"', page) == [
-        "left: calc(var(--margin-unit) * 70); "
+        "left: calc(var(--gutter-unit) * 70); "
         "animation-duration: 9s; animation-delay: 0.0s",
-        "right: calc(var(--margin-unit) * 90); "
+        "right: calc(var(--gutter-unit) * 90); "
         "animation-duration: 11s; animation-delay: -4.0s",
-        "left: calc(var(--margin-unit) * 120); "
+        "left: calc(var(--gutter-unit) * 120); "
         "animation-duration: 13s; animation-delay: -7.0s",
-        "left: calc(var(--margin-unit) * 70); "
+        "left: calc(var(--gutter-unit) * 70); "
         "animation-duration: 9s; animation-delay: -4.5s",
     ]
 
