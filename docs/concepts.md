@@ -186,9 +186,11 @@ harnesses _dreamcatcher_ supports or for only some of them.
 
 ### Agent round
 
-An **agent round** is one attempt by a piece of agent work to take a
-turn. It begins when _dreamcatcher_ records it, before anything else
-happens, and it holds everything the attempt does, in this order:
+An **agent round** is one bounded run of a piece of agent work's harness
+session: one headless invocation of its agent harness, with what
+_dreamcatcher_ does before and after it. It begins when _dreamcatcher_
+records it, before anything else happens, and it holds everything that
+run does, in this order:
 
 1. the **preparation**, which resets a conversation's or a campaign's
    worktree to main or, for an assignment whose pull request does not
@@ -200,7 +202,7 @@ happens, and it holds everything the attempt does, in this order:
    conversation's answer or records that an assignment has completed. A
    campaign round has none, because the lead posts its own messages.
 
-An agent round is a _dreamcatcher_ concept. It is not a model turn, a
+An agent round is a _dreamcatcher_ concept. It is not a [turn](#turn), a
 tool call, or the harness session itself. An agent round has a number
 which identifies its position within one piece of agent work.
 
@@ -217,7 +219,7 @@ unsuccessfully is errored with that exit status. A round whose finishing
 step fails after its harness exited successfully is errored with the
 reason, and keeps that successful exit status.
 
-A successful or stopped round has taken its turn. An errored or
+A successful or stopped round has **consumed its input**. An errored or
 interrupted round has not, so the next round is given its input again,
 together with anything new. A post or comment that the user has deleted
 since is not given again.
@@ -226,7 +228,8 @@ A conversation round is successful only once its answer is posted on the
 issue, or the agent has answered that no reply is needed. A round whose
 answer is missing or cannot be posted is errored.
 
-Replaces: "failed", for an errored round.
+Replaces: "failed", for an errored round; and "taken its turn", for a
+round that has consumed its input.
 
 ### User post and feedback
 
@@ -262,7 +265,7 @@ request has done so.
 
 The **cursor** is how far the agent has read in its channel. Nothing
 stores it on its own: it is read back from the inputs of the rounds that
-took their turn or are still running, so the input of a round that
+consumed their input or are still running, so the input of a round that
 errored or was interrupted is given again. Anything in the channel past
 the cursor is new, and something new calls for a round.
 
@@ -271,13 +274,13 @@ Replaces: "delivery position" and "delivery cursor", for the cursor.
 ### Signal
 
 A **signal** is something new in a piece of agent work's channel that
-calls for a turn. A conversation and a campaign have one kind, an
+calls for a round. A conversation and a campaign have one kind, an
 **eligible comment** past the cursor: a comment on the issue by the
 signed-in account that says something and does not carry the marker that
 _dreamcatcher_ asks every agent post to end with. An assignment has
 four: a user post past the cursor; its pull request being merged or
-closed before its wrap-up round has taken its turn; **out-of-date**, a
-pull request that is ready for review and behind its base branch or in
+closed before its wrap-up round has consumed its input; **out-of-date**,
+a pull request that is ready for review and behind its base branch or in
 conflict with it; and **check-failure**, a pull request that is ready
 for review with a finished check that failed. The last two are the
 **pull request signals**, which _dreamcatcher_ raises from the pull
@@ -286,16 +289,16 @@ A draft raises neither, because the agent has not finished. GitHub
 reports a branch as behind its base only when the repository requires
 branches to be up to date before merging, so elsewhere a pull request
 that falls behind without a conflict raises no out-of-date signal. A
-round that takes its turn relays each pull request signal at most once
-for each head commit of the pull request, so the signal is raised again
-only once the head moves.
+round that consumes its input relays each pull request signal at most
+once for each head commit of the pull request, so the signal is raised
+again only once the head moves.
 
 The **relay rule** gives an agent two attempts at a red build on its
 own. A check-failure is withheld when the last two rounds whose input is
 behind the cursor both relayed one, so the work stays idle until another
 signal, such as a user post, wakes it. A round that relayed no
-check-failure starts the count again, and a round that did not finish
-its turn does not count.
+check-failure starts the count again, and a round that did not consume
+its input does not count.
 
 ### Status report
 
@@ -462,8 +465,9 @@ branch on GitHub.
 
 The user can **stop** a running round, from the work's page or the
 command line, once the round's harness session is known. The round ends
-stopped and has taken its turn, so what it was given is not given again,
-and the next round's prompt says that the previous one was stopped.
+stopped and has consumed its input, so what it was given is not given
+again, and the next round's prompt says that the previous one was
+stopped.
 
 ### Cancelling an assignment
 
@@ -530,7 +534,7 @@ round due, which resumes the lead's harness session.
 
 ### Campaign notifications
 
-A campaign round input is **delivered** once its round took its turn or
+A campaign round input is **delivered** once its round consumed it or
 while the round runs. A round that errored or was interrupted delivered
 nothing, so the input before it stays the newest delivered. A
 **notification** names a sub-issue whose changes since the newest
@@ -544,7 +548,7 @@ selects these changes:
 - **added** or **removed**: the sub-issue joined or left the parent;
 - **issue state**: the sub-issue was closed or reopened;
 - **handback**: the sub-issue's assignment, the newest round of it that
-  took its turn, or whether the sub-issue is settled differs;
+  consumed its input, or whether the sub-issue is settled differs;
 - **pull request**: the pull request's state, draft flag or head
   differs;
 - **check completion**: some checks ran and none still runs, and the
@@ -692,9 +696,9 @@ nothing new.
 Rounds of every kind share the daemon's capacity and the global
 cooldown. Within each kind, open work takes precedence over new work.
 Open work starts in the order of its identifiers, and new work in the
-order of its requests. The kinds take turns for each free agent slot, in
-the order assignment, conversation, campaign, and a kind with no
-candidate gives up its turn to the next. A round that errors during its
+order of its requests. The kinds take each free agent slot in rotation,
+in the order assignment, conversation, campaign, and a kind with no
+candidate gives up its place to the next. A round that errors during its
 preparation or startup takes no slot.
 
 A failed read from GitHub prevents only the launches that depend on it.
@@ -754,7 +758,7 @@ Agent work of every kind has one of these summary statuses:
   round errored or was interrupted is not waiting once a tick that read
   it after that round ended found no eligible comment past the cursor. A
   free agent slot, or the end of a cooldown, starts it.
-- **Idle**: no round is known to be due. A round that took its turn
+- **Idle**: no round is known to be due. A round that consumed its input
   after the latest tick read the work is idle until the next tick,
   unless the earlier tick found input that the round did not consume.
   Its detail says that it is awaiting the next update. Otherwise the
@@ -776,7 +780,7 @@ then fault, so the user can see a fault and retry whatever else is true.
 A failed read comes next, as unknown. Held comes before waiting, because
 no round will start however its last round ended. The awaiting-update
 idle case comes before waiting when the latest tick found no new input,
-or started the round that then took its turn. Then come waiting and
+or started the round that then consumed its input. Then come waiting and
 idle, and work that the latest tick has no row for, or read nothing for,
 is unknown when nothing else applies.
 
@@ -817,3 +821,23 @@ a person to read.
 The status report never schedules work and is never an input to
 scheduling. Scheduling and reporting must nevertheless interpret the
 same underlying facts consistently.
+
+## Ambiguous terms
+
+Some words mean different things in the tools that _dreamcatcher_ works
+with. _dreamcatcher_ does not name its own concepts with them, and uses
+them only in the sense that each section here gives.
+
+### Turn
+
+The two agent harnesses use "turn" differently. Claude Code calls each
+call of the model, with the tool calls that its output asks for, a turn,
+so one harness invocation holds many turns; its `--max-turns` option and
+the `num_turns` in its result count them. Codex calls the agent's whole
+response to one prompt a turn, so one harness invocation holds one, from
+`turn.started` to `turn.completed`.
+
+In either sense, the agent **ends its turn** when the model answers
+without asking for another tool, and its harness invocation then exits.
+_dreamcatcher_ uses the word in that phrase alone. A round is not a turn
+in either sense.

@@ -66,12 +66,13 @@ final account of the work.
 
 ### Ending a turn
 
-_dreamcatcher_ runs an agent in rounds, and the agent's turn in a round
-is over when its process exits. An assignment skill must instruct the
-agent to end its turn once it has nothing left to do, and to post
-anything it has to tell the user on the pull request rather than relying
-on its turn output. _dreamcatcher_ records that output in the feed, but
-does not publish it as a message to the user.
+_dreamcatcher_ runs an agent in rounds, and a round's harness invocation
+is over when the agent ends its turn and its process exits. An
+assignment skill must instruct the agent to end its turn once it has
+nothing left to do, and to post anything it has to tell the user on the
+pull request rather than relying on its final output. _dreamcatcher_
+records that output in the feed, but does not publish it as a message to
+the user.
 
 An assignment skill must not instruct the agent to run anything that
 waits for a person, such as a command that asks to be approved, an
@@ -135,11 +136,11 @@ previous round:
 - `check_failure`: a check failed at the pull request's head. The line
   asks the agent to read the checks' output, fix the cause, and push.
 
-A round that takes its turn relays each once for each head commit, so an
-agent that pushes nothing is not woken again for the same one. After two
-rounds in a row relayed a check failure, _dreamcatcher_ withholds the
-next one until a round relays something else, such as a user post. A
-draft raises neither.
+A round that consumes its input relays each once for each head commit,
+so an agent that pushes nothing is not woken again for the same one.
+After two rounds in a row relayed a check failure, _dreamcatcher_
+withholds the next one until a round relays something else, such as a
+user post. A draft raises neither.
 
 An assignment skill needs nothing of its own for this. The prompt's
 lines carry the instructions, and a skill may ignore `pull_request_head`
@@ -161,10 +162,10 @@ An assignment skill must instruct the agent to wind the work up when
 
 #### After a round that did not finish
 
-A round that was interrupted or errored did not finish its turn, so the
-next round is given the same input again: `user_posts` holds the posts
-that round was given and any that arrived since, `signals` holds the
-signals it was given that still hold, and `pull_request_state` says
+A round that was interrupted or errored did not consume its input, so
+the next round is given the same input again: `user_posts` holds the
+posts that round was given and any that arrived since, `signals` holds
+the signals it was given that still hold, and `pull_request_state` says
 where the pull request has got to now. _dreamcatcher_'s prompt opens
 with a line saying that the previous round did not finish, and that some
 of what it did may already be done, before it names the input. While the
@@ -179,12 +180,12 @@ normally still has its own transcript. A new session instead receives
 the assignment's configured prompt before the input, so the skill's
 initial instructions apply again.
 
-A round that the user stopped took its turn, so its input is not given
-again. An open assignment waits for new feedback, or for a signal at a
-head not yet relayed, before it resumes, and that next prompt says the
-earlier round was stopped before directing the agent to the new input. A
-merged or closed pull request can proceed to its wrap-up round without
-new feedback.
+A round that the user stopped consumed its input, so its input is not
+given again. An open assignment waits for new feedback, or for a signal
+at a head not yet relayed, before it resumes, and that next prompt says
+the earlier round was stopped before directing the agent to the new
+input. A merged or closed pull request can proceed to its wrap-up round
+without new feedback.
 
 ## Conversation skill contract
 
@@ -229,7 +230,7 @@ Progress output and tool activity are feed records, not the answer.
 The first round receives every eligible existing comment. Each new
 comment batch after that resumes the same harness session and contains
 only eligible comments after the newest comment given to a round that
-finished its turn. The agent should use its existing transcript when a
+consumed its input. The agent should use its existing transcript when a
 new question refers to an earlier answer. Before every round,
 _dreamcatcher_ resets the worktree to fetched main, deleting every local
 commit and file left by the earlier round.
@@ -309,13 +310,13 @@ sub-issue has never had one. A settled sub-issue has no assignment round
 running or due, where an assignment that may start for the sub-issue
 counts as a round due. An assignment names its `identifier`, its
 `pull_request` number, the `observed_pull_request` that the update read,
-the `finished_turn` of its newest round that took its turn, its `ending`
-and whether it `is_fault`. The observed pull request holds the pull
-request's `state`, `is_draft`, `merge_state`, `head`, `check_result` and
-`has_running_checks`, and is `null` when the update read nothing of it,
-as for an assignment that has ended or is in fault. The daemon's routes
-can differ from the configuration on main, which only takes effect when
-the daemon restarts.
+the `finished_turn` of its newest round that consumed its input, its
+`ending` and whether it `is_fault`. The observed pull request holds the
+pull request's `state`, `is_draft`, `merge_state`, `head`,
+`check_result` and `has_running_checks`, and is `null` when the update
+read nothing of it, as for an assignment that has ended or is in fault.
+The daemon's routes can differ from the configuration on main, which
+only takes effect when the daemon restarts.
 
 Each notification names the sub-issue's `issue` and lists its `changes`,
 each of which is one of these:
@@ -396,15 +397,15 @@ first round after the hold ends is given every comment posted while it
 was held, and the notifications of what changed among the sub-issues
 since its last delivered input.
 
-A round that errored or was interrupted did not take its turn, so the
-next round is given the input again, composed afresh against the last
-input delivered before it, with anything that has arrived since. It
+A round that errored or was interrupted did not consume its input, so
+the next round is given the input again, composed afresh against the
+last input delivered before it, with anything that has arrived since. It
 resumes the recorded harness session, or starts a new session with the
 configured prompt when none was recorded. Its prompt opens by saying
 that the previous round did not finish, and the lead must inspect GitHub
 before it repeats an action.
 
-A round that the user stopped took its turn, and no round follows it on
-its own. The next comment on the parent, or the next notification, wakes
-the lead, and that round's prompt opens by saying that the user stopped
-the previous round.
+A round that the user stopped consumed its input, and no round follows
+it on its own. The next comment on the parent, or the next notification,
+wakes the lead, and that round's prompt opens by saying that the user
+stopped the previous round.

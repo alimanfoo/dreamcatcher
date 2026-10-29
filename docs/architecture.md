@@ -128,9 +128,9 @@ One scheduler tick:
    launches nothing while a cooldown is active;
 8. launches candidates until the daemon run's requested capacity is full
    or no candidate remains, open work first in identifier order and then
-   new requests in listing order, the kinds taking turns in the order
-   assignment, conversation, campaign, and a kind with no candidate
-   giving up its turn; and
+   new requests in listing order, the kinds taking free slots in
+   rotation in the order assignment, conversation, campaign, and a kind
+   with no candidate giving up its place; and
 9. returns a `SchedulerRecord`, holding one request row per request, for
    operational reporting.
 
@@ -195,8 +195,8 @@ past the cursor, and a conversation round's input holds the eligible
 comments past it. The cursor, the head at which each pull request signal
 was last relayed, whether the relay rule withholds a check-failure, and
 whether a wrap-up round has been given the finished pull request are
-read from the inputs of the rounds that took their turn or are running,
-so a round that did not finish has its input given again.
+read from the inputs of the rounds that consumed their input or are
+running, so a round that did not finish has its input given again.
 
 Scheduling should expose pure, read-only functions for interpretations
 that status reporting also needs, particularly whether agent work is in
@@ -227,11 +227,11 @@ applied its label, which the tick reads from the issue's events.
 
 The relay selects the eligible comments past the cursor. Each durable
 round input records the comments it relays, so the newest comment in the
-latest input of a round that took its turn or is running is the cursor,
-and a comment behind it cannot be selected again. The preparation adds
-the issue's title and body to the input of a round that starts a new
-harness session, and resetting the worktree deletes every local commit
-and file that an earlier round left.
+latest input of a round that consumed its input or is running is the
+cursor, and a comment behind it cannot be selected again. The
+preparation adds the issue's title and body to the input of a round that
+starts a new harness session, and resetting the worktree deletes every
+local commit and file that an earlier round left.
 
 Conversation harness permissions reinforce the no-implementation
 boundary while allowing issue actions that the user requests. Claude
@@ -297,7 +297,7 @@ sub-issue is settled when no assignment round of it is running and the
 first pass made none due, where a request that may start an assignment
 counts as a round due. Its assignment's entry names the assignment, its
 pull request, what the first pass read of that pull request, the newest
-round that took its turn, its ending and whether it is in fault. An
+round that consumed its input, its ending and whether it is in fault. An
 assignment that has ended or is in fault keeps its pull request's
 number, but the first pass read nothing of it. No sub-issue's pull
 request is read a second time. The observation fails when the sub-issue
@@ -321,9 +321,9 @@ which reads no file and calls neither GitHub nor a harness, so the
 scheduler decides what to launch and the comparison only says what
 changed. A round is due when a comment waits, when a notification does,
 when no round has run yet, or when the last round errored or was
-interrupted. A stopped round took its turn, so after one the lead waits
-for new input. Nothing keeps the notifications between ticks: each tick
-compares afresh, and only a round that starts records them, in its
+interrupted. A stopped round consumed its input, so after one the lead
+waits for new input. Nothing keeps the notifications between ticks: each
+tick compares afresh, and only a round that starts records them, in its
 input. The lead's next round resumes its harness session.
 
 The lead publishes its own messages, so a campaign's round plan has no
@@ -499,8 +499,8 @@ a post and for an assignee of an issue.
 channel, for every kind of agent work. For an assignment it selects the
 user posts past the cursor, oldest first, by comparing normalized user
 posts from the GitHub boundary with the assignment's cursor, read from
-the newest input that contains posts among the rounds that took their
-turn or are running. It raises the pull request signals of a pull
+the newest input that contains posts among the rounds that consumed
+their input or are running. It raises the pull request signals of a pull
 request that is open and ready for review, each at a head other than the
 one at which it was last relayed, and leaves out a check-failure that
 the relay rule withholds. For a conversation or a campaign it selects
@@ -659,10 +659,10 @@ to do.
 
 Status tells whether the scheduler record read the work after its latest
 round ended from the round that the work's row names as ended, not from
-the times of the record and the ending. A round that took its turn after
-the tick read the work leaves it idle and awaiting the next update,
-unless the record found input that the round did not consume. The
-earlier finding still supplies the assignment's last observed pull
+the times of the record and the ending. A round that consumed its input
+after the tick read the work leaves it idle and awaiting the next
+update, unless the record found input that the round did not consume.
+The earlier finding still supplies the assignment's last observed pull
 request summary. A missing row says nothing about what the tick read, so
 the work remains unknown.
 
@@ -905,9 +905,9 @@ failed, and a zero status means its finishing step failed.
 An assignment round input that carries user posts puts the cursor at its
 newest post, and one that carries a pull request signal records the head
 at which it was relayed. The assignment reads the cursor by scanning the
-recorded inputs of its rounds that took their turn or are running, from
-newest to oldest. What woke a round is read from its input rather than
-recorded.
+recorded inputs of its rounds that consumed their input or are running,
+from newest to oldest. What woke a round is read from its input rather
+than recorded.
 
 A conversation's harness session identifier and latest user retry
 request each have a file of their own beside its record, as an

@@ -169,9 +169,9 @@ dreamcatcher run --harness claude --interval 30 --max-agents 1
 
 Keep this terminal open. _dreamcatcher_ looks for work, waits 30 seconds
 after each look, and runs at most one agent round at a time. A round is
-one attempt by the agent to take a turn: _dreamcatcher_ readies the
-worktree and the round's input, runs the agent process, and finishes up
-after that process exits.
+one headless run of the agent: _dreamcatcher_ readies the worktree and
+the round's input, runs the agent process, and finishes up after that
+process exits.
 
 _dreamcatcher_ starts Claude non-interactively in auto permission mode
 and allows the selected Git, pull-request and issue commands the

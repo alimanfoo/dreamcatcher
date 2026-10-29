@@ -169,7 +169,7 @@ class AgentRoundOutcome(StrEnum):
 
     @property
     def is_unfinished(self) -> bool:
-        """Whether the round errored or was interrupted before taking its turn."""
+        """Whether the round errored or was interrupted without consuming its input."""
         return self in {AgentRoundOutcome.ERRORED, AgentRoundOutcome.INTERRUPTED}
 
 
@@ -304,7 +304,7 @@ class AgentRoundRecord(DreamcatcherDocument):
 
     @property
     def is_unfinished(self) -> bool:
-        """Whether the round errored or was interrupted before taking its turn."""
+        """Whether the round errored or was interrupted without consuming its input."""
         return self.outcome.is_unfinished
 
 

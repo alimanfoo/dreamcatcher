@@ -259,8 +259,8 @@ def is_check_failure_withheld(*, assignment: AgentWork) -> bool:
 
     It does when the last two relayed inputs both carried one, which gives an
     agent two attempts at a red build on its own. A round that relayed no check
-    failure starts the count again, and one that did not finish its turn is not
-    counted, since its input is given again.
+    failure starts the count again, and one that did not consume its input is
+    not counted, since its input is given again.
     """
     latest_two = list(islice(_read_relayed_inputs(assignment=assignment), 2))
     return len(latest_two) == 2 and all(

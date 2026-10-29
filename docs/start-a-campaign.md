@@ -145,7 +145,7 @@ answer once the assignment hands back.
 At each update, _dreamcatcher_ compares the parent's sub-issues with
 those it last gave the lead. A sub-issue added to or removed from the
 parent wakes the lead at once. A sub-issue that is closed or reopened,
-an assignment that finishes its turn, ends or falls into fault, a pull
+an assignment that finishes a round, ends or falls into fault, a pull
 request that changes its head, state or draft flag, checks that finish,
 and a pull request that becomes mergeable wake the lead once the
 sub-issue's assignment has no round running or due. The lead's input

@@ -35,8 +35,8 @@ class CampaignChildAssignment(DreamcatcherDocument):
     The pull request is the one that a round of the assignment opened, and the
     observed pull request is what the tick read of it. An assignment that has
     ended or is in fault has its pull request read by no tick. The finished
-    turn is the newest round that took its turn, as a successful or a stopped
-    round does. The round input names the fault flag `is_fault`, as the agent
+    turn is the newest round that consumed its input, as a successful or a
+    stopped round does. The round input names the fault flag `is_fault`, as the agent
     contract does.
     """
 
@@ -170,8 +170,9 @@ def _list_assignment_changes(
     """Return what changed of a settled child's assignment.
 
     The child hands back when it was not settled before, or when its assignment
-    or its finished turn differs. A replacement shares nothing with the
-    assignment it replaced, so every fact it holds is a change.
+    or the newest round of it that consumed its input differs. A replacement
+    shares nothing with the assignment it replaced, so every fact it holds is a
+    change.
     """
     before = (
         previous.assignment
