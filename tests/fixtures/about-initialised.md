@@ -24,22 +24,26 @@ editing it or commenting on it.
 
 ## Dispatch work
 
-- `build-carefully` starts assignment work. codex starts with "$dream:smith GH{issue}", using `gpt-5.6-sol` at `high` effort.
-- `build-quickly` starts assignment work. claude starts with "/dream:less GH{issue}", using `sonnet` at `medium` effort; codex starts with "$dream:less GH{issue}", using `gpt-5.6-terra` at `medium` effort.
-- `ask-agent` starts conversation work. claude starts with "/dream:scout GH{issue}", using `opus` at `high` effort.
-- `lead-program` starts campaign work. claude starts with "/dream:big GH{issue}", using `opus[1m]` at `high` effort.
+- "build-carefully" starts assignment work. codex starts with "$dream:smith GH{issue}", using "gpt-5.6-sol" at "high" effort.
+- "build-quickly" starts assignment work. claude starts with "/dream:less GH{issue}", using "sonnet" at "medium" effort; codex starts with "$dream:less GH{issue}", using "gpt-5.6-terra" at "medium" effort.
+- "ask-`agent" starts conversation work. claude starts with "/dream:scout GH{issue}", using "op`us" at "hi`gh" effort.
+- "lead-program" starts campaign work. claude starts with "/dream:big GH{issue}", using "opus[1m]" at "high" effort.
 
-Assign the issue to the developer, then apply exactly one route label
-through the developer's GitHub account. Work starts at a later update
-when an agent slot is free. An issue that an open issue blocks stays
-held; use GitHub's blocked-by relationships to set the order.
+To dispatch work, assign the issue to the developer, then apply exactly
+one of the route labels above through the developer's GitHub account.
+Work starts at a later update when an agent slot is free. An assignment
+or campaign request that an open issue blocks stays held; use GitHub's
+blocked-by relationships to set their order. A dependency does not delay
+a conversation.
 
 ## Follow an assignment
 
 An assignment starts a separate agent in its own worktree and draft pull
 request. The agent implements the issue and marks the pull request ready
-for review. Ready for review is the signal that the assignment wants
-attention, so you do not need to watch it more closely.
+for review. Ready for review is the signal that the assignment wants a
+review. A draft can hold a question that needs an answer.
+`dreamcatcher status` distinguishes those states, so check it instead of
+watching the pull request more closely.
 
 Once the pull request exists, put every instruction and answer there as
 a review or comment. The agent receives the developer's posts since its
@@ -62,10 +66,11 @@ for work that it left out.
 
 Make the planned work real GitHub sub-issues of one parent, and use
 blocked-by relationships to order them. Apply the campaign label to the
-parent alone. The lead applies assignment labels to the sub-issues,
-reviews their pull requests, and merges each one when it is ready,
-green, and conflict-free. Do not label the sub-issues or merge their
-pull requests yourself.
+parent alone. A lead follows the opening instruction of its route. The
+packaged `agent-campaign` route asks the lead to apply assignment labels
+to the sub-issues, review their pull requests, and merge each one when
+it is ready, green, and conflict-free. When you use that route, do not
+label the sub-issues or merge their pull requests yourself.
 
 Talk to the lead on the parent issue, and expect its questions there.
 Close the parent when the campaign is finished; closing it ends the
@@ -78,8 +83,10 @@ and checks. A conflict still wakes an assignment to update its branch.
 
 ## Hold a conversation
 
-A conversation answers questions in comments on its issue. Give guidance
-and reply on that issue through the developer's account.
+A conversation answers questions in comments on its issue. Put the
+initial question in a comment: the issue's title and body alone start no
+conversation. Give guidance and reply on that issue through the
+developer's account.
 
 ## Intervene
 

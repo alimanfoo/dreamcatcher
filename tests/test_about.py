@@ -9,11 +9,11 @@ from dreamcatcher.config import DREAMCATCHER_CONFIG_NAME
 from dreamcatcher.state import StateDirectory
 
 CONFIG = """[[conversation]]
-label = "ask-agent"
+label = "ask-`agent"
 [conversation.claude]
 prompt = "/dream:scout GH{issue}"
-model = "opus"
-effort = "high"
+model = "op`us"
+effort = "hi`gh"
 
 [[assignment]]
 label = "build-carefully"
@@ -72,4 +72,7 @@ def test_about_elsewhere_briefs_from_the_defaults_and_says_no_daemon_runs(
 def test_a_checkout_with_no_routes_says_that_none_are_configured(tmp_path):
     (tmp_path / DREAMCATCHER_CONFIG_NAME).write_bytes(b"")
 
-    assert "No dispatch routes are configured." in compose_agent_briefing(root=tmp_path)
+    briefing = compose_agent_briefing(root=tmp_path)
+
+    assert "No dispatch routes are configured." in briefing
+    assert "configure one and restart the daemon before you dispatch work" in briefing

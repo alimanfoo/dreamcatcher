@@ -57,14 +57,18 @@ def _describe_daemon(*, is_running: bool) -> str:
 
 def _compose_routes(*, config: DreamcatcherConfig) -> str:
     routes = "\n".join(
-        f"- `{route.label}` starts {route.kind} work. "
+        f"- {json.dumps(route.label, ensure_ascii=False)} starts {route.kind} work. "
         + "; ".join(
             f"{harness.value} starts with "
             f"{json.dumps(recipe.prompt, ensure_ascii=False)}, using "
-            f"`{recipe.model}` at `{recipe.effort}` effort"
+            f"{json.dumps(recipe.model, ensure_ascii=False)} at "
+            f"{json.dumps(recipe.effort, ensure_ascii=False)} effort"
             for harness, recipe in route.recipes.items()
         )
         + "."
         for route in config.routes
     )
-    return routes or "No dispatch routes are configured."
+    return routes or (
+        "No dispatch routes are configured. Ask the developer to configure one "
+        "and restart the daemon before you dispatch work."
+    )
