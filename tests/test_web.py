@@ -1331,6 +1331,35 @@ def test_a_theme_choice_is_validated_and_remembered(tmp_path):
     assert 'data-web-theme="matrix"' in remembered.text
 
 
+def test_two_repositories_remember_different_theme_choices(tmp_path):
+    first_state = StateDirectory(root=tmp_path / "first")
+    second_state = StateDirectory(root=tmp_path / "second")
+    for state in (first_state, second_state):
+        state.bootstrap()
+    first_app = _create_app(state=first_state)
+    second_app = _create_app(state=second_state)
+    write_text(text="foo/bar-baz\n", path=first_state.repository)
+    write_text(text="foo-bar/baz\n", path=second_state.repository)
+    first_choice = first_app.test_client(use_cookies=False).get("/?theme=nature")
+    second_choice = second_app.test_client(use_cookies=False).get("/?theme=matrix")
+    browser_cookies = "; ".join(
+        (
+            first_choice.headers["Set-Cookie"].partition(";")[0],
+            second_choice.headers["Set-Cookie"].partition(";")[0],
+        )
+    )
+
+    first_remembered = first_app.test_client(use_cookies=False).get(
+        "/", headers={"Cookie": browser_cookies}
+    )
+    second_remembered = second_app.test_client(use_cookies=False).get(
+        "/", headers={"Cookie": browser_cookies}
+    )
+
+    assert 'data-web-theme="nature"' in first_remembered.text
+    assert 'data-web-theme="matrix"' in second_remembered.text
+
+
 def test_an_unknown_theme_uses_nature_without_being_remembered(tmp_path):
     app = _create_app(state=StateDirectory(root=tmp_path))
     client = app.test_client()

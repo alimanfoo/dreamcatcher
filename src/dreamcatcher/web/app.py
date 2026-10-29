@@ -5,6 +5,7 @@ from collections.abc import Callable, Generator
 from contextlib import contextmanager, suppress
 from datetime import datetime, tzinfo
 from functools import partial
+from urllib.parse import quote
 from webbrowser import open as open_browser
 
 from flask import Flask, Response, redirect, render_template, request, url_for
@@ -79,7 +80,7 @@ def _create_app(
     app = Flask(__name__, static_folder="../static", template_folder="../templates")
     app.config["TRUSTED_HOSTS"] = [WEB_HOST, "localhost"]
     app.context_processor(_add_documentation_url)
-    _configure_web_theme(app=app)
+    _configure_web_theme(app=app, state=state)
     app.add_url_rule(
         "/",
         endpoint="show_home",
@@ -369,11 +370,17 @@ def _add_documentation_url() -> dict[str, object]:
     return {"documentation_url": DOCUMENTATION_URL}
 
 
-def _configure_web_theme(*, app: Flask) -> None:
+def _configure_web_theme(*, app: Flask, state: StateDirectory) -> None:
+    def read_cookie_name() -> str:
+        with suppress(ReportableError):
+            if repository := read_repository(state=state):
+                return f"theme-{quote(repository, safe='')}"
+        return "theme"
+
     @app.context_processor
     def add_web_theme() -> dict[str, object]:
         requested_theme = request.args.get("theme")
-        remembered_theme = request.cookies.get("theme")
+        remembered_theme = request.cookies.get(read_cookie_name())
         if requested_theme in _WEB_THEMES:
             theme = requested_theme
         elif remembered_theme in _WEB_THEMES:
@@ -391,7 +398,7 @@ def _configure_web_theme(*, app: Flask) -> None:
         """Remember a valid theme selected through a browser request."""
         requested_theme = request.args.get("theme")
         if requested_theme in _WEB_THEMES:
-            response.set_cookie("theme", requested_theme, samesite="Lax")
+            response.set_cookie(read_cookie_name(), requested_theme, samesite="Lax")
         return response
 
 
