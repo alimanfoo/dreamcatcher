@@ -1,4 +1,4 @@
-"""Check the briefing for an agent that works with the user."""
+"""Check the briefing for the user's agent."""
 
 from conftest import FIXTURES, assert_matches_view_golden
 from records import hold_daemon_lock_for_test

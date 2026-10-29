@@ -1,4 +1,4 @@
-"""Compose the briefing for an agent that works with the user."""
+"""Compose the briefing for the user's agent."""
 
 import json
 from pathlib import Path
@@ -18,7 +18,7 @@ _BRIEFING_TEMPLATE = Path(__file__).with_name("about.md")
 
 
 def compose_agent_briefing(*, root: Path) -> str:
-    """Compose the agent briefing for the checkout at root.
+    """Compose the user's agent briefing for the checkout at root.
 
     Use the checkout's routes when it carries a configuration, and otherwise
     describe the packaged defaults. Report whether a daemon holds this
