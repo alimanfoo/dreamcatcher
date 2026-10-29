@@ -371,19 +371,16 @@ def _add_documentation_url() -> dict[str, object]:
 
 
 def _configure_web_theme(*, app: Flask, state: StateDirectory) -> None:
-    try:
-        repository = read_repository(state=state)
-    except ReportableError:
-        repository = None
-    cookie_name = "theme"
-    if repository:
-        repository_key = quote(repository, safe="")
-        cookie_name = f"theme-{repository_key}"
+    def read_cookie_name() -> str:
+        with suppress(ReportableError):
+            if repository := read_repository(state=state):
+                return f"theme-{quote(repository, safe='')}"
+        return "theme"
 
     @app.context_processor
     def add_web_theme() -> dict[str, object]:
         requested_theme = request.args.get("theme")
-        remembered_theme = request.cookies.get(cookie_name)
+        remembered_theme = request.cookies.get(read_cookie_name())
         if requested_theme in _WEB_THEMES:
             theme = requested_theme
         elif remembered_theme in _WEB_THEMES:
@@ -401,7 +398,7 @@ def _configure_web_theme(*, app: Flask, state: StateDirectory) -> None:
         """Remember a valid theme selected through a browser request."""
         requested_theme = request.args.get("theme")
         if requested_theme in _WEB_THEMES:
-            response.set_cookie(cookie_name, requested_theme, samesite="Lax")
+            response.set_cookie(read_cookie_name(), requested_theme, samesite="Lax")
         return response
 
 

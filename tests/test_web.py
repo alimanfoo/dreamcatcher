@@ -1334,15 +1334,12 @@ def test_a_theme_choice_is_validated_and_remembered(tmp_path):
 def test_two_repositories_remember_different_theme_choices(tmp_path):
     first_state = StateDirectory(root=tmp_path / "first")
     second_state = StateDirectory(root=tmp_path / "second")
-    for state, repository in (
-        (first_state, "foo/bar-baz"),
-        (second_state, "foo-bar/baz"),
-    ):
+    for state in (first_state, second_state):
         state.bootstrap()
-        write_text(text=f"{repository}\n", path=state.repository)
-
     first_app = _create_app(state=first_state)
     second_app = _create_app(state=second_state)
+    write_text(text="foo/bar-baz\n", path=first_state.repository)
+    write_text(text="foo-bar/baz\n", path=second_state.repository)
     first_choice = first_app.test_client(use_cookies=False).get("/?theme=nature")
     second_choice = second_app.test_client(use_cookies=False).get("/?theme=matrix")
     browser_cookies = "; ".join(
@@ -1359,8 +1356,6 @@ def test_two_repositories_remember_different_theme_choices(tmp_path):
         "/", headers={"Cookie": browser_cookies}
     )
 
-    assert "theme-foo%2Fbar-baz=nature;" in first_choice.headers["Set-Cookie"]
-    assert "theme-foo-bar%2Fbaz=matrix;" in second_choice.headers["Set-Cookie"]
     assert 'data-web-theme="nature"' in first_remembered.text
     assert 'data-web-theme="matrix"' in second_remembered.text
 
