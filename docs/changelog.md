@@ -27,13 +27,27 @@ the change.
 
 ## Unreleased
 
+## [v9.6.0](https://github.com/alimanfoo/dreamcatcher/releases/tag/v9.6.0) — 2026-10-29
+
 ### Changed
 
 - Working motifs now follow the web header's rendered height, so they
   stay beneath a taller or wrapped header.
   ([#868](https://github.com/alimanfoo/dreamcatcher/pull/868))
-- The home page shows its working-agent motifs on narrower windows.
+- The home page shows its working-agent motifs on narrower windows, from
+  1184px wide, in the gutter beside the page's text.
   ([#867](https://github.com/alimanfoo/dreamcatcher/pull/867))
+- Each repository's web view remembers its own theme, once its daemon
+  has run, so switching the theme on one instance's page no longer
+  switches it on another's.
+  ([#866](https://github.com/alimanfoo/dreamcatcher/pull/866))
+- In the Matrix theme, GitHub's state at the right of a card's first row
+  is plain text on every card, as in Nature, without a box around a pull
+  request's state.
+  ([#864](https://github.com/alimanfoo/dreamcatcher/pull/864))
+- The toggle that opens a tab's ended work reads "3 ended", without a
+  "+" before it, as a campaign's line of sub-issues already does.
+  ([#865](https://github.com/alimanfoo/dreamcatcher/pull/865))
 
 ## [v9.5.0](https://github.com/alimanfoo/dreamcatcher/releases/tag/v9.5.0) — 2026-10-28
 
