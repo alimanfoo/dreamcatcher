@@ -29,6 +29,9 @@ the change.
 
 ### Changed
 
+- Working motifs now follow the web header's rendered height, so they
+  stay beneath a taller or wrapped header.
+  ([#868](https://github.com/alimanfoo/dreamcatcher/pull/868))
 - The home page shows its working-agent motifs on narrower windows.
   ([#867](https://github.com/alimanfoo/dreamcatcher/pull/867))
 
