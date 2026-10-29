@@ -110,11 +110,13 @@ interpreter of the checkout that installed it. A hook installed from a
 worktree breaks for every checkout once that worktree is removed.
 
 `.python-version` names the development interpreter, which local work
-and the CI checks use. The CI tests run on every released Python from
-the `requires-python` floor up, because the standard library behaves
-differently between them. To run the tests on another of those, set
-`UV_PYTHON` for the test command, as in `UV_PYTHON=3.13`. `uv sync`
-installs the `dev` dependency group without being asked.
+and the CI checks use. On pushes to main, CI tests every released Python
+from the `requires-python` floor up, because the standard library
+behaves differently between them. Pull requests do the same on Ubuntu
+and Windows, while macOS tests the oldest and newest Python. To run the
+tests on another of those, set `UV_PYTHON` for the test command, as in
+`UV_PYTHON=3.13`. `uv sync` installs the `dev` dependency group without
+being asked.
 
 ## Commands
 
