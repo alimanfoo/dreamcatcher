@@ -339,6 +339,27 @@ def test_an_ended_card_has_a_quieter_title_and_the_same_links(
         ), link
 
 
+@pytest.mark.parametrize("color_scheme", ["light", "dark"])
+@pytest.mark.parametrize("theme", ["matrix", "nature"])
+def test_a_card_pull_request_state_is_not_underlined(
+    page: Page,
+    live_web: str,
+    theme: str,
+    color_scheme: Literal["light", "dark"],
+) -> None:
+    page.emulate_media(color_scheme=color_scheme)
+    page.goto(f"{live_web}/?theme={theme}")
+    pull_request_state = page.locator(f"#{BROWSER_ASSIGNMENT_IDENTIFIER} .pr-chip")
+    expect(pull_request_state).to_be_visible()
+
+    assert (
+        pull_request_state.evaluate(
+            "element => getComputedStyle(element).textDecorationLine"
+        )
+        == "none"
+    )
+
+
 CAMPAIGN_IDENTIFIER = "GH60-20260819-184158-campaign"
 CHILD_ASSIGNMENT_IDENTIFIER = "GH64-20260819-184158-assignment"
 
