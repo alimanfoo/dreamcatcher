@@ -75,8 +75,7 @@ def test_a_checkout_with_no_routes_says_that_none_are_configured(tmp_path):
 
     briefing = compose_agent_briefing(root=tmp_path)
 
-    assert "No dispatch routes are configured." in briefing
-    assert "configure one and restart the daemon before you dispatch work" in briefing
+    assert "No dispatch routes are configured, so no agent work starts." in briefing
 
 
 def test_a_briefing_uses_lf_when_windows_checked_out_its_template_with_crlf(

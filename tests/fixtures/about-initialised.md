@@ -1,98 +1,217 @@
-# Work with dreamcatcher
+# About dreamcatcher
 
-You are the user's agent, working outside _dreamcatcher_. Use
-_dreamcatcher_ to hand self-contained work to other agents, then leave
-that work alone until it needs the user.
+dreamcatcher lets you hand work on a GitHub repository to coding agents.
+You can ask for work by putting a label on an issue, and dreamcatcher
+will start an agent on it in the background. You can then work with the
+agent on GitHub, much as you would with a colleague: it will post on the
+issue or its pull request, and you can reply there.
 
-The routes below come from this checkout's `dreamcatcher.toml`. A dreamcatcher daemon is running here.
+dreamcatcher works for you, the **user**: the person whose account `gh`
+is signed in to. Agents will post from that account, and dreamcatcher
+will treat every other label and post from it as yours.
 
-## Set up and check
+There are three kinds of agent work you can ask for:
 
-Setup belongs to the user. Ask them to run `dreamcatcher init`
-interactively and to run the long-lived `dreamcatcher run` daemon. Do
-not script either command.
+- An **agent assignment**, where an agent will implement an issue and
+  take it to a pull request that is ready for you to review. The agent
+  will answer your feedback, try to fix failing checks, and merge main
+  when the branch conflicts with it, until you merge or close the pull
+  request.
+- A **campaign**, where an agent, the **lead**, will take on a parent
+  issue whose work is planned as sub-issues. The lead will label each
+  sub-issue for an assignment, and merge each sub-issue's pull request
+  once it is ready for review, its checks pass and it doesn't conflict.
+- An **issue conversation**, where an agent will answer your comments on
+  an issue without changing any code.
 
-After setup, run `dreamcatcher status` with its output captured before
-you act on an issue. Captured output prints one snapshot and returns. It
-tells you whether work is already in progress, why a request has not
-started, and whether work is in fault.
+## Setting up an instance
 
-The issue is an assignment's whole brief. Before you apply a label, make
-its title and body say what to change, why, and how to check the result.
-Before an assignment starts, put further guidance in the issue by
-editing it or commenting on it.
+Each repository you use dreamcatcher with has its own **dreamcatcher
+instance**: the configuration and state that dreamcatcher keeps for you
+in the repository's main checkout. Colleagues who use dreamcatcher on
+the same repository can each run their own instance on their own
+computer. An instance will only look at issues assigned to its own user,
+so they won't pick up each other's work.
 
-## Dispatch work
+The configuration lives in `dreamcatcher.toml` at the root of the main
+checkout. If it doesn't exist yet, you can create a default one with
+`dreamcatcher init`. `init` will also check that `gh`, Git and an agent
+harness, Claude Code or Codex, are ready, install the dream plugin,
+which provides the skills the agents run, and create the configuration's
+dispatch labels on GitHub. You can run it again at any time: it will
+never change an existing `dreamcatcher.toml` or label.
 
-- "build-carefully" starts assignment work. codex starts with "$dream:smith GH{issue}", using "gpt-5.6-sol" at "high" effort.
-- "build-quickly" starts assignment work. claude starts with "/dream:less GH{issue}", using "sonnet" at "medium" effort; codex starts with "$dream:less GH{issue}", using "gpt-5.6-terra" at "medium" effort.
-- "ask-`agent" starts conversation work. claude starts with "/dream:scout GH{issue}", using "op`us" at "hi`gh" effort.
-- "lead-program" starts campaign work. claude starts with "/dream:big GH{issue}", using "opus[1m]" at "high" effort.
+You can start the instance with `dreamcatcher run --harness claude` or
+`--harness codex`, from the same checkout. This will start the
+**daemon**, a long-running process that manages agent work. Every two
+minutes by default, the daemon will carry out an **update**: it will
+read your issues and pull requests from GitHub, and start a **round**
+for any agent work that has something to do. A round is one headless run
+of the agent harness, such as `claude --print` or `codex exec`, with
+dreamcatcher's preparation before it and its finishing step after. If a
+round errors, dreamcatcher will recover by giving the next round the
+same input again. By default the daemon will run one agent at a time,
+and `--max-agents` lets it run more. Nothing will happen while the
+daemon is stopped, and the work will pick up again when you start it.
 
-To dispatch work, assign the issue to the user, then apply exactly one
-of the route labels above through the user's GitHub account. Work starts
-at a later update when an agent slot is free. An assignment or campaign
-request that an open issue blocks stays held; use GitHub's blocked-by
-relationships to set their order. A dependency does not delay a
-conversation.
+A dreamcatcher daemon is running here.
 
-## Follow an assignment
+## Asking for work
 
-An assignment starts a separate agent in its own worktree and draft pull
-request. The agent implements the issue and marks the pull request ready
-for review. Ready for review is the signal that the assignment wants a
-review. A draft can hold a question that needs an answer.
-`dreamcatcher status` distinguishes those states, so check it instead of
-watching the pull request more closely.
+Each **dispatch route** in the configuration ties one **dispatch label**
+to one kind of agent work, and says how each agent harness should start
+it: the prompt, usually a dream skill, and the model and effort.
+The routes below come from this checkout's `dreamcatcher.toml`.
 
-Once the pull request exists, put every instruction and answer there as
-a review or comment. The agent receives the user's posts since its last
-turn at its next turn. Posts made while it works wait for the turn
-after. It does not receive issue edits, issue comments, or another
-person's review. Restate another person's feedback through the user's
-account when the agent should act on it.
+- "build-carefully": assignment route. codex starts it with the prompt "$dream:smith GH{issue}", the model "gpt-5.6-sol" and the effort "high".
+- "build-quickly": assignment route. claude starts it with the prompt "/dream:less GH{issue}", the model "sonnet" and the effort "medium"; codex starts it with the prompt "$dream:less GH{issue}", the model "gpt-5.6-terra" and the effort "medium".
+- "ask-`agent": conversation route. claude starts it with the prompt "/dream:scout GH{issue}", the model "op`us" and the effort "hi`gh".
+- "lead-program": campaign route. claude starts it with the prompt "/dream:big GH{issue}", the model "opus[1m]" and the effort "high".
 
-The assignment repairs red checks twice before it waits for a post that
-explains what it is missing. It also merges main when the branch
-conflicts, or when it falls behind in a repository that requires
-branches to be up to date. Do not push to its branch.
+To ask for work, you can assign the issue to yourself and put one of
+these labels on it. dreamcatcher will only look at open issues assigned
+to you. Each dispatch label on such an issue is a **request**, and
+dreamcatcher will start its work at the next update with a free agent
+slot.
 
-The pull request comes back for review. Review and merge it only when
-the user has allowed you to; otherwise leave it for the user. After a
-merge, the assignment takes a wrap-up turn and may file issues for work
-that it left out.
+A request can also be **held**, and then won't start until whatever
+holds it changes:
 
-## Run a campaign
+- If someone else put the label on, the request will be held, so that a
+  colleague's label can't start work under your account. You can start
+  it by taking the label off and putting it back yourself.
+- If the issue has two labels of the same kind, such as two assignment
+  labels, that's a **routing conflict**, and neither will start until
+  you take one off.
+- An assignment or a campaign will wait while its issue is blocked by
+  another open issue, through GitHub's issue dependencies, and will
+  start by itself once every blocker is closed. You can use this to put
+  work in order.
+- An assignment will also be held if there is already an open pull
+  request **claiming** the issue, for example with `Closes #123` in its
+  description, and will start by itself if that pull request closes.
 
-Make the planned work real GitHub sub-issues of one parent, and use
-blocked-by relationships to order them. Apply the campaign label to the
-parent alone. A lead follows the opening instruction of its route. The
-packaged default route asks the lead to apply assignment labels to the
-sub-issues, review their pull requests, and merge each one when it is
-ready, green, and conflict-free. When you use that route, do not label
-the sub-issues or merge their pull requests yourself.
+Once an assignment has started, its pull request becomes the only
+channel of communication with the assignment's agent, and changing the
+issue's labels, assignee or blockers will make no difference to it. A
+conversation or a campaign is different: you can **pause** one by taking
+its label off or unassigning its issue, and resume it later, in the same
+harness session, by putting things back.
 
-Talk to the lead on the parent issue, and expect its questions there.
-Close the parent when the campaign is finished; closing it ends the
-campaign.
+## Agent assignments
 
-Use a merge queue when the repository offers one. Otherwise leave
-"Require branches to be up to date before merging" off, because each
-merge would make every other campaign pull request rerun its assignment
-and checks. A conflict still wakes an assignment to update its branch.
+When an assignment starts, dreamcatcher will create a worktree and a
+branch for it, open a draft pull request, and start the agent with the
+route's prompt, which points it at the issue. The agent will read the
+issue and its comments as they stand at that moment. After that, the
+pull request is the assignment's **channel**, where you and the agent
+talk: later edits and comments on the issue won't reach the agent, so
+any further guidance needs to go on the pull request.
 
-## Hold a conversation
+The agent will work until it has nothing left to do, then mark the pull
+request ready for review. If it needs a decision from you first, it will
+ask on the pull request and leave it as a draft.
 
-A conversation answers questions in comments on its issue. Put the
-initial question in a comment: the issue's title and body alone start no
-conversation. Give guidance and reply on that issue through the user's
-account.
+You can give feedback on the pull request as you would to anyone, in
+comments, reviews or inline comments. At the next update the agent will
+be given everything you have posted since its last round, in a new round
+that resumes the same harness session. Anything you post while a round
+is running will wait for the round after. Posts from other accounts
+won't be passed on, so if you want the agent to act on a colleague's
+review, you need to repeat the points yourself.
 
-## Intervene
+Once the pull request is ready for review, the agent will also look
+after it while it waits for you:
 
-Use GitHub as the main interface. `dreamcatcher view` and
-`dreamcatcher feed` show what is happening behind the scenes. After you
-fix the cause of a fault, `dreamcatcher retry` lets the work run again.
-`dreamcatcher stop` stops one running round so that you can redirect the
-agent on GitHub. `dreamcatcher cancel` hands an assignment's pull
-request to the user to finish by hand.
+- If a check fails, the agent will try to fix it. It will get two
+  attempts, and if the build is still red after that, it will wait for
+  you to tell it what it's missing.
+- If the branch conflicts with its base branch, the agent will merge the
+  base branch in. If the repository requires branches to be up to date
+  before merging, it will do the same whenever the branch falls behind.
+
+So you don't need to watch the pull request: when you come to review it,
+it should merge cleanly, however long it waited.
+
+When the pull request is merged or closed, the agent will have one last
+round to wrap up, and may file issues for work it left out. The
+assignment will then be complete. If the pull request was closed without
+being merged, the issue will stay open and can be given a new
+assignment.
+
+## Campaigns
+
+A campaign is for a larger body of planned work. You can write the plan
+as a parent issue, with the work in its sub-issues, and put a campaign
+label on the parent. dreamcatcher will then start a lead agent on the
+parent.
+
+What the lead does is set by its route's prompt. With the default
+campaign route, the lead will label the sub-issues for assignments,
+review their pull requests and give their agents feedback, and merge
+each pull request once it is ready for review, its checks pass and it
+doesn't conflict. You don't need to handle the sub-issues yourself. The
+lead works from your account, so its labels and feedback will count as
+yours. If some sub-issues have to wait for others, you can mark them as
+blocked by those, and their assignments will wait.
+
+The parent issue is the campaign's channel. You can comment on it at any
+time, and the lead will be given your comments at the next update and
+answer there. If the lead meets something it can't decide, it will raise
+it on the parent. It will also be woken when a sub-issue changes in a
+way it needs to know about, such as an assignment handing its work back,
+checks finishing, or a sub-issue closing.
+
+When you're satisfied, you can close the parent issue to end the
+campaign; the lead will never close it. The campaign will end once any
+round that is still running has finished.
+
+If your repository requires branches to be up to date before merging,
+every merge will leave the campaign's other pull requests behind, and
+wake each of their agents to merge main and run the checks again. A
+merge queue will avoid this, or you can leave that setting off: a pull
+request that has only fallen behind will still merge cleanly, and one
+that conflicts will still wake its agent.
+
+## Issue conversations
+
+An issue conversation is for questions rather than changes:
+investigating a bug, asking about the code, or thinking through a
+design. You can put a conversation label on the issue and ask your
+question in a comment; the title and body alone won't start it. The
+agent will answer in a comment on the issue, and you can keep the
+conversation going by replying. Each answer will continue the same
+harness session, so the agent will remember what it said. If a comment
+needs no reply, it won't post one, and it won't answer comments from
+other accounts.
+
+## Commands
+
+You can direct the work on GitHub. The dreamcatcher CLI commands let you
+see it from behind the scenes, and step in when something goes wrong. A
+command that names one piece of agent work accepts its issue, as
+`GH123`, or its agent work identifier, such as
+`GH123-20260912-192458-assignment`. The commands that keep showing the
+work as it changes will print it once and return when their output is
+piped or captured.
+
+- `dreamcatcher status` lets you see the instance, each piece of open
+  agent work with its status, and each request that hasn't started, with
+  the reason.
+- `dreamcatcher web` lets you see the same in a browser.
+  `dreamcatcher run` already serves and opens this web view unless you
+  give it `--noweb`, so you rarely need `web` on its own.
+- `dreamcatcher view` lets you see one piece of agent work in detail.
+- `dreamcatcher feed` lets you see what an agent has done and said,
+  round by round.
+- `dreamcatcher retry` lets you get work going again after a **fault**.
+  Work is in fault when two rounds in a row have errored, and it won't
+  start another round until you fix the cause and retry.
+- `dreamcatcher stop` lets you stop a running round, for example when an
+  agent is heading the wrong way. The agent will then wait, you can tell
+  it what to do instead on GitHub, and its next round will be told that
+  it was stopped.
+- `dreamcatcher cancel` lets you end an assignment for good, to finish
+  its pull request by hand. The pull request, worktree and branch will
+  be left for you, and while that pull request is open it will still
+  claim the issue.
