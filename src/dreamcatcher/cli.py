@@ -73,12 +73,12 @@ def _build_cli_parser() -> argparse.ArgumentParser:
     subcommands = parser.add_subparsers(title="commands", dest="command", required=True)
     about_parser = subcommands.add_parser(
         "about",
-        help="brief the user's agent",
+        help="explain what dreamcatcher can do and how it works",
         description=(
-            "Print a plain Markdown briefing for the user's agent, which helps "
-            "the user triage issues and dispatch work outside dreamcatcher. "
-            "Use this checkout's routes when dreamcatcher.toml exists, and "
-            "otherwise describe the packaged defaults."
+            "Print, as Markdown, an explanation of what dreamcatcher can do and "
+            "how it works, for the user or for an agent that helps them. Say "
+            "whether this directory has a dreamcatcher.toml and whether a daemon "
+            "is running here."
         ),
     )
     about_parser.set_defaults(act=_show_about)

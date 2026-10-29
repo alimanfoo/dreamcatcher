@@ -47,7 +47,7 @@ assignment.
 
 | Command  | Purpose                                             |
 | -------- | --------------------------------------------------- |
-| `about`  | Brief the user's agent.                             |
+| `about`  | Explain what dreamcatcher can do.                   |
 | `init`   | Prepare this repository's main checkout.            |
 | `run`    | Run the daemon for this repository.                 |
 | `retry`  | Allow one piece of faulted work to run again.       |
@@ -64,17 +64,16 @@ assignment.
 dreamcatcher about
 ```
 
-Print a plain Markdown briefing for the user's agent, which helps the
-user triage issues and dispatch work outside _dreamcatcher_. The
-briefing explains how to prepare and label an issue, what each kind of
-agent work does, where to give guidance, when work needs help and what
-the outside agent can leave to _dreamcatcher_.
+Print an explanation of what _dreamcatcher_ can do and how it works, as
+Markdown, for the user or for an agent that helps them outside
+_dreamcatcher_. It covers setting up an instance, asking for work with
+dispatch labels, what each kind of agent work does and where to talk to
+its agent, and what each command does.
 
-In a directory with `dreamcatcher.toml`, the briefing names every
-configured route's label, kind, opening instructions, harnesses, models
-and efforts, and says whether the checkout's daemon is running. In any
-other directory it names the packaged default routes and says that they
-are defaults. The command does not contact GitHub and writes no file.
+In a directory with `dreamcatcher.toml`, it says that the dispatch
+routes can be read there, and elsewhere that the directory has none. It
+also says whether the checkout's daemon is running. The command does not
+contact GitHub and writes no file.
 
 ## `init`
 
