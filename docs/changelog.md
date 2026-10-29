@@ -38,6 +38,12 @@ the change.
   leaves an existing file unchanged.
   ([#875](https://github.com/alimanfoo/dreamcatcher/pull/875))
 
+### Fixed
+
+- Squash-merging an assignment pull request no longer carries a CI-skip
+  instruction onto main. The assignment's draft pull request now runs CI
+  once. ([#873](https://github.com/alimanfoo/dreamcatcher/issues/873))
+
 ## [v9.6.0](https://github.com/alimanfoo/dreamcatcher/releases/tag/v9.6.0) — 2026-10-29
 
 ### Changed
