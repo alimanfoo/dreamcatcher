@@ -600,6 +600,7 @@ def test_status_takes_no_issue(capsys):
     "command",
     [
         "init",
+        "about",
         "run",
         "retry",
         "stop",
