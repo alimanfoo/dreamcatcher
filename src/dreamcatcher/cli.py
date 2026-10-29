@@ -9,6 +9,7 @@ from threading import TIMEOUT_MAX
 
 import dreamcatcher
 from dreamcatcher import repository_setup, tui, web
+from dreamcatcher.about import compose_agent_briefing
 from dreamcatcher.agent_assignments import cancel_assignment
 from dreamcatcher.agent_rounds import request_agent_round_stop
 from dreamcatcher.agent_work import (
@@ -70,6 +71,17 @@ def _build_cli_parser() -> argparse.ArgumentParser:
     # dest to name itself in the commands it suggests, and argparse names it
     # when a bare invocation omits the command.
     subcommands = parser.add_subparsers(title="commands", dest="command", required=True)
+    about_parser = subcommands.add_parser(
+        "about",
+        help="brief an agent that works with the developer",
+        description=(
+            "Print a plain Markdown briefing for an agent that helps the "
+            "developer triage issues and dispatch work outside dreamcatcher. "
+            "Use this checkout's routes when dreamcatcher.toml exists, and "
+            "otherwise describe the packaged defaults."
+        ),
+    )
+    about_parser.set_defaults(act=_show_about)
     init_parser = subcommands.add_parser(
         "init",
         help="prepare this checkout for the dreamcatcher daemon",
@@ -237,6 +249,11 @@ def _build_cli_parser() -> argparse.ArgumentParser:
     )
     feed_parser.set_defaults(act=_show_feed)
     return parser
+
+
+def _show_about(*, arguments: argparse.Namespace) -> None:
+    """Print the agent briefing for the current directory."""
+    print(compose_agent_briefing(root=Path.cwd()), end="")
 
 
 def _add_agent_work_argument(*, parser: argparse.ArgumentParser) -> None:

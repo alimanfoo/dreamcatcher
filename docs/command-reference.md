@@ -1,9 +1,10 @@
 # Command reference
 
 _dreamcatcher_'s command-line program is `dreamcatcher`. Run operational
-commands from the repository checkout that they concern. `init` and
-`run` require the main checkout; every other command requires the
-checkout in which _dreamcatcher_ has already created local state.
+commands from the repository checkout that they concern. `about` can run
+anywhere. `init` and `run` require the main checkout; every other
+command requires the checkout in which _dreamcatcher_ has already
+created local state.
 
 ```text
 dreamcatcher [--version] <command> [options]
@@ -46,6 +47,7 @@ assignment.
 
 | Command  | Purpose                                             |
 | -------- | --------------------------------------------------- |
+| `about`  | Brief an agent that works with the developer.       |
 | `init`   | Prepare this repository's main checkout.            |
 | `run`    | Run the daemon for this repository.                 |
 | `retry`  | Allow one piece of faulted work to run again.       |
@@ -55,6 +57,24 @@ assignment.
 | `status` | Show the whole local status report in the terminal. |
 | `view`   | Show one piece of agent work.                       |
 | `feed`   | Follow one piece of agent work's output.            |
+
+## `about`
+
+```text
+dreamcatcher about
+```
+
+Print a plain Markdown briefing for an agent that helps the developer
+triage issues and dispatch work outside _dreamcatcher_. The briefing
+explains how to prepare and label an issue, what each kind of agent work
+does, where to give guidance, when work needs help and what the outside
+agent can leave to _dreamcatcher_.
+
+In a directory with `dreamcatcher.toml`, the briefing names every
+configured route's label, kind, opening instructions, harnesses, models
+and efforts, and says whether the checkout's daemon is running. In any
+other directory it names the packaged default routes and says that they
+are defaults. The command does not contact GitHub and writes no file.
 
 ## `init`
 
