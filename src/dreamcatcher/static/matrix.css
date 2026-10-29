@@ -437,8 +437,7 @@ body::after {
 }
 
 .card-detail,
-.card-route,
-.issue-state {
+.card-route {
   color: var(--dim);
 }
 
