@@ -1,6 +1,6 @@
 # Compatibility and upgrades
 
-v9.6.0 uses state format 8, as every v9 release before it did. Saved
+v9.6.1 uses state format 8, as every v9 release before it did. Saved
 work from any earlier v9 release continues after the upgrade. v7.0.0 and
 v8.0.0 used state format 7, v6.0.0 through v6.3.0 used state format 6,
 v5.0.0 through v5.6.2 used state format 5, and v4.0.0 used state
