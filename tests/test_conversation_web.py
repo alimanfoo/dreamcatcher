@@ -814,7 +814,7 @@ def test_home_collapses_a_closed_conversation_and_shows_it_ended_once(tmp_path):
 
     conversations = page[page.index('id="conversation-panel"') :]
     ended = conversations[conversations.index('<details class="ended-work">') :]
-    assert "<summary>+ 1 ended</summary>" in ended
+    assert "<summary>1 ended</summary>" in ended
     assert 'id="GH8-20260819-184158-conversation"' in ended
     card = ended[: ended.index("</article>")]
     assert '<span class="issue-state">closed</span>' in card
