@@ -34,8 +34,8 @@ campaigns.
 
 If you already run _dreamcatcher_ on the repository, check that your
 tools meet [step 1](tutorial.md#1-install-the-tools) of that tutorial.
-Its `dreamcatcher.toml` needs a campaign route that runs `dream:lead`
-and at least one assignment route for the lead to give the sub-issues.
+Its `dreamcatcher.toml` needs a campaign route that runs `dream:big` and
+at least one assignment route for the lead to give the sub-issues.
 [Configure a campaign route](start-a-campaign.md#configure-a-campaign-route)
 says how to add the route and update the `dream` plugin.
 

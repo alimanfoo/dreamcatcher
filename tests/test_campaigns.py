@@ -106,7 +106,7 @@ def test_a_campaign_round_starts_from_main_in_a_detached_worktree(cloned_repo):
     campaign = create_agent_work(
         state=state,
         route=CampaignRoute(
-            label="dream:lead",
+            label="dream:big",
             claude=ClaudeRecipe(
                 prompt="Acknowledge GH{issue}.", model="opus[1m]", effort="xhigh"
             ),

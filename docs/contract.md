@@ -20,7 +20,7 @@ and
 assignment skills, the
 [`dream:scout`](https://github.com/alimanfoo/dream/blob/main/plugins/dream/skills/scout/SKILL.md)
 conversation skill, and the
-[`dream:lead`](https://github.com/alimanfoo/dream/blob/main/plugins/dream/skills/lead/SKILL.md)
+[`dream:big`](https://github.com/alimanfoo/dream/blob/main/plugins/dream/skills/big/SKILL.md)
 campaign skill.
 
 ## Assignment skill contract

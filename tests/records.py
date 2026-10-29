@@ -214,7 +214,7 @@ def write_campaign(
     issue: int,
     harness: AgentHarness = AgentHarness.CLAUDE,
     harness_session_identifier: str | None = "lead-session",
-    dispatch_label: str = "dream:lead",
+    dispatch_label: str = "dream:big",
 ) -> Path:
     """Write a campaign record at the parent issue, and return its directory.
 

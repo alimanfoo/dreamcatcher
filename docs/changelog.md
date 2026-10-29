@@ -27,6 +27,17 @@ the change.
 
 ## Unreleased
 
+### Changed
+
+- The default `agent-campaign` route now runs the dream plugin's
+  `dream:big` campaign skill, which dream 44.0.0 renamed from
+  `dream:lead`. Existing installations must update the dream plugin to
+  44.0.0 or later, then change their `dreamcatcher.toml` campaign
+  prompts to `/dream:big GH{issue}` for Claude and
+  `$dream:big GH{issue}` for Codex by hand, because `dreamcatcher init`
+  leaves an existing file unchanged.
+  ([#875](https://github.com/alimanfoo/dreamcatcher/pull/875))
+
 ### Fixed
 
 - Squash-merging an assignment pull request no longer carries a CI-skip

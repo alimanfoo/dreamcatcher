@@ -87,12 +87,12 @@ from dreamcatcher.scheduler.models import (
 from dreamcatcher.state import StateDirectory
 
 PARENT = 20
-LABEL = "dream:lead"
+LABEL = "dream:big"
 COMMENTS_PATH = f"api repos/{REPOSITORY}/issues/{PARENT}/comments?per_page=100"
 BLOCKERS_PATH = (
     f"api repos/{REPOSITORY}/issues/{PARENT}/dependencies/blocked_by?per_page=100"
 )
-SECOND_CAMPAIGN_CLAUDE = CAMPAIGN_CLAUDE.replace("dream:lead", "dream:steward")
+SECOND_CAMPAIGN_CLAUDE = CAMPAIGN_CLAUDE.replace("dream:big", "dream:steward")
 CONVERSATION_CLAUDE = """[[conversation]]
 label = "dream:conversation"
 [conversation.claude]
@@ -101,7 +101,7 @@ model = "opus[1m]"
 effort = "xhigh"
 """
 CODEX_CAMPAIGN = """[[campaign]]
-label = "dream:lead"
+label = "dream:big"
 [campaign.codex]
 prompt = "Acknowledge GH{issue} with a comment on it."
 model = "gpt-5.6-sol"

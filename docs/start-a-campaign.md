@@ -19,7 +19,7 @@ campaign, follow the worked example in
 
 The `dreamcatcher.toml` that `dreamcatcher init` writes routes the
 `agent-campaign` label to campaigns. Its recipes run the
-[`dream:lead`](https://github.com/alimanfoo/dream/blob/main/plugins/dream/skills/lead/SKILL.md)
+[`dream:big`](https://github.com/alimanfoo/dream/blob/main/plugins/dream/skills/big/SKILL.md)
 skill from the dream plugin. The skill sets up an assignment for each
 sub-issue on an assignment route, reviews the assignment's pull request
 and checks its proof, gives the assignment's agent feedback, and merges
@@ -31,7 +31,7 @@ before the route existed has none. Copy the `[[campaign]]` route from
 the [default configuration](configuration-reference.md#complete-example)
 into it.
 
-The dream plugin has had `dream:lead` since version 43.3.0, and `init`
+The dream plugin has had `dream:big` since version 44.0.0, and `init`
 leaves an installed plugin as it is. If you installed the plugin before
 then, update it with the plugin commands of each harness that runs the
 route.
