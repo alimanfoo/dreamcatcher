@@ -7,8 +7,10 @@ agent on GitHub, much as you would with a colleague: it will post on the
 issue or its pull request, and you can reply there.
 
 dreamcatcher works for you, the **user**: the person whose account `gh`
-is signed in to. Agents will post from that account, and dreamcatcher
-will treat every other label and post from it as yours.
+is signed in to. Agents will post on GitHub from your account too, but
+they mark their posts, so dreamcatcher can tell them apart from yours.
+Any other comment or label from your account counts as yours, including
+one that an agent you work with outside dreamcatcher made for you.
 
 There are three kinds of agent work you can ask for:
 
