@@ -404,7 +404,6 @@ body::after {
   color: var(--dim);
   border: 0;
   font-weight: 500;
-  text-decoration: none;
 }
 
 .pr-chip:hover {
