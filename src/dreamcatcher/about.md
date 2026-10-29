@@ -64,10 +64,10 @@ for work that it left out.
 Make the planned work real GitHub sub-issues of one parent, and use
 blocked-by relationships to order them. Apply the campaign label to the
 parent alone. A lead follows the opening instruction of its route. The
-packaged `agent-campaign` route asks the lead to apply assignment labels
-to the sub-issues, review their pull requests, and merge each one when
-it is ready, green, and conflict-free. When you use that route, do not
-label the sub-issues or merge their pull requests yourself.
+packaged default route asks the lead to apply assignment labels to the
+sub-issues, review their pull requests, and merge each one when it is
+ready, green, and conflict-free. When you use that route, do not label
+the sub-issues or merge their pull requests yourself.
 
 Talk to the lead on the parent issue, and expect its questions there.
 Close the parent when the campaign is finished; closing it ends the

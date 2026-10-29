@@ -564,9 +564,9 @@ it to; otherwise it leaves the review and merge to the user.
 For a campaign, the developer's agent makes the plan real sub-issues of
 one parent, uses blocked-by relationships to order them and labels only
 the parent. The lead follows its route's opening instruction. Under the
-packaged `agent-campaign` route, the developer's agent leaves the lead
-to label the sub-issues, review and merge their pull requests, and
-raises guidance or answers on the parent. It uses a merge queue when the
+packaged default route, the developer's agent leaves the lead to label
+the sub-issues, review and merge their pull requests, and raises
+guidance or answers on the parent. It uses a merge queue when the
 repository offers one; otherwise it leaves "Require branches to be up to
 date before merging" off. The user closes the parent to end the
 campaign.
