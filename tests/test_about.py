@@ -3,6 +3,7 @@
 from conftest import FIXTURES, assert_matches_view_golden
 from records import hold_daemon_lock_for_test
 
+import dreamcatcher.about as about
 from dreamcatcher.about import compose_agent_briefing
 from dreamcatcher.cli import main
 from dreamcatcher.config import DREAMCATCHER_CONFIG_NAME
@@ -76,3 +77,18 @@ def test_a_checkout_with_no_routes_says_that_none_are_configured(tmp_path):
 
     assert "No dispatch routes are configured." in briefing
     assert "configure one and restart the daemon before you dispatch work" in briefing
+
+
+def test_a_briefing_uses_lf_when_windows_checked_out_its_template_with_crlf(
+    monkeypatch, tmp_path
+):
+    template = about.read_text(path=about._BRIEFING_TEMPLATE, is_replaceable=False)
+    monkeypatch.setattr(
+        about,
+        "read_text",
+        lambda **_arguments: template.replace("\r\n", "\n").replace("\n", "\r\n"),
+    )
+
+    briefing = compose_agent_briefing(root=tmp_path)
+
+    assert "\r" not in briefing

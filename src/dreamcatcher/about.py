@@ -32,7 +32,8 @@ def compose_agent_briefing(*, root: Path) -> str:
         else read_default_dreamcatcher_config()
     )
     state = StateDirectory(root=root)
-    template = Template(read_text(path=_BRIEFING_TEMPLATE, is_replaceable=False))
+    template_text = read_text(path=_BRIEFING_TEMPLATE, is_replaceable=False)
+    template = Template(template_text.replace("\r\n", "\n"))
     return template.substitute(
         configuration=_describe_configuration(is_configured=is_configured),
         daemon=_describe_daemon(is_running=is_daemon_lock_held(path=state.lock)),
