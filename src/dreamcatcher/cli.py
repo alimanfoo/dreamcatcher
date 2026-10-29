@@ -9,7 +9,7 @@ from threading import TIMEOUT_MAX
 
 import dreamcatcher
 from dreamcatcher import repository_setup, tui, web
-from dreamcatcher.about import compose_agent_briefing
+from dreamcatcher.about import read_about_dreamcatcher
 from dreamcatcher.agent_assignments import cancel_assignment
 from dreamcatcher.agent_rounds import request_agent_round_stop
 from dreamcatcher.agent_work import (
@@ -76,9 +76,7 @@ def _build_cli_parser() -> argparse.ArgumentParser:
         help="explain what dreamcatcher can do and how it works",
         description=(
             "Print, as Markdown, an explanation of what dreamcatcher can do and "
-            "how it works, for the user or for an agent that helps them. Say "
-            "whether this directory has a dreamcatcher.toml and whether a daemon "
-            "is running here."
+            "how it works, for the user or for an agent that helps them."
         ),
     )
     about_parser.set_defaults(act=_show_about)
@@ -252,8 +250,8 @@ def _build_cli_parser() -> argparse.ArgumentParser:
 
 
 def _show_about(*, arguments: argparse.Namespace) -> None:
-    """Print the agent briefing for the current directory."""
-    print(compose_agent_briefing(root=Path.cwd()), end="")
+    """Print the text that explains dreamcatcher."""
+    print(read_about_dreamcatcher(), end="")
 
 
 def _add_agent_work_argument(*, parser: argparse.ArgumentParser) -> None:

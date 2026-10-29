@@ -542,10 +542,9 @@ instance and its daemon are and how to set one up, how a dispatch label
 makes a request and what can hold it, what each kind of agent work does
 and where to talk to its agent, and what each command shows or does. It
 explains the mechanics and leaves what to do with them to the reader.
-Run in a checkout, it also says whether the checkout has a
-`dreamcatcher.toml`, where its dispatch routes can be read, and whether
-a daemon is running for it. The command contacts no service and writes
-no file.
+The text is the same wherever the command runs, so the user can also
+pass it to an agent that works elsewhere. The command contacts no
+service and writes no file.
 
 From that the user's agent learns that a label or post from the user's
 account counts as the user's, so it can ask for work and give feedback

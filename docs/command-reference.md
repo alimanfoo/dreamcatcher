@@ -70,9 +70,7 @@ _dreamcatcher_. It covers setting up an instance, asking for work with
 dispatch labels, what each kind of agent work does and where to talk to
 its agent, and what each command does.
 
-In a directory with `dreamcatcher.toml`, it says that the dispatch
-routes can be read there, and elsewhere that the directory has none. It
-also says whether the checkout's daemon is running. The command does not
+The text is the same wherever the command runs. The command does not
 contact GitHub and writes no file.
 
 ## `init`
