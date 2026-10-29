@@ -718,6 +718,12 @@ for each motif, and its stylesheet shows the seeds on a light page and
 the fireflies on a dark one, so the motif always suits the sky behind
 it.
 
+`home.js` observes the site header's rendered height and writes it to
+the shared stylesheet variable, so the fixed working-motif layer begins
+beneath the header without a height duplicated in each theme. The home
+page's refresh morphs the header in place, so the observer stays with
+it.
+
 The web interface can ask a running round to stop. It writes a
 same-origin stop request through the agent-round boundary, into that
 round's own directory. The daemon still owns the live process and
