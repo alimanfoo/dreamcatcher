@@ -62,8 +62,8 @@ left to do, then marks the pull request ready for review and ends its
 turn. The user reviews the pull request on GitHub as they would
 anyone's: comments, inline comments, a request for changes. At the next
 update, _dreamcatcher_ gives the agent everything the user posted since
-its last turn. The agent addresses it, pushes, and ends its turn.
-Anything the user posts while the agent is working waits for the turn
+its last round. The agent addresses it, pushes, and ends its turn.
+Anything the user posts while the agent is working waits for the round
 after. That exchange repeats as often as the user likes.
 
 While the pull request waits, main may move under it and the checks may
@@ -74,13 +74,13 @@ and
 tell.
 
 The user merges when satisfied. GitHub closes the issue, and at the next
-update the agent takes one last turn to wrap up, which allows it to
-raise any issues for outstanding work not addressed in the pull request.
-Until that turn starts, the assignment shows as waiting, awaiting
-wrap-up. The assignment then ends, and the update after removes its
-worktree and its local branch, so finished assignments do not fill the
-disk. Its record stays, so the home page and the assignment's page still
-show it, without a worktree to resume its session from.
+update the agent has one last round to wrap up, which allows it to raise
+any issues for outstanding work not addressed in the pull request. Until
+that round starts, the assignment shows as waiting, awaiting wrap-up.
+The assignment then ends, and the update after removes its worktree and
+its local branch, so finished assignments do not fill the disk. Its
+record stays, so the home page and the assignment's page still show it,
+without a worktree to resume its session from.
 
 The value to the user is that they need only label an issue, wait for
 the pull request to be ready, then review it and iterate until happy
@@ -96,7 +96,7 @@ the order the issues were raised, as many at once as the daemon's
 capacity allows, and the rest wait for a free slot. Each assignment has
 its own branch, its own draft pull request and its own agent, so no two
 interfere, and each pull request becomes ready for review in its own
-time. Whenever an agent ends its turn, its slot goes to whatever is next
+time. Whenever an agent's round ends, its slot goes to whatever is next
 in line. The user reviews each pull request as it arrives, in whatever
 order they like, and the exchanges on different pull requests overlap
 freely.
@@ -253,14 +253,13 @@ want it: the approach is wrong, or the issue turned out to be a bad
 idea. Explaining what to change would take longer than starting over, or
 there is nothing to start over. If they do not want another attempt,
 they take the assignment label off the issue first. Then they close the
-pull request without merging. At the next update the agent takes its
-last turn to wrap up, and the assignment ends. Until that turn starts,
-the assignment shows as waiting, awaiting wrap-up. Its worktree and
-local branch are removed, as for a merged pull request, while the branch
-stays on GitHub with the closed pull request, and the issue stays open.
-If the user does want a fresh attempt, perhaps after rewriting the
-issue, they leave the label on or put it back, and a new assignment
-starts.
+pull request without merging. At the next update the agent has its last
+round to wrap up, and the assignment ends. Until that round starts, the
+assignment shows as waiting, awaiting wrap-up. Its worktree and local
+branch are removed, as for a merged pull request, while the branch stays
+on GitHub with the closed pull request, and the issue stays open. If the
+user does want a fresh attempt, perhaps after rewriting the issue, they
+leave the label on or put it back, and a new assignment starts.
 
 The value to the user is that rejecting an agent's work is the same
 close button as rejecting anyone's.
@@ -473,7 +472,7 @@ read its plan, and the lead never loses the thread.
 #### The lead hears when a sub-issue needs it
 
 A sub-issue's assignment works while the lead waits. When the assignment
-finishes its turn and no further round of it is due, the next update
+finishes a round and no further round of it is due, the next update
 wakes the lead. So does a sub-issue added to or removed from the parent,
 closed or reopened, a pull request that changes its head, state or draft
 flag, checks that finish, a pull request that becomes mergeable, and an
@@ -529,58 +528,34 @@ wanted.
 
 ### Running dreamcatcher
 
-#### The user asks their agent to dispatch work
+#### The user asks their agent to learn about dreamcatcher
 
-The user has an agent helping them triage issues and plan work outside
-_dreamcatcher_. The user's agent has never used _dreamcatcher_, so the
-user asks it to run `dreamcatcher about`. The command prints a Markdown
-briefing on standard output. In a checkout with `dreamcatcher.toml`, the
-briefing names its real dispatch labels, the kind, opening instructions
-and harness settings of each route, and whether a daemon runs for the
-checkout. Elsewhere it names the packaged default routes and says that
-they are defaults.
+The user works with an agent outside _dreamcatcher_ that helps them
+triage issues and plan work, and they want it to dispatch work through
+_dreamcatcher_ for them. The user's agent has never used _dreamcatcher_,
+and the user would rather not explain it, so they ask the agent to run
+`dreamcatcher about`.
 
-The briefing tells the user's agent to leave interactive setup and the
-long-running daemon to the user. Once the user has set up the
-repository, the user's agent captures `dreamcatcher status` before it
-acts, so it sees work already in progress and requests that have not
-started. It writes the whole brief in the issue before it assigns the
-issue to the user and applies one of the repository's labels through the
-user's account. An open issue may hold an assignment or campaign request
-back, and blocked-by relationships give that work its order; a
-dependency does not delay a conversation. The request starts at a later
-update when capacity is free.
+The command prints an explanation of what _dreamcatcher_ can do and how
+it works, as Markdown on standard output, addressed to the user: what an
+instance and its daemon are and how to set one up, how a dispatch label
+makes a request and what can hold it, what each kind of agent work does
+and where to talk to its agent, and what each command shows or does. It
+explains the mechanics and leaves what to do with them to the reader.
+The text is the same wherever the command runs, so the user can also
+pass it to an agent that works elsewhere. The command contacts no
+service and writes no file.
 
-For an assignment, the user's agent checks `dreamcatcher status` to
-distinguish a draft that may need an answer from a pull request that is
-ready for review. It gives later guidance on the pull request, where the
-assignment's agent receives the user's posts in batches, and never
-pushes to the assignment's branch. It knows that the assignment repairs
-two red builds on its own, updates a conflicting or required-current
-branch from main, and may file issues in its wrap-up turn after merge.
-The user's agent reviews and merges only when the user has allowed it
-to; otherwise it leaves the review and merge to the user.
+From that the user's agent learns that a label or post from the user's
+account counts as the user's, so it can ask for work and give feedback
+for the user when the user allows it. It also learns which work it can
+leave alone: an assignment carries its pull request to ready for review
+and looks after it while it waits, and a campaign's lead carries the
+sub-issues through to merge and raises any decision on the parent.
 
-For a campaign, the user's agent makes the plan real sub-issues of one
-parent, uses blocked-by relationships to order them and labels only the
-parent. The lead follows its route's opening instruction. Under the
-packaged default route, the user's agent leaves the lead to label the
-sub-issues, review and merge their pull requests, and raises guidance or
-answers on the parent. It uses a merge queue when the repository offers
-one; otherwise it leaves "Require branches to be up to date before
-merging" off. The user closes the parent to end the campaign.
-
-For a conversation, the user's agent puts the first question in an issue
-comment, because the title and body alone start no conversation, then
-asks and answers on the issue. For every kind of agent work, only posts
-through the user's account reach the agent. The user's agent uses
-`status`, `view` and `feed` to inspect work, `retry` after fixing a
-fault, `stop` to redirect a round, and `cancel` to hand an assignment
-back to the user.
-
-The value to the user is that an agent which already helps them can hand
-work to _dreamcatcher_, then stop watching until a person or agent has a
-decision to make.
+The value to the user is that an agent which already helps them can
+learn _dreamcatcher_ in one read, and hand work to it without the user
+explaining it.
 
 #### The user sets up dreamcatcher on a new repository
 
@@ -622,20 +597,19 @@ assignment, conversation and campaign has a card. So does every dispatch
 label that no work answers yet, and that card stands for the label until
 work starts for it. Each kind of work has a section, and within each the
 cards come in the order that deserves attention: anything in fault
-first, then what is working, then what is waiting for its turn, then
-what is idle, then what is held until something changes on GitHub, then
-anything the last update could not read, and after all of those the
-labels where nothing has started yet. Each card says why it is where it
-is. This pull request is ready for review. That one is still a draft, so
-the agent has probably asked something. This issue has not started
-because another pull request already claims it. The pull requests the
-user needs to read are a click away, and ended work is folded under a
-collapsed list, so the page shows only what is live. The terminal gives
-each card as one row, with a count of ended work in place of the list. A
-row gives the work, or the issue and its label, its status, what GitHub
-holds, such as the pull request ready for review or the colleague who
-applied a label, and then what _dreamcatcher_ found or what the user has
-to do.
+first, then what is working, then what is waiting to start, then what is
+idle, then what is held until something changes on GitHub, then anything
+the last update could not read, and after all of those the labels where
+nothing has started yet. Each card says why it is where it is. This pull
+request is ready for review. That one is still a draft, so the agent has
+probably asked something. This issue has not started because another
+pull request already claims it. The pull requests the user needs to read
+are a click away, and ended work is folded under a collapsed list, so
+the page shows only what is live. The terminal gives each card as one
+row, with a count of ended work in place of the list. A row gives the
+work, or the issue and its label, its status, what GitHub holds, such as
+the pull request ready for review or the colleague who applied a label,
+and then what _dreamcatcher_ found or what the user has to do.
 
 On the home page, every card lays out its rows in the same order,
 whatever its state, so nothing moves as rows come and go. Its first row
@@ -1085,12 +1059,12 @@ the harness cannot be started at all, the round errors with the reason,
 and no harness is left running. The next update gives the work its input
 again. If that round errors too, the work is in fault, so a problem that
 two attempts did not clear does not burn more attempts. Nothing runs for
-it, not even the last turn after a merge, until the user fixes the cause
-and retries, from the work's page or with `dreamcatcher retry`. If two
-pieces of work are in fault at once, a global cooldown begins and the
-daemon starts nothing for a while, because two faults suggest a shared
-cause such as an exhausted allowance. When the cooldown ends, the faults
-it saw are cleared and the daemon tries that work again.
+it, not even the wrap-up round after a merge, until the user fixes the
+cause and retries, from the work's page or with `dreamcatcher retry`. If
+two pieces of work are in fault at once, a global cooldown begins and
+the daemon starts nothing for a while, because two faults suggest a
+shared cause such as an exhausted allowance. When the cooldown ends, the
+faults it saw are cleared and the daemon tries that work again.
 
 ### The daemon is killed
 

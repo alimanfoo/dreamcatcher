@@ -1344,7 +1344,7 @@ def offer_children(*, gh, children: list[dict]) -> None:
 def settle_lead(
     *, state: StateDirectory, children: Sequence[CampaignChild] = ()
 ) -> None:
-    """Write a campaign whose lead took its turn, given these children.
+    """Write a campaign whose lead consumed its input, given these children.
 
     No lead round is due while the children stay as the lead was given them.
     """

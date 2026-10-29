@@ -229,7 +229,8 @@ def _compose_campaign_child(
 ) -> CampaignChild:
     """Return one child of the idle campaign's parent, with the issue's assignment.
 
-    A child that took no turn and has no ending has no assignment.
+    A child with no round that consumed its input and no ending has no
+    assignment.
     """
     return CampaignChild(
         issue=issue,

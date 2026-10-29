@@ -125,7 +125,7 @@ marks the pull request ready for review when it is done. You don't need
 to review it yourself, but you can comment on it as you would on any
 pull request.
 
-Once the assignment's agent has finished its turn, _dreamcatcher_ wakes
+Once the assignment's agent has finished its round, _dreamcatcher_ wakes
 the lead, and the lead reviews the pull request. It checks the
 sub-issue's "Done when" at the pull request's head. If something is
 missing, it comments on the pull request, the assignment's agent answers

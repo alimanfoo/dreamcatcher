@@ -165,7 +165,7 @@ class AgentWork:
         """Return the paths of the rounds whose input is relayed, newest first.
 
         The inputs of these rounds are behind the cursor. A round that did not
-        finish its turn is left out, so what it was given is given again. Every
+        consume its input is left out, so what it was given is given again. Every
         other round given an input has relayed it, a running round included.
         """
         paths = (

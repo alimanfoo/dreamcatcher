@@ -186,7 +186,7 @@ def compose_reviewed_pull_request(**fields) -> ObservedPullRequest:
 
 
 def compose_child_assignment(**fields) -> CampaignChildAssignment:
-    """Return the child's assignment, whose first round took its turn."""
+    """Return the child's assignment, whose first round consumed its input."""
     return CampaignChildAssignment.model_validate(
         {
             "identifier": "GH21-20260923-010000-assignment",
@@ -393,9 +393,9 @@ CHANGES = CampaignChildChange
     ids=[
         "added while working",
         "issue closed",
-        "turn finished",
+        "round finished",
         "settled again",
-        "turn finished between updates",
+        "round finished between updates",
         "first assignment",
         "replacement",
         "marked ready",

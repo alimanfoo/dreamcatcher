@@ -256,8 +256,8 @@ def _inspect_lead_input(
     campaign, for new comments, for changes among the children since the
     newest input delivered to the lead, and to give the lead its input again
     after a round that did not finish. Each tick compares afresh, so changes
-    wait for capacity in the comparison itself. A stopped round took its turn,
-    so the lead waits for new input after it.
+    wait for capacity in the comparison itself. A stopped round consumed its
+    input, so the lead waits for new input after it.
     """
     if isinstance(children, ReadFailureFinding):
         return Inspection(row=row.model_copy(update={"finding": children}))

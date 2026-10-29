@@ -354,7 +354,7 @@ class Scheduler:
         inspections: list[Inspection],
         at: datetime,
     ) -> None:
-        """Fill free capacity in candidate order, the work kinds taking turns.
+        """Fill free capacity in candidate order, the work kinds in rotation.
 
         The rows are the inspections' rows, in the same order, and this updates
         them in place. The row of each request names the round started for it,
@@ -393,19 +393,19 @@ class Scheduler:
     def _choose_next_candidate(
         self, *, ready: list[tuple[int, Candidate]], rows: list[RequestRow]
     ) -> tuple[int, Candidate]:
-        """Return the first ready candidate of the kind whose turn it is.
+        """Return the first ready candidate of the kind next in rotation.
 
         Each candidate comes with the position of its request's row. The kinds
-        take turns in their listed order, each after the kind selected last, and
-        a kind with no candidate gives up its turn to the next.
+        rotate in their listed order, starting after the kind selected last, and
+        a kind with no candidate gives up its place to the next.
         """
         kinds = list(AgentWorkKind)
         last = self._last_selected_work_kind
-        first_turn = 0 if last is None else kinds.index(last) + 1
-        turns = kinds[first_turn:] + kinds[:first_turn]
+        first = 0 if last is None else kinds.index(last) + 1
+        rotation = kinds[first:] + kinds[:first]
         return min(
             ready,
-            key=lambda position_and_candidate: turns.index(
+            key=lambda position_and_candidate: rotation.index(
                 rows[position_and_candidate[0]].kind
             ),
         )
