@@ -27,7 +27,9 @@ the change.
 
 ## Unreleased
 
-### Changed
+## [v9.6.1](https://github.com/alimanfoo/dreamcatcher/releases/tag/v9.6.1) — 2026-10-29
+
+### Fixed
 
 - The default `agent-campaign` route now runs the dream plugin's
   `dream:big` campaign skill, which dream 44.0.0 renamed from
@@ -37,12 +39,9 @@ the change.
   `$dream:big GH{issue}` for Codex by hand, because `dreamcatcher init`
   leaves an existing file unchanged.
   ([#875](https://github.com/alimanfoo/dreamcatcher/pull/875))
-
-### Fixed
-
 - Squash-merging an assignment pull request no longer carries a CI-skip
   instruction onto main. The assignment's draft pull request now runs CI
-  once. ([#873](https://github.com/alimanfoo/dreamcatcher/issues/873))
+  once. ([#876](https://github.com/alimanfoo/dreamcatcher/pull/876))
 
 ## [v9.6.0](https://github.com/alimanfoo/dreamcatcher/releases/tag/v9.6.0) — 2026-10-29
 
