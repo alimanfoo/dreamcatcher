@@ -1,6 +1,7 @@
 """Serve and render dreamcatcher's local web interface."""
 
 import logging
+import re
 from collections.abc import Callable, Generator
 from contextlib import contextmanager, suppress
 from datetime import datetime, tzinfo
@@ -79,7 +80,7 @@ def _create_app(
     app = Flask(__name__, static_folder="../static", template_folder="../templates")
     app.config["TRUSTED_HOSTS"] = [WEB_HOST, "localhost"]
     app.context_processor(_add_documentation_url)
-    _configure_web_theme(app=app)
+    _configure_web_theme(app=app, state=state)
     app.add_url_rule(
         "/",
         endpoint="show_home",
@@ -369,11 +370,20 @@ def _add_documentation_url() -> dict[str, object]:
     return {"documentation_url": DOCUMENTATION_URL}
 
 
-def _configure_web_theme(*, app: Flask) -> None:
+def _configure_web_theme(*, app: Flask, state: StateDirectory) -> None:
+    try:
+        repository = read_repository(state=state)
+    except ReportableError:
+        repository = None
+    cookie_name = "theme"
+    if repository:
+        repository_key = re.sub(r"[^A-Za-z0-9._-]", "-", repository)
+        cookie_name = f"theme-{repository_key}"
+
     @app.context_processor
     def add_web_theme() -> dict[str, object]:
         requested_theme = request.args.get("theme")
-        remembered_theme = request.cookies.get("theme")
+        remembered_theme = request.cookies.get(cookie_name)
         if requested_theme in _WEB_THEMES:
             theme = requested_theme
         elif remembered_theme in _WEB_THEMES:
@@ -391,7 +401,7 @@ def _configure_web_theme(*, app: Flask) -> None:
         """Remember a valid theme selected through a browser request."""
         requested_theme = request.args.get("theme")
         if requested_theme in _WEB_THEMES:
-            response.set_cookie("theme", requested_theme, samesite="Lax")
+            response.set_cookie(cookie_name, requested_theme, samesite="Lax")
         return response
 
 
