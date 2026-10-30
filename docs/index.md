@@ -21,8 +21,7 @@ points:
   - title: Built for long-horizon work.
     text:
       Agents fan out where they can and converge where issues depend on
-      each other, so a roadmap keeps moving without losing the
-      plot.
+      each other, so a roadmap keeps moving without losing the plot.
 ---
 
 ## How it works
