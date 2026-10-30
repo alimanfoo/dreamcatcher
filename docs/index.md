@@ -18,8 +18,11 @@ points:
     text:
       The conversation happens on GitHub, so you can steer from your
       phone while the agents keep working at home.
-  - title: Work in parallel.
-    text: Run as many agents at once as you allow.
+  - title: Built for long-horizon work.
+    text:
+      Agents fan out where they can and converge where issues depend on
+      each other, so a roadmap keeps moving for days without losing the
+      plot.
 ---
 
 ## How it works

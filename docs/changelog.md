@@ -6,10 +6,12 @@ state format and agent contract have independent integer versions. See
 current upgrade instructions.
 
 A change that users would notice gets an entry here: a change to a
-command, a setting, a message, a view, the documentation, the state
-format or the agent contract. Refactoring, tests and CI get none. The
-release notes on GitHub list every merged pull request, so this page
-lists only what a user upgrading needs to know.
+command, a setting, a message, a view, the state format or the agent
+contract, and a change to the documentation that would make someone who
+read the earlier version act differently, such as a new guide or a
+corrected instruction. Rewording, layout fixes, refactoring, tests and
+CI get none. The release notes on GitHub list every merged pull request,
+so this page lists only what a user upgrading needs to know.
 
 From v5.1.0 on, each release groups its entries under these headings,
 adapted from [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
