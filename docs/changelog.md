@@ -31,6 +31,7 @@ the change.
 
 - The documentation's home page now describes how agents coordinate over
   long-horizon work, where it said only that they work in parallel.
+  ([#889](https://github.com/alimanfoo/dreamcatcher/pull/889))
 
 ## [v9.7.0](https://github.com/alimanfoo/dreamcatcher/releases/tag/v9.7.0) — 2026-10-29
 
