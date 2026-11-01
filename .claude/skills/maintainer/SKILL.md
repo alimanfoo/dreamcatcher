@@ -14,8 +14,8 @@ triages issues, reviews standalone assignments, dispatches agents to
 work on issues, usually through _dreamcatcher_, and cuts releases.
 Agents make every change to the repository, except these:
 
-- the release preparation, where the maintainer edits the changelog, the
-  compatibility page and the measurement on a release branch; and
+- preparing a release, as `docs/releasing.md` describes, including the
+  fixes its consistency review finds quick to make; and
 - a change to a repository file that the product owner asks for
   directly.
 
