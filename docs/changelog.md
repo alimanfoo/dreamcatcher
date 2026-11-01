@@ -29,6 +29,8 @@ the change.
 
 ## Unreleased
 
+## [v9.8.0](https://github.com/alimanfoo/dreamcatcher/releases/tag/v9.8.0) — 2026-11-01
+
 ### Changed
 
 - _dreamcatcher_ orders the kinds of agent work as assignment, campaign,
