@@ -593,7 +593,7 @@ The user labelled a handful of issues in the morning and has been in
 meetings since. Now they want to know what needs them, without opening
 every pull request to find out. So they open the home page, or run
 `dreamcatcher status` if they are already in a terminal. Every
-assignment, conversation and campaign has a card. So does every dispatch
+assignment, campaign and conversation has a card. So does every dispatch
 label that no work answers yet, and that card stands for the label until
 work starts for it. Each kind of work has a section, and within each the
 cards come in the order that deserves attention: anything in fault
@@ -1164,7 +1164,7 @@ shows on its card.
 
 A record or feed under `.dreamcatcher/` will not read back, because
 something outside _dreamcatcher_ changed it. A home page, assignment
-page, conversation page or campaign page that is already open keeps the
+page, campaign page or conversation page that is already open keeps the
 content and status it last showed. A warning on it says that the refresh
 failed and why. The warning describes only the failed refresh. Until a
 refresh succeeds, the page cannot say what the work is doing now: the

@@ -154,9 +154,9 @@ effort, and initial prompt for that harness. A recipe may also supply
 harness config, the settings beyond the model and effort that
 _dreamcatcher_ passes to the harness on every round. The harness adapter
 decides which harness config it takes. An assignment recipe normally
-invokes an assignment skill; a conversation recipe normally invokes a
-conversation skill, and a campaign recipe a campaign skill, but either
-may instead give the agent its instructions directly.
+invokes an assignment skill; a campaign recipe normally invokes a
+campaign skill, and a conversation recipe a conversation skill, but
+either may instead give the agent its instructions directly.
 
 Replaces: "agent recipe", "harness recipe", "harness block" and "recipe
 table".
@@ -168,13 +168,13 @@ for handling by _dreamcatcher_. The account that **applied** a dispatch
 label to an issue is the one that GitHub names in the latest event that
 put that label on the issue.
 
-### Dispatch, assignment, conversation and campaign routes
+### Dispatch, assignment, campaign and conversation routes
 
 A **dispatch route** maps one dispatch label to one dispatch recipe for
 each agent harness that the route configures. An **assignment route** is
-a dispatch route for agent assignments. A **conversation route** is a
-dispatch route for issue conversations. A **campaign route** is a
-dispatch route for campaigns. A route may offer recipes for all the
+a dispatch route for agent assignments. A **campaign route** is a
+dispatch route for campaigns. A **conversation route** is a dispatch
+route for issue conversations. A route may offer recipes for all the
 harnesses _dreamcatcher_ supports or for only some of them.
 
 ### Agent round

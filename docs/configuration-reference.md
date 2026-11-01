@@ -2,7 +2,7 @@
 
 _dreamcatcher_ reads `dreamcatcher.toml` from the root of the main
 checkout where `dreamcatcher run` starts. The file defines which issue
-labels dispatch assignments, issue conversations or campaigns, and the
+labels dispatch assignments, campaigns or issue conversations, and the
 dispatch recipes available for each label. It does not configure daemon
 controls such as the interval or agent capacity; those are
 [`run` options](command-reference.md#run).
@@ -40,9 +40,9 @@ No other top-level settings are accepted. In particular, `assignee`,
 _dreamcatcher_ obtains the account from authenticated `gh`; use
 `run --interval` and `run --max-agents` for the two daemon controls.
 
-## Assignment, conversation and campaign routes
+## Assignment, campaign and conversation routes
 
-An `[[assignment]]`, `[[conversation]]` or `[[campaign]]` entry has this
+An `[[assignment]]`, `[[campaign]]` or `[[conversation]]` entry has this
 schema:
 
 | Setting  | Value           | Required | Default | Constraint                                                                     |
@@ -59,22 +59,22 @@ whether they are of one kind or of different kinds. Route order gives no
 route precedence. Issue labels are also matched case-insensitively.
 
 If an issue matches more than one assignment route, that assignment work
-has a routing conflict. The same is independently true of conversation
-routes and of campaign routes. Labels of different kinds may coexist on
-an issue. An assignment conflict prevents a new assignment but does not
-stop an existing assignment's rounds. A conversation or campaign
+has a routing conflict. The same is independently true of campaign
+routes and of conversation routes. Labels of different kinds may coexist
+on an issue. An assignment conflict prevents a new assignment but does
+not stop an existing assignment's rounds. A conversation or campaign
 conflict prevents new rounds of that kind, though a round already
 running may finish.
 
 ## Dispatch recipes
 
-Each `[assignment.claude]`, `[assignment.codex]`,
-`[conversation.claude]`, `[conversation.codex]`, `[campaign.claude]` or
-`[campaign.codex]` table requires three settings, which have no
-defaults. Each table also accepts a `config` table, the harness config,
-which holds settings for the harness beyond its model and effort. Codex
-takes the settings described in [Codex config](#codex-config). Claude
-takes none, so a Claude table's `config` must be empty.
+Each `[assignment.claude]`, `[assignment.codex]`, `[campaign.claude]`,
+`[campaign.codex]`, `[conversation.claude]` or `[conversation.codex]`
+table requires three settings, which have no defaults. Each table also
+accepts a `config` table, the harness config, which holds settings for
+the harness beyond its model and effort. Codex takes the settings
+described in [Codex config](#codex-config). Claude takes none, so a
+Claude table's `config` must be empty.
 
 | Setting  | Value  | Effect and constraint                                                                                                                                                                            |
 | -------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -90,11 +90,11 @@ because they belong to Codex.
 
 Assignment prompts normally invoke an assignment skill that follows the
 [assignment skill contract](contract.md#assignment-skill-contract).
+Campaign prompts normally invoke a campaign skill, and must follow the
+[campaign skill contract](contract.md#campaign-skill-contract).
 Conversation prompts may be plain instructions or invoke a conversation
 skill, but they must follow the
 [conversation skill contract](contract.md#conversation-skill-contract).
-Campaign prompts normally invoke a campaign skill, and must follow the
-[campaign skill contract](contract.md#campaign-skill-contract).
 _dreamcatcher_ adds its operational instructions to every prompt.
 
 ## Codex config

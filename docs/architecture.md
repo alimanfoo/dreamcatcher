@@ -756,13 +756,13 @@ which is none for Claude. A `DispatchRoute` maps one dispatch label to
 one recipe per harness that the route configures.
 
 An `AssignmentRoute` specializes a dispatch route for assignments, and
-its prompt normally invokes an assignment skill. A `ConversationRoute`
-specializes a dispatch route for issue conversations, and its prompt
-normally invokes a conversation skill. A `CampaignRoute` specializes a
-dispatch route for campaigns, and its prompt normally invokes a campaign
-skill. Every kind uses the same harness-selection rule: the preferred
-harness wins when the route has a recipe for it, while the sole recipe
-wins when only one exists.
+its prompt normally invokes an assignment skill. A `CampaignRoute`
+specializes a dispatch route for campaigns, and its prompt normally
+invokes a campaign skill. A `ConversationRoute` specializes a dispatch
+route for issue conversations, and its prompt normally invokes a
+conversation skill. Every kind uses the same harness-selection rule: the
+preferred harness wins when the route has a recipe for it, while the
+sole recipe wins when only one exists.
 
 The repository configuration carries choices that everyone working in
 the repository shares. The daemon interval and agent capacity belong to
@@ -979,5 +979,5 @@ runs every contract.
 ## Agent-facing contract
 
 The [agent-facing contract](contract.md) describes the protocols between
-_dreamcatcher_ and assignment, conversation and campaign skills. It
+_dreamcatcher_ and assignment, campaign and conversation skills. It
 records each side's responsibilities, not implementation history.

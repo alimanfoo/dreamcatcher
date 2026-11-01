@@ -56,7 +56,7 @@ dreamcatcher web --port 8123
 ```
 
 The home page shows daemon facts, any scheduler failures, active and
-ended assignments, issue conversations and campaigns, each kind on a tab
+ended assignments, campaigns and issue conversations, each kind on a tab
 of its own, and the dispatch labels that no open work answers, with why:
 available; held because an issue blocks it, a pull request is linked to
 it, someone else applied the label or the issue carries conflicting

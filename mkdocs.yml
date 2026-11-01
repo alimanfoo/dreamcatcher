@@ -1,6 +1,6 @@
 site_name: dreamcatcher
 site_description: >-
-  Dispatch autonomous agent conversations, coding assignments and campaigns
+  Dispatch autonomous agent coding assignments, campaigns and conversations
   from labelled issues
 site_url: https://alimanfoo.github.io/dreamcatcher/
 repo_url: https://github.com/alimanfoo/dreamcatcher
@@ -74,8 +74,8 @@ nav:
       - campaign-tutorial.md
   - How-to guides:
       - review-an-assignment.md
-      - discuss-an-issue.md
       - start-a-campaign.md
+      - discuss-an-issue.md
       - stop-and-recover.md
       - run-and-monitor.md
       - configure.md
