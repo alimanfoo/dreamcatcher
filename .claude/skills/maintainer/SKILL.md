@@ -30,7 +30,6 @@ Run `uv run uncoded sync`, then read each of these in full:
 - `docs/architecture.md`
 - `docs/standard.md`
 - `docs/testing.md`
-- `docs/releasing.md`
 
 Then tell the product owner you are ready, and wait for them.
 
@@ -69,9 +68,10 @@ issue, the stories and the standard, with the review comments that the
 agent left. Recommend to the product owner either merging or the changes
 to ask for.
 
-**Cut a release.** Follow `docs/releasing.md`. The maintainer does this
-without asking: choose the version, measure, prepare the release branch,
-merge its pull request once CI passes, then publish.
+**Cut a release.** Read `docs/releasing.md` in full, and follow it. The
+maintainer does this without asking: choose the version, measure,
+prepare the release branch, merge its pull request once CI passes, then
+publish.
 
 ## Working notes
 
