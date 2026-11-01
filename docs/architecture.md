@@ -82,22 +82,23 @@ decision and starts no agent work.
 
 The scheduler package owns all decisions about what work starts and
 when. The tick in `tick.py` has one path for every kind of agent work.
-Each kind's module, `assignments.py`, `conversations.py` or
-`campaigns.py`, supplies only what differs by kind: how it inspects the
-channel of open work, how it decides whether a request with no open work
-may start, and how it composes a round's plan. `issue_work.py` holds
-what conversations and campaigns share: the lifetime rules, by which a
-closed issue ends the work once no round of it runs and the issue's
-labels and assignee, and then who applied its label, decide whether it
-is held back, and the read of the eligible comments past the work's
-cursor. `blockers.py` holds the read of the open issues that block an
-issue, which assignment and campaign requests share. `labelling.py`
-holds the rule that work starts or resumes only on a dispatch label that
-the signed-in account applied, which every kind's requests and open
-conversations and campaigns share. `inspection.py` holds the shapes they
-share: the scheduling context, the candidate, the round plan and the
-inspection of one request. `models.py` holds the scheduler record and
-its request rows, and `faults.py` the fault and cooldown rules.
+Each kind's module, `assignments.py`, `campaigns.py` or
+`conversations.py`, supplies only what differs by kind: how it inspects
+the channel of open work, how it decides whether a request with no open
+work may start, and how it composes a round's plan. `issue_work.py`
+holds what conversations and campaigns share: the lifetime rules, by
+which a closed issue ends the work once no round of it runs and the
+issue's labels and assignee, and then who applied its label, decide
+whether it is held back, and the read of the eligible comments past the
+work's cursor. `blockers.py` holds the read of the open issues that
+block an issue, which assignment and campaign requests share.
+`labelling.py` holds the rule that work starts or resumes only on a
+dispatch label that the signed-in account applied, which every kind's
+requests and open conversations and campaigns share. `inspection.py`
+holds the shapes they share: the scheduling context, the candidate, the
+round plan and the inspection of one request. `models.py` holds the
+scheduler record and its request rows, and `faults.py` the fault and
+cooldown rules.
 
 One scheduler tick:
 

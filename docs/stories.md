@@ -10,18 +10,18 @@ The theory of use is short. One developer runs _dreamcatcher_ on their
 own machine, under their own GitHub account, against a repository they
 work in. They hand it work by labelling issues that are assigned to
 them, and the work is of three kinds: an assignment, where an agent
-implements the issue and brings it to a pull request; a conversation,
-where an agent investigates and answers on the issue; and a campaign,
-where an agent called the lead takes up a parent issue whose sub-issues
-hold a planned body of work. From then on the developer works as they
-would with a colleague, reviewing the pull request or replying on the
-issue. GitHub is where the work happens and where the user acts. The
-home page and the terminal are a window on what the daemon is doing,
-with the few controls GitHub has no place for: stop, cancel and retry.
-The agent hears only the user: a post or a comment from anyone else is
-never relayed to it as feedback. A campaign's lead works under the
-user's account, so an assignment's agent hears the lead's feedback as it
-hears the user's.
+implements the issue and brings it to a pull request; a campaign, where
+an agent called the lead takes up a parent issue whose sub-issues hold a
+planned body of work; and a conversation, where an agent investigates
+and answers on the issue. From then on the developer works as they would
+with a colleague, reviewing the pull request or replying on the issue.
+GitHub is where the work happens and where the user acts. The home page
+and the terminal are a window on what the daemon is doing, with the few
+controls GitHub has no place for: stop, cancel and retry. The agent
+hears only the user: a post or a comment from anyone else is never
+relayed to it as feedback. A campaign's lead works under the user's
+account, so an assignment's agent hears the lead's feedback as it hears
+the user's.
 
 Each story is told from the user's seat, in the order things happen,
 using the words in the concepts page without defining them and citing no
@@ -841,8 +841,8 @@ checkout.
 
 ### Two labels of one kind on one issue
 
-The user puts two assignment labels on an issue, or two conversation
-labels, or two campaign labels, perhaps to try both recipes. That is a
+The user puts two assignment labels on an issue, or two campaign labels,
+or two conversation labels, perhaps to try both recipes. That is a
 routing conflict. Until work exists to answer a label, its card stands
 for that label, so the two labels show as two request cards. Each is
 held, says that the issue has more than one label of the kind, and tells

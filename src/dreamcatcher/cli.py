@@ -100,8 +100,8 @@ def _build_cli_parser() -> argparse.ArgumentParser:
         "run",
         help="run the dreamcatcher daemon",
         description=(
-            "Watch this repository for labelled issue conversations, agent "
-            "assignments and campaigns, and carry every assignment through "
+            "Watch this repository for labelled agent assignments, campaigns "
+            "and issue conversations, and carry every assignment through "
             "review until its pull request is merged or closed and its wrap-up "
             "round succeeds. "
             "One daemon runs per checkout, so a second daemon here refuses while "

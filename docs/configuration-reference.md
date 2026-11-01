@@ -32,8 +32,8 @@ installed.
 | Setting        | Value                                                | Required | Default     | Constraint                                        |
 | -------------- | ---------------------------------------------------- | -------- | ----------- | ------------------------------------------------- |
 | `assignment`   | Array of route tables, written as `[[assignment]]`   | No       | Empty array | Each entry defines a separate assignment route.   |
-| `conversation` | Array of route tables, written as `[[conversation]]` | No       | Empty array | Each entry defines a separate conversation route. |
 | `campaign`     | Array of route tables, written as `[[campaign]]`     | No       | Empty array | Each entry defines a separate campaign route.     |
+| `conversation` | Array of route tables, written as `[[conversation]]` | No       | Empty array | Each entry defines a separate conversation route. |
 
 No other top-level settings are accepted. In particular, `assignee`,
 `interval` and `max_agents` are not configuration-file settings.
@@ -154,6 +154,6 @@ starts. A campaign belongs to its campaign label in the same way.
 A matching label selects a route but does not by itself make an issue
 ready for dispatch. [From issue to pull request](tutorial.md) explains
 how to prepare an assignment issue;
-[Discuss an issue](discuss-an-issue.md) explains how to start and
-continue a conversation, and [Start a campaign](start-a-campaign.md)
-explains how to start and end a campaign.
+[Start a campaign](start-a-campaign.md) explains how to start and end a
+campaign, and [Discuss an issue](discuss-an-issue.md) explains how to
+start and continue a conversation.

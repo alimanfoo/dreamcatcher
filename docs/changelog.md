@@ -33,9 +33,8 @@ the change.
 
 - _dreamcatcher_ orders the kinds of agent work as assignment, campaign,
   conversation. `status` shows its sections, the web view its tabs, and
-  `init` its routes and labels in that order, and when more than one
-  kind is waiting for a free agent slot, a campaign now goes ahead of a
-  conversation.
+  `init` its routes and labels in that order, and the kinds take free
+  agent slots in rotation in that order.
   ([#895](https://github.com/alimanfoo/dreamcatcher/pull/895))
 
 ## [v9.7.0](https://github.com/alimanfoo/dreamcatcher/releases/tag/v9.7.0) — 2026-10-29

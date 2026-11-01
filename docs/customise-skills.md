@@ -15,8 +15,8 @@ installs it and sets up a label for each skill:
 | ------------- | ----------------------- | ---------- | -------------------- |
 | `dream:smith` | `agent-assignment`      | Yes        | An assignment        |
 | `dream:less`  | `agent-assignment-easy` | Yes        | An assignment        |
-| `dream:scout` | `agent-conversation`    | No         | A conversation       |
 | `dream:big`   | `agent-campaign`        | No         | A campaign           |
+| `dream:scout` | `agent-conversation`    | No         | A conversation       |
 
 `dream:smith` plans a change, builds it a commit at a time, and reviews
 it thoroughly. `dream:less` makes an easy change with lighter review.

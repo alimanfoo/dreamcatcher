@@ -6,7 +6,7 @@ build-backend = "hatchling.build"
 [project]
 name = "dreamcatcher"
 dynamic = ["version"]
-description = "Dispatch autonomous agent conversations, coding assignments and campaigns from labelled issues"
+description = "Dispatch autonomous agent coding assignments, campaigns and conversations from labelled issues"
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.12"
