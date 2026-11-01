@@ -690,7 +690,7 @@ Rounds of every kind share the daemon's capacity and the global
 cooldown. Within each kind, open work takes precedence over new work.
 Open work starts in the order of its identifiers, and new work in the
 order of its requests. The kinds take each free agent slot in rotation,
-in the order assignment, conversation, campaign, and a kind with no
+in the order assignment, campaign, conversation, and a kind with no
 candidate gives up its place to the next. A round that errors during its
 preparation or startup takes no slot.
 

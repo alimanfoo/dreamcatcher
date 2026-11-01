@@ -129,7 +129,7 @@ One scheduler tick:
 8. launches candidates until the daemon run's requested capacity is full
    or no candidate remains, open work first in identifier order and then
    new requests in listing order, the kinds taking free slots in
-   rotation in the order assignment, conversation, campaign, and a kind
+   rotation in the order assignment, campaign, conversation, and a kind
    with no candidate giving up its place; and
 9. returns a `SchedulerRecord`, holding one request row per request, for
    operational reporting.
