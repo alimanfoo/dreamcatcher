@@ -113,16 +113,16 @@ class AssignmentRoute(DispatchRoute):
     kind: ClassVar[AgentWorkKind] = AgentWorkKind.ASSIGNMENT
 
 
-class ConversationRoute(DispatchRoute):
-    """Map a conversation label to its available dispatch recipes."""
-
-    kind: ClassVar[AgentWorkKind] = AgentWorkKind.CONVERSATION
-
-
 class CampaignRoute(DispatchRoute):
     """Map a campaign label to its available dispatch recipes."""
 
     kind: ClassVar[AgentWorkKind] = AgentWorkKind.CAMPAIGN
+
+
+class ConversationRoute(DispatchRoute):
+    """Map a conversation label to its available dispatch recipes."""
+
+    kind: ClassVar[AgentWorkKind] = AgentWorkKind.CONVERSATION
 
 
 def identify_label(*, name: str) -> str:
@@ -148,13 +148,13 @@ class DreamcatcherConfig(DreamcatcherDocument):
     """Model a repository's agent-work configuration."""
 
     assignment: ReadOnlyList[AssignmentRoute] = Field(default_factory=list)
-    conversation: ReadOnlyList[ConversationRoute] = Field(default_factory=list)
     campaign: ReadOnlyList[CampaignRoute] = Field(default_factory=list)
+    conversation: ReadOnlyList[ConversationRoute] = Field(default_factory=list)
 
     @property
     def routes(self) -> list[DispatchRoute]:
         """Every configured route, in the order of their kinds."""
-        return [*self.assignment, *self.conversation, *self.campaign]
+        return [*self.assignment, *self.campaign, *self.conversation]
 
     @property
     def routed_harnesses(self) -> set[AgentHarness]:

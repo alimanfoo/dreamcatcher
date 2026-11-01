@@ -134,24 +134,24 @@ def test_only_the_route_labels_the_repository_lacks_are_created(
         [
             "label",
             "create",
-            "agent-conversation",
-            "--repo",
-            REPOSITORY,
-            "--description",
-            "Start a dreamcatcher issue conversation",
-        ],
-        [
-            "label",
-            "create",
             "agent-campaign",
             "--repo",
             REPOSITORY,
             "--description",
             "Start a dreamcatcher campaign",
         ],
+        [
+            "label",
+            "create",
+            "agent-conversation",
+            "--repo",
+            REPOSITORY,
+            "--description",
+            "Start a dreamcatcher issue conversation",
+        ],
     ]
     assert (
-        "Created the labels agent-assignment-easy, agent-conversation, agent-campaign."
+        "Created the labels agent-assignment-easy, agent-campaign, agent-conversation."
         in capsys.readouterr().out
     )
 
@@ -282,7 +282,7 @@ def test_a_configuration_with_no_routes_explains_what_to_add(
     output = capsys.readouterr().out
     assert "dreamcatcher run" not in output
     assert output.endswith(
-        "  Add an assignment, conversation or campaign route to "
+        "  Add an assignment, campaign or conversation route to "
         f"{DREAMCATCHER_CONFIG_NAME}.\n"
     )
 

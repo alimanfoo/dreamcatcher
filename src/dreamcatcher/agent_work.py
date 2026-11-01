@@ -1,6 +1,6 @@
 """Read and record agent work of every kind.
 
-Every assignment, conversation and campaign is a piece of agent work, with a
+Every assignment, campaign and conversation is a piece of agent work, with a
 directory under `work/` and a worktree under `worktrees/`, both named by its
 identifier. Creation writes the work record once, and nothing writes it again.
 Every fact that changes later has a file of its own in the work's directory,

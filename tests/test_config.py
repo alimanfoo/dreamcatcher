@@ -338,7 +338,7 @@ def test_a_label_one_harness_can_run_runs_on_that_one_whatever_the_run_named(tmp
             CONFIG
             + CONVERSATION
             + CAMPAIGN_CLAUDE.replace("dream:big", "dream:conversation"),
-            "Value error, conversation and campaign entries use the same label: "
+            "Value error, campaign and conversation entries use the same label: "
             "dream:conversation",
         ),
         (
@@ -347,7 +347,7 @@ def test_a_label_one_harness_can_run_runs_on_that_one_whatever_the_run_named(tmp
             + CONVERSATION.replace("dream:conversation", "DREAM:SMITH")
             + CAMPAIGN_CLAUDE.replace("dream:big", "dream:conversation")
             + CONVERSATION,
-            "Value error, conversation and campaign entries use the same label: "
+            "Value error, campaign and conversation entries use the same label: "
             "dream:conversation; assignment and conversation entries use the same "
             "label: dream:smith",
         ),
