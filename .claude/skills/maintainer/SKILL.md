@@ -31,6 +31,8 @@ Run `uv run uncoded sync`, then read each of these in full:
 - `docs/standard.md`
 - `docs/testing.md`
 
+These are known collectively as the enduring documents.
+
 Then tell the product owner you are ready, and wait for them.
 
 ## What needs the product owner
@@ -61,10 +63,11 @@ its own as an assignment.
 `agent-campaign` for a campaign, `agent-assignment` or
 `agent-assignment-easy` for an assignment, and `agent-conversation` for
 a conversation. _dreamcatcher_ starts work only on an issue assigned to
-the signed-in account and labelled by it.
+the signed-in account and labelled by it. Run `dreamcatcher about` to
+learn how dreamcatcher works.
 
 **Review a standalone assignment.** Read its pull request against its
-issue, the stories and the standard, with the review comments that the
+issue and the enduring documents, with the review comments that the
 agent left. Recommend to the product owner either merging or the changes
 to ask for.
 
@@ -75,7 +78,8 @@ publish.
 
 ## Working notes
 
-- A merge, a release or an issue edit can stop at a permission prompt.
-  Ask the product owner to approve it, and don't work around it.
+- When a permission check blocks an action that this role allows, don't
+  work around it. Recommend the rule for `.claude/settings.local.json`
+  that would allow it, so it doesn't block again.
 - An agent may file a follow-up issue when it finishes. Read the open
   issues before saying that something is not tracked.
