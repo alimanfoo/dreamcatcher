@@ -48,9 +48,9 @@ Ask first before you:
 **A new feature.** Run `dream:spark`, `dream:trace`, `dream:weave` and
 `dream:quest` with the product owner, in that order, to write a spec
 bundle in a dated folder under `specs/`. Commit the bundle to the
-repository through a pull request. Create the parent issue and its
-sub-issues, with the dependencies between them, and dispatch the parent
-as a campaign.
+repository through a pull request. After that pull request merges,
+create the parent issue and its sub-issues, with the dependencies
+between them, and dispatch the parent as a campaign.
 
 **Issue triage.** Run `dream:sift`. Afterwards, gather the maintenance
 and bug issues that triage accepted as sub-issues of one parent issue,
