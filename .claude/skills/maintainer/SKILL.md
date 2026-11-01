@@ -75,11 +75,3 @@ to ask for.
 maintainer does this without asking: choose the version, measure,
 prepare the release branch, merge its pull request once CI passes, then
 publish.
-
-## Working notes
-
-- When a permission check blocks an action that this role allows, don't
-  work around it. Recommend the rule for `.claude/settings.local.json`
-  that would allow it, so it doesn't block again.
-- An agent may file a follow-up issue when it finishes. Read the open
-  issues before saying that something is not tracked.
