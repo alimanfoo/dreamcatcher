@@ -1,15 +1,15 @@
 # Agent-facing contract
 
-Contract version **1** covers assignments, issue conversations and
-campaigns. See the
+Contract version **1** covers assignments, campaigns and issue
+conversations. See the
 [compatibility policy](compatibility.md#agent-contract) for what this
 version promises and when it changes.
 
 This page contains three contracts. The assignment skill contract covers
-a skill that guides an agent through an agent assignment. The
+a skill that guides an agent through an agent assignment. The campaign
+skill contract covers a skill that guides a lead through a campaign. The
 conversation skill contract covers a skill that guides an agent through
-an issue conversation. The campaign skill contract covers a skill that
-guides a lead through a campaign.
+an issue conversation.
 
 For working examples, read the skills in
 [dream](https://alimanfoo.github.io/dream/) that follow this contract:
@@ -18,10 +18,10 @@ the
 and
 [`dream:less`](https://github.com/alimanfoo/dream/blob/main/plugins/dream/skills/less/SKILL.md)
 assignment skills, the
-[`dream:scout`](https://github.com/alimanfoo/dream/blob/main/plugins/dream/skills/scout/SKILL.md)
-conversation skill, and the
 [`dream:big`](https://github.com/alimanfoo/dream/blob/main/plugins/dream/skills/big/SKILL.md)
-campaign skill.
+campaign skill, and the
+[`dream:scout`](https://github.com/alimanfoo/dream/blob/main/plugins/dream/skills/scout/SKILL.md)
+conversation skill.
 
 ## Assignment skill contract
 
@@ -187,94 +187,6 @@ the earlier round was stopped before directing the agent to the new
 input. A merged or closed pull request can proceed to its wrap-up round
 without new feedback.
 
-## Conversation skill contract
-
-A conversation skill must guide the agent to investigate and answer the
-user's questions without implementing a change. It must accept the issue
-number in the same `GH123` form as an assignment skill. _dreamcatcher_
-adds the input, publication and operational instructions around the
-configured prompt. These instructions set the conversation's scope and
-output form, so the skill does not need to repeat them and must not
-contradict them.
-
-### Input
-
-Every input contains:
-
-- `issue`, identifying the watched issue;
-- `comments`, containing the signed-in user's eligible issue comments in
-  order;
-- `revision`, identifying the fetched main commit checked out in the
-  detached worktree.
-
-Each object in `comments` has `kind` set to `comment`, followed by `id`,
-`author`, `written_at` and `body`. Eligible comments are unmarked
-comments by the account through which `gh` was authenticated, with a
-non-empty body. The issue title and body do not by themselves ask the
-agent a question; the comments are the request to answer.
-
-The input of a round that starts a new harness session also contains
-`initial_issue`, an object holding the issue's `title` and `body`.
-Inputs of rounds that resume the session omit this object; the resumed
-harness transcript keeps that original context.
-
-### Answer
-
-The agent must answer the saved question from the checked-out code and
-return its final answer as Markdown in the harness's final result. It
-returns exactly `NO_REPLY` when no issue comment should be posted.
-Progress output and tool activity are feed records, not the answer.
-
-### Continued conversations
-
-The first round receives every eligible existing comment. Each new
-comment batch after that resumes the same harness session and contains
-only eligible comments after the newest comment given to a round that
-consumed its input. The agent should use its existing transcript when a
-new question refers to an earlier answer. Before every round,
-_dreamcatcher_ resets the worktree to fetched main, deleting every local
-commit and file left by the earlier round.
-
-### Scope of an issue conversation
-
-An issue conversation investigates. Its instructions may tell the agent
-to read source and Git history, run code, reproduce a suspected bug, and
-make issue changes on GitHub when the user asks, such as filing or
-linking a sub-issue. Before making a GitHub change, the agent must
-inspect GitHub and must not repeat an action that an earlier attempt
-completed. It must not close the conversation issue or change its
-assignees or labels, because closing the issue ends the conversation and
-removing its label or assignee pauses it. It must not fetch issue
-comments itself: the saved input is the comment set it must answer.
-
-Its instructions must not tell the agent to implement a change, edit
-project source, mutate Git, create a branch, commit or push, open or
-change a pull request, post the conversation reply itself, or contact
-the user elsewhere.
-
-### Publication
-
-_dreamcatcher_ owns publication: when the harness exits successfully,
-the round trims the final result, adds an agent attribution and posts it
-before the round ends. A missing or empty final result is an error. A
-failed post makes the round errored.
-
-### Rounds that did not finish and stopped rounds
-
-Issue conversations run through Claude or Codex and keep the harness
-chosen at creation. While the conversation is not held, the round after
-an interrupted or errored one is given that round's comments again, less
-any the user has deleted and with any that arrived since, against a
-refreshed worktree. Its prompt opens by saying that the previous round
-did not finish. It resumes the recorded harness session, or starts a new
-session with the configured prompt and the issue's title and body when
-no session identifier was recorded. The configured conversation prompt
-needs no special instructions for this.
-
-A conversation round that the user stopped waits for a new eligible
-comment. The next round begins by saying that the earlier round was
-stopped.
-
 ## Campaign skill contract
 
 A campaign skill guides the lead, the agent of a campaign, to carry a
@@ -409,3 +321,91 @@ A round that the user stopped consumed its input, and no round follows
 it on its own. The next comment on the parent, or the next notification,
 wakes the lead, and that round's prompt opens by saying that the user
 stopped the previous round.
+
+## Conversation skill contract
+
+A conversation skill must guide the agent to investigate and answer the
+user's questions without implementing a change. It must accept the issue
+number in the same `GH123` form as an assignment skill. _dreamcatcher_
+adds the input, publication and operational instructions around the
+configured prompt. These instructions set the conversation's scope and
+output form, so the skill does not need to repeat them and must not
+contradict them.
+
+### Input
+
+Every input contains:
+
+- `issue`, identifying the watched issue;
+- `comments`, containing the signed-in user's eligible issue comments in
+  order;
+- `revision`, identifying the fetched main commit checked out in the
+  detached worktree.
+
+Each object in `comments` has `kind` set to `comment`, followed by `id`,
+`author`, `written_at` and `body`. Eligible comments are unmarked
+comments by the account through which `gh` was authenticated, with a
+non-empty body. The issue title and body do not by themselves ask the
+agent a question; the comments are the request to answer.
+
+The input of a round that starts a new harness session also contains
+`initial_issue`, an object holding the issue's `title` and `body`.
+Inputs of rounds that resume the session omit this object; the resumed
+harness transcript keeps that original context.
+
+### Answer
+
+The agent must answer the saved question from the checked-out code and
+return its final answer as Markdown in the harness's final result. It
+returns exactly `NO_REPLY` when no issue comment should be posted.
+Progress output and tool activity are feed records, not the answer.
+
+### Continued conversations
+
+The first round receives every eligible existing comment. Each new
+comment batch after that resumes the same harness session and contains
+only eligible comments after the newest comment given to a round that
+consumed its input. The agent should use its existing transcript when a
+new question refers to an earlier answer. Before every round,
+_dreamcatcher_ resets the worktree to fetched main, deleting every local
+commit and file left by the earlier round.
+
+### Scope of an issue conversation
+
+An issue conversation investigates. Its instructions may tell the agent
+to read source and Git history, run code, reproduce a suspected bug, and
+make issue changes on GitHub when the user asks, such as filing or
+linking a sub-issue. Before making a GitHub change, the agent must
+inspect GitHub and must not repeat an action that an earlier attempt
+completed. It must not close the conversation issue or change its
+assignees or labels, because closing the issue ends the conversation and
+removing its label or assignee pauses it. It must not fetch issue
+comments itself: the saved input is the comment set it must answer.
+
+Its instructions must not tell the agent to implement a change, edit
+project source, mutate Git, create a branch, commit or push, open or
+change a pull request, post the conversation reply itself, or contact
+the user elsewhere.
+
+### Publication
+
+_dreamcatcher_ owns publication: when the harness exits successfully,
+the round trims the final result, adds an agent attribution and posts it
+before the round ends. A missing or empty final result is an error. A
+failed post makes the round errored.
+
+### Rounds that did not finish and stopped rounds
+
+Issue conversations run through Claude or Codex and keep the harness
+chosen at creation. While the conversation is not held, the round after
+an interrupted or errored one is given that round's comments again, less
+any the user has deleted and with any that arrived since, against a
+refreshed worktree. Its prompt opens by saying that the previous round
+did not finish. It resumes the recorded harness session, or starts a new
+session with the configured prompt and the issue's title and body when
+no session identifier was recorded. The configured conversation prompt
+needs no special instructions for this.
+
+A conversation round that the user stopped waits for a new eligible
+comment. The next round begins by saying that the earlier round was
+stopped.

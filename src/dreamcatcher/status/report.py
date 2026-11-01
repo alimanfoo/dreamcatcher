@@ -62,13 +62,13 @@ _EMPTY_SECTION_GUIDANCE = {
         "Assign an issue to yourself and label it with {labels} "
         "to create an assignment."
     ),
-    AgentWorkKind.CONVERSATION: (
-        "Assign an issue to yourself, label it with {labels} "
-        "and post a comment to start a conversation."
-    ),
     AgentWorkKind.CAMPAIGN: (
         "Assign a parent issue to yourself and label it with {labels} "
         "to start a campaign."
+    ),
+    AgentWorkKind.CONVERSATION: (
+        "Assign an issue to yourself, label it with {labels} "
+        "and post a comment to start a conversation."
     ),
 }
 
@@ -136,11 +136,11 @@ _CONFIGURE_DOCUMENTATION = DocumentationLink(
 )
 _ROUTE_DOCUMENTATION = {
     AgentWorkKind.ASSIGNMENT: _CONFIGURE_DOCUMENTATION,
-    AgentWorkKind.CONVERSATION: _CONFIGURE_DOCUMENTATION,
     AgentWorkKind.CAMPAIGN: DocumentationLink(
         title="Configure a campaign route",
         url=f"{DOCUMENTATION_URL}start-a-campaign/#configure-a-campaign-route",
     ),
+    AgentWorkKind.CONVERSATION: _CONFIGURE_DOCUMENTATION,
 }
 
 

@@ -35,8 +35,8 @@ _DREAM_PLUGIN = "dream@dream"
 # The description of each kind's labels, as init creates them on GitHub.
 _LABEL_DESCRIPTIONS = {
     AgentWorkKind.ASSIGNMENT: "Start a dreamcatcher assignment",
-    AgentWorkKind.CONVERSATION: "Start a dreamcatcher issue conversation",
     AgentWorkKind.CAMPAIGN: "Start a dreamcatcher campaign",
+    AgentWorkKind.CONVERSATION: "Start a dreamcatcher issue conversation",
 }
 
 
@@ -174,19 +174,19 @@ def _report_next_steps(
             f"  Assign an issue to {account}, and label it "
             f"{config.assignment[0].label}."
         )
-    elif config.conversation:
-        lines.append(
-            f"  Assign an issue to {account}, label it "
-            f"{config.conversation[0].label}, and comment with your question."
-        )
     elif config.campaign:
         lines.append(
             f"  Assign a parent issue to {account}, and label it "
             f"{config.campaign[0].label}."
         )
+    elif config.conversation:
+        lines.append(
+            f"  Assign an issue to {account}, label it "
+            f"{config.conversation[0].label}, and comment with your question."
+        )
     else:
         lines.append(
-            "  Add an assignment, conversation or campaign route to "
+            "  Add an assignment, campaign or conversation route to "
             f"{DREAMCATCHER_CONFIG_NAME}."
         )
     if config.routed_harnesses:

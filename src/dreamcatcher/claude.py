@@ -130,17 +130,17 @@ _CLAUDE_PERMISSION_ARGUMENTS = {
         "--allowedTools",
         " ".join(_CLAUDE_ASSIGNMENT_ALLOWED_TOOLS),
     ],
-    AgentWorkKind.CONVERSATION: [
-        "--allowedTools",
-        " ".join(_CLAUDE_CONVERSATION_ALLOWED_TOOLS),
-        "--disallowedTools",
-        " ".join(_CLAUDE_CONVERSATION_DISALLOWED_TOOLS),
-    ],
     AgentWorkKind.CAMPAIGN: [
         "--allowedTools",
         " ".join(_CLAUDE_CAMPAIGN_ALLOWED_TOOLS),
         "--disallowedTools",
         " ".join(_CLAUDE_CAMPAIGN_DISALLOWED_TOOLS),
+    ],
+    AgentWorkKind.CONVERSATION: [
+        "--allowedTools",
+        " ".join(_CLAUDE_CONVERSATION_ALLOWED_TOOLS),
+        "--disallowedTools",
+        " ".join(_CLAUDE_CONVERSATION_DISALLOWED_TOOLS),
     ],
 }
 

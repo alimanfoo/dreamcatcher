@@ -15,8 +15,8 @@ installs it and sets up a label for each skill:
 | ------------- | ----------------------- | ---------- | -------------------- |
 | `dream:smith` | `agent-assignment`      | Yes        | An assignment        |
 | `dream:less`  | `agent-assignment-easy` | Yes        | An assignment        |
-| `dream:scout` | `agent-conversation`    | No         | A conversation       |
 | `dream:big`   | `agent-campaign`        | No         | A campaign           |
+| `dream:scout` | `agent-conversation`    | No         | A conversation       |
 
 `dream:smith` plans a change, builds it a commit at a time, and reviews
 it thoroughly. `dream:less` makes an easy change with lighter review.
@@ -32,16 +32,16 @@ prompt and point a label to it.
 1. Write the skill or prompt. An assignment skill must follow the
    [assignment skill contract](contract.md#assignment-skill-contract),
    so that it picks up the branch and draft pull request that
-   _dreamcatcher_ has already opened. A conversation skill must follow
-   the
-   [conversation skill contract](contract.md#conversation-skill-contract),
-   so that it investigates the issue and returns an answer for
-   _dreamcatcher_ to publish. A campaign skill must follow the
+   _dreamcatcher_ has already opened. A campaign skill must follow the
    [campaign skill contract](contract.md#campaign-skill-contract), so
    that the lead coordinates the sub-issues through GitHub and never
    closes the parent issue or changes its labels or assignees. A
-   conversation or campaign prompt can instead give plain instructions,
-   because _dreamcatcher_ adds the operational requirements.
+   conversation skill must follow the
+   [conversation skill contract](contract.md#conversation-skill-contract),
+   so that it investigates the issue and returns an answer for
+   _dreamcatcher_ to publish. A conversation or campaign prompt can
+   instead give plain instructions, because _dreamcatcher_ adds the
+   operational requirements.
 2. If you wrote a skill, make it available where the agent runs. Each
    agent works in a fresh worktree of `origin/main`, so either install
    the skill at user scope, or commit it to the repository and push it.

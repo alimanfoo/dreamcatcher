@@ -248,8 +248,8 @@ def test_a_section_gives_no_guidance_before_any_daemon_has_run(tmp_path):
 
     assert [found.describe_section(kind=kind) for kind in AgentWorkKind] == [
         AgentWorkStatusSection(heading="assignments", guidance=None),
-        AgentWorkStatusSection(heading="conversations", guidance=None),
         AgentWorkStatusSection(heading="campaigns", guidance=None),
+        AgentWorkStatusSection(heading="conversations", guidance=None),
     ]
 
 

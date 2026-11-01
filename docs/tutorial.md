@@ -117,8 +117,8 @@ runs. The plugin provides `dream:smith`, the assignment skill this
 tutorial uses.
 
 The `dreamcatcher.toml` that `init` writes routes the labels
-`agent-assignment`, `agent-assignment-easy`, `agent-conversation` and
-`agent-campaign` to skills from the `dream` plugin.
+`agent-assignment`, `agent-assignment-easy`, `agent-campaign` and
+`agent-conversation` to skills from the `dream` plugin.
 [Customise skills](customise-skills.md) says which skill each label
 runs, and
 [Configure labels and harnesses](configure.md#match-the-recipe-to-how-hard-the-work-is)

@@ -84,13 +84,6 @@ Replaces: "session" on its own, for an agent assignment.
 The assignment's **pull request** is both the proposed change and the
 primary communication channel between the agent and the user.
 
-### Issue conversation
-
-An **issue conversation** is _dreamcatcher_'s durable commission to an
-agent to answer the user on an issue without implementing a change.
-
-Replaces: "investigation".
-
 ### Campaign, lead and parent issue
 
 A **campaign** is _dreamcatcher_'s durable commission to an agent, its
@@ -101,13 +94,20 @@ input, call each sub-issue a **child** of the parent.
 
 Replaces: "stage", for a sub-issue.
 
+### Issue conversation
+
+An **issue conversation** is _dreamcatcher_'s durable commission to an
+agent to answer the user on an issue without implementing a change.
+
+Replaces: "investigation".
+
 ### Agent work and agent work identifier
 
-**Agent work** is an agent assignment, an issue conversation or a
-campaign. Its **agent work identifier** combines the issue identifier,
-the time the work was created and its kind, as in
-`GH123-20260912-192458-assignment`, `GH123-20260912-193000-conversation`
-or `GH123-20260912-193500-campaign`. The kind is in the name for a
+**Agent work** is an agent assignment, a campaign or an issue
+conversation. Its **agent work identifier** combines the issue
+identifier, the time the work was created and its kind, as in
+`GH123-20260912-192458-assignment`, `GH123-20260912-193000-campaign` or
+`GH123-20260912-193500-conversation`. The kind is in the name for a
 person reading a directory listing, a daemon line or a web address, or
 naming the work to a terminal command; the work's record says it too.
 
@@ -134,17 +134,17 @@ assignment. It may be invoked by a dispatch recipe.
 
 Replaces: "dispatchable skill".
 
-### Conversation skill
-
-A **conversation skill** is an agent skill which follows
-_dreamcatcher_'s conversation skill contract and guides an agent through
-an issue conversation. It may be invoked by a dispatch recipe.
-
 ### Campaign skill
 
 A **campaign skill** is an agent skill which follows _dreamcatcher_'s
 campaign skill contract and guides a lead through a campaign. It may be
 invoked by a dispatch recipe.
+
+### Conversation skill
+
+A **conversation skill** is an agent skill which follows
+_dreamcatcher_'s conversation skill contract and guides an agent through
+an issue conversation. It may be invoked by a dispatch recipe.
 
 ### Dispatch recipe
 
@@ -154,9 +154,9 @@ effort, and initial prompt for that harness. A recipe may also supply
 harness config, the settings beyond the model and effort that
 _dreamcatcher_ passes to the harness on every round. The harness adapter
 decides which harness config it takes. An assignment recipe normally
-invokes an assignment skill; a conversation recipe normally invokes a
-conversation skill, and a campaign recipe a campaign skill, but either
-may instead give the agent its instructions directly.
+invokes an assignment skill; a campaign recipe normally invokes a
+campaign skill, and a conversation recipe a conversation skill, but
+either may instead give the agent its instructions directly.
 
 Replaces: "agent recipe", "harness recipe", "harness block" and "recipe
 table".
@@ -168,13 +168,13 @@ for handling by _dreamcatcher_. The account that **applied** a dispatch
 label to an issue is the one that GitHub names in the latest event that
 put that label on the issue.
 
-### Dispatch, assignment, conversation and campaign routes
+### Dispatch, assignment, campaign and conversation routes
 
 A **dispatch route** maps one dispatch label to one dispatch recipe for
 each agent harness that the route configures. An **assignment route** is
-a dispatch route for agent assignments. A **conversation route** is a
-dispatch route for issue conversations. A **campaign route** is a
-dispatch route for campaigns. A route may offer recipes for all the
+a dispatch route for agent assignments. A **campaign route** is a
+dispatch route for campaigns. A **conversation route** is a dispatch
+route for issue conversations. A route may offer recipes for all the
 harnesses _dreamcatcher_ supports or for only some of them.
 
 ### Agent round
@@ -250,11 +250,11 @@ scheduler tick called an update.
 ### Channel and cursor
 
 A piece of agent work's **channel** is the GitHub object through which
-the agent and the user talk: an assignment's pull request, a
-conversation's issue, or a campaign's parent issue. A conversation and a
-campaign are **issue work**, because the issue is the channel of each.
-An assignment's channel exists once the round that opens its pull
-request has done so.
+the agent and the user talk: an assignment's pull request, a campaign's
+parent issue, or a conversation's issue. A conversation and a campaign
+are **issue work**, because the issue is the channel of each. An
+assignment's channel exists once the round that opens its pull request
+has done so.
 
 The **cursor** is how far the agent has read in its channel. Nothing
 stores it on its own: it is read back from the inputs of the rounds that
@@ -364,9 +364,9 @@ afterwards.
 Agent work is open until its ending is recorded, with the time and the
 reason, and then it has **ended**. The first ending recorded is the
 work's ending for good, and an ending that comes after it changes
-nothing. An assignment ends when it is complete or cancelled. A
-conversation ends when its issue closes, and a campaign when its parent
-issue closes.
+nothing. An assignment ends when it is complete or cancelled. A campaign
+ends when its parent issue closes, and a conversation when its issue
+closes.
 
 Agent work keeps the harness, route and recipe settings that its work
 record holds, even after its route is removed from the configuration.
@@ -403,6 +403,29 @@ An assignment round's input records the user posts and other signals
 relayed to it, and the state and head commit of its pull request. A
 round that opens the pull request carries no input beyond its prompt.
 
+### Campaign composition
+
+Each campaign has exactly one:
+
+- parent issue;
+- detached Git worktree;
+- agent harness.
+
+It has no branch or pull request, so the parent issue is its
+communication channel. A campaign belongs to the dispatch label that
+started it. A _dreamcatcher_ instance has at most one open campaign for
+each campaign label on an issue, and it keeps a held campaign until the
+parent issue closes.
+
+Each campaign round input records the parent issue, the parent's
+sub-issues and where each one's newest assignment stands, the
+notifications, the eligible comments past the cursor, the cursor that
+the input reaches, the main revision and the running daemon's assignment
+routes. A round given no new comment carries the cursor forward. No
+round starts while a tick cannot observe every sub-issue. The lead reads
+anything else it needs from GitHub, and posts its own messages there.
+Its final output stays in the feed.
+
 ### Issue conversation composition
 
 Each issue conversation has exactly one:
@@ -428,9 +451,9 @@ configured dispatch label belongs to exactly one dispatch route, so one
 label configures exactly one kind of agent work.
 
 An issue with more than one assignment label has an assignment routing
-conflict. An issue with more than one conversation label has a
-conversation routing conflict, and one with more than one campaign label
-has a campaign routing conflict. Labels of different kinds can coexist
+conflict. An issue with more than one campaign label has a campaign
+routing conflict, and one with more than one conversation label has a
+conversation routing conflict. Labels of different kinds can coexist
 without a routing conflict. The order of routes in the configuration
 does not give one route precedence over another.
 
@@ -477,38 +500,6 @@ claims the issue, so no new assignment starts for the issue. If the user
 merges it, GitHub closes the issue. If the user closes it without
 merging, the issue may receive another assignment. A cancelled
 assignment keeps its worktree and branch for the user.
-
-### Campaign composition
-
-Each campaign has exactly one:
-
-- parent issue;
-- detached Git worktree;
-- agent harness.
-
-It has no branch or pull request, so the parent issue is its
-communication channel. A campaign belongs to the dispatch label that
-started it. A _dreamcatcher_ instance has at most one open campaign for
-each campaign label on an issue, and it keeps a held campaign until the
-parent issue closes.
-
-Each campaign round input records the parent issue, the parent's
-sub-issues and where each one's newest assignment stands, the
-notifications, the eligible comments past the cursor, the cursor that
-the input reaches, the main revision and the running daemon's assignment
-routes. A round given no new comment carries the cursor forward. No
-round starts while a tick cannot observe every sub-issue. The lead reads
-anything else it needs from GitHub, and posts its own messages there.
-Its final output stays in the feed.
-
-### Starting an issue conversation
-
-A conversation request starts a conversation only when the signed-in
-account applied its label, its issue carries no other configured
-conversation label, and it has at least one eligible comment. The
-issue's title and body alone start nothing. An open assignment at the
-issue, a linked pull request, a dependency and an assignment routing
-conflict have no bearing on conversations.
 
 ### Starting a campaign
 
@@ -558,6 +549,15 @@ the one that it replaced, so every fact that it holds is a change. A
 change that reverts before the lead is given it is no change. Until an
 input has been delivered there is nothing to compare with, so a first
 round is given no notification.
+
+### Starting an issue conversation
+
+A conversation request starts a conversation only when the signed-in
+account applied its label, its issue carries no other configured
+conversation label, and it has at least one eligible comment. The
+issue's title and body alone start nothing. An open assignment at the
+issue, a linked pull request, a dependency and an assignment routing
+conflict have no bearing on conversations.
 
 ### Holding and ending a conversation or campaign
 
@@ -690,7 +690,7 @@ Rounds of every kind share the daemon's capacity and the global
 cooldown. Within each kind, open work takes precedence over new work.
 Open work starts in the order of its identifiers, and new work in the
 order of its requests. The kinds take each free agent slot in rotation,
-in the order assignment, conversation, campaign, and a kind with no
+in the order assignment, campaign, conversation, and a kind with no
 candidate gives up its place to the next. A round that errors during its
 preparation or startup takes no slot.
 

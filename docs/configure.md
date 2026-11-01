@@ -1,7 +1,7 @@
 # Configure labels and harnesses
 
 Use `dreamcatcher.toml` to decide which GitHub labels start assignments,
-issue conversations or campaigns, and which dispatch recipe each label
+campaigns or issue conversations, and which dispatch recipe each label
 uses. Put the file in the root of the repository's main checkout and
 commit it when everyone watching the repository should use the same
 routes.
@@ -19,8 +19,8 @@ skills.
 ## Start with distinct labels
 
 Choose labels that say what kind of work they invite. The following file
-gives Claude one assignment route, one conversation route and one
-campaign route:
+gives Claude one assignment route, one campaign route and one
+conversation route:
 
 ```toml
 [[assignment]]
@@ -31,19 +31,19 @@ prompt = "/dream:smith GH{issue}"
 model = "opus[1m]"
 effort = "high"
 
-[[conversation]]
-label = "discuss"
-
-[conversation.claude]
-prompt = "Investigate the question on GH{issue} and return a concise answer."
-model = "opus[1m]"
-effort = "high"
-
 [[campaign]]
 label = "agent-campaign"
 
 [campaign.claude]
 prompt = "/dream:big GH{issue}"
+model = "opus[1m]"
+effort = "high"
+
+[[conversation]]
+label = "discuss"
+
+[conversation.claude]
+prompt = "Investigate the question on GH{issue} and return a concise answer."
 model = "opus[1m]"
 effort = "high"
 ```
@@ -57,14 +57,14 @@ An assignment prompt normally invokes an installed assignment skill. The
 skill must know how to adopt _dreamcatcher_'s branch and draft pull
 request; authors can find the exact requirements in the
 [assignment skill contract](contract.md#assignment-skill-contract). A
+campaign prompt normally invokes a campaign skill such as `dream:big`,
+whose requirements are in the
+[campaign skill contract](contract.md#campaign-skill-contract). A
 conversation prompt normally invokes a conversation skill, but it can be
 plain instructions, as above, because _dreamcatcher_ adds the input and
 publication instructions itself. Authors can find the conversation
 skill's requirements in the
 [conversation skill contract](contract.md#conversation-skill-contract).
-A campaign prompt normally invokes a campaign skill such as `dream:big`,
-whose requirements are in the
-[campaign skill contract](contract.md#campaign-skill-contract).
 
 ## Match the recipe to how hard the work is
 

@@ -833,8 +833,8 @@ def test_the_three_kinds_take_turns_for_free_slots(cloned_repo, gh, harnesses):
 
     assert [identifier.split("-")[0] for identifier in scheduler.rounds] == [
         "GH13",
-        "GH8",
         "GH20",
+        "GH8",
         "GH14",
     ]
     assert len(observed.launched_agent_work_identifiers) == 4

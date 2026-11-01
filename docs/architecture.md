@@ -82,22 +82,23 @@ decision and starts no agent work.
 
 The scheduler package owns all decisions about what work starts and
 when. The tick in `tick.py` has one path for every kind of agent work.
-Each kind's module, `assignments.py`, `conversations.py` or
-`campaigns.py`, supplies only what differs by kind: how it inspects the
-channel of open work, how it decides whether a request with no open work
-may start, and how it composes a round's plan. `issue_work.py` holds
-what conversations and campaigns share: the lifetime rules, by which a
-closed issue ends the work once no round of it runs and the issue's
-labels and assignee, and then who applied its label, decide whether it
-is held back, and the read of the eligible comments past the work's
-cursor. `blockers.py` holds the read of the open issues that block an
-issue, which assignment and campaign requests share. `labelling.py`
-holds the rule that work starts or resumes only on a dispatch label that
-the signed-in account applied, which every kind's requests and open
-conversations and campaigns share. `inspection.py` holds the shapes they
-share: the scheduling context, the candidate, the round plan and the
-inspection of one request. `models.py` holds the scheduler record and
-its request rows, and `faults.py` the fault and cooldown rules.
+Each kind's module, `assignments.py`, `campaigns.py` or
+`conversations.py`, supplies only what differs by kind: how it inspects
+the channel of open work, how it decides whether a request with no open
+work may start, and how it composes a round's plan. `issue_work.py`
+holds what conversations and campaigns share: the lifetime rules, by
+which a closed issue ends the work once no round of it runs and the
+issue's labels and assignee, and then who applied its label, decide
+whether it is held back, and the read of the eligible comments past the
+work's cursor. `blockers.py` holds the read of the open issues that
+block an issue, which assignment and campaign requests share.
+`labelling.py` holds the rule that work starts or resumes only on a
+dispatch label that the signed-in account applied, which every kind's
+requests and open conversations and campaigns share. `inspection.py`
+holds the shapes they share: the scheduling context, the candidate, the
+round plan and the inspection of one request. `models.py` holds the
+scheduler record and its request rows, and `faults.py` the fault and
+cooldown rules.
 
 One scheduler tick:
 
@@ -129,7 +130,7 @@ One scheduler tick:
 8. launches candidates until the daemon run's requested capacity is full
    or no candidate remains, open work first in identifier order and then
    new requests in listing order, the kinds taking free slots in
-   rotation in the order assignment, conversation, campaign, and a kind
+   rotation in the order assignment, campaign, conversation, and a kind
    with no candidate giving up its place; and
 9. returns a `SchedulerRecord`, holding one request row per request, for
    operational reporting.
@@ -756,13 +757,13 @@ which is none for Claude. A `DispatchRoute` maps one dispatch label to
 one recipe per harness that the route configures.
 
 An `AssignmentRoute` specializes a dispatch route for assignments, and
-its prompt normally invokes an assignment skill. A `ConversationRoute`
-specializes a dispatch route for issue conversations, and its prompt
-normally invokes a conversation skill. A `CampaignRoute` specializes a
-dispatch route for campaigns, and its prompt normally invokes a campaign
-skill. Every kind uses the same harness-selection rule: the preferred
-harness wins when the route has a recipe for it, while the sole recipe
-wins when only one exists.
+its prompt normally invokes an assignment skill. A `CampaignRoute`
+specializes a dispatch route for campaigns, and its prompt normally
+invokes a campaign skill. A `ConversationRoute` specializes a dispatch
+route for issue conversations, and its prompt normally invokes a
+conversation skill. Every kind uses the same harness-selection rule: the
+preferred harness wins when the route has a recipe for it, while the
+sole recipe wins when only one exists.
 
 The repository configuration carries choices that everyone working in
 the repository shares. The daemon interval and agent capacity belong to
@@ -979,5 +980,5 @@ runs every contract.
 ## Agent-facing contract
 
 The [agent-facing contract](contract.md) describes the protocols between
-_dreamcatcher_ and assignment, conversation and campaign skills. It
+_dreamcatcher_ and assignment, campaign and conversation skills. It
 records each side's responsibilities, not implementation history.

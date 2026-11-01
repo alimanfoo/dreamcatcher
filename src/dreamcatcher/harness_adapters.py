@@ -67,8 +67,8 @@ class AgentWorkKind(StrEnum):
     """Identify the contract and permissions for one kind of agent work."""
 
     ASSIGNMENT = "assignment"
-    CONVERSATION = "conversation"
     CAMPAIGN = "campaign"
+    CONVERSATION = "conversation"
 
 
 @dataclass(frozen=True, kw_only=True)

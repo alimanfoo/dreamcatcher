@@ -229,8 +229,8 @@ port if that port is already in use.
 dreamcatcher status
 ```
 
-Show the repository and daemon facts, assignments, issue conversations
-and campaigns, and each dispatch label that no open work answers, in
+Show the repository and daemon facts, assignments, campaigns and issue
+conversations, and each dispatch label that no open work answers, in
 dispatch order, with why no work has started. Each row gives one card:
 the work, or the issue and its label, then the status, then GitHub's
 state of what the card stands for, and then a semicolon and the detail,

@@ -8,7 +8,7 @@ headline:
   - Run coding agents on your machine.
   - Steer them from GitHub.
 lede:
-  Dispatch agents to implement, investigate and coordinate your issues.
+  Dispatch agents to implement, coordinate and investigate your issues.
 points:
   - title: Your own setup.
     text:
@@ -37,15 +37,15 @@ or line comments, or request a change. The agent addresses your feedback
 in its next round. Keep iterating, then merge when you are satisfied, or
 close it if the work should not land.
 
-A **conversation** investigates one issue without changing code. Ask a
-question in an issue comment, and the agent answers on the issue. Each
-later question carries on the same conversation.
-
 A **campaign** gives an agent called the lead several issues to
 shepherd. Gather them as sub-issues of one parent; some can run together
 and some can wait on others. The lead sets up assignments, reviews and
 merges their pull requests, and asks you on the parent when a decision
 is needed.
+
+A **conversation** investigates one issue without changing code. Ask a
+question in an issue comment, and the agent answers on the issue. Each
+later question carries on the same conversation.
 
 Several agents can work at once, up to a number that you set. Follow
 them all on a local web page, or in the terminal.
@@ -72,10 +72,10 @@ uses the same setup.
 
 - [Review an assignment](review-an-assignment.md) and give the agent
   feedback.
-- [Discuss an issue](discuss-an-issue.md) without starting an
-  implementation assignment.
 - [Start a campaign](start-a-campaign.md) to hand a parent issue's
   sub-issues to a lead.
+- [Discuss an issue](discuss-an-issue.md) without starting an
+  implementation assignment.
 - [Stop and recover work](stop-and-recover.md).
 - [Run and monitor _dreamcatcher_](run-and-monitor.md).
 - [Configure labels and harnesses](configure.md).
@@ -88,7 +88,7 @@ uses the same setup.
   [command reference](command-reference.md).
 - Find every accepted setting in the
   [configuration reference](configuration-reference.md).
-- Write an assignment skill, a conversation skill or a campaign skill to
+- Write an assignment skill, a campaign skill or a conversation skill to
   the [agent-facing contract](contract.md).
 - Plan upgrades with [Compatibility and upgrades](compatibility.md), and
   see user-visible changes in the [changelog](changelog.md).

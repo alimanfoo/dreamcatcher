@@ -10,23 +10,23 @@ The theory of use is short. One developer runs _dreamcatcher_ on their
 own machine, under their own GitHub account, against a repository they
 work in. They hand it work by labelling issues that are assigned to
 them, and the work is of three kinds: an assignment, where an agent
-implements the issue and brings it to a pull request; a conversation,
-where an agent investigates and answers on the issue; and a campaign,
-where an agent called the lead takes up a parent issue whose sub-issues
-hold a planned body of work. From then on the developer works as they
-would with a colleague, reviewing the pull request or replying on the
-issue. GitHub is where the work happens and where the user acts. The
-home page and the terminal are a window on what the daemon is doing,
-with the few controls GitHub has no place for: stop, cancel and retry.
-The agent hears only the user: a post or a comment from anyone else is
-never relayed to it as feedback. A campaign's lead works under the
-user's account, so an assignment's agent hears the lead's feedback as it
-hears the user's.
+implements the issue and brings it to a pull request; a campaign, where
+an agent called the lead takes up a parent issue whose sub-issues hold a
+planned body of work; and a conversation, where an agent investigates
+and answers on the issue. From then on the developer works as they would
+with a colleague, reviewing the pull request or replying on the issue.
+GitHub is where the work happens and where the user acts. The home page
+and the terminal are a window on what the daemon is doing, with the few
+controls GitHub has no place for: stop, cancel and retry. The agent
+hears only the user: a post or a comment from anyone else is never
+relayed to it as feedback. A campaign's lead works under the user's
+account, so an assignment's agent hears the lead's feedback as it hears
+the user's.
 
 Each story is told from the user's seat, in the order things happen,
 using the words in the concepts page without defining them and citing no
 rule and no mechanism. The happy paths come first, grouped as
-assignments, conversations, campaigns and running _dreamcatcher_, and
+assignments, campaigns, conversations and running _dreamcatcher_, and
 each says what the user gained. Then come the user errors, each saying
 what the user needs to do, and then the expected faults.
 
@@ -264,110 +264,6 @@ leave the label on or put it back, and a new assignment starts.
 The value to the user is that rejecting an agent's work is the same
 close button as rejecting anyone's.
 
-### Conversations
-
-#### The user asks for an issue to be investigated
-
-The user has an issue they want investigated rather than built: a
-question about the code, a suspected bug, a design doubt. They assign it
-to themselves, put a conversation label on it, and write the question as
-a comment, because the title and body alone ask nothing. At the next
-update the agent reads the code and answers as a comment on the issue,
-marked as the agent's own. When a comment needs no reply, the agent
-posts nothing.
-
-The user replies, and the agent answers again in the same session, so it
-remembers what it said. A comment the user posts while the agent is
-still answering waits for its next answer. Each answer is based on main
-as it stands then, and nothing the agent changed while answering earlier
-carries over.
-
-What the user does next will depend on what they learned from the
-conversation. For example, if the conversation verified a bug, then the
-user might start an assignment for the issue, which leads to a pull
-request, and ultimately closes the issue as resolved. Or, if the
-conversation showed a bug report invalid, the user may close the issue
-as unplanned. Once the issue is closed, the conversation is ended, and
-its worktree is removed while its record stays.
-
-The value to the user is that they need only label an issue and ask
-their question as a comment, then read the answer and reply, as they
-would with a colleague on GitHub who knows the codebase and can
-investigate. They check out no code, run nothing, and have nothing to
-clean up afterwards.
-
-#### The user asks the agent to act on the issue
-
-In the course of a conversation the agent has found that the issue is
-really three, or that a bug it confirmed deserves an issue of its own.
-The user would rather not write those up by hand. So they ask, in a
-comment, and the agent files the sub-issues, or links the related one,
-and reports what it did in its answer, with every post it makes marked
-as the agent's own. It will not close the issue or change its labels or
-assignee, because those would end or pause the conversation, and it will
-not touch code or branches. What it can do on GitHub is the
-issue-keeping the user asks for.
-
-The value to the user is that the agent's findings become tracked work
-in the same breath.
-
-#### The user stops a round and asks again
-
-The user asked a question, and the answer is taking longer than they
-expected. They open the conversation's page, and the feed shows the
-agent has gone off down the wrong path: reading code that has nothing to
-do with the question, or answering a question they did not ask. Rather
-than wait for an answer they will not use, the user stops the round,
-from the page or with `dreamcatcher stop`, and the stopped round posts
-nothing.
-
-The user then puts a sharper question in a comment on the issue. At the
-next update the agent is given it, told that the previous round was
-stopped, and answers in the same session, so it keeps what it had
-already learned.
-
-The value to the user is that a misread question costs minutes, not a
-whole answer.
-
-#### The user withdraws a question the agent could not answer
-
-The user asked a question, and the round answering it errored, or the
-daemon stopped before it finished. The conversation shows as waiting,
-because the next update will give the question again. Before it does,
-the user decides the question was the wrong one, or no longer matters,
-and deletes their comment. At the next update nothing is left to answer,
-so no round starts, and the conversation shows as idle, with its last
-round still shown as errored or interrupted.
-
-Later the user posts a new question. At the next update the agent
-answers it in the same session, told that its previous round did not
-finish.
-
-The value to the user is that deleting a question withdraws it, so the
-agent never answers it and the conversation does not look as if work is
-due.
-
-#### The user pauses a conversation by removing its label
-
-The user has had their question answered, but the issue is going to stay
-open for a while, perhaps because the fix is for another day. In the
-meantime they don't want the agent chiming in on every comment, because
-the discussion that follows is between people. So they take the
-conversation label off the issue, and that is all it takes. The
-conversation pauses, and the user can comment on the issue without the
-agent answering. The home page shows the conversation as held, with
-"label removed" beside the issue and "put the label back to resume"
-beneath, so it is clear that nothing happens until they act.
-
-Later, something comes up that they want the agent's view on again. They
-put the label back, and the same conversation picks up where it left
-off. It still remembers everything it said before, and it is given every
-comment the user made while it was paused, so they can ask their new
-question without recapping.
-
-The value to the user is that the agent is on the issue only when
-wanted, and forgets nothing in between.
-
 ### Campaigns
 
 #### The user starts a campaign on a parent issue
@@ -526,6 +422,110 @@ sub-issues meanwhile.
 The value to the user is that the lead is on the parent only when
 wanted.
 
+### Conversations
+
+#### The user asks for an issue to be investigated
+
+The user has an issue they want investigated rather than built: a
+question about the code, a suspected bug, a design doubt. They assign it
+to themselves, put a conversation label on it, and write the question as
+a comment, because the title and body alone ask nothing. At the next
+update the agent reads the code and answers as a comment on the issue,
+marked as the agent's own. When a comment needs no reply, the agent
+posts nothing.
+
+The user replies, and the agent answers again in the same session, so it
+remembers what it said. A comment the user posts while the agent is
+still answering waits for its next answer. Each answer is based on main
+as it stands then, and nothing the agent changed while answering earlier
+carries over.
+
+What the user does next will depend on what they learned from the
+conversation. For example, if the conversation verified a bug, then the
+user might start an assignment for the issue, which leads to a pull
+request, and ultimately closes the issue as resolved. Or, if the
+conversation showed a bug report invalid, the user may close the issue
+as unplanned. Once the issue is closed, the conversation is ended, and
+its worktree is removed while its record stays.
+
+The value to the user is that they need only label an issue and ask
+their question as a comment, then read the answer and reply, as they
+would with a colleague on GitHub who knows the codebase and can
+investigate. They check out no code, run nothing, and have nothing to
+clean up afterwards.
+
+#### The user asks the agent to act on the issue
+
+In the course of a conversation the agent has found that the issue is
+really three, or that a bug it confirmed deserves an issue of its own.
+The user would rather not write those up by hand. So they ask, in a
+comment, and the agent files the sub-issues, or links the related one,
+and reports what it did in its answer, with every post it makes marked
+as the agent's own. It will not close the issue or change its labels or
+assignee, because those would end or pause the conversation, and it will
+not touch code or branches. What it can do on GitHub is the
+issue-keeping the user asks for.
+
+The value to the user is that the agent's findings become tracked work
+in the same breath.
+
+#### The user stops a round and asks again
+
+The user asked a question, and the answer is taking longer than they
+expected. They open the conversation's page, and the feed shows the
+agent has gone off down the wrong path: reading code that has nothing to
+do with the question, or answering a question they did not ask. Rather
+than wait for an answer they will not use, the user stops the round,
+from the page or with `dreamcatcher stop`, and the stopped round posts
+nothing.
+
+The user then puts a sharper question in a comment on the issue. At the
+next update the agent is given it, told that the previous round was
+stopped, and answers in the same session, so it keeps what it had
+already learned.
+
+The value to the user is that a misread question costs minutes, not a
+whole answer.
+
+#### The user withdraws a question the agent could not answer
+
+The user asked a question, and the round answering it errored, or the
+daemon stopped before it finished. The conversation shows as waiting,
+because the next update will give the question again. Before it does,
+the user decides the question was the wrong one, or no longer matters,
+and deletes their comment. At the next update nothing is left to answer,
+so no round starts, and the conversation shows as idle, with its last
+round still shown as errored or interrupted.
+
+Later the user posts a new question. At the next update the agent
+answers it in the same session, told that its previous round did not
+finish.
+
+The value to the user is that deleting a question withdraws it, so the
+agent never answers it and the conversation does not look as if work is
+due.
+
+#### The user pauses a conversation by removing its label
+
+The user has had their question answered, but the issue is going to stay
+open for a while, perhaps because the fix is for another day. In the
+meantime they don't want the agent chiming in on every comment, because
+the discussion that follows is between people. So they take the
+conversation label off the issue, and that is all it takes. The
+conversation pauses, and the user can comment on the issue without the
+agent answering. The home page shows the conversation as held, with
+"label removed" beside the issue and "put the label back to resume"
+beneath, so it is clear that nothing happens until they act.
+
+Later, something comes up that they want the agent's view on again. They
+put the label back, and the same conversation picks up where it left
+off. It still remembers everything it said before, and it is given every
+comment the user made while it was paused, so they can ask their new
+question without recapping.
+
+The value to the user is that the agent is on the issue only when
+wanted, and forgets nothing in between.
+
 ### Running dreamcatcher
 
 #### The user asks their agent to learn about dreamcatcher
@@ -593,7 +593,7 @@ The user labelled a handful of issues in the morning and has been in
 meetings since. Now they want to know what needs them, without opening
 every pull request to find out. So they open the home page, or run
 `dreamcatcher status` if they are already in a terminal. Every
-assignment, conversation and campaign has a card. So does every dispatch
+assignment, campaign and conversation has a card. So does every dispatch
 label that no work answers yet, and that card stands for the label until
 work starts for it. Each kind of work has a section, and within each the
 cards come in the order that deserves attention: anything in fault
@@ -841,8 +841,8 @@ checkout.
 
 ### Two labels of one kind on one issue
 
-The user puts two assignment labels on an issue, or two conversation
-labels, or two campaign labels, perhaps to try both recipes. That is a
+The user puts two assignment labels on an issue, or two campaign labels,
+or two conversation labels, perhaps to try both recipes. That is a
 routing conflict. Until work exists to answer a label, its card stands
 for that label, so the two labels show as two request cards. Each is
 held, says that the issue has more than one label of the kind, and tells
@@ -1164,7 +1164,7 @@ shows on its card.
 
 A record or feed under `.dreamcatcher/` will not read back, because
 something outside _dreamcatcher_ changed it. A home page, assignment
-page, conversation page or campaign page that is already open keeps the
+page, campaign page or conversation page that is already open keeps the
 content and status it last showed. A warning on it says that the refresh
 failed and why. The warning describes only the failed refresh. Until a
 refresh succeeds, the page cannot say what the work is doing now: the
