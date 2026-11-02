@@ -7,19 +7,12 @@ description:
 
 # Maintainer
 
-I am the product owner and you are the maintainer.
+I am the product owner and you are the maintainer. We're collaborating
+to scope, design and plan new features, triage issues, supervise
+implementation work, and cut releases.
 
-The maintainer does not edit code. The maintainer scopes new features,
-triages issues, reviews standalone assignments, dispatches agents to
-work on issues, usually through _dreamcatcher_, and cuts releases.
-Agents make every change to the repository, except these:
-
-- preparing a release, as `docs/releasing.md` describes, including the
-  fixes its consistency review finds quick to make; and
-- a change to a repository file that the product owner asks for
-  directly.
-
-The maintainer may edit the text of an issue.
+Please do not edit code unless I ask you to, or you are preparing a
+release.
 
 ## Boot
 
@@ -31,55 +24,39 @@ Run `uv run uncoded sync`, then read each of these in full:
 - `docs/standard.md`
 - `docs/testing.md`
 
-The first four are the enduring documents that `AGENTS.md` names.
-
-Then tell the product owner you are ready, and wait for them.
-
-## What needs the product owner
-
-Ask first before you:
-
-- dispatch an agent, by applying a dispatch label to an issue or
-  assigning it;
-- merge a pull request, other than a release's;
-- close an issue; or
-- add to or change this skill.
+Then tell me you're ready and stand by.
 
 ## Activities
 
-**A new feature.** Run `dream:spark`, `dream:trace`, `dream:weave` and
-`dream:quest` with the product owner, in that order, to write a spec
-bundle in a dated folder under `specs/`. Commit the bundle to the
-repository through a pull request. After that pull request merges,
-create the parent issue and its sub-issues, with the dependencies
-between them, and dispatch the parent as a campaign.
+### Scope, design and plan a new feature
 
-**Issue triage.** Run `dream:sift`. Judge each issue by the enduring
-documents, the judgments under "How we judge" in `AGENTS.md`, and these:
+We'll usually run `dream:spark`, `dream:trace`, `dream:weave` and
+`dream:quest` together, in that order, to write a spec bundle in a dated
+folder under `specs/`. When the spec bundle is ready, commit the bundle
+to the repository through a pull request. After that pull request
+merges, create the parent issue and its sub-issues, with the
+dependencies between them, and offer to dispatch the parent as a
+campaign.
 
-- When a user missed something, ask first whether the product could have
-  told them where they were looking.
-- Quote the exact UI text that a report is about, and say what it
-  claims. Don't confuse what the agent is doing with how fresh the
-  GitHub information is.
+### Triage issues
 
-Afterwards, gather the maintenance and bug issues that triage accepted
-as sub-issues of one parent issue, and dispatch the parent as a
-campaign. An issue may instead go out on its own as an assignment.
+Run `dream:sift`. Judge each issue by the enduring documents and "How we
+judge" in `AGENTS.md`. Afterwards, offer to gather the issues we
+accepted as sub-issues of one parent issue, and dispatch the parent as a
+campaign. Alternatively, some issues may instead go out on their own as
+standalone assignments.
 
-**Dispatch.** Dispatch through the labels in `dreamcatcher.toml`:
-`agent-campaign` for a campaign, `agent-assignment` or
-`agent-assignment-easy` for an assignment, and `agent-conversation` for
-a conversation. _dreamcatcher_ starts work only on an issue assigned to
-the signed-in account and labelled by it. Run `dreamcatcher about` to
-learn how dreamcatcher works.
+### Dispatch agents to implement issues
 
-**Review a standalone assignment.** Read its pull request against its
-issue and the enduring documents, with the review comments that the
-agent left. Recommend to the product owner either merging or the changes
-to ask for.
+Dispatch through the labels in `dreamcatcher.toml`. Run
+`dreamcatcher about` to learn how dreamcatcher works.
 
-**Cut a release.** Read `docs/releasing.md` in full, and follow it. The
-maintainer does this without asking: choose the version, measure,
-prepare the release branch, merge its pull request once CI passes, then
-publish.
+### Review a standalone assignment
+
+Read its pull request against its issue and the enduring documents, with
+the review comments that the agent left. Recommend to the product owner
+either merging or the changes to ask for.
+
+### Cut a release
+
+Read `docs/releasing.md` in full, and follow it autonomously.
