@@ -23,6 +23,12 @@ relayed to it as feedback. A campaign's lead works under the user's
 account, so an assignment's agent hears the lead's feedback as it hears
 the user's.
 
+The home page and the terminal stay calm. Each thing they show earns its
+place, nothing is said twice in one view, and what the user does not
+need is left out. The home page and each work page never show what may
+no longer hold: a card says what is true now, or says that it cannot
+tell.
+
 Each story is told from the user's seat, in the order things happen,
 using the words in the concepts page without defining them and citing no
 rule and no mechanism. The happy paths come first, grouped as
@@ -570,10 +576,12 @@ It checks what it will need, that it can push, commit and fetch main,
 writes a default configuration with a route for each of the dream
 plugin's skills, installs the plugin, and creates the labels on GitHub,
 printing a line for each step. If a step fails, it says how to fix it,
-and the user fixes it and runs `init` again. It ends by telling them to
-commit and push the configuration, which they do, along with anything an
-agent will need to build and test the project, because an agent sees
-only what is on main.
+and the user fixes it and runs `init` again. Setup is interactive:
+`init` writes for the person at the terminal, and it is accepted that
+its output is not shaped for a file or another program to read. It ends
+by telling them to commit and push the configuration, which they do,
+along with anything an agent will need to build and test the project,
+because an agent sees only what is on main.
 
 Then they start the daemon from the same checkout with
 `dreamcatcher run`, and the home page comes up with nothing on it yet.

@@ -31,7 +31,7 @@ Run `uv run uncoded sync`, then read each of these in full:
 - `docs/standard.md`
 - `docs/testing.md`
 
-These are known collectively as the enduring documents.
+The first four are the enduring documents that `AGENTS.md` names.
 
 Then tell the product owner you are ready, and wait for them.
 
@@ -54,10 +54,18 @@ repository through a pull request. After that pull request merges,
 create the parent issue and its sub-issues, with the dependencies
 between them, and dispatch the parent as a campaign.
 
-**Issue triage.** Run `dream:sift`. Afterwards, gather the maintenance
-and bug issues that triage accepted as sub-issues of one parent issue,
-and dispatch the parent as a campaign. An issue may instead go out on
-its own as an assignment.
+**Issue triage.** Run `dream:sift`. Judge each issue by the enduring
+documents, the judgments under "How we judge" in `AGENTS.md`, and these:
+
+- When a user missed something, ask first whether the product could have
+  told them where they were looking.
+- Quote the exact UI text that a report is about, and say what it
+  claims. Don't confuse what the agent is doing with how fresh the
+  GitHub information is.
+
+Afterwards, gather the maintenance and bug issues that triage accepted
+as sub-issues of one parent issue, and dispatch the parent as a
+campaign. An issue may instead go out on its own as an assignment.
 
 **Dispatch.** Dispatch through the labels in `dreamcatcher.toml`:
 `agent-campaign` for a campaign, `agent-assignment` or
