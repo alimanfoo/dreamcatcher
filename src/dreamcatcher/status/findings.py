@@ -32,7 +32,7 @@ _PAUSE_WORDS = {
 
 # What each signal says, wherever a status names what woke or will wake a round.
 _SIGNAL_WORDS = {
-    PullRequestSignal.OUT_OF_DATE: "main moved",
+    PullRequestSignal.OUT_OF_DATE: "out of date",
     PullRequestSignal.CHECK_FAILURE: "checks failed",
 }
 
@@ -97,16 +97,16 @@ def describe_signal(*, signal: PullRequestSignal) -> str:
 def describe_pull_request(*, finding: PullRequestFinding) -> str:
     """Say where a pull request stands.
 
-    An open one is draft or ready, followed by how main prevents a merge and
+    An open one is draft or ready, followed by how its base prevents a merge and
     whether its checks are running or failing. Any other names its state alone.
     """
     if finding.state is not PullRequestState.OPEN:
         return finding.state.lower()
     words = ["ready" if finding.is_ready_for_review else "draft"]
     if finding.merge_state is PullRequestMergeState.BEHIND:
-        words.append("behind main")
+        words.append("behind")
     elif finding.merge_state is PullRequestMergeState.DIRTY:
-        words.append("conflicts with main")
+        words.append("conflicts")
     if finding.check_result in {CheckResult.RUNNING, CheckResult.FAILING}:
         words.append(f"checks {finding.check_result}")
     return ", ".join(words)

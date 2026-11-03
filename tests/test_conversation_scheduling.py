@@ -977,8 +977,8 @@ def test_a_round_whose_input_cannot_be_saved_errors_and_the_next_refreshes(
     scheduler.tick(at=clock())
     conversation = read_conversation(state=scheduler.context.state, issue=8)
     assert conversation is not None
-    (scheduler.context.state.root / "README.md").write_bytes(b"main moved\n")
-    commit(path=scheduler.context.state.root, message="move main")
+    (scheduler.context.state.root / "README.md").write_bytes(b"default branch moved\n")
+    commit(path=scheduler.context.state.root, message="move the default branch")
     run_git(arguments=["push", "origin", "main"], cwd=scheduler.context.state.root)
     comments = [
         compose_question(),
