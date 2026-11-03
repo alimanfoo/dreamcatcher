@@ -9,7 +9,7 @@
     {% endfor %}
   </ul>
 
-  <figure class="dch-ui" role="img" aria-label="The dreamcatcher web page cycles through its Assignments, Campaigns and Conversations tabs: assignments open and merge pull requests, a campaign carries two sub-issues while one begins work, and a conversation answers a question, with agent capacity counting work across every tab">
+  <figure class="dch-ui" role="img" aria-label="The dreamcatcher web page cycles through its Assignments, Campaigns and Conversations tabs before returning to Assignments: assignments open and merge pull requests, a campaign carries two sub-issues while one begins work, and a conversation answers a question, with agent capacity counting work across every tab">
     <div class="dch-ui__header">
       <span class="dch-ui__repository"><img class="dch-ui__mark" src="{{ 'static/dreamcatcher-mark-ink.png' | url }}" alt=""><span class="dch-ui__repository-links">acme/uploader<span>issues &middot; pulls</span></span></span>
       <span>dreamcatcher v9.5.0 · pid 4242</span>
@@ -29,7 +29,8 @@
     <div class="dch-tabs">
       <span class="dch-swap dch-tab dch-tab--assignments">
         <span class="dch-tab-selected" style="--out:2.6s">Assignments</span>
-        <span style="--at:2.6s">Assignments</span>
+        <span style="--at:2.6s;--out:6.6s">Assignments</span>
+        <span class="dch-tab-selected" style="--at:6.6s">Assignments</span>
       </span>
       <span class="dch-swap dch-tab">
         <span style="--out:2.6s">Campaigns</span>
@@ -38,10 +39,11 @@
       </span>
       <span class="dch-swap dch-tab dch-tab--conversations">
         <span style="--out:4.6s">Conversations</span>
-        <span class="dch-tab-selected" style="--at:4.6s">Conversations</span>
+        <span class="dch-tab-selected" style="--at:4.6s;--out:6.6s">Conversations</span>
+        <span style="--at:6.6s">Conversations</span>
       </span>
     </div>
-    <div class="dch-swap dch-panel-swap">
+    <div class="dch-swap dch-panel-swap dch-returning-swap" style="--back-at:6.6s">
       <ol class="dch-ui__lists" style="--out:2.6s">
         <li style="--i:0" class="dch-card">
           <span class="dch-heading"><span class="dch-issue">#41</span> Stream uploads from disk</span>
@@ -161,7 +163,7 @@
         </li>
       </ol>
 
-      <ol class="dch-ui__lists" style="--at:4.6s">
+      <ol class="dch-ui__lists" style="--at:4.6s;--out:6.6s">
         <li style="--i:0" class="dch-card">
           <span class="dch-heading"><span class="dch-issue">#44</span> Why do large uploads time out?</span>
           <span class="dch-github">open</span>

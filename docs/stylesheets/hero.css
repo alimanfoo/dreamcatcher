@@ -204,6 +204,9 @@
 /* Material indents a list item with a selector that outranks a single class. */
 
 .md-typeset ol.dch-ui__lists > li {
+  --at: 0s;
+  --out: 600s;
+
   margin: 0;
   opacity: 0;
   animation: dch-line 0.35s ease-out forwards;
@@ -356,6 +359,12 @@
     calc(var(--dch-start) + var(--out, 600s)) both;
 }
 
+.dch-returning-swap > :first-child {
+  animation:
+    dch-fade-out 0.01s step-start calc(var(--dch-start) + var(--out, 600s)) both,
+    dch-back-in 0.35s ease-out calc(var(--dch-start) + var(--back-at)) forwards;
+}
+
 @media screen and (max-width: 44em) {
   .dch {
     padding-top: 1.6rem;
@@ -429,6 +438,26 @@
 @keyframes dch-out {
   to {
     visibility: hidden;
+  }
+}
+
+@keyframes dch-fade-out {
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes dch-back-in {
+  from {
+    visibility: visible;
+    opacity: 0;
+    transform: translateY(0.2em);
+  }
+
+  to {
+    visibility: visible;
+    opacity: 1;
+    transform: none;
   }
 }
 
