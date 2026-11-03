@@ -128,13 +128,14 @@ number, so issue 123 with the `agent-assignment` label starts Claude
 with `/dream:smith GH123`.
 
 Until the default branch holds the file, `init` ends by printing the
-commands that commit and push it. Run them, so the assignment worktree
-contains the file too:
+commands that commit and push it, naming your repository's default
+branch in the last one. Run them, so the assignment worktree contains
+the file too. For a default branch named `main`, they are:
 
 ```sh
 git add dreamcatcher.toml
 git commit -m "Configure dreamcatcher"
-git push
+git push origin main
 ```
 
 For other routes or another harness, see
