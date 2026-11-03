@@ -101,7 +101,9 @@ def test_a_campaign_round_input_refuses_comments_the_relay_never_gives(comments)
         )
 
 
-def test_a_campaign_round_starts_from_main_in_a_detached_worktree(cloned_repo):
+def test_a_campaign_round_starts_from_the_default_branch_in_a_detached_worktree(
+    cloned_repo,
+):
     state = StateDirectory(root=cloned_repo)
     campaign = create_agent_work(
         state=state,

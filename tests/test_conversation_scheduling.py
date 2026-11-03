@@ -2432,7 +2432,7 @@ def test_an_existing_empty_conversation_can_start(conversation_scheduler, harnes
     )
 
 
-def test_a_missing_conversation_worktree_is_added_without_detaching_main(
+def test_a_missing_conversation_worktree_is_added_without_detaching_the_main_checkout(
     conversation_scheduler, harnesses
 ):
     scheduler, clock, gh = conversation_scheduler

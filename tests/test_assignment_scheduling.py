@@ -587,7 +587,7 @@ def read_pull_request_finding(*, state) -> PullRequestFinding:
 
 
 @pytest.mark.parametrize("merge_state", ["BEHIND", "DIRTY"])
-def test_a_ready_pull_request_that_main_moved_under_wakes_its_assignment(
+def test_a_ready_pull_request_that_falls_out_of_date_wakes_its_assignment(
     state, gh, merge_state
 ):
     write_assignment_round(directory=state.work / ASSIGNMENT_ID, number=1)
@@ -619,7 +619,9 @@ def test_an_out_of_date_pull_request_is_relayed_once_at_each_head(state, gh):
     assert find_next_round_input(state=state) is None
 
 
-def test_main_moving_again_after_a_push_wakes_the_assignment_again(state, gh):
+def test_the_default_branch_moving_again_after_a_push_wakes_the_assignment_again(
+    state, gh
+):
     write_assignment_round(directory=state.work / ASSIGNMENT_ID, number=1)
     write_assignment_round(
         directory=state.work / ASSIGNMENT_ID,

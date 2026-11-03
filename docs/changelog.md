@@ -29,12 +29,17 @@ the change.
 
 ## Unreleased
 
+## [v9.9.0](https://github.com/alimanfoo/dreamcatcher/releases/tag/v9.9.0) — 2026-11-03
+
 ### Changed
 
 - _dreamcatcher_ now follows a repository's default branch whatever it
   is called, and follows a rename on the next fetch. Pull request status
   says `behind` or `conflicts` without naming the base, and an
-  assignment round's out-of-date trigger says `out of date`.
+  assignment round's out-of-date trigger says `out of date`. In a
+  repository whose default branch is not `main`, the agents' skills need
+  dream 46.2.0 or later, so update the plugin if an earlier one is
+  installed.
   ([#904](https://github.com/alimanfoo/dreamcatcher/pull/904))
 
 ## [v9.8.0](https://github.com/alimanfoo/dreamcatcher/releases/tag/v9.8.0) — 2026-11-01
