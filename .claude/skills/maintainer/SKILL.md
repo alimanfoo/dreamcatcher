@@ -54,8 +54,8 @@ Dispatch through the labels in `dreamcatcher.toml`. Run
 ### Review a standalone assignment
 
 Read its pull request against its issue and the enduring documents, with
-the review comments that the agent left. Recommend to the product owner
-either merging or the changes to ask for.
+the review comments that the agent left. Recommend either merging or the
+changes to ask for.
 
 ### Cut a release
 
