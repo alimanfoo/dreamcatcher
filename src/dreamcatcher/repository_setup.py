@@ -12,8 +12,8 @@ from dreamcatcher.config import (
 )
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.git import (
-    fetch_main,
-    is_file_on_main,
+    fetch_default_branch,
+    is_file_on_default_branch,
     read_git_author_identity,
     require_main_checkout,
 )
@@ -59,8 +59,8 @@ def set_up_repository(*, root: Path) -> None:
     )
     author = read_git_author_identity(root=root)
     _print_line(line=f"Git commits here as {author}.")
-    fetch_main(root=root)
-    _print_line(line="Fetched origin/main.")
+    default_branch = fetch_default_branch(root=root)
+    _print_line(line=f"Fetched origin/{default_branch}.")
     installed = _require_installed_harnesses()
     is_config_new = write_default_dreamcatcher_config_if_absent(
         root=root, harnesses=installed
@@ -78,7 +78,10 @@ def set_up_repository(*, root: Path) -> None:
     _report_next_steps(
         account=identity.account,
         config=config,
-        is_config_on_main=is_file_on_main(root=root, name=DREAMCATCHER_CONFIG_NAME),
+        default_branch=default_branch,
+        is_config_on_default_branch=is_file_on_default_branch(
+            root=root, name=DREAMCATCHER_CONFIG_NAME
+        ),
     )
 
 
@@ -160,14 +163,18 @@ def _create_missing_labels(*, repository: str, config: DreamcatcherConfig) -> No
 
 
 def _report_next_steps(
-    *, account: str, config: DreamcatcherConfig, is_config_on_main: bool
+    *,
+    account: str,
+    config: DreamcatcherConfig,
+    default_branch: str,
+    is_config_on_default_branch: bool,
 ) -> None:
     lines = ["", "dreamcatcher is ready. Next:"]
-    if not is_config_on_main:
+    if not is_config_on_default_branch:
         lines += [
             f"  git add {DREAMCATCHER_CONFIG_NAME}",
             '  git commit -m "Configure dreamcatcher"',
-            "  git push origin main",
+            f"  git push origin {default_branch}",
         ]
     if config.assignment:
         lines.append(

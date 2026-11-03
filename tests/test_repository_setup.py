@@ -11,6 +11,7 @@ from conftest import (
     SMITH_CLAUDE,
     SMITH_CODEX,
     commit,
+    rename_default_branch,
     run_git,
 )
 
@@ -83,6 +84,7 @@ def harness_installer(fake, stand_ins, monkeypatch, tmp_path):
 def test_a_fresh_checkout_is_set_up_for_both_harnesses(
     checkout, gh, harness_installer, capsys
 ):
+    rename_default_branch(checkout=checkout, branch="trunk")
     harnesses = harness_installer(programs=["claude", "codex"])
 
     set_up_repository(root=checkout)
@@ -102,12 +104,13 @@ def test_a_fresh_checkout_is_set_up_for_both_harnesses(
     output = capsys.readouterr().out
     assert f"gh is signed in as {POSTED_BY}, who can push to {REPOSITORY}." in output
     assert "Git commits here as A Test <test@example.com>." in output
+    assert "Fetched origin/trunk." in output
     assert f"Wrote the default {DREAMCATCHER_CONFIG_NAME}." in output
     assert output.endswith(
         "dreamcatcher is ready. Next:\n"
         f"  git add {DREAMCATCHER_CONFIG_NAME}\n"
         '  git commit -m "Configure dreamcatcher"\n'
-        "  git push origin main\n"
+        "  git push origin trunk\n"
         f"  Assign an issue to {POSTED_BY}, and label it agent-assignment.\n"
         "  dreamcatcher run --harness claude\n"
     )
@@ -180,7 +183,7 @@ def test_a_second_setup_leaves_the_configuration_and_labels_alone(
     assert "git add" not in output
 
 
-def test_a_configuration_not_yet_on_main_comes_with_the_commands_to_push_it(
+def test_a_configuration_not_yet_on_the_default_has_the_commands_to_push_it(
     checkout, gh, harness_installer, capsys
 ):
     harness_installer(programs=["claude"])
@@ -336,7 +339,9 @@ def test_a_checkout_whose_origin_cannot_be_fetched_is_refused(
         cwd=checkout,
     )
 
-    with pytest.raises(ReportableError, match="git fetch origin main failed"):
+    with pytest.raises(
+        ReportableError, match="git remote set-head origin --auto failed"
+    ):
         set_up_repository(root=checkout)
 
 

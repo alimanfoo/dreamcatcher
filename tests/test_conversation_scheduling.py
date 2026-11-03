@@ -22,6 +22,7 @@ from conftest import (
     offer_labelling_events,
     offer_labels_applied_by_user,
     offer_listing,
+    rename_default_branch,
     run_git,
     wait_for_exit,
 )
@@ -871,7 +872,9 @@ def test_a_stopped_conversation_waits_for_new_feedback(
     )
 
 
-def test_a_follow_up_refreshes_to_changed_main(conversation_scheduler, harnesses):
+def test_a_follow_up_refreshes_to_a_renamed_default_branch(
+    conversation_scheduler, harnesses
+):
     scheduler, clock, gh = conversation_scheduler
     offer_conversation(gh=gh, comments=[compose_question()])
     script_claude_answer(harnesses=harnesses, body="The first answer.")
@@ -885,9 +888,12 @@ def test_a_follow_up_refreshes_to_changed_main(conversation_scheduler, harnesses
         model=ConversationRoundInput,
         path=conversation.compose_round_paths(number=1).round_input,
     ).revision
-    (scheduler.context.state.root / "README.md").write_bytes(b"what main holds now\n")
-    commit(path=scheduler.context.state.root, message="change main")
-    run_git(arguments=["push", "origin", "main"], cwd=scheduler.context.state.root)
+    rename_default_branch(checkout=scheduler.context.state.root, branch="trunk")
+    (scheduler.context.state.root / "README.md").write_bytes(
+        b"what the default branch holds now\n"
+    )
+    commit(path=scheduler.context.state.root, message="change the default branch")
+    run_git(arguments=["push", "origin", "trunk"], cwd=scheduler.context.state.root)
     offer_conversation(
         gh=gh,
         comments=[

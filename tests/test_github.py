@@ -388,7 +388,11 @@ def test_a_linked_draft_pull_request_is_opened_for_the_assignment_branch(fake):
     gh.replies(stdout=json.dumps({"number": 28}), to="pr view")
 
     created = create_pull_request(
-        repository=REPOSITORY, branch=BRANCH, issue=8, title="Use the issue title"
+        repository=REPOSITORY,
+        base="trunk",
+        branch=BRANCH,
+        issue=8,
+        title="Use the issue title",
     )
 
     assert created == PullRequestReference(number=28)
@@ -398,7 +402,7 @@ def test_a_linked_draft_pull_request_is_opened_for_the_assignment_branch(fake):
         "--repo",
         REPOSITORY,
         "--base",
-        "main",
+        "trunk",
         "--head",
         BRANCH,
         "--draft",

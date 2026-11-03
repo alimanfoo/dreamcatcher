@@ -686,7 +686,7 @@ def list_pull_requests(
 
 
 def create_pull_request(
-    *, repository: str, branch: str, issue: int, title: str
+    *, repository: str, base: str, branch: str, issue: int, title: str
 ) -> PullRequestReference | UnknownGitHubResponse:
     """Open the branch's draft pull request, linked to the issue, and return it.
 
@@ -701,7 +701,7 @@ def create_pull_request(
             "--repo",
             repository,
             "--base",
-            "main",
+            base,
             "--head",
             branch,
             "--draft",

@@ -16,6 +16,7 @@ from conftest import (
     commit,
     compose_comment,
     compose_pull_request_listing,
+    rename_default_branch,
     run_git,
 )
 from records import (
@@ -55,7 +56,12 @@ from dreamcatcher.config import (
     read_dreamcatcher_config,
 )
 from dreamcatcher.errors import ReportableError
-from dreamcatcher.git import add_worktree, fetch_main, make_empty_commit, push_branch
+from dreamcatcher.git import (
+    add_worktree,
+    fetch_default_branch,
+    make_empty_commit,
+    push_branch,
+)
 from dreamcatcher.github import IssueComment, PullRequestState
 from dreamcatcher.state import StateDirectory
 
@@ -185,16 +191,15 @@ def test_an_assignment_cuts_a_worktree_of_its_own_under_the_state_directory(
     assert (assignment.worktree / "README.md").exists()
 
 
-def test_an_assignment_cuts_a_branch_of_its_own_from_origins_main_as_it_is_now(
-    state, route
-):
-    # Move origin's main on, then leave the checkout believing what it knew
-    # before. Only a fetch of its own brings the creation the newer main.
-    known = run_git(arguments=["rev-parse", "origin/main"], cwd=state.root).strip()
-    (state.root / "later.txt").write_text("main moved on\n", encoding="utf-8")
-    commit(path=state.root, message="move main on")
-    run_git(arguments=["push", "origin", "main"], cwd=state.root)
-    run_git(arguments=["update-ref", "refs/remotes/origin/main", known], cwd=state.root)
+def test_an_assignment_uses_the_current_default_branch(state, route, gh):
+    rename_default_branch(checkout=state.root, branch="trunk")
+    known = run_git(arguments=["rev-parse", "origin/trunk"], cwd=state.root).strip()
+    (state.root / "later.txt").write_text("default moved on\n", encoding="utf-8")
+    commit(path=state.root, message="move the default branch on")
+    run_git(arguments=["push", "origin", "trunk"], cwd=state.root)
+    run_git(
+        arguments=["update-ref", "refs/remotes/origin/trunk", known], cwd=state.root
+    )
 
     assignment = open_assignment(
         state=state,
@@ -207,6 +212,8 @@ def test_an_assignment_cuts_a_branch_of_its_own_from_origins_main_as_it_is_now(
     assert compose_assignment_branch(identifier=assignment.identifier) == BRANCH
     assert BRANCH in run_git(arguments=["branch", "--list", BRANCH], cwd=state.root)
     assert (assignment.worktree / "later.txt").exists()
+    created = next(call for call in gh.calls if call.arguments[:2] == ["pr", "create"])
+    assert created.arguments[created.arguments.index("--base") + 1] == "trunk"
     message = run_git(
         arguments=["log", "-1", "--format=%s"], cwd=assignment.worktree
     ).strip()
@@ -689,7 +696,7 @@ def test_a_first_round_continues_from_what_an_earlier_attempt_left(
     state, route, gh, checkpoint
 ):
     assignment = record_assignment(state=state, route=route)
-    fetch_main(root=state.root)
+    fetch_default_branch(root=state.root)
     worktree = state.worktrees / ASSIGNMENT_ID
     add_worktree(root=state.root, path=worktree, branch=BRANCH)
     if checkpoint != "worktree":
@@ -705,7 +712,7 @@ def test_a_first_round_continues_from_what_an_earlier_attempt_left(
 
     assert read_assignment_pull_request_number(assignment=assignment) == PULL_REQUEST
     commits = run_git(
-        arguments=["rev-list", "--count", "origin/main..HEAD"], cwd=worktree
+        arguments=["rev-list", "--count", "origin/HEAD..HEAD"], cwd=worktree
     )
     assert commits.strip() == "1"
     remote = run_git(
