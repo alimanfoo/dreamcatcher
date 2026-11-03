@@ -1,5 +1,5 @@
 /* The home page's hero: a headline over the dreamcatcher web page in
-   miniature, where several labelled issues move on at once and then settle. */
+   miniature, where each kind of work takes its turn and then settles. */
 
 /* The home page hides its sidebars, so its one column reads at a measure. */
 
@@ -159,9 +159,45 @@
   font-weight: 500;
 }
 
+.dch-tabs {
+  display: flex;
+  gap: 2em;
+  margin: 1.2em 1.6em 0;
+  border-bottom: 1px solid var(--rule-inner);
+}
+
+.dch-tab {
+  margin-bottom: -1px;
+  color: var(--dim);
+  font-size: 0.8em;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.dch-tab > * {
+  padding-bottom: 0.7em;
+  border-bottom: 1px solid transparent;
+}
+
+.dch-tab > .dch-tab-selected {
+  color: var(--bright);
+  border-bottom-color: var(--phosphor);
+}
+
+.dch-panel-swap {
+  display: grid;
+}
+
+.dch-panel-swap > * {
+  width: auto;
+  grid-area: 1 / 1;
+  white-space: normal;
+}
+
 .md-typeset ol.dch-ui__lists {
   margin: 0;
-  padding: 1.2em 1.6em 0.6em;
+  padding: 0.2em 1.6em 0.6em;
   list-style: none;
 }
 
@@ -174,24 +210,10 @@
   animation-delay: calc(var(--i) * 0.22s + 0.3s);
 }
 
-.md-typeset .dch-ui__lists li.dch-section {
-  padding-bottom: 0.7em;
-  border-bottom: 1px solid var(--rule-inner);
-  color: var(--dim);
-  font-size: 0.8em;
-  font-weight: 500;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-}
-
-.md-typeset .dch-ui__lists li.dch-section:not(:first-child) {
-  margin-top: 1.8em;
-}
-
 /* One issue, laid out as the web page lays out a card: its title and pull
    request, then its settings, state and open button, then its round. */
 
-.md-typeset .dch-ui__lists li.dch-card {
+.md-typeset .dch-ui__lists .dch-card {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto auto;
   grid-template-areas:
@@ -202,6 +224,42 @@
   gap: 0.25em 0.7em;
   padding: 0.9em 0;
   border-bottom: 1px solid var(--rule-inner);
+}
+
+.md-typeset .dch-ui__lists li.dch-campaign {
+  border-bottom: 1px solid var(--rule-inner);
+}
+
+.md-typeset .dch-ui__lists .dch-campaign-lead {
+  border-bottom: 0;
+}
+
+.dch-campaign-children {
+  margin-left: 1.6em;
+}
+
+.dch-campaign-summary {
+  width: 100%;
+  padding: 0.7em 0;
+  border-bottom: 1px solid var(--rule-inner);
+  color: var(--dim);
+}
+
+.dch-campaign-summary::before {
+  content: "▾";
+  margin-right: 0.45em;
+}
+
+.dch-campaign-summary > * {
+  white-space: normal;
+}
+
+.md-typeset .dch-ui__lists .dch-child-card {
+  padding-block: 0.7em;
+}
+
+.md-typeset .dch-ui__lists .dch-child-card:last-child {
+  border-bottom: 0;
 }
 
 .dch-heading {
@@ -243,6 +301,15 @@
   border-radius: 50%;
   color: var(--dim);
   font-size: 0.9em;
+}
+
+.dch-open-swap {
+  grid-area: open;
+  justify-self: end;
+}
+
+.dch-open-swap .dch-open {
+  grid-area: 1 / 1;
 }
 
 .dch-detail {
@@ -301,11 +368,17 @@
 
   .dch-ui__header,
   .md-typeset .dch-ui__facts,
+  .dch-tabs,
   .md-typeset .dch-ui__lists {
     padding-inline: 1em;
   }
 
-  .md-typeset .dch-ui__lists li.dch-card {
+  .dch-tabs {
+    gap: 1.4em;
+    margin-inline: 0;
+  }
+
+  .md-typeset .dch-ui__lists .dch-card {
     grid-template-columns: minmax(0, 1fr) auto;
     grid-template-areas:
       "heading github"
@@ -317,6 +390,10 @@
   .dch-state,
   .dch-state > * {
     justify-self: start;
+  }
+
+  .dch-campaign-children {
+    margin-left: 0.8em;
   }
 }
 
@@ -355,7 +432,7 @@
 /* Without motion, the page shows where it settles. */
 
 @media (prefers-reduced-motion: reduce) {
-  .md-typeset .dch-ui__lists li {
+  .md-typeset ol.dch-ui__lists > li {
     opacity: 1;
     animation: none;
   }
@@ -367,6 +444,25 @@
   }
 
   .dch-swap > :last-child {
+    visibility: visible;
+  }
+
+  .dch-tab--assignments > :last-child,
+  .dch-tab--conversations > :last-child {
+    visibility: hidden;
+  }
+
+  .dch-tab--assignments > :first-child,
+  .dch-tab--conversations > :first-child {
+    visibility: visible;
+  }
+
+  .dch-panel-swap > * {
+    opacity: 0;
+  }
+
+  .dch-panel-swap > :first-child {
+    opacity: 1;
     visibility: visible;
   }
 }
