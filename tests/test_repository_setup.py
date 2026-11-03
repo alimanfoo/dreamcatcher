@@ -339,9 +339,7 @@ def test_a_checkout_whose_origin_cannot_be_fetched_is_refused(
         cwd=checkout,
     )
 
-    with pytest.raises(
-        ReportableError, match="git remote set-head origin --auto failed"
-    ):
+    with pytest.raises(ReportableError, match="git fetch origin failed"):
         set_up_repository(root=checkout)
 
 

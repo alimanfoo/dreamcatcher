@@ -55,11 +55,11 @@ def is_file_on_default_branch(*, root: Path, name: str) -> bool:
 
 
 def fetch_default_branch(*, root: Path) -> str:
-    """Follow and fetch origin's default branch, and return its name."""
+    """Fetch and follow origin's default branch, and return its name."""
+    run_command(program="git", arguments=["fetch", "origin"], cwd=root)
     run_command(
         program="git", arguments=["remote", "set-head", "origin", "--auto"], cwd=root
     )
-    run_command(program="git", arguments=["fetch", "origin"], cwd=root)
     remote_head = run_command(
         program="git",
         arguments=["symbolic-ref", "--short", "refs/remotes/origin/HEAD"],

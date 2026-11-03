@@ -841,11 +841,11 @@ request may start.
 
 ### Git, commands, prompts, and feeds
 
-`git.py` owns Git operations and worktree mechanics. Before it fetches
-the repository, it refreshes `origin/HEAD` from the remote, so every
-worktree follows the current default branch without persisting its name.
-It does not know why an assignment was selected or what GitHub reports
-about it.
+`git.py` owns Git operations and worktree mechanics. When it fetches the
+repository, it fetches the remote refs and then refreshes `origin/HEAD`
+from the remote, so every worktree follows the current default branch
+without persisting its name. It does not know why an assignment was
+selected or what GitHub reports about it.
 
 `commands.py` remains the sole subprocess boundary. Higher-level modules
 ask it to run or spawn already-constructed commands; no other module

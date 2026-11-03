@@ -193,13 +193,10 @@ def test_an_assignment_cuts_a_worktree_of_its_own_under_the_state_directory(
 
 def test_an_assignment_uses_the_current_default_branch(state, route, gh):
     rename_default_branch(checkout=state.root, branch="trunk")
-    known = run_git(arguments=["rev-parse", "origin/trunk"], cwd=state.root).strip()
     (state.root / "later.txt").write_text("default moved on\n", encoding="utf-8")
     commit(path=state.root, message="move the default branch on")
     run_git(arguments=["push", "origin", "trunk"], cwd=state.root)
-    run_git(
-        arguments=["update-ref", "refs/remotes/origin/trunk", known], cwd=state.root
-    )
+    run_git(arguments=["update-ref", "-d", "refs/remotes/origin/trunk"], cwd=state.root)
 
     assignment = open_assignment(
         state=state,

@@ -372,6 +372,10 @@ def rename_default_branch(*, checkout: Path, branch: str) -> None:
     )
     run_git(arguments=["symbolic-ref", "HEAD", f"refs/heads/{branch}"], cwd=origin)
     run_git(arguments=["push", "origin", "--delete", "main"], cwd=checkout)
+    run_git(
+        arguments=["update-ref", "-d", f"refs/remotes/origin/{branch}"],
+        cwd=checkout,
+    )
 
 
 @pytest.fixture
