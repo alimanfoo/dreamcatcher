@@ -239,18 +239,21 @@
 }
 
 .dch-campaign-summary {
+  display: flex;
+  align-items: baseline;
+  gap: 0.45em;
   width: 100%;
   padding: 0.7em 0;
   border-bottom: 1px solid var(--rule-inner);
   color: var(--dim);
 }
 
-.dch-campaign-summary::before {
-  content: "▾";
-  margin-right: 0.45em;
+.dch-campaign-summary-text {
+  min-width: 0;
+  flex: 1;
 }
 
-.dch-campaign-summary > * {
+.dch-campaign-summary-text > * {
   white-space: normal;
 }
 
