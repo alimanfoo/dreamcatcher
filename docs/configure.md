@@ -162,7 +162,7 @@ yourself to start the work.
 
 Commit and push `dreamcatcher.toml` and any project instructions or
 setup files the agents need. Every agent's worktree starts from fetched
-`origin/main`, so local uncommitted files are not available to it.
+default branch, so local uncommitted files are not available to it.
 
 Then start or restart the daemon from the ordinary main checkout:
 

@@ -147,11 +147,12 @@ may already have acted on some of them. Each notification names its sub-issue's
 `issue` and its `changes`. The `children` field is the current picture of the
 parent's sub-issues and their assignments, and `assignment_routes` holds the
 labels and recipes that the running daemon can dispatch a sub-issue's assignment
-with. The `revision` field names the commit of main checked out in your
-worktree, which dreamcatcher refreshes to main before every round, discarding
-any local change. Do not commit, push or open a pull request from this worktree.
-Run every `gh pr merge` as a shell command of its own, with no other command
-joined to it, because the unattended permissions approve a merge only then.
+with. The `revision` field names the commit of the default branch checked out in
+your worktree, which dreamcatcher refreshes to the default branch before every
+round, discarding any local change. Do not commit, push or open a pull request
+from this worktree. Run every `gh pr merge` as a shell command of its own, with
+no other command joined to it, because the unattended permissions approve a
+merge only then.
 Inspect GitHub before each change and do not repeat an action that an earlier
 attempt completed. Do not close the parent issue or change its assignees or
 labels, because the user closes it to end the campaign and removing its label or

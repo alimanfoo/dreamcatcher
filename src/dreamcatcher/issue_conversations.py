@@ -54,7 +54,7 @@ def prepare_conversation_round(
     comments: list[IssueComment],
     is_resuming: bool,
 ) -> ConversationRoundInput:
-    """Reset the worktree to fetched main and freeze the round's eligible input.
+    """Reset the worktree to the fetched default branch and freeze the input.
 
     A round that starts a new harness session is given the issue's title and
     body too, because the session has not seen them.

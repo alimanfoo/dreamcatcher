@@ -319,8 +319,8 @@ def _compose_campaign_round(
     """Return the plan of a round that gives the lead its input.
 
     The input offers the lead the assignment routes of this daemon, which may
-    differ from the configuration on main. The lead publishes its own
-    messages, so the round has no finishing step.
+    differ from the configuration on the default branch. The lead publishes its
+    own messages, so the round has no finishing step.
     """
     return RoundPlan(
         prepare_round=partial(

@@ -55,8 +55,8 @@ neither.
 
 GitHub reports a branch as behind its base only when the repository
 requires branches to be up to date before merging. In a repository that
-does not, a pull request that falls behind main without a conflict wakes
-nobody until it conflicts with main or you post. If you want such a pull
+does not, a pull request that falls behind its base without a conflict
+wakes nobody until it conflicts or you post. If you want such a pull
 request brought up to date, ask the agent on the pull request.
 
 If the repository runs campaigns, read

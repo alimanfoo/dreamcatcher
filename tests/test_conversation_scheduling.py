@@ -938,7 +938,7 @@ def test_a_failed_conversation_refresh_is_an_errored_round(
     )
     monkeypatch.setattr(
         "dreamcatcher.issue_conversations.refresh_detached_worktree",
-        Mock(side_effect=ReportableError("could not fetch main")),
+        Mock(side_effect=ReportableError("could not fetch the default branch")),
     )
 
     observed = scheduler.tick(at=clock())
@@ -950,7 +950,9 @@ def test_a_failed_conversation_refresh_is_an_errored_round(
             agent_work_identifier="GH8-20260819-184158-conversation",
             ended_round=1,
             finding=IssueCommentsFinding(new_comments=1),
-            started_round=StartedRound(number=2, launch_failure="could not fetch main"),
+            started_round=StartedRound(
+                number=2, launch_failure="could not fetch the default branch"
+            ),
         )
     ]
     assert observed.launched_agent_work_identifiers == []
@@ -959,7 +961,7 @@ def test_a_failed_conversation_refresh_is_an_errored_round(
     assert len(conversation.rounds) == 2
     ending = conversation.rounds[1].ending
     assert isinstance(ending, LaunchErroredAgentRoundEnding)
-    assert ending.reason == "could not fetch main"
+    assert ending.reason == "could not fetch the default branch"
     assert conversation.rounds[1].pid is None
     assert not conversation.compose_round_paths(number=2).round_input.exists()
     assert len(harnesses["claude"].calls) == 1

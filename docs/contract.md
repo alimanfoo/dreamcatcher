@@ -42,10 +42,11 @@ implement GitHub issue number 123.
 ### Branch adoption
 
 Before _dreamcatcher_ runs the agent in the round that opens an
-assignment's pull request, it fetches origin's main, cuts a branch from
-it, adds a worktree on that branch, makes and pushes an empty commit,
-and opens a linked draft pull request. The agent runs in that worktree,
-so the published branch is checked out and the working tree is clean.
+assignment's pull request, it fetches the default branch, cuts a branch
+from it, adds a worktree on that branch, makes and pushes an empty
+commit, and opens a linked draft pull request into the default branch.
+The agent runs in that worktree, so the published branch is checked out
+and the working tree is clean.
 
 An assignment skill must instruct the agent to adopt the current branch
 and worktree. It must also adopt the draft pull request that
@@ -209,8 +210,8 @@ Every input contains:
   input delivered to the lead, oldest first, which may be empty;
 - `cursor`, which _dreamcatcher_ uses to tell how far the lead has read
   in the parent's comments;
-- `revision`, identifying the fetched main commit checked out in the
-  detached worktree;
+- `revision`, identifying the fetched default-branch commit checked out
+  in the detached worktree;
 - `assignment_routes`, the assignment routes of the running daemon, for
   the lead to choose among when it gives a sub-issue an assignment
   label. Each route names its `label`, and its `claude` and `codex`
@@ -227,8 +228,8 @@ the `finished_turn` of its newest round that consumed its input, its
 pull request's `state`, `is_draft`, `merge_state`, `head`,
 `check_result` and `has_running_checks`, and is `null` when the update
 read nothing of it, as for an assignment that has ended or is in fault.
-The daemon's routes can differ from the configuration on main, which
-only takes effect when the daemon restarts.
+The daemon's routes can differ from the configuration on the default
+branch, which only takes effect when the daemon restarts.
 
 Each notification names the sub-issue's `issue` and lists its `changes`,
 each of which is one of these:
@@ -264,15 +265,15 @@ observe, so every sub-issue in an input is an issue of this repository.
 
 ### Workspace
 
-Before every round, _dreamcatcher_ resets the lead's worktree to fetched
-main, deleting every local commit and file that an earlier round left.
-The lead may comment on, create and edit issues, comment on, review and
-merge pull requests, read checks, and fetch and check out commits to
-verify work. It must not edit project source, commit, push or open a
-pull request from that worktree. _dreamcatcher_'s prompt asks the lead
-to run each merge as a shell command of its own, because Claude's
-unattended permissions approve a merge only when nothing else shares its
-call.
+Before every round, _dreamcatcher_ resets the lead's worktree to the
+fetched default branch, deleting every local commit and file that an
+earlier round left. The lead may comment on, create and edit issues,
+comment on, review and merge pull requests, read checks, and fetch and
+check out commits to verify work. It must not edit project source,
+commit, push or open a pull request from that worktree. _dreamcatcher_'s
+prompt asks the lead to run each merge as a shell command of its own,
+because Claude's unattended permissions approve a merge only when
+nothing else shares its call.
 
 ### Publication
 
@@ -339,8 +340,8 @@ Every input contains:
 - `issue`, identifying the watched issue;
 - `comments`, containing the signed-in user's eligible issue comments in
   order;
-- `revision`, identifying the fetched main commit checked out in the
-  detached worktree.
+- `revision`, identifying the fetched default-branch commit checked out
+  in the detached worktree.
 
 Each object in `comments` has `kind` set to `comment`, followed by `id`,
 `author`, `written_at` and `body`. Eligible comments are unmarked
@@ -367,8 +368,8 @@ comment batch after that resumes the same harness session and contains
 only eligible comments after the newest comment given to a round that
 consumed its input. The agent should use its existing transcript when a
 new question refers to an earlier answer. Before every round,
-_dreamcatcher_ resets the worktree to fetched main, deleting every local
-commit and file left by the earlier round.
+_dreamcatcher_ resets the worktree to the fetched default branch,
+deleting every local commit and file left by the earlier round.
 
 ### Scope of an issue conversation
 

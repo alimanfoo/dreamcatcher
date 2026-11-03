@@ -483,8 +483,10 @@ def test_a_retry_clears_a_conversation_fault(conversation_state):
     ("ending", "detail", "outcome_description"),
     [
         pytest.param(
-            LaunchErroredAgentRoundEnding(at=ENDED, reason="could not fetch main"),
-            "round 1 errored: could not fetch main",
+            LaunchErroredAgentRoundEnding(
+                at=ENDED, reason="could not fetch the default branch"
+            ),
+            "round 1 errored: could not fetch the default branch",
             "errored",
             id="launch",
         ),
