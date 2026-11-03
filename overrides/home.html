@@ -9,7 +9,7 @@
     {% endfor %}
   </ul>
 
-  <figure class="dch-ui" role="img" aria-label="The dreamcatcher web page, as four labelled issues move on at once: one pull request is merged and its agent wraps up, one question is answered, one pull request becomes ready for review, and one new assignment opens a pull request, then starts a second round to answer a post">
+  <figure class="dch-ui" role="img" aria-label="The dreamcatcher web page cycles through its Assignments, Campaigns and Conversations tabs before returning to Assignments: assignments open and merge pull requests, a campaign carries two sub-issues while one begins work, and a conversation answers a question, with agent capacity counting work across every tab">
     <div class="dch-ui__header">
       <span class="dch-ui__repository"><img class="dch-ui__mark" src="{{ 'static/dreamcatcher-mark-ink.png' | url }}" alt=""><span class="dch-ui__repository-links">acme/uploader<span>issues &middot; pulls</span></span></span>
       <span>dreamcatcher v9.5.0 · pid 4242</span>
@@ -19,95 +19,167 @@
       <div><dt>next update in</dt><dd>42s</dd></div>
       <div><dt>agent capacity</dt><dd class="dch-swap">
         <span style="--out:0.4s">2 of 4 working</span>
-        <span style="--at:0.4s;--out:0.8s">3 of 4 working</span>
-        <span style="--at:0.8s;--out:1.4s">2 of 4 working</span>
-        <span style="--at:1.4s;--out:2.6s">3 of 4 working</span>
-        <span style="--at:2.6s;--out:4.6s">2 of 4 working</span>
-        <span style="--at:4.6s;--out:5.6s">3 of 4 working</span>
+        <span style="--at:0.4s;--out:1.4s">3 of 4 working</span>
+        <span style="--at:1.4s;--out:2.6s">4 of 4 working</span>
+        <span style="--at:2.6s;--out:3.6s">3 of 4 working</span>
+        <span style="--at:3.6s;--out:5.6s">4 of 4 working</span>
         <span style="--at:5.6s">2 of 4 working</span>
       </dd></div>
     </dl>
-    <ol class="dch-ui__lists">
-      <li style="--i:0" class="dch-section">Assignments</li>
+    <div class="dch-tabs">
+      <span class="dch-swap dch-tab dch-tab--assignments">
+        <span class="dch-tab-selected" style="--out:2.6s">Assignments</span>
+        <span style="--at:2.6s;--out:6.6s">Assignments</span>
+        <span class="dch-tab-selected" style="--at:6.6s">Assignments</span>
+      </span>
+      <span class="dch-swap dch-tab">
+        <span style="--out:2.6s">Campaigns</span>
+        <span class="dch-tab-selected" style="--at:2.6s;--out:4.6s">Campaigns</span>
+        <span style="--at:4.6s">Campaigns</span>
+      </span>
+      <span class="dch-swap dch-tab dch-tab--conversations">
+        <span style="--out:4.6s">Conversations</span>
+        <span class="dch-tab-selected" style="--at:4.6s;--out:6.6s">Conversations</span>
+        <span style="--at:6.6s">Conversations</span>
+      </span>
+    </div>
+    <div class="dch-swap dch-panel-swap dch-returning-swap" style="--back-at:6.6s">
+      <ol class="dch-ui__lists" style="--out:2.6s">
+        <li style="--i:0" class="dch-card">
+          <span class="dch-heading"><span class="dch-issue">#41</span> Stream uploads from disk</span>
+          <span class="dch-swap dch-github">
+            <span style="--out:1.4s">PR #54 ready</span>
+            <span style="--at:1.4s">PR #54 merged</span>
+          </span>
+          <span class="dch-meta">agent-assignment &middot; claude &middot; opus[1m] &middot; high</span>
+          <span class="dch-swap dch-state">
+            <span class="status-idle" style="--out:1.4s">idle</span>
+            <span class="status-working" style="--at:1.4s">working</span>
+          </span>
+          <span class="dch-open">&gt;</span>
+          <span class="dch-swap dch-detail">
+            <span style="--out:1.4s">ready for review</span>
+            <span style="--at:1.4s">round 3, merged, running 12s, last output 4s ago</span>
+          </span>
+        </li>
 
-      <li style="--i:1" class="dch-card">
-        <span class="dch-heading"><span class="dch-issue">#41</span> Stream uploads from disk</span>
-        <span class="dch-swap dch-github">
-          <span style="--out:1.4s">PR #54 ready</span>
-          <span style="--at:1.4s">PR #54 merged</span>
-        </span>
-        <span class="dch-meta">agent-assignment &middot; claude &middot; opus[1m] &middot; high</span>
-        <span class="dch-swap dch-state">
-          <span class="status-idle" style="--out:1.4s">idle</span>
-          <span class="status-working" style="--at:1.4s">working</span>
-        </span>
-        <span class="dch-open">&gt;</span>
-        <span class="dch-swap dch-detail">
-          <span style="--out:1.4s">ready for review</span>
-          <span style="--at:1.4s">round 3, merged, running 12s, last output 4s ago</span>
-        </span>
-      </li>
+        <li style="--i:1" class="dch-card">
+          <span class="dch-heading"><span class="dch-issue">#42</span> Add retries to the upload client</span>
+          <span class="dch-swap dch-github">
+            <span style="--out:5.6s">PR #57 draft</span>
+            <span style="--at:5.6s">PR #57 ready</span>
+          </span>
+          <span class="dch-meta">agent-assignment &middot; claude &middot; opus[1m] &middot; high</span>
+          <span class="dch-swap dch-state">
+            <span class="status-working" style="--out:5.6s">working</span>
+            <span class="status-idle" style="--at:5.6s">idle</span>
+          </span>
+          <span class="dch-open">&gt;</span>
+          <span class="dch-swap dch-detail">
+            <span style="--out:5.6s">round 1, start, running 6m, last output 9s ago</span>
+            <span style="--at:5.6s">ready for review</span>
+          </span>
+        </li>
 
-      <li style="--i:2" class="dch-card">
-        <span class="dch-heading"><span class="dch-issue">#42</span> Add retries to the upload client</span>
-        <span class="dch-swap dch-github">
-          <span style="--out:5.6s">PR #57 draft</span>
-          <span style="--at:5.6s">PR #57 ready</span>
-        </span>
-        <span class="dch-meta">agent-assignment &middot; claude &middot; opus[1m] &middot; high</span>
-        <span class="dch-swap dch-state">
-          <span class="status-working" style="--out:5.6s">working</span>
-          <span class="status-idle" style="--at:5.6s">idle</span>
-        </span>
-        <span class="dch-open">&gt;</span>
-        <span class="dch-swap dch-detail">
-          <span style="--out:5.6s">round 1, start, running 6m, last output 9s ago</span>
-          <span style="--at:5.6s">ready for review</span>
-        </span>
-      </li>
+        <li style="--i:2" class="dch-card">
+          <span class="dch-heading"><span class="dch-issue">#43</span> Resume an interrupted upload</span>
+          <span class="dch-swap dch-github">
+            <span style="--out:1s"></span>
+            <span style="--at:1s;--out:2.6s">PR #58 draft</span>
+            <span style="--at:2.6s">PR #58 ready</span>
+          </span>
+          <span class="dch-meta">agent-assignment-easy &middot; codex &middot; gpt-5.6-terra &middot; high</span>
+          <span class="dch-swap dch-state">
+            <span class="status-waiting" style="--out:0.4s">waiting</span>
+            <span class="status-working" style="--at:0.4s;--out:2.6s">working</span>
+            <span class="status-idle" style="--at:2.6s;--out:3.6s">idle</span>
+            <span class="status-waiting" style="--at:3.6s;--out:4.6s">waiting</span>
+            <span class="status-working" style="--at:4.6s">working</span>
+          </span>
+          <span class="dch-open">&gt;</span>
+          <span class="dch-swap dch-detail">
+            <span style="--out:0.4s">no round has run yet</span>
+            <span style="--at:0.4s;--out:2.6s">round 1, start, running 2m, last output 3s ago</span>
+            <span style="--at:2.6s;--out:3.6s">ready for review</span>
+            <span style="--at:3.6s;--out:4.6s">1 new post to answer</span>
+            <span style="--at:4.6s">round 2, 1 post, running 40s, last output 6s ago</span>
+          </span>
+        </li>
+      </ol>
 
-      <li style="--i:3" class="dch-card">
-        <span class="dch-heading"><span class="dch-issue">#43</span> Resume an interrupted upload</span>
-        <span class="dch-swap dch-github">
-          <span style="--out:1s"></span>
-          <span style="--at:1s;--out:2.6s">PR #58 draft</span>
-          <span style="--at:2.6s">PR #58 ready</span>
-        </span>
-        <span class="dch-meta">agent-assignment-easy &middot; codex &middot; gpt-5.6-sol &middot; medium</span>
-        <span class="dch-swap dch-state">
-          <span class="status-waiting" style="--out:0.4s">waiting</span>
-          <span class="status-working" style="--at:0.4s;--out:2.6s">working</span>
-          <span class="status-idle" style="--at:2.6s;--out:3.6s">idle</span>
-          <span class="status-waiting" style="--at:3.6s;--out:4.6s">waiting</span>
-          <span class="status-working" style="--at:4.6s">working</span>
-        </span>
-        <span class="dch-open">&gt;</span>
-        <span class="dch-swap dch-detail">
-          <span style="--out:0.4s">no round has run yet</span>
-          <span style="--at:0.4s;--out:2.6s">round 1, start, running 2m, last output 3s ago</span>
-          <span style="--at:2.6s;--out:3.6s">ready for review</span>
-          <span style="--at:3.6s;--out:4.6s">1 new post to answer</span>
-          <span style="--at:4.6s">round 2, 1 post, running 40s, last output 6s ago</span>
-        </span>
-      </li>
+      <ol class="dch-ui__lists" style="--at:2.6s;--out:4.6s">
+        <li style="--i:0" class="dch-campaign">
+          <article class="dch-card dch-campaign-lead">
+            <span class="dch-heading"><span class="dch-issue">#45</span> Ship reliable large uploads</span>
+            <span class="dch-github">open</span>
+            <span class="dch-meta">agent-campaign &middot; claude &middot; opus[1m] &middot; high</span>
+            <span class="dch-state"><span class="status-idle">idle</span></span>
+            <span class="dch-open">&gt;</span>
+            <span class="dch-detail">round 1, successful, ran 4m</span>
+          </article>
+          <div class="dch-campaign-children">
+            <div class="dch-campaign-summary">
+              <span>▾</span>
+              <span class="dch-swap dch-campaign-summary-text">
+                <span style="--out:3.6s">1 of 2 sub-issues closed &middot; 1 completed, 1 available</span>
+                <span style="--at:3.6s;--out:4.6s">1 of 2 sub-issues closed &middot; 1 working, 1 completed</span>
+                <span style="--at:4.6s">1 of 2 sub-issues closed &middot; 1 idle, 1 completed</span>
+              </span>
+            </div>
+            <article class="dch-card dch-child-card">
+              <span class="dch-heading"><span class="dch-issue">#46</span> Persist upload checkpoints</span>
+              <span class="dch-github">PR #59 merged</span>
+              <span class="dch-meta">agent-assignment &middot; claude &middot; opus[1m] &middot; high</span>
+              <span class="dch-state"><span class="status-ended">completed</span></span>
+              <span class="dch-open">&gt;</span>
+            </article>
+            <article class="dch-card dch-child-card">
+              <span class="dch-heading"><span class="dch-issue">#47</span> Recover stalled transfers</span>
+              <span class="dch-swap dch-github">
+                <span style="--out:3.6s">open</span>
+                <span style="--at:3.6s;--out:4.6s">PR #60 draft</span>
+                <span style="--at:4.6s">PR #60 ready</span>
+              </span>
+              <span class="dch-swap dch-meta">
+                <span style="--out:3.6s">agent-assignment-easy</span>
+                <span style="--at:3.6s">agent-assignment-easy &middot; codex &middot; gpt-5.6-terra &middot; high</span>
+              </span>
+              <span class="dch-swap dch-state">
+                <span class="status-available" style="--out:3.6s">available</span>
+                <span class="status-working" style="--at:3.6s;--out:4.6s">working</span>
+                <span class="status-idle" style="--at:4.6s">idle</span>
+              </span>
+              <span class="dch-swap dch-open-swap">
+                <span style="--out:3.6s"></span>
+                <span class="dch-open" style="--at:3.6s">&gt;</span>
+              </span>
+              <span class="dch-swap dch-detail">
+                <span style="--out:3.6s"></span>
+                <span style="--at:3.6s;--out:4.6s">round 1, start, running 8s, last output 2s ago</span>
+                <span style="--at:4.6s">ready for review</span>
+              </span>
+            </article>
+          </div>
+        </li>
+      </ol>
 
-      <li style="--i:4" class="dch-section">Conversations</li>
-
-      <li style="--i:5" class="dch-card">
-        <span class="dch-heading"><span class="dch-issue">#44</span> Why do large uploads time out?</span>
-        <span class="dch-github">open</span>
-        <span class="dch-meta">agent-conversation &middot; claude &middot; opus &middot; high</span>
-        <span class="dch-swap dch-state">
-          <span class="status-working" style="--out:0.8s">working</span>
-          <span class="status-idle" style="--at:0.8s">idle</span>
-        </span>
-        <span class="dch-open">&gt;</span>
-        <span class="dch-swap dch-detail">
-          <span style="--out:0.8s">round 1, 1 comment, running 3m, last output 15s ago</span>
-          <span style="--at:0.8s">round 1, answered, ran 4m</span>
-        </span>
-      </li>
-    </ol>
+      <ol class="dch-ui__lists" style="--at:4.6s;--out:6.6s">
+        <li style="--i:0" class="dch-card">
+          <span class="dch-heading"><span class="dch-issue">#44</span> Why do large uploads time out?</span>
+          <span class="dch-github">open</span>
+          <span class="dch-meta">agent-conversation &middot; claude &middot; opus &middot; high</span>
+          <span class="dch-swap dch-state">
+            <span class="status-working" style="--out:5.6s">working</span>
+            <span class="status-idle" style="--at:5.6s">idle</span>
+          </span>
+          <span class="dch-open">&gt;</span>
+          <span class="dch-swap dch-detail">
+            <span style="--out:5.6s">round 1, 1 comment, running 3m, last output 15s ago</span>
+            <span style="--at:5.6s">round 1, answered, ran 4m</span>
+          </span>
+        </li>
+      </ol>
+    </div>
   </figure>
 </section>
 
