@@ -77,22 +77,21 @@ because it creates and manages worktrees of its own.
 ```sh
 git clone https://github.com/OWNER/REPOSITORY.git
 cd REPOSITORY
-git switch main
-git pull --ff-only origin main
+git pull --ff-only
 ```
 
 Replace `OWNER/REPOSITORY` with your repository.
 
-An assignment sees the files committed on `origin/main`, not uncommitted
-setup from your main checkout. Before dispatching, commit and push the
-project's agent instructions, dependency manifests, lockfiles and any
-scripts needed to set up or test the project. Make those instructions
-non-interactive: nobody can answer a prompt that waits inside an
-autonomous round.
+An assignment sees the files committed on the repository's default
+branch, not uncommitted setup from your main checkout. Before
+dispatching, commit and push the project's agent instructions,
+dependency manifests, lockfiles and any scripts needed to set up or test
+the project. Make those instructions non-interactive: nobody can answer
+a prompt that waits inside an autonomous round.
 
-This walkthrough assumes you may push that setup to `main`. If `main` is
-protected, land the same files through your repository's normal
-pull-request process before continuing.
+This walkthrough assumes you may push that setup to the default branch.
+If that branch is protected, land the same files through your
+repository's normal pull-request process before continuing.
 
 ## 4. Run dreamcatcher init
 
@@ -103,7 +102,7 @@ dreamcatcher init
 ```
 
 `init` checks that `gh` can push to the repository, that Git can commit
-and that `origin/main` can be fetched. It writes a default
+and that the default branch can be fetched. It writes a default
 `dreamcatcher.toml`, installs the
 [`dream` plugin](https://alimanfoo.github.io/dream/) for each harness
 the file uses, and creates the labels the file names. It prints one line
@@ -128,14 +127,14 @@ GitHub issue to its route, and `{issue}` in a prompt becomes the issue
 number, so issue 123 with the `agent-assignment` label starts Claude
 with `/dream:smith GH123`.
 
-Until `origin/main` holds the file, `init` ends by printing the commands
-that commit and push it. Run them, so the assignment worktree contains
-the file too:
+Until the default branch holds the file, `init` ends by printing the
+commands that commit and push it. Run them, so the assignment worktree
+contains the file too:
 
 ```sh
 git add dreamcatcher.toml
 git commit -m "Configure dreamcatcher"
-git push origin main
+git push
 ```
 
 For other routes or another harness, see
@@ -180,11 +179,11 @@ commit and push under your account. These controls are not a security
 sandbox or a guarantee about what a plugin will do, so use a repository,
 plugin and GitHub account you trust.
 
-On dispatch, _dreamcatcher_ fetches `origin/main`, creates a branch and
-a worktree for it, pushes an empty commit, and opens a linked **draft**
-pull request. The draft means the assignment has begun; it does not mean
-the implementation is ready for review. Claude then works in that
-worktree.
+On dispatch, _dreamcatcher_ fetches the default branch, creates a branch
+and a worktree for it, pushes an empty commit, and opens a linked
+**draft** pull request into the default branch. The draft means the
+assignment has begun; it does not mean the implementation is ready for
+review. Claude then works in that worktree.
 
 ## 7. Watch the assignment
 

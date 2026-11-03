@@ -363,6 +363,21 @@ def commit(*, path: Path, message: str) -> None:
     )
 
 
+def rename_default_branch(*, checkout: Path, branch: str) -> None:
+    """Rename the checkout and its origin's default branch."""
+    run_git(arguments=["branch", "--move", branch], cwd=checkout)
+    run_git(arguments=["push", "--set-upstream", "origin", branch], cwd=checkout)
+    origin = Path(
+        run_git(arguments=["remote", "get-url", "origin"], cwd=checkout).strip()
+    )
+    run_git(arguments=["symbolic-ref", "HEAD", f"refs/heads/{branch}"], cwd=origin)
+    run_git(arguments=["push", "origin", "--delete", "main"], cwd=checkout)
+    run_git(
+        arguments=["update-ref", "-d", f"refs/remotes/origin/{branch}"],
+        cwd=checkout,
+    )
+
+
 @pytest.fixture
 def repo(tmp_path):
     """Return a main checkout of a fresh, empty git repository."""

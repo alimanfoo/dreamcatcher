@@ -29,6 +29,14 @@ the change.
 
 ## Unreleased
 
+### Changed
+
+- _dreamcatcher_ now follows a repository's default branch whatever it
+  is called, and follows a rename on the next fetch. Pull request status
+  says `behind` or `conflicts` without naming the base, and an
+  assignment round's out-of-date trigger says `out of date`.
+  ([#904](https://github.com/alimanfoo/dreamcatcher/pull/904))
+
 ## [v9.8.0](https://github.com/alimanfoo/dreamcatcher/releases/tag/v9.8.0) — 2026-11-01
 
 ### Changed

@@ -2099,9 +2099,9 @@ def test_pull_request_summary_remains_without_a_repository_record(tmp_path):
         ("ready", "pr-chip pr-chip-ready"),
         ("merged", "pr-chip"),
         ("closed", "pr-chip"),
-        ("ready, behind main, checks running", "pr-chip pr-chip-ready"),
+        ("ready, behind, checks running", "pr-chip pr-chip-ready"),
         ("ready, checks failing", "pr-chip pr-chip-ready"),
-        ("ready, conflicts with main", "pr-chip pr-chip-ready"),
+        ("ready, conflicts", "pr-chip pr-chip-ready"),
     ):
         assert (
             f'<span class="{chip_class}">PR #52 {pull_request_summary}</span>' in page

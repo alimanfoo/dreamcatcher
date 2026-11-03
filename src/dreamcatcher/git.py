@@ -35,61 +35,70 @@ def read_git_author_identity(*, root: Path) -> str:
     ).rsplit(maxsplit=2)[0]
 
 
-def is_file_on_main(*, root: Path, name: str) -> bool:
-    """Return whether origin/main holds the named file as the checkout at root has it.
+def is_file_on_default_branch(*, root: Path, name: str) -> bool:
+    """Return whether the default branch holds the named file as the checkout does.
 
     Git reads the file as it would commit it, so a checkout that writes its line
     endings as CRLF still matches.
     """
     try:
-        on_main = run_command(
+        on_default_branch = run_command(
             program="git",
-            arguments=["rev-parse", "--verify", "--quiet", f"origin/main:{name}"],
+            arguments=["rev-parse", "--verify", "--quiet", f"origin/HEAD:{name}"],
             cwd=root,
         )
     except CommandError:
         return False
-    return on_main == run_command(
+    return on_default_branch == run_command(
         program="git", arguments=["hash-object", "--", name], cwd=root
     )
 
 
-def fetch_main(*, root: Path) -> None:
-    """Bring origin's main branch up to date in the checkout at root."""
-    run_command(program="git", arguments=["fetch", "origin", "main"], cwd=root)
+def fetch_default_branch(*, root: Path) -> str:
+    """Fetch and follow origin's default branch, and return its name."""
+    run_command(program="git", arguments=["fetch", "origin"], cwd=root)
+    run_command(
+        program="git", arguments=["remote", "set-head", "origin", "--auto"], cwd=root
+    )
+    remote_head = run_command(
+        program="git",
+        arguments=["symbolic-ref", "--short", "refs/remotes/origin/HEAD"],
+        cwd=root,
+    ).strip()
+    return remote_head.removeprefix("origin/")
 
 
 def add_worktree(*, root: Path, path: Path, branch: str) -> None:
-    """Create a worktree at path, on a new branch cut from origin/main."""
+    """Create a worktree at path, on a new branch cut from the default branch."""
     run_command(
         program="git",
-        arguments=["worktree", "add", "-b", branch, str(path), "origin/main"],
+        arguments=["worktree", "add", "-b", branch, str(path), "origin/HEAD"],
         cwd=root,
     )
 
 
 def _add_detached_worktree(*, root: Path, path: Path) -> None:
-    """Create a detached worktree at origin/main."""
+    """Create a detached worktree at origin's default branch."""
     run_command(
         program="git",
-        arguments=["worktree", "add", "--detach", str(path), "origin/main"],
+        arguments=["worktree", "add", "--detach", str(path), "origin/HEAD"],
         cwd=root,
     )
 
 
 def refresh_detached_worktree(*, root: Path, worktree: Path) -> str:
-    """Put a detached worktree at fetched main and return its revision.
+    """Put a detached worktree at the fetched default branch and return its revision.
 
     A missing worktree is added. An existing one has every local change and
     commit discarded before it moves.
     """
-    fetch_main(root=root)
+    fetch_default_branch(root=root)
     if not is_linked_worktree(path=worktree):
         _add_detached_worktree(root=root, path=worktree)
     run_command(program="git", arguments=["clean", "-ffdx"], cwd=worktree)
     run_command(
         program="git",
-        arguments=["checkout", "--force", "--detach", "origin/main"],
+        arguments=["checkout", "--force", "--detach", "origin/HEAD"],
         cwd=worktree,
     )
     _refresh_initialized_submodules(worktree=worktree)
@@ -140,11 +149,11 @@ def _read_worktree_revision(*, worktree: Path) -> str:
     ).strip()
 
 
-def has_commits_since_main(*, worktree: Path) -> bool:
-    """Return whether the worktree's branch has moved beyond origin/main."""
+def has_commits_since_default_branch(*, worktree: Path) -> bool:
+    """Return whether the worktree's branch has moved beyond the default branch."""
     count = run_command(
         program="git",
-        arguments=["rev-list", "--count", "origin/main..HEAD"],
+        arguments=["rev-list", "--count", "origin/HEAD..HEAD"],
         cwd=worktree,
     )
     return int(count) > 0

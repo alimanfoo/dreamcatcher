@@ -22,6 +22,7 @@ from conftest import (
     offer_labelling_events,
     offer_labels_applied_by_user,
     offer_listing,
+    rename_default_branch,
     run_git,
     wait_for_exit,
 )
@@ -871,7 +872,9 @@ def test_a_stopped_conversation_waits_for_new_feedback(
     )
 
 
-def test_a_follow_up_refreshes_to_changed_main(conversation_scheduler, harnesses):
+def test_a_follow_up_refreshes_to_a_renamed_default_branch(
+    conversation_scheduler, harnesses
+):
     scheduler, clock, gh = conversation_scheduler
     offer_conversation(gh=gh, comments=[compose_question()])
     script_claude_answer(harnesses=harnesses, body="The first answer.")
@@ -885,9 +888,12 @@ def test_a_follow_up_refreshes_to_changed_main(conversation_scheduler, harnesses
         model=ConversationRoundInput,
         path=conversation.compose_round_paths(number=1).round_input,
     ).revision
-    (scheduler.context.state.root / "README.md").write_bytes(b"what main holds now\n")
-    commit(path=scheduler.context.state.root, message="change main")
-    run_git(arguments=["push", "origin", "main"], cwd=scheduler.context.state.root)
+    rename_default_branch(checkout=scheduler.context.state.root, branch="trunk")
+    (scheduler.context.state.root / "README.md").write_bytes(
+        b"what the default branch holds now\n"
+    )
+    commit(path=scheduler.context.state.root, message="change the default branch")
+    run_git(arguments=["push", "origin", "trunk"], cwd=scheduler.context.state.root)
     offer_conversation(
         gh=gh,
         comments=[
@@ -932,7 +938,7 @@ def test_a_failed_conversation_refresh_is_an_errored_round(
     )
     monkeypatch.setattr(
         "dreamcatcher.issue_conversations.refresh_detached_worktree",
-        Mock(side_effect=ReportableError("could not fetch main")),
+        Mock(side_effect=ReportableError("could not fetch the default branch")),
     )
 
     observed = scheduler.tick(at=clock())
@@ -944,7 +950,9 @@ def test_a_failed_conversation_refresh_is_an_errored_round(
             agent_work_identifier="GH8-20260819-184158-conversation",
             ended_round=1,
             finding=IssueCommentsFinding(new_comments=1),
-            started_round=StartedRound(number=2, launch_failure="could not fetch main"),
+            started_round=StartedRound(
+                number=2, launch_failure="could not fetch the default branch"
+            ),
         )
     ]
     assert observed.launched_agent_work_identifiers == []
@@ -953,7 +961,7 @@ def test_a_failed_conversation_refresh_is_an_errored_round(
     assert len(conversation.rounds) == 2
     ending = conversation.rounds[1].ending
     assert isinstance(ending, LaunchErroredAgentRoundEnding)
-    assert ending.reason == "could not fetch main"
+    assert ending.reason == "could not fetch the default branch"
     assert conversation.rounds[1].pid is None
     assert not conversation.compose_round_paths(number=2).round_input.exists()
     assert len(harnesses["claude"].calls) == 1
@@ -971,8 +979,8 @@ def test_a_round_whose_input_cannot_be_saved_errors_and_the_next_refreshes(
     scheduler.tick(at=clock())
     conversation = read_conversation(state=scheduler.context.state, issue=8)
     assert conversation is not None
-    (scheduler.context.state.root / "README.md").write_bytes(b"main moved\n")
-    commit(path=scheduler.context.state.root, message="move main")
+    (scheduler.context.state.root / "README.md").write_bytes(b"default branch moved\n")
+    commit(path=scheduler.context.state.root, message="move the default branch")
     run_git(arguments=["push", "origin", "main"], cwd=scheduler.context.state.root)
     comments = [
         compose_question(),

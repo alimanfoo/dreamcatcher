@@ -40,8 +40,8 @@ from dreamcatcher.errors import ReportableError
 from dreamcatcher.git import (
     add_worktree,
     delete_branch,
-    fetch_main,
-    has_commits_since_main,
+    fetch_default_branch,
+    has_commits_since_default_branch,
     is_linked_worktree,
     is_local_branch,
     make_empty_commit,
@@ -187,8 +187,8 @@ def open_assignment_pull_request(
     """Publish the assignment's branch and record its draft pull request.
 
     This is the preparation of a round whose assignment has no pull request
-    yet. It fetches main, adds the worktree on the assignment's branch, makes
-    an empty commit, pushes, adopts the pull request
+    yet. It fetches the default branch and adds the worktree on the assignment's
+    branch. It then makes an empty commit, pushes, adopts the pull request
     already on the branch or opens a draft, and records the pull request. A
     round after one that failed part way finds the worktree, the commit and the
     pull request that the earlier attempt made, and makes none of them again. A
@@ -197,7 +197,7 @@ def open_assignment_pull_request(
     """
     issue = assignment.record.issue
     branch = compose_assignment_branch(identifier=assignment.identifier)
-    fetch_main(root=state.root)
+    default_branch = fetch_default_branch(root=state.root)
     if not is_linked_worktree(path=assignment.worktree):
         try:
             add_worktree(root=state.root, path=assignment.worktree, branch=branch)
@@ -207,11 +207,12 @@ def open_assignment_pull_request(
                     state=state, assignment=assignment
                 )
             raise
-    if not has_commits_since_main(worktree=assignment.worktree):
+    if not has_commits_since_default_branch(worktree=assignment.worktree):
         make_empty_commit(worktree=assignment.worktree, message=f"GH{issue}")
     push_branch(root=state.root, branch=branch)
     pull_request = find_or_create_assignment_pull_request(
         repository=repository,
+        base=default_branch,
         branch=branch,
         issue=issue,
         title=assignment.record.title,

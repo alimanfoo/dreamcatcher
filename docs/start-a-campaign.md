@@ -61,21 +61,21 @@ _dreamcatcher_ gives the lead and what the lead must leave to you.
 
 A campaign can have several sub-issue pull requests open at once. If the
 repository requires branches to be up to date before merging, each merge
-leaves every other sub-issue behind `main`. Each remaining assignment's
-agent then merges `main`, its checks run again, and the lead wakes for
-the new head. Only one of those pull requests merges next, so the rest
-repeat the work after the next merge.
+leaves every other sub-issue behind the default branch. Each remaining
+assignment's agent then merges the default branch, its checks run again,
+and the lead wakes for the new head. Only one of those pull requests
+merges next, so the rest repeat the work after the next merge.
 
 Use
 [GitHub's merge queue](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/configuring-pull-request-merges/managing-a-merge-queue)
 when it is available for the repository. It tests queued changes with
-the latest `main` when their turn comes, without making each agent
-update its pull request branch after every earlier merge.
+the latest default branch when their turn comes, without making each
+agent update its pull request branch after every earlier merge.
 
 Otherwise, leave **Require branches to be up to date before merging**
 off for a repository that runs campaigns. A pull request that falls
 behind without a conflict still merges cleanly. One that conflicts with
-`main` still wakes its agent to bring the branch up to date.
+the default branch still wakes its agent to bring the branch up to date.
 
 ## Start the campaign
 
@@ -89,7 +89,7 @@ If open issues block the parent on GitHub, the campaign waits until
 every one of them is closed.
 
 A campaign needs no comment to start. At its next update with a free
-agent slot, _dreamcatcher_ checks out current `origin/main` in a
+agent slot, _dreamcatcher_ checks out the current default branch in a
 worktree of the campaign's own, and starts the lead with the configured
 prompt. Its input holds any comments you have already posted on the
 parent, the parent's sub-issues with where each one's assignment stands,
@@ -130,10 +130,11 @@ never to close it, so the next campaign waits for you.
 ## Talk to the lead
 
 Comment on the parent to talk to the lead. At the next update with a
-free agent slot, _dreamcatcher_ refreshes the lead's worktree to current
-`origin/main` and gives the lead every comment you have posted since its
-last round, in the same harness session. The lead answers on GitHub
-itself. Its own posts carry the agent marker, so they never wake it.
+free agent slot, _dreamcatcher_ refreshes the lead's worktree to the
+current default branch and gives the lead every comment you have posted
+since its last round, in the same harness session. The lead answers on
+GitHub itself. Its own posts carry the agent marker, so they never wake
+it.
 
 When the lead gives a sub-issue's assignment feedback on its pull
 request, it leaves the marker off. The assignment's agent is then given

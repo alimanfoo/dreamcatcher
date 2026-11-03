@@ -18,9 +18,9 @@ There are three kinds of agent work you can ask for:
 
 - An **agent assignment**, where an agent will implement an issue and
   take it to a pull request that is ready for you to review. The agent
-  will answer your feedback, try to fix failing checks, and merge main
-  when the branch conflicts with it, until you merge or close the pull
-  request.
+  will answer your feedback, try to fix failing checks, and merge the
+  default branch when the assignment's branch conflicts with it, until
+  you merge or close the pull request.
 - A **campaign**, where an agent, the **lead**, will take on a parent
   issue whose work is planned as sub-issues. The lead will label each
   sub-issue for an assignment, and merge each sub-issue's pull request
@@ -37,9 +37,9 @@ the same repository can each run their own instance on their own
 computer. An instance will only look at issues assigned to its own user,
 so they won't pick up each other's work.
 
-dreamcatcher works from a branch named `main`: it fetches `origin/main`
-and cuts every worktree from it, so a repository whose default branch
-has another name needs renaming first.
+dreamcatcher works from the repository's default branch, whatever that
+branch is called. It follows a rename of the default branch on its next
+fetch.
 
 The configuration lives in `dreamcatcher.toml` at the root of the main
 checkout. If it doesn't exist yet, you can create a default one with
@@ -133,9 +133,9 @@ talk: later edits and comments on the issue won't reach the agent, so
 any further guidance needs to go on the pull request.
 
 The worktree is under `.dreamcatcher/` in your main checkout. It is a
-fresh checkout of `origin/main` with nothing installed, so it has none
-of your checkout's ignored or generated files. While the assignment is
-open, the worktree and its branch belong to the agent, and the way to
+fresh checkout of the default branch with nothing installed, so it has
+none of your checkout's ignored or generated files. While the assignment
+is open, the worktree and its branch belong to the agent, and the way to
 change something is to ask the agent on the pull request.
 
 The agent will work until it has nothing left to do, then mark the pull
@@ -206,10 +206,10 @@ round that is still running has finished.
 
 If your repository requires branches to be up to date before merging,
 every merge will leave the campaign's other pull requests behind, and
-wake each of their agents to merge main and run the checks again. A
-merge queue will avoid this, or you can leave that setting off: a pull
-request that has only fallen behind will still merge cleanly, and one
-that conflicts will still wake its agent.
+wake each of their agents to merge the default branch and run the checks
+again. A merge queue will avoid this, or you can leave that setting off:
+a pull request that has only fallen behind will still merge cleanly, and
+one that conflicts will still wake its agent.
 
 Every pull request is opened from your account, and GitHub won't let you
 approve your own, so a branch rule that requires an approving review

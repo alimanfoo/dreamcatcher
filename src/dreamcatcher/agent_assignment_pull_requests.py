@@ -10,7 +10,7 @@ from dreamcatcher.github import (
 
 
 def find_or_create_assignment_pull_request(
-    *, repository: str, branch: str, issue: int, title: str
+    *, repository: str, base: str, branch: str, issue: int, title: str
 ) -> PullRequestReference:
     """Return the pull request on the assignment's branch, opening a draft if none.
 
@@ -24,7 +24,7 @@ def find_or_create_assignment_pull_request(
     if branch_pull_request is not None:
         return branch_pull_request
     pull_request = create_pull_request(
-        repository=repository, branch=branch, issue=issue, title=title
+        repository=repository, base=base, branch=branch, issue=issue, title=title
     )
     if isinstance(pull_request, UnknownGitHubResponse):
         raise ReportableError(pull_request.reason)

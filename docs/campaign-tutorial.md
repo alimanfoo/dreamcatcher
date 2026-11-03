@@ -15,13 +15,13 @@ merges it, and asks you on the parent when a decision is needed.
 
 The lead merges pull requests without waiting for your review. Use a
 repository that has a `README.md`, and where you are happy for the lead
-to merge under your GitHub account. If `main` requires an approving
-review before a merge, the lead cannot merge, because GitHub does not
-let an account approve its own pull request.
+to merge under your GitHub account. If the default branch requires an
+approving review before a merge, the lead cannot merge, because GitHub
+does not let an account approve its own pull request.
 
 This tutorial creates a parent issue with two sub-issues. The second is
-blocked by the first, so the lead carries their pull requests to `main`
-in order. At the end, you close the parent.
+blocked by the first, so the lead carries their pull requests to the
+default branch in order. At the end, you close the parent.
 
 ## 1. Set up dreamcatcher
 
@@ -59,13 +59,13 @@ gh issue create --assignee "@me" --title "Add a project glossary" --body "Give t
 Create the first sub-issue of the parent:
 
 ```sh
-gh issue create --parent 123 --title "Add GLOSSARY.md" --body "Add GLOSSARY.md at the root of the repository, with one entry that defines the project's name in one sentence. Done when GLOSSARY.md is on main with that entry."
+gh issue create --parent 123 --title "Add GLOSSARY.md" --body "Add GLOSSARY.md at the root of the repository, with one entry that defines the project's name in one sentence. Done when GLOSSARY.md is on the default branch with that entry."
 ```
 
 Create the second sub-issue, blocked by the first:
 
 ```sh
-gh issue create --parent 123 --blocked-by 124 --title "Link the glossary from the README" --body "Add a line to README.md that links to GLOSSARY.md. Done when README.md on main links to GLOSSARY.md."
+gh issue create --parent 123 --blocked-by 124 --title "Link the glossary from the README" --body "Add a line to README.md that links to GLOSSARY.md. Done when README.md on the default branch links to GLOSSARY.md."
 ```
 
 Open the parent on GitHub. It lists both sub-issues, and issue 125 shows
@@ -139,11 +139,11 @@ last wrap-up round, then shows as **completed**.
 ## 6. Watch the handoff
 
 Issue 124 is closed, so issue 125 is no longer blocked. At the next
-update, _dreamcatcher_ starts the second sub-issue's assignment from
-`main`, which now holds `GLOSSARY.md`. If the second sub-issue needs to
-know something from the first, the lead comments on issue 125 before it
-merges the first pull request, and the second assignment's agent reads
-that comment when it starts.
+update, _dreamcatcher_ starts the second sub-issue's assignment from the
+default branch, which now holds `GLOSSARY.md`. If the second sub-issue
+needs to know something from the first, the lead comments on issue 125
+before it merges the first pull request, and the second assignment's
+agent reads that comment when it starts.
 
 The second assignment then goes the same way as the first: its agent
 works, the lead reviews and merges, and the card shows

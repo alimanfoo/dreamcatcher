@@ -2,7 +2,7 @@ from pathlib import Path
 from unittest.mock import Mock
 
 import pytest
-from conftest import commit, run_git
+from conftest import commit, rename_default_branch, run_git
 
 from dreamcatcher.commands import CommandError
 from dreamcatcher.git import (
@@ -10,8 +10,8 @@ from dreamcatcher.git import (
     _read_worktree_revision,
     add_worktree,
     delete_branch,
-    fetch_main,
-    has_commits_since_main,
+    fetch_default_branch,
+    has_commits_since_default_branch,
     make_empty_commit,
     push_branch,
     refresh_detached_worktree,
@@ -44,12 +44,19 @@ def read_checked_out_branch(*, worktree) -> str:
     return run_git(arguments=["branch", "--show-current"], cwd=worktree).strip()
 
 
-def test_a_fetch_brings_origins_main_back(cloned_repo):
-    run_git(arguments=["update-ref", "-d", "refs/remotes/origin/main"], cwd=cloned_repo)
+def test_a_fetch_follows_origins_renamed_default_branch(cloned_repo):
+    rename_default_branch(checkout=cloned_repo, branch="trunk")
 
-    fetch_main(root=cloned_repo)
+    default_branch = fetch_default_branch(root=cloned_repo)
 
-    assert run_git(arguments=["rev-parse", "origin/main"], cwd=cloned_repo).strip()
+    assert default_branch == "trunk"
+    assert (
+        run_git(
+            arguments=["symbolic-ref", "--short", "refs/remotes/origin/HEAD"],
+            cwd=cloned_repo,
+        ).strip()
+        == "origin/trunk"
+    )
 
 
 def test_a_worktree_lands_where_it_is_asked_for_on_its_own_branch(cloned_repo):
@@ -63,7 +70,7 @@ def test_a_worktree_lands_where_it_is_asked_for_on_its_own_branch(cloned_repo):
     assert read_checked_out_branch(worktree=path) == BRANCH
 
 
-def test_a_detached_worktree_lands_at_origins_main_revision(cloned_repo):
+def test_a_detached_worktree_lands_at_the_default_branch_revision(cloned_repo):
     path = cloned_repo / ".dreamcatcher" / "detached-worktree"
 
     _add_detached_worktree(root=cloned_repo, path=path)
@@ -72,11 +79,11 @@ def test_a_detached_worktree_lands_at_origins_main_revision(cloned_repo):
     assert read_checked_out_branch(worktree=path) == ""
     assert (
         _read_worktree_revision(worktree=path)
-        == run_git(arguments=["rev-parse", "origin/main"], cwd=cloned_repo).strip()
+        == run_git(arguments=["rev-parse", "origin/HEAD"], cwd=cloned_repo).strip()
     )
 
 
-def test_a_clean_detached_worktree_refreshes_to_fetched_main(cloned_repo):
+def test_a_clean_detached_worktree_refreshes_to_the_fetched_default(cloned_repo):
     path = cloned_repo / ".dreamcatcher" / "detached-worktree"
     _add_detached_worktree(root=cloned_repo, path=path)
     earlier_revision = _read_worktree_revision(worktree=path)
@@ -89,7 +96,7 @@ def test_a_clean_detached_worktree_refreshes_to_fetched_main(cloned_repo):
     assert revision != earlier_revision
     assert (
         revision
-        == run_git(arguments=["rev-parse", "origin/main"], cwd=cloned_repo).strip()
+        == run_git(arguments=["rev-parse", "origin/HEAD"], cwd=cloned_repo).strip()
     )
     assert _read_worktree_revision(worktree=path) == revision
     assert (path / "README.md").read_text(encoding="utf-8") == "what changed\n"
@@ -128,7 +135,7 @@ def test_a_refresh_discards_a_conflicting_local_change(cloned_repo):
     assert readme.read_text(encoding="utf-8") == "what main holds now\n"
 
 
-def test_a_missing_worktree_is_added_at_fetched_main(cloned_repo):
+def test_a_missing_worktree_is_added_at_the_fetched_default(cloned_repo):
     path = cloned_repo / ".dreamcatcher" / "detached-worktree"
     (cloned_repo / "README.md").write_bytes(b"what changed\n")
     commit(path=cloned_repo, message="change main")
@@ -140,7 +147,7 @@ def test_a_missing_worktree_is_added_at_fetched_main(cloned_repo):
     assert read_checked_out_branch(worktree=path) == ""
     assert (
         revision
-        == run_git(arguments=["rev-parse", "origin/main"], cwd=cloned_repo).strip()
+        == run_git(arguments=["rev-parse", "origin/HEAD"], cwd=cloned_repo).strip()
     )
     assert (path / "README.md").read_text(encoding="utf-8") == "what changed\n"
 
@@ -159,7 +166,7 @@ def test_a_refresh_discards_an_unexpected_detached_commit(cloned_repo):
     assert revision != unexpected
     assert (
         revision
-        == run_git(arguments=["rev-parse", "origin/main"], cwd=cloned_repo).strip()
+        == run_git(arguments=["rev-parse", "origin/HEAD"], cwd=cloned_repo).strip()
     )
     assert _read_worktree_revision(worktree=path) == revision
     assert not unexpected_file.exists()
@@ -251,18 +258,18 @@ def test_a_worktree_git_refuses_says_what_git_said(cloned_repo):
     assert BRANCH in str(error.value)
 
 
-def test_an_empty_commit_moves_the_assignment_branch_beyond_main(cloned_repo):
+def test_an_empty_commit_moves_the_assignment_branch_beyond_the_default(cloned_repo):
     path = compose_assignment_worktree(root=cloned_repo)
     add_worktree(root=cloned_repo, path=path, branch=BRANCH)
     run_git(arguments=["config", "user.name", "A User"], cwd=path)
     run_git(arguments=["config", "user.email", "a.user@example.com"], cwd=path)
     run_git(arguments=["config", "commit.gpgsign", "true"], cwd=path)
 
-    assert not has_commits_since_main(worktree=path)
+    assert not has_commits_since_default_branch(worktree=path)
 
     make_empty_commit(worktree=path, message="GH8")
 
-    assert has_commits_since_main(worktree=path)
+    assert has_commits_since_default_branch(worktree=path)
     assert run_git(arguments=["log", "-1", "--format=%an <%ae>"], cwd=path).strip() == (
         "A User <a.user@example.com>"
     )

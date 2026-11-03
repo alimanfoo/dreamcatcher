@@ -1,8 +1,9 @@
 """Model a campaign's children, compare them, prepare rounds and read their input.
 
 A campaign's channel is its parent issue, and its children are the parent's
-direct sub-issues. Every round runs in a detached worktree refreshed to fetched
-main, and the lead publishes its own messages, so a round has no finishing step.
+direct sub-issues. Every round runs in a detached worktree refreshed to the
+fetched default branch, and the lead publishes its own messages, so a round has
+no finishing step.
 """
 
 from collections.abc import Sequence
@@ -242,7 +243,7 @@ def prepare_campaign_round(
     delivered_cursor: IssueCommentCursor | None,
     assignment_routes: Sequence[AssignmentRoute],
 ) -> CampaignRoundInput:
-    """Reset the worktree to fetched main and freeze the round's input.
+    """Reset the worktree to the fetched default branch and freeze the input.
 
     The delivered cursor is that of the newest input delivered to the lead,
     which a round given no comment carries forward.

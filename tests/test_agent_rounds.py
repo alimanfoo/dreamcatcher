@@ -765,7 +765,7 @@ def test_a_round_interrupted_as_its_harness_succeeds_is_not_finished(
     ("ending", "kind"),
     [
         pytest.param(
-            {"status": None, "reason": "could not fetch main"},
+            {"status": None, "reason": "could not fetch the default branch"},
             LaunchErroredAgentRoundEnding,
             id="launch",
         ),

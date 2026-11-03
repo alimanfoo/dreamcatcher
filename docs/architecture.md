@@ -66,7 +66,7 @@ priorities.
 `repository_setup.py` owns `dreamcatcher init`, which prepares a main
 checkout for a daemon. It checks what a daemon run needs: a main
 checkout, the GitHub repository and account, push access, a Git identity
-and a fetchable `origin/main`. It writes the default configuration when
+and a fetchable default branch. It writes the default configuration when
 the checkout has none. For each harness that the configuration routes
 work to, it checks that the harness is installed and signed in, and
 installs the dream plugin. Then it creates every route label that the
@@ -213,10 +213,10 @@ as a queue.
 `issue_conversations.py` owns a conversation round's input and the
 posting of its answer. Creating and ending a conversation go through
 `agent_work.py`, and creating one writes its work record and nothing
-else. Each round's preparation resets the detached worktree to fetched
-main, adding it when it is missing, and freezes the eligible comments
-past the cursor and that revision. A conversation's worktree never
-acquires an implementation branch or a pull request.
+else. Each round's preparation resets the detached worktree to the
+fetched default branch, adding it when it is missing, and freezes the
+eligible comments past the cursor and that revision. A conversation's
+worktree never acquires an implementation branch or a pull request.
 
 Each tick reads an open conversation's issue before its comments, so
 open conversations do not depend on the listing. The tick keeps reading
@@ -270,15 +270,16 @@ directory, so the command line never carries the checkout's own path.
 `campaigns.py` owns a campaign round's input and the comparison of the
 sub-issues. Creating and ending a campaign go through `agent_work.py`,
 and creating one writes its work record and nothing else. Each round's
-preparation resets the detached worktree to fetched main, adding it when
-it is missing, and freezes the parent issue, the sub-issues that the
-round's tick observed, the notifications that the tick selected, the
-eligible comments past the cursor, the cursor that the input reaches,
-that revision and the running daemon's assignment routes with their
-recipes. A round given no new comment carries forward the cursor of the
-newest input delivered to the lead, so that input alone always says how
-far the lead has read and which sub-issues it was last given. A
-campaign's worktree never acquires a branch or a pull request.
+preparation resets the detached worktree to the fetched default branch,
+adding it when it is missing, and freezes the parent issue, the
+sub-issues that the round's tick observed, the notifications that the
+tick selected, the eligible comments past the cursor, the cursor that
+the input reaches, that revision and the running daemon's assignment
+routes with their recipes. A round given no new comment carries forward
+the cursor of the newest input delivered to the lead, so that input
+alone always says how far the lead has read and which sub-issues it was
+last given. A campaign's worktree never acquires a branch or a pull
+request.
 
 For a campaign request, each tick first lists the open issues that block
 the parent. An open blocker, or a failed read of the blockers, holds the
@@ -380,13 +381,14 @@ preparation step of a round whose assignment has no recorded pull
 request number coordinates lower-level Git, GitHub and document
 operations. It:
 
-1. fetches the current main branch;
+1. fetches the current default branch;
 2. adds the assignment's worktree on its branch, unless it is already
    there;
 3. makes an empty commit, unless the branch already has one, and pushes
    the branch;
 4. adopts the pull request already on the branch, whatever its state, or
-   opens a linked draft pull request; and
+   opens a linked draft pull request into the fetched default branch;
+   and
 5. writes the pull request's number to `pull-request.json`.
 
 Each step does nothing when its result already exists, and a worktree
@@ -839,8 +841,11 @@ request may start.
 
 ### Git, commands, prompts, and feeds
 
-`git.py` owns Git operations and worktree mechanics. It does not know
-why an assignment was selected or what GitHub reports about it.
+`git.py` owns Git operations and worktree mechanics. When it fetches the
+repository, it fetches the remote refs and then refreshes `origin/HEAD`
+from the remote, so every worktree follows the current default branch
+without persisting its name. It does not know why an assignment was
+selected or what GitHub reports about it.
 
 `commands.py` remains the sole subprocess boundary. Higher-level modules
 ask it to run or spawn already-constructed commands; no other module

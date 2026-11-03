@@ -72,9 +72,9 @@ its last round. The agent addresses it, pushes, and ends its turn.
 Anything the user posts while the agent is working waits for the round
 after. That exchange repeats as often as the user likes.
 
-While the pull request waits, main may move under it and the checks may
-go red. The agent deals with both itself, as
-[the moving main story](#the-user-leaves-a-pull-request-that-main-has-moved-under-to-the-agent)
+While the pull request waits, the default branch may move under it and
+the checks may go red. The agent deals with both itself, as
+[the moving default branch story](#the-user-leaves-a-pull-request-after-the-default-branch-moves)
 and
 [the failing build story](#the-user-leaves-a-failing-build-to-the-agent)
 tell.
@@ -133,9 +133,9 @@ held, with the issue open and blocked by the issue it waits for.
 
 When the first pull request merges, GitHub closes its issue, and at the
 next _dreamcatcher_ update the second issue is no longer blocked. Work
-starts on it, on a branch from main that already carries the first
-change. The user did nothing between the two beyond reviewing and
-merging the first.
+starts on it, on a branch from the default branch that already carries
+the first change. The user did nothing between the two beyond reviewing
+and merging the first.
 
 The value to the user is that they can label a whole chain of issues at
 once and let the dependencies set the order that agents work on them.
@@ -182,15 +182,16 @@ only a pull request that is ready for review gets this treatment.
 The value to the user is that a red build usually fixes itself before
 they have even seen it.
 
-#### The user leaves a pull request that main has moved under to the agent
+#### The user leaves a pull request after the default branch moves
 
 The agent's pull request is ready for review, and the user has not got
-to it yet. Meanwhile other work merges to main, and the branch falls
-behind it, or now conflicts with it. The user does not want to resolve
-someone else's merge conflict in the agent's branch, and they do not
-have to. The agent is woken to merge main in and push, without being
-asked, and the pull request is ready for review again on a current base.
-If main moves again, so does the agent, once for each move.
+to it yet. Meanwhile other work merges to the default branch, and the
+assignment's branch falls behind it, or now conflicts with it. The user
+does not want to resolve someone else's merge conflict in the agent's
+branch, and they do not have to. The agent is woken to merge the default
+branch in and push, without being asked, and the pull request is ready
+for review again on a current base. If the default branch moves again,
+so does the agent, once for each move.
 
 One limit is worth knowing. GitHub only reports a branch as behind when
 the repository requires branches to be up to date before merging.
@@ -281,8 +282,9 @@ parent and with their comments on it. The `agent-campaign` route that
 `init` writes is one, and it carries the sub-issues through their
 assignments to merge. They assign the parent to themselves and put the
 campaign label on it. No comment is needed. As soon as _dreamcatcher_
-has available agent capacity, it checks out main in a worktree of the
-campaign's own and starts the lead in a new harness session.
+has available agent capacity, it checks out the default branch in a
+worktree of the campaign's own and starts the lead in a new harness
+session.
 
 The lead is given the current picture of the parent's sub-issues, with
 where each one's assignment stands, and the assignment routes that the
@@ -312,14 +314,15 @@ alone, and the user goes to GitHub for the history.
 
 Several sub-issues may have open pull requests at once. The user uses a
 merge queue when GitHub offers one for the repository, so each sub-issue
-is tested against current main when its turn to merge comes. Otherwise,
-they leave "Require branches to be up to date before merging" off. If it
-were on, every merge would leave every other sub-issue behind, waking
-each assignment's agent to merge main, running its checks again and
-waking the lead for the new head, though only one pull request can merge
-next. With it off, a sub-issue that falls behind without conflicting
-still merges cleanly, and a sub-issue that conflicts still wakes the
-assignment's agent to bring the branch up to date.
+is tested against the current default branch when its turn to merge
+comes. Otherwise, they leave "Require branches to be up to date before
+merging" off. If it were on, every merge would leave every other
+sub-issue behind, waking each assignment's agent to merge the default
+branch, running its checks again and waking the lead for the new head,
+though only one pull request can merge next. With it off, a sub-issue
+that falls behind without conflicting still merges cleanly, and a
+sub-issue that conflicts still wakes the assignment's agent to bring the
+branch up to date.
 
 When the user is satisfied, they close the parent, and the campaign ends
 once any round that is still running finishes. Its worktree is then
@@ -382,13 +385,13 @@ assignment that ends or falls into fault. Every change but a sub-issue
 added or removed waits until the sub-issue's assignment has no round
 running or due, so the lead is not woken while an assignment is still
 working, starting work wakes nothing, and neither do checks still
-running or changes on main. Several changes reach the lead together in
-one round, beside any comments that the user has posted, and its input
-names each sub-issue that changed and what changed, with the whole
-current picture. A change that the lead could not yet be given, because
-it was working, held or waiting for an agent slot, reaches it in its
-next round, and a change that reverted meanwhile is not news. While a
-round is due for such changes, the campaign shows as waiting with how
+running or changes on the default branch. Several changes reach the lead
+together in one round, beside any comments that the user has posted, and
+its input names each sub-issue that changed and what changed, with the
+whole current picture. A change that the lead could not yet be given,
+because it was working, held or waiting for an agent slot, reaches it in
+its next round, and a change that reverted meanwhile is not news. While
+a round is due for such changes, the campaign shows as waiting with how
 many sub-issues changed, and the round's trigger names each one with
 what changed.
 
@@ -442,9 +445,9 @@ posts nothing.
 
 The user replies, and the agent answers again in the same session, so it
 remembers what it said. A comment the user posts while the agent is
-still answering waits for its next answer. Each answer is based on main
-as it stands then, and nothing the agent changed while answering earlier
-carries over.
+still answering waits for its next answer. Each answer is based on the
+default branch as it stands then, and nothing the agent changed while
+answering earlier carries over.
 
 What the user does next will depend on what they learned from the
 conversation. For example, if the conversation verified a bug, then the
@@ -571,17 +574,22 @@ working through the backlog while they review. They install
 _dreamcatcher_ as a tool, and make sure the GitHub CLI is signed in as
 them and Claude Code runs, because _dreamcatcher_ acts as whoever `gh`
 is signed in as and runs its agents through the harness. Then, in an
-ordinary clone of the repository on main, they run `dreamcatcher init`.
-It checks what it will need, that it can push, commit and fetch main,
-writes a default configuration with a route for each of the dream
-plugin's skills, installs the plugin, and creates the labels on GitHub,
-printing a line for each step. If a step fails, it says how to fix it,
-and the user fixes it and runs `init` again. Setup is interactive:
-`init` writes for the person at the terminal, and it is accepted that
-its output is not shaped for a file or another program to read. It ends
-by telling them to commit and push the configuration, which they do,
-along with anything an agent will need to build and test the project,
-because an agent sees only what is on main.
+ordinary clone's main checkout, they run `dreamcatcher init`. It checks
+what it will need, that it can push, commit and fetch the default
+branch, writes a default configuration with a route for each of the
+dream plugin's skills, installs the plugin, and creates the labels on
+GitHub, printing a line for each step. If a step fails, it says how to
+fix it, and the user fixes it and runs `init` again. Setup is
+interactive: `init` writes for the person at the terminal, and it is
+accepted that its output is not shaped for a file or another program to
+read. It ends by telling them to commit and push the configuration,
+which they do, along with anything an agent will need to build and test
+the project, because an agent sees only what is on the default branch.
+
+The default branch can have any name. If the user renames it on GitHub,
+_dreamcatcher_ follows the new name when it next prepares a round, and
+GitHub retargets open pull requests itself, so the user has nothing else
+to do.
 
 Then they start the daemon from the same checkout with
 `dreamcatcher run`, and the home page comes up with nothing on it yet.
@@ -623,34 +631,34 @@ On the home page, every card lays out its rows in the same order,
 whatever its state, so nothing moves as rows come and go. Its first row
 is what GitHub holds: the issue's number and title, and for an
 assignment its pull request and where that stands, such as a draft that
-conflicts with main. An assignment shows nothing there before it opens
-its pull request. A draft's text is subdued. A pull request that is
-ready for review shows in the theme's brighter text, so it stands out
-from a draft, and it keeps that text when it conflicts with main or its
-checks fail. The words "draft" and "ready" stay, so the user can tell
-them apart without the colour. A conversation or a campaign has no pull
-request, so its first row holds the issue and whether it is open or
-closed. The second row is what _dreamcatcher_ holds: the dispatch label,
-with the harness, model and effort that run the work, and then the
-work's status and the link to its page. Beneath that, a piece of work
-says what it is doing or what it waits for, and while a round runs or
-after a fault, the agent's latest output comes last. A piece of work
-that has ended says nothing beneath its second row, which gives how it
-ended in place of its status, so the card says once that it has ended
-and how. An assignment ends completed or cancelled, and a conversation
-or a campaign shows ended, with its issue closed on its first row.
-`dreamcatcher view` shows the same word in place of the status, with
-nothing beneath it, and its summary gives what GitHub holds, as the
-card's first row does: an assignment's pull request and where it stands,
-or a conversation's or a campaign's issue and whether it is open or
-closed, with what holds the work back. Every piece of work that has
-ended shows its title more quietly than live work does, here and within
-a campaign, so it draws less attention, and its links stay as clear as
-they are on any other card. A request card gives its issue at the top,
-with the issue's state and what GitHub says that holds the request back,
-such as an issue that blocks it. Beneath that come its dispatch label
-and request status, and then, when there is any, what _dreamcatcher_
-found or what the user has to do.
+conflicts. An assignment shows nothing there before it opens its pull
+request. A draft's text is subdued. A pull request that is ready for
+review shows in the theme's brighter text, so it stands out from a
+draft, and it keeps that text when it conflicts or its checks fail. The
+words "draft" and "ready" stay, so the user can tell them apart without
+the colour. A conversation or a campaign has no pull request, so its
+first row holds the issue and whether it is open or closed. The second
+row is what _dreamcatcher_ holds: the dispatch label, with the harness,
+model and effort that run the work, and then the work's status and the
+link to its page. Beneath that, a piece of work says what it is doing or
+what it waits for, and while a round runs or after a fault, the agent's
+latest output comes last. A piece of work that has ended says nothing
+beneath its second row, which gives how it ended in place of its status,
+so the card says once that it has ended and how. An assignment ends
+completed or cancelled, and a conversation or a campaign shows ended,
+with its issue closed on its first row. `dreamcatcher view` shows the
+same word in place of the status, with nothing beneath it, and its
+summary gives what GitHub holds, as the card's first row does: an
+assignment's pull request and where it stands, or a conversation's or a
+campaign's issue and whether it is open or closed, with what holds the
+work back. Every piece of work that has ended shows its title more
+quietly than live work does, here and within a campaign, so it draws
+less attention, and its links stay as clear as they are on any other
+card. A request card gives its issue at the top, with the issue's state
+and what GitHub says that holds the request back, such as an issue that
+blocks it. Beneath that come its dispatch label and request status, and
+then, when there is any, what _dreamcatcher_ found or what the user has
+to do.
 
 A work's page opens with its work card, larger and in the same words, so
 the user who opens a conversation held because a colleague applied its

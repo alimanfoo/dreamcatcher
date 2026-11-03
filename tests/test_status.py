@@ -605,14 +605,14 @@ def compose_pull_request_row_with(**facts: object) -> RequestRow:
                 "merge_state": PullRequestMergeState.BEHIND,
                 "check_result": CheckResult.RUNNING,
             },
-            "ready, behind main, checks running",
+            "ready, behind, checks running",
         ),
         (
             {
                 "merge_state": PullRequestMergeState.DIRTY,
                 "check_result": CheckResult.FAILING,
             },
-            "ready, conflicts with main, checks failing",
+            "ready, conflicts, checks failing",
         ),
     ],
 )
@@ -678,14 +678,14 @@ def test_signals_found_by_the_tick_make_the_assignment_wait(state):
     status = read_sole_assignment_status(state=state)
 
     assert status.value is AgentWorkStatusValue.WAITING
-    assert status.detail == "1 new post to answer, main moved, checks failed"
+    assert status.detail == "1 new post to answer, out of date, checks failed"
 
 
 @pytest.mark.parametrize(
     ("signals", "posts", "trigger"),
     [
         ([PullRequestSignal.CHECK_FAILURE], 0, "checks failed"),
-        ([PullRequestSignal.OUT_OF_DATE], 1, "1 post, main moved"),
+        ([PullRequestSignal.OUT_OF_DATE], 1, "1 post, out of date"),
         ([], 0, "recover"),
     ],
 )

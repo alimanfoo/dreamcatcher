@@ -63,7 +63,7 @@ from dreamcatcher.documents import write_json, write_text
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.git import (
     add_worktree,
-    fetch_main,
+    fetch_default_branch,
     make_empty_commit,
     push_branch,
 )
@@ -877,7 +877,7 @@ def test_a_round_after_one_that_failed_part_way_finishes_its_preparation(
     branch = f"dreamcatcher-{ASSIGNMENT_ID}"
     worktree = state.worktrees / ASSIGNMENT_ID
     worktree.rmdir()
-    fetch_main(root=ready_repo)
+    fetch_default_branch(root=ready_repo)
     add_worktree(root=ready_repo, path=worktree, branch=branch)
     if checkpoint != "worktree":
         make_empty_commit(worktree=worktree, message="GH13")
@@ -895,7 +895,7 @@ def test_a_round_after_one_that_failed_part_way_finishes_its_preparation(
     assert observed.launched_agent_work_identifiers == [ASSIGNMENT_ID]
     assert read_round_record(scheduler=scheduler, number=2).number == 2
     commits = run_git(
-        arguments=["rev-list", "--count", "origin/main..HEAD"], cwd=worktree
+        arguments=["rev-list", "--count", "origin/HEAD..HEAD"], cwd=worktree
     )
     assert commits.strip() == "1"
     remote = run_git(
@@ -1294,7 +1294,7 @@ def check_out_assignment(*, root) -> Path:
     """Put the assignment's worktree on its branch, and return the worktree."""
     worktree = StateDirectory(root=root).worktrees / ASSIGNMENT_ID
     worktree.rmdir()
-    fetch_main(root=root)
+    fetch_default_branch(root=root)
     add_worktree(root=root, path=worktree, branch=ASSIGNMENT_BRANCH)
     return worktree
 

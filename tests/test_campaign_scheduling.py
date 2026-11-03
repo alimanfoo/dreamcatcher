@@ -24,6 +24,7 @@ from conftest import (
     offer_labelling_events,
     offer_labels_applied_by_user,
     offer_listing,
+    rename_default_branch,
     run_git,
 )
 from fakes import Line
@@ -944,7 +945,7 @@ def test_the_first_round_is_given_the_comments_already_on_the_parent(
     assert given.cursor == compose_cursor(of=second)
 
 
-def test_a_parent_comment_wakes_the_lead_in_its_session_on_refreshed_main(
+def test_a_parent_comment_wakes_the_lead_on_a_renamed_default_branch(
     campaign_scheduler, harnesses
 ):
     scheduler, gh = campaign_scheduler
@@ -952,9 +953,10 @@ def test_a_parent_comment_wakes_the_lead_in_its_session_on_refreshed_main(
     write_rounds(
         state=scheduler.context.state, endings=[SuccessfulAgentRoundEnding(at=PINNED)]
     )
-    (root / "README.md").write_bytes(b"what main holds now\n")
-    commit(path=root, message="change main")
-    run_git(arguments=["push", "origin", "main"], cwd=root)
+    rename_default_branch(checkout=root, branch="trunk")
+    (root / "README.md").write_bytes(b"what the default branch holds now\n")
+    commit(path=root, message="change the default branch")
+    run_git(arguments=["push", "origin", "trunk"], cwd=root)
     offer_parent(gh=gh)
     question = compose_parent_comment(identifier=1, body="How far have the stages got?")
     offer_comments(gh=gh, comments=[question])

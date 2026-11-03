@@ -186,9 +186,9 @@ records it, before anything else happens, and it holds everything that
 run does, in this order:
 
 1. the **preparation**, which resets a conversation's or a campaign's
-   worktree to main or, for an assignment whose pull request does not
-   exist yet, makes the worktree and branch and opens the pull request,
-   and then freezes the round's input;
+   worktree to the default branch or, for an assignment whose pull
+   request does not exist yet, makes the worktree and branch and opens
+   the pull request, and then freezes the round's input;
 2. the harness invocation, which starts or resumes the harness session
    with a prompt; and
 3. the finishing step after a successful exit, which posts a
@@ -420,11 +420,11 @@ parent issue closes.
 Each campaign round input records the parent issue, the parent's
 sub-issues and where each one's newest assignment stands, the
 notifications, the eligible comments past the cursor, the cursor that
-the input reaches, the main revision and the running daemon's assignment
-routes. A round given no new comment carries the cursor forward. No
-round starts while a tick cannot observe every sub-issue. The lead reads
-anything else it needs from GitHub, and posts its own messages there.
-Its final output stays in the feed.
+the input reaches, the default-branch revision and the running daemon's
+assignment routes. A round given no new comment carries the cursor
+forward. No round starts while a tick cannot observe every sub-issue.
+The lead reads anything else it needs from GitHub, and posts its own
+messages there. Its final output stays in the feed.
 
 ### Issue conversation composition
 
@@ -440,9 +440,9 @@ _dreamcatcher_ instance has at most one open issue conversation for each
 conversation label on an issue, and it keeps a held conversation until
 the issue closes.
 
-Each conversation round input records the comment batch and the main
-revision. A round that starts a new harness session also records the
-issue title and body.
+Each conversation round input records the comment batch and the
+default-branch revision. A round that starts a new harness session also
+records the issue title and body.
 
 ### Dispatch labels and routes
 
@@ -606,7 +606,7 @@ it:
   request changed**, check completion reads as **checks finished**, and
   ending reads as **ended**. A campaign round, other than a start or a
   recover, that has no input yet reads as **comments or changes**;
-- **main moved** or **checks failed**: the other signals an assignment
+- **out of date** or **checks failed**: the other signals an assignment
   round relayed, after any count of posts;
 - **merged** or **closed**: the state of a finished pull request, which
   calls for the assignment's final round, its **wrap-up round**;
@@ -616,7 +616,7 @@ it:
   before the count of comments and the notifications it was given.
 
 Replaces: "purpose", for a trigger; "carry on", for the recover trigger;
-and "wind up", for wrap-up.
+"wind up", for wrap-up; and "main moved", for the out-of-date trigger.
 
 ### Requests
 

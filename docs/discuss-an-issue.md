@@ -29,9 +29,9 @@ conversation on their own. A comment is the request to answer. Comments
 from other accounts are not given to the agent as questions.
 
 At its next update, _dreamcatcher_ asks the configured harness to
-examine current `origin/main` and publishes the successful final answer
-as a marked issue comment. Its progress and tool activity remain in the
-local feed rather than becoming partial GitHub replies.
+examine the current default branch and publishes the successful final
+answer as a marked issue comment. Its progress and tool activity remain
+in the local feed rather than becoming partial GitHub replies.
 
 Monitor it on the web home page or in the terminal:
 
@@ -45,7 +45,7 @@ dreamcatcher feed GH123
 Post another issue comment from the authenticated account.
 _dreamcatcher_ resumes the same harness session with the new comments,
 so a follow-up can refer to the earlier answer while examining the
-latest `origin/main`.
+latest default branch.
 
 The agent may read source, run reproductions and, when your question
 asks for it, make suitable issue changes such as filing a follow-up
