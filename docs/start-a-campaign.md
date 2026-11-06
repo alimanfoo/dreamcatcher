@@ -18,13 +18,12 @@ campaign, follow the worked example in
 ## Configure a campaign route
 
 The `dreamcatcher.toml` that `dreamcatcher init` writes routes the
-`agent-campaign` label to campaigns. Its recipes run the
-[`dream:big`](https://github.com/alimanfoo/dream/blob/main/plugins/dream/skills/big/SKILL.md)
-skill from the dream plugin. The skill sets up an assignment for each
-sub-issue on an assignment route, reviews the assignment's pull request
-and checks its proof, gives the assignment's agent feedback, and merges
-the pull request once the sub-issue is done. It asks you on the parent
-before it changes the plan.
+`agent-campaign` label to campaigns. Its recipes run the `dream:big`
+skill from the [dream](https://alimanfoo.github.io/dream/) plugin. The
+skill sets up an assignment for each sub-issue on an assignment route,
+reviews the assignment's pull request and checks its proof, gives the
+assignment's agent feedback, and merges the pull request once the
+sub-issue is done. It asks you on the parent before it changes the plan.
 
 `init` never changes an existing `dreamcatcher.toml`, so a file written
 before the route existed has none. Copy the `[[campaign]]` route from

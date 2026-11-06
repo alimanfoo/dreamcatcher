@@ -11,17 +11,35 @@ skill contract covers a skill that guides a lead through a campaign. The
 conversation skill contract covers a skill that guides an agent through
 an issue conversation.
 
+Each contract holds what _dreamcatcher_ relies on a skill to do and does
+not ask of the agent itself. Every round's prompt adds _dreamcatcher_'s
+own instructions around the dispatch recipe's prompt, and this page says
+what they tell the agent. A skill does not need to repeat them and must
+not contradict them. The same holds for a recipe whose prompt gives the
+agent its instructions directly.
+
 For working examples, read the skills in
 [dream](https://alimanfoo.github.io/dream/) that follow this contract:
-the
-[`dream:smith`](https://github.com/alimanfoo/dream/blob/main/plugins/dream/skills/smith/SKILL.md)
-and
-[`dream:less`](https://github.com/alimanfoo/dream/blob/main/plugins/dream/skills/less/SKILL.md)
-assignment skills, the
-[`dream:big`](https://github.com/alimanfoo/dream/blob/main/plugins/dream/skills/big/SKILL.md)
-campaign skill, and the
-[`dream:scout`](https://github.com/alimanfoo/dream/blob/main/plugins/dream/skills/scout/SKILL.md)
-conversation skill.
+the `dream:smith` and `dream:less` assignment skills, the `dream:big`
+campaign skill, and the `dream:scout` conversation skill.
+
+## Default routes
+
+`dreamcatcher init` installs the `dream@dream` plugin from the
+`alimanfoo/dream` marketplace, and writes dispatch routes whose recipes
+invoke dream's skills by name with the issue number in the `GH{issue}`
+form:
+
+| Label                   | Claude prompt            | Codex prompt             |
+| ----------------------- | ------------------------ | ------------------------ |
+| `agent-assignment`      | `/dream:smith GH{issue}` | `$dream:smith GH{issue}` |
+| `agent-assignment-easy` | `/dream:less GH{issue}`  | `$dream:less GH{issue}`  |
+| `agent-campaign`        | `/dream:big GH{issue}`   | `$dream:big GH{issue}`   |
+| `agent-conversation`    | `/dream:scout GH{issue}` | `$dream:scout GH{issue}` |
+
+These routes rely on dream keeping the marketplace, the plugin and the
+four skill names, and on each skill accepting its issue in that form and
+following the contract for its kind of work.
 
 ## Assignment skill contract
 
@@ -73,7 +91,9 @@ assignment skill must instruct the agent to end its turn once it has
 nothing left to do, and to post anything it has to tell the user on the
 pull request rather than relying on its final output. _dreamcatcher_
 records that output in the feed, but does not publish it as a message to
-the user.
+the user. A later round's prompt also tells the agent to end its turn
+when done, but the round that opens the pull request runs the recipe's
+prompt with no input, so nothing but the skill tells the agent then.
 
 An assignment skill must not instruct the agent to run anything that
 waits for a person, such as a command that asks to be approved, an
@@ -117,9 +137,10 @@ anything at or before the newest post that an earlier round relayed. A
 review's `verdict` can also be `COMMENTED`, `DISMISSED` or `PENDING`
 when its body says something.
 
-An assignment skill must instruct the agent to read `pull_request_state`
-before anything else, and, when `pull_request_state` reads `OPEN`, to
-act on every user post in `user_posts` and reply on the pull request.
+_dreamcatcher_'s prompt tells the agent to read `pull_request_state`
+before anything else and, while the pull request is open, to act on
+every post in `user_posts` per the assignment's rules. An assignment
+skill must give those rules: how the agent acts on a user post.
 _dreamcatcher_ reads how far the agent has read from its recorded round
 inputs, so later updates do not select those posts again.
 
@@ -153,13 +174,12 @@ check that failed.
 
 _dreamcatcher_ gives the agent a wrap-up round when the user merges or
 closes the pull request, with the same prompt naming the same file.
-`pull_request_state` then reads `MERGED` or `CLOSED`, so an assignment
-skill that needs to distinguish the two states reads
-`pull_request_state`. `user_posts` still holds any feedback that the
-user posted before merging or closing.
+`pull_request_state` then reads `MERGED` or `CLOSED`, and the prompt
+tells the agent to finish per the assignment's rules. `user_posts` still
+holds any feedback that the user posted before merging or closing.
 
-An assignment skill must instruct the agent to wind the work up when
-`pull_request_state` reads anything but `OPEN`.
+An assignment skill must give those rules: what the agent does to wind
+the work up once the pull request is merged, and once it is closed.
 
 #### After a round that did not finish
 
@@ -194,8 +214,7 @@ A campaign skill guides the lead, the agent of a campaign, to carry a
 parent issue's planned sub-issues through GitHub. It must accept the
 parent issue's number in the same `GH123` form as an assignment skill.
 _dreamcatcher_ adds the input and operational instructions around the
-configured prompt, so the prompt does not need to repeat them and must
-not contradict them.
+configured prompt.
 
 ### Input
 
@@ -269,11 +288,12 @@ Before every round, _dreamcatcher_ resets the lead's worktree to the
 fetched default branch, deleting every local commit and file that an
 earlier round left. The lead may comment on, create and edit issues,
 comment on, review and merge pull requests, read checks, and fetch and
-check out commits to verify work. It must not edit project source,
-commit, push or open a pull request from that worktree. _dreamcatcher_'s
-prompt asks the lead to run each merge as a shell command of its own,
-because Claude's unattended permissions approve a merge only when
-nothing else shares its call.
+check out commits to verify work. _dreamcatcher_'s prompt tells the lead
+not to commit, push or open a pull request from that worktree, and to
+run each merge as a shell command of its own, because Claude's
+unattended permissions approve a merge only when nothing else shares its
+call. A campaign skill must not instruct the lead to edit project
+source, because the next round's reset discards the edit.
 
 ### Publication
 
@@ -287,16 +307,16 @@ feedback alone.
 
 ### The parent issue
 
-The user ends a campaign by closing its parent issue. The lead must not
-close the parent or change its assignees or labels, because closing it
-ends the campaign and removing its label or assignee pauses the
-campaign.
+The user ends a campaign by closing its parent issue. _dreamcatcher_'s
+prompt tells the lead not to close the parent or change its assignees or
+labels, because closing it ends the campaign and removing its label or
+assignee pauses the campaign.
 
 ### Ending a turn
 
-A campaign skill must instruct the lead to end its turn once it has
-nothing left to do. It must not instruct the lead to run anything that
-waits for a person, because nothing answers it and the round stalls.
+_dreamcatcher_'s prompt tells the lead to end its turn when done. A
+campaign skill must not instruct the lead to run anything that waits for
+a person, because nothing answers it and the round stalls.
 
 ### Rounds
 
@@ -315,8 +335,8 @@ the next round is given the input again, composed afresh against the
 last input delivered before it, with anything that has arrived since. It
 resumes the recorded harness session, or starts a new session with the
 configured prompt when none was recorded. Its prompt opens by saying
-that the previous round did not finish, and the lead must inspect GitHub
-before it repeats an action.
+that the previous round did not finish, and tells the lead to inspect
+GitHub before it repeats an action.
 
 A round that the user stopped consumed its input, and no round follows
 it on its own. The next comment on the parent, or the next notification,
@@ -330,8 +350,7 @@ user's questions without implementing a change. It must accept the issue
 number in the same `GH123` form as an assignment skill. _dreamcatcher_
 adds the input, publication and operational instructions around the
 configured prompt. These instructions set the conversation's scope and
-output form, so the skill does not need to repeat them and must not
-contradict them.
+output form.
 
 ### Input
 
@@ -356,9 +375,9 @@ harness transcript keeps that original context.
 
 ### Answer
 
-The agent must answer the saved question from the checked-out code and
-return its final answer as Markdown in the harness's final result. It
-returns exactly `NO_REPLY` when no issue comment should be posted.
+_dreamcatcher_'s prompt tells the agent to answer the saved comments and
+to return its answer as Markdown in the harness's final result, or
+exactly `NO_REPLY` when no reply is needed. `NO_REPLY` posts nothing.
 Progress output and tool activity are feed records, not the answer.
 
 ### Continued conversations
@@ -373,17 +392,18 @@ deleting every local commit and file left by the earlier round.
 
 ### Scope of an issue conversation
 
-An issue conversation investigates. Its instructions may tell the agent
-to read source and Git history, run code, reproduce a suspected bug, and
-make issue changes on GitHub when the user asks, such as filing or
-linking a sub-issue. Before making a GitHub change, the agent must
-inspect GitHub and must not repeat an action that an earlier attempt
-completed. It must not close the conversation issue or change its
+An issue conversation investigates. _dreamcatcher_'s prompt lets the
+agent read source and Git history, run code, reproduce a suspected bug,
+and make issue changes on GitHub when the user asks, such as filing or
+linking a sub-issue. It tells the agent to inspect GitHub before each
+change and not to repeat an action that an earlier attempt completed. It
+tells the agent not to close the conversation issue or change its
 assignees or labels, because closing the issue ends the conversation and
-removing its label or assignee pauses it. It must not fetch issue
-comments itself: the saved input is the comment set it must answer.
+removing its label or assignee pauses it. It tells the agent not to
+fetch issue comments itself, because the saved input is the comment set
+it must answer.
 
-Its instructions must not tell the agent to implement a change, edit
+A conversation skill must not tell the agent to implement a change, edit
 project source, mutate Git, create a branch, commit or push, open or
 change a pull request, post the conversation reply itself, or contact
 the user elsewhere.
