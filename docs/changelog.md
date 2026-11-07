@@ -39,7 +39,7 @@ the change.
   [Default routes](contract.md#default-routes) section names what the
   routes that `init` writes rely on in dream. The contract stays at
   version 1, because no skill that met it has to change.
-  ([#899](https://github.com/alimanfoo/dreamcatcher/issues/899))
+  ([#910](https://github.com/alimanfoo/dreamcatcher/pull/910))
 
 ## [v9.9.0](https://github.com/alimanfoo/dreamcatcher/releases/tag/v9.9.0) — 2026-11-03
 
