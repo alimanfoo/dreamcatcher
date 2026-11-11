@@ -33,7 +33,7 @@ repos:
         exclude: *verbatim-paths
 
   - repo: https://github.com/DavidAnson/markdownlint-cli2
-    rev: 916ad0aaa108c64d294101002066f530ea170b10 # frozen: v0.23.3
+    rev: 341e2a331ba578029e66c2e01183e7a6b5ca9ab4 # frozen: v0.24.0
     hooks:
       - id: markdownlint-cli2
         exclude: *verbatim-paths
@@ -51,7 +51,7 @@ repos:
   # actionlint checks that a workflow is well formed, and zizmor checks that it
   # is secure. Its online audits need a token, so it runs offline.
   - repo: https://github.com/zizmorcore/zizmor-pre-commit
-    rev: c92afdf2c6ca336aaa8f39e2bd8d48f62dbd8e1f # frozen: v1.31.1
+    rev: 06a39750ec31860bb44f2acf67182c40016cd1e7 # frozen: v1.32.0
     hooks:
       - id: zizmor
         args: [--offline]
