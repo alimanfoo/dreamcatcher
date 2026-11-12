@@ -54,7 +54,7 @@ effort = "high"
 Run [`dreamcatcher init`](command-reference.md#init) to create the label
 on GitHub, then restart the daemon so that it reads the new route. The
 [campaign skill contract](contract.md#campaign-skill-contract) says what
-_dreamcatcher_ gives the lead and what the lead must leave to you.
+a campaign skill must leave to you.
 
 ## Keep sub-issue pull requests from updating one another
 

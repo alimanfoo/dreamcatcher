@@ -984,6 +984,5 @@ runs every contract.
 
 ## Agent-facing contract
 
-The [agent-facing contract](contract.md) describes the protocols between
-_dreamcatcher_ and assignment, campaign and conversation skills. It
-records each side's responsibilities, not implementation history.
+The [agent-facing contract](contract.md) says what an assignment,
+campaign or conversation skill must say and must not say.
