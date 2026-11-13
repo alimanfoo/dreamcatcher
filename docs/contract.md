@@ -22,9 +22,10 @@ An assignment skill must:
   is ready for review;
 - tell the agent to keep the pull request's `Closes #123` link when it
   replaces the description;
-- say how the agent acts on a user post on the pull request;
-- say how the agent winds the work up once the pull request is merged,
-  and once it is closed;
+- tell the agent what to do with the user's feedback on the pull
+  request, such as a requested change or a question;
+- tell the agent what to do once the pull request is merged, and once it
+  is closed;
 - tell the agent to end its turn once it has nothing left to do.
 
 An assignment skill must not tell the agent to run anything that waits
