@@ -22,10 +22,6 @@ An assignment skill must:
   is ready for review;
 - tell the agent to keep the pull request's `Closes #123` link when it
   replaces the description;
-- tell the agent what to do with the user's feedback on the pull
-  request, such as a requested change or a question;
-- tell the agent what to do once the pull request is merged, and once it
-  is closed;
 - tell the agent to end its turn once it has nothing left to do.
 
 An assignment skill must not tell the agent to run anything that waits
@@ -38,10 +34,7 @@ A campaign skill must:
 
 - accept a parent issue's number in the form `GH123`;
 - tell the lead to start a sub-issue's assignment by assigning the
-  sub-issue to the signed-in account and giving it an assignment label;
-- tell the lead what to do with the user's comments on the parent issue;
-- tell the lead what to do when a sub-issue changes, such as when its
-  pull request is ready for review or its checks fail.
+  sub-issue to the signed-in account and giving it an assignment label.
 
 A campaign skill must not tell the lead to:
 
