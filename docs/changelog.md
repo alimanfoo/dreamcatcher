@@ -29,6 +29,15 @@ the change.
 
 ## Unreleased
 
+### Changed
+
+- The [agent contract](contract.md) now says only what a skill must say
+  and must not say. An assignment skill no longer has to tell the agent
+  to read `pull_request_state` first, and a conversation skill no longer
+  has to name `NO_REPLY`, because _dreamcatcher_'s prompt says both. The
+  contract stays at version 1, because no skill that met it has to
+  change. ([#910](https://github.com/alimanfoo/dreamcatcher/pull/910))
+
 ## [v9.9.0](https://github.com/alimanfoo/dreamcatcher/releases/tag/v9.9.0) — 2026-11-03
 
 ### Changed
