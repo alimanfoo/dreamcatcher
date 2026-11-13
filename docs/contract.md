@@ -34,9 +34,14 @@ prompt for input.
 
 ## Campaign skill contract
 
-A campaign skill must accept a parent issue's number in the form
-`GH123`, and take carrying that issue's sub-issues through GitHub as the
-lead's job.
+A campaign skill must:
+
+- accept a parent issue's number in the form `GH123`;
+- tell the lead to start a sub-issue's assignment by assigning the
+  sub-issue to the signed-in account and giving it an assignment label;
+- tell the lead what to do with the user's comments on the parent issue;
+- tell the lead what to do when a sub-issue changes, such as when its
+  pull request is ready for review or its checks fail.
 
 A campaign skill must not tell the lead to:
 
