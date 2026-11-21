@@ -359,10 +359,10 @@ def test_a_json_document_that_breaks_its_model_lists_every_fault(tmp_path):
 
     assert str(error.value) == (
         f"{document} is not valid:\n"
-        "  extra: Extra inputs are not permitted\n"
         "  name: Field required\n"
         "  count: Input should be a valid integer, "
-        "unable to parse string as an integer"
+        "unable to parse string as an integer\n"
+        "  extra: Extra inputs are not permitted"
     )
 
 

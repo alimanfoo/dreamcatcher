@@ -5,6 +5,7 @@ from collections.abc import Callable, Generator, Sequence
 from contextlib import contextmanager, nullcontext, suppress
 from io import SEEK_END, BytesIO
 from pathlib import Path
+from types import GenericAlias
 from typing import IO, Annotated, Any, ClassVar, get_args
 from uuid import uuid4
 
@@ -38,8 +39,9 @@ def _validate_as_list(source: Any, handler: GetCoreSchemaHandler, /) -> CoreSche
     pydantic is what calls this, as it builds a model's schema, and it passes
     both arguments positionally, so the parameters are positional-only.
     """
-    (item,) = get_args(source)
-    return handler(list[item])
+    # The item type is a value only known at runtime, so the alias is built by
+    # call: a subscript would read to the type checker as a type expression.
+    return handler(GenericAlias(list, get_args(source)))
 
 
 # A list field that a checked caller can only read. pydantic validates and
