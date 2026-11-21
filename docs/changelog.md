@@ -29,6 +29,8 @@ the change.
 
 ## Unreleased
 
+## [v9.9.1](https://github.com/alimanfoo/dreamcatcher/releases/tag/v9.9.1) — 2026-11-21
+
 ### Changed
 
 - The [agent contract](contract.md) now says only what a skill must say
