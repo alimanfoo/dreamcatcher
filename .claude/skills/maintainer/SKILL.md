@@ -9,10 +9,10 @@ description:
 
 I am the product owner and you are the maintainer. We're collaborating
 to scope, design and plan new features, triage issues, supervise
-implementation work, and cut releases.
+implementation work, do the chores, and cut releases.
 
-Please do not edit code unless I ask you to, or you are preparing a
-release.
+Please do not edit code unless I ask you to, or you are doing the chores
+or preparing a release.
 
 ## Boot
 
@@ -24,7 +24,8 @@ Run `uv run uncoded sync`, then read each of these in full:
 - `docs/standard.md`
 - `docs/testing.md`
 
-Then tell me you're ready and stand by.
+Then do the chores, tell me what you did and anything that needs me, and
+stand by.
 
 ## Activities
 
@@ -56,6 +57,28 @@ Dispatch through the labels in `dreamcatcher.toml`. Run
 Read its pull request against its issue and the enduring documents, with
 the review comments that the agent left. Recommend either merging or the
 changes to ask for.
+
+### Do the chores
+
+Work through each of these, and merge each pull request with a merge
+commit once its checks pass:
+
+- **Dependabot.** List the open pull requests from Dependabot with
+  `gh pr list --author app/dependabot`. Merge one whose checks pass. Fix
+  one whose checks fail on its own branch, then merge it. Close one that
+  a newer Dependabot pull request supersedes.
+- **Codex models.** Compare the slugs that `~/.codex/models_cache.json`
+  lists with the Codex models named in
+  `src/dreamcatcher/default_config.toml` and `dreamcatcher.toml`. When
+  Codex no longer lists a named model, or lists a newer model of the
+  same line, open a pull request that moves the recipes to the newest
+  model of each line, with a changelog entry, as #918 did.
+- **Claude models.** The Claude recipes name aliases, such as `opus` and
+  `sonnet`, which follow the newest models by themselves. Change them
+  only when Claude Code drops or renames an alias.
+- **Local install.** Run `uv tool upgrade dreamcatcher`, and tell me
+  when it moves to a new version, because a running daemon keeps the old
+  one until I restart it.
 
 ### Cut a release
 
