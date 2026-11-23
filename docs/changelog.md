@@ -36,6 +36,7 @@ the change.
   because Codex no longer offers the 5.6 models. Existing configuration
   files and work already created keep their recipes, so edit
   `dreamcatcher.toml` to move them to the new models.
+  ([#918](https://github.com/alimanfoo/dreamcatcher/pull/918))
 
 ## [v9.9.1](https://github.com/alimanfoo/dreamcatcher/releases/tag/v9.9.1) — 2026-11-21
 
