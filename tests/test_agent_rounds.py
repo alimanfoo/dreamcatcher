@@ -347,7 +347,7 @@ def test_a_codex_conversation_writes_its_final_output_by_a_path_from_its_worktre
             harness=AgentHarness.CODEX,
             launch_request=AgentRoundLaunchRequest(
                 agent_work_identifier="GH9-20260819-184158-conversation",
-                model="gpt-5.6-sol",
+                model="gpt-6.2-sol",
                 effort="xhigh",
                 prompt=PROMPT,
                 work_kind=AgentWorkKind.CONVERSATION,

@@ -105,7 +105,7 @@ CODEX_CAMPAIGN = """[[campaign]]
 label = "dream:big"
 [campaign.codex]
 prompt = "Acknowledge GH{issue} with a comment on it."
-model = "gpt-5.6-sol"
+model = "gpt-6.2-sol"
 effort = "xhigh"
 """
 

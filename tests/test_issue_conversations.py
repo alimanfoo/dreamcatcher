@@ -135,7 +135,7 @@ def test_a_new_conversation_records_the_preferred_harness_recipe(cloned_repo):
         claude=compose_conversation_route().claude,
         codex=CodexRecipe(
             prompt=CODEX_PROMPT_TEMPLATE,
-            model="gpt-5.6-sol",
+            model="gpt-6.2-sol",
             effort="high",
         ),
     )
@@ -151,7 +151,7 @@ def test_a_new_conversation_records_the_preferred_harness_recipe(cloned_repo):
 
     assert created.record.harness == AgentHarness.CODEX
     assert created.record.instructions == "$dream:conversation GH8"
-    assert created.record.model == "gpt-5.6-sol"
+    assert created.record.model == "gpt-6.2-sol"
     assert created.record.effort == "high"
 
 

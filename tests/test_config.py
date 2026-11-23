@@ -22,13 +22,13 @@ CLAUDE_RECIPE = ClaudeRecipe(
     prompt="/dream:smith GH{issue}", model="opus[1m]", effort="xhigh"
 )
 CODEX_RECIPE = CodexRecipe(
-    prompt="$dream:smith GH{issue}", model="gpt-5.6-sol", effort="xhigh"
+    prompt="$dream:smith GH{issue}", model="gpt-6.2-sol", effort="xhigh"
 )
 CLAUDE_CONVERSATION_RECIPE = ClaudeRecipe(
     prompt="/dream:conversation GH{issue}", model="opus[1m]", effort="xhigh"
 )
 CODEX_CONVERSATION_RECIPE = CodexRecipe(
-    prompt="$dream:conversation GH{issue}", model="gpt-5.6-sol", effort="xhigh"
+    prompt="$dream:conversation GH{issue}", model="gpt-6.2-sol", effort="xhigh"
 )
 
 CONVERSATION = """
@@ -44,7 +44,7 @@ effort = "xhigh"
 CODEX_CONVERSATION_BLOCK = """
 [conversation.codex]
 prompt = "$dream:conversation GH{issue}"
-model = "gpt-5.6-sol"
+model = "gpt-6.2-sol"
 effort = "xhigh"
 """
 
@@ -477,7 +477,7 @@ def test_the_default_config_routes_every_label_to_the_installed_harnesses(
     }
     expected = {
         AgentHarness.CLAUDE: ("sonnet", "high"),
-        AgentHarness.CODEX: ("gpt-5.6-terra", "high"),
+        AgentHarness.CODEX: ("gpt-6.1-terra", "high"),
     }
     assert less_recipes == {harness: expected[harness] for harness in harnesses}
 

@@ -71,7 +71,7 @@ effort = "xhigh"
 
 SMITH_CODEX = """[assignment.codex]
 prompt = "$dream:smith GH{issue}"
-model = "gpt-5.6-sol"
+model = "gpt-6.2-sol"
 effort = "xhigh"
 """
 

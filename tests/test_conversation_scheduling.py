@@ -111,7 +111,7 @@ BOTH_CONVERSATION_CONFIG = (
     + """
 [conversation.codex]
 prompt = "$dream:conversation GH{issue}"
-model = "gpt-5.6-sol"
+model = "gpt-6.2-sol"
 effort = "xhigh"
 config = { model_context_window = 1000000 }
 """
