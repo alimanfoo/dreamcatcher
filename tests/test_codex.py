@@ -14,13 +14,13 @@ from dreamcatcher.harness_adapters import (
 
 ROUND_LAUNCH_REQUEST = AgentRoundLaunchRequest(
     agent_work_identifier="GH9-20260819-184158",
-    model="gpt-5.6-sol",
+    model="gpt-6.2-sol",
     effort="xhigh",
     prompt="$dream:smith GH9",
 )
 CONVERSATION_LAUNCH_REQUEST = AgentRoundLaunchRequest(
     agent_work_identifier="GH9-20260819-184158-conversation",
-    model="gpt-5.6-sol",
+    model="gpt-6.2-sol",
     effort="xhigh",
     prompt="Answer GH9.",
     work_kind=AgentWorkKind.CONVERSATION,
@@ -28,7 +28,7 @@ CONVERSATION_LAUNCH_REQUEST = AgentRoundLaunchRequest(
 
 CODEX_ROUND_SETTINGS = [
     "--model",
-    "gpt-5.6-sol",
+    "gpt-6.2-sol",
     "-c",
     'model_reasoning_effort="xhigh"',
 ]
@@ -211,7 +211,7 @@ def test_a_resumed_conversation_can_write_with_network_without_approval():
 
 def test_a_person_continues_the_harness_session_with_the_work_settings():
     assert CODEX_ADAPTER.build_hand_resume(
-        model="gpt-5.6-sol",
+        model="gpt-6.2-sol",
         effort="xhigh",
         harness_config={"model_context_window": 1000000},
         harness_session_identifier="01a0213c-9c67",

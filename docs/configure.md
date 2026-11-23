@@ -100,7 +100,7 @@ larger context window:
 ```toml
 [assignment.codex]
 prompt = "$dream:smith GH{issue}"
-model = "gpt-5.6-sol"
+model = "gpt-6.2-sol"
 effort = "high"
 config = { model_context_window = 1000000, model_auto_compact_token_limit = 900000 }
 ```

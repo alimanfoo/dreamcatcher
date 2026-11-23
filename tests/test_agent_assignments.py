@@ -298,7 +298,7 @@ def test_an_assignment_runs_on_the_harness_the_run_named(state, route):
     )
 
     assert assignment.record.harness == AgentHarness.CODEX
-    assert assignment.record.model == "gpt-5.6-sol"
+    assert assignment.record.model == "gpt-6.2-sol"
     assert assignment.record.instructions == "$dream:smith GH12"
 
 

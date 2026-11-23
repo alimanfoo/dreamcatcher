@@ -29,6 +29,15 @@ the change.
 
 ## Unreleased
 
+### Changed
+
+- The default Codex recipes now use `gpt-6.2-sol` in place of
+  `gpt-5.6-sol`, and `gpt-6.1-terra` in place of `gpt-5.6-terra`,
+  because Codex no longer offers the 5.6 models. Existing configuration
+  files and work already created keep their recipes, so edit
+  `dreamcatcher.toml` to move them to the new models.
+  ([#918](https://github.com/alimanfoo/dreamcatcher/pull/918))
+
 ## [v9.9.1](https://github.com/alimanfoo/dreamcatcher/releases/tag/v9.9.1) — 2026-11-21
 
 ### Changed
