@@ -36,19 +36,19 @@ dependencies = [
 # Material build the documentation site. The build backend is such a tool, and
 # `[build-system]` pins it, since uv ignores build constraints.
 dev = [
-    "complexipy==8.3.0",
+    "complexipy==9.0.0",
     "import-linter==2.16",
     "mkdocs==1.6.1",
     "mkdocs-material==9.8.1",
-    "playwright==1.65.0",
+    "playwright==1.65.2",
     "pre-commit>=4.0",
     "pytest>=9.0",
     "pytest-cov>=6.0",
     "pytest-playwright==0.10.0",
     "pytest-timeout>=2.4",
     "pytest-xdist>=3.0",
-    "ruff==0.17.4",
-    "ty==0.0.100",
+    "ruff==0.17.5",
+    "ty==0.0.105",
     "types-pywin32==312.0.0.20261104; sys_platform == 'win32'",
     "uncoded==6.0.1",
 ]
