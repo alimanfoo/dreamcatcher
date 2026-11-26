@@ -503,7 +503,7 @@ def test_a_child_with_nothing_new_for_the_lead_notifies_nothing(previous, curren
     assert compare_campaign_children(previous=previous, current=current) == []
 
 
-def test_a_round_input_names_the_fault_flag_as_the_contract_does(tmp_path):
+def test_a_round_input_names_the_fault_flag_as_the_lead_reads_it(tmp_path):
     path = tmp_path / "input.json"
     round_input = compose_lead_input(comments=[FIRST]).model_copy(
         update={"children": [compose_child(assignment=FAULTED)]}

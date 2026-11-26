@@ -29,6 +29,8 @@ the change.
 
 ## Unreleased
 
+## [v9.10.0](https://github.com/alimanfoo/dreamcatcher/releases/tag/v9.10.0) — 2026-11-26
+
 ### Changed
 
 - The default Codex recipes now use `gpt-6.2-sol` in place of
@@ -37,6 +39,11 @@ the change.
   files and work already created keep their recipes, so edit
   `dreamcatcher.toml` to move them to the new models.
   ([#918](https://github.com/alimanfoo/dreamcatcher/pull/918))
+- The [agent contract](contract.md) asks a campaign skill to say how the
+  lead starts a sub-issue's assignment only when the skill has the lead
+  start one, so a campaign prompt that only reports on the plan meets
+  it. The contract stays at version 1.
+  ([#923](https://github.com/alimanfoo/dreamcatcher/pull/923))
 
 ## [v9.9.1](https://github.com/alimanfoo/dreamcatcher/releases/tag/v9.9.1) — 2026-11-21
 
