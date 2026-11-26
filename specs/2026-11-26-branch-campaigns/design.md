@@ -40,15 +40,17 @@ default branch, so when a campaign's sub-issue's pull request merges,
 the assignment's wrap-up round closes the sub-issue. A cancelled
 assignment has no wrap-up round, so the user closes its sub-issue.
 
-Each application of a dispatch label to an issue is one **request**, and
-the work it starts **consumes** it. A label that stays on after its
-request was consumed asks for nothing more, so closing a pull request
-with the label left on never starts a repeat by itself; re-applying the
-label makes a new request. Concretely, new work of a kind starts only on
-a label applied after the label that started the last work of that kind
-at the issue. Both times are GitHub's, from the labelling events, so no
-clock of this machine is compared with GitHub's. An issue with no
-earlier work of the kind is not affected.
+For assignments and campaigns, each application of the dispatch label to
+an issue is one **request**, and the work it starts **consumes** it. A
+label that stays on after its request was consumed asks for nothing
+more, so closing a pull request with the label left on never starts a
+repeat by itself; re-applying the label makes a new request. Concretely,
+new work of either kind starts only on a label applied after the label
+that started the last work of that kind at the issue. Both times are
+GitHub's, from the labelling events, so no clock of this machine is
+compared with GitHub's. An issue with no earlier work of the kind is not
+affected. A conversation's label stays what it is today, a switch: on,
+the agent answers the user's comments; off, the conversation is paused.
 
 ## Design models
 
@@ -110,12 +112,13 @@ merging the campaign's pull request closes it.
 
 - **Work record**, `work.json` (`AgentWorkRecord`). _Changed._ It gains
   the time at which GitHub records the label that started the work as
-  applied, which is the request the work consumed. It also gains the
-  **base branch**: the branch the work's pull request goes into. An
-  empty base means the default branch. The assignment of a campaign's
-  sub-issue holds the campaign branch's name, and every other piece of
-  work holds none. The tick decides the base while it inspects the
-  request, before the record is written.
+  applied, which is the request an assignment or campaign consumed; a
+  conversation holds none. It also gains the **base branch**: the branch
+  the work's pull request goes into. An empty base means the default
+  branch. The assignment of a campaign's sub-issue holds the campaign
+  branch's name, and every other piece of work holds none. The tick
+  decides the base while it inspects the request, before the record is
+  written.
 - **Pull request record**, `pull-request.json`. _Unchanged._ The opening
   round writes the pull request's number once. Campaigns now write one
   too.
@@ -153,8 +156,9 @@ concern campaigns and sub-issues.
    work, and list the open issues assigned to the account.
 2. **First pass: open assignments and conversations.** _Unchanged._
 3. **First pass: requests.** The label checks in
-   `_inspect_requests_of_kind`, which every request of every kind passes
-   through in both passes, gain the consumed-request rule. They already
+   `_inspect_requests_of_kind`, which every request passes through in
+   both passes, gain the consumed-request rule for assignment and
+   campaign requests. Conversation requests are unchanged. They already
    read the labelling events, to find who applied the label, and the
    same events give the time it was applied. That time is compared with
    the one recorded by the newest work of the kind at the issue, ended
@@ -422,8 +426,9 @@ Changes to the enduring documents:
 
 - `docs/concepts.md` gains the campaign branch, the campaign's pull
   request, the coordinating and finishing phases, a work's base branch,
-  and a campaign's sub-issue. It redefines a request as one application
-  of a dispatch label, which the work it starts consumes. It changes a
+  and a campaign's sub-issue. It redefines an assignment or campaign
+  request as one application of its label, which the work it starts
+  consumes, and leaves a conversation's label a switch. It changes a
   campaign's composition, channel, signals, start, holds and ending, the
   requests that open work answers, and how completing an assignment
   closes its issue.
@@ -483,10 +488,10 @@ Changes to the enduring documents:
 
 ## Open questions
 
-- The consumed-request rule changes what a label left on does for every
-  kind of work. The plan should keep it in one place, the label checks,
-  with tests for each case in the stories, so that it can be revisited
-  alone.
+- The consumed-request rule changes what a label left on does for
+  assignments and campaigns. The plan should keep it in one place, the
+  label checks, with tests for each case in the stories, so that it can
+  be revisited alone.
 - Whether the parent check's read of the campaign's pull request and the
   campaign pass's read of it share one result.
 - The idle words for a campaign in its coordinating phase, and the words

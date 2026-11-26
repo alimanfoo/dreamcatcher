@@ -61,8 +61,9 @@ This changes these stories in `docs/stories.md`:
 - "The user closes a pull request they do not want", "Closing a pull
   request and leaving the assignment label on the issue" and "Deleting
   an assignment's worktree", which change because a label left on no
-  longer starts new work. In `docs/concepts.md`, a request becomes one
-  application of a dispatch label, which the work it starts consumes.
+  longer starts new work. In `docs/concepts.md`, an assignment or
+  campaign request becomes one application of its label, which the work
+  it starts consumes.
 
 "The lead hears when a sub-issue needs it" and "The lead gives an
 assignment's agent feedback" stay as they are. In `docs/concepts.md`,
@@ -249,19 +250,22 @@ sit visibly on the home page as held until I deal with them. Labelling a
 campaign's sub-issues by hand before the campaign starts isn't something
 I want to support, and if I do it anyway, they're held too.
 
-### A label left on starts nothing new
+### What a label means
 
-Each time I apply a dispatch label to an issue, that's one request. When
-work starts for it, an assignment, a campaign or a conversation, the
-work consumes the request. A label that stays on after its request was
-consumed asks for nothing more. So if I close a pull request, or close
-and reopen an issue, with its label left on, nothing new starts by
-itself, and the card says that the label's request has already been used
-and that I re-apply it for another attempt. Taking the label off and
-putting it back is how I ask for another attempt. If I re-apply a label
-while work is still open, for example to resume a paused conversation,
-that's a new request, and it starts another attempt once that work ends.
-An issue with no earlier work of the kind starts as it does today.
+For assignments and campaigns, applying the label makes a request, and
+the work consumes it when it starts. A label that stays on after its
+request was consumed asks for nothing more. So if I close a pull request
+with the label left on, or reopen a parent whose campaign has ended,
+nothing new starts by itself, and the card says that the label's request
+has already been used and that I re-apply it for another attempt. Taking
+the label off and putting it back is how I ask for another attempt. An
+issue with no earlier work of the kind starts as it does today.
+
+For conversations, the label is a switch. While it's on, the agent
+answers my comments. Taking it off pauses the conversation, and putting
+it back resumes it. If the issue is closed and reopened with the label
+still on, a new conversation answers my next comment. That's all as it
+is today.
 
 ### Like an assignment
 
