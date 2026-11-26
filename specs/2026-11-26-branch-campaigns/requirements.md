@@ -82,18 +82,20 @@ request, without stalling on the way.
 2. _dreamcatcher_ starts the campaign on a branch of its own, cut from
    main as it stands then, with a draft pull request into main that will
    close the parent when it merges.
-3. The lead starts an assignment for each sub-issue, reviews each
-   sub-issue's pull request, gives the agent feedback and merges it.
-   Every sub-issue's pull request goes into the campaign branch, not
-   into main, and needs no review from anyone but the lead.
+3. The lead starts an assignment for each sub-issue, choosing among the
+   assignment labels that the running daemon offers, which
+   _dreamcatcher_ tells it. It reviews each sub-issue's pull request,
+   gives the agent feedback and merges it. Every sub-issue's pull
+   request goes into the campaign branch, not into main, and needs no
+   review from anyone but the lead.
 4. A sub-issue closes when its pull request merges into the campaign
    branch, whether the lead merged it or I did, just as it would on
-   main. Within the campaign, that's what done means: no new assignment
-   starts for it, the sub-issues it blocks are free to start, and the
-   lead sees it finish. GitHub only closes an issue from a pull request
-   into main, so _dreamcatcher_ closes each sub-issue itself. That's a
-   critical piece of new machinery, and only _dreamcatcher_ can make it
-   hold every time.
+   main, as long as the sub-issue's assignment is still open. Within the
+   campaign, that's what done means: no new assignment starts for it,
+   the sub-issues it blocks are free to start, and the lead sees it
+   finish. GitHub only closes an issue from a pull request into main, so
+   _dreamcatcher_ closes each sub-issue itself. That's a critical piece
+   of new machinery.
 5. The sub-issues all build on that snapshot of main, so none of them
    has to deal with conflicts with main along the way.
 6. When the lead judges every sub-issue done, it marks the campaign's
@@ -195,7 +197,9 @@ Goal: finish the campaign by hand.
    before.
 
 Outcome: taking over means swapping the lead for me, with everything
-else unchanged, and nothing is lost.
+else unchanged, and nothing is lost. The cancelled campaign moves to the
+ended list on the home page, so I follow its sub-issues on the
+Assignments tab while I finish.
 
 ### Which sub-issues go into a campaign branch
 
@@ -315,10 +319,11 @@ enforce it.
 - Whether checks run on pull requests into the campaign branch is
   determined by the rules of the repository. The setup guide only needs
   to say so.
-- In a repository that requires review, GitHub reports a pull request
-  that awaits review and is merely behind main as blocked. So the lead
-  hears of main moving through a conflict, or, where branches must be up
-  to date, once the pull request is approved.
+- In a repository that requires review, GitHub is reported to show a
+  pull request that awaits review and is merely behind main as blocked,
+  though its documentation doesn't say so. So the lead hears of main
+  moving through a conflict, or, where branches must be up to date, once
+  the pull request is approved.
 - An agent only ever hears me. A colleague's comments, on any pull
   request, reach me and no agent.
 - Campaigns and assignments stay two kinds of work. Unifying them, so
