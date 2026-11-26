@@ -40,13 +40,15 @@ default branch, so when a campaign's sub-issue's pull request merges,
 the assignment's wrap-up round closes the sub-issue. A cancelled
 assignment has no wrap-up round, so the user closes its sub-issue.
 
-New work of any kind starts only on a dispatch label applied after the
-label that started the last work of its kind at the issue: the user must
-have re-applied the label since that work began. Closing a pull request
-with the label left on therefore never starts a repeat by itself. An
-issue with no earlier work of the kind is not affected. Both times are
-GitHub's, from the labelling events, so no clock of this machine is
-compared with GitHub's.
+Each application of a dispatch label to an issue is one **request**, and
+the work it starts **consumes** it. A label that stays on after its
+request was consumed asks for nothing more, so closing a pull request
+with the label left on never starts a repeat by itself; re-applying the
+label makes a new request. Concretely, new work of a kind starts only on
+a label applied after the label that started the last work of that kind
+at the issue. Both times are GitHub's, from the labelling events, so no
+clock of this machine is compared with GitHub's. An issue with no
+earlier work of the kind is not affected.
 
 ## Design models
 
@@ -80,8 +82,8 @@ The campaign's pull request, while the campaign is open ▼
 - **Requested.** The request is held, as an assignment request is, in
   any of these cases: an open pull request claims the parent, an open
   issue blocks it, someone other than the user applied the label, the
-  parent carries two campaign labels, or the label is stale. Otherwise
-  it is available.
+  parent carries two campaign labels, or the label's request was already
+  consumed. Otherwise it is available.
 - **Open, pull request not yet opened.** The opening round is due. Its
   preparation opens the campaign branch and pull request if none is
   recorded, then builds the input as it does for any lead round.
@@ -108,12 +110,12 @@ merging the campaign's pull request closes it.
 
 - **Work record**, `work.json` (`AgentWorkRecord`). _Changed._ It gains
   the time at which GitHub records the label that started the work as
-  applied, for the stale-label rule. It also gains the **base branch**:
-  the branch the work's pull request goes into. An empty base means the
-  default branch. The assignment of a campaign's sub-issue holds the
-  campaign branch's name, and every other piece of work holds none. The
-  tick decides the base while it inspects the request, before the record
-  is written.
+  applied, which is the request the work consumed. It also gains the
+  **base branch**: the branch the work's pull request goes into. An
+  empty base means the default branch. The assignment of a campaign's
+  sub-issue holds the campaign branch's name, and every other piece of
+  work holds none. The tick decides the base while it inspects the
+  request, before the record is written.
 - **Pull request record**, `pull-request.json`. _Unchanged._ The opening
   round writes the pull request's number once. Campaigns now write one
   too.
@@ -138,7 +140,8 @@ merging the campaign's pull request closes it.
   campaign's finding becomes the pull request finding with the count of
   changed sub-issues, in place of today's `CampaignFinding`. There are
   two new hold findings: a campaign's sub-issue waiting for its parent's
-  campaign pull request, naming the parent; and a stale label.
+  campaign pull request, naming the parent; and a request already
+  consumed.
 - **State format.** _Changed._ `STATE_FORMAT_VERSION` rises from 8 to 9.
 
 ### Tick algorithm
@@ -151,11 +154,11 @@ concern campaigns and sub-issues.
 2. **First pass: open assignments and conversations.** _Unchanged._
 3. **First pass: requests.** The label checks in
    `_inspect_requests_of_kind`, which every request of every kind passes
-   through in both passes, gain the stale-label rule. They already read
-   the labelling events, to find who applied the label, and the same
-   events give the time it was applied. That time is compared with the
-   one recorded by the newest work of the kind at the issue, ended or
-   not; open work answers its own label before this check. Then, for
+   through in both passes, gain the consumed-request rule. They already
+   read the labelling events, to find who applied the label, and the
+   same events give the time it was applied. That time is compared with
+   the one recorded by the newest work of the kind at the issue, ended
+   or not; open work answers its own label before this check. Then, for
    each assignment request that nothing holds:
    1. Ask the start-time questions, about claims and blockers.
       _Unchanged._ If either holds the request, nothing more is read.
@@ -246,9 +249,9 @@ The **coordinating input prompt** says:
 - dispatch the parent's sub-issues, and add none. To dispatch a
   sub-issue, assign it to the user, remove its assignment label if it is
   there, then add the label, so that GitHub records the label as applied
-  now and the stale-label rule lets it start. This matters when a
-  sub-issue was reopened for a fresh attempt with its old label still
-  on;
+  now, which is a new request that the assignment can consume. This
+  matters when a sub-issue was reopened for a fresh attempt with its old
+  label still on;
 - the worktree is on the campaign branch, and is not reset between
   rounds;
 - do not commit, push or open a pull request;
@@ -307,25 +310,25 @@ both kinds leaves `agent_assignments.py` for a module of its own, called
 `agent_assignments.py` keeps what only assignments do, chiefly closing
 the sub-issue in the wrap-up preparation.
 
-| Module                     | Change                                                                                                                                                                                                                                                                              |
-| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `scheduler/assignments.py` | The request inspection gains the parent check and the base decision. Its pull request inspection is shared with campaigns.                                                                                                                                                          |
-| `scheduler/campaigns.py`   | Open campaigns use the shared pull request inspection with the sub-issue observation. Requests ask the start-time questions.                                                                                                                                                        |
-| `scheduler/issue_work.py`  | Serves conversations alone.                                                                                                                                                                                                                                                         |
-| `scheduler/labelling.py`   | Also gives the time the label was applied, for the stale-label rule.                                                                                                                                                                                                                |
-| `scheduler/models.py`      | The campaign's pull request finding, and the two new hold findings.                                                                                                                                                                                                                 |
-| `scheduler/tick.py`        | The label checks apply the stale-label rule. Request inspection is given all the work on disk, ended work included, for the parent check. `_launch` creates new work with the base branch and label time that its candidate carries. Cleanup removes a campaign's local branch too. |
-| `scheduler/inspection.py`  | A candidate for new work carries its base branch and the time its label was applied, from the request's inspection to the work's creation.                                                                                                                                          |
-| `agent_work.py`            | The record's base branch and the time its label was applied. `answers_request` makes an open campaign answer every campaign label on its issue, as an assignment does.                                                                                                              |
-| `campaigns.py`             | The round input's campaign part. The preparation no longer refreshes a detached worktree.                                                                                                                                                                                           |
-| `relay.py`                 | Raises signals and selects posts for either kind, through the relay-memory readers that move to the pull request work module. The relay rule is unchanged.                                                                                                                          |
-| `git.py`                   | Cuts a branch from a given base, and counts commits past it. `refresh_detached_worktree` serves conversations alone.                                                                                                                                                                |
-| `github.py`                | Reads an issue's parent, with "none" as an answer. Closes an issue as completed with a comment. The labelling events also carry when each label was applied.                                                                                                                        |
-| `prompts.py`               | The coordinating and finishing input prompts. Assignments and finishing leads share the signal lines.                                                                                                                                                                               |
-| `claude.py`                | A lead's permissions become the assignment's allowed list with the coordination tools, and today's campaign allowed and disallowed lists go.                                                                                                                                        |
-| `status/`, `tui/`, `web/`  | A campaign's card shows its pull request. Campaigns get idle words of their own in the coordinating phase, and the assignment's in the finishing phase. "No pull request yet" applies to campaigns. Words for the two new holds. Round triggers read the new input.                 |
-| `cli.py`, `web/app.py`     | Cancel accepts campaigns.                                                                                                                                                                                                                                                           |
-| `state.py`                 | Format 9.                                                                                                                                                                                                                                                                           |
+| Module                     | Change                                                                                                                                                                                                                                                                                   |
+| -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `scheduler/assignments.py` | The request inspection gains the parent check and the base decision. Its pull request inspection is shared with campaigns.                                                                                                                                                               |
+| `scheduler/campaigns.py`   | Open campaigns use the shared pull request inspection with the sub-issue observation. Requests ask the start-time questions.                                                                                                                                                             |
+| `scheduler/issue_work.py`  | Serves conversations alone.                                                                                                                                                                                                                                                              |
+| `scheduler/labelling.py`   | Also gives the time the label was applied, for the consumed-request rule.                                                                                                                                                                                                                |
+| `scheduler/models.py`      | The campaign's pull request finding, and the two new hold findings.                                                                                                                                                                                                                      |
+| `scheduler/tick.py`        | The label checks apply the consumed-request rule. Request inspection is given all the work on disk, ended work included, for the parent check. `_launch` creates new work with the base branch and label time that its candidate carries. Cleanup removes a campaign's local branch too. |
+| `scheduler/inspection.py`  | A candidate for new work carries its base branch and the time its label was applied, from the request's inspection to the work's creation.                                                                                                                                               |
+| `agent_work.py`            | The record's base branch and the time its label was applied. `answers_request` makes an open campaign answer every campaign label on its issue, as an assignment does.                                                                                                                   |
+| `campaigns.py`             | The round input's campaign part. The preparation no longer refreshes a detached worktree.                                                                                                                                                                                                |
+| `relay.py`                 | Raises signals and selects posts for either kind, through the relay-memory readers that move to the pull request work module. The relay rule is unchanged.                                                                                                                               |
+| `git.py`                   | Cuts a branch from a given base, and counts commits past it. `refresh_detached_worktree` serves conversations alone.                                                                                                                                                                     |
+| `github.py`                | Reads an issue's parent, with "none" as an answer. Closes an issue as completed with a comment. The labelling events also carry when each label was applied.                                                                                                                             |
+| `prompts.py`               | The coordinating and finishing input prompts. Assignments and finishing leads share the signal lines.                                                                                                                                                                                    |
+| `claude.py`                | A lead's permissions become the assignment's allowed list with the coordination tools, and today's campaign allowed and disallowed lists go.                                                                                                                                             |
+| `status/`, `tui/`, `web/`  | A campaign's card shows its pull request. Campaigns get idle words of their own in the coordinating phase, and the assignment's in the finishing phase. "No pull request yet" applies to campaigns. Words for the two new holds. Round triggers read the new input.                      |
+| `cli.py`, `web/app.py`     | Cancel accepts campaigns.                                                                                                                                                                                                                                                                |
+| `state.py`                 | Format 9.                                                                                                                                                                                                                                                                                |
 
 Unchanged: `daemon.py`, `agent_rounds.py`, `blockers.py`, `codex.py`,
 `config.py`, and the conversation code apart from `issue_work.py`'s
@@ -338,8 +341,8 @@ CSV", and #202, "Export to JSON", which #201 blocks. The user assigns
 the parent to themselves and labels it `agent-campaign`.
 
 1. **The request.** The second pass finds the campaign request. Nothing
-   answers it, the user applied the label, the label is not stale, and
-   nothing claims or blocks #200. The tick observes the sub-issues,
+   answers it, the user applied the label, its request is unconsumed,
+   and nothing claims or blocks #200. The tick observes the sub-issues,
    creates `GH200-20261126-101500-campaign`, and starts its opening
    round.
 2. **The opening round.** The preparation:
@@ -419,12 +422,13 @@ Changes to the enduring documents:
 
 - `docs/concepts.md` gains the campaign branch, the campaign's pull
   request, the coordinating and finishing phases, a work's base branch,
-  a campaign's sub-issue, and the stale label. It changes a campaign's
-  composition, channel, signals, start, holds and ending, the requests
-  that open work answers, and how completing an assignment closes its
-  issue.
+  and a campaign's sub-issue. It redefines a request as one application
+  of a dispatch label, which the work it starts consumes. It changes a
+  campaign's composition, channel, signals, start, holds and ending, the
+  requests that open work answers, and how completing an assignment
+  closes its issue.
 - `docs/stories.md` changes the campaign stories and the user errors
-  that the requirements list, and, for the stale-label rule, "The user
+  that the requirements list, and, for consumed requests, "The user
   closes a pull request they do not want" and "Deleting an assignment's
   worktree", which both start a fresh assignment on a label left on.
 - `docs/architecture.md` follows the component model.
@@ -441,10 +445,11 @@ Changes to the enduring documents:
   into it.
 - Every other user document that describes campaigns or what a label
   left on does follows: `src/dreamcatcher/about.md`, the text of
-  `dreamcatcher about`, whose list of what holds a request gains the
-  stale label; `docs/campaign-tutorial.md`; `docs/run-and-monitor.md`;
-  `docs/stop-and-recover.md`; `docs/command-reference.md`, where cancel
-  accepts campaigns; `docs/index.md`; and `docs/customise-skills.md`.
+  `dreamcatcher about`, whose list of what holds a request gains a
+  request already consumed; `docs/campaign-tutorial.md`;
+  `docs/run-and-monitor.md`; `docs/stop-and-recover.md`;
+  `docs/command-reference.md`, where cancel accepts campaigns;
+  `docs/index.md`; and `docs/customise-skills.md`.
 - `docs/changelog.md` gains breaking entries for the state format and
   the contract version, and `docs/compatibility.md` says what to do
   before upgrading.
@@ -468,23 +473,22 @@ Changes to the enduring documents:
 - **Reading every campaign parent's sub-issues before the first pass.**
   That reads GitHub for every campaign ever run, on every tick. The
   per-request parent check reads only for requests about to start.
-- **A stale-label rule based on when the last work's channel closed.**
-  It needs GitHub's closing times for pull requests and issues, and has
-  no answer for work that never opened a channel. Comparing label events
-  needs neither.
+- **Consuming a request when the last work's channel closed.** It needs
+  GitHub's closing times for pull requests and issues, and has no answer
+  for work that never opened a channel. Comparing label events needs
+  neither.
 - **Rereading `dreamcatcher.toml` every tick.** The lead's input already
   carries the running daemon's routes, and rereading would break the
   promise that configuration takes effect when the daemon restarts.
 
 ## Open questions
 
-- The stale-label rule adds behaviour that a user may not expect, and no
-  simpler rule is known. The plan should keep it in one place, the label
-  checks, with tests for each case in the stories, so that it can be
-  revisited or removed alone.
+- The consumed-request rule changes what a label left on does for every
+  kind of work. The plan should keep it in one place, the label checks,
+  with tests for each case in the stories, so that it can be revisited
+  alone.
 - Whether the parent check's read of the campaign's pull request and the
   campaign pass's read of it share one result.
 - The idle words for a campaign in its coordinating phase, and the words
   for the two new holds.
-- The concepts page's names for the new concepts, and whether the stale
-  label needs a name of its own.
+- The concepts page's names for the new concepts.

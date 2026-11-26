@@ -61,7 +61,8 @@ This changes these stories in `docs/stories.md`:
 - "The user closes a pull request they do not want", "Closing a pull
   request and leaving the assignment label on the issue" and "Deleting
   an assignment's worktree", which change because a label left on no
-  longer starts new work.
+  longer starts new work. In `docs/concepts.md`, a request becomes one
+  application of a dispatch label, which the work it starts consumes.
 
 "The lead hears when a sub-issue needs it" and "The lead gives an
 assignment's agent feedback" stay as they are. In `docs/concepts.md`,
@@ -217,9 +218,9 @@ Through a campaign's life, that works out like this:
 1. **The parent has a campaign label and is awaiting dispatch.** Held.
    The campaign may be waiting for a slot, or held: blocked by another
    parent, its label applied by someone else, a routing conflict, or a
-   label left on from an earlier campaign. The request stays held until
-   the campaign starts and opens its pull request, and from then on case
-   3 applies.
+   label whose request an earlier campaign already consumed. The request
+   stays held until the campaign starts and opens its pull request, and
+   from then on case 3 applies.
 2. **The parent has an open campaign whose pull request isn't open
    yet.** Held. This is the short moment before the campaign's first
    round has opened its pull request, or after a first round that failed
@@ -250,16 +251,17 @@ I want to support, and if I do it anyway, they're held too.
 
 ### A label left on starts nothing new
 
-New work of any kind, an assignment, a campaign or a conversation,
-starts only on a dispatch label that I applied after the label that
-started the last work of that kind at the issue. If I close a pull
-request, or close and reopen an issue, with its label left on, nothing
-new starts by itself, and the card says that I need to take the label
-off and put it back. Putting it back is how I ask for another attempt.
-If I re-apply a label while work is still open, for example to resume a
-paused conversation, that counts as asking for another attempt once that
-work ends. An issue with no earlier work of the kind starts as it does
-today.
+Each time I apply a dispatch label to an issue, that's one request. When
+work starts for it, an assignment, a campaign or a conversation, the
+work consumes the request. A label that stays on after its request was
+consumed asks for nothing more. So if I close a pull request, or close
+and reopen an issue, with its label left on, nothing new starts by
+itself, and the card says that the label's request has already been used
+and that I re-apply it for another attempt. Taking the label off and
+putting it back is how I ask for another attempt. If I re-apply a label
+while work is still open, for example to resume a paused conversation,
+that's a new request, and it starts another attempt once that work ends.
+An issue with no earlier work of the kind starts as it does today.
 
 ### Like an assignment
 
