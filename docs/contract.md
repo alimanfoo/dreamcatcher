@@ -33,8 +33,9 @@ prompt for input.
 A campaign skill must:
 
 - accept a parent issue's number in the form `GH123`;
-- tell the lead to start a sub-issue's assignment by assigning the
-  sub-issue to the signed-in account and giving it an assignment label.
+- tell the lead, if it starts a sub-issue's assignment, to start it by
+  assigning the sub-issue to the signed-in account and giving it an
+  assignment label.
 
 A campaign skill must not tell the lead to:
 

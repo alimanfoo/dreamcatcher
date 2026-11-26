@@ -1,6 +1,6 @@
 # Compatibility and upgrades
 
-v9.9.1 uses state format 8, as every v9 release before it did. Saved
+v9.10.0 uses state format 8, as every v9 release before it did. Saved
 work from any earlier v9 release continues after the upgrade. v7.0.0 and
 v8.0.0 used state format 7, v6.0.0 through v6.3.0 used state format 6,
 v5.0.0 through v5.6.2 used state format 5, and v4.0.0 used state
@@ -213,6 +213,5 @@ same.
 The contract number is an integer independent of the release and
 state-format versions. A change that requires an existing conforming
 skill or prompt to change increments it; clarifications and editorial
-corrections do not. Version 1 documents the existing protocol rather
-than changing it. _dreamcatcher_ does not negotiate the version at
+corrections do not. _dreamcatcher_ does not negotiate the version at
 runtime.
