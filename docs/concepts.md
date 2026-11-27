@@ -305,7 +305,7 @@ For an assignment or a campaign, a **request** is one application of a
 dispatch label to an issue. The work it starts **consumes** it and
 records when GitHub says the label was applied. When no open work
 answers the label, work can start only if the label is still on and was
-applied after the one that started the newest work of that kind on the
+applied after every application consumed by work of that kind on the
 issue. Removing and re-adding the label makes a new request. An issue
 with no earlier work of that kind needs only its first label
 application.
@@ -638,22 +638,21 @@ assignment label on its issue, so those labels make no request row of
 their own. A conversation or a campaign answers only its own label, so
 another label of its kind on its issue is a request of its own.
 
-For a request with no open work the tick records what decides whether
-work may start, and the tick makes these reads only for an issue whose
-open work does not answer the request. An assignment request that
-carries the issue's only assignment label is asked the **start-time
-questions**: which open pull requests linked to the issue claim it, and
-which open issue dependencies block it. They are asked only while no
-open assignment exists, because they decide only whether one may start.
-An open pull request **claims** an issue when GitHub links it as one
-that will close the issue, as `Closes #123` in its description does. A
-conversation request reads the issue's comments to give them to its
-first round. A campaign request asks which open issue dependencies block
-the parent, and only when none does reads the parent's comments to give
-them to its first round. A request whose issue carries more than one
-label of its kind has a routing conflict, and nothing of that kind
-starts while it lasts. While an account other than the signed-in one
-applied a request's label, nothing else is asked of the request.
+For a request with no open work, the tick first checks the labels. An
+issue carrying more than one label of the request's kind has a routing
+conflict and holds the request. A label applied by another account also
+holds it, as does an application already consumed by an assignment or
+campaign. These holds need no further reads.
+
+The tick then asks an eligible assignment request the **start-time
+questions**. These ask which open pull requests linked to the issue
+claim it and which open issue dependencies block it. An open pull
+request **claims** an issue when GitHub links it as one that will close
+the issue, as `Closes #123` in its description does. For a conversation
+request, the tick reads the issue's comments to give them to its first
+round. For a campaign request, the tick asks which open issue
+dependencies block the parent and, when none does, reads the parent's
+comments for the first round.
 
 A request with no open work has one of these request statuses:
 

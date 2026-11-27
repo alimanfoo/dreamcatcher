@@ -376,18 +376,16 @@ class Scheduler:
         label_applied_at = (
             None if route.kind is AgentWorkKind.CONVERSATION else application.applied_at
         )
-        consumed_at = next(
-            (
-                work.record.label_applied_at
-                for work in reversed(work_at_issue)
-                if work.record.kind is route.kind
-            ),
-            None,
+        consumed_applications = (
+            work.record.label_applied_at
+            for work in work_at_issue
+            if work.record.kind is route.kind
         )
+        last_consumed_at = max(filter(None, consumed_applications), default=None)
         if (
             label_applied_at is not None
-            and consumed_at is not None
-            and label_applied_at <= consumed_at
+            and last_consumed_at is not None
+            and label_applied_at <= last_consumed_at
         ):
             return Inspection(
                 row=row.model_copy(update={"finding": RequestConsumedFinding()})

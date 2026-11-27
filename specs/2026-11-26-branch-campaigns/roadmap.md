@@ -11,18 +11,19 @@ instead of restructuring the roadmap itself.
 
 **Delivers.** For assignments and campaigns, each application of the
 dispatch label is one request, and the work it starts consumes it. New
-work of either kind starts only on a label applied after the label that
-started the last work of that kind at the issue. A request already
-consumed is held, and its card says the label's request has been used
-and to re-apply the label for another attempt. A conversation's label is
-unchanged: a switch that starts, pauses and resumes it.
+work of either kind starts only on a label applied after every
+application already consumed by work of that kind at the issue. A
+request already consumed is held, and its card says the label's request
+has been used and to re-apply the label for another attempt. A
+conversation's label is unchanged: a switch that starts, pauses and
+resumes it.
 
 The change touches `github.py`, where the labelling events query asks
 for each event's `createdAt`; `scheduler/labelling.py`, which returns
 when the label was applied beside who applied it; `scheduler/tick.py`,
-whose label checks compare that time with the one recorded by the newest
-work of the kind at the issue, ended or not, and so are given all the
-work, and whose `_launch` hands the time to the new work;
+whose label checks compare that time with the latest GitHub application
+time recorded by work of the kind at the issue, ended or not, and so are
+given all the work, and whose `_launch` hands the time to the new work;
 `scheduler/inspection.py`, where a candidate for new work carries the
 time; `agent_work.py`, where the work record holds it, empty for a
 conversation; a new hold finding and its words; and

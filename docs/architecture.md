@@ -121,11 +121,12 @@ One scheduler tick:
    an assignment label whose issue already has an open assignment,
    checks for a routing conflict, and reads who applied the label and
    when. For an assignment or campaign, it holds the request if the
-   label was applied at or before the application recorded by the newest
-   work of that kind on the issue, including ended work. Otherwise it
-   asks an assignment request the start-time questions, reads the
-   comments of a conversation's issue, or asks which open issues block a
-   campaign's parent and, when none does, reads the parent's comments;
+   label was applied at or before the latest GitHub application time
+   recorded by work of that kind on the issue, including ended work.
+   Otherwise it asks an assignment request the start-time questions,
+   reads the comments of a conversation's issue, or asks which open
+   issues block a campaign's parent and, when none does, reads the
+   parent's comments;
 6. removes the worktree, and an assignment's local branch, of each piece
    of work that it sees end, unless the user cancelled it;
 7. starts a global cooldown when the counted faults call for one, and

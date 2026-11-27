@@ -116,10 +116,12 @@ def test_an_issue_nothing_claims_or_blocks_is_a_clear_request(gh, state):
     assert rows == [compose_request_row(issue=8, finding=UNCLAIMED)]
 
 
-def test_a_label_from_before_the_newest_ended_assignment_is_already_consumed(gh, state):
+def test_a_clock_correction_does_not_make_an_older_label_application_available(
+    gh, state
+):
     for date, applied_at in (
-        ("20260820", LABEL_APPLIED_AT),
-        ("20260821", LABEL_APPLIED_AT + timedelta(hours=2)),
+        ("20260821", LABEL_APPLIED_AT),
+        ("20260820", LABEL_APPLIED_AT + timedelta(hours=2)),
     ):
         directory = write_assignment(
             state=state,
