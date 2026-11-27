@@ -253,8 +253,9 @@ A piece of agent work's **channel** is the GitHub object through which
 the agent and the user talk: an assignment's pull request, a campaign's
 parent issue, or a conversation's issue. A conversation and a campaign
 are **issue work**, because the issue is the channel of each. An
-assignment's channel exists once the round that opens its pull request
-has done so.
+assignment is **pull request work**, because its pull request is its
+channel. An assignment's channel exists once the round that opens its
+pull request has done so.
 
 The **cursor** is how far the agent has read in its channel. Nothing
 stores it on its own: it is read back from the inputs of the rounds that

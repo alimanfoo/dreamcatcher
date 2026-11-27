@@ -13,11 +13,11 @@ from pydantic import (
     model_validator,
 )
 
-from dreamcatcher.agent_assignments import ObservedPullRequest
 from dreamcatcher.campaigns import CampaignChild
 from dreamcatcher.documents import DreamcatcherDocument, ReadOnlyList
 from dreamcatcher.github import IssueState, PullRequestSignal
 from dreamcatcher.harness_adapters import AgentWorkKind
+from dreamcatcher.pull_request_work import ObservedPullRequest
 
 GLOBAL_COOLDOWN_DURATION = timedelta(minutes=15)
 DEFAULT_MAX_AGENTS = 1

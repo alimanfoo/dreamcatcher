@@ -9,7 +9,6 @@ from rich.console import Console, RenderableType
 from rich.padding import Padding
 from rich.text import Text
 
-from dreamcatcher.agent_assignments import compose_assignment_branch
 from dreamcatcher.agent_work import AgentWork, refresh_agent_work
 from dreamcatcher.clock import WaitForSeconds, read_current_time
 from dreamcatcher.documents import read_lines_from
@@ -21,6 +20,7 @@ from dreamcatcher.feed import (
     read_feed_line,
 )
 from dreamcatcher.harness_adapters import AgentWorkKind
+from dreamcatcher.pull_request_work import compose_work_branch
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.status import (
     AgentRoundStatus,
@@ -178,7 +178,7 @@ def _render_assignment_summary(
         ("agent work identifier", assignment.identifier),
         ("pull request", render_pull_request(status=status) or "none yet"),
         ("label", record.dispatch_label),
-        ("branch", compose_assignment_branch(identifier=assignment.identifier)),
+        ("branch", compose_work_branch(identifier=assignment.identifier)),
         ("worktree", _describe_worktree(state=state, status=status)),
         ("harness", record.harness),
         (

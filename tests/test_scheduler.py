@@ -37,11 +37,6 @@ from records import (
 from rows import UNCLAIMED, compose_open_assignment_row, compose_request_row
 
 import dreamcatcher.scheduler.assignments as assignment_scheduling
-from dreamcatcher.agent_assignments import (
-    cancel_assignment,
-    read_assignment_pull_request_number,
-    read_user_post_cursor,
-)
 from dreamcatcher.agent_rounds import (
     AgentRoundRecord,
     ErroredAgentRoundEnding,
@@ -68,6 +63,11 @@ from dreamcatcher.git import (
     push_branch,
 )
 from dreamcatcher.github import CheckResult, PullRequestMergeState, PullRequestState
+from dreamcatcher.pull_request_work import (
+    cancel_pull_request_work,
+    read_user_post_cursor,
+    read_work_pull_request_number,
+)
 from dreamcatcher.scheduler import Scheduler, SchedulingContext
 from dreamcatcher.scheduler.faults import (
     derive_agent_work_fault,
@@ -793,7 +793,7 @@ def test_an_assignment_with_nothing_new_reads_only_its_pull_request_and_posts(
             ),
         )
     ]
-    assert read_assignment_pull_request_number(assignment=assignment) == 52
+    assert read_work_pull_request_number(assignment=assignment) == 52
     calls = [" ".join(call.arguments) for call in gh.calls]
     assert not [
         call
@@ -817,7 +817,7 @@ def test_an_assignment_that_has_run_no_round_at_all_gets_its_first(ready_repo):
         "/dream:smith GH13\n\nEnd every post you make on GitHub"
     )
     [assignment] = read_assignments(state=state)
-    assert read_assignment_pull_request_number(assignment=assignment) == PULL_REQUEST
+    assert read_work_pull_request_number(assignment=assignment) == PULL_REQUEST
 
 
 def test_a_dispatch_whose_round_will_not_start_keeps_the_assignment_for_next_time(
@@ -909,7 +909,7 @@ def test_a_round_after_one_that_failed_part_way_finishes_its_preparation(
     ]
     assert len(created) == (0 if checkpoint == "pull request" else 1)
     [assignment] = read_assignments(state=state)
-    assert read_assignment_pull_request_number(assignment=assignment) == PULL_REQUEST
+    assert read_work_pull_request_number(assignment=assignment) == PULL_REQUEST
 
 
 def test_an_assignment_with_a_round_that_has_no_ending_starts_nothing(
@@ -1326,7 +1326,7 @@ def test_a_completed_assignment_loses_its_worktree_and_branch_at_the_next_tick(
     assert completed.ending is not None
     assert completed.ending.reason is AgentWorkEndReason.COMPLETED
     assert [record.number for record in completed.rounds] == [1, 2]
-    assert read_assignment_pull_request_number(assignment=completed) == PULL_REQUEST
+    assert read_work_pull_request_number(assignment=completed) == PULL_REQUEST
 
 
 def test_a_cancelled_assignment_keeps_its_worktree_and_branch(
@@ -1343,7 +1343,7 @@ def test_a_cancelled_assignment_keeps_its_worktree_and_branch(
     scheduler, clock = create_scheduler(root=assigned_checkout)
     scheduler.tick(at=clock())
     [assignment] = read_assignments(state=scheduler.context.state)
-    cancel_assignment(assignment=assignment, at=clock())
+    cancel_pull_request_work(assignment=assignment, at=clock())
     finish_rounds(scheduler=scheduler)
 
     observed = scheduler.tick(at=clock())
@@ -1368,17 +1368,17 @@ def test_a_wrap_up_round_that_finishes_after_a_cancel_leaves_the_worktree_alone(
     )
     gh.replies(stdout=compose_pull_request(state="MERGED"), to="pr view")
     scheduler, clock = create_scheduler(root=assigned_checkout)
-    complete_assignment = assignment_scheduling.complete_assignment
+    complete_pull_request_work = assignment_scheduling.complete_pull_request_work
 
     def cancel_then_complete(*, assignment, clock, final_output):
         [read_now] = read_assignments(state=scheduler.context.state)
-        cancel_assignment(assignment=read_now, at=clock())
-        complete_assignment(
+        cancel_pull_request_work(assignment=read_now, at=clock())
+        complete_pull_request_work(
             assignment=assignment, clock=clock, final_output=final_output
         )
 
     monkeypatch.setattr(
-        assignment_scheduling, "complete_assignment", cancel_then_complete
+        assignment_scheduling, "complete_pull_request_work", cancel_then_complete
     )
     scheduler.tick(at=clock())
     finish_rounds(scheduler=scheduler)

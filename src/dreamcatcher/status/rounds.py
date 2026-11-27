@@ -4,7 +4,6 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime
 
-from dreamcatcher.agent_assignments import AssignmentRoundInput
 from dreamcatcher.agent_rounds import (
     AgentRoundOutcome,
     AgentRoundPaths,
@@ -26,6 +25,7 @@ from dreamcatcher.feed import read_last_feed_line
 from dreamcatcher.github import PullRequestState
 from dreamcatcher.harness_adapters import AgentWorkKind, HarnessSessionIdentifier
 from dreamcatcher.issue_conversations import ConversationRoundInput
+from dreamcatcher.pull_request_work import AssignmentRoundInput
 from dreamcatcher.status.findings import describe_changed_children, describe_signal
 from dreamcatcher.words import describe_count, describe_span
 

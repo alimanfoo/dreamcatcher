@@ -11,7 +11,6 @@ from enum import StrEnum
 
 from pydantic import ConfigDict, Field, PositiveInt
 
-from dreamcatcher.agent_assignments import ObservedPullRequest
 from dreamcatcher.agent_work import AgentWork, AgentWorkEndReason
 from dreamcatcher.config import AssignmentRoute
 from dreamcatcher.documents import (
@@ -26,6 +25,7 @@ from dreamcatcher.github import (
     IssueComment,
     IssueState,
 )
+from dreamcatcher.pull_request_work import ObservedPullRequest
 from dreamcatcher.relay import IssueCommentCursor, OrderedIssueComments
 from dreamcatcher.state import StateDirectory
 

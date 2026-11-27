@@ -3,14 +3,6 @@
 from collections.abc import Sequence
 from functools import partial
 
-from dreamcatcher.agent_assignments import (
-    AssignmentRoundInput,
-    complete_assignment,
-    is_wrap_up_relayed,
-    open_assignment_pull_request,
-    read_assignment_pull_request_number,
-    read_user_post_cursor,
-)
 from dreamcatcher.agent_work import AgentWork
 from dreamcatcher.config import DispatchRoute
 from dreamcatcher.github import (
@@ -24,6 +16,14 @@ from dreamcatcher.github import (
     read_pull_request,
 )
 from dreamcatcher.prompts import compose_assignment_input_prompt
+from dreamcatcher.pull_request_work import (
+    AssignmentRoundInput,
+    complete_pull_request_work,
+    is_wrap_up_relayed,
+    open_work_pull_request,
+    read_user_post_cursor,
+    read_work_pull_request_number,
+)
 from dreamcatcher.relay import find_pull_request_signals, list_user_posts_past_cursor
 from dreamcatcher.scheduler.blockers import list_open_blocking_issues
 from dreamcatcher.scheduler.faults import is_last_round_unfinished
@@ -53,7 +53,7 @@ def inspect_open_assignment(
     unread = compose_open_work_row(work=work, finding=None)
     if is_in_fault:
         return Inspection(row=unread, is_counted_fault=True)
-    pull_request = read_assignment_pull_request_number(assignment=work)
+    pull_request = read_work_pull_request_number(assignment=work)
     if pull_request is None:
         return Inspection(
             row=unread,
@@ -186,7 +186,7 @@ def _compose_opening_round(*, context: SchedulingContext, work: AgentWork) -> Ro
     """
     return RoundPlan(
         prepare_round=partial(
-            open_assignment_pull_request,
+            open_work_pull_request,
             state=context.state,
             repository=context.repository,
             assignment=work,
@@ -230,6 +230,8 @@ def _compose_relay_round(
         finish_round=(
             None
             if pull_request.state is PullRequestState.OPEN
-            else partial(complete_assignment, assignment=work, clock=context.clock)
+            else partial(
+                complete_pull_request_work, assignment=work, clock=context.clock
+            )
         ),
     )

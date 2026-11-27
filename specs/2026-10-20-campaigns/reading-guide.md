@@ -57,13 +57,12 @@ settings. Later configuration edits do not rewrite those settings.
 separate files beside that record.
 
 The first assignment round calls `open_assignment_pull_request` in
-[`agent_assignments.py`](../../src/dreamcatcher/agent_assignments.py).
-It fetches main, prepares the worktree and branch, ensures a commit
-beyond main, pushes, and records a draft pull request. Read
-`find_or_create_assignment_pull_request` in
-[`agent_assignment_pull_requests.py`](../../src/dreamcatcher/agent_assignment_pull_requests.py)
-to see how a later attempt adopts the pull request already on that
-branch. The work record exists before any of these external steps.
+`agent_assignments.py`. It fetches main, prepares the worktree and
+branch, ensures a commit beyond main, pushes, and records a draft pull
+request. Read `find_or_create_assignment_pull_request` in
+`agent_assignment_pull_requests.py` to see how a later attempt adopts
+the pull request already on that branch. The work record exists before
+any of these external steps.
 
 For the directory layout, read `StateDirectory` in
 [`state.py`](../../src/dreamcatcher/state.py) and `AgentRoundPaths` in
@@ -103,9 +102,8 @@ account, say something, and contain no `<!-- dreamcatcher -->` marker.
 An approval or request for changes can count without a body.
 
 The cursor is the position already delivered. Follow
-`read_user_post_cursor` in
-[`agent_assignments.py`](../../src/dreamcatcher/agent_assignments.py)
-back to `AgentWork.list_relayed_round_paths` in
+`read_user_post_cursor` in `agent_assignments.py` back to
+`AgentWork.list_relayed_round_paths` in
 [`agent_work.py`](../../src/dreamcatcher/agent_work.py). It selects
 saved inputs from successful, stopped and running rounds. Errored and
 interrupted rounds do not count, so their input can be selected again.
@@ -126,23 +124,21 @@ request can raise an out-of-date or check-failure signal. Each is
 relayed only at a head commit different from the last head that carried
 that signal.
 
-Then read `is_check_failure_withheld` in
-[`agent_assignments.py`](../../src/dreamcatcher/agent_assignments.py).
-Two consecutive relayed inputs containing a check failure withhold
-further check-failure signals. An input without one breaks the sequence.
-Other signals can still wake the assignment. This is separate from
-fault, which concerns errored rounds.
+Then read `is_check_failure_withheld` in `agent_assignments.py`. Two
+consecutive relayed inputs containing a check failure withhold further
+check-failure signals. An input without one breaks the sequence. Other
+signals can still wake the assignment. This is separate from fault,
+which concerns errored rounds.
 
 For completion, read `_inspect_pull_request` and `_compose_relay_round`
 in
 [`scheduler/assignments.py`](../../src/dreamcatcher/scheduler/assignments.py).
 A merged or closed pull request calls for wrap-up if its terminal state
 has not already been relayed. A successful wrap-up calls
-`complete_assignment` in
-[`agent_assignments.py`](../../src/dreamcatcher/agent_assignments.py).
-Downstream eligibility checks the blocking issue's state, not this
-assignment ending. The next stage can therefore become eligible while
-the previous assignment is still wrapping up.
+`complete_assignment` in `agent_assignments.py`. Downstream eligibility
+checks the blocking issue's state, not this assignment ending. The next
+stage can therefore become eligible while the previous assignment is
+still wrapping up.
 
 ## Conversations, pausing and publication
 
@@ -232,20 +228,20 @@ Read the models in
 [`campaigns.py`](../../src/dreamcatcher/campaigns.py): `CampaignChild`
 and `CampaignChildAssignment` form the snapshot, which the row and the
 round input share. The observed pull request is `ObservedPullRequest` in
-[`agent_assignments.py`](../../src/dreamcatcher/agent_assignments.py),
-which `PullRequestFinding` extends, so the campaign module imports no
-scheduler type. Then read `prepare_campaign_round` and
-`read_delivered_campaign_input`. Preparation refreshes the detached
-worktree, as a conversation round does, and freezes a
-`CampaignRoundInput` holding the parent issue, the sub-issues, the
-notifications, the comments, the cursor, the revision and the running
-daemon's assignment routes. The cursor reaches the newest comment, or
-carries forward the cursor of the newest delivered input, which
-`AgentWork.list_relayed_round_paths` selects. Recovery therefore
-recomputes the comments, the sub-issues and the notifications from
-GitHub against the last delivered input. `compose_campaign_input_prompt`
-in [`prompts.py`](../../src/dreamcatcher/prompts.py) names that input
-and the limits on the lead. The round plan has no finishing step, so the
+`agent_assignments.py`, which `PullRequestFinding` extends, so the
+campaign module imports no scheduler type. Then read
+`prepare_campaign_round` and `read_delivered_campaign_input`.
+Preparation refreshes the detached worktree, as a conversation round
+does, and freezes a `CampaignRoundInput` holding the parent issue, the
+sub-issues, the notifications, the comments, the cursor, the revision
+and the running daemon's assignment routes. The cursor reaches the
+newest comment, or carries forward the cursor of the newest delivered
+input, which `AgentWork.list_relayed_round_paths` selects. Recovery
+therefore recomputes the comments, the sub-issues and the notifications
+from GitHub against the last delivered input.
+`compose_campaign_input_prompt` in
+[`prompts.py`](../../src/dreamcatcher/prompts.py) names that input and
+the limits on the lead. The round plan has no finishing step, so the
 lead's final output stays in the feed.
 
 `compare_campaign_children` is a pure function of the newest delivered
@@ -280,10 +276,10 @@ and checks that the submitted round is still the faulted one.
 `request_agent_round_stop` and `AgentRound._watch_for_stop_request` in
 [`agent_rounds.py`](../../src/dreamcatcher/agent_rounds.py) stop a round
 while leaving its work open. `cancel_assignment` in
-[`agent_assignments.py`](../../src/dreamcatcher/agent_assignments.py)
-records an ending before requesting a stop, leaving the branch and pull
-request for the user. `Scheduler._launch` rechecks the ending after
-starting a round to cover a concurrent cancellation.
+`agent_assignments.py` records an ending before requesting a stop,
+leaving the branch and pull request for the user. `Scheduler._launch`
+rechecks the ending after starting a round to cover a concurrent
+cancellation.
 
 ## Instructions and harness permissions
 
