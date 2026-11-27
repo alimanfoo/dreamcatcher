@@ -101,7 +101,11 @@ the pull request is a draft, the lead is in the **coordinating phase**.
 It dispatches the parent's existing sub-issues and reviews and merges
 their pull requests into the campaign branch. When it judges every
 sub-issue done, it marks the campaign's pull request ready for review.
-The user decides when to merge it.
+While the open pull request is ready for review, the lead is in the
+**finishing phase**. The lead responds to the same pull request signals
+as an assignment's agent and can commit and push to the campaign branch.
+Marking the pull request as a draft again returns the campaign to
+coordinating. The user decides when to merge it.
 
 A **campaign's sub-issue** is a direct sub-issue in the same repository
 whose parent carries a campaign label configured for the running daemon

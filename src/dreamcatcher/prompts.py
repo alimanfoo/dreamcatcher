@@ -127,9 +127,7 @@ Return Markdown ready for dreamcatcher to post, or exactly NO_REPLY when no
 reply is needed."""
 
 
-# An opening round learns its pull request number from the input because its
-# preparation opens the pull request after this prompt is composed.
-_COORDINATING_INPUT_PROMPT = """Campaign input for parent issue GH{issue}:
+_CAMPAIGN_INPUT_PROMPT = """Campaign input for parent issue GH{issue}:
 
   {round_input}
 
@@ -143,24 +141,35 @@ notification names its sub-issue's `issue` and `changes`. The `children` field
 describes the parent's sub-issues and their assignments. The
 `assignment_routes` field holds the labels and recipes available for dispatch.
 
-Coordinate the parent's existing sub-issues. Do not add sub-issues. To dispatch
-an assignment, assign the sub-issue to the signed-in account, remove its
-assignment label if present, then add the label to make a new request.
+{phase_instructions}
+
+Do not add sub-issues or open another pull request. The user decides when to
+merge the campaign's pull request. Do not merge it yourself or close the
+parent. The user's merge closes the parent. Leave the parent's assignees and
+labels as they are.
+
+Post anything the user needs to read on the campaign's pull request yourself.
+dreamcatcher keeps your final output in the feed. End your turn when done."""
+
+_COORDINATING_INSTRUCTIONS = """\
+Coordinate the parent's existing sub-issues. To dispatch an assignment,
+assign the sub-issue to the signed-in account, remove its assignment label if
+present, then add the label to make a new request.
 Inspect GitHub before each change and do not repeat an action that an earlier
 attempt completed.
 
 dreamcatcher creates your worktree on the campaign branch and preserves your
 checkout between rounds. While coordinating, do not edit project source, commit,
-push or open a pull request. Review and merge sub-issue pull requests into the
-campaign branch.
+or push. Review and merge sub-issue pull requests into the campaign branch.
 Run every `gh pr merge` as a shell command of its own, with no other command
 joined to it. When you judge every sub-issue done, mark the campaign's pull
-request ready for review. Do not merge the campaign's own pull request or close
-the parent. The user's merge closes the parent. Leave the parent's assignees
-and labels as they are.
+request ready for review."""
 
-Post anything the user needs to read on the campaign's pull request yourself.
-dreamcatcher keeps your final output in the feed. End your turn when done."""
+_FINISHING_INSTRUCTIONS = """\
+Carry the campaign's pull request to merge. Before acting on any signals or
+making changes, switch to the campaign branch `{campaign_branch}` and pull it
+to pick up any sub-issues merged since your last round. Make the changes the
+user requests and commit and push your fixes to that branch."""
 
 
 def compose_issue_instructions(*, template: str, issue: int) -> str:
@@ -186,7 +195,7 @@ def compose_assignment_input_prompt(
     round that errored or was interrupted, an open pull request's round is told
     to continue the unfinished assignment as well as act on the posts.
     """
-    return "".join(_SIGNAL_LINES[signal] for signal in pull_request_signals) + (
+    return _compose_signal_lines(signals=pull_request_signals) + (
         _ASSIGNMENT_INPUT_PROMPT.format(
             pull_request=pull_request,
             round_input=round_input,
@@ -202,9 +211,24 @@ def compose_conversation_input_prompt(*, issue: int, round_input: Path) -> str:
     return _CONVERSATION_INPUT_PROMPT.format(issue=issue, round_input=round_input)
 
 
-def compose_campaign_input_prompt(*, issue: int, round_input: Path) -> str:
-    """Direct a coordinating lead to its pull request and sub-issue input."""
-    return _COORDINATING_INPUT_PROMPT.format(issue=issue, round_input=round_input)
+def compose_campaign_input_prompt(
+    *,
+    issue: int,
+    round_input: Path,
+    finishing_branch: str | None = None,
+    pull_request_signals: Sequence[PullRequestSignal] = (),
+) -> str:
+    """Direct a lead to its input, with finishing instructions when given a branch."""
+    phase_instructions = (
+        _COORDINATING_INSTRUCTIONS
+        if finishing_branch is None
+        else _FINISHING_INSTRUCTIONS.format(campaign_branch=finishing_branch)
+    )
+    return _compose_signal_lines(
+        signals=pull_request_signals
+    ) + _CAMPAIGN_INPUT_PROMPT.format(
+        issue=issue, round_input=round_input, phase_instructions=phase_instructions
+    )
 
 
 def compose_round_prompt(
@@ -246,3 +270,7 @@ _SIGNAL_LINES = {
     PullRequestSignal.OUT_OF_DATE: _OUT_OF_DATE_LINE,
     PullRequestSignal.CHECK_FAILURE: _CHECK_FAILURE_LINE,
 }
+
+
+def _compose_signal_lines(*, signals: Sequence[PullRequestSignal]) -> str:
+    return "".join(_SIGNAL_LINES[signal] for signal in signals)

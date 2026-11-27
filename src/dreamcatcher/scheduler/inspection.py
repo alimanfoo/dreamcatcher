@@ -26,24 +26,19 @@ class SchedulingContext:
 
 
 @dataclass(frozen=True, kw_only=True)
-class RoundPlan:
-    """Describe a round's preparation, its input prompt and its finishing step.
+class PreparedRoundInput:
+    """Hold the round's input, its prompt and any step to run after success."""
 
-    The preparation runs inside the round, before its harness, and returns the
-    input the round is given. A plan with no input prompt gives the agent its
-    instructions alone.
-    """
-
-    prepare_round: Callable[[], DreamcatcherDocument | None]
-    input_prompt: str | None
-    finish_round: AgentRoundFinisher | None
+    document: DreamcatcherDocument | None = None
+    prompt: str | None = None
+    finish_round: AgentRoundFinisher | None = None
 
 
-class _RoundComposer(Protocol):
-    """Compose the plan of a candidate's next round, once its work exists."""
+class _RoundPreparer(Protocol):
+    """Prepare a candidate's next round inside its recorded launch attempt."""
 
-    def __call__(self, *, work: AgentWork) -> RoundPlan:
-        """Return the plan of the work's next round."""
+    def __call__(self, *, work: AgentWork) -> PreparedRoundInput:
+        """Return the prepared input and any finishing step."""
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -54,7 +49,7 @@ class Candidate:
     """
 
     work_or_request: AgentWork | DispatchRequest
-    compose_round: _RoundComposer
+    prepare_round: _RoundPreparer
 
 
 @dataclass(frozen=True, kw_only=True)

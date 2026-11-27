@@ -376,6 +376,37 @@ stopped its previous round.
 The value to the user is that they steer the lead in the same place they
 review its work, and the lead never loses the thread.
 
+#### The default branch moves or the build goes red after the lead marks it ready
+
+While the campaign's pull request is a draft, a conflict with the
+default branch or a failing check wakes nobody. Once the lead marks the
+pull request ready, falling behind where GitHub requires a current
+branch, conflicting with the default branch or failing checks wakes the
+lead as it would an assignment's agent. The lead switches to the
+campaign branch and pulls it to pick up any recently merged sub-issues.
+It merges the default branch in and resolves conflicts, or fixes the
+failing checks, and pushes to the campaign branch.
+
+If two consecutive attempts leave the checks failing on a new commit,
+the lead waits for a user post, a sub-issue change or an out-of-date
+signal. While it is idle, the card says "checks failing after two
+attempts". Marking the pull request as a draft again returns the lead to
+coordinating on its next round.
+
+The user comes back to a pull request the lead has kept ready for
+review, or can see where it needs their help.
+
+#### A colleague asks for changes on a campaign
+
+A colleague reviews the ready campaign pull request and asks for
+changes. The user reads the review and relays what they want in a post
+of their own on the same pull request. The lead receives the user's post
+and pushes the changes to the campaign branch. When a change calls for a
+sub-issue of its own, the user adds one to the parent and the lead can
+dispatch it. The colleague then reviews the updated pull request.
+
+The user decides which feedback reaches the lead, as on an assignment.
+
 #### The user cancels a campaign to finish it by hand
 
 The user wants to take over from the lead. They cancel the campaign from

@@ -10,6 +10,7 @@ from dreamcatcher.agent_rounds import (
     AgentRound,
     AgentRoundLaunchError,
     AgentRoundStartRequest,
+    PreparedAgentRound,
     start_agent_round,
 )
 from dreamcatcher.agent_work import (
@@ -490,13 +491,27 @@ class Scheduler:
                 at=at,
             )
         )
-        plan = candidate.compose_round(work=work)
         harness_session_identifier = work.find_harness_session_identifier()
         if harness_session_identifier is not None:
             record_harness_session_identifier(
                 work=work, identifier=harness_session_identifier
             )
         paths = work.compose_round_paths(number=work.next_round_number)
+
+        def prepare_round() -> PreparedAgentRound:
+            round_input = candidate.prepare_round(work=work)
+            return PreparedAgentRound(
+                round_input=round_input.document,
+                prompt=compose_round_prompt(
+                    instructions=work.record.instructions,
+                    is_resuming=harness_session_identifier is not None,
+                    input_prompt=round_input.prompt,
+                    previous_outcome=work.rounds[-1].outcome if work.rounds else None,
+                    work_kind=work.record.kind,
+                ),
+                finish_round=round_input.finish_round,
+            )
+
         started_round = start_agent_round(
             request=AgentRoundStartRequest(
                 harness=work.record.harness,
@@ -505,24 +520,14 @@ class Scheduler:
                     model=work.record.model,
                     effort=work.record.effort,
                     harness_config=work.record.harness_config,
-                    prompt=compose_round_prompt(
-                        instructions=work.record.instructions,
-                        is_resuming=harness_session_identifier is not None,
-                        input_prompt=plan.input_prompt,
-                        previous_outcome=(
-                            work.rounds[-1].outcome if work.rounds else None
-                        ),
-                        work_kind=work.record.kind,
-                    ),
                     work_kind=work.record.kind,
                 ),
                 harness_session_identifier=harness_session_identifier,
                 record_harness_session_identifier=partial(
                     record_harness_session_identifier, work=work
                 ),
-                finish_round=plan.finish_round,
                 paths=paths,
-                prepare_round=plan.prepare_round,
+                prepare_round=prepare_round,
             ),
             clock=self.context.clock,
         )

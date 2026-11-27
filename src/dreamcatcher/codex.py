@@ -163,7 +163,6 @@ class _CodexHarnessAdapter(HarnessAdapter):
                 ),
                 _STDIN_ARGUMENT,
             ],
-            prompt=request.prompt,
         )
 
     def build_resumed_round(
@@ -203,7 +202,6 @@ class _CodexHarnessAdapter(HarnessAdapter):
                 harness_session_identifier,
                 _STDIN_ARGUMENT,
             ],
-            prompt=request.prompt,
         )
 
     def build_hand_resume(

@@ -16,13 +16,11 @@ ROUND_LAUNCH_REQUEST = AgentRoundLaunchRequest(
     agent_work_identifier="GH9-20260819-184158",
     model="gpt-6.2-sol",
     effort="xhigh",
-    prompt="$dream:smith GH9",
 )
 CONVERSATION_LAUNCH_REQUEST = AgentRoundLaunchRequest(
     agent_work_identifier="GH9-20260819-184158-conversation",
     model="gpt-6.2-sol",
     effort="xhigh",
-    prompt="Answer GH9.",
     work_kind=AgentWorkKind.CONVERSATION,
 )
 
@@ -55,7 +53,6 @@ def test_a_new_session_round_runs_where_it_is_launched_under_codexs_own_reviewer
             "sandbox_workspace_write.network_access=true",
             _STDIN_ARGUMENT,
         ],
-        prompt="$dream:smith GH9",
     )
 
 
@@ -82,7 +79,6 @@ def test_a_resume_replays_the_settings_and_the_permissions_codex_forgets():
             "01a0213c-9c67",
             _STDIN_ARGUMENT,
         ],
-        prompt="$dream:smith GH9",
     )
 
 
@@ -178,7 +174,6 @@ def test_a_first_conversation_round_can_write_with_network_without_approval():
             str(FINAL_OUTPUT_PATH),
             _STDIN_ARGUMENT,
         ],
-        prompt="Answer GH9.",
     )
 
 
@@ -205,7 +200,6 @@ def test_a_resumed_conversation_can_write_with_network_without_approval():
             "01a0213c-9c67",
             _STDIN_ARGUMENT,
         ],
-        prompt="Answer GH9.",
     )
 
 

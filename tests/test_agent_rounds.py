@@ -2,6 +2,7 @@ import json
 import sys
 from contextlib import suppress
 from datetime import datetime
+from functools import partial
 from pathlib import Path
 from threading import Thread
 from time import monotonic, sleep
@@ -40,6 +41,7 @@ from dreamcatcher.agent_rounds import (
     HarnessErroredAgentRoundEnding,
     InterruptedAgentRoundEnding,
     LaunchErroredAgentRoundEnding,
+    PreparedAgentRound,
     StoppedAgentRoundEnding,
     SuccessfulAgentRoundEnding,
     _AgentRoundHarness,
@@ -111,8 +113,11 @@ EXITS_WHEN_RELEASED = (
 )
 
 
-def relay_nothing() -> None:
+def compose_round_without_input(
+    *, finish_round: AgentRoundFinisher | None = None
+) -> PreparedAgentRound:
     """Prepare a round that has no input to relay."""
+    return PreparedAgentRound(prompt=PROMPT, finish_round=finish_round)
 
 
 def ignore_harness_session_identifier(*, identifier: str) -> None:
@@ -131,8 +136,7 @@ def create_round_harness(
     """
     return _AgentRoundHarness(
         adapter=adapter,
-        invocation=invocation
-        or HarnessInvocation(program="harness", arguments=[], prompt=PROMPT),
+        invocation=invocation or HarnessInvocation(program="harness", arguments=[]),
         record_harness_session_identifier=record,
     )
 
@@ -151,9 +155,7 @@ class Unrenderable(HarnessAdapter):
     def build_new_session_round(
         self, *, request: AgentRoundLaunchRequest, final_output_from_worktree: Path
     ) -> HarnessInvocation:
-        return HarnessInvocation(
-            program=self.program, arguments=[], prompt=request.prompt
-        )
+        return HarnessInvocation(program=self.program, arguments=[])
 
     def build_resumed_round(
         self,
@@ -162,9 +164,7 @@ class Unrenderable(HarnessAdapter):
         harness_session_identifier: str,
         final_output_from_worktree: Path,
     ) -> HarnessInvocation:
-        return HarnessInvocation(
-            program=self.program, arguments=[], prompt=request.prompt
-        )
+        return HarnessInvocation(program=self.program, arguments=[])
 
     def build_hand_resume(
         self,
@@ -242,12 +242,10 @@ def test_a_round_runs_the_command_it_was_given_in_the_worktree(
     AgentRound(
         agent_work_identifier="GH9-20260819-184158",
         harness=create_round_harness(
-            invocation=HarnessInvocation(
-                program="harness", arguments=["--print"], prompt=PROMPT
-            )
+            invocation=HarnessInvocation(program="harness", arguments=["--print"])
         ),
         paths=compose_round_paths(worktree=worktree, directory=directory),
-        prepare_round=relay_nothing,
+        prepare_round=compose_round_without_input,
         clock=lambda: PINNED,
     ).wait()
 
@@ -263,7 +261,7 @@ def test_a_round_gives_the_harness_its_prompt_to_read(fake, worktree, directory)
         agent_work_identifier="GH9-20260819-184158",
         harness=create_round_harness(),
         paths=compose_round_paths(worktree=worktree, directory=directory),
-        prepare_round=relay_nothing,
+        prepare_round=compose_round_without_input,
         clock=lambda: PINNED,
     )
     running.wait()
@@ -283,13 +281,11 @@ def test_a_new_session_round_builds_its_harness_invocation(fake, worktree, direc
                 agent_work_identifier="GH9-20260819-184158",
                 model="opus[1m]",
                 effort="xhigh",
-                prompt=PROMPT,
             ),
             harness_session_identifier=None,
             record_harness_session_identifier=ignore_harness_session_identifier,
-            finish_round=None,
             paths=compose_round_paths(worktree=worktree, directory=directory),
-            prepare_round=relay_nothing,
+            prepare_round=compose_round_without_input,
         ),
         clock=lambda: PINNED,
     ).wait()
@@ -311,13 +307,11 @@ def test_a_resumed_round_builds_its_harness_invocation(fake, worktree, directory
                 agent_work_identifier="GH9-20260819-184158",
                 model="opus[1m]",
                 effort="xhigh",
-                prompt=PROMPT,
             ),
             harness_session_identifier="abc-123",
             record_harness_session_identifier=ignore_harness_session_identifier,
-            finish_round=None,
             paths=compose_round_paths(worktree=worktree, directory=directory),
-            prepare_round=relay_nothing,
+            prepare_round=compose_round_without_input,
         ),
         clock=lambda: PINNED,
     ).wait()
@@ -349,12 +343,10 @@ def test_a_codex_conversation_writes_its_final_output_by_a_path_from_its_worktre
                 agent_work_identifier="GH9-20260819-184158-conversation",
                 model="gpt-6.2-sol",
                 effort="xhigh",
-                prompt=PROMPT,
                 work_kind=AgentWorkKind.CONVERSATION,
             ),
             harness_session_identifier=harness_session_identifier,
             record_harness_session_identifier=ignore_harness_session_identifier,
-            finish_round=None,
             paths=AgentRoundPaths(
                 worktree=worktree,
                 rounds_directory=(
@@ -362,7 +354,7 @@ def test_a_codex_conversation_writes_its_final_output_by_a_path_from_its_worktre
                 ),
                 number=3,
             ),
-            prepare_round=relay_nothing,
+            prepare_round=compose_round_without_input,
         ),
         clock=lambda: PINNED,
     ).wait()
@@ -395,12 +387,15 @@ def test_a_round_writes_the_pull_request_state_and_user_posts_it_was_given(
         agent_work_identifier="GH9-20260819-184158",
         harness=create_round_harness(),
         paths=compose_round_paths(worktree=worktree, directory=directory),
-        prepare_round=lambda: PullRequestRoundInput(
-            pull_request=52,
-            pull_request_state=PullRequestState.OPEN,
-            pull_request_head=HEAD,
-            signals=[],
-            user_posts=posts,
+        prepare_round=lambda: PreparedAgentRound(
+            prompt=PROMPT,
+            round_input=PullRequestRoundInput(
+                pull_request=52,
+                pull_request_state=PullRequestState.OPEN,
+                pull_request_head=HEAD,
+                signals=[],
+                user_posts=posts,
+            ),
         ),
         clock=lambda: PINNED,
     )
@@ -427,7 +422,7 @@ def test_the_feed_a_round_writes_is_the_feed_its_stream_renders_as(
         agent_work_identifier="GH9-20260819-184158",
         harness=create_round_harness(),
         paths=compose_round_paths(worktree=worktree, directory=directory),
-        prepare_round=relay_nothing,
+        prepare_round=compose_round_without_input,
         clock=lambda: PINNED,
     )
     running.wait()
@@ -446,7 +441,7 @@ def test_a_round_keeps_the_harnesss_own_stream_as_it_arrived(fake, worktree, dir
         agent_work_identifier="GH9-20260819-184158",
         harness=create_round_harness(),
         paths=compose_round_paths(worktree=worktree, directory=directory),
-        prepare_round=relay_nothing,
+        prepare_round=compose_round_without_input,
         clock=lambda: PINNED,
     )
     running.wait()
@@ -481,7 +476,7 @@ def test_a_round_records_the_harness_session_after_its_raw_event_lands(
         agent_work_identifier="GH9-20260819-184158",
         harness=create_round_harness(record=record),
         paths=paths,
-        prepare_round=relay_nothing,
+        prepare_round=compose_round_without_input,
         clock=lambda: PINNED,
     )
     running.wait()
@@ -507,7 +502,7 @@ def test_what_the_harness_says_on_stderr_lands_where_it_happened(
         agent_work_identifier="GH9-20260819-184158",
         harness=create_round_harness(),
         paths=compose_round_paths(worktree=worktree, directory=directory),
-        prepare_round=relay_nothing,
+        prepare_round=compose_round_without_input,
         clock=lambda: PINNED,
     )
     running.wait()
@@ -529,7 +524,7 @@ def test_a_line_the_feed_cannot_write_costs_that_line_alone(fake, worktree, dire
         agent_work_identifier="GH9-20260819-184158",
         harness=create_round_harness(adapter=Unrenderable()),
         paths=compose_round_paths(worktree=worktree, directory=directory),
-        prepare_round=relay_nothing,
+        prepare_round=compose_round_without_input,
         clock=lambda: PINNED,
     )
     running.wait()
@@ -549,7 +544,7 @@ def test_a_round_records_its_number_start_and_process(fake, worktree, directory)
         agent_work_identifier="GH9-20260819-184158",
         harness=create_round_harness(),
         paths=compose_round_paths(worktree=worktree, directory=directory),
-        prepare_round=relay_nothing,
+        prepare_round=compose_round_without_input,
         clock=lambda: PINNED,
     )
 
@@ -572,7 +567,7 @@ def test_a_round_that_finished_says_how_it_ended(fake, worktree, directory):
         agent_work_identifier="GH9-20260819-184158",
         harness=create_round_harness(),
         paths=compose_round_paths(worktree=worktree, directory=directory),
-        prepare_round=relay_nothing,
+        prepare_round=compose_round_without_input,
         clock=lambda: PINNED,
     )
     running.wait()
@@ -617,14 +612,14 @@ def start_conversation_round(
                 agent_work_identifier="GH9-20260819-184158-conversation",
                 model="opus[1m]",
                 effort="xhigh",
-                prompt=PROMPT,
                 work_kind=AgentWorkKind.CONVERSATION,
             ),
             harness_session_identifier=None,
             record_harness_session_identifier=ignore_harness_session_identifier,
-            finish_round=finish_round,
             paths=paths,
-            prepare_round=relay_nothing,
+            prepare_round=partial(
+                compose_round_without_input, finish_round=finish_round
+            ),
         ),
         clock=lambda: PINNED,
     )
@@ -743,12 +738,10 @@ def test_a_round_interrupted_as_its_harness_succeeds_is_not_finished(
             invocation=HarnessInvocation(
                 program=sys.executable,
                 arguments=["-c", EXITS_WHEN_RELEASED, str(release)],
-                prompt=PROMPT,
             )
         ),
         paths=paths,
-        prepare_round=relay_nothing,
-        finish_round=finish_round,
+        prepare_round=partial(compose_round_without_input, finish_round=finish_round),
         clock=lambda: PINNED,
     )
 
@@ -893,7 +886,7 @@ def test_interrupting_a_round_records_interruption(fake, worktree, directory):
         agent_work_identifier="GH9-20260819-184158",
         harness=create_round_harness(),
         paths=compose_round_paths(worktree=worktree, directory=directory),
-        prepare_round=relay_nothing,
+        prepare_round=compose_round_without_input,
         clock=lambda: PINNED,
     )
     running.interrupt()
@@ -913,7 +906,7 @@ def test_daemon_shutdown_honours_a_pending_stop_request(fake, worktree, director
         agent_work_identifier="GH9-20260819-184158",
         harness=create_round_harness(),
         paths=compose_round_paths(worktree=worktree, directory=directory),
-        prepare_round=relay_nothing,
+        prepare_round=compose_round_without_input,
         clock=lambda: PINNED,
     )
     request_agent_round_stop(paths=running.paths)
@@ -935,7 +928,7 @@ def test_the_daemon_stopping_a_finished_round_keeps_its_ending(
         agent_work_identifier="GH9-20260819-184158",
         harness=create_round_harness(),
         paths=compose_round_paths(worktree=worktree, directory=directory),
-        prepare_round=relay_nothing,
+        prepare_round=compose_round_without_input,
         clock=lambda: PINNED,
     )
     running.wait()
@@ -968,7 +961,7 @@ def test_a_stop_request_stops_the_round_and_records_why(fake, worktree, director
         agent_work_identifier="GH9-20260819-184158",
         harness=create_round_harness(),
         paths=paths,
-        prepare_round=relay_nothing,
+        prepare_round=compose_round_without_input,
         clock=lambda: PINNED,
         wait_for_round_end=request_stop_on_the_second_poll,
     )
@@ -990,8 +983,9 @@ def test_a_stop_requested_while_the_round_prepared_stops_it_at_once(
     paths = compose_round_paths(worktree=worktree, directory=directory)
     polls: list[float] = []
 
-    def request_stop() -> None:
+    def request_stop() -> PreparedAgentRound:
         request_agent_round_stop(paths=paths)
+        return PreparedAgentRound(prompt=PROMPT)
 
     def count_poll(seconds: float, /) -> bool:
         polls.append(seconds)
@@ -1021,7 +1015,7 @@ def test_the_first_reason_for_ending_a_round_wins(fake, worktree, directory):
         agent_work_identifier="GH9-20260819-184158",
         harness=create_round_harness(),
         paths=compose_round_paths(worktree=worktree, directory=directory),
-        prepare_round=relay_nothing,
+        prepare_round=compose_round_without_input,
         clock=lambda: PINNED,
     )
 
@@ -1048,7 +1042,7 @@ def test_a_round_that_cannot_write_its_feed_stops_rather_than_stalls(
         agent_work_identifier="GH9-20260819-184158",
         harness=create_round_harness(),
         paths=compose_round_paths(worktree=worktree, directory=directory),
-        prepare_round=relay_nothing,
+        prepare_round=compose_round_without_input,
         clock=lambda: PINNED,
     )
     running.wait()
@@ -1074,12 +1068,10 @@ def test_a_round_that_cannot_write_its_prompt_errors_without_a_process(
         AgentRound(
             agent_work_identifier="GH9-20260819-184158",
             harness=create_round_harness(
-                invocation=HarnessInvocation(
-                    program="harness", arguments=[], prompt=PROMPT
-                )
+                invocation=HarnessInvocation(program="harness", arguments=[])
             ),
             paths=paths,
-            prepare_round=relay_nothing,
+            prepare_round=compose_round_without_input,
             clock=lambda: PINNED,
         )
 
@@ -1097,7 +1089,7 @@ def test_a_round_whose_preparation_fails_errors_with_its_reason(
     harness.replies(stdout="")
     paths = compose_round_paths(worktree=worktree, directory=directory)
 
-    def refuse_to_prepare() -> None:
+    def refuse_to_prepare() -> PreparedAgentRound:
         raise ReportableError("git push failed with status 1: hook refused")
 
     with pytest.raises(
@@ -1143,7 +1135,7 @@ def test_a_round_whose_harness_cannot_be_contained_errors_without_a_process(
             agent_work_identifier="GH9-20260819-184158",
             harness=create_round_harness(),
             paths=paths,
-            prepare_round=relay_nothing,
+            prepare_round=compose_round_without_input,
             clock=lambda: PINNED,
         )
 
@@ -1175,12 +1167,10 @@ def test_a_round_whose_process_cannot_be_recorded_does_not_run_on(
         AgentRound(
             agent_work_identifier="GH9-20260819-184158",
             harness=create_round_harness(
-                invocation=HarnessInvocation(
-                    program="harness", arguments=[], prompt=PROMPT
-                )
+                invocation=HarnessInvocation(program="harness", arguments=[])
             ),
             paths=paths,
-            prepare_round=relay_nothing,
+            prepare_round=compose_round_without_input,
             clock=lambda: PINNED,
         )
 
@@ -1215,12 +1205,10 @@ def test_a_round_whose_process_cannot_be_recorded_ends_without_an_exit_status(
         AgentRound(
             agent_work_identifier="GH9-20260819-184158",
             harness=create_round_harness(
-                invocation=HarnessInvocation(
-                    program="harness", arguments=[], prompt=PROMPT
-                )
+                invocation=HarnessInvocation(program="harness", arguments=[])
             ),
             paths=paths,
-            prepare_round=relay_nothing,
+            prepare_round=compose_round_without_input,
             clock=lambda: PINNED,
         )
 
@@ -1244,12 +1232,10 @@ def test_a_round_that_cannot_record_its_start_prepares_and_spawns_nothing(
         AgentRound(
             agent_work_identifier="GH9-20260819-184158",
             harness=create_round_harness(
-                invocation=HarnessInvocation(
-                    program="harness", arguments=[], prompt=PROMPT
-                )
+                invocation=HarnessInvocation(program="harness", arguments=[])
             ),
             paths=paths,
-            prepare_round=relay_nothing,
+            prepare_round=compose_round_without_input,
             clock=lambda: PINNED,
         )
 
@@ -1266,11 +1252,10 @@ def test_a_round_a_straggler_outlives_still_records_an_ending(
             invocation=HarnessInvocation(
                 program=sys.executable,
                 arguments=["-c", LEAVES_A_STRAGGLER, str(straggler)],
-                prompt=PROMPT,
             )
         ),
         paths=compose_round_paths(worktree=worktree, directory=directory),
-        prepare_round=relay_nothing,
+        prepare_round=compose_round_without_input,
         clock=lambda: PINNED,
     )
 
@@ -1297,12 +1282,10 @@ def test_a_finished_round_a_straggler_outlives_still_records_an_ending(
             invocation=HarnessInvocation(
                 program=sys.executable,
                 arguments=["-c", LEAVES_A_STRAGGLER, str(straggler)],
-                prompt=PROMPT,
             ),
         ),
         paths=paths,
-        prepare_round=relay_nothing,
-        finish_round=finish_round,
+        prepare_round=partial(compose_round_without_input, finish_round=finish_round),
         clock=lambda: PINNED,
     )
 
@@ -1318,11 +1301,10 @@ def test_a_round_a_straggler_outlives_still_stops(worktree, directory, straggler
             invocation=HarnessInvocation(
                 program=sys.executable,
                 arguments=["-c", LEAVES_A_STRAGGLER + AND_WAITS, str(straggler)],
-                prompt=PROMPT,
             )
         ),
         paths=compose_round_paths(worktree=worktree, directory=directory),
-        prepare_round=relay_nothing,
+        prepare_round=compose_round_without_input,
         clock=lambda: PINNED,
     )
     assert wait_until(seconds=30, holds=straggler.exists)

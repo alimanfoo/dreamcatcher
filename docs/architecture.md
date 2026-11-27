@@ -136,12 +136,11 @@ One scheduler tick:
    operational reporting.
 
 A candidate is open work the tick may start a round for, or a request it
-may start work for. It carries a composer that builds the round's plan
-once the work exists: the preparation that runs inside the round, the
-input prompt, and the finishing step. The tick creates the work from the
-dispatch request, which carries the label application time for an
-assignment or campaign and the base branch when one was selected. It
-then starts the round the plan describes.
+may start work for. It carries a preparation step that runs inside the
+round and supplies its input, prompt and any finishing step. The tick
+creates the work from the dispatch request, which carries the label
+application time for an assignment or campaign and the base branch when
+one was selected. It then starts the candidate's round.
 
 `assignments.py` owns the base choice. The first pass builds its
 assignment request inspector from all saved work, including ended
@@ -290,7 +289,8 @@ keeps the checkout the lead left between rounds. The opening input
 carries the new pull request number, its initial state and the head of
 the worktree that was pushed, along with the sub-issues and assignment
 routes. An opening round that adopts an existing pull request relays
-GitHub's current observation and wraps up if it is merged or closed.
+GitHub's current observation and uses it to choose the input prompt. A
+merged or closed pull request calls for wrap-up.
 
 `scheduler/campaigns.py` asks the shared start-time questions after the
 label checks clear a campaign request. A claim, a blocker or a failed
@@ -325,10 +325,16 @@ reads its pull request activity through `scheduler/pull_requests.py`.
 `compare_campaign_children` compares the current sub-issues with the
 newest picture delivered to the lead, and names the changes that warrant
 a notification. Pull request activity, an unfinished round or a
-sub-issue notification can make a round due. A campaign in fault still
-shows the sub-issues the tick can observe. An incomplete observation
-prevents a round. The tick compares sub-issues each time, and records
-the notifications only in the input of a round that starts.
+sub-issue notification can make a round due. An open pull request ready
+for review also wakes the lead through the shared out-of-date and
+check-failure relay rules. Its round receives the finishing input prompt
+with the same signal lines an assignment receives. An open draft
+receives the coordinating prompt. Both prompts direct the lead to read
+the pull request's state first and wrap up if it is merged or closed. A
+campaign in fault still shows the sub-issues the tick can observe. An
+incomplete observation prevents a round. The tick compares sub-issues
+each time, and records the notifications only in the input of a round
+that starts.
 
 The lead publishes its own messages, and its final output stays in the
 feed. The shared wrap-up finisher records a completed campaign. Claude
@@ -416,7 +422,8 @@ building it cannot fail. It should then provide operations to:
 - record the round, with the next number that its work allocated, before
   anything else happens;
 - run the preparation step that the work's kind supplies, which readies
-  what the round needs and returns any input to relay;
+  what the round needs and returns its prompt, any input to relay and
+  any finishing step;
 - write the prompt and any input;
 - start the invocation in the work's worktree, and record its process
   id;

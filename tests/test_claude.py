@@ -20,7 +20,6 @@ ROUND_LAUNCH_REQUEST = AgentRoundLaunchRequest(
     agent_work_identifier="GH9-20260819-184158",
     model="opus[1m]",
     effort="xhigh",
-    prompt="/dream:smith GH9",
 )
 
 CLAUDE_BASE_ARGUMENTS = [
@@ -63,7 +62,6 @@ def test_a_new_session_round_names_its_configured_model_and_effort():
     ) == HarnessInvocation(
         program="claude",
         arguments=[*CLAUDE_BASE_ARGUMENTS, "--model", "opus[1m]", "--effort", "xhigh"],
-        prompt="/dream:smith GH9",
     )
 
 
@@ -75,7 +73,6 @@ def test_a_resume_continues_the_harness_session_and_replays_no_settings():
     ) == HarnessInvocation(
         program="claude",
         arguments=[*CLAUDE_BASE_ARGUMENTS, "--resume", "abc-123"],
-        prompt="/dream:smith GH9",
     )
 
 
@@ -84,7 +81,6 @@ def test_a_conversation_round_allows_issue_tools_and_denies_implementation_tools
         agent_work_identifier="GH9-20260819-184158-conversation",
         model="opus[1m]",
         effort="xhigh",
-        prompt="answer the question",
         work_kind=AgentWorkKind.CONVERSATION,
     )
 
@@ -127,7 +123,6 @@ def test_a_campaign_round_gets_assignment_permissions_plus_coordination_tools():
         agent_work_identifier="GH20-20260923-010000-campaign",
         model="opus[1m]",
         effort="xhigh",
-        prompt="Acknowledge GH20.",
         work_kind=AgentWorkKind.CAMPAIGN,
     )
 

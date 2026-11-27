@@ -215,9 +215,10 @@ uses the same closed sub-issue count as the web.
 lead carries it to merge as an assignment's agent does. The out-of-date
 and check-failure signals wake it with the signal lines that assignments
 use; it merges the default branch in or fixes the checks and pushes; it
-makes the changes the user relays; after two attempts at a red build,
-the relay rule leaves the rest to the user. Marking the pull request a
-draft again returns the lead to coordinating.
+makes the changes the user relays. After two consecutive attempts at a
+red build, another check failure leaves the lead waiting for a different
+trigger. Marking the pull request a draft again returns the lead to
+coordinating.
 
 The change touches the campaign's round plan, which chooses the
 coordinating or the finishing input prompt from the draft flag the tick

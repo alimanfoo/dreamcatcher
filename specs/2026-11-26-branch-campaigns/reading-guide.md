@@ -2,8 +2,8 @@
 
 The [requirements](requirements.md) and [design](design.md) explain the
 goal and the whole change. This guide follows the code as the
-[roadmap](roadmap.md) lands. It covers the coordinating lead and
-campaign cancellation.
+[roadmap](roadmap.md) lands. It covers the coordinating and finishing
+phases and campaign cancellation.
 
 ## The tick
 
@@ -114,18 +114,31 @@ assignment permissions. The campaign skill uses contract version 2.
 `status/findings.py` gives the open draft campaign its idle and waiting
 words, and both status views show the count of closed sub-issues.
 
+## The finishing phase
+
+`scheduler/campaigns.py` selects the input prompt from the pull request
+observation that supplies the round's input. A new pull request starts
+as a draft. An opening retry that adopts a ready pull request uses its
+observed phase and signals. Both prompts start their input instructions
+with the same direction to wrap up when the pull request has merged or
+closed.
+
+`prompts.py` gives a finishing lead the campaign branch and reuses the
+assignment signal lines. `status/findings.py` describes ready pull
+requests the same way for both kinds of work. The check-failure relay
+counts consecutive relayed inputs, so a round between fixes that relays
+no check-failure resets the count.
+
 ## Later stages
 
-Stage 7 makes the prompt and the lead's behaviour follow the pull
-request's draft flag. Stage 9 updates the guides. The check-failure
-relay currently counts consecutive relayed inputs, so a round between
-fixes that relays no check-failure resets the count.
+Stage 9 updates the user guides.
 
 ## Tests to read
 
-Start with the stand-in walkthrough and channel tests in
-`tests/test_campaign_scheduling.py`. For the inputs and their display,
-read `tests/test_campaigns.py`, `tests/test_relay.py` and
+Start with the stand-in walkthroughs and channel tests in
+`tests/test_campaign_scheduling.py`, including the ready and draft
+rounds and taking over a cancelled campaign. For the inputs and their
+display, read `tests/test_campaigns.py`, `tests/test_relay.py` and
 `tests/test_campaign_status.py`. For the shared Git and GitHub
 operations, see `tests/test_assignment_requests.py`,
 `tests/test_pull_request_work.py` and `tests/test_git.py`.

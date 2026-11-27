@@ -332,3 +332,21 @@ def test_the_campaign_input_prompt_names_its_input_and_the_users_decisions(
         path=FIXTURES / "prompts" / "coordinating-campaign.txt",
         config=pytestconfig,
     )
+
+
+def test_the_finishing_campaign_prompt_names_its_signals_and_campaign_branch(
+    pytestconfig,
+):
+    assert_matches_view_golden(
+        rendered=compose_campaign_input_prompt(
+            issue=20,
+            round_input=Path("round-input.json"),
+            finishing_branch="dreamcatcher-GH20-20260923-010000-campaign",
+            pull_request_signals=[
+                PullRequestSignal.OUT_OF_DATE,
+                PullRequestSignal.CHECK_FAILURE,
+            ],
+        ),
+        path=FIXTURES / "prompts" / "finishing-campaign.txt",
+        config=pytestconfig,
+    )

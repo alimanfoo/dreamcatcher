@@ -28,7 +28,7 @@ from dreamcatcher.relay import list_issue_comments_past_cursor
 from dreamcatcher.scheduler.inspection import (
     Candidate,
     Inspection,
-    RoundPlan,
+    PreparedRoundInput,
     SchedulingContext,
     compose_open_work_row,
 )
@@ -167,35 +167,34 @@ def _inspect_comments(
         row=row,
         candidate=Candidate(
             work_or_request=work_or_request,
-            compose_round=partial(
-                _compose_comment_round, context=context, issue=issue, comments=comments
+            prepare_round=partial(
+                _prepare_comment_round, context=context, issue=issue, comments=comments
             ),
         ),
     )
 
 
-def _compose_comment_round(
+def _prepare_comment_round(
     *,
     context: SchedulingContext,
     issue: Issue,
     comments: list[IssueComment],
     work: AgentWork,
-) -> RoundPlan:
-    """Return the plan of a round given the comments waiting at the issue.
+) -> PreparedRoundInput:
+    """Prepare a round given the comments waiting at the issue.
 
     A round that starts a new harness session is given the issue's title and
     body too, and every round posts its answer as it finishes.
     """
-    return RoundPlan(
-        prepare_round=partial(
-            prepare_conversation_round,
+    return PreparedRoundInput(
+        document=prepare_conversation_round(
             state=context.state,
             conversation=work,
             issue=issue,
             comments=comments,
             is_resuming=work.find_harness_session_identifier() is not None,
         ),
-        input_prompt=compose_conversation_input_prompt(
+        prompt=compose_conversation_input_prompt(
             issue=work.record.issue,
             round_input=work.compose_round_paths(
                 number=work.next_round_number
