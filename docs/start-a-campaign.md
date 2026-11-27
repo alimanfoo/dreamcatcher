@@ -28,18 +28,16 @@ For your own campaign instructions, configure a separate
 [route](configure.md) with a prompt that follows the
 [campaign skill contract](contract.md#campaign-skill-contract).
 
+The campaign branch must allow merges without an approving review
+because the lead and the sub-issue agents use your GitHub account. Your
+repository's rules determine whether checks run on pull requests into
+the campaign branch. You can still require review on the default branch.
+
 After adding either route, run
 [`dreamcatcher init`](command-reference.md#init) to create the label on
 GitHub, then
 [start or restart the daemon](run-and-monitor.md#start-the-daemon) so it
 reads the new route.
-
-Set the repository's branch rules so the campaign branch can accept
-merges without an approving review. The lead merges the sub-issue pull
-requests under your account, and GitHub prevents you from approving your
-own pull requests. Your repository's rules determine whether checks run
-on pull requests into the campaign branch. You can keep the default
-branch's review requirements for the campaign pull request.
 
 ## Start the campaign
 

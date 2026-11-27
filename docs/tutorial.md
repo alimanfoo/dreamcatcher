@@ -127,12 +127,10 @@ GitHub issue to its route, and `{issue}` in a prompt becomes the issue
 number, so issue 123 with the `agent-assignment` label starts Claude
 with `/dream:smith GH123`.
 
-Until the default branch holds the file, `init` ends by printing the
-commands that commit and push it, naming your repository's default
-branch in the last one. Run them, so the assignment worktree contains
-the file too. If the default branch requires a pull request, land the
-file through your repository's normal review process. To push directly
-to a default branch named `main`, the commands are:
+Land `dreamcatcher.toml` on the default branch so the assignment
+worktree contains it. If the branch requires a pull request, use your
+repository's normal review process. For a direct push to `main`, use the
+commands printed by `init`:
 
 ```sh
 git add dreamcatcher.toml

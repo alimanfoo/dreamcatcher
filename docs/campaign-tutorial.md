@@ -14,7 +14,7 @@ for the branch and plugin requirements.
 ## 1. Set up dreamcatcher
 
 Follow steps 1 to 4 of [Run your first assignment](tutorial.md), through
-pushing `dreamcatcher.toml` in
+landing `dreamcatcher.toml` in
 [step 4](tutorial.md#4-run-dreamcatcher-init). Then return here to
 prepare the issues and start the daemon.
 

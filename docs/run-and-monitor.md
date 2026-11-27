@@ -110,8 +110,7 @@ Every kind of agent work shares these statuses:
   work awaits the next update. For a conversation it can describe the
   latest round. For an assignment or campaign it can describe the pull
   request. An idle draft campaign awaits feedback or sub-issue changes;
-- **held**: a conversation is paused, or a request cannot start. The
-  detail says what will let it proceed;
+- **held**: the detail says how to unblock a conversation or request;
 - **fault**: repeated errors need attention;
 - **unknown**: _dreamcatcher_ could not read what it needed, or the
   latest update has not seen the work; the accompanying detail says

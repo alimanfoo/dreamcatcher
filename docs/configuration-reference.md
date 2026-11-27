@@ -146,10 +146,12 @@ rewrite that record.
 A conversation belongs to the conversation label that started it.
 Another conversation label starts a conversation of its own, with that
 label's route and recipe, once it is the only conversation label on the
-issue. While both are on the issue, the labels conflict and nothing
-starts. Each application of an assignment or campaign label requests one
-attempt. Remove and re-add the label after work ends to request another
-attempt.
+issue.
+
+Each application of an assignment or campaign label requests one
+attempt. See
+[Label an issue for agent work](configure.md#label-an-issue-for-agent-work)
+to request another.
 
 A matching label selects a route but does not by itself make an issue
 ready for dispatch. [Run your first assignment](tutorial.md) explains

@@ -117,24 +117,25 @@ two-harness example and every accepted setting.
 
 ## Label an issue for agent work
 
-An issue is available for a new assignment when it:
+An assignment request or a campaign request can start when its issue or
+parent issue meets these conditions.
 
-- is open and assigned to the account authenticated through `gh`;
-- carries exactly one configured assignment label, which you applied
-  yourself for this attempt;
-- has no open assignment already managed by this checkout;
-- has no other open pull request linked to it; and
-- has no open issue recorded by GitHub as blocking it.
+- It is open and assigned to the account authenticated through `gh`.
+- It carries exactly one configured label of that kind, which you
+  applied yourself for this attempt.
+- It has no open work of that kind in this checkout.
+- No open pull request claims it and no open issue blocks it.
 
 Requests for a campaign's sub-issues wait until the campaign branch is
 available. The newest campaign supplies it when it is open or cancelled
 and its pull request is open. An assignment keeps the base it starts
 from.
 
-Two configured assignment labels hold a new request with a routing
-conflict. An open assignment keeps its recorded route and pull request
-when its labels change. Use the controls in
-[Stop and recover work](stop-and-recover.md) when you need to intervene.
+Two configured labels of the same kind hold a new request with a routing
+conflict. An open assignment or campaign keeps its recorded route and
+pull request when its labels change. See
+[Review an assignment](review-an-assignment.md) or
+[Start a campaign](start-a-campaign.md) to direct and finish the work.
 
 A conversation starts on an open issue that is assigned to the
 authenticated account and carries exactly one configured conversation
@@ -144,13 +145,6 @@ adding a second conversation label or another account applying its label
 holds it back too, and closing the issue ends it.
 [Discuss an issue](discuss-an-issue.md#pause-resume-or-end-a-conversation)
 explains both.
-
-A campaign starts on an open parent issue that is assigned to the
-authenticated account, carries exactly one configured campaign label,
-which you applied yourself for this attempt, and has no open blocker or
-pull request claiming it. Once it starts, the campaign continues through
-its own pull request. [Start a campaign](start-a-campaign.md) explains
-how to direct and finish it.
 
 Each application of an assignment or campaign label requests one
 attempt. To try again on an open issue, remove and re-add the label once
