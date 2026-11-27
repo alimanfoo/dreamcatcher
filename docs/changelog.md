@@ -39,7 +39,10 @@ the change.
 
 - Campaign skills must follow [agent contract version 2](contract.md).
   Update your campaign skill before starting a campaign with this
-  release. ([#939](https://github.com/alimanfoo/dreamcatcher/pull/939))
+  release. To run campaigns with `dream:big`, you need dream 48.0.0 or
+  later, so update the plugin together with _dreamcatcher_.
+  ([#939](https://github.com/alimanfoo/dreamcatcher/pull/939),
+  [#945](https://github.com/alimanfoo/dreamcatcher/pull/945))
 
 ### Changed
 

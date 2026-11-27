@@ -22,7 +22,7 @@ route from the
 `init` leaves an existing configuration and plugin installation in
 place. Check the
 [upgrade instructions](compatibility.md#upgrade-from-v9-to-state-format-9)
-for the campaign skill you need.
+for the minimum dream plugin version and the campaign skill contract.
 
 For your own campaign instructions, configure a separate
 [route](configure.md) with a prompt that follows the

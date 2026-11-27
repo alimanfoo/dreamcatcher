@@ -24,9 +24,11 @@ assignment issues and campaign parents, and you can finish those pull
 requests by hand.
 
 Before starting a campaign in the new format, update your campaign skill
-to [agent contract version 2](contract.md#campaign-skill-contract). If
-you use `dream:big`, update the dream plugin in each harness that runs
-it. `dreamcatcher init` leaves existing plugin installations in place.
+to [agent contract version 2](contract.md#campaign-skill-contract).
+Running campaigns with `dream:big` requires dream 48.0.0 or later.
+Update the dream plugin together with _dreamcatcher_ in each harness
+that runs `dream:big`. `dreamcatcher init` leaves existing plugin
+installations in place.
 
 ## Upgrade from v8.0.0 to v9.0.0
 
