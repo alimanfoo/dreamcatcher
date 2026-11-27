@@ -56,15 +56,13 @@ This changes these stories in `docs/stories.md`:
   needs them";
 - the campaign parts of "The user renames a dispatch label", "Two labels
   of one kind on one issue", "Labelling an issue for a colleague" and
-  "Naming work that is not there", which says cancel refuses a campaign;
+  "Naming work that is not there";
 - "Talking to the agent in the wrong place", which reverses for
   campaigns;
 - "The user closes a pull request they do not want", "Closing a pull
   request and leaving the assignment label on the issue" and "Deleting
-  an assignment's worktree", which change because a label left on no
-  longer starts new work. In `docs/concepts.md`, an assignment or
-  campaign request becomes one application of its label, which the work
-  it starts consumes;
+  an assignment's worktree", which describe what happens after a request
+  is consumed;
 - "Reapplying a label while work is open", "The user upgrades
   dreamcatcher" and "Deleting the daemon lock while the daemon runs",
   which describe when a label can start fresh work.
@@ -193,10 +191,9 @@ Outcome: rejecting a campaign's work is the same close button as
 rejecting an assignment's. The sub-issues it closed stay closed, though
 their work never reached main. I can't see any alternative to that.
 
-Leaving the campaign label on the parent doesn't start a new campaign by
-itself. For a fresh attempt, I reopen the sub-issues I want done again,
-then take the parent's label off and put it back. The new lead
-dispatches the reopened sub-issues afresh.
+For a fresh attempt, I reopen the sub-issues I want done again, then
+take the parent's consumed label off and put it back. The new lead
+dispatches the reopened sub-issues.
 
 ### I take the campaign over
 
@@ -271,14 +268,10 @@ I want to support, and if I do it anyway, they're held too.
 
 ### What a label means
 
-For assignments and campaigns, applying the label makes a request, and
-the work consumes it when it starts. A label that stays on after its
-request was consumed asks for nothing more. So if I close a pull request
-with the label left on, or reopen a parent whose campaign has ended,
-nothing new starts by itself, and the card says that the label's request
-has already been used and that I re-apply it for another attempt. Taking
-the label off and putting it back is how I ask for another attempt. An
-issue with no earlier work of the kind starts as it does today.
+An assignment or campaign consumes its label application when it starts.
+If I leave that application in place when the work ends, the card says
+the request has already been used. I remove and re-apply the label to
+request another attempt.
 
 For conversations, the label is a switch. While it's on, the agent
 answers my comments. Taking it off pauses the conversation, and putting

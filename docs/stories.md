@@ -327,9 +327,9 @@ changes before marking the campaign's pull request ready for review. The
 user reviews it and merges it when satisfied. GitHub closes the parent.
 The lead wraps up in its next round, then _dreamcatcher_ removes the
 worktree and local branch and keeps the record. If the user closes the
-pull request without merging, the lead still wraps up. The label's
-request has already been used. To start a new campaign the user removes
-and reapplies the label.
+pull request without merging, the lead still wraps up. If the original
+label has stayed on, its request has already been used. To start a new
+campaign the user removes and reapplies the label.
 
 The user gets one pull request to review for the whole body of work.
 
@@ -981,11 +981,11 @@ it merges, GitHub closes the issue, and the label is moot.
 
 ### Closing a pull request and leaving the assignment label on the issue
 
-The user closes the agent's pull request without merging, and leaves the
-assignment label on the issue. The agent wraps up and the assignment
-ends. The request card is held and says the label's request has already
-been used. To ask for another attempt, the user removes and re-adds the
-label.
+The user closes the agent's pull request without merging. They have left
+the assignment label on since the assignment started. The agent wraps up
+and the assignment ends. The request card is held and says the label's
+request has already been used. To ask for another attempt, the user
+removes and re-adds the label.
 
 ### Removing a label to stop an assignment
 

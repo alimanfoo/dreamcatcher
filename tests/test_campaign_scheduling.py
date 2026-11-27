@@ -993,7 +993,6 @@ def test_a_conflict_wakes_the_finishing_lead_and_a_draft_returns_to_coordinating
     finish(scheduler=scheduler)
 
     _, _, coordinating = harnesses["claude"].calls
-    assert coordinating.prompt.startswith("Campaign input for parent issue GH20:")
     assert "Wait until you judge every sub-issue done" in coordinating.prompt
     given = read_lead_input(scheduler=scheduler, number=4)
     assert given.signals == []

@@ -41,8 +41,7 @@ A campaign skill must:
 - tell the lead to use the campaign's pull request for messages to the
   user and to mark it ready for review when it judges every sub-issue
   done. At that point the lead may edit project source, commit and push
-  before marking it ready, after switching to the campaign branch and
-  pulling the merged sub-issues;
+  before marking it ready;
 - tell the lead to keep the campaign pull request's `Closes #123` link
   when it replaces the description;
 - tell the lead, while the pull request is ready for review, to carry it

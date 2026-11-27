@@ -132,17 +132,13 @@ merging the campaign's pull request closes it.
 - **Branch name.** _Unchanged rule._ `dreamcatcher-` and the work's
   identifier, as in `dreamcatcher-GH200-20261126-101500-campaign`. It is
   derived, never stored.
-- **Round input**, `input.json`. _Changed._ A shared part holds the four
-  fields of today's `AssignmentRoundInput`, `pull_request_state`,
-  `pull_request_head`, `signals` and `user_posts`, and gains
-  `pull_request`, the pull request's number. The preparation builds the
-  input and its prompt together. The lead reads the pull request number
-  from the input. A campaign's input adds a campaign part: `children`,
-  `notifications` and `assignment_routes`. It drops today's `issue`,
-  `comments`, `cursor` and `revision`. The relay's readers read the
-  shared part from either kind's input. The opening preparation records
-  an open state and takes `pull_request_head` from the local worktree.
-  Posts and signals are empty until the tick reads the pull request's
+- **Round input**, `input.json`. `PullRequestRoundInput` holds
+  `pull_request`, `pull_request_state`, `pull_request_head`, `signals`
+  and `user_posts` for either kind's relay. `CampaignRoundInput` adds
+  `children`, `notifications` and `assignment_routes`. The preparation
+  builds the input and its prompt together. The opening preparation
+  records the pull request number, an open state and the local worktree
+  head. Posts and signals are empty until the tick reads pull request
   activity.
 - **Ending**, `ended.json`. _Changed._ A campaign ends completed or
   cancelled. "Issue closed" remains for conversations alone.
