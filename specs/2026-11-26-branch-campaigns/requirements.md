@@ -50,8 +50,8 @@ This changes these stories in `docs/stories.md`:
 
 - the campaign stories: "The user starts a campaign on a parent issue",
   "The user talks to the lead on the campaign's pull request", "The user
-  queues one campaign behind another", and "The parent changes while a
-  campaign is open";
+  extends an open campaign", "The user queues one campaign behind
+  another", and "The parent changes while a campaign is open";
 - the campaign card's first row in "The user comes back to see what
   needs them";
 - the campaign parts of "The user renames a dispatch label", "Two labels
@@ -64,7 +64,10 @@ This changes these stories in `docs/stories.md`:
   an assignment's worktree", which change because a label left on no
   longer starts new work. In `docs/concepts.md`, an assignment or
   campaign request becomes one application of its label, which the work
-  it starts consumes.
+  it starts consumes;
+- "Reapplying a label while work is open", "The user upgrades
+  dreamcatcher" and "Deleting the daemon lock while the daemon runs",
+  which describe when a label can start fresh work.
 
 "The lead hears when a sub-issue needs it" and "The lead gives an
 assignment's agent feedback" stay as they are. In `docs/concepts.md`,
@@ -285,9 +288,8 @@ is today.
 
 ### Like an assignment
 
-Once a campaign exists, its label no longer decides anything, as an
-assignment's doesn't. Taking the label off doesn't pause the campaign,
-and there's no pausing. I stop a round, or cancel. A parent has one
+Once a campaign exists, its pull request drives the work, as for an
+assignment. To intervene, I stop a round or cancel. A parent has one
 campaign at a time: an open campaign answers every campaign label on its
 parent, and while a campaign's pull request is open it holds the parent,
 so no second campaign starts. Closing the parent by hand while the
@@ -327,6 +329,10 @@ enforce it.
 - Keep the machinery as simple and elegant as possible. Anything that
   implies additional machinery needs careful inspection and thought, and
   where an existing mechanism already does the job, I'd rather use it.
+- If I re-apply an assignment or campaign label while work of that kind
+  is open, the work still answers the label. The later application can
+  start another attempt once the work ends, if the request can start
+  then. I accept this rare side effect to keep the request rule simple.
 - The lead leaves source edits, commits and pushes to the sub-issue
   assignments until it judges every sub-issue done. I decide which
   sub-issues belong in the plan.

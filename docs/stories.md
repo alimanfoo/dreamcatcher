@@ -875,12 +875,15 @@ daemon, installs the new version, and starts it again, and interrupted
 rounds carry on as the stop-and-start story says. Before a major release
 they read the changelog, because a major release may change the state
 format, and saved work does not carry across formats. In that case the
-release notes say what to do first: let each assignment reach its
-wrap-up, or cancel it and finish its pull request by hand, and accept
-that conversations start afresh, which can mean an agent answering an
-old comment again if its label is still on. The old state stays on disk
-untouched, and everything on GitHub stays where it is. Once they have
-finished with the old state, they can reclaim its disk by hand, as
+release notes say what to do first. The user lets assignments and
+campaigns reach wrap-up or cancels them and finishes their pull requests
+by hand. They review the labels on open issues assigned to them and
+remove the ones whose work they want to leave ended. The new daemon can
+start fresh work from any remaining dispatch label whose request can
+start. A conversation can answer an old comment again, and an open pull
+request still claims its issue. The old state stays on disk untouched,
+and everything on GitHub stays where it is. Once they have finished with
+the old state, they can reclaim its disk by hand, as
 [Reclaim disk from an earlier state format](compatibility.md#reclaim-disk-from-an-earlier-state-format)
 describes. Across a change of state format, the user also stops every
 standalone view, such as `dreamcatcher web` or a refreshing
@@ -991,6 +994,15 @@ stop. It does not; the assignment carries on with its pull request
 whatever happens to the label. To stop it, the user needs to cancel the
 assignment, from its page or with `dreamcatcher cancel`.
 
+### Reapplying a label while work is open
+
+The user removes and reapplies an assignment or campaign label while
+work of that kind is still open. The work carries on and answers the
+label. Once it ends, the later application can start another attempt if
+the issue is still open and the request can start. This is an accepted
+side effect. If the user applied the label by mistake, they can remove
+it before the open work ends.
+
 ### Committing to the agent's branch
 
 The user sees a small thing they can fix faster than they can describe,
@@ -1053,13 +1065,13 @@ every running round as a stop of the daemon would, because another
 daemon could now start on the same checkout. The user needs to start the
 daemon again, and the interrupted work carries on in its session.
 
-Deleting the whole `.dreamcatcher/` folder stops the daemon the same
-way, but takes every assignment, conversation and worktree with it, so
-the daemon that starts next knows of no work. Each open pull request
-still claims its issue, so no second assignment starts for it. The user
-needs to finish those pull requests by hand, and to expect a
-conversation whose label is still on to start afresh and answer their
-earlier comments again.
+Deleting the whole `.dreamcatcher/` folder stops the daemon the same way
+and takes every work record and worktree with it. The next daemon starts
+with empty local state. Each open pull request still claims its issue,
+and the user needs to finish those pull requests by hand. An assignment
+or campaign label left on an issue can start new work when its request
+is clear. A conversation whose label is still on can start afresh and
+answer earlier comments again.
 
 ### Editing the daemon's record of the last update
 

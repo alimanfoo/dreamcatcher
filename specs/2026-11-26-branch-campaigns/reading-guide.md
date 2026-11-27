@@ -17,8 +17,9 @@ slots from the candidates.
 
 `scheduler/inspection.py` defines the results each inspector returns.
 `Inspection` carries a request row and an optional `Candidate`. A
-candidate composes a `RoundPlan` when the scheduler selects it. A plan
-supplies a preparation, an input prompt and an optional finisher.
+candidate carries a preparation that runs inside the selected round. It
+returns a `PreparedRoundInput` with the round's input document, prompt
+and optional finisher.
 
 ## Two shapes of channel
 
@@ -26,8 +27,8 @@ Read `scheduler/pull_requests.py`. `read_pull_request_activity` adds the
 user posts, signals and wrap-up memory to a pull request observation.
 `PullRequestActivity` says when the shared triggers make a round due and
 prepares the shared input and wrap-up finisher.
-`scheduler/assignments.py` supplies the assignment opening plan and
-prompt.
+`scheduler/assignments.py` prepares opening and relay rounds for an
+assignment.
 
 `scheduler/campaigns.py` uses that activity for a campaign that has
 opened its pull request. `_observe_children` pairs the parent's

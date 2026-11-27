@@ -187,13 +187,15 @@ words, and sub-issue count. The campaign skill contract reaches version
 2: a campaign skill must tell the lead to mark the campaign's pull
 request ready for review when it judges every sub-issue done, and must
 not tell it to add sub-issues or to merge the campaign's own pull
-request.
+request. The contract confines the ban on editing project source,
+committing and pushing to the coordinating phase, which the concepts
+page defines.
 
 The change touches `prompts.py` and its golden, `claude.py`, where the
 campaign's own allowed and disallowed lists go, the status words and the
 web and terminal views with their rendered-view goldens,
-`docs/contract.md`, the compatibility page, the changelog, and the
-stories about starting, talking to and checking on the campaign.
+`docs/contract.md`, the concepts and compatibility pages, the changelog,
+and the stories about starting, talking to and checking on the campaign.
 
 **Proof.** The prompt golden shows the coordinating prompt, Claude's
 arguments for a lead show the single permission set, and the
@@ -220,7 +222,7 @@ red build, another check failure leaves the lead waiting for a different
 trigger. Marking the pull request a draft again returns the lead to
 coordinating.
 
-The change touches the campaign's round plan, which chooses the
+The change touches the campaign's round preparation, which chooses the
 coordinating or the finishing input prompt from the draft flag the tick
 read; `prompts.py`, which gains the finishing input prompt; the status
 words of a finishing campaign, which are the assignment's; the contract,

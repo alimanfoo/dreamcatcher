@@ -59,15 +59,40 @@ the change.
   ([#937](https://github.com/alimanfoo/dreamcatcher/pull/937))
 
 - Campaigns open a draft pull request into the default branch. The lead
-  receives feedback there, and merging or closing the pull request
-  starts the campaign's wrap-up and cleanup.
+  receives feedback only there, and merging or closing the pull request
+  starts wrap-up and cleanup. An open campaign carries on if you remove
+  its label, unassign its parent or close the parent. It also answers
+  any additional campaign label on the parent.
   ([#938](https://github.com/alimanfoo/dreamcatcher/pull/938))
+
+- The terminal shows each campaign's closed sub-issue count and total.
+  Claude leads get the assignment permissions for Edit, Write,
+  `git commit` and `git push`, alongside the coordination tools.
+  ([#939](https://github.com/alimanfoo/dreamcatcher/pull/939))
 
 - Cancel an open campaign from its page or with `dreamcatcher cancel` to
   take over from the lead. The pull request, branch and worktree stay
   available, and sub-issue assignments still target the campaign branch
   while its pull request is open.
   ([#940](https://github.com/alimanfoo/dreamcatcher/pull/940))
+
+- Once a campaign's pull request is ready for review, the lead carries
+  it to merge. It merges the default branch in when needed, fixes
+  failing checks, and makes the changes you relay.
+  ([#941](https://github.com/alimanfoo/dreamcatcher/pull/941))
+
+- You can extend a campaign by adding sub-issues even after its pull
+  request is ready. The lead dispatches them while the pull request
+  stays ready. Once the lead judges every sub-issue done while the pull
+  request is a draft, it can edit, commit and push its own changes
+  before marking it ready.
+  ([#943](https://github.com/alimanfoo/dreamcatcher/pull/943))
+
+### Fixed
+
+- A user post written in the same second as the last one relayed now
+  reaches the agent.
+  ([#938](https://github.com/alimanfoo/dreamcatcher/pull/938))
 
 ## [v9.10.0](https://github.com/alimanfoo/dreamcatcher/releases/tag/v9.10.0) — 2026-11-26
 

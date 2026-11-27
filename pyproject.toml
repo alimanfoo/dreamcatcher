@@ -207,11 +207,11 @@ forbidden_modules = ["dreamcatcher.daemon", "dreamcatcher.status"]
 name = "Agent work never reaches scheduling"
 type = "forbidden"
 source_modules = [
-    "dreamcatcher.pull_request_work",
     "dreamcatcher.agent_rounds",
     "dreamcatcher.agent_work",
     "dreamcatcher.campaigns",
     "dreamcatcher.issue_conversations",
+    "dreamcatcher.pull_request_work",
 ]
 forbidden_modules = ["dreamcatcher.scheduler"]
 

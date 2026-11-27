@@ -85,20 +85,20 @@ when. The tick in `tick.py` has one path for every kind of agent work.
 Each kind's module, `assignments.py`, `campaigns.py` or
 `conversations.py`, supplies only what differs by kind: how it inspects
 the channel of open work, how it decides whether a request with no open
-work may start, and how it composes a round's plan. `conversations.py`
-also holds the conversation's lifetime rules and reads eligible
-comments. A closed issue ends the conversation after any running round
-finishes. The labels, assignee and label applier decide whether it is
-held. `scheduler/pull_requests.py` holds the start-time questions and
-the pull request activity that can wake assignments and campaigns.
-`blockers.py` holds the read of the open issues that block an issue,
-which assignment and campaign requests share. `labelling.py` holds the
-rule that work starts or resumes only on a dispatch label that the
-signed-in account applied, which every kind's requests and open
-conversations share. `inspection.py` holds the scheduling context, the
-dispatch request, the candidate, the round plan and the inspection of
-one request. `models.py` holds the scheduler record and its request
-rows, and `faults.py` the fault and cooldown rules.
+work may start, and how it prepares a round. `conversations.py` also
+holds the conversation's lifetime rules and reads eligible comments. A
+closed issue ends the conversation after any running round finishes. The
+labels, assignee and label applier decide whether it is held.
+`scheduler/pull_requests.py` holds the start-time questions and the pull
+request activity that can wake assignments and campaigns. `blockers.py`
+holds the read of the open issues that block an issue, which assignment
+and campaign requests share. `labelling.py` holds the rule that work
+starts or resumes only on a dispatch label that the signed-in account
+applied, which every kind's requests and open conversations share.
+`inspection.py` holds the scheduling context, the candidate, the
+prepared round input and the inspection of one request. `models.py`
+holds the scheduler record and its request rows, and `faults.py` the
+fault and cooldown rules.
 
 One scheduler tick:
 
@@ -257,9 +257,9 @@ reply posting. A new session receives the configured prompt before the
 input as well. Every prompt requires the agent marker on every other
 GitHub post that the agent makes.
 
-A conversation round posts its own answer. The conversation's round plan
-gives the round a finishing step that posts to the issue, so the shared
-round runner knows nothing of GitHub. After the harness exits
+A conversation round posts its own answer. The conversation's round
+preparation supplies a finishing step that posts to the issue, so the
+shared round runner knows nothing of GitHub. After the harness exits
 successfully, the round hands its final output to that finishing step,
 which posts it with the agent marker, and then the round records its
 ending. It therefore keeps its agent slot while it posts, and no new

@@ -308,9 +308,7 @@ link when replacing the pull request description.
 
 ### Component model
 
-Stage 2 folded `agent_assignments.py` and
-`agent_assignment_pull_requests.py` into `pull_request_work.py`.
-Assignments and campaigns share that module for:
+Assignments and campaigns share `pull_request_work.py` for:
 
 - opening the pull request from a base;
 - the shared input model, which the memory readers in `relay.py` use;
@@ -436,10 +434,8 @@ Changes to the enduring documents:
   switch. It changes a campaign's composition, channel, signals, start,
   holds and ending, the requests that open work answers, and how
   completing an assignment closes its issue.
-- `docs/stories.md` changes the campaign stories and the user errors
-  that the requirements list, and, for consumed requests, "The user
-  closes a pull request they do not want" and "Deleting an assignment's
-  worktree", which both start a fresh assignment on a label left on.
+- `docs/stories.md` describes the campaign lifecycle and the effect of
+  leaving a consumed label on, reapplying it, or losing local records.
 - `docs/architecture.md` follows the component model.
 - `docs/contract.md` gives the campaign skill its obligations in both
   phases. Its editing, committing and pushing ban applies in the
