@@ -322,13 +322,14 @@ cards keep updating, and the sub-issues stay expanded until the user
 folds them. Once the campaign ends, it moves to the ended list with its
 own card alone, and the user goes to GitHub for the history.
 
-When the lead judges every sub-issue done, it marks the campaign's pull
-request ready for review. The user reviews it and merges it when
-satisfied. GitHub closes the parent. The lead wraps up in its next
-round, then _dreamcatcher_ removes the worktree and local branch and
-keeps the record. If the user closes the pull request without merging,
-the lead still wraps up. The label's request has already been used. To
-start a new campaign the user removes and reapplies the label.
+When the lead judges every sub-issue done, it can make and push its own
+changes before marking the campaign's pull request ready for review. The
+user reviews it and merges it when satisfied. GitHub closes the parent.
+The lead wraps up in its next round, then _dreamcatcher_ removes the
+worktree and local branch and keeps the record. If the user closes the
+pull request without merging, the lead still wraps up. The label's
+request has already been used. To start a new campaign the user removes
+and reapplies the label.
 
 The user gets one pull request to review for the whole body of work.
 
@@ -401,11 +402,22 @@ review, or can see where it needs their help.
 A colleague reviews the ready campaign pull request and asks for
 changes. The user reads the review and relays what they want in a post
 of their own on the same pull request. The lead receives the user's post
-and pushes the changes to the campaign branch. When a change calls for a
-sub-issue of its own, the user adds one to the parent and the lead can
-dispatch it. The colleague then reviews the updated pull request.
+and pushes the changes to the campaign branch. The colleague then
+reviews the updated pull request.
 
 The user decides which feedback reaches the lead, as on an assignment.
+
+#### The user extends an open campaign
+
+The user adds a sub-issue to the parent, perhaps because a colleague's
+review calls for a change of its own. They can do this while the
+campaign's pull request is a draft or ready for review. The lead hears
+about the new sub-issue, dispatches it, and reviews and merges its pull
+request into the campaign branch. If the campaign's pull request was
+ready, it stays ready while the extra work runs.
+
+The user can extend the plan and review the result on the same pull
+request.
 
 #### The user cancels a campaign to finish it by hand
 

@@ -17,17 +17,20 @@ it.
 A campaign has two phases, which the pull request's draft flag decides:
 
 - In the **coordinating phase**, while the pull request is a draft, the
-  lead dispatches the parent's sub-issues, then reviews and merges their
-  pull requests into the campaign branch. It never edits code.
-- When the lead judges every sub-issue done, it marks the pull request
-  ready for review, and the campaign enters its **finishing phase**.
-  From then on its rounds run as an assignment's do. The lead merges the
-  default branch in, fixes failing checks and makes the changes the user
-  relays, and commits and pushes to the campaign branch itself.
+  lead waits until it judges every sub-issue done before editing project
+  source, committing or pushing. It can then make its own changes and
+  mark the pull request ready for review.
+- When the pull request is ready for review, the campaign enters its
+  **finishing phase**. From then on its rounds run as an assignment's
+  do. The lead merges the default branch in, fixes failing checks and
+  makes the changes the user relays, and commits and pushes to the
+  campaign branch itself.
 
-A person reviews and merges the campaign's pull request. The lead never
-adds sub-issues, because the parent and its sub-issues are the user's
-plan.
+In both phases, the lead dispatches the parent's sub-issues and reviews
+and merges their pull requests into the campaign branch. The user can
+add sub-issues while the campaign is open. A ready pull request stays
+ready while the lead takes them up. A person reviews and merges the
+campaign's pull request.
 
 A **campaign's sub-issue** is a direct sub-issue of a parent that has a
 campaign label, or that has had a campaign in this _dreamcatcher_
@@ -254,35 +257,36 @@ parts, in this order:
 Every input also holds `pull_request`, the campaign's pull request's
 number, `pull_request_head`, `children` and `assignment_routes`.
 
-The **coordinating input prompt** says:
+The **campaign input prompt** shares these instructions across phases:
 
 - read `pull_request_state` first, and wrap up if it is merged or
   closed;
 - act on `user_posts`, the user's posts on the campaign's pull request,
   and on `notifications`;
-- dispatch the parent's sub-issues, and add none. To dispatch a
-  sub-issue, assign it to the user, remove its assignment label if it is
-  there, then add the label, so that GitHub records the label as applied
-  now, which is a new request that the assignment can consume. This
-  matters when a sub-issue was reopened for a fresh attempt with its old
-  label still on;
-- the worktree starts on the campaign branch and keeps the lead's
-  checkout between rounds;
-- do not commit, push or open a pull request;
+- take up sub-issues the user adds in either phase, keeping a ready
+  campaign pull request ready while they run;
+- inspect GitHub before each change and skip actions an earlier attempt
+  completed;
+- to dispatch a sub-issue, assign it to the user, remove its assignment
+  label if present, then add the label to make a new request;
+- review and merge sub-issue pull requests into the campaign branch;
 - run each `gh pr merge` as a command of its own;
-- do not merge the campaign's own pull request;
-- do not close the parent, because merging the pull request closes it.
+- leave the sub-issue list, the campaign's own merge and the parent's
+  assignees and labels to the user. The user's merge closes the parent.
 
-The **finishing input prompt** adapts the assignment's:
+In the **coordinating phase**, the worktree starts on the campaign
+branch and keeps the lead's checkout between rounds. The lead waits
+until it judges every sub-issue done before editing project source,
+committing or pushing. Then it may make its own changes on the campaign
+branch before marking the pull request ready for review.
 
-- read `pull_request_state` first, and wrap up if it is merged or
-  closed;
-- act on `user_posts` and on any `notifications`;
+In the **finishing phase**, the lead carries the pull request to merge
+as an assignment's agent does:
+
 - switch the worktree to the campaign branch and pull it before changing
   anything, because sub-issues may have merged since it was last
   current;
-- make changes on the campaign branch, and commit and push them;
-- do not merge the campaign's own pull request.
+- make changes on the campaign branch, and commit and push them.
 
 The signal lines are the assignment's, shared by both kinds: "merge the
 base branch in and push", and "read the failing checks, fix the cause
@@ -292,23 +296,14 @@ Capabilities are the same in both phases; only the prompt follows the
 phase. On Claude, every lead round gets the assignment's allowed list
 together with the lead's coordination tools, such as `gh pr merge`,
 `gh pr review`, `gh issue edit` and `gh api`, and no disallowed list.
-Codex already gives a lead an assignment's settings. So in the
-coordinating phase, "do not edit code" rests on the prompt on both
-harnesses, as "do not merge the campaign's own pull request" does in
-both phases.
+Codex gives a lead an assignment's settings. The prompt governs when the
+lead can make its own changes and leaves the campaign's own merge to the
+user on both harnesses.
 
-The campaign skill contract, in `docs/contract.md`, narrows today's
-prohibition on editing, committing and pushing to the coordinating
-phase, and gains two requirements and two prohibitions. The change
-raises the contract version from 1 to 2. A campaign skill must:
-
-- tell the lead to mark the campaign's pull request ready for review
-  when it judges every sub-issue done;
-- tell the lead, once the pull request is ready, to carry it to merge as
-  an assignment's agent does.
-
-A campaign skill must not tell the lead to add sub-issues, or to merge
-the campaign's own pull request.
+The campaign skill contract in `docs/contract.md` is version 2. The
+skill owns any review of the whole campaign before the lead marks the
+pull request ready. The skill tells the lead to keep the `Closes #N`
+link when replacing the pull request description.
 
 ### Component model
 
@@ -424,8 +419,8 @@ Changes to the code, with what each removal gains:
 - **The lead's separate Claude permission lists go.** A lead gets an
   assignment's permissions with the coordination tools in both phases,
   so the phase never reaches the harness adapter, and Claude and Codex
-  treat leads alike. "Do not edit code while coordinating" then rests on
-  the prompt on both harnesses.
+  treat leads alike. The prompt governs when the lead may make its own
+  changes on both harnesses.
 - **The lead's worktree is never reset.** It behaves as an assignment's,
   so a lead's uncommitted work survives an interrupted round, and the
   wrap-up needs no exception for a deleted branch.
@@ -445,11 +440,11 @@ Changes to the enduring documents:
   closes a pull request they do not want" and "Deleting an assignment's
   worktree", which both start a fresh assignment on a label left on.
 - `docs/architecture.md` follows the component model.
-- `docs/contract.md` gains the campaign skill's new requirements and
-  prohibitions, and narrows its prohibition on editing, committing and
-  pushing to the coordinating phase. An existing campaign skill has to
-  change to conform, so the contract version rises from 1 to 2, which
-  `docs/compatibility.md` records.
+- `docs/contract.md` gives the campaign skill its obligations in both
+  phases. Its editing, committing and pushing ban applies in the
+  coordinating phase until the lead judges every sub-issue done. The
+  contract version rises from 1 to 2, which `docs/compatibility.md`
+  records.
 - `docs/start-a-campaign.md` describes the campaign branch and its pull
   request, drops the advice to label a queued campaign's sub-issues by
   hand and the advice on keeping sub-issue pull requests from updating

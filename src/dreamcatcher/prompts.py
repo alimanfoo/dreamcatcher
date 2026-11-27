@@ -141,6 +141,15 @@ notification names its sub-issue's `issue` and `changes`. The `children` field
 describes the parent's sub-issues and their assignments. The
 `assignment_routes` field holds the labels and recipes available for dispatch.
 
+Take up the parent's sub-issues in either phase, including any the user adds
+after the campaign's pull request is ready. Keep it ready while they run.
+Inspect GitHub before each change and skip actions an earlier attempt completed.
+To dispatch an assignment, assign the sub-issue to the signed-in account,
+remove its assignment label if present, then add the label to make a new
+request. Review and merge sub-issue pull requests into the campaign branch.
+Run every `gh pr merge` as a shell command of its own, with no other command
+joined to it.
+
 {phase_instructions}
 
 Do not add sub-issues or open another pull request. The user decides when to
@@ -152,18 +161,11 @@ Post anything the user needs to read on the campaign's pull request yourself.
 dreamcatcher keeps your final output in the feed. End your turn when done."""
 
 _COORDINATING_INSTRUCTIONS = """\
-Coordinate the parent's existing sub-issues. To dispatch an assignment,
-assign the sub-issue to the signed-in account, remove its assignment label if
-present, then add the label to make a new request.
-Inspect GitHub before each change and do not repeat an action that an earlier
-attempt completed.
-
 dreamcatcher creates your worktree on the campaign branch and preserves your
-checkout between rounds. While coordinating, do not edit project source, commit,
-or push. Review and merge sub-issue pull requests into the campaign branch.
-Run every `gh pr merge` as a shell command of its own, with no other command
-joined to it. When you judge every sub-issue done, mark the campaign's pull
-request ready for review."""
+checkout between rounds. Wait until you judge every sub-issue done before
+editing project source, committing or pushing. You may then make your own
+changes on the campaign branch. When finished, mark the campaign's pull request
+ready for review."""
 
 _FINISHING_INSTRUCTIONS = """\
 Carry the campaign's pull request to merge. Before acting on any signals or

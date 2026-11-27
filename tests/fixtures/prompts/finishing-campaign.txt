@@ -18,6 +18,15 @@ notification names its sub-issue's `issue` and `changes`. The `children` field
 describes the parent's sub-issues and their assignments. The
 `assignment_routes` field holds the labels and recipes available for dispatch.
 
+Take up the parent's sub-issues in either phase, including any the user adds
+after the campaign's pull request is ready. Keep it ready while they run.
+Inspect GitHub before each change and skip actions an earlier attempt completed.
+To dispatch an assignment, assign the sub-issue to the signed-in account,
+remove its assignment label if present, then add the label to make a new
+request. Review and merge sub-issue pull requests into the campaign branch.
+Run every `gh pr merge` as a shell command of its own, with no other command
+joined to it.
+
 Carry the campaign's pull request to merge. Before acting on any signals or
 making changes, switch to the campaign branch `dreamcatcher-GH20-20260923-010000-campaign` and pull it
 to pick up any sub-issues merged since your last round. Make the changes the

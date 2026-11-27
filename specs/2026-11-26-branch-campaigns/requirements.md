@@ -35,13 +35,14 @@ agent and I talk. That symmetry should add the new capability while
 actually reducing complexity.
 
 A campaign has two phases. While its pull request is a draft, the lead
-coordinates: it dispatches the sub-issues and merges their work into the
-campaign branch, and it doesn't touch code. Once every sub-issue is
-done, the lead marks the pull request ready for review and finishes it,
-the way an assignment's agent carries its pull request to merge, much as
-Claude Code's `/ship` does. The lead's job is to build the thing that
-the parent issue and its sub-issues describe. The plan is mine, so the
-lead never adds sub-issues.
+coordinates the sub-issues. Once it judges every sub-issue done, the
+lead can make and push its own changes to the campaign branch, then
+marks the pull request ready for review and finishes it, the way an
+assignment's agent carries its pull request to merge, much as Claude
+Code's `/ship` does. The lead's job is to build the thing that the
+parent issue and its sub-issues describe. The plan is mine, so the lead
+never adds sub-issues. I can add them in either phase and the lead
+dispatches them and merges their work into the campaign branch.
 
 ## How do I see it working?
 
@@ -100,8 +101,9 @@ request, without stalling on the way.
    of new machinery.
 5. The sub-issues all build on that snapshot of main, so none of them
    has to deal with conflicts with main along the way.
-6. When the lead judges every sub-issue done, it marks the campaign's
-   pull request ready for review.
+6. When the lead judges every sub-issue done, it can review the whole
+   change and push its own fixes before marking the campaign's pull
+   request ready for review.
 7. From then on the lead finishes the pull request as an assignment's
    agent would. If main has moved on and conflicts, or the checks fail,
    the lead merges main in, or fixes the cause, and pushes to the
@@ -135,12 +137,25 @@ Goal: the reviewer's changes get made without me making them.
 2. I relay what I want done in a post of my own on the same pull
    request.
 3. The lead makes the changes and pushes them, as an assignment's agent
-   would. If I think a change deserves a sub-issue of its own, I add the
-   sub-issue to the parent myself, and the lead dispatches it.
+   would.
 4. My colleague reviews it again.
 
 Outcome: I keep the safety that only my words reach an agent, and I'm
 happy to do the relaying.
+
+### I extend an open campaign
+
+Goal: add work as I learn more about what the campaign needs.
+
+1. I add sub-issues to the parent, while the campaign's pull request is
+   a draft or ready for review.
+2. The lead hears about the sub-issues, dispatches them, and reviews and
+   merges their pull requests into the campaign branch. If the
+   campaign's pull request is ready, it stays ready while the extra work
+   runs.
+
+Outcome: I can extend the plan and review the result on the same pull
+request.
 
 ### Main moves, or the build goes red, after the lead marks it ready
 
@@ -312,14 +327,12 @@ enforce it.
 - Keep the machinery as simple and elegant as possible. Anything that
   implies additional machinery needs careful inspection and thought, and
   where an existing mechanism already does the job, I'd rather use it.
-- The lead doesn't edit code until it marks the campaign's pull request
-  ready, and never adds sub-issues. Lead agents coordinate work and
-  assignment agents edit code, and that clear division of labour helps
-  with prompting and managing complexity.
-- Only instructions stop the lead from editing code while it
-  coordinates, and from merging the campaign's own pull request in a
-  repository where I've taken main's protections off. Instructions are
-  enough for now.
+- The lead leaves source edits, commits and pushes to the sub-issue
+  assignments until it judges every sub-issue done. I decide which
+  sub-issues belong in the plan.
+- Only instructions enforce that limit on the lead's own changes and
+  leave the campaign's own merge to me in a repository where I've taken
+  main's protections off. Instructions are enough for now.
 - The workplaces I have in mind protect main only. A campaign branch
   that _dreamcatcher_ creates is fine to merge into without review, and
   the setup guide says the campaign branch must not require review.

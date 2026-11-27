@@ -344,17 +344,18 @@ and check out the commits it reviews. Claude approves a shell call by
 these rules only when every command in it matches one, and its auto mode
 classifier refuses any other call that merges a pull request that no
 person approved, so the campaign input prompt asks the lead to run each
-`gh pr merge` on its own. Codex runs campaign and assignment rounds
-under its own reviewer because fetching writes outside the worktree. On
-both harnesses the coordinating prompt directs the lead to leave
-implementation to the sub-issue assignments and the campaign's own merge
-to the user. Every prompt requires the agent marker on every GitHub post
-that the lead makes, except feedback that it gives a sub-issue's
-assignment on that assignment's pull request. `compose_round_prompt` in
-`prompts.py` chooses those words by the kind of work. The ordinary
-assignment relay then gives the unmarked feedback to the assignment's
-agent as a user post, so the lead reaches an assignment's agent through
-the same channel as the user, and no campaign code relays it.
+`gh pr merge` on its own in both phases. Codex runs campaign and
+assignment rounds under its own reviewer because fetching writes outside
+the worktree. On both harnesses the coordinating prompt defers the
+lead's edits, commits and pushes until it judges every sub-issue done.
+The shared campaign prompt leaves the campaign's own merge to the user.
+Every prompt requires the agent marker on every GitHub post that the
+lead makes, except feedback that it gives a sub-issue's assignment on
+that assignment's pull request. `compose_round_prompt` in `prompts.py`
+chooses those words by the kind of work. The ordinary assignment relay
+then gives the unmarked feedback to the assignment's agent as a user
+post, so the lead reaches an assignment's agent through the same channel
+as the user, and no campaign code relays it.
 
 ### Pull request work
 
