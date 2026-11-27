@@ -97,31 +97,16 @@ _CLAUDE_CONVERSATION_DISALLOWED_TOOLS = (
     "Bash(git worktree:*)",
 )
 
-# What an unattended campaign lead may do without being asked: coordinate its
-# children through issues, comments, reviews and merges, and fetch and check out
-# the commits it reviews.
-_CLAUDE_CAMPAIGN_ALLOWED_TOOLS = (
-    "Bash(gh issue create:*)",
+# What a lead may do in addition to an assignment's agent: dispatch sub-issues,
+# review and merge their pull requests, and check out the commits it reviews.
+_CLAUDE_COORDINATION_TOOLS = (
     "Bash(gh issue edit:*)",
-    "Bash(gh issue comment:*)",
-    "Bash(gh pr comment:*)",
     "Bash(gh pr review:*)",
     "Bash(gh pr merge:*)",
-    "Bash(gh pr checks:*)",
-    "Bash(gh run view:*)",
     "Bash(gh api:*)",
     "Bash(git fetch:*)",
     "Bash(git checkout:*)",
     "Bash(git switch:*)",
-)
-
-# A lead reviews the work of its children's agents and never implements it, so
-# it is denied what a conversation is denied, apart from the Git commands that
-# fetch and check out the commits it reviews.
-_CLAUDE_CAMPAIGN_DISALLOWED_TOOLS = tuple(
-    tool
-    for tool in _CLAUDE_CONVERSATION_DISALLOWED_TOOLS
-    if tool not in _CLAUDE_CAMPAIGN_ALLOWED_TOOLS
 )
 
 # The permission arguments of every round, by the kind of its work.
@@ -132,9 +117,7 @@ _CLAUDE_PERMISSION_ARGUMENTS = {
     ],
     AgentWorkKind.CAMPAIGN: [
         "--allowedTools",
-        " ".join(_CLAUDE_CAMPAIGN_ALLOWED_TOOLS),
-        "--disallowedTools",
-        " ".join(_CLAUDE_CAMPAIGN_DISALLOWED_TOOLS),
+        " ".join((*_CLAUDE_ASSIGNMENT_ALLOWED_TOOLS, *_CLAUDE_COORDINATION_TOOLS)),
     ],
     AgentWorkKind.CONVERSATION: [
         "--allowedTools",
