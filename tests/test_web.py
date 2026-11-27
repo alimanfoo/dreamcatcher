@@ -56,10 +56,6 @@ from werkzeug.test import TestResponse
 import dreamcatcher.status.report as report_module
 import dreamcatcher.web.app as web_app_module
 import dreamcatcher.web.server as web_server_module
-from dreamcatcher.agent_assignments import (
-    cancel_assignment,
-    complete_assignment,
-)
 from dreamcatcher.agent_work import (
     AgentWorkEnding,
     AgentWorkEndReason,
@@ -77,6 +73,10 @@ from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import FeedLine
 from dreamcatcher.github import IssueState
 from dreamcatcher.harness_adapters import AgentWorkKind
+from dreamcatcher.pull_request_work import (
+    cancel_pull_request_work,
+    complete_pull_request_work,
+)
 from dreamcatcher.scheduler.models import (
     GlobalCooldown,
     IssueCommentsFinding,
@@ -721,7 +721,7 @@ def test_a_cancelled_assignment_still_working_offers_no_cancel_control(tmp_path)
     identifier = "GH13-20260819-184158-assignment"
     assignment = find_agent_work(state=state, identifier=identifier)
     assert assignment is not None
-    cancel_assignment(assignment=assignment, at=LOOKED_AT)
+    cancel_pull_request_work(assignment=assignment, at=LOOKED_AT)
 
     page = render_assignment(state=state, identifier=identifier)
 
@@ -778,7 +778,9 @@ def test_an_assignment_cancel_that_a_completion_beats_changes_nothing(
     def find_then_complete(*, state, identifier):
         work = find_work(state=state, identifier=identifier)
         assert work is not None
-        complete_assignment(assignment=work, clock=lambda: PINNED, final_output=None)
+        complete_pull_request_work(
+            assignment=work, clock=lambda: PINNED, final_output=None
+        )
         return work
 
     monkeypatch.setattr(web_app_module, "find_agent_work", find_then_complete)
@@ -1121,7 +1123,7 @@ def test_ended_assignments_are_ordered_by_when_they_ended(tmp_path):
     write_assignment_with_rounds(
         state=state, issue=30, records=[compose_ended_round(minute=1)]
     )
-    cancel_assignment(
+    cancel_pull_request_work(
         assignment=read_agent_work_at_issue(state=state, issue=30)[0],
         at=PINNED + timedelta(minutes=10),
     )
@@ -1197,7 +1199,7 @@ def test_a_cancelled_assignment_card_shows_working_while_its_round_stops(tmp_pat
     identifier = "GH13-20260819-184158-assignment"
     assignment = find_agent_work(state=state, identifier=identifier)
     assert assignment is not None
-    cancel_assignment(assignment=assignment, at=LOOKED_AT)
+    cancel_pull_request_work(assignment=assignment, at=LOOKED_AT)
 
     page = render_home(state=state)
     card = extract_article(page=page, identifier=identifier)

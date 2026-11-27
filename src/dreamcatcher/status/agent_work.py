@@ -8,10 +8,6 @@ from functools import cached_property
 from pathlib import Path
 from typing import Protocol, cast
 
-from dreamcatcher.agent_assignments import (
-    read_assignment_pull_request_number,
-    read_relayed_pull_request_state,
-)
 from dreamcatcher.agent_rounds import (
     AgentRoundOutcome,
     AgentRoundPaths,
@@ -25,6 +21,10 @@ from dreamcatcher.github import IssueState, PullRequestState
 from dreamcatcher.harness_adapters import AgentWorkKind, HarnessSessionIdentifier
 from dreamcatcher.harnesses import HARNESS_ADAPTERS
 from dreamcatcher.issue_conversations import is_no_reply
+from dreamcatcher.pull_request_work import (
+    read_relayed_pull_request_state,
+    read_work_pull_request_number,
+)
 from dreamcatcher.scheduler.faults import (
     derive_agent_work_fault,
     is_last_round_unfinished,
@@ -163,7 +163,7 @@ class AgentWorkStatus:
     @cached_property
     def pull_request(self) -> int | None:
         """The number of the assignment's pull request, once a round opened it."""
-        return read_assignment_pull_request_number(assignment=self.work)
+        return read_work_pull_request_number(assignment=self.work)
 
     @property
     def pull_request_summary(self) -> str | None:
@@ -478,7 +478,7 @@ class AgentWorkStatusReader:
             return _compose_waiting(work=work, row=row, detail="no round has run yet")
         if (
             work.record.kind is AgentWorkKind.ASSIGNMENT
-            and read_assignment_pull_request_number(assignment=work) is None
+            and read_work_pull_request_number(assignment=work) is None
         ):
             return _compose_waiting(work=work, row=row, detail="no pull request yet")
         news = None if row is None else _describe_what_is_new(finding=row.finding)

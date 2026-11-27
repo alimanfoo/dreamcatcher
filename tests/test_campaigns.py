@@ -11,7 +11,6 @@ from records import (
     write_round,
 )
 
-from dreamcatcher.agent_assignments import ObservedPullRequest
 from dreamcatcher.agent_rounds import (
     AgentRoundRecord,
     HarnessErroredAgentRoundEnding,
@@ -43,6 +42,7 @@ from dreamcatcher.github import (
     PullRequestState,
 )
 from dreamcatcher.harness_adapters import AgentWorkKind
+from dreamcatcher.pull_request_work import ObservedPullRequest
 from dreamcatcher.relay import IssueCommentCursor
 from dreamcatcher.state import StateDirectory
 

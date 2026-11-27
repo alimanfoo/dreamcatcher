@@ -9,10 +9,6 @@ from collections.abc import Mapping
 from dataclasses import dataclass, replace
 from functools import partial
 
-from dreamcatcher.agent_assignments import (
-    ObservedPullRequest,
-    read_assignment_pull_request_number,
-)
 from dreamcatcher.agent_work import AgentWork
 from dreamcatcher.campaigns import (
     CampaignChild,
@@ -30,6 +26,10 @@ from dreamcatcher.github import (
     list_sub_issues,
 )
 from dreamcatcher.prompts import compose_campaign_input_prompt
+from dreamcatcher.pull_request_work import (
+    ObservedPullRequest,
+    read_work_pull_request_number,
+)
 from dreamcatcher.relay import IssueCommentCursor
 from dreamcatcher.scheduler.blockers import list_open_blocking_issues
 from dreamcatcher.scheduler.faults import is_last_round_unfinished
@@ -213,7 +213,7 @@ def _observe_child_assignment(
     """
     return CampaignChildAssignment(
         identifier=assignment.identifier,
-        pull_request=read_assignment_pull_request_number(assignment=assignment),
+        pull_request=read_work_pull_request_number(assignment=assignment),
         observed_pull_request=(
             ObservedPullRequest.model_validate(
                 finding.model_dump(include=set(ObservedPullRequest.model_fields))

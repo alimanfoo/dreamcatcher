@@ -6,7 +6,6 @@ from dataclasses import dataclass, field, replace
 from datetime import datetime
 from functools import partial
 
-from dreamcatcher.agent_assignments import remove_assignment_worktree_and_branch
 from dreamcatcher.agent_rounds import (
     AgentRound,
     AgentRoundLaunchError,
@@ -33,6 +32,7 @@ from dreamcatcher.github import (
 )
 from dreamcatcher.harness_adapters import AgentRoundLaunchRequest, AgentWorkKind
 from dreamcatcher.prompts import compose_round_prompt
+from dreamcatcher.pull_request_work import remove_work_worktree_and_branch
 from dreamcatcher.scheduler.assignments import (
     inspect_assignment_request,
     inspect_open_assignment,
@@ -526,7 +526,7 @@ class Scheduler:
 def _remove_worktree_and_branch(*, state: StateDirectory, work: AgentWork) -> None:
     """Remove the ended work's worktree, and an assignment's local branch."""
     if work.record.kind is AgentWorkKind.ASSIGNMENT:
-        remove_assignment_worktree_and_branch(state=state, assignment=work)
+        remove_work_worktree_and_branch(state=state, assignment=work)
     else:
         remove_agent_work_worktree(state=state, work=work)
 

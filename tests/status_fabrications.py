@@ -31,10 +31,6 @@ from rows import (
     compose_request_row,
 )
 
-from dreamcatcher.agent_assignments import (
-    AssignmentRoundInput,
-    cancel_assignment,
-)
 from dreamcatcher.agent_rounds import (
     AgentRoundRecord,
     _compose_agent_round_ending,
@@ -58,6 +54,10 @@ from dreamcatcher.harness_adapters import AgentWorkKind, HarnessSessionIdentifie
 from dreamcatcher.issue_conversations import (
     ConversationRoundInput,
     InitialConversationIssue,
+)
+from dreamcatcher.pull_request_work import (
+    AssignmentRoundInput,
+    cancel_pull_request_work,
 )
 from dreamcatcher.scheduler.models import (
     BlockingIssuesFinding,
@@ -527,7 +527,7 @@ def fabricate_everything(
     write_assignment_with_rounds(
         state=state, issue=70, records=[compose_ended_round(minute=1)]
     )
-    cancel_assignment(
+    cancel_pull_request_work(
         assignment=read_agent_work_at_issue(state=state, issue=70)[0],
         at=PINNED + timedelta(minutes=10),
     )

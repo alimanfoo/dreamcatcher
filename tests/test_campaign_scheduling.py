@@ -41,7 +41,6 @@ from records import (
 )
 from rows import compose_campaign_row
 
-from dreamcatcher.agent_assignments import ObservedPullRequest
 from dreamcatcher.agent_rounds import (
     AgentRoundOutcome,
     AgentRoundRecord,
@@ -71,6 +70,7 @@ from dreamcatcher.github import (
 )
 from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.prompts import _CAMPAIGN_POST_INSTRUCTIONS, AGENT_POST_MARKER
+from dreamcatcher.pull_request_work import ObservedPullRequest
 from dreamcatcher.relay import IssueCommentCursor
 from dreamcatcher.scheduler import Scheduler, SchedulingContext
 from dreamcatcher.scheduler.models import (

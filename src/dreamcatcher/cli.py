@@ -10,7 +10,6 @@ from threading import TIMEOUT_MAX
 import dreamcatcher
 from dreamcatcher import repository_setup, tui, web
 from dreamcatcher.about import read_about_dreamcatcher
-from dreamcatcher.agent_assignments import cancel_assignment
 from dreamcatcher.agent_rounds import request_agent_round_stop
 from dreamcatcher.agent_work import (
     AgentWork,
@@ -24,6 +23,7 @@ from dreamcatcher.config import AgentHarness
 from dreamcatcher.daemon import DEFAULT_INTERVAL_SECONDS, DreamcatcherDaemon
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.harness_adapters import AgentWorkKind
+from dreamcatcher.pull_request_work import cancel_pull_request_work
 from dreamcatcher.scheduler import DEFAULT_MAX_AGENTS
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.status import read_agent_work_status, read_dreamcatcher_daemon_status
@@ -361,7 +361,7 @@ def _cancel_assignment(*, arguments: argparse.Namespace) -> None:
     work = _select_agent_work(state=state, arguments=arguments)
     if work.record.kind is not AgentWorkKind.ASSIGNMENT:
         raise ReportableError(f"{work.identifier} is not an assignment.")
-    if not cancel_assignment(assignment=work, at=read_current_time()):
+    if not cancel_pull_request_work(assignment=work, at=read_current_time()):
         raise ReportableError(f"{work.identifier} has already ended.")
     print(f"{work.identifier} is cancelled.")
 

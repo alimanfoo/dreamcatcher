@@ -14,10 +14,10 @@ from pathlib import Path
 from clocks import LABEL_APPLIED_AT, PINNED
 
 from dreamcatcher import (
-    agent_assignments,
     agent_rounds,
     agent_work,
     issue_conversations,
+    pull_request_work,
 )
 from dreamcatcher.config import AgentHarness
 from dreamcatcher.daemon import DEFAULT_INTERVAL_SECONDS
@@ -45,7 +45,7 @@ SCOUT_ROUTES = (RecordedRoute(label="dream:scout", kind=AgentWorkKind.CONVERSATI
 HEAD = "3aa91fcd8f64716f7c44d904d6891025bd606f1a"
 
 # What a round that wraps a merged pull request up was given.
-MERGED_INPUT = agent_assignments.AssignmentRoundInput(
+MERGED_INPUT = pull_request_work.AssignmentRoundInput(
     pull_request_state=PullRequestState.MERGED,
     pull_request_head=HEAD,
     signals=[],
@@ -133,8 +133,8 @@ def write_assignment(
     directory = state.work / identifier
     if pull_request is not None:
         write_json(
-            document=agent_assignments._PullRequestRecord(number=pull_request),
-            path=directory / agent_assignments._PULL_REQUEST_RECORD_NAME,
+            document=pull_request_work._PullRequestRecord(number=pull_request),
+            path=directory / pull_request_work._PULL_REQUEST_RECORD_NAME,
         )
     agent_work._record_agent_work(
         state=state,
@@ -269,7 +269,7 @@ def write_round(
     if round_input is not None:
         write_json(document=round_input, path=paths.round_input)
     if (
-        isinstance(round_input, agent_assignments.AssignmentRoundInput)
+        isinstance(round_input, pull_request_work.AssignmentRoundInput)
         and round_input.pull_request_state is not PullRequestState.OPEN
         and isinstance(record.ending, agent_rounds.SuccessfulAgentRoundEnding)
     ):
@@ -287,7 +287,7 @@ def write_assignment_round(
     directory: Path,
     number: int,
     status: int | None = 0,
-    round_input: agent_assignments.AssignmentRoundInput | None = None,
+    round_input: pull_request_work.AssignmentRoundInput | None = None,
 ) -> agent_rounds.AgentRoundRecord:
     """Write one round of the assignment at this directory, and return its record.
 

@@ -21,10 +21,6 @@ from records import (
 from rows import UNCLAIMED, compose_request_row
 from status_fabrications import compose_feed_line, fabricate_everything
 
-from dreamcatcher.agent_assignments import (
-    AssignmentRoundInput,
-    cancel_assignment,
-)
 from dreamcatcher.agent_rounds import (
     AgentRoundRecord,
     InterruptedAgentRoundEnding,
@@ -46,6 +42,10 @@ from dreamcatcher.github import (
     PullRequestState,
 )
 from dreamcatcher.harness_adapters import AgentWorkKind
+from dreamcatcher.pull_request_work import (
+    AssignmentRoundInput,
+    cancel_pull_request_work,
+)
 from dreamcatcher.scheduler.models import (
     BlockingIssuesFinding,
     ConflictingLabelsFinding,
@@ -545,7 +545,7 @@ def test_a_successful_wrap_up_is_complete(state):
 
 def cancel(*, state: StateDirectory) -> None:
     """Cancel the fixture's assignment."""
-    cancel_assignment(assignment=read_assignments(state=state)[0], at=PINNED)
+    cancel_pull_request_work(assignment=read_assignments(state=state)[0], at=PINNED)
 
 
 def test_a_cancelled_assignment_has_ended(state):
@@ -1363,7 +1363,7 @@ def test_a_request_that_open_work_answers_before_the_tick_ends_is_hidden(state):
 
 
 def test_a_request_at_an_issue_whose_work_ended_still_shows(state):
-    cancel_assignment(assignment=read_assignments(state=state)[0], at=PINNED)
+    cancel_pull_request_work(assignment=read_assignments(state=state)[0], at=PINNED)
     write_tick(
         state=state,
         tick=SchedulerRecord(

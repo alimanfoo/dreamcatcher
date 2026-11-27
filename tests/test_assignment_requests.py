@@ -30,10 +30,10 @@ from conftest import (
 from records import read_assignments, write_assignment, write_ending
 from rows import UNCLAIMED, compose_request_row
 
-from dreamcatcher.agent_assignments import cancel_assignment
 from dreamcatcher.agent_work import AgentWorkEndReason
 from dreamcatcher.clock import read_current_time
 from dreamcatcher.config import AgentHarness, DreamcatcherConfig
+from dreamcatcher.pull_request_work import cancel_pull_request_work
 from dreamcatcher.scheduler import Scheduler, SchedulingContext
 from dreamcatcher.scheduler.models import (
     ConflictingLabelsFinding,
@@ -248,7 +248,7 @@ def test_a_request_names_the_open_pull_requests_that_claim_it(gh, state):
 
 def test_a_cancelled_assignments_pull_request_holds_a_reapplied_label(gh, state):
     write_assignment(state=state, identifier="GH8-20260819-184158-assignment", issue=8)
-    cancel_assignment(
+    cancel_pull_request_work(
         assignment=read_assignments(state=state)[0], at=read_current_time()
     )
     offer_labelling_events(
