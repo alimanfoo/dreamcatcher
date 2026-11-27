@@ -1,20 +1,22 @@
 """Select what is past a piece of agent work's cursor in its channel.
 
-The relay returns the user posts and pull request signals past an assignment's
-cursor, and the issue comments past a conversation's or a campaign's, without
+The relay returns the user posts and signals past a pull request cursor,
+and the issue comments past a conversation's cursor, without
 writing state. The inputs of the rounds that consumed them record what each
 relayed. Posts and comments written through the shared GitHub account are user
 input only when they do not carry the agent marker.
 """
 
-from collections.abc import Sequence
+from collections.abc import Iterator, Sequence
 from dataclasses import dataclass
+from itertools import islice
 from typing import Annotated
 
 from pydantic import AfterValidator
 
 from dreamcatcher.agent_work import AgentWork
-from dreamcatcher.documents import DreamcatcherDocument, ReadOnlyList
+from dreamcatcher.campaigns import CampaignRoundInput
+from dreamcatcher.documents import DreamcatcherDocument, ReadOnlyList, read_json
 from dreamcatcher.github import (
     CheckResult,
     IssueComment,
@@ -26,11 +28,9 @@ from dreamcatcher.github import (
     list_issue_comments,
     list_user_posts,
 )
+from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.prompts import AGENT_POST_MARKER
-from dreamcatcher.pull_request_work import (
-    is_check_failure_withheld,
-    read_signal_relay_head,
-)
+from dreamcatcher.pull_request_work import PullRequestRoundInput
 
 
 class IssueCommentCursor(DreamcatcherDocument):
@@ -60,7 +60,7 @@ OrderedIssueComments = Annotated[
 
 @dataclass(frozen=True, kw_only=True)
 class PullRequestSignals:
-    """Hold the pull request signals past an assignment's cursor.
+    """Hold the pull request signals past the work's pull request cursor.
 
     A check failure the relay rule withholds is left out, and flagged.
     """
@@ -70,7 +70,7 @@ class PullRequestSignals:
 
 
 def find_pull_request_signals(
-    *, assignment: AgentWork, pull_request: PullRequest
+    *, work: AgentWork, pull_request: PullRequest
 ) -> PullRequestSignals:
     """Return the pull request signals raised at a head not yet relayed.
 
@@ -92,17 +92,72 @@ def find_pull_request_signals(
             ),
         )
         if is_raised
-        and read_signal_relay_head(assignment=assignment, signal=signal)
-        != pull_request.head
+        and _read_signal_relay_head(work=work, signal=signal) != pull_request.head
     ]
     is_withheld = PullRequestSignal.CHECK_FAILURE in raised and (
-        is_check_failure_withheld(assignment=assignment)
+        _is_check_failure_withheld(work=work)
     )
     if is_withheld:
         raised.remove(PullRequestSignal.CHECK_FAILURE)
     return PullRequestSignals(
         new_pull_request_signals=raised, is_check_failure_withheld=is_withheld
     )
+
+
+def read_user_post_cursor(*, work: AgentWork) -> str:
+    """Return the newest user-post time among the posts already relayed."""
+    for round_input in _read_relayed_inputs(work=work):
+        if round_input.user_posts:
+            return round_input.user_posts[-1].written_at
+    return ""
+
+
+def read_relayed_pull_request_state(*, work: AgentWork) -> PullRequestState | None:
+    """Return the pull request state that the newest relayed round input carried."""
+    latest = next(_read_relayed_inputs(work=work), None)
+    return None if latest is None else latest.pull_request_state
+
+
+def is_wrap_up_relayed(*, work: AgentWork) -> bool:
+    """Return whether a merged or closed pull request has been relayed."""
+    state = read_relayed_pull_request_state(work=work)
+    return state is not None and state is not PullRequestState.OPEN
+
+
+def _read_signal_relay_head(
+    *, work: AgentWork, signal: PullRequestSignal
+) -> str | None:
+    """Return the head commit at which the signal was last relayed, if ever."""
+    for round_input in _read_relayed_inputs(work=work):
+        if signal in round_input.signals:
+            return round_input.pull_request_head
+    return None
+
+
+def _is_check_failure_withheld(*, work: AgentWork) -> bool:
+    """Return whether the relay rule withholds a check failure.
+
+    It does when the last two relayed inputs both carried one, which gives an
+    agent two attempts at a red build on its own. A round that relayed no check
+    failure starts the count again, and one that did not consume its input is
+    not counted, since its input is given again.
+    """
+    latest_two = list(islice(_read_relayed_inputs(work=work), 2))
+    return len(latest_two) == 2 and all(
+        PullRequestSignal.CHECK_FAILURE in round_input.signals
+        for round_input in latest_two
+    )
+
+
+def _read_relayed_inputs(*, work: AgentWork) -> Iterator[PullRequestRoundInput]:
+    """Yield the inputs already relayed, newest first."""
+    model = (
+        CampaignRoundInput
+        if work.record.kind is AgentWorkKind.CAMPAIGN
+        else PullRequestRoundInput
+    )
+    for paths in work.list_relayed_round_paths():
+        yield read_json(model=model, path=paths.round_input)
 
 
 def list_user_posts_past_cursor(

@@ -36,7 +36,7 @@ from dreamcatcher.github import (
     PullRequestState,
 )
 from dreamcatcher.pull_request_work import (
-    AssignmentRoundInput,
+    PullRequestRoundInput,
     cancel_pull_request_work,
 )
 from dreamcatcher.scheduler import Scheduler, SchedulingContext
@@ -113,7 +113,7 @@ def create_scheduler(*, state: StateDirectory) -> Scheduler:
 
 def find_next_round_input(
     *, state
-) -> AssignmentRoundInput | str | ReadFailureFinding | None:
+) -> PullRequestRoundInput | str | ReadFailureFinding | None:
     """What the one assignment in that state directory needs next.
 
     A round that relays the pull request answers with the input it would be
@@ -127,7 +127,7 @@ def find_next_round_input(
         if plan.input_prompt is None:
             return OPENS_PULL_REQUEST
         round_input = plan.prepare_round()
-        assert isinstance(round_input, AssignmentRoundInput)
+        assert isinstance(round_input, PullRequestRoundInput)
         return round_input
     if isinstance(inspected.row.finding, ReadFailureFinding):
         return inspected.row.finding
@@ -202,7 +202,7 @@ def test_an_assignment_whose_last_round_was_interrupted_is_given_its_input_again
 
     resume = find_next_round_input(state=state)
 
-    assert isinstance(resume, AssignmentRoundInput)
+    assert isinstance(resume, PullRequestRoundInput)
     assert resume.user_posts == []
     assert gh.calls[0].arguments[:3] == ["pr", "view", str(PULL_REQUEST)]
 
@@ -222,7 +222,7 @@ def test_an_interruption_breaks_an_error_sequence(state, gh):
 
     resume = find_next_round_input(state=state)
 
-    assert isinstance(resume, AssignmentRoundInput)
+    assert isinstance(resume, PullRequestRoundInput)
 
 
 def test_an_assignment_whose_last_round_failed_is_carried_on_with_its_status(state, gh):
@@ -230,7 +230,7 @@ def test_an_assignment_whose_last_round_failed_is_carried_on_with_its_status(sta
 
     resume = find_next_round_input(state=state)
 
-    assert isinstance(resume, AssignmentRoundInput)
+    assert isinstance(resume, PullRequestRoundInput)
     assert gh.calls[0].arguments[:3] == ["pr", "view", str(PULL_REQUEST)]
 
 
@@ -253,7 +253,7 @@ def test_a_terminal_pull_request_makes_an_interrupted_round_a_wrap_up(state, gh)
 
     resume = find_next_round_input(state=state)
 
-    assert isinstance(resume, AssignmentRoundInput)
+    assert isinstance(resume, PullRequestRoundInput)
     assert resume.pull_request_state is PullRequestState.MERGED
     assert [post.body for post in resume.user_posts] == [
         "have another look at the filter"
@@ -262,7 +262,8 @@ def test_a_terminal_pull_request_makes_an_interrupted_round_a_wrap_up(state, gh)
     write_assignment_round(
         directory=state.work / ASSIGNMENT_ID,
         number=2,
-        round_input=AssignmentRoundInput(
+        round_input=PullRequestRoundInput(
+            pull_request=52,
             pull_request_state=resume.pull_request_state,
             pull_request_head=HEAD,
             signals=[],
@@ -317,7 +318,7 @@ def test_a_terminal_pull_request_wraps_up_a_stopped_assignment(
 
     resume = find_next_round_input(state=state)
 
-    assert isinstance(resume, AssignmentRoundInput)
+    assert isinstance(resume, PullRequestRoundInput)
     assert resume.pull_request_state is PullRequestState(pull_request_state)
     assert resume.user_posts == []
 
@@ -336,7 +337,8 @@ def test_a_stopped_last_round_is_not_given_the_finished_pull_request_again(
             pid=1,
             ending=StoppedAgentRoundEnding(at=started),
         ),
-        round_input=AssignmentRoundInput(
+        round_input=PullRequestRoundInput(
+            pull_request=52,
             pull_request_state=PullRequestState(pull_request_state),
             pull_request_head=HEAD,
             signals=[],
@@ -369,7 +371,7 @@ def test_a_stopped_assignment_uses_new_feedback(state, gh):
 
     resume = find_next_round_input(state=state)
 
-    assert isinstance(resume, AssignmentRoundInput)
+    assert isinstance(resume, PullRequestRoundInput)
     assert len(resume.user_posts) == 1
 
 
@@ -416,7 +418,7 @@ def test_an_assignment_the_user_has_posted_on_answers_what_they_said(state, gh):
 
     resume = find_next_round_input(state=state)
 
-    assert isinstance(resume, AssignmentRoundInput)
+    assert isinstance(resume, PullRequestRoundInput)
     assert resume.pull_request_state is PullRequestState.OPEN
     assert [post.body for post in resume.user_posts] == [
         "have another look at the filter"
@@ -435,7 +437,7 @@ def test_a_post_on_a_draft_pull_request_wakes_its_assignment(state, gh_with_no_p
 
     resume = find_next_round_input(state=state)
 
-    assert isinstance(resume, AssignmentRoundInput)
+    assert isinstance(resume, PullRequestRoundInput)
 
 
 def test_a_batch_of_posts_says_how_many_it_holds(state, gh):
@@ -452,7 +454,7 @@ def test_a_batch_of_posts_says_how_many_it_holds(state, gh):
 
     resume = find_next_round_input(state=state)
 
-    assert isinstance(resume, AssignmentRoundInput)
+    assert isinstance(resume, PullRequestRoundInput)
     assert len(resume.user_posts) == 2
 
 
@@ -460,7 +462,8 @@ def test_a_post_at_the_assignment_cursor_wakes_nothing(state, gh):
     write_assignment_round(
         directory=state.work / ASSIGNMENT_ID,
         number=1,
-        round_input=AssignmentRoundInput(
+        round_input=PullRequestRoundInput(
+            pull_request=52,
             pull_request_state=PullRequestState.OPEN,
             pull_request_head=HEAD,
             signals=[],
@@ -484,7 +487,7 @@ def test_a_posts_resume_carries_the_facts_launch_will_prepare(state, gh):
 
     resume = find_next_round_input(state=state)
 
-    assert isinstance(resume, AssignmentRoundInput)
+    assert isinstance(resume, PullRequestRoundInput)
     assert resume.pull_request_state is PullRequestState.OPEN
     assert [post.body for post in resume.user_posts] == [
         "have another look at the filter"
@@ -500,7 +503,7 @@ def test_a_pull_request_that_is_finished_calls_for_one_last_round(
 
     resume = find_next_round_input(state=state)
 
-    assert isinstance(resume, AssignmentRoundInput)
+    assert isinstance(resume, PullRequestRoundInput)
     assert resume.pull_request_state is PullRequestState(state_name)
     assert resume.user_posts == []
 
@@ -515,7 +518,7 @@ def test_a_last_round_carries_what_the_user_said_before_the_merge(state, gh):
 
     resume = find_next_round_input(state=state)
 
-    assert isinstance(resume, AssignmentRoundInput)
+    assert isinstance(resume, PullRequestRoundInput)
     assert [post.body for post in resume.user_posts] == [
         "have another look at the filter"
     ]
@@ -577,9 +580,10 @@ def test_a_failed_user_post_read_leaves_the_assignment_unknown(state, gh):
 
 def compose_relayed_input(
     *, signals: list[PullRequestSignal], head: str = HEAD, posts: int = 0
-) -> AssignmentRoundInput:
+) -> PullRequestRoundInput:
     """Return the input of a round that relayed these signals at this head."""
-    return AssignmentRoundInput(
+    return PullRequestRoundInput(
+        pull_request=52,
         pull_request_state=PullRequestState.OPEN,
         pull_request_head=head,
         signals=signals,
@@ -608,7 +612,7 @@ def test_a_ready_pull_request_that_falls_out_of_date_wakes_its_assignment(
 
     resume = find_next_round_input(state=state)
 
-    assert isinstance(resume, AssignmentRoundInput)
+    assert isinstance(resume, PullRequestRoundInput)
     assert resume.signals == [PullRequestSignal.OUT_OF_DATE]
     assert resume.pull_request_head == HEAD
     assert read_pull_request_finding(state=state).new_pull_request_signals == [
@@ -646,7 +650,7 @@ def test_the_default_branch_moving_again_after_a_push_wakes_the_assignment_again
 
     resume = find_next_round_input(state=state)
 
-    assert isinstance(resume, AssignmentRoundInput)
+    assert isinstance(resume, PullRequestRoundInput)
     assert resume.signals == [PullRequestSignal.OUT_OF_DATE]
     assert resume.pull_request_head == PUSHED
 
@@ -667,7 +671,7 @@ def test_a_red_check_wakes_the_assignment(state, gh):
 
     resume = find_next_round_input(state=state)
 
-    assert isinstance(resume, AssignmentRoundInput)
+    assert isinstance(resume, PullRequestRoundInput)
     assert resume.signals == [PullRequestSignal.CHECK_FAILURE]
 
 
@@ -697,7 +701,7 @@ def test_a_red_check_after_one_attempt_wakes_the_assignment_a_second_time(state,
 
     resume = find_next_round_input(state=state)
 
-    assert isinstance(resume, AssignmentRoundInput)
+    assert isinstance(resume, PullRequestRoundInput)
     assert resume.signals == [PullRequestSignal.CHECK_FAILURE]
 
 
@@ -751,7 +755,7 @@ def test_a_post_after_two_attempts_still_wakes_the_assignment(state, gh):
 
     resume = find_next_round_input(state=state)
 
-    assert isinstance(resume, AssignmentRoundInput)
+    assert isinstance(resume, PullRequestRoundInput)
     assert resume.signals == []
     assert len(resume.user_posts) == 1
 
@@ -775,7 +779,7 @@ def test_a_round_woken_by_a_post_breaks_a_run_of_red_checks(state, gh):
 
     resume = find_next_round_input(state=state)
 
-    assert isinstance(resume, AssignmentRoundInput)
+    assert isinstance(resume, PullRequestRoundInput)
     assert resume.signals == [PullRequestSignal.CHECK_FAILURE]
 
 
@@ -800,7 +804,7 @@ def test_a_round_that_errored_does_not_count_as_an_attempt(state, gh):
 
     resume = find_next_round_input(state=state)
 
-    assert isinstance(resume, AssignmentRoundInput)
+    assert isinstance(resume, PullRequestRoundInput)
     assert resume.signals == [PullRequestSignal.CHECK_FAILURE]
 
 
@@ -826,7 +830,7 @@ def test_a_merged_pull_request_raises_no_signal_in_its_last_round(state, gh):
 
     resume = find_next_round_input(state=state)
 
-    assert isinstance(resume, AssignmentRoundInput)
+    assert isinstance(resume, PullRequestRoundInput)
     assert resume.pull_request_state is PullRequestState.MERGED
     assert resume.signals == []
 
@@ -868,7 +872,7 @@ def test_each_signal_is_relayed_against_its_own_last_head(state, gh):
 
     resume = find_next_round_input(state=state)
 
-    assert isinstance(resume, AssignmentRoundInput)
+    assert isinstance(resume, PullRequestRoundInput)
     assert resume.signals == [PullRequestSignal.CHECK_FAILURE]
 
 
@@ -895,6 +899,6 @@ def test_a_withheld_check_failure_leaves_an_out_of_date_signal_to_relay(state, g
 
     resume = find_next_round_input(state=state)
 
-    assert isinstance(resume, AssignmentRoundInput)
+    assert isinstance(resume, PullRequestRoundInput)
     assert resume.signals == [PullRequestSignal.OUT_OF_DATE]
     assert read_pull_request_finding(state=state).is_check_failure_withheld

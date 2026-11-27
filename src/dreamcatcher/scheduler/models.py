@@ -32,7 +32,7 @@ _UtcDateTime = Annotated[AwareDatetime, AfterValidator(_normalize_utc)]
 
 
 class PullRequestFinding(ObservedPullRequest):
-    """Hold what the tick read of an open assignment's pull request.
+    """Hold what the tick read of open work's pull request.
 
     A withheld check failure is one that the relay rule
     kept from the agent.
@@ -44,6 +44,7 @@ class PullRequestFinding(ObservedPullRequest):
     new_pull_request_signals: ReadOnlyList[PullRequestSignal]
     is_check_failure_withheld: bool
     is_wrap_up_due: bool
+    changed_children: NonNegativeInt = 0
 
 
 class IssueCommentsFinding(DreamcatcherDocument):
@@ -75,13 +76,6 @@ class StartTimeFinding(DreamcatcherDocument):
     def is_clear(self) -> bool:
         """Whether no open pull request claims the issue and no open issue blocks it."""
         return not (self.linked_pull_requests or self.blocking_issues)
-
-
-class BlockingIssuesFinding(DreamcatcherDocument):
-    """Hold the open issues that block a campaign request's parent."""
-
-    found: Literal["blocking issues"] = "blocking issues"
-    blocking_issues: ReadOnlyList[IssueReference] = Field(min_length=1)
 
 
 class ConflictingLabelsFinding(DreamcatcherDocument):
@@ -150,21 +144,6 @@ HoldFinding = (
 )
 
 
-class CampaignFinding(DreamcatcherDocument):
-    """Hold what the tick found new for the lead.
-
-    The tick found the parent open, assigned to the account and carrying the
-    campaign's label and no other of its kind. The new comments are the user's
-    eligible parent comments past the cursor, and the changed children are
-    those whose changes since the newest input delivered to the lead call for
-    it.
-    """
-
-    found: Literal["campaign"] = "campaign"
-    new_comments: NonNegativeInt
-    changed_children: NonNegativeInt
-
-
 class ReadFailureFinding(DreamcatcherDocument):
     """Hold why a read failed or could not yet tell, in place of its answer."""
 
@@ -176,9 +155,7 @@ type RequestFinding = Annotated[
     PullRequestFinding
     | IssueCommentsFinding
     | StartTimeFinding
-    | BlockingIssuesFinding
     | HoldFinding
-    | CampaignFinding
     | ReadFailureFinding,
     Field(discriminator="found"),
 ]

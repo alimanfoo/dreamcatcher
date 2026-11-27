@@ -8,20 +8,24 @@ from datetime import timedelta
 import pytest
 from clocks import PINNED
 from records import (
-    MISORDERED_COMMENTS,
-    REPEATED_COMMENTS,
+    HEAD,
     compose_campaign_identifier,
     hold_daemon_lock_for_test,
     read_campaign,
-    replace_relayed_comments,
     write_assignment,
     write_campaign,
     write_daemon_run,
     write_ending,
     write_round,
     write_tick,
+    write_work_pull_request,
 )
-from rows import UNCLAIMED, compose_request_row
+from rows import (
+    CAMPAIGN_PULL_REQUEST,
+    UNCLAIMED,
+    compose_campaign_finding,
+    compose_request_row,
+)
 
 from dreamcatcher.agent_rounds import (
     AgentRoundRecord,
@@ -40,15 +44,11 @@ from dreamcatcher.campaigns import (
     CampaignRoundInput,
 )
 from dreamcatcher.errors import ReportableError
-from dreamcatcher.github import IssueComment, IssueState
+from dreamcatcher.github import IssueComment, IssueState, PullRequestState
 from dreamcatcher.harness_adapters import AgentWorkKind
-from dreamcatcher.relay import IssueCommentCursor
 from dreamcatcher.scheduler.models import (
-    CampaignFinding,
     IssueCommentsFinding,
     IssueReference,
-    PauseCause,
-    PausedFinding,
     ReadFailureFinding,
     RequestFinding,
     RequestRow,
@@ -71,7 +71,7 @@ LOOKED_AT = PINNED + timedelta(hours=2)
 PARENT = 20
 ERRORED = _compose_agent_round_ending(at=PINNED + timedelta(minutes=4), status=2)
 SUCCESSFUL = SuccessfulAgentRoundEnding(at=PINNED + timedelta(minutes=3))
-NOTHING_NEW = CampaignFinding(new_comments=0, changed_children=0)
+NOTHING_NEW = compose_campaign_finding()
 
 
 @pytest.fixture
@@ -80,7 +80,8 @@ def state(tmp_path):
     state = StateDirectory(root=tmp_path)
     write_daemon_run(state=state, pid=os.getpid())
     hold_daemon_lock_for_test(path=state.lock)
-    write_campaign(state=state, issue=PARENT)
+    directory = write_campaign(state=state, issue=PARENT)
+    write_work_pull_request(directory=directory, number=CAMPAIGN_PULL_REQUEST)
     return state
 
 
@@ -89,12 +90,12 @@ def write_lead_round(
     state: StateDirectory,
     number: int,
     ending: _AgentRoundEnding | None,
-    has_input: bool = True,
-    comments: int = 0,
+    posts: int | None = 0,
+    pull_request_state: PullRequestState = PullRequestState.OPEN,
     children: Sequence[CampaignChild] = (),
     notifications: Sequence[CampaignChildNotification] = (),
 ) -> None:
-    """Write one round of the campaign, given that many comments.
+    """Write one round of the campaign, given that many posts.
 
     The round is also given these children and these notifications.
     """
@@ -105,7 +106,7 @@ def write_lead_round(
             written_at="2026-09-23T01:00:00Z",
             body="Carry on.",
         )
-        for identifier in range(1, comments + 1)
+        for identifier in range(1, (posts or 0) + 1)
     ]
     write_round(
         directory=state.work / compose_campaign_identifier(issue=PARENT),
@@ -115,18 +116,15 @@ def write_lead_round(
         ),
         round_input=(
             None
-            if not has_input
+            if posts is None
             else CampaignRoundInput(
-                issue=PARENT,
+                pull_request=CAMPAIGN_PULL_REQUEST,
+                pull_request_state=pull_request_state,
+                pull_request_head=HEAD,
+                signals=[],
                 children=children,
                 notifications=notifications,
-                comments=given,
-                cursor=(
-                    IssueCommentCursor(written_at=given[-1].written_at, id=given[-1].id)
-                    if given
-                    else None
-                ),
-                revision="abc123",
+                user_posts=given,
                 assignment_routes=[],
             )
         ),
@@ -188,7 +186,7 @@ def test_a_labelled_parent_with_no_campaign_yet_is_available(tmp_path):
             finished=PINNED,
             rows=[
                 compose_request_row(
-                    issue=PARENT, kind=AgentWorkKind.CAMPAIGN, finding=NOTHING_NEW
+                    issue=PARENT, kind=AgentWorkKind.CAMPAIGN, finding=UNCLAIMED
                 )
             ],
         ),
@@ -229,7 +227,7 @@ def test_a_running_lead_counts_the_sub_issues_that_woke_it(state):
         state=state,
         number=2,
         ending=None,
-        comments=1,
+        posts=1,
         children=[compose_child(issue=21, state=IssueState.CLOSED)],
         notifications=[
             notify(
@@ -245,22 +243,20 @@ def test_a_running_lead_counts_the_sub_issues_that_woke_it(state):
 
     assert status.value is AgentWorkStatusValue.WORKING
     assert status.detail is not None
-    assert status.detail.startswith(
-        "round 2, 1 comment, 2 sub-issues changed, running "
-    )
+    assert status.detail.startswith("round 2, 1 post, 2 sub-issues changed, running ")
 
 
 @pytest.mark.parametrize(
     ("ending", "detail"),
     [
-        (SUCCESSFUL, "round 1, successful, ran 2m"),
+        (SUCCESSFUL, "needs feedback"),
         (
             StoppedAgentRoundEnding(at=PINNED + timedelta(minutes=2)),
-            "round 1, stopped, ran 1m",
+            "needs feedback",
         ),
     ],
 )
-def test_a_lead_that_took_its_turn_is_idle_with_how_its_round_ended(
+def test_a_lead_that_took_its_turn_is_idle_with_a_draft_pull_request(
     state, ending, detail
 ):
     write_lead_round(state=state, number=1, ending=ending)
@@ -283,15 +279,15 @@ def test_a_lead_that_finished_after_the_update_started_it_awaits_the_next(state)
 
 
 @pytest.mark.parametrize(
-    ("new_comments", "changed_children", "detail"),
+    ("new_posts", "changed_children", "detail"),
     [
-        (2, 0, "2 comments to answer"),
+        (2, 0, "2 new posts to answer"),
         (0, 1, "1 sub-issue changed"),
-        (1, 2, "1 comment to answer, 2 sub-issues changed"),
+        (1, 2, "1 new post to answer, 2 sub-issues changed"),
     ],
 )
 def test_a_lead_with_new_input_is_waiting_for_it(
-    state, new_comments, changed_children, detail
+    state, new_posts, changed_children, detail
 ):
     write_lead_round(
         state=state,
@@ -300,8 +296,8 @@ def test_a_lead_with_new_input_is_waiting_for_it(
     )
     observe(
         state=state,
-        finding=CampaignFinding(
-            new_comments=new_comments, changed_children=changed_children
+        finding=compose_campaign_finding(
+            new_posts=new_posts, changed_children=changed_children
         ),
         ended_round=1,
     )
@@ -322,20 +318,6 @@ def test_a_lead_whose_round_did_not_finish_waits_to_recover(state):
     assert status.detail == "round 1 interrupted"
 
 
-def test_a_paused_campaign_is_held_and_says_why(state):
-    write_lead_round(state=state, number=1, ending=InterruptedAgentRoundEnding())
-    observe(
-        state=state,
-        finding=PausedFinding(cause=PauseCause.LABEL_REMOVED),
-        ended_round=1,
-    )
-
-    status = read_campaign_status(state=state)
-
-    assert status.value is AgentWorkStatusValue.HELD
-    assert status.detail == "put the label back to resume"
-
-
 def test_two_errored_lead_rounds_are_a_fault(state):
     write_lead_round(state=state, number=1, ending=ERRORED)
     write_lead_round(state=state, number=2, ending=ERRORED)
@@ -347,29 +329,32 @@ def test_two_errored_lead_rounds_are_a_fault(state):
     assert status.faulted_round_number == 2
 
 
-def test_a_campaign_whose_parent_closed_shows_as_ended_with_its_parent_closed(state):
+def test_a_finished_campaign_shows_its_merged_pull_request(state):
     write_lead_round(state=state, number=1, ending=SUCCESSFUL)
-    write_ending(
-        directory=state.work / compose_campaign_identifier(issue=PARENT),
-        reason=AgentWorkEndReason.ISSUE_CLOSED,
-        at=LOOKED_AT,
+    write_lead_round(
+        state=state,
+        number=2,
+        ending=SUCCESSFUL,
+        pull_request_state=PullRequestState.MERGED,
     )
 
     status = read_campaign_status(state=state)
 
     assert status.value is AgentWorkStatusValue.ENDED
-    assert (status.words, status.issue_state) == ("ended", "closed")
+    assert status.words == "completed"
+    assert status.issue_state is None
+    assert status.pull_request_summary == "merged"
     assert status.detail is None
 
 
 def test_lead_rounds_name_their_trigger(state):
-    write_lead_round(state=state, number=1, ending=ERRORED, comments=1)
-    write_lead_round(state=state, number=2, ending=SUCCESSFUL, comments=1)
+    write_lead_round(state=state, number=1, ending=ERRORED, posts=1)
+    write_lead_round(state=state, number=2, ending=SUCCESSFUL, posts=1)
     write_lead_round(
         state=state,
         number=3,
         ending=SUCCESSFUL,
-        comments=2,
+        posts=2,
         children=[compose_child(issue=21, state=IssueState.OPEN)],
         notifications=[notify(issue=21, changes=[CampaignChildChange.ADDED])],
     )
@@ -386,16 +371,18 @@ def test_lead_rounds_name_their_trigger(state):
             notify(issue=22, changes=[CampaignChildChange.REMOVED]),
         ],
     )
-    write_lead_round(state=state, number=5, ending=None, has_input=False)
+    write_lead_round(state=state, number=5, ending=ERRORED, posts=None)
+    write_lead_round(state=state, number=6, ending=SUCCESSFUL)
 
     rounds = read_campaign_status(state=state).round_statuses
 
     assert [round_status.trigger.describe() for round_status in rounds] == [
-        "start, 1 comment",
-        "recover, 1 comment",
-        "2 comments; #21: added",
+        "start",
+        "1 post",
+        "2 posts; #21: added",
         "#21: closed, ended; #22: removed",
-        "comments or changes",
+        "pull request or sub-issue changes",
+        "recover",
     ]
 
 
@@ -478,7 +465,7 @@ def test_an_ended_campaign_shows_no_children(state):
     write_lead_round(state=state, number=1, ending=SUCCESSFUL)
     write_ending(
         directory=state.work / compose_campaign_identifier(issue=PARENT),
-        reason=AgentWorkEndReason.ISSUE_CLOSED,
+        reason=AgentWorkEndReason.COMPLETED,
         at=LOOKED_AT,
     )
     observe(
@@ -643,24 +630,6 @@ def test_an_unreadable_lead_round_input_fails_the_status_naming_the_file(state):
     assert campaign is not None
     round_input = campaign.compose_round_paths(number=1).round_input
     round_input.write_bytes(b"not json")
-
-    found = read_campaign_status(state=state)
-
-    with pytest.raises(ReportableError, match=re.escape(str(round_input))):
-        _ = found.round_statuses
-
-
-@pytest.mark.parametrize(
-    "comments", [MISORDERED_COMMENTS, REPEATED_COMMENTS], ids=["misordered", "repeated"]
-)
-def test_a_lead_round_input_with_comments_the_relay_never_gives_fails_the_status(
-    state, comments
-):
-    write_lead_round(state=state, number=1, ending=SUCCESSFUL)
-    campaign = read_campaign(state=state, issue=PARENT)
-    assert campaign is not None
-    round_input = campaign.compose_round_paths(number=1).round_input
-    replace_relayed_comments(path=round_input, comments=comments)
 
     found = read_campaign_status(state=state)
 

@@ -70,6 +70,11 @@ class AgentWorkKind(StrEnum):
     CAMPAIGN = "campaign"
     CONVERSATION = "conversation"
 
+    @property
+    def is_pull_request_work(self) -> bool:
+        """Whether this kind of work uses a pull request as its channel."""
+        return self in (AgentWorkKind.ASSIGNMENT, AgentWorkKind.CAMPAIGN)
+
 
 @dataclass(frozen=True, kw_only=True)
 class AgentRoundLaunchRequest:

@@ -1,9 +1,7 @@
 """Model a campaign's children, compare them, prepare rounds and read their input.
 
-A campaign's channel is its parent issue, and its children are the parent's
-direct sub-issues. Every round runs in a detached worktree refreshed to the
-fetched default branch, and the lead publishes its own messages, so a round has
-no finishing step.
+A campaign's children are its parent's direct sub-issues. Each lead round
+receives the current picture of them beside its pull request input.
 """
 
 from collections.abc import Sequence
@@ -16,17 +14,19 @@ from dreamcatcher.config import AssignmentRoute
 from dreamcatcher.documents import (
     DreamcatcherDocument,
     ReadOnlyList,
-    WriteOnceDreamcatcherDocument,
     read_json,
 )
-from dreamcatcher.git import refresh_detached_worktree
+from dreamcatcher.git import read_worktree_revision
 from dreamcatcher.github import (
     CheckResult,
-    IssueComment,
     IssueState,
+    PullRequestState,
 )
-from dreamcatcher.pull_request_work import ObservedPullRequest
-from dreamcatcher.relay import IssueCommentCursor, OrderedIssueComments
+from dreamcatcher.pull_request_work import (
+    ObservedPullRequest,
+    PullRequestRoundInput,
+    open_work_pull_request,
+)
 from dreamcatcher.state import StateDirectory
 
 
@@ -92,25 +92,11 @@ class CampaignChildNotification(DreamcatcherDocument):
     changes: ReadOnlyList[CampaignChildChange]
 
 
-class CampaignRoundInput(WriteOnceDreamcatcherDocument):
-    """Model the input frozen for one campaign round.
+class CampaignRoundInput(PullRequestRoundInput):
+    """Freeze the lead's pull request input, sub-issues and assignment routes."""
 
-    The children are the parent's children as the tick that started the
-    round observed them, and the notifications name those whose changes since
-    the previous delivered input call for the lead. The comments are the user's
-    eligible comments on the parent past the cursor, oldest first. The cursor
-    is how far this input reaches in the parent's comments: the newest
-    comment's position, or the previous delivered input's cursor when the input
-    holds no comment. The assignment routes are those of the daemon that
-    started the round, which the lead chooses among for a child.
-    """
-
-    issue: int
     children: ReadOnlyList[CampaignChild]
     notifications: ReadOnlyList[CampaignChildNotification]
-    comments: OrderedIssueComments
-    cursor: IssueCommentCursor | None
-    revision: str
     assignment_routes: ReadOnlyList[AssignmentRoute]
 
 
@@ -233,42 +219,42 @@ def _list_pull_request_changes(
     return changes
 
 
-def prepare_campaign_round(
+def open_campaign_pull_request(
+    *, state: StateDirectory, repository: str, work: AgentWork
+) -> PullRequestRoundInput:
+    """Open the campaign's pull request and return its initial channel input."""
+    number = open_work_pull_request(state=state, repository=repository, work=work)
+    return PullRequestRoundInput(
+        pull_request=number,
+        pull_request_state=PullRequestState.OPEN,
+        pull_request_head=read_worktree_revision(worktree=work.worktree),
+        signals=[],
+        user_posts=[],
+    )
+
+
+def compose_campaign_round_input(
     *,
-    state: StateDirectory,
-    campaign: AgentWork,
+    pull_request_input: PullRequestRoundInput,
     children: Sequence[CampaignChild],
     notifications: Sequence[CampaignChildNotification],
-    comments: Sequence[IssueComment],
-    delivered_cursor: IssueCommentCursor | None,
     assignment_routes: Sequence[AssignmentRoute],
 ) -> CampaignRoundInput:
-    """Reset the worktree to the fetched default branch and freeze the input.
-
-    The delivered cursor is that of the newest input delivered to the lead,
-    which a round given no comment carries forward.
-    """
-    revision = refresh_detached_worktree(root=state.root, worktree=campaign.worktree)
-    return CampaignRoundInput(
-        issue=campaign.record.issue,
-        children=children,
-        notifications=notifications,
-        comments=comments,
-        cursor=(
-            IssueCommentCursor(written_at=comments[-1].written_at, id=comments[-1].id)
-            if comments
-            else delivered_cursor
-        ),
-        revision=revision,
-        assignment_routes=assignment_routes,
+    """Add the lead's sub-issues and assignment routes to its channel input."""
+    return CampaignRoundInput.model_validate(
+        pull_request_input.model_dump()
+        | {
+            "children": children,
+            "notifications": notifications,
+            "assignment_routes": assignment_routes,
+        }
     )
 
 
 def read_delivered_campaign_input(*, campaign: AgentWork) -> CampaignRoundInput | None:
     """Return the newest input delivered to the lead, if one has been.
 
-    It says how far the lead has read in the parent's comments, and holds the
-    picture of the children that the lead was last given.
+    It holds the picture of the sub-issues that the lead was last given.
     """
     delivered = campaign.list_relayed_round_paths()
     if not delivered:

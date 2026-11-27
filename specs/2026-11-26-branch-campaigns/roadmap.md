@@ -189,8 +189,9 @@ label on starts no new campaign; stage 2, for the machinery campaigns
 join; stage 4, for sub-issues to go into the campaign branch, and
 through it stage 3's closing rule, which the walk-through relies on.
 
-**Open question.** Whether the campaign pass reuses the parent check's
-read of a campaign's pull request from stage 4, or reads it again.
+**Implementation.** The parent check shares its base decision within the
+assignment pass. Both passes share the pull request observation for the
+tick.
 
 ## 6. The coordinating lead
 

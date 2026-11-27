@@ -21,6 +21,7 @@ from conftest import (
     compose_pull_request,
     compose_stream_line,
     configure,
+    offer_issue_parent,
     offer_labelling_events,
     offer_labels_applied_by_user,
     offer_listing,
@@ -29,17 +30,20 @@ from conftest import (
 )
 from fakes import Line
 from records import (
-    MISORDERED_COMMENTS,
-    REPEATED_COMMENTS,
     compose_campaign_identifier,
     read_campaign,
-    replace_relayed_comments,
     write_assignment,
     write_campaign,
     write_ending,
     write_round,
+    write_work_pull_request,
 )
-from rows import compose_campaign_row
+from rows import (
+    CAMPAIGN_PULL_REQUEST,
+    UNCLAIMED,
+    compose_campaign_finding,
+    compose_campaign_row,
+)
 
 from dreamcatcher.agent_rounds import (
     AgentRoundOutcome,
@@ -49,7 +53,11 @@ from dreamcatcher.agent_rounds import (
     StoppedAgentRoundEnding,
     SuccessfulAgentRoundEnding,
 )
-from dreamcatcher.agent_work import AgentWorkEndReason, request_agent_work_retry
+from dreamcatcher.agent_work import (
+    AgentWorkEndReason,
+    read_agent_work_at_issue,
+    request_agent_work_retry,
+)
 from dreamcatcher.campaigns import (
     CampaignChild,
     CampaignChildAssignment,
@@ -60,7 +68,7 @@ from dreamcatcher.campaigns import (
 from dreamcatcher.config import AgentHarness, read_dreamcatcher_config
 from dreamcatcher.documents import read_json
 from dreamcatcher.errors import ReportableError
-from dreamcatcher.git import _read_worktree_revision
+from dreamcatcher.git import add_worktree, read_worktree_revision
 from dreamcatcher.github import (
     CheckResult,
     IssueComment,
@@ -70,27 +78,33 @@ from dreamcatcher.github import (
 )
 from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.prompts import _CAMPAIGN_POST_INSTRUCTIONS, AGENT_POST_MARKER
-from dreamcatcher.pull_request_work import ObservedPullRequest
-from dreamcatcher.relay import IssueCommentCursor
+from dreamcatcher.pull_request_work import (
+    ObservedPullRequest,
+    compose_work_branch,
+    read_work_pull_request_number,
+)
 from dreamcatcher.scheduler import Scheduler, SchedulingContext
 from dreamcatcher.scheduler.models import (
-    BlockingIssuesFinding,
-    CampaignFinding,
     ConflictingLabelsFinding,
     IssueReference,
     LabelAppliedByOtherFinding,
-    PauseCause,
-    PausedFinding,
     ReadFailureFinding,
     RequestConsumedFinding,
     RequestRow,
     StartedRound,
+    StartTimeFinding,
 )
 from dreamcatcher.state import StateDirectory
 
 PARENT = 20
 LABEL = "dream:big"
-COMMENTS_PATH = f"api repos/{REPOSITORY}/issues/{PARENT}/comments?per_page=100"
+PARENT_COMMENTS_PATH = f"api repos/{REPOSITORY}/issues/{PARENT}/comments?per_page=100"
+POSTS_PATH = (
+    f"api repos/{REPOSITORY}/issues/{CAMPAIGN_PULL_REQUEST}/comments?per_page=100"
+)
+CAMPAIGN_PULL_REQUEST_URL = (
+    f"https://github.com/{REPOSITORY}/pull/{CAMPAIGN_PULL_REQUEST}"
+)
 BLOCKERS_PATH = (
     f"api repos/{REPOSITORY}/issues/{PARENT}/dependencies/blocked_by?per_page=100"
 )
@@ -131,9 +145,40 @@ def campaign_scheduler(cloned_repo, gh):
     """Return a scheduler routing the campaign label, and stop what it leaves."""
     configure(root=cloned_repo, head=CAMPAIGN_CLAUDE)
     scheduler = create_scheduler(root=cloned_repo)
+    script_campaign_opening(gh=gh)
     yield scheduler, gh
     for running in scheduler.rounds.values():
         running.interrupt()
+
+
+def script_campaign_opening(*, gh) -> None:
+    """Have the stand-in open and observe the campaign's pull request."""
+    gh.replies(stdout=CAMPAIGN_PULL_REQUEST_URL, to="pr create")
+    gh.replies(
+        stdout=json.dumps({"number": CAMPAIGN_PULL_REQUEST}),
+        to=f"pr view {CAMPAIGN_PULL_REQUEST_URL}",
+    )
+    offer_campaign_pull_request(gh=gh)
+
+
+def offer_campaign_pull_request(*, gh, state: str = "OPEN", head: str = HEAD) -> None:
+    """Have GitHub report the campaign's pull request in this state."""
+    gh.replies(
+        stdout=compose_pull_request(
+            number=CAMPAIGN_PULL_REQUEST, state=state, is_draft=True, head=head
+        ),
+        to=f"pr view {CAMPAIGN_PULL_REQUEST}",
+    )
+
+
+def check_out_campaign(*, state: StateDirectory, identifier: str) -> None:
+    """Give a fabricated campaign its branch and linked worktree."""
+    add_worktree(
+        root=state.root,
+        path=state.worktrees / identifier,
+        branch=compose_work_branch(identifier=identifier),
+        base_ref="HEAD",
+    )
 
 
 def tick(*, scheduler: Scheduler):
@@ -227,21 +272,12 @@ def write_rounds(
     delivered: list[list[dict]] | None = None,
     pictures: list[list[CampaignChild]] | None = None,
 ):
-    """Write a campaign whose rounds ended these ways, each given its comments.
-
-    Each round's input reaches its newest comment, or carries the cursor of the
-    round before it when it holds none. A round given no comments here holds
-    none, and a round given no picture of the children here holds no children.
-    An ending of None is a round still running.
-    """
+    """Write a campaign on its branch, with the inputs each round received."""
     directory = write_campaign(state=state, issue=PARENT)
-    cursor = None
+    write_work_pull_request(directory=directory, number=CAMPAIGN_PULL_REQUEST)
+    check_out_campaign(state=state, identifier=directory.name)
     for number, ending in enumerate(endings, start=1):
-        comments = [] if delivered is None else delivered[number - 1]
-        if comments:
-            cursor = IssueCommentCursor(
-                written_at=comments[-1]["created_at"], id=comments[-1]["id"]
-            )
+        posts = [] if delivered is None else delivered[number - 1]
         write_round(
             directory=directory,
             number=number,
@@ -252,31 +288,34 @@ def write_rounds(
                 ending=ending,
             ),
             round_input=CampaignRoundInput(
-                issue=PARENT,
+                pull_request=CAMPAIGN_PULL_REQUEST,
+                pull_request_state=PullRequestState.OPEN,
+                pull_request_head=HEAD,
+                signals=[],
                 children=[] if pictures is None else pictures[number - 1],
                 notifications=[],
-                comments=[IssueComment.model_validate(item) for item in comments],
-                cursor=cursor,
-                revision="abc123",
+                user_posts=[IssueComment.model_validate(item) for item in posts],
                 assignment_routes=[],
             ),
         )
     return directory
 
 
-def compose_parent_comment(*, identifier: int, body: str = "Carry on.") -> dict:
-    """Return one eligible comment on the parent."""
-    return compose_comment(id=identifier, body=body)
+def compose_pull_request_post(*, identifier: int, body: str = "Carry on.") -> dict:
+    """Return one eligible post on the pull request."""
+    return compose_comment(
+        id=identifier, body=body, created_at=f"2026-09-23T01:00:{identifier:02d}Z"
+    )
 
 
-def offer_comments(*, gh, comments: list[dict]) -> None:
-    """Have GitHub answer a read of the parent's comments with these."""
-    gh.replies(stdout=compose_page(items=comments), to=COMMENTS_PATH)
+def offer_posts(*, gh, posts: list[dict]) -> None:
+    """Have GitHub answer a read of the pull request's posts with these."""
+    gh.replies(stdout=compose_page(items=posts), to=POSTS_PATH)
 
 
-def count_comment_reads(*, gh) -> int:
-    """Return how often GitHub was asked for the parent's comments."""
-    expected = COMMENTS_PATH.split()
+def count_post_reads(*, gh) -> int:
+    """Return how often GitHub was asked for the pull request's posts."""
+    expected = POSTS_PATH.split()
     return sum(call.arguments[: len(expected)] == expected for call in gh.calls)
 
 
@@ -288,11 +327,6 @@ def read_lead_input(*, scheduler: Scheduler, number: int) -> CampaignRoundInput:
         model=CampaignRoundInput,
         path=campaign.compose_round_paths(number=number).round_input,
     )
-
-
-def compose_cursor(*, of: dict) -> IssueCommentCursor:
-    """Return the cursor that reaches this comment."""
-    return IssueCommentCursor(written_at=of["created_at"], id=of["id"])
 
 
 ERRORED = HarnessErroredAgentRoundEnding(at=PINNED + timedelta(hours=1), status=1)
@@ -313,11 +347,11 @@ def test_a_labelled_parent_starts_a_lead_that_reads_its_input_and_posts_nothing(
     assert launched.rows == [
         compose_campaign_row(
             issue=PARENT,
-            finding=CampaignFinding(new_comments=0, changed_children=0),
+            finding=UNCLAIMED,
             agent_work_identifier=identifier,
             started_round=StartedRound(number=1),
             children=(),
-        )
+        ).model_copy(update={"issue_state": IssueState.OPEN})
     ]
     campaign = read_campaign(state=scheduler.context.state, issue=PARENT)
     assert campaign is not None
@@ -327,12 +361,13 @@ def test_a_labelled_parent_starts_a_lead_that_reads_its_input_and_posts_nothing(
     paths = campaign.compose_round_paths(number=1)
     assert read_json(model=CampaignRoundInput, path=paths.round_input) == (
         CampaignRoundInput(
-            issue=PARENT,
+            pull_request=CAMPAIGN_PULL_REQUEST,
+            pull_request_state=PullRequestState.OPEN,
+            pull_request_head=read_worktree_revision(worktree=campaign.worktree),
+            signals=[],
+            user_posts=[],
             children=[],
             notifications=[],
-            comments=[],
-            cursor=None,
-            revision=_read_worktree_revision(worktree=campaign.worktree),
             assignment_routes=scheduler.context.config.assignment,
         )
     )
@@ -344,10 +379,7 @@ def test_a_labelled_parent_starts_a_lead_that_reads_its_input_and_posts_nothing(
     assert call.prompt.endswith(_CAMPAIGN_POST_INSTRUCTIONS)
     assert "remove its assignment label if present" in call.prompt
     assert "--resume" not in call.arguments
-    assert not any(
-        call.arguments[:1] in (["pr"], ["api"]) and "POST" in call.arguments
-        for call in gh.calls
-    )
+    assert all("POST" not in call.arguments for call in gh.calls)
 
 
 def test_a_lead_that_took_its_turn_waits_through_further_updates(
@@ -363,7 +395,7 @@ def test_a_lead_that_took_its_turn_waits_through_further_updates(
 
     assert [record.launched_agent_work_identifiers for record in later] == [[], []]
     assert [record.rows[0].finding for record in later] == [
-        CampaignFinding(new_comments=0, changed_children=0)
+        compose_campaign_finding(new_posts=0, changed_children=0)
     ] * 2
     assert len(harnesses["claude"].calls) == 1
 
@@ -382,7 +414,7 @@ def test_a_lead_given_its_input_has_no_round_due(campaign_scheduler, harnesses, 
     assert observed.rows == [
         compose_campaign_row(
             issue=PARENT,
-            finding=CampaignFinding(new_comments=0, changed_children=0),
+            finding=compose_campaign_finding(new_posts=0, changed_children=0),
             agent_work_identifier=compose_campaign_identifier(issue=PARENT),
             ended_round=1,
             children=(),
@@ -479,125 +511,29 @@ def test_two_faulted_campaigns_start_the_global_cooldown(campaign_scheduler):
     assert observed.cooldown is not None
 
 
-@pytest.mark.parametrize(
-    ("issue", "hold"),
-    [
-        (
-            compose_parent_issue(labels=()),
-            PausedFinding(cause=PauseCause.LABEL_REMOVED),
-        ),
-        (
-            compose_parent_issue(assignees=()),
-            PausedFinding(cause=PauseCause.ISSUE_UNASSIGNED),
-        ),
-        (
-            compose_parent_issue(labels=(LABEL, "dream:steward")),
-            ConflictingLabelsFinding(labels=[LABEL, "dream:steward"]),
-        ),
-    ],
-)
-def test_a_held_campaign_recovers_nothing_and_its_fault_does_not_count(
-    campaign_scheduler, harnesses, issue, hold
-):
-    scheduler, gh = campaign_scheduler
-    configure(
-        root=scheduler.context.state.root, head=CAMPAIGN_CLAUDE + SECOND_CAMPAIGN_CLAUDE
-    )
-    scheduler = create_scheduler(root=scheduler.context.state.root)
-    write_rounds(state=scheduler.context.state, endings=[ERRORED, ERRORED])
-    show_parent(gh=gh, issue=issue)
-
-    observed = tick(scheduler=scheduler)
-
-    assert observed.rows[0] == compose_campaign_row(
-        issue=PARENT,
-        finding=hold,
-        agent_work_identifier=compose_campaign_identifier(issue=PARENT),
-        ended_round=2,
-        children=(),
-    )
-    assert observed.cooldown is None
-    assert harnesses["claude"].calls == []
-
-
-def test_a_campaign_paused_mid_recovery_resumes_when_its_label_returns(
-    campaign_scheduler, harnesses
-):
-    scheduler, gh = campaign_scheduler
-    write_rounds(state=scheduler.context.state, endings=[InterruptedAgentRoundEnding()])
-    show_parent(gh=gh, issue=compose_parent_issue(labels=()))
-    paused = tick(scheduler=scheduler)
-    offer_parent(gh=gh)
-    script_lead_turn(harnesses=harnesses)
-
-    resumed = tick(scheduler=scheduler)
-    finish(scheduler=scheduler)
-
-    assert paused.launched_agent_work_identifiers == []
-    assert resumed.launched_agent_work_identifiers == [
-        compose_campaign_identifier(issue=PARENT)
-    ]
-
-
-def test_a_closed_parent_ends_the_campaign_once_its_round_finishes(
-    campaign_scheduler, harnesses
-):
-    scheduler, gh = campaign_scheduler
-    offer_parent(gh=gh)
-    script_lead_turn(harnesses=harnesses, delay=10)
-    tick(scheduler=scheduler)
-    closed = compose_parent_issue(state="CLOSED")
-    offer_listing(gh=gh, issues=[])
-    show_parent(gh=gh, issue=closed)
-
-    while_running = tick(scheduler=scheduler)
-    campaign = read_campaign(state=scheduler.context.state, issue=PARENT)
-    assert campaign is not None
-    assert campaign.ending is None
-    finish(scheduler=scheduler)
-    after = tick(scheduler=scheduler)
-
-    campaign = read_campaign(state=scheduler.context.state, issue=PARENT)
-    assert campaign is not None
-    assert campaign.ending is not None
-    assert campaign.ending.reason is AgentWorkEndReason.ISSUE_CLOSED
-    assert while_running.rows[0].finding is None
-    assert after.launched_agent_work_identifiers == []
-    assert len(harnesses["claude"].calls) == 1
-
-
-def test_a_closed_parent_ends_a_campaign_in_fault_without_a_round(
-    campaign_scheduler, harnesses
-):
-    scheduler, gh = campaign_scheduler
-    write_rounds(state=scheduler.context.state, endings=[ERRORED, ERRORED])
-    show_parent(gh=gh, issue=compose_parent_issue(state="CLOSED"))
-
-    observed = tick(scheduler=scheduler)
-
-    campaign = read_campaign(state=scheduler.context.state, issue=PARENT)
-    assert campaign is not None
-    assert campaign.ending is not None
-    assert observed.cooldown is None
-    assert harnesses["claude"].calls == []
-
-
-def test_a_reopened_parent_needs_a_new_label_application_to_start_a_campaign(
+def test_a_closed_campaign_pull_request_needs_a_new_label_application_to_start_again(
     campaign_scheduler, harnesses
 ):
     scheduler, gh = campaign_scheduler
     directory = write_rounds(
         state=scheduler.context.state, endings=[SuccessfulAgentRoundEnding(at=PINNED)]
     )
-    show_parent(gh=gh, issue=compose_parent_issue(state="CLOSED"))
-    tick(scheduler=scheduler)
-    offer_parent(gh=gh)
+    offer_campaign_pull_request(gh=gh, state="CLOSED")
+    script_lead_turn(harnesses=harnesses)
+    wrap_up = tick(scheduler=scheduler)
+    finish(scheduler=scheduler)
+    assert wrap_up.launched_agent_work_identifiers == [directory.name]
+    assert (
+        read_lead_input(scheduler=scheduler, number=2).pull_request_state
+        is PullRequestState.CLOSED
+    )
 
+    offer_parent(gh=gh)
     reopened = tick(scheduler=scheduler)
     assert reopened.launched_agent_work_identifiers == []
     [held] = reopened.rows
     assert held.finding == RequestConsumedFinding()
-    assert harnesses["claude"].calls == []
+    assert len(harnesses["claude"].calls) == 1
 
     reapplied_at = LABEL_APPLIED_AT + timedelta(seconds=1)
     offer_labelling_events(
@@ -620,10 +556,12 @@ def test_a_reopened_parent_needs_a_new_label_application_to_start_a_campaign(
     assert campaign.record.label_applied_at == reapplied_at
 
 
-def test_a_parent_that_cannot_be_read_starts_nothing(campaign_scheduler, harnesses):
+def test_a_campaign_pull_request_that_cannot_be_read_starts_no_round(
+    campaign_scheduler, harnesses
+):
     scheduler, gh = campaign_scheduler
     write_rounds(state=scheduler.context.state, endings=[InterruptedAgentRoundEnding()])
-    gh.fails(stderr="GitHub is down", to=f"issue view {PARENT} --repo {REPOSITORY}")
+    gh.fails(stderr="GitHub is down", to=f"pr view {CAMPAIGN_PULL_REQUEST}")
 
     observed = tick(scheduler=scheduler)
 
@@ -644,8 +582,8 @@ def test_a_running_lead_is_observed_without_starting_another_round(
     observed = tick(scheduler=scheduler)
 
     assert observed.launched_agent_work_identifiers == []
-    assert observed.rows[0].finding == CampaignFinding(
-        new_comments=0, changed_children=0
+    assert observed.rows[0].finding == compose_campaign_finding(
+        new_posts=0, changed_children=0
     )
     assert len(harnesses["claude"].calls) == 1
 
@@ -713,11 +651,12 @@ def test_an_open_blocker_queues_the_campaign_with_no_lead(
     assert observed.rows == [
         compose_campaign_row(
             issue=PARENT,
-            finding=BlockingIssuesFinding(
+            finding=StartTimeFinding(
+                linked_pull_requests=[],
                 blocking_issues=[
                     IssueReference(number=18),
                     IssueReference(number=1016, repository="alimanfoo/dream"),
-                ]
+                ],
             ),
             children=None,
         )
@@ -772,14 +711,14 @@ def test_an_open_campaign_carries_on_whatever_blocks_its_parent(
     )
     offer_parent(gh=gh)
     offer_blockers(gh=gh, blockers=[compose_blocker(number=18, state="open")])
-    offer_comments(gh=gh, comments=[compose_parent_comment(identifier=1)])
+    offer_posts(gh=gh, posts=[compose_pull_request_post(identifier=1)])
     script_lead_turn(harnesses=harnesses)
 
     observed = tick(scheduler=scheduler)
     finish(scheduler=scheduler)
 
-    assert observed.rows[0].finding == CampaignFinding(
-        new_comments=1, changed_children=0
+    assert observed.rows[0].finding == compose_campaign_finding(
+        new_posts=1, changed_children=0
     )
     assert observed.launched_agent_work_identifiers == [
         compose_campaign_identifier(issue=PARENT)
@@ -797,7 +736,7 @@ def test_a_campaign_waits_for_shared_capacity(campaign_scheduler, harnesses):
     assert observed.rows == [
         compose_campaign_row(
             issue=PARENT,
-            finding=CampaignFinding(new_comments=0, changed_children=0),
+            finding=UNCLAIMED,
             children=(),
         )
     ]
@@ -816,7 +755,7 @@ def test_campaigns_are_inspected_after_the_assignments(campaign_scheduler):
         pull_request=None,
     )
     offer_parent(gh=gh)
-    offer_comments(gh=gh, comments=[])
+    offer_posts(gh=gh, posts=[])
     scheduler.rounds["busy-assignment"] = Mock(is_alive=True)
 
     observed = tick(scheduler=scheduler)
@@ -941,32 +880,7 @@ def test_a_codex_lead_works_under_codexs_reviewer_without_a_final_file(
     assert "--output-last-message" not in call.arguments
 
 
-def test_the_first_round_is_given_the_comments_already_on_the_parent(
-    campaign_scheduler, harnesses
-):
-    scheduler, gh = campaign_scheduler
-    offer_parent(gh=gh)
-    first, second = (
-        compose_parent_comment(identifier=1),
-        compose_parent_comment(identifier=2, body="Mind the order."),
-    )
-    offer_comments(gh=gh, comments=[first, second])
-    script_lead_turn(harnesses=harnesses)
-
-    launched = tick(scheduler=scheduler)
-    finish(scheduler=scheduler)
-
-    assert launched.rows[0].finding == CampaignFinding(
-        new_comments=2, changed_children=0
-    )
-    given = read_lead_input(scheduler=scheduler, number=1)
-    assert given.comments == [
-        IssueComment.model_validate(item) for item in (first, second)
-    ]
-    assert given.cursor == compose_cursor(of=second)
-
-
-def test_a_parent_comment_wakes_the_lead_on_a_renamed_default_branch(
+def test_a_pull_request_post_wakes_the_lead_without_resetting_its_worktree(
     campaign_scheduler, harnesses
 ):
     scheduler, gh = campaign_scheduler
@@ -979,8 +893,10 @@ def test_a_parent_comment_wakes_the_lead_on_a_renamed_default_branch(
     commit(path=root, message="change the default branch")
     run_git(arguments=["push", "origin", "trunk"], cwd=root)
     offer_parent(gh=gh)
-    question = compose_parent_comment(identifier=1, body="How far have the stages got?")
-    offer_comments(gh=gh, comments=[question])
+    question = compose_pull_request_post(
+        identifier=1, body="How far have the stages got?"
+    )
+    offer_posts(gh=gh, posts=[question])
     script_lead_turn(harnesses=harnesses)
 
     launched = tick(scheduler=scheduler)
@@ -989,13 +905,18 @@ def test_a_parent_comment_wakes_the_lead_on_a_renamed_default_branch(
     assert launched.launched_agent_work_identifiers == [
         compose_campaign_identifier(issue=PARENT)
     ]
-    assert launched.rows[0].finding == CampaignFinding(
-        new_comments=1, changed_children=0
+    assert launched.rows[0].finding == compose_campaign_finding(
+        new_posts=1, changed_children=0
     )
     given = read_lead_input(scheduler=scheduler, number=2)
-    assert given.comments == [IssueComment.model_validate(question)]
-    assert given.cursor == compose_cursor(of=question)
-    assert given.revision == run_git(arguments=["rev-parse", "HEAD"], cwd=root).strip()
+    assert given.user_posts == [IssueComment.model_validate(question)]
+    campaign = read_campaign(state=scheduler.context.state, issue=PARENT)
+    assert campaign is not None
+    assert given.pull_request_head == HEAD
+    assert (campaign.worktree / "README.md").read_bytes() == b"what the seed holds\n"
+    assert run_git(
+        arguments=["branch", "--show-current"], cwd=campaign.worktree
+    ).strip() == (compose_work_branch(identifier=campaign.identifier))
     [call] = harnesses["claude"].calls
     assert call.arguments[-2:] == ["--resume", "lead-session"]
     assert call.prompt.startswith("Campaign input for parent issue GH20:")
@@ -1007,10 +928,10 @@ def test_the_leads_own_marked_replies_wake_nothing(campaign_scheduler, harnesses
         state=scheduler.context.state, endings=[SuccessfulAgentRoundEnding(at=PINNED)]
     )
     offer_parent(gh=gh)
-    offer_comments(
+    offer_posts(
         gh=gh,
-        comments=[
-            compose_parent_comment(
+        posts=[
+            compose_pull_request_post(
                 identifier=1, body=f"Stage 1 is done.\n\n{AGENT_POST_MARKER}"
             )
         ],
@@ -1019,68 +940,27 @@ def test_the_leads_own_marked_replies_wake_nothing(campaign_scheduler, harnesses
     observed = tick(scheduler=scheduler)
 
     assert observed.launched_agent_work_identifiers == []
-    assert observed.rows[0].finding == CampaignFinding(
-        new_comments=0, changed_children=0
+    assert observed.rows[0].finding == compose_campaign_finding(
+        new_posts=0, changed_children=0
     )
     assert harnesses["claude"].calls == []
-
-
-@pytest.mark.parametrize(
-    "paused",
-    [
-        compose_parent_issue(labels=()),
-        compose_parent_issue(assignees=()),
-        compose_parent_issue(labels=(LABEL, "dream:steward")),
-    ],
-)
-def test_comments_posted_while_paused_reach_the_lead_when_it_resumes(
-    campaign_scheduler, harnesses, paused
-):
-    scheduler, gh = campaign_scheduler
-    configure(
-        root=scheduler.context.state.root, head=CAMPAIGN_CLAUDE + SECOND_CAMPAIGN_CLAUDE
-    )
-    scheduler = create_scheduler(root=scheduler.context.state.root)
-    write_rounds(
-        state=scheduler.context.state, endings=[SuccessfulAgentRoundEnding(at=PINNED)]
-    )
-    show_parent(gh=gh, issue=paused)
-    waiting = compose_parent_comment(identifier=1, body="Wait for the release first.")
-    offer_comments(gh=gh, comments=[waiting])
-    while_paused = tick(scheduler=scheduler)
-    offer_parent(gh=gh)
-    script_lead_turn(harnesses=harnesses)
-
-    resumed = tick(scheduler=scheduler)
-    finish(scheduler=scheduler)
-
-    assert while_paused.launched_agent_work_identifiers == []
-    assert count_comment_reads(gh=gh) == 1
-    assert resumed.launched_agent_work_identifiers == [
-        compose_campaign_identifier(issue=PARENT)
-    ]
-    assert read_lead_input(scheduler=scheduler, number=2).comments == [
-        IssueComment.model_validate(waiting)
-    ]
-    [call] = harnesses["claude"].calls
-    assert call.arguments[-2:] == ["--resume", "lead-session"]
 
 
 def test_a_stopped_lead_waits_for_fresh_direction_and_is_told_it_was_stopped(
     campaign_scheduler, harnesses
 ):
     scheduler, gh = campaign_scheduler
-    first = compose_parent_comment(identifier=1, body="Review stage 1.")
+    first = compose_pull_request_post(identifier=1, body="Review stage 1.")
     write_rounds(
         state=scheduler.context.state,
         endings=[StoppedAgentRoundEnding(at=PINNED)],
         delivered=[[first]],
     )
     offer_parent(gh=gh)
-    offer_comments(gh=gh, comments=[first])
+    offer_posts(gh=gh, posts=[first])
     waiting = tick(scheduler=scheduler)
-    redirect = compose_parent_comment(identifier=2, body="Review stage 2 instead.")
-    offer_comments(gh=gh, comments=[first, redirect])
+    redirect = compose_pull_request_post(identifier=2, body="Review stage 2 instead.")
+    offer_posts(gh=gh, posts=[first, redirect])
     script_lead_turn(harnesses=harnesses)
 
     redirected = tick(scheduler=scheduler)
@@ -1090,50 +970,20 @@ def test_a_stopped_lead_waits_for_fresh_direction_and_is_told_it_was_stopped(
     assert redirected.launched_agent_work_identifiers == [
         compose_campaign_identifier(issue=PARENT)
     ]
-    assert read_lead_input(scheduler=scheduler, number=2).comments == [
+    assert read_lead_input(scheduler=scheduler, number=2).user_posts == [
         IssueComment.model_validate(redirect)
     ]
     [call] = harnesses["claude"].calls
     assert call.prompt.startswith("The user stopped your previous round")
 
 
-def test_a_lead_stopped_before_its_first_input_waits_for_a_comment(
-    campaign_scheduler, harnesses
-):
-    scheduler, gh = campaign_scheduler
-    directory = write_campaign(state=scheduler.context.state, issue=PARENT)
-    write_round(
-        directory=directory,
-        number=1,
-        record=AgentRoundRecord(
-            number=1, started=PINNED, ending=StoppedAgentRoundEnding(at=PINNED)
-        ),
-    )
-    offer_parent(gh=gh)
-    waiting = tick(scheduler=scheduler)
-    earlier = compose_parent_comment(identifier=1, body="The plan is on the parent.")
-    offer_comments(gh=gh, comments=[earlier])
-    script_lead_turn(harnesses=harnesses)
-
-    woken = tick(scheduler=scheduler)
-    finish(scheduler=scheduler)
-
-    assert waiting.launched_agent_work_identifiers == []
-    assert woken.launched_agent_work_identifiers == [
-        compose_campaign_identifier(issue=PARENT)
-    ]
-    assert read_lead_input(scheduler=scheduler, number=2).comments == [
-        IssueComment.model_validate(earlier)
-    ]
-
-
 @pytest.mark.parametrize("ending", [InterruptedAgentRoundEnding(), ERRORED])
-def test_an_unfinished_rounds_comments_are_given_again_with_any_since(
+def test_an_unfinished_rounds_posts_are_given_again_with_any_since(
     campaign_scheduler, harnesses, ending
 ):
     scheduler, gh = campaign_scheduler
     first, second, third = (
-        compose_parent_comment(identifier=identifier) for identifier in (1, 2, 3)
+        compose_pull_request_post(identifier=identifier) for identifier in (1, 2, 3)
     )
     write_rounds(
         state=scheduler.context.state,
@@ -1141,57 +991,51 @@ def test_an_unfinished_rounds_comments_are_given_again_with_any_since(
         delivered=[[first], [second]],
     )
     offer_parent(gh=gh)
-    offer_comments(gh=gh, comments=[first, second, third])
+    offer_posts(gh=gh, posts=[first, second, third])
     script_lead_turn(harnesses=harnesses)
 
     tick(scheduler=scheduler)
     finish(scheduler=scheduler)
 
     given = read_lead_input(scheduler=scheduler, number=3)
-    assert given.comments == [
+    assert given.user_posts == [
         IssueComment.model_validate(item) for item in (second, third)
     ]
-    assert given.cursor == compose_cursor(of=third)
     [call] = harnesses["claude"].calls
     assert call.prompt.startswith("Your previous round did not finish.")
 
 
-def test_a_recovery_with_no_new_comment_carries_the_cursor_forward(
+def test_a_recovery_with_no_new_post_keeps_posts_behind_the_cursor(
     campaign_scheduler, harnesses
 ):
     scheduler, gh = campaign_scheduler
-    first = compose_parent_comment(identifier=1)
+    first = compose_pull_request_post(identifier=1)
     write_rounds(
         state=scheduler.context.state,
         endings=[SuccessfulAgentRoundEnding(at=PINNED), InterruptedAgentRoundEnding()],
         delivered=[[first], []],
     )
     offer_parent(gh=gh)
-    offer_comments(gh=gh, comments=[first])
+    offer_posts(gh=gh, posts=[first])
     script_lead_turn(harnesses=harnesses)
 
     recovered = tick(scheduler=scheduler)
     finish(scheduler=scheduler)
 
-    assert recovered.rows[0].finding == CampaignFinding(
-        new_comments=0, changed_children=0
+    assert recovered.rows[0].finding == compose_campaign_finding(
+        new_posts=0, changed_children=0
     )
     given = read_lead_input(scheduler=scheduler, number=3)
-    assert given.comments == []
-    assert given.cursor == compose_cursor(of=first)
+    assert given.user_posts == []
 
 
-@pytest.mark.parametrize("is_open", [True, False])
-def test_parent_comments_that_cannot_be_read_start_no_round(
-    campaign_scheduler, harnesses, is_open
+def test_pull_request_posts_that_cannot_be_read_start_no_round(
+    campaign_scheduler, harnesses
 ):
     scheduler, gh = campaign_scheduler
-    if is_open:
-        write_rounds(
-            state=scheduler.context.state, endings=[InterruptedAgentRoundEnding()]
-        )
+    write_rounds(state=scheduler.context.state, endings=[InterruptedAgentRoundEnding()])
     offer_parent(gh=gh)
-    gh.fails(stderr="GitHub is down", to=COMMENTS_PATH)
+    gh.fails(stderr="GitHub is down", to=POSTS_PATH)
 
     observed = tick(scheduler=scheduler)
 
@@ -1210,33 +1054,12 @@ def test_a_delivered_input_that_cannot_be_read_fails_the_update(
     round_input = campaign.compose_round_paths(number=1).round_input
     round_input.write_bytes(b"{")
     offer_parent(gh=gh)
-    offer_comments(gh=gh, comments=[compose_parent_comment(identifier=1)])
+    offer_posts(gh=gh, posts=[compose_pull_request_post(identifier=1)])
 
     with pytest.raises(ReportableError, match=r"round-input\.json is not valid"):
         tick(scheduler=scheduler)
 
-    assert count_comment_reads(gh=gh) == 0
-    assert harnesses["claude"].calls == []
-
-
-@pytest.mark.parametrize(
-    "comments", [MISORDERED_COMMENTS, REPEATED_COMMENTS], ids=["misordered", "repeated"]
-)
-def test_a_delivered_input_with_comments_the_relay_never_gives_fails_the_update(
-    campaign_scheduler, harnesses, comments
-):
-    scheduler, gh = campaign_scheduler
-    settle_lead(state=scheduler.context.state)
-    campaign = read_campaign(state=scheduler.context.state, issue=PARENT)
-    assert campaign is not None
-    round_input = campaign.compose_round_paths(number=1).round_input
-    replace_relayed_comments(path=round_input, comments=comments)
-    offer_parent(gh=gh)
-    offer_comments(gh=gh, comments=[compose_parent_comment(identifier=3)])
-
-    with pytest.raises(ReportableError, match=r"round-input\.json is not valid"):
-        tick(scheduler=scheduler)
-
+    assert count_post_reads(gh=gh) == 0
     assert harnesses["claude"].calls == []
 
 
@@ -1279,18 +1102,21 @@ def test_a_retry_clears_the_fault_and_the_lead_recovers(campaign_scheduler, harn
     assert call.prompt.startswith("Your previous round did not finish.")
 
 
-def test_a_codex_lead_resumes_its_session_for_a_parent_comment(
+def test_a_codex_lead_resumes_its_session_for_a_pull_request_post(
     cloned_repo, gh, harnesses
 ):
     configure(root=cloned_repo, head=CODEX_CAMPAIGN)
     scheduler = create_scheduler(root=cloned_repo, harness=AgentHarness.CODEX)
     state = scheduler.context.state
+    script_campaign_opening(gh=gh)
     directory = write_campaign(
         state=state,
         issue=PARENT,
         harness=AgentHarness.CODEX,
         harness_session_identifier="lead-codex-session",
     )
+    write_work_pull_request(directory=directory, number=CAMPAIGN_PULL_REQUEST)
+    check_out_campaign(state=state, identifier=directory.name)
     write_round(
         directory=directory,
         number=1,
@@ -1298,17 +1124,18 @@ def test_a_codex_lead_resumes_its_session_for_a_parent_comment(
             number=1, started=PINNED, ending=SuccessfulAgentRoundEnding(at=PINNED)
         ),
         round_input=CampaignRoundInput(
-            issue=PARENT,
+            pull_request=CAMPAIGN_PULL_REQUEST,
+            pull_request_state=PullRequestState.OPEN,
+            pull_request_head=HEAD,
+            signals=[],
             children=[],
             notifications=[],
-            comments=[],
-            cursor=None,
-            revision="abc123",
+            user_posts=[],
             assignment_routes=[],
         ),
     )
     offer_parent(gh=gh)
-    offer_comments(gh=gh, comments=[compose_parent_comment(identifier=1)])
+    offer_posts(gh=gh, posts=[compose_pull_request_post(identifier=1)])
     harnesses["codex"].streams(
         lines=[
             Line(
@@ -1334,9 +1161,7 @@ def test_a_codex_lead_resumes_its_session_for_a_parent_comment(
     assert call.prompt.startswith("Campaign input for parent issue GH20:")
     campaign = read_campaign(state=state, issue=PARENT)
     assert campaign is not None
-    assert read_lead_input(scheduler=scheduler, number=2).revision == (
-        _read_worktree_revision(worktree=campaign.worktree)
-    )
+    assert read_lead_input(scheduler=scheduler, number=2).pull_request_head == HEAD
 
 
 FIRST_CHILD = 21
@@ -1457,12 +1282,11 @@ DRAFT_PULL_REQUEST = ObservedPullRequest(
 )
 
 
-def test_a_paused_lead_still_observes_every_child_in_githubs_order(
+def test_a_faulted_lead_still_observes_every_child_in_githubs_order(
     campaign_scheduler, harnesses
 ):
     scheduler, gh = campaign_scheduler
-    settle_lead(state=scheduler.context.state)
-    show_parent(gh=gh, issue=compose_parent_issue(labels=()))
+    write_rounds(state=scheduler.context.state, endings=[ERRORED, ERRORED])
     offer_children(
         gh=gh,
         children=[
@@ -1476,9 +1300,9 @@ def test_a_paused_lead_still_observes_every_child_in_githubs_order(
     assert observed.rows == [
         compose_campaign_row(
             issue=PARENT,
-            finding=PausedFinding(cause=PauseCause.LABEL_REMOVED),
+            finding=None,
             agent_work_identifier=compose_campaign_identifier(issue=PARENT),
-            ended_round=1,
+            ended_round=2,
             children=[
                 compose_child(
                     issue=SECOND_CHILD,
@@ -1763,7 +1587,7 @@ def test_an_incomplete_picture_of_the_children_withholds_the_lead(
             endings=[SuccessfulAgentRoundEnding(at=PINNED)],
         )
     offer_parent(gh=gh)
-    offer_comments(gh=gh, comments=[compose_parent_comment(identifier=1)])
+    offer_posts(gh=gh, posts=[compose_pull_request_post(identifier=1)])
     fail(gh=gh)
 
     observed = tick(scheduler=scheduler)
@@ -1772,7 +1596,7 @@ def test_an_incomplete_picture_of_the_children_withholds_the_lead(
     assert row.children is None
     assert isinstance(row.finding, ReadFailureFinding)
     assert row.finding.reason.startswith(reason)
-    assert count_comment_reads(gh=gh) == 0
+    assert count_post_reads(gh=gh) == 0
     assert observed.launched_agent_work_identifiers == []
     assert harnesses["claude"].calls == []
 
@@ -1796,39 +1620,6 @@ def test_a_new_campaign_waits_for_a_complete_picture_of_its_children(
         )
     ]
     assert read_campaign(state=scheduler.context.state, issue=PARENT) is None
-
-
-def test_a_paused_lead_whose_children_cannot_be_read_is_still_paused(
-    campaign_scheduler, harnesses
-):
-    scheduler, gh = campaign_scheduler
-    settle_lead(state=scheduler.context.state)
-    show_parent(gh=gh, issue=compose_parent_issue(labels=()))
-    fail_to_list_children(gh=gh)
-
-    observed = tick(scheduler=scheduler)
-
-    assert observed.rows[0].finding == PausedFinding(cause=PauseCause.LABEL_REMOVED)
-    assert observed.rows[0].children is None
-
-
-def test_a_paused_lead_with_a_foreign_child_shows_its_children_unknown(
-    campaign_scheduler, harnesses
-):
-    scheduler, gh = campaign_scheduler
-    settle_lead(state=scheduler.context.state)
-    write_child_assignment(
-        state=scheduler.context.state,
-        endings=[SuccessfulAgentRoundEnding(at=PINNED)],
-    )
-    show_parent(gh=gh, issue=compose_parent_issue(labels=()))
-    offer_a_foreign_child(gh=gh)
-
-    observed = tick(scheduler=scheduler)
-
-    [row] = [row for row in observed.rows if row.kind is AgentWorkKind.CAMPAIGN]
-    assert row.finding == PausedFinding(cause=PauseCause.LABEL_REMOVED)
-    assert row.children is None
 
 
 WORKING = compose_child(
@@ -1875,8 +1666,8 @@ def test_a_child_that_settles_wakes_the_lead_once_with_the_whole_picture(
     assert woken.launched_agent_work_identifiers == [
         compose_campaign_identifier(issue=PARENT)
     ]
-    assert find_campaign_row(observed=woken).finding == CampaignFinding(
-        new_comments=0, changed_children=1
+    assert find_campaign_row(observed=woken).finding == compose_campaign_finding(
+        new_posts=0, changed_children=1
     )
     given = read_lead_input(scheduler=scheduler, number=2)
     assert given.notifications == [
@@ -1919,8 +1710,8 @@ def test_a_working_child_wakes_no_lead_round(campaign_scheduler, harnesses):
 
     observed = tick(scheduler=scheduler)
 
-    assert find_campaign_row(observed=observed).finding == CampaignFinding(
-        new_comments=0, changed_children=0
+    assert find_campaign_row(observed=observed).finding == compose_campaign_finding(
+        new_posts=0, changed_children=0
     )
     assert observed.launched_agent_work_identifiers == []
 
@@ -1957,8 +1748,8 @@ def test_a_failed_check_that_makes_a_repair_due_wakes_no_lead_round(
 
     [child_seen] = find_campaign_row(observed=observed).children or []
     assert child_seen.is_settled is False
-    assert find_campaign_row(observed=observed).finding == CampaignFinding(
-        new_comments=0, changed_children=0
+    assert find_campaign_row(observed=observed).finding == compose_campaign_finding(
+        new_posts=0, changed_children=0
     )
     assert compose_campaign_identifier(issue=PARENT) not in (
         observed.launched_agent_work_identifiers
@@ -2012,8 +1803,8 @@ def test_a_settled_childs_merge_state_wakes_the_lead_only_into_mergeable(
     expected = (
         [compose_notification(issue=FIRST_CHILD, changes=changes)] if changes else []
     )
-    assert find_campaign_row(observed=observed).finding == CampaignFinding(
-        new_comments=0, changed_children=len(expected)
+    assert find_campaign_row(observed=observed).finding == compose_campaign_finding(
+        new_posts=0, changed_children=len(expected)
     )
     if expected:
         assert read_lead_input(scheduler=scheduler, number=2).notifications == (
@@ -2046,25 +1837,25 @@ def test_a_child_added_while_another_works_wakes_the_lead(
     assert given.children == [WORKING, UNSTARTED]
 
 
-def test_comments_and_changes_among_the_children_share_one_round(
+def test_posts_and_changes_among_the_children_share_one_round(
     campaign_scheduler, harnesses
 ):
     scheduler, gh = campaign_scheduler
     settle_lead(state=scheduler.context.state, children=[UNSTARTED])
     offer_parent(gh=gh)
     offer_children(gh=gh, children=[compose_sub_issue(number=FIRST_CHILD)])
-    question = compose_parent_comment(identifier=1, body="Which stage is next?")
-    offer_comments(gh=gh, comments=[question])
+    question = compose_pull_request_post(identifier=1, body="Which stage is next?")
+    offer_posts(gh=gh, posts=[question])
     script_lead_turn(harnesses=harnesses)
 
     woken = tick(scheduler=scheduler)
     finish(scheduler=scheduler)
 
-    assert find_campaign_row(observed=woken).finding == CampaignFinding(
-        new_comments=1, changed_children=2
+    assert find_campaign_row(observed=woken).finding == compose_campaign_finding(
+        new_posts=1, changed_children=2
     )
     given = read_lead_input(scheduler=scheduler, number=2)
-    assert given.comments == [IssueComment.model_validate(question)]
+    assert given.user_posts == [IssueComment.model_validate(question)]
     assert given.notifications == [
         compose_notification(issue=FIRST_CHILD, changes=[CampaignChildChange.ADDED]),
         compose_notification(issue=SECOND_CHILD, changes=[CampaignChildChange.REMOVED]),
@@ -2104,8 +1895,8 @@ def test_changes_during_a_lead_round_wake_the_lead_after_it(
     finish(scheduler=scheduler)
 
     assert during.launched_agent_work_identifiers == []
-    assert find_campaign_row(observed=during).finding == CampaignFinding(
-        new_comments=0, changed_children=1
+    assert find_campaign_row(observed=during).finding == compose_campaign_finding(
+        new_posts=0, changed_children=1
     )
     assert after.launched_agent_work_identifiers == [
         compose_campaign_identifier(issue=PARENT)
@@ -2132,8 +1923,8 @@ def test_a_lead_at_capacity_is_given_the_changes_once_a_slot_frees(
     finish(scheduler=scheduler)
 
     assert delayed.launched_agent_work_identifiers == []
-    assert find_campaign_row(observed=delayed).finding == CampaignFinding(
-        new_comments=0, changed_children=1
+    assert find_campaign_row(observed=delayed).finding == compose_campaign_finding(
+        new_posts=0, changed_children=1
     )
     assert freed.launched_agent_work_identifiers == [
         compose_campaign_identifier(issue=PARENT)
@@ -2141,33 +1932,6 @@ def test_a_lead_at_capacity_is_given_the_changes_once_a_slot_frees(
     assert read_lead_input(scheduler=scheduler, number=2).notifications == [
         compose_notification(issue=FIRST_CHILD, changes=[CampaignChildChange.ADDED]),
         compose_notification(issue=SECOND_CHILD, changes=[CampaignChildChange.ADDED]),
-    ]
-
-
-def test_changes_while_the_lead_is_paused_reach_it_when_it_resumes(
-    campaign_scheduler, harnesses
-):
-    scheduler, gh = campaign_scheduler
-    settle_lead(state=scheduler.context.state, children=[UNSTARTED])
-    show_parent(gh=gh, issue=compose_parent_issue(labels=()))
-    offer_children(gh=gh, children=BOTH_CHILDREN)
-    while_paused = tick(scheduler=scheduler)
-    offer_parent(gh=gh)
-    script_lead_turn(harnesses=harnesses)
-
-    resumed = tick(scheduler=scheduler)
-    finish(scheduler=scheduler)
-
-    assert while_paused.launched_agent_work_identifiers == []
-    assert find_campaign_row(observed=while_paused).children == [
-        compose_child(),
-        UNSTARTED,
-    ]
-    assert resumed.launched_agent_work_identifiers == [
-        compose_campaign_identifier(issue=PARENT)
-    ]
-    assert read_lead_input(scheduler=scheduler, number=2).notifications == [
-        compose_notification(issue=FIRST_CHILD, changes=[CampaignChildChange.ADDED])
     ]
 
 
@@ -2300,4 +2064,267 @@ def test_a_campaign_label_that_someone_else_applied_starts_no_lead(
         )
     ]
     assert read_campaign(state=scheduler.context.state, issue=PARENT) is None
+    assert harnesses["claude"].calls == []
+
+
+def open_campaign_and_assignment(*, scheduler, gh, harnesses):
+    """Start the campaign and its sub-issue's assignment on their branches."""
+    state = scheduler.context.state
+    root = state.root
+    child = compose_parent_issue(labels=(SMITH,), number=FIRST_CHILD)
+    offer_parent(gh=gh)
+    offer_children(gh=gh, children=[compose_sub_issue(number=FIRST_CHILD)])
+    script_lead_turn(harnesses=harnesses)
+
+    opened = tick(scheduler=scheduler)
+    finish(scheduler=scheduler)
+
+    [identifier] = opened.launched_agent_work_identifiers
+    campaign = read_campaign(state=state, issue=PARENT)
+    assert campaign is not None
+    assert campaign.identifier == identifier
+    campaign_branch = compose_work_branch(identifier=identifier)
+    opening_input = read_lead_input(scheduler=scheduler, number=1)
+    assert opening_input.pull_request == CAMPAIGN_PULL_REQUEST
+    assert opening_input.pull_request_head == read_worktree_revision(
+        worktree=campaign.worktree
+    )
+    assert opening_input.children == [compose_child()]
+    assert run_git(arguments=["rev-parse", "HEAD^"], cwd=campaign.worktree) == (
+        run_git(arguments=["rev-parse", "main"], cwd=root)
+    )
+
+    offer_listing(gh=gh, issues=[compose_parent_issue(), child])
+    offer_issue_parent(gh=gh, issue=FIRST_CHILD, parent=PARENT)
+    offer_campaign_pull_request(gh=gh, head=opening_input.pull_request_head)
+    child_pull_request = 52
+    child_url = f"https://github.com/{REPOSITORY}/pull/{child_pull_request}"
+    gh.replies(stdout=child_url, to="pr create")
+    gh.replies(
+        stdout=json.dumps({"number": child_pull_request}), to=f"pr view {child_url}"
+    )
+
+    assigned = tick(scheduler=scheduler)
+    finish(scheduler=scheduler)
+
+    [assignment] = read_agent_work_at_issue(state=state, issue=FIRST_CHILD)
+    assert assigned.launched_agent_work_identifiers == [assignment.identifier]
+    assert assignment.record.base_branch == campaign_branch
+    assert read_work_pull_request_number(work=assignment) == child_pull_request
+    assert run_git(
+        arguments=["rev-parse", "HEAD^"], cwd=assignment.worktree
+    ).strip() == (opening_input.pull_request_head)
+    campaign_pr, child_pr = [
+        call.arguments for call in gh.calls if call.arguments[:2] == ["pr", "create"]
+    ]
+    assert campaign_pr[4:] == [
+        "--base",
+        "main",
+        "--head",
+        campaign_branch,
+        "--draft",
+        "--title",
+        f"Parent {PARENT}",
+        "--body",
+        f"Closes #{PARENT}",
+    ]
+    assert child_pr[child_pr.index("--base") + 1] == campaign_branch
+
+    return campaign, assignment, child
+
+
+def merge_sub_issue(*, scheduler, gh, campaign, assignment, child) -> str:
+    """Merge the assignment and verify its wrap-up closes the sub-issue."""
+    root = scheduler.context.state.root
+    campaign_branch = compose_work_branch(identifier=campaign.identifier)
+    child_pull_request = read_work_pull_request_number(work=assignment)
+    assert child_pull_request is not None
+    child_branch = compose_work_branch(identifier=assignment.identifier)
+    run_git(arguments=["merge", "--ff-only", child_branch], cwd=campaign.worktree)
+    run_git(arguments=["push", "origin", campaign_branch], cwd=root)
+    campaign_head = read_worktree_revision(worktree=campaign.worktree)
+    gh.replies(
+        stdout=compose_pull_request(state="MERGED", number=child_pull_request),
+        to=f"pr view {child_pull_request}",
+    )
+    show_parent(gh=gh, issue=child)
+    closing_comment = f"repos/{REPOSITORY}/issues/{FIRST_CHILD}/comments"
+    gh.replies(stdout='{"id": 91}', to=f"api {closing_comment} --method POST")
+    gh.replies(stdout="", to=f"issue close {FIRST_CHILD}")
+    offer_campaign_pull_request(gh=gh, head=campaign_head)
+
+    child_wrap_up = tick(scheduler=scheduler)
+    finish(scheduler=scheduler)
+
+    assert child_wrap_up.launched_agent_work_identifiers == [assignment.identifier]
+    [closed] = [call for call in gh.calls if call.arguments[:2] == ["issue", "close"]]
+    assert closed.arguments[2:] == [
+        str(FIRST_CHILD),
+        "--repo",
+        REPOSITORY,
+        "--reason",
+        "completed",
+    ]
+    [comment] = [
+        call
+        for call in gh.calls
+        if call.arguments[:4] == ["api", closing_comment, "--method", "POST"]
+    ]
+    assert json.loads(comment.prompt) == {
+        "body": f"Merged in #{child_pull_request}.\n\n{AGENT_POST_MARKER}"
+    }
+
+    return campaign_head
+
+
+def test_a_campaign_delivers_its_sub_issue_through_the_campaign_branch(
+    campaign_scheduler, harnesses
+):
+    scheduler, gh = campaign_scheduler
+    state = scheduler.context.state
+    root = state.root
+    campaign, assignment, child = open_campaign_and_assignment(
+        scheduler=scheduler, gh=gh, harnesses=harnesses
+    )
+    identifier = campaign.identifier
+    campaign_branch = compose_work_branch(identifier=identifier)
+    campaign_head = merge_sub_issue(
+        scheduler=scheduler,
+        gh=gh,
+        campaign=campaign,
+        assignment=assignment,
+        child=child,
+    )
+
+    offer_listing(gh=gh, issues=[compose_parent_issue()])
+    offer_children(
+        gh=gh, children=[compose_sub_issue(number=FIRST_CHILD, state="closed")]
+    )
+    notified = tick(scheduler=scheduler)
+    finish(scheduler=scheduler)
+
+    assert notified.launched_agent_work_identifiers == [identifier]
+    assert not assignment.worktree.exists()
+    delivered = read_lead_input(scheduler=scheduler, number=2)
+    assert delivered.pull_request_head == campaign_head
+    [closed_child] = delivered.children
+    assert closed_child.is_closed
+    assert closed_child.assignment is not None
+    assert closed_child.assignment.ending is AgentWorkEndReason.COMPLETED
+    [notification] = delivered.notifications
+    assert notification.issue == FIRST_CHILD
+    assert CampaignChildChange.ISSUE_STATE in notification.changes
+    assert CampaignChildChange.ENDING in notification.changes
+
+    run_git(arguments=["merge", "--ff-only", campaign_branch], cwd=root)
+    run_git(arguments=["push", "origin", "main"], cwd=root)
+    offer_listing(gh=gh, issues=[])
+    offer_campaign_pull_request(gh=gh, state="MERGED", head=campaign_head)
+    wrap_up = tick(scheduler=scheduler)
+    finish(scheduler=scheduler)
+
+    assert wrap_up.launched_agent_work_identifiers == [identifier]
+    assert read_lead_input(scheduler=scheduler, number=3).pull_request_state is (
+        PullRequestState.MERGED
+    )
+    ended = read_campaign(state=state, issue=PARENT)
+    assert ended is not None
+    assert ended.ending is not None
+    assert ended.ending.reason is AgentWorkEndReason.COMPLETED
+    assert campaign.worktree.is_dir()
+
+    cleaned = tick(scheduler=scheduler)
+
+    assert cleaned.launched_agent_work_identifiers == []
+    assert cleaned.failures == []
+    assert not campaign.worktree.exists()
+    local_branches = run_git(
+        arguments=["branch", "--format=%(refname:short)"], cwd=root
+    )
+    assert campaign_branch not in local_branches.splitlines()
+
+
+def test_a_campaign_keeps_its_pr_channel_after_its_parent_changes(
+    campaign_scheduler, harnesses
+):
+    scheduler, gh = campaign_scheduler
+    write_rounds(
+        state=scheduler.context.state, endings=[SuccessfulAgentRoundEnding(at=PINNED)]
+    )
+    parent = compose_parent_issue(state="CLOSED", labels=(), assignees=())
+    offer_listing(gh=gh, issues=[])
+    show_parent(gh=gh, issue=parent)
+    gh.replies(
+        stdout=compose_page(items=[compose_comment(body="A parent comment.")]),
+        to=PARENT_COMMENTS_PATH,
+    )
+
+    quiet = tick(scheduler=scheduler)
+
+    assert quiet.launched_agent_work_identifiers == []
+    assert quiet.rows[0].finding == compose_campaign_finding()
+    assert not any(
+        call.arguments[:3] == ["issue", "view", str(PARENT)]
+        or call.arguments[:2] == PARENT_COMMENTS_PATH.split()[:2]
+        for call in gh.calls
+    )
+    post = compose_pull_request_post(identifier=1)
+    offer_posts(gh=gh, posts=[post])
+    script_lead_turn(harnesses=harnesses)
+
+    woken = tick(scheduler=scheduler)
+    finish(scheduler=scheduler)
+
+    assert woken.launched_agent_work_identifiers == [
+        compose_campaign_identifier(issue=PARENT)
+    ]
+    assert read_lead_input(scheduler=scheduler, number=2).user_posts == [
+        IssueComment.model_validate(post)
+    ]
+
+
+def test_an_open_campaign_answers_every_campaign_label(campaign_scheduler):
+    scheduler, gh = campaign_scheduler
+    root = scheduler.context.state.root
+    configure(root=root, head=CAMPAIGN_CLAUDE + SECOND_CAMPAIGN_CLAUDE)
+    scheduler = create_scheduler(root=root)
+    directory = write_rounds(
+        state=scheduler.context.state, endings=[SuccessfulAgentRoundEnding(at=PINNED)]
+    )
+    offer_parent(gh=gh, issue=compose_parent_issue(labels=(LABEL, "dream:steward")))
+
+    observed = tick(scheduler=scheduler)
+
+    [row] = observed.rows
+    assert row.agent_work_identifier == directory.name
+    assert row.finding == compose_campaign_finding()
+    assert observed.launched_agent_work_identifiers == []
+
+
+def test_an_open_pull_request_claiming_the_parent_holds_a_new_campaign(
+    campaign_scheduler, harnesses
+):
+    scheduler, gh = campaign_scheduler
+    offer_parent(gh=gh)
+    gh.replies(
+        stdout=json.dumps(
+            {
+                "number": PARENT,
+                "closedByPullRequestsReferences": [{"number": CAMPAIGN_PULL_REQUEST}],
+            }
+        ),
+        to=(
+            f"issue view {PARENT} --repo {REPOSITORY} "
+            "--json number,closedByPullRequestsReferences"
+        ),
+    )
+
+    observed = tick(scheduler=scheduler)
+
+    [row] = observed.rows
+    assert row.finding == StartTimeFinding(
+        linked_pull_requests=[CAMPAIGN_PULL_REQUEST], blocking_issues=[]
+    )
+    assert row.children is None
+    assert observed.launched_agent_work_identifiers == []
     assert harnesses["claude"].calls == []

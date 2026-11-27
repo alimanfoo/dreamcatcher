@@ -292,33 +292,27 @@ campaign's pull request closes.
 
 The user has planned a body of work as a parent issue, with its work in
 sub-issues, and wants an agent to take the plan up. The configuration
-has a campaign route whose prompt tells the lead what to do with the
-parent and with their comments on it. The `agent-campaign` route that
-`init` writes is one, and it carries the sub-issues through their
-assignments to merge. They assign the parent to themselves and put the
-campaign label on it. No comment is needed. As soon as _dreamcatcher_
-has available agent capacity, it checks out the default branch in a
-worktree of the campaign's own and starts the lead in a new harness
-session.
+has a campaign route whose prompt tells the lead how to carry the plan
+through. The user assigns the parent to themselves and applies the
+campaign label. When an agent slot is free, _dreamcatcher_ cuts the
+campaign branch from the default branch, pushes it, opens a draft pull
+request into the default branch and starts the lead in its worktree.
 
 The lead is given the current picture of the parent's sub-issues, with
 where each one's assignment stands, and the assignment routes that the
-running daemon offers. It reads the parent and its sub-issues on GitHub,
-and any comments the user had already left on the parent, and does what
-its prompt asks, posting on GitHub itself, with every post marked as the
-agent's own, apart from feedback on a sub-issue's pull request. Its
-final words stay in the feed, so the parent issue holds only what the
-lead chose to say there. At later updates the lead is left alone until
-the user comments on the parent or a sub-issue changes in a way that it
-needs to hear of. The home page has a Campaigns tab, where the campaign
-shows as idle with how its round ended and how many of the parent's
-sub-issues are closed out of the total, and its page shows the feed.
-After that count, the same line counts the cards under the campaign by
-the status that each shows, such as 6 working, 3 waiting and 1 held, so
-the user sees the whole picture of the sub-issues without opening it.
-Every count comes from the latest update and the work's own records. The
-user expands the line to see every sub-issue, each with its assignment's
-card as the Assignments tab shows it and the card of each request for an
+running daemon offers. The lead dispatches assignments and reviews their
+pull requests into the campaign branch. When one merges, _dreamcatcher_
+closes its sub-issue during the assignment's wrap-up. The lead posts its
+messages on GitHub, marking every post apart from feedback on a
+sub-issue's pull request. Its final words stay in the feed. The home
+page's Campaigns tab shows the campaign's pull request and how many of
+the parent's sub-issues are closed out of the total. After that count,
+the same line counts the cards under the campaign by the status that
+each shows, such as 6 working, 3 waiting and 1 held, so the user sees
+the whole picture of the sub-issues without opening it. Every count
+comes from the latest update and the work's own records. The user
+expands the line to see every sub-issue, each with its assignment's card
+as the Assignments tab shows it and the card of each request for an
 assignment on it that has no open work, or, when it has neither, a
 sub-issue card with the sub-issue's number and title and whether it is
 open or closed. A closed sub-issue's title shows as quietly as ended
@@ -327,27 +321,14 @@ updating, and the sub-issues stay expanded until the user folds them.
 Once the campaign ends, it moves to the ended list with its own card
 alone, and the user goes to GitHub for the history.
 
-Several sub-issues may have open pull requests at once. The user uses a
-merge queue when GitHub offers one for the repository, so each sub-issue
-is tested against the current default branch when its turn to merge
-comes. Otherwise, they leave "Require branches to be up to date before
-merging" off. If it were on, every merge would leave every other
-sub-issue behind, waking each assignment's agent to merge the default
-branch, running its checks again and waking the lead for the new head,
-though only one pull request can merge next. With it off, a sub-issue
-that falls behind without conflicting still merges cleanly, and a
-sub-issue that conflicts still wakes the assignment's agent to bring the
-branch up to date.
+The user reviews the campaign's pull request and merges it when
+satisfied. GitHub closes the parent. The lead wraps up in its next
+round, then _dreamcatcher_ removes the worktree and local branch and
+keeps the record. If the user closes the pull request without merging,
+the lead still wraps up. The label's request has already been used. To
+start a new campaign the user removes and reapplies the label.
 
-When the user is satisfied, they close the parent, and the campaign ends
-once any round that is still running finishes. Its worktree is then
-removed, and its record stays for the ended list. If they reopen the
-parent with its label still on, the request card says the label's
-request has already been used. To start a new campaign, they remove and
-re-add the label.
-
-The value to the user is that a planned body of work has an agent of its
-own, started with one label and ended by closing the parent.
+The user gets one pull request to review for the whole body of work.
 
 #### The user queues one campaign behind another
 
@@ -363,33 +344,32 @@ another one.
 
 Closing every sub-issue of the first parent does not close that parent,
 so the second campaign keeps waiting while the user checks the first
-one's work. When they are satisfied, they close the first parent, and at
-the next update the second campaign starts, with no further comment or
-label. A parent with several blockers waits until every one of them is
+one's work. When they merge the first campaign's pull request, GitHub
+closes the first parent and the second campaign can start at the next
+update. A parent with several blockers waits until every one of them is
 closed. A blocker added to a parent whose campaign has already started
 changes nothing for that campaign.
 
 The value to the user is that they can line up several campaigns at once
 and let the dependencies set the order in which the leads take them up.
 
-#### The user talks to the lead on the parent issue
+#### The user talks to the lead on the campaign's pull request
 
 The user wants to tell the lead something, or ask it how the plan
-stands. They comment on the parent. At the next update the lead is given
-the comment, and any others the user has posted since its last round, in
-the same harness session, so it remembers what it has already done and
-said. It answers on the parent itself. Its own replies carry the agent's
-mark, so they never wake it again. While it works the campaign shows as
-working, with the number of comments and of sub-issues that woke it.
+stands. They post on the campaign's pull request. At the next update the
+lead receives the new posts in the same harness session, so it remembers
+what it has done and said. It answers there. Its own replies carry the
+agent's mark, so they never wake it again. While it works the campaign
+shows as working, with the posts and sub-issue changes that woke it.
 
 If the lead heads off in the wrong direction, the user stops the round
 from the campaign's page or with `dreamcatcher stop`. The lead then
-waits, rather than starting the same work again. The user comments with
-fresh direction, and at the next update the lead takes it up in the same
-session, told that the user stopped its previous round.
+waits for new input. The user posts fresh direction, and at the next
+update the lead takes it up in the same session, told that the user
+stopped its previous round.
 
 The value to the user is that they steer the lead in the same place they
-read its plan, and the lead never loses the thread.
+review its work, and the lead never loses the thread.
 
 #### The lead hears when a sub-issue needs it
 
@@ -403,14 +383,14 @@ added or removed waits until the sub-issue's assignment has no round
 running or due, so the lead is not woken while an assignment is still
 working, starting work wakes nothing, and neither do checks still
 running or changes on the default branch. Several changes reach the lead
-together in one round, beside any comments that the user has posted, and
-its input names each sub-issue that changed and what changed, with the
-whole current picture. A change that the lead could not yet be given,
-because it was working, held or waiting for an agent slot, reaches it in
-its next round, and a change that reverted meanwhile is not news. While
-a round is due for such changes, the campaign shows as waiting with how
-many sub-issues changed, and the round's trigger names each one with
-what changed.
+together in one round, beside any posts from the user on the campaign's
+pull request, and its input names each sub-issue that changed and what
+changed, with the whole current picture. A change that the lead could
+not yet be given, because it was working, in fault or waiting for an
+agent slot, reaches it in its next round, and a change that reverted
+meanwhile is not news. While a round is due for such changes, the
+campaign shows as waiting with how many sub-issues changed, and the
+round's trigger names each one with what changed.
 
 The value to the user is that the lead takes up each sub-issue's result
 as soon as it is ready, and never spends a round on work that is still
@@ -431,22 +411,12 @@ The value to the user is that the lead and each assignment's agent work
 through the pull request, as the user would, so the user can read the
 whole exchange and join it.
 
-#### The user pauses a campaign by removing its label
+#### The parent changes while a campaign is open
 
-The user wants the lead to leave the parent alone for a while. They take
-the campaign label off the parent, or unassign it from themselves, and
-the campaign pauses. A round that is already running finishes, and no
-other round starts, not even one to recover a round that did not finish.
-The Campaigns tab shows the campaign as held, says beside the parent
-why, and says beneath what brings it back. Comments the user posts on
-the parent meanwhile wake nothing, but the Campaigns tab keeps counting
-the closed sub-issues. When they put the label back, the same campaign
-carries on in its saved harness session, and the lead is given every
-comment posted while it was paused, and what changed among the
-sub-issues meanwhile.
-
-The value to the user is that the lead is on the parent only when
-wanted.
+The user removes or renames the campaign label, unassigns the parent,
+closes it by hand or comments on it. The lead's channel remains the
+campaign's pull request. The user can direct the lead by posting there,
+and a merge or closure of the pull request calls for the wrap-up round.
 
 ### Conversations
 
@@ -647,28 +617,27 @@ and then what _dreamcatcher_ found or what the user has to do.
 On the home page, every card lays out its rows in the same order,
 whatever its state, so nothing moves as rows come and go. Its first row
 is what GitHub holds: the issue's number and title, and for an
-assignment its pull request and where that stands, such as a draft that
-conflicts. An assignment shows nothing there before it opens its pull
-request. A draft's text is subdued. A pull request that is ready for
-review shows in the theme's brighter text, so it stands out from a
+assignment or campaign its pull request and where that stands, such as a
+draft that conflicts. Pull request work shows the pull request there
+after it opens. A draft's text is subdued. A pull request that is ready
+for review shows in the theme's brighter text, so it stands out from a
 draft, and it keeps that text when it conflicts or its checks fail. The
 words "draft" and "ready" stay, so the user can tell them apart without
-the colour. A conversation or a campaign has no pull request, so its
-first row holds the issue and whether it is open or closed. The second
-row is what _dreamcatcher_ holds: the dispatch label, with the harness,
-model and effort that run the work, and then the work's status and the
-link to its page. Beneath that, a piece of work says what it is doing or
-what it waits for, and while a round runs or after a fault, the agent's
-latest output comes last. A piece of work that has ended says nothing
-beneath its second row, which gives how it ended in place of its status,
-so the card says once that it has ended and how. An assignment ends
-completed or cancelled, and a conversation or a campaign shows ended,
-with its issue closed on its first row. `dreamcatcher view` shows the
-same word in place of the status, with nothing beneath it, and its
-summary gives what GitHub holds, as the card's first row does: an
-assignment's pull request and where it stands, or a conversation's or a
-campaign's issue and whether it is open or closed, with what holds the
-work back. Every piece of work that has ended shows its title more
+the colour. A conversation's first row holds the issue and whether it is
+open or closed. The second row is what _dreamcatcher_ holds: the
+dispatch label, with the harness, model and effort that run the work,
+and then the work's status and the link to its page. Beneath that, a
+piece of work says what it is doing or what it waits for, and while a
+round runs or after a fault, the agent's latest output comes last. A
+piece of work that has ended says nothing beneath its second row, which
+gives how it ended in place of its status, so the card says once that it
+has ended and how. Pull request work ends completed or cancelled, and a
+conversation shows ended, with its issue closed on its first row.
+`dreamcatcher view` shows the same word in place of the status, with
+nothing beneath it, and its summary gives what GitHub holds, as the
+card's first row does: the work's pull request and where it stands, or a
+conversation's issue and whether it is open or closed, with what holds
+the work back. Every piece of work that has ended shows its title more
 quietly than live work does, here and within a campaign, so it draws
 less attention, and its links stay as clear as they are on any other
 card. A request card gives its issue at the top, with the issue's state
@@ -794,15 +763,13 @@ Then they rename the route's label in `dreamcatcher.toml` to match,
 commit and push the file, and stop the daemon and start it again. A
 label that the user applied still counts as theirs under its new name,
 so each request at those issues stays as it was, and so does each open
-assignment.
+assignment or campaign.
 
-An open conversation or campaign is different, because it knows its
-label by the name that the label had when the work started. After the
-rename, the conversation or campaign reads its label as removed and
-pauses, and the label under its new name is a new request, which can
-start a second conversation or campaign at the issue. So the user
-renames a conversation or campaign label only when none of its
-conversations or campaigns is open.
+An open conversation knows its label by the name that the label had when
+the work started. After the rename, the conversation reads its label as
+removed and pauses, and the label under its new name is a new request,
+which can start a second conversation at the issue. So the user renames
+a conversation label when none of its conversations is open.
 
 The value to the user is that a label can take a better name without
 losing the requests and assignments that carry it.
@@ -825,9 +792,8 @@ once the issue is assigned to them, whether a teammate assigned it or
 they assigned it to themselves. Assigning an issue to a teammate is
 fine, but labelling it for them is not how _dreamcatcher_ is meant to be
 used. An instance starts work only on a label that its own user applied,
-and resumes a paused conversation or campaign the same way, so a label
-that a teammate applies by mistake starts nothing on the user's machine,
-as
+and resumes a paused conversation the same way, so a label that a
+teammate applies by mistake starts nothing on the user's machine, as
 [the user error about labelling for a colleague](#labelling-an-issue-for-a-colleague)
 tells.
 
@@ -897,8 +863,9 @@ or two conversations, depending on which labels already have one. The
 conflict stops new rounds. A conversation with a round running finishes
 that round, and is then held until the other label comes off, with its
 card saying that the issue has more than one label of the kind and
-telling the user to remove all but one. A campaign answers only its own
-label in the same way.
+telling the user to remove all but one. An open campaign answers every
+campaign label on its parent, so adding another label has no effect
+while it is open.
 
 Labels of different kinds on the same issue are not a conflict, and each
 can start its own work.
@@ -923,8 +890,8 @@ sees the issue's request card on the home page and its row in
 colleague and telling the user to remove and re-add the label
 themselves. The same goes for a bot, and for an account that has since
 been deleted, which the card cannot name. A colleague who puts back the
-label of a paused conversation or campaign leaves it held, and its card
-says so in the same words.
+label of a paused conversation leaves it held, and its card says so in
+the same words.
 
 If the user wants the work, they need to take the label off and put it
 back on themselves, and it starts at the next update. They then need to
@@ -972,12 +939,10 @@ If they wanted only their fix in, they need do nothing.
 
 ### Talking to the agent in the wrong place
 
-The user comments on the issue of an assignment, expecting the agent to
-see it. It does not, because an assignment's channel is its pull
-request. The user needs to post on the pull request instead. The reverse
-holds for a conversation and a campaign, whose channel is the issue, so
-a comment meant for one of them on a pull request needs to go on the
-issue.
+The user comments on an assignment's issue or a campaign's parent,
+expecting the agent to see it. The user needs to post on the work's pull
+request, where _dreamcatcher_ reads its feedback. For a conversation,
+the user posts on the issue.
 
 ### Asking a colleague to give the agent feedback
 
@@ -1166,15 +1131,15 @@ fix, and nothing _dreamcatcher_ holds is the only copy of anything.
 
 ### An ended piece of work's worktree is not removed
 
-An assignment has completed, or a conversation or campaign has ended
-with its issue, and Git refuses to remove its worktree or to delete the
-assignment's local branch, perhaps because the worktree is locked or a
-file in it is held open. The daemon prints what failed with that update
-and carries on. The work stays ended, and the worktree or branch stays
-where it is. The worktree also stays when the daemon stops after an
-assignment completes and before the update that would remove it. Nothing
-tries the removal again, and that is accepted, because the leftover
-takes only disk space, and the user can remove it with Git.
+An assignment or campaign has completed, or a conversation's issue has
+closed, and Git refuses to remove its worktree or its local branch,
+perhaps because the worktree is locked or a file in it is held open. The
+daemon prints what failed with that update and carries on. The work
+stays ended, and the worktree or branch stays where it is. The worktree
+also stays when the daemon stops after pull request work completes and
+before the update that would remove it. Nothing tries the removal again,
+and that is accepted, because the leftover takes only disk space, and
+the user can remove it with Git.
 
 ### A local record cannot be read
 

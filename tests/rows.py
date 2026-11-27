@@ -2,12 +2,18 @@
 
 from collections.abc import Sequence
 
-from conftest import ASSIGNMENT_LABEL
+from conftest import ASSIGNMENT_LABEL, HEAD
 
-from dreamcatcher.github import IssueState
+from dreamcatcher.github import (
+    CheckResult,
+    IssueState,
+    PullRequestMergeState,
+    PullRequestState,
+)
 from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.scheduler.models import (
     CampaignChild,
+    PullRequestFinding,
     RequestFinding,
     RequestRow,
     StartedRound,
@@ -16,6 +22,8 @@ from dreamcatcher.scheduler.models import (
 
 # What the start-time questions answer for an issue nothing claims or blocks.
 UNCLAIMED = StartTimeFinding(linked_pull_requests=[], blocking_issues=[])
+
+CAMPAIGN_PULL_REQUEST = 90
 
 CONVERSATION_LABEL = "dream:conversation"
 
@@ -127,5 +135,29 @@ def compose_campaign_row(
         update={
             "title": f"Parent {issue}",
             "children": None if children is None else list(children),
+            "issue_state": IssueState.OPEN if agent_work_identifier is None else None,
         }
+    )
+
+
+def compose_campaign_finding(
+    *,
+    new_posts: int = 0,
+    changed_children: int = 0,
+    number: int = CAMPAIGN_PULL_REQUEST,
+) -> PullRequestFinding:
+    """Return the finding of a draft campaign pull request with passing checks."""
+    return PullRequestFinding(
+        number=number,
+        state=PullRequestState.OPEN,
+        is_draft=True,
+        merge_state=PullRequestMergeState.CLEAN,
+        head=HEAD,
+        check_result=CheckResult.PASSING,
+        has_running_checks=False,
+        new_posts=new_posts,
+        new_pull_request_signals=[],
+        is_check_failure_withheld=False,
+        is_wrap_up_due=False,
+        changed_children=changed_children,
     )

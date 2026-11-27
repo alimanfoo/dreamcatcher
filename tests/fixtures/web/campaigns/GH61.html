@@ -38,12 +38,12 @@
         <div id="agent-work-card" class="agent-work-page-card">
   <div class="card-heading">
     <h1 id="agent-work-heading"><a class="issue-number" href="https://github.com/alimanfoo/dreamcatcher/issues/61" target="_blank" rel="noopener noreferrer">#61</a> <span class="title">Parent 61</span></h1>
-    <span class="issue-state">closed</span>
+    <a class="pr-chip" href="https://github.com/alimanfoo/dreamcatcher/pull/91" target="_blank" rel="noopener noreferrer">PR #91 merged</a>
   </div>
   <div class="card-route">
     <span>dream:big · claude · opus[1m] · xhigh</span>
     <span class="card-actions">
-      <span class="chip status-ended">ended</span>
+      <span class="chip status-ended">completed</span>
     </span>
   </div>
   
@@ -63,13 +63,22 @@
       </span>
     </div>
   
+    <div class="round">
+      <a class="round-link" href="#feed-round-2" aria-controls="feed-round-2" aria-labelledby="round-number-2 round-summary-2"><span class="round-number" id="round-number-2">02</span></a>
+      <span class="round-summary" id="round-summary-2">
+        <span class="round-trigger">merged</span>
+        
+        <span class="round-timing">2026-08-20 02:51:58 · ran 4m</span>
+      </span>
+    </div>
+  
 </aside>
         </div>
         <section class="panel agent-work-feed" aria-labelledby="feed-heading">
           <h1 id="feed-heading">Feed</h1>
           <button class="feed-tail" type="button" aria-controls="records">TAIL ↓</button>
           <p id="feed-refresh-error" class="refresh-error" role="alert" hidden></p>
-          <input type="hidden" id="position" name="position" value="1:61">
+          <input type="hidden" id="position" name="position" value="2:0">
           <div id="records" class="feed-records" hx-get="/work/GH61-20260819-184158-campaign/tail" hx-trigger="every 2s" hx-include="#position" hx-select=".feed-round" hx-swap="beforeend" data-refresh-alert="feed-refresh-error">
             
               <div id="feed-round-1" class="feed-round"><div class="feed-line round-boundary">
@@ -78,6 +87,11 @@
 </div><div class="feed-line">
   <time>2026-08-20 02:43:58</time>
   <span class="feed-content"><span class="feed-detail">I acknowledged the plan on the parent.</span></span>
+</div></div>
+            
+              <div id="feed-round-2" class="feed-round"><div class="feed-line round-boundary">
+  <time>2026-08-20 02:51:58</time>
+  <span class="feed-content"><span class="feed-detail">round 2: merged</span></span>
 </div></div>
             
           </div>

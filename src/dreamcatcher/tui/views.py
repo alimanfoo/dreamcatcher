@@ -122,37 +122,41 @@ def _render_agent_work(
             Text(f"{kind} {work.identifier}"),
             rendered_status,
             latest_output,
-            (
-                _render_assignment_summary(state=state, status=status)
-                if kind is AgentWorkKind.ASSIGNMENT
-                else _render_issue_work_summary(state=state, status=status)
-            ),
+            _render_work_summary(state=state, status=status),
             _render_round_statuses(round_statuses=status.round_statuses, zone=zone),
             _render_harness_resume(state=state, status=status),
         ]
     )
 
 
-def _render_issue_work_summary(
+def _render_work_summary(
     *, state: StateDirectory, status: AgentWorkStatus
 ) -> RenderableType:
-    """Return the section that names a conversation or a campaign and its settings.
-
-    The issue's state is unknown when the latest update did not read it.
-    """
+    """Return the work's channel, worktree and harness settings."""
     work = status.work
     record = work.record
+    if record.kind.is_pull_request_work:
+        channel = ("pull request", render_pull_request(status=status) or "none yet")
+        branch = (("branch", compose_work_branch(identifier=work.identifier)),)
+    else:
+        channel = (
+            "issue",
+            render_issue_state(state=status.issue_state, facts=status.issue_facts)
+            or "unknown",
+        )
+        branch = ()
     table = create_table(columns=2)
     for name, value in (
         ("issue identifier", f"GH{record.issue}"),
         ("agent work identifier", work.identifier),
-        ("title", record.title),
-        (
-            "issue",
-            render_issue_state(state=status.issue_state, facts=status.issue_facts)
-            or "unknown",
+        *(
+            ()
+            if record.kind is AgentWorkKind.ASSIGNMENT
+            else (("title", record.title),)
         ),
+        channel,
         ("label", record.dispatch_label),
+        *branch,
         ("worktree", _describe_worktree(state=state, status=status)),
         ("harness", record.harness),
         (
@@ -164,32 +168,6 @@ def _render_issue_work_summary(
     ):
         table.add_row(Text(name), Text(str(value)))
     return render_section(heading=str(record.kind), body=table)
-
-
-def _render_assignment_summary(
-    *, state: StateDirectory, status: AgentWorkStatus
-) -> RenderableType:
-    """Return the section that names an assignment and its settings."""
-    assignment = status.work
-    record = assignment.record
-    table = create_table(columns=2)
-    for name, value in (
-        ("issue identifier", f"GH{record.issue}"),
-        ("agent work identifier", assignment.identifier),
-        ("pull request", render_pull_request(status=status) or "none yet"),
-        ("label", record.dispatch_label),
-        ("branch", compose_work_branch(identifier=assignment.identifier)),
-        ("worktree", _describe_worktree(state=state, status=status)),
-        ("harness", record.harness),
-        (
-            "harness session identifier",
-            status.harness_session_identifier or "not recorded",
-        ),
-        ("model", record.model),
-        ("effort", record.effort),
-    ):
-        table.add_row(Text(name), Text(str(value)))
-    return render_section(heading="assignment", body=table)
 
 
 def _render_round_statuses(

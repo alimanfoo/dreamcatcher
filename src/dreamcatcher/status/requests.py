@@ -6,8 +6,6 @@ from enum import StrEnum
 from typing import cast
 
 from dreamcatcher.scheduler.models import (
-    BlockingIssuesFinding,
-    CampaignFinding,
     HoldFinding,
     IssueCommentsFinding,
     ReadFailureFinding,
@@ -24,12 +22,7 @@ from dreamcatcher.status.findings import (
 # What the tick finds for a request with no open work: what decides whether work
 # may start, or why that read failed.
 type _StartFinding = (
-    StartTimeFinding
-    | BlockingIssuesFinding
-    | IssueCommentsFinding
-    | CampaignFinding
-    | HoldFinding
-    | ReadFailureFinding
+    StartTimeFinding | IssueCommentsFinding | HoldFinding | ReadFailureFinding
 )
 
 
@@ -100,20 +93,17 @@ def describe_request(*, row: RequestRow) -> RequestStatus:
     )
 
 
-def _list_holding_facts(
-    *, finding: StartTimeFinding | BlockingIssuesFinding | CampaignFinding
-) -> tuple[IssueFact, ...]:
+def _list_holding_facts(*, finding: StartTimeFinding) -> tuple[IssueFact, ...]:
     """Return the open issues that block a request's issue, then the pull requests.
 
-    The pull requests are the open ones that claim an assignment request's
-    issue.
+    The pull requests are the open ones that claim the request's issue.
     """
     facts = []
-    if not isinstance(finding, CampaignFinding) and finding.blocking_issues:
+    if finding.blocking_issues:
         facts.append(
             IssueFact(words="blocked by", issues=tuple(finding.blocking_issues))
         )
-    if isinstance(finding, StartTimeFinding) and finding.linked_pull_requests:
+    if finding.linked_pull_requests:
         facts.append(
             IssueFact(
                 words="linked to", pull_requests=tuple(finding.linked_pull_requests)

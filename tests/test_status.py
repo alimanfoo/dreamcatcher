@@ -43,11 +43,10 @@ from dreamcatcher.github import (
 )
 from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.pull_request_work import (
-    AssignmentRoundInput,
+    PullRequestRoundInput,
     cancel_pull_request_work,
 )
 from dreamcatcher.scheduler.models import (
-    BlockingIssuesFinding,
     ConflictingLabelsFinding,
     GlobalCooldown,
     IssueReference,
@@ -693,7 +692,8 @@ def test_a_round_says_which_signals_woke_it(state, signals, posts, trigger):
     write_assignment_round(
         directory=state.work / ASSIGNMENT_ID,
         number=1,
-        round_input=AssignmentRoundInput(
+        round_input=PullRequestRoundInput(
+            pull_request=52,
             pull_request_state=PullRequestState.OPEN,
             pull_request_head=HEAD,
             signals=signals,
@@ -1172,11 +1172,12 @@ def test_a_campaign_request_names_the_issues_that_block_its_parent(state):
     blocked = compose_request_row(
         issue=20,
         kind=AgentWorkKind.CAMPAIGN,
-        finding=BlockingIssuesFinding(
+        finding=StartTimeFinding(
+            linked_pull_requests=[],
             blocking_issues=[
                 IssueReference(number=10),
                 IssueReference(number=1016, repository="alimanfoo/dream"),
-            ]
+            ],
         ),
     )
     write_tick(

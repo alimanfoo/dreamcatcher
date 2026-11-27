@@ -69,7 +69,7 @@ from dreamcatcher.harness_adapters import (
     HarnessOutput,
 )
 from dreamcatcher.pull_request_work import (
-    AssignmentRoundInput,
+    PullRequestRoundInput,
 )
 
 # A round that listed a directory, read a file that was not there, and sent a
@@ -395,7 +395,8 @@ def test_a_round_writes_the_pull_request_state_and_user_posts_it_was_given(
         agent_work_identifier="GH9-20260819-184158",
         harness=create_round_harness(),
         paths=compose_round_paths(worktree=worktree, directory=directory),
-        prepare_round=lambda: AssignmentRoundInput(
+        prepare_round=lambda: PullRequestRoundInput(
+            pull_request=52,
             pull_request_state=PullRequestState.OPEN,
             pull_request_head=HEAD,
             signals=[],

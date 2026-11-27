@@ -2,7 +2,10 @@
 
 from collections.abc import Sequence
 from dataclasses import dataclass
+from functools import partial
+from typing import Protocol
 
+from dreamcatcher.agent_rounds import AgentRoundFinisher
 from dreamcatcher.agent_work import AgentWork
 from dreamcatcher.github import (
     PullRequest,
@@ -10,10 +13,18 @@ from dreamcatcher.github import (
     UnknownGitHubResponse,
     UserPost,
     read_issue_pull_request_context,
-    read_pull_request,
 )
-from dreamcatcher.pull_request_work import is_wrap_up_relayed, read_user_post_cursor
-from dreamcatcher.relay import find_pull_request_signals, list_user_posts_past_cursor
+from dreamcatcher.pull_request_work import (
+    PullRequestRoundInput,
+    complete_pull_request_work,
+    prepare_pull_request_round_input,
+)
+from dreamcatcher.relay import (
+    find_pull_request_signals,
+    is_wrap_up_relayed,
+    list_user_posts_past_cursor,
+    read_user_post_cursor,
+)
 from dreamcatcher.scheduler.blockers import list_open_blocking_issues
 from dreamcatcher.scheduler.faults import is_last_round_unfinished
 from dreamcatcher.scheduler.inspection import SchedulingContext
@@ -22,6 +33,13 @@ from dreamcatcher.scheduler.models import (
     ReadFailureFinding,
     StartTimeFinding,
 )
+
+
+class PullRequestReader(Protocol):
+    """Read one pull request in the repository of the current tick."""
+
+    def __call__(self, *, pull_request: int) -> PullRequest | UnknownGitHubResponse:
+        """Return GitHub's observation or the reason it could not be read."""
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -41,23 +59,45 @@ class PullRequestActivity:
             or is_last_round_unfinished(rounds=work.rounds, is_daemon_running=True)
         )
 
+    def prepare_round(
+        self, *, context: SchedulingContext, work: AgentWork
+    ) -> PullRequestRoundInput:
+        """Freeze the relayed input, performing any issue closure first."""
+        return prepare_pull_request_round_input(
+            repository=context.repository,
+            work=work,
+            pull_request=self.pull_request,
+            signals=self.finding.new_pull_request_signals,
+            posts=self.posts,
+        )
+
+    def compose_finisher(
+        self, *, context: SchedulingContext, work: AgentWork
+    ) -> AgentRoundFinisher | None:
+        """Return a finishing step that completes work after a wrap-up."""
+        if self.pull_request.state is PullRequestState.OPEN:
+            return None
+        return partial(complete_pull_request_work, work=work, clock=context.clock)
+
 
 def read_pull_request_activity(
-    *, context: SchedulingContext, work: AgentWork, pull_request: int
+    *,
+    context: SchedulingContext,
+    work: AgentWork,
+    read: PullRequest | UnknownGitHubResponse,
 ) -> PullRequestActivity | ReadFailureFinding:
-    """Read the pull request and the posts and signals past the work's cursor."""
-    read = read_pull_request(repository=context.repository, pull_request=pull_request)
+    """Read posts and signals past the work's cursor for the observed pull request."""
     if isinstance(read, UnknownGitHubResponse):
         return ReadFailureFinding(reason=read.reason)
     posts = list_user_posts_past_cursor(
         repository=context.repository,
         pull_request=read.number,
         account=context.account,
-        cursor=read_user_post_cursor(assignment=work),
+        cursor=read_user_post_cursor(work=work),
     )
     if isinstance(posts, UnknownGitHubResponse):
         return ReadFailureFinding(reason=posts.reason)
-    found = find_pull_request_signals(assignment=work, pull_request=read)
+    found = find_pull_request_signals(work=work, pull_request=read)
     finding = PullRequestFinding(
         number=read.number,
         state=read.state,
@@ -71,7 +111,7 @@ def read_pull_request_activity(
         is_check_failure_withheld=found.is_check_failure_withheld,
         is_wrap_up_due=(
             read.state is not PullRequestState.OPEN
-            and not is_wrap_up_relayed(assignment=work)
+            and not is_wrap_up_relayed(work=work)
         ),
     )
     return PullRequestActivity(pull_request=read, posts=posts, finding=finding)

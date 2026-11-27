@@ -184,7 +184,8 @@ concern campaigns and sub-issues.
         request is open: available, with that campaign's branch as base.
         The assignment pass shares the answer across the parent's
         sub-issues. It reads the pull request's state only for an open
-        or cancelled campaign.
+        or cancelled campaign. The campaign pass uses the same
+        observation when it inspects the lead.
       - Otherwise: held, naming the parent.
 4. **Observations.** _Unchanged._ Collect what the first pass found of
    each assignment, for the campaigns.
@@ -193,12 +194,11 @@ concern campaigns and sub-issues.
    - In fault: no round starts, and the fault counts.
    - No pull request recorded: observe the sub-issues, and the opening
      round is due, unless they cannot all be observed.
-   - Otherwise: read the pull request, the user's posts past the cursor
-     and the signals. Observe the sub-issues, and compare them with the
-     newest delivered input. A round is due for posts, a signal, a
-     merged or closed pull request, a notification, or after an
-     unfinished round. If the sub-issues cannot all be observed, no
-     round starts, as today.
+   - Otherwise: observe the sub-issues, read the pull request activity
+     and compare the sub-issues with the newest delivered input. A round
+     is due for posts, a signal, a merged or closed pull request, a
+     notification, or after an unfinished round. If the sub-issues
+     cannot all be observed, no round starts, as today.
    - The draft flag that this read found decides the round's phase, and
      so its input prompt. Its permissions do not depend on the phase.
 6. **Second pass: campaign requests.** An open campaign answers every
@@ -319,7 +319,7 @@ alone. Its exported functions drop "assignment" from their names. It
 holds:
 
 - opening the pull request from a base;
-- the shared input part, and the relay-memory readers;
+- the shared input part, which the memory readers in `relay.py` use;
 - completing and cancelling;
 - removing the worktree and local branch;
 - closing the issue of work whose pull request merged into a base other
@@ -502,8 +502,6 @@ Changes to the enduring documents:
 
 ## Open questions
 
-- Whether the parent check's read of the campaign's pull request and the
-  campaign pass's read of it share one result.
 - The idle words for a campaign in its coordinating phase, and the words
   for the two new holds.
 - The concepts page's names for the new concepts.

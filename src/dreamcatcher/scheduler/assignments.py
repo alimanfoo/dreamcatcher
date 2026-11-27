@@ -8,11 +8,8 @@ from functools import cache, partial
 from dreamcatcher.agent_work import AgentWork, AgentWorkEndReason, DispatchRequest
 from dreamcatcher.github import (
     Issue,
-    PullRequest,
-    PullRequestSignal,
     PullRequestState,
     UnknownGitHubResponse,
-    UserPost,
     read_issue,
     read_issue_parent,
     read_pull_request,
@@ -20,10 +17,8 @@ from dreamcatcher.github import (
 from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.prompts import compose_assignment_input_prompt
 from dreamcatcher.pull_request_work import (
-    complete_pull_request_work,
     compose_work_branch,
     open_work_pull_request,
-    prepare_assignment_round_input,
     read_work_pull_request_number,
 )
 from dreamcatcher.scheduler.faults import is_last_round_unfinished
@@ -43,6 +38,8 @@ from dreamcatcher.scheduler.models import (
     StartTimeFinding,
 )
 from dreamcatcher.scheduler.pull_requests import (
+    PullRequestActivity,
+    PullRequestReader,
     ask_start_time_questions,
     read_pull_request_activity,
 )
@@ -75,7 +72,11 @@ def _inspect_pull_request(
     *, context: SchedulingContext, work: AgentWork, pull_request: int
 ) -> Inspection:
     activity = read_pull_request_activity(
-        context=context, work=work, pull_request=pull_request
+        context=context,
+        work=work,
+        read=read_pull_request(
+            repository=context.repository, pull_request=pull_request
+        ),
     )
     if isinstance(activity, ReadFailureFinding):
         return Inspection(row=compose_open_work_row(work=work, finding=activity))
@@ -89,16 +90,17 @@ def _inspect_pull_request(
             compose_round=partial(
                 _compose_relay_round,
                 context=context,
-                pull_request=activity.pull_request,
-                posts=activity.posts,
-                pull_request_signals=activity.finding.new_pull_request_signals,
+                activity=activity,
             ),
         ),
     )
 
 
 def create_assignment_request_inspector(
-    *, context: SchedulingContext, all_work: Sequence[AgentWork]
+    *,
+    context: SchedulingContext,
+    all_work: Sequence[AgentWork],
+    read_campaign_pull_request: PullRequestReader,
 ) -> RequestInspector:
     """Inspect new assignments using the campaign history and reads of one tick."""
     campaigns = {
@@ -112,7 +114,12 @@ def create_assignment_request_inspector(
         )
     }
     find_campaign_base = cache(
-        partial(_find_campaign_base, context=context, campaigns=campaigns)
+        partial(
+            _find_campaign_base,
+            context=context,
+            campaigns=campaigns,
+            read_campaign_pull_request=read_campaign_pull_request,
+        )
     )
 
     def inspect_assignment_request(
@@ -153,6 +160,7 @@ def _find_campaign_base(
     *,
     context: SchedulingContext,
     campaigns: dict[int, AgentWork],
+    read_campaign_pull_request: PullRequestReader,
     parent: int,
 ) -> str | CampaignPullRequestUnavailableFinding | ReadFailureFinding | None:
     campaign = campaigns.get(parent)
@@ -170,9 +178,7 @@ def _find_campaign_base(
         campaign.ending is None
         or campaign.ending.reason is AgentWorkEndReason.CANCELLED
     ) and ((number := read_work_pull_request_number(work=campaign)) is not None):
-        pull_request = read_pull_request(
-            repository=context.repository, pull_request=number
-        )
+        pull_request = read_campaign_pull_request(pull_request=number)
         if isinstance(pull_request, UnknownGitHubResponse):
             return ReadFailureFinding(reason=pull_request.reason)
         if pull_request.state is PullRequestState.OPEN:
@@ -185,55 +191,34 @@ def _compose_opening_round(*, context: SchedulingContext, work: AgentWork) -> Ro
 
     The round has no input, so its prompt is the agent's instructions alone.
     """
+
+    def prepare_round() -> None:
+        open_work_pull_request(
+            state=context.state, repository=context.repository, work=work
+        )
+
     return RoundPlan(
-        prepare_round=partial(
-            open_work_pull_request,
-            state=context.state,
-            repository=context.repository,
-            assignment=work,
-        ),
+        prepare_round=prepare_round,
         input_prompt=None,
         finish_round=None,
     )
 
 
 def _compose_relay_round(
-    *,
-    context: SchedulingContext,
-    pull_request: PullRequest,
-    posts: Sequence[UserPost],
-    pull_request_signals: Sequence[PullRequestSignal],
-    work: AgentWork,
+    *, context: SchedulingContext, activity: PullRequestActivity, work: AgentWork
 ) -> RoundPlan:
-    """Return the plan of a round given the pull request, its signals and posts.
-
-    A round given a merged or closed pull request is the wrap-up round, and it
-    records that the assignment completed as it finishes.
-    """
+    """Return the plan of an assignment round given the pull request channel."""
     return RoundPlan(
-        prepare_round=partial(
-            prepare_assignment_round_input,
-            repository=context.repository,
-            assignment=work,
-            pull_request=pull_request,
-            signals=pull_request_signals,
-            posts=posts,
-        ),
+        prepare_round=partial(activity.prepare_round, context=context, work=work),
         input_prompt=compose_assignment_input_prompt(
-            pull_request=pull_request.number,
+            pull_request=activity.pull_request.number,
             round_input=work.compose_round_paths(
                 number=work.next_round_number
             ).round_input,
-            pull_request_signals=pull_request_signals,
+            pull_request_signals=activity.finding.new_pull_request_signals,
             is_previous_round_unfinished=is_last_round_unfinished(
                 rounds=work.rounds, is_daemon_running=True
             ),
         ),
-        finish_round=(
-            None
-            if pull_request.state is PullRequestState.OPEN
-            else partial(
-                complete_pull_request_work, assignment=work, clock=context.clock
-            )
-        ),
+        finish_round=activity.compose_finisher(context=context, work=work),
     )

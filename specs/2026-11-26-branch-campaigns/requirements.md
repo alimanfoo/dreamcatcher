@@ -48,9 +48,9 @@ lead never adds sub-issues.
 This changes these stories in `docs/stories.md`:
 
 - the campaign stories: "The user starts a campaign on a parent issue",
-  "The user talks to the lead on the parent issue", "The user queues one
-  campaign behind another", and "The user pauses a campaign by removing
-  its label", which goes;
+  "The user talks to the lead on the campaign's pull request", "The user
+  queues one campaign behind another", and "The parent changes while a
+  campaign is open";
 - the campaign card's first row in "The user comes back to see what
   needs them", which says a campaign has no pull request;
 - the campaign parts of "The user renames a dispatch label", "Two labels

@@ -21,6 +21,7 @@ from conftest import (
     extract_page_card,
 )
 from records import (
+    HEAD,
     MERGED_INPUT,
     SCOUT_ROUTES,
     SMITH_ROUTES,
@@ -71,7 +72,7 @@ from dreamcatcher.daemon_runs import RecordedRoute
 from dreamcatcher.documents import append_text, write_text
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import FeedLine
-from dreamcatcher.github import IssueState
+from dreamcatcher.github import IssueState, PullRequestState
 from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.pull_request_work import (
     cancel_pull_request_work,
@@ -260,7 +261,10 @@ def test_a_lead_rounds_trigger_links_each_sub_issue_it_names(tmp_path):
         number=2,
         record=compose_ended_round(minute=5, number=2),
         round_input=CampaignRoundInput(
-            issue=60,
+            pull_request=90,
+            pull_request_state=PullRequestState.OPEN,
+            pull_request_head=HEAD,
+            signals=[],
             children=CAMPAIGN_CHILDREN,
             notifications=[
                 CampaignChildNotification(
@@ -274,9 +278,7 @@ def test_a_lead_rounds_trigger_links_each_sub_issue_it_names(tmp_path):
                     issue=68, changes=[CampaignChildChange.REMOVED]
                 ),
             ],
-            comments=[],
-            cursor=None,
-            revision="abc123",
+            user_posts=[],
             assignment_routes=[],
         ),
     )
@@ -780,9 +782,7 @@ def test_an_assignment_cancel_that_a_completion_beats_changes_nothing(
     def find_then_complete(*, state, identifier):
         work = find_work(state=state, identifier=identifier)
         assert work is not None
-        complete_pull_request_work(
-            assignment=work, clock=lambda: PINNED, final_output=None
-        )
+        complete_pull_request_work(work=work, clock=lambda: PINNED, final_output=None)
         return work
 
     monkeypatch.setattr(web_app_module, "find_agent_work", find_then_complete)
@@ -1145,7 +1145,7 @@ def test_ended_assignments_are_ordered_by_when_they_ended(tmp_path):
 ENDED_WORK = [
     (fabricate_everything, "GH12-20260819-184158-assignment", "completed"),
     (fabricate_everything, "GH70-20260819-184158-assignment", "cancelled"),
-    (fabricate_campaign_report, "GH61-20260819-184158-campaign", "ended"),
+    (fabricate_campaign_report, "GH61-20260819-184158-campaign", "completed"),
 ]
 
 

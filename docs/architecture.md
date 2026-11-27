@@ -86,19 +86,19 @@ Each kind's module, `assignments.py`, `campaigns.py` or
 `conversations.py`, supplies only what differs by kind: how it inspects
 the channel of open work, how it decides whether a request with no open
 work may start, and how it composes a round's plan. `issue_work.py`
-holds what conversations and campaigns share: the lifetime rules, by
-which a closed issue ends the work once no round of it runs and the
-issue's labels and assignee, and then who applied its label, decide
-whether it is held back, and the read of the eligible comments past the
-work's cursor. `blockers.py` holds the read of the open issues that
-block an issue, which assignment and campaign requests share.
-`labelling.py` holds the rule that work starts or resumes only on a
-dispatch label that the signed-in account applied, which every kind's
-requests and open conversations and campaigns share. `inspection.py`
-holds the scheduling context, the dispatch request, the candidate, the
-round plan and the inspection of one request. `models.py` holds the
-scheduler record and its request rows, and `faults.py` the fault and
-cooldown rules.
+holds the conversation's lifetime rules and reads eligible comments. A
+closed issue ends the conversation after any running round finishes. The
+labels, assignee and label applier decide whether it is held.
+`scheduler/pull_requests.py` holds the start-time questions and the pull
+request activity that can wake assignments and campaigns. `blockers.py`
+holds the read of the open issues that block an issue, which assignment
+and campaign requests share. `labelling.py` holds the rule that work
+starts or resumes only on a dispatch label that the signed-in account
+applied, which every kind's requests and open conversations share.
+`inspection.py` holds the scheduling context, the dispatch request, the
+candidate, the round plan and the inspection of one request. `models.py`
+holds the scheduler record and its request rows, and `faults.py` the
+fault and cooldown rules.
 
 One scheduler tick:
 
@@ -110,26 +110,21 @@ One scheduler tick:
 3. inspects the assignments and conversations in a first pass, and the
    campaigns in a second pass, so that a campaign can use what the first
    pass found;
-4. in each pass, inspects each piece of open work's channel first: an
+4. in each pass, inspects open work's channel first. It reads an
    assignment's pull request and user posts, a conversation's issue and
-   then its comments, or a campaign's parent issue and then its
-   comments, ending a conversation or campaign if its issue is closed
-   and no round of it is running, and otherwise asking who applied its
-   label before it reads the comments, unless a round of it is running
-   or something else holds it back;
-5. then, for each request of the pass's kinds with no open work, skips
-   an assignment label whose issue already has an open assignment,
-   checks for a routing conflict, and reads who applied the label and
-   when. For an assignment or campaign, it holds the request if the
-   label was applied at or before the latest GitHub application time
-   recorded by work of that kind on the issue, including ended work.
-   Otherwise it asks an assignment request the start-time questions and
-   checks its parent when neither a claim nor a blocker holds it, reads
-   the comments of a conversation's issue, or asks which open issues
-   block a campaign's parent and, when none does, reads the parent's
-   comments;
-6. removes the worktree, and an assignment's local branch, of each piece
-   of work that it sees end, unless the user cancelled it;
+   eligible comments, or a campaign's pull request and user posts with
+   the sub-issue observations from the first pass. The conversation's
+   issue and label decide whether it has ended or is held;
+5. inspects requests that no open work of the kind answers. It checks
+   for a routing conflict and reads who applied the label and when. For
+   assignments and campaigns, an application at or before the latest
+   recorded GitHub application time for that kind on the issue is
+   already consumed. Then a conversation request reads eligible
+   comments, and assignment and campaign requests read claims and
+   blockers. A clear assignment request checks the parent to select its
+   base. A clear campaign request observes the parent's sub-issues;
+6. removes the worktree of each piece of work that it sees end, and also
+   the local branch for pull request work. Cancelled work keeps both;
 7. starts a global cooldown when the counted faults call for one, and
    launches nothing while a cooldown is active;
 8. launches candidates until the daemon run's requested capacity is full
@@ -153,12 +148,12 @@ assignment request inspector from all saved work, including ended
 campaigns. The inspector looks up the direct parent and considers only a
 parent in this repository. It uses the newest saved campaign by label
 application time. With no campaign on record, it reads the parent's
-labels if the daemon has a campaign route. It shares the answer for a
-parent across its sub-issues during the pass. A failed read leaves the
-base unknown and prevents a launch. An open or cancelled campaign
-supplies its branch while its pull request is open. A campaign's
-sub-issue with no available campaign pull request is held with a finding
-that names the parent.
+labels if the daemon has a campaign route. It shares the base decision
+across the parent's sub-issues and the pull request observation with the
+campaign pass for the same tick. A failed read leaves the base unknown
+and prevents a launch. An open or cancelled campaign supplies its branch
+while its pull request is open. A campaign's sub-issue with no available
+campaign pull request is held with a finding that names the parent.
 
 Alternation advances when a kind is selected, including when its start
 fails, and begins afresh after a daemon restart.
@@ -197,25 +192,26 @@ removes nothing while the daemon still holds a round of the work, so a
 later tick sees that work end once it forgets the round. No other tick
 sees the work end, so a worktree or branch that Git will not remove is a
 scheduler failure that no later tick tries again. For the same reason,
-work that ended while no daemon ran keeps its worktree, and so does an
-assignment whose wrap-up round ended just before the daemon stopped.
+work that ended while no daemon ran keeps its worktree, and so does work
+whose wrap-up round ended just before the daemon stopped.
 
 When the tick selects a request, it writes the work record and starts
 the first round in the same scheduling action. The record comes first,
 before any Git or GitHub step, so the work exists however the round
-goes. An assignment without a recorded pull request number is due a
+goes. Pull request work without a recorded pull request number is due a
 round that opens it, unless its last round is running or it is in fault.
 This does not create a separate class of normally scheduled work.
 
-Every new round is given what is past its work's cursor. An assignment
-round's input holds the pull request state and head commit, the pull
-request signals raised at a head not yet relayed, and the user posts
-past the cursor, and a conversation round's input holds the eligible
-comments past it. The cursor, the head at which each pull request signal
-was last relayed, whether the relay rule withholds a check-failure, and
-whether a wrap-up round has been given the finished pull request are
-read from the inputs of the rounds that consumed their input or are
-running, so a round that did not finish has its input given again.
+Every new round is given what is past its work's cursor. A pull request
+round's input holds the pull request number, state and head commit, the
+pull request signals raised at a head not yet relayed, and the user
+posts past the cursor, and a conversation round's input holds the
+eligible comments past it. The cursor, the head at which each pull
+request signal was last relayed, whether the relay rule withholds a
+check-failure, and whether a wrap-up round has been given the finished
+pull request are read from the inputs of the rounds that consumed their
+input or are running, so a round that did not finish has its input given
+again.
 
 Scheduling should expose pure, read-only functions for interpretations
 that status reporting also needs, particularly whether agent work is in
@@ -285,25 +281,20 @@ directory, so the command line never carries the checkout's own path.
 
 ### Campaigns
 
-`campaigns.py` owns a campaign round's input and the comparison of the
-sub-issues. Creating and ending a campaign go through `agent_work.py`,
-and creating one writes its work record and nothing else. Each round's
-preparation resets the detached worktree to the fetched default branch,
-adding it when it is missing, and freezes the parent issue, the
-sub-issues that the round's tick observed, the notifications that the
-tick selected, the eligible comments past the cursor, the cursor that
-the input reaches, that revision and the running daemon's assignment
-routes with their recipes. A round given no new comment carries forward
-the cursor of the newest input delivered to the lead, so that input
-alone always says how far the lead has read and which sub-issues it was
-last given. A campaign's worktree never acquires a branch or a pull
-request.
+`campaigns.py` owns a lead round's input and the comparison of the
+sub-issues. Once the work record exists, the opening round opens the
+campaign's draft pull request through `pull_request_work.py`. It cuts
+the campaign branch from the default branch and uses GitHub's closing
+keyword for the parent. The campaign keeps this worktree on its branch
+across rounds. The opening input carries the new pull request number,
+its initial state and the head of the worktree that was pushed, along
+with the sub-issues and assignment routes.
 
-After the label checks clear a campaign request, the tick lists the open
-issues that block the parent. An open blocker or a failed read of the
-blockers holds the request, so the tick observes no sub-issues and reads
-no comments for it. An open campaign reads no blockers, so a blocker
-added after the campaign starts changes nothing for it.
+`scheduler/campaigns.py` asks the shared start-time questions after the
+label checks clear a campaign request. A claim, a blocker or a failed
+read holds the request before any sub-issues are observed. Once the
+campaign exists, the parent supplies the sub-issue list and the pull
+request drives the campaign's rounds.
 
 Each tick then observes a campaign's sub-issues, for an open campaign
 and for a campaign request that nothing blocks. It lists the parent's
@@ -327,27 +318,18 @@ assignment or assignment request, or when the listing failed and a
 sub-issue has no open assignment. A failed observation holds no partial
 picture.
 
-The tick then reads an open campaign's parent issue, as it reads a
-conversation's issue, and decides from it, and from who applied its
-label, whether the campaign is held back or has ended. A campaign that
-nothing holds back and that is not in fault then reads its newest
-delivered input and the parent's eligible comments past that input's
-cursor, unless its sub-issues could not be observed, which starts no
-round and records the failure. `compare_campaign_children` in
-`campaigns.py` then compares the observed sub-issues with those of the
-newest delivered input, and returns a `CampaignChildNotification` for
-each sub-issue whose changes call for the lead. It is a pure function,
-which reads no file and calls neither GitHub nor a harness, so the
-scheduler decides what to launch and the comparison only says what
-changed. A round is due when a comment waits, when a notification does,
-when no round has run yet, or when the last round errored or was
-interrupted. A stopped round consumed its input, so after one the lead
-waits for new input. Nothing keeps the notifications between ticks: each
-tick compares afresh, and only a round that starts records them, in its
-input. The lead's next round resumes its harness session.
+For an open campaign with a complete sub-issue observation, the tick
+reads its pull request activity through `scheduler/pull_requests.py`.
+`compare_campaign_children` compares the current sub-issues with the
+newest picture delivered to the lead, and names the changes that warrant
+a notification. Pull request activity, an unfinished round or a
+sub-issue notification can make a round due. A campaign in fault still
+shows the sub-issues the tick can observe. An incomplete observation
+prevents a round. The tick compares sub-issues each time, and records
+the notifications only in the input of a round that starts.
 
-The lead publishes its own messages, so a campaign's round plan has no
-finishing step, and its final output stays in the feed. Claude's
+The lead publishes its own messages, and its final output stays in the
+feed. The shared wrap-up finisher records a completed campaign. Claude's
 campaign permissions let the lead coordinate through GitHub and verify
 work without implementing it: Claude allows selected `gh issue` and
 `gh pr` commands, `gh run view`, `gh api`, `git fetch`, `git checkout`
@@ -367,24 +349,12 @@ to the assignment's agent as a user post, so the lead reaches an
 assignment's agent through the same channel as the user, and no campaign
 code relays it.
 
-### Agent assignments
+### Pull request work
 
-`pull_request_work.py` owns what pull request work records and does.
-Currently only assignments use it. It provides cohesive operations to:
-
-- open the assignment's pull request, as the preparation of a round
-  whose assignment has none, finding or creating the pull request on the
-  branch;
-- name the assignment's branch from its identifier;
-- read its pull request number;
-- read the cursor, the pull request state last relayed, the head at
-  which each pull request signal was last relayed, whether the relay
-  rule withholds, and whether a wrap-up round has been given the
-  finished pull request, from recorded round inputs;
-- prepare the assignment's round input and complete the assignment as
-  its wrap-up round finishes;
-- cancel an assignment; and
-- remove an ended assignment's worktree and then its local branch.
+`pull_request_work.py` names the branch, opens and records the pull
+request, prepares the shared round input, completes the work after
+wrap-up, and removes the worktree and local branch for assignments and
+campaigns. It also provides assignment cancellation.
 
 `agent_work.py` owns what every kind of agent work shares: the work
 record, the agent work identifier, creating work of any kind from its
@@ -395,40 +365,38 @@ identifier, when the user retries work after resolving a fault, and when
 and why the work ended. It removes an ended piece of work's worktree and
 keeps its records.
 
-Creating an assignment writes its work record and nothing else. The
-preparation step of a round whose assignment has no recorded pull
-request number coordinates lower-level Git, GitHub and document
-operations. It:
+Creating pull request work writes its work record. The preparation step
+of a round whose work has no recorded pull request number coordinates
+lower-level Git, GitHub and document operations. It:
 
-1. looks up a pull request on the assignment's branch and adopts it if
-   found, whatever its state;
+1. looks up a pull request on the work's branch and adopts it if found,
+   whatever its state;
 2. for a branch with no pull request, fetches the recorded base branch,
    or the current default branch when the record leaves the base empty;
-3. adds the assignment's worktree on its branch, unless it is already
-   there;
+3. adds the work's worktree on its branch, unless it is already there;
 4. makes an empty commit if the branch has no commits beyond its base,
    then pushes the branch;
 5. opens a draft pull request into the fetched base branch; and
 6. writes the pull request's number to `pull-request.json`.
 
 Adoption works even after the original base branch is gone. A worktree
-that cannot be added is removed with its branch. The assignment
-identifier names the branch and worktree, so a round that follows a
-failed one finds what the earlier attempt made and never makes a second
-branch or pull request.
+that cannot be added is removed with its branch. The work identifier
+names the branch and worktree, so a round that follows a failed one
+finds what the earlier attempt made and never makes a second branch or
+pull request.
 
-For an open assignment whose pull request merged and whose record names
-a base other than the default, preparation closes the issue as completed
-before it builds the wrap-up input. The closing comment names the pull
-request and carries the agent marker. GitHub failures during closure
-error the round during preparation. A retry leaves a closed issue alone
-and reuses a closing comment already posted for that merge. A wrap-up
-round records the assignment's ending with the reason "completed" in its
-finishing step, after its harness exits successfully.
+For open work whose pull request merged and whose record names a base
+other than the default, preparation closes the issue as completed before
+it builds the wrap-up input. The closing comment names the pull request
+and carries the agent marker. GitHub failures during closure error the
+round during preparation. A retry leaves a closed issue alone and reuses
+a closing comment already posted for that merge. A wrap-up round records
+the work's ending with the reason "completed" in its finishing step,
+after its harness exits successfully.
 
-`pull_request_work.py` also models what a tick observed of an
-assignment's pull request. The scheduler's pull request finding extends
-that model, and a campaign holds it for each sub-issue's assignment.
+`pull_request_work.py` also models what a tick observed of a pull
+request. The scheduler's pull request finding extends that model, and a
+campaign holds it for each sub-issue's assignment.
 
 The pull request work module coordinates the workflow but does not
 implement Git commands, parse GitHub responses, launch harnesses, or
@@ -468,19 +436,17 @@ building it cannot fail. It should then provide operations to:
   as interrupted once that daemon has gone, for scheduling and status
   alike, without claiming that its harness has exited.
 
-`pull_request_work.py` owns `AssignmentRoundInput`, the pull request
-state and head commit, the relayed pull request signals and the relayed
-user posts that an assignment round receives beside its prompt once its
-pull request exists. `issue_conversations.py` owns
-`ConversationRoundInput`, which freezes the issue, eligible comments and
-investigated revision for a conversation round, and `campaigns.py` owns
-`CampaignRoundInput`, which freezes the parent issue, sub-issues,
-notifications, eligible comments, cursor, revision and assignment routes
-for a campaign round. The round runner writes whichever input the
-preparation returns without reading it, and it hands the final output to
-the finishing step without knowing what that step does with it. The
-round module therefore stays clear of Git and GitHub, and each kind's
-own module owns what its steps write.
+`pull_request_work.py` owns `PullRequestRoundInput`, the pull request
+number, state and head commit, the relayed signals and the user posts.
+`issue_conversations.py` owns `ConversationRoundInput`, which freezes
+the issue, eligible comments and investigated revision for a
+conversation round. `campaigns.py` owns `CampaignRoundInput`, which
+extends the pull request input with sub-issues, notifications and
+assignment routes for a campaign round. The round runner writes
+whichever input the preparation returns without reading it, and it hands
+the final output to the finishing step without knowing what that step
+does with it. The round module therefore stays clear of Git and GitHub,
+and each kind's own module owns what its steps write.
 
 The scheduler decides the input and the prompt a new round has. The
 round boundary executes and records that decision; it does not inspect
@@ -527,22 +493,15 @@ a post and for an assignee of an issue.
 
 ### Relay
 
-`relay.py` owns what is past a piece of agent work's cursor in its
-channel, for every kind of agent work. For an assignment it selects the
-user posts past the cursor, oldest first, by comparing normalized user
-posts from the GitHub boundary with the assignment's cursor, read from
-the newest input that contains posts among the rounds that consumed
-their input or are running. It raises the pull request signals of a pull
-request that is open and ready for review, each at a head other than the
-one at which it was last relayed, and leaves out a check-failure that
-the relay rule withholds. For a conversation or a campaign it selects
-the eligible issue comments past the work's cursor, oldest first, and it
-owns `IssueCommentCursor`, which marks a position in an issue's
-comments. One rule decides, for every channel, which posts are the
-user's to relay. Each kind's own module reads its cursor from the round
-inputs that it owns: a conversation's is its newest relayed comment, and
-a campaign's is the cursor that its newest delivered input records, read
-once with the sub-issues that the comparison needs.
+`relay.py` owns what is past a piece of agent work's cursor. For pull
+request work it selects user posts oldest first and raises pull request
+signals for a head where they have yet to be relayed, under the relay
+rule. It validates each recorded input against the work kind's full
+model and uses the shared fields for the post cursor, signal memory and
+wrap-up. For a conversation it selects eligible issue comments oldest
+first and owns `IssueCommentCursor`, which marks a position in issue
+comments. One eligibility rule selects user posts in both channel
+shapes.
 
 Relay does not define a separate inbox domain entity and does not decide
 when a round should run. The scheduler determines whether posts,
@@ -618,51 +577,45 @@ saw. A row names the issue, its title, the dispatch label, the kind, and
 the identifier of the open agent work, if any, with that work's latest
 round when it had ended as the tick read the work, and the issue's state
 when the tick read the issue: the listing reads it for every request,
-and the tick reads it again for an open conversation or campaign. It
-holds what the tick found as a typed finding:
+and the tick reads it again for an open conversation. It holds what the
+tick found as a typed finding:
 
-- for an assignment whose pull request the tick read, the pull request's
-  number, state, draft flag, merge state, head and check result, whether
-  any check still runs, the count of user posts and the pull request
-  signals past the cursor, and whether the relay rule withheld a
-  check-failure;
+- for work whose pull request the tick read, the pull request's number,
+  state, draft flag, merge state, head and check result, whether any
+  check still runs, the count of user posts and the pull request signals
+  past the cursor, and whether the relay rule withheld a check-failure.
+  A campaign finding also counts sub-issues with notifications;
 - for a conversation whose comments the tick read, the count of comments
   past the cursor;
-- for a campaign request, or an open campaign whose parent lets the lead
-  take a round, the count of the parent's comments past the cursor and
-  the count of sub-issues with a notification;
-- for an assignment request with no open work, the open linked pull
-  requests, as numbers, and the open blocking issues, each as a number
-  with its repository when that is another one;
-- for a campaign request whose parent an open issue blocks, those
-  blocking issues in the same form;
-- for a request or an open conversation or campaign whose issue carries
-  two labels of its kind, those labels;
-- for a request, or an open conversation or campaign, whose label an
-  account other than the signed-in one applied, that account;
+- for an assignment or campaign request with no open work, the open
+  linked pull requests, as numbers, and the open blocking issues, each
+  as a number with its repository when that is another one;
+- for a request or an open conversation whose issue carries two labels
+  of its kind, those labels;
+- for a request, or an open conversation, whose label an account other
+  than the signed-in one applied, that account;
 - for an assignment or campaign request already consumed by earlier
   work, a consumed request finding;
-- for a conversation or campaign that the user paused, the cause;
+- for a conversation that the user paused, the cause;
 - for a read that failed, the reason, in place of what it would have
   found.
 
 A row has no finding when the tick found nothing to record for it, as
-for an assignment in fault, a conversation or campaign in fault that
-nothing holds back, a conversation or campaign whose issue it found
-closed, or an assignment whose pull request no round has opened yet. A
-running round does not prevent the tick from recording a finding, but it
-prevents the finding from making the work a candidate for another round.
-A row also names the round the tick started for it and, when that round
-errored during its preparation or startup, the reason. Apart from those
-reasons for a failure, no row holds a sentence meant for a person.
-Status composes the words from these values once, and keeps the issue
-and pull request numbers as numbers, so both presentations link them and
-neither parses text.
+for pull request work in fault or with no pull request yet, or for a
+conversation in fault or whose issue is closed. A running round does not
+prevent the tick from recording a finding, but it prevents the finding
+from making the work a candidate for another round. A row also names the
+round the tick started for it and, when that round errored during its
+preparation or startup, the reason. Apart from those reasons for a
+failure, no row holds a sentence meant for a person. Status composes the
+words from these values once, and keeps the issue and pull request
+numbers as numbers, so both presentations link them and neither parses
+text.
 
 A campaign's row also holds the parent's sub-issues as the tick observed
-them, beside its finding, so they stay current while the lead is held or
-in fault. The row omits the sub-issues when the tick skips observation
-or cannot observe them all. Status gives an active campaign those
+them, beside its finding, so they stay current while the lead is in
+fault. The row omits the sub-issues when the tick skips observation or
+cannot observe them all. Status gives an active campaign those
 sub-issues and the words that count its closed sub-issues out of the
 total, or says that its sub-issues are unknown. The status report gives
 each sub-issue the status of its newest local assignment, so a new
@@ -912,16 +865,16 @@ it again. The same record serves every kind of agent work. It persists:
 - the work's instructions, which are the recipe's prompt with the issue
   filled in.
 
-An assignment's branch is named from its identifier, and its pull
-request number is in `pull-request.json`.
+The branch of pull request work is named from its identifier, and its
+pull request number is in `pull-request.json`.
 
 Every fact that changes later has a file of its own beside the record.
 Each write replaces that file whole and merges nothing into it, so the
 daemon, the web interface and a command can each record a fact at the
 same moment without erasing another's. These files persist:
 
-- for an assignment, once the round that opens its pull request has done
-  so, that pull request's number, written once;
+- for pull request work, once the round that opens its pull request has
+  done so, that pull request's number, written once;
 - the harness session identifier, once known;
 - the time of the user's latest retry request, when one has been made;
 - the time and the reason the work ended, once it has ended.
@@ -942,9 +895,9 @@ read. An absent status means the round's preparation or startup failed
 and no exit status was recorded, a nonzero status means its harness
 failed, and a zero status means its finishing step failed.
 
-An assignment round input that carries user posts puts the cursor at its
-newest post, and one that carries a pull request signal records the head
-at which it was relayed. The assignment reads the cursor by scanning the
+A pull request round input that carries user posts puts the cursor at
+its newest post, and one that carries a pull request signal records the
+head at which it was relayed. The relay reads the cursor by scanning the
 recorded inputs of its rounds that consumed their input or are running,
 from newest to oldest. What woke a round is read from its input rather
 than recorded.
@@ -954,13 +907,10 @@ request each have a file of their own beside its record, as an
 assignment's do. Its route and recipe stay frozen for its life. Each
 round input persists its investigated revision and the eligible comments
 it relays; the input of a round that starts a new harness session also
-persists the issue title and body. A campaign's round input persists the
-parent issue, its sub-issues and the notifications about them, the
-eligible comments it relays, the cursor it reaches, the revision it was
-given and the assignment routes. Both models refuse comments out of the
-order that the relay gives them, oldest first and each once, and a
-conversation's refuses an input that relays none, so every reader in
-scheduling and in status refuses such an input by the same rule.
+persists the issue title and body. A conversation's input requires some
+eligible comments, oldest first and each once. A campaign's input adds
+the sub-issues, their notifications and the assignment routes to its
+pull request round input.
 
 Instance records persist the repository identity and the most recent
 daemon run's start time, preferred harness, _dreamcatcher_ version,

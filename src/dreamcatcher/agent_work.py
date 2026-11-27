@@ -157,17 +157,17 @@ class AgentWork:
     def answers_request(self, *, issue: int, kind: AgentWorkKind, label: str) -> bool:
         """Return whether this work answers the request of a label at an issue.
 
-        Open work answers the request it came from. An open assignment also
-        answers every assignment label on its issue, since an issue has at most
-        one, while a conversation or a campaign answers only its own label.
-        Ended work answers nothing.
+        Open pull request work answers every label of its kind on its issue.
+        An open conversation answers only its own label. Ended work answers
+        nothing.
         """
-        if not self.is_open or issue != self.record.issue:
-            return False
         if (
-            kind is AgentWorkKind.ASSIGNMENT
-            and self.record.kind is AgentWorkKind.ASSIGNMENT
+            not self.is_open
+            or issue != self.record.issue
+            or kind is not self.record.kind
         ):
+            return False
+        if kind.is_pull_request_work:
             return True
         return identify_label(name=label) == identify_label(
             name=self.record.dispatch_label

@@ -44,7 +44,7 @@ from records import (
 )
 from rows import UNCLAIMED, compose_open_assignment_row, compose_request_row
 
-import dreamcatcher.scheduler.assignments as assignment_scheduling
+import dreamcatcher.scheduler.pull_requests as pull_request_scheduling
 from dreamcatcher.agent_rounds import (
     AgentRoundRecord,
     ErroredAgentRoundEnding,
@@ -74,9 +74,9 @@ from dreamcatcher.github import CheckResult, PullRequestMergeState, PullRequestS
 from dreamcatcher.pull_request_work import (
     cancel_pull_request_work,
     compose_work_branch,
-    read_user_post_cursor,
     read_work_pull_request_number,
 )
+from dreamcatcher.relay import read_user_post_cursor
 from dreamcatcher.scheduler import Scheduler, SchedulingContext
 from dreamcatcher.scheduler.faults import (
     derive_agent_work_fault,
@@ -1204,7 +1204,7 @@ def test_a_terminal_round_after_an_error_without_a_session_receives_wrap_up_inpu
     assert round_input["pull_request_state"] == PullRequestState.MERGED
     assert "--resume" not in harnesses["claude"].calls[-1].arguments
     assignment = read_assignments(state=scheduler.context.state)[0]
-    assert read_user_post_cursor(assignment=assignment) == POSTED_AT
+    assert read_user_post_cursor(work=assignment) == POSTED_AT
 
 
 def test_a_round_after_an_errored_one_is_given_its_posts_again(
@@ -1227,7 +1227,7 @@ def test_a_round_after_an_errored_one_is_given_its_posts_again(
     scheduler.tick(at=clock())
     finish_rounds(scheduler=scheduler)
     assignment = read_assignments(state=scheduler.context.state)[0]
-    assert read_user_post_cursor(assignment=assignment) == ""
+    assert read_user_post_cursor(work=assignment) == ""
     ending = assignment.rounds[-1].ending
     assert isinstance(ending, ErroredAgentRoundEnding)
     request_agent_work_retry(work=assignment, at=ending.at + timedelta(seconds=1))
@@ -1264,6 +1264,7 @@ def test_a_round_after_an_interrupted_one_is_given_the_input_again(assigned_chec
     assert json.loads(
         read_round_file(scheduler=scheduler, number=2, name="round-input.json")
     ) == {
+        "pull_request": PULL_REQUEST,
         "pull_request_state": "OPEN",
         "pull_request_head": HEAD,
         "signals": [],
@@ -1398,6 +1399,7 @@ def test_a_pull_request_that_is_finished_gets_one_last_round(
     assert json.loads(
         read_round_file(scheduler=scheduler, number=2, name="round-input.json")
     ) == {
+        "pull_request": PULL_REQUEST,
         "pull_request_state": state_name,
         "pull_request_head": HEAD,
         "signals": [],
@@ -1536,17 +1538,15 @@ def test_a_wrap_up_round_that_finishes_after_a_cancel_leaves_the_worktree_alone(
     )
     gh.replies(stdout=compose_pull_request(state="MERGED"), to="pr view")
     scheduler, clock = create_scheduler(root=assigned_checkout)
-    complete_pull_request_work = assignment_scheduling.complete_pull_request_work
+    complete_pull_request_work = pull_request_scheduling.complete_pull_request_work
 
-    def cancel_then_complete(*, assignment, clock, final_output):
+    def cancel_then_complete(*, work, clock, final_output):
         [read_now] = read_assignments(state=scheduler.context.state)
         cancel_pull_request_work(assignment=read_now, at=clock())
-        complete_pull_request_work(
-            assignment=assignment, clock=clock, final_output=final_output
-        )
+        complete_pull_request_work(work=work, clock=clock, final_output=final_output)
 
     monkeypatch.setattr(
-        assignment_scheduling, "complete_pull_request_work", cancel_then_complete
+        pull_request_scheduling, "complete_pull_request_work", cancel_then_complete
     )
     scheduler.tick(at=clock())
     finish_rounds(scheduler=scheduler)
