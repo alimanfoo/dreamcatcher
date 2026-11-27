@@ -23,7 +23,7 @@ from dreamcatcher.relay import (
     find_pull_request_signals,
     is_wrap_up_relayed,
     list_user_posts_past_cursor,
-    read_user_post_cursor,
+    read_pull_request_post_cursor,
 )
 from dreamcatcher.scheduler.blockers import list_open_blocking_issues
 from dreamcatcher.scheduler.faults import is_last_round_unfinished
@@ -96,7 +96,7 @@ def read_pull_request_activity(
         repository=context.repository,
         pull_request=read.number,
         account=context.account,
-        cursor=read_user_post_cursor(work=work),
+        cursor=read_pull_request_post_cursor(work=work),
     )
     if isinstance(posts, UnknownGitHubResponse):
         return ReadFailureFinding(reason=posts.reason)

@@ -86,7 +86,7 @@ class ConflictingLabelsFinding(DreamcatcherDocument):
 
 
 class PauseCause(StrEnum):
-    """The ways that the user pauses a conversation or a campaign.
+    """The ways that the user pauses a conversation.
 
     The tick checks them in this order. Two other causes hold the work back
     without pausing it, and the tick checks them after these: a second label of

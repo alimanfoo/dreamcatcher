@@ -1,12 +1,12 @@
 # Compatibility and upgrades
 
-The next release uses state format 9. All v9 releases use state format
-8, and saved work carries across between them. v7.0.0 and v8.0.0 used
-state format 7, v6.0.0 through v6.3.0 used state format 6, v5.0.0
-through v5.6.2 used state format 5, and v4.0.0 used state format 4.
-Saved work does not carry across from one format to the next.
+v10.0.0 uses state format 9. Every v9 release used state format 8.
+v7.0.0 and v8.0.0 used state format 7, v6.0.0 through v6.3.0 used state
+format 6, v5.0.0 through v5.6.2 used state format 5, and v4.0.0 used
+state format 4. Saved work does not carry across from one format to the
+next.
 
-## Upgrade from v9 to state format 9
+## Upgrade from v9 to v10.0.0
 
 Before upgrading, let ongoing assignments and campaigns finish, or
 choose which of their pull requests you'll finish by hand, including
@@ -234,8 +234,8 @@ same.
 Version 2 changes the campaign skill contract. The lead coordinates on
 the campaign branch, uses the campaign's pull request for feedback and
 marks it ready for review when it judges every sub-issue done. See
-[Upgrade from v9 to state format 9](#upgrade-from-v9-to-state-format-9)
-for what to update before starting a campaign.
+[Upgrade from v9 to v10.0.0](#upgrade-from-v9-to-v1000) for what to
+update before starting a campaign.
 
 The contract number is an integer independent of the release and
 state-format versions. A change that requires an existing conforming

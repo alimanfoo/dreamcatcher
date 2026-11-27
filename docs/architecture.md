@@ -123,10 +123,10 @@ One scheduler tick:
    comments, and assignment and campaign requests read claims and
    blockers. A clear assignment request checks the parent to select its
    base. A clear campaign request observes the parent's sub-issues;
-6. removes the worktree of each piece of work that it sees end, and also
-   the local branch for pull request work. Cancelled work keeps both;
-7. starts a global cooldown when the counted faults call for one, and
+6. starts a global cooldown when the counted faults call for one, and
    launches nothing while a cooldown is active;
+7. removes the worktree of each piece of work that it sees end, and also
+   the local branch for pull request work. Cancelled work keeps both;
 8. launches candidates until the daemon run's requested capacity is full
    or no candidate remains, open work first in identifier order and then
    new requests in listing order, the kinds taking free slots in
@@ -198,8 +198,9 @@ When the tick selects a request, it writes the work record and starts
 the first round in the same scheduling action. The record comes first,
 before any Git or GitHub step, so the work exists however the round
 goes. Pull request work without a recorded pull request number is due a
-round that opens it, unless its last round is running or it is in fault.
-This does not create a separate class of normally scheduled work.
+round that opens it, unless its last round is running, it is in fault,
+or it is a campaign whose sub-issues could not all be read. This does
+not create a separate class of normally scheduled work.
 
 Every new round is given what is past its work's cursor. A pull request
 round's input holds the pull request number, state and head commit, the
@@ -388,13 +389,13 @@ lower-level Git, GitHub and document operations. It:
 
 Adoption works even after the original base branch is gone. A worktree
 that cannot be added is removed with its branch. The work identifier
-names the branch and worktree, so a round that follows a failed one
+names the branch and worktree, so a round that follows an errored one
 finds what the earlier attempt made and never makes a second branch or
 pull request.
 
 For open work whose pull request merged and whose record names a base
 other than the default, preparation closes the issue as completed before
-it builds the wrap-up input. The closing comment names the pull request
+the wrap-up input is written. The closing comment names the pull request
 and carries the agent marker. GitHub failures during closure error the
 round during preparation. A retry leaves a closed issue alone and reuses
 a closing comment already posted for that merge. A wrap-up round records
@@ -604,6 +605,8 @@ tick found as a typed finding:
   than the signed-in one applied, that account;
 - for an assignment or campaign request already consumed by earlier
   work, a consumed request finding;
+- for a request for a campaign's sub-issue whose parent has no campaign
+  pull request available, the parent;
 - for a conversation that the user paused, the cause;
 - for a read that failed, the reason, in place of what it would have
   found.

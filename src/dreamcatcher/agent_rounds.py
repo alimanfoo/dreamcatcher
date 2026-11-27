@@ -133,7 +133,7 @@ class HarnessSessionIdentifierRecorder(Protocol):
 class AgentRoundFinisher(Protocol):
     """Finish a successful round before its ending is recorded.
 
-    Raising a `ReportableError` fails the round, and the round notes why in its
+    Raising a `ReportableError` makes the round errored, and the round notes why in its
     feed.
     """
 
@@ -742,7 +742,7 @@ class AgentRound:
         """Return the ending that the harness's exit gives the round.
 
         A clean exit runs the finishing step first. A finishing step that raises
-        fails the round, and the feed says why too. A round with a forced ending
+        makes the round errored, and the feed says why too. A round with a forced ending
         is not finished, and that ending replaces the one returned here.
         """
         if status == 0 and self.finish_round is not None and self.forced_ending is None:

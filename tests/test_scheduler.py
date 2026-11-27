@@ -76,7 +76,7 @@ from dreamcatcher.pull_request_work import (
     compose_work_branch,
     read_work_pull_request_number,
 )
-from dreamcatcher.relay import PullRequestPostCursor, read_user_post_cursor
+from dreamcatcher.relay import PullRequestPostCursor, read_pull_request_post_cursor
 from dreamcatcher.scheduler import Scheduler, SchedulingContext
 from dreamcatcher.scheduler.faults import (
     derive_agent_work_fault,
@@ -1204,7 +1204,7 @@ def test_a_terminal_round_after_an_error_without_a_session_receives_wrap_up_inpu
     assert round_input["pull_request_state"] == PullRequestState.MERGED
     assert "--resume" not in harnesses["claude"].calls[-1].arguments
     assignment = read_assignments(state=scheduler.context.state)[0]
-    assert read_user_post_cursor(work=assignment) == PullRequestPostCursor(
+    assert read_pull_request_post_cursor(work=assignment) == PullRequestPostCursor(
         written_at=POSTED_AT, post_ids=frozenset({("comment", 1)})
     )
 
@@ -1229,7 +1229,7 @@ def test_a_round_after_an_errored_one_is_given_its_posts_again(
     scheduler.tick(at=clock())
     finish_rounds(scheduler=scheduler)
     assignment = read_assignments(state=scheduler.context.state)[0]
-    assert read_user_post_cursor(work=assignment) is None
+    assert read_pull_request_post_cursor(work=assignment) is None
     ending = assignment.rounds[-1].ending
     assert isinstance(ending, ErroredAgentRoundEnding)
     request_agent_work_retry(work=assignment, at=ending.at + timedelta(seconds=1))

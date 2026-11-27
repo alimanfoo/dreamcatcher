@@ -19,7 +19,7 @@ There are three kinds of agent work you can ask for:
 - An **agent assignment**, where an agent will implement an issue and
   take it to a pull request that is ready for you to review. The agent
   will answer your feedback, try to fix failing checks, and merge the
-  default branch when the assignment's branch conflicts with it, until
+  base branch in when the assignment's branch conflicts with it, until
   you merge or close the pull request.
 - A **campaign**, where an agent, the **lead**, will take on a parent
   issue whose work is planned as sub-issues. The lead will label each
