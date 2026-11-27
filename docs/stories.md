@@ -388,9 +388,10 @@ It merges the default branch in and resolves conflicts, or fixes the
 failing checks, and pushes to the campaign branch.
 
 If two consecutive attempts leave the checks failing on a new commit,
-the card says "checks failing after two attempts" and the lead waits for
-the user to decide what to do. Marking the pull request as a draft again
-returns the lead to coordinating on its next round.
+the lead waits for a user post, a sub-issue change or an out-of-date
+signal. While it is idle, the card says "checks failing after two
+attempts". Marking the pull request as a draft again returns the lead to
+coordinating on its next round.
 
 The user comes back to a pull request the lead has kept ready for
 review, or can see where it needs their help.

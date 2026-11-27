@@ -156,8 +156,9 @@ its checks.
    failing checks, and pushes to the campaign branch. That works however
    the repository lets pull requests merge, because the lead merges main
    by pushing.
-4. As with an assignment, the lead gets two attempts at a red build. If
-   two fixes in a row leave it red, it stops and leaves it to me.
+4. As with an assignment, the lead gets two consecutive attempts at a
+   red build. If the next commit still fails checks, the lead waits for
+   another trigger, such as a post from me.
 
 Outcome: the pull request stays mergeable however long it waits, and no
 "bring main in" work piles up as sub-issues.
