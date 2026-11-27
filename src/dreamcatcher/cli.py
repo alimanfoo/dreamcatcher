@@ -167,11 +167,10 @@ def _build_cli_parser() -> argparse.ArgumentParser:
         help="cancel an assignment or campaign to finish its pull request by hand",
         description=(
             "Cancel the selected assignment or campaign to finish its pull "
-            "request by hand. dreamcatcher asks a running round to "
-            "stop, runs no further rounds for that work, and treats its "
-            "open pull request as work outside dreamcatcher. The worktree and "
-            "branch stay in place. A cancel cannot be undone, and it does not "
-            "need the daemon to be running."
+            "request by hand. dreamcatcher asks a running round to stop and "
+            "starts no further rounds for that work. The pull request, worktree "
+            "and branch stay in place. A cancel cannot be undone and works "
+            "whether or not the daemon is running."
         ),
     )
     _add_agent_work_argument(parser=cancel_parser)
