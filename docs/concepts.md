@@ -81,9 +81,9 @@ Replaces: "session" on its own, for an agent assignment.
 
 ### Pull request
 
-The assignment's **pull request** is both the proposed change and the
-primary communication channel between the agent and the user. Its **base
-branch** is the branch the pull request goes into. The assignment's
+An assignment's or campaign's **pull request** is both the proposed
+change and the communication channel between the agent and the user. Its
+**base branch** is the branch the pull request goes into. The work's
 branch starts from that base. The work record holds the base branch when
 the request chooses one other than the repository's default. Otherwise,
 the opening round uses the default branch.
@@ -94,7 +94,9 @@ A **campaign** is _dreamcatcher_'s durable commission to an agent, its
 **lead**, to carry a planned body of work through GitHub. The campaign's
 **parent issue** holds the goal, and the parent's direct sub-issues hold
 the work. The code, and the `children` field of a campaign round's
-input, call each sub-issue a **child** of the parent.
+input, call each sub-issue a **child** of the parent. The **campaign
+branch** starts from the default branch. The campaign's pull request
+goes into the default branch and closes the parent when it merges.
 
 A **campaign's sub-issue** is a direct sub-issue in the same repository
 whose parent carries a campaign label configured for the running daemon
@@ -197,15 +199,15 @@ _dreamcatcher_ does before and after it. It begins when _dreamcatcher_
 records it, before anything else happens, and it holds everything that
 run does, in this order:
 
-1. the **preparation**, which resets a conversation's or a campaign's
-   worktree to the default branch or, for an assignment whose pull
-   request does not exist yet, makes the worktree and branch and opens
-   the pull request, and then freezes the round's input;
+1. the **preparation**, which resets a conversation's worktree to the
+   default branch or, for an assignment or campaign whose pull request
+   does not exist yet, makes the worktree and branch and opens the pull
+   request, and then freezes the round's input;
 2. the harness invocation, which starts or resumes the harness session
    with a prompt; and
 3. the finishing step after a successful exit, which posts a
-   conversation's answer or records that an assignment has completed. A
-   campaign round has none, because the lead posts its own messages.
+   conversation's answer or records that an assignment or campaign has
+   completed.
 
 An agent round is a _dreamcatcher_ concept. It is not a [turn](#turn), a
 tool call, or the harness session itself. An agent round has a number
@@ -238,7 +240,7 @@ round that has consumed its input.
 
 ### User post and feedback
 
-A **user post** is a contribution to an assignment's pull request by the
+A **user post** is a contribution to the work's pull request by the
 signed-in account that does not carry the marker _dreamcatcher_ asks
 every agent post to end with, since the agent posts under that same
 account. A campaign's lead posts under that account too, and leaves the
@@ -262,42 +264,42 @@ scheduler tick called an update.
 ### Channel and cursor
 
 A piece of agent work's **channel** is the GitHub object through which
-the agent and the user talk: an assignment's pull request, a campaign's
-parent issue, or a conversation's issue. A conversation and a campaign
-are **issue work**, because the issue is the channel of each. An
-assignment is **pull request work**, because its pull request is its
-channel. An assignment's channel exists once the round that opens its
-pull request has done so.
+the agent and the user talk. An assignment or campaign is **pull request
+work** and its channel exists once the opening round has opened its pull
+request. A conversation is **issue work** because its issue is its
+channel.
 
 The **cursor** is how far the agent has read in its channel. Nothing
 stores it on its own: it is read back from the inputs of the rounds that
 consumed their input or are still running, so the input of a round that
 errored or was interrupted is given again. Anything in the channel past
-the cursor is new, and something new calls for a round.
+the cursor is new, and something new calls for a round. For pull request
+posts in the newest relayed second, the post's kind and id show whether
+it was already relayed.
 
 Replaces: "delivery position" and "delivery cursor", for the cursor.
 
 ### Signal
 
 A **signal** is something new in a piece of agent work's channel that
-calls for a round. A conversation and a campaign have one kind, an
-**eligible comment** past the cursor: a comment on the issue by the
-signed-in account that says something and does not carry the marker that
-_dreamcatcher_ asks every agent post to end with. An assignment has
-four: a user post past the cursor; its pull request being merged or
-closed before its wrap-up round has consumed its input; **out-of-date**,
-a pull request that is ready for review and behind its base branch or in
-conflict with it; and **check-failure**, a pull request that is ready
-for review with a finished check that failed. The last two are the
-**pull request signals**, which _dreamcatcher_ raises from the pull
-request's merge state and checks rather than from anything the user did.
-A draft raises neither, because the agent has not finished. GitHub
-reports a branch as behind its base only when the repository requires
-branches to be up to date before merging, so elsewhere a pull request
-that falls behind without a conflict raises no out-of-date signal. A
-round that consumes its input relays each pull request signal at most
-once for each head commit of the pull request, so the signal is raised
-again only once the head moves.
+calls for a round. A conversation has one kind, an **eligible comment**
+past the cursor: a comment on the issue by the signed-in account that
+says something and does not carry the marker that _dreamcatcher_ asks
+every agent post to end with. Pull request work has four: a user post
+past the cursor; its pull request being merged or closed before its
+wrap-up round has consumed its input; **out-of-date**, a pull request
+that is ready for review and behind its base branch or in conflict with
+it; and **check-failure**, a pull request that is ready for review with
+a finished check that failed. The last two are the **pull request
+signals**, which _dreamcatcher_ raises from the pull request's merge
+state and checks rather than from anything the user did. A draft raises
+neither, because the agent has not finished. GitHub reports a branch as
+behind its base only when the repository requires branches to be up to
+date before merging, so elsewhere a pull request that falls behind
+without a conflict raises no out-of-date signal. A round that consumes
+its input relays each pull request signal at most once for each head
+commit of the pull request, so the signal is raised again only once the
+head moves.
 
 The **relay rule** gives an agent two attempts at a red build on its
 own. A check-failure is withheld when the last two rounds whose input is
@@ -335,7 +337,7 @@ conflicting labels, a consumed request, or the account that applied the
 label when it was not the user. When a read fails, the finding holds the
 reason in place of what the read would have found. The row also holds
 the issue's state when the tick read the issue, as it does for every
-request it lists and for every open conversation or campaign.
+request it lists and for every open conversation.
 
 An **agent work status** is one piece of agent work's single summary
 status in a status report, derived the same way for every kind from the
@@ -385,9 +387,8 @@ afterwards.
 Agent work is open until its ending is recorded, with the time and the
 reason, and then it has **ended**. The first ending recorded is the
 work's ending for good, and an ending that comes after it changes
-nothing. An assignment ends when it is complete or cancelled. A campaign
-ends when its parent issue closes, and a conversation when its issue
-closes.
+nothing. Pull request work ends when it is complete or cancelled. A
+conversation ends when its issue closes.
 
 Agent work keeps the harness, route and recipe settings that its work
 record holds, even after its route is removed from the configuration.
@@ -421,31 +422,27 @@ the same issue. An agent assignment remains open until it is complete or
 cancelled, including while its pull request is being wrapped up.
 
 An assignment round's input records the user posts and other signals
-relayed to it, and the state and head commit of its pull request. A
-round that opens the pull request carries no input beyond its prompt.
+relayed to it, and the number, state and head commit of its pull
+request. A round that opens the pull request carries no input beyond its
+prompt.
 
 ### Campaign composition
 
-Each campaign has exactly one:
+Each campaign has one parent issue, campaign branch, Git worktree and
+agent harness. Its opening round makes the worktree and branch and opens
+a draft pull request. The worktree stays on the campaign branch between
+rounds. A _dreamcatcher_ instance has at most one open campaign per
+parent issue. Once the campaign exists, its pull request drives its
+rounds.
 
-- parent issue;
-- detached Git worktree;
-- agent harness.
-
-It has no branch or pull request, so the parent issue is its
-communication channel. A campaign belongs to the dispatch label that
-started it. A _dreamcatcher_ instance has at most one open campaign for
-each campaign label on an issue, and it keeps a held campaign until the
-parent issue closes.
-
-Each campaign round input records the parent issue, the parent's
-sub-issues and where each one's newest assignment stands, the
-notifications, the eligible comments past the cursor, the cursor that
-the input reaches, the default-branch revision and the running daemon's
-assignment routes. A round given no new comment carries the cursor
-forward. No round starts while a tick cannot observe every sub-issue.
-The lead reads anything else it needs from GitHub, and posts its own
-messages there. Its final output stays in the feed.
+Each lead round receives the pull request number, state and head commit,
+the user posts and pull request signals, the parent's observed
+sub-issues, notifications and the running daemon's assignment routes. An
+opening round receives the initial sub-issue picture. A merged or closed
+pull request calls for a wrap-up round. When it succeeds, the campaign
+records completion and the scheduler removes the worktree and local
+branch. The lead posts its messages on GitHub and its final output stays
+in the feed.
 
 ### Issue conversation composition
 
@@ -527,15 +524,15 @@ cancelled assignment keeps its worktree and branch for the user.
 
 ### Starting a campaign
 
-A [campaign request](#requests) needs no comment to start. An open
-assignment or conversation at the issue and a linked pull request have
-no bearing on campaigns. Once a campaign exists, its parent's
-dependencies no longer decide its rounds.
+A [campaign request](#requests) needs no comment to start. Once the
+label checks clear, open pull requests that claim the parent and open
+issues that block it hold the request. The opening round is due once the
+tick can observe all the sub-issues and an agent slot is free.
 
-A campaign's first round is due as soon as the campaign starts, and its
-input holds every eligible comment already on the parent. After that,
-each eligible comment past the cursor, and each notification, makes a
-round due, which resumes the lead's harness session.
+Later rounds resume the lead's harness session. Pull request activity,
+sub-issue notifications and an unfinished round can each make a round
+due. A failed sub-issue observation leaves the next round waiting for a
+complete picture.
 
 ### Campaign notifications
 
@@ -580,26 +577,23 @@ issue's title and body alone start nothing. An open assignment at the
 issue, a linked pull request, a dependency and an assignment routing
 conflict have no bearing on conversations.
 
-### Holding and ending a conversation or campaign
+### Holding and ending a conversation
 
-The user **pauses** an open conversation or campaign by taking its own
-dispatch label off its issue, or by unassigning the issue from the
-signed-in account. Pausing is one reason that the scheduler holds the
-work back. It also holds the work back while an account other than the
-signed-in one applied that label, or the issue carries another
-configured label of its kind, and neither of those is a pause. Whether
-the work is held back is derived each tick from the issue, not recorded.
-Work that is held back starts no round, its issue's comments are not
-read, and its fault does not count towards a global cooldown. Removing
-the cause resumes the work in the same harness session, and the work is
-then given every comment posted since its last finished round. A lead is
-also given the notifications of the changes among the sub-issues since
-then.
+The user **pauses** an open conversation by taking its own dispatch
+label off its issue, or by unassigning the issue from the signed-in
+account. Pausing is one reason that the scheduler holds the work back.
+It also holds the work back while an account other than the signed-in
+one applied that label, or the issue carries another configured label of
+its kind, and neither of those is a pause. Whether the work is held back
+is derived each tick from the issue, not recorded. Work that is held
+back starts no round, its issue's comments are not read, and its fault
+does not count towards a global cooldown. Removing the cause resumes the
+work in the same harness session, and the work is then given every
+comment posted since its last finished round.
 
-When a tick finds the issue of a conversation or campaign closed, it
-records the work's ending with the reason "issue closed" once no round
-is running. A round that is running when the issue closes finishes
-first. Only the user closes a campaign's parent issue. Once the work has
+When a tick finds a conversation's issue closed, it records the work's
+ending with the reason "issue closed" once no round is running. A round
+that is running when the issue closes finishes first. Once the work has
 ended and no round of it is running, _dreamcatcher_ removes its worktree
 and keeps its record.
 
@@ -619,22 +613,20 @@ it:
 - a count of posts or comments: the user posts or issue comments
   relayed, or **comments** without a count for a conversation round that
   has no input yet;
-- each notification that a campaign round was given, after any count of
-  comments: the sub-issue's number and the words for its changes. Each
-  change reads as its name, except that a change of issue state reads as
-  **closed** or **reopened**, by the state that the sub-issue entered,
-  handback reads as **handed back**, pull request reads as **pull
-  request changed**, check completion reads as **checks finished**, and
-  ending reads as **ended**. A campaign round, other than a start or a
-  recover, that has no input yet reads as **comments or changes**;
-- **out of date** or **checks failed**: the other signals an assignment
-  round relayed, after any count of posts;
+- each notification that a campaign round was given, after any words for
+  pull request activity: the sub-issue's number and the words for its
+  changes. Each change reads as its name, except that a change of issue
+  state reads as **closed** or **reopened**, by the state that the
+  sub-issue entered, handback reads as **handed back**, pull request
+  reads as **pull request changed**, check completion reads as **checks
+  finished**, and ending reads as **ended**. A later campaign round that
+  has no input yet reads as **pull request or sub-issue changes**;
+- **out of date** or **checks failed**: the pull request signals a round
+  relayed, after any count of posts;
 - **merged** or **closed**: the state of a finished pull request, which
-  calls for the assignment's final round, its **wrap-up round**;
-- **recover**: an assignment round whose input relays nothing new, given
-  again after a round that did not finish, or a campaign round that
-  follows one that did not finish. A campaign's start or recover comes
-  before the count of comments and the notifications it was given.
+  calls for its final round, the **wrap-up round**;
+- **recover**: a round with no new pull request activity or sub-issue
+  notifications, given again after a round that did not finish.
 
 Replaces: "purpose", for a trigger; "carry on", for the recover trigger;
 "wind up", for wrap-up; and "main moved", for the out-of-date trigger.
@@ -644,10 +636,10 @@ Replaces: "purpose", for a trigger; "carry on", for the recover trigger;
 A scheduler tick finds requests in two places: each dispatch label on
 each open issue assigned to the signed-in account, and each piece of
 open agent work, which names its own issue and label. Open work answers
-the request it came from. An open assignment also answers every
-assignment label on its issue, so those labels make no request row of
-their own. A conversation or a campaign answers only its own label, so
-another label of its kind on its issue is a request of its own.
+the request it came from. Open pull request work answers every label of
+its kind on its issue, so those labels make no request row of their own.
+A conversation answers its own label, so another conversation label on
+its issue is a request of its own.
 
 For a request with no open work, the tick first checks the labels. An
 issue carrying more than one label of the request's kind has a routing
@@ -655,36 +647,35 @@ conflict and holds the request. A label applied by another account also
 holds it, as does an application already consumed by an assignment or
 campaign. These holds need no further reads.
 
-The tick then asks an eligible assignment request the **start-time
-questions**. These ask which open pull requests linked to the issue
-claim it and which open issue dependencies block it. An open pull
-request **claims** an issue when GitHub links it as one that will close
-the issue, as `Closes #123` in its description does. When neither answer
-holds the request, the tick checks the issue's parent. It sets the base
-branch of a campaign's sub-issue to the campaign branch, or holds the
-request and names the parent if no campaign pull request is available.
-Every other assignment uses the default branch. The base choice is
-recorded when work starts and does not follow later changes to the
-parent or campaign. For a conversation request, the tick reads the
-issue's comments to give them to its first round. For a campaign
-request, the tick asks which open issue dependencies block the parent
-and, when none does, reads the parent's comments for the first round.
+The tick then asks an eligible assignment or campaign request the
+**start-time questions**. These ask which open pull requests linked to
+the issue claim it and which open issue dependencies block it. An open
+pull request **claims** an issue when GitHub links it as one that will
+close the issue, as `Closes #123` in its description does. When neither
+answer holds an assignment request, the tick checks the issue's parent.
+It sets the base branch of a campaign's sub-issue to the campaign
+branch, or holds the request and names the parent if no campaign pull
+request is available. Every other assignment uses the default branch.
+The base choice is recorded when work starts and does not follow later
+changes to the parent or campaign. For a conversation request, the tick
+reads the issue's comments to give them to its first round. For a
+campaign request that clears the start-time questions, the tick observes
+the parent's sub-issues for the opening round.
 
 A request with no open work has one of these request statuses:
 
 - **Available**: work starts once an agent slot is free.
 - **Held**: the scheduler holds the request back for what GitHub says of
   its issue, until that changes. An open issue blocks the issue of an
-  assignment or campaign request, an open pull request linked to an
-  assignment request's issue claims it, someone other than the user
-  applied the request's label, the issue has a routing conflict, or
-  earlier work already consumed the request, or the parent of a
-  campaign's sub-issue has no available campaign pull request. Work can
-  start once the blocker closes, the claiming pull request goes or the
-  campaign pull request becomes available. A label that someone else
-  applied, a routing conflict or a consumed request needs the user to
-  act. An open conversation or campaign can also be held, as its agent
-  work status says.
+  assignment or campaign request, an open pull request linked to its
+  issue claims it, someone other than the user applied the request's
+  label, the issue has a routing conflict, or earlier work already
+  consumed the request, or the parent of a campaign's sub-issue has no
+  available campaign pull request. Work can start once the blocker
+  closes, the claiming pull request goes or the campaign pull request
+  becomes available. A label that someone else applied, a routing
+  conflict or a consumed request needs the user to act. An open
+  conversation can also be held, as its agent work status says.
 - **Idle**: a conversation request waits for the user's first comment.
 - **Unknown**: a read that decides whether work may start failed, or
   GitHub could not yet tell. A failure to read external state can delay
@@ -703,16 +694,11 @@ Replaces: "queued" and "waiting", for an available request; and
 A **candidate** is open work with something new past its cursor, unless
 its last round is running or it is in fault, or a request whose work may
 start. The input of a round that errored or was interrupted is past the
-cursor, so it is new again. An assignment is also a candidate when no
-round has opened its pull request yet, or when its last round errored or
-was interrupted, because it is then given its pull request's state again
-even with nothing new. A conversation has nothing to give but comments,
-so once the user deletes every comment that its unfinished round was
-given, it is not a candidate until a new eligible comment arrives. A
-campaign is also a candidate when no round has run yet, when a tick
-finds a notification, and when its last round errored or was
-interrupted, because the lead is then given its input again even with
-nothing new.
+cursor, so it is new again. Pull request work is also a candidate when
+it has no recorded pull request or when its last round did not finish. A
+campaign is also a candidate when the tick finds a sub-issue
+notification. A conversation whose unfinished round's comments have all
+been deleted waits for another eligible comment.
 
 Rounds of every kind share the daemon's capacity and the global
 cooldown. Within each kind, open work takes precedence over new work.
@@ -723,9 +709,11 @@ candidate gives up its place to the next. A round that errors during its
 preparation or startup takes no slot.
 
 A failed read from GitHub prevents only the launches that depend on it.
-A failed issue listing starts no new work of any kind, but open work
-reads its own channel, so the listing does not affect it. A local record
-that cannot be read instead stops the daemon, as
+A failed issue listing starts no new work of any kind. Open work reads
+its own channel. An open campaign can take a round only when the tick
+can observe all of its sub-issues, so a failed listing holds the round
+if any sub-issue has no open assignment. A local record that cannot be
+read instead stops the daemon, as
 [the story about an unreadable local record](stories.md#a-local-record-cannot-be-read)
 describes.
 
@@ -734,18 +722,18 @@ describes.
 Agent work is in **fault** when its last two rounds both errored. A
 round that errored in its preparation or its finishing step counts like
 any other, and a round that ended any other way, a stopped round
-included, ends a run of errors. Work in fault starts no round, not even
-an assignment's wrap-up round, until a retry or the end of a global
-cooldown clears the fault.
+included, ends a run of errors. Work in fault starts no round, including
+a wrap-up round, until a retry or the end of a global cooldown clears
+the fault.
 
 No single error is taken as a sign of a global problem. Each tick counts
-every assignment in fault, and every conversation or campaign in fault
-unless it is held. A conversation or campaign whose issue could not be
-read counts, because whether it is held is unknown. Two counted faults,
-of any kinds, are evidence of a shared problem and start a global
-cooldown. When the cooldown ends, the errors before it no longer count,
-so the faults it saw are cleared. This simple policy keeps one piece of
-work's failure from blocking all other work.
+all pull request work in fault, and every conversation in fault unless
+it is held. A conversation whose issue could not be read counts, because
+whether it is held is unknown. Two counted faults, of any kinds, are
+evidence of a shared problem and start a global cooldown. When the
+cooldown ends, the errors before it no longer count, so the faults it
+saw are cleared. This simple policy keeps one piece of work's failure
+from blocking all other work.
 
 A **retry** clears the current fault of the work it names, and erases
 none of its errored rounds. A retry from the command line clears the
@@ -763,8 +751,8 @@ Agent work of every kind has one of these summary statuses:
   ends.
 - **Ended**: the work's ending is recorded. Ended work shows how
   _dreamcatcher_'s work ended, with no detail: completed or cancelled
-  for an assignment, and ended for a conversation or campaign, whose
-  issue shows as closed.
+  for pull request work, and ended for a conversation, whose issue shows
+  as closed.
 - **Fault**: two consecutive rounds have errored, so no further round
   starts on its own.
 - **Unknown**: the latest tick could not read what it needed for the
@@ -772,29 +760,28 @@ Agent work of every kind has one of these summary statuses:
   the work, or read nothing for it.
 - **Waiting**: a round is due but has not started. Its last round
   errored or was interrupted, including a round left without an ending
-  by a daemon that has gone; no round has run yet; an assignment's pull
-  request is not yet open; an assignment's pull request is merged or
-  closed and its wrap-up round is due, which the detail calls awaiting
-  wrap-up; or the latest tick found a signal. A conversation whose last
-  round errored or was interrupted is not waiting once a tick that read
-  it after that round ended found no eligible comment past the cursor. A
-  free agent slot, or the end of a cooldown, starts it.
+  by a daemon that has gone; no round has run yet; the work's pull
+  request is not yet open; its pull request is merged or closed and its
+  wrap-up round is due, which the detail calls awaiting wrap-up; or the
+  latest tick found a signal. A conversation whose last round errored or
+  was interrupted is not waiting once a tick that read it after that
+  round ended found no eligible comment past the cursor. A free agent
+  slot, or the end of a cooldown, starts it.
 - **Idle**: no round is known to be due. A round that consumed its input
   after the latest tick read the work is idle until the next tick,
   unless the earlier tick found input that the round did not consume.
   Its detail says that it is awaiting the next update. Otherwise the
-  detail says why: an assignment's pull request is ready for review,
-  still a draft and so needing feedback, merged or closed after its
-  wrap-up round, or failing its checks after two attempts under the
-  relay rule; a conversation's latest round answered, needed no reply,
-  was stopped, errored or was interrupted; or a campaign's latest round
-  ended. Idle work has nothing to do, and never waits for the user to
-  change something on GitHub.
-- **Held**: the scheduler takes no round of a conversation or campaign
-  until something on GitHub changes, as for a held request: the user
-  paused it, the issue has a routing conflict, or someone other than the
-  user applied its label. The issue's state says why, and the detail
-  says what brings the work back.
+  detail says why: the work's pull request is ready for review, still a
+  draft and so needing feedback, merged or closed after its wrap-up
+  round, or failing its checks after two attempts under the relay rule;
+  a conversation's latest round answered, needed no reply, was stopped,
+  errored or was interrupted. Idle work has nothing to do, and never
+  waits for the user to change something on GitHub.
+- **Held**: the scheduler takes no round of a conversation until
+  something on GitHub changes, as for a held request: the user paused
+  it, the issue has a routing conflict, or someone other than the user
+  applied its label. The issue's state says why, and the detail says
+  what brings the work back.
 
 The statuses are decided in an order. Working comes first, then ended,
 then fault, so the user can see a fault and retry whatever else is true.
@@ -819,12 +806,12 @@ web home page and in a count of ended work in the terminal.
 
 A running round remains working when its issue gains a second label of
 its kind, because a routing conflict does not cancel work already in
-progress. The conversation or campaign is held after that round ends,
-unless it is then in fault.
+progress. The conversation is held after that round ends, unless it is
+then in fault.
 
 Replaces: "running", for the status working; "needs attention", for
 fault; "needs user feedback" and "needs you", for idle; and "closed",
-for how a conversation or campaign ended.
+for how a conversation ended.
 
 ### Status reports do not control work
 

@@ -14,7 +14,7 @@ assignments
   1 ended assignment                                                                                
 
 campaigns
-  GH60-20260819-184158-campaign  idle  open; round 1, successful, ran 4m 
+  GH60-20260819-184158-campaign  idle  PR #90 draft; needs feedback      
   GH62  dream:big  available  open                                       
   GH67  dream:big  held       open, blocked by GH62, alimanfoo/dream#1016
   1 ended campaign                                                       

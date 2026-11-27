@@ -37,7 +37,7 @@ def test_status_lists_campaigns_their_requests_and_how_many_ended(state):
     shown = written.getvalue()
     campaigns = shown[shown.index("campaigns") :]
     assert "GH60-20260819-184158-campaign" in campaigns
-    assert "round 1, successful, ran 4m" in campaigns
+    assert "PR #90 draft; needs feedback" in campaigns
     assert "GH62" in campaigns
     assert "available" in campaigns
     assert "1 ended campaign" in campaigns
@@ -63,7 +63,7 @@ def test_campaign_detail_shows_its_parent_settings_and_rounds(state):
     assert "claude --resume lead-session" in shown
 
 
-def test_a_closed_campaign_view_shows_ended_once_as_its_status(state):
+def test_a_completed_campaign_view_shows_its_merged_pull_request(state):
     written = StringIO()
     console = create_pinned_console(written_to=written)
 
@@ -74,7 +74,9 @@ def test_a_closed_campaign_view_shows_ended_once_as_its_status(state):
         clock=lambda: LOOKED_AT,
     )
 
-    assert written.getvalue().splitlines()[1] == "ended"
+    shown = written.getvalue()
+    assert shown.splitlines()[1] == "completed"
+    assert "#91 merged" in shown
 
 
 def test_campaign_feed_shows_what_the_lead_said(state):

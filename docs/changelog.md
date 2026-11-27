@@ -54,6 +54,11 @@ the change.
   the parent.
   ([#937](https://github.com/alimanfoo/dreamcatcher/pull/937))
 
+- Campaigns open a draft pull request into the default branch. The lead
+  receives feedback there, and merging or closing the pull request
+  starts the campaign's wrap-up and cleanup.
+  ([#938](https://github.com/alimanfoo/dreamcatcher/pull/938))
+
 ## [v9.10.0](https://github.com/alimanfoo/dreamcatcher/releases/tag/v9.10.0) — 2026-11-26
 
 ### Changed

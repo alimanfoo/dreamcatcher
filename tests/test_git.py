@@ -7,13 +7,13 @@ from conftest import commit, rename_default_branch, run_git
 from dreamcatcher.commands import CommandError
 from dreamcatcher.git import (
     _add_detached_worktree,
-    _read_worktree_revision,
     add_worktree,
     delete_branch,
     fetch_default_branch,
     has_commits_since_base,
     make_empty_commit,
     push_branch,
+    read_worktree_revision,
     refresh_detached_worktree,
     remove_worktree,
 )
@@ -78,7 +78,7 @@ def test_a_detached_worktree_lands_at_the_default_branch_revision(cloned_repo):
     assert path in list_worktrees(root=cloned_repo)
     assert read_checked_out_branch(worktree=path) == ""
     assert (
-        _read_worktree_revision(worktree=path)
+        read_worktree_revision(worktree=path)
         == run_git(arguments=["rev-parse", "origin/HEAD"], cwd=cloned_repo).strip()
     )
 
@@ -86,7 +86,7 @@ def test_a_detached_worktree_lands_at_the_default_branch_revision(cloned_repo):
 def test_a_clean_detached_worktree_refreshes_to_the_fetched_default(cloned_repo):
     path = cloned_repo / ".dreamcatcher" / "detached-worktree"
     _add_detached_worktree(root=cloned_repo, path=path)
-    earlier_revision = _read_worktree_revision(worktree=path)
+    earlier_revision = read_worktree_revision(worktree=path)
     (cloned_repo / "README.md").write_bytes(b"what changed\n")
     commit(path=cloned_repo, message="change main")
     run_git(arguments=["push", "origin", "main"], cwd=cloned_repo)
@@ -98,14 +98,14 @@ def test_a_clean_detached_worktree_refreshes_to_the_fetched_default(cloned_repo)
         revision
         == run_git(arguments=["rev-parse", "origin/HEAD"], cwd=cloned_repo).strip()
     )
-    assert _read_worktree_revision(worktree=path) == revision
+    assert read_worktree_revision(worktree=path) == revision
     assert (path / "README.md").read_text(encoding="utf-8") == "what changed\n"
 
 
 def test_a_refresh_discards_non_conflicting_local_changes(cloned_repo):
     path = cloned_repo / ".dreamcatcher" / "detached-worktree"
     _add_detached_worktree(root=cloned_repo, path=path)
-    earlier_revision = _read_worktree_revision(worktree=path)
+    earlier_revision = read_worktree_revision(worktree=path)
     unexpected = path / "unexpected.txt"
     unexpected.write_bytes(b"discard this\n")
     (cloned_repo / "README.md").write_bytes(b"what changed\n")
@@ -122,7 +122,7 @@ def test_a_refresh_discards_non_conflicting_local_changes(cloned_repo):
 def test_a_refresh_discards_a_conflicting_local_change(cloned_repo):
     path = cloned_repo / ".dreamcatcher" / "detached-worktree"
     _add_detached_worktree(root=cloned_repo, path=path)
-    earlier_revision = _read_worktree_revision(worktree=path)
+    earlier_revision = read_worktree_revision(worktree=path)
     readme = path / "README.md"
     readme.write_bytes(b"local experiment\n")
     (cloned_repo / "README.md").write_bytes(b"what main holds now\n")
@@ -159,7 +159,7 @@ def test_a_refresh_discards_an_unexpected_detached_commit(cloned_repo):
     unexpected_file.write_bytes(b"local file\n")
     (path / "README.md").write_bytes(b"local change\n")
     commit(path=path, message="unexpected work")
-    unexpected = _read_worktree_revision(worktree=path)
+    unexpected = read_worktree_revision(worktree=path)
 
     revision = refresh_detached_worktree(root=cloned_repo, worktree=path)
 
@@ -168,7 +168,7 @@ def test_a_refresh_discards_an_unexpected_detached_commit(cloned_repo):
         revision
         == run_git(arguments=["rev-parse", "origin/HEAD"], cwd=cloned_repo).strip()
     )
-    assert _read_worktree_revision(worktree=path) == revision
+    assert read_worktree_revision(worktree=path) == revision
     assert not unexpected_file.exists()
     assert (path / "README.md").read_text(encoding="utf-8") == "what the seed holds\n"
 

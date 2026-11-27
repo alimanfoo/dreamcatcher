@@ -8,7 +8,7 @@ from typing import Literal
 
 import pytest
 from playwright.sync_api import Locator, Page, expect
-from records import write_ending, write_round, write_tick
+from records import HEAD, write_ending, write_round, write_tick
 from status_fabrications import CAMPAIGN_CHILDREN, LOOKED_AT, compose_ended_round
 from web_browser import (
     BROWSER_ASSIGNMENT_IDENTIFIER,
@@ -25,6 +25,7 @@ from dreamcatcher.campaigns import (
 )
 from dreamcatcher.documents import append_text, read_json
 from dreamcatcher.feed import FeedLine
+from dreamcatcher.github import PullRequestState
 from dreamcatcher.scheduler.models import SchedulerRecord
 from dreamcatcher.state import StateDirectory
 
@@ -445,7 +446,7 @@ def test_an_expanded_campaign_stays_open_while_its_children_are_unknown(
     expect(children).to_have_attribute("open", "")
 
 
-def test_an_expanded_campaign_whose_parent_closes_keeps_only_its_card(
+def test_an_expanded_campaign_that_completes_keeps_only_its_card(
     page: Page, live_web: str, tmp_path: Path
 ) -> None:
     page.goto(live_web)
@@ -453,7 +454,7 @@ def test_an_expanded_campaign_whose_parent_closes_keeps_only_its_card(
 
     write_ending(
         directory=StateDirectory(root=tmp_path).work / CAMPAIGN_IDENTIFIER,
-        reason=AgentWorkEndReason.ISSUE_CLOSED,
+        reason=AgentWorkEndReason.COMPLETED,
         at=LOOKED_AT,
     )
 
@@ -499,7 +500,10 @@ def test_a_round_that_names_sub_issues_keeps_its_summary_beside_its_number(
         number=2,
         record=compose_ended_round(minute=10, number=2),
         round_input=CampaignRoundInput(
-            issue=60,
+            pull_request=90,
+            pull_request_state=PullRequestState.OPEN,
+            pull_request_head=HEAD,
+            signals=[],
             children=CAMPAIGN_CHILDREN,
             notifications=[
                 CampaignChildNotification(
@@ -513,9 +517,7 @@ def test_a_round_that_names_sub_issues_keeps_its_summary_beside_its_number(
                     issue=64, changes=[CampaignChildChange.ADDED]
                 ),
             ],
-            comments=[],
-            cursor=None,
-            revision="abc123",
+            user_posts=[],
             assignment_routes=[],
         ),
     )

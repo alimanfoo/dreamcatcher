@@ -17,14 +17,16 @@ from records import (
     write_campaign,
     write_conversation,
     write_daemon_run,
-    write_ending,
     write_feed,
     write_final_output,
     write_round,
     write_tick,
+    write_work_pull_request,
 )
 from rows import (
+    CAMPAIGN_PULL_REQUEST,
     UNCLAIMED,
+    compose_campaign_finding,
     compose_campaign_row,
     compose_conversation_row,
     compose_open_assignment_row,
@@ -56,12 +58,10 @@ from dreamcatcher.issue_conversations import (
     InitialConversationIssue,
 )
 from dreamcatcher.pull_request_work import (
-    AssignmentRoundInput,
+    PullRequestRoundInput,
     cancel_pull_request_work,
 )
 from dreamcatcher.scheduler.models import (
-    BlockingIssuesFinding,
-    CampaignFinding,
     ConflictingLabelsFinding,
     IssueCommentsFinding,
     IssueReference,
@@ -311,22 +311,32 @@ def fabricate_campaigns(*, state: StateDirectory) -> list[RequestRow]:
     repository.
     """
     for issue in (60, 61):
+        number = CAMPAIGN_PULL_REQUEST + issue - 60
         directory = write_campaign(state=state, issue=issue)
+        write_work_pull_request(directory=directory, number=number)
         record = compose_ended_round(minute=1)
-        write_round(
-            directory=directory,
-            number=1,
-            record=record,
-            round_input=CampaignRoundInput(
-                issue=issue,
-                children=[],
-                notifications=[],
-                comments=[],
-                cursor=None,
-                revision="abc123",
-                assignment_routes=[],
-            ),
+        round_input = CampaignRoundInput(
+            pull_request=number,
+            pull_request_state=PullRequestState.OPEN,
+            pull_request_head=HEAD,
+            signals=[],
+            children=[],
+            notifications=[],
+            user_posts=[],
+            assignment_routes=[],
         )
+        write_round(
+            directory=directory, number=1, record=record, round_input=round_input
+        )
+        if issue == 61:
+            write_round(
+                directory=directory,
+                number=2,
+                record=compose_ended_round(minute=10, number=2),
+                round_input=round_input.model_copy(
+                    update={"pull_request_state": PullRequestState.MERGED}
+                ),
+            )
         write_feed(
             directory=directory,
             number=1,
@@ -336,15 +346,10 @@ def fabricate_campaigns(*, state: StateDirectory) -> list[RequestRow]:
                 )
             ],
         )
-    write_ending(
-        directory=state.work / compose_campaign_identifier(issue=61),
-        reason=AgentWorkEndReason.ISSUE_CLOSED,
-        at=PINNED + timedelta(minutes=30),
-    )
     return [
         compose_campaign_row(
             issue=60,
-            finding=CampaignFinding(new_comments=0, changed_children=0),
+            finding=compose_campaign_finding(),
             agent_work_identifier=compose_campaign_identifier(issue=60),
             ended_round=1,
             children=CAMPAIGN_CHILDREN,
@@ -352,16 +357,17 @@ def fabricate_campaigns(*, state: StateDirectory) -> list[RequestRow]:
         compose_request_row(
             issue=62,
             kind=AgentWorkKind.CAMPAIGN,
-            finding=CampaignFinding(new_comments=0, changed_children=0),
+            finding=UNCLAIMED,
         ),
         compose_request_row(
             issue=67,
             kind=AgentWorkKind.CAMPAIGN,
-            finding=BlockingIssuesFinding(
+            finding=StartTimeFinding(
+                linked_pull_requests=[],
                 blocking_issues=[
                     IssueReference(number=62),
                     IssueReference(number=1016, repository="alimanfoo/dream"),
-                ]
+                ],
             ),
         ),
         *_fabricate_campaign_children(state=state),
@@ -369,7 +375,8 @@ def fabricate_campaigns(*, state: StateDirectory) -> list[RequestRow]:
 
 
 # What an assignment round woken by one post from the user was given.
-ONE_POST_INPUT = AssignmentRoundInput(
+ONE_POST_INPUT = PullRequestRoundInput(
+    pull_request=52,
     pull_request_state=PullRequestState.OPEN,
     pull_request_head=HEAD,
     signals=[],
@@ -378,7 +385,8 @@ ONE_POST_INPUT = AssignmentRoundInput(
 
 # What an assignment round given the input of one that did not finish was given,
 # when that input held no posts.
-CARRY_ON_INPUT = AssignmentRoundInput(
+CARRY_ON_INPUT = PullRequestRoundInput(
+    pull_request=52,
     pull_request_state=PullRequestState.OPEN,
     pull_request_head=HEAD,
     signals=[],
@@ -391,7 +399,7 @@ def write_assignment_with_rounds(
     state,
     issue: int,
     records: Sequence[AgentRoundRecord],
-    round_inputs: Mapping[int, AssignmentRoundInput] = MappingProxyType({}),
+    round_inputs: Mapping[int, PullRequestRoundInput] = MappingProxyType({}),
 ):
     """Write an assignment for the issue, with these rounds and their inputs."""
     directory = write_assignment(

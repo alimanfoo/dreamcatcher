@@ -4,7 +4,7 @@ from collections import defaultdict
 from collections.abc import Iterator, Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from datetime import datetime
-from functools import partial
+from functools import cache, partial
 
 from dreamcatcher.agent_rounds import (
     AgentRound,
@@ -30,6 +30,7 @@ from dreamcatcher.github import (
     LabellingEvent,
     UnknownGitHubResponse,
     list_issues,
+    read_pull_request,
 )
 from dreamcatcher.harness_adapters import AgentRoundLaunchRequest, AgentWorkKind
 from dreamcatcher.prompts import compose_round_prompt
@@ -141,11 +142,16 @@ class Scheduler:
             issues=listing.issues,
             most_recent_cooldown_ended=most_recent_cooldown_ended,
         )
+        read_campaign_pull_request = cache(
+            partial(read_pull_request, repository=self.context.repository)
+        )
         ordinary_inspections = inspect(
             open_work_inspectors=_OPEN_WORK_INSPECTORS,
             request_inspectors={
                 AgentWorkKind.ASSIGNMENT: create_assignment_request_inspector(
-                    context=self.context, all_work=all_work
+                    context=self.context,
+                    all_work=all_work,
+                    read_campaign_pull_request=read_campaign_pull_request,
                 ),
                 AgentWorkKind.CONVERSATION: partial(
                     inspect_conversation_request, context=self.context
@@ -160,7 +166,9 @@ class Scheduler:
             *inspect(
                 open_work_inspectors={
                     AgentWorkKind.CAMPAIGN: partial(
-                        inspect_open_campaign, observations=observations
+                        inspect_open_campaign,
+                        observations=observations,
+                        read_campaign_pull_request=read_campaign_pull_request,
                     )
                 },
                 request_inspectors={
@@ -524,9 +532,9 @@ class Scheduler:
 
 
 def _remove_worktree_and_branch(*, state: StateDirectory, work: AgentWork) -> None:
-    """Remove the ended work's worktree, and an assignment's local branch."""
-    if work.record.kind is AgentWorkKind.ASSIGNMENT:
-        remove_work_worktree_and_branch(state=state, assignment=work)
+    """Remove the ended work's worktree and any local pull request branch."""
+    if work.record.kind.is_pull_request_work:
+        remove_work_worktree_and_branch(state=state, work=work)
     else:
         remove_agent_work_worktree(state=state, work=work)
 

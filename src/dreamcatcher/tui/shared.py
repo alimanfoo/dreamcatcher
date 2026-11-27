@@ -62,7 +62,7 @@ def render_issue_state(*, state: str | None, facts: Sequence[IssueFact]) -> str 
 
 
 def render_pull_request(*, status: AgentWorkStatus) -> str | None:
-    """Return the assignment's pull request and where it stands, when known.
+    """Return the work's pull request and where it stands, when known.
 
     Work whose pull request no round has opened has none.
     """

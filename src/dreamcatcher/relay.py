@@ -1,20 +1,22 @@
 """Select what is past a piece of agent work's cursor in its channel.
 
-The relay returns the user posts and pull request signals past an assignment's
-cursor, and the issue comments past a conversation's or a campaign's, without
+The relay returns the user posts and signals past a pull request cursor,
+and the issue comments past a conversation's cursor, without
 writing state. The inputs of the rounds that consumed them record what each
 relayed. Posts and comments written through the shared GitHub account are user
 input only when they do not carry the agent marker.
 """
 
-from collections.abc import Sequence
+from collections.abc import Iterator, Sequence
 from dataclasses import dataclass
+from itertools import chain, islice, takewhile
 from typing import Annotated
 
 from pydantic import AfterValidator
 
 from dreamcatcher.agent_work import AgentWork
-from dreamcatcher.documents import DreamcatcherDocument, ReadOnlyList
+from dreamcatcher.campaigns import CampaignRoundInput
+from dreamcatcher.documents import DreamcatcherDocument, ReadOnlyList, read_json
 from dreamcatcher.github import (
     CheckResult,
     IssueComment,
@@ -26,11 +28,9 @@ from dreamcatcher.github import (
     list_issue_comments,
     list_user_posts,
 )
+from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.prompts import AGENT_POST_MARKER
-from dreamcatcher.pull_request_work import (
-    is_check_failure_withheld,
-    read_signal_relay_head,
-)
+from dreamcatcher.pull_request_work import PullRequestRoundInput
 
 
 class IssueCommentCursor(DreamcatcherDocument):
@@ -60,7 +60,7 @@ OrderedIssueComments = Annotated[
 
 @dataclass(frozen=True, kw_only=True)
 class PullRequestSignals:
-    """Hold the pull request signals past an assignment's cursor.
+    """Hold the pull request signals past the work's pull request cursor.
 
     A check failure the relay rule withholds is left out, and flagged.
     """
@@ -70,7 +70,7 @@ class PullRequestSignals:
 
 
 def find_pull_request_signals(
-    *, assignment: AgentWork, pull_request: PullRequest
+    *, work: AgentWork, pull_request: PullRequest
 ) -> PullRequestSignals:
     """Return the pull request signals raised at a head not yet relayed.
 
@@ -92,11 +92,10 @@ def find_pull_request_signals(
             ),
         )
         if is_raised
-        and read_signal_relay_head(assignment=assignment, signal=signal)
-        != pull_request.head
+        and _read_signal_relay_head(work=work, signal=signal) != pull_request.head
     ]
     is_withheld = PullRequestSignal.CHECK_FAILURE in raised and (
-        is_check_failure_withheld(assignment=assignment)
+        _is_check_failure_withheld(work=work)
     )
     if is_withheld:
         raised.remove(PullRequestSignal.CHECK_FAILURE)
@@ -105,16 +104,93 @@ def find_pull_request_signals(
     )
 
 
+@dataclass(frozen=True, kw_only=True)
+class PullRequestPostCursor:
+    """Mark the newest relayed second and the posts already relayed within it."""
+
+    written_at: str
+    post_ids: frozenset[tuple[str, int]]
+
+
+def read_user_post_cursor(*, work: AgentWork) -> PullRequestPostCursor | None:
+    """Return the newest relayed second and each post already seen within it."""
+    posts = (
+        post
+        for round_input in _read_relayed_inputs(work=work)
+        for post in reversed(round_input.user_posts)
+    )
+    latest = next(posts, None)
+    if latest is None:
+        return None
+    ties = takewhile(lambda post: post.written_at == latest.written_at, posts)
+    return PullRequestPostCursor(
+        written_at=latest.written_at,
+        post_ids=frozenset((post.kind, post.id) for post in chain([latest], ties)),
+    )
+
+
+def read_relayed_pull_request_state(*, work: AgentWork) -> PullRequestState | None:
+    """Return the pull request state that the newest relayed round input carried."""
+    latest = next(_read_relayed_inputs(work=work), None)
+    return None if latest is None else latest.pull_request_state
+
+
+def is_wrap_up_relayed(*, work: AgentWork) -> bool:
+    """Return whether a merged or closed pull request has been relayed."""
+    state = read_relayed_pull_request_state(work=work)
+    return state is not None and state is not PullRequestState.OPEN
+
+
+def _read_signal_relay_head(
+    *, work: AgentWork, signal: PullRequestSignal
+) -> str | None:
+    """Return the head commit at which the signal was last relayed, if ever."""
+    for round_input in _read_relayed_inputs(work=work):
+        if signal in round_input.signals:
+            return round_input.pull_request_head
+    return None
+
+
+def _is_check_failure_withheld(*, work: AgentWork) -> bool:
+    """Return whether the relay rule withholds a check failure.
+
+    It does when the last two relayed inputs both carried one, which gives an
+    agent two attempts at a red build on its own. A round that relayed no check
+    failure starts the count again, and one that did not consume its input is
+    not counted, since its input is given again.
+    """
+    latest_two = list(islice(_read_relayed_inputs(work=work), 2))
+    return len(latest_two) == 2 and all(
+        PullRequestSignal.CHECK_FAILURE in round_input.signals
+        for round_input in latest_two
+    )
+
+
+def _read_relayed_inputs(*, work: AgentWork) -> Iterator[PullRequestRoundInput]:
+    """Yield the inputs already relayed, newest first."""
+    model = (
+        CampaignRoundInput
+        if work.record.kind is AgentWorkKind.CAMPAIGN
+        else PullRequestRoundInput
+    )
+    for paths in work.list_relayed_round_paths():
+        yield read_json(model=model, path=paths.round_input)
+
+
 def list_user_posts_past_cursor(
-    *, repository: str, pull_request: int, account: str, cursor: str
+    *,
+    repository: str,
+    pull_request: int,
+    account: str,
+    cursor: PullRequestPostCursor | None,
 ) -> list[UserPost] | UnknownGitHubResponse:
     """Return user posts past the cursor, oldest first.
 
     The account is the one gh is signed in as, which is the user's own.
 
-    An empty cursor is the beginning of time, so the first read considers the pull
-    request's whole history. GitHub sends each time as an ISO-8601 string ending
-    in a Z, so the cursor compares against it as text.
+    No cursor means the first read considers the pull request's whole history.
+    A new post can share the last relayed second. The kind and id identify
+    posts within that second, including posts from different endpoints.
 
     Reading the posts can fail, and the failure travels, so a caller can say
     in one line why it relayed nothing.
@@ -126,9 +202,21 @@ def list_user_posts_past_cursor(
         (
             post
             for post in user_posts
-            if post.written_at > cursor and _is_eligible(post=post, account=account)
+            if _is_past_post_cursor(post=post, cursor=cursor)
+            and _is_eligible(post=post, account=account)
         ),
         key=lambda post: post.written_at,
+    )
+
+
+def _is_past_post_cursor(
+    *, post: UserPost, cursor: PullRequestPostCursor | None
+) -> bool:
+    after = "" if cursor is None else cursor.written_at
+    return post.written_at > after or (
+        cursor is not None
+        and post.written_at == after
+        and (post.kind, post.id) not in cursor.post_ids
     )
 
 

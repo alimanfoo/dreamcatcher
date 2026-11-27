@@ -1,12 +1,12 @@
-"""Inspect campaigns' parents and children and compose the rounds they call for.
+"""Inspect campaigns' pull requests and children and compose the rounds they call for.
 
 The tick inspects campaigns after the assignments, so a campaign observes its
 children through what this tick already found of their assignments, and reads
 none of their pull requests again.
 """
 
-from collections.abc import Mapping
-from dataclasses import dataclass, replace
+from collections.abc import Mapping, Sequence
+from dataclasses import dataclass
 from functools import partial
 
 from dreamcatcher.agent_work import AgentWork, DispatchRequest
@@ -14,39 +14,49 @@ from dreamcatcher.campaigns import (
     CampaignChild,
     CampaignChildAssignment,
     CampaignChildNotification,
+    CampaignRoundInput,
     compare_campaign_children,
-    prepare_campaign_round,
+    compose_campaign_round_input,
     read_delivered_campaign_input,
 )
+from dreamcatcher.documents import read_json
+from dreamcatcher.errors import ReportableError
+from dreamcatcher.git import read_worktree_revision
 from dreamcatcher.github import (
     Issue,
-    IssueComment,
+    PullRequestState,
     SubIssue,
     UnknownGitHubResponse,
     list_sub_issues,
+    read_pull_request,
 )
 from dreamcatcher.prompts import compose_campaign_input_prompt
 from dreamcatcher.pull_request_work import (
     ObservedPullRequest,
+    PullRequestRoundInput,
+    complete_pull_request_work,
+    open_work_pull_request,
     read_work_pull_request_number,
 )
-from dreamcatcher.relay import IssueCommentCursor
-from dreamcatcher.scheduler.blockers import list_open_blocking_issues
-from dreamcatcher.scheduler.faults import is_last_round_unfinished
 from dreamcatcher.scheduler.inspection import (
     Candidate,
     Inspection,
     RoundPlan,
     SchedulingContext,
+    compose_open_work_row,
 )
-from dreamcatcher.scheduler.issue_work import inspect_open_issue_work, list_new_comments
 from dreamcatcher.scheduler.models import (
-    BlockingIssuesFinding,
-    CampaignFinding,
     PullRequestFinding,
     ReadFailureFinding,
     RequestFinding,
     RequestRow,
+    StartTimeFinding,
+)
+from dreamcatcher.scheduler.pull_requests import (
+    PullRequestActivity,
+    PullRequestReader,
+    ask_start_time_questions,
+    read_pull_request_activity,
 )
 
 
@@ -69,30 +79,53 @@ def inspect_open_campaign(
     *,
     context: SchedulingContext,
     observations: AssignmentObservations,
+    read_campaign_pull_request: PullRequestReader,
     work: AgentWork,
     is_in_fault: bool,
 ) -> Inspection:
-    """Observe an open campaign's children, then inspect its parent issue.
-
-    The children are observed whether or not the campaign may take a round, so
-    the row shows them while the lead is held or in fault. The parent's
-    comments are read unless the campaign may not run.
-    """
+    """Inspect the lead's pull request and observe the parent's sub-issues."""
     children = _observe_children(
         context=context, parent=work.record.issue, observations=observations
     )
-    inspection = inspect_open_issue_work(
+    row = compose_open_work_row(work=work, finding=None)
+    if not isinstance(children, ReadFailureFinding):
+        row = row.model_copy(update={"children": children})
+    if is_in_fault:
+        return Inspection(row=row, is_counted_fault=True)
+    if isinstance(children, ReadFailureFinding):
+        return Inspection(row=row.model_copy(update={"finding": children}))
+    pull_request = read_work_pull_request_number(work=work)
+    if pull_request is None:
+        return _offer_lead_round(
+            context=context, work_or_request=work, row=row, children=children
+        )
+    activity = read_pull_request_activity(
         context=context,
         work=work,
-        is_in_fault=is_in_fault,
-        inspect_eligible=partial(
-            _inspect_lead_input,
-            context=context,
-            work_or_request=work,
-            children=children,
-        ),
+        read=read_campaign_pull_request(pull_request=pull_request),
     )
-    return _record_children(inspection=inspection, children=children)
+    if isinstance(activity, ReadFailureFinding):
+        return Inspection(row=row.model_copy(update={"finding": activity}))
+    previous = read_delivered_campaign_input(campaign=work)
+    notifications = (
+        []
+        if previous is None
+        else compare_campaign_children(previous=previous.children, current=children)
+    )
+    finding = activity.finding.model_copy(
+        update={"changed_children": len(notifications)}
+    )
+    row = row.model_copy(update={"finding": finding})
+    if not notifications and not activity.is_round_due(work=work):
+        return Inspection(row=row)
+    return _offer_lead_round(
+        context=context,
+        work_or_request=work,
+        row=row,
+        children=children,
+        notifications=notifications,
+        activity=activity,
+    )
 
 
 def inspect_campaign_request(
@@ -103,33 +136,22 @@ def inspect_campaign_request(
     request: DispatchRequest,
     row: RequestRow,
 ) -> Inspection:
-    """Read what may start a campaign at a request with no open campaign.
-
-    An open issue blocking the parent holds the request, and so does a failed
-    read of what blocks it, so neither observes the children nor reads the
-    comments. A campaign starts without waiting for comments. Its first
-    input holds any that are already waiting.
-    """
-    blocking = list_open_blocking_issues(context=context, issue=issue.number)
-    if isinstance(blocking, ReadFailureFinding):
-        return Inspection(row=row.model_copy(update={"finding": blocking}))
-    if blocking:
-        return Inspection(
-            row=row.model_copy(
-                update={"finding": BlockingIssuesFinding(blocking_issues=blocking)}
-            )
-        )
+    """Offer an opening round for an available request with known children."""
+    answers = ask_start_time_questions(context=context, issue=issue.number)
+    row = row.model_copy(update={"finding": answers})
+    if not (isinstance(answers, StartTimeFinding) and answers.is_clear):
+        return Inspection(row=row)
     children = _observe_children(
         context=context, parent=issue.number, observations=observations
     )
-    inspection = _inspect_lead_input(
+    if isinstance(children, ReadFailureFinding):
+        return Inspection(row=row.model_copy(update={"finding": children}))
+    return _offer_lead_round(
         context=context,
-        issue=issue,
         work_or_request=request,
+        row=row.model_copy(update={"children": children}),
         children=children,
-        row=row,
     )
-    return _record_children(inspection=inspection, children=children)
 
 
 def _observe_children(
@@ -233,69 +255,15 @@ def _observe_child_assignment(
     )
 
 
-def _record_children(
-    *, inspection: Inspection, children: list[CampaignChild] | ReadFailureFinding
-) -> Inspection:
-    """Return the inspection with its row holding the children, when they are known."""
-    if isinstance(children, ReadFailureFinding):
-        return inspection
-    return replace(
-        inspection, row=inspection.row.model_copy(update={"children": children})
-    )
-
-
-def _inspect_lead_input(
+def _offer_lead_round(
     *,
     context: SchedulingContext,
-    issue: Issue,
     work_or_request: AgentWork | DispatchRequest,
-    children: list[CampaignChild] | ReadFailureFinding,
     row: RequestRow,
+    children: Sequence[CampaignChild],
+    notifications: Sequence[CampaignChildNotification] = (),
+    activity: PullRequestActivity | None = None,
 ) -> Inspection:
-    """Read the parent's comments and return a candidate when a lead round is due.
-
-    It reads for the open campaign, or for the route of the one that would
-    start, and the row is the request's row before the read. Children that the
-    tick could not observe start no round and leave the comments unread, so
-    the lead is never given an incomplete picture. A round is due to start the
-    campaign, for new comments, for changes among the children since the
-    newest input delivered to the lead, and to give the lead its input again
-    after a round that did not finish. Each tick compares afresh, so changes
-    wait for capacity in the comparison itself. A stopped round consumed its
-    input, so the lead waits for new input after it.
-    """
-    if isinstance(children, ReadFailureFinding):
-        return Inspection(row=row.model_copy(update={"finding": children}))
-    campaign = work_or_request if isinstance(work_or_request, AgentWork) else None
-    previous = (
-        None if campaign is None else read_delivered_campaign_input(campaign=campaign)
-    )
-    delivered_cursor = None if previous is None else previous.cursor
-    comments = list_new_comments(
-        context=context, issue=issue.number, cursor=delivered_cursor
-    )
-    if isinstance(comments, ReadFailureFinding):
-        return Inspection(row=row.model_copy(update={"finding": comments}))
-    notifications = (
-        []
-        if previous is None
-        else compare_campaign_children(previous=previous.children, current=children)
-    )
-    row = row.model_copy(
-        update={
-            "finding": CampaignFinding(
-                new_comments=len(comments), changed_children=len(notifications)
-            )
-        }
-    )
-    if not (
-        comments
-        or notifications
-        or campaign is None
-        or not campaign.rounds
-        or is_last_round_unfinished(rounds=campaign.rounds, is_daemon_running=True)
-    ):
-        return Inspection(row=row)
     return Inspection(
         row=row,
         candidate=Candidate(
@@ -305,44 +273,82 @@ def _inspect_lead_input(
                 context=context,
                 children=children,
                 notifications=notifications,
-                comments=comments,
-                delivered_cursor=delivered_cursor,
+                activity=activity,
             ),
         ),
     )
 
 
+def _prepare_campaign_opening(
+    *, context: SchedulingContext, work: AgentWork
+) -> PullRequestRoundInput:
+    """Freeze the new pull request or relay the one an earlier attempt opened."""
+    opened = open_work_pull_request(
+        state=context.state, repository=context.repository, work=work
+    )
+    if not opened.was_adopted:
+        return PullRequestRoundInput(
+            pull_request=opened.number,
+            pull_request_state=PullRequestState.OPEN,
+            pull_request_head=read_worktree_revision(worktree=work.worktree),
+            signals=[],
+            user_posts=[],
+        )
+    activity = read_pull_request_activity(
+        context=context,
+        work=work,
+        read=read_pull_request(
+            repository=context.repository, pull_request=opened.number
+        ),
+    )
+    if isinstance(activity, ReadFailureFinding):
+        raise ReportableError(activity.reason)
+    return activity.prepare_round(context=context, work=work)
+
+
 def _compose_campaign_round(
     *,
     context: SchedulingContext,
-    children: list[CampaignChild],
-    notifications: list[CampaignChildNotification],
-    comments: list[IssueComment],
-    delivered_cursor: IssueCommentCursor | None,
+    children: Sequence[CampaignChild],
+    notifications: Sequence[CampaignChildNotification],
+    activity: PullRequestActivity | None,
     work: AgentWork,
 ) -> RoundPlan:
-    """Return the plan of a round that gives the lead its input.
+    """Return the plan for an opening, relay or wrap-up round."""
+    round_input_path = work.compose_round_paths(
+        number=work.next_round_number
+    ).round_input
 
-    The input offers the lead the assignment routes of this daemon, which may
-    differ from the configuration on the default branch. The lead publishes its
-    own messages, so the round has no finishing step.
-    """
-    return RoundPlan(
-        prepare_round=partial(
-            prepare_campaign_round,
-            state=context.state,
-            campaign=work,
+    def prepare_round() -> CampaignRoundInput:
+        pull_request_input = (
+            _prepare_campaign_opening(context=context, work=work)
+            if activity is None
+            else activity.prepare_round(context=context, work=work)
+        )
+        return compose_campaign_round_input(
+            pull_request_input=pull_request_input,
             children=children,
             notifications=notifications,
-            comments=comments,
-            delivered_cursor=delivered_cursor,
             assignment_routes=context.config.assignment,
-        ),
+        )
+
+    def finish_opening_round(*, final_output: str | None) -> None:
+        # The preparation can adopt a pull request that has already ended.
+        round_input = read_json(model=CampaignRoundInput, path=round_input_path)
+        if round_input.pull_request_state is not PullRequestState.OPEN:
+            complete_pull_request_work(
+                work=work, clock=context.clock, final_output=final_output
+            )
+
+    return RoundPlan(
+        prepare_round=prepare_round,
         input_prompt=compose_campaign_input_prompt(
             issue=work.record.issue,
-            round_input=work.compose_round_paths(
-                number=work.next_round_number
-            ).round_input,
+            round_input=round_input_path,
         ),
-        finish_round=None,
+        finish_round=(
+            finish_opening_round
+            if activity is None
+            else activity.compose_finisher(context=context, work=work)
+        ),
     )

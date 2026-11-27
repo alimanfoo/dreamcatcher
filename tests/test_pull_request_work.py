@@ -56,14 +56,14 @@ from dreamcatcher.git import (
 )
 from dreamcatcher.github import IssueComment, PullRequestState
 from dreamcatcher.pull_request_work import (
-    AssignmentRoundInput,
+    PullRequestRoundInput,
     cancel_pull_request_work,
     complete_pull_request_work,
     compose_work_branch,
     open_work_pull_request,
-    read_user_post_cursor,
     read_work_pull_request_number,
 )
+from dreamcatcher.relay import PullRequestPostCursor, read_user_post_cursor
 from dreamcatcher.state import StateDirectory
 
 ASSIGNMENT_ID = "GH12-20260819-184158-assignment"
@@ -105,7 +105,7 @@ with patch.object(Path, "replace", replace_when_released):
         print(cancel_pull_request_work(assignment=assignment, at=datetime.now(UTC)))
     else:
         complete_pull_request_work(
-            assignment=assignment,
+            work=assignment,
             clock=lambda: datetime.now(UTC),
             final_output=None,
         )
@@ -130,7 +130,7 @@ def record_assignment(
 
 def open_pull_request(*, state, assignment):
     """Open the assignment's pull request, as the round that opens it does."""
-    open_work_pull_request(state=state, repository=REPOSITORY, assignment=assignment)
+    open_work_pull_request(state=state, repository=REPOSITORY, work=assignment)
 
 
 def open_assignment(*, state, route, preferred_harness, issue, at):
@@ -143,7 +143,7 @@ def open_assignment(*, state, route, preferred_harness, issue, at):
         title="The issue title",
         at=at,
     )
-    open_work_pull_request(state=state, repository=REPOSITORY, assignment=assignment)
+    open_work_pull_request(state=state, repository=REPOSITORY, work=assignment)
     return assignment
 
 
@@ -378,9 +378,7 @@ def test_completing_an_assignment_records_its_ending(bare_state):
         state=bare_state, rounds=[compose_ended_round(status=0)]
     )
 
-    complete_pull_request_work(
-        assignment=assignment, clock=lambda: PINNED, final_output=None
-    )
+    complete_pull_request_work(work=assignment, clock=lambda: PINNED, final_output=None)
 
     completed = read_assignments(state=bare_state)[0]
     assert completed.ending == AgentWorkEnding(
@@ -486,9 +484,7 @@ def test_a_cancel_after_a_completion_it_did_not_see_leaves_the_completion(
     assignment = write_and_read_assignment(
         state=bare_state, rounds=[compose_running_round(number=1)]
     )
-    complete_pull_request_work(
-        assignment=assignment, clock=lambda: PINNED, final_output=None
-    )
+    complete_pull_request_work(work=assignment, clock=lambda: PINNED, final_output=None)
 
     assert not cancel_pull_request_work(
         assignment=assignment, at=PINNED + timedelta(hours=1)
@@ -507,7 +503,7 @@ def test_a_completion_after_a_cancel_it_did_not_see_leaves_the_cancel(bare_state
     cancel_pull_request_work(assignment=assignment, at=PINNED)
 
     complete_pull_request_work(
-        assignment=assignment,
+        work=assignment,
         clock=lambda: PINNED + timedelta(hours=1),
         final_output=None,
     )
@@ -842,7 +838,7 @@ def test_an_assignment_with_no_relayed_user_post_has_an_empty_cursor(state, rout
         at=PINNED,
     )
 
-    assert read_user_post_cursor(assignment=read_assignments(state=state)[0]) == ""
+    assert read_user_post_cursor(work=read_assignments(state=state)[0]) is None
 
 
 def test_an_assignment_reads_back_its_user_post_cursor(state, route):
@@ -862,7 +858,8 @@ def test_an_assignment_reads_back_its_user_post_cursor(state, route):
             pid=1,
             ending=_compose_agent_round_ending(at=PINNED, status=0),
         ),
-        round_input=AssignmentRoundInput(
+        round_input=PullRequestRoundInput(
+            pull_request=52,
             pull_request_state=PullRequestState.OPEN,
             pull_request_head=HEAD,
             signals=[],
@@ -874,9 +871,10 @@ def test_an_assignment_reads_back_its_user_post_cursor(state, route):
         ),
     )
 
-    assert (
-        read_user_post_cursor(assignment=read_assignments(state=state)[0])
-        == "2026-09-03T22:31:51Z"
+    assert read_user_post_cursor(
+        work=read_assignments(state=state)[0]
+    ) == PullRequestPostCursor(
+        written_at="2026-09-03T22:31:51Z", post_ids=frozenset({("comment", 1)})
     )
 
 
@@ -909,7 +907,8 @@ def test_the_user_post_cursor_scans_past_an_input_that_relayed_no_posts(state, r
                 pid=1,
                 ending=_compose_agent_round_ending(at=PINNED, status=0),
             ),
-            round_input=AssignmentRoundInput(
+            round_input=PullRequestRoundInput(
+                pull_request=52,
                 pull_request_state=PullRequestState.OPEN,
                 pull_request_head=HEAD,
                 signals=[],
@@ -917,9 +916,10 @@ def test_the_user_post_cursor_scans_past_an_input_that_relayed_no_posts(state, r
             ),
         )
 
-    assert (
-        read_user_post_cursor(assignment=read_assignments(state=state)[0])
-        == "2026-09-03T22:31:51Z"
+    assert read_user_post_cursor(
+        work=read_assignments(state=state)[0]
+    ) == PullRequestPostCursor(
+        written_at="2026-09-03T22:31:51Z", post_ids=frozenset({("comment", 1)})
     )
 
 

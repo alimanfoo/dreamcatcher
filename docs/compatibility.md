@@ -19,7 +19,8 @@ leaves `.dreamcatcher/v8/` on disk. Review the dispatch labels on open
 issues assigned to you before starting the daemon. With no local record
 of earlier work, a label can start work again. Remove labels whose work
 you do not want to restart. Open pull requests still claim their linked
-assignment issues, and you can finish those pull requests by hand.
+assignment issues and campaign parents, and you can finish those pull
+requests by hand.
 
 ## Upgrade from v8.0.0 to v9.0.0
 

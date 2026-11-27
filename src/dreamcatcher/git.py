@@ -115,7 +115,7 @@ def refresh_detached_worktree(*, root: Path, worktree: Path) -> str:
         cwd=worktree,
     )
     _refresh_initialized_submodules(worktree=worktree)
-    return _read_worktree_revision(worktree=worktree)
+    return read_worktree_revision(worktree=worktree)
 
 
 def _refresh_initialized_submodules(*, worktree: Path) -> None:
@@ -155,7 +155,7 @@ def is_linked_worktree(*, path: Path) -> bool:
     return (path / ".git").is_file()
 
 
-def _read_worktree_revision(*, worktree: Path) -> str:
+def read_worktree_revision(*, worktree: Path) -> str:
     """Return the exact commit checked out in a worktree."""
     return run_command(
         program="git", arguments=["rev-parse", "HEAD"], cwd=worktree

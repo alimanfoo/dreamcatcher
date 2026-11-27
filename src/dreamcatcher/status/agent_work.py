@@ -21,16 +21,13 @@ from dreamcatcher.github import IssueState, PullRequestState
 from dreamcatcher.harness_adapters import AgentWorkKind, HarnessSessionIdentifier
 from dreamcatcher.harnesses import HARNESS_ADAPTERS
 from dreamcatcher.issue_conversations import is_no_reply
-from dreamcatcher.pull_request_work import (
-    read_relayed_pull_request_state,
-    read_work_pull_request_number,
-)
+from dreamcatcher.pull_request_work import read_work_pull_request_number
+from dreamcatcher.relay import read_relayed_pull_request_state
 from dreamcatcher.scheduler.faults import (
     derive_agent_work_fault,
     is_last_round_unfinished,
 )
 from dreamcatcher.scheduler.models import (
-    CampaignFinding,
     HoldFinding,
     IssueCommentsFinding,
     PullRequestFinding,
@@ -126,14 +123,8 @@ class AgentWorkStatus:
 
     @property
     def issue_state(self) -> str | None:
-        """The state of the issue that a conversation or a campaign stands for.
-
-        Ended work's issue is closed, since only that ends a conversation or a
-        campaign. Open work's is the state that the latest tick read, and it
-        has none when that read failed or the tick did not see the work. An
-        assignment has none, because its pull request stands for it.
-        """
-        if self.work.record.kind is AgentWorkKind.ASSIGNMENT:
+        """The conversation issue's state, when the latest tick read it or it ended."""
+        if self.work.record.kind.is_pull_request_work:
             return None
         if self.has_ended:
             return describe_issue_state(state=IssueState.CLOSED)
@@ -162,16 +153,16 @@ class AgentWorkStatus:
 
     @cached_property
     def pull_request(self) -> int | None:
-        """The number of the assignment's pull request, once a round opened it."""
+        """The number of the work's pull request, once a round opened it."""
         return read_work_pull_request_number(work=self.work)
 
     @property
     def pull_request_summary(self) -> str | None:
         """Where the pull request stands in status-report words, when it is known.
 
-        The latest tick's read of an open assignment's pull request gives it.
+        The latest tick's read of open work's pull request gives it.
         Otherwise it is the merged or closed state that the newest relayed round
-        input carried, as for an assignment that has ended. An assignment whose
+        input carried, as for work that has ended. Work whose
         pull request no round has opened yet has none.
         """
         if self.pull_request is None:
@@ -179,14 +170,14 @@ class AgentWorkStatus:
         finding = self._pull_request_finding
         if finding is not None:
             return describe_pull_request(finding=finding)
-        relayed = read_relayed_pull_request_state(assignment=self.work)
+        relayed = read_relayed_pull_request_state(work=self.work)
         if relayed is None or relayed is PullRequestState.OPEN:
             return None
         return relayed.value.lower()
 
     @property
     def is_pull_request_ready_for_review(self) -> bool:
-        """Whether the latest tick read an open assignment's pull request as ready.
+        """Whether the latest tick read open work's pull request as ready.
 
         A pull request that no tick has read, or whose read failed, is not.
         """
@@ -465,7 +456,7 @@ class AgentWorkStatusReader:
         """Derive the status of work that a round is due for, if it is due.
 
         A round is due to give again the input of a last round that did not
-        finish, before the first round has run, while an assignment's pull
+        finish, before the first round has run, while the work's pull
         request is not yet open, and when the latest tick found something new.
         """
         if self._is_unfinished_round_due(work=work, row=row):
@@ -477,7 +468,7 @@ class AgentWorkStatusReader:
         if not work.rounds:
             return _compose_waiting(work=work, row=row, detail="no round has run yet")
         if (
-            work.record.kind is AgentWorkKind.ASSIGNMENT
+            work.record.kind.is_pull_request_work
             and read_work_pull_request_number(work=work) is None
         ):
             return _compose_waiting(work=work, row=row, detail="no pull request yet")
@@ -493,11 +484,7 @@ class AgentWorkStatusReader:
         if isinstance(finding, PullRequestFinding):
             detail = describe_idle_pull_request(finding=finding)
         elif isinstance(finding, IssueCommentsFinding):
-            detail = _describe_idle_round(
-                work=work, ending=_describe_conversation_answer(work=work)
-            )
-        elif isinstance(finding, CampaignFinding):
-            detail = _describe_idle_round(work=work, ending=None)
+            detail = _describe_idle_conversation(work=work)
         else:
             return _compose_unknown(work=work, row=row)
         return AgentWorkStatus(
@@ -578,13 +565,6 @@ def _describe_what_is_new(*, finding: RequestFinding | None) -> str | None:
     the tick found new; otherwise the words say what is new in the work's
     channel.
     """
-    if isinstance(finding, CampaignFinding):
-        words = []
-        if finding.new_comments:
-            words.append(describe_comments_to_answer(count=finding.new_comments))
-        if finding.changed_children:
-            words.append(describe_changed_children(count=finding.changed_children))
-        return ", ".join(words) or None
     if isinstance(finding, IssueCommentsFinding) and finding.new_comments:
         return describe_comments_to_answer(count=finding.new_comments)
     if not isinstance(finding, PullRequestFinding):
@@ -597,33 +577,26 @@ def _describe_what_is_new(*, finding: RequestFinding | None) -> str | None:
     if finding.new_posts:
         posts = describe_count(number=finding.new_posts, noun="new post")
         words.insert(0, f"{posts} to answer")
+    if finding.changed_children:
+        words.append(describe_changed_children(count=finding.changed_children))
     return ", ".join(words) or None
 
 
-def _describe_conversation_answer(*, work: AgentWork) -> str | None:
-    """Say what the latest conversation round posted, when it was successful.
-
-    Only a successful round posted an answer or found that none was needed.
-    """
+def _describe_idle_conversation(*, work: AgentWork) -> str:
+    """Describe what the conversation's latest round did and how long it ran."""
     latest = work.rounds[-1]
-    if latest.outcome is not AgentRoundOutcome.SUCCESSFUL:
-        return None
-    final_output = read_text(
-        path=work.compose_round_paths(number=latest.number).final_output
-    )
-    return "no reply needed" if is_no_reply(final_output=final_output) else "answered"
-
-
-def _describe_idle_round(*, work: AgentWork, ending: str | None) -> str:
-    """Describe how the latest round of idle work ended, and how long it ran.
-
-    The ending is said in words of the work's kind when it has some, and as the
-    round's outcome otherwise. An interrupted round has no duration.
-    """
-    latest = work.rounds[-1]
+    if latest.outcome is AgentRoundOutcome.SUCCESSFUL:
+        final_output = read_text(
+            path=work.compose_round_paths(number=latest.number).final_output
+        )
+        ending = (
+            "no reply needed" if is_no_reply(final_output=final_output) else "answered"
+        )
+    else:
+        ending = describe_round_outcome(record=latest, outcome=latest.outcome)
     words = [
         f"round {latest.number}",
-        ending or describe_round_outcome(record=latest, outcome=latest.outcome),
+        ending,
         compose_round_duration_description(record=latest),
     ]
     return ", ".join(word for word in words if word)

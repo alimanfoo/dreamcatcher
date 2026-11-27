@@ -25,7 +25,7 @@ from dreamcatcher.feed import read_last_feed_line
 from dreamcatcher.github import PullRequestState
 from dreamcatcher.harness_adapters import AgentWorkKind, HarnessSessionIdentifier
 from dreamcatcher.issue_conversations import ConversationRoundInput
-from dreamcatcher.pull_request_work import AssignmentRoundInput
+from dreamcatcher.pull_request_work import PullRequestRoundInput
 from dreamcatcher.status.findings import describe_changed_children, describe_signal
 from dreamcatcher.words import describe_count, describe_span
 
@@ -231,54 +231,40 @@ def _describe_conversation_round_trigger(*, work: AgentWork, number: int) -> str
 
 
 def _describe_assignment_round_trigger(*, work: AgentWork, number: int) -> str:
-    """Say what woke one assignment round.
-
-    A round given no input opened, or tried to open, the pull request.
-    """
-    assignment_input = read_json_if_exists(
-        model=AssignmentRoundInput,
+    """Say what woke one assignment round."""
+    round_input = read_json_if_exists(
+        model=PullRequestRoundInput,
         path=work.compose_round_paths(number=number).round_input,
     )
-    if assignment_input is None:
+    if round_input is None:
         return "start"
-    if assignment_input.pull_request_state is not PullRequestState.OPEN:
-        return assignment_input.pull_request_state.lower()
-    words = [describe_signal(signal=signal) for signal in assignment_input.signals]
-    if assignment_input.user_posts:
-        words.insert(
-            0, describe_count(number=len(assignment_input.user_posts), noun="post")
-        )
-    return ", ".join(words) or "recover"
+    return _describe_pull_request_trigger(round_input=round_input) or "recover"
+
+
+def _describe_pull_request_trigger(*, round_input: PullRequestRoundInput) -> str:
+    if round_input.pull_request_state is not PullRequestState.OPEN:
+        return round_input.pull_request_state.lower()
+    words = [describe_signal(signal=signal) for signal in round_input.signals]
+    if round_input.user_posts:
+        words.insert(0, describe_count(number=len(round_input.user_posts), noun="post"))
+    return ", ".join(words)
 
 
 def _describe_campaign_round_trigger(
     *, work: AgentWork, number: int
 ) -> AgentRoundTrigger:
-    """Describe what woke one lead round, from its place and its input.
-
-    The first round starts the lead, and a round after one that did not finish
-    recovers it. The count of the parent comments that the round was given
-    follows, and then each notification it was given. A round with no input to
-    read was woken by comments or changes.
-    """
-    previous = [record for record in work.rounds if record.number == number - 1]
-    words = []
-    if not previous:
-        words.append("start")
-    elif previous[0].is_unfinished:
-        words.append("recover")
+    """Describe what woke a lead round, including its sub-issue notifications."""
     campaign_input = read_json_if_exists(
         model=CampaignRoundInput,
         path=work.compose_round_paths(number=number).round_input,
     )
+    if number == 1:
+        return AgentRoundTrigger(words="start")
     if campaign_input is None:
-        return AgentRoundTrigger(words=", ".join(words) or "comments or changes")
-    if campaign_input.comments:
-        words.append(
-            describe_count(number=len(campaign_input.comments), noun="comment")
-        )
+        return AgentRoundTrigger(words="pull request or sub-issue changes")
+    words = _describe_pull_request_trigger(round_input=campaign_input)
     return AgentRoundTrigger(
-        words=", ".join(words),
+        words=words or ("" if campaign_input.notifications else "recover"),
         notifications=tuple(
             _describe_notification(
                 notification=notification, children=campaign_input.children
