@@ -126,9 +126,9 @@ parent issue meets these conditions.
 - It has no open work of that kind in this checkout.
 - No open pull request claims it and no open issue blocks it.
 
-A sub-issue's request waits until its parent has a campaign with an open
-pull request. The assignment then targets that campaign's branch. An
-assignment keeps the base it starts from.
+A campaign's sub-issue waits until its parent has a campaign with an
+open pull request. The assignment then targets that campaign's branch.
+An assignment keeps the base it starts from.
 
 Two configured labels of the same kind hold a new request with a routing
 conflict. An open assignment or campaign keeps its recorded route and
