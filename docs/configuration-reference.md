@@ -58,12 +58,11 @@ A label is a case-insensitive identity. No two routes may share a label,
 whether they are of one kind or of different kinds. Route order gives no
 route precedence. Issue labels are also matched case-insensitively.
 
-Two or more labels of the same kind cause a routing conflict while their
-requests are unanswered. A conversation conflict also holds back new
-rounds of existing conversations. Their running rounds can finish. An
-open assignment or campaign answers every label of its kind on the issue
-and continues on its recorded route. Labels of different kinds may
-coexist on an issue.
+Two or more configured labels of the same kind cause a routing conflict
+for that kind of work. A conversation conflict holds back new rounds,
+and running rounds can finish. An open assignment or campaign answers
+every label of its kind on the issue and continues on its recorded
+route. Labels of different kinds may coexist on an issue.
 
 ## Dispatch recipes
 

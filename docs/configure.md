@@ -126,12 +126,15 @@ An issue is available for a new assignment when it:
 - has no other open pull request linked to it; and
 - has no open issue recorded by GitHub as blocking it.
 
-If an issue carries two configured assignment labels, _dreamcatcher_
-reports a routing conflict instead of guessing which recipe to use.
-Removing an assignment label after dispatch does not stop the active
-assignment: its saved route and pull request continue to govern later
-rounds. Use the controls in [Stop and recover work](stop-and-recover.md)
-when you need to intervene.
+Requests for a campaign's sub-issues wait until the campaign branch is
+available. The newest campaign supplies it when it is open or cancelled
+and its pull request is open. An assignment keeps the base it starts
+from.
+
+Two configured assignment labels hold a new request with a routing
+conflict. An open assignment keeps its recorded route and pull request
+when its labels change. Use the controls in
+[Stop and recover work](stop-and-recover.md) when you need to intervene.
 
 A conversation starts on an open issue that is assigned to the
 authenticated account and carries exactly one configured conversation
@@ -166,10 +169,10 @@ yourself to start the work.
 
 ## Apply and check the configuration
 
-Commit and push `dreamcatcher.toml` and any project instructions or
-setup files the agents need. Keep those files on the default branch so
-they are available when _dreamcatcher_ creates a worktree from it or
-from a campaign branch started there.
+Commit and push `dreamcatcher.toml` to the default branch. Commit any
+project instructions and setup files the agents need to the branch their
+worktrees will start from. For a campaign's sub-issue assignments,
+that's the campaign branch.
 
 Then start or restart the daemon from the ordinary main checkout:
 

@@ -26,9 +26,13 @@ for the campaign skill you need.
 
 For your own campaign instructions, configure a separate
 [route](configure.md) with a prompt that follows the
-[campaign skill contract](contract.md#campaign-skill-contract). Run
+[campaign skill contract](contract.md#campaign-skill-contract).
+
+After adding either route, run
 [`dreamcatcher init`](command-reference.md#init) to create the label on
-GitHub, then restart the daemon so it reads the new route.
+GitHub, then
+[start or restart the daemon](run-and-monitor.md#start-the-daemon) so it
+reads the new route.
 
 Set the repository's branch rules so the campaign branch can accept
 merges without an approving review. The lead merges the sub-issue pull
@@ -44,11 +48,11 @@ Record any dependencies as blocked-by links. Assign the open parent
 issue to the account authenticated through `gh` and apply one configured
 campaign label yourself, such as `agent-campaign`.
 
-When the parent has no open blockers and an agent slot is free,
-_dreamcatcher_ creates the campaign branch from the default branch,
-opens a draft pull request and starts the lead in its worktree. The lead
-receives the sub-issues, their assignment status and the daemon's
-assignment routes.
+When the [request can start](configure.md#label-an-issue-for-agent-work)
+and an agent slot is free, _dreamcatcher_ creates the campaign branch
+from the default branch, opens a draft pull request and starts the lead
+in its worktree. The lead receives the sub-issues, their assignment
+status and the daemon's assignment routes.
 
 On the web home page's **Campaigns** tab, the campaign card links to its
 pull request and shows the closed sub-issue count. Expand the count to

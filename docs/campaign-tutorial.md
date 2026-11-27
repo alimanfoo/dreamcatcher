@@ -53,6 +53,9 @@ that issue 124 blocks it.
 
 ## 3. Start dreamcatcher
 
+If the daemon is running, keep it open. Restart it first if you changed
+`dreamcatcher.toml`. Otherwise start it as follows.
+
 From the main checkout, start the daemon in its own terminal:
 
 ```sh

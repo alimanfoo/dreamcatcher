@@ -45,7 +45,8 @@ prompt and point a label to it.
    operational requirements.
 2. If you wrote a skill, make it available where the agent runs. Each
    agent uses a separate worktree, so install the skill at user scope or
-   commit it to the repository and push it to the default branch.
+   commit it to the branch the worktree starts from. For a campaign's
+   sub-issue assignments, that's the campaign branch.
 3. Add a route to `dreamcatcher.toml` that points a label to a prompt.
    The prompt calls your skill or gives the conversation or campaign
    instructions directly. Run `dreamcatcher init` to create the label on

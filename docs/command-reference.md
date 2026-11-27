@@ -234,6 +234,8 @@ as in `PR #52 ready; 1 new post to answer` or
 part with nothing to say is left out with its separator. The agent's
 latest output follows on a line of its own.
 
+Campaign rows include the closed sub-issue count and total when known.
+
 In an interactive terminal the view refreshes and occupies the terminal
 until interrupted. When output is piped, redirected or captured, it
 prints one snapshot and returns.
@@ -248,12 +250,11 @@ Show the selected agent work's status, recorded route and harness
 settings, harness session, worktree and rounds, with a hand-resume
 command when one is available. Ended work whose worktree _dreamcatcher_
 has removed shows the worktree as removed, and no hand-resume command.
-An assignment or campaign view shows its branch and pull request. A
-campaign view also shows how many sub-issues are closed out of the
-total. Use the parent issue number as a campaign's `GH<n>`. A
-conversation view shows its issue's state, such as
-`open, labelled by octocat` or `closed`. A paused conversation shows as
-held, with the reason and what will resume it.
+An assignment or campaign view shows its branch and pull request. Use
+the parent issue number as a campaign's `GH<n>`. A conversation view
+shows its issue's state, such as `open, labelled by octocat` or
+`closed`. A paused conversation shows as held, with the reason and what
+will resume it.
 
 In an interactive terminal it refreshes until the work ends, as an
 assignment does after a successful wrap-up or a cancel. It stays on the

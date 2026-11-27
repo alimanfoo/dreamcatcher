@@ -130,7 +130,9 @@ with `/dream:smith GH123`.
 Until the default branch holds the file, `init` ends by printing the
 commands that commit and push it, naming your repository's default
 branch in the last one. Run them, so the assignment worktree contains
-the file too. For a default branch named `main`, they are:
+the file too. If the default branch requires a pull request, land the
+file through your repository's normal review process. To push directly
+to a default branch named `main`, the commands are:
 
 ```sh
 git add dreamcatcher.toml
