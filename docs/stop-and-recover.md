@@ -72,17 +72,22 @@ _dreamcatcher_ asks a running round to stop, runs no further rounds for
 the assignment or campaign, and stops relaying feedback on its pull
 request. Its card moves to the ended list and shows **cancelled**.
 
-Carry on in the worktree with its branch still checked out. Once no
-round is running, the work page shows the command to resume the agent's
-session by hand if _dreamcatcher_ has learned the session.
+The worktree and branch stay available. A campaign worktree keeps the
+lead's last checkout. Run `git status` in the worktree to check the
+checkout before carrying on. Once no round is running, the work page
+shows the command to resume the agent's session by hand if
+_dreamcatcher_ has learned the session.
 
-While the pull request remains open, it claims the issue. For a
-cancelled campaign, sub-issue assignments already under way carry on.
-You can label more sub-issues and review and merge their pull requests
-into the campaign branch as long as the campaign's pull request is open.
-If you cancel a sub-issue's assignment and merge its pull request into
-the campaign branch yourself, close the sub-issue on GitHub to unblock
-any work that depends on it.
+An open pull request still claims the issue if GitHub links it to close
+that issue. A sub-issue pull request into the campaign branch can stay
+open without claiming the sub-issue.
+
+For a cancelled campaign, sub-issue assignments already under way carry
+on. You can label more sub-issues and review and merge their pull
+requests into the campaign branch as long as the campaign's pull request
+is open. If you cancel a sub-issue's assignment and merge its pull
+request into the campaign branch yourself, close the sub-issue on GitHub
+to unblock any work that depends on it.
 
 If you close the pull request without merging and want another attempt,
 remove and re-add the dispatch label on the open issue assigned to you.

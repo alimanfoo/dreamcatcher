@@ -241,4 +241,6 @@ piped or captured.
   will be told that it was stopped.
 - `dreamcatcher cancel` lets you end an assignment or campaign to finish
   its pull request by hand. The pull request, worktree and branch stay
-  available. While the pull request is open, it still claims the issue.
+  available. An open pull request still claims the issue if GitHub links
+  it to close that issue. A sub-issue pull request into a campaign
+  branch can stay open without claiming the sub-issue.
