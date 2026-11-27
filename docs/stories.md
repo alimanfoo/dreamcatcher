@@ -407,6 +407,24 @@ dispatch it. The colleague then reviews the updated pull request.
 
 The user decides which feedback reaches the lead, as on an assignment.
 
+#### The user cancels a campaign to finish it by hand
+
+The user wants to take over from the lead. They cancel the campaign from
+its page or with `dreamcatcher cancel`. Any running lead round stops,
+and the pull request, branch and worktree stay for the user. The
+campaign moves to the ended list once its lead stops. While the
+campaign's pull request is open, the parent is held if the user asks for
+another campaign.
+
+Assignments already under way carry on. The user follows them on the
+Assignments tab and labels any remaining sub-issues they want worked on.
+Those assignments open their pull requests into the campaign branch,
+where the user reviews and merges them. When the work is ready, the user
+can put the campaign's pull request up for review.
+
+The value to the user is that they can finish as lead and keep every
+part of the work already in progress.
+
 #### The lead hears when a sub-issue needs it
 
 A sub-issue's assignment works while the lead waits. When the assignment
@@ -1059,9 +1077,9 @@ The user gives a terminal command an agent work identifier with a typo
 in it. The command says that no work has that name, and acts on no work
 at all. It never falls back to other work at the issue. The user needs
 to give the command the issue instead, and copy the identifier from the
-commands that it lists. Given a conversation or a campaign,
-`dreamcatcher cancel` says that the work is not an assignment, and
-cancels nothing.
+commands that it lists. Given a conversation, `dreamcatcher cancel`
+names it as a conversation and says that only assignments and campaigns
+can be cancelled.
 
 ## Expected faults
 

@@ -1049,16 +1049,16 @@ def test_retry_refuses_ended_work_whose_last_rounds_errored(
     assert not (faulted_checkout.work / ASSIGNMENT_ID / "retry-request.json").exists()
 
 
-@pytest.mark.parametrize("write_work", [write_conversation, write_campaign])
-def test_cancel_refuses_work_that_is_not_an_assignment(
-    monkeypatch, tmp_path, capsys, write_work
-):
+def test_cancel_refuses_a_conversation(monkeypatch, tmp_path, capsys):
     state = StateDirectory(root=tmp_path)
     state.bootstrap()
-    identifier = write_work(state=state, issue=13).name
+    identifier = write_conversation(state=state, issue=13).name
     monkeypatch.chdir(tmp_path)
 
     assert main(argv=["cancel", "GH13"]) == 1
 
-    assert capsys.readouterr().err == f"{identifier} is not an assignment.\n"
+    assert capsys.readouterr().err == (
+        f"{identifier} is a conversation. "
+        "Only assignments and campaigns can be cancelled.\n"
+    )
     assert not (state.work / identifier / "ended.json").exists()

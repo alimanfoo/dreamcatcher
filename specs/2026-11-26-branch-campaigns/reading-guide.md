@@ -2,7 +2,8 @@
 
 The [requirements](requirements.md) and [design](design.md) explain the
 goal and the whole change. This guide follows the code as the
-[roadmap](roadmap.md) lands. The code described here reflects stage 6.
+[roadmap](roadmap.md) lands. It covers the coordinating and finishing
+phases and campaign cancellation.
 
 ## The tick
 
@@ -90,9 +91,12 @@ A merged or closed pull request calls for a wrap-up round. The shared
 preparation closes the issue first on a merge into a recorded alternate
 base. The shared finisher records completion after a successful harness
 exit. `Scheduler._remove_ended_worktrees` removes the worktree and local
-branch of ended pull request work and leaves cancelled work for the
-user. The command and web cancel controls still accept assignments at
-stage 5.
+branch of completed pull request work and leaves cancelled work for the
+user. The `cancel` command and work pages use `cancel_pull_request_work`
+for both assignments and campaigns. It records the ending first, then
+asks a running round to stop. Campaign requests still check for an open
+pull request that claims the parent, and the assignment pass can use the
+branch of a cancelled campaign while its pull request is open.
 
 `PullRequestFinding` in `scheduler/models.py` carries the shared channel
 observation and the count of campaign notifications.
@@ -127,13 +131,14 @@ no check-failure resets the count.
 
 ## Later stages
 
-Stage 8 exposes campaign cancellation, and stage 9 updates the guides.
+Stage 9 updates the user guides.
 
 ## Tests to read
 
-Start with the stand-in walkthrough and channel tests in
-`tests/test_campaign_scheduling.py`. For the inputs and their display,
-read `tests/test_campaigns.py`, `tests/test_relay.py` and
+Start with the stand-in walkthroughs and channel tests in
+`tests/test_campaign_scheduling.py`, including the ready and draft
+rounds and taking over a cancelled campaign. For the inputs and their
+display, read `tests/test_campaigns.py`, `tests/test_relay.py` and
 `tests/test_campaign_status.py`. For the shared Git and GitHub
 operations, see `tests/test_assignment_requests.py`,
 `tests/test_pull_request_work.py` and `tests/test_git.py`.

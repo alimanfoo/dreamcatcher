@@ -514,22 +514,21 @@ stopped and has consumed its input, so what it was given is not given
 again, and the next round's prompt says that the previous one was
 stopped.
 
-### Cancelling an assignment
+### Cancelling pull request work
 
-The user can **cancel** an open assignment to finish its pull request by
-hand. A cancelled assignment is no longer open, so _dreamcatcher_ runs
-no further rounds for it and relays no further user posts from its pull
-request. A round that is running when the user cancels is asked to stop,
-and the assignment is working until that round ends. A cancel records
-the assignment's ending, with the reason "cancelled", and cannot be
-undone.
+The user can **cancel** an open assignment or campaign to finish its
+pull request by hand. A cancel records the work's ending, with the
+reason "cancelled", and cannot be undone. _dreamcatcher_ asks a running
+round to stop and shows the work as working until that round ends. It
+starts no further rounds and relays no further user posts for the work.
 
-_dreamcatcher_ leaves the pull request as it is. An open pull request
-linked to close the issue still claims it. GitHub closes the issue for a
-merge into the default branch. After merging into another base branch,
-the user closes the issue themselves. If the user closes the pull
-request without merging, the issue may receive another assignment. A
-cancelled assignment keeps its worktree and branch for the user.
+_dreamcatcher_ leaves the pull request, worktree and branch for the
+user. An open pull request linked to close the issue still claims it.
+While a cancelled campaign's pull request is open, the campaign still
+supplies the base branch for its sub-issue assignments under the
+[campaign branch rule](#campaign-lead-and-parent-issue). GitHub closes
+the issue for a merge into the default branch. After merging into
+another base branch, the user closes the issue themselves.
 
 ### Starting a campaign
 
@@ -755,9 +754,8 @@ global cooldown count towards a new fault.
 
 Agent work of every kind has one of these summary statuses:
 
-- **Working**: a round is running under the daemon. A cancelled
-  assignment whose round is still stopping is working until the round
-  ends.
+- **Working**: a round is running under the daemon. Work whose round is
+  still stopping after a cancel stays working until the round ends.
 - **Ended**: the work's ending is recorded. Ended work shows how
   _dreamcatcher_'s work ended, with no detail: completed or cancelled
   for pull request work, and ended for a conversation, whose issue shows

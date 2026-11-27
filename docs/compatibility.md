@@ -204,15 +204,12 @@ records.
 ### Reclaim disk from an earlier state format
 
 An earlier format's directory, `.dreamcatcher/vN/`, stays on disk with
-every worktree in it. _dreamcatcher_ never deletes it, because a
-cancelled assignment's worktree in there is yours to work on. Once you
-have finished with that state, reclaim the space by hand from the main
-checkout, with `N` as the earlier format:
+its worktrees. When you have finished with that state, reclaim the space
+from the main checkout, with `N` as the earlier format:
 
-1. Look in `.dreamcatcher/vN/worktrees/` for a cancelled assignment's
-   worktree you still want. Commit any work in it that you want to keep.
-   Its branch stays after the next steps, but uncommitted changes do
-   not.
+1. Check `.dreamcatcher/vN/worktrees/` and commit any work you want to
+   keep. The branches stay in Git. Deleting a worktree discards its
+   uncommitted changes.
 2. Delete the directory. On macOS and Linux run
    `rm -rf .dreamcatcher/vN`. In Windows PowerShell run
    `Remove-Item -Recurse -Force .dreamcatcher\vN`.

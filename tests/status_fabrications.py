@@ -532,7 +532,7 @@ def fabricate_everything(
         state=state, issue=70, records=[compose_ended_round(minute=1)]
     )
     cancel_pull_request_work(
-        assignment=read_agent_work_at_issue(state=state, issue=70)[0],
+        work=read_agent_work_at_issue(state=state, issue=70)[0],
         at=PINNED + timedelta(minutes=10),
     )
     write_tick(

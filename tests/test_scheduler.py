@@ -1515,7 +1515,7 @@ def test_a_cancelled_assignment_keeps_its_worktree_and_branch(
     scheduler, clock = create_scheduler(root=assigned_checkout)
     scheduler.tick(at=clock())
     [assignment] = read_assignments(state=scheduler.context.state)
-    cancel_pull_request_work(assignment=assignment, at=clock())
+    cancel_pull_request_work(work=assignment, at=clock())
     finish_rounds(scheduler=scheduler)
 
     observed = scheduler.tick(at=clock())
@@ -1544,7 +1544,7 @@ def test_a_wrap_up_round_that_finishes_after_a_cancel_leaves_the_worktree_alone(
 
     def cancel_then_complete(*, work, clock, final_output):
         [read_now] = read_assignments(state=scheduler.context.state)
-        cancel_pull_request_work(assignment=read_now, at=clock())
+        cancel_pull_request_work(work=read_now, at=clock())
         complete_pull_request_work(work=work, clock=clock, final_output=final_output)
 
     monkeypatch.setattr(
