@@ -157,6 +157,19 @@ def test_a_parent_without_campaign_history_is_decided_by_its_campaign_label(
     )
 
 
+def test_an_unrecorded_parents_labels_cannot_match_an_unconfigured_campaign_route(
+    gh, state
+):
+    offer_issue_parent(gh=gh, issue=8, parent=PARENT)
+    gh.fails(stderr="gh: could not connect to github.com", to=f"issue view {PARENT}")
+
+    [row] = list_request_rows(
+        state=state, config=compose_config(labels=[ASSIGNMENT_LABEL])
+    )
+
+    assert row.finding == UNCLAIMED
+
+
 @pytest.mark.parametrize(
     ("ending", "pull_request_state", "is_available"),
     [
@@ -211,13 +224,21 @@ def test_a_parent_in_another_repository_does_not_match_a_local_campaign(gh, stat
     assert row.finding == UNCLAIMED
 
 
-@pytest.mark.parametrize("is_incomplete", [False, True])
-def test_an_unknown_parent_does_not_start_an_assignment(gh, state, is_incomplete):
+@pytest.mark.parametrize(
+    "response",
+    [
+        None,
+        '{"data":{"repository":{"issue":{}}}}',
+        '{"parent":null}',
+        '{"data":{"repository":{"issue":{"parent":{"number":20,"repository":"another/repository"}}}}}',
+    ],
+)
+def test_an_unknown_parent_does_not_start_an_assignment(gh, state, response):
     command = compose_issue_parent_read(issue=8)
-    if is_incomplete:
-        gh.replies(stdout='{"data":{"repository":{"issue":{}}}}', to=command)
-    else:
+    if response is None:
         gh.fails(stderr="gh: could not connect to github.com", to=command)
+    else:
+        gh.replies(stdout=response, to=command)
 
     tick = list_requests(
         state=state, config=compose_config(labels=[ASSIGNMENT_LABEL]), max_agents=1
@@ -244,7 +265,10 @@ def test_a_failed_read_of_the_campaign_leaves_the_assignment_request_unknown(
     gh.fails(stderr="gh: could not connect to github.com", to=command)
 
     [row] = list_request_rows(
-        state=state, config=compose_config(labels=[ASSIGNMENT_LABEL])
+        state=state,
+        config=compose_config(
+            labels=[ASSIGNMENT_LABEL], campaign_labels=[CAMPAIGN_LABEL]
+        ),
     )
 
     assert isinstance(row.finding, ReadFailureFinding)

@@ -207,6 +207,8 @@ def _find_campaign_base(
 ) -> str | CampaignPullRequestMissingFinding | ReadFailureFinding | None:
     campaign = campaigns.get(parent)
     if campaign is None:
+        if not context.config.campaign:
+            return None
         issue = read_issue(repository=context.repository, issue=parent)
         if isinstance(issue, UnknownGitHubResponse):
             return ReadFailureFinding(reason=issue.reason)
@@ -217,16 +219,14 @@ def _find_campaign_base(
     elif (
         campaign.ending is None
         or campaign.ending.reason is AgentWorkEndReason.CANCELLED
-    ):
-        number = read_work_pull_request_number(work=campaign)
-        if number is not None:
-            pull_request = read_pull_request(
-                repository=context.repository, pull_request=number
-            )
-            if isinstance(pull_request, UnknownGitHubResponse):
-                return ReadFailureFinding(reason=pull_request.reason)
-            if pull_request.state is PullRequestState.OPEN:
-                return compose_work_branch(identifier=campaign.identifier)
+    ) and ((number := read_work_pull_request_number(work=campaign)) is not None):
+        pull_request = read_pull_request(
+            repository=context.repository, pull_request=number
+        )
+        if isinstance(pull_request, UnknownGitHubResponse):
+            return ReadFailureFinding(reason=pull_request.reason)
+        if pull_request.state is PullRequestState.OPEN:
+            return compose_work_branch(identifier=campaign.identifier)
     return CampaignPullRequestMissingFinding(parent=IssueReference(number=parent))
 
 

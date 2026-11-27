@@ -336,11 +336,15 @@ class SubIssue(_RestIssueProjection):
 class ParentIssue(_IssueInRepository):
     """Identify an issue's direct parent from the GraphQL response."""
 
+    model_config = ConfigDict(populate_by_name=False)
+
     repository: str = Field(validation_alias=AliasPath("repository", "nameWithOwner"))
 
 
 class _IssueParentResponse(GitHubResponseProjection):
     """Distinguish an explicit null parent from an incomplete response."""
+
+    model_config = ConfigDict(populate_by_name=False)
 
     parent: ParentIssue | None = Field(
         validation_alias=AliasPath("data", "repository", "issue", "parent")

@@ -221,8 +221,9 @@ checks, the kind's request inspector runs. The tick builds the
 assignment request inspector with `create_assignment_request_inspector`
 and all saved work. It asks about claims and blockers before reading the
 direct parent. For a parent in this repository, it looks at the newest
-saved campaign or, without one, the parent's labels. It shares that
-parent's base decision across the assignment pass.
+saved campaign or, without one, checks the parent's labels against the
+configured campaign routes. It shares that parent's base decision across
+the assignment pass.
 
 The findings are in `scheduler/models.py`. `HoldFinding` includes
 `PausedFinding`, `LabelAppliedByOtherFinding`,
