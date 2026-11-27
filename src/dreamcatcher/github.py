@@ -727,7 +727,7 @@ def list_pull_requests(
 def create_pull_request(
     *, repository: str, base: str, branch: str, issue: int, title: str
 ) -> PullRequestReference | UnknownGitHubResponse:
-    """Open the branch's draft pull request, linked to the issue, and return it.
+    """Open the branch's draft pull request with a closing keyword for the issue.
 
     An unknown response means that creation succeeded but the pull request's
     identity could not be read.

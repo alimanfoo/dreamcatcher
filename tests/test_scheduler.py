@@ -17,7 +17,6 @@ from conftest import (
     POSTED_BY,
     PULL_REQUEST,
     REPOSITORY,
-    commit,
     compose_assignment_issues,
     compose_comment,
     compose_page,
@@ -831,11 +830,9 @@ def test_an_assignment_opens_and_wraps_up_against_its_selected_base(
     base_branch = "campaign/topic"
     base_ref = f"refs/remotes/origin/{base_branch}"
     run_git(arguments=["switch", "-c", base_branch], cwd=ready_repo)
-    (ready_repo / "campaign.txt").write_bytes(b"work in the base branch\n")
-    commit(path=ready_repo, message="Advance the campaign branch")
+    make_empty_commit(worktree=ready_repo, message="Advance the campaign branch")
     run_git(arguments=["push", "origin", base_branch], cwd=ready_repo)
     run_git(arguments=["switch", "main"], cwd=ready_repo)
-    configure(root=ready_repo)
     run_git(
         arguments=[
             "config",

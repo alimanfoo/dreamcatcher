@@ -72,25 +72,24 @@ its last round. The agent addresses it, pushes, and ends its turn.
 Anything the user posts while the agent is working waits for the round
 after. That exchange repeats as often as the user likes.
 
-While the pull request waits, the default branch may move under it and
-the checks may go red. The agent deals with both itself, as
+While the pull request waits, its base branch may move under it and the
+checks may go red. The agent deals with both itself, as
 [the moving default branch story](#the-user-leaves-a-pull-request-after-the-default-branch-moves)
 and
 [the failing build story](#the-user-leaves-a-failing-build-to-the-agent)
 tell.
 
-The user merges when satisfied. GitHub closes the issue, and at the next
-update the agent has one last round to wrap up, which allows it to raise
-any issues for outstanding work not addressed in the pull request. Until
-that round starts, the assignment shows as waiting, awaiting wrap-up.
-The assignment then ends, and the update after removes its worktree and
-its local branch, so finished assignments do not fill the disk. Its
-record stays, so the home page and the assignment's page still show it,
-without a worktree to resume its session from.
-
-For a pull request into another base branch, _dreamcatcher_ closes the
-issue as completed before the agent starts its wrap-up and comments on
-the issue with a reference to the merged pull request.
+The user merges when satisfied. GitHub closes the issue after a merge
+into the default branch. After a merge into another base branch,
+_dreamcatcher_ closes the issue before wrap-up and comments with a
+reference to the pull request. At the next update the agent has one last
+round to wrap up, which allows it to raise any issues for outstanding
+work not addressed in the pull request. Until that round starts, the
+assignment shows as waiting, awaiting wrap-up. The assignment then ends,
+and the update after removes its worktree and its local branch, so
+finished assignments do not fill the disk. Its record stays, so the home
+page and the assignment's page still show it, without a worktree to
+resume its session from.
 
 The value to the user is that they need only label an issue, wait for
 the pull request to be ready, then review it and iterate until happy

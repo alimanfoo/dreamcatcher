@@ -212,7 +212,6 @@ def _compose_relay_round(
     return RoundPlan(
         prepare_round=partial(
             prepare_assignment_round_input,
-            state=context.state,
             repository=context.repository,
             assignment=work,
             pull_request=pull_request,

@@ -68,17 +68,17 @@ def fetch_default_branch(*, root: Path) -> str:
     return remote_head.removeprefix("origin/")
 
 
-def fetch_branch(*, root: Path, branch: str) -> None:
-    """Refresh origin's tracking ref for the named branch, even in a narrow clone."""
+def fetch_base_branch(*, root: Path, branch: str | None) -> tuple[str, str]:
+    """Fetch the named or default base and return its name and tracking ref."""
+    if branch is None:
+        return fetch_default_branch(root=root), "refs/remotes/origin/HEAD"
+    tracking_ref = f"refs/remotes/origin/{branch}"
     run_command(
         program="git",
-        arguments=[
-            "fetch",
-            "origin",
-            f"+refs/heads/{branch}:refs/remotes/origin/{branch}",
-        ],
+        arguments=["fetch", "origin", f"+refs/heads/{branch}:{tracking_ref}"],
         cwd=root,
     )
+    return branch, tracking_ref
 
 
 def add_worktree(*, root: Path, path: Path, branch: str, base_ref: str) -> None:

@@ -487,7 +487,7 @@ constructs GitHub commands. It owns projections and operations for:
 - pull-request identity, draft state, readiness, terminal state, merge
   state, head commit, what its checks add up to, and whether any of them
   still runs;
-- creating the linked draft pull request;
+- creating the draft pull request with a closing keyword for its issue;
 - reading and posting ordinary issue comments, and closing an issue as
   completed with a closing comment; and
 - reading and normalizing user posts from comments, reviews, verdicts,

@@ -390,7 +390,7 @@ def _read_agent_work(
             directory=directory
         ),
         retry_requested_at=_read_retry_requested_at(directory=directory),
-        ending=_read_agent_work_ending(directory=directory),
+        ending=read_agent_work_ending(directory=directory),
         rounds=read_agent_round_records(
             cache=state.document_cache,
             directory=directory / _AGENT_ROUNDS_DIRECTORY_NAME,
@@ -471,7 +471,7 @@ def request_round_stop_if_ended(*, work: AgentWork, paths: AgentRoundPaths) -> N
     Call this once the round's record exists, so that an ending recorded at the
     same moment either lands before this read or finds the round itself.
     """
-    if _read_agent_work_ending(directory=work.directory) is not None:
+    if read_agent_work_ending(directory=work.directory) is not None:
         request_agent_round_stop(paths=paths)
 
 
@@ -506,7 +506,8 @@ def remove_agent_work_worktree(*, state: StateDirectory, work: AgentWork) -> Non
         ) from failure
 
 
-def _read_agent_work_ending(*, directory: Path) -> AgentWorkEnding | None:
+def read_agent_work_ending(*, directory: Path) -> AgentWorkEnding | None:
+    """Return the ending currently recorded for the work in directory."""
     return read_json_if_exists(
         model=AgentWorkEnding, path=directory / _ENDING_RECORD_NAME
     )

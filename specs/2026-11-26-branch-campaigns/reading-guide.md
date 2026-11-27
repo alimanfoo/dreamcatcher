@@ -143,17 +143,16 @@ Read `git.py`, then `open_work_pull_request` in `pull_request_work.py`.
 The candidate can carry a base branch into the work record through
 `Scheduler._launch`. `open_work_pull_request` first looks for a pull
 request on the assignment's branch, named by `compose_work_branch`. If
-it finds none, `_publish_work_branch` fetches the recorded base or uses
-`fetch_default_branch` when the record leaves the base empty. It adds
-the worktree from the base ref, makes a placeholder commit if
-`has_commits_since_base` finds nothing past the base, and pushes with
-`push_branch`. `create_pull_request` opens the draft into the same base
-and writes "Closes #N" as the body. `refresh_detached_worktree`
-continues to reset detached worktrees to `origin/HEAD`. The pull
-request's number goes into `pull-request.json`. A retry adopts the
-existing pull request even if the base is gone. When there is no pull
-request, it reuses any worktree or placeholder commit that the previous
-attempt left.
+it finds none, `_publish_work_branch` uses `fetch_base_branch` to fetch
+the recorded base or the default. It adds the worktree from the base
+ref, makes a placeholder commit if `has_commits_since_base` finds
+nothing past the base, and pushes with `push_branch`.
+`create_pull_request` opens the draft into the same base and writes
+"Closes #N" as the body. `refresh_detached_worktree` continues to reset
+detached worktrees to `origin/HEAD`. The pull request's number goes into
+`pull-request.json`. A retry adopts the existing pull request even if
+the base is gone. When there is no pull request, it reuses any worktree
+or placeholder commit that the previous attempt left.
 
 ## The GitHub boundary
 

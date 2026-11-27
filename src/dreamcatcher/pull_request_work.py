@@ -2,7 +2,7 @@
 
 Each assignment has its own identifier, branch, worktree and pull request, and
 several assignments can exist for one issue. The round that opens the pull
-request prepares and publishes the branch and opens the linked draft pull
+request prepares and publishes the branch and opens the draft pull
 request, the assignment's channel, before the harness runs.
 """
 
@@ -21,7 +21,7 @@ from dreamcatcher.agent_work import (
     AgentWork,
     AgentWorkEndReason,
     end_agent_work,
-    refresh_agent_work,
+    read_agent_work_ending,
     remove_agent_work_worktree,
 )
 from dreamcatcher.commands import CommandError
@@ -38,8 +38,7 @@ from dreamcatcher.errors import ReportableError
 from dreamcatcher.git import (
     add_worktree,
     delete_branch,
-    fetch_branch,
-    fetch_default_branch,
+    fetch_base_branch,
     has_commits_since_base,
     is_linked_worktree,
     is_local_branch,
@@ -168,7 +167,6 @@ def complete_pull_request_work(
 
 def prepare_assignment_round_input(
     *,
-    state: StateDirectory,
     repository: str,
     assignment: AgentWork,
     pull_request: PullRequest,
@@ -179,7 +177,7 @@ def prepare_assignment_round_input(
     if (
         pull_request.state is PullRequestState.MERGED
         and assignment.record.base_branch is not None
-        and refresh_agent_work(state=state, work=assignment).is_open
+        and read_agent_work_ending(directory=assignment.directory) is None
     ):
         close_issue_as_completed(
             repository=repository,
@@ -251,12 +249,9 @@ def _publish_work_branch(
     Keep the worktree and commits from a previous attempt. Remove a worktree
     that cannot be added and its branch so the next attempt can add both.
     """
-    base = assignment.record.base_branch
-    if base is None:
-        base = fetch_default_branch(root=state.root)
-    else:
-        fetch_branch(root=state.root, branch=base)
-    base_ref = f"refs/remotes/origin/{base}"
+    base, base_ref = fetch_base_branch(
+        root=state.root, branch=assignment.record.base_branch
+    )
     if not is_linked_worktree(path=assignment.worktree):
         try:
             add_worktree(
