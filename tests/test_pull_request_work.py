@@ -111,7 +111,9 @@ with patch.object(Path, "replace", replace_when_released):
 """
 
 
-def record_assignment(*, state, route, preferred_harness=AgentHarness.CLAUDE):
+def record_assignment(
+    *, state, route, preferred_harness=AgentHarness.CLAUDE, base_branch=None
+):
     """Record the assignment at issue 12, as the scheduler does when it picks one."""
     return create_agent_work(
         state=state,
@@ -120,6 +122,7 @@ def record_assignment(*, state, route, preferred_harness=AgentHarness.CLAUDE):
         issue=12,
         title="The issue title",
         at=PINNED,
+        base_branch=base_branch,
     )
 
 
@@ -731,7 +734,7 @@ def test_a_pull_request_listing_failure_leaves_the_round_to_try_again(state, rou
     with pytest.raises(ReportableError, match=f"cannot tell whether {BRANCH} has"):
         open_pull_request(state=state, assignment=assignment)
 
-    assert (state.worktrees / ASSIGNMENT_ID).exists()
+    assert not (state.worktrees / ASSIGNMENT_ID).exists()
     assert read_work_pull_request_number(assignment=assignment) is None
 
 
@@ -746,17 +749,25 @@ def test_several_pull_requests_on_the_assignments_branch_are_reported(state, rou
         open_pull_request(state=state, assignment=assignment)
 
 
-def test_a_created_pull_request_that_cannot_be_read_is_adopted_next_time(
-    state, route, gh
+@pytest.mark.parametrize("base_branch", [None, "campaign/topic"])
+def test_a_created_pull_request_is_adopted_even_if_its_base_is_gone(
+    state, route, gh, base_branch
 ):
+    if base_branch is not None:
+        run_git(
+            arguments=["push", "origin", f"main:refs/heads/{base_branch}"],
+            cwd=state.root,
+        )
     gh.fails(stderr="gh: could not connect to github.com", to="pr view")
-    assignment = record_assignment(state=state, route=route)
+    assignment = record_assignment(state=state, route=route, base_branch=base_branch)
 
     with pytest.raises(
         ReportableError, match=f"created the pull request for {BRANCH} but cannot read"
     ):
         open_pull_request(state=state, assignment=assignment)
 
+    if base_branch is not None:
+        run_git(arguments=["push", "origin", "--delete", base_branch], cwd=state.root)
     gh.replies(
         stdout=compose_pull_request_listing(numbers=[PULL_REQUEST]), to="pr list"
     )

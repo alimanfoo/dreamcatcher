@@ -882,6 +882,11 @@ def test_an_assignment_opens_and_wraps_up_against_its_selected_base(
     [issue] = compose_assignment_issues(filed=[(8, FILED)])
     gh.replies(stdout=json.dumps(issue), to="issue view 8")
     gh.replies(stdout=compose_pull_request(state="MERGED"), to="pr view")
+    # Changing the default after the merge cannot change who closes the issue.
+    origin = Path(
+        run_git(arguments=["remote", "get-url", "origin"], cwd=ready_repo).strip()
+    )
+    run_git(arguments=["symbolic-ref", "HEAD", f"refs/heads/{base_branch}"], cwd=origin)
     comments_endpoint = f"repos/{REPOSITORY}/issues/8/comments"
     gh.replies(stdout='{"id": 91}', to=f"api {comments_endpoint} --method POST")
     gh.replies(stdout="", to="issue close 8")
@@ -1360,7 +1365,6 @@ def test_a_batch_no_round_ever_launched_is_read_again_next_tick(
     [
         (None, "MERGED"),
         (None, "CLOSED"),
-        ("main", "MERGED"),
         ("campaign/topic", "CLOSED"),
     ],
     indirect=["assigned_checkout"],

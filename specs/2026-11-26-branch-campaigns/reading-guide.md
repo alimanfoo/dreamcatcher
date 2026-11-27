@@ -4,7 +4,8 @@ This guide is for whoever designs the change in
 [requirements.md](requirements.md): every campaign runs on a branch of
 its own, with one pull request into main that is the lead's channel, and
 behaves like an assignment wherever that makes sense. It says what to
-read and in what order. It describes the code at `main` on 2026-11-26.
+read and in what order. It follows the code as the roadmap's stages
+land.
 
 ## The big picture
 
@@ -140,20 +141,19 @@ running, newest first, via `AgentWork.list_relayed_round_paths` in
 Read `git.py`, then `open_work_pull_request` in `pull_request_work.py`.
 
 The candidate can carry a base branch into the work record through
-`Scheduler._launch`. `open_work_pull_request` fetches that branch with
-`fetch_branch`, or the default branch with `fetch_default_branch` when
-the record leaves the base empty. It adds the worktree from the base ref
-on the branch named by `compose_work_branch` (prefix `dreamcatcher-`).
-It makes a placeholder commit if `has_commits_since_base` finds nothing
-past the base, pushes with `push_branch`, and finds or opens the draft
-into the same base through `_find_or_create_work_pull_request`.
-`refresh_detached_worktree` continues to reset detached worktrees to
-`origin/HEAD`. `create_pull_request` in `github.py` writes "Closes #N"
-as the body. The number goes into `pull-request.json`. Adding the
-worktree, the placeholder commit and opening the pull request each skip
-themselves when their result exists, which is how a retried round adopts
-what a failed one made. The fetch and the push run every time, which is
-harmless.
+`Scheduler._launch`. `open_work_pull_request` first looks for a pull
+request on the assignment's branch, named by `compose_work_branch`. If
+it finds none, `_publish_work_branch` fetches the recorded base or uses
+`fetch_default_branch` when the record leaves the base empty. It adds
+the worktree from the base ref, makes a placeholder commit if
+`has_commits_since_base` finds nothing past the base, and pushes with
+`push_branch`. `create_pull_request` opens the draft into the same base
+and writes "Closes #N" as the body. `refresh_detached_worktree`
+continues to reset detached worktrees to `origin/HEAD`. The pull
+request's number goes into `pull-request.json`. A retry adopts the
+existing pull request even if the base is gone. When there is no pull
+request, it reuses any worktree or placeholder commit that the previous
+attempt left.
 
 ## The GitHub boundary
 
@@ -281,9 +281,11 @@ issue. Round triggers are read back from inputs in `status/rounds.py`:
 
 ## The work record and the state format
 
-`AgentWorkRecord` in `agent_work.py` is written once at creation and
-holds no branch or base. Facts that change later each have a file beside
-it. `STATE_FORMAT_VERSION` in `state.py` is 8.
+`AgentWorkRecord` in `agent_work.py` is written once at creation. It
+holds the base branch when the request chooses a branch other than the
+default. The assignment's own branch is derived from its identifier.
+Facts that change later each have a file beside the record.
+`STATE_FORMAT_VERSION` in `state.py` is 9.
 
 ## Tests to read
 

@@ -84,9 +84,9 @@ Replaces: "session" on its own, for an agent assignment.
 The assignment's **pull request** is both the proposed change and the
 primary communication channel between the agent and the user. Its **base
 branch** is the branch the pull request goes into. The assignment's
-branch starts from that base. The work record holds an explicit base
-branch when one is chosen. Otherwise, the opening round uses the
-repository's default branch.
+branch starts from that base. The work record holds the base branch when
+the request chooses one other than the repository's default. Otherwise,
+the opening round uses the default branch.
 
 ### Campaign, lead and parent issue
 
@@ -502,13 +502,12 @@ and the assignment is working until that round ends. A cancel records
 the assignment's ending, with the reason "cancelled", and cannot be
 undone.
 
-_dreamcatcher_ leaves the pull request as it is, and while it is open it
-claims the issue, so no new assignment starts for the issue. GitHub
-closes the issue for a merge into the default branch. After merging into
-another base branch, the user closes the issue themselves. If the user
-closes the pull request without merging, the issue may receive another
-assignment. A cancelled assignment keeps its worktree and branch for the
-user.
+_dreamcatcher_ leaves the pull request as it is. An open pull request
+linked to close the issue still claims it. GitHub closes the issue for a
+merge into the default branch. After merging into another base branch,
+the user closes the issue themselves. If the user closes the pull
+request without merging, the issue may receive another assignment. A
+cancelled assignment keeps its worktree and branch for the user.
 
 ### Starting a campaign
 

@@ -246,8 +246,8 @@ _dreamcatcher_ never removes them. The assignment's page shows where the
 worktree is and the command that picks up the agent's session by hand,
 should they want to carry on the conversation themselves. Once its round
 has stopped, the assignment's card on the home page, its page and
-`dreamcatcher view` show it as cancelled, and while the pull request
-stays open no new assignment starts for the issue. A cancel that lands
+`dreamcatcher view` show it as cancelled. While an open pull request is
+linked to close the issue, no new assignment starts. A cancel that lands
 as the wrap-up round finishes still keeps the worktree and branch the
 user's, and a cancel that comes after the wrap-up round changes nothing,
 so `dreamcatcher cancel` says that the assignment has already ended. The

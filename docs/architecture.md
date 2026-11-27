@@ -383,29 +383,31 @@ preparation step of a round whose assignment has no recorded pull
 request number coordinates lower-level Git, GitHub and document
 operations. It:
 
-1. fetches the recorded base branch, or the current default branch when
-   the record leaves the base empty;
-2. adds the assignment's worktree on its branch, unless it is already
+1. looks up a pull request on the assignment's branch and adopts it if
+   found, whatever its state;
+2. for a branch with no pull request, fetches the recorded base branch,
+   or the current default branch when the record leaves the base empty;
+3. adds the assignment's worktree on its branch, unless it is already
    there;
-3. makes an empty commit if the branch has no commits beyond its base,
+4. makes an empty commit if the branch has no commits beyond its base,
    then pushes the branch;
-4. adopts the pull request already on the branch, whatever its state, or
-   opens a draft pull request into the fetched base branch; and
-5. writes the pull request's number to `pull-request.json`.
+5. opens a draft pull request into the fetched base branch; and
+6. writes the pull request's number to `pull-request.json`.
 
-The fetch and push run on each attempt. A worktree that cannot be added
-is removed with its branch. The assignment identifier names the branch
-and worktree, so a round that follows a failed one finds what the
-earlier attempt made and never makes a second branch or pull request.
+Adoption works even after the original base branch is gone. A worktree
+that cannot be added is removed with its branch. The assignment
+identifier names the branch and worktree, so a round that follows a
+failed one finds what the earlier attempt made and never makes a second
+branch or pull request.
 
-For an assignment whose pull request merged into a base other than the
-default branch, preparation closes the issue as completed before it
-builds the wrap-up input. The closing comment names the pull request and
-carries the agent marker. GitHub failures during closure error the round
-during preparation. A retry leaves a closed issue alone and reuses a
-closing comment already posted for that merge. A wrap-up round records
-the assignment's ending with the reason "completed" in its finishing
-step, after its harness exits successfully.
+For an open assignment whose pull request merged and whose record names
+a base other than the default, preparation closes the issue as completed
+before it builds the wrap-up input. The closing comment names the pull
+request and carries the agent marker. GitHub failures during closure
+error the round during preparation. A retry leaves a closed issue alone
+and reuses a closing comment already posted for that merge. A wrap-up
+round records the assignment's ending with the reason "completed" in its
+finishing step, after its harness exits successfully.
 
 `pull_request_work.py` also models what a tick observed of an
 assignment's pull request. The scheduler's pull request finding extends

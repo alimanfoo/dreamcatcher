@@ -247,8 +247,8 @@ def create_agent_work(
     The route's kind is the work's kind. The route selects a recipe in response
     to the preferred harness, and the recipe supplies the settings that the
     record keeps. Creation writes the record alone, and the rounds prepare
-    everything else. An empty base leaves pull request work to use the default
-    branch.
+    everything else. A named base records the request's choice of a branch
+    other than the default.
     """
     harness = route.choose_harness(preferred_harness=preferred_harness)
     recipe = route.recipes[harness]
