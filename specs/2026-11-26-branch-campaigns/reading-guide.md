@@ -2,8 +2,7 @@
 
 The [requirements](requirements.md) and [design](design.md) explain the
 goal and the whole change. This guide follows the code as the
-[roadmap](roadmap.md) lands. The scheduler, work records and round
-inputs described here reflect stage 5.
+[roadmap](roadmap.md) lands. The code described here reflects stage 6.
 
 ## The tick
 
@@ -102,14 +101,21 @@ input, including links to sub-issues. The home page uses the shared pull
 request chip beside each work title. Conversation cards show their issue
 state.
 
+## The coordinating lead
+
+`prompts.py` directs the lead to its pull request input, starting with
+the pull request's state. `claude.py` adds the coordination tools to the
+assignment permissions. The campaign skill uses contract version 2.
+`status/findings.py` gives the open draft campaign its idle and waiting
+words, and both status views show the count of closed sub-issues.
+
 ## Later stages
 
-Stage 6 updates the lead's input prompt, Claude permissions and campaign
-skill contract. Stage 7 makes the prompt and the lead's behaviour follow
-the pull request's draft flag. Stage 8 exposes campaign cancellation,
-and stage 9 updates the guides. The check-failure relay currently counts
-consecutive relayed inputs, so a round between fixes that relays no
-check-failure resets the count.
+Stage 7 makes the prompt and the lead's behaviour follow the pull
+request's draft flag. Stage 8 exposes campaign cancellation, and stage 9
+updates the guides. The check-failure relay currently counts consecutive
+relayed inputs, so a round between fixes that relays no check-failure
+resets the count.
 
 ## Tests to read
 

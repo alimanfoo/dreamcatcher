@@ -247,20 +247,26 @@ def test_a_running_lead_counts_the_sub_issues_that_woke_it(state):
 
 
 @pytest.mark.parametrize(
-    ("ending", "detail"),
+    ("ending", "is_draft", "detail"),
     [
-        (SUCCESSFUL, "needs feedback"),
+        (SUCCESSFUL, True, "awaiting feedback or sub-issue changes"),
         (
             StoppedAgentRoundEnding(at=PINNED + timedelta(minutes=2)),
-            "needs feedback",
+            True,
+            "awaiting feedback or sub-issue changes",
         ),
+        (SUCCESSFUL, False, "ready for review"),
     ],
 )
-def test_a_lead_that_took_its_turn_is_idle_with_a_draft_pull_request(
-    state, ending, detail
+def test_an_idle_lead_reports_what_its_pull_request_awaits(
+    state, ending, is_draft, detail
 ):
     write_lead_round(state=state, number=1, ending=ending)
-    observe(state=state, finding=NOTHING_NEW, ended_round=1)
+    observe(
+        state=state,
+        finding=NOTHING_NEW.model_copy(update={"is_draft": is_draft}),
+        ended_round=1,
+    )
 
     status = read_campaign_status(state=state)
 
@@ -279,15 +285,16 @@ def test_a_lead_that_finished_after_the_update_started_it_awaits_the_next(state)
 
 
 @pytest.mark.parametrize(
-    ("new_posts", "changed_children", "detail"),
+    ("new_posts", "changed_children", "is_draft", "detail"),
     [
-        (2, 0, "2 new posts to answer"),
-        (0, 1, "1 sub-issue changed"),
-        (1, 2, "1 new post to answer, 2 sub-issues changed"),
+        (2, 0, True, "2 new posts for the lead"),
+        (0, 1, True, "1 sub-issue changed"),
+        (1, 2, True, "1 new post for the lead, 2 sub-issues changed"),
+        (1, 0, False, "1 new post to answer"),
     ],
 )
 def test_a_lead_with_new_input_is_waiting_for_it(
-    state, new_posts, changed_children, detail
+    state, new_posts, changed_children, is_draft, detail
 ):
     write_lead_round(
         state=state,
@@ -298,7 +305,7 @@ def test_a_lead_with_new_input_is_waiting_for_it(
         state=state,
         finding=compose_campaign_finding(
             new_posts=new_posts, changed_children=changed_children
-        ),
+        ).model_copy(update={"is_draft": is_draft}),
         ended_round=1,
     )
 

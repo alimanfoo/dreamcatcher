@@ -32,20 +32,17 @@ from dreamcatcher.scheduler.models import (
     IssueCommentsFinding,
     PullRequestFinding,
     ReadFailureFinding,
-    RequestFinding,
     RequestRow,
     SchedulerRecord,
 )
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.status.findings import (
     IssueFact,
-    describe_changed_children,
-    describe_comments_to_answer,
     describe_hold,
     describe_idle_pull_request,
     describe_issue_state,
+    describe_new_input,
     describe_pull_request,
-    describe_signal,
 )
 from dreamcatcher.status.rounds import (
     AgentRoundStatus,
@@ -436,7 +433,7 @@ class AgentWorkStatusReader:
             or _did_tick_read_ending(row=row, record=latest)
         ):
             return None
-        news = _describe_what_is_new(finding=row.finding)
+        news = describe_new_input(finding=row.finding, kind=work.record.kind)
         did_tick_start_round = (
             row.started_round is not None and row.started_round.number == latest.number
         )
@@ -472,7 +469,9 @@ class AgentWorkStatusReader:
             and read_work_pull_request_number(work=work) is None
         ):
             return _compose_waiting(work=work, row=row, detail="no pull request yet")
-        news = None if row is None else _describe_what_is_new(finding=row.finding)
+        news = describe_new_input(
+            finding=None if row is None else row.finding, kind=work.record.kind
+        )
         if news is None:
             return None
         return _compose_waiting(work=work, row=row, detail=news)
@@ -482,7 +481,7 @@ class AgentWorkStatusReader:
     ) -> AgentWorkStatus:
         finding = None if row is None else row.finding
         if isinstance(finding, PullRequestFinding):
-            detail = describe_idle_pull_request(finding=finding)
+            detail = describe_idle_pull_request(finding=finding, kind=work.record.kind)
         elif isinstance(finding, IssueCommentsFinding):
             detail = _describe_idle_conversation(work=work)
         else:
@@ -556,30 +555,6 @@ def _compose_waiting(
         detail=detail,
         latest_output=None,
     )
-
-
-def _describe_what_is_new(*, finding: RequestFinding | None) -> str | None:
-    """Describe why the latest tick's finding makes a round due, if it does.
-
-    A merged or closed pull request awaits its wrap-up round, whatever else
-    the tick found new; otherwise the words say what is new in the work's
-    channel.
-    """
-    if isinstance(finding, IssueCommentsFinding) and finding.new_comments:
-        return describe_comments_to_answer(count=finding.new_comments)
-    if not isinstance(finding, PullRequestFinding):
-        return None
-    if finding.is_wrap_up_due:
-        return "awaiting wrap-up"
-    words = [
-        describe_signal(signal=signal) for signal in finding.new_pull_request_signals
-    ]
-    if finding.new_posts:
-        posts = describe_count(number=finding.new_posts, noun="new post")
-        words.insert(0, f"{posts} to answer")
-    if finding.changed_children:
-        words.append(describe_changed_children(count=finding.changed_children))
-    return ", ".join(words) or None
 
 
 def _describe_idle_conversation(*, work: AgentWork) -> str:

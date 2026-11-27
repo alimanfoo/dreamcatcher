@@ -497,6 +497,4 @@ Changes to the enduring documents:
 
 ## Open questions
 
-- The idle words for a campaign in its coordinating phase, and the words
-  for the two new holds.
-- The concepts page's names for the new concepts.
+- The concepts page's names for the remaining new concepts.

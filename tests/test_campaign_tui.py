@@ -37,7 +37,9 @@ def test_status_lists_campaigns_their_requests_and_how_many_ended(state):
     shown = written.getvalue()
     campaigns = shown[shown.index("campaigns") :]
     assert "GH60-20260819-184158-campaign" in campaigns
-    assert "PR #90 draft; needs feedback" in campaigns
+    words = " ".join(campaigns.split())
+    assert "PR #90 draft; awaiting feedback or sub-issue changes" in words
+    assert "2 of 5 sub-issues closed" in words
     assert "GH62" in campaigns
     assert "available" in campaigns
     assert "1 ended campaign" in campaigns

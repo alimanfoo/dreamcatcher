@@ -136,7 +136,8 @@ def _render_request_rows(*, requests: Sequence[RequestStatus]) -> list[Renderabl
 def _render_work_rows(*, statuses: Sequence[AgentWorkStatus]) -> list[RenderableType]:
     """Render the work that has not ended, a row for each card.
 
-    The agent's latest output follows its card's row on a line of its own.
+    A campaign's sub-issue count and the agent's latest output follow its
+    status.
     """
     if not statuses:
         return []
@@ -157,6 +158,8 @@ def _render_work_rows(*, statuses: Sequence[AgentWorkStatus]) -> list[Renderable
                 )
             ),
         )
+        if (sub_issues := status.closed_children_summary) is not None:
+            table.add_row("", "", Text(sub_issues))
         rows.append(table)
         latest_output = render_latest_output(latest_output=status.latest_output)
         if latest_output is not None:
@@ -167,8 +170,8 @@ def _render_work_rows(*, statuses: Sequence[AgentWorkStatus]) -> list[Renderable
 def _describe_github_state(*, status: AgentWorkStatus) -> str | None:
     """Return GitHub's state of what the work's card stands for.
 
-    An assignment's pull request stands for it, and a conversation's or a
-    campaign's issue for it.
+    The pull request stands for an assignment or campaign, and the issue for
+    a conversation or work held at its issue.
     """
     pull_request = render_pull_request(status=status)
     if pull_request is not None:
