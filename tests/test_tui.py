@@ -46,14 +46,14 @@ from status_fabrications import (
 )
 from terminals import WIDTH, create_pinned_console, refuse_to_wait
 
-from dreamcatcher.agent_assignments import (
-    cancel_assignment,
-)
 from dreamcatcher.agent_work import read_agent_work_at_issue
 from dreamcatcher.documents import append_text, write_text
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.feed import FeedLine
 from dreamcatcher.harness_adapters import AgentWorkKind
+from dreamcatcher.pull_request_work import (
+    cancel_pull_request_work,
+)
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.tui import show_agent_work_view, show_feed_view, show_status_view
 from dreamcatcher.tui.shared import _VIEW_REFRESH_INTERVAL
@@ -192,7 +192,7 @@ def test_only_ended_assignments_are_summarized(tmp_path):
     write_assignment_with_rounds(
         state=state, issue=13, records=[compose_ended_round(minute=1)]
     )
-    cancel_assignment(
+    cancel_pull_request_work(
         assignment=read_agent_work_at_issue(state=state, issue=13)[0],
         at=PINNED,
     )

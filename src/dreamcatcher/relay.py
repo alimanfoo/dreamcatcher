@@ -13,10 +13,6 @@ from typing import Annotated
 
 from pydantic import AfterValidator
 
-from dreamcatcher.agent_assignments import (
-    is_check_failure_withheld,
-    read_signal_relay_head,
-)
 from dreamcatcher.agent_work import AgentWork
 from dreamcatcher.documents import DreamcatcherDocument, ReadOnlyList
 from dreamcatcher.github import (
@@ -31,6 +27,10 @@ from dreamcatcher.github import (
     list_user_posts,
 )
 from dreamcatcher.prompts import AGENT_POST_MARKER
+from dreamcatcher.pull_request_work import (
+    is_check_failure_withheld,
+    read_signal_relay_head,
+)
 
 
 class IssueCommentCursor(DreamcatcherDocument):

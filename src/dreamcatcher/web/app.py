@@ -12,7 +12,6 @@ from flask import Flask, Response, redirect, render_template, request, url_for
 from flask.typing import ResponseReturnValue
 from werkzeug.serving import BaseWSGIServer
 
-from dreamcatcher.agent_assignments import cancel_assignment
 from dreamcatcher.agent_rounds import request_agent_round_stop
 from dreamcatcher.agent_work import (
     AgentWork,
@@ -22,6 +21,7 @@ from dreamcatcher.agent_work import (
 from dreamcatcher.clock import read_current_time
 from dreamcatcher.errors import ReportableError
 from dreamcatcher.harness_adapters import AgentWorkKind
+from dreamcatcher.pull_request_work import cancel_pull_request_work
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.status import (
     DOCUMENTATION_URL,
@@ -300,7 +300,7 @@ def _cancel_assignment(
     if work is None:
         return _missing_work_response(identifier=identifier)
     if _can_cancel(work=work):
-        cancel_assignment(assignment=work, at=clock())
+        cancel_pull_request_work(assignment=work, at=clock())
     return redirect(url_for("show_work", identifier=identifier), code=303)
 
 

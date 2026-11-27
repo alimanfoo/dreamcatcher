@@ -351,12 +351,12 @@ code relays it.
 
 ### Agent assignments
 
-`agent_assignments.py` owns what only an assignment records and does. It
-should provide cohesive operations to:
+`pull_request_work.py` owns what pull request work records and does.
+Currently only assignments use it. It provides cohesive operations to:
 
 - open the assignment's pull request, as the preparation of a round
-  whose assignment has none, with `agent_assignment_pull_requests.py`
-  finding or creating the pull request on the branch;
+  whose assignment has none, finding or creating the pull request on the
+  branch;
 - name the assignment's branch from its identifier;
 - read its pull request number;
 - read the cursor, the pull request state last relayed, the head at
@@ -400,13 +400,13 @@ branch or pull request.
 A wrap-up round records the assignment's ending with the reason
 "completed" in its finishing step, after its harness exits successfully.
 
-`agent_assignments.py` also models what a tick observed of an
+`pull_request_work.py` also models what a tick observed of an
 assignment's pull request. The scheduler's pull request finding extends
 that model, and a campaign holds it for each sub-issue's assignment.
 
-The assignment module coordinates the workflow but does not implement
-Git commands, parse GitHub responses, launch harnesses, or choose when
-work should run.
+The pull request work module coordinates the workflow but does not
+implement Git commands, parse GitHub responses, launch harnesses, or
+choose when work should run.
 
 ### Agent rounds
 
@@ -442,7 +442,7 @@ building it cannot fail. It should then provide operations to:
   as interrupted once that daemon has gone, for scheduling and status
   alike, without claiming that its harness has exited.
 
-`agent_assignments.py` owns `AssignmentRoundInput`, the pull request
+`pull_request_work.py` owns `AssignmentRoundInput`, the pull request
 state and head commit, the relayed pull request signals and the relayed
 user posts that an assignment round receives beside its prompt once its
 pull request exists. `issue_conversations.py` owns

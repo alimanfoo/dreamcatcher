@@ -22,10 +22,6 @@ from records import (
     write_round,
 )
 
-from dreamcatcher.agent_assignments import (
-    AssignmentRoundInput,
-    cancel_assignment,
-)
 from dreamcatcher.agent_rounds import (
     AgentRoundRecord,
     InterruptedAgentRoundEnding,
@@ -37,6 +33,10 @@ from dreamcatcher.github import (
     IssueComment,
     PullRequestSignal,
     PullRequestState,
+)
+from dreamcatcher.pull_request_work import (
+    AssignmentRoundInput,
+    cancel_pull_request_work,
 )
 from dreamcatcher.scheduler import Scheduler, SchedulingContext
 from dreamcatcher.scheduler.assignments import inspect_open_assignment
@@ -372,7 +372,7 @@ def test_a_cancelled_assignment_is_not_inspected_for_rounds(state, gh):
         to=f"api {POST_LIST_PATHS['conversation']}",
     )
     gh.replies(stdout="[]", to="issue list")
-    cancel_assignment(assignment=read_assignments(state=state)[0], at=PINNED)
+    cancel_pull_request_work(assignment=read_assignments(state=state)[0], at=PINNED)
 
     observed = create_scheduler(state=state).tick(at=PINNED)
 
@@ -386,7 +386,7 @@ def test_a_round_started_for_an_assignment_cancelled_after_inspection_stops(
     write_assignment_round(directory=state.work / ASSIGNMENT_ID, number=1, status=2)
     inspected = inspect(state=state)
     assert inspected.candidate is not None
-    cancel_assignment(assignment=read_assignments(state=state)[0], at=PINNED)
+    cancel_pull_request_work(assignment=read_assignments(state=state)[0], at=PINNED)
 
     started = create_scheduler(state=state)._launch(
         row=inspected.row, candidate=inspected.candidate, at=PINNED

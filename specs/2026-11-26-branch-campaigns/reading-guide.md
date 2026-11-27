@@ -65,12 +65,12 @@ issue, the route and the row, not the list of work.
 
 The assignment shape is `inspect_open_assignment` in
 `scheduler/assignments.py`. With no `pull-request.json` in the work's
-directory (`read_assignment_pull_request_number`), the round due is the
+directory (`read_work_pull_request_number`), the round due is the
 opening round, `_compose_opening_round`, whose preparation is
-`open_assignment_pull_request` and which has no input. Once the pull
-request exists, `_inspect_pull_request` reads it, reads the user's posts
-past the cursor and the pull request signals, and notes a merged or
-closed pull request that no round has wrapped up. `_compose_relay_round`
+`open_work_pull_request` and which has no input. Once the pull request
+exists, `_inspect_pull_request` reads it, reads the user's posts past
+the cursor and the pull request signals, and notes a merged or closed
+pull request that no round has wrapped up. `_compose_relay_round`
 freezes an `AssignmentRoundInput` and, for a wrap-up, sets
 `complete_assignment` as the finishing step. Once an assignment exists,
 its issue's labels play no part.
@@ -117,7 +117,7 @@ rules of `issue_work.py` are what it replaces.
 
 ## The relay
 
-Read `relay.py`, then the readers it uses in `agent_assignments.py`.
+Read `relay.py`, then the readers it uses in `pull_request_work.py`.
 
 `list_user_posts_past_cursor` takes any pull request number, gathers
 comments, reviews and inline comments through `list_user_posts` in
@@ -127,7 +127,7 @@ comments, reviews and inline comments through `list_user_posts` in
 `find_pull_request_signals` raises out-of-date and check-failure for an
 open pull request that is ready for review, once per head commit, and
 leaves out a check failure that the relay rule withholds. It reads its
-memory from `agent_assignments.py`: `read_signal_relay_head` and
+memory from `pull_request_work.py`: `read_signal_relay_head` and
 `is_check_failure_withheld` read past rounds as `AssignmentRoundInput`,
 and so do the post cursor `read_user_post_cursor` and the wrap-up check
 `is_wrap_up_relayed`. All of them go through `_read_relayed_inputs`,
@@ -137,23 +137,22 @@ running, newest first, via `AgentWork.list_relayed_round_paths` in
 
 ## Git and opening a pull request
 
-Read `git.py`, then `open_assignment_pull_request` in
-`agent_assignments.py` and `agent_assignment_pull_requests.py`.
+Read `git.py`, then `open_work_pull_request` in `pull_request_work.py`.
 
 Main is `origin/HEAD`, which `fetch_default_branch` keeps pointing at
 the default branch. `add_worktree` cuts a new branch from it,
 `refresh_detached_worktree` resets a detached worktree to it, and
 `has_commits_since_default_branch` counts `origin/HEAD..HEAD`.
-`open_assignment_pull_request` fetches, adds the worktree on the branch
-named by `compose_assignment_branch` (prefix `dreamcatcher-`), makes a
-placeholder commit with `make_empty_commit` if the branch has nothing
-past main, pushes with `push_branch`, and finds or opens the draft
-through `find_or_create_assignment_pull_request`, whose base is the
-default branch. `create_pull_request` in `github.py` writes "Closes #N"
-as the body. The number goes into `pull-request.json`. Adding the
-worktree, the placeholder commit and opening the pull request each skip
-themselves when their result exists, which is how a retried round adopts
-what a failed one made. The fetch and the push run every time, which is
+`open_work_pull_request` fetches, adds the worktree on the branch named
+by `compose_work_branch` (prefix `dreamcatcher-`), makes a placeholder
+commit with `make_empty_commit` if the branch has nothing past main,
+pushes with `push_branch`, and finds or opens the draft through
+`_find_or_create_work_pull_request`, whose base is the default branch.
+`create_pull_request` in `github.py` writes "Closes #N" as the body. The
+number goes into `pull-request.json`. Adding the worktree, the
+placeholder commit and opening the pull request each skip themselves
+when their result exists, which is how a retried round adopts what a
+failed one made. The fetch and the push run every time, which is
 harmless.
 
 ## The GitHub boundary
@@ -240,18 +239,18 @@ parent closed and no round running, with no wrap-up round.
 `Scheduler._remove_ended_worktrees` in `tick.py` removes the worktree of
 work that a tick sees end, through `_remove_worktree_and_branch`: an
 assignment's worktree and local branch with
-`remove_assignment_worktree_and_branch`, and any other work's worktree
-with `remove_agent_work_worktree`. Cancelled work is skipped.
+`remove_work_worktree_and_branch`, and any other work's worktree with
+`remove_agent_work_worktree`. Cancelled work is skipped.
 
-`cancel_assignment` in `agent_assignments.py` records "cancelled" and
-asks a running round to stop, and nothing in it is specific to
+`cancel_pull_request_work` in `pull_request_work.py` records "cancelled"
+and asks a running round to stop, and nothing in it is specific to
 assignments. `_cancel_assignment` in `cli.py` and `_can_cancel` in
 `web/app.py` each refuse work that isn't an assignment.
 
 ## Status and the home page
 
 `AgentWorkStatus` in `status/agent_work.py` reads the pull request
-number through `read_assignment_pull_request_number`, which reads
+number through `read_work_pull_request_number`, which reads
 `pull-request.json` from the work's directory whatever the kind.
 `pull_request_summary` uses the tick's `PullRequestFinding` when the row
 has one, and otherwise the merged or closed state of the newest relayed
@@ -289,7 +288,7 @@ it. `STATE_FORMAT_VERSION` in `state.py` is 8.
 
 `tests/test_campaign_scheduling.py`, `tests/test_campaigns.py`,
 `tests/test_campaign_status.py`, `tests/test_assignment_scheduling.py`,
-`tests/test_assignment_requests.py`, `tests/test_agent_assignments.py`,
+`tests/test_assignment_requests.py`, `tests/test_pull_request_work.py`,
 `tests/test_relay.py` and `tests/test_git.py` cover the code above.
 
 ## The sharp edges

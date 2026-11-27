@@ -26,9 +26,6 @@ from fakes import Line, Stream, read_recorded_lines
 from recordings import render_harness_recording
 
 from dreamcatcher import agent_rounds
-from dreamcatcher.agent_assignments import (
-    AssignmentRoundInput,
-)
 from dreamcatcher.agent_rounds import (
     _AGENT_ROUND_RECORD_NAME,
     _STOP_REQUEST_POLL_INTERVAL_SECONDS,
@@ -70,6 +67,9 @@ from dreamcatcher.harness_adapters import (
     HarnessConfig,
     HarnessInvocation,
     HarnessOutput,
+)
+from dreamcatcher.pull_request_work import (
+    AssignmentRoundInput,
 )
 
 # A round that listed a directory, read a file that was not there, and sent a

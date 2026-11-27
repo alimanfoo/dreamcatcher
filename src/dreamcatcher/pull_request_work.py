@@ -1,4 +1,4 @@
-"""Open agent assignments' pull requests and read the state only assignments have.
+"""Open pull requests for agent work and read their relayed state.
 
 Each assignment has its own identifier, branch, worktree and pull request, and
 several assignments can exist for one issue. The round that opens the pull
@@ -13,9 +13,6 @@ from itertools import islice
 
 from pydantic import PositiveInt
 
-from dreamcatcher.agent_assignment_pull_requests import (
-    find_or_create_assignment_pull_request,
-)
 from dreamcatcher.agent_rounds import (
     read_agent_round_records,
     request_agent_round_stop,
@@ -50,9 +47,13 @@ from dreamcatcher.git import (
 from dreamcatcher.github import (
     CheckResult,
     PullRequestMergeState,
+    PullRequestReference,
     PullRequestSignal,
     PullRequestState,
+    UnknownGitHubResponse,
     UserPost,
+    create_pull_request,
+    list_pull_requests,
 )
 from dreamcatcher.state import StateDirectory
 
@@ -108,12 +109,12 @@ class _PullRequestRecord(WriteOnceDreamcatcherDocument):
     number: PositiveInt
 
 
-def compose_assignment_branch(*, identifier: str) -> str:
+def compose_work_branch(*, identifier: str) -> str:
     """Return the name of the branch that the assignment with this identifier owns."""
     return f"{_ASSIGNMENT_BRANCH_PREFIX}{identifier}"
 
 
-def read_assignment_pull_request_number(*, assignment: AgentWork) -> int | None:
+def read_work_pull_request_number(*, assignment: AgentWork) -> int | None:
     """Return the number of the assignment's pull request, once a round opened it."""
     record = read_json_if_exists(
         model=_PullRequestRecord,
@@ -122,7 +123,7 @@ def read_assignment_pull_request_number(*, assignment: AgentWork) -> int | None:
     return None if record is None else record.number
 
 
-def cancel_assignment(*, assignment: AgentWork, at: datetime) -> bool:
+def cancel_pull_request_work(*, assignment: AgentWork, at: datetime) -> bool:
     """Record that the user has taken an open assignment over.
 
     Return whether the cancel is the assignment's ending. An assignment that
@@ -146,7 +147,7 @@ def cancel_assignment(*, assignment: AgentWork, at: datetime) -> bool:
     return True
 
 
-def complete_assignment(
+def complete_pull_request_work(
     *,
     assignment: AgentWork,
     clock: Callable[[], datetime],
@@ -160,7 +161,7 @@ def complete_assignment(
     end_agent_work(work=assignment, reason=AgentWorkEndReason.COMPLETED, at=clock())
 
 
-def remove_assignment_worktree_and_branch(
+def remove_work_worktree_and_branch(
     *, state: StateDirectory, assignment: AgentWork
 ) -> None:
     """Remove the assignment's worktree, then its local branch.
@@ -170,7 +171,7 @@ def remove_assignment_worktree_and_branch(
     that Git refuses raises ReportableError.
     """
     remove_agent_work_worktree(state=state, work=assignment)
-    branch = compose_assignment_branch(identifier=assignment.identifier)
+    branch = compose_work_branch(identifier=assignment.identifier)
     if not is_local_branch(root=state.root, branch=branch):
         return
     try:
@@ -181,7 +182,7 @@ def remove_assignment_worktree_and_branch(
         ) from failure
 
 
-def open_assignment_pull_request(
+def open_work_pull_request(
     *, state: StateDirectory, repository: str, assignment: AgentWork
 ) -> None:
     """Publish the assignment's branch and record its draft pull request.
@@ -196,21 +197,19 @@ def open_assignment_pull_request(
     attempt adds both afresh.
     """
     issue = assignment.record.issue
-    branch = compose_assignment_branch(identifier=assignment.identifier)
+    branch = compose_work_branch(identifier=assignment.identifier)
     default_branch = fetch_default_branch(root=state.root)
     if not is_linked_worktree(path=assignment.worktree):
         try:
             add_worktree(root=state.root, path=assignment.worktree, branch=branch)
         except ReportableError:
             with suppress(ReportableError):
-                remove_assignment_worktree_and_branch(
-                    state=state, assignment=assignment
-                )
+                remove_work_worktree_and_branch(state=state, assignment=assignment)
             raise
     if not has_commits_since_default_branch(worktree=assignment.worktree):
         make_empty_commit(worktree=assignment.worktree, message=f"GH{issue}")
     push_branch(root=state.root, branch=branch)
-    pull_request = find_or_create_assignment_pull_request(
+    pull_request = _find_or_create_work_pull_request(
         repository=repository,
         base=default_branch,
         branch=branch,
@@ -274,3 +273,39 @@ def _read_relayed_inputs(*, assignment: AgentWork) -> Iterator[AssignmentRoundIn
     """Yield the inputs already relayed, newest first."""
     for paths in assignment.list_relayed_round_paths():
         yield read_json(model=AssignmentRoundInput, path=paths.round_input)
+
+
+def _find_or_create_work_pull_request(
+    *, repository: str, base: str, branch: str, issue: int, title: str
+) -> PullRequestReference:
+    """Return the pull request on the assignment's branch, opening a draft if none.
+
+    A pull request already on the branch is the assignment's own, whatever its
+    state. No other pull request is looked at, since the scheduler asked before
+    the assignment existed whether one claims the issue.
+    """
+    branch_pull_request = _find_branch_pull_request(
+        repository=repository, branch=branch
+    )
+    if branch_pull_request is not None:
+        return branch_pull_request
+    pull_request = create_pull_request(
+        repository=repository, base=base, branch=branch, issue=issue, title=title
+    )
+    if isinstance(pull_request, UnknownGitHubResponse):
+        raise ReportableError(pull_request.reason)
+    return pull_request
+
+
+def _find_branch_pull_request(
+    *, repository: str, branch: str
+) -> PullRequestReference | None:
+    """Return the sole pull request on the branch, when it has one."""
+    pull_requests = list_pull_requests(repository=repository, branch=branch)
+    if isinstance(pull_requests, UnknownGitHubResponse):
+        raise ReportableError(
+            f"cannot tell whether {branch} has a pull request: {pull_requests.reason}"
+        )
+    if len(pull_requests) > 1:
+        raise ReportableError(f"{branch} has more than one pull request.")
+    return pull_requests[0] if pull_requests else None
