@@ -1195,10 +1195,7 @@ the change.
   [Upgrade from v4.0.0 to v5.0.0](compatibility.md#upgrade-from-v400-to-v500).
   ([#364](https://github.com/alimanfoo/dreamcatcher/pull/364))
 - State format 5 puts the initial conversation title and body under
-  `initial_issue`. [Agent contract version 1](contract.md) documents
-  that current protocol; declaring the version does not itself change
-  the input. Prompt and skill authors should check their assumptions
-  against the contract.
+  `initial_issue`. Agent contract version 1 documented that protocol.
   ([#364](https://github.com/alimanfoo/dreamcatcher/pull/364),
   [#370](https://github.com/alimanfoo/dreamcatcher/pull/370))
 - The prompt that hands an assignment new pull request posts now opens

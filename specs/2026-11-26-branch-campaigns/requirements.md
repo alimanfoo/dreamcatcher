@@ -52,7 +52,7 @@ This changes these stories in `docs/stories.md`:
   queues one campaign behind another", and "The parent changes while a
   campaign is open";
 - the campaign card's first row in "The user comes back to see what
-  needs them", which says a campaign has no pull request;
+  needs them";
 - the campaign parts of "The user renames a dispatch label", "Two labels
   of one kind on one issue", "Labelling an issue for a colleague" and
   "Naming work that is not there", which says cancel refuses a campaign;

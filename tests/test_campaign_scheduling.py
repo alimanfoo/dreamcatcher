@@ -121,7 +121,7 @@ effort = "xhigh"
 CODEX_CAMPAIGN = """[[campaign]]
 label = "dream:big"
 [campaign.codex]
-prompt = "Acknowledge GH{issue} with a comment on it."
+prompt = "Acknowledge GH{issue}."
 model = "gpt-6.2-sol"
 effort = "xhigh"
 """
@@ -374,7 +374,7 @@ def test_a_labelled_parent_starts_a_lead_that_reads_its_input_and_posts_nothing(
         )
     )
     [call] = harnesses["claude"].calls
-    assert call.prompt.startswith("Acknowledge GH20 with a comment on it.\n\n")
+    assert call.prompt.startswith("Acknowledge GH20.\n\n")
     assert f"Campaign input for parent issue GH20:\n\n  {paths.round_input}" in (
         call.prompt
     )
@@ -471,7 +471,7 @@ def test_a_first_round_with_no_session_to_resume_is_given_its_instructions_again
 
     [call] = harnesses["claude"].calls
     assert "--resume" not in call.arguments
-    assert call.prompt.startswith("Acknowledge GH20 with a comment on it.\n\n")
+    assert call.prompt.startswith("Acknowledge GH20.\n\n")
     assert "Your previous round did not finish." in call.prompt
 
 
@@ -1085,7 +1085,7 @@ def test_an_open_campaign_with_no_round_yet_starts_its_lead(
         compose_campaign_identifier(issue=PARENT)
     ]
     [call] = harnesses["claude"].calls
-    assert call.prompt.startswith("Acknowledge GH20 with a comment on it.\n\n")
+    assert call.prompt.startswith("Acknowledge GH20.\n\n")
 
 
 def test_a_retry_clears_the_fault_and_the_lead_recovers(campaign_scheduler, harnesses):

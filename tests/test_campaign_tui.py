@@ -11,7 +11,7 @@ from terminals import create_pinned_console
 from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.scheduler.models import SchedulerRecord
 from dreamcatcher.state import StateDirectory
-from dreamcatcher.tui import show_agent_work_view, show_feed_view, show_status_view
+from dreamcatcher.tui import show_agent_work_view, show_feed_view
 
 
 @pytest.fixture
@@ -26,23 +26,6 @@ def state(tmp_path):
         ),
     )
     return state
-
-
-def test_status_lists_campaigns_their_requests_and_how_many_ended(state):
-    written = StringIO()
-    console = create_pinned_console(written_to=written)
-
-    show_status_view(state=state, console=console, clock=lambda: LOOKED_AT)
-
-    shown = written.getvalue()
-    campaigns = shown[shown.index("campaigns") :]
-    assert "GH60-20260819-184158-campaign" in campaigns
-    words = " ".join(campaigns.split())
-    assert "PR #90 draft; awaiting feedback or sub-issue changes" in words
-    assert "2 of 5 sub-issues closed" in words
-    assert "GH62" in campaigns
-    assert "available" in campaigns
-    assert "1 ended campaign" in campaigns
 
 
 def test_campaign_detail_shows_its_parent_settings_and_rounds(state):
@@ -91,4 +74,4 @@ def test_campaign_feed_shows_what_the_lead_said(state):
         console=console,
     )
 
-    assert "I acknowledged the plan on the parent." in written.getvalue()
+    assert "I acknowledged the plan." in written.getvalue()

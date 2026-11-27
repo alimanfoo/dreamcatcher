@@ -82,7 +82,7 @@ CONFIG = SMITH_CLAUDE + SMITH_CODEX
 CAMPAIGN_CLAUDE = """[[campaign]]
 label = "dream:big"
 [campaign.claude]
-prompt = "Acknowledge GH{issue} with a comment on it."
+prompt = "Acknowledge GH{issue}."
 model = "opus[1m]"
 effort = "xhigh"
 """

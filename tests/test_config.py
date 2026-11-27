@@ -102,7 +102,7 @@ def test_a_campaign_is_configured_separately(tmp_path):
         CampaignRoute(
             label="dream:big",
             claude=ClaudeRecipe(
-                prompt="Acknowledge GH{issue} with a comment on it.",
+                prompt="Acknowledge GH{issue}.",
                 model="opus[1m]",
                 effort="xhigh",
             ),
