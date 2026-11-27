@@ -334,7 +334,7 @@ answers the label, work can start only if the label is still on and was
 applied after every application consumed by work of that kind on the
 issue. Removing and re-adding the label makes a new request. An issue
 with no earlier work of that kind needs only its first label
-application.
+application. Users see a consumed request called used.
 
 A conversation's label is a switch. It makes a request while it is on
 the issue and allows the conversation to start or resume in response to

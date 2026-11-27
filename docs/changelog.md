@@ -29,12 +29,14 @@ the change.
 
 ## Unreleased
 
+## [v10.0.0](https://github.com/alimanfoo/dreamcatcher/releases/tag/v10.0.0) — 2026-11-27
+
 ### Breaking
 
 - Saved work now uses state format 9 in `.dreamcatcher/v9/`. Finish work
   you want to keep running and review existing dispatch labels before
   upgrading. See
-  [Compatibility and upgrades](compatibility.md#upgrade-from-v9-to-state-format-9).
+  [Compatibility and upgrades](compatibility.md#upgrade-from-v9-to-v1000).
   ([#934](https://github.com/alimanfoo/dreamcatcher/pull/934))
 
 - Campaign skills must follow [agent contract version 2](contract.md).

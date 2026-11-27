@@ -814,7 +814,7 @@ take effect, and nothing in progress is lost.
 
 From then on the label they put on an issue chooses the recipe. Small
 issues get the light label, hard ones the heavy one, and assignments
-that were already running keep the recipe they started with. If the new
+that were already open keep the recipe they started with. If the new
 recipe turns out better everywhere, the user edits the original to
 match, or removes its route, and existing work carries on regardless.
 
@@ -1052,9 +1052,9 @@ last daemon recorded.
 
 The user deletes the folder under `.dreamcatcher/` that an assignment
 works in. The assignment's next round errors with the reason, and a
-second failure puts the assignment in fault. The user needs to cancel
-the assignment and close its pull request. They remove and re-add the
-label to ask for a fresh assignment.
+second errored round puts the assignment in fault. The user needs to
+cancel the assignment and close its pull request. They remove and re-add
+the label to ask for a fresh assignment.
 
 ### Deleting the daemon lock while the daemon runs
 
@@ -1116,7 +1116,7 @@ failed read for one piece of work or one request shows on its card. When
 a campaign's sub-issues, or their assignments, cannot all be read, its
 card shows its sub-issues as unknown in place of the closed count, and
 its lead starts no round from the partial picture. A lead that is not
-working, held or in fault shows as unknown too, with the failed read;
+working or in fault shows as unknown too, with the failed read;
 otherwise the lead keeps its status. The next update tries again. Work
 whose round is already running carries on, and its pushes and posts fail
 or succeed as GitHub allows.

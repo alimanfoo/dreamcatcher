@@ -168,11 +168,12 @@ piece of work in the same way. The page records the request even while
 the daemon is stopped, and the next round can start once the daemon runs
 again.
 
-Repeated failures across multiple work items can trigger a 15-minute
-global cooldown. _dreamcatcher_ keeps reporting status but starts no
-agent rounds during the cooldown. It survives a daemon restart and
-clears the current faults when it ends. A manual retry request still
-waits until an active cooldown is over.
+When two pieces of agent work are in fault at once, a 15-minute global
+cooldown starts. A held conversation's fault does not count.
+_dreamcatcher_ keeps reporting status but starts no agent rounds during
+the cooldown. It survives a daemon restart and clears the current faults
+when it ends. A manual retry request still waits until an active
+cooldown is over.
 
 For exact retry syntax and error conditions, see the
 [`retry` command reference](command-reference.md#retry).

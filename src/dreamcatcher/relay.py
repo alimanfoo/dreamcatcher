@@ -112,7 +112,7 @@ class PullRequestPostCursor:
     post_ids: frozenset[tuple[str, int]]
 
 
-def read_user_post_cursor(*, work: AgentWork) -> PullRequestPostCursor | None:
+def read_pull_request_post_cursor(*, work: AgentWork) -> PullRequestPostCursor | None:
     """Return the newest relayed second and each post already seen within it."""
     posts = (
         post

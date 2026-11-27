@@ -60,9 +60,10 @@ ended assignments, campaigns and issue conversations, each kind on a tab
 of its own, and the dispatch labels that no open work answers, with why:
 available; held because an issue blocks it, a pull request is linked to
 it, someone else applied the label, the issue carries conflicting
-labels, or earlier work used the label's request; idle while it waits
-for a comment; or unknown because a read failed or GitHub could not yet
-tell. Open a piece of work to see its rounds and live feed.
+labels, earlier work used the label's request, or the parent's campaign
+has no open pull request; idle while it waits for a comment; or unknown
+because a read failed or GitHub could not yet tell. Open a piece of work
+to see its rounds and live feed.
 
 ## Monitor from the terminal
 

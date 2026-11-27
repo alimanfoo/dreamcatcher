@@ -145,7 +145,7 @@ def _build_cli_parser() -> argparse.ArgumentParser:
         help="retry faulted agent work after fixing its problem",
         description=(
             "Clear the current fault of the selected agent work after you have "
-            "fixed what caused its rounds to fail. The daemon may run it again "
+            "fixed what caused its rounds to error. The daemon may run it again "
             "on the next scheduler update outside a global cooldown."
         ),
     )
@@ -213,10 +213,11 @@ def _build_cli_parser() -> argparse.ArgumentParser:
         description=(
             "Show an overview of the agent work that you name: what its work "
             "record holds, its harness session, worktree and rounds, and the "
-            "command that resumes the harness session by hand. An assignment's "
-            "overview also gives its pull request and branch. It stays on that "
-            "work, and keeps up until the work ends, as an assignment does after "
-            "a successful wrap-up or a cancel. Interrupt it to end it sooner. "
+            "command that resumes the harness session by hand. An assignment's or "
+            "campaign's overview also gives its pull request and branch. It stays "
+            "on that work, and keeps up until the work ends, as an assignment "
+            "does after a successful wrap-up or a cancel. Interrupt it to end it "
+            "sooner. "
             + _HELP_WHEN_A_VIEW_TAKES_THE_SCREEN
             + " Ended work stays on the screen for you to read. "
             "Interrupt work that is still going and nothing is left behind. "

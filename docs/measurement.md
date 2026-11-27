@@ -5,36 +5,38 @@ This page holds the latest measurement of _dreamcatcher_ against
 replaces it before each major or minor release. Earlier measurements are
 in Git history.
 
-Measured on 2026-11-26 at `8c6f551a`, for the v9.10.0 release
-preparation. The review covers the pull requests merged since v9.9.0,
-the last measured release: the documentation site's home page hero
-(#906), the agent contract cut to what a skill must say (#910), the
-v9.9.1 release preparation (#916), the default Codex recipes moved to
-the GPT-6 models (#918), and the maintainer's chores (#919), with the
-Dependabot updates. The consistency review and the pass over open issues
-ran beside this measurement.
+Measured on 2026-11-27 at `e30c7d1c`, for the v10.0.0 release
+preparation. The review covers the pull requests merged since v9.10.0,
+the last measured release: the branch-campaigns specification (#924) and
+its nine stages, consumed requests (#934), pull request work (#935),
+assignments that target a base branch (#936), the parent check (#937),
+campaigns on a branch (#938), the coordinating lead (#939), cancelling a
+campaign (#940), the finishing phase (#941), the tidy-up after stages 1
+to 8 (#943) and the user guides (#945). No Dependabot update merged in
+this interval. The consistency review and the pass over open issues ran
+beside this measurement.
 
 ## Results
 
-| Criterion                  | Measured                                                              | Status | Issue |
-| -------------------------- | --------------------------------------------------------------------- | ------ | ----- |
-| Cohesive modules           | 0 reviewed modules without one nameable responsibility                | met    |       |
-| Focused functions          | 0 reviewed functions without one nameable job                         | met    |       |
-| No unused exports          | 31 public definitions without a direct named importer, as at v9.8.0   | met    |       |
-| One way                    | No derivation added; the start instruction still has two homes        | met    | #896  |
-| No suppressions            | 0 `noqa`, 0 `type: ignore`, 3 platform pragmas                        | met    |       |
-| One vocabulary             | 3 disagreements fixed, 1 already tracked; 1 test renamed              | met    |       |
-| True documents             | 2 statements that #910 left false corrected                           | met    |       |
-| Docs by purpose            | Tutorials, task guides, references and explanations remain separate   | met    |       |
-| Versioned contract         | State format 8 unchanged since v9.0.0; contract remains 1             | met    |       |
-| Machine-checked rules      | The 11 import-linter contracts and the hooks of v9.9.0 remain         | met    |       |
-| Fast readable tests        | 41.40 seconds, 1,566 tests passed, 100% statement and branch coverage | met    |       |
-| Current tracker            | 15 open issues read; 3 rewritten in the current words                 | met    |       |
-| Reviewed changes           | 5 of 5 merged pull requests answer every definition-of-done question  | met    |       |
-| Rules not cases            | 11 ledger entries, unchanged                                          | met    |       |
-| Invariants by construction | 71 nullable class fields, as at v9.8.0                                | met    |       |
-| Few concepts               | No concept added or removed                                           | met    |       |
-| Symmetry                   | No operation added or removed for any kind of agent work              | met    |       |
+| Criterion                  | Measured                                                                 | Status  | Issue |
+| -------------------------- | ------------------------------------------------------------------------ | ------- | ----- |
+| Cohesive modules           | 0 reviewed modules without one nameable responsibility                   | met     |       |
+| Focused functions          | 0 reviewed functions without one nameable job                            | met     |       |
+| No unused exports          | 31 public definitions without a direct named importer; 2 left, 2 came    | met     |       |
+| One way                    | No derivation added; the start instruction still has two homes           | met     | #896  |
+| No suppressions            | 0 `noqa`, 0 `type: ignore`, 3 platform pragmas                           | met     |       |
+| One vocabulary             | 8 disagreements found, 7 fixed and 1 filed; 9 replaced words fixed       | met     | #947  |
+| True documents             | 3 architecture statements, 1 incomplete list and 1 story corrected       | met     |       |
+| Docs by purpose            | Tutorials, task guides, references and explanations remain separate      | met     |       |
+| Versioned contract         | State format 9 and contract version 2, each with a Breaking entry        | met     |       |
+| Machine-checked rules      | The 11 import-linter contracts and the hooks of v9.10.0 remain           | met     |       |
+| Fast readable tests        | 39.80 seconds, 1,583 tests passed, 100% statement and branch coverage    | met     |       |
+| Current tracker            | 17 open issues read; 1 closed as done, 4 rewritten                       | met     |       |
+| Reviewed changes           | 11 of 11 merged pull requests answer every definition-of-done question   | met     |       |
+| Rules not cases            | 12 ledger entries, 1 added with an external cause                        | met     |       |
+| Invariants by construction | 75 nullable class fields; 2 fallbacks for a missing application time     | not met | #948  |
+| Few concepts               | 7 concepts added with the design's case; pausing a campaign removed      | met     |       |
+| Symmetry                   | Campaigns gain cancellation and share pull request work with assignments | met     |       |
 
 ## Deferred work and previous findings
 
@@ -46,81 +48,122 @@ work, remains open.
 
 Open issues in this interval:
 
-- The open issues are #32, #492, #762, #844, #856, #857, #870, #882,
-  #894, #896, #901, #902, #911, #914 and #917. #897 and #899 closed with
-  #906 and #910.
-- #492 called the harness session identifier "the session identifier"
-  and proposed a journal entry named `session_seen`; it now says
-  "harness session" in both.
-- #914 proposed prompt wording that said "wind the assignment up"; it
-  now says "wrap the assignment up", the concepts page's word.
-- #917 called each sub-issue a "child" in prose, and quoted a
-  notification as "Pull request became mergeable"; it now says
-  "sub-issue", the out-of-date signal and the mergeable change.
+- The open issues were #32, #492, #762, #844, #856, #857, #870, #882,
+  #894, #896, #901, #902, #911, #914, #917, #944 and #946. #925 to #933
+  and #942 closed with the pull requests that implemented them. #944 and
+  #946 are new maintenance issues.
+- #894, the branch-campaign phase, closed as completed: its nine stages
+  and the tidy-up have merged, and `specs/AGENTS.md` lists its
+  specification folder as complete.
+- #917 now names the campaign's pull request as the lead's channel. #914
+  quotes the round prompts as they stand. #844 describes the chips as
+  they are since #842. #492's example entry and module names match the
+  code.
+- This measurement and the consistency review filed #947 and #948.
 - #882 and #917 still await the product owner's triage, which this pass
   does not replace.
 
 ## Notes
 
-- **Cohesive modules, Focused functions.** The largest modules are those
-  of v9.9.0, at the same sizes: `github.py` (931 lines),
-  `agent_rounds.py` (785), `status/agent_work.py` (629) and
-  `status/report.py` (543). The longest functions are unchanged, led by
-  `_build_cli_parser` (197 lines), which reads as the list of commands.
-  The only source change since v9.9.0 outside the default configuration
-  builds the list alias in `documents.py` by call, for the type checker
-  that the uv group update brought, and grows the module by one line.
-- **No unused exports, One way.** No definition or export was added or
-  removed, so the inventories of v9.8.0 stand.
+- **Cohesive modules, Focused functions.** The largest modules are
+  `github.py` (1,019 lines, up from 931 with the parent read, the label
+  application time and issue closure), `agent_rounds.py` (789),
+  `status/agent_work.py` (577, down from 629) and `scheduler/tick.py`
+  (567, up from 504 with the consumed-request check and the shared
+  campaign pull request read). `relay.py` grew from 172 to 260 lines and
+  `scheduler/conversations.py` from 127 to 208; each still owns one
+  responsibility, the relay past a cursor and a conversation's
+  inspection. `pull_request_work.py` (265) replaces
+  `agent_assignments.py` and `agent_assignment_pull_requests.py`, and
+  `scheduler/pull_requests.py` (140) replaces `scheduler/issue_work.py`.
+  The longest function is still `_build_cli_parser` (196 lines), which
+  reads as the list of commands. `Scheduler.tick` grew from 81 to 96
+  lines and still reads as the tick's steps. The new
+  `create_assignment_request_inspector` (61), `inspect_open_campaign`
+  (51) and `_prepare_campaign_round` (44) each read as one inspection or
+  preparation in order.
+- **No unused exports, One way.** The same AST inventory as v9.8.0 finds
+  31 public class or function definitions without a direct named
+  importer. `github.LabellingEvent` gained an importer and
+  `scheduler.issue_work.EligibleIssueWorkInspector` went with its
+  module. `github.ParentIssue` is a GitHub response projection, and
+  `relay.PullRequestPostCursor` is the type that the relay's
+  `read_user_post_cursor` returns. Cancellation of pull request work has
+  one operation, `cancel_pull_request_work`, which the command and the
+  page share.
 - **No suppressions, Machine-checked rules.** The three coverage pragmas
   remain at `teardown.py:20`, `teardown.py:110` and `commands.py:270`,
-  all platform arms. The import contracts and every hook pass.
-- **One vocabulary, True documents.** The consistency review covered the
-  changes since v9.9.0 against the enduring documents, the user
-  documentation, the source and the rendered views. It found three
-  disagreements that #910 left behind, and the release preparation fixes
-  each one. The `CampaignChildAssignment` docstring and a test name in
-  `tests/test_campaigns.py` said that the agent contract names the fault
-  flag `is_fault`, which the contract no longer does; they now say that
-  the lead's skill may read it by that name. `docs/compatibility.md`
-  said that contract version 1 documents the existing protocol, where
-  the contract now says only what a skill must and must not say; the
-  sentence is gone. The contract required every campaign skill to tell
-  the lead how to start a sub-issue's assignment, though
-  `docs/start-a-campaign.md` offers a campaign prompt that starts none;
-  the requirement now applies when the lead starts one, so that prompt,
-  and every skill that met version 1 before #910, still meets it. The
-  review also found the "per your assignment's rules" prompt wording
-  that #914 already tracks. No word that a "Replaces:" line names
-  appears in a replaced sense in the lines changed since v9.9.0, and no
-  document or test still names the retired Codex models.
-- **Versioned contract.** #910 cut the contract to what a skill must say
-  and must not say. No skill that met it has to change, so it stays at
-  version 1, as the v9.9.1 changelog says.
-- **Fast readable tests.** The default suite passed with 1,566 tests,
+  all platform arms. The import contract "Agent work never reaches
+  scheduling" names `pull_request_work` in place of the two modules it
+  replaced. The import contracts and every hook pass.
+- **One vocabulary, True documents.** The consistency review found eight
+  disagreements. Seven were fixed for the release: the concepts page now
+  says that users see a consumed request called used; the `PauseCause`
+  docstring no longer says a campaign pauses; the `view` help and
+  `about.md` describe campaigns and the base branch; the list of held
+  reasons in `run-and-monitor.md` includes a sub-issue's unavailable
+  campaign pull request; `index.md` no longer offers to request changes
+  on your own pull request; and `read_pull_request_post_cursor` replaces
+  `read_user_post_cursor`. #947 tracks the eighth, the round input's
+  `finished_turn`. A search for each replaced word found nine uses of
+  "failed" for an errored round or "running" for working, all fixed. A
+  reading of the architecture against the code found four statements
+  that the code did not bear out, all corrected: when an opening round
+  is due, when wrap-up closes the issue, the order of the tick's
+  cooldown and worktree removal, and the list of typed findings. One
+  story no longer says that a lead can be held.
+- **Versioned contract.** #934 raised the state format to 9 in
+  `.dreamcatcher/v9/`, and #939 raised the agent contract to version 2.
+  `docs/compatibility.md` states each, and the changelog's Breaking
+  entries say what the user must do for each.
+- **Fast readable tests.** The default suite passed with 1,583 tests,
   one platform-only skip, and 100% statement and branch coverage, in
-  41.40 seconds.
-- **Reviewed changes.** #906, #910, #918 and #919 each explain the
-  change and answer every definition-of-done question, and #906 and #910
-  close the issues they implement. #916 prepared the v9.9.1 patch
-  release and answers them too. The Dependabot updates are exempt,
-  including the commit on #915 that adapted `documents.py` and the tests
-  to the updated type checker.
-- **Rules not cases, Invariants by construction, Few concepts,
-  Symmetry.** No conditional was added, so the ledger keeps its 11
-  entries, and no field was added, so the nullable-field inventory keeps
-  its 71. The concepts page is unchanged since v9.9.0.
+  39.80 seconds. The 44 test names added since v9.10.0 each name a
+  behaviour.
+- **Reviewed changes.** All eleven pull requests explain the change,
+  link the issue or the roadmap stage they implement, and answer every
+  definition-of-done question. #924 holds the specification and links
+  #894.
+- **Rules not cases.** #936 added the ledger's twelfth entry,
+  `pull_request_work.close_issue_for_merged_pull_request`, because
+  GitHub acts on a closing keyword only for a pull request into the
+  default branch. The other conditionals added apply rules the concepts
+  page states, such as a conversation's label being a switch and a
+  parent in another repository never matching a campaign.
+- **Invariants by construction.** The nullable-field inventory rose from
+  71 to 75. Six fields went with the round plan and the campaign's
+  issue-comment cursor, and ten came: the application time and base
+  branch on `AgentWorkRecord` and `DispatchRequest`, the prepared
+  round's input and finisher, and the parent in GitHub's answer. The
+  application time is absent exactly for a conversation, but the record
+  carries kind and time as two fields, so two places defend against an
+  assignment or campaign with no time: `scheduler/assignments.py:114`
+  orders campaigns with `label_applied_at or datetime.min`, and
+  `scheduler/tick.py:397` filters missing times out of the consumed
+  applications.
+- **Few concepts, Symmetry.** The concepts page gains the base branch,
+  the campaign branch, a campaign's sub-issue, a consumed request, the
+  coordinating and finishing phases, and pull request work, each of
+  which the design in `specs/2026-11-26-branch-campaigns/` sets out.
+  Pausing a campaign by its label is gone. A campaign now has the
+  assignment's pull request channel, opening, wrap-up and cancellation
+  through the shared pull request work, and the concepts page names the
+  phases where the two differ.
 
 ## Method
 
 - `tools/measure_source.py` supplies physical module and function line
   counts; review assesses responsibility rather than imposing a limit.
-- The diff of `src` from v9.9.0 establishes that only
-  `default_config.toml` and `documents.py` changed, adding no
-  definition, field, export or conditional, so the export and
-  nullable-field inventories of v9.8.0 stand.
-- A search for each word that a "Replaces:" line names covered the lines
-  changed since v9.9.0, the repository's skills and every open issue.
+  The same tool over v9.10.0 gives the changes since then.
+- AST inventories over `src` count public definitions without direct
+  named importers and class fields whose own annotation admits `None`.
+  The same inventories over v9.10.0 reproduce its 31 and 71 and give the
+  changes since then.
+- The namespace map and stubs guided targeted reads of the architecture
+  and the stories and concepts pages against the code changed since
+  v9.10.0.
+- A search for each word that a "Replaces:" line names covered every
+  open issue.
 - Test results establish local coverage, timing and rendered behaviour.
   PR descriptions establish the definition-of-done record, and current
   issue bodies establish the state of the tracker.

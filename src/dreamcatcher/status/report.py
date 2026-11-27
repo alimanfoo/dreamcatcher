@@ -77,7 +77,7 @@ _EMPTY_SECTION_GUIDANCE = {
 class StatusFact:
     """Hold one labelled fact that a view shows.
 
-    A fact in progress names work that is running now, which the web page
+    A fact in progress names work that is working now, which the web page
     marks with motion.
     """
 

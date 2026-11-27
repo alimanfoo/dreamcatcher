@@ -33,7 +33,7 @@ which kind of work to start.
 
 An **assignment** implements one issue in its own worktree and pull
 request. Review it as you would any pull request: leave review comments
-or line comments, or request a change. The agent addresses your feedback
+or line comments, or ask for a change. The agent addresses your feedback
 in its next round. Keep iterating, then merge when you are satisfied, or
 close it if the work should not land.
 
