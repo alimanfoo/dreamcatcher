@@ -37,6 +37,10 @@ the change.
   [Compatibility and upgrades](compatibility.md#upgrade-from-v9-to-state-format-9).
   ([#934](https://github.com/alimanfoo/dreamcatcher/pull/934))
 
+- Campaign skills must follow [agent contract version 2](contract.md).
+  Update your campaign skill before starting a campaign with this
+  release. ([#939](https://github.com/alimanfoo/dreamcatcher/pull/939))
+
 ### Changed
 
 - Each application of an assignment or campaign label requests one

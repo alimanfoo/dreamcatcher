@@ -303,25 +303,26 @@ where each one's assignment stands, and the assignment routes that the
 running daemon offers. The lead dispatches assignments and reviews their
 pull requests into the campaign branch. When one merges, _dreamcatcher_
 closes its sub-issue during the assignment's wrap-up. The lead posts its
-messages on GitHub, marking every post apart from feedback on a
-sub-issue's pull request. Its final words stay in the feed. The home
-page's Campaigns tab shows the campaign's pull request and how many of
-the parent's sub-issues are closed out of the total. After that count,
-the same line counts the cards under the campaign by the status that
-each shows, such as 6 working, 3 waiting and 1 held, so the user sees
-the whole picture of the sub-issues without opening it. Every count
-comes from the latest update and the work's own records. The user
-expands the line to see every sub-issue, each with its assignment's card
-as the Assignments tab shows it and the card of each request for an
-assignment on it that has no open work, or, when it has neither, a
-sub-issue card with the sub-issue's number and title and whether it is
-open or closed. A closed sub-issue's title shows as quietly as ended
-work's, so it never looks like work still to do. The cards keep
-updating, and the sub-issues stay expanded until the user folds them.
-Once the campaign ends, it moves to the ended list with its own card
-alone, and the user goes to GitHub for the history.
+messages to the user on the campaign's pull request. It marks every post
+apart from feedback on a sub-issue's pull request. Its final words stay
+in the feed. The home page's Campaigns tab shows the campaign's pull
+request and how many of the parent's sub-issues are closed out of the
+total. After that count, the same line counts the cards under the
+campaign by the status that each shows, such as 6 working, 3 waiting and
+1 held, so the user sees the whole picture of the sub-issues without
+opening it. Every count comes from the latest update and the work's own
+records. The user expands the line to see every sub-issue, each with its
+assignment's card as the Assignments tab shows it and the card of each
+request for an assignment on it that has no open work, or, when it has
+neither, a sub-issue card with the sub-issue's number and title and
+whether it is open or closed. A closed sub-issue's title shows as
+quietly as ended work's, so it never looks like work still to do. The
+cards keep updating, and the sub-issues stay expanded until the user
+folds them. Once the campaign ends, it moves to the ended list with its
+own card alone, and the user goes to GitHub for the history.
 
-The user reviews the campaign's pull request and merges it when
+When the lead judges every sub-issue done, it marks the campaign's pull
+request ready for review. The user reviews it and merges it when
 satisfied. GitHub closes the parent. The lead wraps up in its next
 round, then _dreamcatcher_ removes the worktree and local branch and
 keeps the record. If the user closes the pull request without merging,

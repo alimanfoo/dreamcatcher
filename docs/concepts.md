@@ -96,7 +96,12 @@ A **campaign** is _dreamcatcher_'s durable commission to an agent, its
 the work. The code, and the `children` field of a campaign round's
 input, call each sub-issue a **child** of the parent. The **campaign
 branch** starts from the default branch. The campaign's pull request
-goes into the default branch and closes the parent when it merges.
+goes into the default branch and closes the parent when it merges. While
+the pull request is a draft, the lead is in the **coordinating phase**.
+It dispatches the parent's existing sub-issues and reviews and merges
+their pull requests into the campaign branch. When it judges every
+sub-issue done, it marks the campaign's pull request ready for review.
+The user decides when to merge it.
 
 A **campaign's sub-issue** is a direct sub-issue in the same repository
 whose parent carries a campaign label configured for the running daemon

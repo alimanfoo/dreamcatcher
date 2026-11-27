@@ -379,7 +379,7 @@ def test_a_labelled_parent_starts_a_lead_that_reads_its_input_and_posts_nothing(
         call.prompt
     )
     assert call.prompt.endswith(_CAMPAIGN_POST_INSTRUCTIONS)
-    assert "remove its assignment label if present" in call.prompt
+    assert "assignment label if present, then add the label" in call.prompt
     assert "--resume" not in call.arguments
     assert all("POST" not in call.arguments for call in gh.calls)
 
