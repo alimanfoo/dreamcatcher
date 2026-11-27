@@ -80,6 +80,7 @@ from dreamcatcher.pull_request_work import (
 from dreamcatcher.scheduler.models import (
     GlobalCooldown,
     IssueCommentsFinding,
+    RequestConsumedFinding,
     SchedulerRecord,
 )
 from dreamcatcher.state import StateDirectory
@@ -1994,6 +1995,27 @@ def test_issue_and_pull_request_numbers_link_to_github_with_hash_notation(tmp_pa
     assert '<span class="issue-state">open, multiple assignment labels</span>' in page
     assert (
         '<p class="card-detail">remove all but one: dream:less, dream:smith</p>' in page
+    )
+
+
+def test_a_consumed_request_card_explains_how_to_ask_for_another_attempt(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    write_running_daemon(state=state)
+    write_tick(
+        state=state,
+        tick=SchedulerRecord(
+            at=LOOKED_AT,
+            finished=LOOKED_AT,
+            rows=[compose_request_row(issue=20, finding=RequestConsumedFinding())],
+        ),
+    )
+
+    page = render_home(state=state)
+
+    assert "open, label&#39;s request already used" in page
+    assert (
+        '<p class="card-detail">remove and re-add the label for another attempt</p>'
+        in page
     )
 
 

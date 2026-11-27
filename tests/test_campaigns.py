@@ -1,7 +1,7 @@
 from datetime import timedelta
 
 import pytest
-from clocks import PINNED
+from clocks import LABEL_APPLIED_AT, PINNED
 from pydantic import ValidationError
 from records import (
     MISORDERED_COMMENTS,
@@ -16,7 +16,12 @@ from dreamcatcher.agent_rounds import (
     HarnessErroredAgentRoundEnding,
     SuccessfulAgentRoundEnding,
 )
-from dreamcatcher.agent_work import AgentWork, AgentWorkEndReason, create_agent_work
+from dreamcatcher.agent_work import (
+    AgentWork,
+    AgentWorkEndReason,
+    DispatchRequest,
+    create_agent_work,
+)
 from dreamcatcher.campaigns import (
     CampaignChild,
     CampaignChildAssignment,
@@ -107,11 +112,14 @@ def test_a_campaign_round_starts_from_the_default_branch_in_a_detached_worktree(
     state = StateDirectory(root=cloned_repo)
     campaign = create_agent_work(
         state=state,
-        route=CampaignRoute(
-            label="dream:big",
-            claude=ClaudeRecipe(
-                prompt="Acknowledge GH{issue}.", model="opus[1m]", effort="xhigh"
+        request=DispatchRequest(
+            route=CampaignRoute(
+                label="dream:big",
+                claude=ClaudeRecipe(
+                    prompt="Acknowledge GH{issue}.", model="opus[1m]", effort="xhigh"
+                ),
             ),
+            label_applied_at=LABEL_APPLIED_AT,
         ),
         preferred_harness=AgentHarness.CLAUDE,
         issue=PARENT,

@@ -94,9 +94,9 @@ effort.
 
 To ask for work, you can assign the issue to yourself and put one of the
 dispatch labels on it. dreamcatcher will only look at open issues
-assigned to you. Each dispatch label on such an issue is a **request**,
-and dreamcatcher will start its work at the next update with a free
-agent slot.
+assigned to you. Each application of an assignment or campaign label
+makes one **request**. A conversation label acts as a switch. An
+available request can start at the next update with a free agent slot.
 
 A request can also be **held**, and then won't start until whatever
 holds it changes:
@@ -114,6 +114,8 @@ holds it changes:
 - An assignment will also be held if there is already an open pull
   request **claiming** the issue, for example with `Closes #123` in its
   description, and will start by itself if that pull request closes.
+- When earlier work has used an assignment or campaign label's request,
+  remove and re-add the label to ask for another attempt.
 
 Once an assignment has started, its pull request becomes the only
 channel of communication with the assignment's agent, and changing the

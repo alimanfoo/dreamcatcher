@@ -1170,6 +1170,43 @@ def test_a_conversation_whose_issue_closes_loses_its_worktree_and_keeps_its_reco
     assert observed.failures == []
 
 
+def test_a_reopened_issue_with_its_conversation_label_answers_the_next_comment(
+    conversation_scheduler, harnesses
+):
+    scheduler, clock, gh = conversation_scheduler
+    question = compose_question()
+    offer_conversation(gh=gh, comments=[question])
+    gh.replies(stdout=json.dumps({"id": 99}), to=POST_PATH)
+    script_claude_answer(harnesses=harnesses)
+    first = scheduler.tick(at=clock())
+    finish(scheduler=scheduler)
+    offer_listing(gh=gh, issues=[])
+    show_conversation_issue(
+        gh=gh,
+        issue=compose_conversation_issue(labels=(CONVERSATION_LABEL,), state="CLOSED"),
+    )
+    scheduler.tick(at=clock())
+
+    offer_conversation(
+        gh=gh,
+        comments=[question, compose_question(identifier=2, body="One more question")],
+    )
+    gh.replies(stdout=json.dumps({"id": 100}), to=POST_PATH)
+    script_claude_answer(harnesses=harnesses)
+    reopened = scheduler.tick(at=clock())
+    finish(scheduler=scheduler)
+
+    [old_identifier] = first.launched_agent_work_identifiers
+    [new_identifier] = reopened.launched_agent_work_identifiers
+    assert new_identifier != old_identifier
+    conversation = read_conversation(state=scheduler.context.state, issue=8)
+    assert conversation is not None
+    assert conversation.identifier == new_identifier
+    assert conversation.record.label_applied_at is None
+    assert conversation.rounds[0].outcome is AgentRoundOutcome.SUCCESSFUL
+    assert sum(call.arguments[:4] == POST_PATH.split() for call in gh.calls) == 2
+
+
 def test_ready_assignment_rounds_and_conversations_alternate(
     conversation_scheduler, harnesses
 ):

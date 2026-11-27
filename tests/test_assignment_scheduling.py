@@ -16,6 +16,7 @@ from conftest import (
 from records import (
     HEAD,
     MERGED_INPUT,
+    AssignmentRequestFacts,
     read_assignments,
     write_assignment,
     write_assignment_round,
@@ -66,7 +67,9 @@ def state(tmp_path, request):
         state=directory,
         identifier=ASSIGNMENT_ID,
         issue=13,
-        base_branch=getattr(request, "param", None),
+        request_facts=AssignmentRequestFacts(
+            base_branch=getattr(request, "param", None)
+        ),
     )
     return directory
 

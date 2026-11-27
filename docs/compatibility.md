@@ -1,15 +1,25 @@
 # Compatibility and upgrades
 
-v9.10.0 uses state format 8, as every v9 release before it did. Saved
-work from any earlier v9 release continues after the upgrade. v7.0.0 and
-v8.0.0 used state format 7, v6.0.0 through v6.3.0 used state format 6,
-v5.0.0 through v5.6.2 used state format 5, and v4.0.0 used state
-format 4. Saved work does not carry across from one format to the next.
+The next release uses state format 9. All v9 releases use state format
+8, and saved work carries across between them. v7.0.0 and v8.0.0 used
+state format 7, v6.0.0 through v6.3.0 used state format 6, v5.0.0
+through v5.6.2 used state format 5, and v4.0.0 used state format 4.
+Saved work does not carry across from one format to the next.
 
-The unreleased state format 9 stores an assignment's explicit base
-branch. It starts with empty local state in `.dreamcatcher/v9/`. Follow
-[the restart instructions](#restart-views-across-state-formats) when
-switching to it.
+## Upgrade from v9 to state format 9
+
+Before upgrading, let ongoing assignments and campaigns finish or take
+over the ones you want to continue. Decide whether you can start
+conversations afresh. Stop the daemon and every standalone view as
+[Restart views across state formats](#restart-views-across-state-formats)
+describes.
+
+The new daemon starts with empty local state in `.dreamcatcher/v9/`. It
+leaves `.dreamcatcher/v8/` on disk. Review the dispatch labels on open
+issues assigned to you before starting the daemon. With no local record
+of earlier work, a label can start work again. Remove labels whose work
+you do not want to restart. Open pull requests still claim their linked
+assignment issues, and you can finish those pull requests by hand.
 
 ## Upgrade from v8.0.0 to v9.0.0
 

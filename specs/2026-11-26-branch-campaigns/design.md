@@ -45,12 +45,15 @@ an issue is one **request**, and the work it starts **consumes** it. A
 label that stays on after its request was consumed asks for nothing
 more, so closing a pull request with the label left on never starts a
 repeat by itself; re-applying the label makes a new request. Concretely,
-new work of either kind starts only on a label applied after the label
-that started the last work of that kind at the issue. Both times are
-GitHub's, from the labelling events, so no clock of this machine is
-compared with GitHub's. An issue with no earlier work of the kind is not
-affected. A conversation's label stays what it is today, a switch: on,
-the agent answers the user's comments; off, the conversation is paused.
+new work of either kind starts only on a label applied after every
+application already consumed by work of that kind at the issue. GitHub
+supplies every application time, so a correction to the local clock does
+not affect which application is latest. When a label is re-applied and
+GitHub still returns the consumed application, the request stays held
+until a later application appears. An issue with no earlier work of the
+kind is not affected. A conversation's label stays what it is today, a
+switch: on, the agent answers the user's comments; off, the conversation
+is paused.
 
 ## Design models
 
@@ -160,10 +163,10 @@ concern campaigns and sub-issues.
    both passes, gain the consumed-request rule for assignment and
    campaign requests. Conversation requests are unchanged. They already
    read the labelling events, to find who applied the label, and the
-   same events give the time it was applied. That time is compared with
-   the one recorded by the newest work of the kind at the issue, ended
-   or not; open work answers its own label before this check. Then, for
-   each assignment request that nothing holds:
+   same events give the time it was applied. The tick compares that time
+   with the latest GitHub application time recorded by work of the kind
+   at the issue, ended or not. Open work answers its own label before
+   this check. Then, for each assignment request that nothing holds:
    1. Ask the start-time questions, about claims and blockers.
       _Unchanged._ If either holds the request, nothing more is read.
    2. Run the **parent check**. Read the issue's parent. The read has
@@ -496,10 +499,6 @@ Changes to the enduring documents:
 
 ## Open questions
 
-- The consumed-request rule changes what a label left on does for
-  assignments and campaigns. The plan should keep it in one place, the
-  label checks, with tests for each case in the stories, so that it can
-  be revisited alone.
 - Whether the parent check's read of the campaign's pull request and the
   campaign pass's read of it share one result.
 - The idle words for a campaign in its coordinating phase, and the words

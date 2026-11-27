@@ -11,7 +11,7 @@ writers in different processes or threads never erase each other's facts.
 import re
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import StrEnum
 from pathlib import Path
 
@@ -74,16 +74,32 @@ _AGENT_WORK_IDENTIFIER_PATTERN = re.compile(
 )
 
 
+@dataclass(frozen=True, kw_only=True)
+class DispatchRequest:
+    """Hold the route and facts that new work records for a dispatch request.
+
+    The application time identifies the request an assignment or campaign
+    consumes. A named base records a choice of a branch other than the default.
+    """
+
+    route: DispatchRoute
+    label_applied_at: datetime | None
+    base_branch: str | None = None
+
+
 class AgentWorkRecord(WriteOnceDreamcatcherDocument):
     """Model the issue, title, label and kind of a piece of agent work, and its recipe.
 
     Creation writes the record once, and nothing writes it again. Every round
     reads this record, so later config edits do not change work in progress.
+    The application time records the request an assignment or campaign
+    consumed. Conversations have no application time in their record.
     """
 
     issue: int
     title: str
     dispatch_label: str
+    label_applied_at: AwareDatetime | None
     kind: AgentWorkKind
     harness: AgentHarness
     model: QuotableText
@@ -235,21 +251,21 @@ def parse_agent_work_identifier(*, text: str) -> str | None:
 def create_agent_work(
     *,
     state: StateDirectory,
-    route: DispatchRoute,
+    request: DispatchRequest,
     preferred_harness: AgentHarness,
     issue: int,
     title: str,
     at: datetime,
-    base_branch: str | None = None,
 ) -> AgentWork:
     """Record the work that the route asks for at the issue, with no rounds run yet.
 
     The route's kind is the work's kind. The route selects a recipe in response
     to the preferred harness, and the recipe supplies the settings that the
     record keeps. Creation writes the record alone, and the rounds prepare
-    everything else. A named base records the request's choice of a branch
-    other than the default.
+    everything else.
     """
+    route = request.route
+    label_applied_at = request.label_applied_at
     harness = route.choose_harness(preferred_harness=preferred_harness)
     recipe = route.recipes[harness]
     return _record_agent_work(
@@ -259,6 +275,9 @@ def create_agent_work(
             issue=issue,
             title=title,
             dispatch_label=route.label,
+            label_applied_at=(
+                None if label_applied_at is None else label_applied_at.astimezone(UTC)
+            ),
             kind=route.kind,
             harness=harness,
             model=recipe.model,
@@ -267,7 +286,7 @@ def create_agent_work(
             instructions=compose_issue_instructions(
                 template=recipe.prompt, issue=issue
             ),
-            base_branch=base_branch,
+            base_branch=request.base_branch,
         ),
     )
 

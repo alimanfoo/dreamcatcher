@@ -16,6 +16,7 @@ from dreamcatcher.agent_rounds import (
 from dreamcatcher.agent_work import (
     AgentWork,
     AgentWorkRecord,
+    DispatchRequest,
     _record_agent_work,
     create_agent_work,
     read_agent_work,
@@ -82,6 +83,7 @@ def write_conversation(*, state: StateDirectory, number: int = 8) -> AgentWork:
             issue=number,
             title="Why does this happen?",
             dispatch_label="dream:conversation",
+            label_applied_at=None,
             kind=AgentWorkKind.CONVERSATION,
             harness=AgentHarness.CLAUDE,
             model="opus[1m]",
@@ -111,7 +113,9 @@ def test_a_conversation_is_recorded_without_a_worktree(tmp_path):
 
     created = create_agent_work(
         state=state,
-        route=compose_conversation_route(),
+        request=DispatchRequest(
+            route=compose_conversation_route(), label_applied_at=None
+        ),
         preferred_harness=AgentHarness.CLAUDE,
         issue=8,
         title="Why does this happen?",
@@ -142,7 +146,7 @@ def test_a_new_conversation_records_the_preferred_harness_recipe(cloned_repo):
 
     created = create_agent_work(
         state=state,
-        route=route,
+        request=DispatchRequest(route=route, label_applied_at=None),
         preferred_harness=AgentHarness.CODEX,
         issue=8,
         title="Why does this happen?",
@@ -173,7 +177,9 @@ def test_round_input_freezes_the_issue_comments_and_revision(
     state = StateDirectory(root=cloned_repo)
     conversation = create_agent_work(
         state=state,
-        route=compose_conversation_route(),
+        request=DispatchRequest(
+            route=compose_conversation_route(), label_applied_at=None
+        ),
         preferred_harness=AgentHarness.CLAUDE,
         issue=8,
         title="Why does this happen?",

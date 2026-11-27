@@ -6,8 +6,8 @@ from datetime import datetime
 from typing import Protocol
 
 from dreamcatcher.agent_rounds import AgentRoundFinisher
-from dreamcatcher.agent_work import AgentWork
-from dreamcatcher.config import DispatchRoute, DreamcatcherConfig
+from dreamcatcher.agent_work import AgentWork, DispatchRequest
+from dreamcatcher.config import DreamcatcherConfig
 from dreamcatcher.documents import DreamcatcherDocument
 from dreamcatcher.github import Issue, IssueState
 from dreamcatcher.scheduler.models import RequestFinding, RequestRow
@@ -50,13 +50,11 @@ class _RoundComposer(Protocol):
 class Candidate:
     """Open work the tick may start a round for, or a request it may start work for.
 
-    It holds the open work, or the route of the work that a request would
-    create.
+    It holds the open work or the dispatch request that would create work.
     """
 
-    work_or_route: AgentWork | DispatchRoute
+    work_or_request: AgentWork | DispatchRequest
     compose_round: _RoundComposer
-    base_branch: str | None = None
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -89,7 +87,7 @@ class RequestInspector(Protocol):
         *,
         context: SchedulingContext,
         issue: Issue,
-        route: DispatchRoute,
+        request: DispatchRequest,
         row: RequestRow,
     ) -> Inspection:
         """Return what the request's row holds, given the row before any read."""

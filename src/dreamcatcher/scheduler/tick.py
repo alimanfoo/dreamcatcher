@@ -1,5 +1,6 @@
 """Run one scheduler tick over every kind of agent work."""
 
+from collections import defaultdict
 from collections.abc import Iterator, Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from datetime import datetime
@@ -14,6 +15,7 @@ from dreamcatcher.agent_rounds import (
 from dreamcatcher.agent_work import (
     AgentWork,
     AgentWorkEndReason,
+    DispatchRequest,
     create_agent_work,
     read_agent_work,
     record_harness_session_identifier,
@@ -23,7 +25,12 @@ from dreamcatcher.agent_work import (
 )
 from dreamcatcher.config import AgentHarness, DispatchRoute
 from dreamcatcher.errors import ReportableError
-from dreamcatcher.github import Issue, UnknownGitHubResponse, list_issues
+from dreamcatcher.github import (
+    Issue,
+    LabellingEvent,
+    UnknownGitHubResponse,
+    list_issues,
+)
 from dreamcatcher.harness_adapters import AgentRoundLaunchRequest, AgentWorkKind
 from dreamcatcher.prompts import compose_round_prompt
 from dreamcatcher.pull_request_work import remove_work_worktree_and_branch
@@ -52,10 +59,11 @@ from dreamcatcher.scheduler.inspection import (
     RequestInspector,
     SchedulingContext,
 )
-from dreamcatcher.scheduler.labelling import find_label_applied_by_other
+from dreamcatcher.scheduler.labelling import read_user_label_application
 from dreamcatcher.scheduler.models import (
     DEFAULT_MAX_AGENTS,
     ConflictingLabelsFinding,
+    RequestConsumedFinding,
     RequestRow,
     SchedulerRecord,
     StartedRound,
@@ -128,7 +136,6 @@ class Scheduler:
             else previous_record.most_recent_cooldown_ended
         )
         all_work = read_agent_work(state=self.context.state)
-        open_work = [work for work in all_work if work.is_open]
         watched_work = [
             work
             for work in all_work
@@ -137,7 +144,7 @@ class Scheduler:
         listing = self._list_issues()
         inspect = partial(
             self._inspect,
-            open_work=open_work,
+            all_work=all_work,
             issues=listing.issues,
             most_recent_cooldown_ended=most_recent_cooldown_ended,
         )
@@ -235,7 +242,7 @@ class Scheduler:
     def _inspect(
         self,
         *,
-        open_work: list[AgentWork],
+        all_work: list[AgentWork],
         issues: Sequence[Issue],
         most_recent_cooldown_ended: datetime | None,
         open_work_inspectors: Mapping[AgentWorkKind, OpenWorkInspector],
@@ -249,11 +256,11 @@ class Scheduler:
                     inspect_work=open_work_inspectors[work.record.kind],
                     most_recent_cooldown_ended=most_recent_cooldown_ended,
                 )
-                for work in open_work
-                if work.record.kind in open_work_inspectors
+                for work in all_work
+                if work.is_open and work.record.kind in open_work_inspectors
             ),
             *self._inspect_requests(
-                issues=issues, open_work=open_work, inspectors=request_inspectors
+                issues=issues, all_work=all_work, inspectors=request_inspectors
             ),
         ]
 
@@ -285,10 +292,13 @@ class Scheduler:
         self,
         *,
         issues: Sequence[Issue],
-        open_work: list[AgentWork],
+        all_work: list[AgentWork],
         inspectors: Mapping[AgentWorkKind, RequestInspector],
     ) -> Iterator[Inspection]:
         """Inspect each label of the inspectors' kinds that no open work answers."""
+        by_issue: defaultdict[int, list[AgentWork]] = defaultdict(list)
+        for work in all_work:
+            by_issue[work.record.issue].append(work)
         for issue in issues:
             labels = [label.name for label in issue.labels]
             for kind, inspect_request in inspectors.items():
@@ -297,7 +307,7 @@ class Scheduler:
                     routes=self.context.config.identify_routes(
                         kind=kind, labels=labels
                     ),
-                    open_work=open_work,
+                    work_at_issue=by_issue[issue.number],
                     inspect_request=inspect_request,
                 )
 
@@ -306,23 +316,20 @@ class Scheduler:
         *,
         issue: Issue,
         routes: Sequence[DispatchRoute],
-        open_work: list[AgentWork],
+        work_at_issue: Sequence[AgentWork],
         inspect_request: RequestInspector,
     ) -> Iterator[Inspection]:
         """Inspect each label of one kind on the issue that no open work answers.
 
-        The routes are every route of the kind that the issue's labels select.
-        Two labels of one kind start nothing, so each is a request with
-        conflicting labels and nothing is read for it. A label that someone
-        other than the user applied holds its request, and nothing more is
-        read for it either.
+        Each of two or more labels of one kind gets a conflict finding
+        without reading GitHub any further.
         """
         for route in routes:
             if any(
                 work.answers_request(
                     issue=issue.number, kind=route.kind, label=route.label
                 )
-                for work in open_work
+                for work in work_at_issue
             ):
                 continue
             row = RequestRow(
@@ -333,19 +340,60 @@ class Scheduler:
                 issue_state=issue.state,
             )
             if len(routes) > 1:
-                finding = ConflictingLabelsFinding(
-                    labels=[conflicting.label for conflicting in routes]
+                yield Inspection(
+                    row=row.model_copy(
+                        update={
+                            "finding": ConflictingLabelsFinding(
+                                labels=[conflicting.label for conflicting in routes]
+                            )
+                        }
+                    )
                 )
             else:
-                finding = find_label_applied_by_other(
-                    context=self.context, issue=issue.number, label=route.label
+                yield self._inspect_labelled_request(
+                    issue=issue,
+                    route=route,
+                    row=row,
+                    work_at_issue=work_at_issue,
+                    inspect_request=inspect_request,
                 )
-            if finding is None:
-                yield inspect_request(
-                    context=self.context, issue=issue, route=route, row=row
-                )
-            else:
-                yield Inspection(row=row.model_copy(update={"finding": finding}))
+
+    def _inspect_labelled_request(
+        self,
+        *,
+        issue: Issue,
+        route: DispatchRoute,
+        row: RequestRow,
+        work_at_issue: Sequence[AgentWork],
+        inspect_request: RequestInspector,
+    ) -> Inspection:
+        """Inspect the request after checking who applied its label and when."""
+        application = read_user_label_application(
+            context=self.context, issue=issue.number, label=route.label
+        )
+        if not isinstance(application, LabellingEvent):
+            return Inspection(row=row.model_copy(update={"finding": application}))
+        label_applied_at = (
+            None if route.kind is AgentWorkKind.CONVERSATION else application.applied_at
+        )
+        consumed_applications = (
+            work.record.label_applied_at
+            for work in work_at_issue
+            if work.record.kind is route.kind
+        )
+        if label_applied_at is not None and any(
+            consumed_at >= label_applied_at
+            for consumed_at in filter(None, consumed_applications)
+        ):
+            return Inspection(
+                row=row.model_copy(update={"finding": RequestConsumedFinding()})
+            )
+        return inspect_request(
+            context=self.context,
+            issue=issue,
+            request=DispatchRequest(route=route, label_applied_at=label_applied_at),
+            row=row,
+        )
 
     def _launch_candidates(
         self,
@@ -420,17 +468,17 @@ class Scheduler:
         still ends it with the daemon. A round whose work has ended by the time
         it starts is asked to stop.
         """
+        work_or_request = candidate.work_or_request
         work = (
-            candidate.work_or_route
-            if isinstance(candidate.work_or_route, AgentWork)
+            work_or_request
+            if isinstance(work_or_request, AgentWork)
             else create_agent_work(
                 state=self.context.state,
-                route=candidate.work_or_route,
+                request=work_or_request,
                 preferred_harness=self.preferred_harness,
                 issue=row.issue,
                 title=row.title,
                 at=at,
-                base_branch=candidate.base_branch,
             )
         )
         plan = candidate.compose_round(work=work)

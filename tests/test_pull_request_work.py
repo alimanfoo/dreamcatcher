@@ -7,7 +7,7 @@ from datetime import timedelta
 from pathlib import Path
 
 import pytest
-from clocks import PINNED
+from clocks import LABEL_APPLIED_AT, PINNED
 from conftest import (
     CONFIG,
     HEAD,
@@ -35,6 +35,7 @@ from dreamcatcher.agent_work import (
     AgentWorkEnding,
     AgentWorkEndReason,
     AgentWorkRecord,
+    DispatchRequest,
     create_agent_work,
     read_agent_work_at_issue,
     record_harness_session_identifier,
@@ -117,12 +118,13 @@ def record_assignment(
     """Record the assignment at issue 12, as the scheduler does when it picks one."""
     return create_agent_work(
         state=state,
-        route=route,
+        request=DispatchRequest(
+            route=route, label_applied_at=LABEL_APPLIED_AT, base_branch=base_branch
+        ),
         preferred_harness=preferred_harness,
         issue=12,
         title="The issue title",
         at=PINNED,
-        base_branch=base_branch,
     )
 
 
@@ -135,7 +137,7 @@ def open_assignment(*, state, route, preferred_harness, issue, at):
     """Record an assignment and open its pull request, as its opening round does."""
     assignment = create_agent_work(
         state=state,
-        route=route,
+        request=DispatchRequest(route=route, label_applied_at=LABEL_APPLIED_AT),
         preferred_harness=preferred_harness,
         issue=issue,
         title="The issue title",

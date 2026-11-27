@@ -71,8 +71,8 @@ opening round, `_compose_opening_round`, whose preparation is
 `open_work_pull_request` and which has no input. Once the pull request
 exists, `_inspect_pull_request` reads it, reads the user's posts past
 the cursor and the pull request signals, and notes a merged or closed
-pull request that no round has wrapped up. `_compose_relay_round`
-freezes an `AssignmentRoundInput` and, for a wrap-up, sets
+pull request that no round has wrapped up. `_compose_relay_round` binds
+`prepare_assignment_round_input` and, for a wrap-up, sets
 `complete_pull_request_work` as the finishing step. Once an assignment
 exists, its issue's labels play no part.
 
@@ -140,19 +140,20 @@ running, newest first, via `AgentWork.list_relayed_round_paths` in
 
 Read `git.py`, then `open_work_pull_request` in `pull_request_work.py`.
 
-The candidate can carry a base branch into the work record through
-`Scheduler._launch`. `open_work_pull_request` first looks for a pull
-request on the assignment's branch, named by `compose_work_branch`. If
-it finds none, `_publish_work_branch` uses `fetch_base_branch` to fetch
-the recorded base or the default. It adds the worktree from the base
-ref, makes a placeholder commit if `has_commits_since_base` finds
-nothing past the base, and pushes with `push_branch`.
-`create_pull_request` opens the draft into the same base and writes
-"Closes #N" as the body. `refresh_detached_worktree` continues to reset
-detached worktrees to `origin/HEAD`. The pull request's number goes into
-`pull-request.json`. A retry adopts the existing pull request even if
-the base is gone. When there is no pull request, it reuses any worktree
-or placeholder commit that the previous attempt left.
+The candidate's `DispatchRequest` can carry a base branch into the work
+record through `Scheduler._launch`. `open_work_pull_request` first looks
+for a pull request on the assignment's branch, named by
+`compose_work_branch`. If it finds none, `_publish_work_branch` uses
+`fetch_base_branch` to fetch the recorded base or the default. It adds
+the worktree from the base ref, makes a placeholder commit if
+`has_commits_since_base` finds nothing past the base, and pushes with
+`push_branch`. `create_pull_request` opens the draft into the same base
+and writes "Closes #N" as the body. `refresh_detached_worktree`
+continues to reset detached worktrees to `origin/HEAD`. The pull
+request's number goes into `pull-request.json`. A retry adopts the
+existing pull request even if the base is gone. When there is no pull
+request, it reuses any worktree or placeholder commit that the previous
+attempt left.
 
 ## The GitHub boundary
 
@@ -210,20 +211,23 @@ answers, through `AgentWork.answers_request` in `agent_work.py`. An open
 assignment answers every assignment label on its issue; a conversation
 or campaign answers only its own label. A request with two labels of one
 kind gets a `ConflictingLabelsFinding`, and one whose label someone else
-applied gets a `LabelAppliedByOtherFinding` from
-`find_label_applied_by_other` in `scheduler/labelling.py`. Only then
-does the kind's request inspector run. For an assignment that is
+applied gets a `LabelAppliedByOtherFinding`.
+`read_user_label_application` in `scheduler/labelling.py` reads who
+applied the label and when. An assignment or campaign request whose time
+has already been consumed gets a `RequestConsumedFinding`. After these
+checks, the kind's request inspector runs. For an assignment that is
 `inspect_assignment_request`, whose `_ask_start_time_questions` asks
 about claiming pull requests and blockers.
 
-The findings are in `scheduler/models.py`. `HoldFinding` is the union of
-`PausedFinding`, `LabelAppliedByOtherFinding` and
-`ConflictingLabelsFinding`. `StartTimeFinding` and
-`BlockingIssuesFinding` hold claims and blockers. `RequestFinding` is
-the union of every finding a row can hold. In status, `describe_request`
-in `status/requests.py` turns a hold into "held" with a fact and advice
-from `describe_hold` in `status/findings.py`, and turns claims and
-blockers into "linked to" and "blocked by" in `_list_holding_facts`.
+The findings are in `scheduler/models.py`. `HoldFinding` includes
+`PausedFinding`, `LabelAppliedByOtherFinding`,
+`ConflictingLabelsFinding` and `RequestConsumedFinding`.
+`StartTimeFinding` and `BlockingIssuesFinding` hold claims and blockers.
+`RequestFinding` is the union of every finding a row can hold. In
+status, `describe_request` in `status/requests.py` turns a hold into
+"held" with a fact and advice from `describe_hold` in
+`status/findings.py`, and turns claims and blockers into "linked to" and
+"blocked by" in `_list_holding_facts`.
 
 ## Ending, cleanup and cancel
 
@@ -281,10 +285,11 @@ issue. Round triggers are read back from inputs in `status/rounds.py`:
 ## The work record and the state format
 
 `AgentWorkRecord` in `agent_work.py` is written once at creation. It
-holds the base branch when the request chooses a branch other than the
-default. The assignment's own branch is derived from its identifier.
-Facts that change later each have a file beside the record.
-`STATE_FORMAT_VERSION` in `state.py` is 9.
+holds the label application time for an assignment or campaign and the
+base branch when the request chooses a branch other than the default.
+The assignment's own branch is derived from its identifier. Facts that
+change later each have a file beside the record. `STATE_FORMAT_VERSION`
+in `state.py` is 9.
 
 ## Tests to read
 

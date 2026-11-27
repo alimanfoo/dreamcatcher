@@ -8,10 +8,11 @@ the state it is about without a GitHub, an origin to cut from, or a harness to r
 import json
 from collections.abc import Sequence
 from contextlib import ExitStack
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
 
-from clocks import PINNED
+from clocks import LABEL_APPLIED_AT, PINNED
 
 from dreamcatcher import (
     agent_rounds,
@@ -114,6 +115,14 @@ def release_daemon_locks() -> None:
         held.close()
 
 
+@dataclass(frozen=True, kw_only=True)
+class AssignmentRequestFacts:
+    """The dispatch request facts to put in a fabricated assignment record."""
+
+    label_applied_at: datetime = LABEL_APPLIED_AT
+    base_branch: str | None = None
+
+
 def write_assignment(
     *,
     state: StateDirectory,
@@ -122,7 +131,7 @@ def write_assignment(
     harness_session_identifier: str | None = "abc-123",
     title: str | None = None,
     pull_request: int | None = _PULL_REQUEST_52,
-    base_branch: str | None = None,
+    request_facts: AssignmentRequestFacts = AssignmentRequestFacts(),
 ) -> Path:
     """Write an assignment's worktree and its records, and return its own directory.
 
@@ -143,12 +152,13 @@ def write_assignment(
             issue=issue,
             title=f"Issue {issue}" if title is None else title,
             dispatch_label="dream:smith",
+            label_applied_at=request_facts.label_applied_at,
             kind=AgentWorkKind.ASSIGNMENT,
             harness=AgentHarness.CLAUDE,
             model="opus[1m]",
             effort="xhigh",
             instructions=f"/dream:smith GH{issue}",
-            base_branch=base_branch,
+            base_branch=request_facts.base_branch,
         ),
     )
     _write_harness_session(directory=directory, identifier=harness_session_identifier)
@@ -190,6 +200,7 @@ def write_conversation(
             issue=issue,
             title=f"Issue {issue}",
             dispatch_label=dispatch_label,
+            label_applied_at=None,
             kind=AgentWorkKind.CONVERSATION,
             harness=harness,
             model="opus[1m]",
@@ -229,6 +240,7 @@ def write_campaign(
             issue=issue,
             title=f"Parent {issue}",
             dispatch_label=dispatch_label,
+            label_applied_at=LABEL_APPLIED_AT,
             kind=AgentWorkKind.CAMPAIGN,
             harness=harness,
             model="opus[1m]",

@@ -95,7 +95,7 @@ block an issue, which assignment and campaign requests share.
 `labelling.py` holds the rule that work starts or resumes only on a
 dispatch label that the signed-in account applied, which every kind's
 requests and open conversations and campaigns share. `inspection.py`
-holds the shapes they share: the scheduling context, the candidate, the
+holds the scheduling context, the dispatch request, the candidate, the
 round plan and the inspection of one request. `models.py` holds the
 scheduler record and its request rows, and `faults.py` the fault and
 cooldown rules.
@@ -119,10 +119,14 @@ One scheduler tick:
    or something else holds it back;
 5. then, for each request of the pass's kinds with no open work, skips
    an assignment label whose issue already has an open assignment,
-   checks for a routing conflict, asks who applied the label, then asks
-   an assignment request the start-time questions, reads the comments of
-   a conversation's issue, or asks which open issues block a campaign's
-   parent and, when none does, reads the parent's comments;
+   checks for a routing conflict, and reads who applied the label and
+   when. For an assignment or campaign, it holds the request if the
+   label was applied at or before the latest GitHub application time
+   recorded by work of that kind on the issue, including ended work.
+   Otherwise it asks an assignment request the start-time questions,
+   reads the comments of a conversation's issue, or asks which open
+   issues block a campaign's parent and, when none does, reads the
+   parent's comments;
 6. removes the worktree, and an assignment's local branch, of each piece
    of work that it sees end, unless the user cancelled it;
 7. starts a global cooldown when the counted faults call for one, and
@@ -136,12 +140,12 @@ One scheduler tick:
    operational reporting.
 
 A candidate is open work the tick may start a round for, or a request it
-may start work for. A new request's candidate carries the base branch
-when one was selected. The candidate carries a composer that builds the
-round's plan once the work exists: the preparation that runs inside the
-round, the input prompt, and the finishing step. The tick creates the
-work of a new request, then starts the round the plan describes, so
-creating and launching are one path for every kind.
+may start work for. It carries a composer that builds the round's plan
+once the work exists: the preparation that runs inside the round, the
+input prompt, and the finishing step. The tick creates the work from the
+dispatch request, which carries the label application time for an
+assignment or campaign and the base branch when one was selected. It
+then starts the round the plan describes.
 
 Alternation advances when a kind is selected, including when its start
 fails, and begins afresh after a daemon restart.
@@ -282,11 +286,11 @@ alone always says how far the lead has read and which sub-issues it was
 last given. A campaign's worktree never acquires a branch or a pull
 request.
 
-For a campaign request, each tick first lists the open issues that block
-the parent. An open blocker, or a failed read of the blockers, holds the
-request, so the tick observes no sub-issues and reads no comments for
-it. An open campaign reads no blockers, so a blocker added after the
-campaign starts changes nothing for it.
+After the label checks clear a campaign request, the tick lists the open
+issues that block the parent. An open blocker or a failed read of the
+blockers holds the request, so the tick observes no sub-issues and reads
+no comments for it. An open campaign reads no blockers, so a blocker
+added after the campaign starts changes nothing for it.
 
 Each tick then observes a campaign's sub-issues, for an open campaign
 and for a campaign request that nothing blocks. It lists the parent's
@@ -480,8 +484,8 @@ constructs GitHub commands. It owns projections and operations for:
 - repository and account identity, and whether the account can push;
 - the repository's labels, and creating a label;
 - issue title, state, assignees, labels, and dependencies;
-- the events that applied a label to an issue, with the account that
-  applied it;
+- the events that applied a label to an issue, with the account and
+  application time;
 - a parent issue's direct sub-issues, with their titles and states;
 - linked pull requests;
 - pull-request identity, draft state, readiness, terminal state, merge
@@ -621,6 +625,8 @@ holds what the tick found as a typed finding:
   two labels of its kind, those labels;
 - for a request, or an open conversation or campaign, whose label an
   account other than the signed-in one applied, that account;
+- for an assignment or campaign request already consumed by earlier
+  work, a consumed request finding;
 - for a conversation or campaign that the user paused, the cause;
 - for a read that failed, the reason, in place of what it would have
   found.
@@ -640,12 +646,11 @@ neither parses text.
 
 A campaign's row also holds the parent's sub-issues as the tick observed
 them, beside its finding, so they stay current while the lead is held or
-in fault. The row holds no sub-issues when the tick could not observe
-them all, or observed none for a campaign request whose labels conflict
-or whose parent an open issue blocks. Status gives an active campaign
-those sub-issues and the words that count its closed sub-issues out of
-the total, or says that its sub-issues are unknown. The status report
-gives each sub-issue the status of its newest local assignment, so a new
+in fault. The row omits the sub-issues when the tick skips observation
+or cannot observe them all. Status gives an active campaign those
+sub-issues and the words that count its closed sub-issues out of the
+total, or says that its sub-issues are unknown. The status report gives
+each sub-issue the status of its newest local assignment, so a new
 assignment shows before the next tick records it on the campaign, the
 request statuses of its assignment labels that have no open work, and
 whether its issue is open or closed, as the tick observed it. The status
@@ -885,6 +890,8 @@ it again. The same record serves every kind of agent work. It persists:
   directory that holds the record and the worktree;
 - the issue title captured at creation;
 - the dispatch label and the kind of agent work;
+- the GitHub application time of the label that started an assignment or
+  campaign;
 - the selected harness, model, effort and harness config;
 - the base branch for pull request work, when explicitly selected;
 - the work's instructions, which are the recipe's prompt with the issue

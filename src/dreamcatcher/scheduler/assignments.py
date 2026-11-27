@@ -3,8 +3,7 @@
 from collections.abc import Sequence
 from functools import partial
 
-from dreamcatcher.agent_work import AgentWork
-from dreamcatcher.config import DispatchRoute
+from dreamcatcher.agent_work import AgentWork, DispatchRequest
 from dreamcatcher.github import (
     Issue,
     PullRequest,
@@ -58,7 +57,7 @@ def inspect_open_assignment(
         return Inspection(
             row=unread,
             candidate=Candidate(
-                work_or_route=work,
+                work_or_request=work,
                 compose_round=partial(_compose_opening_round, context=context),
             ),
         )
@@ -123,7 +122,7 @@ def _inspect_pull_request(
     return Inspection(
         row=row,
         candidate=Candidate(
-            work_or_route=assignment,
+            work_or_request=assignment,
             compose_round=partial(
                 _compose_relay_round,
                 context=context,
@@ -139,7 +138,7 @@ def inspect_assignment_request(
     *,
     context: SchedulingContext,
     issue: Issue,
-    route: DispatchRoute,
+    request: DispatchRequest,
     row: RequestRow,
 ) -> Inspection:
     """Ask the start-time questions of an assignment request with no open work.
@@ -153,7 +152,7 @@ def inspect_assignment_request(
     return Inspection(
         row=row,
         candidate=Candidate(
-            work_or_route=route,
+            work_or_request=request,
             compose_round=partial(_compose_opening_round, context=context),
         ),
     )

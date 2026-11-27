@@ -6,12 +6,14 @@ import shutil
 import sys
 from collections.abc import Sequence
 from contextlib import suppress
+from datetime import datetime
 from functools import partial
 from pathlib import Path
 
 import fakes
 import psutil
 import pytest
+from clocks import LABEL_APPLIED_AT
 from records import HEAD, release_daemon_locks
 
 from dreamcatcher.commands import run_command, spawn_command
@@ -173,7 +175,12 @@ def offer_labels_applied_by_user(*, gh, issue: dict) -> None:
     )
 
 
-def compose_labelling_event(*, label: str, applier: str | None = POSTED_BY) -> dict:
+def compose_labelling_event(
+    *,
+    label: str,
+    applier: str | None = POSTED_BY,
+    applied_at: datetime = LABEL_APPLIED_AT,
+) -> dict:
     """Return what GitHub lists of the event in which an account applied a label.
 
     An applier of None is an account that GitHub no longer names.
@@ -181,6 +188,7 @@ def compose_labelling_event(*, label: str, applier: str | None = POSTED_BY) -> d
     return {
         "actor": None if applier is None else {"login": applier},
         "label": {"name": label},
+        "createdAt": applied_at.isoformat().replace("+00:00", "Z"),
     }
 
 

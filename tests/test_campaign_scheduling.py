@@ -6,7 +6,7 @@ from datetime import timedelta
 from unittest.mock import Mock
 
 import pytest
-from clocks import PINNED, Ticking
+from clocks import LABEL_APPLIED_AT, PINNED, Ticking
 from conftest import (
     CAMPAIGN_CLAUDE,
     HEAD,
@@ -82,6 +82,7 @@ from dreamcatcher.scheduler.models import (
     PauseCause,
     PausedFinding,
     ReadFailureFinding,
+    RequestConsumedFinding,
     RequestRow,
     StartedRound,
 )
@@ -320,6 +321,7 @@ def test_a_labelled_parent_starts_a_lead_that_reads_its_input_and_posts_nothing(
     ]
     campaign = read_campaign(state=scheduler.context.state, issue=PARENT)
     assert campaign is not None
+    assert campaign.record.label_applied_at == LABEL_APPLIED_AT
     assert campaign.harness_session_identifier == "lead-session"
     assert campaign.rounds[0].outcome is AgentRoundOutcome.SUCCESSFUL
     paths = campaign.compose_round_paths(number=1)
@@ -340,6 +342,7 @@ def test_a_labelled_parent_starts_a_lead_that_reads_its_input_and_posts_nothing(
         call.prompt
     )
     assert call.prompt.endswith(_CAMPAIGN_POST_INSTRUCTIONS)
+    assert "remove its assignment label if present" in call.prompt
     assert "--resume" not in call.arguments
     assert not any(
         call.arguments[:1] in (["pr"], ["api"]) and "POST" in call.arguments
@@ -579,7 +582,7 @@ def test_a_closed_parent_ends_a_campaign_in_fault_without_a_round(
     assert harnesses["claude"].calls == []
 
 
-def test_a_reopened_parent_with_its_label_starts_a_new_campaign(
+def test_a_reopened_parent_needs_a_new_label_application_to_start_a_campaign(
     campaign_scheduler, harnesses
 ):
     scheduler, gh = campaign_scheduler
@@ -589,14 +592,32 @@ def test_a_reopened_parent_with_its_label_starts_a_new_campaign(
     show_parent(gh=gh, issue=compose_parent_issue(state="CLOSED"))
     tick(scheduler=scheduler)
     offer_parent(gh=gh)
-    script_lead_turn(harnesses=harnesses)
 
     reopened = tick(scheduler=scheduler)
+    assert reopened.launched_agent_work_identifiers == []
+    [held] = reopened.rows
+    assert held.finding == RequestConsumedFinding()
+    assert harnesses["claude"].calls == []
+
+    reapplied_at = LABEL_APPLIED_AT + timedelta(seconds=1)
+    offer_labelling_events(
+        gh=gh,
+        issue=PARENT,
+        events=[
+            compose_labelling_event(label=LABEL),
+            compose_labelling_event(label=LABEL, applied_at=reapplied_at),
+        ],
+    )
+    script_lead_turn(harnesses=harnesses)
+    restarted = tick(scheduler=scheduler)
     finish(scheduler=scheduler)
 
-    [identifier] = reopened.launched_agent_work_identifiers
+    [identifier] = restarted.launched_agent_work_identifiers
     assert identifier != directory.name
-    assert identifier.endswith("-campaign")
+    campaign = read_campaign(state=scheduler.context.state, issue=PARENT)
+    assert campaign is not None
+    assert campaign.identifier == identifier
+    assert campaign.record.label_applied_at == reapplied_at
 
 
 def test_a_parent_that_cannot_be_read_starts_nothing(campaign_scheduler, harnesses):
