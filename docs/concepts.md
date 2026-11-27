@@ -513,12 +513,9 @@ assignment keeps its worktree and branch for the user.
 
 ### Starting a campaign
 
-A campaign request starts a campaign when the signed-in account applied
-its label, its issue carries no other configured campaign label, and no
-open issue dependency blocks it. The label on an open issue assigned to
-the signed-in account is the whole request, so it needs no comment. An
-open assignment or conversation at the issue and a linked pull request
-have no bearing on campaigns. Once a campaign exists, its parent's
+A [campaign request](#requests) needs no comment to start. An open
+assignment or conversation at the issue and a linked pull request have
+no bearing on campaigns. Once a campaign exists, its parent's
 dependencies no longer decide its rounds.
 
 A campaign's first round is due as soon as the campaign starts, and its

@@ -637,12 +637,11 @@ neither parses text.
 
 A campaign's row also holds the parent's sub-issues as the tick observed
 them, beside its finding, so they stay current while the lead is held or
-in fault. The row holds no sub-issues when the tick could not observe
-them all, or observed none for a campaign request whose labels conflict
-or whose parent an open issue blocks. Status gives an active campaign
-those sub-issues and the words that count its closed sub-issues out of
-the total, or says that its sub-issues are unknown. The status report
-gives each sub-issue the status of its newest local assignment, so a new
+in fault. The row omits the sub-issues when the tick skips observation
+or cannot observe them all. Status gives an active campaign those
+sub-issues and the words that count its closed sub-issues out of the
+total, or says that its sub-issues are unknown. The status report gives
+each sub-issue the status of its newest local assignment, so a new
 assignment shows before the next tick records it on the campaign, the
 request statuses of its assignment labels that have no open work, and
 whether its issue is open or closed, as the tick observed it. The status

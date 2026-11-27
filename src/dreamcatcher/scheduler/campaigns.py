@@ -108,9 +108,8 @@ def inspect_campaign_request(
 
     An open issue blocking the parent holds the request, and so does a failed
     read of what blocks it, so neither observes the children nor reads the
-    comments. Otherwise the label on the listed parent is the whole request,
-    so a campaign starts whether or not a comment waits. Its first input holds
-    those that do.
+    comments. A campaign starts without waiting for comments. Its first
+    input holds any that are already waiting.
     """
     blocking = list_open_blocking_issues(context=context, issue=issue.number)
     if isinstance(blocking, ReadFailureFinding):

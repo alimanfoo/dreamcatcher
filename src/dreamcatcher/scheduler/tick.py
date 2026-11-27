@@ -381,11 +381,9 @@ class Scheduler:
             for work in work_at_issue
             if work.record.kind is route.kind
         )
-        last_consumed_at = max(filter(None, consumed_applications), default=None)
-        if (
-            label_applied_at is not None
-            and last_consumed_at is not None
-            and label_applied_at <= last_consumed_at
+        if label_applied_at is not None and any(
+            consumed_at >= label_applied_at
+            for consumed_at in filter(None, consumed_applications)
         ):
             return Inspection(
                 row=row.model_copy(update={"finding": RequestConsumedFinding()})

@@ -8,12 +8,9 @@ from typing import cast
 from dreamcatcher.scheduler.models import (
     BlockingIssuesFinding,
     CampaignFinding,
-    ConflictingLabelsFinding,
     HoldFinding,
     IssueCommentsFinding,
-    LabelAppliedByOtherFinding,
     ReadFailureFinding,
-    RequestConsumedFinding,
     RequestRow,
     StartTimeFinding,
 )
@@ -31,9 +28,7 @@ type _StartFinding = (
     | BlockingIssuesFinding
     | IssueCommentsFinding
     | CampaignFinding
-    | ConflictingLabelsFinding
-    | LabelAppliedByOtherFinding
-    | RequestConsumedFinding
+    | HoldFinding
     | ReadFailureFinding
 )
 
