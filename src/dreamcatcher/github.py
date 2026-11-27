@@ -660,6 +660,45 @@ def read_issue(*, repository: str, issue: int) -> Issue | UnknownGitHubResponse:
     )
 
 
+def close_issue_as_completed(
+    *, repository: str, issue: int, closing_comment: str
+) -> None:
+    """Close the open issue as completed after posting its closing comment.
+
+    A closed issue is already done. A retry after the comment was posted
+    reuses it. A GitHub failure raises ReportableError.
+    """
+    current_issue = require_known_github_value(
+        value=read_issue(repository=repository, issue=issue),
+        question=f"whether issue #{issue} is open",
+    )
+    if current_issue.state is IssueState.CLOSED:
+        return
+    comments = require_known_github_value(
+        value=list_issue_comments(repository=repository, issue=issue),
+        question=f"whether issue #{issue} already has its closing comment",
+    )
+    if not any(comment.body == closing_comment for comment in comments):
+        require_known_github_value(
+            value=post_issue_comment(
+                repository=repository, issue=issue, body=closing_comment
+            ),
+            question=f"whether the closing comment on issue #{issue} was posted",
+        )
+    run_command(
+        program="gh",
+        arguments=[
+            "issue",
+            "close",
+            str(issue),
+            "--repo",
+            repository,
+            "--reason",
+            "completed",
+        ],
+    )
+
+
 def list_pull_requests(
     *, repository: str, branch: str
 ) -> list[PullRequestReference] | UnknownGitHubResponse:

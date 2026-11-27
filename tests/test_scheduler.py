@@ -165,7 +165,7 @@ def read_round_record(*, scheduler: Scheduler, number: int) -> AgentRoundRecord:
 
 
 @pytest.fixture
-def assigned_checkout(cloned_repo, gh, harnesses):
+def assigned_checkout(cloned_repo, gh, harnesses, request):
     """A checkout holding one assignment, with no labelled issue awaiting one."""
     configure(root=cloned_repo)
     harnesses["claude"].streams(
@@ -189,6 +189,7 @@ def assigned_checkout(cloned_repo, gh, harnesses):
         identifier=ASSIGNMENT_ID,
         issue=13,
         harness_session_identifier=HARNESS_SESSION_IDENTIFIER,
+        base_branch=getattr(request, "param", None),
     )
     return cloned_repo
 
@@ -824,7 +825,7 @@ def test_an_assignment_that_has_run_no_round_at_all_gets_its_first(ready_repo):
     assert read_work_pull_request_number(assignment=assignment) == PULL_REQUEST
 
 
-def test_an_assignment_opens_from_the_base_its_request_selected(
+def test_an_assignment_opens_and_wraps_up_against_its_selected_base(
     ready_repo, gh_with_available_issue, monkeypatch
 ):
     base_branch = "campaign/topic"
@@ -876,6 +877,39 @@ def test_an_assignment_opens_from_the_base_its_request_selected(
         if call.arguments[:2] == ["pr", "create"]
     ]
     assert created.arguments[created.arguments.index("--base") + 1] == base_branch
+
+    gh = gh_with_available_issue
+    [issue] = compose_assignment_issues(filed=[(8, FILED)])
+    gh.replies(stdout=json.dumps(issue), to="issue view 8")
+    gh.replies(stdout=compose_pull_request(state="MERGED"), to="pr view")
+    comments_endpoint = f"repos/{REPOSITORY}/issues/8/comments"
+    gh.replies(stdout='{"id": 91}', to=f"api {comments_endpoint} --method POST")
+    gh.replies(stdout="", to="issue close 8")
+
+    scheduler.tick(at=clock())
+    finish_rounds(scheduler=scheduler)
+
+    [closed] = [call for call in gh.calls if call.arguments[:2] == ["issue", "close"]]
+    assert closed.arguments == [
+        "issue",
+        "close",
+        "8",
+        "--repo",
+        REPOSITORY,
+        "--reason",
+        "completed",
+    ]
+    [comment] = [
+        call
+        for call in gh.calls
+        if call.arguments[:4] == ["api", comments_endpoint, "--method", "POST"]
+    ]
+    assert json.loads(comment.prompt) == {
+        "body": f"Merged in #{PULL_REQUEST}.\n\n<!-- dreamcatcher -->"
+    }
+    [completed] = read_assignments(state=scheduler.context.state)
+    assert completed.ending is not None
+    assert completed.ending.reason is AgentWorkEndReason.COMPLETED
 
 
 def test_a_dispatch_whose_round_will_not_start_keeps_the_assignment_for_next_time(
@@ -1321,7 +1355,16 @@ def test_a_batch_no_round_ever_launched_is_read_again_next_tick(
     assert harnesses["claude"].calls == []
 
 
-@pytest.mark.parametrize("state_name", ["MERGED", "CLOSED"])
+@pytest.mark.parametrize(
+    ("assigned_checkout", "state_name"),
+    [
+        (None, "MERGED"),
+        (None, "CLOSED"),
+        ("main", "MERGED"),
+        ("campaign/topic", "CLOSED"),
+    ],
+    indirect=["assigned_checkout"],
+)
 def test_a_pull_request_that_is_finished_gets_one_last_round(
     assigned_checkout, gh, state_name
 ):
@@ -1346,6 +1389,54 @@ def test_a_pull_request_that_is_finished_gets_one_last_round(
     [completed] = read_assignments(state=scheduler.context.state)
     assert completed.ending is not None
     assert completed.ending.reason is AgentWorkEndReason.COMPLETED
+    assert not any(call.arguments[:2] == ["issue", "close"] for call in gh.calls)
+
+
+@pytest.mark.parametrize("assigned_checkout", ["campaign/topic"], indirect=True)
+def test_a_wrap_up_waits_for_the_issue_to_close_and_reuses_its_comment(
+    assigned_checkout, gh
+):
+    scheduler, clock = create_scheduler(root=assigned_checkout)
+    state = scheduler.context.state
+    write_assignment_round(directory=state.work / ASSIGNMENT_ID, number=1)
+    [issue] = compose_assignment_issues(filed=[(13, FILED)])
+    gh.replies(stdout=json.dumps(issue), to="issue view 13")
+    gh.replies(stdout=compose_pull_request(state="MERGED"), to="pr view")
+    comments_endpoint = f"repos/{REPOSITORY}/issues/13/comments"
+    gh.replies(stdout='{"id": 91}', to=f"api {comments_endpoint} --method POST")
+    gh.fails(stderr="could not close the issue", to="issue close 13")
+
+    scheduler.tick(at=clock())
+
+    [waiting] = read_assignments(state=state)
+    assert waiting.ending is None
+    failure = read_round_record(scheduler=scheduler, number=2).ending
+    assert isinstance(failure, LaunchErroredAgentRoundEnding)
+    assert "could not close the issue" in failure.reason
+    assert not waiting.compose_round_paths(number=2).round_input.exists()
+    [posted] = [
+        call
+        for call in gh.calls
+        if call.arguments[:4] == ["api", comments_endpoint, "--method", "POST"]
+    ]
+    gh.replies(
+        stdout=compose_page(items=[compose_comment(**json.loads(posted.prompt))]),
+        to=f"api {comments_endpoint}?per_page=100",
+    )
+    gh.replies(stdout="", to="issue close 13")
+
+    scheduler.tick(at=clock())
+    finish_rounds(scheduler=scheduler)
+
+    [completed] = read_assignments(state=state)
+    assert completed.ending is not None
+    assert completed.ending.reason is AgentWorkEndReason.COMPLETED
+    assert completed.compose_round_paths(number=3).round_input.exists()
+    assert [
+        call
+        for call in gh.calls
+        if call.arguments[:4] == ["api", comments_endpoint, "--method", "POST"]
+    ] == [posted]
 
 
 def check_out_assignment(*, root) -> Path:

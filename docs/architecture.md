@@ -136,11 +136,12 @@ One scheduler tick:
    operational reporting.
 
 A candidate is open work the tick may start a round for, or a request it
-may start work for. It carries a composer that builds the round's plan
-once the work exists: the preparation that runs inside the round, the
-input prompt, and the finishing step. The tick creates the work of a new
-request, then starts the round the plan describes, so creating and
-launching are one path for every kind.
+may start work for. A new request's candidate carries the base branch
+when one was selected. The candidate carries a composer that builds the
+round's plan once the work exists: the preparation that runs inside the
+round, the input prompt, and the finishing step. The tick creates the
+work of a new request, then starts the round the plan describes, so
+creating and launching are one path for every kind.
 
 Alternation advances when a kind is selected, including when its start
 fails, and begins afresh after a daemon restart.
@@ -363,7 +364,8 @@ Currently only assignments use it. It provides cohesive operations to:
   which each pull request signal was last relayed, whether the relay
   rule withholds, and whether a wrap-up round has been given the
   finished pull request, from recorded round inputs;
-- complete an assignment as its wrap-up round finishes;
+- prepare the assignment's round input and complete the assignment as
+  its wrap-up round finishes;
 - cancel an assignment; and
 - remove an ended assignment's worktree and then its local branch.
 
@@ -391,14 +393,19 @@ operations. It:
    opens a draft pull request into the fetched base branch; and
 5. writes the pull request's number to `pull-request.json`.
 
-Each step does nothing when its result already exists, and a worktree
-that cannot be added is removed with its branch. The assignment
-identifier names the branch and worktree, so a round that follows a
-failed one finds what the earlier attempt made and never makes a second
-branch or pull request.
+The fetch and push run on each attempt. A worktree that cannot be added
+is removed with its branch. The assignment identifier names the branch
+and worktree, so a round that follows a failed one finds what the
+earlier attempt made and never makes a second branch or pull request.
 
-A wrap-up round records the assignment's ending with the reason
-"completed" in its finishing step, after its harness exits successfully.
+For an assignment whose pull request merged into a base other than the
+default branch, preparation closes the issue as completed before it
+builds the wrap-up input. The closing comment names the pull request and
+carries the agent marker. GitHub failures during closure error the round
+during preparation. A retry leaves a closed issue alone and reuses a
+closing comment already posted for that merge. A wrap-up round records
+the assignment's ending with the reason "completed" in its finishing
+step, after its harness exits successfully.
 
 `pull_request_work.py` also models what a tick observed of an
 assignment's pull request. The scheduler's pull request finding extends
@@ -479,7 +486,8 @@ constructs GitHub commands. It owns projections and operations for:
   state, head commit, what its checks add up to, and whether any of them
   still runs;
 - creating the linked draft pull request;
-- reading ordinary issue comments and posting a conversation answer; and
+- reading and posting ordinary issue comments, and closing an issue as
+  completed with a closing comment; and
 - reading and normalizing user posts from comments, reviews, verdicts,
   and inline comments.
 

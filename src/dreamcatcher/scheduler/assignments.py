@@ -17,10 +17,10 @@ from dreamcatcher.github import (
 )
 from dreamcatcher.prompts import compose_assignment_input_prompt
 from dreamcatcher.pull_request_work import (
-    AssignmentRoundInput,
     complete_pull_request_work,
     is_wrap_up_relayed,
     open_work_pull_request,
+    prepare_assignment_round_input,
     read_user_post_cursor,
     read_work_pull_request_number,
 )
@@ -209,14 +209,16 @@ def _compose_relay_round(
     A round given a merged or closed pull request is the wrap-up round, and it
     records that the assignment completed as it finishes.
     """
-    round_input = AssignmentRoundInput(
-        pull_request_state=pull_request.state,
-        pull_request_head=pull_request.head,
-        signals=pull_request_signals,
-        user_posts=posts,
-    )
     return RoundPlan(
-        prepare_round=lambda: round_input,
+        prepare_round=partial(
+            prepare_assignment_round_input,
+            state=context.state,
+            repository=context.repository,
+            assignment=work,
+            pull_request=pull_request,
+            signals=pull_request_signals,
+            posts=posts,
+        ),
         input_prompt=compose_assignment_input_prompt(
             pull_request=pull_request.number,
             round_input=work.compose_round_paths(

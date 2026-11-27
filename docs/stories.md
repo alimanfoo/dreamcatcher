@@ -88,6 +88,10 @@ its local branch, so finished assignments do not fill the disk. Its
 record stays, so the home page and the assignment's page still show it,
 without a worktree to resume its session from.
 
+For a pull request into another base branch, _dreamcatcher_ closes the
+issue as completed before the agent starts its wrap-up and comments on
+the issue with a reference to the merged pull request.
+
 The value to the user is that they need only label an issue, wait for
 the pull request to be ready, then review it and iterate until happy
 with the work, then merge, just as they would if delegating a
@@ -1124,6 +1128,14 @@ outside.
 A conversation round finished but GitHub refused the comment, or the
 agent returned nothing. The round errors with that reason, and the next
 update gives it the same comments again.
+
+### The issue cannot be closed during wrap-up
+
+GitHub refuses the closing comment or the issue closure after an
+assignment merges into a base other than the default branch. The wrap-up
+round errors with the reason before the agent starts. When the
+assignment tries again, it reuses its closing comment if GitHub already
+accepted it and wraps up once the issue is closed.
 
 ### A local write fails
 

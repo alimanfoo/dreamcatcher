@@ -122,6 +122,7 @@ def write_assignment(
     harness_session_identifier: str | None = "abc-123",
     title: str | None = None,
     pull_request: int | None = _PULL_REQUEST_52,
+    base_branch: str | None = None,
 ) -> Path:
     """Write an assignment's worktree and its records, and return its own directory.
 
@@ -147,6 +148,7 @@ def write_assignment(
             model="opus[1m]",
             effort="xhigh",
             instructions=f"/dream:smith GH{issue}",
+            base_branch=base_branch,
         ),
     )
     _write_harness_session(directory=directory, identifier=harness_session_identifier)

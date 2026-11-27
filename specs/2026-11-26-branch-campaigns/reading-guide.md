@@ -139,20 +139,20 @@ running, newest first, via `AgentWork.list_relayed_round_paths` in
 
 Read `git.py`, then `open_work_pull_request` in `pull_request_work.py`.
 
-Main is `origin/HEAD`, which `fetch_default_branch` keeps pointing at
-the default branch. `add_worktree` cuts a new branch from it,
-`refresh_detached_worktree` resets a detached worktree to it, and
-`has_commits_since_default_branch` counts `origin/HEAD..HEAD`.
-`open_work_pull_request` fetches, adds the worktree on the branch named
-by `compose_work_branch` (prefix `dreamcatcher-`), makes a placeholder
-commit with `make_empty_commit` if the branch has nothing past main,
-pushes with `push_branch`, and finds or opens the draft through
-`_find_or_create_work_pull_request`, whose base is the default branch.
-`create_pull_request` in `github.py` writes "Closes #N" as the body. The
-number goes into `pull-request.json`. Adding the worktree, the
-placeholder commit and opening the pull request each skip themselves
-when their result exists, which is how a retried round adopts what a
-failed one made. The fetch and the push run every time, which is
+The candidate can carry a base branch into the work record through
+`Scheduler._launch`. `open_work_pull_request` fetches that branch with
+`fetch_branch`, or the default branch with `fetch_default_branch` when
+the record leaves the base empty. It adds the worktree from the base ref
+on the branch named by `compose_work_branch` (prefix `dreamcatcher-`).
+It makes a placeholder commit if `has_commits_since_base` finds nothing
+past the base, pushes with `push_branch`, and finds or opens the draft
+into the same base through `_find_or_create_work_pull_request`.
+`refresh_detached_worktree` continues to reset detached worktrees to
+`origin/HEAD`. `create_pull_request` in `github.py` writes "Closes #N"
+as the body. The number goes into `pull-request.json`. Adding the
+worktree, the placeholder commit and opening the pull request each skip
+themselves when their result exists, which is how a retried round adopts
+what a failed one made. The fetch and the push run every time, which is
 harmless.
 
 ## The GitHub boundary
@@ -162,10 +162,9 @@ Read `github.py` for what exists. It reads issues, sub-issues
 events, pull requests (`read_pull_request`: state, draft flag, merge
 state, head, checks), the pull requests on a branch, the user's posts on
 a pull request, and issue comments. It creates labels and draft pull
-requests, and posts issue comments.
+requests, posts issue comments, and closes an issue as completed.
 
-It has no operation to close an issue, and no read from an issue to its
-parent; `Issue` has no parent field. Claims come from
+It has no read from an issue to its parent. Claims come from
 `read_issue_pull_request_context`, which reads GitHub's
 `closedByPullRequestsReferences` and keeps the open ones; that list also
 holds pull requests that someone linked by hand. GitHub's documentation
@@ -232,9 +231,11 @@ blockers into "linked to" and "blocked by" in `_list_holding_facts`.
 `end_agent_work` in `agent_work.py` writes `ended.json` only if there is
 no ending yet, so the first ending wins. `AgentWorkEndReason` is
 completed, cancelled or issue closed. An assignment ends completed in
-its wrap-up round's finishing step, `complete_assignment`. A campaign
-ends "issue closed" in `inspect_open_issue_work` when a tick finds the
-parent closed and no round running, with no wrap-up round.
+its wrap-up round's finishing step, `complete_pull_request_work`. Before
+that, `prepare_assignment_round_input` closes the issue of an assignment
+merged into another base branch, then builds the input. A campaign ends
+"issue closed" in `inspect_open_issue_work` when a tick finds the parent
+closed and no round running, with no wrap-up round.
 
 `Scheduler._remove_ended_worktrees` in `tick.py` removes the worktree of
 work that a tick sees end, through `_remove_worktree_and_branch`: an
@@ -305,17 +306,10 @@ it. `STATE_FORMAT_VERSION` in `state.py` is 8.
   `is_check_failure_withheld` withholds when the last two relayed inputs
   both carried a check failure. A lead's rounds between fixes, such as
   those woken by notifications, reset the count.
-- **The placeholder check compares with main.** For an assignment cut
-  from a campaign branch that is ahead of main,
-  `has_commits_since_default_branch` would see commits, skip the
-  placeholder, and leave a branch with nothing past its base. GitHub
-  refuses a pull request with no commits past its base, so opening it
-  into the campaign branch would fail. That refusal is GitHub's
-  behaviour, which the code does not show.
 - **"Closes #N" is inert off the default branch.** By GitHub's
-  documentation rather than anything in the code, a sub-issue's pull
-  request into the campaign branch neither closes nor claims its issue.
-  Nothing in `github.py` can close an issue.
+  documentation, a sub-issue's pull request into the campaign branch
+  neither closes nor claims its issue. Wrap-up preparation explicitly
+  closes its issue after the merge.
 - **No read from a sub-issue to its parent.** The sub-issue rule needs
   one, or an inversion of the parent-to-children lists.
 - **Pass order.** Assignment requests are inspected before campaigns,

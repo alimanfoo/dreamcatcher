@@ -6,7 +6,7 @@ request prepares and publishes the branch and opens the linked draft pull
 request, the assignment's channel, before the harness runs.
 """
 
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterator, Sequence
 from contextlib import suppress
 from datetime import datetime
 from itertools import islice
@@ -47,15 +47,18 @@ from dreamcatcher.git import (
 )
 from dreamcatcher.github import (
     CheckResult,
+    PullRequest,
     PullRequestMergeState,
     PullRequestReference,
     PullRequestSignal,
     PullRequestState,
     UnknownGitHubResponse,
     UserPost,
+    close_issue_as_completed,
     create_pull_request,
     list_pull_requests,
 )
+from dreamcatcher.prompts import AGENT_POST_MARKER
 from dreamcatcher.state import StateDirectory
 
 # What an assignment's branch is called, before its identifier. The prefix keeps
@@ -160,6 +163,35 @@ def complete_pull_request_work(
     lands while the wrap-up round runs still leaves the worktree to the user.
     """
     end_agent_work(work=assignment, reason=AgentWorkEndReason.COMPLETED, at=clock())
+
+
+def prepare_assignment_round_input(
+    *,
+    state: StateDirectory,
+    repository: str,
+    assignment: AgentWork,
+    pull_request: PullRequest,
+    signals: Sequence[PullRequestSignal],
+    posts: Sequence[UserPost],
+) -> AssignmentRoundInput:
+    """Build the input after closing the issue for a merge into another base."""
+    base = assignment.record.base_branch
+    if (
+        pull_request.state is PullRequestState.MERGED
+        and base is not None
+        and base != fetch_default_branch(root=state.root)
+    ):
+        close_issue_as_completed(
+            repository=repository,
+            issue=assignment.record.issue,
+            closing_comment=f"Merged in #{pull_request.number}.\n\n{AGENT_POST_MARKER}",
+        )
+    return AssignmentRoundInput(
+        pull_request_state=pull_request.state,
+        pull_request_head=pull_request.head,
+        signals=signals,
+        user_posts=posts,
+    )
 
 
 def remove_work_worktree_and_branch(

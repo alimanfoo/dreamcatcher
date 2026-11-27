@@ -473,10 +473,12 @@ closed pull request exits successfully. That round records the
 assignment's ending, with the reason "completed", as it finishes. No
 other round completes the assignment.
 
-If the pull request was merged, GitHub closes the issue and there can be
-no later assignment for it. If the pull request was closed without being
-merged, the issue remains open and may receive another assignment after
-the previous assignment has completed.
+For a merge into the default branch, GitHub closes the issue. For a
+merge into another base branch, _dreamcatcher_ closes the issue as
+completed before preparing the wrap-up round's input and leaves a marked
+comment naming the pull request. If the pull request was closed without
+being merged, the issue remains open and may receive another assignment
+after the previous assignment has completed.
 
 Once a completed assignment's wrap-up round has ended, _dreamcatcher_
 removes its worktree and its local branch, and keeps its record and the
@@ -501,10 +503,12 @@ the assignment's ending, with the reason "cancelled", and cannot be
 undone.
 
 _dreamcatcher_ leaves the pull request as it is, and while it is open it
-claims the issue, so no new assignment starts for the issue. If the user
-merges it, GitHub closes the issue. If the user closes it without
-merging, the issue may receive another assignment. A cancelled
-assignment keeps its worktree and branch for the user.
+claims the issue, so no new assignment starts for the issue. GitHub
+closes the issue for a merge into the default branch. After merging into
+another base branch, the user closes the issue themselves. If the user
+closes the pull request without merging, the issue may receive another
+assignment. A cancelled assignment keeps its worktree and branch for the
+user.
 
 ### Starting a campaign
 
