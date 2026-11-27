@@ -211,11 +211,13 @@ ways:
   then builds the input. It never resets the worktree: like an
   assignment's, the lead's worktree stays on the campaign branch from
   the opening round on, with whatever the lead left in it.
-- The wrap-up round of an assignment whose base is not the default
-  branch, and whose pull request merged, first closes the issue as
-  completed. Its comment names the pull request and carries the agent
-  marker. Then it builds the input. Closing an issue that is already
-  closed changes nothing.
+- The wrap-up round of work whose base is not the default branch, and
+  whose pull request merged, first closes the issue as completed. This
+  is a rule about the base, not the kind: a campaign's base is always
+  the default branch, so only a campaign's sub-issues meet it. Its
+  comment names the pull request and carries the agent marker. Then it
+  builds the input. Closing an issue that is already closed changes
+  nothing.
 - Every Git operation that assumes the default branch today takes the
   base from the work record instead: where a branch is cut, where the
   placeholder check counts commits from, and what a pull request goes
@@ -302,17 +304,23 @@ the campaign's own pull request.
 
 ### Component model
 
-There is one structural move. The pull-request machinery that serves
-both kinds leaves `agent_assignments.py` for a module of its own, called
-"pull request work" here; the plan names it. It holds:
+There is one structural move. `agent_assignments.py`, with
+`agent_assignment_pull_requests.py` folded in, becomes
+`pull_request_work.py`, because its machinery serves both kinds of
+**pull request work**: work whose channel is its pull request, an
+assignment or a campaign, beside issue work, which is now conversations
+alone. Its exported functions drop "assignment" from their names. It
+holds:
 
 - opening the pull request from a base;
 - the shared input part, and the relay-memory readers;
 - completing and cancelling;
-- removing the worktree and local branch.
+- removing the worktree and local branch;
+- closing the issue of work whose pull request merged into a base other
+  than the default branch.
 
-`agent_assignments.py` keeps what only assignments do, chiefly closing
-the sub-issue in the wrap-up preparation.
+Nothing is left that only assignments do, so `agent_assignments.py`
+goes.
 
 | Module                     | Change                                                                                                                                                                                                                                                                                   |
 | -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -426,12 +434,12 @@ Changes to the enduring documents:
 
 - `docs/concepts.md` gains the campaign branch, the campaign's pull
   request, the coordinating and finishing phases, a work's base branch,
-  and a campaign's sub-issue. It redefines an assignment or campaign
-  request as one application of its label, which the work it starts
-  consumes, and leaves a conversation's label a switch. It changes a
-  campaign's composition, channel, signals, start, holds and ending, the
-  requests that open work answers, and how completing an assignment
-  closes its issue.
+  a campaign's sub-issue, and pull request work. It redefines an
+  assignment or campaign request as one application of its label, which
+  the work it starts consumes, and leaves a conversation's label a
+  switch. It changes a campaign's composition, channel, signals, start,
+  holds and ending, the requests that open work answers, and how
+  completing an assignment closes its issue.
 - `docs/stories.md` changes the campaign stories and the user errors
   that the requirements list, and, for consumed requests, "The user
   closes a pull request they do not want" and "Deleting an assignment's
