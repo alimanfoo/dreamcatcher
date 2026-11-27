@@ -340,11 +340,7 @@ def fabricate_campaigns(*, state: StateDirectory) -> list[RequestRow]:
         write_feed(
             directory=directory,
             number=1,
-            lines=[
-                compose_feed_line(
-                    record=record, text="I acknowledged the plan on the parent."
-                )
-            ],
+            lines=[compose_feed_line(record=record, text="I acknowledged the plan.")],
         )
     return [
         compose_campaign_row(

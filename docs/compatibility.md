@@ -218,10 +218,16 @@ from the main checkout, with `N` as the earlier format:
 
 ## Agent contract
 
-The current [agent contract](contract.md) is version **1**. It covers
+The current [agent contract](contract.md) is version **2**. It covers
 assignment skills, conversation skills and campaign skills. Existing
 conforming skills remain compatible while the contract version stays the
 same.
+
+Version 2 changes the campaign skill contract. Before starting a
+campaign after upgrading, use a campaign skill that follows the new
+contract. The lead coordinates on the campaign branch and communicates
+on the campaign's pull request. It marks that pull request ready for
+review when it judges every sub-issue done.
 
 The contract number is an integer independent of the release and
 state-format versions. A change that requires an existing conforming

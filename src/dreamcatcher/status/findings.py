@@ -14,12 +14,14 @@ from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.scheduler.models import (
     CampaignPullRequestUnavailableFinding,
     HoldFinding,
+    IssueCommentsFinding,
     IssueReference,
     LabelAppliedByOtherFinding,
     PauseCause,
     PausedFinding,
     PullRequestFinding,
     RequestConsumedFinding,
+    RequestFinding,
 )
 from dreamcatcher.words import describe_count
 
@@ -126,17 +128,61 @@ def describe_pull_request(*, finding: PullRequestFinding) -> str:
     return ", ".join(words)
 
 
-def describe_idle_pull_request(*, finding: PullRequestFinding) -> str:
+def describe_idle_pull_request(
+    *, finding: PullRequestFinding, kind: AgentWorkKind
+) -> str:
     """Say where a pull request that raised nothing new has got to.
 
-    A draft needs the user's feedback, because the agent ended its round without
-    marking it ready. A ready pull request names a check failure that the relay
-    rule withheld and is ready for review otherwise.
+    A coordinating lead waits for feedback or sub-issue changes. A draft
+    assignment needs feedback. A ready pull request names a check failure that
+    the relay rule withheld and is ready for review otherwise.
     """
     if finding.state is not PullRequestState.OPEN:
         return finding.state.lower()
-    if not finding.is_ready_for_review:
+    if _is_coordinating_campaign(finding=finding, kind=kind):
+        return "awaiting feedback or sub-issue changes"
+    if finding.is_draft:
         return "needs feedback"
     if finding.is_check_failure_withheld:
         return "checks failing after two attempts"
     return "ready for review"
+
+
+def describe_new_input(
+    *, finding: RequestFinding | None, kind: AgentWorkKind
+) -> str | None:
+    """Describe what the latest tick found that makes a round due.
+
+    A merged or closed pull request awaits its wrap-up round before any other
+    news.
+    """
+    if isinstance(finding, IssueCommentsFinding) and finding.new_comments:
+        return describe_comments_to_answer(count=finding.new_comments)
+    if not isinstance(finding, PullRequestFinding):
+        return None
+    if finding.is_wrap_up_due:
+        return "awaiting wrap-up"
+    words = [
+        describe_signal(signal=signal) for signal in finding.new_pull_request_signals
+    ]
+    if finding.new_posts:
+        posts = describe_count(number=finding.new_posts, noun="new post")
+        action = (
+            "for the lead"
+            if _is_coordinating_campaign(finding=finding, kind=kind)
+            else "to answer"
+        )
+        words.insert(0, f"{posts} {action}")
+    if finding.changed_children:
+        words.append(describe_changed_children(count=finding.changed_children))
+    return ", ".join(words) or None
+
+
+def _is_coordinating_campaign(
+    *, finding: PullRequestFinding, kind: AgentWorkKind
+) -> bool:
+    return (
+        kind is AgentWorkKind.CAMPAIGN
+        and finding.state is PullRequestState.OPEN
+        and finding.is_draft
+    )

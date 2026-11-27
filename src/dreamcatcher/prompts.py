@@ -127,40 +127,40 @@ Return Markdown ready for dreamcatcher to post, or exactly NO_REPLY when no
 reply is needed."""
 
 
-# What a campaign round is given beside its instructions. The lead works through
-# GitHub and publishes its own messages, so the prompt names the input and the
-# limits that keep the campaign in the user's hands. The user's comments go to
-# the input file, never into the prompt. Claude approves a shell call by its
-# allow rules only when every command in it matches one, and its auto mode
-# classifier refuses any other call that merges a pull request without a
-# person's approval, so a merge must stand alone to match its allow rule.
-_CAMPAIGN_INPUT_PROMPT = """Campaign input for parent issue GH{issue}:
+# An opening round learns its pull request number from the input because its
+# preparation opens the pull request after this prompt is composed.
+_COORDINATING_INPUT_PROMPT = """Campaign input for parent issue GH{issue}:
 
   {round_input}
 
-Read that JSON file. Act on every comment in `comments`, the user's new comments
-on the parent issue, and every entry in `notifications`, the sub-issues whose
-changes since your previous delivered input call for you, if either holds any,
-per your campaign's rules. A round that errored or was interrupted delivered
-nothing, so after one the notifications run from the input before it, and you
-may already have acted on some of them. Each notification names its sub-issue's
-`issue` and its `changes`. The `children` field is the current picture of the
-parent's sub-issues and their assignments, and `assignment_routes` holds the
-labels and recipes that the running daemon can dispatch a sub-issue's assignment
-with. The `revision` field names the commit of the default branch checked out in
-your worktree, which dreamcatcher refreshes to the default branch before every
-round, discarding any local change. Do not commit, push or open a pull request
-from this worktree. Run every `gh pr merge` as a shell command of its own, with
-no other command joined to it, because the unattended permissions approve a
-merge only then.
-To dispatch a new assignment, remove its assignment label if present, then add
-the label.
+Read that JSON file. Read `pull_request_state` before anything else. If it is
+MERGED or CLOSED, wrap up per your campaign's rules and end your turn.
+
+The `pull_request` field names the campaign's pull request. Act on every entry
+in `user_posts`, the user's new posts on that pull request, and in
+`notifications`, the sub-issue changes since your last delivered input. Each
+notification names its sub-issue's `issue` and `changes`. The `children` field
+describes the parent's sub-issues and their assignments. The
+`assignment_routes` field holds the labels and recipes available for dispatch.
+
+Coordinate the parent's existing sub-issues. Do not add sub-issues. To dispatch
+an assignment, assign the sub-issue to the signed-in account, remove its
+assignment label if present, then add the label to make a new request.
 Inspect GitHub before each change and do not repeat an action that an earlier
-attempt completed. Do not close the parent issue or change its assignees or
-labels, because the user closes it to end the campaign and removing its label or
-assignee pauses it. Post anything the user needs to read on GitHub yourself:
-dreamcatcher keeps your final output in the feed and posts none of it. End your
-turn when done."""
+attempt completed.
+
+dreamcatcher creates your worktree on the campaign branch and preserves your
+checkout between rounds. While coordinating, do not edit project source, commit,
+push or open a pull request. Review and merge sub-issue pull requests into the
+campaign branch.
+Run every `gh pr merge` as a shell command of its own, with no other command
+joined to it. When you judge every sub-issue done, mark the campaign's pull
+request ready for review. Do not merge the campaign's own pull request or close
+the parent. The user's merge closes the parent. Leave the parent's assignees
+and labels as they are.
+
+Post anything the user needs to read on the campaign's pull request yourself.
+dreamcatcher keeps your final output in the feed. End your turn when done."""
 
 
 def compose_issue_instructions(*, template: str, issue: int) -> str:
@@ -203,8 +203,8 @@ def compose_conversation_input_prompt(*, issue: int, round_input: Path) -> str:
 
 
 def compose_campaign_input_prompt(*, issue: int, round_input: Path) -> str:
-    """Return the words that direct a campaign round to its input file."""
-    return _CAMPAIGN_INPUT_PROMPT.format(issue=issue, round_input=round_input)
+    """Direct a coordinating lead to its pull request and sub-issue input."""
+    return _COORDINATING_INPUT_PROMPT.format(issue=issue, round_input=round_input)
 
 
 def compose_round_prompt(

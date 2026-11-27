@@ -14,10 +14,11 @@ assignments
   1 ended assignment                                                                                
 
 campaigns
-  GH60-20260819-184158-campaign  idle  PR #90 draft; needs feedback      
-  GH62  dream:big  available  open                                       
-  GH67  dream:big  held       open, blocked by GH62, alimanfoo/dream#1016
-  1 ended campaign                                                       
+  GH60-20260819-184158-campaign  idle  PR #90 draft; awaiting feedback or sub-issue changes
+                                       2 of 5 sub-issues closed                            
+  GH62  dream:big  available  open                                                         
+  GH67  dream:big  held       open, blocked by GH62, alimanfoo/dream#1016                  
+  1 ended campaign                                                                         
 
 conversations
   Add a [[conversation]] route to dreamcatcher.toml and restart the daemon to enable conversations.

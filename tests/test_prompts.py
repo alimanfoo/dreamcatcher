@@ -1,5 +1,7 @@
+from pathlib import Path
+
 import pytest
-from conftest import CONFIG
+from conftest import CONFIG, FIXTURES, assert_matches_view_golden
 
 from dreamcatcher.agent_rounds import AgentRoundOutcome
 from dreamcatcher.config import (
@@ -321,24 +323,12 @@ def test_a_lead_leaves_the_marker_off_its_feedback_on_a_sub_issues_pull_request(
 
 
 def test_the_campaign_input_prompt_names_its_input_and_the_users_decisions(
-    tmp_path,
+    pytestconfig,
 ):
-    round_input = tmp_path / "round-input.json"
-
-    composed = compose_campaign_input_prompt(issue=20, round_input=round_input)
-
-    words = " ".join(composed.split())
-    assert composed.startswith("Campaign input for parent issue GH20:")
-    assert str(round_input) in composed
-    assert "Act on every comment in `comments`" in words
-    assert "The `children` field is the current picture" in words
-    assert "`assignment_routes` holds the labels and recipes" in words
-    assert "refreshes to the default branch before every round" in words
-    assert "Do not commit, push or open a pull request from this worktree" in words
-    assert (
-        "Run every `gh pr merge` as a shell command of its own, with no other "
-        "command joined to it" in words
+    assert_matches_view_golden(
+        rendered=compose_campaign_input_prompt(
+            issue=20, round_input=Path("round-input.json")
+        ),
+        path=FIXTURES / "prompts" / "coordinating-campaign.txt",
+        config=pytestconfig,
     )
-    assert "do not repeat an action that an earlier attempt completed" in words
-    assert "Do not close the parent issue or change its assignees or labels" in words
-    assert "posts none of it" in words

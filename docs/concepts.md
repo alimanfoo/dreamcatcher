@@ -96,7 +96,12 @@ A **campaign** is _dreamcatcher_'s durable commission to an agent, its
 the work. The code, and the `children` field of a campaign round's
 input, call each sub-issue a **child** of the parent. The **campaign
 branch** starts from the default branch. The campaign's pull request
-goes into the default branch and closes the parent when it merges.
+goes into the default branch and closes the parent when it merges. While
+the pull request is a draft, the lead is in the **coordinating phase**.
+It dispatches the parent's existing sub-issues and reviews and merges
+their pull requests into the campaign branch. When it judges every
+sub-issue done, it marks the campaign's pull request ready for review.
+The user decides when to merge it.
 
 A **campaign's sub-issue** is a direct sub-issue in the same repository
 whose parent carries a campaign label configured for the running daemon
@@ -430,10 +435,10 @@ prompt.
 
 Each campaign has one parent issue, campaign branch, Git worktree and
 agent harness. Its opening round makes the worktree and branch and opens
-a draft pull request. The worktree stays on the campaign branch between
-rounds. A _dreamcatcher_ instance has at most one open campaign per
-parent issue. Once the campaign exists, its pull request drives its
-rounds.
+a draft pull request. The worktree starts on the campaign branch and
+keeps the lead's checkout between rounds. A _dreamcatcher_ instance has
+at most one open campaign per parent issue. Once the campaign exists,
+its pull request drives its rounds.
 
 Each lead round receives the pull request number, state and head commit,
 the user posts and pull request signals, the parent's observed

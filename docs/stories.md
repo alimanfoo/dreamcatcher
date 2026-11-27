@@ -303,25 +303,27 @@ where each one's assignment stands, and the assignment routes that the
 running daemon offers. The lead dispatches assignments and reviews their
 pull requests into the campaign branch. When one merges, _dreamcatcher_
 closes its sub-issue during the assignment's wrap-up. The lead posts its
-messages on GitHub, marking every post apart from feedback on a
-sub-issue's pull request. Its final words stay in the feed. The home
-page's Campaigns tab shows the campaign's pull request and how many of
-the parent's sub-issues are closed out of the total. After that count,
-the same line counts the cards under the campaign by the status that
-each shows, such as 6 working, 3 waiting and 1 held, so the user sees
-the whole picture of the sub-issues without opening it. Every count
-comes from the latest update and the work's own records. The user
-expands the line to see every sub-issue, each with its assignment's card
-as the Assignments tab shows it and the card of each request for an
-assignment on it that has no open work, or, when it has neither, a
-sub-issue card with the sub-issue's number and title and whether it is
-open or closed. A closed sub-issue's title shows as quietly as ended
-work's, so it never looks like work still to do. The cards keep
-updating, and the sub-issues stay expanded until the user folds them.
-Once the campaign ends, it moves to the ended list with its own card
-alone, and the user goes to GitHub for the history.
+messages to the user on the campaign's pull request. It marks every post
+apart from feedback on a sub-issue's pull request. Its final words stay
+in the feed. The home page's Campaigns tab shows the campaign's pull
+request and how many of the parent's sub-issues are closed out of the
+total. The terminal shows the same count below the campaign's status. On
+the home page, the sub-issue line also counts the cards under the
+campaign by the status that each shows, such as 6 working, 3 waiting and
+1 held, so the user sees the whole picture of the sub-issues without
+opening it. Every count comes from the latest update and the work's own
+records. The user expands the line to see every sub-issue, each with its
+assignment's card as the Assignments tab shows it and the card of each
+request for an assignment on it that has no open work, or, when it has
+neither, a sub-issue card with the sub-issue's number and title and
+whether it is open or closed. A closed sub-issue's title shows as
+quietly as ended work's, so it never looks like work still to do. The
+cards keep updating, and the sub-issues stay expanded until the user
+folds them. Once the campaign ends, it moves to the ended list with its
+own card alone, and the user goes to GitHub for the history.
 
-The user reviews the campaign's pull request and merges it when
+When the lead judges every sub-issue done, it marks the campaign's pull
+request ready for review. The user reviews it and merges it when
 satisfied. GitHub closes the parent. The lead wraps up in its next
 round, then _dreamcatcher_ removes the worktree and local branch and
 keeps the record. If the user closes the pull request without merging,
@@ -360,7 +362,10 @@ stands. They post on the campaign's pull request. At the next update the
 lead receives the new posts in the same harness session, so it remembers
 what it has done and said. It answers there. Its own replies carry the
 agent's mark, so they never wake it again. While it works the campaign
-shows as working, with the posts and sub-issue changes that woke it.
+shows as working, with the posts and sub-issue changes that woke it. If
+the round is due but has yet to start, the card shows how many posts or
+sub-issue changes are waiting for the lead. An idle lead with a draft
+pull request is awaiting feedback or sub-issue changes.
 
 If the lead heads off in the wrong direction, the user stops the round
 from the campaign's page or with `dreamcatcher stop`. The lead then
@@ -565,7 +570,7 @@ counts as the user's, so it can ask for work and give feedback for the
 user when the user allows it. It also learns which work it can leave
 alone: an assignment carries its pull request to ready for review and
 looks after it while it waits, and a campaign's lead carries the
-sub-issues through to merge and raises any decision on the parent.
+sub-issues through to merge and raises decisions for the user.
 
 The value to the user is that an agent which already helps them can
 learn _dreamcatcher_ in one read, and hand work to it without the user
@@ -622,15 +627,16 @@ first, then what is working, then what is waiting to start, then what is
 idle, then what is held until something changes on GitHub, then anything
 the last update could not read, and after all of those the labels where
 nothing has started yet. Each card says why it is where it is. This pull
-request is ready for review. That one is still a draft, so the agent has
-probably asked something. This issue has not started because another
-pull request already claims it. The pull requests the user needs to read
-are a click away, and ended work is folded under a collapsed list, so
-the page shows only what is live. The terminal gives each card as one
-row, with a count of ended work in place of the list. A row gives the
-work, or the issue and its label, its status, what GitHub holds, such as
-the pull request ready for review or the colleague who applied a label,
-and then what _dreamcatcher_ found or what the user has to do.
+request is ready for review. That campaign's pull request is still a
+draft, and its lead is awaiting feedback or sub-issue changes. This
+issue has not started because another pull request already claims it.
+The pull requests the user needs to read are a click away, and ended
+work is folded under a collapsed list, so the page shows only what is
+live. The terminal gives each card a status row, with a count of ended
+work in place of the list. The row gives the work, or the issue and its
+label, its status, what GitHub holds, such as the pull request ready for
+review or the colleague who applied a label, and then what
+_dreamcatcher_ found or what the user has to do.
 
 On the home page, every card lays out its rows in the same order,
 whatever its state, so nothing moves as rows come and go. Its first row
@@ -1026,13 +1032,13 @@ update found.
 The user adds an issue from another repository as a sub-issue of a
 campaign's parent. _dreamcatcher_ only sees work in its own repository,
 so it cannot tell where that sub-issue stands. The campaign's card shows
-its sub-issues as unknown, and the lead starts no round, not even for a
-comment on the parent, so it is never given a picture that leaves the
-sub-issue out or confuses it with a local issue of the same number. A
-lead that could otherwise take a round shows as unknown, naming the
-sub-issue that is in another repository. The user needs to remove that
-sub-issue from the parent, or move the issue into this repository, and
-the next update gives the lead the whole picture.
+its sub-issues as unknown, and the lead starts no round even if a post
+is waiting on the campaign's pull request. This keeps it from working
+from a picture that leaves the sub-issue out or confuses it with a local
+issue of the same number. A lead that could otherwise take a round shows
+as unknown, naming the sub-issue that is in another repository. The user
+needs to remove that sub-issue from the parent, or move the issue into
+this repository, and the next update gives the lead the whole picture.
 
 ### Naming work that is not there
 

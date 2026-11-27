@@ -1,6 +1,6 @@
 # Agent-facing contract
 
-Contract version **1** covers assignments, campaigns and issue
+Contract version **2** covers assignments, campaigns and issue
 conversations. See the
 [compatibility policy](compatibility.md#agent-contract) for what this
 version promises and when it changes.
@@ -35,12 +35,16 @@ A campaign skill must:
 - accept a parent issue's number in the form `GH123`;
 - tell the lead, if it starts a sub-issue's assignment, to start it by
   assigning the sub-issue to the signed-in account and giving it an
-  assignment label.
+  assignment label, removing the label first if it is already present;
+- tell the lead to use the campaign's pull request for messages to the
+  user and to mark it ready for review when it judges every sub-issue
+  done.
 
 A campaign skill must not tell the lead to:
 
-- edit project source, commit, push or open a pull request from its
-  worktree;
+- edit project source, commit or push while coordinating;
+- open a pull request from its worktree;
+- add sub-issues to the parent or merge the campaign's own pull request;
 - close the parent issue or change its assignees or labels;
 - run anything that waits for a person.
 
