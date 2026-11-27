@@ -278,8 +278,9 @@ The **campaign input prompt** shares these instructions across phases:
 In the **coordinating phase**, the worktree starts on the campaign
 branch and keeps the lead's checkout between rounds. The lead waits
 until it judges every sub-issue done before editing project source,
-committing or pushing. Then it may make its own changes on the campaign
-branch before marking the pull request ready for review.
+committing or pushing. Then it switches to the campaign branch and pulls
+the merged sub-issues. It may make its own changes before marking the
+pull request ready for review.
 
 In the **finishing phase**, the lead carries the pull request to merge
 as an assignment's agent does:

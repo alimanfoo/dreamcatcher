@@ -163,9 +163,9 @@ dreamcatcher keeps your final output in the feed. End your turn when done."""
 _COORDINATING_INSTRUCTIONS = """\
 dreamcatcher creates your worktree on the campaign branch and preserves your
 checkout between rounds. Wait until you judge every sub-issue done before
-editing project source, committing or pushing. You may then make your own
-changes on the campaign branch. When finished, mark the campaign's pull request
-ready for review."""
+editing project source, committing or pushing. Then switch to the campaign
+branch and pull it to pick up the merged sub-issues. You may make your own
+changes there. When finished, mark the campaign's pull request ready for review."""
 
 _FINISHING_INSTRUCTIONS = """\
 Carry the campaign's pull request to merge. Before acting on any signals or

@@ -33,15 +33,16 @@ prompt for input.
 A campaign skill must:
 
 - accept a parent issue's number in the form `GH123`;
-- tell the lead, if it starts a sub-issue's assignment, to start it by
-  assigning the sub-issue to the signed-in account and giving it an
-  assignment label, removing the label first if it is already present.
-  The user can add sub-issues in either phase, and the lead can dispatch
-  them while the campaign's pull request stays ready for review;
+- tell the lead, if it dispatches assignments, to take up sub-issues the
+  user adds in either phase, keeping the pull request ready for review
+  while they run in the finishing phase. To start an assignment, the
+  lead assigns the sub-issue to the signed-in account and gives it an
+  assignment label, removing the label first if it is already present;
 - tell the lead to use the campaign's pull request for messages to the
   user and to mark it ready for review when it judges every sub-issue
   done. At that point the lead may edit project source, commit and push
-  before marking it ready;
+  before marking it ready, after switching to the campaign branch and
+  pulling the merged sub-issues;
 - tell the lead to keep the campaign pull request's `Closes #123` link
   when it replaces the description;
 - tell the lead, while the pull request is ready for review, to carry it
