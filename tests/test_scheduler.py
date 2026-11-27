@@ -1,6 +1,7 @@
 """Scheduling decisions and launch operations."""
 
 import json
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta, timezone
 from pathlib import Path
 from unittest.mock import Mock
@@ -16,6 +17,7 @@ from conftest import (
     POSTED_BY,
     PULL_REQUEST,
     REPOSITORY,
+    commit,
     compose_assignment_issues,
     compose_comment,
     compose_page,
@@ -63,6 +65,7 @@ from dreamcatcher.git import (
     push_branch,
 )
 from dreamcatcher.github import CheckResult, PullRequestMergeState, PullRequestState
+from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.pull_request_work import (
     cancel_pull_request_work,
     read_user_post_cursor,
@@ -81,6 +84,7 @@ from dreamcatcher.scheduler.models import (
     StartedRound,
     StartTimeFinding,
 )
+from dreamcatcher.scheduler.tick import _REQUEST_INSPECTORS
 from dreamcatcher.state import StateDirectory
 
 ASSIGNMENT_ID = "GH13-20260819-184158-assignment"
@@ -820,6 +824,60 @@ def test_an_assignment_that_has_run_no_round_at_all_gets_its_first(ready_repo):
     assert read_work_pull_request_number(assignment=assignment) == PULL_REQUEST
 
 
+def test_an_assignment_opens_from_the_base_its_request_selected(
+    ready_repo, gh_with_available_issue, monkeypatch
+):
+    base_branch = "campaign/topic"
+    base_ref = f"refs/remotes/origin/{base_branch}"
+    run_git(arguments=["switch", "-c", base_branch], cwd=ready_repo)
+    (ready_repo / "campaign.txt").write_bytes(b"work in the base branch\n")
+    commit(path=ready_repo, message="Advance the campaign branch")
+    run_git(arguments=["push", "origin", base_branch], cwd=ready_repo)
+    run_git(arguments=["switch", "main"], cwd=ready_repo)
+    configure(root=ready_repo)
+    run_git(
+        arguments=[
+            "config",
+            "remote.origin.fetch",
+            "+refs/heads/main:refs/remotes/origin/main",
+        ],
+        cwd=ready_repo,
+    )
+    run_git(arguments=["update-ref", "-d", base_ref], cwd=ready_repo)
+
+    def select_base(*, context, issue, route, row):
+        inspection = assignment_scheduling.inspect_assignment_request(
+            context=context, issue=issue, route=route, row=row
+        )
+        assert inspection.candidate is not None
+        return replace(
+            inspection, candidate=replace(inspection.candidate, base_branch=base_branch)
+        )
+
+    monkeypatch.setitem(_REQUEST_INSPECTORS, AgentWorkKind.ASSIGNMENT, select_base)
+    scheduler, clock = create_scheduler(root=ready_repo)
+
+    scheduler.tick(at=clock())
+    finish_rounds(scheduler=scheduler)
+
+    [assignment] = read_assignments(state=scheduler.context.state)
+    assert assignment.record.base_branch == base_branch
+    assert read_work_pull_request_number(assignment=assignment) == PULL_REQUEST
+    assert run_git(
+        arguments=["rev-parse", "HEAD^"], cwd=assignment.worktree
+    ) == run_git(arguments=["rev-parse", base_ref], cwd=ready_repo)
+    assert (
+        run_git(arguments=["log", "-1", "--format=%s"], cwd=assignment.worktree).strip()
+        == "GH8"
+    )
+    [created] = [
+        call
+        for call in gh_with_available_issue.calls
+        if call.arguments[:2] == ["pr", "create"]
+    ]
+    assert created.arguments[created.arguments.index("--base") + 1] == base_branch
+
+
 def test_a_dispatch_whose_round_will_not_start_keeps_the_assignment_for_next_time(
     ready_repo, gh_with_available_issue
 ):
@@ -878,7 +936,7 @@ def test_a_round_after_one_that_failed_part_way_finishes_its_preparation(
     worktree = state.worktrees / ASSIGNMENT_ID
     worktree.rmdir()
     fetch_default_branch(root=ready_repo)
-    add_worktree(root=ready_repo, path=worktree, branch=branch)
+    add_worktree(root=ready_repo, path=worktree, branch=branch, base_ref="origin/HEAD")
     if checkpoint != "worktree":
         make_empty_commit(worktree=worktree, message="GH13")
     if checkpoint in {"push", "pull request"}:
@@ -1295,7 +1353,9 @@ def check_out_assignment(*, root) -> Path:
     worktree = StateDirectory(root=root).worktrees / ASSIGNMENT_ID
     worktree.rmdir()
     fetch_default_branch(root=root)
-    add_worktree(root=root, path=worktree, branch=ASSIGNMENT_BRANCH)
+    add_worktree(
+        root=root, path=worktree, branch=ASSIGNMENT_BRANCH, base_ref="origin/HEAD"
+    )
     return worktree
 
 

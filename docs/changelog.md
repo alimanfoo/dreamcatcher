@@ -29,6 +29,13 @@ the change.
 
 ## Unreleased
 
+### Breaking
+
+- Saved state moves to format 9 in `.dreamcatcher/v9/`, which records an
+  assignment's explicit base branch. Before switching formats, see
+  [the restart instructions](compatibility.md#restart-views-across-state-formats).
+  [#936](https://github.com/alimanfoo/dreamcatcher/pull/936)
+
 ## [v9.10.0](https://github.com/alimanfoo/dreamcatcher/releases/tag/v9.10.0) — 2026-11-26
 
 ### Changed

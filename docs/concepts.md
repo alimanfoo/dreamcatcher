@@ -82,7 +82,11 @@ Replaces: "session" on its own, for an agent assignment.
 ### Pull request
 
 The assignment's **pull request** is both the proposed change and the
-primary communication channel between the agent and the user.
+primary communication channel between the agent and the user. Its **base
+branch** is the branch the pull request goes into. The assignment's
+branch starts from that base. The work record holds an explicit base
+branch when one is chosen. Otherwise, the opening round uses the
+repository's default branch.
 
 ### Campaign, lead and parent issue
 

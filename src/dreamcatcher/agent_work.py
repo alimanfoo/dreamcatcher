@@ -90,6 +90,7 @@ class AgentWorkRecord(WriteOnceDreamcatcherDocument):
     effort: QuotableText
     harness_config: HarnessConfig = Field(default_factory=dict)
     instructions: str
+    base_branch: str | None = None
 
 
 class AgentWorkEndReason(StrEnum):
@@ -239,13 +240,15 @@ def create_agent_work(
     issue: int,
     title: str,
     at: datetime,
+    base_branch: str | None = None,
 ) -> AgentWork:
     """Record the work that the route asks for at the issue, with no rounds run yet.
 
     The route's kind is the work's kind. The route selects a recipe in response
     to the preferred harness, and the recipe supplies the settings that the
     record keeps. Creation writes the record alone, and the rounds prepare
-    everything else.
+    everything else. An empty base leaves pull request work to use the default
+    branch.
     """
     harness = route.choose_harness(preferred_harness=preferred_harness)
     recipe = route.recipes[harness]
@@ -264,6 +267,7 @@ def create_agent_work(
             instructions=compose_issue_instructions(
                 template=recipe.prompt, issue=issue
             ),
+            base_branch=base_branch,
         ),
     )
 

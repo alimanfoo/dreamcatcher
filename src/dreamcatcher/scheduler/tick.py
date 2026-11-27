@@ -430,6 +430,7 @@ class Scheduler:
                 issue=row.issue,
                 title=row.title,
                 at=at,
+                base_branch=candidate.base_branch,
             )
         )
         plan = candidate.compose_round(work=work)

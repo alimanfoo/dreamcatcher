@@ -6,6 +6,11 @@ v8.0.0 used state format 7, v6.0.0 through v6.3.0 used state format 6,
 v5.0.0 through v5.6.2 used state format 5, and v4.0.0 used state
 format 4. Saved work does not carry across from one format to the next.
 
+The unreleased state format 9 stores an assignment's explicit base
+branch. It starts with empty local state in `.dreamcatcher/v9/`. Follow
+[the restart instructions](#restart-views-across-state-formats) when
+switching to it.
+
 ## Upgrade from v8.0.0 to v9.0.0
 
 Before installing v9.0.0:

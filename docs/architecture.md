@@ -381,14 +381,14 @@ preparation step of a round whose assignment has no recorded pull
 request number coordinates lower-level Git, GitHub and document
 operations. It:
 
-1. fetches the current default branch;
+1. fetches the recorded base branch, or the current default branch when
+   the record leaves the base empty;
 2. adds the assignment's worktree on its branch, unless it is already
    there;
-3. makes an empty commit, unless the branch already has one, and pushes
-   the branch;
+3. makes an empty commit if the branch has no commits beyond its base,
+   then pushes the branch;
 4. adopts the pull request already on the branch, whatever its state, or
-   opens a linked draft pull request into the fetched default branch;
-   and
+   opens a draft pull request into the fetched base branch; and
 5. writes the pull request's number to `pull-request.json`.
 
 Each step does nothing when its result already exists, and a worktree
@@ -793,7 +793,7 @@ of their identities.
 mechanics required to bootstrap that directory. The modules that own
 agent work and rounds name the files within their own directories. A
 state-format constant selects the versioned root, currently
-`.dreamcatcher/v8/`, so one format never reads another format's files.
+`.dreamcatcher/v9/`, so one format never reads another format's files.
 The shared `.dreamcatcher/daemon.lock` stays outside that root, so
 daemons using different formats from v5 on use the same lock. The daemon
 acquires an operating-system lock on that empty file before it starts
@@ -841,11 +841,12 @@ request may start.
 
 ### Git, commands, prompts, and feeds
 
-`git.py` owns Git operations and worktree mechanics. When it fetches the
-repository, it fetches the remote refs and then refreshes `origin/HEAD`
-from the remote, so every worktree follows the current default branch
-without persisting its name. It does not know why an assignment was
-selected or what GitHub reports about it.
+`git.py` owns Git operations and worktree mechanics. Fetching the
+default branch refreshes `origin/HEAD` from the remote. Fetching a named
+branch refreshes its remote-tracking ref even when the checkout's fetch
+configuration omits that branch. The module takes a base ref for
+creating a worktree on a branch and for counting commits beyond its
+base.
 
 `commands.py` remains the sole subprocess boundary. Higher-level modules
 ask it to run or spawn already-constructed commands; no other module
@@ -875,6 +876,7 @@ it again. The same record serves every kind of agent work. It persists:
 - the issue title captured at creation;
 - the dispatch label and the kind of agent work;
 - the selected harness, model, effort and harness config;
+- the base branch for pull request work, when explicitly selected;
 - the work's instructions, which are the recipe's prompt with the issue
   filled in.
 

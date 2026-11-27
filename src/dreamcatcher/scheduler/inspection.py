@@ -56,6 +56,7 @@ class Candidate:
 
     work_or_route: AgentWork | DispatchRoute
     compose_round: _RoundComposer
+    base_branch: str | None = None
 
 
 @dataclass(frozen=True, kw_only=True)

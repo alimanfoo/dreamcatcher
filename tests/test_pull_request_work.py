@@ -699,7 +699,7 @@ def test_a_first_round_continues_from_what_an_earlier_attempt_left(
     assignment = record_assignment(state=state, route=route)
     fetch_default_branch(root=state.root)
     worktree = state.worktrees / ASSIGNMENT_ID
-    add_worktree(root=state.root, path=worktree, branch=BRANCH)
+    add_worktree(root=state.root, path=worktree, branch=BRANCH, base_ref="origin/HEAD")
     if checkpoint != "worktree":
         make_empty_commit(worktree=worktree, message="GH12")
     if checkpoint in {"push", "pull request"}:

@@ -37,8 +37,9 @@ from dreamcatcher.errors import ReportableError
 from dreamcatcher.git import (
     add_worktree,
     delete_branch,
+    fetch_branch,
     fetch_default_branch,
-    has_commits_since_default_branch,
+    has_commits_since_base,
     is_linked_worktree,
     is_local_branch,
     make_empty_commit,
@@ -188,7 +189,7 @@ def open_work_pull_request(
     """Publish the assignment's branch and record its draft pull request.
 
     This is the preparation of a round whose assignment has no pull request
-    yet. It fetches the default branch and adds the worktree on the assignment's
+    yet. It fetches the base branch and adds the worktree on the assignment's
     branch. It then makes an empty commit, pushes, adopts the pull request
     already on the branch or opens a draft, and records the pull request. A
     round after one that failed part way finds the worktree, the commit and the
@@ -198,20 +199,30 @@ def open_work_pull_request(
     """
     issue = assignment.record.issue
     branch = compose_work_branch(identifier=assignment.identifier)
-    default_branch = fetch_default_branch(root=state.root)
+    base = assignment.record.base_branch
+    if base is None:
+        base = fetch_default_branch(root=state.root)
+    else:
+        fetch_branch(root=state.root, branch=base)
+    base_ref = f"refs/remotes/origin/{base}"
     if not is_linked_worktree(path=assignment.worktree):
         try:
-            add_worktree(root=state.root, path=assignment.worktree, branch=branch)
+            add_worktree(
+                root=state.root,
+                path=assignment.worktree,
+                branch=branch,
+                base_ref=base_ref,
+            )
         except ReportableError:
             with suppress(ReportableError):
                 remove_work_worktree_and_branch(state=state, assignment=assignment)
             raise
-    if not has_commits_since_default_branch(worktree=assignment.worktree):
+    if not has_commits_since_base(worktree=assignment.worktree, base_ref=base_ref):
         make_empty_commit(worktree=assignment.worktree, message=f"GH{issue}")
     push_branch(root=state.root, branch=branch)
     pull_request = _find_or_create_work_pull_request(
         repository=repository,
-        base=default_branch,
+        base=base,
         branch=branch,
         issue=issue,
         title=assignment.record.title,
