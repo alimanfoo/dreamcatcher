@@ -178,25 +178,22 @@ tick.
 ## 6. The coordinating lead
 
 **Delivers.** The lead's instructions match its new channel. The
-coordinating input prompt, as the design's lead interface contract lists
-it, replaces today's campaign input prompt and stage 1's interim line;
-every lead round on Claude gets the assignment's allowed list together
-with the coordination tools, such as `gh pr merge`, `gh pr review`,
-`gh issue edit` and `gh api`, and no disallowed list, which includes
-`gh pr ready`; and a coordinating campaign's card shows its pull
-request, its idle and waiting words, and its sub-issue count. The
-campaign skill contract reaches version 2: a campaign skill must tell
-the lead to mark the campaign's pull request ready for review when it
-judges every sub-issue done, and must not tell it to add sub-issues or
-to merge the campaign's own pull request.
+coordinating input prompt follows the design's lead interface contract.
+Every lead round on Claude gets the assignment's allowed list, including
+`gh pr ready`, together with the coordination tools, such as
+`gh pr merge`, `gh pr review`, `gh issue edit` and `gh api`. A
+coordinating campaign's card shows its pull request, idle and waiting
+words, and sub-issue count. The campaign skill contract reaches version
+2: a campaign skill must tell the lead to mark the campaign's pull
+request ready for review when it judges every sub-issue done, and must
+not tell it to add sub-issues or to merge the campaign's own pull
+request.
 
 The change touches `prompts.py` and its golden, `claude.py`, where the
 campaign's own allowed and disallowed lists go, the status words and the
 web and terminal views with their rendered-view goldens,
 `docs/contract.md`, the compatibility page, the changelog, and the
-stories "I talk to the lead", "Talking to the agent in the wrong place",
-and the card's first row in "The user comes back to see what needs
-them", which says a campaign has no pull request.
+stories about starting, talking to and checking on the campaign.
 
 **Proof.** The prompt golden shows the coordinating prompt, Claude's
 arguments for a lead show the single permission set, and the
@@ -207,9 +204,10 @@ pull request. The suite and every check pass.
 
 **Needs.** Stage 5, for the input and channel that the prompt describes.
 
-**Open question.** The idle and waiting words for a campaign in its
-coordinating phase, and the words for the two new holds if stages 1 and
-4 left them provisional.
+**Implementation.** An idle coordinating lead shows "awaiting feedback
+or sub-issue changes". Waiting for posts shows how many new posts are
+for the lead, beside any sub-issue changes. The terminal status view
+uses the same closed sub-issue count as the web.
 
 ## 7. The finishing phase
 
@@ -225,11 +223,10 @@ The change touches the campaign's round plan, which chooses the
 coordinating or the finishing input prompt from the draft flag the tick
 read; `prompts.py`, which gains the finishing input prompt; the status
 words of a finishing campaign, which are the assignment's; the contract,
-which narrows its prohibition on editing, committing and pushing to the
-coordinating phase and adds carrying the pull request to merge, within
-version 2; the concepts page, which names the coordinating and finishing
-phases; and the stories "Main moves, or the build goes red, after the
-lead marks it ready" and "My colleague asks for changes".
+which adds carrying the pull request to merge within version 2; the
+concepts page, which names the finishing phase; and the stories "Main
+moves, or the build goes red, after the lead marks it ready" and "My
+colleague asks for changes".
 
 **Proof.** Tests take a ready campaign pull request through a conflict,
 red builds until the third is withheld under the relay rule, and a

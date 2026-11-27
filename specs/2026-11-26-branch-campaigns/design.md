@@ -216,9 +216,9 @@ The round preparations, which run inside the rounds, change in three
 ways:
 
 - A lead round's preparation opens the pull request if none is recorded,
-  then builds the input. It never resets the worktree: like an
-  assignment's, the lead's worktree stays on the campaign branch from
-  the opening round on, with whatever the lead left in it.
+  then builds the input. The worktree starts on the campaign branch.
+  Like an assignment's, it keeps the checkout and changes the agent left
+  between rounds.
 - The wrap-up round of work whose base is not the default branch, and
   whose pull request merged, first closes the issue as completed. This
   is a rule about the base, not the kind: a campaign's base is always
@@ -266,8 +266,8 @@ The **coordinating input prompt** says:
   now, which is a new request that the assignment can consume. This
   matters when a sub-issue was reopened for a fresh attempt with its old
   label still on;
-- the worktree is on the campaign branch, and is not reset between
-  rounds;
+- the worktree starts on the campaign branch and keeps the lead's
+  checkout between rounds;
 - do not commit, push or open a pull request;
 - run each `gh pr merge` as a command of its own;
 - do not merge the campaign's own pull request;
@@ -414,8 +414,7 @@ Changes to the code, with what each removal gains:
   the rules for issue work.
 - **The campaign round input drops `issue`, `comments`, `cursor` and
   `revision`.** The relay's memory then reads one shared part for both
-  kinds. `pull_request_head` records the head of the pull request and
-  the campaign worktree stays on its branch.
+  kinds. `pull_request_head` records the head of the pull request.
 - **The opening round reuses pull request machinery.** The preparation
   adopts any pull request an earlier attempt opened. It uses the current
   GitHub observation for an adopted pull request and the pushed head for
@@ -497,6 +496,4 @@ Changes to the enduring documents:
 
 ## Open questions
 
-- The idle words for a campaign in its coordinating phase, and the words
-  for the two new holds.
-- The concepts page's names for the new concepts.
+- The concepts page's names for the remaining new concepts.

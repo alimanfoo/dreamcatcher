@@ -245,7 +245,7 @@ def write_campaign(
             harness=harness,
             model="opus[1m]",
             effort="xhigh",
-            instructions=f"Acknowledge GH{issue} with a comment on it.",
+            instructions=f"Acknowledge GH{issue}.",
         ),
     )
     _write_harness_session(

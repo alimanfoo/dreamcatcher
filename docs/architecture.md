@@ -285,12 +285,12 @@ directory, so the command line never carries the checkout's own path.
 sub-issues. Once the work record exists, the opening round opens the
 campaign's draft pull request through `pull_request_work.py`. It cuts
 the campaign branch from the default branch and uses GitHub's closing
-keyword for the parent. The campaign keeps this worktree on its branch
-across rounds. The opening input carries the new pull request number,
-its initial state and the head of the worktree that was pushed, along
-with the sub-issues and assignment routes. An opening round that adopts
-an existing pull request relays GitHub's current observation and wraps
-up if it is merged or closed.
+keyword for the parent. The worktree starts on the campaign branch and
+keeps the checkout the lead left between rounds. The opening input
+carries the new pull request number, its initial state and the head of
+the worktree that was pushed, along with the sub-issues and assignment
+routes. An opening round that adopts an existing pull request relays
+GitHub's current observation and wraps up if it is merged or closed.
 
 `scheduler/campaigns.py` asks the shared start-time questions after the
 label checks clear a campaign request. A claim, a blocker or a failed
@@ -331,25 +331,24 @@ prevents a round. The tick compares sub-issues each time, and records
 the notifications only in the input of a round that starts.
 
 The lead publishes its own messages, and its final output stays in the
-feed. The shared wrap-up finisher records a completed campaign. Claude's
-campaign permissions let the lead coordinate through GitHub and verify
-work without implementing it: Claude allows selected `gh issue` and
-`gh pr` commands, `gh run view`, `gh api`, `git fetch`, `git checkout`
-and `git switch`, and denies direct editing and the other Git mutations.
-Claude approves a shell call by these rules only when every command in
-it matches one, and its auto mode classifier refuses any other call that
-merges a pull request that no person approved, so the campaign input
-prompt asks the lead to run each `gh pr merge` on its own. Codex runs a
-campaign round under its own reviewer, as it runs an assignment's,
-because fetching writes outside the worktree, so there the prompt alone
-keeps the lead from implementing. Every prompt requires the agent marker
-on every GitHub post that the lead makes, except feedback that it gives
-a sub-issue's assignment on that assignment's pull request.
-`compose_round_prompt` in `prompts.py` chooses those words by the kind
-of work. The ordinary assignment relay then gives the unmarked feedback
-to the assignment's agent as a user post, so the lead reaches an
-assignment's agent through the same channel as the user, and no campaign
-code relays it.
+feed. The shared wrap-up finisher records a completed campaign. Claude
+gives a lead the assignment allow list, including `gh pr ready`, plus
+the tools to dispatch sub-issues, review and merge their pull requests,
+and check out the commits it reviews. Claude approves a shell call by
+these rules only when every command in it matches one, and its auto mode
+classifier refuses any other call that merges a pull request that no
+person approved, so the campaign input prompt asks the lead to run each
+`gh pr merge` on its own. Codex runs campaign and assignment rounds
+under its own reviewer because fetching writes outside the worktree. On
+both harnesses the coordinating prompt directs the lead to leave
+implementation to the sub-issue assignments and the campaign's own merge
+to the user. Every prompt requires the agent marker on every GitHub post
+that the lead makes, except feedback that it gives a sub-issue's
+assignment on that assignment's pull request. `compose_round_prompt` in
+`prompts.py` chooses those words by the kind of work. The ordinary
+assignment relay then gives the unmarked feedback to the assignment's
+agent as a user post, so the lead reaches an assignment's agent through
+the same channel as the user, and no campaign code relays it.
 
 ### Pull request work
 

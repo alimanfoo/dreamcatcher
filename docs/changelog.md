@@ -37,6 +37,10 @@ the change.
   [Compatibility and upgrades](compatibility.md#upgrade-from-v9-to-state-format-9).
   ([#934](https://github.com/alimanfoo/dreamcatcher/pull/934))
 
+- Campaign skills must follow [agent contract version 2](contract.md).
+  Update your campaign skill before starting a campaign with this
+  release. ([#939](https://github.com/alimanfoo/dreamcatcher/pull/939))
+
 ### Changed
 
 - Each application of an assignment or campaign label requests one
@@ -1191,10 +1195,7 @@ the change.
   [Upgrade from v4.0.0 to v5.0.0](compatibility.md#upgrade-from-v400-to-v500).
   ([#364](https://github.com/alimanfoo/dreamcatcher/pull/364))
 - State format 5 puts the initial conversation title and body under
-  `initial_issue`. [Agent contract version 1](contract.md) documents
-  that current protocol; declaring the version does not itself change
-  the input. Prompt and skill authors should check their assumptions
-  against the contract.
+  `initial_issue`. Agent contract version 1 documented that protocol.
   ([#364](https://github.com/alimanfoo/dreamcatcher/pull/364),
   [#370](https://github.com/alimanfoo/dreamcatcher/pull/370))
 - The prompt that hands an assignment new pull request posts now opens

@@ -2,8 +2,7 @@
 
 The [requirements](requirements.md) and [design](design.md) explain the
 goal and the whole change. This guide follows the code as the
-[roadmap](roadmap.md) lands. The scheduler, work records and round
-inputs described here reflect stage 5.
+[roadmap](roadmap.md) lands. The code described here reflects stage 6.
 
 ## The tick
 
@@ -55,9 +54,10 @@ round also supplies the new pull request number and the worktree head.
 When an earlier attempt already opened the pull request, the campaign's
 opening preparation relays GitHub's current state, head and posts, and a
 terminal state completes through the shared wrap-up finisher. The
-campaign worktree stays on its branch across rounds.
-`CampaignRoundInput` extends `PullRequestRoundInput` with the observed
-sub-issues, their notifications and the daemon's assignment routes.
+campaign worktree starts on its branch and keeps the lead's checkout
+between rounds. `CampaignRoundInput` extends `PullRequestRoundInput`
+with the observed sub-issues, their notifications and the daemon's
+assignment routes.
 
 Read `relay.py` for post eligibility and relay memory. The readers
 validate the recorded input for the work's kind, then use the shared
@@ -102,14 +102,21 @@ input, including links to sub-issues. The home page uses the shared pull
 request chip beside each work title. Conversation cards show their issue
 state.
 
+## The coordinating lead
+
+`prompts.py` directs the lead to its pull request input, starting with
+the pull request's state. `claude.py` adds the coordination tools to the
+assignment permissions. The campaign skill uses contract version 2.
+`status/findings.py` gives the open draft campaign its idle and waiting
+words, and both status views show the count of closed sub-issues.
+
 ## Later stages
 
-Stage 6 updates the lead's input prompt, Claude permissions and campaign
-skill contract. Stage 7 makes the prompt and the lead's behaviour follow
-the pull request's draft flag. Stage 8 exposes campaign cancellation,
-and stage 9 updates the guides. The check-failure relay currently counts
-consecutive relayed inputs, so a round between fixes that relays no
-check-failure resets the count.
+Stage 7 makes the prompt and the lead's behaviour follow the pull
+request's draft flag. Stage 8 exposes campaign cancellation, and stage 9
+updates the guides. The check-failure relay currently counts consecutive
+relayed inputs, so a round between fixes that relays no check-failure
+resets the count.
 
 ## Tests to read
 

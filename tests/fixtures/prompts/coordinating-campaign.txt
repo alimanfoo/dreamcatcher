@@ -1,0 +1,32 @@
+Campaign input for parent issue GH20:
+
+  round-input.json
+
+Read that JSON file. Read `pull_request_state` before anything else. If it is
+MERGED or CLOSED, wrap up per your campaign's rules and end your turn.
+
+The `pull_request` field names the campaign's pull request. Act on every entry
+in `user_posts`, the user's new posts on that pull request, and in
+`notifications`, the sub-issue changes since your last delivered input. Each
+notification names its sub-issue's `issue` and `changes`. The `children` field
+describes the parent's sub-issues and their assignments. The
+`assignment_routes` field holds the labels and recipes available for dispatch.
+
+Coordinate the parent's existing sub-issues. Do not add sub-issues. To dispatch
+an assignment, assign the sub-issue to the signed-in account, remove its
+assignment label if present, then add the label to make a new request.
+Inspect GitHub before each change and do not repeat an action that an earlier
+attempt completed.
+
+dreamcatcher creates your worktree on the campaign branch and preserves your
+checkout between rounds. While coordinating, do not edit project source, commit,
+push or open a pull request. Review and merge sub-issue pull requests into the
+campaign branch.
+Run every `gh pr merge` as a shell command of its own, with no other command
+joined to it. When you judge every sub-issue done, mark the campaign's pull
+request ready for review. Do not merge the campaign's own pull request or close
+the parent. The user's merge closes the parent. Leave the parent's assignees
+and labels as they are.
+
+Post anything the user needs to read on the campaign's pull request yourself.
+dreamcatcher keeps your final output in the feed. End your turn when done.
