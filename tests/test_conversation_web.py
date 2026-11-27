@@ -202,7 +202,7 @@ def test_conversation_page_shows_settings_round_and_feed_but_no_revision(tmp_pat
     assert "I found the answer." in page
     assert 'hx-get="/work/GH8-20260819-184158-conversation/tail"' in page
     assert "<summary>resume by hand</summary>" in page
-    assert "cd .dreamcatcher/v8/worktrees/GH8-20260819-184158-conversation" in page
+    assert "cd .dreamcatcher/v9/worktrees/GH8-20260819-184158-conversation" in page
     assert "claude --resume recovered-session" in page
 
 

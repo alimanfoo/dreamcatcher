@@ -169,7 +169,8 @@ labels comes off.
 Close the parent to end the campaign. It ends once any running round
 finishes, and _dreamcatcher_ then removes its worktree and keeps its
 record. Only you close the parent: the lead is told never to close it.
-If you reopen the parent with its label still on, a new campaign starts.
+To start a new campaign on the same parent, reopen it and remove and
+re-add its campaign label.
 
 ## Stop or recover a round
 

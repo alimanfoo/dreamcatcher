@@ -82,6 +82,7 @@ def write_conversation(*, state: StateDirectory, number: int = 8) -> AgentWork:
             issue=number,
             title="Why does this happen?",
             dispatch_label="dream:conversation",
+            label_applied_at=None,
             kind=AgentWorkKind.CONVERSATION,
             harness=AgentHarness.CLAUDE,
             model="opus[1m]",
@@ -116,6 +117,7 @@ def test_a_conversation_is_recorded_without_a_worktree(tmp_path):
         issue=8,
         title="Why does this happen?",
         at=PINNED,
+        label_applied_at=None,
     )
 
     assert created.identifier == "GH8-20260819-184158-conversation"
@@ -147,6 +149,7 @@ def test_a_new_conversation_records_the_preferred_harness_recipe(cloned_repo):
         issue=8,
         title="Why does this happen?",
         at=PINNED,
+        label_applied_at=None,
     )
 
     assert created.record.harness == AgentHarness.CODEX
@@ -178,6 +181,7 @@ def test_round_input_freezes_the_issue_comments_and_revision(
         issue=8,
         title="Why does this happen?",
         at=PINNED,
+        label_applied_at=None,
     )
 
     frozen = prepare_conversation_round(

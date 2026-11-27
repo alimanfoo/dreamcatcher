@@ -11,7 +11,7 @@ writers in different processes or threads never erase each other's facts.
 import re
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import StrEnum
 from pathlib import Path
 
@@ -79,11 +79,14 @@ class AgentWorkRecord(WriteOnceDreamcatcherDocument):
 
     Creation writes the record once, and nothing writes it again. Every round
     reads this record, so later config edits do not change work in progress.
+    The application time records the request an assignment or campaign
+    consumed. Conversations have no application time in their record.
     """
 
     issue: int
     title: str
     dispatch_label: str
+    label_applied_at: AwareDatetime | None
     kind: AgentWorkKind
     harness: AgentHarness
     model: QuotableText
@@ -239,6 +242,7 @@ def create_agent_work(
     issue: int,
     title: str,
     at: datetime,
+    label_applied_at: datetime | None,
 ) -> AgentWork:
     """Record the work that the route asks for at the issue, with no rounds run yet.
 
@@ -256,6 +260,9 @@ def create_agent_work(
             issue=issue,
             title=title,
             dispatch_label=route.label,
+            label_applied_at=(
+                None if label_applied_at is None else label_applied_at.astimezone(UTC)
+            ),
             kind=route.kind,
             harness=harness,
             model=recipe.model,

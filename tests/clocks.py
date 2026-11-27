@@ -8,6 +8,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta, timezone
 
 PINNED = datetime(2026, 8, 19, 18, 41, 58, tzinfo=UTC)
+LABEL_APPLIED_AT = PINNED + timedelta(seconds=1)
 DISPLAY_TIME_ZONE = timezone(timedelta(hours=8))
 
 

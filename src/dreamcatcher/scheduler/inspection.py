@@ -47,14 +47,25 @@ class _RoundComposer(Protocol):
 
 
 @dataclass(frozen=True, kw_only=True)
+class DispatchRequest:
+    """A route whose label application has passed the dispatch checks.
+
+    The application time identifies the request that new work consumes.
+    A conversation's dispatch label acts as a switch and carries no time here.
+    """
+
+    route: DispatchRoute
+    label_applied_at: datetime | None
+
+
+@dataclass(frozen=True, kw_only=True)
 class Candidate:
     """Open work the tick may start a round for, or a request it may start work for.
 
-    It holds the open work, or the route of the work that a request would
-    create.
+    It holds the open work or the dispatch request that would create work.
     """
 
-    work_or_route: AgentWork | DispatchRoute
+    work_or_request: AgentWork | DispatchRequest
     compose_round: _RoundComposer
 
 
@@ -88,7 +99,7 @@ class RequestInspector(Protocol):
         *,
         context: SchedulingContext,
         issue: Issue,
-        route: DispatchRoute,
+        request: DispatchRequest,
         row: RequestRow,
     ) -> Inspection:
         """Return what the request's row holds, given the row before any read."""

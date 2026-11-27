@@ -109,12 +109,12 @@ freely.
 
 With several assignments in flight, GitHub shows each pull request but
 not the whole. The home page does. Every assignment has a card, and so
-does every assignment label whose work has not started yet. Each card
-says whether its work is still to start, working, idle with a pull
-request ready for review, or ended, and an assignment's page shows what
-its agent is doing as it works. The user can see at a glance which
-assignments need them, and read along when they want to check that an
-agent is on the right track.
+does each assignment label with no active assignment. A label's card
+says whether the request can start or what holds it back. An
+assignment's card shows its status, and its page shows what its agent is
+doing as it works. The user can see at a glance which assignments need
+them, and read along when they want to check that an agent is on the
+right track.
 
 The value to the user is that they can delegate as much as they have
 ready, and keep an eye on all of it from one page.
@@ -258,15 +258,14 @@ lost: the agent's commits are theirs to build on.
 The agent's pull request is ready, and having read it the user does not
 want it: the approach is wrong, or the issue turned out to be a bad
 idea. Explaining what to change would take longer than starting over, or
-there is nothing to start over. If they do not want another attempt,
-they take the assignment label off the issue first. Then they close the
-pull request without merging. At the next update the agent has its last
-round to wrap up, and the assignment ends. Until that round starts, the
-assignment shows as waiting, awaiting wrap-up. Its worktree and local
-branch are removed, as for a merged pull request, while the branch stays
-on GitHub with the closed pull request, and the issue stays open. If the
-user does want a fresh attempt, perhaps after rewriting the issue, they
-leave the label on or put it back, and a new assignment starts.
+there is nothing to start over. They close the pull request without
+merging. At the next update the agent has its last round to wrap up, and
+the assignment ends. Until that round starts, the assignment shows as
+waiting, awaiting wrap-up. Its worktree and local branch are removed, as
+for a merged pull request, while the branch stays on GitHub with the
+closed pull request, and the issue stays open. If the user does want a
+fresh attempt, perhaps after rewriting the issue, they remove and re-add
+the assignment label, and a new assignment starts.
 
 The value to the user is that rejecting an agent's work is the same
 close button as rejecting anyone's.
@@ -327,7 +326,9 @@ branch up to date.
 When the user is satisfied, they close the parent, and the campaign ends
 once any round that is still running finishes. Its worktree is then
 removed, and its record stays for the ended list. If they reopen the
-parent with its label still on, a new campaign starts.
+parent with its label still on, the request card says the label's
+request has already been used. To start a new campaign, they remove and
+re-add the label.
 
 The value to the user is that a planned body of work has an agent of its
 own, started with one label and ended by closing the parent.
@@ -928,11 +929,10 @@ it merges, GitHub closes the issue, and the label is moot.
 ### Closing a pull request and leaving the assignment label on the issue
 
 The user closes the agent's pull request without merging, and leaves the
-assignment label on the issue. The agent wraps up, the assignment ends,
-and at the next update a new assignment starts, because the label is a
-standing request. A user who does not want the agent back needs to take
-the label off before the next update, or cancel the new assignment once
-it has started.
+assignment label on the issue. The agent wraps up and the assignment
+ends. The request card is held and says the label's request has already
+been used. To ask for another attempt, the user removes and re-adds the
+label.
 
 ### Removing a label to stop an assignment
 
@@ -993,8 +993,8 @@ last daemon recorded.
 The user deletes the folder under `.dreamcatcher/` that an assignment
 works in. The assignment's next round errors with the reason, and a
 second failure puts the assignment in fault. The user needs to cancel
-the assignment and close its pull request. With the label still on the
-issue, a fresh assignment starts at the next update.
+the assignment and close its pull request. They remove and re-add the
+label to ask for a fresh assignment.
 
 ### Deleting the daemon lock while the daemon runs
 

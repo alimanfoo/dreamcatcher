@@ -12,6 +12,7 @@ from typing import Annotated, Any, Literal
 from pydantic import (
     AliasChoices,
     AliasPath,
+    AwareDatetime,
     BaseModel,
     ConfigDict,
     Field,
@@ -49,7 +50,8 @@ _LABELLING_EVENTS_QUERY = (
     " $endCursor: String) { repository(owner: $owner, name: $name) {"
     " issue(number: $number) { timelineItems(first: $first, after: $endCursor,"
     " itemTypes: [LABELED_EVENT]) { nodes { ... on LabeledEvent {"
-    " actor { login } label { name } } } pageInfo { hasNextPage endCursor } } } } }"
+    " createdAt actor { login } label { name } } }"
+    " pageInfo { hasNextPage endCursor } } } } }"
 )
 
 # The repository permissions that let an account push a branch.
@@ -344,6 +346,7 @@ class LabellingEvent(GitHubResponseProjection):
 
     account: str = Field(default="", validation_alias=AliasPath("actor", "login"))
     label_name: str = Field(validation_alias=AliasPath("label", "name"))
+    applied_at: AwareDatetime = Field(alias="createdAt")
 
 
 class _LabellingEventPage(GitHubResponseProjection):

@@ -8,10 +8,8 @@ from typing import cast
 from dreamcatcher.scheduler.models import (
     BlockingIssuesFinding,
     CampaignFinding,
-    ConflictingLabelsFinding,
     HoldFinding,
     IssueCommentsFinding,
-    LabelAppliedByOtherFinding,
     ReadFailureFinding,
     RequestRow,
     StartTimeFinding,
@@ -30,8 +28,7 @@ type _StartFinding = (
     | BlockingIssuesFinding
     | IssueCommentsFinding
     | CampaignFinding
-    | ConflictingLabelsFinding
-    | LabelAppliedByOtherFinding
+    | HoldFinding
     | ReadFailureFinding
 )
 
@@ -40,12 +37,10 @@ class RequestStatusValue(StrEnum):
     """List the summary statuses of a request that has no open agent work.
 
     Available means that work starts once an agent slot is free. Held means
-    that the scheduler holds the request back for what GitHub says of its
-    issue: an open issue blocks it, a linked open pull request claims it,
-    someone other than the user applied its label, or it carries a second
-    label of its kind. Idle means that a conversation waits for the user's first
-    comment. Unknown means that a read that decides whether work may start
-    failed.
+    that a blocker, claiming pull request, another account's labelling,
+    conflicting labels or a consumed request prevents a start. Idle means
+    that a conversation waits for the user's first comment. Unknown means
+    that a read that decides whether work may start failed.
     """
 
     AVAILABLE = "available"

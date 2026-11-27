@@ -7,7 +7,7 @@ from datetime import timedelta
 from pathlib import Path
 
 import pytest
-from clocks import PINNED
+from clocks import LABEL_APPLIED_AT, PINNED
 from conftest import (
     CONFIG,
     HEAD,
@@ -120,6 +120,7 @@ def record_assignment(*, state, route, preferred_harness=AgentHarness.CLAUDE):
         issue=12,
         title="The issue title",
         at=PINNED,
+        label_applied_at=LABEL_APPLIED_AT,
     )
 
 
@@ -137,6 +138,7 @@ def open_assignment(*, state, route, preferred_harness, issue, at):
         issue=issue,
         title="The issue title",
         at=at,
+        label_applied_at=LABEL_APPLIED_AT,
     )
     open_work_pull_request(state=state, repository=REPOSITORY, assignment=assignment)
     return assignment

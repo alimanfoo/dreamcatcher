@@ -1,7 +1,7 @@
 from datetime import timedelta
 
 import pytest
-from clocks import PINNED
+from clocks import LABEL_APPLIED_AT, PINNED
 from pydantic import ValidationError
 from records import (
     MISORDERED_COMMENTS,
@@ -117,6 +117,7 @@ def test_a_campaign_round_starts_from_the_default_branch_in_a_detached_worktree(
         issue=PARENT,
         title="Carry the plan through",
         at=PINNED,
+        label_applied_at=LABEL_APPLIED_AT,
     )
 
     frozen = prepare_campaign_round(

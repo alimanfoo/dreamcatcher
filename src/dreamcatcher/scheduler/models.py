@@ -124,9 +124,20 @@ class LabelAppliedByOtherFinding(DreamcatcherDocument):
     applier: str
 
 
+class RequestConsumedFinding(DreamcatcherDocument):
+    """Say that work already used the label application as its request."""
+
+    found: Literal["request already consumed"] = "request already consumed"
+
+
 # What a tick finds that holds open work or a request back until the issue
 # changes on GitHub.
-HoldFinding = PausedFinding | LabelAppliedByOtherFinding | ConflictingLabelsFinding
+HoldFinding = (
+    PausedFinding
+    | LabelAppliedByOtherFinding
+    | ConflictingLabelsFinding
+    | RequestConsumedFinding
+)
 
 
 class CampaignFinding(DreamcatcherDocument):
@@ -156,9 +167,7 @@ type RequestFinding = Annotated[
     | IssueCommentsFinding
     | StartTimeFinding
     | BlockingIssuesFinding
-    | ConflictingLabelsFinding
-    | PausedFinding
-    | LabelAppliedByOtherFinding
+    | HoldFinding
     | CampaignFinding
     | ReadFailureFinding,
     Field(discriminator="found"),
@@ -178,15 +187,10 @@ class StartedRound(DreamcatcherDocument):
 class RequestRow(DreamcatcherDocument):
     """Record one request that a tick saw, and what the tick found for it.
 
-    A request is one dispatch label on one issue. The row names the open agent
-    work the request led to, if any, and that work's latest round when it had
-    ended as the tick read the work. A row has no finding when the tick found
-    nothing to record for it. A campaign's row holds the children of its parent
-    as the tick observed them, whether or not the campaign may take a round,
-    and holds none when the tick could not observe them all. A row holds its
-    issue's state when the tick read the issue: the listing reads the issue of
-    every request, and the tick reads the issue of open conversations and
-    campaigns again.
+    The row names the open work the request led to, if any, and its latest
+    round if that round had already ended. A campaign's row holds its
+    parent's sub-issues when the tick observed them all. The row holds the
+    issue's state when the tick read the issue.
     """
 
     issue: PositiveInt

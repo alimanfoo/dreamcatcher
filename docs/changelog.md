@@ -29,6 +29,21 @@ the change.
 
 ## Unreleased
 
+### Breaking
+
+- Saved work now uses state format 9 in `.dreamcatcher/v9/`. Finish work
+  you want to keep running and review existing dispatch labels before
+  upgrading. See
+  [Compatibility and upgrades](compatibility.md#upgrade-from-v9-to-state-format-9).
+  ([#934](https://github.com/alimanfoo/dreamcatcher/pull/934))
+
+### Changed
+
+- Each application of an assignment or campaign label requests one
+  attempt. Remove and re-add the label to request another after the work
+  ends. Conversation labels still start, pause and resume conversations.
+  ([#934](https://github.com/alimanfoo/dreamcatcher/pull/934))
+
 ## [v9.10.0](https://github.com/alimanfoo/dreamcatcher/releases/tag/v9.10.0) — 2026-11-26
 
 ### Changed

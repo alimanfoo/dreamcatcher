@@ -121,7 +121,7 @@ An issue is available for a new assignment when it:
 
 - is open and assigned to the account authenticated through `gh`;
 - carries exactly one configured assignment label, which you applied
-  yourself;
+  yourself for this attempt;
 - has no open assignment already managed by this checkout;
 - has no other open pull request linked to it; and
 - has no open issue recorded by GitHub as blocking it.
@@ -144,9 +144,12 @@ explains both.
 
 A campaign starts on an open parent issue that is assigned to the
 authenticated account, carries exactly one configured campaign label,
-which you applied yourself, and has no open issue recorded by GitHub as
-blocking it. It pauses, is held back and ends as a conversation does.
-[Start a campaign](start-a-campaign.md) explains how.
+which you applied yourself for this attempt, and has no open issue
+recorded by GitHub as blocking it. It pauses, is held back and ends as a
+conversation does. [Start a campaign](start-a-campaign.md) explains how.
+
+An assignment or campaign consumes a label application when it starts.
+Remove and re-add the label to ask for another attempt.
 
 Labels of different kinds may coexist on an issue because they select
 different kinds of work.

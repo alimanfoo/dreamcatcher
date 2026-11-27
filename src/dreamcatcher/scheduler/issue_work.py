@@ -14,6 +14,7 @@ from dreamcatcher.github import (
     Issue,
     IssueComment,
     IssueState,
+    LabellingEvent,
     UnknownGitHubResponse,
     is_login_of_account,
     read_issue,
@@ -24,7 +25,7 @@ from dreamcatcher.scheduler.inspection import (
     SchedulingContext,
     compose_open_work_row,
 )
-from dreamcatcher.scheduler.labelling import find_label_applied_by_other
+from dreamcatcher.scheduler.labelling import read_user_label_application
 from dreamcatcher.scheduler.models import (
     ConflictingLabelsFinding,
     PauseCause,
@@ -73,9 +74,10 @@ def inspect_open_issue_work(
         return Inspection(row=unread)
     hold = _find_hold(context=context, work=work, issue=issue)
     if hold is None and not work.is_round_running:
-        hold = find_label_applied_by_other(
+        application = read_user_label_application(
             context=context, issue=issue.number, label=work.record.dispatch_label
         )
+        hold = None if isinstance(application, LabellingEvent) else application
     if hold is not None:
         return Inspection(
             row=unread.model_copy(update={"finding": hold}),

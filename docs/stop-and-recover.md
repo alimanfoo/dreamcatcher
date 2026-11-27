@@ -10,7 +10,8 @@ daemon have different consequences.
 | Run `dreamcatcher stop` or select **stop round** on the web page               | The current agent round                                   | The work waits for something new unless a merged or closed pull request needs wrap-up. |
 | Run `dreamcatcher cancel` or select **cancel assignment** on the web page      | The assignment and any running round                      | You finish the pull request by hand. _dreamcatcher_ runs no further rounds.            |
 | Remove a conversation's or campaign's label, or unassign its issue             | No new round starts; a running round finishes             | Put back what you removed to resume the work in the same session.                      |
-| Close a conversation's issue or a campaign's parent issue                      | The work, once a running round finishes                   | Nothing more. Reopening the issue with its label starts new work.                      |
+| Close a conversation's issue                                                   | The work, once a running round finishes                   | Reopen the issue with its label to get an answer to the next comment.                  |
+| Close a campaign's parent issue                                                | The work, once a running round finishes                   | Reopen the parent and re-apply its campaign label to start another campaign.           |
 | Press Ctrl-C in the terminal running `dreamcatcher run`, or end it with `kill` | The daemon, its current rounds and the web page it serves | Work that still needs a round can run again after the daemon starts again.             |
 
 ## Stop one running round
@@ -85,9 +86,9 @@ worktree and the command that resumes that session by hand.
 
 _dreamcatcher_ leaves the pull request as it is, and while it is open it
 claims the issue as work outside _dreamcatcher_. If you merge it, GitHub
-closes the issue. If you close it without merging, the issue can receive
-a new assignment while it keeps its assignment label and stays assigned
-to you.
+closes the issue. If you close it without merging, remove and re-add the
+assignment label to request another attempt on the issue while it is
+assigned to you.
 
 ## Restart an interrupted daemon
 

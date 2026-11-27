@@ -98,9 +98,7 @@ follows a merge or close.
 [Take over an assignment's pull request](stop-and-recover.md#take-over-an-assignments-pull-request)
 explains how.
 
-Removing the assignment label is not a way to stop an active assignment;
-its saved pull request continues to drive feedback and wrap-up. If you
-close a pull request without merging and do not want a new assignment
-for the issue that's still open, remove its assignment label before
-wrap-up completes. Once wrap-up succeeds, the old assignment no longer
-claims the issue.
+An active assignment continues to receive feedback and wrap-up from its
+pull request even if you remove its label. Once a closed pull request
+has wrapped up, remove and re-add the assignment label to ask for
+another attempt on the open issue.

@@ -6,6 +6,7 @@ the user's paused work, then starts nothing on the user's machine.
 
 from dreamcatcher.config import identify_label
 from dreamcatcher.github import (
+    LabellingEvent,
     UnknownGitHubResponse,
     is_login_of_account,
     list_labelling_events,
@@ -14,32 +15,30 @@ from dreamcatcher.scheduler.inspection import SchedulingContext
 from dreamcatcher.scheduler.models import LabelAppliedByOtherFinding, ReadFailureFinding
 
 
-def find_label_applied_by_other(
+def read_user_label_application(
     *, context: SchedulingContext, issue: int, label: str
-) -> LabelAppliedByOtherFinding | ReadFailureFinding | None:
-    """Return who applied the label to the issue when it was not the user.
+) -> LabellingEvent | LabelAppliedByOtherFinding | ReadFailureFinding:
+    """Return the user's latest application of the label or what holds it.
 
-    The account that applied it is the one that the latest event applying it
-    names. None means that the user applied it. GitHub records the event a few
-    seconds after the label appears, so until then the read cannot tell who
-    applied it, just as a read that fails cannot.
+    The latest application decides who applied the label. GitHub may record
+    the event a few seconds after the label appears on the issue.
     """
     events = list_labelling_events(repository=context.repository, issue=issue)
     if isinstance(events, UnknownGitHubResponse):
         return ReadFailureFinding(reason=events.reason)
     identity = identify_label(name=label)
-    applier = next(
+    application = next(
         (
-            event.account
+            event
             for event in reversed(events)
             if identify_label(name=event.label_name) == identity
         ),
         None,
     )
-    if applier is None:
+    if application is None:
         return ReadFailureFinding(
             reason="GitHub has not yet recorded who applied the label"
         )
-    if is_login_of_account(login=applier, account=context.account):
-        return None
-    return LabelAppliedByOtherFinding(applier=applier)
+    if is_login_of_account(login=application.account, account=context.account):
+        return application
+    return LabelAppliedByOtherFinding(applier=application.account)

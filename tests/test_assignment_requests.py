@@ -6,8 +6,10 @@ nothing.
 
 import json
 from collections.abc import Sequence
+from datetime import timedelta
 
 import pytest
+from clocks import LABEL_APPLIED_AT, PINNED
 from conftest import (
     ASSIGNMENT_LABEL,
     FILED,
@@ -25,9 +27,10 @@ from conftest import (
     offer_labelling_events,
     offer_listing,
 )
-from records import read_assignments, write_assignment
+from records import read_assignments, write_assignment, write_ending
 from rows import UNCLAIMED, compose_request_row
 
+from dreamcatcher.agent_work import AgentWorkEndReason
 from dreamcatcher.clock import read_current_time
 from dreamcatcher.config import AgentHarness, DreamcatcherConfig
 from dreamcatcher.pull_request_work import cancel_pull_request_work
@@ -37,6 +40,7 @@ from dreamcatcher.scheduler.models import (
     IssueReference,
     LabelAppliedByOtherFinding,
     ReadFailureFinding,
+    RequestConsumedFinding,
     SchedulerRecord,
     StartTimeFinding,
 )
@@ -110,6 +114,46 @@ def test_an_issue_nothing_claims_or_blocks_is_a_clear_request(gh, state):
     )
 
     assert rows == [compose_request_row(issue=8, finding=UNCLAIMED)]
+
+
+def test_a_clock_correction_does_not_make_an_older_label_application_available(
+    gh, state
+):
+    for date, applied_at in (
+        ("20260821", LABEL_APPLIED_AT),
+        ("20260820", LABEL_APPLIED_AT + timedelta(hours=2)),
+    ):
+        directory = write_assignment(
+            state=state,
+            identifier=f"GH8-{date}-184158-assignment",
+            issue=8,
+            label_applied_at=applied_at,
+        )
+        write_ending(
+            directory=directory,
+            reason=AgentWorkEndReason.COMPLETED,
+            at=PINNED + timedelta(days=3),
+        )
+    issue = compose_assignment_issues(filed=[(8, FILED)])[0]
+    issue["labels"] = [{"name": "dream:less"}]
+    offer_listing(gh=gh, issues=[issue])
+    offer_labelling_events(
+        gh=gh,
+        issue=8,
+        events=[
+            compose_labelling_event(
+                label="dream:less", applied_at=LABEL_APPLIED_AT + timedelta(hours=1)
+            )
+        ],
+    )
+
+    rows = list_request_rows(state=state, config=compose_config(labels=["dream:less"]))
+
+    assert rows == [
+        compose_request_row(
+            issue=8, label="dream:less", finding=RequestConsumedFinding()
+        )
+    ]
 
 
 def test_requests_are_ordered_oldest_issue_first(gh, state):
@@ -202,10 +246,20 @@ def test_a_request_names_the_open_pull_requests_that_claim_it(gh, state):
     assert not row.finding.is_clear
 
 
-def test_a_cancelled_assignments_pull_request_claims_its_issue(gh, state):
+def test_a_cancelled_assignments_pull_request_holds_a_reapplied_label(gh, state):
     write_assignment(state=state, identifier="GH8-20260819-184158-assignment", issue=8)
     cancel_pull_request_work(
         assignment=read_assignments(state=state)[0], at=read_current_time()
+    )
+    offer_labelling_events(
+        gh=gh,
+        issue=8,
+        events=[
+            compose_labelling_event(label=ASSIGNMENT_LABEL),
+            compose_labelling_event(
+                label=ASSIGNMENT_LABEL, applied_at=LABEL_APPLIED_AT + timedelta(hours=1)
+            ),
+        ],
     )
     gh.replies(
         stdout=json.dumps(
