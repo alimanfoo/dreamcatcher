@@ -140,12 +140,10 @@ merging the campaign's pull request closes it.
   from the input. A campaign's input adds a campaign part: `children`,
   `notifications` and `assignment_routes`. It drops today's `issue`,
   `comments`, `cursor` and `revision`. The relay's readers read the
-  shared part from either kind's input. The opening preparation takes
-  `pull_request_head` from the commit it pushed, since no tick has yet
-  read the new pull request. A retry that adopts an existing pull
-  request relays its current activity and chooses the prompt from that
-  observation. It wraps up if the pull request has already merged or
-  closed.
+  shared part from either kind's input. The opening preparation records
+  an open state and takes `pull_request_head` from the local worktree.
+  Posts and signals are empty until the tick reads the pull request's
+  activity.
 - **Ending**, `ended.json`. _Changed._ A campaign ends completed or
   cancelled. "Issue closed" remains for conversations alone.
 - **Request row finding**, in `scheduler/models.py`. _Changed._ An open
@@ -198,12 +196,15 @@ concern campaigns and sub-issues.
    request inspection.
    - In fault: no round starts, and the fault counts.
    - No pull request recorded: observe the sub-issues, and the opening
-     round is due, unless they cannot all be observed.
-   - Otherwise: observe the sub-issues, read the pull request activity
-     and compare the sub-issues with the newest delivered input. A round
-     is due for posts, a signal, a merged or closed pull request, a
-     notification, or after an unfinished round. If the sub-issues
-     cannot all be observed, no round starts, as today.
+     round is due, unless they cannot all be observed. It records the
+     pull request number and supplies the coordinating prompt whether
+     the pull request was created or adopted.
+   - With a pull request recorded: observe the sub-issues, read the pull
+     request activity and compare the sub-issues with the newest
+     delivered input. A round is due for posts, a signal, a merged or
+     closed pull request, a notification, or after an unfinished round.
+     If the sub-issues cannot all be observed, no round starts, as
+     today.
    - The draft flag that this read found decides the round's phase, and
      so its input prompt. Its permissions do not depend on the phase.
 6. **Second pass: campaign requests.** An open campaign answers every
@@ -411,9 +412,9 @@ Changes to the code, with what each removal gains:
   `revision`.** The relay's memory then reads one shared part for both
   kinds. `pull_request_head` records the head of the pull request.
 - **The opening round reuses pull request machinery.** The preparation
-  adopts any pull request an earlier attempt opened. It uses the current
-  GitHub observation for an adopted pull request and the pushed head for
-  a new draft.
+  can adopt a pull request an earlier attempt opened. It builds the same
+  opening input in either case. The next tick's ordinary inspection
+  relays posts and signals or calls for wrap-up.
 - **Cancel loses its "assignments only" gates.** Cancel becomes one
   operation for both kinds that have a pull request.
 - **The lead's separate Claude permission lists go.** A lead gets an

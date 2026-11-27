@@ -50,15 +50,14 @@ recorded base, adds a placeholder commit if needed, pushes and opens a
 draft with a closing keyword. An empty base selects the default branch.
 The pull request number is written to `pull-request.json`.
 
-An assignment opening round supplies its prompt. A campaign opening
-round also supplies the new pull request number and the worktree head.
-When an earlier attempt already opened the pull request, the campaign's
-opening preparation relays GitHub's current state, head and posts, and a
-terminal state completes through the shared wrap-up finisher. The
-campaign worktree starts on its branch and keeps the lead's checkout
-between rounds. `CampaignRoundInput` extends `PullRequestRoundInput`
-with the observed sub-issues, their notifications and the daemon's
-assignment routes.
+An assignment opening round uses the configured instructions. A campaign
+opening round also supplies the recorded pull request number and the
+local worktree head. The next tick reads the pull request's state and
+activity and calls for wrap-up if it has merged or closed. The campaign
+worktree starts on its branch and keeps the lead's checkout between
+rounds. `CampaignRoundInput` extends `PullRequestRoundInput` with the
+observed sub-issues, their notifications and the daemon's assignment
+routes.
 
 Read `relay.py` for post eligibility and relay memory. The readers
 validate the recorded input for the work's kind, then use the shared
@@ -117,10 +116,9 @@ words, and both status views show the count of closed sub-issues.
 ## The finishing phase
 
 `scheduler/campaigns.py` selects the input prompt from the pull request
-observation that supplies the round's input. A new pull request starts
-as a draft. An opening retry that adopts a ready pull request uses its
-observed phase and signals. Both prompts start their input instructions
-with the same direction to wrap up when the pull request has merged or
+observation that supplies the round's input. Opening rounds get the
+coordinating prompt. Both prompts start their input instructions with
+the same direction to wrap up when the pull request has merged or
 closed.
 
 `prompts.py` gives a finishing lead the campaign branch and reuses the

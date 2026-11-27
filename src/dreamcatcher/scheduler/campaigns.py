@@ -19,7 +19,6 @@ from dreamcatcher.campaigns import (
     compose_campaign_round_input,
     read_delivered_campaign_input,
 )
-from dreamcatcher.errors import ReportableError
 from dreamcatcher.git import read_worktree_revision
 from dreamcatcher.github import (
     Issue,
@@ -27,7 +26,6 @@ from dreamcatcher.github import (
     SubIssue,
     UnknownGitHubResponse,
     list_sub_issues,
-    read_pull_request,
 )
 from dreamcatcher.prompts import compose_campaign_input_prompt
 from dreamcatcher.pull_request_work import (
@@ -283,31 +281,20 @@ def _prepare_campaign_pull_request(
 ) -> tuple[PullRequestRoundInput, bool, AgentRoundFinisher | None]:
     """Freeze the pull request input, readiness and any wrap-up finisher."""
     if activity is None:
-        opened = open_work_pull_request(
+        pull_request = open_work_pull_request(
             state=context.state, repository=context.repository, work=work
         )
-        if not opened.was_adopted:
-            return (
-                PullRequestRoundInput(
-                    pull_request=opened.number,
-                    pull_request_state=PullRequestState.OPEN,
-                    pull_request_head=read_worktree_revision(worktree=work.worktree),
-                    signals=[],
-                    user_posts=[],
-                ),
-                False,
-                None,
-            )
-        observed = read_pull_request_activity(
-            context=context,
-            work=work,
-            read=read_pull_request(
-                repository=context.repository, pull_request=opened.number
+        return (
+            PullRequestRoundInput(
+                pull_request=pull_request,
+                pull_request_state=PullRequestState.OPEN,
+                pull_request_head=read_worktree_revision(worktree=work.worktree),
+                signals=[],
+                user_posts=[],
             ),
+            False,
+            None,
         )
-        if isinstance(observed, ReadFailureFinding):
-            raise ReportableError(observed.reason)
-        activity = observed
     return (
         activity.prepare_round(context=context, work=work),
         activity.finding.is_ready_for_review,
