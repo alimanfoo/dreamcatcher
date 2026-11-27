@@ -15,7 +15,6 @@ from dreamcatcher.github import (
     UserPost,
     read_issue,
     read_issue_parent,
-    read_issue_pull_request_context,
     read_pull_request,
 )
 from dreamcatcher.harness_adapters import AgentWorkKind
@@ -23,14 +22,10 @@ from dreamcatcher.prompts import compose_assignment_input_prompt
 from dreamcatcher.pull_request_work import (
     complete_pull_request_work,
     compose_work_branch,
-    is_wrap_up_relayed,
     open_work_pull_request,
     prepare_assignment_round_input,
-    read_user_post_cursor,
     read_work_pull_request_number,
 )
-from dreamcatcher.relay import find_pull_request_signals, list_user_posts_past_cursor
-from dreamcatcher.scheduler.blockers import list_open_blocking_issues
 from dreamcatcher.scheduler.faults import is_last_round_unfinished
 from dreamcatcher.scheduler.inspection import (
     Candidate,
@@ -43,10 +38,13 @@ from dreamcatcher.scheduler.inspection import (
 from dreamcatcher.scheduler.models import (
     CampaignPullRequestUnavailableFinding,
     IssueReference,
-    PullRequestFinding,
     ReadFailureFinding,
     RequestRow,
     StartTimeFinding,
+)
+from dreamcatcher.scheduler.pull_requests import (
+    ask_start_time_questions,
+    read_pull_request_activity,
 )
 
 
@@ -70,74 +68,30 @@ def inspect_open_assignment(
                 compose_round=partial(_compose_opening_round, context=context),
             ),
         )
-    return _inspect_pull_request(
-        context=context, assignment=work, pull_request=pull_request
-    )
+    return _inspect_pull_request(context=context, work=work, pull_request=pull_request)
 
 
 def _inspect_pull_request(
-    *, context: SchedulingContext, assignment: AgentWork, pull_request: int
+    *, context: SchedulingContext, work: AgentWork, pull_request: int
 ) -> Inspection:
-    """Inspect an assignment's pull request and what is past its cursor there.
-
-    A round is due for user posts or pull request signals past the cursor, for
-    a merged or closed pull request not yet relayed to a wrap-up round, or to
-    give again the input of a round that did not finish.
-    """
-    read = read_pull_request(repository=context.repository, pull_request=pull_request)
-    if isinstance(read, UnknownGitHubResponse):
-        return Inspection(
-            row=compose_open_work_row(
-                work=assignment, finding=ReadFailureFinding(reason=read.reason)
-            )
-        )
-    posts = list_user_posts_past_cursor(
-        repository=context.repository,
-        pull_request=read.number,
-        account=context.account,
-        cursor=read_user_post_cursor(assignment=assignment),
+    activity = read_pull_request_activity(
+        context=context, work=work, pull_request=pull_request
     )
-    if isinstance(posts, UnknownGitHubResponse):
-        return Inspection(
-            row=compose_open_work_row(
-                work=assignment, finding=ReadFailureFinding(reason=posts.reason)
-            )
-        )
-    found = find_pull_request_signals(assignment=assignment, pull_request=read)
-    finding = PullRequestFinding(
-        number=read.number,
-        state=read.state,
-        is_draft=read.is_draft,
-        merge_state=read.merge_state,
-        head=read.head,
-        check_result=read.check_result,
-        has_running_checks=read.has_running_checks,
-        new_posts=len(posts),
-        new_pull_request_signals=found.new_pull_request_signals,
-        is_check_failure_withheld=found.is_check_failure_withheld,
-        is_wrap_up_due=(
-            read.state is not PullRequestState.OPEN
-            and not is_wrap_up_relayed(assignment=assignment)
-        ),
-    )
-    row = compose_open_work_row(work=assignment, finding=finding)
-    if not (
-        finding.new_posts
-        or finding.new_pull_request_signals
-        or finding.is_wrap_up_due
-        or is_last_round_unfinished(rounds=assignment.rounds, is_daemon_running=True)
-    ):
+    if isinstance(activity, ReadFailureFinding):
+        return Inspection(row=compose_open_work_row(work=work, finding=activity))
+    row = compose_open_work_row(work=work, finding=activity.finding)
+    if not activity.is_round_due(work=work):
         return Inspection(row=row)
     return Inspection(
         row=row,
         candidate=Candidate(
-            work_or_request=assignment,
+            work_or_request=work,
             compose_round=partial(
                 _compose_relay_round,
                 context=context,
-                pull_request=read,
-                posts=posts,
-                pull_request_signals=found.new_pull_request_signals,
+                pull_request=activity.pull_request,
+                posts=activity.posts,
+                pull_request_signals=activity.finding.new_pull_request_signals,
             ),
         ),
     )
@@ -167,7 +121,7 @@ def create_assignment_request_inspector(
         request: DispatchRequest,
         row: RequestRow,
     ) -> Inspection:
-        answers = _ask_start_time_questions(context=context, issue=issue.number)
+        answers = ask_start_time_questions(context=context, issue=issue.number)
         if not (isinstance(answers, StartTimeFinding) and answers.is_clear):
             return Inspection(row=row.model_copy(update={"finding": answers}))
 
@@ -226,26 +180,6 @@ def _find_campaign_base(
     return CampaignPullRequestUnavailableFinding(parent=IssueReference(number=parent))
 
 
-def _ask_start_time_questions(
-    *, context: SchedulingContext, issue: int
-) -> StartTimeFinding | ReadFailureFinding:
-    """Return the open pull requests claiming the issue and open issues blocking it."""
-    pull_request_context = read_issue_pull_request_context(
-        repository=context.repository, issue=issue
-    )
-    if isinstance(pull_request_context, UnknownGitHubResponse):
-        return ReadFailureFinding(reason=pull_request_context.reason)
-    blocking = list_open_blocking_issues(context=context, issue=issue)
-    if isinstance(blocking, ReadFailureFinding):
-        return blocking
-    return StartTimeFinding(
-        linked_pull_requests=[
-            pull_request.number for pull_request in pull_request_context.pull_requests
-        ],
-        blocking_issues=blocking,
-    )
-
-
 def _compose_opening_round(*, context: SchedulingContext, work: AgentWork) -> RoundPlan:
     """Return the plan of a round whose preparation opens the pull request.
 
@@ -267,7 +201,7 @@ def _compose_relay_round(
     *,
     context: SchedulingContext,
     pull_request: PullRequest,
-    posts: list[UserPost],
+    posts: Sequence[UserPost],
     pull_request_signals: Sequence[PullRequestSignal],
     work: AgentWork,
 ) -> RoundPlan:
