@@ -144,12 +144,15 @@ explains both.
 
 A campaign starts on an open parent issue that is assigned to the
 authenticated account, carries exactly one configured campaign label,
-which you applied yourself for this attempt, and has no open issue
-recorded by GitHub as blocking it. It pauses, is held back and ends as a
-conversation does. [Start a campaign](start-a-campaign.md) explains how.
+which you applied yourself for this attempt, and has no open blocker or
+pull request claiming it. Once it starts, the campaign continues through
+its own pull request. [Start a campaign](start-a-campaign.md) explains
+how to direct and finish it.
 
-An assignment or campaign consumes a label application when it starts.
-Remove and re-add the label to ask for another attempt.
+Each application of an assignment or campaign label requests one
+attempt. To try again on an open issue, remove and re-add the label once
+the work ends. Reapplying it while work is open can queue another
+attempt once that work ends.
 
 Labels of different kinds may coexist on an issue because they select
 different kinds of work.
@@ -164,8 +167,9 @@ yourself to start the work.
 ## Apply and check the configuration
 
 Commit and push `dreamcatcher.toml` and any project instructions or
-setup files the agents need. Every agent's worktree starts from fetched
-default branch, so local uncommitted files are not available to it.
+setup files the agents need. Keep those files on the default branch so
+they are available when _dreamcatcher_ creates a worktree from it or
+from a campaign branch started there.
 
 Then start or restart the daemon from the ordinary main checkout:
 

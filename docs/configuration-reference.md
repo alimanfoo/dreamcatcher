@@ -58,13 +58,12 @@ A label is a case-insensitive identity. No two routes may share a label,
 whether they are of one kind or of different kinds. Route order gives no
 route precedence. Issue labels are also matched case-insensitively.
 
-If an issue matches more than one assignment route, that assignment work
-has a routing conflict. The same is independently true of campaign
-routes and of conversation routes. Labels of different kinds may coexist
-on an issue. An assignment conflict prevents a new assignment but does
-not stop an existing assignment's rounds. A conversation or campaign
-conflict prevents new rounds of that kind, though a round already
-running may finish.
+Two or more labels of the same kind cause a routing conflict while their
+requests are unanswered. A conversation conflict also holds back new
+rounds of existing conversations. Their running rounds can finish. An
+open assignment or campaign answers every label of its kind on the issue
+and continues on its recorded route. Labels of different kinds may
+coexist on an issue.
 
 ## Dispatch recipes
 
@@ -149,10 +148,12 @@ A conversation belongs to the conversation label that started it.
 Another conversation label starts a conversation of its own, with that
 label's route and recipe, once it is the only conversation label on the
 issue. While both are on the issue, the labels conflict and nothing
-starts. A campaign belongs to its campaign label in the same way.
+starts. Each application of an assignment or campaign label requests one
+attempt. Remove and re-add the label after work ends to request another
+attempt.
 
 A matching label selects a route but does not by itself make an issue
-ready for dispatch. [From issue to pull request](tutorial.md) explains
+ready for dispatch. [Run your first assignment](tutorial.md) explains
 how to prepare an assignment issue;
 [Start a campaign](start-a-campaign.md) explains how to start and end a
 campaign, and [Discuss an issue](discuss-an-issue.md) explains how to

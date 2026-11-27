@@ -1,4 +1,4 @@
-# From issue to pull request
+# Run your first assignment
 
 This tutorial sends one small GitHub issue to Claude Code with the
 `dream:smith` assignment skill. At the end, the agent's implementation

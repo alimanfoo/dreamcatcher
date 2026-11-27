@@ -88,6 +88,12 @@ the change.
   before marking it ready.
   ([#943](https://github.com/alimanfoo/dreamcatcher/pull/943))
 
+- [Run your first campaign](campaign-tutorial.md) walks through two
+  dependent sub-issues and the review and merge of the combined change.
+  [Start a campaign](start-a-campaign.md) explains the branch rules that
+  let the lead merge sub-issue pull requests under your account.
+  ([#945](https://github.com/alimanfoo/dreamcatcher/pull/945))
+
 ### Fixed
 
 - A user post written in the same second as the last one relayed now

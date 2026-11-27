@@ -128,10 +128,6 @@ requests the same way for both kinds of work. The check-failure relay
 counts consecutive relayed inputs, so a round between fixes that relays
 no check-failure resets the count.
 
-## Later stages
-
-Stage 9 updates the user guides.
-
 ## Tests to read
 
 Start with the stand-in walkthroughs and channel tests in

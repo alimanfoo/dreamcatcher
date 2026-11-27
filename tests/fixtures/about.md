@@ -23,8 +23,9 @@ There are three kinds of agent work you can ask for:
   you merge or close the pull request.
 - A **campaign**, where an agent, the **lead**, will take on a parent
   issue whose work is planned as sub-issues. The lead will label each
-  sub-issue for an assignment, and merge each sub-issue's pull request
-  once it is ready for review, its checks pass and it doesn't conflict.
+  sub-issue for an assignment and merge its pull request into the
+  campaign branch. You review and merge the campaign's own pull request
+  into the default branch.
 - An **issue conversation**, where an agent will answer your comments on
   an issue without changing any code.
 
@@ -111,18 +112,17 @@ holds it changes:
   another open issue, through GitHub's issue dependencies, and will
   start by itself once every blocker is closed. You can use this to put
   work in order.
-- An assignment will also be held if there is already an open pull
-  request **claiming** the issue, for example with `Closes #123` in its
-  description, and will start by itself if that pull request closes.
+- An assignment or campaign request is held while an open pull request
+  **claims** the issue, for example with `Closes #123` in its
+  description.
 - When earlier work has used an assignment or campaign label's request,
   remove and re-add the label to ask for another attempt.
 
-Once an assignment has started, its pull request becomes the only
-channel of communication with the assignment's agent, and changing the
-issue's labels, assignee or blockers will make no difference to it. A
-conversation or a campaign is different: you can **pause** one by taking
-its label off or unassigning its issue, and resume it later, in the same
-harness session, by putting things back yourself.
+Once an assignment or campaign starts, it continues through its pull
+request even if the issue's labels, assignee or blockers change. If you
+reapply a label while work is open, that later request can start after
+the work ends. To **pause** a conversation, remove its label or unassign
+its issue. Put it back yourself to resume the same harness session.
 
 ## Agent assignments
 
@@ -134,11 +134,10 @@ pull request is the assignment's **channel**, where you and the agent
 talk: later edits and comments on the issue won't reach the agent, so
 any further guidance needs to go on the pull request.
 
-The worktree is under `.dreamcatcher/` in your main checkout. It is a
-fresh checkout of the default branch with nothing installed, so it has
-none of your checkout's ignored or generated files. While the assignment
-is open, the worktree and its branch belong to the agent, and the way to
-change something is to ask the agent on the pull request.
+The worktree is under `.dreamcatcher/` in your main checkout. It starts
+with the files committed to the assignment's base branch, usually the
+default branch. While the assignment is open, the worktree and its
+branch belong to the agent. Ask for changes on the pull request.
 
 The agent will work until it has nothing left to do, then mark the pull
 request ready for review. If it needs a decision from you first, it will
@@ -169,53 +168,37 @@ it should merge cleanly, however long it waited.
 
 When the pull request is merged or closed, the agent will have one last
 round to wrap up at the next update, and may file issues for work it
-left out. The assignment will then be complete. If the pull request was
-closed without being merged, the issue will stay open and can be given a
-new assignment.
+left out. The assignment will then be complete. To ask for another
+assignment on an issue that stays open, remove and re-add its label.
 
 ## Campaigns
 
-A campaign is for a larger body of planned work. You can write the plan
-as a parent issue, with the work in its sub-issues, and put a campaign
-label on the parent. dreamcatcher will then start a lead agent on the
-parent.
+Plan the work as sub-issues of an open parent issue. Record any
+dependencies as blocked-by links. Assign the parent to yourself and
+apply a campaign label. dreamcatcher creates the campaign branch from
+the default branch, opens a draft pull request into the default branch
+and starts the lead in its own worktree.
 
-What the lead does is set by its route's prompt. With the default
-campaign route, the lead will label the sub-issues for assignments,
-review their pull requests and give their agents feedback, and merge
-each pull request once it is ready for review, its checks pass and it
-doesn't conflict. The lead will start every open sub-issue that is
-ready, keeping any assignment label you chose, so a step you want to do
-yourself belongs outside the parent's sub-issues. To choose a
-sub-issue's route yourself, you can label it before the lead starts it;
-otherwise the lead will pick the route whose skill best fits the
-sub-issue, and ask you on the parent if none does. You don't need to
-handle the sub-issues yourself. The lead works from your account, so its
-labels and feedback will count as yours. If some sub-issues have to wait
-for others, you can mark them as blocked by those, and their assignments
-will wait.
+With the default route, the lead dispatches sub-issue assignments,
+reviews their pull requests and gives their agents feedback. It merges
+those pull requests into the campaign branch, and dreamcatcher closes
+each sub-issue during the assignment's wrap-up. The campaign branch must
+allow merges without an approving review, because the lead and the
+sub-issue assignments all act under your account. Your repository
+determines which checks run on those pull requests.
 
-The parent issue is the campaign's channel. You can comment on it at any
-time, and the lead will be given your comments at the next update and
-answer there. If the lead meets something it can't decide, it will raise
-it on the parent. It will also be woken when a sub-issue changes in a
-way it needs to know about, such as an assignment handing its work back,
-checks finishing, or a sub-issue closing.
+The campaign's pull request is the lead's channel. The lead asks and
+answers there, and can run again when you post or a sub-issue changes in
+a way it needs to hear of. When it judges every sub-issue done, it can
+review and fix the whole change before marking the pull request ready
+for review. Once ready, the pull request gets the same help with failing
+checks and an out-of-date branch as an assignment. You can add
+sub-issues while the campaign is open, including during review.
 
-When you're satisfied, you can close the parent issue to end the
-campaign; the lead will never close it. The campaign will end once any
-round that is still running has finished.
-
-If your repository requires branches to be up to date before merging,
-every merge will leave the campaign's other pull requests behind, and
-wake each of their agents to merge the default branch and run the checks
-again. A merge queue will avoid this, or you can leave that setting off:
-a pull request that has only fallen behind will still merge cleanly, and
-one that conflicts will still wake its agent.
-
-Every pull request is opened from your account, and GitHub won't let you
-approve your own, so a branch rule that requires an approving review
-will stop the lead merging. Required status checks work as a gate.
+Merge the campaign's pull request when you're satisfied. GitHub closes
+the parent. A merge or closure of the pull request calls for the lead's
+wrap-up round. To take over before then, cancel the campaign and
+continue with its pull request, branch and worktree.
 
 ## Issue conversations
 
@@ -256,7 +239,6 @@ piped or captured.
   example when an agent is heading the wrong way. The agent will then
   wait, you can tell it what to do instead on GitHub, and its next round
   will be told that it was stopped.
-- `dreamcatcher cancel` lets you end an assignment for good, to finish
-  its pull request by hand. The pull request, worktree and branch will
-  be left for you, and while that pull request is open it will still
-  claim the issue.
+- `dreamcatcher cancel` lets you end an assignment or campaign to finish
+  its pull request by hand. The pull request, worktree and branch stay
+  available. While the pull request is open, it still claims the issue.

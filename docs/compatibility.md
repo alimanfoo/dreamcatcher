@@ -8,9 +8,10 @@ Saved work does not carry across from one format to the next.
 
 ## Upgrade from v9 to state format 9
 
-Before upgrading, let ongoing assignments and campaigns finish or take
-over the ones you want to continue. Decide whether you can start
-conversations afresh. Stop the daemon and every standalone view as
+Before upgrading, let ongoing assignments and campaigns finish or decide
+which open pull requests to finish by hand, including those for a
+campaign's sub-issues. Decide whether you can start conversations
+afresh. Stop the daemon and every standalone view as
 [Restart views across state formats](#restart-views-across-state-formats)
 describes.
 
@@ -21,6 +22,11 @@ of earlier work, a label can start work again. Remove labels whose work
 you do not want to restart. Open pull requests still claim their linked
 assignment issues and campaign parents, and you can finish those pull
 requests by hand.
+
+Before starting a campaign in the new format, update your campaign skill
+to [agent contract version 2](contract.md#campaign-skill-contract). If
+you use `dream:big`, update the dream plugin in each harness that runs
+it. `dreamcatcher init` leaves existing plugin installations in place.
 
 ## Upgrade from v8.0.0 to v9.0.0
 
@@ -223,12 +229,11 @@ assignment skills, conversation skills and campaign skills. Existing
 conforming skills remain compatible while the contract version stays the
 same.
 
-Version 2 changes the campaign skill contract. Before starting a
-campaign after upgrading, use a campaign skill that follows the new
-contract. The lead coordinates on the campaign branch and communicates
-on the campaign's pull request. It marks that pull request ready for
-review when it judges every sub-issue done, then carries it to merge as
-an assignment's agent does.
+Version 2 changes the campaign skill contract. The lead coordinates on
+the campaign branch, uses the campaign's pull request for feedback and
+marks it ready for review when it judges every sub-issue done. See
+[Upgrade from v9 to state format 9](#upgrade-from-v9-to-state-format-9)
+for what to update before starting a campaign.
 
 The contract number is an integer independent of the release and
 state-format versions. A change that requires an existing conforming

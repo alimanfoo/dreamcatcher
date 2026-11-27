@@ -39,9 +39,10 @@ dreamcatcher feed GH123
 If another decision is needed after the agent responds, add a new
 pull-request comment or review for the next exchange.
 
-In a campaign that the `dream:big` skill leads, the lead comments on and
-merges a sub-issue's pull request, as
-[Talk to the lead](start-a-campaign.md#talk-to-the-lead) explains.
+In a campaign that `dream:big` leads, the lead reviews and merges each
+sub-issue's pull request into the campaign branch. Your review of the
+whole change happens on the campaign's pull request. See
+[Review and merge the campaign](start-a-campaign.md#review-and-merge-the-campaign).
 
 ## Out-of-date branches and failing checks
 
@@ -59,10 +60,6 @@ does not, a pull request that falls behind its base without a conflict
 wakes nobody until it conflicts or you post. If you want such a pull
 request brought up to date, ask the agent on the pull request.
 
-If the repository runs campaigns, read
-[Keep sub-issue pull requests from updating one another](start-a-campaign.md#keep-sub-issue-pull-requests-from-updating-one-another)
-before you turn on the up-to-date requirement.
-
 If the checks fail after two attempts in a row, _dreamcatcher_ stops
 waking the agent for them, and the assignment shows as idle with the
 detail "checks failing after two attempts". A post from you wakes the
@@ -72,7 +69,9 @@ agent again, and gives it two more attempts.
 
 Merge the pull request when the change meets your repository's normal
 review and check requirements. If the work should not land, close it
-instead.
+instead. A merge into the default branch lets GitHub close the issue.
+For a merge into a campaign branch, _dreamcatcher_ closes the sub-issue
+during wrap-up.
 
 Either action asks the agent for one final **wrap-up** round. That round
 receives the merged or closed state and any feedback not relayed
@@ -95,7 +94,7 @@ automatically and when to request a retry.
 To finish the pull request by hand instead, cancel the assignment.
 _dreamcatcher_ then runs no further rounds for it, and no wrap-up
 follows a merge or close.
-[Take over an assignment's pull request](stop-and-recover.md#take-over-an-assignments-pull-request)
+[Take over a pull request](stop-and-recover.md#take-over-a-pull-request)
 explains how.
 
 An active assignment continues to receive feedback and wrap-up from its
