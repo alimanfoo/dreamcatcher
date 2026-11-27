@@ -6,8 +6,9 @@ from pathlib import Path
 from unittest.mock import Mock
 
 import pytest
-from clocks import PINNED, Ticking
+from clocks import LABEL_APPLIED_AT, PINNED, Ticking
 from conftest import (
+    ASSIGNMENT_LABEL,
     FILED,
     HEAD,
     LATER,
@@ -18,10 +19,12 @@ from conftest import (
     REPOSITORY,
     compose_assignment_issues,
     compose_comment,
+    compose_labelling_event,
     compose_page,
     compose_pull_request,
     compose_pull_request_listing,
     configure,
+    offer_labelling_events,
     offer_listing,
     run_git,
 )
@@ -77,6 +80,7 @@ from dreamcatcher.scheduler.models import (
     GlobalCooldown,
     IssueReference,
     PullRequestFinding,
+    RequestConsumedFinding,
     SchedulerRecord,
     StartedRound,
     StartTimeFinding,
@@ -341,37 +345,44 @@ def test_a_second_tick_judges_an_assigned_issue_handled(ready_repo):
     ]
 
 
-def test_a_completed_assignment_releases_its_issue(ready_repo):
-    state = StateDirectory(root=ready_repo)
-    assignment = write_assignment(
-        state=state,
-        identifier="GH8-20260818-184158-assignment",
-        issue=8,
-    )
-    write_round(
-        directory=assignment,
-        number=1,
-        record=AgentRoundRecord(
-            number=1,
-            started=PINNED,
-            pid=1,
-            ending=_compose_agent_round_ending(at=PINNED, status=0),
-        ),
-        round_input=MERGED_INPUT,
-    )
+def test_a_closed_pull_request_leaves_its_label_consumed_until_it_is_reapplied(
+    ready_repo, gh_with_available_issue
+):
+    gh = gh_with_available_issue
     scheduler, clock = create_scheduler(root=ready_repo)
+    first = scheduler.tick(at=clock())
+    finish_rounds(scheduler=scheduler)
+    gh.replies(stdout=compose_pull_request(state="CLOSED"), to="pr view")
+    scheduler.tick(at=clock())
+    finish_rounds(scheduler=scheduler)
 
-    observed = scheduler.tick(at=clock())
+    calls_before_hold = len(gh.calls)
+    held = scheduler.tick(at=clock())
+    assert first.launched_agent_work_identifiers == [CREATED_ASSIGNMENT_ID]
+    assert held.launched_agent_work_identifiers == []
+    assert held.rows == [compose_request_row(issue=8, finding=RequestConsumedFinding())]
+    assert not any(
+        call.arguments[:2] == ["issue", "view"] for call in gh.calls[calls_before_hold:]
+    )
 
-    assert observed.launched_agent_work_identifiers == [CREATED_ASSIGNMENT_ID]
-    assert observed.rows == [
-        compose_request_row(
-            issue=8,
-            agent_work_identifier=CREATED_ASSIGNMENT_ID,
-            finding=UNCLAIMED,
-            started_round=StartedRound(number=1),
-        )
-    ]
+    reapplied_at = LABEL_APPLIED_AT + timedelta(seconds=1)
+    offer_labelling_events(
+        gh=gh,
+        issue=8,
+        events=[
+            compose_labelling_event(label=ASSIGNMENT_LABEL),
+            compose_labelling_event(label=ASSIGNMENT_LABEL, applied_at=reapplied_at),
+        ],
+    )
+    restarted = scheduler.tick(at=clock())
+    finish_rounds(scheduler=scheduler)
+
+    previous, current = read_assignments(state=scheduler.context.state)
+    assert previous.ending is not None
+    assert previous.record.label_applied_at == LABEL_APPLIED_AT
+    assert restarted.launched_agent_work_identifiers == [current.identifier]
+    assert current.identifier != previous.identifier
+    assert current.record.label_applied_at == reapplied_at
 
 
 def test_a_tick_at_the_cap_holds_an_assignment_that_needs_a_round(

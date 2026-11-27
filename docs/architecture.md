@@ -95,7 +95,7 @@ block an issue, which assignment and campaign requests share.
 `labelling.py` holds the rule that work starts or resumes only on a
 dispatch label that the signed-in account applied, which every kind's
 requests and open conversations and campaigns share. `inspection.py`
-holds the shapes they share: the scheduling context, the candidate, the
+holds the scheduling context, the dispatch request, the candidate, the
 round plan and the inspection of one request. `models.py` holds the
 scheduler record and its request rows, and `faults.py` the fault and
 cooldown rules.
@@ -119,10 +119,13 @@ One scheduler tick:
    or something else holds it back;
 5. then, for each request of the pass's kinds with no open work, skips
    an assignment label whose issue already has an open assignment,
-   checks for a routing conflict, asks who applied the label, then asks
-   an assignment request the start-time questions, reads the comments of
-   a conversation's issue, or asks which open issues block a campaign's
-   parent and, when none does, reads the parent's comments;
+   checks for a routing conflict, and reads who applied the label and
+   when. For an assignment or campaign, it holds the request if the
+   label was applied at or before the application recorded by the newest
+   work of that kind on the issue, including ended work. Otherwise it
+   asks an assignment request the start-time questions, reads the
+   comments of a conversation's issue, or asks which open issues block a
+   campaign's parent and, when none does, reads the parent's comments;
 6. removes the worktree, and an assignment's local branch, of each piece
    of work that it sees end, unless the user cancelled it;
 7. starts a global cooldown when the counted faults call for one, and
@@ -139,8 +142,9 @@ A candidate is open work the tick may start a round for, or a request it
 may start work for. It carries a composer that builds the round's plan
 once the work exists: the preparation that runs inside the round, the
 input prompt, and the finishing step. The tick creates the work of a new
-request, then starts the round the plan describes, so creating and
-launching are one path for every kind.
+request with its label application time for an assignment or campaign,
+then starts the round the plan describes. Conversations use the same
+path with no application time in their work record.
 
 Alternation advances when a kind is selected, including when its start
 fails, and begins afresh after a daemon restart.
@@ -281,11 +285,11 @@ alone always says how far the lead has read and which sub-issues it was
 last given. A campaign's worktree never acquires a branch or a pull
 request.
 
-For a campaign request, each tick first lists the open issues that block
-the parent. An open blocker, or a failed read of the blockers, holds the
-request, so the tick observes no sub-issues and reads no comments for
-it. An open campaign reads no blockers, so a blocker added after the
-campaign starts changes nothing for it.
+After the label checks clear a campaign request, the tick lists the open
+issues that block the parent. An open blocker or a failed read of the
+blockers holds the request, so the tick observes no sub-issues and reads
+no comments for it. An open campaign reads no blockers, so a blocker
+added after the campaign starts changes nothing for it.
 
 Each tick then observes a campaign's sub-issues, for an open campaign
 and for a campaign request that nothing blocks. It lists the parent's
@@ -471,8 +475,8 @@ constructs GitHub commands. It owns projections and operations for:
 - repository and account identity, and whether the account can push;
 - the repository's labels, and creating a label;
 - issue title, state, assignees, labels, and dependencies;
-- the events that applied a label to an issue, with the account that
-  applied it;
+- the events that applied a label to an issue, with the account and
+  application time;
 - a parent issue's direct sub-issues, with their titles and states;
 - linked pull requests;
 - pull-request identity, draft state, readiness, terminal state, merge
@@ -611,6 +615,8 @@ holds what the tick found as a typed finding:
   two labels of its kind, those labels;
 - for a request, or an open conversation or campaign, whose label an
   account other than the signed-in one applied, that account;
+- for an assignment or campaign request already consumed by earlier
+  work, a consumed request finding;
 - for a conversation or campaign that the user paused, the cause;
 - for a read that failed, the reason, in place of what it would have
   found.
@@ -793,7 +799,7 @@ of their identities.
 mechanics required to bootstrap that directory. The modules that own
 agent work and rounds name the files within their own directories. A
 state-format constant selects the versioned root, currently
-`.dreamcatcher/v8/`, so one format never reads another format's files.
+`.dreamcatcher/v9/`, so one format never reads another format's files.
 The shared `.dreamcatcher/daemon.lock` stays outside that root, so
 daemons using different formats from v5 on use the same lock. The daemon
 acquires an operating-system lock on that empty file before it starts
@@ -874,6 +880,8 @@ it again. The same record serves every kind of agent work. It persists:
   directory that holds the record and the worktree;
 - the issue title captured at creation;
 - the dispatch label and the kind of agent work;
+- the GitHub application time of the label that started an assignment or
+  campaign;
 - the selected harness, model, effort and harness config;
 - the work's instructions, which are the recipe's prompt with the issue
   filled in.

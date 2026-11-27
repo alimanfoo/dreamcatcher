@@ -153,6 +153,8 @@ round, discarding any local change. Do not commit, push or open a pull request
 from this worktree. Run every `gh pr merge` as a shell command of its own, with
 no other command joined to it, because the unattended permissions approve a
 merge only then.
+To dispatch a new assignment, remove its assignment label if present, then add
+the label.
 Inspect GitHub before each change and do not repeat an action that an earlier
 attempt completed. Do not close the parent issue or change its assignees or
 labels, because the user closes it to end the campaign and removing its label or

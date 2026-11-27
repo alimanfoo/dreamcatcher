@@ -22,7 +22,6 @@ from dreamcatcher.campaigns import (
     prepare_campaign_round,
     read_delivered_campaign_input,
 )
-from dreamcatcher.config import DispatchRoute
 from dreamcatcher.github import (
     Issue,
     IssueComment,
@@ -36,6 +35,7 @@ from dreamcatcher.scheduler.blockers import list_open_blocking_issues
 from dreamcatcher.scheduler.faults import is_last_round_unfinished
 from dreamcatcher.scheduler.inspection import (
     Candidate,
+    DispatchRequest,
     Inspection,
     RoundPlan,
     SchedulingContext,
@@ -87,7 +87,10 @@ def inspect_open_campaign(
         work=work,
         is_in_fault=is_in_fault,
         inspect_eligible=partial(
-            _inspect_lead_input, context=context, work_or_route=work, children=children
+            _inspect_lead_input,
+            context=context,
+            work_or_request=work,
+            children=children,
         ),
     )
     return _record_children(inspection=inspection, children=children)
@@ -98,7 +101,7 @@ def inspect_campaign_request(
     context: SchedulingContext,
     observations: AssignmentObservations,
     issue: Issue,
-    route: DispatchRoute,
+    request: DispatchRequest,
     row: RequestRow,
 ) -> Inspection:
     """Read what may start a campaign at a request with no open campaign.
@@ -122,7 +125,11 @@ def inspect_campaign_request(
         context=context, parent=issue.number, observations=observations
     )
     inspection = _inspect_lead_input(
-        context=context, issue=issue, work_or_route=route, children=children, row=row
+        context=context,
+        issue=issue,
+        work_or_request=request,
+        children=children,
+        row=row,
     )
     return _record_children(inspection=inspection, children=children)
 
@@ -243,7 +250,7 @@ def _inspect_lead_input(
     *,
     context: SchedulingContext,
     issue: Issue,
-    work_or_route: AgentWork | DispatchRoute,
+    work_or_request: AgentWork | DispatchRequest,
     children: list[CampaignChild] | ReadFailureFinding,
     row: RequestRow,
 ) -> Inspection:
@@ -261,7 +268,7 @@ def _inspect_lead_input(
     """
     if isinstance(children, ReadFailureFinding):
         return Inspection(row=row.model_copy(update={"finding": children}))
-    campaign = work_or_route if isinstance(work_or_route, AgentWork) else None
+    campaign = work_or_request if isinstance(work_or_request, AgentWork) else None
     previous = (
         None if campaign is None else read_delivered_campaign_input(campaign=campaign)
     )
@@ -294,7 +301,7 @@ def _inspect_lead_input(
     return Inspection(
         row=row,
         candidate=Candidate(
-            work_or_route=work_or_route,
+            work_or_request=work_or_request,
             compose_round=partial(
                 _compose_campaign_round,
                 context=context,

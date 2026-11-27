@@ -3,7 +3,6 @@
 from functools import partial
 
 from dreamcatcher.agent_work import AgentWork
-from dreamcatcher.config import DispatchRoute
 from dreamcatcher.github import Issue, IssueComment
 from dreamcatcher.issue_conversations import (
     post_conversation_answer,
@@ -13,6 +12,7 @@ from dreamcatcher.issue_conversations import (
 from dreamcatcher.prompts import compose_conversation_input_prompt
 from dreamcatcher.scheduler.inspection import (
     Candidate,
+    DispatchRequest,
     Inspection,
     RoundPlan,
     SchedulingContext,
@@ -34,7 +34,7 @@ def inspect_open_conversation(
         work=work,
         is_in_fault=is_in_fault,
         inspect_eligible=partial(
-            _inspect_comments, context=context, work_or_route=work
+            _inspect_comments, context=context, work_or_request=work
         ),
     )
 
@@ -43,21 +43,23 @@ def inspect_conversation_request(
     *,
     context: SchedulingContext,
     issue: Issue,
-    route: DispatchRoute,
+    request: DispatchRequest,
     row: RequestRow,
 ) -> Inspection:
     """Read the comments at a conversation request with no open conversation.
 
     A new conversation starts when one of them waits.
     """
-    return _inspect_comments(context=context, issue=issue, work_or_route=route, row=row)
+    return _inspect_comments(
+        context=context, issue=issue, work_or_request=request, row=row
+    )
 
 
 def _inspect_comments(
     *,
     context: SchedulingContext,
     issue: Issue,
-    work_or_route: AgentWork | DispatchRoute,
+    work_or_request: AgentWork | DispatchRequest,
     row: RequestRow,
 ) -> Inspection:
     """Read the comments at the issue and return a candidate when some wait.
@@ -69,8 +71,8 @@ def _inspect_comments(
         context=context,
         issue=issue.number,
         cursor=(
-            read_issue_comment_cursor(conversation=work_or_route)
-            if isinstance(work_or_route, AgentWork)
+            read_issue_comment_cursor(conversation=work_or_request)
+            if isinstance(work_or_request, AgentWork)
             else None
         ),
     )
@@ -84,7 +86,7 @@ def _inspect_comments(
     return Inspection(
         row=row,
         candidate=Candidate(
-            work_or_route=work_or_route,
+            work_or_request=work_or_request,
             compose_round=partial(
                 _compose_comment_round, context=context, issue=issue, comments=comments
             ),

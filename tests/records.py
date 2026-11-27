@@ -11,7 +11,7 @@ from contextlib import ExitStack
 from datetime import datetime, timedelta
 from pathlib import Path
 
-from clocks import PINNED
+from clocks import LABEL_APPLIED_AT, PINNED
 
 from dreamcatcher import (
     agent_assignments,
@@ -122,6 +122,7 @@ def write_assignment(
     harness_session_identifier: str | None = "abc-123",
     title: str | None = None,
     pull_request: int | None = _PULL_REQUEST_52,
+    label_applied_at: datetime = LABEL_APPLIED_AT,
 ) -> Path:
     """Write an assignment's worktree and its records, and return its own directory.
 
@@ -142,6 +143,7 @@ def write_assignment(
             issue=issue,
             title=f"Issue {issue}" if title is None else title,
             dispatch_label="dream:smith",
+            label_applied_at=label_applied_at,
             kind=AgentWorkKind.ASSIGNMENT,
             harness=AgentHarness.CLAUDE,
             model="opus[1m]",
@@ -188,6 +190,7 @@ def write_conversation(
             issue=issue,
             title=f"Issue {issue}",
             dispatch_label=dispatch_label,
+            label_applied_at=None,
             kind=AgentWorkKind.CONVERSATION,
             harness=harness,
             model="opus[1m]",
@@ -227,6 +230,7 @@ def write_campaign(
             issue=issue,
             title=f"Parent {issue}",
             dispatch_label=dispatch_label,
+            label_applied_at=LABEL_APPLIED_AT,
             kind=AgentWorkKind.CAMPAIGN,
             harness=harness,
             model="opus[1m]",

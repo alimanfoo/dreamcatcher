@@ -18,6 +18,7 @@ from dreamcatcher.scheduler.models import (
     PauseCause,
     PausedFinding,
     PullRequestFinding,
+    RequestConsumedFinding,
 )
 from dreamcatcher.words import describe_count
 
@@ -67,6 +68,11 @@ def describe_hold(
         return (
             IssueFact(words=f"labelled by {applier}"),
             "remove and re-add the label yourself",
+        )
+    if isinstance(finding, RequestConsumedFinding):
+        return (
+            IssueFact(words="label's request already used"),
+            "remove and re-add the label for another attempt",
         )
     return (
         IssueFact(words=f"multiple {kind} labels"),

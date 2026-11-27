@@ -114,7 +114,9 @@ naming the work to a terminal command; the work's record says it too.
 Each piece of agent work has one **work record**, written once when the
 work is created. It holds the issue, the dispatch label, the kind of
 agent work, the issue title and the harness settings the dispatch recipe
-gave, so later configuration edits do not change work in progress.
+gave, so later configuration edits do not change work in progress. For
+an assignment or campaign, it also holds when GitHub says the label that
+made its request was applied.
 
 ### Agent harness and harness session
 
@@ -299,10 +301,18 @@ A **status report** is _dreamcatcher_'s read-only account of a
 _dreamcatcher_ instance, its agent work and its requests at a particular
 time.
 
-A **request** is one dispatch label on one issue. It exists while the
-label is on the issue, so one issue with two labels is two requests.
-Nothing is stored for a request: each scheduler tick reads the labels
-from GitHub, and the agent work a request led to is what is stored.
+For an assignment or a campaign, a **request** is one application of a
+dispatch label to an issue. The work it starts **consumes** it and
+records when GitHub says the label was applied. When no open work
+answers the label, work can start only if the label is still on and was
+applied after the one that started the newest work of that kind on the
+issue. Removing and re-adding the label makes a new request. An issue
+with no earlier work of that kind needs only its first label
+application.
+
+A conversation's label is a switch. It makes a request while it is on
+the issue and allows the conversation to start or resume in response to
+the user's comments.
 
 A **request row** is what one scheduler tick found for one request, held
 as typed values rather than sentences. It names the open agent work the
@@ -310,11 +320,11 @@ request led to, if any, and the round the tick started for it. Its
 **finding** is what the tick read for the request, such as the pull
 request's state and the user posts past the cursor, the open pull
 requests that claim the issue and the open issues that block it, the
-conflicting labels, or the account that applied the label when it was
-not the user. When a read fails, the finding holds the reason in place
-of what the read would have found. The row also holds the issue's state
-when the tick read the issue, as it does for every request it lists and
-for every open conversation or campaign.
+conflicting labels, a consumed request, or the account that applied the
+label when it was not the user. When a read fails, the finding holds the
+reason in place of what the read would have found. The row also holds
+the issue's state when the tick read the issue, as it does for every
+request it lists and for every open conversation or campaign.
 
 An **agent work status** is one piece of agent work's single summary
 status in a status report, derived the same way for every kind from the
@@ -652,11 +662,12 @@ A request with no open work has one of these request statuses:
   its issue, until that changes. An open issue blocks the issue of an
   assignment or campaign request, an open pull request linked to an
   assignment request's issue claims it, someone other than the user
-  applied the request's label, or the issue has a routing conflict. Work
-  starts by itself once a blocker closes or a claiming pull request
-  goes. A label that someone else applied, and a routing conflict, need
-  the user to act. An open conversation or campaign is held in the same
-  way, as its agent work status says.
+  applied the request's label, the issue has a routing conflict, or
+  earlier work already consumed the request. Work starts by itself once
+  a blocker closes or a claiming pull request goes. A label that someone
+  else applied, a routing conflict or a consumed request needs the user
+  to act. An open conversation or campaign can also be held, as its
+  agent work status says.
 - **Idle**: a conversation request waits for the user's first comment.
 - **Unknown**: a read that decides whether work may start failed, or
   GitHub could not yet tell. A failure to read external state can delay

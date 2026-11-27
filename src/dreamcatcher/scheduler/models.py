@@ -124,9 +124,20 @@ class LabelAppliedByOtherFinding(DreamcatcherDocument):
     applier: str
 
 
+class RequestConsumedFinding(DreamcatcherDocument):
+    """Say that work already used the label application as its request."""
+
+    found: Literal["request already consumed"] = "request already consumed"
+
+
 # What a tick finds that holds open work or a request back until the issue
 # changes on GitHub.
-HoldFinding = PausedFinding | LabelAppliedByOtherFinding | ConflictingLabelsFinding
+HoldFinding = (
+    PausedFinding
+    | LabelAppliedByOtherFinding
+    | ConflictingLabelsFinding
+    | RequestConsumedFinding
+)
 
 
 class CampaignFinding(DreamcatcherDocument):
@@ -156,9 +167,7 @@ type RequestFinding = Annotated[
     | IssueCommentsFinding
     | StartTimeFinding
     | BlockingIssuesFinding
-    | ConflictingLabelsFinding
-    | PausedFinding
-    | LabelAppliedByOtherFinding
+    | HoldFinding
     | CampaignFinding
     | ReadFailureFinding,
     Field(discriminator="found"),
