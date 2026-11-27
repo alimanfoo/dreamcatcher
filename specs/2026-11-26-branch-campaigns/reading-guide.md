@@ -72,8 +72,8 @@ exists, `_inspect_pull_request` reads it, reads the user's posts past
 the cursor and the pull request signals, and notes a merged or closed
 pull request that no round has wrapped up. `_compose_relay_round`
 freezes an `AssignmentRoundInput` and, for a wrap-up, sets
-`complete_assignment` as the finishing step. Once an assignment exists,
-its issue's labels play no part.
+`complete_pull_request_work` as the finishing step. Once an assignment
+exists, its issue's labels play no part.
 
 The issue-work shape is `inspect_open_issue_work` in
 `scheduler/issue_work.py`. It reads the issue. A closed issue ends the
