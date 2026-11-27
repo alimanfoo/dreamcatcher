@@ -123,10 +123,11 @@ One scheduler tick:
    when. For an assignment or campaign, it holds the request if the
    label was applied at or before the latest GitHub application time
    recorded by work of that kind on the issue, including ended work.
-   Otherwise it asks an assignment request the start-time questions,
-   reads the comments of a conversation's issue, or asks which open
-   issues block a campaign's parent and, when none does, reads the
-   parent's comments;
+   Otherwise it asks an assignment request the start-time questions and
+   checks its parent when neither a claim nor a blocker holds it, reads
+   the comments of a conversation's issue, or asks which open issues
+   block a campaign's parent and, when none does, reads the parent's
+   comments;
 6. removes the worktree, and an assignment's local branch, of each piece
    of work that it sees end, unless the user cancelled it;
 7. starts a global cooldown when the counted faults call for one, and
@@ -146,6 +147,17 @@ input prompt, and the finishing step. The tick creates the work from the
 dispatch request, which carries the label application time for an
 assignment or campaign and the base branch when one was selected. It
 then starts the round the plan describes.
+
+`assignments.py` owns the base choice. The first pass builds its
+assignment request inspector from all saved work, including ended
+campaigns. The inspector looks up the direct parent and considers only a
+parent in this repository. It uses the newest saved campaign by label
+application time, or reads the parent's labels when there is no campaign
+on record. It shares the answer for a parent across its sub-issues
+during the pass. A failed read leaves the base unknown and prevents a
+launch. An open campaign pull request supplies its branch as the base. A
+campaign's sub-issue with no open campaign pull request is held with a
+finding that names the parent.
 
 Alternation advances when a kind is selected, including when its start
 fails, and begins afresh after a daemon restart.
@@ -487,6 +499,8 @@ constructs GitHub commands. It owns projections and operations for:
 - the events that applied a label to an issue, with the account and
   application time;
 - a parent issue's direct sub-issues, with their titles and states;
+- an issue's direct parent and its repository, including an explicit
+  answer when the issue has no parent;
 - linked pull requests;
 - pull-request identity, draft state, readiness, terminal state, merge
   state, head commit, what its checks add up to, and whether any of them

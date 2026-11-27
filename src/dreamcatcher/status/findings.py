@@ -12,6 +12,7 @@ from dreamcatcher.github import (
 )
 from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.scheduler.models import (
+    CampaignPullRequestMissingFinding,
     HoldFinding,
     IssueReference,
     LabelAppliedByOtherFinding,
@@ -73,6 +74,13 @@ def describe_hold(
         return (
             IssueFact(words="label's request already used"),
             "remove and re-add the label for another attempt",
+        )
+    if isinstance(finding, CampaignPullRequestMissingFinding):
+        return (
+            IssueFact(
+                words="no open campaign pull request for", issues=(finding.parent,)
+            ),
+            "wait for the parent's campaign pull request to open",
         )
     return (
         IssueFact(words=f"multiple {kind} labels"),

@@ -6,6 +6,7 @@ import pytest
 
 from dreamcatcher.github import (
     IssuePullRequestContext,
+    ParentIssue,
     PullRequestReference,
     _identify_github_account,
     _identify_github_repository,
@@ -16,6 +17,7 @@ from dreamcatcher.github import (
     list_labels,
     list_pull_requests,
     list_sub_issues,
+    read_issue_parent,
     read_issue_pull_request_context,
 )
 
@@ -97,6 +99,13 @@ def test_a_parent_names_its_children():
     assert (FIRST_STAGE, REPOSITORY) in [
         (child.number, child.repository) for child in found
     ]
+
+
+def test_a_sub_issue_names_its_parent():
+    parent = read_issue_parent(repository=REPOSITORY, issue=FIRST_STAGE)
+
+    assert isinstance(parent, ParentIssue)
+    assert (parent.number, parent.repository) == (PARENT, REPOSITORY)
 
 
 def test_a_labelling_event_names_a_renamed_label_as_it_is_called_now():

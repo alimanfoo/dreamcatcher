@@ -19,11 +19,13 @@ from conftest import (
     REPOSITORY,
     compose_assignment_issues,
     compose_blocker,
+    compose_issue_parent_read,
     compose_labelling_event,
     compose_labelling_event_read,
     compose_page,
     compose_pull_request,
     count_labelling_event_reads,
+    offer_issue_parent,
     offer_labelling_events,
     offer_listing,
 )
@@ -31,7 +33,9 @@ from records import (
     AssignmentRequestFacts,
     read_assignments,
     write_assignment,
+    write_campaign,
     write_ending,
+    write_work_pull_request,
 )
 from rows import UNCLAIMED, compose_request_row
 
@@ -41,6 +45,7 @@ from dreamcatcher.config import AgentHarness, DreamcatcherConfig
 from dreamcatcher.pull_request_work import cancel_pull_request_work
 from dreamcatcher.scheduler import Scheduler, SchedulingContext
 from dreamcatcher.scheduler.models import (
+    CampaignPullRequestMissingFinding,
     ConflictingLabelsFinding,
     IssueReference,
     LabelAppliedByOtherFinding,
@@ -52,13 +57,21 @@ from dreamcatcher.scheduler.models import (
 from dreamcatcher.state import StateDirectory
 
 SETTINGS = {"prompt": "/dream:smith GH{issue}", "model": "opus[1m]", "effort": "xhigh"}
+PARENT = 20
+CAMPAIGN_PULL_REQUEST = 60
+CAMPAIGN_LABEL = "dream:big"
 
 
-def compose_config(*, labels: Sequence[str]) -> DreamcatcherConfig:
+def compose_config(
+    *, labels: Sequence[str], campaign_labels: Sequence[str] = ()
+) -> DreamcatcherConfig:
     """Return a config that routes each label to the same harness recipe."""
     return DreamcatcherConfig.model_validate(
         {
             "assignment": [{"label": label, "claude": SETTINGS} for label in labels],
+            "campaign": [
+                {"label": label, "claude": SETTINGS} for label in campaign_labels
+            ],
         }
     )
 
@@ -89,9 +102,9 @@ def state(tmp_path):
 
 
 def list_requests(
-    *, state: StateDirectory, config: DreamcatcherConfig
+    *, state: StateDirectory, config: DreamcatcherConfig, max_agents: int = 0
 ) -> SchedulerRecord:
-    """Return what a tick with no free agent slot records for these routes."""
+    """Return what a tick records for these routes."""
     return Scheduler(
         context=SchedulingContext(
             repository=REPOSITORY,
@@ -102,7 +115,7 @@ def list_requests(
         ),
         preferred_harness=AgentHarness.CLAUDE,
         rounds={},
-        max_agents=0,
+        max_agents=max_agents,
     ).tick(at=read_current_time())
 
 
@@ -119,6 +132,164 @@ def test_an_issue_nothing_claims_or_blocks_is_a_clear_request(gh, state):
     )
 
     assert rows == [compose_request_row(issue=8, finding=UNCLAIMED)]
+
+
+@pytest.mark.parametrize("labels", [[], [CAMPAIGN_LABEL.upper()]])
+def test_a_parent_without_campaign_history_is_decided_by_its_campaign_label(
+    gh, state, labels
+):
+    offer_issue_parent(gh=gh, issue=8, parent=PARENT, repository=REPOSITORY.upper())
+    [parent] = compose_assignment_issues(filed=[(PARENT, FILED)])
+    parent["labels"] = [{"name": label} for label in labels]
+    gh.replies(stdout=json.dumps(parent), to=f"issue view {PARENT}")
+
+    [row] = list_request_rows(
+        state=state,
+        config=compose_config(
+            labels=[ASSIGNMENT_LABEL], campaign_labels=[CAMPAIGN_LABEL]
+        ),
+    )
+
+    assert row.finding == (
+        CampaignPullRequestMissingFinding(parent=IssueReference(number=PARENT))
+        if labels
+        else UNCLAIMED
+    )
+
+
+@pytest.mark.parametrize(
+    ("ending", "pull_request_state", "is_available"),
+    [
+        (None, None, False),
+        (None, "OPEN", True),
+        (AgentWorkEndReason.CANCELLED, "OPEN", True),
+        (None, "MERGED", False),
+        (None, "CLOSED", False),
+        (AgentWorkEndReason.COMPLETED, "OPEN", False),
+    ],
+)
+def test_a_campaign_sub_issue_can_start_only_into_an_open_campaign_pull_request(
+    gh, state, ending, pull_request_state, is_available
+):
+    offer_issue_parent(gh=gh, issue=8, parent=PARENT)
+    campaign = write_campaign(state=state, issue=PARENT)
+    if ending is not None:
+        write_ending(directory=campaign, reason=ending, at=PINNED)
+    if pull_request_state is not None:
+        write_work_pull_request(directory=campaign, number=CAMPAIGN_PULL_REQUEST)
+        gh.replies(
+            stdout=compose_pull_request(
+                number=CAMPAIGN_PULL_REQUEST, state=pull_request_state
+            ),
+            to=f"pr view {CAMPAIGN_PULL_REQUEST}",
+        )
+
+    rows = list_request_rows(
+        state=state, config=compose_config(labels=[ASSIGNMENT_LABEL])
+    )
+
+    [row] = [row for row in rows if row.issue == 8]
+    assert row.finding == (
+        UNCLAIMED
+        if is_available
+        else CampaignPullRequestMissingFinding(parent=IssueReference(number=PARENT))
+    )
+    assert sum(call.arguments[:2] == ["pr", "view"] for call in gh.calls) == int(
+        pull_request_state is not None and ending is not AgentWorkEndReason.COMPLETED
+    )
+
+
+def test_a_parent_in_another_repository_does_not_match_a_local_campaign(gh, state):
+    write_campaign(state=state, issue=PARENT)
+    offer_issue_parent(gh=gh, issue=8, parent=PARENT, repository="another/repository")
+
+    rows = list_request_rows(
+        state=state, config=compose_config(labels=[ASSIGNMENT_LABEL])
+    )
+
+    [row] = [row for row in rows if row.issue == 8]
+    assert row.finding == UNCLAIMED
+
+
+@pytest.mark.parametrize("is_incomplete", [False, True])
+def test_an_unknown_parent_does_not_start_an_assignment(gh, state, is_incomplete):
+    command = compose_issue_parent_read(issue=8)
+    if is_incomplete:
+        gh.replies(stdout='{"data":{"repository":{"issue":{}}}}', to=command)
+    else:
+        gh.fails(stderr="gh: could not connect to github.com", to=command)
+
+    tick = list_requests(
+        state=state, config=compose_config(labels=[ASSIGNMENT_LABEL]), max_agents=1
+    )
+
+    [row] = tick.rows
+    assert isinstance(row.finding, ReadFailureFinding)
+    assert tick.launched_agent_work_identifiers == []
+    assert read_assignments(state=state) == []
+
+
+@pytest.mark.parametrize("recorded_campaign", [False, True])
+def test_a_failed_read_of_the_campaign_leaves_the_assignment_request_unknown(
+    gh, state, recorded_campaign
+):
+    offer_issue_parent(gh=gh, issue=8, parent=PARENT)
+    if recorded_campaign:
+        campaign = write_campaign(state=state, issue=PARENT)
+        write_work_pull_request(directory=campaign, number=CAMPAIGN_PULL_REQUEST)
+        write_ending(directory=campaign, reason=AgentWorkEndReason.CANCELLED, at=PINNED)
+        command = f"pr view {CAMPAIGN_PULL_REQUEST}"
+    else:
+        command = f"issue view {PARENT}"
+    gh.fails(stderr="gh: could not connect to github.com", to=command)
+
+    [row] = list_request_rows(
+        state=state, config=compose_config(labels=[ASSIGNMENT_LABEL])
+    )
+
+    assert isinstance(row.finding, ReadFailureFinding)
+    assert "could not connect" in row.finding.reason
+
+
+def test_sub_issues_share_the_newest_campaign_pull_request_read_for_one_tick(gh, state):
+    offer_listing(
+        gh=gh, issues=compose_assignment_issues(filed=[(8, FILED), (9, LATER)])
+    )
+    for issue in (8, 9):
+        offer_issue_parent(gh=gh, issue=issue, parent=PARENT)
+    older = write_campaign(state=state, issue=PARENT)
+    write_work_pull_request(directory=older, number=CAMPAIGN_PULL_REQUEST - 1)
+    write_ending(directory=older, reason=AgentWorkEndReason.CANCELLED, at=PINNED)
+    newer = write_campaign(
+        state=state,
+        issue=PARENT,
+        at=PINNED - timedelta(hours=1),
+        label_applied_at=LABEL_APPLIED_AT + timedelta(hours=1),
+    )
+    write_work_pull_request(directory=newer, number=CAMPAIGN_PULL_REQUEST)
+    write_ending(directory=newer, reason=AgentWorkEndReason.CANCELLED, at=PINNED)
+    gh.replies(
+        stdout=compose_pull_request(number=CAMPAIGN_PULL_REQUEST, state="OPEN"),
+        to=f"pr view {CAMPAIGN_PULL_REQUEST}",
+    )
+    config = compose_config(labels=[ASSIGNMENT_LABEL])
+
+    rows = list_request_rows(state=state, config=config)
+
+    assert [row.finding for row in rows] == [UNCLAIMED, UNCLAIMED]
+    assert [
+        call.arguments[:3] for call in gh.calls if call.arguments[:2] == ["pr", "view"]
+    ] == [["pr", "view", str(CAMPAIGN_PULL_REQUEST)]]
+
+    gh.replies(
+        stdout=compose_pull_request(number=CAMPAIGN_PULL_REQUEST, state="CLOSED"),
+        to=f"pr view {CAMPAIGN_PULL_REQUEST}",
+    )
+    rows = list_request_rows(state=state, config=config)
+
+    assert [row.finding for row in rows] == [
+        CampaignPullRequestMissingFinding(parent=IssueReference(number=PARENT))
+    ] * 2
 
 
 def test_a_clock_correction_does_not_make_an_older_label_application_available(
@@ -159,6 +330,7 @@ def test_a_clock_correction_does_not_make_an_older_label_application_available(
             issue=8, label="dream:less", finding=RequestConsumedFinding()
         )
     ]
+    assert not any(call.arguments[:3] == ["api", "graphql", "-F"] for call in gh.calls)
 
 
 def test_requests_are_ordered_oldest_issue_first(gh, state):
@@ -201,6 +373,7 @@ def test_a_request_names_the_open_issues_that_block_it(gh, state):
     assert row.finding == StartTimeFinding(
         linked_pull_requests=[], blocking_issues=[IssueReference(number=9)]
     )
+    assert not any(call.arguments[:3] == ["api", "graphql", "-F"] for call in gh.calls)
 
 
 def test_a_request_names_the_repository_of_a_blocker_in_another_one(gh, state):
@@ -249,6 +422,7 @@ def test_a_request_names_the_open_pull_requests_that_claim_it(gh, state):
         linked_pull_requests=[28], blocking_issues=[]
     )
     assert not row.finding.is_clear
+    assert not any(call.arguments[:3] == ["api", "graphql", "-F"] for call in gh.calls)
 
 
 def test_a_cancelled_assignments_pull_request_holds_a_reapplied_label(gh, state):

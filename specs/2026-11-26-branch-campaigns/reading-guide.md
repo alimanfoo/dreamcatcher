@@ -164,8 +164,10 @@ state, head, checks), the pull requests on a branch, the user's posts on
 a pull request, and issue comments. It creates labels and draft pull
 requests, posts issue comments, and closes an issue as completed.
 
-It has no read from an issue to its parent. Claims come from
-`read_issue_pull_request_context`, which reads GitHub's
+`read_issue_parent` reads the direct parent's number and repository. The
+GraphQL response must explicitly give a null parent to mean there is
+none. A failed or incomplete response leaves the parent unknown. Claims
+come from `read_issue_pull_request_context`, which reads GitHub's
 `closedByPullRequestsReferences` and keeps the open ones; that list also
 holds pull requests that someone linked by hand. GitHub's documentation
 says it acts on a closing keyword only in a pull request into the
@@ -215,13 +217,17 @@ applied gets a `LabelAppliedByOtherFinding`.
 `read_user_label_application` in `scheduler/labelling.py` reads who
 applied the label and when. An assignment or campaign request whose time
 has already been consumed gets a `RequestConsumedFinding`. After these
-checks, the kind's request inspector runs. For an assignment that is
-`inspect_assignment_request`, whose `_ask_start_time_questions` asks
-about claiming pull requests and blockers.
+checks, the kind's request inspector runs. The tick builds the
+assignment request inspector with `create_assignment_request_inspector`
+and all saved work. It asks about claims and blockers before reading the
+direct parent. For a parent in this repository, it looks at the newest
+saved campaign or, without one, the parent's labels. It shares that
+parent's base decision across the assignment pass.
 
 The findings are in `scheduler/models.py`. `HoldFinding` includes
 `PausedFinding`, `LabelAppliedByOtherFinding`,
-`ConflictingLabelsFinding` and `RequestConsumedFinding`.
+`ConflictingLabelsFinding`, `RequestConsumedFinding` and
+`CampaignPullRequestMissingFinding`, which names the parent.
 `StartTimeFinding` and `BlockingIssuesFinding` hold claims and blockers.
 `RequestFinding` is the union of every finding a row can hold. In
 status, `describe_request` in `status/requests.py` turns a hold into
@@ -316,12 +322,10 @@ in `state.py` is 9.
   documentation, a sub-issue's pull request into the campaign branch
   neither closes nor claims its issue. Wrap-up preparation explicitly
   closes its issue after the merge.
-- **No read from a sub-issue to its parent.** The sub-issue rule needs
-  one, or an inversion of the parent-to-children lists.
-- **Pass order.** Assignment requests are inspected before campaigns,
-  and a request inspector is not handed the list of work, so the
-  sub-issue rule's question about the parent's open campaign pull
-  request has no answer at that point today.
+- **Pass order.** Assignment requests are inspected before campaigns.
+  The assignment pass reads the campaign pull request it needs from
+  GitHub using the saved record, including cancelled campaigns. Whether
+  the campaign pass reuses that read remains open.
 - **A closed parent ends a campaign at once.** Under
   `inspect_open_issue_work`, the parent closing when the campaign's pull
   request merges would end the campaign before any wrap-up round.

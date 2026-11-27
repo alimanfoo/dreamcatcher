@@ -38,7 +38,8 @@ class RequestStatusValue(StrEnum):
 
     Available means that work starts once an agent slot is free. Held means
     that a blocker, claiming pull request, another account's labelling,
-    conflicting labels or a consumed request prevents a start. Idle means
+    conflicting labels, a consumed request or a missing open campaign pull
+    request prevents a start. Idle means
     that a conversation waits for the user's first comment. Unknown means
     that a read that decides whether work may start failed.
     """

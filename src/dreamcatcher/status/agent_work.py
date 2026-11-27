@@ -163,7 +163,7 @@ class AgentWorkStatus:
     @cached_property
     def pull_request(self) -> int | None:
         """The number of the assignment's pull request, once a round opened it."""
-        return read_work_pull_request_number(assignment=self.work)
+        return read_work_pull_request_number(work=self.work)
 
     @property
     def pull_request_summary(self) -> str | None:
@@ -478,7 +478,7 @@ class AgentWorkStatusReader:
             return _compose_waiting(work=work, row=row, detail="no round has run yet")
         if (
             work.record.kind is AgentWorkKind.ASSIGNMENT
-            and read_work_pull_request_number(assignment=work) is None
+            and read_work_pull_request_number(work=work) is None
         ):
             return _compose_waiting(work=work, row=row, detail="no pull request yet")
         news = None if row is None else _describe_what_is_new(finding=row.finding)

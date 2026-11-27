@@ -275,6 +275,27 @@ close button as rejecting anyone's.
 
 ### Campaigns
 
+#### Which sub-issues go into a campaign branch
+
+The user labels a direct sub-issue for assignment. If the parent has a
+campaign label or has had a campaign in this instance, the assignment
+starts from the branch of its parent's open campaign pull request and
+opens into that branch. The same happens if the user has taken over a
+cancelled campaign whose pull request is still open. An assignment
+already started stays on the base chosen for it.
+
+If the parent is still waiting to start a campaign, its campaign has yet
+to open a pull request, or its campaign's pull request was merged or
+closed, the sub-issue's request is held and its card names the parent.
+That leaves the user free to start a new campaign or remove the
+assignment label or the parent link. An issue with no parent, a parent
+in another repository, or a parent without a campaign label or campaign
+record still goes into the default branch.
+
+The value to the user is that sub-issue work stays with the campaign
+they intend to review as a whole, even if a label stays on after the
+campaign's pull request closes.
+
 #### The user starts a campaign on a parent issue
 
 The user has planned a body of work as a parent issue, with its work in

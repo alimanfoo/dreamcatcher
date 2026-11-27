@@ -178,10 +178,11 @@ concern campaigns and sub-issues.
         default branch as base. A parent in another repository can never
         be one of this instance's campaigns, and comparing its number
         with local records would confuse it with a local issue.
-      - The parent's newest campaign has an open pull request:
-        available, with that campaign's branch as base. The pull
-        request's state is read once, and only when that campaign is
-        open or cancelled.
+      - The parent's newest campaign, ordered by the recorded GitHub
+        label application time, has an open pull request: available,
+        with that campaign's branch as base. The assignment pass shares
+        the answer across the parent's sub-issues. It reads the pull
+        request's state only when that campaign is open or cancelled.
       - Otherwise: held, naming the parent.
 4. **Observations.** _Unchanged._ Collect what the first pass found of
    each assignment, for the campaigns.

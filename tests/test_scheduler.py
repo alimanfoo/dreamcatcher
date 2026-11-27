@@ -1,7 +1,6 @@
 """Scheduling decisions and launch operations."""
 
 import json
-from dataclasses import replace
 from datetime import UTC, datetime, timedelta, timezone
 from pathlib import Path
 from unittest.mock import Mock
@@ -25,6 +24,7 @@ from conftest import (
     compose_pull_request,
     compose_pull_request_listing,
     configure,
+    offer_issue_parent,
     offer_labelling_events,
     offer_listing,
     run_git,
@@ -37,7 +37,10 @@ from records import (
     read_assignments,
     write_assignment,
     write_assignment_round,
+    write_campaign,
+    write_ending,
     write_round,
+    write_work_pull_request,
 )
 from rows import UNCLAIMED, compose_open_assignment_row, compose_request_row
 
@@ -68,9 +71,9 @@ from dreamcatcher.git import (
     push_branch,
 )
 from dreamcatcher.github import CheckResult, PullRequestMergeState, PullRequestState
-from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.pull_request_work import (
     cancel_pull_request_work,
+    compose_work_branch,
     read_user_post_cursor,
     read_work_pull_request_number,
 )
@@ -88,7 +91,6 @@ from dreamcatcher.scheduler.models import (
     StartedRound,
     StartTimeFinding,
 )
-from dreamcatcher.scheduler.tick import _REQUEST_INSPECTORS
 from dreamcatcher.state import StateDirectory
 
 ASSIGNMENT_ID = "GH13-20260819-184158-assignment"
@@ -811,7 +813,7 @@ def test_an_assignment_with_nothing_new_reads_only_its_pull_request_and_posts(
             ),
         )
     ]
-    assert read_work_pull_request_number(assignment=assignment) == 52
+    assert read_work_pull_request_number(work=assignment) == 52
     calls = [" ".join(call.arguments) for call in gh.calls]
     assert not [
         call
@@ -835,13 +837,23 @@ def test_an_assignment_that_has_run_no_round_at_all_gets_its_first(ready_repo):
         "/dream:smith GH13\n\nEnd every post you make on GitHub"
     )
     [assignment] = read_assignments(state=state)
-    assert read_work_pull_request_number(assignment=assignment) == PULL_REQUEST
+    assert read_work_pull_request_number(work=assignment) == PULL_REQUEST
 
 
 def test_an_assignment_opens_and_wraps_up_against_its_selected_base(
-    ready_repo, gh_with_available_issue, monkeypatch
+    ready_repo, gh_with_available_issue
 ):
-    base_branch = "campaign/topic"
+    parent = 20
+    campaign_pull_request = 60
+    campaign = write_campaign(state=StateDirectory(root=ready_repo), issue=parent)
+    write_work_pull_request(directory=campaign, number=campaign_pull_request)
+    write_ending(directory=campaign, reason=AgentWorkEndReason.CANCELLED, at=PINNED)
+    offer_issue_parent(gh=gh_with_available_issue, issue=8, parent=parent)
+    gh_with_available_issue.replies(
+        stdout=compose_pull_request(number=campaign_pull_request, state="OPEN"),
+        to=f"pr view {campaign_pull_request}",
+    )
+    base_branch = compose_work_branch(identifier=campaign.name)
     base_ref = f"refs/remotes/origin/{base_branch}"
     run_git(arguments=["switch", "-c", base_branch], cwd=ready_repo)
     make_empty_commit(worktree=ready_repo, message="Advance the campaign branch")
@@ -857,15 +869,6 @@ def test_an_assignment_opens_and_wraps_up_against_its_selected_base(
     )
     run_git(arguments=["update-ref", "-d", base_ref], cwd=ready_repo)
 
-    def select_base(*, context, issue, request, row):
-        return assignment_scheduling.inspect_assignment_request(
-            context=context,
-            issue=issue,
-            request=replace(request, base_branch=base_branch),
-            row=row,
-        )
-
-    monkeypatch.setitem(_REQUEST_INSPECTORS, AgentWorkKind.ASSIGNMENT, select_base)
     scheduler, clock = create_scheduler(root=ready_repo)
 
     scheduler.tick(at=clock())
@@ -873,7 +876,7 @@ def test_an_assignment_opens_and_wraps_up_against_its_selected_base(
 
     [assignment] = read_assignments(state=scheduler.context.state)
     assert assignment.record.base_branch == base_branch
-    assert read_work_pull_request_number(assignment=assignment) == PULL_REQUEST
+    assert read_work_pull_request_number(work=assignment) == PULL_REQUEST
     assert run_git(
         arguments=["rev-parse", "HEAD^"], cwd=assignment.worktree
     ) == run_git(arguments=["rev-parse", base_ref], cwd=ready_repo)
@@ -1016,7 +1019,7 @@ def test_a_round_after_one_that_failed_part_way_finishes_its_preparation(
     ]
     assert len(created) == (0 if checkpoint == "pull request" else 1)
     [assignment] = read_assignments(state=state)
-    assert read_work_pull_request_number(assignment=assignment) == PULL_REQUEST
+    assert read_work_pull_request_number(work=assignment) == PULL_REQUEST
 
 
 def test_an_assignment_with_a_round_that_has_no_ending_starts_nothing(
@@ -1491,7 +1494,7 @@ def test_a_completed_assignment_loses_its_worktree_and_branch_at_the_next_tick(
     assert completed.ending is not None
     assert completed.ending.reason is AgentWorkEndReason.COMPLETED
     assert [record.number for record in completed.rounds] == [1, 2]
-    assert read_work_pull_request_number(assignment=completed) == PULL_REQUEST
+    assert read_work_pull_request_number(work=completed) == PULL_REQUEST
 
 
 def test_a_cancelled_assignment_keeps_its_worktree_and_branch(
