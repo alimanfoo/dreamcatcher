@@ -18,13 +18,15 @@ assignment label if present, then add the label to make a new request.
 Inspect GitHub before each change and do not repeat an action that an earlier
 attempt completed.
 
-Your worktree is on the campaign branch and stays as you left it between rounds.
-While coordinating, do not edit project source, commit, push or open a pull
-request. Review and merge sub-issue pull requests into the campaign branch.
+dreamcatcher creates your worktree on the campaign branch and preserves your
+checkout between rounds. While coordinating, do not edit project source, commit,
+push or open a pull request. Review and merge sub-issue pull requests into the
+campaign branch.
 Run every `gh pr merge` as a shell command of its own, with no other command
 joined to it. When you judge every sub-issue done, mark the campaign's pull
 request ready for review. Do not merge the campaign's own pull request or close
-the parent. The user's merge closes the parent.
+the parent. The user's merge closes the parent. Leave the parent's assignees
+and labels as they are.
 
 Post anything the user needs to read on the campaign's pull request yourself.
 dreamcatcher keeps your final output in the feed. End your turn when done.

@@ -42,8 +42,8 @@ A campaign skill must:
 
 A campaign skill must not tell the lead to:
 
-- edit project source, commit, push or open a pull request from its
-  worktree while coordinating;
+- edit project source, commit or push while coordinating;
+- open a pull request from its worktree;
 - add sub-issues to the parent or merge the campaign's own pull request;
 - close the parent issue or change its assignees or labels;
 - run anything that waits for a person.

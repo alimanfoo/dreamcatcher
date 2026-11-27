@@ -54,9 +54,10 @@ round also supplies the new pull request number and the worktree head.
 When an earlier attempt already opened the pull request, the campaign's
 opening preparation relays GitHub's current state, head and posts, and a
 terminal state completes through the shared wrap-up finisher. The
-campaign worktree stays on its branch across rounds.
-`CampaignRoundInput` extends `PullRequestRoundInput` with the observed
-sub-issues, their notifications and the daemon's assignment routes.
+campaign worktree starts on its branch and keeps the lead's checkout
+between rounds. `CampaignRoundInput` extends `PullRequestRoundInput`
+with the observed sub-issues, their notifications and the daemon's
+assignment routes.
 
 Read `relay.py` for post eligibility and relay memory. The readers
 validate the recorded input for the work's kind, then use the shared

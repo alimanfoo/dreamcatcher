@@ -285,12 +285,12 @@ directory, so the command line never carries the checkout's own path.
 sub-issues. Once the work record exists, the opening round opens the
 campaign's draft pull request through `pull_request_work.py`. It cuts
 the campaign branch from the default branch and uses GitHub's closing
-keyword for the parent. The campaign keeps this worktree on its branch
-across rounds. The opening input carries the new pull request number,
-its initial state and the head of the worktree that was pushed, along
-with the sub-issues and assignment routes. An opening round that adopts
-an existing pull request relays GitHub's current observation and wraps
-up if it is merged or closed.
+keyword for the parent. The worktree starts on the campaign branch and
+keeps the checkout the lead left between rounds. The opening input
+carries the new pull request number, its initial state and the head of
+the worktree that was pushed, along with the sub-issues and assignment
+routes. An opening round that adopts an existing pull request relays
+GitHub's current observation and wraps up if it is merged or closed.
 
 `scheduler/campaigns.py` asks the shared start-time questions after the
 label checks clear a campaign request. A claim, a blocker or a failed

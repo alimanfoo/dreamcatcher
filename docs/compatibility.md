@@ -230,8 +230,7 @@ Version 2 changes the campaign skill contract. Before starting a
 campaign after upgrading, use a campaign skill that follows the new
 contract. The lead coordinates on the campaign branch and communicates
 on the campaign's pull request. It marks that pull request ready for
-review when it judges every sub-issue done. The assignment and
-conversation skill contracts stay the same.
+review when it judges every sub-issue done.
 
 The contract number is an integer independent of the release and
 state-format versions. A change that requires an existing conforming

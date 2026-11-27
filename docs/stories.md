@@ -552,7 +552,7 @@ counts as the user's, so it can ask for work and give feedback for the
 user when the user allows it. It also learns which work it can leave
 alone: an assignment carries its pull request to ready for review and
 looks after it while it waits, and a campaign's lead carries the
-sub-issues through to merge and raises any decision on the parent.
+sub-issues through to merge and raises decisions for the user.
 
 The value to the user is that an agent which already helps them can
 learn _dreamcatcher_ in one read, and hand work to it without the user
@@ -614,8 +614,8 @@ draft, and its lead is awaiting feedback or sub-issue changes. This
 issue has not started because another pull request already claims it.
 The pull requests the user needs to read are a click away, and ended
 work is folded under a collapsed list, so the page shows only what is
-live. The terminal gives each card as one row, with a count of ended
-work in place of the list. A row gives the work, or the issue and its
+live. The terminal gives each card a status row, with a count of ended
+work in place of the list. The row gives the work, or the issue and its
 label, its status, what GitHub holds, such as the pull request ready for
 review or the colleague who applied a label, and then what
 _dreamcatcher_ found or what the user has to do.
@@ -1014,13 +1014,13 @@ update found.
 The user adds an issue from another repository as a sub-issue of a
 campaign's parent. _dreamcatcher_ only sees work in its own repository,
 so it cannot tell where that sub-issue stands. The campaign's card shows
-its sub-issues as unknown, and the lead starts no round, not even for a
-comment on the parent, so it is never given a picture that leaves the
-sub-issue out or confuses it with a local issue of the same number. A
-lead that could otherwise take a round shows as unknown, naming the
-sub-issue that is in another repository. The user needs to remove that
-sub-issue from the parent, or move the issue into this repository, and
-the next update gives the lead the whole picture.
+its sub-issues as unknown, and the lead starts no round even if a post
+is waiting on the campaign's pull request. This keeps it from working
+from a picture that leaves the sub-issue out or confuses it with a local
+issue of the same number. A lead that could otherwise take a round shows
+as unknown, naming the sub-issue that is in another repository. The user
+needs to remove that sub-issue from the parent, or move the issue into
+this repository, and the next update gives the lead the whole picture.
 
 ### Naming work that is not there
 

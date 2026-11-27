@@ -435,10 +435,10 @@ prompt.
 
 Each campaign has one parent issue, campaign branch, Git worktree and
 agent harness. Its opening round makes the worktree and branch and opens
-a draft pull request. The worktree stays on the campaign branch between
-rounds. A _dreamcatcher_ instance has at most one open campaign per
-parent issue. Once the campaign exists, its pull request drives its
-rounds.
+a draft pull request. The worktree starts on the campaign branch and
+keeps the lead's checkout between rounds. A _dreamcatcher_ instance has
+at most one open campaign per parent issue. Once the campaign exists,
+its pull request drives its rounds.
 
 Each lead round receives the pull request number, state and head commit,
 the user posts and pull request signals, the parent's observed

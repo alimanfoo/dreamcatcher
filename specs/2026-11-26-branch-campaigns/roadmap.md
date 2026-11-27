@@ -178,16 +178,16 @@ tick.
 ## 6. The coordinating lead
 
 **Delivers.** The lead's instructions match its new channel. The
-coordinating input prompt follows the design's lead interface contract;
-every lead round on Claude gets the assignment's allowed list together
-with the coordination tools, such as `gh pr merge`, `gh pr review`,
-`gh issue edit` and `gh api`, and no disallowed list, which includes
-`gh pr ready`; and a coordinating campaign's card shows its pull
-request, its idle and waiting words, and its sub-issue count. The
-campaign skill contract reaches version 2: a campaign skill must tell
-the lead to mark the campaign's pull request ready for review when it
-judges every sub-issue done, and must not tell it to add sub-issues or
-to merge the campaign's own pull request.
+coordinating input prompt follows the design's lead interface contract.
+Every lead round on Claude gets the assignment's allowed list, including
+`gh pr ready`, together with the coordination tools, such as
+`gh pr merge`, `gh pr review`, `gh issue edit` and `gh api`. A
+coordinating campaign's card shows its pull request, idle and waiting
+words, and sub-issue count. The campaign skill contract reaches version
+2: a campaign skill must tell the lead to mark the campaign's pull
+request ready for review when it judges every sub-issue done, and must
+not tell it to add sub-issues or to merge the campaign's own pull
+request.
 
 The change touches `prompts.py` and its golden, `claude.py`, where the
 campaign's own allowed and disallowed lists go, the status words and the
