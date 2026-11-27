@@ -61,12 +61,12 @@ from dreamcatcher.github import (
 from dreamcatcher.prompts import AGENT_POST_MARKER
 from dreamcatcher.state import StateDirectory
 
-# What an assignment's branch is called, before its identifier. The prefix keeps
+# What a branch is called, before its work identifier. The prefix keeps
 # dreamcatcher's own branches apart from everyone else's, and from the branches
 # that the catcher it replaces left behind.
-_ASSIGNMENT_BRANCH_PREFIX = "dreamcatcher-"
+_WORK_BRANCH_PREFIX = "dreamcatcher-"
 
-# The file in an assignment's directory holding its pull request's number.
+# The file in a work directory holding its pull request's number.
 _PULL_REQUEST_RECORD_NAME = "pull-request.json"
 
 
@@ -104,7 +104,7 @@ class AssignmentRoundInput(WriteOnceDreamcatcherDocument):
 
 
 class _PullRequestRecord(WriteOnceDreamcatcherDocument):
-    """Model the number of the assignment's pull request.
+    """Model the work's pull request number.
 
     The round that opens the pull request writes it once, and the scheduler
     reads the pull request by it.
@@ -114,15 +114,15 @@ class _PullRequestRecord(WriteOnceDreamcatcherDocument):
 
 
 def compose_work_branch(*, identifier: str) -> str:
-    """Return the name of the branch that the assignment with this identifier owns."""
-    return f"{_ASSIGNMENT_BRANCH_PREFIX}{identifier}"
+    """Return the branch name derived from the pull request work's identifier."""
+    return f"{_WORK_BRANCH_PREFIX}{identifier}"
 
 
-def read_work_pull_request_number(*, assignment: AgentWork) -> int | None:
-    """Return the number of the assignment's pull request, once a round opened it."""
+def read_work_pull_request_number(*, work: AgentWork) -> int | None:
+    """Return the work's recorded pull request number once a round has opened it."""
     record = read_json_if_exists(
         model=_PullRequestRecord,
-        path=assignment.directory / _PULL_REQUEST_RECORD_NAME,
+        path=work.directory / _PULL_REQUEST_RECORD_NAME,
     )
     return None if record is None else record.number
 

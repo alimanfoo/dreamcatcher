@@ -162,6 +162,27 @@ def offer_listing(*, gh, issues: list[dict]) -> None:
     gh.replies(stdout=json.dumps(issues), to="issue list")
     for issue in issues:
         offer_labels_applied_by_user(gh=gh, issue=issue)
+        offer_issue_parent(gh=gh, issue=issue["number"])
+
+
+def offer_issue_parent(
+    *, gh, issue: int, parent: int | None = None, repository: str = REPOSITORY
+) -> None:
+    """Have GitHub name the issue's parent, or explicitly answer no parent."""
+    found = (
+        None
+        if parent is None
+        else {"number": parent, "repository": {"nameWithOwner": repository}}
+    )
+    gh.replies(
+        stdout=json.dumps({"data": {"repository": {"issue": {"parent": found}}}}),
+        to=compose_issue_parent_read(issue=issue),
+    )
+
+
+def compose_issue_parent_read(*, issue: int) -> str:
+    """Return the words that open gh's read of the issue's parent."""
+    return f"api graphql -F number={issue}"
 
 
 def offer_labels_applied_by_user(*, gh, issue: dict) -> None:

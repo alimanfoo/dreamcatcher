@@ -35,7 +35,7 @@ from dreamcatcher.harness_adapters import AgentRoundLaunchRequest, AgentWorkKind
 from dreamcatcher.prompts import compose_round_prompt
 from dreamcatcher.pull_request_work import remove_work_worktree_and_branch
 from dreamcatcher.scheduler.assignments import (
-    inspect_assignment_request,
+    create_assignment_request_inspector,
     inspect_open_assignment,
 )
 from dreamcatcher.scheduler.campaigns import (
@@ -75,13 +75,6 @@ from dreamcatcher.state import StateDirectory
 _OPEN_WORK_INSPECTORS: dict[AgentWorkKind, OpenWorkInspector] = {
     AgentWorkKind.ASSIGNMENT: inspect_open_assignment,
     AgentWorkKind.CONVERSATION: inspect_open_conversation,
-}
-
-# How the tick's first pass inspects a request that no open work answers, by
-# its kind.
-_REQUEST_INSPECTORS: dict[AgentWorkKind, RequestInspector] = {
-    AgentWorkKind.ASSIGNMENT: inspect_assignment_request,
-    AgentWorkKind.CONVERSATION: inspect_conversation_request,
 }
 
 
@@ -150,7 +143,14 @@ class Scheduler:
         )
         ordinary_inspections = inspect(
             open_work_inspectors=_OPEN_WORK_INSPECTORS,
-            request_inspectors=_REQUEST_INSPECTORS,
+            request_inspectors={
+                AgentWorkKind.ASSIGNMENT: create_assignment_request_inspector(
+                    context=self.context, all_work=all_work
+                ),
+                AgentWorkKind.CONVERSATION: partial(
+                    inspect_conversation_request, context=self.context
+                ),
+            },
         )
         observations = _observe_assignments(
             work=all_work, inspections=ordinary_inspections, listing=listing
@@ -165,7 +165,9 @@ class Scheduler:
                 },
                 request_inspectors={
                     AgentWorkKind.CAMPAIGN: partial(
-                        inspect_campaign_request, observations=observations
+                        inspect_campaign_request,
+                        context=self.context,
+                        observations=observations,
                     )
                 },
             ),
@@ -389,7 +391,6 @@ class Scheduler:
                 row=row.model_copy(update={"finding": RequestConsumedFinding()})
             )
         return inspect_request(
-            context=self.context,
             issue=issue,
             request=DispatchRequest(route=route, label_applied_at=label_applied_at),
             row=row,

@@ -130,6 +130,15 @@ class RequestConsumedFinding(DreamcatcherDocument):
     found: Literal["request already consumed"] = "request already consumed"
 
 
+class CampaignPullRequestUnavailableFinding(DreamcatcherDocument):
+    """Name the parent whose campaign pull request cannot take its sub-issue."""
+
+    found: Literal["campaign pull request unavailable"] = (
+        "campaign pull request unavailable"
+    )
+    parent: IssueReference
+
+
 # What a tick finds that holds open work or a request back until the issue
 # changes on GitHub.
 HoldFinding = (
@@ -137,6 +146,7 @@ HoldFinding = (
     | LabelAppliedByOtherFinding
     | ConflictingLabelsFinding
     | RequestConsumedFinding
+    | CampaignPullRequestUnavailableFinding
 )
 
 

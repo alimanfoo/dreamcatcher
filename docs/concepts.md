@@ -96,6 +96,12 @@ A **campaign** is _dreamcatcher_'s durable commission to an agent, its
 the work. The code, and the `children` field of a campaign round's
 input, call each sub-issue a **child** of the parent.
 
+A **campaign's sub-issue** is a direct sub-issue in the same repository
+whose parent carries a campaign label configured for the running daemon
+or has a campaign on record in this instance, even after that campaign
+ends. The newest recorded campaign supplies the campaign branch when it
+is open or cancelled and its recorded pull request is open.
+
 Replaces: "stage", for a sub-issue.
 
 ### Issue conversation
@@ -653,11 +659,16 @@ The tick then asks an eligible assignment request the **start-time
 questions**. These ask which open pull requests linked to the issue
 claim it and which open issue dependencies block it. An open pull
 request **claims** an issue when GitHub links it as one that will close
-the issue, as `Closes #123` in its description does. For a conversation
-request, the tick reads the issue's comments to give them to its first
-round. For a campaign request, the tick asks which open issue
-dependencies block the parent and, when none does, reads the parent's
-comments for the first round.
+the issue, as `Closes #123` in its description does. When neither answer
+holds the request, the tick checks the issue's parent. It sets the base
+branch of a campaign's sub-issue to the campaign branch, or holds the
+request and names the parent if no campaign pull request is available.
+Every other assignment uses the default branch. The base choice is
+recorded when work starts and does not follow later changes to the
+parent or campaign. For a conversation request, the tick reads the
+issue's comments to give them to its first round. For a campaign
+request, the tick asks which open issue dependencies block the parent
+and, when none does, reads the parent's comments for the first round.
 
 A request with no open work has one of these request statuses:
 
@@ -667,11 +678,13 @@ A request with no open work has one of these request statuses:
   assignment or campaign request, an open pull request linked to an
   assignment request's issue claims it, someone other than the user
   applied the request's label, the issue has a routing conflict, or
-  earlier work already consumed the request. Work starts by itself once
-  a blocker closes or a claiming pull request goes. A label that someone
-  else applied, a routing conflict or a consumed request needs the user
-  to act. An open conversation or campaign can also be held, as its
-  agent work status says.
+  earlier work already consumed the request, or the parent of a
+  campaign's sub-issue has no available campaign pull request. Work can
+  start once the blocker closes, the claiming pull request goes or the
+  campaign pull request becomes available. A label that someone else
+  applied, a routing conflict or a consumed request needs the user to
+  act. An open conversation or campaign can also be held, as its agent
+  work status says.
 - **Idle**: a conversation request waits for the user's first comment.
 - **Unknown**: a read that decides whether work may start failed, or
   GitHub could not yet tell. A failure to read external state can delay

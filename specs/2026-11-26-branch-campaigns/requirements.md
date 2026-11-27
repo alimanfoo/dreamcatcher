@@ -208,11 +208,11 @@ Assignments tab while I finish.
 A campaign's sub-issue is a direct sub-issue of a parent that has a
 campaign label, or that has had a campaign in my _dreamcatcher_
 instance, however that campaign ended. Its assignment's pull request
-goes into the parent's open campaign pull request's branch. While the
-parent has no open campaign pull request, the request is held, and its
-card says why. Every other assignment goes into main, as now. An
-assignment's target is fixed when it starts, so anything already in
-motion carries on where it was going.
+goes into the newest campaign's branch while the campaign is open or
+cancelled and its pull request is open. If no campaign pull request is
+available, the request is held and its card says why. Every other
+assignment goes into main, as now. An assignment's target is fixed when
+it starts, so anything already in motion carries on where it was going.
 
 Through a campaign's life, that works out like this:
 

@@ -256,7 +256,7 @@ def test_an_assignment_records_its_settled_dispatch_recipe(state, route):
     assert assignment.record.issue == 12
     assert assignment.record.title == "The issue title"
     assert assignment.record.dispatch_label == "dream:smith"
-    assert read_work_pull_request_number(assignment=assignment) == PULL_REQUEST
+    assert read_work_pull_request_number(work=assignment) == PULL_REQUEST
     assert assignment.record.harness == AgentHarness.CLAUDE
     assert assignment.record.model == "opus[1m]"
     assert assignment.record.effort == "xhigh"
@@ -271,7 +271,7 @@ def test_an_assignment_is_recorded_before_any_git_or_github_step(state, route, g
 
     assert read_assignments(state=state) == [assignment]
     assert not assignment.worktree.exists()
-    assert read_work_pull_request_number(assignment=assignment) is None
+    assert read_work_pull_request_number(work=assignment) is None
     assert run_git(arguments=["branch", "--list", BRANCH], cwd=state.root) == ""
     assert gh.calls == []
 
@@ -716,7 +716,7 @@ def test_a_first_round_continues_from_what_an_earlier_attempt_left(
 
     open_pull_request(state=state, assignment=assignment)
 
-    assert read_work_pull_request_number(assignment=assignment) == PULL_REQUEST
+    assert read_work_pull_request_number(work=assignment) == PULL_REQUEST
     commits = run_git(
         arguments=["rev-list", "--count", "origin/HEAD..HEAD"], cwd=worktree
     )
@@ -737,7 +737,7 @@ def test_a_pull_request_listing_failure_leaves_the_round_to_try_again(state, rou
         open_pull_request(state=state, assignment=assignment)
 
     assert not (state.worktrees / ASSIGNMENT_ID).exists()
-    assert read_work_pull_request_number(assignment=assignment) is None
+    assert read_work_pull_request_number(work=assignment) is None
 
 
 def test_several_pull_requests_on_the_assignments_branch_are_reported(state, route, gh):
@@ -775,7 +775,7 @@ def test_a_created_pull_request_is_adopted_even_if_its_base_is_gone(
     )
     open_pull_request(state=state, assignment=assignment)
 
-    assert read_work_pull_request_number(assignment=assignment) == PULL_REQUEST
+    assert read_work_pull_request_number(work=assignment) == PULL_REQUEST
     created = [call for call in gh.calls if call.arguments[:2] == ["pr", "create"]]
     assert len(created) == 1
 

@@ -78,8 +78,10 @@ from dreamcatcher.pull_request_work import (
     complete_pull_request_work,
 )
 from dreamcatcher.scheduler.models import (
+    CampaignPullRequestUnavailableFinding,
     GlobalCooldown,
     IssueCommentsFinding,
+    IssueReference,
     RequestConsumedFinding,
     SchedulerRecord,
 )
@@ -2017,6 +2019,31 @@ def test_a_consumed_request_card_explains_how_to_ask_for_another_attempt(tmp_pat
         '<p class="card-detail">remove and re-add the label for another attempt</p>'
         in page
     )
+
+
+def test_a_campaign_sub_issue_waiting_for_the_campaign_links_to_its_parent(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    write_running_daemon(state=state)
+    write_tick(
+        state=state,
+        tick=SchedulerRecord(
+            at=LOOKED_AT,
+            finished=LOOKED_AT,
+            rows=[
+                compose_request_row(
+                    issue=20,
+                    finding=CampaignPullRequestUnavailableFinding(
+                        parent=IssueReference(number=30)
+                    ),
+                )
+            ],
+        ),
+    )
+
+    page = render_home(state=state)
+
+    assert "open, no campaign pull request available for" in page
+    assert f'href="https://github.com/{REPOSITORY}/issues/30"' in page
 
 
 def test_a_pull_request_links_to_github_before_its_state_is_observed(tmp_path):

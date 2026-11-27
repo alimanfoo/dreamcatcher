@@ -141,10 +141,7 @@ def write_assignment(
     (state.worktrees / identifier).mkdir(parents=True)
     directory = state.work / identifier
     if pull_request is not None:
-        write_json(
-            document=pull_request_work._PullRequestRecord(number=pull_request),
-            path=directory / pull_request_work._PULL_REQUEST_RECORD_NAME,
-        )
+        write_work_pull_request(directory=directory, number=pull_request)
     agent_work._record_agent_work(
         state=state,
         identifier=identifier,
@@ -228,6 +225,8 @@ def write_campaign(
     harness: AgentHarness = AgentHarness.CLAUDE,
     harness_session_identifier: str | None = "lead-session",
     dispatch_label: str = "dream:big",
+    at: datetime = PINNED,
+    label_applied_at: datetime = LABEL_APPLIED_AT,
 ) -> Path:
     """Write a campaign record at the parent issue, and return its directory.
 
@@ -235,12 +234,12 @@ def write_campaign(
     """
     work = agent_work._record_agent_work(
         state=state,
-        identifier=compose_campaign_identifier(issue=issue),
+        identifier=compose_campaign_identifier(issue=issue, at=at),
         record=agent_work.AgentWorkRecord(
             issue=issue,
             title=f"Parent {issue}",
             dispatch_label=dispatch_label,
-            label_applied_at=LABEL_APPLIED_AT,
+            label_applied_at=label_applied_at,
             kind=AgentWorkKind.CAMPAIGN,
             harness=harness,
             model="opus[1m]",
@@ -252,6 +251,14 @@ def write_campaign(
         directory=work.directory, identifier=harness_session_identifier
     )
     return work.directory
+
+
+def write_work_pull_request(*, directory: Path, number: int) -> None:
+    """Record the pull request that work opened."""
+    write_json(
+        document=pull_request_work._PullRequestRecord(number=number),
+        path=directory / pull_request_work._PULL_REQUEST_RECORD_NAME,
+    )
 
 
 def _write_harness_session(*, directory: Path, identifier: str | None) -> None:

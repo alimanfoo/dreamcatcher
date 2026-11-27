@@ -1,9 +1,11 @@
 """Inspect assignments' pull requests and compose the rounds they call for."""
 
 from collections.abc import Sequence
-from functools import partial
+from dataclasses import replace
+from datetime import UTC, datetime
+from functools import cache, partial
 
-from dreamcatcher.agent_work import AgentWork, DispatchRequest
+from dreamcatcher.agent_work import AgentWork, AgentWorkEndReason, DispatchRequest
 from dreamcatcher.github import (
     Issue,
     PullRequest,
@@ -11,12 +13,16 @@ from dreamcatcher.github import (
     PullRequestState,
     UnknownGitHubResponse,
     UserPost,
+    read_issue,
+    read_issue_parent,
     read_issue_pull_request_context,
     read_pull_request,
 )
+from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.prompts import compose_assignment_input_prompt
 from dreamcatcher.pull_request_work import (
     complete_pull_request_work,
+    compose_work_branch,
     is_wrap_up_relayed,
     open_work_pull_request,
     prepare_assignment_round_input,
@@ -29,11 +35,14 @@ from dreamcatcher.scheduler.faults import is_last_round_unfinished
 from dreamcatcher.scheduler.inspection import (
     Candidate,
     Inspection,
+    RequestInspector,
     RoundPlan,
     SchedulingContext,
     compose_open_work_row,
 )
 from dreamcatcher.scheduler.models import (
+    CampaignPullRequestUnavailableFinding,
+    IssueReference,
     PullRequestFinding,
     ReadFailureFinding,
     RequestRow,
@@ -52,7 +61,7 @@ def inspect_open_assignment(
     unread = compose_open_work_row(work=work, finding=None)
     if is_in_fault:
         return Inspection(row=unread, is_counted_fault=True)
-    pull_request = read_work_pull_request_number(assignment=work)
+    pull_request = read_work_pull_request_number(work=work)
     if pull_request is None:
         return Inspection(
             row=unread,
@@ -134,28 +143,87 @@ def _inspect_pull_request(
     )
 
 
-def inspect_assignment_request(
+def create_assignment_request_inspector(
+    *, context: SchedulingContext, all_work: Sequence[AgentWork]
+) -> RequestInspector:
+    """Inspect new assignments using the campaign history and reads of one tick."""
+    campaigns = {
+        work.record.issue: work
+        for work in sorted(
+            (work for work in all_work if work.record.kind is AgentWorkKind.CAMPAIGN),
+            key=lambda work: (
+                work.record.label_applied_at or datetime.min.replace(tzinfo=UTC),
+                work.identifier,
+            ),
+        )
+    }
+    find_campaign_base = cache(
+        partial(_find_campaign_base, context=context, campaigns=campaigns)
+    )
+
+    def inspect_assignment_request(
+        *,
+        issue: Issue,
+        request: DispatchRequest,
+        row: RequestRow,
+    ) -> Inspection:
+        answers = _ask_start_time_questions(context=context, issue=issue.number)
+        if not (isinstance(answers, StartTimeFinding) and answers.is_clear):
+            return Inspection(row=row.model_copy(update={"finding": answers}))
+
+        parent = read_issue_parent(repository=context.repository, issue=issue.number)
+        if isinstance(parent, UnknownGitHubResponse):
+            base = ReadFailureFinding(reason=parent.reason)
+        elif parent is not None and parent.is_in_repository(
+            repository=context.repository
+        ):
+            base = find_campaign_base(parent=parent.number)
+        else:
+            base = None
+        if isinstance(
+            base, (CampaignPullRequestUnavailableFinding, ReadFailureFinding)
+        ):
+            return Inspection(row=row.model_copy(update={"finding": base}))
+        return Inspection(
+            row=row.model_copy(update={"finding": answers}),
+            candidate=Candidate(
+                work_or_request=replace(request, base_branch=base),
+                compose_round=partial(_compose_opening_round, context=context),
+            ),
+        )
+
+    return inspect_assignment_request
+
+
+def _find_campaign_base(
     *,
     context: SchedulingContext,
-    issue: Issue,
-    request: DispatchRequest,
-    row: RequestRow,
-) -> Inspection:
-    """Ask the start-time questions of an assignment request with no open work.
-
-    A new assignment starts when both answers are empty.
-    """
-    answers = _ask_start_time_questions(context=context, issue=issue.number)
-    row = row.model_copy(update={"finding": answers})
-    if not (isinstance(answers, StartTimeFinding) and answers.is_clear):
-        return Inspection(row=row)
-    return Inspection(
-        row=row,
-        candidate=Candidate(
-            work_or_request=request,
-            compose_round=partial(_compose_opening_round, context=context),
-        ),
-    )
+    campaigns: dict[int, AgentWork],
+    parent: int,
+) -> str | CampaignPullRequestUnavailableFinding | ReadFailureFinding | None:
+    campaign = campaigns.get(parent)
+    if campaign is None:
+        if not context.config.campaign:
+            return None
+        issue = read_issue(repository=context.repository, issue=parent)
+        if isinstance(issue, UnknownGitHubResponse):
+            return ReadFailureFinding(reason=issue.reason)
+        if not context.config.identify_routes(
+            kind=AgentWorkKind.CAMPAIGN, labels=[label.name for label in issue.labels]
+        ):
+            return None
+    elif (
+        campaign.ending is None
+        or campaign.ending.reason is AgentWorkEndReason.CANCELLED
+    ) and ((number := read_work_pull_request_number(work=campaign)) is not None):
+        pull_request = read_pull_request(
+            repository=context.repository, pull_request=number
+        )
+        if isinstance(pull_request, UnknownGitHubResponse):
+            return ReadFailureFinding(reason=pull_request.reason)
+        if pull_request.state is PullRequestState.OPEN:
+            return compose_work_branch(identifier=campaign.identifier)
+    return CampaignPullRequestUnavailableFinding(parent=IssueReference(number=parent))
 
 
 def _ask_start_time_questions(

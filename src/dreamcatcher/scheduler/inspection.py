@@ -85,7 +85,6 @@ class RequestInspector(Protocol):
     def __call__(
         self,
         *,
-        context: SchedulingContext,
         issue: Issue,
         request: DispatchRequest,
         row: RequestRow,

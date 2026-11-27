@@ -212,7 +212,7 @@ def _observe_child_assignment(
     """
     return CampaignChildAssignment(
         identifier=assignment.identifier,
-        pull_request=read_work_pull_request_number(assignment=assignment),
+        pull_request=read_work_pull_request_number(work=assignment),
         observed_pull_request=(
             ObservedPullRequest.model_validate(
                 finding.model_dump(include=set(ObservedPullRequest.model_fields))

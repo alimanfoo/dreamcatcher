@@ -54,6 +54,12 @@ _LABELLING_EVENTS_QUERY = (
     " pageInfo { hasNextPage endCursor } } } } }"
 )
 
+_ISSUE_PARENT_QUERY = (
+    "query($owner: String!, $name: String!, $number: Int!) {"
+    " repository(owner: $owner, name: $name) { issue(number: $number) {"
+    " parent { number repository { nameWithOwner } } } } }"
+)
+
 # The repository permissions that let an account push a branch.
 _PUSH_PERMISSIONS = {"ADMIN", "MAINTAIN", "WRITE"}
 
@@ -287,14 +293,20 @@ class PullRequest(GitHubResponseProjection):
         return any(check.result is CheckResult.RUNNING for check in self.checks)
 
 
-class _RestIssueProjection(GitHubResponseProjection):
-    """Model an issue as a REST endpoint lists it, by its number, state and repository.
-
-    The issue can be in another repository than the one asked about. The
-    repository is named as its owner and name, as in `owner/name`.
-    """
+class _IssueInRepository(GitHubResponseProjection):
+    """Identify a related issue, which may be in another repository."""
 
     number: int
+    repository: str
+
+    def is_in_repository(self, *, repository: str) -> bool:
+        """Return whether the issue is in this repository, ignoring case."""
+        return self.repository.casefold() == repository.casefold()
+
+
+class _RestIssueProjection(_IssueInRepository):
+    """Model a related issue as a REST endpoint lists it, including its state."""
+
     state: IssueState
     repository: str = Field(alias="repository_url")
 
@@ -310,14 +322,6 @@ class _RestIssueProjection(GitHubResponseProjection):
         """Keep the owner and name that end the REST API's repository URL."""
         return "/".join(str(value).rstrip("/").split("/")[-2:])
 
-    def is_in_repository(self, *, repository: str) -> bool:
-        """Return whether the issue is in the repository named as `owner/name`.
-
-        GitHub compares both the owner and the name case-insensitively, so
-        this does too.
-        """
-        return self.repository.casefold() == repository.casefold()
-
 
 class BlockingIssue(_RestIssueProjection):
     """Model an issue that blocks another issue."""
@@ -327,6 +331,24 @@ class SubIssue(_RestIssueProjection):
     """Model a direct child of a parent issue."""
 
     title: str
+
+
+class ParentIssue(_IssueInRepository):
+    """Identify an issue's direct parent from the GraphQL response."""
+
+    model_config = ConfigDict(populate_by_name=False)
+
+    repository: str = Field(validation_alias=AliasPath("repository", "nameWithOwner"))
+
+
+class _IssueParentResponse(GitHubResponseProjection):
+    """Distinguish an explicit null parent from an incomplete response."""
+
+    model_config = ConfigDict(populate_by_name=False)
+
+    parent: ParentIssue | None = Field(
+        validation_alias=AliasPath("data", "repository", "issue", "parent")
+    )
 
 
 class PullRequestReference(GitHubResponseProjection):
@@ -498,6 +520,7 @@ _GITHUB_ACCOUNT_RESPONSE_ADAPTER = TypeAdapter(GitHubUserAccount)
 _GITHUB_LABEL_PAGES_ADAPTER = TypeAdapter(list[list[GitHubLabel]])
 _GITHUB_ISSUE_LIST_RESPONSE_ADAPTER = TypeAdapter(list[Issue])
 _GITHUB_ISSUE_RESPONSE_ADAPTER = TypeAdapter(Issue)
+_GITHUB_ISSUE_PARENT_RESPONSE_ADAPTER = TypeAdapter(_IssueParentResponse)
 _GITHUB_PULL_REQUEST_REFERENCE_LIST_RESPONSE_ADAPTER = TypeAdapter(
     list[PullRequestReference]
 )
@@ -661,6 +684,29 @@ def read_issue(*, repository: str, issue: int) -> Issue | UnknownGitHubResponse:
             _ISSUE_RESPONSE_FIELDS,
         ],
     )
+
+
+def read_issue_parent(
+    *, repository: str, issue: int
+) -> ParentIssue | UnknownGitHubResponse | None:
+    """Read the issue's direct parent, with no parent only on an explicit null."""
+    owner, name = repository.split("/")
+    response = _read_github_response(
+        response_adapter=_GITHUB_ISSUE_PARENT_RESPONSE_ADAPTER,
+        arguments=[
+            "api",
+            "graphql",
+            "-F",
+            f"number={issue}",
+            "-f",
+            f"owner={owner}",
+            "-f",
+            f"name={name}",
+            "-f",
+            f"query={_ISSUE_PARENT_QUERY}",
+        ],
+    )
+    return response if isinstance(response, UnknownGitHubResponse) else response.parent
 
 
 def close_issue_as_completed(
