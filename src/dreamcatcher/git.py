@@ -68,11 +68,24 @@ def fetch_default_branch(*, root: Path) -> str:
     return remote_head.removeprefix("origin/")
 
 
-def add_worktree(*, root: Path, path: Path, branch: str) -> None:
-    """Create a worktree at path, on a new branch cut from the default branch."""
+def fetch_base_branch(*, root: Path, branch: str | None) -> tuple[str, str]:
+    """Fetch the named or default base and return its name and tracking ref."""
+    if branch is None:
+        return fetch_default_branch(root=root), "refs/remotes/origin/HEAD"
+    tracking_ref = f"refs/remotes/origin/{branch}"
     run_command(
         program="git",
-        arguments=["worktree", "add", "-b", branch, str(path), "origin/HEAD"],
+        arguments=["fetch", "origin", f"+refs/heads/{branch}:{tracking_ref}"],
+        cwd=root,
+    )
+    return branch, tracking_ref
+
+
+def add_worktree(*, root: Path, path: Path, branch: str, base_ref: str) -> None:
+    """Create a worktree at path, on a new branch cut from base_ref."""
+    run_command(
+        program="git",
+        arguments=["worktree", "add", "-b", branch, str(path), base_ref],
         cwd=root,
     )
 
@@ -149,11 +162,11 @@ def _read_worktree_revision(*, worktree: Path) -> str:
     ).strip()
 
 
-def has_commits_since_default_branch(*, worktree: Path) -> bool:
-    """Return whether the worktree's branch has moved beyond the default branch."""
+def has_commits_since_base(*, worktree: Path, base_ref: str) -> bool:
+    """Return whether the worktree's branch has commits outside its base."""
     count = run_command(
         program="git",
-        arguments=["rev-list", "--count", "origin/HEAD..HEAD"],
+        arguments=["rev-list", "--count", f"{base_ref}..HEAD"],
         cwd=worktree,
     )
     return int(count) > 0

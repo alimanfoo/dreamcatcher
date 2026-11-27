@@ -6,8 +6,8 @@ from datetime import datetime
 from typing import Protocol
 
 from dreamcatcher.agent_rounds import AgentRoundFinisher
-from dreamcatcher.agent_work import AgentWork
-from dreamcatcher.config import DispatchRoute, DreamcatcherConfig
+from dreamcatcher.agent_work import AgentWork, DispatchRequest
+from dreamcatcher.config import DreamcatcherConfig
 from dreamcatcher.documents import DreamcatcherDocument
 from dreamcatcher.github import Issue, IssueState
 from dreamcatcher.scheduler.models import RequestFinding, RequestRow
@@ -44,18 +44,6 @@ class _RoundComposer(Protocol):
 
     def __call__(self, *, work: AgentWork) -> RoundPlan:
         """Return the plan of the work's next round."""
-
-
-@dataclass(frozen=True, kw_only=True)
-class DispatchRequest:
-    """A route whose label application has passed the dispatch checks.
-
-    The application time identifies the request that new work consumes.
-    A conversation's dispatch label acts as a switch and carries no time here.
-    """
-
-    route: DispatchRoute
-    label_applied_at: datetime | None
 
 
 @dataclass(frozen=True, kw_only=True)

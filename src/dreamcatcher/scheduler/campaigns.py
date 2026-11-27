@@ -9,7 +9,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass, replace
 from functools import partial
 
-from dreamcatcher.agent_work import AgentWork
+from dreamcatcher.agent_work import AgentWork, DispatchRequest
 from dreamcatcher.campaigns import (
     CampaignChild,
     CampaignChildAssignment,
@@ -35,7 +35,6 @@ from dreamcatcher.scheduler.blockers import list_open_blocking_issues
 from dreamcatcher.scheduler.faults import is_last_round_unfinished
 from dreamcatcher.scheduler.inspection import (
     Candidate,
-    DispatchRequest,
     Inspection,
     RoundPlan,
     SchedulingContext,

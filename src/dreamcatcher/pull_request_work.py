@@ -2,11 +2,11 @@
 
 Each assignment has its own identifier, branch, worktree and pull request, and
 several assignments can exist for one issue. The round that opens the pull
-request prepares and publishes the branch and opens the linked draft pull
+request prepares and publishes the branch and opens the draft pull
 request, the assignment's channel, before the harness runs.
 """
 
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterator, Sequence
 from contextlib import suppress
 from datetime import datetime
 from itertools import islice
@@ -21,6 +21,7 @@ from dreamcatcher.agent_work import (
     AgentWork,
     AgentWorkEndReason,
     end_agent_work,
+    read_agent_work_ending,
     remove_agent_work_worktree,
 )
 from dreamcatcher.commands import CommandError
@@ -37,8 +38,8 @@ from dreamcatcher.errors import ReportableError
 from dreamcatcher.git import (
     add_worktree,
     delete_branch,
-    fetch_default_branch,
-    has_commits_since_default_branch,
+    fetch_base_branch,
+    has_commits_since_base,
     is_linked_worktree,
     is_local_branch,
     make_empty_commit,
@@ -46,15 +47,18 @@ from dreamcatcher.git import (
 )
 from dreamcatcher.github import (
     CheckResult,
+    PullRequest,
     PullRequestMergeState,
     PullRequestReference,
     PullRequestSignal,
     PullRequestState,
     UnknownGitHubResponse,
     UserPost,
+    close_issue_as_completed,
     create_pull_request,
     list_pull_requests,
 )
+from dreamcatcher.prompts import AGENT_POST_MARKER
 from dreamcatcher.state import StateDirectory
 
 # What an assignment's branch is called, before its identifier. The prefix keeps
@@ -161,6 +165,33 @@ def complete_pull_request_work(
     end_agent_work(work=assignment, reason=AgentWorkEndReason.COMPLETED, at=clock())
 
 
+def prepare_assignment_round_input(
+    *,
+    repository: str,
+    assignment: AgentWork,
+    pull_request: PullRequest,
+    signals: Sequence[PullRequestSignal],
+    posts: Sequence[UserPost],
+) -> AssignmentRoundInput:
+    """Build the input after closing the issue for a merge into another base."""
+    if (
+        pull_request.state is PullRequestState.MERGED
+        and assignment.record.base_branch is not None
+        and read_agent_work_ending(directory=assignment.directory) is None
+    ):
+        close_issue_as_completed(
+            repository=repository,
+            issue=assignment.record.issue,
+            closing_comment=f"Merged in #{pull_request.number}.\n\n{AGENT_POST_MARKER}",
+        )
+    return AssignmentRoundInput(
+        pull_request_state=pull_request.state,
+        pull_request_head=pull_request.head,
+        signals=signals,
+        user_posts=posts,
+    )
+
+
 def remove_work_worktree_and_branch(
     *, state: StateDirectory, assignment: AgentWork
 ) -> None:
@@ -187,39 +218,58 @@ def open_work_pull_request(
 ) -> None:
     """Publish the assignment's branch and record its draft pull request.
 
-    This is the preparation of a round whose assignment has no pull request
-    yet. It fetches the default branch and adds the worktree on the assignment's
-    branch. It then makes an empty commit, pushes, adopts the pull request
-    already on the branch or opens a draft, and records the pull request. A
-    round after one that failed part way finds the worktree, the commit and the
-    pull request that the earlier attempt made, and makes none of them again. A
-    worktree that cannot be added is removed with its branch, so the next
-    attempt adds both afresh.
+    Adopt a pull request an earlier attempt created, even if its base has
+    since gone. Otherwise prepare and publish the assignment's branch, and
+    open the draft. Record the pull request's number once it is known.
     """
-    issue = assignment.record.issue
     branch = compose_work_branch(identifier=assignment.identifier)
-    default_branch = fetch_default_branch(root=state.root)
-    if not is_linked_worktree(path=assignment.worktree):
-        try:
-            add_worktree(root=state.root, path=assignment.worktree, branch=branch)
-        except ReportableError:
-            with suppress(ReportableError):
-                remove_work_worktree_and_branch(state=state, assignment=assignment)
-            raise
-    if not has_commits_since_default_branch(worktree=assignment.worktree):
-        make_empty_commit(worktree=assignment.worktree, message=f"GH{issue}")
-    push_branch(root=state.root, branch=branch)
-    pull_request = _find_or_create_work_pull_request(
-        repository=repository,
-        base=default_branch,
-        branch=branch,
-        issue=issue,
-        title=assignment.record.title,
-    )
+    pull_request = _find_branch_pull_request(repository=repository, branch=branch)
+    if pull_request is None:
+        base = _publish_work_branch(state=state, assignment=assignment, branch=branch)
+        pull_request = create_pull_request(
+            repository=repository,
+            base=base,
+            branch=branch,
+            issue=assignment.record.issue,
+            title=assignment.record.title,
+        )
+        if isinstance(pull_request, UnknownGitHubResponse):
+            raise ReportableError(pull_request.reason)
     write_json(
         document=_PullRequestRecord(number=pull_request.number),
         path=assignment.directory / _PULL_REQUEST_RECORD_NAME,
     )
+
+
+def _publish_work_branch(
+    *, state: StateDirectory, assignment: AgentWork, branch: str
+) -> str:
+    """Publish a branch with commits beyond its base and return the base's name.
+
+    Keep the worktree and commits from a previous attempt. Remove a worktree
+    that cannot be added and its branch so the next attempt can add both.
+    """
+    base, base_ref = fetch_base_branch(
+        root=state.root, branch=assignment.record.base_branch
+    )
+    if not is_linked_worktree(path=assignment.worktree):
+        try:
+            add_worktree(
+                root=state.root,
+                path=assignment.worktree,
+                branch=branch,
+                base_ref=base_ref,
+            )
+        except ReportableError:
+            with suppress(ReportableError):
+                remove_work_worktree_and_branch(state=state, assignment=assignment)
+            raise
+    if not has_commits_since_base(worktree=assignment.worktree, base_ref=base_ref):
+        make_empty_commit(
+            worktree=assignment.worktree, message=f"GH{assignment.record.issue}"
+        )
+    push_branch(root=state.root, branch=branch)
+    return base
 
 
 def read_user_post_cursor(*, assignment: AgentWork) -> str:
@@ -273,28 +323,6 @@ def _read_relayed_inputs(*, assignment: AgentWork) -> Iterator[AssignmentRoundIn
     """Yield the inputs already relayed, newest first."""
     for paths in assignment.list_relayed_round_paths():
         yield read_json(model=AssignmentRoundInput, path=paths.round_input)
-
-
-def _find_or_create_work_pull_request(
-    *, repository: str, base: str, branch: str, issue: int, title: str
-) -> PullRequestReference:
-    """Return the pull request on the assignment's branch, opening a draft if none.
-
-    A pull request already on the branch is the assignment's own, whatever its
-    state. No other pull request is looked at, since the scheduler asked before
-    the assignment existed whether one claims the issue.
-    """
-    branch_pull_request = _find_branch_pull_request(
-        repository=repository, branch=branch
-    )
-    if branch_pull_request is not None:
-        return branch_pull_request
-    pull_request = create_pull_request(
-        repository=repository, base=base, branch=branch, issue=issue, title=title
-    )
-    if isinstance(pull_request, UnknownGitHubResponse):
-        raise ReportableError(pull_request.reason)
-    return pull_request
 
 
 def _find_branch_pull_request(

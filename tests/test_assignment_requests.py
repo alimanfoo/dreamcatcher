@@ -27,7 +27,12 @@ from conftest import (
     offer_labelling_events,
     offer_listing,
 )
-from records import read_assignments, write_assignment, write_ending
+from records import (
+    AssignmentRequestFacts,
+    read_assignments,
+    write_assignment,
+    write_ending,
+)
 from rows import UNCLAIMED, compose_request_row
 
 from dreamcatcher.agent_work import AgentWorkEndReason
@@ -127,7 +132,7 @@ def test_a_clock_correction_does_not_make_an_older_label_application_available(
             state=state,
             identifier=f"GH8-{date}-184158-assignment",
             issue=8,
-            label_applied_at=applied_at,
+            request_facts=AssignmentRequestFacts(label_applied_at=applied_at),
         )
         write_ending(
             directory=directory,

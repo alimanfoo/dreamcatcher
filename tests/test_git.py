@@ -11,7 +11,7 @@ from dreamcatcher.git import (
     add_worktree,
     delete_branch,
     fetch_default_branch,
-    has_commits_since_default_branch,
+    has_commits_since_base,
     make_empty_commit,
     push_branch,
     refresh_detached_worktree,
@@ -62,7 +62,7 @@ def test_a_fetch_follows_origins_renamed_default_branch(cloned_repo):
 def test_a_worktree_lands_where_it_is_asked_for_on_its_own_branch(cloned_repo):
     path = compose_assignment_worktree(root=cloned_repo)
 
-    add_worktree(root=cloned_repo, path=path, branch=BRANCH)
+    add_worktree(root=cloned_repo, path=path, branch=BRANCH, base_ref="origin/HEAD")
 
     assert (path / "README.md").exists()
     assert BRANCH in run_git(arguments=["branch", "--list", BRANCH], cwd=cloned_repo)
@@ -249,10 +249,10 @@ def test_a_refresh_discards_an_ignored_file(cloned_repo):
 
 def test_a_worktree_git_refuses_says_what_git_said(cloned_repo):
     path = compose_assignment_worktree(root=cloned_repo)
-    add_worktree(root=cloned_repo, path=path, branch=BRANCH)
+    add_worktree(root=cloned_repo, path=path, branch=BRANCH, base_ref="origin/HEAD")
 
     with pytest.raises(CommandError) as error:
-        add_worktree(root=cloned_repo, path=path, branch=BRANCH)
+        add_worktree(root=cloned_repo, path=path, branch=BRANCH, base_ref="origin/HEAD")
 
     assert "git worktree add" in str(error.value)
     assert BRANCH in str(error.value)
@@ -260,16 +260,16 @@ def test_a_worktree_git_refuses_says_what_git_said(cloned_repo):
 
 def test_an_empty_commit_moves_the_assignment_branch_beyond_the_default(cloned_repo):
     path = compose_assignment_worktree(root=cloned_repo)
-    add_worktree(root=cloned_repo, path=path, branch=BRANCH)
+    add_worktree(root=cloned_repo, path=path, branch=BRANCH, base_ref="origin/HEAD")
     run_git(arguments=["config", "user.name", "A User"], cwd=path)
     run_git(arguments=["config", "user.email", "a.user@example.com"], cwd=path)
     run_git(arguments=["config", "commit.gpgsign", "true"], cwd=path)
 
-    assert not has_commits_since_default_branch(worktree=path)
+    assert not has_commits_since_base(worktree=path, base_ref="origin/HEAD")
 
     make_empty_commit(worktree=path, message="GH8")
 
-    assert has_commits_since_default_branch(worktree=path)
+    assert has_commits_since_base(worktree=path, base_ref="origin/HEAD")
     assert run_git(arguments=["log", "-1", "--format=%an <%ae>"], cwd=path).strip() == (
         "A User <a.user@example.com>"
     )
@@ -299,7 +299,7 @@ def test_an_empty_commit_skips_repository_hooks(tmp_path, monkeypatch):
 
 def test_a_pushed_assignment_branch_is_visible_at_origin(cloned_repo):
     path = compose_assignment_worktree(root=cloned_repo)
-    add_worktree(root=cloned_repo, path=path, branch=BRANCH)
+    add_worktree(root=cloned_repo, path=path, branch=BRANCH, base_ref="origin/HEAD")
     make_empty_commit(worktree=path, message="GH8")
 
     push_branch(root=cloned_repo, branch=BRANCH)
@@ -327,7 +327,7 @@ def test_publishing_the_placeholder_branch_skips_repository_hooks(
 
 def test_an_assignment_worktree_can_push_to_origin(cloned_repo):
     path = compose_assignment_worktree(root=cloned_repo)
-    add_worktree(root=cloned_repo, path=path, branch=BRANCH)
+    add_worktree(root=cloned_repo, path=path, branch=BRANCH, base_ref="origin/HEAD")
     make_empty_commit(worktree=path, message="GH8")
 
     run_git(arguments=["push", "origin", BRANCH], cwd=path)
@@ -340,7 +340,7 @@ def test_an_assignment_worktree_can_push_to_origin(cloned_repo):
 
 def test_a_removed_worktree_leaves_the_disk_and_the_list(cloned_repo):
     path = compose_assignment_worktree(root=cloned_repo)
-    add_worktree(root=cloned_repo, path=path, branch=BRANCH)
+    add_worktree(root=cloned_repo, path=path, branch=BRANCH, base_ref="origin/HEAD")
 
     remove_worktree(root=cloned_repo, path=path)
 
@@ -359,7 +359,7 @@ def test_removing_a_worktree_that_was_never_made_says_what_git_said(cloned_repo)
 
 def test_a_deleted_branch_leaves_the_branch_list(cloned_repo):
     path = compose_assignment_worktree(root=cloned_repo)
-    add_worktree(root=cloned_repo, path=path, branch=BRANCH)
+    add_worktree(root=cloned_repo, path=path, branch=BRANCH, base_ref="origin/HEAD")
     remove_worktree(root=cloned_repo, path=path)
 
     delete_branch(root=cloned_repo, branch=BRANCH)
@@ -372,6 +372,7 @@ def test_a_branch_a_worktree_holds_is_not_deleted_quietly(cloned_repo):
         root=cloned_repo,
         path=compose_assignment_worktree(root=cloned_repo),
         branch=BRANCH,
+        base_ref="origin/HEAD",
     )
 
     with pytest.raises(CommandError) as error:

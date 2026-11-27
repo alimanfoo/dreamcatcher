@@ -16,6 +16,7 @@ from conftest import (
 from records import (
     HEAD,
     MERGED_INPUT,
+    AssignmentRequestFacts,
     read_assignments,
     write_assignment,
     write_assignment_round,
@@ -58,11 +59,18 @@ OPENS_PULL_REQUEST = "opens the pull request"
 
 
 @pytest.fixture
-def state(tmp_path):
+def state(tmp_path, request):
     """A state directory holding one assignment, with no round run yet."""
     configure(root=tmp_path)
     directory = StateDirectory(root=tmp_path)
-    write_assignment(state=directory, identifier=ASSIGNMENT_ID, issue=13)
+    write_assignment(
+        state=directory,
+        identifier=ASSIGNMENT_ID,
+        issue=13,
+        request_facts=AssignmentRequestFacts(
+            base_branch=getattr(request, "param", None)
+        ),
+    )
     return directory
 
 
@@ -380,10 +388,12 @@ def test_a_cancelled_assignment_is_not_inspected_for_rounds(state, gh):
     assert [call.arguments[:2] for call in gh.calls] == [["issue", "list"]]
 
 
-def test_a_round_started_for_an_assignment_cancelled_after_inspection_stops(
+@pytest.mark.parametrize("state", ["campaign/topic"], indirect=True)
+def test_a_wrap_up_started_for_an_assignment_cancelled_after_inspection_stops(
     state, gh, harnesses
 ):
     write_assignment_round(directory=state.work / ASSIGNMENT_ID, number=1, status=2)
+    gh.replies(stdout=compose_pull_request(state="MERGED"), to="pr view")
     inspected = inspect(state=state)
     assert inspected.candidate is not None
     cancel_pull_request_work(assignment=read_assignments(state=state)[0], at=PINNED)
@@ -394,6 +404,7 @@ def test_a_round_started_for_an_assignment_cancelled_after_inspection_stops(
     started.wait()
 
     assert started.paths.stop_request.is_file()
+    assert not any(call.arguments[:2] == ["issue", "view"] for call in gh.calls)
 
 
 def test_an_assignment_the_user_has_posted_on_answers_what_they_said(state, gh):

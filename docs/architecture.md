@@ -142,10 +142,10 @@ One scheduler tick:
 A candidate is open work the tick may start a round for, or a request it
 may start work for. It carries a composer that builds the round's plan
 once the work exists: the preparation that runs inside the round, the
-input prompt, and the finishing step. The tick creates the work of a new
-request with its label application time for an assignment or campaign,
-then starts the round the plan describes. Conversations use the same
-path with no application time in their work record.
+input prompt, and the finishing step. The tick creates the work from the
+dispatch request, which carries the label application time for an
+assignment or campaign and the base branch when one was selected. It
+then starts the round the plan describes.
 
 Alternation advances when a kind is selected, including when its start
 fails, and begins afresh after a daemon restart.
@@ -368,7 +368,8 @@ Currently only assignments use it. It provides cohesive operations to:
   which each pull request signal was last relayed, whether the relay
   rule withholds, and whether a wrap-up round has been given the
   finished pull request, from recorded round inputs;
-- complete an assignment as its wrap-up round finishes;
+- prepare the assignment's round input and complete the assignment as
+  its wrap-up round finishes;
 - cancel an assignment; and
 - remove an ended assignment's worktree and then its local branch.
 
@@ -386,24 +387,31 @@ preparation step of a round whose assignment has no recorded pull
 request number coordinates lower-level Git, GitHub and document
 operations. It:
 
-1. fetches the current default branch;
-2. adds the assignment's worktree on its branch, unless it is already
+1. looks up a pull request on the assignment's branch and adopts it if
+   found, whatever its state;
+2. for a branch with no pull request, fetches the recorded base branch,
+   or the current default branch when the record leaves the base empty;
+3. adds the assignment's worktree on its branch, unless it is already
    there;
-3. makes an empty commit, unless the branch already has one, and pushes
-   the branch;
-4. adopts the pull request already on the branch, whatever its state, or
-   opens a linked draft pull request into the fetched default branch;
-   and
-5. writes the pull request's number to `pull-request.json`.
+4. makes an empty commit if the branch has no commits beyond its base,
+   then pushes the branch;
+5. opens a draft pull request into the fetched base branch; and
+6. writes the pull request's number to `pull-request.json`.
 
-Each step does nothing when its result already exists, and a worktree
+Adoption works even after the original base branch is gone. A worktree
 that cannot be added is removed with its branch. The assignment
 identifier names the branch and worktree, so a round that follows a
 failed one finds what the earlier attempt made and never makes a second
 branch or pull request.
 
-A wrap-up round records the assignment's ending with the reason
-"completed" in its finishing step, after its harness exits successfully.
+For an open assignment whose pull request merged and whose record names
+a base other than the default, preparation closes the issue as completed
+before it builds the wrap-up input. The closing comment names the pull
+request and carries the agent marker. GitHub failures during closure
+error the round during preparation. A retry leaves a closed issue alone
+and reuses a closing comment already posted for that merge. A wrap-up
+round records the assignment's ending with the reason "completed" in its
+finishing step, after its harness exits successfully.
 
 `pull_request_work.py` also models what a tick observed of an
 assignment's pull request. The scheduler's pull request finding extends
@@ -483,8 +491,9 @@ constructs GitHub commands. It owns projections and operations for:
 - pull-request identity, draft state, readiness, terminal state, merge
   state, head commit, what its checks add up to, and whether any of them
   still runs;
-- creating the linked draft pull request;
-- reading ordinary issue comments and posting a conversation answer; and
+- creating the draft pull request with a closing keyword for its issue;
+- reading and posting ordinary issue comments, and closing an issue as
+  completed with a closing comment; and
 - reading and normalizing user posts from comments, reviews, verdicts,
   and inline comments.
 
@@ -847,11 +856,12 @@ request may start.
 
 ### Git, commands, prompts, and feeds
 
-`git.py` owns Git operations and worktree mechanics. When it fetches the
-repository, it fetches the remote refs and then refreshes `origin/HEAD`
-from the remote, so every worktree follows the current default branch
-without persisting its name. It does not know why an assignment was
-selected or what GitHub reports about it.
+`git.py` owns Git operations and worktree mechanics. Fetching the
+default branch refreshes `origin/HEAD` from the remote. Fetching a named
+branch refreshes its remote-tracking ref even when the checkout's fetch
+configuration omits that branch. The module takes a base ref for
+creating a worktree on a branch and for counting commits beyond its
+base.
 
 `commands.py` remains the sole subprocess boundary. Higher-level modules
 ask it to run or spawn already-constructed commands; no other module
@@ -883,6 +893,7 @@ it again. The same record serves every kind of agent work. It persists:
 - the GitHub application time of the label that started an assignment or
   campaign;
 - the selected harness, model, effort and harness config;
+- the base branch for pull request work, when explicitly selected;
 - the work's instructions, which are the recipe's prompt with the issue
   filled in.
 

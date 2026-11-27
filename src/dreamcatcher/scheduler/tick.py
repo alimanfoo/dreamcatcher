@@ -15,6 +15,7 @@ from dreamcatcher.agent_rounds import (
 from dreamcatcher.agent_work import (
     AgentWork,
     AgentWorkEndReason,
+    DispatchRequest,
     create_agent_work,
     read_agent_work,
     record_harness_session_identifier,
@@ -53,7 +54,6 @@ from dreamcatcher.scheduler.faults import (
 )
 from dreamcatcher.scheduler.inspection import (
     Candidate,
-    DispatchRequest,
     Inspection,
     OpenWorkInspector,
     RequestInspector,
@@ -474,12 +474,11 @@ class Scheduler:
             if isinstance(work_or_request, AgentWork)
             else create_agent_work(
                 state=self.context.state,
-                route=work_or_request.route,
+                request=work_or_request,
                 preferred_harness=self.preferred_harness,
                 issue=row.issue,
                 title=row.title,
                 at=at,
-                label_applied_at=work_or_request.label_applied_at,
             )
         )
         plan = candidate.compose_round(work=work)

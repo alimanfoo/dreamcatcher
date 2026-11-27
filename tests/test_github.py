@@ -36,6 +36,7 @@ from dreamcatcher.github import (
     _identify_github_account,
     _identify_github_repository,
     can_push_to_repository,
+    close_issue_as_completed,
     create_label,
     create_pull_request,
     list_blocking_issues,
@@ -242,6 +243,30 @@ def test_an_issues_ordinary_comments_are_read_from_every_page(fake):
         "--paginate",
         "--slurp",
     ]
+
+
+def test_an_already_closed_issue_keeps_its_state_and_comments(fake):
+    gh = fake(program="gh")
+    gh.replies(
+        stdout=json.dumps(
+            {
+                "number": 8,
+                "title": "The issue",
+                "createdAt": "2026-08-15T10:00:00Z",
+                "state": "CLOSED",
+                "assignees": [],
+                "labels": [],
+            }
+        ),
+        to="issue view 8",
+    )
+
+    close_issue_as_completed(
+        repository=REPOSITORY, issue=8, closing_comment="Merged in #52."
+    )
+
+    [read] = gh.calls
+    assert read.arguments[:3] == ["issue", "view", "8"]
 
 
 def test_an_issue_comment_is_posted_as_one_body(fake):

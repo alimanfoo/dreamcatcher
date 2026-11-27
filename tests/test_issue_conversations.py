@@ -16,6 +16,7 @@ from dreamcatcher.agent_rounds import (
 from dreamcatcher.agent_work import (
     AgentWork,
     AgentWorkRecord,
+    DispatchRequest,
     _record_agent_work,
     create_agent_work,
     read_agent_work,
@@ -112,12 +113,13 @@ def test_a_conversation_is_recorded_without_a_worktree(tmp_path):
 
     created = create_agent_work(
         state=state,
-        route=compose_conversation_route(),
+        request=DispatchRequest(
+            route=compose_conversation_route(), label_applied_at=None
+        ),
         preferred_harness=AgentHarness.CLAUDE,
         issue=8,
         title="Why does this happen?",
         at=PINNED,
-        label_applied_at=None,
     )
 
     assert created.identifier == "GH8-20260819-184158-conversation"
@@ -144,12 +146,11 @@ def test_a_new_conversation_records_the_preferred_harness_recipe(cloned_repo):
 
     created = create_agent_work(
         state=state,
-        route=route,
+        request=DispatchRequest(route=route, label_applied_at=None),
         preferred_harness=AgentHarness.CODEX,
         issue=8,
         title="Why does this happen?",
         at=PINNED,
-        label_applied_at=None,
     )
 
     assert created.record.harness == AgentHarness.CODEX
@@ -176,12 +177,13 @@ def test_round_input_freezes_the_issue_comments_and_revision(
     state = StateDirectory(root=cloned_repo)
     conversation = create_agent_work(
         state=state,
-        route=compose_conversation_route(),
+        request=DispatchRequest(
+            route=compose_conversation_route(), label_applied_at=None
+        ),
         preferred_harness=AgentHarness.CLAUDE,
         issue=8,
         title="Why does this happen?",
         at=PINNED,
-        label_applied_at=None,
     )
 
     frozen = prepare_conversation_round(

@@ -1,6 +1,7 @@
 """Scheduling decisions and launch operations."""
 
 import json
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta, timezone
 from pathlib import Path
 from unittest.mock import Mock
@@ -32,6 +33,7 @@ from fakes import Line
 from pydantic import ValidationError
 from records import (
     MERGED_INPUT,
+    AssignmentRequestFacts,
     read_assignments,
     write_assignment,
     write_assignment_round,
@@ -66,6 +68,7 @@ from dreamcatcher.git import (
     push_branch,
 )
 from dreamcatcher.github import CheckResult, PullRequestMergeState, PullRequestState
+from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.pull_request_work import (
     cancel_pull_request_work,
     read_user_post_cursor,
@@ -85,6 +88,7 @@ from dreamcatcher.scheduler.models import (
     StartedRound,
     StartTimeFinding,
 )
+from dreamcatcher.scheduler.tick import _REQUEST_INSPECTORS
 from dreamcatcher.state import StateDirectory
 
 ASSIGNMENT_ID = "GH13-20260819-184158-assignment"
@@ -165,7 +169,7 @@ def read_round_record(*, scheduler: Scheduler, number: int) -> AgentRoundRecord:
 
 
 @pytest.fixture
-def assigned_checkout(cloned_repo, gh, harnesses):
+def assigned_checkout(cloned_repo, gh, harnesses, request):
     """A checkout holding one assignment, with no labelled issue awaiting one."""
     configure(root=cloned_repo)
     harnesses["claude"].streams(
@@ -189,6 +193,9 @@ def assigned_checkout(cloned_repo, gh, harnesses):
         identifier=ASSIGNMENT_ID,
         issue=13,
         harness_session_identifier=HARNESS_SESSION_IDENTIFIER,
+        request_facts=AssignmentRequestFacts(
+            base_branch=getattr(request, "param", None)
+        ),
     )
     return cloned_repo
 
@@ -831,6 +838,95 @@ def test_an_assignment_that_has_run_no_round_at_all_gets_its_first(ready_repo):
     assert read_work_pull_request_number(assignment=assignment) == PULL_REQUEST
 
 
+def test_an_assignment_opens_and_wraps_up_against_its_selected_base(
+    ready_repo, gh_with_available_issue, monkeypatch
+):
+    base_branch = "campaign/topic"
+    base_ref = f"refs/remotes/origin/{base_branch}"
+    run_git(arguments=["switch", "-c", base_branch], cwd=ready_repo)
+    make_empty_commit(worktree=ready_repo, message="Advance the campaign branch")
+    run_git(arguments=["push", "origin", base_branch], cwd=ready_repo)
+    run_git(arguments=["switch", "main"], cwd=ready_repo)
+    run_git(
+        arguments=[
+            "config",
+            "remote.origin.fetch",
+            "+refs/heads/main:refs/remotes/origin/main",
+        ],
+        cwd=ready_repo,
+    )
+    run_git(arguments=["update-ref", "-d", base_ref], cwd=ready_repo)
+
+    def select_base(*, context, issue, request, row):
+        return assignment_scheduling.inspect_assignment_request(
+            context=context,
+            issue=issue,
+            request=replace(request, base_branch=base_branch),
+            row=row,
+        )
+
+    monkeypatch.setitem(_REQUEST_INSPECTORS, AgentWorkKind.ASSIGNMENT, select_base)
+    scheduler, clock = create_scheduler(root=ready_repo)
+
+    scheduler.tick(at=clock())
+    finish_rounds(scheduler=scheduler)
+
+    [assignment] = read_assignments(state=scheduler.context.state)
+    assert assignment.record.base_branch == base_branch
+    assert read_work_pull_request_number(assignment=assignment) == PULL_REQUEST
+    assert run_git(
+        arguments=["rev-parse", "HEAD^"], cwd=assignment.worktree
+    ) == run_git(arguments=["rev-parse", base_ref], cwd=ready_repo)
+    assert (
+        run_git(arguments=["log", "-1", "--format=%s"], cwd=assignment.worktree).strip()
+        == "GH8"
+    )
+    [created] = [
+        call
+        for call in gh_with_available_issue.calls
+        if call.arguments[:2] == ["pr", "create"]
+    ]
+    assert created.arguments[created.arguments.index("--base") + 1] == base_branch
+
+    gh = gh_with_available_issue
+    [issue] = compose_assignment_issues(filed=[(8, FILED)])
+    gh.replies(stdout=json.dumps(issue), to="issue view 8")
+    gh.replies(stdout=compose_pull_request(state="MERGED"), to="pr view")
+    # Changing the default after the merge cannot change who closes the issue.
+    origin = Path(
+        run_git(arguments=["remote", "get-url", "origin"], cwd=ready_repo).strip()
+    )
+    run_git(arguments=["symbolic-ref", "HEAD", f"refs/heads/{base_branch}"], cwd=origin)
+    comments_endpoint = f"repos/{REPOSITORY}/issues/8/comments"
+    gh.replies(stdout='{"id": 91}', to=f"api {comments_endpoint} --method POST")
+    gh.replies(stdout="", to="issue close 8")
+
+    scheduler.tick(at=clock())
+    finish_rounds(scheduler=scheduler)
+
+    [closed] = [call for call in gh.calls if call.arguments[:2] == ["issue", "close"]]
+    assert closed.arguments == [
+        "issue",
+        "close",
+        "8",
+        "--repo",
+        REPOSITORY,
+        "--reason",
+        "completed",
+    ]
+    [comment] = [
+        call
+        for call in gh.calls
+        if call.arguments[:4] == ["api", comments_endpoint, "--method", "POST"]
+    ]
+    assert json.loads(comment.prompt) == {
+        "body": f"Merged in #{PULL_REQUEST}.\n\n<!-- dreamcatcher -->"
+    }
+    [completed] = read_assignments(state=scheduler.context.state)
+    assert completed.ending is not None
+    assert completed.ending.reason is AgentWorkEndReason.COMPLETED
+
+
 def test_a_dispatch_whose_round_will_not_start_keeps_the_assignment_for_next_time(
     ready_repo, gh_with_available_issue
 ):
@@ -889,7 +985,7 @@ def test_a_round_after_one_that_failed_part_way_finishes_its_preparation(
     worktree = state.worktrees / ASSIGNMENT_ID
     worktree.rmdir()
     fetch_default_branch(root=ready_repo)
-    add_worktree(root=ready_repo, path=worktree, branch=branch)
+    add_worktree(root=ready_repo, path=worktree, branch=branch, base_ref="origin/HEAD")
     if checkpoint != "worktree":
         make_empty_commit(worktree=worktree, message="GH13")
     if checkpoint in {"push", "pull request"}:
@@ -1274,7 +1370,15 @@ def test_a_batch_no_round_ever_launched_is_read_again_next_tick(
     assert harnesses["claude"].calls == []
 
 
-@pytest.mark.parametrize("state_name", ["MERGED", "CLOSED"])
+@pytest.mark.parametrize(
+    ("assigned_checkout", "state_name"),
+    [
+        (None, "MERGED"),
+        (None, "CLOSED"),
+        ("campaign/topic", "CLOSED"),
+    ],
+    indirect=["assigned_checkout"],
+)
 def test_a_pull_request_that_is_finished_gets_one_last_round(
     assigned_checkout, gh, state_name
 ):
@@ -1299,6 +1403,54 @@ def test_a_pull_request_that_is_finished_gets_one_last_round(
     [completed] = read_assignments(state=scheduler.context.state)
     assert completed.ending is not None
     assert completed.ending.reason is AgentWorkEndReason.COMPLETED
+    assert not any(call.arguments[:2] == ["issue", "close"] for call in gh.calls)
+
+
+@pytest.mark.parametrize("assigned_checkout", ["campaign/topic"], indirect=True)
+def test_a_wrap_up_waits_for_the_issue_to_close_and_reuses_its_comment(
+    assigned_checkout, gh
+):
+    scheduler, clock = create_scheduler(root=assigned_checkout)
+    state = scheduler.context.state
+    write_assignment_round(directory=state.work / ASSIGNMENT_ID, number=1)
+    [issue] = compose_assignment_issues(filed=[(13, FILED)])
+    gh.replies(stdout=json.dumps(issue), to="issue view 13")
+    gh.replies(stdout=compose_pull_request(state="MERGED"), to="pr view")
+    comments_endpoint = f"repos/{REPOSITORY}/issues/13/comments"
+    gh.replies(stdout='{"id": 91}', to=f"api {comments_endpoint} --method POST")
+    gh.fails(stderr="could not close the issue", to="issue close 13")
+
+    scheduler.tick(at=clock())
+
+    [waiting] = read_assignments(state=state)
+    assert waiting.ending is None
+    failure = read_round_record(scheduler=scheduler, number=2).ending
+    assert isinstance(failure, LaunchErroredAgentRoundEnding)
+    assert "could not close the issue" in failure.reason
+    assert not waiting.compose_round_paths(number=2).round_input.exists()
+    [posted] = [
+        call
+        for call in gh.calls
+        if call.arguments[:4] == ["api", comments_endpoint, "--method", "POST"]
+    ]
+    gh.replies(
+        stdout=compose_page(items=[compose_comment(**json.loads(posted.prompt))]),
+        to=f"api {comments_endpoint}?per_page=100",
+    )
+    gh.replies(stdout="", to="issue close 13")
+
+    scheduler.tick(at=clock())
+    finish_rounds(scheduler=scheduler)
+
+    [completed] = read_assignments(state=state)
+    assert completed.ending is not None
+    assert completed.ending.reason is AgentWorkEndReason.COMPLETED
+    assert completed.compose_round_paths(number=3).round_input.exists()
+    assert [
+        call
+        for call in gh.calls
+        if call.arguments[:4] == ["api", comments_endpoint, "--method", "POST"]
+    ] == [posted]
 
 
 def check_out_assignment(*, root) -> Path:
@@ -1306,7 +1458,9 @@ def check_out_assignment(*, root) -> Path:
     worktree = StateDirectory(root=root).worktrees / ASSIGNMENT_ID
     worktree.rmdir()
     fetch_default_branch(root=root)
-    add_worktree(root=root, path=worktree, branch=ASSIGNMENT_BRANCH)
+    add_worktree(
+        root=root, path=worktree, branch=ASSIGNMENT_BRANCH, base_ref="origin/HEAD"
+    )
     return worktree
 
 

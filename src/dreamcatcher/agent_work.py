@@ -74,6 +74,19 @@ _AGENT_WORK_IDENTIFIER_PATTERN = re.compile(
 )
 
 
+@dataclass(frozen=True, kw_only=True)
+class DispatchRequest:
+    """Hold the route and facts that new work records for a dispatch request.
+
+    The application time identifies the request an assignment or campaign
+    consumes. A named base records a choice of a branch other than the default.
+    """
+
+    route: DispatchRoute
+    label_applied_at: datetime | None
+    base_branch: str | None = None
+
+
 class AgentWorkRecord(WriteOnceDreamcatcherDocument):
     """Model the issue, title, label and kind of a piece of agent work, and its recipe.
 
@@ -93,6 +106,7 @@ class AgentWorkRecord(WriteOnceDreamcatcherDocument):
     effort: QuotableText
     harness_config: HarnessConfig = Field(default_factory=dict)
     instructions: str
+    base_branch: str | None = None
 
 
 class AgentWorkEndReason(StrEnum):
@@ -237,12 +251,11 @@ def parse_agent_work_identifier(*, text: str) -> str | None:
 def create_agent_work(
     *,
     state: StateDirectory,
-    route: DispatchRoute,
+    request: DispatchRequest,
     preferred_harness: AgentHarness,
     issue: int,
     title: str,
     at: datetime,
-    label_applied_at: datetime | None,
 ) -> AgentWork:
     """Record the work that the route asks for at the issue, with no rounds run yet.
 
@@ -251,6 +264,8 @@ def create_agent_work(
     record keeps. Creation writes the record alone, and the rounds prepare
     everything else.
     """
+    route = request.route
+    label_applied_at = request.label_applied_at
     harness = route.choose_harness(preferred_harness=preferred_harness)
     recipe = route.recipes[harness]
     return _record_agent_work(
@@ -271,6 +286,7 @@ def create_agent_work(
             instructions=compose_issue_instructions(
                 template=recipe.prompt, issue=issue
             ),
+            base_branch=request.base_branch,
         ),
     )
 
@@ -393,7 +409,7 @@ def _read_agent_work(
             directory=directory
         ),
         retry_requested_at=_read_retry_requested_at(directory=directory),
-        ending=_read_agent_work_ending(directory=directory),
+        ending=read_agent_work_ending(directory=directory),
         rounds=read_agent_round_records(
             cache=state.document_cache,
             directory=directory / _AGENT_ROUNDS_DIRECTORY_NAME,
@@ -474,7 +490,7 @@ def request_round_stop_if_ended(*, work: AgentWork, paths: AgentRoundPaths) -> N
     Call this once the round's record exists, so that an ending recorded at the
     same moment either lands before this read or finds the round itself.
     """
-    if _read_agent_work_ending(directory=work.directory) is not None:
+    if read_agent_work_ending(directory=work.directory) is not None:
         request_agent_round_stop(paths=paths)
 
 
@@ -509,7 +525,8 @@ def remove_agent_work_worktree(*, state: StateDirectory, work: AgentWork) -> Non
         ) from failure
 
 
-def _read_agent_work_ending(*, directory: Path) -> AgentWorkEnding | None:
+def read_agent_work_ending(*, directory: Path) -> AgentWorkEnding | None:
+    """Return the ending currently recorded for the work in directory."""
     return read_json_if_exists(
         model=AgentWorkEnding, path=directory / _ENDING_RECORD_NAME
     )

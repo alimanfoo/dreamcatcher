@@ -44,6 +44,11 @@ the change.
   ends. Conversation labels still start, pause and resume conversations.
   ([#934](https://github.com/alimanfoo/dreamcatcher/pull/934))
 
+- Assignments can target a recorded base branch. After a merge into a
+  base other than the default, the wrap-up round closes the issue as
+  completed and names the pull request in a comment.
+  ([#936](https://github.com/alimanfoo/dreamcatcher/pull/936))
+
 ## [v9.10.0](https://github.com/alimanfoo/dreamcatcher/releases/tag/v9.10.0) — 2026-11-26
 
 ### Changed

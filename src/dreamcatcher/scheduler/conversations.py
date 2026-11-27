@@ -2,7 +2,7 @@
 
 from functools import partial
 
-from dreamcatcher.agent_work import AgentWork
+from dreamcatcher.agent_work import AgentWork, DispatchRequest
 from dreamcatcher.github import Issue, IssueComment
 from dreamcatcher.issue_conversations import (
     post_conversation_answer,
@@ -12,7 +12,6 @@ from dreamcatcher.issue_conversations import (
 from dreamcatcher.prompts import compose_conversation_input_prompt
 from dreamcatcher.scheduler.inspection import (
     Candidate,
-    DispatchRequest,
     Inspection,
     RoundPlan,
     SchedulingContext,

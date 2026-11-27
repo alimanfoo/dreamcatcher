@@ -72,21 +72,24 @@ its last round. The agent addresses it, pushes, and ends its turn.
 Anything the user posts while the agent is working waits for the round
 after. That exchange repeats as often as the user likes.
 
-While the pull request waits, the default branch may move under it and
-the checks may go red. The agent deals with both itself, as
+While the pull request waits, its base branch may move under it and the
+checks may go red. The agent deals with both itself, as
 [the moving default branch story](#the-user-leaves-a-pull-request-after-the-default-branch-moves)
 and
 [the failing build story](#the-user-leaves-a-failing-build-to-the-agent)
 tell.
 
-The user merges when satisfied. GitHub closes the issue, and at the next
-update the agent has one last round to wrap up, which allows it to raise
-any issues for outstanding work not addressed in the pull request. Until
-that round starts, the assignment shows as waiting, awaiting wrap-up.
-The assignment then ends, and the update after removes its worktree and
-its local branch, so finished assignments do not fill the disk. Its
-record stays, so the home page and the assignment's page still show it,
-without a worktree to resume its session from.
+The user merges when satisfied. GitHub closes the issue after a merge
+into the default branch. After a merge into another base branch,
+_dreamcatcher_ closes the issue before wrap-up and comments with a
+reference to the pull request. At the next update the agent has one last
+round to wrap up, which allows it to raise any issues for outstanding
+work not addressed in the pull request. Until that round starts, the
+assignment shows as waiting, awaiting wrap-up. The assignment then ends,
+and the update after removes its worktree and its local branch, so
+finished assignments do not fill the disk. Its record stays, so the home
+page and the assignment's page still show it, without a worktree to
+resume its session from.
 
 The value to the user is that they need only label an issue, wait for
 the pull request to be ready, then review it and iterate until happy
@@ -242,8 +245,8 @@ _dreamcatcher_ never removes them. The assignment's page shows where the
 worktree is and the command that picks up the agent's session by hand,
 should they want to carry on the conversation themselves. Once its round
 has stopped, the assignment's card on the home page, its page and
-`dreamcatcher view` show it as cancelled, and while the pull request
-stays open no new assignment starts for the issue. A cancel that lands
+`dreamcatcher view` show it as cancelled. While an open pull request is
+linked to close the issue, no new assignment starts. A cancel that lands
 as the wrap-up round finishes still keeps the worktree and branch the
 user's, and a cancel that comes after the wrap-up round changes nothing,
 so `dreamcatcher cancel` says that the assignment has already ended. The
@@ -1124,6 +1127,14 @@ outside.
 A conversation round finished but GitHub refused the comment, or the
 agent returned nothing. The round errors with that reason, and the next
 update gives it the same comments again.
+
+### The issue cannot be closed during wrap-up
+
+GitHub refuses the closing comment or the issue closure after an
+assignment merges into a base other than the default branch. The wrap-up
+round errors with the reason before the agent starts. When the
+assignment tries again, it reuses its closing comment if GitHub already
+accepted it and wraps up once the issue is closed.
 
 ### A local write fails
 
