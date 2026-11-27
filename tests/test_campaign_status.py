@@ -44,7 +44,7 @@ from dreamcatcher.campaigns import (
     CampaignRoundInput,
 )
 from dreamcatcher.errors import ReportableError
-from dreamcatcher.github import IssueComment, IssueState, PullRequestState
+from dreamcatcher.github import CheckResult, IssueComment, IssueState, PullRequestState
 from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.scheduler.models import (
     IssueCommentsFinding,
@@ -247,26 +247,37 @@ def test_a_running_lead_counts_the_sub_issues_that_woke_it(state):
 
 
 @pytest.mark.parametrize(
-    ("ending", "is_draft", "detail"),
+    ("ending", "finding", "detail"),
     [
-        (SUCCESSFUL, True, "awaiting feedback or sub-issue changes"),
+        (SUCCESSFUL, NOTHING_NEW, "awaiting feedback or sub-issue changes"),
         (
             StoppedAgentRoundEnding(at=PINNED + timedelta(minutes=2)),
-            True,
+            NOTHING_NEW,
             "awaiting feedback or sub-issue changes",
         ),
-        (SUCCESSFUL, False, "ready for review"),
+        (
+            SUCCESSFUL,
+            NOTHING_NEW.model_copy(update={"is_draft": False}),
+            "ready for review",
+        ),
+        (
+            SUCCESSFUL,
+            NOTHING_NEW.model_copy(
+                update={
+                    "is_draft": False,
+                    "check_result": CheckResult.FAILING,
+                    "is_check_failure_withheld": True,
+                }
+            ),
+            "checks failing after two attempts",
+        ),
     ],
 )
 def test_an_idle_lead_reports_what_its_pull_request_awaits(
-    state, ending, is_draft, detail
+    state, ending, finding, detail
 ):
     write_lead_round(state=state, number=1, ending=ending)
-    observe(
-        state=state,
-        finding=NOTHING_NEW.model_copy(update={"is_draft": is_draft}),
-        ended_round=1,
-    )
+    observe(state=state, finding=finding, ended_round=1)
 
     status = read_campaign_status(state=state)
 

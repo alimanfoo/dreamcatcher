@@ -1,0 +1,32 @@
+Your pull request is behind its base branch or conflicts with
+it. Merge the base branch in, resolve any conflicts, and push.
+
+Checks failed on your pull request's latest commit. Read
+their output, fix the cause, and push.
+
+Campaign input for parent issue GH20:
+
+  round-input.json
+
+Read that JSON file. Read `pull_request_state` before anything else. If it is
+MERGED or CLOSED, wrap up per your campaign's rules and end your turn.
+
+The `pull_request` field names the campaign's pull request. Act on every entry
+in `user_posts`, the user's new posts on that pull request, and in
+`notifications`, the sub-issue changes since your last delivered input. Each
+notification names its sub-issue's `issue` and `changes`. The `children` field
+describes the parent's sub-issues and their assignments. The
+`assignment_routes` field holds the labels and recipes available for dispatch.
+
+Carry the campaign's pull request to merge. Before acting on any signals or
+making changes, switch to the campaign branch `dreamcatcher-GH20-20260923-010000-campaign` and pull it
+to pick up any sub-issues merged since your last round. Make the changes the
+user requests and commit and push your fixes to that branch.
+
+Do not add sub-issues or open another pull request. The user decides when to
+merge the campaign's pull request. Do not merge it yourself or close the
+parent. The user's merge closes the parent. Leave the parent's assignees and
+labels as they are.
+
+Post anything the user needs to read on the campaign's pull request yourself.
+dreamcatcher keeps your final output in the feed. End your turn when done.

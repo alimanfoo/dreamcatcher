@@ -132,17 +132,17 @@ merging the campaign's pull request closes it.
 - **Round input**, `input.json`. _Changed._ A shared part holds the four
   fields of today's `AssignmentRoundInput`, `pull_request_state`,
   `pull_request_head`, `signals` and `user_posts`, and gains
-  `pull_request`, the pull request's number. The round's prompt is
-  composed before its preparation runs, so the opening round's prompt
-  cannot name a pull request that the preparation opens; the input,
-  which the preparation writes, can. A campaign's input adds a campaign
-  part: `children`, `notifications` and `assignment_routes`. It drops
-  today's `issue`, `comments`, `cursor` and `revision`. The relay's
-  readers read the shared part from either kind's input. The opening
-  preparation takes `pull_request_head` from the commit it pushed, since
-  no tick has yet read the new pull request. A retry that adopts an
-  existing pull request relays its current activity and wraps up if it
-  has already merged or closed.
+  `pull_request`, the pull request's number. The preparation builds the
+  input and its prompt together. The lead reads the pull request number
+  from the input. A campaign's input adds a campaign part: `children`,
+  `notifications` and `assignment_routes`. It drops today's `issue`,
+  `comments`, `cursor` and `revision`. The relay's readers read the
+  shared part from either kind's input. The opening preparation takes
+  `pull_request_head` from the commit it pushed, since no tick has yet
+  read the new pull request. A retry that adopts an existing pull
+  request relays its current activity and chooses the prompt from that
+  observation. It wraps up if the pull request has already merged or
+  closed.
 - **Ending**, `ended.json`. _Changed._ A campaign ends completed or
   cancelled. "Issue closed" remains for conversations alone.
 - **Request row finding**, in `scheduler/models.py`. _Changed._ An open
@@ -249,7 +249,7 @@ parts, in this order:
 | Opening          | open                 | none                                | none         | none            | coordinating |
 | Posts or changes | open                 | none                                | new posts    | new changes     | either       |
 | Signal           | open                 | out-of-date, check-failure, or both | any          | any             | finishing    |
-| Wrap-up          | merged or closed     | none                                | any          | any             | either       |
+| Wrap-up          | merged or closed     | none                                | any          | any             | wrap-up      |
 
 Every input also holds `pull_request`, the campaign's pull request's
 number, `pull_request_head`, `children` and `assignment_routes`.

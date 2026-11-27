@@ -76,6 +76,7 @@ from dreamcatcher.github import (
     IssueComment,
     IssueState,
     PullRequestMergeState,
+    PullRequestSignal,
     PullRequestState,
 )
 from dreamcatcher.harness_adapters import AgentWorkKind
@@ -90,6 +91,7 @@ from dreamcatcher.scheduler.models import (
     ConflictingLabelsFinding,
     IssueReference,
     LabelAppliedByOtherFinding,
+    PullRequestFinding,
     ReadFailureFinding,
     RequestConsumedFinding,
     RequestRow,
@@ -163,11 +165,24 @@ def script_campaign_opening(*, gh) -> None:
     offer_campaign_pull_request(gh=gh)
 
 
-def offer_campaign_pull_request(*, gh, state: str = "OPEN", head: str = HEAD) -> None:
-    """Have GitHub report the campaign's pull request in this state."""
+def offer_campaign_pull_request(
+    *,
+    gh,
+    state: str = "OPEN",
+    is_draft: bool = True,
+    merge_state: str = "CLEAN",
+    head: str = HEAD,
+    checks: Sequence[dict] = (compose_check_run(),),
+) -> None:
+    """Have GitHub report the campaign's pull request with these facts."""
     gh.replies(
         stdout=compose_pull_request(
-            number=CAMPAIGN_PULL_REQUEST, state=state, is_draft=True, head=head
+            number=CAMPAIGN_PULL_REQUEST,
+            state=state,
+            is_draft=is_draft,
+            merge_state=merge_state,
+            head=head,
+            checks=checks,
         ),
         to=f"pr view {CAMPAIGN_PULL_REQUEST}",
     )
@@ -379,7 +394,9 @@ def test_a_labelled_parent_starts_a_lead_that_reads_its_input_and_posts_nothing(
         call.prompt
     )
     assert call.prompt.endswith(_CAMPAIGN_POST_INSTRUCTIONS)
-    assert "assignment label if present, then add the label" in call.prompt
+    assert "assignment label if present, then add the label" in " ".join(
+        call.prompt.split()
+    )
     assert "--resume" not in call.arguments
     assert all("POST" not in call.arguments for call in gh.calls)
 
@@ -925,6 +942,97 @@ def test_a_pull_request_post_wakes_the_lead_without_resetting_its_worktree(
     [call] = harnesses["claude"].calls
     assert call.arguments[-2:] == ["--resume", "lead-session"]
     assert call.prompt.startswith("Campaign input for parent issue GH20:")
+
+
+def test_a_conflict_wakes_the_finishing_lead_and_a_draft_returns_to_coordinating(
+    campaign_scheduler, harnesses
+):
+    scheduler, gh = campaign_scheduler
+    settle_lead(state=scheduler.context.state)
+    script_lead_turn(harnesses=harnesses)
+    offer_campaign_pull_request(gh=gh, is_draft=False, merge_state="DIRTY")
+
+    tick(scheduler=scheduler)
+    finish(scheduler=scheduler)
+
+    campaign = read_campaign(state=scheduler.context.state, issue=PARENT)
+    assert campaign is not None
+    branch = compose_work_branch(identifier=campaign.identifier)
+    [conflict] = harnesses["claude"].calls
+    assert conflict.prompt.startswith("Your pull request is behind its base branch")
+    assert f"campaign branch `{branch}` and pull it" in conflict.prompt
+    assert read_lead_input(scheduler=scheduler, number=2).signals == [
+        PullRequestSignal.OUT_OF_DATE
+    ]
+
+    ready_post = compose_pull_request_post(identifier=1, body="Please update the docs.")
+    offer_campaign_pull_request(gh=gh, is_draft=False)
+    offer_posts(gh=gh, posts=[ready_post])
+    tick(scheduler=scheduler)
+    finish(scheduler=scheduler)
+
+    _, feedback = harnesses["claude"].calls
+    assert f"campaign branch `{branch}` and pull it" in feedback.prompt
+    given = read_lead_input(scheduler=scheduler, number=3)
+    assert given.signals == []
+    assert given.user_posts == [IssueComment.model_validate(ready_post)]
+
+    offer_campaign_pull_request(
+        gh=gh,
+        is_draft=True,
+        merge_state="DIRTY",
+        head="f" * 40,
+        checks=[compose_check_run(conclusion="FAILURE")],
+    )
+    assert tick(scheduler=scheduler).launched_agent_work_identifiers == []
+
+    draft_post = compose_pull_request_post(identifier=2, body="Dispatch the new issue.")
+    offer_posts(gh=gh, posts=[ready_post, draft_post])
+    tick(scheduler=scheduler)
+    finish(scheduler=scheduler)
+
+    _, _, coordinating = harnesses["claude"].calls
+    assert coordinating.prompt.startswith("Campaign input for parent issue GH20:")
+    assert "While coordinating, do not edit project source" in coordinating.prompt
+    given = read_lead_input(scheduler=scheduler, number=4)
+    assert given.signals == []
+    assert given.user_posts == [IssueComment.model_validate(draft_post)]
+
+
+def test_a_finishing_lead_gets_two_attempts_at_a_red_build(
+    campaign_scheduler, harnesses
+):
+    scheduler, gh = campaign_scheduler
+    settle_lead(state=scheduler.context.state)
+    script_lead_turn(harnesses=harnesses)
+    failing_checks = [compose_check_run(conclusion="FAILURE")]
+
+    for number in (2, 3):
+        head = str(number) * 40
+        offer_campaign_pull_request(
+            gh=gh, is_draft=False, head=head, checks=failing_checks
+        )
+        tick(scheduler=scheduler)
+        finish(scheduler=scheduler)
+
+        given = read_lead_input(scheduler=scheduler, number=number)
+        assert given.pull_request_head == head
+        assert given.signals == [PullRequestSignal.CHECK_FAILURE]
+        assert tick(scheduler=scheduler).launched_agent_work_identifiers == []
+
+    offer_campaign_pull_request(
+        gh=gh, is_draft=False, head="4" * 40, checks=failing_checks
+    )
+    withheld = tick(scheduler=scheduler)
+
+    assert withheld.launched_agent_work_identifiers == []
+    finding = find_campaign_row(observed=withheld).finding
+    assert isinstance(finding, PullRequestFinding)
+    assert finding.is_check_failure_withheld
+    first, second = harnesses["claude"].calls
+    for call in (first, second):
+        assert call.prompt.startswith("Checks failed on your pull request's latest")
+        assert "Carry the campaign's pull request to merge." in call.prompt
 
 
 def test_the_leads_own_marked_replies_wake_nothing(campaign_scheduler, harnesses):
@@ -2360,7 +2468,7 @@ def test_opening_retry_adopts_a_campaign_pull_request_that_has_closed(
         stdout=compose_pull_request_listing(numbers=[CAMPAIGN_PULL_REQUEST]),
         to="pr list",
     )
-    offer_campaign_pull_request(gh=gh, state="CLOSED")
+    offer_campaign_pull_request(gh=gh, state="CLOSED", is_draft=False)
     post = compose_pull_request_post(identifier=1)
     offer_posts(gh=gh, posts=[post])
     if not is_read_available:
@@ -2375,7 +2483,7 @@ def test_opening_retry_adopts_a_campaign_pull_request_that_has_closed(
         assert adopted.rows[0].started_round is not None
         assert adopted.rows[0].started_round.launch_failure
         assert harnesses["claude"].calls == []
-        offer_campaign_pull_request(gh=gh, state="CLOSED")
+        offer_campaign_pull_request(gh=gh, state="CLOSED", is_draft=False)
         request_agent_work_retry(work=campaign, at=scheduler.context.clock())
         tick(scheduler=scheduler)
         finish(scheduler=scheduler)
@@ -2388,8 +2496,42 @@ def test_opening_retry_adopts_a_campaign_pull_request_that_has_closed(
     assert given.pull_request_state is PullRequestState.CLOSED
     assert given.pull_request_head == HEAD
     assert given.user_posts == [IssueComment.model_validate(post)]
-    assert len(harnesses["claude"].calls) == 1
+    [call] = harnesses["claude"].calls
+    assert "Read `pull_request_state` before anything else." in call.prompt
+    assert "Carry the campaign's pull request to merge." not in call.prompt
     assert sum(call.arguments[:2] == ["pr", "create"] for call in gh.calls) == 1
+
+
+def test_an_opening_retry_adopts_a_ready_campaign_pull_request_with_its_signal(
+    campaign_scheduler, harnesses
+):
+    scheduler, gh = campaign_scheduler
+    offer_parent(gh=gh)
+    gh.fails(
+        stderr="could not read the new pull request",
+        to=f"pr view {CAMPAIGN_PULL_REQUEST_URL}",
+    )
+    script_lead_turn(harnesses=harnesses)
+    tick(scheduler=scheduler)
+    assert harnesses["claude"].calls == []
+    gh.replies(
+        stdout=compose_pull_request_listing(numbers=[CAMPAIGN_PULL_REQUEST]),
+        to="pr list",
+    )
+    offer_campaign_pull_request(gh=gh, is_draft=False, merge_state="BEHIND")
+
+    tick(scheduler=scheduler)
+    finish(scheduler=scheduler)
+
+    [call] = harnesses["claude"].calls
+    assert call.prompt.index("Your previous round did not finish") < call.prompt.index(
+        "Your pull request is behind its base branch"
+    )
+    assert "Carry the campaign's pull request to merge." in call.prompt
+    assert read_lead_input(scheduler=scheduler, number=2).signals == [
+        PullRequestSignal.OUT_OF_DATE
+    ]
+    assert tick(scheduler=scheduler).launched_agent_work_identifiers == []
 
 
 def test_campaign_posts_seen_in_the_same_github_second_are_relayed_once(

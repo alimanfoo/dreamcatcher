@@ -30,11 +30,15 @@ from dreamcatcher.github import (
     list_sub_issues,
     read_pull_request,
 )
-from dreamcatcher.prompts import compose_campaign_input_prompt
+from dreamcatcher.prompts import (
+    compose_campaign_input_prompt,
+    compose_finishing_campaign_input_prompt,
+)
 from dreamcatcher.pull_request_work import (
     ObservedPullRequest,
     PullRequestRoundInput,
     complete_pull_request_work,
+    compose_work_branch,
     open_work_pull_request,
     read_work_pull_request_number,
 )
@@ -279,31 +283,39 @@ def _offer_lead_round(
     )
 
 
-def _prepare_campaign_opening(
-    *, context: SchedulingContext, work: AgentWork
-) -> PullRequestRoundInput:
-    """Freeze the new pull request or relay the one an earlier attempt opened."""
-    opened = open_work_pull_request(
-        state=context.state, repository=context.repository, work=work
-    )
-    if not opened.was_adopted:
-        return PullRequestRoundInput(
-            pull_request=opened.number,
-            pull_request_state=PullRequestState.OPEN,
-            pull_request_head=read_worktree_revision(worktree=work.worktree),
-            signals=[],
-            user_posts=[],
+def _prepare_campaign_pull_request(
+    *, context: SchedulingContext, work: AgentWork, activity: PullRequestActivity | None
+) -> tuple[PullRequestRoundInput, bool]:
+    """Freeze the pull request input and say whether it is ready for review."""
+    if activity is None:
+        opened = open_work_pull_request(
+            state=context.state, repository=context.repository, work=work
         )
-    activity = read_pull_request_activity(
-        context=context,
-        work=work,
-        read=read_pull_request(
-            repository=context.repository, pull_request=opened.number
-        ),
+        if not opened.was_adopted:
+            return (
+                PullRequestRoundInput(
+                    pull_request=opened.number,
+                    pull_request_state=PullRequestState.OPEN,
+                    pull_request_head=read_worktree_revision(worktree=work.worktree),
+                    signals=[],
+                    user_posts=[],
+                ),
+                False,
+            )
+        observed = read_pull_request_activity(
+            context=context,
+            work=work,
+            read=read_pull_request(
+                repository=context.repository, pull_request=opened.number
+            ),
+        )
+        if isinstance(observed, ReadFailureFinding):
+            raise ReportableError(observed.reason)
+        activity = observed
+    return (
+        activity.prepare_round(context=context, work=work),
+        activity.finding.is_ready_for_review,
     )
-    if isinstance(activity, ReadFailureFinding):
-        raise ReportableError(activity.reason)
-    return activity.prepare_round(context=context, work=work)
 
 
 def _compose_campaign_round(
@@ -320,10 +332,8 @@ def _compose_campaign_round(
     ).round_input
 
     def prepare_round() -> tuple[CampaignRoundInput, str]:
-        pull_request_input = (
-            _prepare_campaign_opening(context=context, work=work)
-            if activity is None
-            else activity.prepare_round(context=context, work=work)
+        pull_request_input, is_ready_for_review = _prepare_campaign_pull_request(
+            context=context, work=work, activity=activity
         )
         round_input = compose_campaign_round_input(
             pull_request_input=pull_request_input,
@@ -331,9 +341,17 @@ def _compose_campaign_round(
             notifications=notifications,
             assignment_routes=context.config.assignment,
         )
-        input_prompt = compose_campaign_input_prompt(
-            issue=work.record.issue,
-            round_input=round_input_path,
+        input_prompt = (
+            compose_finishing_campaign_input_prompt(
+                issue=work.record.issue,
+                round_input=round_input_path,
+                campaign_branch=compose_work_branch(identifier=work.identifier),
+                pull_request_signals=round_input.signals,
+            )
+            if is_ready_for_review
+            else compose_campaign_input_prompt(
+                issue=work.record.issue, round_input=round_input_path
+            )
         )
         return round_input, input_prompt
 

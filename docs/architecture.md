@@ -290,7 +290,8 @@ keeps the checkout the lead left between rounds. The opening input
 carries the new pull request number, its initial state and the head of
 the worktree that was pushed, along with the sub-issues and assignment
 routes. An opening round that adopts an existing pull request relays
-GitHub's current observation and wraps up if it is merged or closed.
+GitHub's current observation and uses it to choose the input prompt. A
+merged or closed pull request calls for wrap-up.
 
 `scheduler/campaigns.py` asks the shared start-time questions after the
 label checks clear a campaign request. A claim, a blocker or a failed
@@ -325,10 +326,16 @@ reads its pull request activity through `scheduler/pull_requests.py`.
 `compare_campaign_children` compares the current sub-issues with the
 newest picture delivered to the lead, and names the changes that warrant
 a notification. Pull request activity, an unfinished round or a
-sub-issue notification can make a round due. A campaign in fault still
-shows the sub-issues the tick can observe. An incomplete observation
-prevents a round. The tick compares sub-issues each time, and records
-the notifications only in the input of a round that starts.
+sub-issue notification can make a round due. An open pull request ready
+for review also wakes the lead through the shared out-of-date and
+check-failure relay rules. Its round receives the finishing input prompt
+with the same signal lines an assignment receives. An open draft
+receives the coordinating prompt. Both prompts direct the lead to read
+the pull request's state first and wrap up if it is merged or closed. A
+campaign in fault still shows the sub-issues the tick can observe. An
+incomplete observation prevents a round. The tick compares sub-issues
+each time, and records the notifications only in the input of a round
+that starts.
 
 The lead publishes its own messages, and its final output stays in the
 feed. The shared wrap-up finisher records a completed campaign. Claude

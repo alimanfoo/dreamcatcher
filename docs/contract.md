@@ -38,7 +38,11 @@ A campaign skill must:
   assignment label, removing the label first if it is already present;
 - tell the lead to use the campaign's pull request for messages to the
   user and to mark it ready for review when it judges every sub-issue
-  done.
+  done;
+- tell the lead, while the pull request is ready for review, to carry it
+  to merge as an assignment's agent does. The lead switches to the
+  campaign branch and pulls it before making changes, then pushes its
+  fixes to that branch.
 
 A campaign skill must not tell the lead to:
 
