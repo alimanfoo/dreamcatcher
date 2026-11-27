@@ -147,7 +147,9 @@ class Scheduler:
                 AgentWorkKind.ASSIGNMENT: create_assignment_request_inspector(
                     context=self.context, all_work=all_work
                 ),
-                AgentWorkKind.CONVERSATION: inspect_conversation_request,
+                AgentWorkKind.CONVERSATION: partial(
+                    inspect_conversation_request, context=self.context
+                ),
             },
         )
         observations = _observe_assignments(
@@ -163,7 +165,9 @@ class Scheduler:
                 },
                 request_inspectors={
                     AgentWorkKind.CAMPAIGN: partial(
-                        inspect_campaign_request, observations=observations
+                        inspect_campaign_request,
+                        context=self.context,
+                        observations=observations,
                     )
                 },
             ),
@@ -387,7 +391,6 @@ class Scheduler:
                 row=row.model_copy(update={"finding": RequestConsumedFinding()})
             )
         return inspect_request(
-            context=self.context,
             issue=issue,
             request=DispatchRequest(route=route, label_applied_at=label_applied_at),
             row=row,

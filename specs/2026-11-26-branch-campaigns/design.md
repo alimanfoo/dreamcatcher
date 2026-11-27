@@ -32,13 +32,14 @@ plan.
 A **campaign's sub-issue** is a direct sub-issue of a parent that has a
 campaign label, or that has had a campaign in this _dreamcatcher_
 instance, however that campaign ended. Its assignment's pull request
-goes into the campaign branch while the parent's campaign pull request
-is open. While the parent has no open campaign pull request, the request
-is held. A mistake therefore never sends a stack of pull requests to the
-default branch. GitHub closes an issue only from a pull request into the
-default branch, so when a campaign's sub-issue's pull request merges,
-the assignment's wrap-up round closes the sub-issue. A cancelled
-assignment has no wrap-up round, so the user closes its sub-issue.
+goes into the newest campaign's branch while the campaign is open or
+cancelled and its pull request is open. If no campaign pull request is
+available, the request is held. A mistake therefore never sends a stack
+of pull requests to the default branch. GitHub closes an issue only from
+a pull request into the default branch, so when a campaign's sub-issue's
+pull request merges, the assignment's wrap-up round closes the
+sub-issue. A cancelled assignment has no wrap-up round, so the user
+closes its sub-issue.
 
 For assignments and campaigns, each application of the dispatch label to
 an issue is one **request**, and the work it starts **consumes** it. A
@@ -179,10 +180,11 @@ concern campaigns and sub-issues.
         be one of this instance's campaigns, and comparing its number
         with local records would confuse it with a local issue.
       - The parent's newest campaign, ordered by the recorded GitHub
-        label application time, has an open pull request: available,
-        with that campaign's branch as base. The assignment pass shares
-        the answer across the parent's sub-issues. It reads the pull
-        request's state only when that campaign is open or cancelled.
+        label application time, is open or cancelled and its pull
+        request is open: available, with that campaign's branch as base.
+        The assignment pass shares the answer across the parent's
+        sub-issues. It reads the pull request's state only for an open
+        or cancelled campaign.
       - Otherwise: held, naming the parent.
 4. **Observations.** _Unchanged._ Collect what the first pass found of
    each assignment, for the campaigns.

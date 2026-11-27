@@ -78,7 +78,7 @@ from dreamcatcher.pull_request_work import (
     complete_pull_request_work,
 )
 from dreamcatcher.scheduler.models import (
-    CampaignPullRequestMissingFinding,
+    CampaignPullRequestUnavailableFinding,
     GlobalCooldown,
     IssueCommentsFinding,
     IssueReference,
@@ -2032,7 +2032,7 @@ def test_a_campaign_sub_issue_waiting_for_the_campaign_links_to_its_parent(tmp_p
             rows=[
                 compose_request_row(
                     issue=20,
-                    finding=CampaignPullRequestMissingFinding(
+                    finding=CampaignPullRequestUnavailableFinding(
                         parent=IssueReference(number=30)
                     ),
                 )
@@ -2042,9 +2042,8 @@ def test_a_campaign_sub_issue_waiting_for_the_campaign_links_to_its_parent(tmp_p
 
     page = render_home(state=state)
 
-    assert "open, no open campaign pull request for" in page
+    assert "open, no campaign pull request available for" in page
     assert f'href="https://github.com/{REPOSITORY}/issues/30"' in page
-    assert "wait for the parent&#39;s campaign pull request to open" in page
 
 
 def test_a_pull_request_links_to_github_before_its_state_is_observed(tmp_path):

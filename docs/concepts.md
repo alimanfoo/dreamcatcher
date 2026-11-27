@@ -662,7 +662,7 @@ request **claims** an issue when GitHub links it as one that will close
 the issue, as `Closes #123` in its description does. When neither answer
 holds the request, the tick checks the issue's parent. It sets the base
 branch of a campaign's sub-issue to the campaign branch, or holds the
-request and names the parent if there is no open campaign pull request.
+request and names the parent if no campaign pull request is available.
 Every other assignment uses the default branch. The base choice is
 recorded when work starts and does not follow later changes to the
 parent or campaign. For a conversation request, the tick reads the
@@ -679,12 +679,12 @@ A request with no open work has one of these request statuses:
   assignment request's issue claims it, someone other than the user
   applied the request's label, the issue has a routing conflict, or
   earlier work already consumed the request, or the parent of a
-  campaign's sub-issue has no open campaign pull request. Work can start
-  once the blocker closes, the claiming pull request goes or the parent
-  has an open campaign pull request. A label that someone else applied,
-  a routing conflict or a consumed request needs the user to act. An
-  open conversation or campaign can also be held, as its agent work
-  status says.
+  campaign's sub-issue has no available campaign pull request. Work can
+  start once the blocker closes, the claiming pull request goes or the
+  campaign pull request becomes available. A label that someone else
+  applied, a routing conflict or a consumed request needs the user to
+  act. An open conversation or campaign can also be held, as its agent
+  work status says.
 - **Idle**: a conversation request waits for the user's first comment.
 - **Unknown**: a read that decides whether work may start failed, or
   GitHub could not yet tell. A failure to read external state can delay

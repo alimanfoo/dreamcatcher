@@ -155,9 +155,10 @@ parent in this repository. It uses the newest saved campaign by label
 application time. With no campaign on record, it reads the parent's
 labels if the daemon has a campaign route. It shares the answer for a
 parent across its sub-issues during the pass. A failed read leaves the
-base unknown and prevents a launch. An open campaign pull request
-supplies its branch as the base. A campaign's sub-issue with no open
-campaign pull request is held with a finding that names the parent.
+base unknown and prevents a launch. An open or cancelled campaign
+supplies its branch while its pull request is open. A campaign's
+sub-issue with no available campaign pull request is held with a finding
+that names the parent.
 
 Alternation advances when a kind is selected, including when its start
 fails, and begins afresh after a daemon restart.

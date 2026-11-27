@@ -49,9 +49,9 @@ the change.
   completed and names the pull request in a comment.
   ([#936](https://github.com/alimanfoo/dreamcatcher/pull/936))
 
-- A new assignment for a campaign's sub-issue targets the campaign
-  branch while the parent's campaign pull request is open. Otherwise,
-  the request is held and its card names the parent.
+- An assignment for a campaign's sub-issue targets the branch of an open
+  or cancelled campaign with an open pull request. A held request names
+  the parent.
   ([#937](https://github.com/alimanfoo/dreamcatcher/pull/937))
 
 ## [v9.10.0](https://github.com/alimanfoo/dreamcatcher/releases/tag/v9.10.0) — 2026-11-26

@@ -130,10 +130,12 @@ class RequestConsumedFinding(DreamcatcherDocument):
     found: Literal["request already consumed"] = "request already consumed"
 
 
-class CampaignPullRequestMissingFinding(DreamcatcherDocument):
-    """Name the parent that has no open campaign pull request for its sub-issue."""
+class CampaignPullRequestUnavailableFinding(DreamcatcherDocument):
+    """Name the parent whose campaign pull request cannot take its sub-issue."""
 
-    found: Literal["no open campaign pull request"] = "no open campaign pull request"
+    found: Literal["campaign pull request unavailable"] = (
+        "campaign pull request unavailable"
+    )
     parent: IssueReference
 
 
@@ -144,7 +146,7 @@ HoldFinding = (
     | LabelAppliedByOtherFinding
     | ConflictingLabelsFinding
     | RequestConsumedFinding
-    | CampaignPullRequestMissingFinding
+    | CampaignPullRequestUnavailableFinding
 )
 
 

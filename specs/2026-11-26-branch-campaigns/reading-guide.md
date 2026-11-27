@@ -45,22 +45,19 @@ words.
 ## The tick
 
 Start at `Scheduler.tick` in `scheduler/tick.py`. Its docstring gives
-the order. `_inspect` runs a pass with a map of open-work inspectors and
-request inspectors by kind: `_OPEN_WORK_INSPECTORS` and
-`_REQUEST_INSPECTORS` for the first pass, and a second map built inline
-for campaigns, with `observations` bound in. `_inspect_open_work` drops
-the candidate of work whose round is running, but keeps its row.
-`_inspect_requests_of_kind` turns each dispatch label on a listed issue
-into a request row. `_launch_candidates` and `_choose_next_candidate`
-fill slots in rotation by kind. `_launch` creates the work of a request
-(`create_agent_work`), composes the round's plan, and starts the round.
+the order. `_inspect` runs a pass with maps of open-work and request
+inspectors by kind. `_inspect_open_work` drops the candidate of work
+whose round is running, but keeps its row. `_inspect_requests_of_kind`
+turns each dispatch label on a listed issue into a request row.
+`_launch_candidates` and `_choose_next_candidate` fill slots in rotation
+by kind. `_launch` creates the work of a request (`create_agent_work`),
+composes the round's plan, and starts the round.
 
 The shapes that pass between these are in `scheduler/inspection.py`:
 `SchedulingContext`, `Inspection`, `Candidate` and `RoundPlan`. A
 `RoundPlan` is a preparation that runs inside the round before the
 harness and returns its input, an input prompt, and an optional
-finishing step. A request inspector is handed only the context, the
-issue, the route and the row, not the list of work.
+finishing step.
 
 ## Two shapes of channel
 
@@ -225,16 +222,11 @@ saved campaign or, without one, checks the parent's labels against the
 configured campaign routes. It shares that parent's base decision across
 the assignment pass.
 
-The findings are in `scheduler/models.py`. `HoldFinding` includes
-`PausedFinding`, `LabelAppliedByOtherFinding`,
-`ConflictingLabelsFinding`, `RequestConsumedFinding` and
-`CampaignPullRequestMissingFinding`, which names the parent.
-`StartTimeFinding` and `BlockingIssuesFinding` hold claims and blockers.
-`RequestFinding` is the union of every finding a row can hold. In
-status, `describe_request` in `status/requests.py` turns a hold into
-"held" with a fact and advice from `describe_hold` in
-`status/findings.py`, and turns claims and blockers into "linked to" and
-"blocked by" in `_list_holding_facts`.
+`scheduler/models.py` defines the findings. In status,
+`describe_request` in `status/requests.py` turns a hold into "held" with
+a fact and any advice from `describe_hold` in `status/findings.py`, and
+turns claims and blockers into "linked to" and "blocked by" in
+`_list_holding_facts`.
 
 ## Ending, cleanup and cancel
 

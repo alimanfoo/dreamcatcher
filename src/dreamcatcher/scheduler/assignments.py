@@ -41,7 +41,7 @@ from dreamcatcher.scheduler.inspection import (
     compose_open_work_row,
 )
 from dreamcatcher.scheduler.models import (
-    CampaignPullRequestMissingFinding,
+    CampaignPullRequestUnavailableFinding,
     IssueReference,
     PullRequestFinding,
     ReadFailureFinding,
@@ -163,33 +163,29 @@ def create_assignment_request_inspector(
 
     def inspect_assignment_request(
         *,
-        context: SchedulingContext,
         issue: Issue,
         request: DispatchRequest,
         row: RequestRow,
     ) -> Inspection:
         answers = _ask_start_time_questions(context=context, issue=issue.number)
-        row = row.model_copy(update={"finding": answers})
         if not (isinstance(answers, StartTimeFinding) and answers.is_clear):
-            return Inspection(row=row)
+            return Inspection(row=row.model_copy(update={"finding": answers}))
 
         parent = read_issue_parent(repository=context.repository, issue=issue.number)
         if isinstance(parent, UnknownGitHubResponse):
-            return Inspection(
-                row=row.model_copy(
-                    update={"finding": ReadFailureFinding(reason=parent.reason)}
-                )
-            )
-        base = (
-            find_campaign_base(parent=parent.number)
-            if parent is not None
-            and parent.is_in_repository(repository=context.repository)
-            else None
-        )
-        if isinstance(base, (CampaignPullRequestMissingFinding, ReadFailureFinding)):
+            base = ReadFailureFinding(reason=parent.reason)
+        elif parent is not None and parent.is_in_repository(
+            repository=context.repository
+        ):
+            base = find_campaign_base(parent=parent.number)
+        else:
+            base = None
+        if isinstance(
+            base, (CampaignPullRequestUnavailableFinding, ReadFailureFinding)
+        ):
             return Inspection(row=row.model_copy(update={"finding": base}))
         return Inspection(
-            row=row,
+            row=row.model_copy(update={"finding": answers}),
             candidate=Candidate(
                 work_or_request=replace(request, base_branch=base),
                 compose_round=partial(_compose_opening_round, context=context),
@@ -204,7 +200,7 @@ def _find_campaign_base(
     context: SchedulingContext,
     campaigns: dict[int, AgentWork],
     parent: int,
-) -> str | CampaignPullRequestMissingFinding | ReadFailureFinding | None:
+) -> str | CampaignPullRequestUnavailableFinding | ReadFailureFinding | None:
     campaign = campaigns.get(parent)
     if campaign is None:
         if not context.config.campaign:
@@ -227,7 +223,7 @@ def _find_campaign_base(
             return ReadFailureFinding(reason=pull_request.reason)
         if pull_request.state is PullRequestState.OPEN:
             return compose_work_branch(identifier=campaign.identifier)
-    return CampaignPullRequestMissingFinding(parent=IssueReference(number=parent))
+    return CampaignPullRequestUnavailableFinding(parent=IssueReference(number=parent))
 
 
 def _ask_start_time_questions(

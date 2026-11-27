@@ -45,7 +45,7 @@ from dreamcatcher.config import AgentHarness, DreamcatcherConfig
 from dreamcatcher.pull_request_work import cancel_pull_request_work
 from dreamcatcher.scheduler import Scheduler, SchedulingContext
 from dreamcatcher.scheduler.models import (
-    CampaignPullRequestMissingFinding,
+    CampaignPullRequestUnavailableFinding,
     ConflictingLabelsFinding,
     IssueReference,
     LabelAppliedByOtherFinding,
@@ -151,7 +151,7 @@ def test_a_parent_without_campaign_history_is_decided_by_its_campaign_label(
     )
 
     assert row.finding == (
-        CampaignPullRequestMissingFinding(parent=IssueReference(number=PARENT))
+        CampaignPullRequestUnavailableFinding(parent=IssueReference(number=PARENT))
         if labels
         else UNCLAIMED
     )
@@ -205,7 +205,7 @@ def test_a_campaign_sub_issue_can_start_only_into_an_open_campaign_pull_request(
     assert row.finding == (
         UNCLAIMED
         if is_available
-        else CampaignPullRequestMissingFinding(parent=IssueReference(number=PARENT))
+        else CampaignPullRequestUnavailableFinding(parent=IssueReference(number=PARENT))
     )
     assert sum(call.arguments[:2] == ["pr", "view"] for call in gh.calls) == int(
         pull_request_state is not None and ending is not AgentWorkEndReason.COMPLETED
@@ -312,7 +312,7 @@ def test_sub_issues_share_the_newest_campaign_pull_request_read_for_one_tick(gh,
     rows = list_request_rows(state=state, config=config)
 
     assert [row.finding for row in rows] == [
-        CampaignPullRequestMissingFinding(parent=IssueReference(number=PARENT))
+        CampaignPullRequestUnavailableFinding(parent=IssueReference(number=PARENT))
     ] * 2
 
 
