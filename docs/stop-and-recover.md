@@ -4,15 +4,15 @@ Choose the control that matches what you want to stop. Closing a status
 view, stopping one agent round, pausing or ending work, and stopping the
 daemon have different consequences.
 
-| Action                                                                         | What stops                                                | What happens next                                                                      |
-| ------------------------------------------------------------------------------ | --------------------------------------------------------- | -------------------------------------------------------------------------------------- |
-| Interrupt a standalone view, such as `web`, `status` or `feed`                 | Only that view                                            | The daemon and agents continue.                                                        |
-| Run `dreamcatcher stop` or select **stop round** on the web page               | The current agent round                                   | The work waits for something new unless a merged or closed pull request needs wrap-up. |
-| Run `dreamcatcher cancel` or select **cancel assignment** on the web page      | The assignment and any running round                      | You finish the pull request by hand. _dreamcatcher_ runs no further rounds.            |
-| Remove a conversation's or campaign's label, or unassign its issue             | No new round starts; a running round finishes             | Put back what you removed to resume the work in the same session.                      |
-| Close a conversation's issue                                                   | The work, once a running round finishes                   | Reopen the issue with its label to get an answer to the next comment.                  |
-| Close a campaign's parent issue                                                | The work, once a running round finishes                   | Reopen the parent and re-apply its campaign label to start another campaign.           |
-| Press Ctrl-C in the terminal running `dreamcatcher run`, or end it with `kill` | The daemon, its current rounds and the web page it serves | Work that still needs a round can run again after the daemon starts again.             |
+| Action                                                                                       | What stops                                                | What happens next                                                                      |
+| -------------------------------------------------------------------------------------------- | --------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| Interrupt a standalone view, such as `web`, `status` or `feed`                               | Only that view                                            | The daemon and agents continue.                                                        |
+| Run `dreamcatcher stop` or select **stop round** on the web page                             | The current agent round                                   | The work waits for something new unless a merged or closed pull request needs wrap-up. |
+| Run `dreamcatcher cancel` or select **cancel assignment** or **cancel campaign** on its page | The assignment or campaign and any running round          | You finish the pull request by hand. _dreamcatcher_ runs no further rounds.            |
+| Merge or close a pull request with open agent work                                           | The work, after its wrap-up round                         | _dreamcatcher_ removes the worktree and local branch on a later update.                |
+| Remove a conversation's label or unassign its issue                                          | No new round starts; a running round finishes             | Put back what you removed to resume the work in the same session.                      |
+| Close a conversation's issue                                                                 | The work, once a running round finishes                   | Reopen the issue with its label to get an answer to the next comment.                  |
+| Press Ctrl-C in the terminal running `dreamcatcher run`, or end it with `kill`               | The daemon, its current rounds and the web page it serves | Work that still needs a round can run again after the daemon starts again.             |
 
 ## Stop one running round
 
@@ -32,34 +32,29 @@ You can instead open the work in the web page that `run` opened, select
 round is running and _dreamcatcher_ has learned its harness session. The
 round normally stops within about a second.
 
-After an assignment round is stopped, an open pull request waits for a
-new comment or review from you. Once it is ready for review, it also
-waits for its branch to fall behind or a check to fail at a new commit.
-Add that feedback when you are ready to resume. If you merge or close
-the pull request instead, its wrap-up can start without a new post. If
-you stop the wrap-up round itself, the assignment stays open with no
-round due; cancel it when you no longer want the agent on it.
+After stopping an assignment or campaign round, post fresh direction on
+its pull request when you are ready to resume. If the pull request is
+ready for review, an out-of-date branch or failing checks can also wake
+the agent. Changes among the sub-issues can wake a lead too. The next
+round tells the agent you stopped the previous one.
+
+If you merge or close the pull request instead, its wrap-up can start
+without a new post. If you stop the wrap-up round itself, cancel the
+work when you want to finish without the agent.
 
 After a conversation round is stopped, post a new eligible issue comment
 to resume the discussion. The next round answers that input; the stopped
 round's comments are not given again.
 
-After a campaign round is stopped, the lead waits. Comment on the parent
-issue with fresh direction to resume it. A sub-issue that changes in a
-way the lead needs to hear of also wakes it, for example when a
-sub-issue's pull request is ready for review. Either way, the next round
-tells the lead that you stopped its previous round.
+An open assignment or campaign continues through its pull request after
+you remove its label. For a conversation, see
+[Pause, resume or end a conversation](discuss-an-issue.md#pause-resume-or-end-a-conversation).
 
-Removing an assignment label does not stop an active assignment. To
-pause or end a conversation or a campaign, follow
-[Pause, resume or end a conversation](discuss-an-issue.md#pause-resume-or-end-a-conversation)
-or
-[Pause or end a campaign](start-a-campaign.md#pause-or-end-a-campaign).
+## Take over a pull request
 
-## Take over an assignment's pull request
-
-Cancel an assignment when you want to finish its pull request yourself.
-Run:
+Cancel an assignment or campaign when you want to finish its pull
+request yourself. Give `cancel` the assignment's issue number or the
+campaign's parent issue number:
 
 ```sh
 dreamcatcher cancel GH123
@@ -68,27 +63,35 @@ dreamcatcher cancel GH123
 When the issue has more than one piece of agent work, the command
 cancels nothing and prints a command for each piece, with the agent work
 identifier that selects it. Each identifier ends with the kind of its
-work, so run the one for the assignment that you want to cancel. You can
-instead open the assignment in the web page that `run` opened, select
-**cancel assignment**, and confirm. If you ran the daemon with
-`--noweb`, start `dreamcatcher web` first. A cancel cannot be undone.
+work, so run the one for the work you want to cancel. You can instead
+open its page, select **cancel assignment** or **cancel campaign**, and
+confirm. If you ran the daemon with `--noweb`, start `dreamcatcher web`
+first. A cancel cannot be undone.
 
 _dreamcatcher_ asks a running round to stop, runs no further rounds for
-the assignment, and stops relaying your comments and reviews on its pull
-request. The assignment's card on the web home page, its page and
-`dreamcatcher view` show **cancelled**, and `dreamcatcher status` counts
-it among the ended assignments.
+the assignment or campaign, and stops relaying feedback on its pull
+request. Its card moves to the ended list and shows **cancelled**.
 
-Carry on in the assignment's worktree, which still has the branch
-checked out. Once no round is running, and when _dreamcatcher_ has
-learned the agent's harness session, the assignment page shows the
-worktree and the command that resumes that session by hand.
+The worktree and branch stay available. A campaign worktree keeps the
+lead's last checkout. Run `git status` in the worktree to check the
+checkout before carrying on. Once no round is running, the work page
+shows the command to resume the agent's session by hand if
+_dreamcatcher_ has learned the session.
 
-_dreamcatcher_ leaves the pull request as it is, and while it is open it
-claims the issue as work outside _dreamcatcher_. If you merge it, GitHub
-closes the issue. If you close it without merging, remove and re-add the
-assignment label to request another attempt on the issue while it is
-assigned to you.
+If GitHub links a pull request to close the issue, _dreamcatcher_ starts
+no new assignment or campaign on the issue while that pull request is
+open. A sub-issue pull request into the campaign branch can stay open
+without that link.
+
+For a cancelled campaign, sub-issue assignments already under way carry
+on. You can label more sub-issues and review and merge their pull
+requests into the campaign branch as long as the campaign's pull request
+is open. If you cancel a sub-issue's assignment and merge its pull
+request into the campaign branch yourself, close the sub-issue on GitHub
+to unblock any work that depends on it.
+
+If you close the pull request without merging and want another attempt,
+remove and re-add the dispatch label on the open issue assigned to you.
 
 ## Restart an interrupted daemon
 

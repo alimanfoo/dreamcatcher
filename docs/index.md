@@ -38,10 +38,10 @@ in its next round. Keep iterating, then merge when you are satisfied, or
 close it if the work should not land.
 
 A **campaign** gives an agent called the lead several issues to
-shepherd. Gather them as sub-issues of one parent; some can run together
-and some can wait on others. The lead sets up assignments, reviews and
-merges their pull requests, and asks you on the parent when a decision
-is needed.
+shepherd. Gather them as sub-issues of one parent. Some can run together
+and some can wait on others. The lead reviews and merges their pull
+requests into a campaign branch. Give feedback on the campaign's pull
+request, then review and merge it into the default branch.
 
 A **conversation** investigates one issue without changing code. Ask a
 question in an issue comment, and the agent answers on the issue. Each
@@ -63,10 +63,9 @@ installed:
 uv tool install dreamcatcher
 ```
 
-Then follow [From issue to pull request](tutorial.md) for the complete
-setup and a first assignment. To try a campaign, follow
-[From parent issue to merged pull requests](campaign-tutorial.md), which
-uses the same setup.
+Then follow [Run your first assignment](tutorial.md) for the complete
+setup and a first assignment.
+[Run your first campaign](campaign-tutorial.md) uses the same setup.
 
 ## Guides
 

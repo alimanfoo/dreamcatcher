@@ -1,178 +1,126 @@
 # Start a campaign
 
-A campaign hands a parent issue and its sub-issues to an agent, the
-lead. The configured prompt tells the lead what to do with them. The
-default `agent-campaign` route shepherds each sub-issue through an
-assignment and merged pull request, and asks you on the parent when it
-needs a decision.
+Give a parent issue and its sub-issues to an agent, the lead. The
+default `agent-campaign` route uses `dream:big` to dispatch the
+sub-issues, review their pull requests and merge them into a single
+campaign branch. You review and merge the campaign's pull request into
+the default branch.
 
-_dreamcatcher_ gives the lead a round when the campaign starts, another
-for each comment you post on the parent, and another when a sub-issue
-changes in a way that the lead needs to hear of. It ends the campaign
-when you close the parent.
-
-You need a configured campaign route and a running daemon. For a first
-campaign, follow the worked example in
-[From parent issue to merged pull requests](campaign-tutorial.md).
+For a worked example, see
+[Run your first campaign](campaign-tutorial.md).
 
 ## Configure a campaign route
 
-The `dreamcatcher.toml` that `dreamcatcher init` writes routes the
-`agent-campaign` label to campaigns. Its recipes run the `dream:big`
-skill from the [dream](https://alimanfoo.github.io/dream/) plugin. The
-skill sets up an assignment for each sub-issue on an assignment route,
-reviews the assignment's pull request and checks its proof, gives the
-assignment's agent feedback, and merges the pull request once the
-sub-issue is done. It asks you on the parent before it changes the plan.
+The `dreamcatcher.toml` that `dreamcatcher init` writes routes
+`agent-campaign` to the `dream:big` skill from the
+[dream](https://alimanfoo.github.io/dream/) plugin. The lead also needs
+at least one assignment route to dispatch the sub-issues.
 
-`init` never changes an existing `dreamcatcher.toml`, so a file written
-before the route existed has none. Copy the `[[campaign]]` route from
-the [default configuration](configuration-reference.md#complete-example)
-into it.
+If your configuration has no campaign route, copy the `[[campaign]]`
+route from the
+[default configuration](configuration-reference.md#complete-example).
+`init` leaves an existing configuration and plugin installation in
+place. Check the
+[upgrade instructions](compatibility.md#upgrade-from-v9-to-state-format-9)
+for the minimum dream plugin version and the campaign skill contract.
 
-The dream plugin has had `dream:big` since version 44.0.0, and `init`
-leaves an installed plugin as it is. If you installed the plugin before
-then, update it with the plugin commands of each harness that runs the
-route.
+For your own campaign instructions, configure a separate
+[route](configure.md) with a prompt that follows the
+[campaign skill contract](contract.md#campaign-skill-contract).
 
-To give the lead other instructions, add a campaign route of your own
-beside `agent-campaign`, under a label of its own. Its prompt tells the
-lead what to do with the parent and with your comments on it. For
-example, this prompt makes a lead that summarises the plan and then
-talks with you:
+GitHub doesn't let an account approve its own pull request. If your
+rules require review on every branch, exempt campaign branches so the
+lead can merge sub-issue pull requests. These branches are named
+`dreamcatcher-GH<n>-…-campaign`.
 
-```toml
-[[campaign]]
-label = "summarise-plan"
+If your CI runs only on pull requests into the default branch, the lead
+merges sub-issue pull requests without CI checks. Run CI on pull
+requests into any branch to check those changes before the lead merges
+them.
 
-[campaign.claude]
-prompt = "Read GH{issue} and its sub-issues. Reply to the comments in your input in one comment on GH{issue}. If your input holds no comment, post a comment on GH{issue} that summarises the plan."
-model = "opus[1m]"
-effort = "high"
-```
-
-Run [`dreamcatcher init`](command-reference.md#init) to create the label
-on GitHub, then restart the daemon so that it reads the new route. The
-[campaign skill contract](contract.md#campaign-skill-contract) says what
-a campaign skill must leave to you.
-
-## Keep sub-issue pull requests from updating one another
-
-A campaign can have several sub-issue pull requests open at once. If the
-repository requires branches to be up to date before merging, each merge
-leaves every other sub-issue behind the default branch. Each remaining
-assignment's agent then merges the default branch, its checks run again,
-and the lead wakes for the new head. Only one of those pull requests
-merges next, so the rest repeat the work after the next merge.
-
-Use
-[GitHub's merge queue](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/configuring-pull-request-merges/managing-a-merge-queue)
-when it is available for the repository. It tests queued changes with
-the latest default branch when their turn comes, without making each
-agent update its pull request branch after every earlier merge.
-
-Otherwise, leave **Require branches to be up to date before merging**
-off for a repository that runs campaigns. A pull request that falls
-behind without a conflict still merges cleanly. One that conflicts with
-the default branch still wakes its agent to bring the branch up to date.
+After adding either route, run
+[`dreamcatcher init`](command-reference.md#init) to create the label on
+GitHub, then
+[start or restart the daemon](run-and-monitor.md#start-the-daemon) so it
+reads the new route.
 
 ## Start the campaign
 
-On GitHub:
+On GitHub, gather the work as direct sub-issues in the same repository.
+Record any dependencies as blocked-by links. Assign the open parent
+issue to the account authenticated through `gh` and apply one configured
+campaign label yourself, such as `agent-campaign`.
 
-1. Keep the parent issue open.
-2. Assign it to the account authenticated through `gh`.
-3. Add exactly one configured campaign label, such as `agent-campaign`.
+When the [request can start](configure.md#label-an-issue-for-agent-work)
+and an agent slot is free, _dreamcatcher_ creates the campaign branch
+from the default branch, opens a draft pull request and starts the lead
+in its worktree. The lead receives the sub-issues, their assignment
+status and the daemon's assignment routes.
 
-If open issues block the parent on GitHub, the campaign waits until
-every one of them is closed.
-
-A campaign needs no comment to start. At its next update with a free
-agent slot, _dreamcatcher_ checks out the current default branch in a
-worktree of the campaign's own, and starts the lead with the configured
-prompt. Its input holds any comments you have already posted on the
-parent, the parent's sub-issues with where each one's assignment stands,
-and the daemon's assignment routes. The lead posts on GitHub itself.
-_dreamcatcher_ keeps the lead's final output in the feed and posts none
-of it.
-
-Monitor the campaign on the web home page's Campaigns tab, where its
-card shows how many of the parent's sub-issues are closed, then counts
-the assignments and requests under it by their status, as in
-`32 of 35 sub-issues closed · 6 working, 3 waiting, 1 held, 5 completed`.
-Expand the count to see each sub-issue with its assignment's card and
-the card of each request for an assignment on it that has no open work,
-or the sub-issue's number and title alone when it has neither. Each
-assignment's card stays on the Assignments tab too. Once the campaign
-ends, its card moves to the ended list and shows only the campaign
-itself. You can also monitor the campaign in the terminal:
+On the web home page's **Campaigns** tab, the campaign card links to its
+pull request and shows the closed sub-issue count. Expand the count to
+see each sub-issue and its assignment or requests. The assignments also
+appear on the **Assignments** tab. When the campaign ends, its card
+moves to the ended list, and GitHub keeps the sub-issue history. To
+follow the campaign in the terminal, use its parent issue number:
 
 ```sh
 dreamcatcher view GH123
 dreamcatcher feed GH123
 ```
 
-## Queue campaigns
-
-To run one campaign after another, mark the later parent as blocked by
-the earlier parent on GitHub, then assign and label both parents, and
-leave their sub-issues for the leads to start. The later campaign waits,
-and its request shows as held, blocked by the earlier parent. The block
-holds back only the later lead, so a sub-issue that you label for an
-assignment yourself starts according to its own dependencies.
-
-Close the earlier parent when you are satisfied with its campaign, and
-the later campaign starts at the next update with a free agent slot.
-Closing every sub-issue does not close the parent, and the lead is told
-never to close it, so the next campaign waits for you.
-
 ## Talk to the lead
 
-Comment on the parent to talk to the lead. At the next update with a
-free agent slot, _dreamcatcher_ refreshes the lead's worktree to the
-current default branch and gives the lead every comment you have posted
-since its last round, in the same harness session. The lead answers on
-GitHub itself. Its own posts carry the agent marker, so they never wake
-it.
+Post comments or reviews on the campaign's pull request. At the next
+update with a free agent slot, the lead receives your new posts in the
+same harness session and answers on the pull request. If a colleague
+asks for changes, post the feedback you want the lead to act on under
+your own account. The lead's final words for each round stay in the
+feed.
 
-When the lead gives a sub-issue's assignment feedback on its pull
-request, it leaves the marker off. The assignment's agent is then given
-the feedback as it is given yours, and the lead hears of the agent's
-answer once the assignment hands back.
+The lead gives feedback to a sub-issue's agent on that assignment's pull
+request. The agent receives it as feedback from your account and answers
+there. The lead hears when the assignment hands back.
 
 ## Changes among the sub-issues
 
-At each update, _dreamcatcher_ compares the parent's sub-issues with
-those it last gave the lead. A sub-issue added to or removed from the
-parent wakes the lead at once. A sub-issue that is closed or reopened,
-an assignment that finishes a round, ends or falls into fault, a pull
-request that changes its head, state or draft flag, checks that finish,
-and a pull request that becomes mergeable wake the lead once the
-sub-issue's assignment has no round running or due. The lead's input
-names each sub-issue that changed and what changed, beside the whole
-current picture. Changes that arrive together, or while the lead cannot
-take a round, reach it in one round.
+You can add a sub-issue while the campaign is open, including after its
+pull request is ready for review. The lead dispatches the assignment and
+reviews and merges its pull request into the campaign branch. A campaign
+pull request that was ready stays ready while the extra work runs.
 
-## Pause or end a campaign
+The lead hears about a change to a sub-issue once its assignment has no
+round running or due.
 
-Remove the campaign's label from the parent, or unassign the parent from
-yourself, to pause the campaign. A round that is already running
-finishes. The home page shows the campaign as held, and says what brings
-it back. Comments you post while the campaign is paused wake nothing.
-Restore the label and the assignee to resume the same campaign. Only a
-label that you put back yourself resumes it, and the lead is given every
-comment you posted while it was paused, and what changed among the
-sub-issues meanwhile. A second campaign label on the parent is a routing
-conflict, and holds the campaign back in the same way until one of the
-labels comes off.
+## Review and merge the campaign
 
-Close the parent to end the campaign. It ends once any running round
-finishes, and _dreamcatcher_ then removes its worktree and keeps its
-record. Only you close the parent: the lead is told never to close it.
-To start a new campaign on the same parent, reopen it and remove and
-re-add its campaign label.
+While the campaign pull request is a draft, the lead coordinates
+sub-issue assignments. When it judges every sub-issue done, it can
+review and fix the whole change, then marks the pull request ready for
+review. Once it's ready, the lead handles feedback, conflicts with the
+default branch and failing checks, as described in
+[Out-of-date branches and failing checks](review-an-assignment.md#out-of-date-branches-and-failing-checks).
+Marking the pull request as a draft again returns the lead to
+coordinating on its next round.
 
-## Stop or recover a round
+Merge the pull request when you're satisfied. GitHub closes the parent.
+If you decide to abandon the change, close the pull request instead.
+Either action calls for the lead's wrap-up round. Keep the daemon
+running until the campaign shows **completed**. The next update removes
+its worktree and local branch. To try again on an open parent, remove
+and re-add its campaign label after wrap-up.
 
-To stop a lead's round, or to recover after one errors or the daemon
-stops, follow [Stop and recover work](stop-and-recover.md).
+## Stop or take over
+
+Use the controls in [Stop and recover work](stop-and-recover.md) to stop
+a round or cancel the campaign and finish its pull request yourself. The
+lead continues to work through the campaign pull request if you change
+the parent's labels or assignee, or close the parent by hand.
+
+## Queue campaigns
+
+Mark the later parent as blocked by the earlier parent on GitHub, then
+assign and label both parents. The later request shows as held while the
+earlier parent is open. When you merge the earlier campaign's pull
+request, GitHub closes its parent. The later campaign can start at the
+next update once all its blockers are closed and an agent slot is free.

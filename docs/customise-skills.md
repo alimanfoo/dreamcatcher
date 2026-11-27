@@ -22,7 +22,8 @@ installs it and sets up a label for each skill:
 it thoroughly. `dream:less` makes an easy change with lighter review.
 `dream:scout` looks into an issue and answers your questions about it.
 `dream:big` leads a campaign, carrying a parent issue's sub-issues
-through their assignments to merge.
+through their assignments into the campaign branch and bringing the
+campaign's pull request to you for review.
 
 ## Write your own
 
@@ -34,18 +35,18 @@ prompt and point a label to it.
    so that it picks up the branch and draft pull request that
    _dreamcatcher_ has already opened. A campaign skill must follow the
    [campaign skill contract](contract.md#campaign-skill-contract), so
-   that the lead coordinates the sub-issues through GitHub and never
-   closes the parent issue or changes its labels or assignees. A
-   conversation skill must follow the
+   that the lead coordinates the sub-issues into the campaign branch,
+   talks to you on the campaign pull request, and marks it ready for you
+   to review and merge. A conversation skill must follow the
    [conversation skill contract](contract.md#conversation-skill-contract),
    so that it investigates the issue and returns an answer for
    _dreamcatcher_ to publish. A conversation or campaign prompt can
    instead give plain instructions, because _dreamcatcher_ adds the
    operational requirements.
 2. If you wrote a skill, make it available where the agent runs. Each
-   agent works in a fresh worktree of the default branch, so either
-   install the skill at user scope, or commit it to the repository and
-   push it.
+   agent uses a separate worktree, so install the skill at user scope or
+   commit it to the branch the worktree starts from. For a campaign's
+   sub-issue assignments, that's the campaign branch.
 3. Add a route to `dreamcatcher.toml` that points a label to a prompt.
    The prompt calls your skill or gives the conversation or campaign
    instructions directly. Run `dreamcatcher init` to create the label on

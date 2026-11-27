@@ -39,7 +39,10 @@ the change.
 
 - Campaign skills must follow [agent contract version 2](contract.md).
   Update your campaign skill before starting a campaign with this
-  release. ([#939](https://github.com/alimanfoo/dreamcatcher/pull/939))
+  release. To run campaigns with `dream:big`, you need dream 48.0.0 or
+  later, so update the plugin together with _dreamcatcher_.
+  ([#939](https://github.com/alimanfoo/dreamcatcher/pull/939),
+  [#945](https://github.com/alimanfoo/dreamcatcher/pull/945))
 
 ### Changed
 
@@ -87,6 +90,12 @@ the change.
   request is a draft, it can edit, commit and push its own changes
   before marking it ready.
   ([#943](https://github.com/alimanfoo/dreamcatcher/pull/943))
+
+- [Run your first campaign](campaign-tutorial.md) walks through two
+  dependent sub-issues and the review and merge of the combined change.
+  [Start a campaign](start-a-campaign.md) explains the branch rules that
+  let the lead merge sub-issue pull requests under your account.
+  ([#945](https://github.com/alimanfoo/dreamcatcher/pull/945))
 
 ### Fixed
 

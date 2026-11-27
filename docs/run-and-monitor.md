@@ -6,7 +6,7 @@ reports and failures remain visible.
 
 Before starting, make sure `dreamcatcher.toml` is present, `gh` is
 signed in, and every harness named by the configuration is installed.
-The setup walkthrough is in [From issue to pull request](tutorial.md).
+The setup walkthrough is in [Run your first assignment](tutorial.md).
 
 ## Start the daemon
 
@@ -106,23 +106,19 @@ Every kind of agent work shares these statuses:
 
 - **working**: an agent round is running;
 - **waiting**: a round is ready to start, and the detail says why;
-- **idle**: no round is known to be due; the detail says when the work
-  awaits the next update, for an assignment whether its pull request is
-  ready for review, still a draft and needing your feedback, failing its
-  checks after two attempts, or merged or closed after its wrap-up
-  round, and for a conversation or campaign how its latest round ended;
-- **held**: the scheduler takes no round of a conversation or campaign
-  until something changes on GitHub, as when you pause it; beside the
-  issue, the work says why, and the detail says what brings it back;
+- **idle**: no round is known to be due. The detail may say that the
+  work awaits the next update. For a conversation it can describe the
+  latest round. For an assignment or campaign it can describe the pull
+  request. An idle draft campaign awaits feedback or sub-issue changes;
+- **held**: the detail says how to unblock a conversation or request;
 - **fault**: repeated errors need attention;
 - **unknown**: _dreamcatcher_ could not read what it needed, or the
   latest update has not seen the work; the accompanying detail says
   which; and
 - **ended**: the work is over. In place of the status, the work shows
-  how it ended, with no detail: **completed** for an assignment after a
-  successful wrap-up, **cancelled** for an assignment that you
-  cancelled, and **ended** for a conversation or campaign, whose issue
-  shows as closed.
+  how it ended. An assignment or campaign shows **completed** after
+  successful wrap-up or **cancelled** after you take over. A
+  conversation whose issue closed shows **ended**.
 
 The [command reference](command-reference.md) gives the complete syntax
 and explains when each view ends. For interruption and failures,
