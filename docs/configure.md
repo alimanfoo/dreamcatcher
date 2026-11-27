@@ -122,14 +122,13 @@ parent issue meets these conditions.
 
 - It is open and assigned to the account authenticated through `gh`.
 - It carries exactly one configured label of that kind, which you
-  applied yourself for this attempt.
+  applied yourself and which hasn't already started an attempt.
 - It has no open work of that kind in this checkout.
 - No open pull request claims it and no open issue blocks it.
 
-Requests for a campaign's sub-issues wait until the campaign branch is
-available. The newest campaign supplies it when it is open or cancelled
-and its pull request is open. An assignment keeps the base it starts
-from.
+A sub-issue's request waits until its parent has a campaign with an open
+pull request. The assignment then targets that campaign's branch. An
+assignment keeps the base it starts from.
 
 Two configured labels of the same kind hold a new request with a routing
 conflict. An open assignment or campaign keeps its recorded route and
@@ -145,11 +144,6 @@ adding a second conversation label or another account applying its label
 holds it back too, and closing the issue ends it.
 [Discuss an issue](discuss-an-issue.md#pause-resume-or-end-a-conversation)
 explains both.
-
-Each application of an assignment or campaign label requests one
-attempt. To try again on an open issue, remove and re-add the label once
-the work ends. Reapplying it while work is open can queue another
-attempt once that work ends.
 
 Labels of different kinds may coexist on an issue because they select
 different kinds of work.

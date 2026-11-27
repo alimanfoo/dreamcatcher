@@ -28,10 +28,15 @@ For your own campaign instructions, configure a separate
 [route](configure.md) with a prompt that follows the
 [campaign skill contract](contract.md#campaign-skill-contract).
 
-The campaign branch must allow merges without an approving review
-because the lead and the sub-issue agents use your GitHub account. Your
-repository's rules determine whether checks run on pull requests into
-the campaign branch. You can still require review on the default branch.
+GitHub doesn't let an account approve its own pull request. If your
+rules require review on every branch, exempt campaign branches so the
+lead can merge sub-issue pull requests. These branches are named
+`dreamcatcher-GH<n>-…-campaign`.
+
+If your CI runs only on pull requests into the default branch, the lead
+merges sub-issue pull requests without CI checks. Run CI on pull
+requests into any branch to check those changes before the lead merges
+them.
 
 After adding either route, run
 [`dreamcatcher init`](command-reference.md#init) to create the label on
@@ -64,14 +69,6 @@ dreamcatcher view GH123
 dreamcatcher feed GH123
 ```
 
-## Queue campaigns
-
-Mark the later parent as blocked by the earlier parent on GitHub, then
-assign and label both parents. The later request shows as held while the
-earlier parent is open. When you merge the earlier campaign's pull
-request, GitHub closes its parent. The later campaign can start at the
-next update once all its blockers are closed and an agent slot is free.
-
 ## Talk to the lead
 
 Post comments or reviews on the campaign's pull request. At the next
@@ -84,6 +81,16 @@ feed.
 The lead gives feedback to a sub-issue's agent on that assignment's pull
 request. The agent receives it as feedback from your account and answers
 there. The lead hears when the assignment hands back.
+
+## Changes among the sub-issues
+
+You can add a sub-issue while the campaign is open, including after its
+pull request is ready for review. The lead dispatches the assignment and
+reviews and merges its pull request into the campaign branch. A campaign
+pull request that was ready stays ready while the extra work runs.
+
+The lead hears about a change to a sub-issue once its assignment has no
+round running or due.
 
 ## Review and merge the campaign
 
@@ -103,22 +110,17 @@ running until the campaign shows **completed**. The next update removes
 its worktree and local branch. To try again on an open parent, remove
 and re-add its campaign label after wrap-up.
 
-## Changes among the sub-issues
-
-You can add a sub-issue while the campaign is open, including after its
-pull request is ready for review. The lead dispatches the assignment and
-reviews and merges its pull request into the campaign branch. A campaign
-pull request that was ready stays ready while the extra work runs.
-
-Adding or removing a sub-issue can wake the lead. Changes to existing
-sub-issues and their assignments, such as a round finishing or a pull
-request becoming mergeable, reach the lead once that assignment has no
-round running or due. The lead sees what changed alongside the current
-picture of every sub-issue.
-
 ## Stop or take over
 
 Use the controls in [Stop and recover work](stop-and-recover.md) to stop
 a round or cancel the campaign and finish its pull request yourself. The
 lead continues to work through the campaign pull request if you change
 the parent's labels or assignee, or close the parent by hand.
+
+## Queue campaigns
+
+Mark the later parent as blocked by the earlier parent on GitHub, then
+assign and label both parents. The later request shows as held while the
+earlier parent is open. When you merge the earlier campaign's pull
+request, GitHub closes its parent. The later campaign can start at the
+next update once all its blockers are closed and an agent slot is free.

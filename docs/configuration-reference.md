@@ -148,11 +148,6 @@ Another conversation label starts a conversation of its own, with that
 label's route and recipe, once it is the only conversation label on the
 issue.
 
-Each application of an assignment or campaign label requests one
-attempt. See
-[Label an issue for agent work](configure.md#label-an-issue-for-agent-work)
-to request another.
-
 A matching label selects a route but does not by itself make an issue
 ready for dispatch. [Run your first assignment](tutorial.md) explains
 how to prepare an assignment issue;

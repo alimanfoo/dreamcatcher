@@ -8,10 +8,10 @@ Saved work does not carry across from one format to the next.
 
 ## Upgrade from v9 to state format 9
 
-Before upgrading, let ongoing assignments and campaigns finish or decide
-which open pull requests to finish by hand, including those for a
-campaign's sub-issues. Decide whether you can start conversations
-afresh. Stop the daemon and every standalone view as
+Before upgrading, let ongoing assignments and campaigns finish, or
+choose which of their pull requests you'll finish by hand, including
+those for a campaign's sub-issues. Decide whether you can start
+conversations afresh. Stop the daemon and every standalone view as
 [Restart views across state formats](#restart-views-across-state-formats)
 describes.
 

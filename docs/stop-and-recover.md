@@ -78,9 +78,10 @@ checkout before carrying on. Once no round is running, the work page
 shows the command to resume the agent's session by hand if
 _dreamcatcher_ has learned the session.
 
-An open pull request still claims the issue if GitHub links it to close
-that issue. A sub-issue pull request into the campaign branch can stay
-open without claiming the sub-issue.
+If GitHub links a pull request to close the issue, _dreamcatcher_ starts
+no new assignment or campaign on the issue while that pull request is
+open. A sub-issue pull request into the campaign branch can stay open
+without that link.
 
 For a cancelled campaign, sub-issue assignments already under way carry
 on. You can label more sub-issues and review and merge their pull

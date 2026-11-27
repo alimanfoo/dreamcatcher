@@ -119,10 +119,9 @@ holds it changes:
   remove and re-add the label to ask for another attempt.
 
 Once an assignment or campaign starts, it continues through its pull
-request even if the issue's labels, assignee or blockers change. If you
-reapply a label while work is open, that later request can start after
-the work ends. To **pause** a conversation, remove its label or unassign
-its issue. Put it back yourself to resume the same harness session.
+request even if the issue's labels, assignee or blockers change. To
+**pause** a conversation, remove its label or unassign its issue. Put it
+back yourself to resume the same harness session.
 
 ## Agent assignments
 
