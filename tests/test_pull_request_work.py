@@ -86,7 +86,6 @@ from dreamcatcher.pull_request_work import (
     cancel_pull_request_work, complete_pull_request_work,
 )
 from dreamcatcher.agent_work import find_agent_work
-from dreamcatcher.relay import PullRequestPostCursor, read_user_post_cursor
 from dreamcatcher.state import StateDirectory
 
 root, identifier, reason, paused, release = sys.argv[1:]

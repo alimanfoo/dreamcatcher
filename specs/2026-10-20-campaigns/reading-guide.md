@@ -143,12 +143,12 @@ still wrapping up.
 ## Conversations, pausing and publication
 
 Read `inspect_open_issue_work` and `find_pause` in
-[`scheduler/issue_work.py`](../../src/dreamcatcher/scheduler/issue_work.py),
-which conversations and campaigns share. The issue is read first.
-Closing it ends the work once no round is running. Removing the work's
-label, removing the user as assignee, or adding another configured label
-of its kind pauses new rounds; a running round continues. Only work that
-is neither paused nor in fault reaches its kind's further inspection.
+`scheduler/issue_work.py`, which conversations and campaigns share. The
+issue is read first. Closing it ends the work once no round is running.
+Removing the work's label, removing the user as assignee, or adding
+another configured label of its kind pauses new rounds; a running round
+continues. Only work that is neither paused nor in fault reaches its
+kind's further inspection.
 
 `inspect_open_conversation` in
 [`scheduler/conversations.py`](../../src/dreamcatcher/scheduler/conversations.py)
@@ -190,11 +190,11 @@ Then read `inspect_open_campaign`, `inspect_campaign_request`,
 Both inspectors observe the sub-issues first, through `list_sub_issues`
 in [`github.py`](../../src/dreamcatcher/github.py), and only then hand
 the open campaign to `inspect_open_issue_work` in
-[`scheduler/issue_work.py`](../../src/dreamcatcher/scheduler/issue_work.py).
-That shared path is unchanged: a paused campaign still returns its pause
-before any further inspection, and `_record_children` adds the observed
-sub-issues to whatever row comes back, so the overview stays current
-while the lead is paused or in fault.
+`scheduler/issue_work.py`. That shared path is unchanged: a paused
+campaign still returns its pause before any further inspection, and
+`_record_children` adds the observed sub-issues to whatever row comes
+back, so the overview stays current while the lead is paused or in
+fault.
 
 A sub-issue is settled when its newest assignment has no round running
 and the first pass made no round due for it, where a startable

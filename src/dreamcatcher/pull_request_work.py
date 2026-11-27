@@ -5,7 +5,7 @@ round publishes the branch and opens the draft pull request before the
 harness runs.
 """
 
-from collections.abc import Callable, Sequence
+from collections.abc import Callable
 from contextlib import suppress
 from dataclasses import dataclass
 from datetime import datetime
@@ -45,7 +45,6 @@ from dreamcatcher.git import (
 )
 from dreamcatcher.github import (
     CheckResult,
-    PullRequest,
     PullRequestMergeState,
     PullRequestReference,
     PullRequestSignal,
@@ -160,32 +159,24 @@ def complete_pull_request_work(
     end_agent_work(work=work, reason=AgentWorkEndReason.COMPLETED, at=clock())
 
 
-def prepare_pull_request_round_input(
+def close_issue_for_merged_pull_request(
     *,
     repository: str,
     work: AgentWork,
-    pull_request: PullRequest,
-    signals: Sequence[PullRequestSignal],
-    posts: Sequence[UserPost],
-) -> PullRequestRoundInput:
-    """Build the input after closing the issue for a merge into another base."""
+    round_input: PullRequestRoundInput,
+) -> None:
+    """Close the issue during wrap-up after a merge into a recorded alternate base."""
     if (
-        pull_request.state is PullRequestState.MERGED
+        round_input.pull_request_state is PullRequestState.MERGED
         and work.record.base_branch is not None
         and read_agent_work_ending(directory=work.directory) is None
     ):
+        comment = f"Merged in #{round_input.pull_request}.\n\n{AGENT_POST_MARKER}"
         close_issue_as_completed(
             repository=repository,
             issue=work.record.issue,
-            closing_comment=f"Merged in #{pull_request.number}.\n\n{AGENT_POST_MARKER}",
+            closing_comment=comment,
         )
-    return PullRequestRoundInput(
-        pull_request=pull_request.number,
-        pull_request_state=pull_request.state,
-        pull_request_head=pull_request.head,
-        signals=signals,
-        user_posts=posts,
-    )
 
 
 def remove_work_worktree_and_branch(*, state: StateDirectory, work: AgentWork) -> None:

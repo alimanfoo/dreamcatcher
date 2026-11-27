@@ -147,27 +147,9 @@ assignee and state no longer decide anything for an open campaign. A
 parent has one campaign at a time. An ended campaign's worktree and
 local branch are removed, and a cancelled one's kept.
 
-The change touches `scheduler/campaigns.py`, where open campaigns use
-the assignment's pull request inspection with the sub-issue observation
-and campaign requests ask the start-time questions; `campaigns.py`,
-where the round input becomes the shared part, which gains
-`pull_request`, and the campaign part, and the preparation opens the
-pull request if none is recorded and no longer refreshes a detached
-worktree; `pull_request_work.py`, whose relay-memory readers read the
-shared part of either kind's input; `agent_work.py`, where an open
-campaign answers every campaign label on its issue;
-`scheduler/issue_work.py`, which serves conversations alone;
-`scheduler/models.py`, where an open campaign's finding becomes the pull
-request finding with the count of changed sub-issues in place of
-`CampaignFinding`, with the status code that branches on that finding
-(`_derive_idle` and `_describe_what_is_new` in `status/agent_work.py`,
-and `_list_holding_facts` in `status/requests.py`); the tick's cleanup;
-and the round triggers in status, which read the new input. The concepts
-page and the architecture follow, and so do the stories: the campaign
-stories, and the campaign parts of "The user renames a dispatch label",
-"Two labels of one kind on one issue" and "Labelling an issue for a
-colleague", which describe a campaign that answers only its own label or
-pauses.
+The [reading guide](reading-guide.md) follows the implementation from
+the two scheduler passes through the shared pull request machinery,
+campaign round input, cleanup and status.
 
 **Proof.** A test walks the design's motivating use case with stand-ins
 for `gh` and the harness, from the label on the parent through the

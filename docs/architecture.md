@@ -85,20 +85,20 @@ when. The tick in `tick.py` has one path for every kind of agent work.
 Each kind's module, `assignments.py`, `campaigns.py` or
 `conversations.py`, supplies only what differs by kind: how it inspects
 the channel of open work, how it decides whether a request with no open
-work may start, and how it composes a round's plan. `issue_work.py`
-holds the conversation's lifetime rules and reads eligible comments. A
-closed issue ends the conversation after any running round finishes. The
-labels, assignee and label applier decide whether it is held.
-`scheduler/pull_requests.py` holds the start-time questions and the pull
-request activity that can wake assignments and campaigns. `blockers.py`
-holds the read of the open issues that block an issue, which assignment
-and campaign requests share. `labelling.py` holds the rule that work
-starts or resumes only on a dispatch label that the signed-in account
-applied, which every kind's requests and open conversations share.
-`inspection.py` holds the scheduling context, the dispatch request, the
-candidate, the round plan and the inspection of one request. `models.py`
-holds the scheduler record and its request rows, and `faults.py` the
-fault and cooldown rules.
+work may start, and how it composes a round's plan. `conversations.py`
+also holds the conversation's lifetime rules and reads eligible
+comments. A closed issue ends the conversation after any running round
+finishes. The labels, assignee and label applier decide whether it is
+held. `scheduler/pull_requests.py` holds the start-time questions and
+the pull request activity that can wake assignments and campaigns.
+`blockers.py` holds the read of the open issues that block an issue,
+which assignment and campaign requests share. `labelling.py` holds the
+rule that work starts or resumes only on a dispatch label that the
+signed-in account applied, which every kind's requests and open
+conversations share. `inspection.py` holds the scheduling context, the
+dispatch request, the candidate, the round plan and the inspection of
+one request. `models.py` holds the scheduler record and its request
+rows, and `faults.py` the fault and cooldown rules.
 
 One scheduler tick:
 
@@ -354,9 +354,9 @@ code relays it.
 ### Pull request work
 
 `pull_request_work.py` names the branch, opens and records the pull
-request, prepares the shared round input, completes the work after
-wrap-up, and removes the worktree and local branch for assignments and
-campaigns. It also provides assignment cancellation.
+request, closes issues for merges into alternate bases, completes the
+work after wrap-up, and removes the worktree and local branch for
+assignments and campaigns. It also provides assignment cancellation.
 
 `agent_work.py` owns what every kind of agent work shares: the work
 record, the agent work identifier, creating work of any kind from its

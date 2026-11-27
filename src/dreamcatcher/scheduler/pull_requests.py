@@ -16,8 +16,8 @@ from dreamcatcher.github import (
 )
 from dreamcatcher.pull_request_work import (
     PullRequestRoundInput,
+    close_issue_for_merged_pull_request,
     complete_pull_request_work,
-    prepare_pull_request_round_input,
 )
 from dreamcatcher.relay import (
     find_pull_request_signals,
@@ -46,7 +46,6 @@ class PullRequestReader(Protocol):
 class PullRequestActivity:
     """Hold a pull request observation and the input it can give a round."""
 
-    pull_request: PullRequest
     posts: Sequence[UserPost]
     finding: PullRequestFinding
 
@@ -63,19 +62,23 @@ class PullRequestActivity:
         self, *, context: SchedulingContext, work: AgentWork
     ) -> PullRequestRoundInput:
         """Freeze the relayed input, performing any issue closure first."""
-        return prepare_pull_request_round_input(
-            repository=context.repository,
-            work=work,
-            pull_request=self.pull_request,
+        round_input = PullRequestRoundInput(
+            pull_request=self.finding.number,
+            pull_request_state=self.finding.state,
+            pull_request_head=self.finding.head,
             signals=self.finding.new_pull_request_signals,
-            posts=self.posts,
+            user_posts=self.posts,
         )
+        close_issue_for_merged_pull_request(
+            repository=context.repository, work=work, round_input=round_input
+        )
+        return round_input
 
     def compose_finisher(
         self, *, context: SchedulingContext, work: AgentWork
     ) -> AgentRoundFinisher | None:
         """Return a finishing step that completes work after a wrap-up."""
-        if self.pull_request.state is PullRequestState.OPEN:
+        if self.finding.state is PullRequestState.OPEN:
             return None
         return partial(complete_pull_request_work, work=work, clock=context.clock)
 
@@ -114,7 +117,7 @@ def read_pull_request_activity(
             and not is_wrap_up_relayed(work=work)
         ),
     )
-    return PullRequestActivity(pull_request=read, posts=posts, finding=finding)
+    return PullRequestActivity(posts=posts, finding=finding)
 
 
 def ask_start_time_questions(

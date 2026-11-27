@@ -22,12 +22,12 @@ supplies a preparation, an input prompt and an optional finisher.
 
 ## Two shapes of channel
 
-Read `scheduler/pull_requests.py`. `read_pull_request_activity` reads
-the current pull request and the user posts past the cursor, and asks
-the relay for signals and wrap-up memory. `PullRequestActivity` says
-when the shared triggers make a round due and prepares the shared input
-and wrap-up finisher. `scheduler/assignments.py` supplies the assignment
-opening plan and prompt.
+Read `scheduler/pull_requests.py`. `read_pull_request_activity` adds the
+user posts, signals and wrap-up memory to a pull request observation.
+`PullRequestActivity` says when the shared triggers make a round due and
+prepares the shared input and wrap-up finisher.
+`scheduler/assignments.py` supplies the assignment opening plan and
+prompt.
 
 `scheduler/campaigns.py` uses that activity for a campaign that has
 opened its pull request. `_observe_children` pairs the parent's
@@ -37,10 +37,10 @@ there is no partial picture. `compare_campaign_children` in
 notification can wake the lead independently of pull request activity.
 Open campaigns keep their sub-issue observations while in fault.
 
-`scheduler/issue_work.py` handles conversations. It reads the issue and
-applies the label and assignee rules before the conversation inspector
-reads comments. The issue's closure ends the conversation once no round
-is running.
+`scheduler/conversations.py` handles conversations. It reads the issue
+and applies the label and assignee rules before the conversation
+inspector reads comments. The issue's closure ends the conversation once
+no round is running.
 
 ## Git and round input
 

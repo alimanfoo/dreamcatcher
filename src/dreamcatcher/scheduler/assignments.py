@@ -211,7 +211,7 @@ def _compose_relay_round(
     return RoundPlan(
         prepare_round=partial(activity.prepare_round, context=context, work=work),
         input_prompt=compose_assignment_input_prompt(
-            pull_request=activity.pull_request.number,
+            pull_request=activity.finding.number,
             round_input=work.compose_round_paths(
                 number=work.next_round_number
             ).round_input,

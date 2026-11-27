@@ -484,9 +484,7 @@ class AgentWorkStatusReader:
         if isinstance(finding, PullRequestFinding):
             detail = describe_idle_pull_request(finding=finding)
         elif isinstance(finding, IssueCommentsFinding):
-            detail = _describe_idle_round(
-                work=work, ending=_describe_conversation_answer(work=work)
-            )
+            detail = _describe_idle_conversation(work=work)
         else:
             return _compose_unknown(work=work, row=row)
         return AgentWorkStatus(
@@ -584,30 +582,21 @@ def _describe_what_is_new(*, finding: RequestFinding | None) -> str | None:
     return ", ".join(words) or None
 
 
-def _describe_conversation_answer(*, work: AgentWork) -> str | None:
-    """Say what the latest conversation round posted, when it was successful.
-
-    Only a successful round posted an answer or found that none was needed.
-    """
+def _describe_idle_conversation(*, work: AgentWork) -> str:
+    """Describe what the conversation's latest round did and how long it ran."""
     latest = work.rounds[-1]
-    if latest.outcome is not AgentRoundOutcome.SUCCESSFUL:
-        return None
-    final_output = read_text(
-        path=work.compose_round_paths(number=latest.number).final_output
-    )
-    return "no reply needed" if is_no_reply(final_output=final_output) else "answered"
-
-
-def _describe_idle_round(*, work: AgentWork, ending: str | None) -> str:
-    """Describe how the latest round of idle work ended, and how long it ran.
-
-    The ending is said in words of the work's kind when it has some, and as the
-    round's outcome otherwise. An interrupted round has no duration.
-    """
-    latest = work.rounds[-1]
+    if latest.outcome is AgentRoundOutcome.SUCCESSFUL:
+        final_output = read_text(
+            path=work.compose_round_paths(number=latest.number).final_output
+        )
+        ending = (
+            "no reply needed" if is_no_reply(final_output=final_output) else "answered"
+        )
+    else:
+        ending = describe_round_outcome(record=latest, outcome=latest.outcome)
     words = [
         f"round {latest.number}",
-        ending or describe_round_outcome(record=latest, outcome=latest.outcome),
+        ending,
         compose_round_duration_description(record=latest),
     ]
     return ", ".join(word for word in words if word)
