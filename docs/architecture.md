@@ -137,11 +137,11 @@ One scheduler tick:
 
 A candidate is open work the tick may start a round for, or a request it
 may start work for. It carries a composer that builds the round's plan
-once the work exists: the preparation that runs inside the round, the
-input prompt, and the finishing step. The tick creates the work from the
-dispatch request, which carries the label application time for an
-assignment or campaign and the base branch when one was selected. It
-then starts the round the plan describes.
+once the work exists: the preparation that supplies the input and its
+prompt inside the round, and the finishing step. The tick creates the
+work from the dispatch request, which carries the label application time
+for an assignment or campaign and the base branch when one was selected.
+It then starts the round the plan describes.
 
 `assignments.py` owns the base choice. The first pass builds its
 assignment request inspector from all saved work, including ended
@@ -416,7 +416,7 @@ building it cannot fail. It should then provide operations to:
 - record the round, with the next number that its work allocated, before
   anything else happens;
 - run the preparation step that the work's kind supplies, which readies
-  what the round needs and returns any input to relay;
+  what the round needs and returns its prompt and any input to relay;
 - write the prompt and any input;
 - start the invocation in the work's worktree, and record its process
   id;

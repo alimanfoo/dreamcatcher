@@ -17,6 +17,7 @@ from dreamcatcher.github import (
 from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.prompts import compose_assignment_input_prompt
 from dreamcatcher.pull_request_work import (
+    PullRequestRoundInput,
     compose_work_branch,
     open_work_pull_request,
     read_work_pull_request_number,
@@ -192,14 +193,14 @@ def _compose_opening_round(*, context: SchedulingContext, work: AgentWork) -> Ro
     The round has no input, so its prompt is the agent's instructions alone.
     """
 
-    def prepare_round() -> None:
+    def prepare_round() -> tuple[None, None]:
         open_work_pull_request(
             state=context.state, repository=context.repository, work=work
         )
+        return None, None
 
     return RoundPlan(
         prepare_round=prepare_round,
-        input_prompt=None,
         finish_round=None,
     )
 
@@ -208,9 +209,10 @@ def _compose_relay_round(
     *, context: SchedulingContext, activity: PullRequestActivity, work: AgentWork
 ) -> RoundPlan:
     """Return the plan of an assignment round given the pull request channel."""
-    return RoundPlan(
-        prepare_round=partial(activity.prepare_round, context=context, work=work),
-        input_prompt=compose_assignment_input_prompt(
+
+    def prepare_round() -> tuple[PullRequestRoundInput, str]:
+        round_input = activity.prepare_round(context=context, work=work)
+        input_prompt = compose_assignment_input_prompt(
             pull_request=activity.finding.number,
             round_input=work.compose_round_paths(
                 number=work.next_round_number
@@ -219,6 +221,10 @@ def _compose_relay_round(
             is_previous_round_unfinished=is_last_round_unfinished(
                 rounds=work.rounds, is_daemon_running=True
             ),
-        ),
+        )
+        return round_input, input_prompt
+
+    return RoundPlan(
+        prepare_round=prepare_round,
         finish_round=activity.compose_finisher(context=context, work=work),
     )

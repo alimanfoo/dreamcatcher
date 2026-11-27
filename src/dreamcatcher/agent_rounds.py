@@ -399,6 +399,14 @@ def _record_agent_round_ending(
 
 
 @dataclass(frozen=True, kw_only=True)
+class PreparedAgentRound:
+    """Hold the prompt and any input that a round gives its harness."""
+
+    prompt: str
+    round_input: DreamcatcherDocument | None = None
+
+
+@dataclass(frozen=True, kw_only=True)
 class AgentRoundStartRequest:
     """Describe everything that `start_agent_round` needs to start a round."""
 
@@ -408,7 +416,7 @@ class AgentRoundStartRequest:
     record_harness_session_identifier: HarnessSessionIdentifierRecorder
     finish_round: AgentRoundFinisher | None
     paths: "AgentRoundPaths"
-    prepare_round: Callable[[], DreamcatcherDocument | None]
+    prepare_round: Callable[[], PreparedAgentRound]
 
 
 def start_agent_round(
@@ -496,7 +504,7 @@ class AgentRound:
         agent_work_identifier: str,
         harness: _AgentRoundHarness,
         paths: AgentRoundPaths,
-        prepare_round: Callable[[], DreamcatcherDocument | None],
+        prepare_round: Callable[[], PreparedAgentRound],
         finish_round: AgentRoundFinisher | None = None,
         clock: Callable[[], datetime] = read_current_time,
         wait_for_round_end: Callable[[float], bool] | None = None,
@@ -505,8 +513,8 @@ class AgentRound:
 
         The record is written first, so the attempt exists before anything else
         happens. The preparation step that the work's kind supplies then readies
-        what the round needs and returns the input to relay, if any. The input
-        and prompt go to files of the round's own before its process starts, and
+        what the round needs and returns the prompt and any input to relay. They
+        go to files of the round's own before its process starts, and
         the harness reads the prompt as its stdin. A prompt therefore reaches the
         harness as it was written however long it is and whatever it holds, and
         a reader can see afterwards what the round received.
@@ -574,18 +582,18 @@ class AgentRound:
         self._ending_recorder.start()
 
     def _prepare_and_spawn(
-        self, *, prepare_round: Callable[[], DreamcatcherDocument | None]
+        self, *, prepare_round: Callable[[], PreparedAgentRound]
     ) -> ChildProcess:
         """Prepare the round, write its input and prompt, and spawn its harness.
 
         The process id joins the record once the harness is spawned. A process
         that cannot be recorded is killed, since nothing would watch it.
         """
-        round_input = prepare_round()
-        if round_input is not None:
-            write_json(document=round_input, path=self.paths.round_input)
+        prepared = prepare_round()
+        if prepared.round_input is not None:
+            write_json(document=prepared.round_input, path=self.paths.round_input)
         write_text(
-            text=self.harness.invocation.prompt,
+            text=prepared.prompt,
             path=self.paths.prompt,
             is_replaceable=False,
         )

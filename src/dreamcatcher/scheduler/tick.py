@@ -10,6 +10,7 @@ from dreamcatcher.agent_rounds import (
     AgentRound,
     AgentRoundLaunchError,
     AgentRoundStartRequest,
+    PreparedAgentRound,
     start_agent_round,
 )
 from dreamcatcher.agent_work import (
@@ -497,6 +498,20 @@ class Scheduler:
                 work=work, identifier=harness_session_identifier
             )
         paths = work.compose_round_paths(number=work.next_round_number)
+
+        def prepare_round() -> PreparedAgentRound:
+            round_input, input_prompt = plan.prepare_round()
+            return PreparedAgentRound(
+                round_input=round_input,
+                prompt=compose_round_prompt(
+                    instructions=work.record.instructions,
+                    is_resuming=harness_session_identifier is not None,
+                    input_prompt=input_prompt,
+                    previous_outcome=work.rounds[-1].outcome if work.rounds else None,
+                    work_kind=work.record.kind,
+                ),
+            )
+
         started_round = start_agent_round(
             request=AgentRoundStartRequest(
                 harness=work.record.harness,
@@ -505,15 +520,6 @@ class Scheduler:
                     model=work.record.model,
                     effort=work.record.effort,
                     harness_config=work.record.harness_config,
-                    prompt=compose_round_prompt(
-                        instructions=work.record.instructions,
-                        is_resuming=harness_session_identifier is not None,
-                        input_prompt=plan.input_prompt,
-                        previous_outcome=(
-                            work.rounds[-1].outcome if work.rounds else None
-                        ),
-                        work_kind=work.record.kind,
-                    ),
                     work_kind=work.record.kind,
                 ),
                 harness_session_identifier=harness_session_identifier,
@@ -522,7 +528,7 @@ class Scheduler:
                 ),
                 finish_round=plan.finish_round,
                 paths=paths,
-                prepare_round=plan.prepare_round,
+                prepare_round=prepare_round,
             ),
             clock=self.context.clock,
         )

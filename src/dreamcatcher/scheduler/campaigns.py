@@ -319,18 +319,23 @@ def _compose_campaign_round(
         number=work.next_round_number
     ).round_input
 
-    def prepare_round() -> CampaignRoundInput:
+    def prepare_round() -> tuple[CampaignRoundInput, str]:
         pull_request_input = (
             _prepare_campaign_opening(context=context, work=work)
             if activity is None
             else activity.prepare_round(context=context, work=work)
         )
-        return compose_campaign_round_input(
+        round_input = compose_campaign_round_input(
             pull_request_input=pull_request_input,
             children=children,
             notifications=notifications,
             assignment_routes=context.config.assignment,
         )
+        input_prompt = compose_campaign_input_prompt(
+            issue=work.record.issue,
+            round_input=round_input_path,
+        )
+        return round_input, input_prompt
 
     def finish_opening_round(*, final_output: str | None) -> None:
         # The preparation can adopt a pull request that has already ended.
@@ -342,10 +347,6 @@ def _compose_campaign_round(
 
     return RoundPlan(
         prepare_round=prepare_round,
-        input_prompt=compose_campaign_input_prompt(
-            issue=work.record.issue,
-            round_input=round_input_path,
-        ),
         finish_round=(
             finish_opening_round
             if activity is None

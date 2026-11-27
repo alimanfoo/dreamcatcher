@@ -19,6 +19,7 @@ from dreamcatcher.github import (
     read_issue,
 )
 from dreamcatcher.issue_conversations import (
+    ConversationRoundInput,
     post_conversation_answer,
     prepare_conversation_round,
     read_issue_comment_cursor,
@@ -186,21 +187,25 @@ def _compose_comment_round(
     A round that starts a new harness session is given the issue's title and
     body too, and every round posts its answer as it finishes.
     """
-    return RoundPlan(
-        prepare_round=partial(
-            prepare_conversation_round,
+
+    def prepare_round() -> tuple[ConversationRoundInput, str]:
+        round_input = prepare_conversation_round(
             state=context.state,
             conversation=work,
             issue=issue,
             comments=comments,
             is_resuming=work.find_harness_session_identifier() is not None,
-        ),
-        input_prompt=compose_conversation_input_prompt(
+        )
+        input_prompt = compose_conversation_input_prompt(
             issue=work.record.issue,
             round_input=work.compose_round_paths(
                 number=work.next_round_number
             ).round_input,
-        ),
+        )
+        return round_input, input_prompt
+
+    return RoundPlan(
+        prepare_round=prepare_round,
         finish_round=partial(
             post_conversation_answer,
             repository=context.repository,

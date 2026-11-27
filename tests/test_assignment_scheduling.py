@@ -117,16 +117,16 @@ def find_next_round_input(
     """What the one assignment in that state directory needs next.
 
     A round that relays the pull request answers with the input it would be
-    given. The round that opens the pull request is given no input prompt, and
-    answers OPENS_PULL_REQUEST.
+    given. A candidate without a pull request observation answers
+    OPENS_PULL_REQUEST.
     """
     assignment = read_assignments(state=state)[0]
     inspected = inspect(state=state)
     if inspected.candidate is not None:
-        plan = inspected.candidate.compose_round(work=assignment)
-        if plan.input_prompt is None:
+        if not isinstance(inspected.row.finding, PullRequestFinding):
             return OPENS_PULL_REQUEST
-        round_input = plan.prepare_round()
+        plan = inspected.candidate.compose_round(work=assignment)
+        round_input, _ = plan.prepare_round()
         assert isinstance(round_input, PullRequestRoundInput)
         return round_input
     if isinstance(inspected.row.finding, ReadFailureFinding):
@@ -842,9 +842,10 @@ def test_a_round_woken_by_a_signal_is_told_of_it_before_its_input(state, gh):
     assert candidate is not None
 
     plan = candidate.compose_round(work=read_assignments(state=state)[0])
+    _, input_prompt = plan.prepare_round()
 
-    assert plan.input_prompt is not None
-    assert plan.input_prompt.startswith("Checks failed on your pull request's")
+    assert input_prompt is not None
+    assert input_prompt.startswith("Checks failed on your pull request's")
 
 
 def test_each_signal_is_relayed_against_its_own_last_head(state, gh):

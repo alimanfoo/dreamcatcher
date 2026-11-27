@@ -27,15 +27,14 @@ class SchedulingContext:
 
 @dataclass(frozen=True, kw_only=True)
 class RoundPlan:
-    """Describe a round's preparation, its input prompt and its finishing step.
+    """Describe a round's preparation and its finishing step.
 
-    The preparation runs inside the round, before its harness, and returns the
-    input the round is given. A plan with no input prompt gives the agent its
-    instructions alone.
+    Preparation runs inside the round and returns its input and the words that
+    direct the agent to it. With no input prompt, the agent gets its instructions
+    alone.
     """
 
-    prepare_round: Callable[[], DreamcatcherDocument | None]
-    input_prompt: str | None
+    prepare_round: Callable[[], tuple[DreamcatcherDocument | None, str | None]]
     finish_round: AgentRoundFinisher | None
 
 

@@ -78,31 +78,25 @@ class AgentWorkKind(StrEnum):
 
 @dataclass(frozen=True, kw_only=True)
 class AgentRoundLaunchRequest:
-    """Describe the settled agent-work settings and prompt for one round.
+    """Describe the settled agent-work settings for one round.
 
     The work record fixes the model, effort and harness config, and every round
-    of the work runs with them. The prompt is this round's own.
+    of the work runs with them.
     """
 
     agent_work_identifier: str
     model: str
     effort: str
-    prompt: str
     harness_config: HarnessConfig = field(default_factory=dict)
     work_kind: AgentWorkKind = AgentWorkKind.ASSIGNMENT
 
 
 @dataclass(frozen=True, kw_only=True)
 class HarnessInvocation:
-    """Describe the command and prompt that start one round.
-
-    A harness reads its prompt from stdin rather than from its command line,
-    which keeps prompt length and Windows command parsing outside this contract.
-    """
+    """Describe the command that starts one round with its prompt on stdin."""
 
     program: str
     arguments: Sequence[str]
-    prompt: str
 
 
 @dataclass(frozen=True, kw_only=True)

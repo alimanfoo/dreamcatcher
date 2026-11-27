@@ -175,7 +175,6 @@ class _ClaudeHarnessAdapter(HarnessAdapter):
                 "--effort",
                 request.effort,
             ],
-            prompt=request.prompt,
         )
 
     def build_resumed_round(
@@ -197,7 +196,6 @@ class _ClaudeHarnessAdapter(HarnessAdapter):
                 "--resume",
                 harness_session_identifier,
             ],
-            prompt=request.prompt,
         )
 
     def build_hand_resume(
