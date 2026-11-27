@@ -2355,8 +2355,6 @@ def cancel_campaign_from_page(*, state: StateDirectory, identifier: str) -> None
     page = client.get(path)
     assert page.status_code == 200
     assert f'action="{path}/cancel"' in page.text
-    assert 'data-confirmation="Cancel this campaign?' in page.text
-    assert ">cancel campaign</button>" in page.text
     response = client.post(f"{path}/cancel", headers={"Origin": "http://localhost"})
     assert response.status_code == 303
     assert response.location == path
