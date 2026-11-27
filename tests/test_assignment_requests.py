@@ -452,7 +452,7 @@ def test_a_request_names_the_open_pull_requests_that_claim_it(gh, state):
 def test_a_cancelled_assignments_pull_request_holds_a_reapplied_label(gh, state):
     write_assignment(state=state, identifier="GH8-20260819-184158-assignment", issue=8)
     cancel_pull_request_work(
-        assignment=read_assignments(state=state)[0], at=read_current_time()
+        work=read_assignments(state=state)[0], at=read_current_time()
     )
     offer_labelling_events(
         gh=gh,

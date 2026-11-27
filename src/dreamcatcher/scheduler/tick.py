@@ -218,8 +218,8 @@ class Scheduler:
         Watched work was open when the tick read it, or had a round that the
         tick has just forgotten, so work that ended before then keeps its
         worktree. Work with a round that the daemon still holds waits for the
-        tick that forgets the round. A cancelled assignment keeps its worktree
-        and branch, because the user has taken them over. Each removal that
+        tick that forgets the round. Cancelled work keeps its worktree and
+        branch, because the user has taken them over. Each removal that
         fails is returned as a failure and is not tried again.
         """
         failures = []

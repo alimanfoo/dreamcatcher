@@ -41,9 +41,8 @@ GH644 has more than one piece of agent work. Run one of these:
   dreamcatcher stop GH644-20261021-005621-assignment
 ```
 
-A reference that names no work is an error. `cancel` acts on an
-assignment alone, so it reports that other selected work is not an
-assignment.
+A reference that names no work is an error. `cancel` accepts assignments
+and campaigns. It reports an error for a conversation.
 
 | Command  | Purpose                                             |
 | -------- | --------------------------------------------------- |
@@ -52,7 +51,7 @@ assignment.
 | `run`    | Run the daemon for this repository.                 |
 | `retry`  | Allow one piece of faulted work to run again.       |
 | `stop`   | Stop one running round of agent work.               |
-| `cancel` | Cancel one assignment.                              |
+| `cancel` | Cancel an assignment or campaign.                   |
 | `web`    | Serve the local status report in a browser.         |
 | `status` | Show the whole local status report in the terminal. |
 | `view`   | Show one piece of agent work.                       |
@@ -181,26 +180,22 @@ local stop request as the web control and does not contact GitHub.
 dreamcatcher cancel (GH<n> | IDENTIFIER)
 ```
 
-Cancel the selected assignment, so that you can finish its pull request
-by hand. _dreamcatcher_ runs no further rounds for the assignment and
-relays no further posts from its pull request. If a round is running,
-the command asks it to stop, without the conditions that `stop`
-requires.
+Cancel the selected assignment or campaign to finish its pull request by
+hand. The command asks any running round to stop, even before a harness
+session is known. _dreamcatcher_ starts no further rounds and relays no
+further posts for that work.
 
-_dreamcatcher_ leaves the pull request as it is, and while it is open it
-claims the issue as work outside _dreamcatcher_. The worktree and branch
-stay in place, so you can carry on in the assignment's worktree. An
-assignment cancelled before any round opened a pull request has none to
-finish; any worktree or branch that a round made also stays in place.
-The cancelled assignment's card on the web home page, its page and
-`dreamcatcher view` show **cancelled**, and `dreamcatcher status` counts
-it among the ended assignments.
+The pull request, worktree and branch stay in place wherever they
+already exist. An open pull request linked to close the issue still
+claims it. A campaign's sub-issue assignments keep using its branch
+while its pull request is open. After any running round stops, the
+work's card, page and `dreamcatcher view` show **cancelled**, and
+`dreamcatcher status` counts it among the ended work of its kind.
 
-The selected work must be an assignment that has not ended. If the
-assignment's wrap-up round records its completion first, even as the
-command runs, the command says that the assignment has already ended. A
-cancel cannot be undone. The command writes only local state, does not
-contact GitHub, and works whether or not the daemon is running.
+The selected work must still be open. If its wrap-up round records
+completion first, even as the command runs, the command reports that the
+work has already ended. A cancel cannot be undone. The command writes
+only local state and works whether or not the daemon is running.
 
 ## `web`
 

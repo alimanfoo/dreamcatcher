@@ -90,9 +90,12 @@ A merged or closed pull request calls for a wrap-up round. The shared
 preparation closes the issue first on a merge into a recorded alternate
 base. The shared finisher records completion after a successful harness
 exit. `Scheduler._remove_ended_worktrees` removes the worktree and local
-branch of ended pull request work and leaves cancelled work for the
-user. The command and web cancel controls still accept assignments at
-stage 5.
+branch of completed pull request work and leaves cancelled work for the
+user. The `cancel` command and work pages use `cancel_pull_request_work`
+for both assignments and campaigns. It records the ending first, then
+asks a running round to stop. Campaign requests still check for an open
+pull request that claims the parent, and the assignment pass can use the
+branch of a cancelled campaign while its pull request is open.
 
 `PullRequestFinding` in `scheduler/models.py` carries the shared channel
 observation and the count of campaign notifications.
@@ -106,10 +109,9 @@ state.
 
 Stage 6 updates the lead's input prompt, Claude permissions and campaign
 skill contract. Stage 7 makes the prompt and the lead's behaviour follow
-the pull request's draft flag. Stage 8 exposes campaign cancellation,
-and stage 9 updates the guides. The check-failure relay currently counts
-consecutive relayed inputs, so a round between fixes that relays no
-check-failure resets the count.
+the pull request's draft flag. Stage 9 updates the guides. The
+check-failure relay currently counts consecutive relayed inputs, so a
+round between fixes that relays no check-failure resets the count.
 
 ## Tests to read
 

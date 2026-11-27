@@ -725,7 +725,7 @@ def test_a_cancelled_assignment_still_working_offers_no_cancel_control(tmp_path)
     identifier = "GH13-20260819-184158-assignment"
     assignment = find_agent_work(state=state, identifier=identifier)
     assert assignment is not None
-    cancel_pull_request_work(assignment=assignment, at=LOOKED_AT)
+    cancel_pull_request_work(work=assignment, at=LOOKED_AT)
 
     page = render_assignment(state=state, identifier=identifier)
 
@@ -1126,7 +1126,7 @@ def test_ended_assignments_are_ordered_by_when_they_ended(tmp_path):
         state=state, issue=30, records=[compose_ended_round(minute=1)]
     )
     cancel_pull_request_work(
-        assignment=read_agent_work_at_issue(state=state, issue=30)[0],
+        work=read_agent_work_at_issue(state=state, issue=30)[0],
         at=PINNED + timedelta(minutes=10),
     )
 
@@ -1201,7 +1201,7 @@ def test_a_cancelled_assignment_card_shows_working_while_its_round_stops(tmp_pat
     identifier = "GH13-20260819-184158-assignment"
     assignment = find_agent_work(state=state, identifier=identifier)
     assert assignment is not None
-    cancel_pull_request_work(assignment=assignment, at=LOOKED_AT)
+    cancel_pull_request_work(work=assignment, at=LOOKED_AT)
 
     page = render_home(state=state)
     card = extract_article(page=page, identifier=identifier)

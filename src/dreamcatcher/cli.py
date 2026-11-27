@@ -22,7 +22,6 @@ from dreamcatcher.clock import read_current_time
 from dreamcatcher.config import AgentHarness
 from dreamcatcher.daemon import DEFAULT_INTERVAL_SECONDS, DreamcatcherDaemon
 from dreamcatcher.errors import ReportableError
-from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.pull_request_work import cancel_pull_request_work
 from dreamcatcher.scheduler import DEFAULT_MAX_AGENTS
 from dreamcatcher.state import StateDirectory
@@ -165,18 +164,18 @@ def _build_cli_parser() -> argparse.ArgumentParser:
     stop_parser.set_defaults(act=_stop_agent_work)
     cancel_parser = subcommands.add_parser(
         "cancel",
-        help="cancel one assignment to finish its pull request by hand",
+        help="cancel an assignment or campaign to finish its pull request by hand",
         description=(
-            "Cancel the selected assignment, so that you can finish its pull "
+            "Cancel the selected assignment or campaign to finish its pull "
             "request by hand. dreamcatcher asks a running round to "
-            "stop, runs no further rounds for the assignment, and treats its "
+            "stop, runs no further rounds for that work, and treats its "
             "open pull request as work outside dreamcatcher. The worktree and "
             "branch stay in place. A cancel cannot be undone, and it does not "
             "need the daemon to be running."
         ),
     )
     _add_agent_work_argument(parser=cancel_parser)
-    cancel_parser.set_defaults(act=_cancel_assignment)
+    cancel_parser.set_defaults(act=_cancel_work)
     web_parser = subcommands.add_parser(
         "web",
         help="serve the local status report in a web browser",
@@ -355,13 +354,16 @@ def _stop_agent_work(*, arguments: argparse.Namespace) -> None:
     print(f"Requested a stop for {work.identifier} round {paths.number}.")
 
 
-def _cancel_assignment(*, arguments: argparse.Namespace) -> None:
-    """Cancel the selected assignment so the user can take it over."""
+def _cancel_work(*, arguments: argparse.Namespace) -> None:
+    """Cancel the selected pull request work so the user can take it over."""
     state = _find_state_directory(root=Path.cwd())
     work = _select_agent_work(state=state, arguments=arguments)
-    if work.record.kind is not AgentWorkKind.ASSIGNMENT:
-        raise ReportableError(f"{work.identifier} is not an assignment.")
-    if not cancel_pull_request_work(assignment=work, at=read_current_time()):
+    if not work.record.kind.is_pull_request_work:
+        raise ReportableError(
+            f"{work.identifier} is a {work.record.kind}. "
+            "Only assignments and campaigns can be cancelled."
+        )
+    if not cancel_pull_request_work(work=work, at=read_current_time()):
         raise ReportableError(f"{work.identifier} has already ended.")
     print(f"{work.identifier} is cancelled.")
 

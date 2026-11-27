@@ -236,6 +236,24 @@ def test_conversation_page_requests_a_stop_for_its_running_round(tmp_path):
     assert paths.stop_request.read_text(encoding="utf-8") == ""
 
 
+def test_a_conversation_cannot_be_cancelled_from_its_page(tmp_path):
+    state = StateDirectory(root=tmp_path)
+    fabricate_conversation(state=state)
+    path = "/work/GH8-20260819-184158-conversation"
+    client = create_application(state=state).test_client()
+
+    page = client.get(path)
+    response = client.post(f"{path}/cancel", headers={"Origin": "http://localhost"})
+
+    assert page.status_code == 200
+    assert f"{path}/cancel" not in page.text
+    assert response.status_code == 303
+    assert response.location == path
+    conversation = read_conversation(state=state, issue=8)
+    assert conversation is not None
+    assert conversation.is_open
+
+
 def test_conversation_tail_offers_a_hand_resume_only_while_no_round_runs(tmp_path):
     state = StateDirectory(root=tmp_path)
     fabricate_everything(state=state)

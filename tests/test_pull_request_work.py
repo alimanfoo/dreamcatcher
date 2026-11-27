@@ -102,7 +102,7 @@ state = StateDirectory(root=Path(root))
 assignment = find_agent_work(state=state, identifier=identifier)
 with patch.object(Path, "replace", replace_when_released):
     if reason == "cancelled":
-        print(cancel_pull_request_work(assignment=assignment, at=datetime.now(UTC)))
+        print(cancel_pull_request_work(work=assignment, at=datetime.now(UTC)))
     else:
         complete_pull_request_work(
             work=assignment,
@@ -392,7 +392,7 @@ def test_a_cancelled_assignment_records_when_and_is_no_longer_open(bare_state):
         state=bare_state, rounds=[compose_ended_round(status=0)]
     )
 
-    cancel_pull_request_work(assignment=assignment, at=PINNED + timedelta(hours=1))
+    cancel_pull_request_work(work=assignment, at=PINNED + timedelta(hours=1))
 
     cancelled = read_assignments(state=bare_state)[0]
     assert cancelled.ending == AgentWorkEnding(
@@ -415,7 +415,7 @@ def test_recording_later_facts_leaves_the_assignment_record_as_it_was(bare_state
 
     record_harness_session_identifier(work=assignment, identifier="abc-123")
     request_agent_work_retry(work=assignment, at=PINNED)
-    cancel_pull_request_work(assignment=assignment, at=PINNED)
+    cancel_pull_request_work(work=assignment, at=PINNED)
 
     assert record.read_bytes() == created
     recorded = read_assignments(state=bare_state)[0]
@@ -432,7 +432,7 @@ def test_cancelling_asks_a_round_with_no_ending_to_stop(bare_state):
         rounds=[compose_ended_round(status=0), compose_running_round(number=2)],
     )
 
-    cancel_pull_request_work(assignment=assignment, at=PINNED)
+    cancel_pull_request_work(work=assignment, at=PINNED)
 
     assert assignment.compose_round_paths(number=2).stop_request.is_file()
 
@@ -449,7 +449,7 @@ def test_cancelling_stops_a_round_that_started_after_the_assignment_was_read(
         record=compose_running_round(minute=1, number=2),
     )
 
-    cancel_pull_request_work(assignment=assignment, at=PINNED)
+    cancel_pull_request_work(work=assignment, at=PINNED)
 
     assert assignment.compose_round_paths(number=2).stop_request.is_file()
 
@@ -459,17 +459,17 @@ def test_cancelling_leaves_an_ended_round_alone(bare_state):
         state=bare_state, rounds=[compose_ended_round(status=0)]
     )
 
-    cancel_pull_request_work(assignment=assignment, at=PINNED)
+    cancel_pull_request_work(work=assignment, at=PINNED)
 
     assert not assignment.compose_round_paths(number=1).stop_request.exists()
 
 
 def test_an_assignment_that_has_ended_cannot_be_cancelled(bare_state):
     assignment = write_and_read_assignment(state=bare_state, rounds=[])
-    cancel_pull_request_work(assignment=assignment, at=PINNED)
+    cancel_pull_request_work(work=assignment, at=PINNED)
 
     assert not cancel_pull_request_work(
-        assignment=read_assignments(state=bare_state)[0],
+        work=read_assignments(state=bare_state)[0],
         at=PINNED + timedelta(hours=1),
     )
 
@@ -486,9 +486,7 @@ def test_a_cancel_after_a_completion_it_did_not_see_leaves_the_completion(
     )
     complete_pull_request_work(work=assignment, clock=lambda: PINNED, final_output=None)
 
-    assert not cancel_pull_request_work(
-        assignment=assignment, at=PINNED + timedelta(hours=1)
-    )
+    assert not cancel_pull_request_work(work=assignment, at=PINNED + timedelta(hours=1))
 
     assert read_assignments(state=bare_state)[0].ending == AgentWorkEnding(
         at=PINNED, reason=AgentWorkEndReason.COMPLETED
@@ -500,7 +498,7 @@ def test_a_completion_after_a_cancel_it_did_not_see_leaves_the_cancel(bare_state
     assignment = write_and_read_assignment(
         state=bare_state, rounds=[compose_ended_round(status=0)]
     )
-    cancel_pull_request_work(assignment=assignment, at=PINNED)
+    cancel_pull_request_work(work=assignment, at=PINNED)
 
     complete_pull_request_work(
         work=assignment,
