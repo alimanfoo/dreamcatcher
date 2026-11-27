@@ -211,31 +211,23 @@ def compose_conversation_input_prompt(*, issue: int, round_input: Path) -> str:
     return _CONVERSATION_INPUT_PROMPT.format(issue=issue, round_input=round_input)
 
 
-def compose_campaign_input_prompt(*, issue: int, round_input: Path) -> str:
-    """Direct a coordinating lead to its pull request and sub-issue input."""
-    return _CAMPAIGN_INPUT_PROMPT.format(
-        issue=issue,
-        round_input=round_input,
-        phase_instructions=_COORDINATING_INSTRUCTIONS,
-    )
-
-
-def compose_finishing_campaign_input_prompt(
+def compose_campaign_input_prompt(
     *,
     issue: int,
     round_input: Path,
-    campaign_branch: str,
-    pull_request_signals: Sequence[PullRequestSignal],
+    finishing_branch: str | None = None,
+    pull_request_signals: Sequence[PullRequestSignal] = (),
 ) -> str:
-    """Direct a finishing lead to its campaign branch and any relayed signals."""
-    return _compose_signal_lines(signals=pull_request_signals) + (
-        _CAMPAIGN_INPUT_PROMPT.format(
-            issue=issue,
-            round_input=round_input,
-            phase_instructions=_FINISHING_INSTRUCTIONS.format(
-                campaign_branch=campaign_branch
-            ),
-        )
+    """Direct a lead to its input, with finishing instructions when given a branch."""
+    phase_instructions = (
+        _COORDINATING_INSTRUCTIONS
+        if finishing_branch is None
+        else _FINISHING_INSTRUCTIONS.format(campaign_branch=finishing_branch)
+    )
+    return _compose_signal_lines(
+        signals=pull_request_signals
+    ) + _CAMPAIGN_INPUT_PROMPT.format(
+        issue=issue, round_input=round_input, phase_instructions=phase_instructions
     )
 
 

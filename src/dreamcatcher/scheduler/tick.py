@@ -491,7 +491,6 @@ class Scheduler:
                 at=at,
             )
         )
-        plan = candidate.compose_round(work=work)
         harness_session_identifier = work.find_harness_session_identifier()
         if harness_session_identifier is not None:
             record_harness_session_identifier(
@@ -500,16 +499,17 @@ class Scheduler:
         paths = work.compose_round_paths(number=work.next_round_number)
 
         def prepare_round() -> PreparedAgentRound:
-            round_input, input_prompt = plan.prepare_round()
+            round_input = candidate.prepare_round(work=work)
             return PreparedAgentRound(
-                round_input=round_input,
+                round_input=round_input.document,
                 prompt=compose_round_prompt(
                     instructions=work.record.instructions,
                     is_resuming=harness_session_identifier is not None,
-                    input_prompt=input_prompt,
+                    input_prompt=round_input.prompt,
                     previous_outcome=work.rounds[-1].outcome if work.rounds else None,
                     work_kind=work.record.kind,
                 ),
+                finish_round=round_input.finish_round,
             )
 
         started_round = start_agent_round(
@@ -526,7 +526,6 @@ class Scheduler:
                 record_harness_session_identifier=partial(
                     record_harness_session_identifier, work=work
                 ),
-                finish_round=plan.finish_round,
                 paths=paths,
                 prepare_round=prepare_round,
             ),

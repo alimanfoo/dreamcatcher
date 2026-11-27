@@ -19,7 +19,6 @@ from dreamcatcher.github import (
     read_issue,
 )
 from dreamcatcher.issue_conversations import (
-    ConversationRoundInput,
     post_conversation_answer,
     prepare_conversation_round,
     read_issue_comment_cursor,
@@ -29,7 +28,7 @@ from dreamcatcher.relay import list_issue_comments_past_cursor
 from dreamcatcher.scheduler.inspection import (
     Candidate,
     Inspection,
-    RoundPlan,
+    PreparedRoundInput,
     SchedulingContext,
     compose_open_work_row,
 )
@@ -168,44 +167,39 @@ def _inspect_comments(
         row=row,
         candidate=Candidate(
             work_or_request=work_or_request,
-            compose_round=partial(
-                _compose_comment_round, context=context, issue=issue, comments=comments
+            prepare_round=partial(
+                _prepare_comment_round, context=context, issue=issue, comments=comments
             ),
         ),
     )
 
 
-def _compose_comment_round(
+def _prepare_comment_round(
     *,
     context: SchedulingContext,
     issue: Issue,
     comments: list[IssueComment],
     work: AgentWork,
-) -> RoundPlan:
-    """Return the plan of a round given the comments waiting at the issue.
+) -> PreparedRoundInput:
+    """Prepare a round given the comments waiting at the issue.
 
     A round that starts a new harness session is given the issue's title and
     body too, and every round posts its answer as it finishes.
     """
-
-    def prepare_round() -> tuple[ConversationRoundInput, str]:
-        round_input = prepare_conversation_round(
+    return PreparedRoundInput(
+        document=prepare_conversation_round(
             state=context.state,
             conversation=work,
             issue=issue,
             comments=comments,
             is_resuming=work.find_harness_session_identifier() is not None,
-        )
-        input_prompt = compose_conversation_input_prompt(
+        ),
+        prompt=compose_conversation_input_prompt(
             issue=work.record.issue,
             round_input=work.compose_round_paths(
                 number=work.next_round_number
             ).round_input,
-        )
-        return round_input, input_prompt
-
-    return RoundPlan(
-        prepare_round=prepare_round,
+        ),
         finish_round=partial(
             post_conversation_answer,
             repository=context.repository,

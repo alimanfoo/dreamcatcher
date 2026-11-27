@@ -2,6 +2,7 @@ import json
 import sys
 from contextlib import suppress
 from datetime import datetime
+from functools import partial
 from pathlib import Path
 from threading import Thread
 from time import monotonic, sleep
@@ -112,9 +113,11 @@ EXITS_WHEN_RELEASED = (
 )
 
 
-def compose_round_without_input() -> PreparedAgentRound:
+def compose_round_without_input(
+    *, finish_round: AgentRoundFinisher | None = None
+) -> PreparedAgentRound:
     """Prepare a round that has no input to relay."""
-    return PreparedAgentRound(prompt=PROMPT)
+    return PreparedAgentRound(prompt=PROMPT, finish_round=finish_round)
 
 
 def ignore_harness_session_identifier(*, identifier: str) -> None:
@@ -281,7 +284,6 @@ def test_a_new_session_round_builds_its_harness_invocation(fake, worktree, direc
             ),
             harness_session_identifier=None,
             record_harness_session_identifier=ignore_harness_session_identifier,
-            finish_round=None,
             paths=compose_round_paths(worktree=worktree, directory=directory),
             prepare_round=compose_round_without_input,
         ),
@@ -308,7 +310,6 @@ def test_a_resumed_round_builds_its_harness_invocation(fake, worktree, directory
             ),
             harness_session_identifier="abc-123",
             record_harness_session_identifier=ignore_harness_session_identifier,
-            finish_round=None,
             paths=compose_round_paths(worktree=worktree, directory=directory),
             prepare_round=compose_round_without_input,
         ),
@@ -346,7 +347,6 @@ def test_a_codex_conversation_writes_its_final_output_by_a_path_from_its_worktre
             ),
             harness_session_identifier=harness_session_identifier,
             record_harness_session_identifier=ignore_harness_session_identifier,
-            finish_round=None,
             paths=AgentRoundPaths(
                 worktree=worktree,
                 rounds_directory=(
@@ -616,9 +616,10 @@ def start_conversation_round(
             ),
             harness_session_identifier=None,
             record_harness_session_identifier=ignore_harness_session_identifier,
-            finish_round=finish_round,
             paths=paths,
-            prepare_round=compose_round_without_input,
+            prepare_round=partial(
+                compose_round_without_input, finish_round=finish_round
+            ),
         ),
         clock=lambda: PINNED,
     )
@@ -740,8 +741,7 @@ def test_a_round_interrupted_as_its_harness_succeeds_is_not_finished(
             )
         ),
         paths=paths,
-        prepare_round=compose_round_without_input,
-        finish_round=finish_round,
+        prepare_round=partial(compose_round_without_input, finish_round=finish_round),
         clock=lambda: PINNED,
     )
 
@@ -1285,8 +1285,7 @@ def test_a_finished_round_a_straggler_outlives_still_records_an_ending(
             ),
         ),
         paths=paths,
-        prepare_round=compose_round_without_input,
-        finish_round=finish_round,
+        prepare_round=partial(compose_round_without_input, finish_round=finish_round),
         clock=lambda: PINNED,
     )
 

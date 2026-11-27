@@ -17,7 +17,6 @@ from dreamcatcher.prompts import (
     compose_assignment_input_prompt,
     compose_campaign_input_prompt,
     compose_conversation_input_prompt,
-    compose_finishing_campaign_input_prompt,
     compose_issue_instructions,
     compose_round_prompt,
 )
@@ -339,10 +338,10 @@ def test_the_finishing_campaign_prompt_names_its_signals_and_campaign_branch(
     pytestconfig,
 ):
     assert_matches_view_golden(
-        rendered=compose_finishing_campaign_input_prompt(
+        rendered=compose_campaign_input_prompt(
             issue=20,
             round_input=Path("round-input.json"),
-            campaign_branch="dreamcatcher-GH20-20260923-010000-campaign",
+            finishing_branch="dreamcatcher-GH20-20260923-010000-campaign",
             pull_request_signals=[
                 PullRequestSignal.OUT_OF_DATE,
                 PullRequestSignal.CHECK_FAILURE,

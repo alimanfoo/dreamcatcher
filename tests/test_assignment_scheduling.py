@@ -125,8 +125,7 @@ def find_next_round_input(
     if inspected.candidate is not None:
         if not isinstance(inspected.row.finding, PullRequestFinding):
             return OPENS_PULL_REQUEST
-        plan = inspected.candidate.compose_round(work=assignment)
-        round_input, _ = plan.prepare_round()
+        round_input = inspected.candidate.prepare_round(work=assignment).document
         assert isinstance(round_input, PullRequestRoundInput)
         return round_input
     if isinstance(inspected.row.finding, ReadFailureFinding):
@@ -841,8 +840,7 @@ def test_a_round_woken_by_a_signal_is_told_of_it_before_its_input(state, gh):
     candidate = inspect(state=state).candidate
     assert candidate is not None
 
-    plan = candidate.compose_round(work=read_assignments(state=state)[0])
-    _, input_prompt = plan.prepare_round()
+    input_prompt = candidate.prepare_round(work=read_assignments(state=state)[0]).prompt
 
     assert input_prompt is not None
     assert input_prompt.startswith("Checks failed on your pull request's")

@@ -17,7 +17,6 @@ from dreamcatcher.github import (
 from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.prompts import compose_assignment_input_prompt
 from dreamcatcher.pull_request_work import (
-    PullRequestRoundInput,
     compose_work_branch,
     open_work_pull_request,
     read_work_pull_request_number,
@@ -26,8 +25,8 @@ from dreamcatcher.scheduler.faults import is_last_round_unfinished
 from dreamcatcher.scheduler.inspection import (
     Candidate,
     Inspection,
+    PreparedRoundInput,
     RequestInspector,
-    RoundPlan,
     SchedulingContext,
     compose_open_work_row,
 )
@@ -63,7 +62,7 @@ def inspect_open_assignment(
             row=unread,
             candidate=Candidate(
                 work_or_request=work,
-                compose_round=partial(_compose_opening_round, context=context),
+                prepare_round=partial(_prepare_opening_round, context=context),
             ),
         )
     return _inspect_pull_request(context=context, work=work, pull_request=pull_request)
@@ -88,8 +87,8 @@ def _inspect_pull_request(
         row=row,
         candidate=Candidate(
             work_or_request=work,
-            compose_round=partial(
-                _compose_relay_round,
+            prepare_round=partial(
+                _prepare_relay_round,
                 context=context,
                 activity=activity,
             ),
@@ -150,7 +149,7 @@ def create_assignment_request_inspector(
             row=row.model_copy(update={"finding": answers}),
             candidate=Candidate(
                 work_or_request=replace(request, base_branch=base),
-                compose_round=partial(_compose_opening_round, context=context),
+                prepare_round=partial(_prepare_opening_round, context=context),
             ),
         )
 
@@ -187,32 +186,23 @@ def _find_campaign_base(
     return CampaignPullRequestUnavailableFinding(parent=IssueReference(number=parent))
 
 
-def _compose_opening_round(*, context: SchedulingContext, work: AgentWork) -> RoundPlan:
-    """Return the plan of a round whose preparation opens the pull request.
-
-    The round has no input, so its prompt is the agent's instructions alone.
-    """
-
-    def prepare_round() -> tuple[None, None]:
-        open_work_pull_request(
-            state=context.state, repository=context.repository, work=work
-        )
-        return None, None
-
-    return RoundPlan(
-        prepare_round=prepare_round,
-        finish_round=None,
+def _prepare_opening_round(
+    *, context: SchedulingContext, work: AgentWork
+) -> PreparedRoundInput:
+    """Open the pull request for a round that runs with its work's instructions."""
+    open_work_pull_request(
+        state=context.state, repository=context.repository, work=work
     )
+    return PreparedRoundInput()
 
 
-def _compose_relay_round(
+def _prepare_relay_round(
     *, context: SchedulingContext, activity: PullRequestActivity, work: AgentWork
-) -> RoundPlan:
-    """Return the plan of an assignment round given the pull request channel."""
-
-    def prepare_round() -> tuple[PullRequestRoundInput, str]:
-        round_input = activity.prepare_round(context=context, work=work)
-        input_prompt = compose_assignment_input_prompt(
+) -> PreparedRoundInput:
+    """Prepare an assignment round given the pull request channel."""
+    return PreparedRoundInput(
+        document=activity.prepare_round(context=context, work=work),
+        prompt=compose_assignment_input_prompt(
             pull_request=activity.finding.number,
             round_input=work.compose_round_paths(
                 number=work.next_round_number
@@ -221,10 +211,6 @@ def _compose_relay_round(
             is_previous_round_unfinished=is_last_round_unfinished(
                 rounds=work.rounds, is_daemon_running=True
             ),
-        )
-        return round_input, input_prompt
-
-    return RoundPlan(
-        prepare_round=prepare_round,
+        ),
         finish_round=activity.compose_finisher(context=context, work=work),
     )
