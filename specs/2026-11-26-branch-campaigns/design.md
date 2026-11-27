@@ -140,7 +140,9 @@ merging the campaign's pull request closes it.
   today's `issue`, `comments`, `cursor` and `revision`. The relay's
   readers read the shared part from either kind's input. The opening
   preparation takes `pull_request_head` from the commit it pushed, since
-  no tick has yet read the pull request.
+  no tick has yet read the new pull request. A retry that adopts an
+  existing pull request relays its current activity and wraps up if it
+  has already merged or closed.
 - **Ending**, `ended.json`. _Changed._ A campaign ends completed or
   cancelled. "Issue closed" remains for conversations alone.
 - **Request row finding**, in `scheduler/models.py`. _Changed._ An open

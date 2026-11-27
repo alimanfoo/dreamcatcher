@@ -16,18 +16,14 @@ from dreamcatcher.documents import (
     ReadOnlyList,
     read_json,
 )
-from dreamcatcher.git import read_worktree_revision
 from dreamcatcher.github import (
     CheckResult,
     IssueState,
-    PullRequestState,
 )
 from dreamcatcher.pull_request_work import (
     ObservedPullRequest,
     PullRequestRoundInput,
-    open_work_pull_request,
 )
-from dreamcatcher.state import StateDirectory
 
 
 class CampaignChildAssignment(DreamcatcherDocument):
@@ -217,20 +213,6 @@ def _list_pull_request_changes(
     ):
         changes.append(CampaignChildChange.MERGEABLE)
     return changes
-
-
-def open_campaign_pull_request(
-    *, state: StateDirectory, repository: str, work: AgentWork
-) -> PullRequestRoundInput:
-    """Open the campaign's pull request and return its initial channel input."""
-    number = open_work_pull_request(state=state, repository=repository, work=work)
-    return PullRequestRoundInput(
-        pull_request=number,
-        pull_request_state=PullRequestState.OPEN,
-        pull_request_head=read_worktree_revision(worktree=work.worktree),
-        signals=[],
-        user_posts=[],
-    )
 
 
 def compose_campaign_round_input(

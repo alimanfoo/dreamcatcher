@@ -23,6 +23,7 @@ from dreamcatcher.github import (
 from dreamcatcher.prompts import AGENT_POST_MARKER
 from dreamcatcher.relay import (
     IssueCommentCursor,
+    PullRequestPostCursor,
     list_issue_comments_past_cursor,
     list_user_posts_past_cursor,
 )
@@ -31,7 +32,9 @@ from dreamcatcher.relay import (
 BEFORE = "2026-09-03T16:49:35Z"
 
 
-def list_posts_past_cursor(*, cursor: str = "") -> list[UserPost]:
+def list_posts_past_cursor(
+    *, cursor: PullRequestPostCursor | None = None
+) -> list[UserPost]:
     """What the user newly posted, given that gh answered every post list."""
     found = list_user_posts_past_cursor(
         repository=REPOSITORY,
@@ -66,7 +69,14 @@ def test_a_post_at_the_assignment_cursor_does_not_come_back(
         to=f"api {POST_LIST_PATHS['conversation']}",
     )
 
-    assert list_posts_past_cursor(cursor=POSTED_AT) == []
+    assert (
+        list_posts_past_cursor(
+            cursor=PullRequestPostCursor(
+                written_at=POSTED_AT, post_ids=frozenset({("comment", 1)})
+            )
+        )
+        == []
+    )
 
 
 def test_the_posts_come_back_oldest_first_whichever_list_each_came_from(
@@ -229,7 +239,9 @@ def test_a_read_that_failed_says_so_rather_than_reading_as_nothing_posted(
         repository=REPOSITORY,
         pull_request=PULL_REQUEST,
         account=POSTED_BY,
-        cursor=POSTED_AT,
+        cursor=PullRequestPostCursor(
+            written_at=POSTED_AT, post_ids=frozenset({("comment", 1)})
+        ),
     )
 
     assert isinstance(found, UnknownGitHubResponse)

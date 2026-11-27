@@ -273,7 +273,9 @@ The **cursor** is how far the agent has read in its channel. Nothing
 stores it on its own: it is read back from the inputs of the rounds that
 consumed their input or are still running, so the input of a round that
 errored or was interrupted is given again. Anything in the channel past
-the cursor is new, and something new calls for a round.
+the cursor is new, and something new calls for a round. For pull request
+posts in the newest relayed second, the post's kind and id show whether
+it was already relayed.
 
 Replaces: "delivery position" and "delivery cursor", for the cursor.
 
@@ -692,16 +694,11 @@ Replaces: "queued" and "waiting", for an available request; and
 A **candidate** is open work with something new past its cursor, unless
 its last round is running or it is in fault, or a request whose work may
 start. The input of a round that errored or was interrupted is past the
-cursor, so it is new again. An assignment is also a candidate when no
-round has opened its pull request yet, or when its last round errored or
-was interrupted, because it is then given its pull request's state again
-even with nothing new. A conversation has nothing to give but comments,
-so once the user deletes every comment that its unfinished round was
-given, it is not a candidate until a new eligible comment arrives. A
-campaign is also a candidate when no round has run yet, when a tick
-finds a notification, and when its last round errored or was
-interrupted, because the lead is then given its input again even with
-nothing new.
+cursor, so it is new again. Pull request work is also a candidate when
+it has no recorded pull request or when its last round did not finish. A
+campaign is also a candidate when the tick finds a sub-issue
+notification. A conversation whose unfinished round's comments have all
+been deleted waits for another eligible comment.
 
 Rounds of every kind share the daemon's capacity and the global
 cooldown. Within each kind, open work takes precedence over new work.
@@ -712,9 +709,11 @@ candidate gives up its place to the next. A round that errors during its
 preparation or startup takes no slot.
 
 A failed read from GitHub prevents only the launches that depend on it.
-A failed issue listing starts no new work of any kind, but open work
-reads its own channel, so the listing does not affect it. A local record
-that cannot be read instead stops the daemon, as
+A failed issue listing starts no new work of any kind. Open work reads
+its own channel. An open campaign can take a round only when the tick
+can observe all of its sub-issues, so a failed listing holds the round
+if any sub-issue has no open assignment. A local record that cannot be
+read instead stops the daemon, as
 [the story about an unreadable local record](stories.md#a-local-record-cannot-be-read)
 describes.
 
@@ -723,9 +722,9 @@ describes.
 Agent work is in **fault** when its last two rounds both errored. A
 round that errored in its preparation or its finishing step counts like
 any other, and a round that ended any other way, a stopped round
-included, ends a run of errors. Work in fault starts no round, not even
-an assignment's wrap-up round, until a retry or the end of a global
-cooldown clears the fault.
+included, ends a run of errors. Work in fault starts no round, including
+a wrap-up round, until a retry or the end of a global cooldown clears
+the fault.
 
 No single error is taken as a sign of a global problem. Each tick counts
 all pull request work in fault, and every conversation in fault unless

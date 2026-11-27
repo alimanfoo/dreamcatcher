@@ -17,18 +17,25 @@ from dreamcatcher.campaigns import (
     CampaignRoundInput,
     compare_campaign_children,
     compose_campaign_round_input,
-    open_campaign_pull_request,
     read_delivered_campaign_input,
 )
+from dreamcatcher.documents import read_json
+from dreamcatcher.errors import ReportableError
+from dreamcatcher.git import read_worktree_revision
 from dreamcatcher.github import (
     Issue,
+    PullRequestState,
     SubIssue,
     UnknownGitHubResponse,
     list_sub_issues,
+    read_pull_request,
 )
 from dreamcatcher.prompts import compose_campaign_input_prompt
 from dreamcatcher.pull_request_work import (
     ObservedPullRequest,
+    PullRequestRoundInput,
+    complete_pull_request_work,
+    open_work_pull_request,
     read_work_pull_request_number,
 )
 from dreamcatcher.scheduler.inspection import (
@@ -272,6 +279,33 @@ def _offer_lead_round(
     )
 
 
+def _prepare_campaign_opening(
+    *, context: SchedulingContext, work: AgentWork
+) -> PullRequestRoundInput:
+    """Freeze the new pull request or relay the one an earlier attempt opened."""
+    opened = open_work_pull_request(
+        state=context.state, repository=context.repository, work=work
+    )
+    if not opened.was_adopted:
+        return PullRequestRoundInput(
+            pull_request=opened.number,
+            pull_request_state=PullRequestState.OPEN,
+            pull_request_head=read_worktree_revision(worktree=work.worktree),
+            signals=[],
+            user_posts=[],
+        )
+    activity = read_pull_request_activity(
+        context=context,
+        work=work,
+        read=read_pull_request(
+            repository=context.repository, pull_request=opened.number
+        ),
+    )
+    if isinstance(activity, ReadFailureFinding):
+        raise ReportableError(activity.reason)
+    return activity.prepare_round(context=context, work=work)
+
+
 def _compose_campaign_round(
     *,
     context: SchedulingContext,
@@ -281,12 +315,13 @@ def _compose_campaign_round(
     work: AgentWork,
 ) -> RoundPlan:
     """Return the plan for an opening, relay or wrap-up round."""
+    round_input_path = work.compose_round_paths(
+        number=work.next_round_number
+    ).round_input
 
     def prepare_round() -> CampaignRoundInput:
         pull_request_input = (
-            open_campaign_pull_request(
-                state=context.state, repository=context.repository, work=work
-            )
+            _prepare_campaign_opening(context=context, work=work)
             if activity is None
             else activity.prepare_round(context=context, work=work)
         )
@@ -297,16 +332,22 @@ def _compose_campaign_round(
             assignment_routes=context.config.assignment,
         )
 
+    def finish_opening_round(*, final_output: str | None) -> None:
+        # The preparation can adopt a pull request that has already ended.
+        round_input = read_json(model=CampaignRoundInput, path=round_input_path)
+        if round_input.pull_request_state is not PullRequestState.OPEN:
+            complete_pull_request_work(
+                work=work, clock=context.clock, final_output=final_output
+            )
+
     return RoundPlan(
         prepare_round=prepare_round,
         input_prompt=compose_campaign_input_prompt(
             issue=work.record.issue,
-            round_input=work.compose_round_paths(
-                number=work.next_round_number
-            ).round_input,
+            round_input=round_input_path,
         ),
         finish_round=(
-            None
+            finish_opening_round
             if activity is None
             else activity.compose_finisher(context=context, work=work)
         ),

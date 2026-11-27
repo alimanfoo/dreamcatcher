@@ -9,7 +9,7 @@ input only when they do not carry the agent marker.
 
 from collections.abc import Iterator, Sequence
 from dataclasses import dataclass
-from itertools import islice
+from itertools import chain, islice, takewhile
 from typing import Annotated
 
 from pydantic import AfterValidator
@@ -104,12 +104,29 @@ def find_pull_request_signals(
     )
 
 
-def read_user_post_cursor(*, work: AgentWork) -> str:
-    """Return the newest user-post time among the posts already relayed."""
-    for round_input in _read_relayed_inputs(work=work):
-        if round_input.user_posts:
-            return round_input.user_posts[-1].written_at
-    return ""
+@dataclass(frozen=True, kw_only=True)
+class PullRequestPostCursor:
+    """Mark the newest relayed second and the posts already relayed within it."""
+
+    written_at: str
+    post_ids: frozenset[tuple[str, int]]
+
+
+def read_user_post_cursor(*, work: AgentWork) -> PullRequestPostCursor | None:
+    """Return the newest relayed second and each post already seen within it."""
+    posts = (
+        post
+        for round_input in _read_relayed_inputs(work=work)
+        for post in reversed(round_input.user_posts)
+    )
+    latest = next(posts, None)
+    if latest is None:
+        return None
+    ties = takewhile(lambda post: post.written_at == latest.written_at, posts)
+    return PullRequestPostCursor(
+        written_at=latest.written_at,
+        post_ids=frozenset((post.kind, post.id) for post in chain([latest], ties)),
+    )
 
 
 def read_relayed_pull_request_state(*, work: AgentWork) -> PullRequestState | None:
@@ -161,15 +178,19 @@ def _read_relayed_inputs(*, work: AgentWork) -> Iterator[PullRequestRoundInput]:
 
 
 def list_user_posts_past_cursor(
-    *, repository: str, pull_request: int, account: str, cursor: str
+    *,
+    repository: str,
+    pull_request: int,
+    account: str,
+    cursor: PullRequestPostCursor | None,
 ) -> list[UserPost] | UnknownGitHubResponse:
     """Return user posts past the cursor, oldest first.
 
     The account is the one gh is signed in as, which is the user's own.
 
-    An empty cursor is the beginning of time, so the first read considers the pull
-    request's whole history. GitHub sends each time as an ISO-8601 string ending
-    in a Z, so the cursor compares against it as text.
+    No cursor means the first read considers the pull request's whole history.
+    A new post can share the last relayed second. The kind and id identify
+    posts within that second, including posts from different endpoints.
 
     Reading the posts can fail, and the failure travels, so a caller can say
     in one line why it relayed nothing.
@@ -181,9 +202,21 @@ def list_user_posts_past_cursor(
         (
             post
             for post in user_posts
-            if post.written_at > cursor and _is_eligible(post=post, account=account)
+            if _is_past_post_cursor(post=post, cursor=cursor)
+            and _is_eligible(post=post, account=account)
         ),
         key=lambda post: post.written_at,
+    )
+
+
+def _is_past_post_cursor(
+    *, post: UserPost, cursor: PullRequestPostCursor | None
+) -> bool:
+    after = "" if cursor is None else cursor.written_at
+    return post.written_at > after or (
+        cursor is not None
+        and post.written_at == after
+        and (post.kind, post.id) not in cursor.post_ids
     )
 
 

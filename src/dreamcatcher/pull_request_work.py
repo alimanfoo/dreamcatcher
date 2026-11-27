@@ -7,6 +7,7 @@ harness runs.
 
 from collections.abc import Callable, Sequence
 from contextlib import suppress
+from dataclasses import dataclass
 from datetime import datetime
 
 from pydantic import PositiveInt
@@ -206,9 +207,17 @@ def remove_work_worktree_and_branch(*, state: StateDirectory, work: AgentWork) -
         ) from failure
 
 
+@dataclass(frozen=True, kw_only=True)
+class OpenedPullRequest:
+    """Identify the recorded pull request and whether an earlier attempt opened it."""
+
+    number: int
+    was_adopted: bool
+
+
 def open_work_pull_request(
     *, state: StateDirectory, repository: str, work: AgentWork
-) -> int:
+) -> OpenedPullRequest:
     """Publish the work's branch and record its draft pull request.
 
     Adopt a pull request an earlier attempt created, even if its base has
@@ -217,6 +226,7 @@ def open_work_pull_request(
     """
     branch = compose_work_branch(identifier=work.identifier)
     pull_request = _find_branch_pull_request(repository=repository, branch=branch)
+    was_adopted = pull_request is not None
     if pull_request is None:
         base = _publish_work_branch(state=state, work=work, branch=branch)
         pull_request = create_pull_request(
@@ -232,7 +242,7 @@ def open_work_pull_request(
         document=_PullRequestRecord(number=pull_request.number),
         path=work.directory / _PULL_REQUEST_RECORD_NAME,
     )
-    return pull_request.number
+    return OpenedPullRequest(number=pull_request.number, was_adopted=was_adopted)
 
 
 def _publish_work_branch(*, state: StateDirectory, work: AgentWork, branch: str) -> str:

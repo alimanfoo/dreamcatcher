@@ -19,6 +19,8 @@ from conftest import (
     compose_labelling_event,
     compose_page,
     compose_pull_request,
+    compose_pull_request_listing,
+    compose_review,
     compose_stream_line,
     configure,
     offer_issue_parent,
@@ -2328,3 +2330,94 @@ def test_an_open_pull_request_claiming_the_parent_holds_a_new_campaign(
     assert row.children is None
     assert observed.launched_agent_work_identifiers == []
     assert harnesses["claude"].calls == []
+
+
+@pytest.mark.parametrize("is_read_available", [True, False])
+def test_opening_retry_adopts_a_campaign_pull_request_that_has_closed(
+    campaign_scheduler, harnesses, is_read_available
+):
+    scheduler, gh = campaign_scheduler
+    offer_parent(gh=gh)
+    gh.fails(
+        stderr="could not read the new pull request",
+        to=f"pr view {CAMPAIGN_PULL_REQUEST_URL}",
+    )
+    script_lead_turn(harnesses=harnesses)
+
+    first = tick(scheduler=scheduler)
+
+    assert first.rows[0].started_round is not None
+    assert first.rows[0].started_round.launch_failure
+    assert harnesses["claude"].calls == []
+    campaign = read_campaign(state=scheduler.context.state, issue=PARENT)
+    assert campaign is not None
+    assert read_work_pull_request_number(work=campaign) is None
+
+    gh.replies(
+        stdout=compose_pull_request_listing(numbers=[CAMPAIGN_PULL_REQUEST]),
+        to="pr list",
+    )
+    offer_campaign_pull_request(gh=gh, state="CLOSED")
+    post = compose_pull_request_post(identifier=1)
+    offer_posts(gh=gh, posts=[post])
+    if not is_read_available:
+        gh.fails(stderr="GitHub is down", to=f"pr view {CAMPAIGN_PULL_REQUEST}")
+
+    adopted = tick(scheduler=scheduler)
+    finish(scheduler=scheduler)
+    campaign = read_campaign(state=scheduler.context.state, issue=PARENT)
+    assert campaign is not None
+    assert read_work_pull_request_number(work=campaign) == CAMPAIGN_PULL_REQUEST
+    if not is_read_available:
+        assert adopted.rows[0].started_round is not None
+        assert adopted.rows[0].started_round.launch_failure
+        assert harnesses["claude"].calls == []
+        offer_campaign_pull_request(gh=gh, state="CLOSED")
+        request_agent_work_retry(work=campaign, at=scheduler.context.clock())
+        tick(scheduler=scheduler)
+        finish(scheduler=scheduler)
+
+    campaign = read_campaign(state=scheduler.context.state, issue=PARENT)
+    assert campaign is not None
+    assert campaign.ending is not None
+    assert campaign.ending.reason is AgentWorkEndReason.COMPLETED
+    given = read_lead_input(scheduler=scheduler, number=len(campaign.rounds))
+    assert given.pull_request_state is PullRequestState.CLOSED
+    assert given.pull_request_head == HEAD
+    assert given.user_posts == [IssueComment.model_validate(post)]
+    assert len(harnesses["claude"].calls) == 1
+    assert sum(call.arguments[:2] == ["pr", "create"] for call in gh.calls) == 1
+
+
+def test_campaign_posts_seen_in_the_same_github_second_are_relayed_once(
+    campaign_scheduler, harnesses
+):
+    scheduler, gh = campaign_scheduler
+    first = compose_pull_request_post(identifier=1)
+    second = compose_comment(id=2, created_at=first["created_at"])
+    write_rounds(
+        state=scheduler.context.state,
+        endings=[SuccessfulAgentRoundEnding(at=PINNED)],
+        delivered=[[first]],
+    )
+    offer_posts(gh=gh, posts=[first, second])
+    script_lead_turn(harnesses=harnesses)
+
+    tick(scheduler=scheduler)
+    finish(scheduler=scheduler)
+
+    given = read_lead_input(scheduler=scheduler, number=2)
+    assert given.user_posts == [IssueComment.model_validate(second)]
+
+    review = compose_review(id=1, body="Review note.", submitted_at=first["created_at"])
+    gh.replies(
+        stdout=compose_page(items=[review]),
+        to=f"api repos/{REPOSITORY}/pulls/{CAMPAIGN_PULL_REQUEST}/reviews?per_page=100",
+    )
+    tick(scheduler=scheduler)
+    finish(scheduler=scheduler)
+
+    given = read_lead_input(scheduler=scheduler, number=3)
+    [new] = given.user_posts
+    assert (new.kind, new.id) == ("review", 1)
+    assert tick(scheduler=scheduler).launched_agent_work_identifiers == []

@@ -63,7 +63,7 @@ from dreamcatcher.pull_request_work import (
     open_work_pull_request,
     read_work_pull_request_number,
 )
-from dreamcatcher.relay import read_user_post_cursor
+from dreamcatcher.relay import PullRequestPostCursor, read_user_post_cursor
 from dreamcatcher.state import StateDirectory
 
 ASSIGNMENT_ID = "GH12-20260819-184158-assignment"
@@ -86,7 +86,7 @@ from dreamcatcher.pull_request_work import (
     cancel_pull_request_work, complete_pull_request_work,
 )
 from dreamcatcher.agent_work import find_agent_work
-from dreamcatcher.relay import read_user_post_cursor
+from dreamcatcher.relay import PullRequestPostCursor, read_user_post_cursor
 from dreamcatcher.state import StateDirectory
 
 root, identifier, reason, paused, release = sys.argv[1:]
@@ -839,7 +839,7 @@ def test_an_assignment_with_no_relayed_user_post_has_an_empty_cursor(state, rout
         at=PINNED,
     )
 
-    assert read_user_post_cursor(work=read_assignments(state=state)[0]) == ""
+    assert read_user_post_cursor(work=read_assignments(state=state)[0]) is None
 
 
 def test_an_assignment_reads_back_its_user_post_cursor(state, route):
@@ -872,9 +872,10 @@ def test_an_assignment_reads_back_its_user_post_cursor(state, route):
         ),
     )
 
-    assert (
-        read_user_post_cursor(work=read_assignments(state=state)[0])
-        == "2026-09-03T22:31:51Z"
+    assert read_user_post_cursor(
+        work=read_assignments(state=state)[0]
+    ) == PullRequestPostCursor(
+        written_at="2026-09-03T22:31:51Z", post_ids=frozenset({("comment", 1)})
     )
 
 
@@ -916,9 +917,10 @@ def test_the_user_post_cursor_scans_past_an_input_that_relayed_no_posts(state, r
             ),
         )
 
-    assert (
-        read_user_post_cursor(work=read_assignments(state=state)[0])
-        == "2026-09-03T22:31:51Z"
+    assert read_user_post_cursor(
+        work=read_assignments(state=state)[0]
+    ) == PullRequestPostCursor(
+        written_at="2026-09-03T22:31:51Z", post_ids=frozenset({("comment", 1)})
     )
 
 

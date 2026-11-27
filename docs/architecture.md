@@ -288,7 +288,9 @@ the campaign branch from the default branch and uses GitHub's closing
 keyword for the parent. The campaign keeps this worktree on its branch
 across rounds. The opening input carries the new pull request number,
 its initial state and the head of the worktree that was pushed, along
-with the sub-issues and assignment routes.
+with the sub-issues and assignment routes. An opening round that adopts
+an existing pull request relays GitHub's current observation and wraps
+up if it is merged or closed.
 
 `scheduler/campaigns.py` asks the shared start-time questions after the
 label checks clear a campaign request. A claim, a blocker or a failed
@@ -478,11 +480,11 @@ constructs GitHub commands. It owns projections and operations for:
 - reading and normalizing user posts from comments, reviews, verdicts,
   and inline comments.
 
-An agent assignment persists its pull request's number and nothing else
-about it. Scheduling reads the current state from GitHub when it needs
-it, and the request row carries what the tick read to the views. An
-assignment the tick read nothing for shows the merged or closed state
-its newest relayed round input carried, if any.
+The pull request record for an assignment or campaign holds its pull
+request's number. Scheduling reads the current state from GitHub, and
+the request row carries the observation to the views. Work with no
+current observation shows the merged or closed state its newest relayed
+round input carried, if any.
 
 GitHub owns its documents and may add fields, so its responses remain
 tolerant projections. Documents owned by _dreamcatcher_ remain strict.
@@ -494,14 +496,14 @@ a post and for an assignee of an issue.
 ### Relay
 
 `relay.py` owns what is past a piece of agent work's cursor. For pull
-request work it selects user posts oldest first and raises pull request
-signals for a head where they have yet to be relayed, under the relay
-rule. It validates each recorded input against the work kind's full
-model and uses the shared fields for the post cursor, signal memory and
-wrap-up. For a conversation it selects eligible issue comments oldest
-first and owns `IssueCommentCursor`, which marks a position in issue
-comments. One eligibility rule selects user posts in both channel
-shapes.
+request work it selects user posts oldest first, identifying posts in
+the last relayed second by kind and id, and raises pull request signals
+for a head where they have yet to be relayed, under the relay rule. It
+validates each recorded input against the work kind's full model and
+uses the shared fields for the post cursor, signal memory and wrap-up.
+For a conversation it selects eligible issue comments oldest first and
+owns `IssueCommentCursor`, which marks a position in issue comments. One
+eligibility rule selects user posts in both channel shapes.
 
 Relay does not define a separate inbox domain entity and does not decide
 when a round should run. The scheduler determines whether posts,
