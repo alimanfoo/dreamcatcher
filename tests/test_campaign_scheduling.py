@@ -890,6 +890,11 @@ def test_a_pull_request_post_wakes_the_lead_without_resetting_its_worktree(
     write_rounds(
         state=scheduler.context.state, endings=[SuccessfulAgentRoundEnding(at=PINNED)]
     )
+    campaign = read_campaign(state=scheduler.context.state, issue=PARENT)
+    assert campaign is not None
+    campaign_readme = campaign.worktree / "README.md"
+    local_edit = b"an uncommitted edit on the campaign branch\n"
+    campaign_readme.write_bytes(local_edit)
     rename_default_branch(checkout=root, branch="trunk")
     (root / "README.md").write_bytes(b"what the default branch holds now\n")
     commit(path=root, message="change the default branch")
@@ -912,10 +917,8 @@ def test_a_pull_request_post_wakes_the_lead_without_resetting_its_worktree(
     )
     given = read_lead_input(scheduler=scheduler, number=2)
     assert given.user_posts == [IssueComment.model_validate(question)]
-    campaign = read_campaign(state=scheduler.context.state, issue=PARENT)
-    assert campaign is not None
     assert given.pull_request_head == HEAD
-    assert (campaign.worktree / "README.md").read_bytes() == b"what the seed holds\n"
+    assert campaign_readme.read_bytes() == local_edit
     assert run_git(
         arguments=["branch", "--show-current"], cwd=campaign.worktree
     ).strip() == (compose_work_branch(identifier=campaign.identifier))
