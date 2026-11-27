@@ -102,7 +102,10 @@ def create_assignment_request_inspector(
     all_work: Sequence[AgentWork],
     read_campaign_pull_request: PullRequestReader,
 ) -> RequestInspector:
-    """Inspect new assignments using the campaign history and reads of one tick."""
+    """Create the assignment request inspector for one tick.
+
+    Requests with the same parent share a campaign base decision.
+    """
     campaigns = {
         work.record.issue: work
         for work in sorted(

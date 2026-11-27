@@ -85,20 +85,20 @@ when. The tick in `tick.py` has one path for every kind of agent work.
 Each kind's module, `assignments.py`, `campaigns.py` or
 `conversations.py`, supplies only what differs by kind: how it inspects
 the channel of open work, how it decides whether a request with no open
-work may start, and how it composes a round's plan. `conversations.py`
-also holds the conversation's lifetime rules and reads eligible
-comments. A closed issue ends the conversation after any running round
-finishes. The labels, assignee and label applier decide whether it is
-held. `scheduler/pull_requests.py` holds the start-time questions and
-the pull request activity that can wake assignments and campaigns.
-`blockers.py` holds the read of the open issues that block an issue,
-which assignment and campaign requests share. `labelling.py` holds the
-rule that work starts or resumes only on a dispatch label that the
-signed-in account applied, which every kind's requests and open
-conversations share. `inspection.py` holds the scheduling context, the
-dispatch request, the candidate, the round plan and the inspection of
-one request. `models.py` holds the scheduler record and its request
-rows, and `faults.py` the fault and cooldown rules.
+work may start, and how it prepares a round. `conversations.py` also
+holds the conversation's lifetime rules and reads eligible comments. A
+closed issue ends the conversation after any running round finishes. The
+labels, assignee and label applier decide whether it is held.
+`scheduler/pull_requests.py` holds the start-time questions and the pull
+request activity that can wake assignments and campaigns. `blockers.py`
+holds the read of the open issues that block an issue, which assignment
+and campaign requests share. `labelling.py` holds the rule that work
+starts or resumes only on a dispatch label that the signed-in account
+applied, which every kind's requests and open conversations share.
+`inspection.py` holds the scheduling context, the candidate, the
+prepared round input and the inspection of one request. `models.py`
+holds the scheduler record and its request rows, and `faults.py` the
+fault and cooldown rules.
 
 One scheduler tick:
 
@@ -257,9 +257,9 @@ reply posting. A new session receives the configured prompt before the
 input as well. Every prompt requires the agent marker on every other
 GitHub post that the agent makes.
 
-A conversation round posts its own answer. The conversation's round plan
-gives the round a finishing step that posts to the issue, so the shared
-round runner knows nothing of GitHub. After the harness exits
+A conversation round posts its own answer. The conversation's round
+preparation supplies a finishing step that posts to the issue, so the
+shared round runner knows nothing of GitHub. After the harness exits
 successfully, the round hands its final output to that finishing step,
 which posts it with the agent marker, and then the round records its
 ending. It therefore keeps its agent slot while it posts, and no new
@@ -286,11 +286,10 @@ campaign's draft pull request through `pull_request_work.py`. It cuts
 the campaign branch from the default branch and uses GitHub's closing
 keyword for the parent. The worktree starts on the campaign branch and
 keeps the checkout the lead left between rounds. The opening input
-carries the new pull request number, its initial state and the head of
-the worktree that was pushed, along with the sub-issues and assignment
-routes. An opening round that adopts an existing pull request relays
-GitHub's current observation and uses it to choose the input prompt. A
-merged or closed pull request calls for wrap-up.
+carries the recorded pull request number, an open state and the local
+worktree head, along with the sub-issues and assignment routes. The next
+tick inspects the recorded pull request for activity, and a merged or
+closed pull request calls for wrap-up.
 
 `scheduler/campaigns.py` asks the shared start-time questions after the
 label checks clear a campaign request. A claim, a blocker or a failed
@@ -344,17 +343,18 @@ and check out the commits it reviews. Claude approves a shell call by
 these rules only when every command in it matches one, and its auto mode
 classifier refuses any other call that merges a pull request that no
 person approved, so the campaign input prompt asks the lead to run each
-`gh pr merge` on its own. Codex runs campaign and assignment rounds
-under its own reviewer because fetching writes outside the worktree. On
-both harnesses the coordinating prompt directs the lead to leave
-implementation to the sub-issue assignments and the campaign's own merge
-to the user. Every prompt requires the agent marker on every GitHub post
-that the lead makes, except feedback that it gives a sub-issue's
-assignment on that assignment's pull request. `compose_round_prompt` in
-`prompts.py` chooses those words by the kind of work. The ordinary
-assignment relay then gives the unmarked feedback to the assignment's
-agent as a user post, so the lead reaches an assignment's agent through
-the same channel as the user, and no campaign code relays it.
+`gh pr merge` on its own in both phases. Codex runs campaign and
+assignment rounds under its own reviewer because fetching writes outside
+the worktree. On both harnesses the coordinating prompt defers the
+lead's edits, commits and pushes until it judges every sub-issue done.
+The shared campaign prompt leaves the campaign's own merge to the user.
+Every prompt requires the agent marker on every GitHub post that the
+lead makes, except feedback that it gives a sub-issue's assignment on
+that assignment's pull request. `compose_round_prompt` in `prompts.py`
+chooses those words by the kind of work. The ordinary assignment relay
+then gives the unmarked feedback to the assignment's agent as a user
+post, so the lead reaches an assignment's agent through the same channel
+as the user, and no campaign code relays it.
 
 ### Pull request work
 

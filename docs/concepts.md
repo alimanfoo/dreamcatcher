@@ -98,14 +98,18 @@ input, call each sub-issue a **child** of the parent. The **campaign
 branch** starts from the default branch. The campaign's pull request
 goes into the default branch and closes the parent when it merges. While
 the pull request is a draft, the lead is in the **coordinating phase**.
-It dispatches the parent's existing sub-issues and reviews and merges
-their pull requests into the campaign branch. When it judges every
-sub-issue done, it marks the campaign's pull request ready for review.
-While the open pull request is ready for review, the lead is in the
-**finishing phase**. The lead responds to the same pull request signals
-as an assignment's agent and can commit and push to the campaign branch.
-Marking the pull request as a draft again returns the campaign to
-coordinating. The user decides when to merge it.
+It waits until it judges every sub-issue done before editing project
+source, committing or pushing. It may then make its own changes before
+marking the campaign's pull request ready for review. While the open
+pull request is ready for review, the lead is in the **finishing
+phase**. The lead responds to the same pull request signals as an
+assignment's agent and can commit and push to the campaign branch. In
+either phase the lead dispatches the parent's sub-issues and reviews and
+merges their pull requests into the campaign branch. The user can add
+sub-issues while the campaign is open, and a ready pull request stays
+ready while the lead takes them up. Marking the pull request as a draft
+again returns the campaign to coordinating. The user decides when to
+merge it.
 
 A **campaign's sub-issue** is a direct sub-issue in the same repository
 whose parent carries a campaign label configured for the running daemon

@@ -9,7 +9,6 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from functools import partial
 
-from dreamcatcher.agent_rounds import AgentRoundFinisher
 from dreamcatcher.agent_work import AgentWork, DispatchRequest
 from dreamcatcher.campaigns import (
     CampaignChild,
@@ -19,7 +18,6 @@ from dreamcatcher.campaigns import (
     compose_campaign_round_input,
     read_delivered_campaign_input,
 )
-from dreamcatcher.errors import ReportableError
 from dreamcatcher.git import read_worktree_revision
 from dreamcatcher.github import (
     Issue,
@@ -27,7 +25,6 @@ from dreamcatcher.github import (
     SubIssue,
     UnknownGitHubResponse,
     list_sub_issues,
-    read_pull_request,
 )
 from dreamcatcher.prompts import compose_campaign_input_prompt
 from dreamcatcher.pull_request_work import (
@@ -278,43 +275,6 @@ def _offer_lead_round(
     )
 
 
-def _prepare_campaign_pull_request(
-    *, context: SchedulingContext, work: AgentWork, activity: PullRequestActivity | None
-) -> tuple[PullRequestRoundInput, bool, AgentRoundFinisher | None]:
-    """Freeze the pull request input, readiness and any wrap-up finisher."""
-    if activity is None:
-        opened = open_work_pull_request(
-            state=context.state, repository=context.repository, work=work
-        )
-        if not opened.was_adopted:
-            return (
-                PullRequestRoundInput(
-                    pull_request=opened.number,
-                    pull_request_state=PullRequestState.OPEN,
-                    pull_request_head=read_worktree_revision(worktree=work.worktree),
-                    signals=[],
-                    user_posts=[],
-                ),
-                False,
-                None,
-            )
-        observed = read_pull_request_activity(
-            context=context,
-            work=work,
-            read=read_pull_request(
-                repository=context.repository, pull_request=opened.number
-            ),
-        )
-        if isinstance(observed, ReadFailureFinding):
-            raise ReportableError(observed.reason)
-        activity = observed
-    return (
-        activity.prepare_round(context=context, work=work),
-        activity.finding.is_ready_for_review,
-        activity.compose_finisher(context=context, work=work),
-    )
-
-
 def _prepare_campaign_round(
     *,
     context: SchedulingContext,
@@ -324,9 +284,24 @@ def _prepare_campaign_round(
     work: AgentWork,
 ) -> PreparedRoundInput:
     """Prepare an opening, relay or wrap-up round."""
-    pull_request_input, is_ready_for_review, finish_round = (
-        _prepare_campaign_pull_request(context=context, work=work, activity=activity)
-    )
+    finishing_branch = None
+    finish_round = None
+    if activity is None:
+        pull_request = open_work_pull_request(
+            state=context.state, repository=context.repository, work=work
+        )
+        pull_request_input = PullRequestRoundInput(
+            pull_request=pull_request,
+            pull_request_state=PullRequestState.OPEN,
+            pull_request_head=read_worktree_revision(worktree=work.worktree),
+            signals=[],
+            user_posts=[],
+        )
+    else:
+        pull_request_input = activity.prepare_round(context=context, work=work)
+        finish_round = activity.compose_finisher(context=context, work=work)
+        if activity.finding.is_ready_for_review:
+            finishing_branch = compose_work_branch(identifier=work.identifier)
     return PreparedRoundInput(
         document=compose_campaign_round_input(
             pull_request_input=pull_request_input,
@@ -339,11 +314,7 @@ def _prepare_campaign_round(
             round_input=work.compose_round_paths(
                 number=work.next_round_number
             ).round_input,
-            finishing_branch=(
-                compose_work_branch(identifier=work.identifier)
-                if is_ready_for_review
-                else None
-            ),
+            finishing_branch=finishing_branch,
             pull_request_signals=pull_request_input.signals,
         ),
         finish_round=finish_round,

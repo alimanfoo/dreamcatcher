@@ -322,13 +322,14 @@ cards keep updating, and the sub-issues stay expanded until the user
 folds them. Once the campaign ends, it moves to the ended list with its
 own card alone, and the user goes to GitHub for the history.
 
-When the lead judges every sub-issue done, it marks the campaign's pull
-request ready for review. The user reviews it and merges it when
-satisfied. GitHub closes the parent. The lead wraps up in its next
-round, then _dreamcatcher_ removes the worktree and local branch and
-keeps the record. If the user closes the pull request without merging,
-the lead still wraps up. The label's request has already been used. To
-start a new campaign the user removes and reapplies the label.
+When the lead judges every sub-issue done, it can make and push its own
+changes before marking the campaign's pull request ready for review. The
+user reviews it and merges it when satisfied. GitHub closes the parent.
+The lead wraps up in its next round, then _dreamcatcher_ removes the
+worktree and local branch and keeps the record. If the user closes the
+pull request without merging, the lead still wraps up. If the original
+label has stayed on, its request has already been used. To start a new
+campaign the user removes and reapplies the label.
 
 The user gets one pull request to review for the whole body of work.
 
@@ -401,11 +402,22 @@ review, or can see where it needs their help.
 A colleague reviews the ready campaign pull request and asks for
 changes. The user reads the review and relays what they want in a post
 of their own on the same pull request. The lead receives the user's post
-and pushes the changes to the campaign branch. When a change calls for a
-sub-issue of its own, the user adds one to the parent and the lead can
-dispatch it. The colleague then reviews the updated pull request.
+and pushes the changes to the campaign branch. The colleague then
+reviews the updated pull request.
 
 The user decides which feedback reaches the lead, as on an assignment.
+
+#### The user extends an open campaign
+
+The user adds a sub-issue to the parent, perhaps because a colleague's
+review calls for a change of its own. They can do this while the
+campaign's pull request is a draft or ready for review. The lead hears
+about the new sub-issue, dispatches it, and reviews and merges its pull
+request into the campaign branch. If the campaign's pull request was
+ready, it stays ready while the extra work runs.
+
+The user can extend the plan and review the result on the same pull
+request.
 
 #### The user cancels a campaign to finish it by hand
 
@@ -863,12 +875,15 @@ daemon, installs the new version, and starts it again, and interrupted
 rounds carry on as the stop-and-start story says. Before a major release
 they read the changelog, because a major release may change the state
 format, and saved work does not carry across formats. In that case the
-release notes say what to do first: let each assignment reach its
-wrap-up, or cancel it and finish its pull request by hand, and accept
-that conversations start afresh, which can mean an agent answering an
-old comment again if its label is still on. The old state stays on disk
-untouched, and everything on GitHub stays where it is. Once they have
-finished with the old state, they can reclaim its disk by hand, as
+release notes say what to do first. The user lets assignments and
+campaigns reach wrap-up or cancels them and finishes their pull requests
+by hand. They review the labels on open issues assigned to them and
+remove the ones whose work they want to leave ended. The new daemon can
+start fresh work from any remaining dispatch label whose request can
+start. A conversation can answer an old comment again, and an open pull
+request still claims its issue. The old state stays on disk untouched,
+and everything on GitHub stays where it is. Once they have finished with
+the old state, they can reclaim its disk by hand, as
 [Reclaim disk from an earlier state format](compatibility.md#reclaim-disk-from-an-earlier-state-format)
 describes. Across a change of state format, the user also stops every
 standalone view, such as `dreamcatcher web` or a refreshing
@@ -966,11 +981,11 @@ it merges, GitHub closes the issue, and the label is moot.
 
 ### Closing a pull request and leaving the assignment label on the issue
 
-The user closes the agent's pull request without merging, and leaves the
-assignment label on the issue. The agent wraps up and the assignment
-ends. The request card is held and says the label's request has already
-been used. To ask for another attempt, the user removes and re-adds the
-label.
+The user closes the agent's pull request without merging. They have left
+the assignment label on since the assignment started. The agent wraps up
+and the assignment ends. The request card is held and says the label's
+request has already been used. To ask for another attempt, the user
+removes and re-adds the label.
 
 ### Removing a label to stop an assignment
 
@@ -978,6 +993,15 @@ The user takes the assignment label off an issue expecting the agent to
 stop. It does not; the assignment carries on with its pull request
 whatever happens to the label. To stop it, the user needs to cancel the
 assignment, from its page or with `dreamcatcher cancel`.
+
+### Reapplying a label while work is open
+
+The user removes and reapplies an assignment or campaign label while
+work of that kind is still open. The work carries on and answers the
+label. Once it ends, the later application can start another attempt if
+the issue is still open and the request can start. This is an accepted
+side effect. If the user applied the label by mistake, they can remove
+it before the open work ends.
 
 ### Committing to the agent's branch
 
@@ -1041,13 +1065,13 @@ every running round as a stop of the daemon would, because another
 daemon could now start on the same checkout. The user needs to start the
 daemon again, and the interrupted work carries on in its session.
 
-Deleting the whole `.dreamcatcher/` folder stops the daemon the same
-way, but takes every assignment, conversation and worktree with it, so
-the daemon that starts next knows of no work. Each open pull request
-still claims its issue, so no second assignment starts for it. The user
-needs to finish those pull requests by hand, and to expect a
-conversation whose label is still on to start afresh and answer their
-earlier comments again.
+Deleting the whole `.dreamcatcher/` folder stops the daemon the same way
+and takes every work record and worktree with it. The next daemon starts
+with empty local state. Each open pull request still claims its issue,
+and the user needs to finish those pull requests by hand. An assignment
+or campaign label left on an issue can start new work when its request
+is clear. A conversation whose label is still on can start afresh and
+answer earlier comments again.
 
 ### Editing the daemon's record of the last update
 
