@@ -193,7 +193,7 @@ def test_only_ended_assignments_are_summarized(tmp_path):
         state=state, issue=13, records=[compose_ended_round(minute=1)]
     )
     cancel_pull_request_work(
-        assignment=read_agent_work_at_issue(state=state, issue=13)[0],
+        work=read_agent_work_at_issue(state=state, issue=13)[0],
         at=PINNED,
     )
 

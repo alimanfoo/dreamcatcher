@@ -20,7 +20,6 @@ from dreamcatcher.agent_work import (
 )
 from dreamcatcher.clock import read_current_time
 from dreamcatcher.errors import ReportableError
-from dreamcatcher.harness_adapters import AgentWorkKind
 from dreamcatcher.pull_request_work import cancel_pull_request_work
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.status import (
@@ -122,8 +121,8 @@ def _register_work_routes(
     )
     app.add_url_rule(
         "/work/<identifier>/cancel",
-        endpoint="cancel_assignment",
-        view_func=partial(_cancel_assignment, state=state, clock=clock),
+        endpoint="cancel_work",
+        view_func=partial(_cancel_work, state=state, clock=clock),
         methods=["POST"],
     )
 
@@ -188,7 +187,7 @@ def _compose_work_live_state(
         foot_controls.append(
             WebAgentWorkControl(
                 action="cancel",
-                url=url_for("cancel_assignment", identifier=identifier),
+                url=url_for("cancel_work", identifier=identifier),
             )
         )
     return compose_agent_live_state(
@@ -283,16 +282,15 @@ def _request_work_retry(
     return redirect(url_for("show_work", identifier=identifier), code=303)
 
 
-def _cancel_assignment(
+def _cancel_work(
     *,
     state: StateDirectory,
     clock: Callable[[], datetime],
     identifier: str,
 ) -> ResponseReturnValue:
-    """Cancel one assignment so the user can finish its pull request by hand.
+    """Cancel pull request work so the user can finish it by hand.
 
-    A submission for work that cannot be cancelled, such as an assignment that
-    has already ended, changes nothing.
+    A submission for work that cannot be cancelled changes nothing.
     """
     if not _is_same_origin_request():
         return _CROSS_ORIGIN_POST_RESPONSE
@@ -300,13 +298,13 @@ def _cancel_assignment(
     if work is None:
         return _missing_work_response(identifier=identifier)
     if _can_cancel(work=work):
-        cancel_pull_request_work(assignment=work, at=clock())
+        cancel_pull_request_work(work=work, at=clock())
     return redirect(url_for("show_work", identifier=identifier), code=303)
 
 
 def _can_cancel(*, work: AgentWork) -> bool:
-    """Return whether the work is an assignment that is still open."""
-    return work.record.kind is AgentWorkKind.ASSIGNMENT and work.is_open
+    """Return whether the work has a pull request channel and is still open."""
+    return work.record.kind.is_pull_request_work and work.is_open
 
 
 def _is_same_origin_request() -> bool:

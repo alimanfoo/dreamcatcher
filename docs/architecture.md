@@ -355,7 +355,7 @@ the same channel as the user, and no campaign code relays it.
 `pull_request_work.py` names the branch, opens and records the pull
 request, closes issues for merges into alternate bases, completes the
 work after wrap-up, and removes the worktree and local branch for
-assignments and campaigns. It also provides assignment cancellation.
+assignments and campaigns. It also cancels either kind of work.
 
 `agent_work.py` owns what every kind of agent work shares: the work
 record, the agent work identifier, creating work of any kind from its
@@ -717,15 +717,14 @@ round's own directory. The daemon still owns the live process and
 lifecycle transition: the round watches the request, kills its harness
 process tree, and records its stopped ending.
 
-The web interface and the `cancel` command can cancel an assignment. A
-cancel goes through the agent-assignment boundary, which records the
-assignment's ending, with the reason "cancelled", and then writes a stop
-request for any round that has no ending. A cancel of an assignment
-whose ending is already recorded changes nothing, and the `cancel`
-command says that the assignment has already ended. The scheduler starts
-no further rounds for the assignment. A round that it starts as the
-cancel lands is stopped too, because the scheduler reads the ending
-again once that round's record exists.
+The web interface and the `cancel` command cancel an assignment or
+campaign through `pull_request_work.py`. The operation records the
+work's ending with the reason "cancelled", then writes a stop request
+for any round that has no ending. If an ending already exists, the
+operation keeps it and the command reports that the work has already
+ended. The scheduler starts no further rounds for that work. A round
+that starts as the cancel lands is stopped too, because the scheduler
+reads the ending again once that round's record exists.
 
 The web interface and the `retry` command can also request a retry for
 agent work that status derives as in fault. Each writes the retry
@@ -802,7 +801,7 @@ The on-disk layout follows ownership:
   when the harness reports one, and any input it relays; and
 - each piece of agent work's worktree lives under `worktrees/`, named by
   the same identifier, until the scheduler removes it after the work
-  ends. A cancelled assignment keeps its worktree.
+  ends. Cancelled pull request work keeps its worktree.
 
 `documents.py` remains the only way _dreamcatcher_ reads and writes
 documents it owns. Every structured document has a strict model and

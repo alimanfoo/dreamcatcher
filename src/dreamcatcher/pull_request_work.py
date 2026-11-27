@@ -121,26 +121,26 @@ def read_work_pull_request_number(*, work: AgentWork) -> int | None:
     return None if record is None else record.number
 
 
-def cancel_pull_request_work(*, assignment: AgentWork, at: datetime) -> bool:
-    """Record that the user has taken an open assignment over.
+def cancel_pull_request_work(*, work: AgentWork, at: datetime) -> bool:
+    """Record that the user has taken over open pull request work.
 
-    Return whether the cancel is the assignment's ending. An assignment that
-    has already ended keeps its ending, even one that lands after the caller
-    read the assignment, and no round is asked to stop.
+    Return whether the cancel is the work's ending. Work that has already
+    ended keeps its ending, even one that lands after the caller read it, and
+    no round is asked to stop.
 
     The ending is written before the running round is asked to stop, so a round
     that starts at the same moment either receives the stop request here or sees
     the ending itself.
     """
-    if not end_agent_work(work=assignment, reason=AgentWorkEndReason.CANCELLED, at=at):
+    if not end_agent_work(work=work, reason=AgentWorkEndReason.CANCELLED, at=at):
         return False
     rounds = read_agent_round_records(
         cache=DocumentCache(),
-        directory=assignment.rounds_directory,
+        directory=work.rounds_directory,
     )
     if rounds and rounds[-1].ending is None:
         request_agent_round_stop(
-            paths=assignment.compose_round_paths(number=rounds[-1].number)
+            paths=work.compose_round_paths(number=rounds[-1].number)
         )
     return True
 

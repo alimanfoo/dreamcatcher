@@ -67,6 +67,7 @@ from dreamcatcher.campaigns import (
     CampaignChildNotification,
     CampaignRoundInput,
 )
+from dreamcatcher.cli import main
 from dreamcatcher.config import AgentHarness, read_dreamcatcher_config
 from dreamcatcher.documents import read_json
 from dreamcatcher.errors import ReportableError
@@ -97,6 +98,7 @@ from dreamcatcher.scheduler.models import (
     StartTimeFinding,
 )
 from dreamcatcher.state import StateDirectory
+from dreamcatcher.web.app import _create_app
 
 PARENT = 20
 LABEL = "dream:big"
@@ -2099,14 +2101,8 @@ def open_campaign_and_assignment(*, scheduler, gh, harnesses):
         run_git(arguments=["rev-parse", "main"], cwd=root)
     )
 
-    offer_listing(gh=gh, issues=[compose_parent_issue(), child])
-    offer_issue_parent(gh=gh, issue=FIRST_CHILD, parent=PARENT)
-    offer_campaign_pull_request(gh=gh, head=opening_input.pull_request_head)
-    child_pull_request = 52
-    child_url = f"https://github.com/{REPOSITORY}/pull/{child_pull_request}"
-    gh.replies(stdout=child_url, to="pr create")
-    gh.replies(
-        stdout=json.dumps({"number": child_pull_request}), to=f"pr view {child_url}"
+    child_pull_request = offer_child_assignment(
+        gh=gh, child=child, campaign_head=opening_input.pull_request_head
     )
 
     assigned = tick(scheduler=scheduler)
@@ -2136,6 +2132,18 @@ def open_campaign_and_assignment(*, scheduler, gh, harnesses):
     assert child_pr[child_pr.index("--base") + 1] == campaign_branch
 
     return campaign, assignment, child
+
+
+def offer_child_assignment(*, gh, child: dict, campaign_head: str) -> int:
+    """List the labelled sub-issue and let its assignment open a pull request."""
+    offer_listing(gh=gh, issues=[compose_parent_issue(), child])
+    offer_issue_parent(gh=gh, issue=child["number"], parent=PARENT)
+    offer_campaign_pull_request(gh=gh, head=campaign_head)
+    number = 52
+    url = f"https://github.com/{REPOSITORY}/pull/{number}"
+    gh.replies(stdout=url, to="pr create")
+    gh.replies(stdout=json.dumps({"number": number}), to=f"pr view {url}")
+    return number
 
 
 def merge_sub_issue(*, scheduler, gh, campaign, assignment, child) -> str:
@@ -2306,11 +2314,8 @@ def test_an_open_campaign_answers_every_campaign_label(campaign_scheduler):
     assert observed.launched_agent_work_identifiers == []
 
 
-def test_an_open_pull_request_claiming_the_parent_holds_a_new_campaign(
-    campaign_scheduler, harnesses
-):
-    scheduler, gh = campaign_scheduler
-    offer_parent(gh=gh)
+def offer_campaign_claim(*, gh) -> None:
+    """Have GitHub report that the open campaign pull request claims the parent."""
     gh.replies(
         stdout=json.dumps(
             {
@@ -2324,6 +2329,14 @@ def test_an_open_pull_request_claiming_the_parent_holds_a_new_campaign(
         ),
     )
 
+
+def test_an_open_pull_request_claiming_the_parent_holds_a_new_campaign(
+    campaign_scheduler, harnesses
+):
+    scheduler, gh = campaign_scheduler
+    offer_parent(gh=gh)
+    offer_campaign_claim(gh=gh)
+
     observed = tick(scheduler=scheduler)
 
     [row] = observed.rows
@@ -2333,6 +2346,97 @@ def test_an_open_pull_request_claiming_the_parent_holds_a_new_campaign(
     assert row.children is None
     assert observed.launched_agent_work_identifiers == []
     assert harnesses["claude"].calls == []
+
+
+def cancel_campaign_from_page(*, state: StateDirectory, identifier: str) -> None:
+    """Check the campaign's cancel control and submit it."""
+    path = f"/work/{identifier}"
+    client = _create_app(state=state).test_client()
+    page = client.get(path)
+    assert page.status_code == 200
+    assert f'action="{path}/cancel"' in page.text
+    response = client.post(f"{path}/cancel", headers={"Origin": "http://localhost"})
+    assert response.status_code == 303
+    assert response.location == path
+    assert f'action="{path}/cancel"' not in client.get(path).text
+
+
+@pytest.mark.parametrize("surface", ["cli", "web"])
+@pytest.mark.parametrize("is_running", [False, True], ids=["between-rounds", "working"])
+def test_the_user_can_cancel_a_campaign_and_carry_on_its_branch(
+    campaign_scheduler, harnesses, monkeypatch, surface, is_running
+):
+    scheduler, gh = campaign_scheduler
+    state = scheduler.context.state
+    offer_parent(gh=gh)
+    offer_children(gh=gh, children=[compose_sub_issue(number=FIRST_CHILD)])
+    script_lead_turn(harnesses=harnesses, delay=30 if is_running else 0)
+    opened = tick(scheduler=scheduler)
+    [identifier] = opened.launched_agent_work_identifiers
+    if not is_running:
+        finish(scheduler=scheduler)
+    campaign = read_campaign(state=state, issue=PARENT)
+    assert campaign is not None
+    assert campaign.ending is None
+    assert (campaign.rounds[0].outcome is AgentRoundOutcome.RUNNING) is is_running
+    assert read_work_pull_request_number(work=campaign) == CAMPAIGN_PULL_REQUEST
+    campaign_head = read_worktree_revision(worktree=campaign.worktree)
+    campaign_branch = compose_work_branch(identifier=identifier)
+
+    if surface == "cli":
+        monkeypatch.chdir(state.root)
+        assert main(argv=["cancel", identifier]) == 0
+    else:
+        cancel_campaign_from_page(state=state, identifier=identifier)
+
+    paths = campaign.compose_round_paths(number=1)
+    assert paths.stop_request.exists() is is_running
+    finish(scheduler=scheduler)
+
+    child = compose_parent_issue(labels=(SMITH,), number=FIRST_CHILD)
+    child_pull_request = offer_child_assignment(
+        gh=gh, child=child, campaign_head=campaign_head
+    )
+    offer_campaign_claim(gh=gh)
+    offer_labelling_events(
+        gh=gh,
+        issue=PARENT,
+        events=[
+            compose_labelling_event(
+                label=LABEL, applied_at=LABEL_APPLIED_AT + timedelta(seconds=1)
+            )
+        ],
+    )
+    script_lead_turn(harnesses=harnesses)
+    continued = tick(scheduler=scheduler)
+    finish(scheduler=scheduler)
+
+    ended = read_campaign(state=state, issue=PARENT)
+    assert ended is not None
+    assert ended.identifier == identifier
+    assert ended.ending is not None
+    assert ended.ending.reason is AgentWorkEndReason.CANCELLED
+    [lead_round] = ended.rounds
+    assert lead_round.outcome is (
+        AgentRoundOutcome.STOPPED if is_running else AgentRoundOutcome.SUCCESSFUL
+    )
+    assert read_work_pull_request_number(work=ended) == CAMPAIGN_PULL_REQUEST
+    assert read_worktree_revision(worktree=ended.worktree) == campaign_head
+    assert (
+        run_git(arguments=["rev-parse", campaign_branch], cwd=state.root).strip()
+        == campaign_head
+    )
+    assert find_campaign_row(observed=continued).finding == StartTimeFinding(
+        linked_pull_requests=[CAMPAIGN_PULL_REQUEST], blocking_issues=[]
+    )
+    [assignment] = read_agent_work_at_issue(state=state, issue=FIRST_CHILD)
+    assert continued.failures == []
+    assert continued.launched_agent_work_identifiers == [assignment.identifier]
+    assert read_work_pull_request_number(work=assignment) == child_pull_request
+    _, child_pr = [
+        call.arguments for call in gh.calls if call.arguments[:2] == ["pr", "create"]
+    ]
+    assert child_pr[child_pr.index("--base") + 1] == campaign_branch
 
 
 @pytest.mark.parametrize("is_read_available", [True, False])

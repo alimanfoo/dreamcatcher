@@ -63,6 +63,12 @@ the change.
   starts the campaign's wrap-up and cleanup.
   ([#938](https://github.com/alimanfoo/dreamcatcher/pull/938))
 
+- Cancel an open campaign from its page or with `dreamcatcher cancel` to
+  take over from the lead. The pull request, branch and worktree stay
+  available, and sub-issue assignments still target the campaign branch
+  while its pull request is open.
+  ([#940](https://github.com/alimanfoo/dreamcatcher/pull/940))
+
 ## [v9.10.0](https://github.com/alimanfoo/dreamcatcher/releases/tag/v9.10.0) — 2026-11-26
 
 ### Changed

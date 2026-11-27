@@ -8,7 +8,7 @@
     <span>{{ card.dispatch_label }} · {{ card.harness }} · {{ card.model }} · {{ card.effort }}</span>
     <span class="card-actions">
       {%- for control in controls %}
-      {{ agent_work_control(control) }}
+      {{ agent_work_control(control, card.kind) }}
       {%- endfor %}
       <span class="chip {{ status_class(card.status) }}">{{ card.status_words }}</span>
       {%- if not is_page %}
