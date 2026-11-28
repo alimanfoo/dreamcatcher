@@ -29,6 +29,12 @@ the change.
 
 ## Unreleased
 
+### Changed
+
+- The web pages refresh every second, so the next-update countdown
+  advances one second at a time.
+  ([#962](https://github.com/alimanfoo/dreamcatcher/pull/962))
+
 ### Fixed
 
 - The campaign guide now explains how to start over after closing a
