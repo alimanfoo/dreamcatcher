@@ -117,16 +117,19 @@ repos:
         language: pygrep
         files: ^src/dreamcatcher/(tui|web)/
         exclude: *verbatim-paths
-      # .remarkrc.json loads the plugin and names the repository.
+      # The entry point reads the Git index, so it also sees links from
+      # unchanged Markdown when a commit removes a target.
       - id: remark-validate-links
         name: validate markdown links
-        entry: remark --frail --quiet --no-stdout
+        entry: node tools/validate_markdown_links.mjs
         language: node
         additional_dependencies:
           - remark-cli@12.0.1
           - remark-validate-links@13.1.0
-        files: \.md$
-        exclude: *verbatim-paths
+        # Literal directory prefixes matching the verbatim-paths exclusion.
+        args: [tests/fixtures/, src/dreamcatcher/static/vendor/]
+        always_run: true
+        pass_filenames: false
       # Runs before uncoded, so uncoded builds its skill files from prose
       # prettier has already formatted.
       - id: prettier

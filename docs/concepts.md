@@ -376,8 +376,8 @@ request, which is its request card.
 ### Working motif and calm field
 
 A **working motif** is the small moving figure that the web home page
-shows in the gutter beside the page's text for each working agent: a
-falling column of glyphs in Matrix, and in Nature a falling dandelion
+shows in the side margin beside the page's text for each working agent:
+a falling column of glyphs in Matrix, and in Nature a falling dandelion
 seed on a light page or a firefly on a dark one.
 
 A **calm field** is the field of the same theme's motif beneath the hint

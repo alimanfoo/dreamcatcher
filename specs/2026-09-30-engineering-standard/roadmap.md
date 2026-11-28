@@ -1,11 +1,11 @@
 # Engineering standard: baseline and path
 
-This spec records the first measurement of Dreamcatcher against
-[the engineering standard](../../docs/standard.md), and the ordered work
-that closes each gap. The standard is enduring and lives in `docs/`.
-This document is dated: it says where the project stood on 2026-09-30
-and how it moves from there. When the work is done, this document stays
-as a record and the next phase measures again.
+This spec records the first measurement of Dreamcatcher against the
+engineering standard, and the ordered work that closes each gap. The
+standard is enduring and lives in `docs/`. This document is dated: it
+says where the project stood on 2026-09-30 and how it moves from there.
+When the work is done, this document stays as a record and the next
+phase measures again.
 
 ## Why now
 
@@ -194,12 +194,11 @@ items.
 | E4 Symmetry                   | 15 parallel operations, 8 named asymmetries         | parallel or named        | met    |
 
 The E1 walk inspected every source module and classified the branches
-that name a particular situation.
-[The ledger](../../docs/special-cases.md) records the nine such cases.
-The conversation creation refusal remains because an interrupted process
-or a failed Git cleanup can leave the unrecorded worktree; normal
-creation and failed record writes either finish or remove it. No case
-has an internal cause.
+that name a particular situation. The ledger records the nine such
+cases. The conversation creation refusal remains because an interrupted
+process or a failed Git cleanup can leave the unrecorded worktree;
+normal creation and failed record writes either finish or remove it. No
+case has an internal cause.
 
 The E4 remeasurement read the design's parallel names and asymmetries
 against the current namespace. Every one of the 15 operation rows has
@@ -431,15 +430,15 @@ Work:
   existing state isolation: Dreamcatcher reads and writes its own
   state-format directory and ignores other format directories. The
   daemon lock remains shared across formats.
-- State the [compatibility policy](../../docs/compatibility.md): tagged
-  releases follow semantic versioning, while the state format and agent
-  contract have independent integer versions. The promise covers
-  documented commands, flags, configuration, saved agent work and agent
-  obligations. Incompatible changes require a major release and a
-  changelog entry with upgrade instructions. Establish contract version
-  1 after correcting its description of the current protocol. The next
-  release is 5.0.0 because it includes state format 5; the policy
-  applies from that release onward. Untagged `main` is development code.
+- State the compatibility policy: tagged releases follow semantic
+  versioning, while the state format and agent contract have independent
+  integer versions. The promise covers documented commands, flags,
+  configuration, saved agent work and agent obligations. Incompatible
+  changes require a major release and a changelog entry with upgrade
+  instructions. Establish contract version 1 after correcting its
+  description of the current protocol. The next release is 5.0.0 because
+  it includes state format 5; the policy applies from that release
+  onward. Untagged `main` is development code.
 - Add a page that explains what each testing technique establishes: the
   branch coverage gate, encoding failures, recorded harness streams,
   real subprocess boundaries exercised through stand-in executables, and
@@ -595,13 +594,11 @@ this stage's own criteria. The pull request that records this
 measurement fixed the mechanical ones: six functions over the S2 bar, an
 identical lookup for each kind of agent work, and 20 statements in the
 ontology and architecture that the code contradicted. The rest are
-issues, and [the measurement page](../../docs/measurement.md) lists each
-one against its criterion.
+issues, and the measurement page lists each one against its criterion.
 
 ## Completion
 
 This phase is complete when its six stages are done and the measurement
-has been repeated and recorded on
-[the measurement page](../../docs/measurement.md). A criterion that
+has been repeated and recorded on the measurement page. A criterion that
 still falls short is an issue, as it is at a release, and the next phase
 plans its work from those issues.

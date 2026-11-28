@@ -155,15 +155,14 @@ concurrently.
 
 The design discussion has produced drafts on branch `GH333`:
 
-- [The standard](../../docs/standard.md) now describes state-format
-  isolation under C4 and a pull request ready for review as the
-  tutorial's endpoint under C3.
-- [The compatibility policy](../../docs/compatibility.md) states the
-  agreed release, state-format and agent-contract versioning rules.
-- [The contract](../../docs/contract.md) declares version 1 after
-  correcting the two known discrepancies: delivery positions come from
-  recorded round inputs, and the initial conversation input holds its
-  title and body in `initial_issue`.
+- The standard now describes state-format isolation under C4 and a pull
+  request ready for review as the tutorial's endpoint under C3.
+- The compatibility policy states the agreed release, state-format and
+  agent-contract versioning rules.
+- The contract declares version 1 after correcting the two known
+  discrepancies: delivery positions come from recorded round inputs, and
+  the initial conversation input holds its title and body in
+  `initial_issue`.
 - The roadmap records all six decisions from the discussion.
 
 At that starting point, the README had not yet been divided into pages,

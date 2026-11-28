@@ -1026,7 +1026,7 @@ def test_assignment_page_polls_its_tail_from_the_last_complete_line(tmp_path):
     assert f'id="position" name="position" value="2:{feed_path.stat().st_size}"' in page
     assert (
         f'id="records" class="feed-records" '
-        f'hx-get="/work/{identifier}/tail" hx-trigger="every 2s" '
+        f'hx-get="/work/{identifier}/tail" hx-trigger="every 1s" '
         'hx-include="#position" hx-select=".feed-round" hx-swap="beforeend"' in page
     )
 
@@ -1406,13 +1406,13 @@ def test_working_motifs_beyond_the_places_share_them_out_of_phase(tmp_path):
     page = template.render()
 
     assert re.findall(r'style="([^"]+)"', page) == [
-        "left: calc(var(--gutter-unit) * 70); "
+        "left: calc(var(--side-margin-unit) * 70); "
         "animation-duration: 9s; animation-delay: 0.0s",
-        "right: calc(var(--gutter-unit) * 90); "
+        "right: calc(var(--side-margin-unit) * 90); "
         "animation-duration: 11s; animation-delay: -4.0s",
-        "left: calc(var(--gutter-unit) * 120); "
+        "left: calc(var(--side-margin-unit) * 120); "
         "animation-duration: 13s; animation-delay: -7.0s",
-        "left: calc(var(--gutter-unit) * 70); "
+        "left: calc(var(--side-margin-unit) * 70); "
         "animation-duration: 9s; animation-delay: -4.5s",
     ]
 
@@ -1431,7 +1431,7 @@ def test_every_rain_column_falls_in_its_own_glyphs(tmp_path):
 @pytest.mark.parametrize(
     ("fabricate", "empty_tabs"), [(fabricate_nothing, 3), (fabricate_everything, 2)]
 )
-def test_only_a_tab_with_nothing_active_holds_a_motif_field(
+def test_only_a_tab_with_nothing_active_holds_a_calm_field(
     fabricate, empty_tabs, tmp_path
 ):
     state = StateDirectory(root=tmp_path)
@@ -1443,7 +1443,7 @@ def test_only_a_tab_with_nothing_active_holds_a_motif_field(
     page = client.get("/?theme=matrix").text
 
     assert page.count('<p class="empty">') == empty_tabs
-    assert page.count('class="empty-field"') == empty_tabs
+    assert page.count('class="calm-field"') == empty_tabs
 
 
 def test_github_links_open_in_a_new_tab(tmp_path):

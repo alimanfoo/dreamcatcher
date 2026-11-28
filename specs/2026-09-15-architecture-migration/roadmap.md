@@ -1,10 +1,9 @@
 # Target architecture migration roadmap
 
 This roadmap describes how to move the working Dreamcatcher
-implementation to the domain model in
-[the ontology](../../docs/concepts.md) and the boundaries in
-[the target architecture](../../docs/architecture.md). Read both
-documents in full before implementing any stage of this roadmap.
+implementation to the domain model in the ontology and the boundaries in
+the target architecture. Read both documents in full before implementing
+any stage of this roadmap.
 
 The roadmap is an ordered series of reviewable stages. Each stage will
 become one subissue of GH76 and will be delivered by one pull request.

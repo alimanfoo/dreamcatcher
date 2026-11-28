@@ -55,7 +55,7 @@ RECORD_TAIL_HIDDEN_PER_FRAME = """() => {
   requestAnimationFrame(record);
 }"""
 
-# The narrowest window whose gutter beside the text holds the working motifs.
+# The narrowest window whose side margins hold the working motifs.
 MOTIF_WINDOW_WIDTH = 1184
 
 # Step every animation of each shown working-agent motif through its cycle,
@@ -941,7 +941,7 @@ def test_nature_shows_exactly_one_of_sun_and_moon_at_each_boundary(
 @pytest.mark.parametrize(
     ("theme", "scheme"), [("matrix", "dark"), ("nature", "light"), ("nature", "dark")]
 )
-def test_working_motifs_stay_in_the_gutter_beneath_the_header(
+def test_working_motifs_stay_in_the_side_margins_beneath_the_header(
     page: Page,
     live_web: str,
     theme: str,
@@ -1044,7 +1044,7 @@ def test_nature_drops_a_seed_on_a_light_page_and_lights_a_firefly_on_a_dark_one(
         ("nature", "dark", "firefly"),
     ],
 )
-def test_an_empty_tab_holds_its_motif_field_beneath_its_hint(
+def test_an_empty_tab_holds_its_calm_field_beneath_its_hint(
     page: Page,
     empty_web: str,
     theme: str,
@@ -1055,7 +1055,7 @@ def test_an_empty_tab_holds_its_motif_field_beneath_its_hint(
     page.goto(f"{empty_web}/?theme={theme}")
     panel = page.locator("#assignment-panel")
     hint = panel.locator(".empty")
-    field = panel.locator(".empty-field")
+    field = panel.locator(".calm-field")
 
     expect(field).to_be_visible()
     shown_motifs = field.evaluate(
@@ -1072,13 +1072,13 @@ def test_an_empty_tab_holds_its_motif_field_beneath_its_hint(
 @pytest.mark.parametrize(
     ("theme", "scheme"), [("matrix", "dark"), ("nature", "light"), ("nature", "dark")]
 )
-def test_an_empty_tab_motif_field_keeps_still_under_reduced_motion(
+def test_a_calm_field_keeps_still_under_reduced_motion(
     page: Page, empty_web: str, theme: str, scheme: Literal["light", "dark"]
 ) -> None:
     page.emulate_media(reduced_motion="reduce", color_scheme=scheme)
     page.goto(f"{empty_web}/?theme={theme}")
 
-    field = page.locator("#assignment-panel .empty-field")
+    field = page.locator("#assignment-panel .calm-field")
     expect(field).to_be_visible()
     assert field.evaluate("field => field.getAnimations({ subtree: true }).length") == 0
 
