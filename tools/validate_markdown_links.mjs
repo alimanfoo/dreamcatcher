@@ -2,14 +2,14 @@
 import { execFileSync, spawnSync } from "node:child_process";
 import { join } from "node:path";
 
-const [, , verbatimPathsPattern] = process.argv;
-if (!verbatimPathsPattern) throw new Error("Expected the verbatim paths pattern.");
-const verbatimPaths = new RegExp(verbatimPathsPattern);
+const verbatimDirectories = process.argv.slice(2);
 const markdownFiles = execFileSync("git", ["ls-files", "-z", "--", "*.md"], {
   encoding: "utf8",
 })
   .split("\0")
-  .filter((path) => path && !verbatimPaths.test(path));
+  .filter(
+    (path) => path && !verbatimDirectories.some((directory) => path.startsWith(directory)),
+  );
 
 // pre-commit sets NODE_PATH. Run the CLI directly so filenames pass through
 // as arguments on Windows without invoking its .cmd wrapper.
