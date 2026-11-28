@@ -44,9 +44,9 @@
 </div>
 {%- endmacro %}
 {#- A calm field of the theme's motif, beneath an empty tab's hint. Each motif's spread sets its place, timing and length, so that no two move in step. Nature gives each place a rising seed and a firefly, and shows the seeds on a light page and the fireflies on a dark one. -#}
-{% macro empty_field(theme) -%}
+{% macro calm_field(theme) -%}
 {%- set density = 14 %}
-<div class="empty-field" aria-hidden="true">
+<div class="calm-field" aria-hidden="true">
 {%- for index in range(density) %}
   {%- set at = ((index + 0.5) / density * 100)|round(2) %}
   {%- set spread = index * 7919 % 97 %}

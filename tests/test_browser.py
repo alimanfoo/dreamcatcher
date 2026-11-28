@@ -1044,7 +1044,7 @@ def test_nature_drops_a_seed_on_a_light_page_and_lights_a_firefly_on_a_dark_one(
         ("nature", "dark", "firefly"),
     ],
 )
-def test_an_empty_tab_holds_its_motif_field_beneath_its_hint(
+def test_an_empty_tab_holds_its_calm_field_beneath_its_hint(
     page: Page,
     empty_web: str,
     theme: str,
@@ -1055,7 +1055,7 @@ def test_an_empty_tab_holds_its_motif_field_beneath_its_hint(
     page.goto(f"{empty_web}/?theme={theme}")
     panel = page.locator("#assignment-panel")
     hint = panel.locator(".empty")
-    field = panel.locator(".empty-field")
+    field = panel.locator(".calm-field")
 
     expect(field).to_be_visible()
     shown_motifs = field.evaluate(
@@ -1072,13 +1072,13 @@ def test_an_empty_tab_holds_its_motif_field_beneath_its_hint(
 @pytest.mark.parametrize(
     ("theme", "scheme"), [("matrix", "dark"), ("nature", "light"), ("nature", "dark")]
 )
-def test_an_empty_tab_motif_field_keeps_still_under_reduced_motion(
+def test_a_calm_field_keeps_still_under_reduced_motion(
     page: Page, empty_web: str, theme: str, scheme: Literal["light", "dark"]
 ) -> None:
     page.emulate_media(reduced_motion="reduce", color_scheme=scheme)
     page.goto(f"{empty_web}/?theme={theme}")
 
-    field = page.locator("#assignment-panel .empty-field")
+    field = page.locator("#assignment-panel .calm-field")
     expect(field).to_be_visible()
     assert field.evaluate("field => field.getAnimations({ subtree: true }).length") == 0
 

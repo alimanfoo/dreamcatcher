@@ -854,10 +854,10 @@ body::after {
 /* Faint rain falls beneath an empty tab's hint, fading in at the top of
    its field and out at the bottom. */
 
-.empty-field {
-  --empty-field-height: 420px;
+.calm-field {
+  --calm-field-height: 420px;
   position: relative;
-  height: var(--empty-field-height);
+  height: var(--calm-field-height);
   overflow: hidden;
   mask-image: linear-gradient(
     to bottom,
@@ -869,7 +869,7 @@ body::after {
 }
 
 .empty-rain-column {
-  --rain-end: var(--empty-field-height);
+  --rain-end: var(--calm-field-height);
   font-size: 14px;
   text-shadow: 0 0 6px rgba(51, 255, 102, 0.6);
   opacity: 0.18;

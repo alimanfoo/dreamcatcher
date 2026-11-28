@@ -668,8 +668,8 @@ body::after {
   animation: firefly-pulse ease-in-out infinite;
 }
 
-.empty-field {
-  --empty-field-height: 400px;
+.calm-field {
+  --calm-field-height: 400px;
   mask-image: linear-gradient(
     to bottom,
     transparent,
@@ -679,11 +679,11 @@ body::after {
   );
 }
 
-.empty-field .firefly {
+.calm-field .firefly {
   opacity: 0.55;
 }
 
-.empty-field .firefly-glow {
+.calm-field .firefly-glow {
   --pulse-low: 0.15;
   --pulse-settle: 0.85;
   box-shadow:
@@ -779,8 +779,8 @@ body::after {
     display: none;
   }
 
-  .empty-field .firefly,
-  .empty-field .firefly-glow {
+  .calm-field .firefly,
+  .calm-field .firefly-glow {
     animation: none;
   }
 }
