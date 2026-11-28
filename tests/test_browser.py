@@ -55,7 +55,7 @@ RECORD_TAIL_HIDDEN_PER_FRAME = """() => {
   requestAnimationFrame(record);
 }"""
 
-# The narrowest window whose gutter beside the text holds the working motifs.
+# The narrowest window whose side margins hold the working motifs.
 MOTIF_WINDOW_WIDTH = 1184
 
 # Step every animation of each shown working-agent motif through its cycle,
@@ -941,7 +941,7 @@ def test_nature_shows_exactly_one_of_sun_and_moon_at_each_boundary(
 @pytest.mark.parametrize(
     ("theme", "scheme"), [("matrix", "dark"), ("nature", "light"), ("nature", "dark")]
 )
-def test_working_motifs_stay_in_the_gutter_beneath_the_header(
+def test_working_motifs_stay_in_the_side_margins_beneath_the_header(
     page: Page,
     live_web: str,
     theme: str,

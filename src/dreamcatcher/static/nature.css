@@ -626,7 +626,7 @@ body::after {
 }
 
 .seed-body {
-  --seed-sway: calc(var(--gutter-unit) * 22);
+  --seed-sway: calc(var(--side-margin-unit) * 22);
   animation: seed-sway ease-in-out infinite;
 }
 
@@ -704,7 +704,7 @@ body::after {
 
   100% {
     transform: translate(
-        calc(var(--gutter-unit) * -30),
+        calc(var(--side-margin-unit) * -30),
         calc(100vh + 40px)
       )
       rotate(14deg);
@@ -747,15 +747,15 @@ body::after {
   }
 
   25% {
-    transform: translate(calc(var(--gutter-unit, 1px) * 26), -38px);
+    transform: translate(calc(var(--side-margin-unit, 1px) * 26), -38px);
   }
 
   50% {
-    transform: translate(calc(var(--gutter-unit, 1px) * -14), -70px);
+    transform: translate(calc(var(--side-margin-unit, 1px) * -14), -70px);
   }
 
   75% {
-    transform: translate(calc(var(--gutter-unit, 1px) * -30), -24px);
+    transform: translate(calc(var(--side-margin-unit, 1px) * -30), -24px);
   }
 }
 
