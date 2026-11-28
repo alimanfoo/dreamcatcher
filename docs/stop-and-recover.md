@@ -93,7 +93,7 @@ to unblock any work that depends on it.
 If you close an assignment's pull request without merging and want
 another attempt, remove and re-add the assignment label on the open
 issue assigned to you. For a campaign, follow the steps to
-[start a fresh campaign](start-a-campaign.md#review-and-merge-the-campaign).
+[start a fresh campaign](start-a-campaign.md#start-a-fresh-campaign).
 
 ## Restart an interrupted daemon
 

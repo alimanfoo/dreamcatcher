@@ -109,12 +109,17 @@ Either action calls for the lead's wrap-up round. Keep the daemon
 running until the campaign shows **completed**. The next update removes
 its worktree and local branch.
 
+### Start a fresh campaign
+
 If you close the campaign's pull request without merging, sub-issues
 whose pull requests merged into the campaign branch stay closed. Their
-work never reached the default branch. To start a fresh campaign on the
-open parent, wait for wrap-up, then reopen the sub-issues you want
-redone on GitHub. Once you've reopened them, remove and re-add the
-parent's campaign label.
+work never reached the default branch.
+
+Once the campaign has ended, reopen the sub-issues you want redone on
+GitHub. Then remove and re-add the campaign label on the open parent. If
+the new lead treats a reopened sub-issue as done, ask it on the new
+campaign's pull request to dispatch a fresh assignment for that
+sub-issue.
 
 ## Stop or take over
 
