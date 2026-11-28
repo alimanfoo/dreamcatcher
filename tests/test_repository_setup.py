@@ -296,6 +296,19 @@ def test_a_configuration_with_no_routes_gives_no_route_advice(
     )
 
 
+def test_a_route_free_configuration_on_the_default_branch_needs_no_next_steps(
+    checkout, gh, harness_installer, capsys
+):
+    harness_installer(programs=["claude"])
+    (checkout / DREAMCATCHER_CONFIG_NAME).write_text("", encoding="utf-8")
+    commit(path=checkout, message="Configure dreamcatcher")
+    run_git(arguments=["push", "origin", "main"], cwd=checkout)
+
+    set_up_repository(root=checkout)
+
+    assert capsys.readouterr().out.endswith("dreamcatcher is ready.\n")
+
+
 def test_a_machine_with_no_harness_is_refused(checkout, gh, harness_installer):
     harness_installer(programs=[])
 

@@ -167,7 +167,7 @@ def _report_next_steps(
     default_branch: str,
     is_config_on_default_branch: bool,
 ) -> None:
-    lines = ["", "dreamcatcher is ready. Next:"]
+    lines = []
     if not is_config_on_default_branch:
         lines += [
             f"  git add {DREAMCATCHER_CONFIG_NAME}",
@@ -176,5 +176,9 @@ def _report_next_steps(
         ]
     if config.routed_harnesses:
         lines.append(f"  dreamcatcher run --harness {min(config.routed_harnesses)}")
+    _print_line(line="")
+    _print_line(
+        line="dreamcatcher is ready. Next:" if lines else "dreamcatcher is ready."
+    )
     for line in lines:
         _print_line(line=line)
