@@ -790,13 +790,13 @@ body::after {
   font-weight: 700;
 }
 
-/* The working-agent motifs move beneath the site header, in the gutter
-   between the window and the content's text, while the reader allows motion.
-   The mockups give that gutter 188px in Matrix and 192px in Nature once the
-   real page's side padding is included. The seed's 38px fixed reach stays its
-   mockup size; --gutter-unit scales every horizontal place and movement into
-   the rest. The motifs show once even the narrower Matrix gutter is 60px: the
-   1120px column's 1184px window, including its 28px side padding. */
+/* The working-agent motifs move beneath the site header, in the side margins
+   between the window's edges and the content's text, while the reader allows
+   motion. Including the page's side padding, each side margin in the mockups
+   is 188px in Matrix and 192px in Nature. The seed keeps its 38px fixed reach,
+   and --side-margin-unit scales every horizontal place and movement into the
+   remaining space. The motifs show when even Matrix's narrower side margin
+   reaches 60px, with a 1120px column and 28px side padding in a 1184px window. */
 
 .working-motifs {
   display: none;
@@ -804,7 +804,7 @@ body::after {
 
 @media (min-width: 1184px) and (prefers-reduced-motion: no-preference) {
   .working-motifs {
-    --gutter-unit: calc(
+    --side-margin-unit: calc(
       (
           (100cqw - var(--page-width)) / 2 + var(--page-side-padding) -
             38px
@@ -854,10 +854,10 @@ body::after {
 /* Faint rain falls beneath an empty tab's hint, fading in at the top of
    its field and out at the bottom. */
 
-.empty-field {
-  --empty-field-height: 420px;
+.calm-field {
+  --calm-field-height: 420px;
   position: relative;
-  height: var(--empty-field-height);
+  height: var(--calm-field-height);
   overflow: hidden;
   mask-image: linear-gradient(
     to bottom,
@@ -869,7 +869,7 @@ body::after {
 }
 
 .empty-rain-column {
-  --rain-end: var(--empty-field-height);
+  --rain-end: var(--calm-field-height);
   font-size: 14px;
   text-shadow: 0 0 6px rgba(51, 255, 102, 0.6);
   opacity: 0.18;

@@ -706,14 +706,14 @@ The home page gives each theme a motif, drawn by the macros in
 running agents, the macros give each motif its place and timing, and
 each theme's stylesheet gives it its look. A working motif's place is a
 distance from the window's edge in the mockup, and the stylesheet scales
-each horizontal place and movement to the gutter between the window and
-the content's text, including the theme's side padding. It keeps the
-motif's fixed size and preserves the mockup's places at 1440px. The home
-page's refresh redraws the motifs with the page, so the count stays true
-without a script of their own. Nature draws both a seed and a firefly
-for each motif, and its stylesheet shows the seeds on a light page and
-the fireflies on a dark one, so the motif always suits the sky behind
-it.
+each horizontal place and movement to the side margin between the
+window's edge and the content's text, including the theme's side
+padding. It keeps the motif's fixed size and preserves the mockup's
+places at 1440px. The home page's refresh redraws the motifs with the
+page, so the count stays true without a script of their own. Nature
+draws both a seed and a firefly for each motif, and its stylesheet shows
+the seeds on a light page and the fireflies on a dark one, so the motif
+always suits the sky behind it.
 
 `home.js` observes the site header's rendered height and writes it to
 the shared stylesheet variable, so the fixed working-motif layer begins

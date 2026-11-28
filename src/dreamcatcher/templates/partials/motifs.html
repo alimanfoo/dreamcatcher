@@ -23,7 +23,7 @@
 {% macro place_motif(places, index, count) -%}
   {% set place = places[index % places|length] -%}
   {% set laps = (count + places|length - 1) // places|length -%}
-  {{ place.side }}: calc(var(--gutter-unit) * {{ place.at }}); animation-duration: {{ place.duration }}s; animation-delay: {{ (place.delay - (index // places|length) * place.duration / laps)|round(2) }}s
+  {{ place.side }}: calc(var(--side-margin-unit) * {{ place.at }}); animation-duration: {{ place.duration }}s; animation-delay: {{ (place.delay - (index // places|length) * place.duration / laps)|round(2) }}s
 {%- endmacro %}
 {#- One motif for each working agent. Nature gives each agent a seed and a firefly, and shows the seed on a light page and the firefly on a dark one. -#}
 {% macro working_motifs(theme, count) -%}
@@ -44,9 +44,9 @@
 </div>
 {%- endmacro %}
 {#- A calm field of the theme's motif, beneath an empty tab's hint. Each motif's spread sets its place, timing and length, so that no two move in step. Nature gives each place a rising seed and a firefly, and shows the seeds on a light page and the fireflies on a dark one. -#}
-{% macro empty_field(theme) -%}
+{% macro calm_field(theme) -%}
 {%- set density = 14 %}
-<div class="empty-field" aria-hidden="true">
+<div class="calm-field" aria-hidden="true">
 {%- for index in range(density) %}
   {%- set at = ((index + 0.5) / density * 100)|round(2) %}
   {%- set spread = index * 7919 % 97 %}
