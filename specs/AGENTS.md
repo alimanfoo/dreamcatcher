@@ -4,9 +4,7 @@ The following dated folders contain completed phase specifications. A
 folder added to this list by the current pull request remains active
 until that pull request merges. Every document in a completed phase is
 retained only as a historical record. Do not update these documents to
-match the current code. When a heading that one of them links to goes,
-link to the page instead; never link to a commit, because the
-documentation stays coherent as one whole.
+match the current code.
 
 - `2026-08-17-skeleton`
 - `2026-09-08-watchtower`
@@ -25,6 +23,10 @@ documentation stays coherent as one whole.
 A dated folder that is absent from this list is an active phase. If you
 find that an unlisted phase has already ended, add it to this list
 before changing any of its specifications.
+
+Every specification, active or completed, links only within its own
+dated folder and to external URLs. Refer to repository files and symbols
+outside that folder in backticks.
 
 Keep an active phase's specifications aligned with implementation
 changes, including review changes on its final pull request, and say in
