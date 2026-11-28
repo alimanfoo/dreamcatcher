@@ -29,6 +29,13 @@ the change.
 
 ## Unreleased
 
+### Fixed
+
+- The campaign guide now explains how to start over after closing a
+  campaign's pull request without merging. Reopen the sub-issues you
+  want redone, then remove and re-add the parent's campaign label.
+  ([#951](https://github.com/alimanfoo/dreamcatcher/pull/951))
+
 ## [v10.0.0](https://github.com/alimanfoo/dreamcatcher/releases/tag/v10.0.0) — 2026-11-27
 
 ### Breaking

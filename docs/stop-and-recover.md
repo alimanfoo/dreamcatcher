@@ -90,8 +90,10 @@ is open. If you cancel a sub-issue's assignment and merge its pull
 request into the campaign branch yourself, close the sub-issue on GitHub
 to unblock any work that depends on it.
 
-If you close the pull request without merging and want another attempt,
-remove and re-add the dispatch label on the open issue assigned to you.
+If you close an assignment's pull request without merging and want
+another attempt, remove and re-add the assignment label on the open
+issue assigned to you. For a campaign, follow the steps to
+[start a fresh campaign](start-a-campaign.md#start-a-fresh-campaign).
 
 ## Restart an interrupted daemon
 
