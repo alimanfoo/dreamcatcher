@@ -107,8 +107,14 @@ Merge the pull request when you're satisfied. GitHub closes the parent.
 If you decide to abandon the change, close the pull request instead.
 Either action calls for the lead's wrap-up round. Keep the daemon
 running until the campaign shows **completed**. The next update removes
-its worktree and local branch. To try again on an open parent, remove
-and re-add its campaign label after wrap-up.
+its worktree and local branch.
+
+If you close the campaign's pull request without merging, sub-issues
+whose pull requests merged into the campaign branch stay closed. Their
+work never reached the default branch. To start a fresh campaign on the
+open parent, wait for wrap-up, then reopen the sub-issues you want
+redone on GitHub. Once you've reopened them, remove and re-add the
+parent's campaign label.
 
 ## Stop or take over
 

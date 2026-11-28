@@ -326,12 +326,25 @@ When the lead judges every sub-issue done, it can make and push its own
 changes before marking the campaign's pull request ready for review. The
 user reviews it and merges it when satisfied. GitHub closes the parent.
 The lead wraps up in its next round, then _dreamcatcher_ removes the
-worktree and local branch and keeps the record. If the user closes the
-pull request without merging, the lead still wraps up. If the original
-label has stayed on, its request has already been used. To start a new
-campaign the user removes and reapplies the label.
+worktree and local branch and keeps the record.
 
 The user gets one pull request to review for the whole body of work.
+
+#### The user closes a campaign pull request and tries again
+
+The user decides the campaign's work needs a fresh start and closes its
+pull request without merging. The lead wraps up and the campaign shows
+as completed. The parent stays open. Sub-issues whose pull requests
+merged into the campaign branch stay closed, even though their work
+never reached the default branch.
+
+After wrap-up, the user reopens the sub-issues they want redone on
+GitHub, then removes and re-adds the parent's campaign label. A new
+campaign starts with a new branch from the default branch. The new lead
+can dispatch fresh assignments for the reopened sub-issues, whose pull
+requests go into the new campaign branch.
+
+The user can have selected work redone on a fresh campaign branch.
 
 #### The user queues one campaign behind another
 
