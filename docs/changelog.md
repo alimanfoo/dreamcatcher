@@ -32,7 +32,10 @@ the change.
 ### Changed
 
 - `dreamcatcher init` leaves guidance for starting work to the status
-  report.
+  report. ([#961](https://github.com/alimanfoo/dreamcatcher/pull/961))
+- The web pages refresh every second, so the next-update countdown
+  advances one second at a time.
+  ([#962](https://github.com/alimanfoo/dreamcatcher/pull/962))
 
 ### Fixed
 

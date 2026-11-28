@@ -1026,7 +1026,7 @@ def test_assignment_page_polls_its_tail_from_the_last_complete_line(tmp_path):
     assert f'id="position" name="position" value="2:{feed_path.stat().st_size}"' in page
     assert (
         f'id="records" class="feed-records" '
-        f'hx-get="/work/{identifier}/tail" hx-trigger="every 2s" '
+        f'hx-get="/work/{identifier}/tail" hx-trigger="every 1s" '
         'hx-include="#position" hx-select=".feed-round" hx-swap="beforeend"' in page
     )
 
