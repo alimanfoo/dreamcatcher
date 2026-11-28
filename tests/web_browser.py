@@ -6,7 +6,7 @@ from datetime import timedelta
 from pathlib import Path
 
 from clocks import DISPLAY_TIME_ZONE
-from records import compose_conversation_identifier
+from records import compose_conversation_identifier, write_conversation
 from rows import compose_conversation_row
 from status_fabrications import (
     ASSIGNMENT_TIMESTAMP,
@@ -20,7 +20,10 @@ from status_fabrications import (
 from dreamcatcher.agent_work import find_agent_work
 from dreamcatcher.documents import append_text
 from dreamcatcher.feed import FeedLine
-from dreamcatcher.scheduler.models import IssueCommentsFinding
+from dreamcatcher.scheduler.models import (
+    IssueCommentsFinding,
+    LabelAppliedByOtherFinding,
+)
 from dreamcatcher.state import StateDirectory
 from dreamcatcher.web.app import _create_app
 from dreamcatcher.web.server import (
@@ -38,12 +41,18 @@ def serve_fabricated_web(*, root: Path) -> Generator[str, None, None]:
     """Serve representative state on an available port until the caller exits."""
     state = StateDirectory(root=root)
     fabricate_conversation(state=state)
+    write_conversation(state=state, issue=10)
     fabricate_everything(
         state=state,
         other_rows=[
             compose_conversation_row(
                 finding=IssueCommentsFinding(new_comments=0),
                 agent_work_identifier=compose_conversation_identifier(issue=8),
+            ),
+            compose_conversation_row(
+                issue=10,
+                finding=LabelAppliedByOtherFinding(applier="colleague"),
+                agent_work_identifier=compose_conversation_identifier(issue=10),
             ),
             *fabricate_campaigns(state=state),
         ],
