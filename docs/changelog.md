@@ -29,6 +29,11 @@ the change.
 
 ## Unreleased
 
+### Changed
+
+- `dreamcatcher init` leaves guidance for starting work to the status
+  report.
+
 ### Fixed
 
 - The campaign guide now explains how to start over after closing a
