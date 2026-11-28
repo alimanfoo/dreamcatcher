@@ -19,6 +19,7 @@ PAGES = (
     ("Faulted assignment", "/work/GH9-20260819-184158-assignment"),
     ("Waiting assignment", "/work/GH44-20260819-184158-assignment"),
     ("Conversation", "/work/GH8-20260819-184158-conversation"),
+    ("Held conversation", "/work/GH10-20260819-184158-conversation"),
     ("Campaign", "/work/GH60-20260819-184158-campaign"),
 )
 
