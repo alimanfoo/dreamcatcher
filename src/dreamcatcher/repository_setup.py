@@ -76,7 +76,6 @@ def set_up_repository(*, root: Path) -> None:
         _set_up_harness(harness=harness)
     _create_missing_labels(repository=identity.repository, config=config)
     _report_next_steps(
-        account=identity.account,
         config=config,
         default_branch=default_branch,
         is_config_on_default_branch=is_file_on_default_branch(
@@ -164,39 +163,22 @@ def _create_missing_labels(*, repository: str, config: DreamcatcherConfig) -> No
 
 def _report_next_steps(
     *,
-    account: str,
     config: DreamcatcherConfig,
     default_branch: str,
     is_config_on_default_branch: bool,
 ) -> None:
-    lines = ["", "dreamcatcher is ready. Next:"]
+    lines = []
     if not is_config_on_default_branch:
         lines += [
             f"  git add {DREAMCATCHER_CONFIG_NAME}",
             '  git commit -m "Configure dreamcatcher"',
             f"  git push origin {default_branch}",
         ]
-    if config.assignment:
-        lines.append(
-            f"  Assign an issue to {account}, and label it "
-            f"{config.assignment[0].label}."
-        )
-    elif config.campaign:
-        lines.append(
-            f"  Assign a parent issue to {account}, and label it "
-            f"{config.campaign[0].label}."
-        )
-    elif config.conversation:
-        lines.append(
-            f"  Assign an issue to {account}, label it "
-            f"{config.conversation[0].label}, and comment with your question."
-        )
-    else:
-        lines.append(
-            "  Add an assignment, campaign or conversation route to "
-            f"{DREAMCATCHER_CONFIG_NAME}."
-        )
     if config.routed_harnesses:
         lines.append(f"  dreamcatcher run --harness {min(config.routed_harnesses)}")
+    _print_line(line="")
+    _print_line(
+        line="dreamcatcher is ready. Next:" if lines else "dreamcatcher is ready."
+    )
     for line in lines:
         _print_line(line=line)
